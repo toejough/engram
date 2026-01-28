@@ -39,7 +39,28 @@ type ParseResult struct {
 // Returns all successfully parsed items and any errors encountered.
 // Malformed items are skipped with errors collected.
 func ParseDocument(content string) ([]ParseResult, []error) {
-	return nil, nil
+	items, err := SplitFrontmatter(content)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	var results []ParseResult
+	var errs []error
+
+	for _, item := range items {
+		parsed, err := ParseFrontmatter(item.Frontmatter)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		results = append(results, ParseResult{
+			Item: parsed,
+			Body: item.Body,
+		})
+	}
+
+	return results, errs
 }
 
 // ParseFrontmatter parses YAML frontmatter into a TraceItem.
