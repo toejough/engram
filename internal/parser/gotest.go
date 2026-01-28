@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -48,6 +49,18 @@ func ParseTestFunctions(filename, src string) ([]TestFunction, error) {
 	}
 
 	return funcs, nil
+}
+
+// TraceCommentResult contains parsed trace comment data.
+type TraceCommentResult struct {
+	TestID  string   // The TEST-NNN ID
+	Targets []string // Target IDs (TASK-NNN, REQ-NNN, etc.)
+}
+
+// ParseTraceComment parses a trace comment string into structured data.
+// Expected format: "// TEST-NNN traces: TARGET1, TARGET2"
+func ParseTraceComment(comment string) (*TraceCommentResult, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 // extractTraceComment extracts the trace comment line from a comment group.

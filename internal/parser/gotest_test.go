@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -260,4 +261,107 @@ func TestSomething(t *testing.T) {}
 	g.Expect(funcs).To(HaveLen(1))
 	// Blank line breaks association - should have no comment
 	g.Expect(funcs[0].Comment).To(BeEmpty())
+}
+
+// TEST-099 traces: TASK-014
+// Test parsing valid trace comment
+func TestParseTraceComment_Valid(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-001 traces: TASK-001"
+	result, err := parser.ParseTraceComment(comment)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.TestID).To(Equal("TEST-001"))
+	g.Expect(result.Targets).To(Equal([]string{"TASK-001"}))
+}
+
+// TEST-100 traces: TASK-014
+// Test parsing trace comment with multiple targets
+func TestParseTraceComment_MultipleTargets(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-042 traces: TASK-001, ARCH-005, REQ-010"
+	result, err := parser.ParseTraceComment(comment)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.TestID).To(Equal("TEST-042"))
+	g.Expect(result.Targets).To(Equal([]string{"TASK-001", "ARCH-005", "REQ-010"}))
+}
+
+// TEST-101 traces: TASK-014
+// Test parsing trace comment with uppercase Traces
+func TestParseTraceComment_UppercaseTraces(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-001 Traces: TASK-001"
+	result, err := parser.ParseTraceComment(comment)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.TestID).To(Equal("TEST-001"))
+	g.Expect(result.Targets).To(Equal([]string{"TASK-001"}))
+}
+
+// TEST-102 traces: TASK-014
+// Test parsing trace comment with flexible whitespace
+func TestParseTraceComment_FlexibleWhitespace(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-001   traces:   TASK-001,   TASK-002"
+	result, err := parser.ParseTraceComment(comment)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Targets).To(Equal([]string{"TASK-001", "TASK-002"}))
+}
+
+// TEST-103 traces: TASK-014
+// Test parsing trace comment with lowercase target IDs (should uppercase)
+func TestParseTraceComment_UppercasesTargets(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-001 traces: task-001, arch-005"
+	result, err := parser.ParseTraceComment(comment)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Targets).To(Equal([]string{"TASK-001", "ARCH-005"}))
+}
+
+// TEST-104 traces: TASK-014
+// Test parsing malformed trace comment returns error
+func TestParseTraceComment_Malformed(t *testing.T) {
+	g := NewWithT(t)
+
+	comment := "// TEST-001 invalid"
+	_, err := parser.ParseTraceComment(comment)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TEST-105 traces: TASK-014
+// Test parsing empty string returns error
+func TestParseTraceComment_Empty(t *testing.T) {
+	g := NewWithT(t)
+
+	_, err := parser.ParseTraceComment("")
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TEST-106 traces: TASK-014
+// Property test: valid format always parses
+func TestParseTraceComment_PropertyValid(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		testNum := rapid.IntRange(1, 999).Draw(rt, "testNum")
+		testID := "TEST-" + padNum(testNum)
+
+		targetCount := rapid.IntRange(1, 5).Draw(rt, "targetCount")
+		targetTypes := []string{"TASK", "REQ", "ARCH", "DES"}
+		var targets []string
+		for i := 0; i < targetCount; i++ {
+			targetType := rapid.SampledFrom(targetTypes).Draw(rt, "targetType")
+			targetNum := rapid.IntRange(1, 999).Draw(rt, "targetNum")
+			targets = append(targets, targetType+"-"+padNum(targetNum))
+		}
+
+		comment := "// " + testID + " traces: " + strings.Join(targets, ", ")
+		result, err := parser.ParseTraceComment(comment)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TestID).To(Equal(testID))
+		g.Expect(result.Targets).To(HaveLen(targetCount))
+	})
 }
