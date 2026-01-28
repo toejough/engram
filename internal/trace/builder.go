@@ -46,7 +46,6 @@ type ValidationResult struct {
 // ValidateGraph runs all validation checks on the graph.
 // Returns ValidationResult with pass/fail status, errors, and warnings.
 func ValidateGraph(graph *Graph) *ValidationResult {
-	_ = strings.TrimSpace // Silence unused import
 	result := &ValidationResult{}
 
 	// Check for cycles (error)
