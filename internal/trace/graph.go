@@ -168,9 +168,23 @@ func (g *Graph) downstreamWalk(nodeID string, visited map[string]bool, result *[
 }
 
 // Orphans finds nodes of the given type that have no edges in the specified direction.
-// direction="upstream" finds nodes with no incoming edges (nothing traces to them).
-// direction="downstream" finds nodes with no outgoing edges (they trace to nothing).
+// direction="upstream" finds nodes with no outgoing edges (for TESTs: no traced tasks).
+// direction="downstream" finds nodes with no outgoing edges (for REQs/TASKs: no children).
+// Note: Both directions check outgoing edges (Edges) in the current model where edges
+// represent "traces-to" or "has-child" relationships from source node.
 func (g *Graph) Orphans(nodeType NodeType, direction string) []string {
-	// TODO: Implement
-	return nil
+	var result []string
+
+	for id, node := range g.Nodes {
+		if node.Type != nodeType {
+			continue
+		}
+
+		// Check if node has outgoing edges
+		if len(g.Edges[id]) == 0 {
+			result = append(result, id)
+		}
+	}
+
+	return result
 }
