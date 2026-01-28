@@ -9,7 +9,27 @@ type ValidateV2Result struct {
 }
 
 // ValidateV2 validates traceability using the graph-based system.
-// Discovers YAML docs and Go test files, builds a graph, and validates.
-func ValidateV2(dir string) (*ValidateV2Result, error) {
-	return &ValidateV2Result{Pass: true}, nil
+// Takes pre-collected trace items, builds a graph, and validates.
+func ValidateV2(items []*TraceItem) (*ValidateV2Result, error) {
+	// 1. Build the graph
+	graph, buildWarnings, err := BuildGraph(items)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Validate the graph
+	validation := ValidateGraph(graph)
+
+	// 3. Combine results
+	result := &ValidateV2Result{
+		Pass:      validation.Pass,
+		Errors:    validation.Errors,
+		Warnings:  validation.Warnings,
+		NodeCount: len(graph.Nodes),
+	}
+
+	// Add build warnings to result warnings
+	result.Warnings = append(result.Warnings, buildWarnings...)
+
+	return result, nil
 }

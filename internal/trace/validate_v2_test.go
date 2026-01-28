@@ -1,8 +1,6 @@
 package trace_test
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -14,53 +12,16 @@ import (
 // Test ValidateV2 passes with valid graph
 func TestValidateV2_Valid(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
 
-	// Create docs directory with valid trace chain
-	docsDir := filepath.Join(dir, "docs")
-	g.Expect(os.Mkdir(docsDir, 0755)).To(Succeed())
+	// REQ -> ARCH -> TASK -> TEST chain
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "Req", Status: "active"},
+		{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "test", Title: "Arch", Status: "active", TracesTo: []string{"REQ-001"}},
+		{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"ARCH-001"}},
+		{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "test", Title: "Test", Status: "active", Location: "foo_test.go", Function: "TestFeature", TracesTo: []string{"TASK-001"}},
+	}
 
-	// REQ -> ARCH -> TASK chain
-	writeDoc(t, docsDir, "requirements.md", `---
-id: REQ-001
-type: REQ
-project: test
-title: A requirement
-status: active
----
-`)
-
-	writeDoc(t, docsDir, "architecture.md", `---
-id: ARCH-001
-type: ARCH
-project: test
-title: Architecture decision
-status: active
-traces_to:
-  - REQ-001
----
-`)
-
-	writeDoc(t, docsDir, "tasks.md", `---
-id: TASK-001
-type: TASK
-project: test
-title: Implementation task
-status: active
-traces_to:
-  - ARCH-001
----
-`)
-
-	// Create test file that traces to task
-	writeDoc(t, dir, "foo_test.go", `package foo_test
-
-// TEST-001 traces: TASK-001
-// Test the feature
-func TestFeature(t *testing.T) {}
-`)
-
-	result, err := trace.ValidateV2(dir)
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeTrue())
 	g.Expect(result.Errors).To(BeEmpty())
@@ -70,33 +31,14 @@ func TestFeature(t *testing.T) {}
 // Test ValidateV2 fails with cycle
 func TestValidateV2_WithCycle(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
-
-	docsDir := filepath.Join(dir, "docs")
-	g.Expect(os.Mkdir(docsDir, 0755)).To(Succeed())
 
 	// Create a cycle: REQ-001 -> REQ-002 -> REQ-001
-	writeDoc(t, docsDir, "requirements.md", `---
-id: REQ-001
-type: REQ
-project: test
-title: First
-status: active
-traces_to:
-  - REQ-002
----
----
-id: REQ-002
-type: REQ
-project: test
-title: Second
-status: active
-traces_to:
-  - REQ-001
----
-`)
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "First", Status: "active", TracesTo: []string{"REQ-002"}},
+		{ID: "REQ-002", Type: trace.NodeTypeREQ, Project: "test", Title: "Second", Status: "active", TracesTo: []string{"REQ-001"}},
+	}
 
-	result, err := trace.ValidateV2(dir)
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeFalse())
 	g.Expect(result.Errors).To(ContainElement(ContainSubstring("cycle")))
@@ -106,24 +48,13 @@ traces_to:
 // Test ValidateV2 fails with dangling reference
 func TestValidateV2_DanglingRef(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
-
-	docsDir := filepath.Join(dir, "docs")
-	g.Expect(os.Mkdir(docsDir, 0755)).To(Succeed())
 
 	// TASK traces to non-existent ARCH
-	writeDoc(t, docsDir, "tasks.md", `---
-id: TASK-001
-type: TASK
-project: test
-title: Task
-status: active
-traces_to:
-  - ARCH-999
----
-`)
+	items := []*trace.TraceItem{
+		{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"ARCH-999"}},
+	}
 
-	result, err := trace.ValidateV2(dir)
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeFalse())
 	g.Expect(result.Errors).To(ContainElement(ContainSubstring("ARCH-999")))
@@ -133,22 +64,13 @@ traces_to:
 // Test ValidateV2 reports coverage warnings
 func TestValidateV2_CoverageWarnings(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
-
-	docsDir := filepath.Join(dir, "docs")
-	g.Expect(os.Mkdir(docsDir, 0755)).To(Succeed())
 
 	// REQ with no downstream ARCH
-	writeDoc(t, docsDir, "requirements.md", `---
-id: REQ-001
-type: REQ
-project: test
-title: Orphan requirement
-status: active
----
-`)
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "Orphan req", Status: "active"},
+	}
 
-	result, err := trace.ValidateV2(dir)
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	// Coverage gaps are warnings, not errors
 	g.Expect(result.Pass).To(BeTrue())
@@ -156,12 +78,13 @@ status: active
 }
 
 // TEST-183 traces: TASK-029
-// Test ValidateV2 with empty project
-func TestValidateV2_EmptyProject(t *testing.T) {
+// Test ValidateV2 with empty items
+func TestValidateV2_Empty(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
 
-	result, err := trace.ValidateV2(dir)
+	items := []*trace.TraceItem{}
+
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeTrue())
 	g.Expect(result.Errors).To(BeEmpty())
@@ -171,34 +94,13 @@ func TestValidateV2_EmptyProject(t *testing.T) {
 // Test ValidateV2 returns node count
 func TestValidateV2_NodeCount(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
 
-	docsDir := filepath.Join(dir, "docs")
-	g.Expect(os.Mkdir(docsDir, 0755)).To(Succeed())
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "First", Status: "active"},
+		{ID: "REQ-002", Type: trace.NodeTypeREQ, Project: "test", Title: "Second", Status: "active"},
+	}
 
-	writeDoc(t, docsDir, "requirements.md", `---
-id: REQ-001
-type: REQ
-project: test
-title: First
-status: active
----
----
-id: REQ-002
-type: REQ
-project: test
-title: Second
-status: active
----
-`)
-
-	result, err := trace.ValidateV2(dir)
+	result, err := trace.ValidateV2(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.NodeCount).To(Equal(2))
-}
-
-func writeDoc(t *testing.T, dir, name, content string) {
-	t.Helper()
-	g := NewWithT(t)
-	g.Expect(os.WriteFile(filepath.Join(dir, name), []byte(content), 0644)).To(Succeed())
 }
