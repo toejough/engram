@@ -29,6 +29,19 @@ type frontmatterData struct {
 	Function string `yaml:"function"`
 }
 
+// ParseResult represents a parsed traceability item with its body content.
+type ParseResult struct {
+	Item *trace.TraceItem
+	Body string
+}
+
+// ParseDocument parses a document containing multiple frontmatter items.
+// Returns all successfully parsed items and any errors encountered.
+// Malformed items are skipped with errors collected.
+func ParseDocument(content string) ([]ParseResult, []error) {
+	return nil, nil
+}
+
 // ParseFrontmatter parses YAML frontmatter into a TraceItem.
 // Returns error if YAML is invalid or required fields are missing.
 func ParseFrontmatter(frontmatter string) (*trace.TraceItem, error) {

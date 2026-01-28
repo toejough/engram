@@ -446,3 +446,184 @@ func TestParseFrontmatter_PropertyValid(t *testing.T) {
 		g.Expect(item.Status).To(Equal(status))
 	})
 }
+
+// TEST-075 traces: TASK-010
+// Test parsing document with single item
+func TestParseDocument_SingleItem(t *testing.T) {
+	g := NewWithT(t)
+
+	content := `---
+id: REQ-001
+type: REQ
+project: test-project
+title: A test requirement
+status: active
+created: 2024-01-15T10:30:00Z
+updated: 2024-01-16T14:00:00Z
+---
+
+# Requirement Title
+
+This is the body content.
+`
+
+	results, errs := parser.ParseDocument(content)
+	g.Expect(errs).To(BeEmpty())
+	g.Expect(results).To(HaveLen(1))
+	g.Expect(results[0].Item.ID).To(Equal("REQ-001"))
+	g.Expect(results[0].Body).To(ContainSubstring("# Requirement Title"))
+	g.Expect(results[0].Body).To(ContainSubstring("body content"))
+}
+
+// TEST-076 traces: TASK-010
+// Test parsing document with multiple items
+func TestParseDocument_MultipleItems(t *testing.T) {
+	g := NewWithT(t)
+
+	content := `---
+id: REQ-001
+type: REQ
+project: test-project
+title: First requirement
+status: active
+created: 2024-01-15T10:30:00Z
+updated: 2024-01-16T14:00:00Z
+---
+
+Body one.
+
+---
+id: REQ-002
+type: REQ
+project: test-project
+title: Second requirement
+status: draft
+created: 2024-01-17T08:00:00Z
+updated: 2024-01-17T08:00:00Z
+---
+
+Body two.
+`
+
+	results, errs := parser.ParseDocument(content)
+	g.Expect(errs).To(BeEmpty())
+	g.Expect(results).To(HaveLen(2))
+	g.Expect(results[0].Item.ID).To(Equal("REQ-001"))
+	g.Expect(results[1].Item.ID).To(Equal("REQ-002"))
+}
+
+// TEST-077 traces: TASK-010
+// Test parsing document with malformed item continues to next
+func TestParseDocument_MalformedItemContinues(t *testing.T) {
+	g := NewWithT(t)
+
+	content := `---
+id: REQ-001
+type: REQ
+project: test-project
+title: Valid item
+status: active
+created: 2024-01-15T10:30:00Z
+updated: 2024-01-16T14:00:00Z
+---
+
+Body one.
+
+---
+id: INVALID
+type: REQ
+project: test-project
+title: Bad ID
+status: active
+created: 2024-01-15T10:30:00Z
+updated: 2024-01-16T14:00:00Z
+---
+
+Bad body.
+
+---
+id: REQ-003
+type: REQ
+project: test-project
+title: Valid after bad
+status: active
+created: 2024-01-17T08:00:00Z
+updated: 2024-01-17T08:00:00Z
+---
+
+Body three.
+`
+
+	results, errs := parser.ParseDocument(content)
+	g.Expect(errs).To(HaveLen(1)) // One error for the malformed item
+	g.Expect(results).To(HaveLen(2)) // Two valid items parsed
+	g.Expect(results[0].Item.ID).To(Equal("REQ-001"))
+	g.Expect(results[1].Item.ID).To(Equal("REQ-003"))
+}
+
+// TEST-078 traces: TASK-010
+// Test parsing empty document
+func TestParseDocument_Empty(t *testing.T) {
+	g := NewWithT(t)
+
+	results, errs := parser.ParseDocument("")
+	g.Expect(errs).To(BeEmpty())
+	g.Expect(results).To(BeEmpty())
+}
+
+// TEST-079 traces: TASK-010
+// Test parsing document with only invalid items
+func TestParseDocument_AllInvalid(t *testing.T) {
+	g := NewWithT(t)
+
+	content := `---
+id: INVALID
+type: REQ
+project: test-project
+title: Bad ID
+status: active
+created: 2024-01-15T10:30:00Z
+updated: 2024-01-16T14:00:00Z
+---
+
+Body.
+`
+
+	results, errs := parser.ParseDocument(content)
+	g.Expect(errs).To(HaveLen(1))
+	g.Expect(results).To(BeEmpty())
+}
+
+// TEST-080 traces: TASK-010
+// Property test: valid document with N items returns N results
+func TestParseDocument_PropertyValidItems(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		itemCount := rapid.IntRange(1, 5).Draw(rt, "itemCount")
+		var content string
+
+		for i := 0; i < itemCount; i++ {
+			id := "REQ-" + paddedNum(i+1)
+			content += "---\n"
+			content += "id: " + id + "\n"
+			content += "type: REQ\n"
+			content += "project: test-project\n"
+			content += "title: Requirement " + paddedNum(i+1) + "\n"
+			content += "status: active\n"
+			content += "created: 2024-01-15T10:30:00Z\n"
+			content += "updated: 2024-01-16T14:00:00Z\n"
+			content += "---\n\n"
+			content += "Body " + paddedNum(i+1) + ".\n\n"
+		}
+
+		results, errs := parser.ParseDocument(content)
+		g.Expect(errs).To(BeEmpty())
+		g.Expect(results).To(HaveLen(itemCount))
+
+		for i, result := range results {
+			expectedID := "REQ-" + paddedNum(i+1)
+			g.Expect(result.Item.ID).To(Equal(expectedID))
+		}
+	})
+}
