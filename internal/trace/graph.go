@@ -1,5 +1,10 @@
 package trace
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Graph represents the complete traceability graph.
 type Graph struct {
 	Nodes        map[string]*Node  // ID -> Node
@@ -67,6 +72,21 @@ func EdgesFromItem(item *TraceItem) []*Edge {
 // AddNode inserts a node into the graph.
 // Returns error if node is nil, has duplicate ID, or ID doesn't match Type.
 func (g *Graph) AddNode(n *Node) error {
-	// TODO: Implement
+	if n == nil {
+		return fmt.Errorf("node is nil")
+	}
+
+	// Validate ID prefix matches Type
+	expectedPrefix := string(n.Type) + "-"
+	if !strings.HasPrefix(n.ID, expectedPrefix) {
+		return fmt.Errorf("id prefix mismatch: ID %q does not match Type %q", n.ID, n.Type)
+	}
+
+	// Check for duplicate
+	if _, exists := g.Nodes[n.ID]; exists {
+		return fmt.Errorf("duplicate node ID: %s", n.ID)
+	}
+
+	g.Nodes[n.ID] = n
 	return nil
 }
