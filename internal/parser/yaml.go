@@ -4,7 +4,15 @@ package parser
 import (
 	"fmt"
 	"strings"
+
+	"github.com/toejough/projctl/internal/trace"
 )
+
+// ParseFrontmatter parses YAML frontmatter into a TraceItem.
+// Returns error if YAML is invalid or required fields are missing.
+func ParseFrontmatter(frontmatter string) (*trace.TraceItem, error) {
+	return nil, fmt.Errorf("not implemented")
+}
 
 // FrontmatterItem represents a parsed item with frontmatter and body.
 type FrontmatterItem struct {
