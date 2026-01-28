@@ -63,3 +63,10 @@ func EdgesFromItem(item *TraceItem) []*Edge {
 	}
 	return edges
 }
+
+// AddNode inserts a node into the graph.
+// Returns error if node is nil, has duplicate ID, or ID doesn't match Type.
+func (g *Graph) AddNode(n *Node) error {
+	// TODO: Implement
+	return nil
+}

@@ -208,3 +208,183 @@ func intToString(n int) string {
 	}
 	return s
 }
+
+// TEST-026 traces: TASK-003
+// Test that AddNode adds a node to the graph
+func TestGraph_AddNode(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	node := &trace.Node{
+		ID:      "REQ-001",
+		Type:    trace.NodeTypeREQ,
+		Project: "my-project",
+		Title:   "A requirement",
+		Status:  "active",
+	}
+
+	err := graph.AddNode(node)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(graph.Nodes).To(HaveKey("REQ-001"))
+	g.Expect(graph.Nodes["REQ-001"]).To(Equal(node))
+}
+
+// TEST-027 traces: TASK-003
+// Test that AddNode returns error for duplicate ID
+func TestGraph_AddNode_DuplicateID(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	node1 := &trace.Node{
+		ID:      "REQ-001",
+		Type:    trace.NodeTypeREQ,
+		Project: "my-project",
+		Title:   "First requirement",
+		Status:  "active",
+	}
+	node2 := &trace.Node{
+		ID:      "REQ-001", // Same ID
+		Type:    trace.NodeTypeREQ,
+		Project: "my-project",
+		Title:   "Duplicate requirement",
+		Status:  "active",
+	}
+
+	err := graph.AddNode(node1)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = graph.AddNode(node2)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("duplicate"))
+}
+
+// TEST-028 traces: TASK-003
+// Test that AddNode validates ID format matches NodeType
+func TestGraph_AddNode_IDTypeMismatch(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	node := &trace.Node{
+		ID:      "REQ-001",      // ID says REQ
+		Type:    trace.NodeTypeTASK, // Type says TASK
+		Project: "my-project",
+		Title:   "Mismatched",
+		Status:  "active",
+	}
+
+	err := graph.AddNode(node)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("mismatch"))
+}
+
+// TEST-029 traces: TASK-003
+// Test that AddNode returns error for nil node
+func TestGraph_AddNode_NilNode(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	err := graph.AddNode(nil)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("nil"))
+}
+
+// TEST-030 traces: TASK-003
+// Test that graph state is unchanged after AddNode error
+func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	node1 := &trace.Node{
+		ID:      "REQ-001",
+		Type:    trace.NodeTypeREQ,
+		Project: "my-project",
+		Title:   "First requirement",
+		Status:  "active",
+	}
+
+	err := graph.AddNode(node1)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	originalCount := len(graph.Nodes)
+
+	// Try to add duplicate
+	node2 := &trace.Node{
+		ID:      "REQ-001", // Same ID
+		Type:    trace.NodeTypeREQ,
+		Project: "my-project",
+		Title:   "Duplicate",
+		Status:  "active",
+	}
+	err = graph.AddNode(node2)
+	g.Expect(err).To(HaveOccurred())
+
+	// State should be unchanged
+	g.Expect(graph.Nodes).To(HaveLen(originalCount))
+	g.Expect(graph.Nodes["REQ-001"].Title).To(Equal("First requirement"))
+}
+
+// TEST-031 traces: TASK-003
+// Property test: AddNode with unique valid nodes always succeeds
+func TestGraph_AddNode_PropertyUniqueNodesSucceed(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		graph := trace.NewGraph()
+
+		nodeType := rapid.SampledFrom([]trace.NodeType{
+			trace.NodeTypeREQ,
+			trace.NodeTypeDES,
+			trace.NodeTypeARCH,
+			trace.NodeTypeTASK,
+			trace.NodeTypeTEST,
+		}).Draw(rt, "nodeType")
+
+		num := rapid.IntRange(1, 999).Draw(rt, "num")
+		id := string(nodeType) + "-" + padNum3(num)
+
+		node := &trace.Node{
+			ID:      id,
+			Type:    nodeType,
+			Project: "test-project",
+			Title:   "Test node",
+			Status:  "active",
+		}
+
+		err := graph.AddNode(node)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(graph.Nodes).To(HaveKey(id))
+	})
+}
+
+// TEST-032 traces: TASK-003
+// Property test: AddNode with duplicate ID always fails
+func TestGraph_AddNode_PropertyDuplicateIDFails(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		graph := trace.NewGraph()
+
+		num := rapid.IntRange(1, 999).Draw(rt, "num")
+		id := "REQ-" + padNum3(num)
+
+		node1 := &trace.Node{
+			ID:      id,
+			Type:    trace.NodeTypeREQ,
+			Project: "test-project",
+			Title:   "First node",
+			Status:  "active",
+		}
+
+		node2 := &trace.Node{
+			ID:      id, // Same ID
+			Type:    trace.NodeTypeREQ,
+			Project: "test-project",
+			Title:   "Second node",
+			Status:  "active",
+		}
+
+		err := graph.AddNode(node1)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = graph.AddNode(node2)
+		g.Expect(err).To(HaveOccurred())
+	})
+}
