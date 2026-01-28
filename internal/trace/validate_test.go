@@ -177,3 +177,60 @@ func TestValidateDanglingRefs_Empty(t *testing.T) {
 	errors := trace.ValidateDanglingRefs(graph)
 	g.Expect(errors).To(BeEmpty())
 }
+
+// TEST-157 traces: TASK-025
+// Test complete coverage passes
+func TestValidateCoverage_Complete(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Location: "test.go"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TEST-001", To: "TASK-001"})
+
+	warnings := trace.ValidateCoverage(graph)
+	g.Expect(warnings).To(BeEmpty())
+}
+
+// TEST-158 traces: TASK-025
+// Test REQ with no downstream ARCH/DES warns
+func TestValidateCoverage_REQNoDownstream(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ})
+
+	warnings := trace.ValidateCoverage(graph)
+	g.Expect(warnings).To(HaveLen(1))
+	g.Expect(warnings[0]).To(ContainSubstring("REQ-001"))
+}
+
+// TEST-159 traces: TASK-025
+// Test TASK with no TEST warns
+func TestValidateCoverage_TASKNoTEST(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK})
+
+	warnings := trace.ValidateCoverage(graph)
+	g.Expect(warnings).To(HaveLen(1))
+	g.Expect(warnings[0]).To(ContainSubstring("TASK-001"))
+}
+
+// TEST-160 traces: TASK-025
+// Test ARCH with no TASK warns
+func TestValidateCoverage_ARCHNoTASK(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH})
+
+	warnings := trace.ValidateCoverage(graph)
+	g.Expect(warnings).To(HaveLen(1))
+	g.Expect(warnings[0]).To(ContainSubstring("ARCH-001"))
+}

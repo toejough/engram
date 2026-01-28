@@ -36,3 +36,10 @@ func ValidateDanglingRefs(graph *Graph) []string {
 	}
 	return errors
 }
+
+// ValidateCoverage checks trace coverage rules.
+// REQ should have ARCH/DES downstream, ARCH should have TASK, TASK should have TEST.
+// Returns list of warnings (coverage gaps don't fail validation).
+func ValidateCoverage(graph *Graph) []string {
+	return nil
+}
