@@ -41,5 +41,40 @@ func ValidateDanglingRefs(graph *Graph) []string {
 // REQ should have ARCH/DES downstream, ARCH should have TASK, TASK should have TEST.
 // Returns list of warnings (coverage gaps don't fail validation).
 func ValidateCoverage(graph *Graph) []string {
-	return nil
+	var warnings []string
+
+	for id, node := range graph.Nodes {
+		switch node.Type {
+		case NodeTypeREQ:
+			// REQ should have downstream ARCH or DES
+			if !hasDownstreamType(graph, id, NodeTypeARCH) && !hasDownstreamType(graph, id, NodeTypeDES) {
+				warnings = append(warnings, id+" has no downstream ARCH or DES")
+			}
+		case NodeTypeARCH:
+			// ARCH should have downstream TASK
+			if !hasDownstreamType(graph, id, NodeTypeTASK) {
+				warnings = append(warnings, id+" has no downstream TASK")
+			}
+		case NodeTypeTASK:
+			// TASK should have downstream TEST
+			if !hasDownstreamType(graph, id, NodeTypeTEST) {
+				warnings = append(warnings, id+" has no downstream TEST")
+			}
+		}
+	}
+
+	return warnings
+}
+
+// hasDownstreamType checks if a node has any downstream nodes of the given type.
+func hasDownstreamType(graph *Graph, nodeID string, targetType NodeType) bool {
+	// ReverseEdges: To ID -> [Edges from sources]
+	// We need to find edges where this node is the "To" (upstream), and the "From" is of targetType
+	for _, edge := range graph.ReverseEdges[nodeID] {
+		fromNode := graph.Nodes[edge.From]
+		if fromNode != nil && fromNode.Type == targetType {
+			return true
+		}
+	}
+	return false
 }
