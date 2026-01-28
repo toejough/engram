@@ -9,9 +9,10 @@ import (
 
 // TestFunction represents a detected test function.
 type TestFunction struct {
-	Name string // Function name (e.g., "TestSomething")
-	File string // Source file path
-	Line int    // Line number of function declaration
+	Name    string // Function name (e.g., "TestSomething")
+	File    string // Source file path
+	Line    int    // Line number of function declaration
+	Comment string // Doc comment containing trace info (empty if none)
 }
 
 // ParseTestFunctions parses Go source code and returns test functions.

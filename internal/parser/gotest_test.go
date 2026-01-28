@@ -181,3 +181,83 @@ func itoa(n int) string {
 	}
 	return s
 }
+
+// TEST-095 traces: TASK-013
+// Test extracting trace comment from function with doc comment
+func TestExtractTraceComment_WithComment(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-001 traces: TASK-001
+func TestSomething(t *testing.T) {}
+`
+
+	funcs, err := parser.ParseTestFunctions("foo_test.go", src)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(funcs).To(HaveLen(1))
+	g.Expect(funcs[0].Comment).To(Equal("// TEST-001 traces: TASK-001"))
+}
+
+// TEST-096 traces: TASK-013
+// Test extracting comment when no trace comment exists
+func TestExtractTraceComment_NoComment(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+func TestSomething(t *testing.T) {}
+`
+
+	funcs, err := parser.ParseTestFunctions("foo_test.go", src)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(funcs).To(HaveLen(1))
+	g.Expect(funcs[0].Comment).To(BeEmpty())
+}
+
+// TEST-097 traces: TASK-013
+// Test extracting comment with multiple doc comment lines
+func TestExtractTraceComment_MultipleLines(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// This is a description of the test.
+// It has multiple lines.
+// TEST-042 traces: TASK-005, ARCH-001
+func TestSomething(t *testing.T) {}
+`
+
+	funcs, err := parser.ParseTestFunctions("foo_test.go", src)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(funcs).To(HaveLen(1))
+	// Should extract the trace comment line
+	g.Expect(funcs[0].Comment).To(ContainSubstring("TEST-042 traces:"))
+}
+
+// TEST-098 traces: TASK-013
+// Test extracting comment with blank line gap (should not extract)
+func TestExtractTraceComment_BlankLineGap(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-001 traces: TASK-001
+
+func TestSomething(t *testing.T) {}
+`
+
+	funcs, err := parser.ParseTestFunctions("foo_test.go", src)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(funcs).To(HaveLen(1))
+	// Blank line breaks association - should have no comment
+	g.Expect(funcs[0].Comment).To(BeEmpty())
+}
