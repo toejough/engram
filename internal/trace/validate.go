@@ -30,5 +30,9 @@ func ValidateTESTIDFormats(ids []string) []string {
 // ValidateDanglingRefs checks that all edge targets exist in the graph.
 // Returns list of validation errors for dangling references.
 func ValidateDanglingRefs(graph *Graph) []string {
-	return nil
+	var errors []string
+	for _, edge := range graph.DanglingEdges {
+		errors = append(errors, "dangling reference: "+edge.From+" traces to non-existent "+edge.To)
+	}
+	return errors
 }

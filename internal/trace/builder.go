@@ -22,6 +22,7 @@ func BuildGraph(items []*TraceItem) (*Graph, []string, error) {
 		for _, edge := range edges {
 			if _, exists := graph.Nodes[edge.To]; !exists {
 				warnings = append(warnings, fmt.Sprintf("dangling edge: %s traces to non-existent %s", edge.From, edge.To))
+				graph.DanglingEdges = append(graph.DanglingEdges, edge)
 				continue
 			}
 			// Edge targets exist, safe to add

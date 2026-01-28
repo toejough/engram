@@ -7,9 +7,10 @@ import (
 
 // Graph represents the complete traceability graph.
 type Graph struct {
-	Nodes        map[string]*Node  // ID -> Node
+	Nodes        map[string]*Node   // ID -> Node
 	Edges        map[string][]*Edge // From ID -> [Edges]
 	ReverseEdges map[string][]*Edge // To ID -> [Edges] (for upstream queries)
+	DanglingEdges []*Edge           // Edges with missing targets (for validation)
 }
 
 // Node represents a traceability item in the graph.
