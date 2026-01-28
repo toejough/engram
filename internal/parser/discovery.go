@@ -1,6 +1,10 @@
 package parser
 
-import "path/filepath"
+import (
+	"errors"
+	"path/filepath"
+	"strings"
+)
 
 // FileSystem provides file system operations for discovery.
 // This interface allows dependency injection for testing.
@@ -68,8 +72,34 @@ type WalkableFS interface {
 	Walk(root string, fn func(path string, isDir bool) error) error
 }
 
+// errSkipDir signals to skip this directory
+var errSkipDir = errors.New("skip")
+
 // DiscoverTestFiles finds all *_test.go files in the given root.
 // Excludes vendor/ and .git/ directories.
 func DiscoverTestFiles(root string, fs WalkableFS) []string {
-	return nil
+	var paths []string
+
+	_ = fs.Walk(root, func(path string, isDir bool) error {
+		// Skip excluded directories
+		if isDir {
+			base := filepath.Base(path)
+			if base == "vendor" || base == ".git" {
+				return errSkipDir
+			}
+			return nil
+		}
+
+		// Check for test file pattern
+		if strings.HasSuffix(path, "_test.go") {
+			// Make sure it's not in an excluded directory
+			if !strings.Contains(path, "/vendor/") && !strings.Contains(path, "/.git/") {
+				paths = append(paths, path)
+			}
+		}
+
+		return nil
+	})
+
+	return paths
 }
