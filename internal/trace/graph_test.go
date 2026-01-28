@@ -713,3 +713,98 @@ func TestGraph_Downstream_NodeNotFound(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("REQ-999"))
 }
+
+// TEST-050 traces: TASK-007
+// Test Orphans returns empty when no orphans of given type
+func TestGraph_Orphans_NoOrphans(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+
+	// REQ-001 has downstream, so not an orphan with direction="downstream"
+	orphans := graph.Orphans(trace.NodeTypeREQ, "downstream")
+	g.Expect(orphans).To(BeEmpty())
+}
+
+// TEST-051 traces: TASK-007
+// Test Orphans detects REQ with no downstream edges
+func TestGraph_Orphans_REQNoDownstream(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-002", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+	// REQ-002 has no downstream edges
+
+	orphans := graph.Orphans(trace.NodeTypeREQ, "downstream")
+	g.Expect(orphans).To(HaveLen(1))
+	g.Expect(orphans).To(ContainElement("REQ-002"))
+}
+
+// TEST-052 traces: TASK-007
+// Test Orphans detects TASK with no TEST downstream
+func TestGraph_Orphans_TASKNoTest(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-002", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "TEST-001"})
+	// TASK-002 has no downstream edges
+
+	orphans := graph.Orphans(trace.NodeTypeTASK, "downstream")
+	g.Expect(orphans).To(HaveLen(1))
+	g.Expect(orphans).To(ContainElement("TASK-002"))
+}
+
+// TEST-053 traces: TASK-007
+// Test Orphans detects TEST with no upstream edges
+func TestGraph_Orphans_TESTNoUpstream(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test1"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-002", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test2"})
+	_ = graph.AddEdge(&trace.Edge{From: "TEST-001", To: "TASK-001"})
+	// TEST-002 has no upstream edges (no traces)
+
+	orphans := graph.Orphans(trace.NodeTypeTEST, "upstream")
+	g.Expect(orphans).To(HaveLen(1))
+	g.Expect(orphans).To(ContainElement("TEST-002"))
+}
+
+// TEST-054 traces: TASK-007
+// Property test: Orphans detection on graphs with known gaps
+func TestGraph_Orphans_PropertyKnownGaps(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		graph := trace.NewGraph()
+
+		// Create some connected nodes
+		connectedCount := rapid.IntRange(1, 5).Draw(rt, "connectedCount")
+		for i := 0; i < connectedCount; i++ {
+			reqID := "REQ-" + padNum3(i+1)
+			archID := "ARCH-" + padNum3(i+1)
+			_ = graph.AddNode(&trace.Node{ID: reqID, Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+			_ = graph.AddNode(&trace.Node{ID: archID, Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+			_ = graph.AddEdge(&trace.Edge{From: reqID, To: archID})
+		}
+
+		// Create orphan REQs (no downstream)
+		orphanCount := rapid.IntRange(0, 3).Draw(rt, "orphanCount")
+		for i := 0; i < orphanCount; i++ {
+			orphanID := "REQ-" + padNum3(connectedCount+i+1)
+			_ = graph.AddNode(&trace.Node{ID: orphanID, Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+		}
+
+		orphans := graph.Orphans(trace.NodeTypeREQ, "downstream")
+		g.Expect(len(orphans)).To(Equal(orphanCount))
+	})
+}

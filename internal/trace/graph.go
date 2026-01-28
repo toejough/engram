@@ -166,3 +166,11 @@ func (g *Graph) downstreamWalk(nodeID string, visited map[string]bool, result *[
 		g.downstreamWalk(edge.To, visited, result)
 	}
 }
+
+// Orphans finds nodes of the given type that have no edges in the specified direction.
+// direction="upstream" finds nodes with no incoming edges (nothing traces to them).
+// direction="downstream" finds nodes with no outgoing edges (they trace to nothing).
+func (g *Graph) Orphans(nodeType NodeType, direction string) []string {
+	// TODO: Implement
+	return nil
+}
