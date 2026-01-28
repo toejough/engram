@@ -1,6 +1,11 @@
 package trace
 
-import "time"
+import (
+	"fmt"
+	"regexp"
+	"strings"
+	"time"
+)
 
 // NodeType represents the type of a traceability node.
 type NodeType string
@@ -38,9 +43,78 @@ type TraceItem struct {
 	SourceFormat string // "yaml", "toml", or "go-ast"
 }
 
+// validNodeTypes is the set of valid node type values.
+var validNodeTypes = map[NodeType]bool{
+	NodeTypeREQ:  true,
+	NodeTypeDES:  true,
+	NodeTypeARCH: true,
+	NodeTypeTASK: true,
+	NodeTypeTEST: true,
+}
+
+// validStatuses is the set of valid status values.
+var validStatuses = map[string]bool{
+	"draft":      true,
+	"active":     true,
+	"completed":  true,
+	"deprecated": true,
+}
+
+// itemIDPattern matches a valid traceability ID: PREFIX-NNN (3+ digits).
+var itemIDPattern = regexp.MustCompile(`^(REQ|DES|ARCH|TASK|TEST)-\d{3,}$`)
+
 // Validate checks that the TraceItem has all required fields and valid values.
 // Returns nil if valid, or an error describing the validation failure.
 func (item *TraceItem) Validate() error {
-	// TODO: Implement validation
+	// Check required fields
+	if item.ID == "" {
+		return fmt.Errorf("ID is required")
+	}
+
+	if item.Type == "" {
+		return fmt.Errorf("Type is required")
+	}
+
+	if !validNodeTypes[item.Type] {
+		return fmt.Errorf("Type must be one of REQ, DES, ARCH, TASK, TEST; got %q", item.Type)
+	}
+
+	if item.Project == "" {
+		return fmt.Errorf("Project is required")
+	}
+
+	if item.Title == "" {
+		return fmt.Errorf("Title is required")
+	}
+
+	if item.Status == "" {
+		return fmt.Errorf("Status is required")
+	}
+
+	if !validStatuses[item.Status] {
+		return fmt.Errorf("Status must be one of draft, active, completed, deprecated; got %q", item.Status)
+	}
+
+	// Validate ID format
+	if !itemIDPattern.MatchString(item.ID) {
+		return fmt.Errorf("ID must match format PREFIX-NNN (e.g., REQ-001); got %q", item.ID)
+	}
+
+	// Validate ID prefix matches Type
+	expectedPrefix := string(item.Type) + "-"
+	if !strings.HasPrefix(item.ID, expectedPrefix) {
+		return fmt.Errorf("ID prefix mismatch: ID %q does not match Type %q", item.ID, item.Type)
+	}
+
+	// TEST-specific validations
+	if item.Type == NodeTypeTEST {
+		if item.Location == "" {
+			return fmt.Errorf("Location is required for TEST items")
+		}
+		if item.Function == "" {
+			return fmt.Errorf("Function is required for TEST items")
+		}
+	}
+
 	return nil
 }
