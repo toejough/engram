@@ -121,6 +121,23 @@ func (g *Graph) AddEdge(e *Edge) error {
 // Uses ReverseEdges to traverse upstream.
 // Returns error if source node doesn't exist.
 func (g *Graph) Upstream(nodeID string) ([]string, error) {
-	// TODO: Implement
-	return nil, nil
+	if _, exists := g.Nodes[nodeID]; !exists {
+		return nil, fmt.Errorf("node not found: %s", nodeID)
+	}
+
+	visited := make(map[string]bool)
+	var result []string
+	g.upstreamWalk(nodeID, visited, &result)
+	return result, nil
+}
+
+func (g *Graph) upstreamWalk(nodeID string, visited map[string]bool, result *[]string) {
+	for _, edge := range g.ReverseEdges[nodeID] {
+		if visited[edge.From] {
+			continue
+		}
+		visited[edge.From] = true
+		*result = append(*result, edge.From)
+		g.upstreamWalk(edge.From, visited, result)
+	}
 }
