@@ -4,14 +4,59 @@ package parser
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/toejough/projctl/internal/trace"
 )
 
+// frontmatterData represents the raw YAML structure before conversion to TraceItem.
+type frontmatterData struct {
+	ID       string    `yaml:"id"`
+	Type     string    `yaml:"type"`
+	Project  string    `yaml:"project"`
+	Title    string    `yaml:"title"`
+	Status   string    `yaml:"status"`
+	TracesTo []string  `yaml:"traces_to"`
+	Tags     []string  `yaml:"tags"`
+	Created  time.Time `yaml:"created"`
+	Updated  time.Time `yaml:"updated"`
+
+	// TEST-specific fields
+	Location string `yaml:"location"`
+	Line     int    `yaml:"line"`
+	Function string `yaml:"function"`
+}
+
 // ParseFrontmatter parses YAML frontmatter into a TraceItem.
 // Returns error if YAML is invalid or required fields are missing.
 func ParseFrontmatter(frontmatter string) (*trace.TraceItem, error) {
-	return nil, fmt.Errorf("not implemented")
+	var data frontmatterData
+	if err := yaml.Unmarshal([]byte(frontmatter), &data); err != nil {
+		return nil, fmt.Errorf("invalid YAML: %w", err)
+	}
+
+	item := &trace.TraceItem{
+		ID:       data.ID,
+		Type:     trace.NodeType(data.Type),
+		Project:  data.Project,
+		Title:    data.Title,
+		Status:   data.Status,
+		TracesTo: data.TracesTo,
+		Tags:     data.Tags,
+		Created:  data.Created,
+		Updated:  data.Updated,
+		Location: data.Location,
+		Line:     data.Line,
+		Function: data.Function,
+	}
+
+	if err := item.Validate(); err != nil {
+		return nil, err
+	}
+
+	return item, nil
 }
 
 // FrontmatterItem represents a parsed item with frontmatter and body.
