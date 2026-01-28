@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/toejough/projctl/internal/parser"
 	"github.com/toejough/projctl/internal/trace"
 )
 
@@ -73,6 +74,38 @@ func traceImpact(args traceImpactArgs) error {
 	}
 
 	fmt.Println(string(data))
+
+	return nil
+}
+
+type traceValidateV2Args struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func traceValidateV2(args traceValidateV2Args) error {
+	// Collect trace items from docs and test files
+	fs := parser.NewRealFS()
+	collectResult, err := parser.CollectTraceItems(args.Dir, fs)
+	if err != nil {
+		return fmt.Errorf("failed to collect trace items: %w", err)
+	}
+
+	// Validate using the graph-based system
+	result, err := trace.ValidateV2(collectResult.Items)
+	if err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode result: %w", err)
+	}
+
+	fmt.Println(string(data))
+
+	if !result.Pass {
+		os.Exit(1)
+	}
 
 	return nil
 }

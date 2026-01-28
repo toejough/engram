@@ -15,6 +15,7 @@ func main() {
 		targ.Group("trace",
 			targ.Targ(traceAdd).Name("add"),
 			targ.Targ(traceValidate).Name("validate"),
+			targ.Targ(traceValidateV2).Name("validate-v2"),
 			targ.Targ(traceImpact).Name("impact"),
 		),
 		targ.Group("conflict",
