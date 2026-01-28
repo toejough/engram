@@ -26,3 +26,9 @@ func ValidateTESTIDFormats(ids []string) []string {
 	}
 	return invalid
 }
+
+// ValidateDanglingRefs checks that all edge targets exist in the graph.
+// Returns list of validation errors for dangling references.
+func ValidateDanglingRefs(graph *Graph) []string {
+	return nil
+}

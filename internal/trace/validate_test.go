@@ -108,3 +108,72 @@ func TestValidateTESTIDFormats_AllValid(t *testing.T) {
 	invalid := trace.ValidateTESTIDFormats(ids)
 	g.Expect(invalid).To(BeEmpty())
 }
+
+// TEST-153 traces: TASK-024
+// Test all edges point to existing nodes
+func TestValidateDanglingRefs_NoDangling(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "REQ-001"})
+
+	errors := trace.ValidateDanglingRefs(graph)
+	g.Expect(errors).To(BeEmpty())
+}
+
+// TEST-154 traces: TASK-024
+// Test detects dangling reference
+func TestValidateDanglingRefs_Dangling(t *testing.T) {
+	g := NewWithT(t)
+
+	// Build graph that allows dangling edges (via BuildGraph warnings)
+	items := []*trace.TraceItem{
+		{
+			ID:       "TASK-001",
+			Type:     trace.NodeTypeTASK,
+			Project:  "test",
+			Title:    "Task",
+			Status:   "active",
+			TracesTo: []string{"REQ-999"}, // Doesn't exist
+		},
+	}
+	graph, _, _ := trace.BuildGraph(items)
+
+	errors := trace.ValidateDanglingRefs(graph)
+	g.Expect(errors).To(HaveLen(1))
+	g.Expect(errors[0]).To(ContainSubstring("REQ-999"))
+}
+
+// TEST-155 traces: TASK-024
+// Test multiple dangling references all reported
+func TestValidateDanglingRefs_Multiple(t *testing.T) {
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{
+			ID:       "TASK-001",
+			Type:     trace.NodeTypeTASK,
+			Project:  "test",
+			Title:    "Task",
+			Status:   "active",
+			TracesTo: []string{"REQ-999", "ARCH-999"}, // Both don't exist
+		},
+	}
+	graph, _, _ := trace.BuildGraph(items)
+
+	errors := trace.ValidateDanglingRefs(graph)
+	g.Expect(errors).To(HaveLen(2))
+}
+
+// TEST-156 traces: TASK-024
+// Test empty graph passes
+func TestValidateDanglingRefs_Empty(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+
+	errors := trace.ValidateDanglingRefs(graph)
+	g.Expect(errors).To(BeEmpty())
+}
