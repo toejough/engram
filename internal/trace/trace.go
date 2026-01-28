@@ -14,9 +14,6 @@ import (
 // TraceFile is the filename for the traceability matrix.
 const TraceFile = "traceability.toml"
 
-// validPrefixes defines the allowed ID prefixes.
-var validPrefixes = []string{"REQ-", "DES-", "ARCH-", "TASK-"}
-
 // idPattern matches a traceability ID.
 var idPattern = regexp.MustCompile(`^(REQ|DES|ARCH|TASK)-\d{3}$`)
 
@@ -327,7 +324,7 @@ func save(dir string, m Matrix) error {
 	if err != nil {
 		return fmt.Errorf("failed to create traceability file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := toml.NewEncoder(f).Encode(m); err != nil {
 		return fmt.Errorf("failed to encode traceability matrix: %w", err)
