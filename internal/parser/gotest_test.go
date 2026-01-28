@@ -8,6 +8,7 @@ import (
 	"pgregory.net/rapid"
 
 	"github.com/toejough/projctl/internal/parser"
+	"github.com/toejough/projctl/internal/trace"
 )
 
 // TEST-087 traces: TASK-012
@@ -364,4 +365,122 @@ func TestParseTraceComment_PropertyValid(t *testing.T) {
 		g.Expect(result.TestID).To(Equal(testID))
 		g.Expect(result.Targets).To(HaveLen(targetCount))
 	})
+}
+
+// TEST-107 traces: TASK-015
+// Test parsing complete test file with traced tests
+func TestParseGoTestFile_TracedTests(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-001 traces: TASK-001
+func TestFirst(t *testing.T) {}
+
+// TEST-002 traces: TASK-001, ARCH-005
+func TestSecond(t *testing.T) {}
+`
+
+	result, err := parser.ParseGoTestFile("foo_test.go", src, "test-project")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Items).To(HaveLen(2))
+	g.Expect(result.Items[0].ID).To(Equal("TEST-001"))
+	g.Expect(result.Items[0].TracesTo).To(Equal([]string{"TASK-001"}))
+	g.Expect(result.Items[1].ID).To(Equal("TEST-002"))
+	g.Expect(result.Items[1].TracesTo).To(ConsistOf("TASK-001", "ARCH-005"))
+}
+
+// TEST-108 traces: TASK-015
+// Test parsing file with no trace comments
+func TestParseGoTestFile_NoTraceComments(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+func TestSomething(t *testing.T) {}
+func TestOther(t *testing.T) {}
+`
+
+	result, err := parser.ParseGoTestFile("foo_test.go", src, "test-project")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Items).To(BeEmpty())
+	g.Expect(result.Warnings).To(BeEmpty())
+}
+
+// TEST-109 traces: TASK-015
+// Test parsing file with duplicate TEST IDs returns error
+func TestParseGoTestFile_DuplicateTestID(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-001 traces: TASK-001
+func TestFirst(t *testing.T) {}
+
+// TEST-001 traces: TASK-002
+func TestSecond(t *testing.T) {}
+`
+
+	_, err := parser.ParseGoTestFile("foo_test.go", src, "test-project")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("duplicate"))
+}
+
+// TEST-110 traces: TASK-015
+// Test parsing file with malformed comment continues
+func TestParseGoTestFile_MalformedComment(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-001 traces: TASK-001
+func TestFirst(t *testing.T) {}
+
+// Malformed trace comment
+func TestBad(t *testing.T) {}
+
+// TEST-002 traces: TASK-002
+func TestSecond(t *testing.T) {}
+`
+
+	result, err := parser.ParseGoTestFile("foo_test.go", src, "test-project")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Items).To(HaveLen(2))
+	g.Expect(result.Items[0].ID).To(Equal("TEST-001"))
+	g.Expect(result.Items[1].ID).To(Equal("TEST-002"))
+}
+
+// TEST-111 traces: TASK-015
+// Test TraceItem fields are populated correctly
+func TestParseGoTestFile_ItemFields(t *testing.T) {
+	g := NewWithT(t)
+
+	src := `package foo_test
+
+import "testing"
+
+// TEST-042 traces: TASK-001
+func TestSomething(t *testing.T) {}
+`
+
+	result, err := parser.ParseGoTestFile("foo_test.go", src, "test-project")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Items).To(HaveLen(1))
+
+	item := result.Items[0]
+	g.Expect(item.ID).To(Equal("TEST-042"))
+	g.Expect(item.Type).To(Equal(trace.NodeTypeTEST))
+	g.Expect(item.Project).To(Equal("test-project"))
+	g.Expect(item.Location).To(Equal("foo_test.go"))
+	g.Expect(item.Line).To(BeNumerically(">", 0))
+	g.Expect(item.Function).To(Equal("TestSomething"))
+	g.Expect(item.Status).To(Equal("active"))
 }

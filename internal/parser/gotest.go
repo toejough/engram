@@ -7,6 +7,8 @@ import (
 	"go/token"
 	"regexp"
 	"strings"
+
+	"github.com/toejough/projctl/internal/trace"
 )
 
 // TestFunction represents a detected test function.
@@ -60,6 +62,19 @@ type TraceCommentResult struct {
 
 // traceCommentPattern matches trace comment format: // TEST-NNN traces: TARGET1, TARGET2
 var traceCommentPattern = regexp.MustCompile(`(?i)^//\s*(TEST-\d{3,})\s+traces:\s*(.+)$`)
+
+// GoTestFileResult contains parsed test items and any warnings.
+type GoTestFileResult struct {
+	Items    []*trace.TraceItem
+	Warnings []string
+}
+
+// ParseGoTestFile parses a Go test file and extracts traced test items.
+// Returns items for all functions with valid trace comments.
+// Returns error if duplicate TEST IDs are found.
+func ParseGoTestFile(filename, src, project string) (*GoTestFileResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
 
 // ParseTraceComment parses a trace comment string into structured data.
 // Expected format: "// TEST-NNN traces: TARGET1, TARGET2"
