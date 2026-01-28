@@ -164,3 +164,98 @@ func TestDiscoverDocs_PropertyDocsHasPriority(t *testing.T) {
 		}
 	})
 }
+
+// MockWalkFS implements parser.WalkableFS for testing test file discovery
+type MockWalkFS struct {
+	Files []string // All file paths in the tree
+}
+
+func (m *MockWalkFS) Walk(root string, fn func(path string, isDir bool) error) error {
+	for _, f := range m.Files {
+		// Determine if it's a directory by checking if anything has it as prefix
+		isDir := false
+		for _, other := range m.Files {
+			if other != f && len(other) > len(f) && other[:len(f)] == f && other[len(f)] == '/' {
+				isDir = true
+				break
+			}
+		}
+		if err := fn(f, isDir); err != nil {
+			if err.Error() == "skip" {
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// TEST-112 traces: TASK-016
+// Test discovering test files
+func TestDiscoverTestFiles_FindsTests(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main.go",
+			"/project/main_test.go",
+			"/project/internal/foo.go",
+			"/project/internal/foo_test.go",
+		},
+	}
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf(
+		"/project/main_test.go",
+		"/project/internal/foo_test.go",
+	))
+}
+
+// TEST-113 traces: TASK-016
+// Test excluding vendor directory
+func TestDiscoverTestFiles_ExcludesVendor(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main_test.go",
+			"/project/vendor/dep_test.go",
+		},
+	}
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
+}
+
+// TEST-114 traces: TASK-016
+// Test excluding .git directory
+func TestDiscoverTestFiles_ExcludesGit(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main_test.go",
+			"/project/.git/hooks/pre-commit_test.go",
+		},
+	}
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
+}
+
+// TEST-115 traces: TASK-016
+// Test ignoring non-test Go files
+func TestDiscoverTestFiles_IgnoresNonTest(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main.go",
+			"/project/helper.go",
+			"/project/main_test.go",
+		},
+	}
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
+}

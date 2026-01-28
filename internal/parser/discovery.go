@@ -62,3 +62,14 @@ func discoverFilesIn(dir string, fs FileSystem) []string {
 	}
 	return paths
 }
+
+// WalkableFS provides directory traversal for test file discovery.
+type WalkableFS interface {
+	Walk(root string, fn func(path string, isDir bool) error) error
+}
+
+// DiscoverTestFiles finds all *_test.go files in the given root.
+// Excludes vendor/ and .git/ directories.
+func DiscoverTestFiles(root string, fs WalkableFS) []string {
+	return nil
+}
