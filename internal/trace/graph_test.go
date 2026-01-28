@@ -388,3 +388,115 @@ func TestGraph_AddNode_PropertyDuplicateIDFails(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 	})
 }
+
+// TEST-033 traces: TASK-004
+// Test that AddEdge creates edge in both forward and reverse maps
+func TestGraph_AddEdge(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+
+	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"}
+	err := graph.AddEdge(edge)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Check forward edge
+	g.Expect(graph.Edges).To(HaveKey("REQ-001"))
+	g.Expect(graph.Edges["REQ-001"]).To(HaveLen(1))
+	g.Expect(graph.Edges["REQ-001"][0].To).To(Equal("ARCH-001"))
+
+	// Check reverse edge
+	g.Expect(graph.ReverseEdges).To(HaveKey("ARCH-001"))
+	g.Expect(graph.ReverseEdges["ARCH-001"]).To(HaveLen(1))
+	g.Expect(graph.ReverseEdges["ARCH-001"][0].From).To(Equal("REQ-001"))
+}
+
+// TEST-034 traces: TASK-004
+// Test that AddEdge returns error when From node doesn't exist
+func TestGraph_AddEdge_FromNodeMissing(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+
+	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"} // REQ-001 doesn't exist
+	err := graph.AddEdge(edge)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("REQ-001"))
+}
+
+// TEST-035 traces: TASK-004
+// Test that AddEdge returns error when To node doesn't exist
+func TestGraph_AddEdge_ToNodeMissing(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+
+	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"} // ARCH-001 doesn't exist
+	err := graph.AddEdge(edge)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("ARCH-001"))
+}
+
+// TEST-036 traces: TASK-004
+// Test that multiple edges from same source are supported
+func TestGraph_AddEdge_MultipleFromSameSource(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+
+	edge1 := &trace.Edge{From: "REQ-001", To: "ARCH-001"}
+	edge2 := &trace.Edge{From: "REQ-001", To: "ARCH-002"}
+
+	err := graph.AddEdge(edge1)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = graph.AddEdge(edge2)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should have 2 edges from REQ-001
+	g.Expect(graph.Edges["REQ-001"]).To(HaveLen(2))
+}
+
+// TEST-037 traces: TASK-004
+// Test that AddEdge returns error for nil edge
+func TestGraph_AddEdge_NilEdge(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	err := graph.AddEdge(nil)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("nil"))
+}
+
+// TEST-038 traces: TASK-004
+// Property test: AddEdge with existing nodes always succeeds
+func TestGraph_AddEdge_PropertyExistingNodesSucceed(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		graph := trace.NewGraph()
+
+		fromNum := rapid.IntRange(1, 999).Draw(rt, "fromNum")
+		toNum := rapid.IntRange(1, 999).Draw(rt, "toNum")
+
+		fromID := "REQ-" + padNum3(fromNum)
+		toID := "ARCH-" + padNum3(toNum)
+
+		_ = graph.AddNode(&trace.Node{ID: fromID, Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+		_ = graph.AddNode(&trace.Node{ID: toID, Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+
+		edge := &trace.Edge{From: fromID, To: toID}
+		err := graph.AddEdge(edge)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify bidirectional storage
+		g.Expect(graph.Edges[fromID]).To(ContainElement(edge))
+		g.Expect(graph.ReverseEdges[toID]).To(ContainElement(edge))
+	})
+}

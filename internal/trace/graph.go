@@ -90,3 +90,10 @@ func (g *Graph) AddNode(n *Node) error {
 	g.Nodes[n.ID] = n
 	return nil
 }
+
+// AddEdge inserts an edge into the graph.
+// Returns error if edge is nil or either From/To nodes don't exist.
+func (g *Graph) AddEdge(e *Edge) error {
+	// TODO: Implement
+	return nil
+}
