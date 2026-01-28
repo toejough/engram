@@ -500,3 +500,129 @@ func TestGraph_AddEdge_PropertyExistingNodesSucceed(t *testing.T) {
 		g.Expect(graph.ReverseEdges[toID]).To(ContainElement(edge))
 	})
 }
+
+// TEST-039 traces: TASK-005
+// Test Upstream returns empty for node with no ancestors
+func TestGraph_Upstream_NoAncestors(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+
+	ancestors, err := graph.Upstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(ancestors).To(BeEmpty())
+}
+
+// TEST-040 traces: TASK-005
+// Test Upstream returns direct ancestors
+func TestGraph_Upstream_DirectAncestors(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
+
+	ancestors, err := graph.Upstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(ancestors).To(HaveLen(1))
+	g.Expect(ancestors).To(ContainElement("ARCH-001"))
+}
+
+// TEST-041 traces: TASK-005
+// Test Upstream returns transitive ancestors (multiple levels)
+func TestGraph_Upstream_TransitiveAncestors(t *testing.T) {
+	g := NewWithT(t)
+
+	// REQ-001 <- ARCH-001 <- TASK-001 <- TEST-001
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TEST-001", To: "TASK-001"})
+
+	// Starting from REQ-001, should get all 3 ancestors
+	ancestors, err := graph.Upstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(ancestors).To(HaveLen(3))
+	g.Expect(ancestors).To(ContainElements("ARCH-001", "TASK-001", "TEST-001"))
+}
+
+// TEST-042 traces: TASK-005
+// Test Upstream handles diamond dependency (each node visited once)
+func TestGraph_Upstream_DiamondDependency(t *testing.T) {
+	g := NewWithT(t)
+
+	// Diamond: REQ-001 <- ARCH-001 <- TASK-001
+	//                 <- ARCH-002 <-
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-002", To: "REQ-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-002"})
+
+	ancestors, err := graph.Upstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(ancestors).To(HaveLen(3))
+	g.Expect(ancestors).To(ContainElements("ARCH-001", "ARCH-002", "TASK-001"))
+}
+
+// TEST-043 traces: TASK-005
+// Test Upstream returns error for non-existent node
+func TestGraph_Upstream_NodeNotFound(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_, err := graph.Upstream("REQ-999")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("REQ-999"))
+}
+
+// TEST-044 traces: TASK-005
+// Property test: Upstream on random DAG returns correct ancestors
+func TestGraph_Upstream_PropertyRandomDAG(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		graph := trace.NewGraph()
+
+		// Create a chain of nodes
+		chainLen := rapid.IntRange(1, 5).Draw(rt, "chainLen")
+		types := []trace.NodeType{trace.NodeTypeREQ, trace.NodeTypeARCH, trace.NodeTypeTASK, trace.NodeTypeTEST}
+
+		var prevID string
+		for i := 0; i < chainLen; i++ {
+			nodeType := types[i%len(types)]
+			id := string(nodeType) + "-" + padNum3(i+1)
+			node := &trace.Node{ID: id, Type: nodeType, Project: "p", Title: "t", Status: "active"}
+			if nodeType == trace.NodeTypeTEST {
+				node.Location = "t.go"
+				node.Function = "Test"
+			}
+			_ = graph.AddNode(node)
+
+			if prevID != "" {
+				_ = graph.AddEdge(&trace.Edge{From: id, To: prevID})
+			}
+			prevID = id
+		}
+
+		// Query from first node (has all others as ancestors)
+		if chainLen > 0 {
+			firstType := types[0]
+			firstID := string(firstType) + "-001"
+			ancestors, err := graph.Upstream(firstID)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(len(ancestors)).To(Equal(chainLen - 1))
+		}
+	})
+}

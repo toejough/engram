@@ -116,3 +116,11 @@ func (g *Graph) AddEdge(e *Edge) error {
 
 	return nil
 }
+
+// Upstream finds all ancestor nodes (what this node traces to) recursively.
+// Uses ReverseEdges to traverse upstream.
+// Returns error if source node doesn't exist.
+func (g *Graph) Upstream(nodeID string) ([]string, error) {
+	// TODO: Implement
+	return nil, nil
+}
