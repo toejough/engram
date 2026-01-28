@@ -73,7 +73,52 @@ type GoTestFileResult struct {
 // Returns items for all functions with valid trace comments.
 // Returns error if duplicate TEST IDs are found.
 func ParseGoTestFile(filename, src, project string) (*GoTestFileResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	funcs, err := ParseTestFunctions(filename, src)
+	if err != nil {
+		return nil, fmt.Errorf("parse error: %w", err)
+	}
+
+	var items []*trace.TraceItem
+	var warnings []string
+	seenIDs := make(map[string]bool)
+
+	for _, fn := range funcs {
+		if fn.Comment == "" {
+			continue
+		}
+
+		parsed, err := ParseTraceComment(fn.Comment)
+		if err != nil {
+			// Malformed comment - warn and continue
+			warnings = append(warnings, fmt.Sprintf("%s:%d: %v", filename, fn.Line, err))
+			continue
+		}
+
+		// Check for duplicate TEST ID
+		if seenIDs[parsed.TestID] {
+			return nil, fmt.Errorf("duplicate TEST ID %q in %s", parsed.TestID, filename)
+		}
+		seenIDs[parsed.TestID] = true
+
+		item := &trace.TraceItem{
+			ID:       parsed.TestID,
+			Type:     trace.NodeTypeTEST,
+			Project:  project,
+			Title:    fn.Name,
+			Status:   "active",
+			TracesTo: parsed.Targets,
+			Location: filename,
+			Line:     fn.Line,
+			Function: fn.Name,
+		}
+
+		items = append(items, item)
+	}
+
+	return &GoTestFileResult{
+		Items:    items,
+		Warnings: warnings,
+	}, nil
 }
 
 // ParseTraceComment parses a trace comment string into structured data.
