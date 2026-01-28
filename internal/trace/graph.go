@@ -30,18 +30,36 @@ type Edge struct {
 
 // NewGraph creates a new empty graph with initialized maps.
 func NewGraph() *Graph {
-	// TODO: Implement
-	return nil
+	return &Graph{
+		Nodes:        make(map[string]*Node),
+		Edges:        make(map[string][]*Edge),
+		ReverseEdges: make(map[string][]*Edge),
+	}
 }
 
 // NodeFromItem creates a Node from a TraceItem.
 func NodeFromItem(item *TraceItem) *Node {
-	// TODO: Implement
-	return nil
+	return &Node{
+		ID:       item.ID,
+		Type:     item.Type,
+		Project:  item.Project,
+		Title:    item.Title,
+		Status:   item.Status,
+		Tags:     item.Tags,
+		Location: item.Location,
+		Line:     item.Line,
+		Function: item.Function,
+	}
 }
 
 // EdgesFromItem creates Edge objects from a TraceItem's TracesTo field.
 func EdgesFromItem(item *TraceItem) []*Edge {
-	// TODO: Implement
-	return nil
+	edges := make([]*Edge, 0, len(item.TracesTo))
+	for _, target := range item.TracesTo {
+		edges = append(edges, &Edge{
+			From: item.ID,
+			To:   target,
+		})
+	}
+	return edges
 }
