@@ -1,5 +1,11 @@
 package parser
 
+import (
+	"io/fs"
+	"os"
+	"path/filepath"
+)
+
 // RealFS implements CollectableFS using the real file system.
 type RealFS struct{}
 
@@ -10,20 +16,37 @@ func NewRealFS() *RealFS {
 
 // DirExists returns true if the directory exists.
 func (r *RealFS) DirExists(path string) bool {
-	return false
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // FileExists returns true if the file exists.
 func (r *RealFS) FileExists(path string) bool {
-	return false
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // ReadFile reads the file content as a string.
 func (r *RealFS) ReadFile(path string) (string, error) {
-	return "", nil
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // Walk traverses the directory tree.
 func (r *RealFS) Walk(root string, fn func(path string, isDir bool) error) error {
-	return nil
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if walkErr := fn(path, d.IsDir()); walkErr != nil {
+			if walkErr == errSkipDir {
+				return fs.SkipDir
+			}
+			return walkErr
+		}
+		return nil
+	})
 }
