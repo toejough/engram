@@ -141,3 +141,11 @@ func (g *Graph) upstreamWalk(nodeID string, visited map[string]bool, result *[]s
 		g.upstreamWalk(edge.From, visited, result)
 	}
 }
+
+// Downstream finds all descendant nodes (what depends on this node) recursively.
+// Uses Edges to traverse downstream.
+// Returns error if source node doesn't exist.
+func (g *Graph) Downstream(nodeID string) ([]string, error) {
+	// TODO: Implement
+	return nil, nil
+}

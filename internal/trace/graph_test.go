@@ -626,3 +626,90 @@ func TestGraph_Upstream_PropertyRandomDAG(t *testing.T) {
 		}
 	})
 }
+
+// TEST-045 traces: TASK-006
+// Test Downstream returns empty for node with no descendants
+func TestGraph_Downstream_NoDescendants(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+
+	descendants, err := graph.Downstream("TEST-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(descendants).To(BeEmpty())
+}
+
+// TEST-046 traces: TASK-006
+// Test Downstream returns direct descendants
+func TestGraph_Downstream_DirectDescendants(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+
+	descendants, err := graph.Downstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(descendants).To(HaveLen(1))
+	g.Expect(descendants).To(ContainElement("ARCH-001"))
+}
+
+// TEST-047 traces: TASK-006
+// Test Downstream returns transitive descendants (multiple levels)
+func TestGraph_Downstream_TransitiveDescendants(t *testing.T) {
+	g := NewWithT(t)
+
+	// REQ-001 -> ARCH-001 -> TASK-001 -> TEST-001
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "TASK-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "TEST-001"})
+
+	// Starting from REQ-001, should get all 3 descendants
+	descendants, err := graph.Downstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(descendants).To(HaveLen(3))
+	g.Expect(descendants).To(ContainElements("ARCH-001", "TASK-001", "TEST-001"))
+}
+
+// TEST-048 traces: TASK-006
+// Test Downstream handles diamond dependency (each node visited once)
+func TestGraph_Downstream_DiamondDependency(t *testing.T) {
+	g := NewWithT(t)
+
+	// Diamond: REQ-001 -> ARCH-001 -> TASK-001
+	//                  -> ARCH-002 ->
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-002"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "TASK-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-002", To: "TASK-001"})
+
+	descendants, err := graph.Downstream("REQ-001")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(descendants).To(HaveLen(3))
+	g.Expect(descendants).To(ContainElements("ARCH-001", "ARCH-002", "TASK-001"))
+}
+
+// TEST-049 traces: TASK-006
+// Test Downstream returns error for non-existent node
+func TestGraph_Downstream_NodeNotFound(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_, err := graph.Downstream("REQ-999")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("REQ-999"))
+}
