@@ -68,51 +68,51 @@ var itemIDPattern = regexp.MustCompile(`^(REQ|DES|ARCH|TASK|TEST)-\d{3,}$`)
 func (item *TraceItem) Validate() error {
 	// Check required fields
 	if item.ID == "" {
-		return fmt.Errorf("ID is required")
+		return fmt.Errorf("field ID required")
 	}
 
 	if item.Type == "" {
-		return fmt.Errorf("Type is required")
+		return fmt.Errorf("field Type required")
 	}
 
 	if !validNodeTypes[item.Type] {
-		return fmt.Errorf("Type must be one of REQ, DES, ARCH, TASK, TEST; got %q", item.Type)
+		return fmt.Errorf("field Type must be one of REQ, DES, ARCH, TASK, TEST; got %q", item.Type)
 	}
 
 	if item.Project == "" {
-		return fmt.Errorf("Project is required")
+		return fmt.Errorf("field Project required")
 	}
 
 	if item.Title == "" {
-		return fmt.Errorf("Title is required")
+		return fmt.Errorf("field Title required")
 	}
 
 	if item.Status == "" {
-		return fmt.Errorf("Status is required")
+		return fmt.Errorf("field Status required")
 	}
 
 	if !validStatuses[item.Status] {
-		return fmt.Errorf("Status must be one of draft, active, completed, deprecated; got %q", item.Status)
+		return fmt.Errorf("field Status must be one of draft, active, completed, deprecated; got %q", item.Status)
 	}
 
 	// Validate ID format
 	if !itemIDPattern.MatchString(item.ID) {
-		return fmt.Errorf("ID must match format PREFIX-NNN (e.g., REQ-001); got %q", item.ID)
+		return fmt.Errorf("field ID must match format PREFIX-NNN (e.g., REQ-001); got %q", item.ID)
 	}
 
 	// Validate ID prefix matches Type
 	expectedPrefix := string(item.Type) + "-"
 	if !strings.HasPrefix(item.ID, expectedPrefix) {
-		return fmt.Errorf("ID prefix mismatch: ID %q does not match Type %q", item.ID, item.Type)
+		return fmt.Errorf("id prefix mismatch: ID %q does not match Type %q", item.ID, item.Type)
 	}
 
 	// TEST-specific validations
 	if item.Type == NodeTypeTEST {
 		if item.Location == "" {
-			return fmt.Errorf("Location is required for TEST items")
+			return fmt.Errorf("field Location required for TEST items")
 		}
 		if item.Function == "" {
-			return fmt.Errorf("Function is required for TEST items")
+			return fmt.Errorf("field Function required for TEST items")
 		}
 	}
 
