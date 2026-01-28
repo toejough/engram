@@ -146,6 +146,23 @@ func (g *Graph) upstreamWalk(nodeID string, visited map[string]bool, result *[]s
 // Uses Edges to traverse downstream.
 // Returns error if source node doesn't exist.
 func (g *Graph) Downstream(nodeID string) ([]string, error) {
-	// TODO: Implement
-	return nil, nil
+	if _, exists := g.Nodes[nodeID]; !exists {
+		return nil, fmt.Errorf("node not found: %s", nodeID)
+	}
+
+	visited := make(map[string]bool)
+	var result []string
+	g.downstreamWalk(nodeID, visited, &result)
+	return result, nil
+}
+
+func (g *Graph) downstreamWalk(nodeID string, visited map[string]bool, result *[]string) {
+	for _, edge := range g.Edges[nodeID] {
+		if visited[edge.To] {
+			continue
+		}
+		visited[edge.To] = true
+		*result = append(*result, edge.To)
+		g.downstreamWalk(edge.To, visited, result)
+	}
 }
