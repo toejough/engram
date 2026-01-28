@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"path/filepath"
+
 	"github.com/toejough/projctl/internal/trace"
 )
 
@@ -21,5 +23,55 @@ type CollectResult struct {
 // Finds documentation files (YAML/TOML) and Go test files, parsing each.
 // Returns combined items and any non-fatal errors encountered.
 func CollectTraceItems(root string, fs CollectableFS) (*CollectResult, error) {
-	return &CollectResult{}, nil
+	result := &CollectResult{}
+	var projectName string
+
+	// 1. Discover and parse documentation files
+	discovery := DiscoverDocs(root, fs)
+	for _, path := range discovery.Paths {
+		content, err := fs.ReadFile(path)
+		if err != nil {
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+
+		docResult, err := ParseDoc(content)
+		if err != nil {
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+
+		result.Items = append(result.Items, docResult.Items...)
+
+		// Extract project name from first item found
+		if projectName == "" && len(docResult.Items) > 0 {
+			projectName = docResult.Items[0].Project
+		}
+	}
+
+	// 2. Discover and parse test files
+	testPaths := DiscoverTestFiles(root, fs)
+	for _, path := range testPaths {
+		content, err := fs.ReadFile(path)
+		if err != nil {
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+
+		// Use project name from docs, or directory name as fallback
+		testProject := projectName
+		if testProject == "" {
+			testProject = filepath.Base(root)
+		}
+
+		testResult, err := ParseGoTestFile(path, content, testProject)
+		if err != nil {
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+
+		result.Items = append(result.Items, testResult.Items...)
+	}
+
+	return result, nil
 }
