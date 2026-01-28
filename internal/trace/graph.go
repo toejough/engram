@@ -94,6 +94,25 @@ func (g *Graph) AddNode(n *Node) error {
 // AddEdge inserts an edge into the graph.
 // Returns error if edge is nil or either From/To nodes don't exist.
 func (g *Graph) AddEdge(e *Edge) error {
-	// TODO: Implement
+	if e == nil {
+		return fmt.Errorf("edge is nil")
+	}
+
+	// Validate From node exists
+	if _, exists := g.Nodes[e.From]; !exists {
+		return fmt.Errorf("from node not found: %s", e.From)
+	}
+
+	// Validate To node exists
+	if _, exists := g.Nodes[e.To]; !exists {
+		return fmt.Errorf("to node not found: %s", e.To)
+	}
+
+	// Add to forward adjacency list
+	g.Edges[e.From] = append(g.Edges[e.From], e)
+
+	// Add to reverse adjacency list
+	g.ReverseEdges[e.To] = append(g.ReverseEdges[e.To], e)
+
 	return nil
 }
