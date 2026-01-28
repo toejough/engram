@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"regexp"
 	"strings"
 )
 
@@ -57,10 +58,38 @@ type TraceCommentResult struct {
 	Targets []string // Target IDs (TASK-NNN, REQ-NNN, etc.)
 }
 
+// traceCommentPattern matches trace comment format: // TEST-NNN traces: TARGET1, TARGET2
+var traceCommentPattern = regexp.MustCompile(`(?i)^//\s*(TEST-\d{3,})\s+traces:\s*(.+)$`)
+
 // ParseTraceComment parses a trace comment string into structured data.
 // Expected format: "// TEST-NNN traces: TARGET1, TARGET2"
 func ParseTraceComment(comment string) (*TraceCommentResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	if comment == "" {
+		return nil, fmt.Errorf("empty comment")
+	}
+
+	matches := traceCommentPattern.FindStringSubmatch(comment)
+	if matches == nil {
+		return nil, fmt.Errorf("malformed trace comment: %q", comment)
+	}
+
+	testID := strings.ToUpper(matches[1])
+	targetsStr := matches[2]
+
+	// Split and clean targets
+	rawTargets := strings.Split(targetsStr, ",")
+	targets := make([]string, 0, len(rawTargets))
+	for _, t := range rawTargets {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			targets = append(targets, strings.ToUpper(t))
+		}
+	}
+
+	return &TraceCommentResult{
+		TestID:  testID,
+		Targets: targets,
+	}, nil
 }
 
 // extractTraceComment extracts the trace comment line from a comment group.
