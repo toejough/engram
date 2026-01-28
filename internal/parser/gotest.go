@@ -38,12 +38,33 @@ func ParseTestFunctions(filename, src string) ([]TestFunction, error) {
 		}
 
 		pos := fset.Position(fn.Pos())
+		comment := extractTraceComment(fn.Doc)
 		funcs = append(funcs, TestFunction{
-			Name: name,
-			File: filename,
-			Line: pos.Line,
+			Name:    name,
+			File:    filename,
+			Line:    pos.Line,
+			Comment: comment,
 		})
 	}
 
 	return funcs, nil
+}
+
+// extractTraceComment extracts the trace comment line from a comment group.
+// Looks for a line containing "TEST-NNN traces:" pattern.
+// Returns empty string if no trace comment found.
+func extractTraceComment(doc *ast.CommentGroup) string {
+	if doc == nil {
+		return ""
+	}
+
+	for _, comment := range doc.List {
+		text := comment.Text
+		// Look for trace comment pattern
+		if strings.Contains(text, "traces:") || strings.Contains(text, "Traces:") {
+			return text
+		}
+	}
+
+	return ""
 }
