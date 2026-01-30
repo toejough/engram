@@ -1,6 +1,12 @@
 // Package config provides project configuration loading and management.
 package config
 
+import (
+	"path/filepath"
+
+	"github.com/BurntSushi/toml"
+)
+
 // ConfigFS provides file system operations for config loading.
 type ConfigFS interface {
 	ReadFile(path string) (string, error)
@@ -49,15 +55,92 @@ type TraceabilityConfig struct {
 // Repo config takes precedence over global config.
 // Returns defaults if no config exists.
 func Load(repoDir, homeDir string, fs ConfigFS) (*ProjectConfig, error) {
-	return nil, nil
+	cfg := Default()
+
+	// Try global config first (lower precedence)
+	globalPath := filepath.Join(homeDir, ".claude", "project-config.toml")
+	if fs.FileExists(globalPath) {
+		if err := loadInto(globalPath, cfg, fs); err != nil {
+			return nil, err
+		}
+	}
+
+	// Try repo config (higher precedence, overwrites global)
+	repoPath := filepath.Join(repoDir, ".claude", "project-config.toml")
+	if fs.FileExists(repoPath) {
+		if err := loadInto(repoPath, cfg, fs); err != nil {
+			return nil, err
+		}
+	}
+
+	return cfg, nil
+}
+
+// loadInto loads TOML config from path into existing config struct.
+func loadInto(path string, cfg *ProjectConfig, fs ConfigFS) error {
+	content, err := fs.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	_, err = toml.Decode(content, cfg)
+	return err
 }
 
 // Default returns the default configuration.
 func Default() *ProjectConfig {
-	return nil
+	return &ProjectConfig{
+		Paths: PathsConfig{
+			Readme:       "README.md",
+			DocsDir:      "docs",
+			Requirements: "requirements.md",
+			Design:       "design.md",
+			Architecture: "architecture.md",
+			Tasks:        "tasks.md",
+			Issues:       "issues.md",
+			Glossary:     "glossary.md",
+			Traceability: "traceability.toml",
+			ProjectsDir:  "projects",
+		},
+		Heuristics: HeuristicsConfig{
+			PreserveThreshold: 0.60,
+			MigrateThreshold:  0.40,
+			AnalysisDepth:     "deep",
+		},
+		Traceability: TraceabilityConfig{
+			RequirementPrefix:  "REQ",
+			DesignPrefix:       "DES",
+			ArchitecturePrefix: "ARCH",
+			TaskPrefix:         "TASK",
+			TestPrefix:         "TEST",
+			IssuePrefix:        "ISSUE",
+		},
+	}
 }
 
 // ResolvePath resolves an artifact name to its full path.
+// README is at root; other artifacts are relative to docs_dir.
 func (c *ProjectConfig) ResolvePath(artifact string) string {
-	return ""
+	switch artifact {
+	case "readme":
+		return c.Paths.Readme
+	case "requirements":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Requirements)
+	case "design":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Design)
+	case "architecture":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Architecture)
+	case "tasks":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Tasks)
+	case "issues":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Issues)
+	case "glossary":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Glossary)
+	case "traceability":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Traceability)
+	case "projects":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.ProjectsDir)
+	default:
+		return ""
+	}
 }
