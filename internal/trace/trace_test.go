@@ -108,6 +108,32 @@ func TestAdd(t *testing.T) {
 		err := trace.Add(dir, "REQ-002", []string{"DES-001", "DES-002", "ARCH-001"})
 		g.Expect(err).ToNot(HaveOccurred())
 	})
+
+	t.Run("accepts ISSUE linking to REQ", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		err := trace.Add(dir, "ISSUE-001", []string{"REQ-001"})
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("rejects ISSUE linking to non-REQ", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		err := trace.Add(dir, "ISSUE-001", []string{"DES-001"})
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
+	})
+
+	t.Run("rejects ISSUE linking to ARCH", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		err := trace.Add(dir, "ISSUE-001", []string{"ARCH-001"})
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
+	})
 }
 
 func TestValidate(t *testing.T) {
