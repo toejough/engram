@@ -12,12 +12,33 @@ import (
 type stateInitArgs struct {
 	Name string `targ:"flag,short=n,required,desc=Project name"`
 	Dir  string `targ:"flag,short=d,required,desc=Project directory"`
+	Mode string `targ:"flag,short=m,desc=Project mode: new (default), adopt, align, integrate"`
 }
 
 func stateInit(args stateInitArgs) error {
 	s, err := state.Init(args.Dir, args.Name, time.Now)
 	if err != nil {
 		return err
+	}
+
+	// If mode specified, auto-transition to the first state for that mode
+	if args.Mode != "" && args.Mode != "new" {
+		var firstState string
+		switch args.Mode {
+		case "adopt":
+			firstState = "adopt-analyze"
+		case "align":
+			firstState = "align-analyze"
+		case "integrate":
+			firstState = "integrate-commit"
+		default:
+			return fmt.Errorf("unknown mode: %s (valid: new, adopt, align, integrate)", args.Mode)
+		}
+
+		s, err = state.Transition(args.Dir, firstState, state.TransitionOpts{}, time.Now)
+		if err != nil {
+			return fmt.Errorf("failed to transition to %s: %w", firstState, err)
+		}
 	}
 
 	fmt.Printf("Initialized project %q in %s (phase: %s)\n", s.Project.Name, args.Dir, s.Project.Phase)

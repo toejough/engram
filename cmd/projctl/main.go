@@ -43,5 +43,10 @@ func main() {
 			targ.Targ(integrateMerge).Name("merge"),
 			targ.Targ(integrateCleanup).Name("cleanup"),
 		),
+		targ.Group("escalation",
+			targ.Targ(escalationWrite).Name("write"),
+			targ.Targ(escalationReview).Name("review"),
+			targ.Targ(escalationList).Name("list"),
+		),
 	)
 }
