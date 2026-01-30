@@ -15,7 +15,7 @@ import (
 const TraceFile = "traceability.toml"
 
 // idPattern matches a traceability ID.
-var idPattern = regexp.MustCompile(`^(REQ|DES|ARCH|TASK)-\d{3}$`)
+var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK)-\d{3}$`)
 
 // Link represents a single traceability link.
 type Link struct {
@@ -37,12 +37,12 @@ func ValidID(id string) bool {
 // Creates the file if it doesn't exist. Rejects duplicate links.
 func Add(dir, from string, to []string) error {
 	if !ValidID(from) {
-		return fmt.Errorf("invalid source ID: %s (must match REQ|DES|ARCH|TASK-NNN)", from)
+		return fmt.Errorf("invalid source ID: %s (must match ISSUE|REQ|DES|ARCH|TASK-NNN)", from)
 	}
 
 	for _, t := range to {
 		if !ValidID(t) {
-			return fmt.Errorf("invalid target ID: %s (must match REQ|DES|ARCH|TASK-NNN)", t)
+			return fmt.Errorf("invalid target ID: %s (must match ISSUE|REQ|DES|ARCH|TASK-NNN)", t)
 		}
 	}
 
