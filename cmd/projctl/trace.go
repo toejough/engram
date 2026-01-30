@@ -12,8 +12,8 @@ import (
 
 type traceAddArgs struct {
 	Dir  string `targ:"flag,short=d,required,desc=Project directory"`
-	From string `targ:"flag,short=f,required,desc=Source ID (e.g. REQ-001)"`
-	To   string `targ:"flag,short=t,required,desc=Target ID(s) comma-separated (e.g. DES-001,ARCH-001)"`
+	From string `targ:"flag,short=f,required,desc=Source ID (e.g. ISSUE-001 or REQ-001)"`
+	To   string `targ:"flag,short=t,required,desc=Target ID(s) comma-separated (e.g. REQ-001 or DES-001,ARCH-001)"`
 }
 
 func traceAdd(args traceAddArgs) error {
@@ -58,7 +58,7 @@ func traceValidate(args traceValidateArgs) error {
 
 type traceImpactArgs struct {
 	Dir     string `targ:"flag,short=d,required,desc=Project directory"`
-	ID      string `targ:"flag,short=i,required,desc=Traceability ID (e.g. REQ-003)"`
+	ID      string `targ:"flag,short=i,required,desc=Traceability ID (e.g. ISSUE-001 or REQ-003)"`
 	Reverse bool   `targ:"flag,short=r,desc=Backward (upstream) analysis"`
 }
 
