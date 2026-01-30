@@ -229,6 +229,42 @@ func TestValidate(t *testing.T) {
 		// ISSUE-001 should be detected in issues.md, so no orphans
 		g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-001"))
 	})
+
+	t.Run("ISSUE with no downstream passes (optional coverage)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// ISSUE exists but has no downstream links
+		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+
+		// No links from ISSUE-001
+
+		result, err := trace.Validate(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		// ISSUE should NOT appear in MissingCoverage (no mandatory downstream)
+		for _, mc := range result.MissingCoverage {
+			g.Expect(mc.ID).ToNot(HavePrefix("ISSUE-"), "ISSUE should not have coverage requirements")
+		}
+	})
+
+	t.Run("ISSUE with downstream REQ passes coverage", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+		writeArtifact(t, dir, "requirements.md", "### REQ-001: Feature\n")
+		writeArtifact(t, dir, "architecture.md", "### ARCH-001: Decision\n")
+		writeArtifact(t, dir, "tasks.md", "### TASK-001: Implement\n")
+
+		// Complete chain starting from ISSUE
+		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
+
+		result, err := trace.Validate(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeTrue())
+	})
 }
 
 func TestImpact(t *testing.T) {
