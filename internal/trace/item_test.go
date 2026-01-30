@@ -32,6 +32,27 @@ func TestTraceItem_ValidDocItem(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
+// Test that a valid ISSUE item passes validation
+func TestTraceItem_ValidIssueItem(t *testing.T) {
+	g := NewWithT(t)
+
+	item := trace.TraceItem{
+		ID:           "ISSUE-001",
+		Type:         trace.NodeTypeISSUE,
+		Project:      "my-project",
+		Title:        "Fix the traceability chain",
+		Status:       "active",
+		TracesTo:     nil, // ISSUE has no upstream
+		Created:      time.Now(),
+		Updated:      time.Now(),
+		SourceFile:   "issues.md",
+		SourceFormat: "yaml",
+	}
+
+	err := item.Validate()
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
 // TEST-002 traces: TASK-001
 // Test that a valid TEST item passes validation
 func TestTraceItem_ValidTestItem(t *testing.T) {
@@ -244,6 +265,7 @@ func TestTraceItem_PropertyValidItemsPass(t *testing.T) {
 		g := NewWithT(t)
 
 		nodeType := rapid.SampledFrom([]trace.NodeType{
+			trace.NodeTypeISSUE,
 			trace.NodeTypeREQ,
 			trace.NodeTypeDES,
 			trace.NodeTypeARCH,
