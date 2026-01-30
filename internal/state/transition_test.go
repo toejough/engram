@@ -172,6 +172,38 @@ func TestIsLegalTransition(t *testing.T) {
 		g.Expect(state.IsLegalTransition("integrate-cleanup", "integrate-complete")).To(BeTrue())
 	})
 
+	// TEST-227 traces: TASK-019
+	t.Run("adopt workflow transitions", func(t *testing.T) {
+		g := NewWithT(t)
+		// init can start adopt workflow
+		g.Expect(state.IsLegalTransition("init", "adopt-analyze")).To(BeTrue())
+		// adopt analysis to inference
+		g.Expect(state.IsLegalTransition("adopt-analyze", "adopt-infer-pm")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-infer-pm", "adopt-infer-pm-complete")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-infer-pm-complete", "adopt-infer-design")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-infer-design", "adopt-infer-design-complete")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-infer-design-complete", "adopt-infer-arch")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-infer-arch", "adopt-infer-arch-complete")).To(BeTrue())
+		// test mapping
+		g.Expect(state.IsLegalTransition("adopt-infer-arch-complete", "adopt-map-tests")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-map-tests", "adopt-map-tests-complete")).To(BeTrue())
+		// escalations
+		g.Expect(state.IsLegalTransition("adopt-map-tests-complete", "adopt-escalations")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-escalations", "adopt-escalations-complete")).To(BeTrue())
+		// generate and complete
+		g.Expect(state.IsLegalTransition("adopt-escalations-complete", "adopt-generate")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("adopt-generate", "adopt-complete")).To(BeTrue())
+	})
+
+	// TEST-228 traces: TASK-019
+	t.Run("align workflow transitions", func(t *testing.T) {
+		g := NewWithT(t)
+		// init can start align workflow
+		g.Expect(state.IsLegalTransition("init", "align-analyze")).To(BeTrue())
+		// align to complete
+		g.Expect(state.IsLegalTransition("align-analyze", "align-complete")).To(BeTrue())
+	})
+
 	t.Run("known illegal transitions", func(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(state.IsLegalTransition("init", "completion")).To(BeFalse())
