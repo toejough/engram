@@ -11,11 +11,12 @@ import (
 type NodeType string
 
 const (
-	NodeTypeREQ  NodeType = "REQ"
-	NodeTypeDES  NodeType = "DES"
-	NodeTypeARCH NodeType = "ARCH"
-	NodeTypeTASK NodeType = "TASK"
-	NodeTypeTEST NodeType = "TEST"
+	NodeTypeISSUE NodeType = "ISSUE"
+	NodeTypeREQ   NodeType = "REQ"
+	NodeTypeDES   NodeType = "DES"
+	NodeTypeARCH  NodeType = "ARCH"
+	NodeTypeTASK  NodeType = "TASK"
+	NodeTypeTEST  NodeType = "TEST"
 )
 
 // TraceItem represents a parsed traceability item before graph construction.
@@ -45,11 +46,12 @@ type TraceItem struct {
 
 // validNodeTypes is the set of valid node type values.
 var validNodeTypes = map[NodeType]bool{
-	NodeTypeREQ:  true,
-	NodeTypeDES:  true,
-	NodeTypeARCH: true,
-	NodeTypeTASK: true,
-	NodeTypeTEST: true,
+	NodeTypeISSUE: true,
+	NodeTypeREQ:   true,
+	NodeTypeDES:   true,
+	NodeTypeARCH:  true,
+	NodeTypeTASK:  true,
+	NodeTypeTEST:  true,
 }
 
 // validStatuses is the set of valid status values.
@@ -61,7 +63,7 @@ var validStatuses = map[string]bool{
 }
 
 // itemIDPattern matches a valid traceability ID: PREFIX-NNN (3+ digits).
-var itemIDPattern = regexp.MustCompile(`^(REQ|DES|ARCH|TASK|TEST)-\d{3,}$`)
+var itemIDPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3,}$`)
 
 // Validate checks that the TraceItem has all required fields and valid values.
 // Returns nil if valid, or an error describing the validation failure.
