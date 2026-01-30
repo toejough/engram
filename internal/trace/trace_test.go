@@ -208,6 +208,27 @@ func TestValidate(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeTrue())
 	})
+
+	t.Run("detects ISSUE IDs in issues.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Create artifacts including issues.md
+		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+		writeArtifact(t, dir, "requirements.md", "### REQ-001: Feature\n")
+		writeArtifact(t, dir, "architecture.md", "### ARCH-001: Decision\n")
+		writeArtifact(t, dir, "tasks.md", "### TASK-001: Implement\n")
+
+		// Add trace links including ISSUE
+		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
+
+		result, err := trace.Validate(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		// ISSUE-001 should be detected in issues.md, so no orphans
+		g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-001"))
+	})
 }
 
 func TestImpact(t *testing.T) {
