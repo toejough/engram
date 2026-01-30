@@ -170,3 +170,67 @@ func numStr(n int) string {
 	}
 	return s
 }
+
+// TEST-161 traces: TASK-026
+// Test ValidateGraph passes for valid graph
+func TestValidateGraph_Valid(t *testing.T) {
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "Req", Status: "active"},
+		{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "test", Title: "Arch", Status: "active", TracesTo: []string{"REQ-001"}},
+		{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"ARCH-001"}},
+		{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "test", Title: "Test", Status: "active", Location: "test.go", Function: "TestX", TracesTo: []string{"TASK-001"}},
+	}
+	graph, _, _ := trace.BuildGraph(items)
+
+	result := trace.ValidateGraph(graph)
+	g.Expect(result.Pass).To(BeTrue())
+	g.Expect(result.Errors).To(BeEmpty())
+}
+
+// TEST-162 traces: TASK-026
+// Test ValidateGraph fails with cycle
+func TestValidateGraph_WithCycle(t *testing.T) {
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-002", Type: trace.NodeTypeREQ})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "REQ-002"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-002", To: "REQ-001"})
+
+	result := trace.ValidateGraph(graph)
+	g.Expect(result.Pass).To(BeFalse())
+	g.Expect(result.Errors).ToNot(BeEmpty())
+}
+
+// TEST-163 traces: TASK-026
+// Test ValidateGraph reports warnings but still passes
+func TestValidateGraph_WithWarnings(t *testing.T) {
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "test", Title: "Req", Status: "active"},
+	}
+	graph, _, _ := trace.BuildGraph(items)
+
+	result := trace.ValidateGraph(graph)
+	g.Expect(result.Pass).To(BeTrue()) // Warnings don't fail
+	g.Expect(result.Warnings).ToNot(BeEmpty())
+}
+
+// TEST-164 traces: TASK-026
+// Test ValidateGraph reports dangling as error
+func TestValidateGraph_DanglingRef(t *testing.T) {
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"REQ-999"}},
+	}
+	graph, _, _ := trace.BuildGraph(items)
+
+	result := trace.ValidateGraph(graph)
+	g.Expect(result.Pass).To(BeFalse())
+	g.Expect(result.Errors).ToNot(BeEmpty())
+}
