@@ -39,5 +39,9 @@ func main() {
 		targ.Group("screenshot",
 			targ.Targ(screenshotDiff).Name("diff"),
 		),
+		targ.Group("integrate",
+			targ.Targ(integrateMerge).Name("merge"),
+			targ.Targ(integrateCleanup).Name("cleanup"),
+		),
 	)
 }
