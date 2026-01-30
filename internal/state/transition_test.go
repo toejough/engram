@@ -161,6 +161,17 @@ func TestIsLegalTransition(t *testing.T) {
 		g.Expect(state.IsLegalTransition("task-audit", "task-escalated")).To(BeTrue())
 	})
 
+	// TEST-226 traces: TASK-018
+	t.Run("integration workflow transitions", func(t *testing.T) {
+		g := NewWithT(t)
+		// completion can trigger integration
+		g.Expect(state.IsLegalTransition("completion", "integrate-commit")).To(BeTrue())
+		// integration workflow
+		g.Expect(state.IsLegalTransition("integrate-commit", "integrate-merge")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("integrate-merge", "integrate-cleanup")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("integrate-cleanup", "integrate-complete")).To(BeTrue())
+	})
+
 	t.Run("known illegal transitions", func(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(state.IsLegalTransition("init", "completion")).To(BeFalse())
