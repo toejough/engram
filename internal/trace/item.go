@@ -78,7 +78,7 @@ func (item *TraceItem) Validate() error {
 	}
 
 	if !validNodeTypes[item.Type] {
-		return fmt.Errorf("field Type must be one of REQ, DES, ARCH, TASK, TEST; got %q", item.Type)
+		return fmt.Errorf("field Type must be one of ISSUE, REQ, DES, ARCH, TASK, TEST; got %q", item.Type)
 	}
 
 	if item.Project == "" {
