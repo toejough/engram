@@ -15,12 +15,17 @@ type MockExecutor struct {
 	Args        []string
 	ShouldError bool
 	Err         error
+	// OnRun is called when Run is invoked, allowing test to modify state
+	OnRun func(name string, args []string)
 }
 
 func (m *MockExecutor) Run(name string, args ...string) error {
 	m.Called = true
 	m.Command = name
 	m.Args = args
+	if m.OnRun != nil {
+		m.OnRun(name, args)
+	}
 	if m.ShouldError {
 		return m.Err
 	}
@@ -78,22 +83,7 @@ func TestReviewEscalations_Workflow(t *testing.T) {
 	// Mock FS that simulates user editing the file
 	fs := &mockFS{files: make(map[string]string)}
 
-	// Mock executor that simulates editor modifying file
-	exec := &MockExecutor{}
-
-	// Original escalations
-	escalations := []escalation.Escalation{
-		{
-			ID:       "ESC-001",
-			Category: "requirement",
-			Context:  "Auth",
-			Question: "Use OAuth?",
-			Status:   "pending",
-			Notes:    "",
-		},
-	}
-
-	// Simulate user editing the file (mock by pre-setting edited content)
+	// Content after user edits
 	editedContent := `# Escalations
 
 Review each escalation and update the **Status** field:
@@ -116,9 +106,26 @@ Review each escalation and update the **Status** field:
 ---
 
 `
-	// The workflow will write, then exec edits, then read
-	// We simulate by having the FS return edited content after "editor" runs
-	fs.files["/tmp/escalations.md"] = editedContent
+
+	// Mock executor that simulates editor modifying file
+	exec := &MockExecutor{
+		OnRun: func(name string, args []string) {
+			// Simulate user editing the file when editor is invoked
+			fs.files["/tmp/escalations.md"] = editedContent
+		},
+	}
+
+	// Original escalations
+	escalations := []escalation.Escalation{
+		{
+			ID:       "ESC-001",
+			Category: "requirement",
+			Context:  "Auth",
+			Question: "Use OAuth?",
+			Status:   "pending",
+			Notes:    "",
+		},
+	}
 
 	env := func(key string) string { return "vim" }
 
