@@ -314,6 +314,33 @@ func TestImpact(t *testing.T) {
 		_, err := trace.Impact(dir, "bad-id", false)
 		g.Expect(err).To(HaveOccurred())
 	})
+
+	t.Run("forward impact from ISSUE", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
+
+		result, err := trace.Impact(dir, "ISSUE-001", false)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ARCH-001", "TASK-001"))
+		g.Expect(result.Reverse).To(BeFalse())
+	})
+
+	t.Run("backward impact to ISSUE", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
+
+		result, err := trace.Impact(dir, "ARCH-001", true)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ISSUE-001"))
+		g.Expect(result.Reverse).To(BeTrue())
+	})
 }
 
 func writeArtifact(t *testing.T, dir, name, content string) {
