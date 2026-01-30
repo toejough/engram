@@ -46,6 +46,15 @@ func Add(dir, from string, to []string) error {
 		}
 	}
 
+	// ISSUE can only link to REQ
+	if strings.HasPrefix(from, "ISSUE-") {
+		for _, t := range to {
+			if !strings.HasPrefix(t, "REQ-") {
+				return fmt.Errorf("ISSUE can only link to REQ (got %s)", t)
+			}
+		}
+	}
+
 	m, err := load(dir)
 	if err != nil {
 		return err
