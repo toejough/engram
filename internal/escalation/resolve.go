@@ -17,6 +17,33 @@ type ResolutionResult struct {
 
 // ApplyResolutions processes escalations and returns results.
 func ApplyResolutions(escalations []Escalation) *ResolutionResult {
-	// TODO: implement
-	return &ResolutionResult{}
+	result := &ResolutionResult{}
+
+	for _, e := range escalations {
+		switch e.Status {
+		case "resolved":
+			result.Applied = append(result.Applied, e)
+
+		case "deferred":
+			result.Issues = append(result.Issues, IssueSpec{
+				Source:      e.ID,
+				Title:       e.Question,
+				Description: e.Context,
+				Category:    "deferred-escalation",
+			})
+
+		case "issue":
+			result.Issues = append(result.Issues, IssueSpec{
+				Source:      e.ID,
+				Title:       e.Question,
+				Description: e.Notes,
+				Category:    "user-issue",
+			})
+
+		case "pending":
+			result.Pending = append(result.Pending, e)
+		}
+	}
+
+	return result
 }
