@@ -14,6 +14,7 @@ import (
 func TestValidID(t *testing.T) {
 	t.Run("accepts valid IDs", func(t *testing.T) {
 		g := NewWithT(t)
+		g.Expect(trace.ValidID("ISSUE-001")).To(BeTrue())
 		g.Expect(trace.ValidID("REQ-001")).To(BeTrue())
 		g.Expect(trace.ValidID("DES-042")).To(BeTrue())
 		g.Expect(trace.ValidID("ARCH-123")).To(BeTrue())
@@ -34,7 +35,7 @@ func TestValidID(t *testing.T) {
 func TestValidIDProperty(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
-		prefix := rapid.SampledFrom([]string{"REQ", "DES", "ARCH", "TASK"}).Draw(rt, "prefix")
+		prefix := rapid.SampledFrom([]string{"ISSUE", "REQ", "DES", "ARCH", "TASK"}).Draw(rt, "prefix")
 		num := rapid.IntRange(0, 999).Draw(rt, "num")
 
 		id := prefix + "-" + padNumber(num)
