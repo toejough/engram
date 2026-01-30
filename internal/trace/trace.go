@@ -281,13 +281,14 @@ func hasPrefix(targets []string, prefix string) bool {
 func scanArtifacts(dir string) (map[string]bool, error) {
 	ids := make(map[string]bool)
 	artifactFiles := []string{
+		"issues.md",
 		"requirements.md",
 		"design.md",
 		"architecture.md",
 		"tasks.md",
 	}
 
-	pattern := regexp.MustCompile(`(REQ|DES|ARCH|TASK)-\d{3}`)
+	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK)-\d{3}`)
 
 	for _, name := range artifactFiles {
 		path := filepath.Join(dir, name)
