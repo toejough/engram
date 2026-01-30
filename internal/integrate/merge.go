@@ -39,16 +39,15 @@ type docItem struct {
 
 // docFile represents a documentation file type for merging.
 type docFile struct {
-	Name       string // e.g., "requirements"
-	Prefix     string // e.g., "REQ"
-	ResultField string // e.g., "RequirementsAdded"
+	Name   string // e.g., "requirements"
+	Prefix string // e.g., "REQ"
 }
 
 var docFiles = []docFile{
-	{"requirements", "REQ", "RequirementsAdded"},
-	{"design", "DES", "DesignAdded"},
-	{"architecture", "ARCH", "ArchitectureAdded"},
-	{"tasks", "TASK", "TasksAdded"},
+	{"requirements", "REQ"},
+	{"design", "DES"},
+	{"architecture", "ARCH"},
+	{"tasks", "TASK"},
 }
 
 // Merge merges per-project documentation into top-level docs.
