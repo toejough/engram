@@ -2,7 +2,7 @@ package state
 
 // LegalTransitions maps each phase to its valid next phases.
 var LegalTransitions = map[string][]string{
-	"init":                    {"pm-interview"},
+	"init":                    {"pm-interview", "adopt-analyze", "align-analyze"},
 	"pm-interview":            {"pm-complete"},
 	"pm-complete":             {"design-interview"},
 	"design-interview":        {"design-complete"},
@@ -33,6 +33,23 @@ var LegalTransitions = map[string][]string{
 	"integrate-merge":         {"integrate-cleanup"},
 	"integrate-cleanup":       {"integrate-complete"},
 	"integrate-complete":      {},
+	// Adopt workflow
+	"adopt-analyze":              {"adopt-infer-pm"},
+	"adopt-infer-pm":             {"adopt-infer-pm-complete"},
+	"adopt-infer-pm-complete":    {"adopt-infer-design"},
+	"adopt-infer-design":         {"adopt-infer-design-complete"},
+	"adopt-infer-design-complete": {"adopt-infer-arch"},
+	"adopt-infer-arch":           {"adopt-infer-arch-complete"},
+	"adopt-infer-arch-complete":  {"adopt-map-tests"},
+	"adopt-map-tests":            {"adopt-map-tests-complete"},
+	"adopt-map-tests-complete":   {"adopt-escalations"},
+	"adopt-escalations":          {"adopt-escalations-complete"},
+	"adopt-escalations-complete": {"adopt-generate"},
+	"adopt-generate":             {"adopt-complete"},
+	"adopt-complete":             {},
+	// Align workflow
+	"align-analyze":              {"align-complete"},
+	"align-complete":             {},
 }
 
 // IsLegalTransition checks whether transitioning from one phase to another is allowed.
