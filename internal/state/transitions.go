@@ -28,7 +28,11 @@ var LegalTransitions = map[string][]string{
 	"audit":                   {"audit-complete", "audit-fix"},
 	"audit-fix":               {"audit"},
 	"audit-complete":          {"completion"},
-	"completion":              {},
+	"completion":              {"integrate-commit"},
+	"integrate-commit":        {"integrate-merge"},
+	"integrate-merge":         {"integrate-cleanup"},
+	"integrate-cleanup":       {"integrate-complete"},
+	"integrate-complete":      {},
 }
 
 // IsLegalTransition checks whether transitioning from one phase to another is allowed.
