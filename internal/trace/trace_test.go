@@ -449,4 +449,62 @@ First.
 		g.Expect(result.DanglingRefs).To(HaveLen(2))
 		g.Expect(result.DanglingRefs).To(ContainElements("REQ-999", "REQ-998"))
 	})
+
+	t.Run("auto-renumbers duplicate IDs", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: First Design
+
+First.
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "design-feature.md", `# Feature Design
+
+### DES-001: Duplicate Design
+
+Duplicate.
+
+**Traces to:** REQ-002
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Should have renumbered the duplicate
+		g.Expect(result.Renumbered).To(HaveLen(1))
+		g.Expect(result.Renumbered[0].OldID).To(Equal("DES-001"))
+		g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
+
+		// Check the file was actually updated
+		content, err := os.ReadFile(filepath.Join(dir, "docs", "design-feature.md"))
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(content)).To(ContainSubstring("DES-002"))
+		g.Expect(string(content)).ToNot(ContainSubstring("DES-001"))
+	})
+
+	t.Run("creates escalation for dangling refs", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Some Design
+
+Design.
+
+**Traces to:** REQ-999
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Should create escalation for dangling ref
+		g.Expect(result.Escalations).To(HaveLen(1))
+		g.Expect(result.Escalations[0].ID).To(Equal("REQ-999"))
+		g.Expect(result.Escalations[0].Reason).To(ContainSubstring("dangling"))
+	})
 }
