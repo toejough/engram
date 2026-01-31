@@ -25,6 +25,7 @@ func main() {
 			targ.Targ(traceAdd).Name("add").Description("Add a traceability link between artifacts"),
 			targ.Targ(traceValidate).Name("validate").Description("Validate traceability matrix coverage"),
 			targ.Targ(traceValidateV2).Name("validate-v2").Description("Validate traceability using graph-based analysis"),
+			targ.Targ(traceValidateArtifacts).Name("validate-artifacts").Description("Validate traceability by scanning artifact files"),
 			targ.Targ(traceImpact).Name("impact").Description("Analyze forward or backward impact of an artifact"),
 			targ.Targ(traceRepair).Name("repair").Description("Detect and report traceability issues"),
 		),
