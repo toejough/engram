@@ -510,6 +510,117 @@ func Repair(dir string) (RepairResult, error) {
 	return result, nil
 }
 
+// ValidateV2ArtifactsResult holds the results of artifact-based validation.
+type ValidateV2ArtifactsResult struct {
+	Pass        bool     `json:"pass"`
+	OrphanIDs   []string `json:"orphan_ids"`   // IDs referenced in Traces to: but not defined
+	UnlinkedIDs []string `json:"unlinked_ids"` // IDs defined but nothing traces to them
+}
+
+// ValidateV2Artifacts validates traceability by scanning artifact files directly.
+// Unlike Validate, this doesn't use the traceability.toml matrix.
+// - Orphan: ID in **Traces to:** field but not defined as header (### ID: Title)
+// - Unlinked: ID defined as header but not referenced in any **Traces to:** field
+func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
+	if err != nil {
+		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Collect defined IDs and referenced IDs from artifacts
+	definedIDs := make(map[string]bool)   // ID → true if defined as header
+	referencedIDs := make(map[string]bool) // ID → true if referenced in Traces to:
+
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
+	}
+
+	// Also look for feature-specific files
+	docsDir := filepath.Join(dir, "docs")
+	featurePatterns := []string{
+		filepath.Join(docsDir, "design-*.md"),
+		filepath.Join(docsDir, "requirements-*.md"),
+		filepath.Join(docsDir, "architecture-*.md"),
+	}
+
+	for _, pattern := range featurePatterns {
+		matches, err := filepath.Glob(pattern)
+		if err == nil {
+			for _, match := range matches {
+				relPath, _ := filepath.Rel(dir, match)
+				artifactPaths = append(artifactPaths, relPath)
+			}
+		}
+	}
+
+	// Patterns for parsing
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3}):\s*`)
+	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3})`)
+
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to read %s: %w", relPath, err)
+		}
+
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			// Check for ID definitions
+			if match := idDefPattern.FindStringSubmatch(line); match != nil {
+				definedIDs[match[1]] = true
+			}
+
+			// Check for Traces to: references
+			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
+				refs := idRefPattern.FindAllString(match[1], -1)
+				for _, ref := range refs {
+					referencedIDs[ref] = true
+				}
+			}
+		}
+	}
+
+	result := ValidateV2ArtifactsResult{Pass: true}
+
+	// Orphan: referenced in Traces to: but not defined
+	for ref := range referencedIDs {
+		if !definedIDs[ref] {
+			result.OrphanIDs = append(result.OrphanIDs, ref)
+			result.Pass = false
+		}
+	}
+
+	// Unlinked: defined but nothing traces to it
+	// Note: ISSUE is the root of the chain, so nothing traces TO issues - they're exempt.
+	// Everything else (REQ, DES, ARCH, TASK) should have something tracing to them.
+	for id := range definedIDs {
+		if !referencedIDs[id] {
+			// ISSUE is root - nothing traces to it by design
+			if !strings.HasPrefix(id, "ISSUE-") {
+				result.UnlinkedIDs = append(result.UnlinkedIDs, id)
+				result.Pass = false
+			}
+		}
+	}
+
+	return result, nil
+}
+
 func load(dir string) (Matrix, error) {
 	path := filepath.Join(dir, TraceFile)
 
