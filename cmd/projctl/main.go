@@ -47,6 +47,7 @@ func main() {
 			targ.Targ(escalationWrite).Name("write").Description("Write an escalation record"),
 			targ.Targ(escalationReview).Name("review").Description("Review pending escalations"),
 			targ.Targ(escalationList).Name("list").Description("List all escalations"),
+			targ.Targ(escalationResolve).Name("resolve").Description("Resolve an escalation by ID"),
 		),
 	)
 }

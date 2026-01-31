@@ -158,6 +158,56 @@ type escalationListArgs struct {
 	JSON   bool   `targ:"flag,short=j,desc=Output as JSON"`
 }
 
+type escalationResolveArgs struct {
+	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
+	File   string `targ:"flag,short=f,desc=Escalation file path (default: docs/escalations.md)"`
+	ID     string `targ:"flag,desc=Escalation ID to resolve (e.g. ESC-001),required"`
+	Status string `targ:"flag,short=s,desc=New status: resolved, deferred, issue,required"`
+	Notes  string `targ:"flag,short=n,desc=Resolution notes"`
+}
+
+func escalationResolve(args escalationResolveArgs) error {
+	dir := args.Dir
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+	}
+
+	filePath := args.File
+	if filePath == "" {
+		filePath = filepath.Join(dir, "docs", "escalations.md")
+	}
+
+	fs := &realEscalationFS{}
+
+	// Load existing escalations
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return fmt.Errorf("escalation file does not exist: %s", filePath)
+	}
+
+	escalations, err := escalation.ParseEscalationFile(filePath, fs)
+	if err != nil {
+		return fmt.Errorf("failed to parse escalations: %w", err)
+	}
+
+	// Resolve the escalation
+	updated, err := escalation.Resolve(escalations, args.ID, args.Status, args.Notes)
+	if err != nil {
+		return fmt.Errorf("failed to resolve: %w", err)
+	}
+
+	// Write back
+	if err := escalation.WriteEscalationFile(filePath, updated, fs); err != nil {
+		return fmt.Errorf("failed to write escalations: %w", err)
+	}
+
+	fmt.Printf("Resolved %s with status %q\n", args.ID, args.Status)
+	return nil
+}
+
 func escalationList(args escalationListArgs) error {
 	dir := args.Dir
 	if dir == "" {
