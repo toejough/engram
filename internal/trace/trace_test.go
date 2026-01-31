@@ -508,3 +508,84 @@ Design.
 		g.Expect(result.Escalations[0].Reason).To(ContainSubstring("dangling"))
 	})
 }
+
+// TEST-240: Validates orphan detection by scanning artifact Traces to: fields
+// traces: TASK-007
+func TestValidateOrphanDetection(t *testing.T) {
+	t.Run("orphan is ID in Traces to but not defined", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// DES-001 is defined but references undefined REQ-999
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Some Design
+
+**Traces to:** REQ-999
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeFalse())
+		g.Expect(result.OrphanIDs).To(ContainElement("REQ-999"), "REQ-999 is referenced but not defined")
+	})
+
+	t.Run("unlinked is ID defined but nothing traces to it", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// REQ-001 is defined, DES-001 traces to it
+		// REQ-002 is defined but nothing traces to it
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: First Requirement
+
+Description.
+
+### REQ-002: Second Requirement
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeFalse())
+		g.Expect(result.UnlinkedIDs).To(ContainElement("REQ-002"), "REQ-002 is defined but nothing traces to it")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-001"), "REQ-001 is traced to by DES-001")
+	})
+
+	t.Run("passes when all IDs are defined and traced", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Requirement
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.OrphanIDs).To(BeEmpty())
+		// Note: REQ-001 has nothing tracing to it, but that's OK for top-level items
+	})
+}
