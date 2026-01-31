@@ -357,3 +357,96 @@ func writeArtifact(t *testing.T, dir, name, content string) {
 		t.Fatal(err)
 	}
 }
+
+// TEST-230 traces: TASK-003
+func TestRepair(t *testing.T) {
+	t.Run("detects dangling references", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Create a design doc that references a non-existent requirement
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Some Design
+
+Design description.
+
+**Traces to:** REQ-999
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.DanglingRefs).To(ContainElement("REQ-999"))
+	})
+
+	t.Run("detects duplicate IDs in different files", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Create two design files with same ID
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: First Design
+
+First.
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "design-feature.md", `# Feature Design
+
+### DES-001: Duplicate Design
+
+Duplicate.
+
+**Traces to:** REQ-002
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.DuplicateIDs).To(ContainElement("DES-001"))
+	})
+
+	t.Run("returns empty result when no issues", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Requirement
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+Description.
+
+**Traces to:** REQ-001
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.DanglingRefs).To(BeEmpty())
+		g.Expect(result.DuplicateIDs).To(BeEmpty())
+	})
+
+	t.Run("reports all issues found", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: First
+
+First.
+
+**Traces to:** REQ-999, REQ-998
+`)
+
+		result, err := trace.Repair(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.DanglingRefs).To(HaveLen(2))
+		g.Expect(result.DanglingRefs).To(ContainElements("REQ-999", "REQ-998"))
+	})
+}
