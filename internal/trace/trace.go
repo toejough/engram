@@ -606,12 +606,12 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Unlinked: defined but nothing traces to it
-	// Note: ISSUE is the root of the chain, so nothing traces TO issues - they're exempt.
-	// Everything else (REQ, DES, ARCH, TASK) should have something tracing to them.
+	// Note: ISSUE and REQ can be root items (ISSUEs are optional, so REQs can be parentless).
+	// Only DES, ARCH, TASK should have something tracing to them.
 	for id := range definedIDs {
 		if !referencedIDs[id] {
-			// ISSUE is root - nothing traces to it by design
-			if !strings.HasPrefix(id, "ISSUE-") {
+			// ISSUE and REQ can be roots - nothing traces to them by design
+			if !strings.HasPrefix(id, "ISSUE-") && !strings.HasPrefix(id, "REQ-") {
 				result.UnlinkedIDs = append(result.UnlinkedIDs, id)
 				result.Pass = false
 			}

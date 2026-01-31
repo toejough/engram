@@ -534,8 +534,9 @@ func TestValidateOrphanDetection(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		// REQ-001 is defined, DES-001 traces to it
-		// REQ-002 is defined but nothing traces to it
+		// DES-001: ARCH-001 traces to it (linked)
+		// DES-002: nothing traces to it (unlinked - should be flagged)
+		// REQ-001, REQ-002: nothing traces to them but that's OK (REQs can be roots)
 		writeArtifact(t, dir, "requirements.md", `# Requirements
 
 ### REQ-001: First Requirement
@@ -551,13 +552,26 @@ Description.
 ### DES-001: Design
 
 **Traces to:** REQ-001
+
+### DES-002: Another Design
+
+**Traces to:** REQ-002
+`)
+		writeArtifact(t, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
 `)
 
 		result, err := trace.ValidateV2Artifacts(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeFalse())
-		g.Expect(result.UnlinkedIDs).To(ContainElement("REQ-002"), "REQ-002 is defined but nothing traces to it")
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-001"), "REQ-001 is traced to by DES-001")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("DES-002"), "DES-002 has nothing tracing to it")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("ARCH-001"), "ARCH-001 has nothing tracing to it")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-001"), "DES-001 is traced to by ARCH-001")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-001"), "REQ can be root")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-002"), "REQ can be root - issues are optional")
 	})
 
 	t.Run("passes when all IDs are defined and traced", func(t *testing.T) {
