@@ -48,5 +48,10 @@ func main() {
 			targ.Targ(escalationList).Name("list").Description("List all escalations"),
 			targ.Targ(escalationResolve).Name("resolve").Description("Resolve an escalation by ID"),
 		),
+		targ.Group("skills",
+			targ.Targ(skillsInstall).Name("install").Description("Install skills by creating symlinks"),
+			targ.Targ(skillsStatus).Name("status").Description("Show skill installation status"),
+			targ.Targ(skillsUninstall).Name("uninstall").Description("Uninstall skills by removing symlinks"),
+		),
 	)
 }
