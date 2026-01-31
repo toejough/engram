@@ -307,17 +307,18 @@ func hasPrefix(targets []string, prefix string) bool {
 
 // scanArtifacts scans known artifact files for embedded traceability IDs.
 // Uses config to resolve artifact paths (typically docs/ subdirectory).
+// Note: Does NOT scan tests.md - TEST tracing is in source files.
 func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, error) {
 	ids := make(map[string]bool)
 
 	// Get artifact paths from config
+	// Note: tests.md is NOT scanned - TEST tracing is in source files
 	artifactPaths := []string{
 		cfg.ResolvePath("issues"),
 		cfg.ResolvePath("requirements"),
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
-		cfg.ResolvePath("tests"),
 	}
 
 	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}`)
@@ -389,22 +390,21 @@ func Repair(dir string) (RepairResult, error) {
 	referencedIDs := make(map[string]bool)      // IDs referenced in Traces to:
 	maxIDByPrefix := make(map[string]int)       // prefix -> max number
 
+	// Note: tests.md is NOT scanned - TEST tracing is in source files
 	artifactPaths := []string{
 		cfg.ResolvePath("issues"),
 		cfg.ResolvePath("requirements"),
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
-		cfg.ResolvePath("tests"),
 	}
 
-	// Also look for feature-specific files
+	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
 	docsDir := filepath.Join(dir, "docs")
 	featurePatterns := []string{
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
 		filepath.Join(docsDir, "architecture-*.md"),
-		filepath.Join(docsDir, "tests-*.md"),
 	}
 
 	for _, pattern := range featurePatterns {
@@ -520,12 +520,139 @@ type ValidateV2ArtifactsResult struct {
 	UnlinkedIDs []string `json:"unlinked_ids"` // IDs defined but nothing traces to them
 }
 
+// TestTrace represents a test with traceability information from source file comments.
+type TestTrace struct {
+	ID       string   // TEST-NNN
+	Function string   // TestFunctionName
+	File     string   // path/to/file_test.go
+	Line     int      // line number
+	TracesTo []string // [TASK-NNN, ...]
+}
+
+// scanTestFiles scans Go test files for TEST-NNN comments with traces.
+// Pattern: // TEST-NNN: description
+//
+//	// traces: TARGET-NNN[, TARGET-NNN...]
+//	func TestFunctionName(t *testing.T) {
+func scanTestFiles(dir string) (map[string]TestTrace, error) {
+	result := make(map[string]TestTrace)
+
+	// Pattern for TEST-NNN comment followed by traces comment
+	// We look for: // TEST-NNN: ...
+	//              // traces: ...
+	testIDPattern := regexp.MustCompile(`^//\s*(TEST-\d{3}):\s*(.*)`)
+	tracesPattern := regexp.MustCompile(`^//\s*traces:\s*(.+)`)
+	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+
+		// Skip vendor directory
+		if info.IsDir() && info.Name() == "vendor" {
+			return filepath.SkipDir
+		}
+
+		// Only process *_test.go files
+		if info.IsDir() || !strings.HasSuffix(info.Name(), "_test.go") {
+			return nil
+		}
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil // Skip unreadable files
+		}
+
+		relPath, _ := filepath.Rel(dir, path)
+		lines := strings.Split(string(data), "\n")
+
+		var currentTestID string
+		var currentDesc string
+		var currentTraces []string
+		var testIDLine int
+
+		for lineNum, line := range lines {
+			// Check for TEST-NNN comment
+			if match := testIDPattern.FindStringSubmatch(line); match != nil {
+				currentTestID = match[1]
+				currentDesc = match[2]
+				testIDLine = lineNum + 1
+				currentTraces = nil
+				continue
+			}
+
+			// Check for traces comment (must follow TEST-NNN)
+			if currentTestID != "" && currentTraces == nil {
+				if match := tracesPattern.FindStringSubmatch(line); match != nil {
+					refs := idRefPattern.FindAllString(match[1], -1)
+					currentTraces = refs
+					continue
+				}
+			}
+
+			// Check for function declaration
+			if currentTestID != "" {
+				if match := funcPattern.FindStringSubmatch(line); match != nil {
+					result[currentTestID] = TestTrace{
+						ID:       currentTestID,
+						Function: match[1],
+						File:     relPath,
+						Line:     testIDLine,
+						TracesTo: currentTraces,
+					}
+					// Reset for next test
+					currentTestID = ""
+					currentDesc = ""
+					currentTraces = nil
+				}
+			}
+
+			// Reset if we hit a blank line or other content
+			if strings.TrimSpace(line) == "" || (!strings.HasPrefix(strings.TrimSpace(line), "//") && !strings.HasPrefix(strings.TrimSpace(line), "func")) {
+				if currentTestID != "" && currentTraces == nil {
+					// TEST-NNN without traces - still record it
+					result[currentTestID] = TestTrace{
+						ID:       currentTestID,
+						Function: "",
+						File:     relPath,
+						Line:     testIDLine,
+						TracesTo: nil,
+					}
+				}
+				currentTestID = ""
+				currentDesc = ""
+				currentTraces = nil
+			}
+		}
+
+		// Handle case where file ends with a TEST comment
+		if currentTestID != "" {
+			result[currentTestID] = TestTrace{
+				ID:       currentTestID,
+				Function: "",
+				File:     relPath,
+				Line:     testIDLine,
+				TracesTo: currentTraces,
+			}
+		}
+
+		// Suppress unused variable warning
+		_ = currentDesc
+
+		return nil
+	})
+
+	return result, err
+}
+
 // ValidateV2Artifacts validates traceability by scanning artifact files directly.
 // Unlike Validate, this doesn't use the traceability.toml matrix.
 // - Orphan: ID in **Traces to:** field but not defined as header (### ID: Title)
 // - Unlinked: ID defined but not connected to chain:
 //   - DES, ARCH, TASK: nothing traces TO them
-//   - TEST: doesn't trace TO anything (no **Traces to:** field)
+//   - TEST: doesn't trace TO anything (no **Traces to:** field or // traces: comment)
 func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -542,22 +669,21 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	referencedIDs := make(map[string]bool) // ID → true if referenced in Traces to:
 	hasTracesTo := make(map[string]bool)   // ID → true if has a Traces to: field
 
+	// Note: tests.md is NOT scanned - TEST tracing is in source files via comments
 	artifactPaths := []string{
 		cfg.ResolvePath("issues"),
 		cfg.ResolvePath("requirements"),
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
-		cfg.ResolvePath("tests"),
 	}
 
-	// Also look for feature-specific files
+	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
 	docsDir := filepath.Join(dir, "docs")
 	featurePatterns := []string{
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
 		filepath.Join(docsDir, "architecture-*.md"),
-		filepath.Join(docsDir, "tests-*.md"),
 	}
 
 	for _, pattern := range featurePatterns {
@@ -605,6 +731,24 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 				if currentID != "" {
 					hasTracesTo[currentID] = true
 				}
+			}
+		}
+	}
+
+	// Scan test source files for TEST-NNN comments
+	testTraces, err := scanTestFiles(dir)
+	if err != nil {
+		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to scan test files: %w", err)
+	}
+
+	// Integrate test file results
+	for id, trace := range testTraces {
+		definedIDs[id] = true
+		if len(trace.TracesTo) > 0 {
+			hasTracesTo[id] = true
+			// Also add the trace targets to referencedIDs
+			for _, target := range trace.TracesTo {
+				referencedIDs[target] = true
 			}
 		}
 	}

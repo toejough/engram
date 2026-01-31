@@ -358,6 +358,21 @@ func writeArtifact(t *testing.T, dir, name, content string) {
 	}
 }
 
+func writeTestFile(t *testing.T, dir, pkg, name, content string) {
+	t.Helper()
+
+	// Write Go test file to specified package directory
+	pkgDir := filepath.Join(dir, pkg)
+	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := os.WriteFile(filepath.Join(pkgDir, name), []byte(content), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TEST-230 traces: TASK-003
 func TestRepair(t *testing.T) {
 	t.Run("detects dangling references", func(t *testing.T) {
@@ -603,33 +618,94 @@ Description.
 		// Note: REQ-001 has nothing tracing to it, but that's OK for top-level items
 	})
 
-	t.Run("TEST without Traces to is unlinked", func(t *testing.T) {
+	t.Run("TEST in source file with traces comment is linked", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		// TEST-001 has Traces to: (linked)
-		// TEST-002 has no Traces to: (unlinked - should be flagged)
-		writeArtifact(t, dir, "requirements.md", `# Requirements
+		// Create a Go test file with TEST-NNN comment
+		writeTestFile(t, dir, "internal/parser", "parser_test.go", `package parser_test
 
-### REQ-001: Requirement
+import "testing"
+
+// TEST-001: Parses positional arguments
+// traces: TASK-001
+func TestParsePositionalArgs(t *testing.T) {
+	// test implementation
+}
+
+// TEST-002: Missing traces comment
+func TestSomethingElse(t *testing.T) {
+	// no traces comment - should be unlinked
+}
+`)
+
+		writeArtifact(t, dir, "tasks.md", `# Tasks
+
+### TASK-001: Implement parsing
 
 Description.
 `)
-		writeArtifact(t, dir, "tests.md", `# Tests
 
-### TEST-001: Test with upstream
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-001"), "TEST-001 has traces: comment")
+		// Note: TEST-002 would be unlinked if we detect it, but we only detect commented tests
+	})
 
-**Traces to:** REQ-001
+	t.Run("TEST in source file without traces comment is unlinked", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
 
-### TEST-002: Test without upstream
+		// Create a Go test file with TEST-NNN but no traces
+		writeTestFile(t, dir, "internal/config", "config_test.go", `package config_test
 
-No traces to field - this test is orphaned.
+import "testing"
+
+// TEST-003: Config loading test
+// No traces comment here
+func TestConfigLoad(t *testing.T) {
+	// test implementation
+}
 `)
 
 		result, err := trace.ValidateV2Artifacts(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeFalse())
-		g.Expect(result.UnlinkedIDs).To(ContainElement("TEST-002"), "TEST-002 has no Traces to: field")
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-001"), "TEST-001 has Traces to: REQ-001")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("TEST-003"), "TEST-003 has no traces: comment")
+	})
+
+	t.Run("scans test files from multiple packages", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeTestFile(t, dir, "internal/parser", "parser_test.go", `package parser_test
+
+import "testing"
+
+// TEST-010: Parser test
+// traces: TASK-001
+func TestParser(t *testing.T) {}
+`)
+
+		writeTestFile(t, dir, "internal/config", "config_test.go", `package config_test
+
+import "testing"
+
+// TEST-011: Config test
+// traces: TASK-002
+func TestConfig(t *testing.T) {}
+`)
+
+		writeArtifact(t, dir, "tasks.md", `# Tasks
+
+### TASK-001: Parser task
+
+### TASK-002: Config task
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-010"))
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-011"))
 	})
 }
