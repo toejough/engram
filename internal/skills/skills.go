@@ -108,3 +108,18 @@ func Install(repoSkillsDir, targetDir string, opts InstallOpts) (InstallResult, 
 
 	return result, nil
 }
+
+// StatusResult contains the status of all skills.
+type StatusResult struct {
+	Linked    []string // Skills properly symlinked to repo
+	Missing   []string // Repo skills not installed
+	Local     []string // Skills only in target (not in repo)
+	Conflicts []string // Non-symlink directories with same name as repo skill
+	Stale     []string // Symlinks pointing to wrong location
+}
+
+// Status returns the installation status of all skills.
+func Status(repoSkillsDir, targetDir string) (StatusResult, error) {
+	// TODO: Implement
+	return StatusResult{}, nil
+}

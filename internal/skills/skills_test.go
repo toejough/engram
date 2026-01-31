@@ -188,3 +188,119 @@ func TestInstall_ErrorsOnNonexistentSkill(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("does-not-exist"))
 }
+
+// TEST-057-001 traces: TASK-057
+// Test that Status returns linked for properly symlinked skills
+func TestStatus_ReturnsLinkedForSymlinkedSkills(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Skill A"), 0644)).To(Succeed())
+
+	// Create proper symlink
+	g.Expect(os.Symlink(filepath.Join(skillsDir, "skill-a"), filepath.Join(targetDir, "skill-a"))).To(Succeed())
+
+	// When: Get status
+	result, err := skills.Status(skillsDir, targetDir)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Shows as linked
+	g.Expect(result.Linked).To(ConsistOf("skill-a"))
+}
+
+// TEST-057-002 traces: TASK-057
+// Test that Status returns missing for repo skills not installed
+func TestStatus_ReturnsMissingForUninstalledSkills(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Skill A"), 0644)).To(Succeed())
+
+	// No symlink created - target dir is empty
+
+	// When: Get status
+	result, err := skills.Status(skillsDir, targetDir)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Shows as missing
+	g.Expect(result.Missing).To(ConsistOf("skill-a"))
+}
+
+// TEST-057-003 traces: TASK-057
+// Test that Status returns local for skills only in target
+func TestStatus_ReturnsLocalForTargetOnlySkills(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	// Create skill only in target (not in repo)
+	g.Expect(os.MkdirAll(filepath.Join(targetDir, "local-skill"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(targetDir, "local-skill", "SKILL.md"), []byte("# Local"), 0644)).To(Succeed())
+
+	// When: Get status
+	result, err := skills.Status(skillsDir, targetDir)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Shows as local
+	g.Expect(result.Local).To(ConsistOf("local-skill"))
+}
+
+// TEST-057-004 traces: TASK-057
+// Test that Status returns conflict for non-symlink with same name
+func TestStatus_ReturnsConflictForNonSymlink(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Repo"), 0644)).To(Succeed())
+
+	// Create non-symlink directory in target with same name
+	g.Expect(os.MkdirAll(filepath.Join(targetDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(targetDir, "skill-a", "SKILL.md"), []byte("# Local"), 0644)).To(Succeed())
+
+	// When: Get status
+	result, err := skills.Status(skillsDir, targetDir)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Shows as conflict
+	g.Expect(result.Conflicts).To(ConsistOf("skill-a"))
+}
+
+// TEST-057-005 traces: TASK-057
+// Test that Status returns stale for symlink pointing to wrong location
+func TestStatus_ReturnsStaleForWrongSymlink(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Skill A"), 0644)).To(Succeed())
+
+	// Create symlink pointing to wrong location
+	wrongTarget := t.TempDir()
+	g.Expect(os.Symlink(wrongTarget, filepath.Join(targetDir, "skill-a"))).To(Succeed())
+
+	// When: Get status
+	result, err := skills.Status(skillsDir, targetDir)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Shows as stale (needs update)
+	g.Expect(result.Stale).To(ConsistOf("skill-a"))
+}
