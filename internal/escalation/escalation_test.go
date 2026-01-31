@@ -214,3 +214,51 @@ func TestEscalationFile_MultipleItems(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(parsed).To(HaveLen(3))
 }
+
+// TEST-209 traces: TASK-001
+// Test Resolve updates escalation status and notes by ID
+func TestResolve_UpdatesEscalation(t *testing.T) {
+	g := NewWithT(t)
+
+	escalations := []escalation.Escalation{
+		{ID: "ESC-001", Category: "requirement", Context: "C1", Question: "Q1?", Status: "pending", Notes: ""},
+		{ID: "ESC-002", Category: "design", Context: "C2", Question: "Q2?", Status: "pending", Notes: ""},
+	}
+
+	updated, err := escalation.Resolve(escalations, "ESC-001", "resolved", "Yes, do it this way")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(updated).To(HaveLen(2))
+	g.Expect(updated[0].ID).To(Equal("ESC-001"))
+	g.Expect(updated[0].Status).To(Equal("resolved"))
+	g.Expect(updated[0].Notes).To(Equal("Yes, do it this way"))
+	// ESC-002 should be unchanged
+	g.Expect(updated[1].Status).To(Equal("pending"))
+}
+
+// TEST-210 traces: TASK-001
+// Test Resolve returns error for unknown ID
+func TestResolve_UnknownID(t *testing.T) {
+	g := NewWithT(t)
+
+	escalations := []escalation.Escalation{
+		{ID: "ESC-001", Category: "requirement", Context: "C1", Question: "Q1?", Status: "pending"},
+	}
+
+	_, err := escalation.Resolve(escalations, "ESC-999", "resolved", "notes")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("ESC-999"))
+}
+
+// TEST-211 traces: TASK-001
+// Test Resolve returns error for invalid status
+func TestResolve_InvalidStatus(t *testing.T) {
+	g := NewWithT(t)
+
+	escalations := []escalation.Escalation{
+		{ID: "ESC-001", Category: "requirement", Context: "C1", Question: "Q1?", Status: "pending"},
+	}
+
+	_, err := escalation.Resolve(escalations, "ESC-001", "bad_status", "notes")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("invalid status"))
+}
