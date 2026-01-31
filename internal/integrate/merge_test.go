@@ -41,6 +41,62 @@ func (m *mockFS) RemoveAll(path string) error {
 	return nil
 }
 
+func (m *mockFS) Glob(pattern string) ([]string, error) {
+	// Simple glob matching for tests - supports * wildcard
+	var matches []string
+	for path := range m.files {
+		if matchGlob(pattern, path) {
+			matches = append(matches, path)
+		}
+	}
+	return matches, nil
+}
+
+// matchGlob is a simple glob matcher for tests
+func matchGlob(pattern, path string) bool {
+	// Split pattern by *
+	parts := splitGlob(pattern)
+	if len(parts) == 1 {
+		return pattern == path
+	}
+
+	// Check prefix
+	if !hasPrefix(path, parts[0]) {
+		return false
+	}
+	path = path[len(parts[0]):]
+
+	// Check suffix
+	if !hasSuffix(path, parts[len(parts)-1]) {
+		return false
+	}
+
+	return true
+}
+
+func splitGlob(pattern string) []string {
+	var parts []string
+	current := ""
+	for _, c := range pattern {
+		if c == '*' {
+			parts = append(parts, current)
+			current = ""
+		} else {
+			current += string(c)
+		}
+	}
+	parts = append(parts, current)
+	return parts
+}
+
+func hasPrefix(s, prefix string) bool {
+	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+}
+
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
 type fileNotFoundError struct {
 	path string
 }

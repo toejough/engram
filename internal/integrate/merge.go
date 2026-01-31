@@ -15,6 +15,7 @@ type MergeFS interface {
 	WriteFile(path string, content string) error
 	FileExists(path string) bool
 	RemoveAll(path string) error
+	Glob(pattern string) ([]string, error)
 }
 
 // MergeResult holds the results of a merge operation.
@@ -256,6 +257,169 @@ func mergeTraceability(docsDir, perProjectDir string, fs MergeFS, idMapping map[
 	}
 
 	return linksUpdated, nil
+}
+
+// MergeFeatureFiles consolidates feature-specific docs into top-level docs.
+// Scans for files like design-*.md and merges them into design.md.
+func MergeFeatureFiles(docsDir string, fs MergeFS) (*MergeResult, error) {
+	result := &MergeResult{}
+	idMapping := make(map[string]string)
+
+	// Process each document type
+	featurePatterns := []struct {
+		pattern string
+		topFile string
+		prefix  string
+		counter *int
+	}{
+		{filepath.Join(docsDir, "requirements-*.md"), filepath.Join(docsDir, "requirements.md"), "REQ", &result.RequirementsAdded},
+		{filepath.Join(docsDir, "design-*.md"), filepath.Join(docsDir, "design.md"), "DES", &result.DesignAdded},
+		{filepath.Join(docsDir, "architecture-*.md"), filepath.Join(docsDir, "architecture.md"), "ARCH", &result.ArchitectureAdded},
+	}
+
+	for _, fp := range featurePatterns {
+		featureFiles, err := fs.Glob(fp.pattern)
+		if err != nil {
+			return nil, fmt.Errorf("globbing %s: %w", fp.pattern, err)
+		}
+
+		for _, featureFile := range featureFiles {
+			added, renumbered, err := mergeFeatureFile(fp.topFile, featureFile, fp.prefix, fs, idMapping)
+			if err != nil {
+				return nil, fmt.Errorf("merging %s: %w", featureFile, err)
+			}
+
+			*fp.counter += added
+			result.IDsRenumbered += renumbered
+
+			// Delete the feature file after successful merge
+			if err := fs.RemoveAll(featureFile); err != nil {
+				return nil, fmt.Errorf("removing %s: %w", featureFile, err)
+			}
+		}
+	}
+
+	result.Summary = buildSummary(result)
+	return result, nil
+}
+
+// mergeFeatureFile merges a single feature file into the top-level file.
+func mergeFeatureFile(topFile, featureFile, prefix string, fs MergeFS, idMapping map[string]string) (added, renumbered int, err error) {
+	// Read top-level file (create empty if doesn't exist)
+	topContent := ""
+	if fs.FileExists(topFile) {
+		topContent, err = fs.ReadFile(topFile)
+		if err != nil {
+			return 0, 0, fmt.Errorf("reading top-level file: %w", err)
+		}
+	}
+
+	// Read feature file
+	featureContent, err := fs.ReadFile(featureFile)
+	if err != nil {
+		return 0, 0, fmt.Errorf("reading feature file: %w", err)
+	}
+
+	// Parse items from both files
+	topItems := parseItemsTripleHash(topContent, prefix)
+	featureItems := parseItemsTripleHash(featureContent, prefix)
+
+	if len(featureItems) == 0 {
+		return 0, 0, nil
+	}
+
+	// Find max ID in top-level
+	maxID := findMaxID(topItems)
+
+	// Build set of existing IDs
+	existingIDs := make(map[string]bool)
+	for _, item := range topItems {
+		existingIDs[item.ID] = true
+	}
+
+	// Process feature items, building local ID mapping for this file
+	localMapping := make(map[string]string)
+	var itemsToAdd []string
+
+	for _, item := range featureItems {
+		newContent := item.Content
+		newID := item.ID
+
+		// Check for conflict
+		if existingIDs[item.ID] {
+			maxID++
+			newID = fmt.Sprintf("%s-%03d", prefix, maxID)
+			localMapping[item.ID] = newID
+			idMapping[item.ID] = newID
+			renumbered++
+		}
+
+		// Update content with new ID if renumbered
+		if newID != item.ID {
+			newContent = strings.Replace(newContent, item.ID, newID, 1)
+		}
+
+		// Update internal references using local mapping
+		for oldID, mappedID := range localMapping {
+			newContent = strings.ReplaceAll(newContent, oldID, mappedID)
+		}
+
+		itemsToAdd = append(itemsToAdd, newContent)
+		existingIDs[newID] = true
+		added++
+	}
+
+	// Append to top-level content
+	merged := topContent
+	if !strings.HasSuffix(merged, "\n") && merged != "" {
+		merged += "\n"
+	}
+	merged += strings.Join(itemsToAdd, "\n")
+
+	if err := fs.WriteFile(topFile, merged); err != nil {
+		return 0, 0, fmt.Errorf("writing merged file: %w", err)
+	}
+
+	return added, renumbered, nil
+}
+
+// parseItemsTripleHash extracts items with ### headers (standard format).
+func parseItemsTripleHash(content, prefix string) []docItem {
+	var items []docItem
+
+	// Pattern to match headers like "### REQ-001: Title"
+	pattern := regexp.MustCompile(`(?m)^###\s+(` + prefix + `-(\d+)):\s*(.*)$`)
+	matches := pattern.FindAllStringSubmatchIndex(content, -1)
+
+	for i, match := range matches {
+		if len(match) < 8 {
+			continue
+		}
+
+		id := content[match[2]:match[3]]
+		numStr := content[match[4]:match[5]]
+		title := content[match[6]:match[7]]
+		num, _ := strconv.Atoi(numStr)
+
+		// Extract content from this header to the next header or end
+		start := match[0]
+		end := len(content)
+		if i+1 < len(matches) {
+			end = matches[i+1][0]
+		}
+
+		itemContent := strings.TrimRight(content[start:end], "\n") + "\n"
+
+		items = append(items, docItem{
+			ID:      id,
+			Prefix:  prefix,
+			Number:  num,
+			Title:   title,
+			Content: itemContent,
+		})
+	}
+
+	return items
 }
 
 // buildSummary creates a human-readable summary.

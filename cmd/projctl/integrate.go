@@ -33,6 +33,10 @@ func (r *realMergeFS) RemoveAll(path string) error {
 	return os.RemoveAll(path)
 }
 
+func (r *realMergeFS) Glob(pattern string) ([]string, error) {
+	return filepath.Glob(pattern)
+}
+
 type integrateMergeArgs struct {
 	Dir     string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	Project string `targ:"flag,short=p,desc=Per-project name to merge,required"`
@@ -83,6 +87,52 @@ func integrateMerge(args integrateMergeArgs) error {
 		}
 		if result.LinksUpdated > 0 {
 			fmt.Printf("  Links updated:  %d\n", result.LinksUpdated)
+		}
+	}
+
+	return nil
+}
+
+type integrateFeaturesArgs struct {
+	Dir  string `targ:"flag,short=d,desc=Project directory (default: current)"`
+	JSON bool   `targ:"flag,short=j,desc=Output result as JSON"`
+}
+
+func integrateFeatures(args integrateFeaturesArgs) error {
+	dir := args.Dir
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+	}
+
+	docsDir := filepath.Join(dir, "docs")
+
+	fs := &realMergeFS{}
+	result, err := integrate.MergeFeatureFiles(docsDir, fs)
+	if err != nil {
+		return fmt.Errorf("merge failed: %w", err)
+	}
+
+	if args.JSON {
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to encode result: %w", err)
+		}
+		fmt.Println(string(data))
+	} else {
+		if result.RequirementsAdded == 0 && result.DesignAdded == 0 && result.ArchitectureAdded == 0 {
+			fmt.Println("No feature files to merge")
+			return nil
+		}
+
+		fmt.Println("Feature Files Merged")
+		fmt.Println("====================")
+		fmt.Println(result.Summary)
+		if result.IDsRenumbered > 0 {
+			fmt.Printf("\n  IDs renumbered: %d\n", result.IDsRenumbered)
 		}
 	}
 
