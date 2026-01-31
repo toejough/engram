@@ -67,6 +67,31 @@ var escHeaderPattern = regexp.MustCompile(`^## (ESC-\d+)`)
 // fieldPattern matches **Field:** Value lines
 var fieldPattern = regexp.MustCompile(`^\*\*(\w+):\*\*\s*(.*)$`)
 
+// Resolve updates an escalation's status and notes by ID.
+// Returns the updated slice or error if ID not found or status invalid.
+func Resolve(escalations []Escalation, id, status, notes string) ([]Escalation, error) {
+	if !IsValidStatus(status) {
+		return nil, fmt.Errorf("invalid status %q", status)
+	}
+
+	found := false
+	result := make([]Escalation, len(escalations))
+	for i, e := range escalations {
+		if e.ID == id {
+			e.Status = status
+			e.Notes = notes
+			found = true
+		}
+		result[i] = e
+	}
+
+	if !found {
+		return nil, fmt.Errorf("escalation %q not found", id)
+	}
+
+	return result, nil
+}
+
 // ParseEscalationFile reads escalations from a markdown file.
 func ParseEscalationFile(path string, fs EscalationFS) ([]Escalation, error) {
 	content, err := fs.ReadFile(path)
