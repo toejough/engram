@@ -261,3 +261,151 @@ Second.
 	g.Expect(merged).To(ContainSubstring("REQ-001"))
 	g.Expect(merged).To(ContainSubstring("REQ-002"))
 }
+
+// TEST-226 traces: TASK-002
+// Test MergeFeatureFiles consolidates design-*.md into design.md
+func TestMergeFeatureFiles_Design(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/design.md": `# Design
+
+### DES-001: Existing Design
+
+Existing design decision.
+
+**Traces to:** REQ-001
+`,
+		"/project/docs/design-help-system.md": `# Help System Design
+
+### DES-001: Help Format
+
+Help format design.
+
+**Traces to:** REQ-002
+`,
+	}}
+
+	result, err := integrate.MergeFeatureFiles("/project/docs", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.DesignAdded).To(Equal(1))
+	g.Expect(result.IDsRenumbered).To(Equal(1)) // DES-001 conflict
+
+	// Check merged content
+	merged := fs.files["/project/docs/design.md"]
+	g.Expect(merged).To(ContainSubstring("DES-001"))
+	g.Expect(merged).To(ContainSubstring("DES-002")) // Renumbered
+	g.Expect(merged).To(ContainSubstring("Help Format"))
+
+	// Feature file should be deleted
+	g.Expect(fs.FileExists("/project/docs/design-help-system.md")).To(BeFalse())
+}
+
+// TEST-227 traces: TASK-002
+// Test MergeFeatureFiles updates Traces to: references after renumbering
+func TestMergeFeatureFiles_UpdatesTracesTo(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/design.md": `# Design
+
+### DES-001: Existing
+
+Existing.
+
+**Traces to:** REQ-001
+`,
+		"/project/docs/design-feature.md": `# Feature Design
+
+### DES-001: Feature Design
+
+Feature design.
+
+**Traces to:** REQ-002
+
+### DES-002: Another Feature
+
+References DES-001 internally.
+
+**Traces to:** REQ-003
+`,
+	}}
+
+	result, err := integrate.MergeFeatureFiles("/project/docs", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.IDsRenumbered).To(BeNumerically(">=", 1))
+
+	// Check that internal references are updated
+	merged := fs.files["/project/docs/design.md"]
+	// DES-001 from feature should become DES-002
+	// DES-002 from feature should become DES-003
+	g.Expect(merged).To(ContainSubstring("DES-002"))
+	g.Expect(merged).To(ContainSubstring("DES-003"))
+}
+
+// TEST-228 traces: TASK-002
+// Test MergeFeatureFiles handles multiple feature files
+func TestMergeFeatureFiles_MultipleFiles(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/design.md": `# Design
+`,
+		"/project/docs/design-auth.md": `# Auth Design
+
+### DES-001: Auth Flow
+
+Auth flow.
+
+**Traces to:** REQ-001
+`,
+		"/project/docs/design-ui.md": `# UI Design
+
+### DES-001: UI Layout
+
+UI layout.
+
+**Traces to:** REQ-002
+`,
+	}}
+
+	result, err := integrate.MergeFeatureFiles("/project/docs", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.DesignAdded).To(Equal(2))
+
+	// Both feature files should be merged
+	merged := fs.files["/project/docs/design.md"]
+	g.Expect(merged).To(ContainSubstring("Auth Flow"))
+	g.Expect(merged).To(ContainSubstring("UI Layout"))
+
+	// Both feature files should be deleted
+	g.Expect(fs.FileExists("/project/docs/design-auth.md")).To(BeFalse())
+	g.Expect(fs.FileExists("/project/docs/design-ui.md")).To(BeFalse())
+}
+
+// TEST-229 traces: TASK-002
+// Test MergeFeatureFiles returns empty result when no feature files
+func TestMergeFeatureFiles_NoFeatureFiles(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/design.md": `# Design
+
+### DES-001: Only Design
+
+Only design.
+
+**Traces to:** REQ-001
+`,
+	}}
+
+	result, err := integrate.MergeFeatureFiles("/project/docs", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.DesignAdded).To(Equal(0))
+	g.Expect(result.RequirementsAdded).To(Equal(0))
+	g.Expect(result.ArchitectureAdded).To(Equal(0))
+}
