@@ -342,6 +342,107 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, erro
 	return ids, nil
 }
 
+// RepairResult holds the results of a repair analysis.
+type RepairResult struct {
+	DanglingRefs []string `json:"dangling_refs"` // IDs referenced in Traces to: but not defined
+	DuplicateIDs []string `json:"duplicate_ids"` // IDs defined more than once
+}
+
+// Repair analyzes artifact files for traceability issues.
+// It detects dangling references and duplicate IDs.
+func Repair(dir string) (RepairResult, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return RepairResult{}, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
+	if err != nil {
+		return RepairResult{}, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Scan all artifact files
+	definedIDs := make(map[string]int)    // ID -> count of definitions
+	referencedIDs := make(map[string]bool) // IDs referenced in Traces to:
+
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
+	}
+
+	// Also look for feature-specific files
+	docsDir := filepath.Join(dir, "docs")
+	featurePatterns := []string{
+		filepath.Join(docsDir, "design-*.md"),
+		filepath.Join(docsDir, "requirements-*.md"),
+		filepath.Join(docsDir, "architecture-*.md"),
+	}
+
+	for _, pattern := range featurePatterns {
+		matches, err := filepath.Glob(pattern)
+		if err == nil {
+			for _, match := range matches {
+				relPath, _ := filepath.Rel(dir, match)
+				artifactPaths = append(artifactPaths, relPath)
+			}
+		}
+	}
+
+	// Patterns for parsing
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3}):\s*`)
+	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3})`)
+
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return RepairResult{}, fmt.Errorf("failed to read %s: %w", relPath, err)
+		}
+
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			// Check for ID definitions
+			if match := idDefPattern.FindStringSubmatch(line); match != nil {
+				definedIDs[match[1]]++
+			}
+
+			// Check for Traces to: references
+			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
+				refs := idRefPattern.FindAllString(match[1], -1)
+				for _, ref := range refs {
+					referencedIDs[ref] = true
+				}
+			}
+		}
+	}
+
+	result := RepairResult{}
+
+	// Find dangling references: referenced but not defined
+	for ref := range referencedIDs {
+		if definedIDs[ref] == 0 {
+			result.DanglingRefs = append(result.DanglingRefs, ref)
+		}
+	}
+
+	// Find duplicate IDs: defined more than once
+	for id, count := range definedIDs {
+		if count > 1 {
+			result.DuplicateIDs = append(result.DuplicateIDs, id)
+		}
+	}
+
+	return result, nil
+}
+
 func load(dir string) (Matrix, error) {
 	path := filepath.Join(dir, TraceFile)
 

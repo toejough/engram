@@ -26,6 +26,7 @@ func main() {
 			targ.Targ(traceValidate).Name("validate").Description("Validate traceability matrix coverage"),
 			targ.Targ(traceValidateV2).Name("validate-v2").Description("Validate traceability using graph-based analysis"),
 			targ.Targ(traceImpact).Name("impact").Description("Analyze forward or backward impact of an artifact"),
+			targ.Targ(traceRepair).Name("repair").Description("Detect and report traceability issues"),
 		),
 		targ.Group("conflict",
 			targ.Targ(conflictCreate).Name("create").Description("Create a conflict record"),
