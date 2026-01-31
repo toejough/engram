@@ -9,10 +9,27 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/toejough/projctl/internal/config"
 )
 
 // TraceFile is the filename for the traceability matrix.
 const TraceFile = "traceability.toml"
+
+// realConfigFS implements config.ConfigFS using the real file system.
+type realConfigFS struct{}
+
+func (r *realConfigFS) ReadFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (r *realConfigFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
 
 // idPattern matches a traceability ID.
 var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK)-\d{3}$`)
@@ -111,6 +128,17 @@ type MissingLink struct {
 // Validate checks traceability coverage and consistency.
 // It reads artifact files to discover IDs and compares against the matrix.
 func Validate(dir string) (ValidateResult, error) {
+	// Load config to get artifact paths
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ValidateResult{}, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
+	if err != nil {
+		return ValidateResult{}, fmt.Errorf("failed to load config: %w", err)
+	}
+
 	m, err := load(dir)
 	if err != nil {
 		return ValidateResult{}, err
@@ -128,7 +156,7 @@ func Validate(dir string) (ValidateResult, error) {
 	}
 
 	// Scan artifact files for embedded IDs
-	artifactIDs, err := scanArtifacts(dir)
+	artifactIDs, err := scanArtifacts(dir, cfg)
 	if err != nil {
 		return ValidateResult{}, err
 	}
@@ -278,20 +306,23 @@ func hasPrefix(targets []string, prefix string) bool {
 }
 
 // scanArtifacts scans known artifact files for embedded traceability IDs.
-func scanArtifacts(dir string) (map[string]bool, error) {
+// Uses config to resolve artifact paths (typically docs/ subdirectory).
+func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, error) {
 	ids := make(map[string]bool)
-	artifactFiles := []string{
-		"issues.md",
-		"requirements.md",
-		"design.md",
-		"architecture.md",
-		"tasks.md",
+
+	// Get artifact paths from config
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
 	}
 
 	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK)-\d{3}`)
 
-	for _, name := range artifactFiles {
-		path := filepath.Join(dir, name)
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
 
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -299,7 +330,7 @@ func scanArtifacts(dir string) (map[string]bool, error) {
 				continue
 			}
 
-			return nil, fmt.Errorf("failed to read %s: %w", name, err)
+			return nil, fmt.Errorf("failed to read %s: %w", relPath, err)
 		}
 
 		matches := pattern.FindAllString(string(data), -1)

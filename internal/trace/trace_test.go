@@ -346,7 +346,13 @@ func TestImpact(t *testing.T) {
 func writeArtifact(t *testing.T, dir, name, content string) {
 	t.Helper()
 
-	err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644)
+	// Write to docs/ subdirectory to match default config
+	docsDir := filepath.Join(dir, "docs")
+	if err := os.MkdirAll(docsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	err := os.WriteFile(filepath.Join(docsDir, name), []byte(content), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
