@@ -602,4 +602,34 @@ Description.
 		g.Expect(result.OrphanIDs).To(BeEmpty())
 		// Note: REQ-001 has nothing tracing to it, but that's OK for top-level items
 	})
+
+	t.Run("TEST without Traces to is unlinked", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// TEST-001 has Traces to: (linked)
+		// TEST-002 has no Traces to: (unlinked - should be flagged)
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Requirement
+
+Description.
+`)
+		writeArtifact(t, dir, "tests.md", `# Tests
+
+### TEST-001: Test with upstream
+
+**Traces to:** REQ-001
+
+### TEST-002: Test without upstream
+
+No traces to field - this test is orphaned.
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeFalse())
+		g.Expect(result.UnlinkedIDs).To(ContainElement("TEST-002"), "TEST-002 has no Traces to: field")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-001"), "TEST-001 has Traces to: REQ-001")
+	})
 }

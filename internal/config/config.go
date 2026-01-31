@@ -28,6 +28,7 @@ type PathsConfig struct {
 	Design       string `toml:"design"`
 	Architecture string `toml:"architecture"`
 	Tasks        string `toml:"tasks"`
+	Tests        string `toml:"tests"`
 	Issues       string `toml:"issues"`
 	Glossary     string `toml:"glossary"`
 	Traceability string `toml:"traceability"`
@@ -97,6 +98,7 @@ func Default() *ProjectConfig {
 			Design:       "design.md",
 			Architecture: "architecture.md",
 			Tasks:        "tasks.md",
+			Tests:        "tests.md",
 			Issues:       "issues.md",
 			Glossary:     "glossary.md",
 			Traceability: "traceability.toml",
@@ -132,6 +134,8 @@ func (c *ProjectConfig) ResolvePath(artifact string) string {
 		return filepath.Join(c.Paths.DocsDir, c.Paths.Architecture)
 	case "tasks":
 		return filepath.Join(c.Paths.DocsDir, c.Paths.Tasks)
+	case "tests":
+		return filepath.Join(c.Paths.DocsDir, c.Paths.Tests)
 	case "issues":
 		return filepath.Join(c.Paths.DocsDir, c.Paths.Issues)
 	case "glossary":

@@ -32,7 +32,7 @@ func (r *realConfigFS) FileExists(path string) bool {
 }
 
 // idPattern matches a traceability ID.
-var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK)-\d{3}$`)
+var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}$`)
 
 // Link represents a single traceability link.
 type Link struct {
@@ -317,9 +317,10 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, erro
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
+		cfg.ResolvePath("tests"),
 	}
 
-	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK)-\d{3}`)
+	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -394,6 +395,7 @@ func Repair(dir string) (RepairResult, error) {
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
+		cfg.ResolvePath("tests"),
 	}
 
 	// Also look for feature-specific files
@@ -402,6 +404,7 @@ func Repair(dir string) (RepairResult, error) {
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
 		filepath.Join(docsDir, "architecture-*.md"),
+		filepath.Join(docsDir, "tests-*.md"),
 	}
 
 	for _, pattern := range featurePatterns {
@@ -415,9 +418,9 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-(\d{3})):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-(\d{3})):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -520,7 +523,9 @@ type ValidateV2ArtifactsResult struct {
 // ValidateV2Artifacts validates traceability by scanning artifact files directly.
 // Unlike Validate, this doesn't use the traceability.toml matrix.
 // - Orphan: ID in **Traces to:** field but not defined as header (### ID: Title)
-// - Unlinked: ID defined as header but not referenced in any **Traces to:** field
+// - Unlinked: ID defined but not connected to chain:
+//   - DES, ARCH, TASK: nothing traces TO them
+//   - TEST: doesn't trace TO anything (no **Traces to:** field)
 func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -533,8 +538,9 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Collect defined IDs and referenced IDs from artifacts
-	definedIDs := make(map[string]bool)   // ID → true if defined as header
+	definedIDs := make(map[string]bool)    // ID → true if defined as header
 	referencedIDs := make(map[string]bool) // ID → true if referenced in Traces to:
+	hasTracesTo := make(map[string]bool)   // ID → true if has a Traces to: field
 
 	artifactPaths := []string{
 		cfg.ResolvePath("issues"),
@@ -542,6 +548,7 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 		cfg.ResolvePath("design"),
 		cfg.ResolvePath("architecture"),
 		cfg.ResolvePath("tasks"),
+		cfg.ResolvePath("tests"),
 	}
 
 	// Also look for feature-specific files
@@ -550,6 +557,7 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
 		filepath.Join(docsDir, "architecture-*.md"),
+		filepath.Join(docsDir, "tests-*.md"),
 	}
 
 	for _, pattern := range featurePatterns {
@@ -563,9 +571,9 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3}):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -579,10 +587,12 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 		}
 
 		lines := strings.Split(string(data), "\n")
+		var currentID string
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
-				definedIDs[match[1]] = true
+				currentID = match[1]
+				definedIDs[currentID] = true
 			}
 
 			// Check for Traces to: references
@@ -590,6 +600,10 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 				refs := idRefPattern.FindAllString(match[1], -1)
 				for _, ref := range refs {
 					referencedIDs[ref] = true
+				}
+				// Mark that this ID has a Traces to: field
+				if currentID != "" {
+					hasTracesTo[currentID] = true
 				}
 			}
 		}
@@ -605,13 +619,20 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 		}
 	}
 
-	// Unlinked: defined but nothing traces to it
-	// Note: ISSUE and REQ can be root items (ISSUEs are optional, so REQs can be parentless).
-	// Only DES, ARCH, TASK should have something tracing to them.
+	// Unlinked: defined but not connected to the chain
+	// - DES, ARCH, TASK: need something tracing TO them
+	// - TEST: needs to trace TO something (must have Traces to: field)
+	// - ISSUE, REQ: can be roots (exempt)
 	for id := range definedIDs {
-		if !referencedIDs[id] {
-			// ISSUE and REQ can be roots - nothing traces to them by design
-			if !strings.HasPrefix(id, "ISSUE-") && !strings.HasPrefix(id, "REQ-") {
+		if strings.HasPrefix(id, "TEST-") {
+			// TEST is a leaf node - nothing traces TO it, but it must trace TO something
+			if !hasTracesTo[id] {
+				result.UnlinkedIDs = append(result.UnlinkedIDs, id)
+				result.Pass = false
+			}
+		} else if !strings.HasPrefix(id, "ISSUE-") && !strings.HasPrefix(id, "REQ-") {
+			// DES, ARCH, TASK need something tracing TO them
+			if !referencedIDs[id] {
 				result.UnlinkedIDs = append(result.UnlinkedIDs, id)
 				result.Pass = false
 			}
