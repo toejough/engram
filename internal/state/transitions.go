@@ -48,8 +48,8 @@ var LegalTransitions = map[string][]string{
 	"adopt-generate":             {"adopt-complete"},
 	"adopt-complete":             {},
 	// Align workflow
-	"align-analyze":              {"align-complete"},
-	"align-complete":             {},
+	"align-analyze":  {"align-complete"},
+	"align-complete": {"implementation", "task-breakdown"},
 }
 
 // IsLegalTransition checks whether transitioning from one phase to another is allowed.
