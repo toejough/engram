@@ -344,12 +344,34 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, erro
 
 // RepairResult holds the results of a repair analysis.
 type RepairResult struct {
-	DanglingRefs []string `json:"dangling_refs"` // IDs referenced in Traces to: but not defined
-	DuplicateIDs []string `json:"duplicate_ids"` // IDs defined more than once
+	DanglingRefs []string       `json:"dangling_refs"` // IDs referenced in Traces to: but not defined
+	DuplicateIDs []string       `json:"duplicate_ids"` // IDs defined more than once (before fix)
+	Renumbered   []RenumberInfo `json:"renumbered"`    // IDs that were renumbered to fix duplicates
+	Escalations  []EscalationInfo `json:"escalations"` // Issues that couldn't be auto-fixed
 }
 
-// Repair analyzes artifact files for traceability issues.
-// It detects dangling references and duplicate IDs.
+// RenumberInfo records an ID renumbering action.
+type RenumberInfo struct {
+	OldID string `json:"old_id"`
+	NewID string `json:"new_id"`
+	File  string `json:"file"`
+}
+
+// EscalationInfo records an issue that needs manual resolution.
+type EscalationInfo struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+	File   string `json:"file"`
+}
+
+// idLocation tracks where an ID is defined.
+type idLocation struct {
+	ID   string
+	File string // relative path
+}
+
+// Repair analyzes artifact files for traceability issues and auto-fixes when possible.
+// It renumbers duplicate IDs and creates escalations for dangling references.
 func Repair(dir string) (RepairResult, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -362,8 +384,9 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	// Scan all artifact files
-	definedIDs := make(map[string]int)    // ID -> count of definitions
-	referencedIDs := make(map[string]bool) // IDs referenced in Traces to:
+	definedIDs := make(map[string][]idLocation) // ID -> list of locations
+	referencedIDs := make(map[string]bool)      // IDs referenced in Traces to:
+	maxIDByPrefix := make(map[string]int)       // prefix -> max number
 
 	artifactPaths := []string{
 		cfg.ResolvePath("issues"),
@@ -392,7 +415,7 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3}):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK)-(\d{3})):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
 	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK)-\d{3})`)
 
@@ -411,7 +434,17 @@ func Repair(dir string) (RepairResult, error) {
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
-				definedIDs[match[1]]++
+				id := match[1]
+				definedIDs[id] = append(definedIDs[id], idLocation{ID: id, File: relPath})
+
+				// Track max ID number by prefix
+				prefix := strings.Split(id, "-")[0]
+				numStr := match[2]
+				var num int
+				fmt.Sscanf(numStr, "%d", &num)
+				if num > maxIDByPrefix[prefix] {
+					maxIDByPrefix[prefix] = num
+				}
 			}
 
 			// Check for Traces to: references
@@ -428,15 +461,49 @@ func Repair(dir string) (RepairResult, error) {
 
 	// Find dangling references: referenced but not defined
 	for ref := range referencedIDs {
-		if definedIDs[ref] == 0 {
+		if len(definedIDs[ref]) == 0 {
 			result.DanglingRefs = append(result.DanglingRefs, ref)
+			// Create escalation for dangling ref
+			result.Escalations = append(result.Escalations, EscalationInfo{
+				ID:     ref,
+				Reason: "dangling reference: ID referenced in Traces to: but not defined",
+			})
 		}
 	}
 
-	// Find duplicate IDs: defined more than once
-	for id, count := range definedIDs {
-		if count > 1 {
+	// Find and fix duplicate IDs
+	for id, locations := range definedIDs {
+		if len(locations) > 1 {
 			result.DuplicateIDs = append(result.DuplicateIDs, id)
+
+			// Keep first occurrence, renumber subsequent ones
+			prefix := strings.Split(id, "-")[0]
+			for i := 1; i < len(locations); i++ {
+				loc := locations[i]
+
+				// Generate new ID
+				maxIDByPrefix[prefix]++
+				newID := fmt.Sprintf("%s-%03d", prefix, maxIDByPrefix[prefix])
+
+				// Update the file
+				path := filepath.Join(dir, loc.File)
+				content, err := os.ReadFile(path)
+				if err != nil {
+					continue
+				}
+
+				// Replace the ID in the file
+				newContent := strings.ReplaceAll(string(content), id, newID)
+				if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+					continue
+				}
+
+				result.Renumbered = append(result.Renumbered, RenumberInfo{
+					OldID: id,
+					NewID: newID,
+					File:  loc.File,
+				})
+			}
 		}
 	}
 
