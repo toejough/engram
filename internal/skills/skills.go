@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // InstallOpts configures the Install operation.
@@ -242,4 +243,103 @@ func Status(repoSkillsDir, targetDir string) (StatusResult, error) {
 	}
 
 	return result, nil
+}
+
+// List returns the names of all available skills in the directory.
+// Excludes the "shared" directory which contains shared templates.
+func List(skillsDir string) ([]string, error) {
+	entries, err := os.ReadDir(skillsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read skills directory: %w", err)
+	}
+
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() && entry.Name() != "shared" {
+			names = append(names, entry.Name())
+		}
+	}
+
+	return names, nil
+}
+
+// Docs returns the full documentation for a skill.
+// Prefers SKILL-full.md if it exists, falls back to SKILL.md.
+func Docs(skillsDir, skillName string) (string, error) {
+	skillDir := filepath.Join(skillsDir, skillName)
+
+	// Check if skill directory exists
+	if _, err := os.Stat(skillDir); os.IsNotExist(err) {
+		return "", fmt.Errorf("skill not found: %s", skillName)
+	}
+
+	// Try SKILL-full.md first
+	fullPath := filepath.Join(skillDir, "SKILL-full.md")
+	if data, err := os.ReadFile(fullPath); err == nil {
+		return string(data), nil
+	}
+
+	// Fall back to SKILL.md
+	standardPath := filepath.Join(skillDir, "SKILL.md")
+	data, err := os.ReadFile(standardPath)
+	if err != nil {
+		return "", fmt.Errorf("skill documentation not found: %s", skillName)
+	}
+
+	return string(data), nil
+}
+
+// DocsSection returns a specific section from the skill documentation.
+// Sections are identified by ## headings in the markdown.
+func DocsSection(skillsDir, skillName, sectionName string) (string, error) {
+	content, err := Docs(skillsDir, skillName)
+	if err != nil {
+		return "", err
+	}
+
+	// Find the section
+	lines := strings.Split(content, "\n")
+	var sectionLines []string
+	inSection := false
+	sectionLevel := 0
+
+	for _, line := range lines {
+		// Check if this is a heading
+		if strings.HasPrefix(line, "##") {
+			// Count the heading level
+			level := 0
+			for _, c := range line {
+				if c == '#' {
+					level++
+				} else {
+					break
+				}
+			}
+
+			// Extract heading text
+			headingText := strings.TrimSpace(strings.TrimLeft(line, "#"))
+
+			if strings.EqualFold(headingText, sectionName) {
+				inSection = true
+				sectionLevel = level
+				sectionLines = append(sectionLines, line)
+				continue
+			}
+
+			// If we're in a section and hit another heading of same or higher level, stop
+			if inSection && level <= sectionLevel {
+				break
+			}
+		}
+
+		if inSection {
+			sectionLines = append(sectionLines, line)
+		}
+	}
+
+	if len(sectionLines) == 0 {
+		return "", fmt.Errorf("section not found: %s", sectionName)
+	}
+
+	return strings.Join(sectionLines, "\n"), nil
 }
