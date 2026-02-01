@@ -156,3 +156,48 @@ func memoryGrep(args memoryGrepArgs) error {
 
 	return nil
 }
+
+type memoryQueryArgs struct {
+	Text       string `targ:"arg,required,desc=Text to search for"`
+	Limit      int    `targ:"flag,short=n,desc=Maximum number of results (default 5)"`
+	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+}
+
+func memoryQuery(args memoryQueryArgs) error {
+	memoryRoot := args.MemoryRoot
+	if memoryRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		memoryRoot = home + "/.claude/memory"
+	}
+
+	limit := args.Limit
+	if limit == 0 {
+		limit = 5
+	}
+
+	opts := memory.QueryOpts{
+		Text:       args.Text,
+		Limit:      limit,
+		MemoryRoot: memoryRoot,
+	}
+
+	result, err := memory.Query(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(result.Results) == 0 {
+		fmt.Println("No similar memories found")
+		return nil
+	}
+
+	for i, r := range result.Results {
+		fmt.Printf("%d. (%.2f) %s\n", i+1, r.Score, r.Content)
+	}
+
+	return nil
+}

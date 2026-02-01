@@ -94,6 +94,7 @@ func main() {
 			targ.Targ(memoryDecide).Name("decide").Description("Log a decision with reasoning and alternatives"),
 			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
 			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
+			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
 		),
 	)
 }

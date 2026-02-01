@@ -346,3 +346,28 @@ func searchDirectory(dir, pattern, projectFilter string) []GrepMatch {
 	return matches
 }
 
+// QueryOpts holds options for memory query.
+type QueryOpts struct {
+	Text       string
+	Limit      int
+	MemoryRoot string
+}
+
+// QueryResult represents a single query result.
+type QueryResult struct {
+	Content string
+	Score   float64
+	Source  string
+}
+
+// QueryResults contains the results of a query.
+type QueryResults struct {
+	Results []QueryResult
+}
+
+// Query searches memory for semantically similar content.
+// Currently uses keyword matching; can be upgraded to embeddings later.
+func Query(opts QueryOpts) (*QueryResults, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+

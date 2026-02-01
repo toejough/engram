@@ -918,3 +918,197 @@ func TestGrepCaseInsensitive(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(results.Matches).To(HaveLen(1))
 }
+
+// ============================================================================
+// Memory query tests (TASK-052)
+// ============================================================================
+
+// TEST-820: Query returns similar memories
+func TestQueryReturnsSimilarMemories(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create memories with varying relevance
+	indexContent := `- 2024-01-01: Learned about PostgreSQL database design
+- 2024-01-02: Studied MySQL query optimization
+- 2024-01-03: Read about database indexing strategies
+- 2024-01-04: Explored React component patterns`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "database performance",
+		Limit:      5,
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Results).ToNot(BeEmpty())
+
+	// Database-related entries should rank higher than React
+	for _, r := range results.Results {
+		g.Expect(r.Score).To(BeNumerically(">", 0))
+		g.Expect(r.Content).ToNot(BeEmpty())
+	}
+}
+
+// TEST-821: Query returns default 5 results
+func TestQueryDefaultLimit(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create more than 5 memories
+	var lines []string
+	for i := 0; i < 10; i++ {
+		lines = append(lines, "- 2024-01-01: Memory about testing")
+	}
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(strings.Join(lines, "\n")), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "testing",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(len(results.Results)).To(BeNumerically("<=", 5))
+}
+
+// TEST-822: Query respects custom limit
+func TestQueryCustomLimit(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var lines []string
+	for i := 0; i < 10; i++ {
+		lines = append(lines, "- 2024-01-01: Memory about testing")
+	}
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(strings.Join(lines, "\n")), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "testing",
+		Limit:      3,
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(len(results.Results)).To(BeNumerically("<=", 3))
+}
+
+// TEST-823: Query searches sessions
+func TestQuerySearchesSessions(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	sessionContent := `# Session Summary
+Decided to use PostgreSQL for the database layer.
+Completed API design work.`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-project.md"), []byte(sessionContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "PostgreSQL",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Results).ToNot(BeEmpty())
+}
+
+// TEST-824: Query requires text
+func TestQueryRequiresText(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.QueryOpts{
+		Text:       "",
+		MemoryRoot: memoryDir,
+	}
+
+	_, err := memory.Query(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("text"))
+}
+
+// TEST-825: Query results include similarity scores
+func TestQueryResultsIncludeScores(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Testing database queries
+- 2024-01-02: Building web frontend`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "database",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Results).ToNot(BeEmpty())
+
+	// All results should have scores between 0 and 1
+	for _, r := range results.Results {
+		g.Expect(r.Score).To(BeNumerically(">=", 0))
+		g.Expect(r.Score).To(BeNumerically("<=", 1))
+	}
+}
+
+// TEST-826: Query results are sorted by score descending
+func TestQueryResultsSortedByScore(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: web frontend development
+- 2024-01-02: database indexing and optimization
+- 2024-01-03: database schema design patterns`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "database",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify descending order
+	for i := 1; i < len(results.Results); i++ {
+		g.Expect(results.Results[i-1].Score).To(BeNumerically(">=", results.Results[i].Score))
+	}
+}
