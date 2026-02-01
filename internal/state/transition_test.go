@@ -483,6 +483,66 @@ func (m *mockPreconditionChecker) TestsPass(dir string) bool {
 	return m.testsPass
 }
 
+// TEST-304 traces: TASK-010
+// Test that illegal transitions provide helpful error messages
+func TestTransition_HelpfulErrorMessages(t *testing.T) {
+	t.Run("explains what phases must complete first", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Try to jump directly to implementation from init
+		_, err = state.Transition(dir, "implementation", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).To(HaveOccurred())
+		// Should list legal targets
+		g.Expect(err.Error()).To(ContainSubstring("pm-interview"))
+	})
+}
+
+// TEST-305 traces: TASK-010
+// Test that --force flag allows override of transitions
+func TestTransitionWithChecker_ForceFlag(t *testing.T) {
+	t.Run("force bypasses preconditions", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Without force, precondition fails
+		checker := &mockPreconditionChecker{
+			requirementsExists: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		// With force, precondition is bypassed
+		opts := state.TransitionOpts{Force: true}
+		s, err := state.TransitionWithChecker(dir, "pm-complete", opts, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
+	})
+
+	t.Run("force cannot bypass illegal transitions", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Even with force, can't skip directly to implementation
+		opts := state.TransitionOpts{Force: true}
+		_, err = state.TransitionWithChecker(dir, "implementation", opts, nowFunc(), nil)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
+	})
+}
+
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
 func walkToPhase(t *testing.T, dir, target string) {
