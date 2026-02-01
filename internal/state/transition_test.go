@@ -798,6 +798,30 @@ func TestRetry(t *testing.T) {
 	})
 }
 
+// TEST-450 traces: TASK-020
+// Test Next considers error state.
+func TestNext_ConsidersError(t *testing.T) {
+	t.Run("reports error when transition failed", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cause a failure
+		checker := &mockPreconditionChecker{requirementsExists: false}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		result := state.Next(dir)
+		g.Expect(result.Action).To(Equal("stop"))
+		g.Expect(result.Reason).To(Equal("error_pending"))
+	})
+}
+
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
 func walkToPhase(t *testing.T, dir, target string) {
