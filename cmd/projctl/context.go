@@ -1,8 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
+	"github.com/BurntSushi/toml"
 	"github.com/toejough/projctl/internal/context"
 )
 
@@ -29,15 +32,27 @@ type contextReadArgs struct {
 	Task   string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-004)"`
 	Skill  string `targ:"flag,short=s,required,desc=Skill name (e.g. tdd-red)"`
 	Result bool   `targ:"flag,short=r,desc=Read result file instead of context file"`
+	Format string `targ:"flag,desc=Output format: toml (default) or json"`
 }
 
 func contextRead(args contextReadArgs) error {
 	content, err := context.Read(args.Dir, args.Task, args.Skill, args.Result)
 	if err != nil {
-		return err
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if args.Format == "json" {
+		var data any
+		if _, err := toml.Decode(content, &data); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing TOML: %v\n", err)
+			os.Exit(1)
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(data)
 	}
 
 	fmt.Print(content)
-
 	return nil
 }
