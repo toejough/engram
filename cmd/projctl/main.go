@@ -60,6 +60,7 @@ func main() {
 		),
 		targ.Group("result",
 			targ.Targ(resultValidate).Name("validate").Description("Validate a result.toml file against the schema"),
+			targ.Targ(resultCollect).Name("collect").Description("Collect and merge results from parallel tasks"),
 		),
 		targ.Group("task",
 			targ.Targ(taskValidate).Name("validate").Description("Validate a task against requirements"),

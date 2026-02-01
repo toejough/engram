@@ -4,9 +4,24 @@ package result
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
+
+// ContextDir is the subdirectory for context files.
+const ContextDir = "context"
+
+// CollectedResults holds the merged results from multiple tasks.
+type CollectedResults struct {
+	Succeeded   int
+	Failed      int
+	Total       int
+	FailedTasks []string
+	Learnings   []Learning
+	FilesModified []string
+}
 
 // Status indicates whether the skill completed successfully.
 type Status struct {
@@ -97,4 +112,44 @@ func Marshal(r Result) ([]byte, error) {
 		return nil, fmt.Errorf("failed to encode TOML: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// Collect reads and merges result files for multiple tasks.
+func Collect(dir string, tasks []string, skill string) (CollectedResults, error) {
+	collected := CollectedResults{
+		Total: len(tasks),
+	}
+
+	for _, task := range tasks {
+		resultPath := filepath.Join(dir, ContextDir, fmt.Sprintf("%s-%s.result.toml", task, skill))
+
+		data, err := os.ReadFile(resultPath)
+		if err != nil {
+			// Missing result file = failed
+			collected.Failed++
+			collected.FailedTasks = append(collected.FailedTasks, task)
+			continue
+		}
+
+		r, err := Parse(data)
+		if err != nil {
+			// Invalid result file = failed
+			collected.Failed++
+			collected.FailedTasks = append(collected.FailedTasks, task)
+			continue
+		}
+
+		if !r.Status.Success {
+			collected.Failed++
+			collected.FailedTasks = append(collected.FailedTasks, task)
+		} else {
+			collected.Succeeded++
+		}
+
+		// Merge learnings and files
+		collected.Learnings = append(collected.Learnings, r.Learnings...)
+		collected.FilesModified = append(collected.FilesModified, r.Outputs.FilesModified...)
+	}
+
+	return collected, nil
 }

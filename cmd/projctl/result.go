@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/toejough/projctl/internal/result"
 )
@@ -77,6 +78,70 @@ func resultValidate(args resultValidateArgs) error {
 	fmt.Printf("  Outputs: %d files modified\n", len(r.Outputs.FilesModified))
 	fmt.Printf("  Decisions: %d\n", len(r.Decisions))
 	fmt.Printf("  Learnings: %d\n", len(r.Learnings))
+
+	return nil
+}
+
+type resultCollectArgs struct {
+	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
+	Tasks  string `targ:"flag,short=t,required,desc=Comma-separated task IDs (e.g. TASK-001,TASK-002)"`
+	Skill  string `targ:"flag,short=s,desc=Skill name (default: tdd-red)"`
+	Format string `targ:"flag,short=f,desc=Output format: text (default) or json"`
+}
+
+func resultCollect(args resultCollectArgs) error {
+	skill := args.Skill
+	if skill == "" {
+		skill = "tdd-red"
+	}
+
+	tasks := strings.Split(args.Tasks, ",")
+	for i := range tasks {
+		tasks[i] = strings.TrimSpace(tasks[i])
+	}
+
+	collected, err := result.Collect(args.Dir, tasks, skill)
+	if err != nil {
+		return err
+	}
+
+	if args.Format == "json" {
+		output := struct {
+			Succeeded     int      `json:"succeeded"`
+			Failed        int      `json:"failed"`
+			Total         int      `json:"total"`
+			FailedTasks   []string `json:"failed_tasks,omitempty"`
+			LearningsCount int     `json:"learnings_count"`
+		}{
+			Succeeded:     collected.Succeeded,
+			Failed:        collected.Failed,
+			Total:         collected.Total,
+			FailedTasks:   collected.FailedTasks,
+			LearningsCount: len(collected.Learnings),
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(output)
+	}
+
+	// Human-readable format
+	fmt.Printf("%d/%d tasks complete", collected.Succeeded, collected.Total)
+	if collected.Failed > 0 {
+		fmt.Printf(", %d failed", collected.Failed)
+	}
+	fmt.Println()
+
+	if len(collected.FailedTasks) > 0 {
+		fmt.Printf("Failed tasks: %s\n", strings.Join(collected.FailedTasks, ", "))
+	}
+
+	if len(collected.Learnings) > 0 {
+		fmt.Printf("Learnings: %d collected\n", len(collected.Learnings))
+	}
+
+	if collected.Failed > 0 {
+		os.Exit(1)
+	}
 
 	return nil
 }
