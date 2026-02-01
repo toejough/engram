@@ -122,8 +122,51 @@ type UninstallResult struct {
 
 // Uninstall removes symlinks from targetDir that point to repoSkillsDir.
 func Uninstall(repoSkillsDir, targetDir string, opts UninstallOpts) (UninstallResult, error) {
-	// TODO: Implement
-	return UninstallResult{}, nil
+	var result UninstallResult
+
+	// Get list of skills to uninstall
+	var skillNames []string
+	if opts.SkillName != "" {
+		skillNames = []string{opts.SkillName}
+	} else {
+		// List all skills in repo
+		entries, err := os.ReadDir(repoSkillsDir)
+		if err != nil {
+			return result, fmt.Errorf("failed to read skills directory: %w", err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() {
+				skillNames = append(skillNames, entry.Name())
+			}
+		}
+	}
+
+	// Uninstall each skill
+	for _, name := range skillNames {
+		dstPath := filepath.Join(targetDir, name)
+
+		info, err := os.Lstat(dstPath)
+		if os.IsNotExist(err) {
+			// Already doesn't exist - idempotent
+			continue
+		}
+		if err != nil {
+			return result, fmt.Errorf("failed to check %s: %w", dstPath, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			// It's a symlink - remove it
+			if err := os.Remove(dstPath); err != nil {
+				return result, fmt.Errorf("failed to remove symlink %s: %w", dstPath, err)
+			}
+			result.Removed = append(result.Removed, name)
+		} else {
+			// It's a regular directory - skip it
+			result.Skipped = append(result.Skipped, name)
+		}
+	}
+
+	return result, nil
 }
 
 // StatusResult contains the status of all skills.
