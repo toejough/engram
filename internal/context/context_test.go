@@ -54,17 +54,24 @@ func TestWrite(t *testing.T) {
 		g.Expect(info.IsDir()).To(BeTrue())
 	})
 
-	t.Run("errors if target already exists", func(t *testing.T) {
+	t.Run("overwrites existing file without error", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
-		source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
+		source1 := writeTOML(t, t.TempDir(), "input1.toml", "key = \"original\"\n")
+		source2 := writeTOML(t, t.TempDir(), "input2.toml", "key = \"updated\"\n")
 
-		_, err := context.Write(dir, "TASK-001", "tdd-red", source)
+		path, err := context.Write(dir, "TASK-001", "tdd-red", source1)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = context.Write(dir, "TASK-001", "tdd-red", source)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("already exists"))
+		// Write again with different content - should succeed
+		path2, err := context.Write(dir, "TASK-001", "tdd-red", source2)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(path2).To(Equal(path))
+
+		// Content should be updated
+		data, err := os.ReadFile(path)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(data)).To(ContainSubstring("updated"))
 	})
 
 	t.Run("errors if source is not valid TOML", func(t *testing.T) {
