@@ -57,6 +57,8 @@ func main() {
 			targ.Targ(skillsInstall).Name("install").Description("Install skills by creating symlinks"),
 			targ.Targ(skillsStatus).Name("status").Description("Show skill installation status"),
 			targ.Targ(skillsUninstall).Name("uninstall").Description("Uninstall skills by removing symlinks"),
+			targ.Targ(skillsList).Name("list").Description("List available skills"),
+			targ.Targ(skillsDocs).Name("docs").Description("Show full skill documentation"),
 		),
 		targ.Group("result",
 			targ.Targ(resultValidate).Name("validate").Description("Validate a result.toml file against the schema"),

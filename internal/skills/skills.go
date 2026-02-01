@@ -255,8 +255,19 @@ func List(skillsDir string) ([]string, error) {
 
 	var names []string
 	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() != "shared" {
-			names = append(names, entry.Name())
+		name := entry.Name()
+		if name == "shared" {
+			continue
+		}
+
+		// Check if it's a directory or a symlink to a directory
+		fullPath := filepath.Join(skillsDir, name)
+		info, err := os.Stat(fullPath) // Stat follows symlinks
+		if err != nil {
+			continue
+		}
+		if info.IsDir() {
+			names = append(names, name)
 		}
 	}
 

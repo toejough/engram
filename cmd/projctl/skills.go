@@ -218,3 +218,66 @@ func skillsUninstall(args skillsUninstallArgs) error {
 
 	return nil
 }
+
+type skillsListArgs struct {
+	SkillsDir string `targ:"--dir,-d,Skills directory (default: ~/.claude/skills)"`
+}
+
+func skillsList(args skillsListArgs) error {
+	skillsDir := args.SkillsDir
+	if skillsDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		skillsDir = filepath.Join(home, ".claude", "skills")
+	}
+
+	names, err := skills.List(skillsDir)
+	if err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		fmt.Println(name)
+	}
+
+	return nil
+}
+
+type skillsDocsArgs struct {
+	SkillsDir string `targ:"--dir,-d,Skills directory (default: ~/.claude/skills)"`
+	SkillName string `targ:"[skill],Skill name (required)"`
+	Section   string `targ:"--section,-s,Specific section to output"`
+}
+
+func skillsDocs(args skillsDocsArgs) error {
+	if args.SkillName == "" {
+		return fmt.Errorf("skill name is required")
+	}
+
+	skillsDir := args.SkillsDir
+	if skillsDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		skillsDir = filepath.Join(home, ".claude", "skills")
+	}
+
+	var content string
+	var err error
+
+	if args.Section != "" {
+		content, err = skills.DocsSection(skillsDir, args.SkillName, args.Section)
+	} else {
+		content, err = skills.Docs(skillsDir, args.SkillName)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(content)
+	return nil
+}
