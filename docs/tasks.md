@@ -1408,11 +1408,11 @@ Detect patterns in corrections for CLAUDE.md proposals.
 Orchestrator detects correction signals and logs automatically.
 
 **Acceptance Criteria:**
-- [ ] /project skill documents correction signal patterns
-- [ ] Patterns: "that's wrong", "no, do X", "I said X not Y", "remember that"
-- [ ] Control loop step 0 checks for patterns before skill dispatch
-- [ ] Pattern match triggers `projctl corrections log` call
-- [ ] Correction extracted and logged with current phase/task context
+- [x] /project skill documents correction signal patterns
+- [x] Patterns: "that's wrong", "no, do X", "I said X not Y", "remember that"
+- [x] Control loop step 0 checks for patterns before skill dispatch
+- [x] Pattern match triggers `projctl corrections log` call
+- [x] Correction extracted and logged with current phase/task context
 
 **Test Requirements:**
 - Integration: Pattern detection in sample messages
@@ -1421,6 +1421,8 @@ Orchestrator detects correction signals and logs automatically.
 **Dependencies:** TASK-013, TASK-040
 
 **Traces to:** Phase 4
+
+**Status:** Complete - Added to /project skill (SKILL.md and SKILL-full.md)
 
 ---
 
@@ -1433,11 +1435,11 @@ Orchestrator detects correction signals and logs automatically.
 Auto-inject /meta-audit when correction threshold reached.
 
 **Acceptance Criteria:**
-- [ ] Control loop step 9.5 calls `projctl corrections count --since=session-start`
-- [ ] If count >= threshold (default 2), inject /meta-audit as next skill
-- [ ] Reset session counter after meta-audit runs
-- [ ] Threshold configurable in project-config.toml
-- [ ] Log entry: "Correction threshold reached, triggering meta-audit"
+- [x] Control loop step 9.5 calls `projctl corrections count --since=session-start`
+- [x] If count >= threshold (default 2), inject /meta-audit as next skill
+- [x] Reset session counter after meta-audit runs
+- [x] Threshold configurable in project-config.toml
+- [x] Log entry: "Correction threshold reached, triggering meta-audit"
 
 **Test Requirements:**
 - Unit: Threshold comparison
@@ -1446,6 +1448,8 @@ Auto-inject /meta-audit when correction threshold reached.
 **Dependencies:** TASK-041, TASK-013
 
 **Traces to:** Phase 4
+
+**Status:** Complete - Documented in /project skill control loop (step 6 & 8)
 
 ---
 

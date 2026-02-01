@@ -19,17 +19,28 @@ user-invocable: true
 | Dispatch | ALL code work via Skill/Task tool |
 | Context | At 80% warn, 90% compact |
 
+## Correction Detection
+
+Before each loop iteration, scan user messages for correction patterns:
+- "that's wrong", "no, do X", "I said X not Y", "remember that"
+- "actually", "not X, Y", "you forgot", "I already told you"
+
+When detected: `projctl corrections log --dir . --message "PATTERN" --context "TASK/PHASE"`
+
 ## Control Loop
 
 | Step | Type | Action |
 |------|------|--------|
+| 0 | [A] | Detect corrections in user input |
 | 1 | [D] | `projctl state get` |
 | 2 | [D] | `projctl state transition` |
 | 3 | [D] | `projctl map --cached` |
 | 4 | [A] | Dispatch skill |
 | 5 | [D] | `projctl context read --result` |
-| 6 | [D] | `projctl state next` |
-| 7 | [A] | If continue: loop |
+| 6 | [D] | `projctl corrections count --session` |
+| 7 | [D] | `projctl state next` |
+| 8 | [A] | If corrections >= 2: dispatch /meta-audit |
+| 9 | [A] | If continue: loop |
 
 ## Stop Conditions
 
