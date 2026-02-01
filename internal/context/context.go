@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/toejough/projctl/internal/territory"
 )
 
 // ContextDir is the subdirectory for context files.
@@ -141,6 +142,50 @@ func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig
 	raw["routing"] = RoutingInfo{
 		SuggestedModel: model,
 		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
+	}
+
+	targetName := Filename(task, skill)
+	targetPath := filepath.Join(contextDir, targetName)
+
+	f, err := os.Create(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create context file: %w", err)
+	}
+	defer f.Close()
+
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(raw); err != nil {
+		return "", fmt.Errorf("failed to encode TOML: %w", err)
+	}
+
+	return targetPath, nil
+}
+
+// WriteWithTerritory copies a TOML file and automatically includes cached territory map.
+func WriteWithTerritory(dir, task, skill, sourcePath string) (string, error) {
+	contextDir := filepath.Join(dir, ContextDir)
+	if err := os.MkdirAll(contextDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create context directory: %w", err)
+	}
+
+	// Validate source is parseable TOML
+	if _, err := os.Stat(sourcePath); err != nil {
+		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+	}
+
+	var raw map[string]any
+	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
+		return "", fmt.Errorf("source file is not valid TOML: %w", err)
+	}
+
+	// Try to load cached territory map
+	cachePath := filepath.Join(dir, territory.CacheFile)
+	if data, err := os.ReadFile(cachePath); err == nil {
+		var cached territory.CachedMap
+		if _, err := toml.Decode(string(data), &cached); err == nil {
+			// Add territory section with the map contents
+			raw["territory"] = cached.Map
+		}
 	}
 
 	targetName := Filename(task, skill)
