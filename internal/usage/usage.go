@@ -36,13 +36,15 @@ type UsageReport struct {
 
 // ReportOpts holds options for generating a usage report.
 type ReportOpts struct {
-	Model string // Filter to specific model (empty = all)
+	Model   string // Filter to specific model (empty = all)
+	Session string // Filter to specific session (empty = all)
 }
 
 // Report generates a token usage report from project logs.
 func Report(dir string, opts ReportOpts) (UsageReport, error) {
 	entries, err := log.Read(dir, log.ReadOpts{
-		Model: opts.Model,
+		Model:   opts.Model,
+		Session: opts.Session,
 	})
 	if err != nil {
 		return UsageReport{}, err

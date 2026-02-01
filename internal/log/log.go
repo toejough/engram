@@ -41,6 +41,7 @@ type Entry struct {
 	Task            string `json:"task,omitempty"`
 	Phase           string `json:"phase,omitempty"`
 	Model           string `json:"model,omitempty"`
+	Session         string `json:"session,omitempty"`
 	Message         string `json:"message"`
 	Detail          any    `json:"detail,omitempty"`
 	TokensEstimate  int    `json:"tokens_estimate,omitempty"`
@@ -52,6 +53,7 @@ type WriteOpts struct {
 	Task            string
 	Phase           string
 	Model           string
+	Session         string
 	Detail          any
 	Tokens          int // Override token estimate (0 = calculate from message)
 	ContextEstimate int // Current context usage estimate (tokens)
@@ -59,7 +61,8 @@ type WriteOpts struct {
 
 // ReadOpts holds options for reading log entries.
 type ReadOpts struct {
-	Model string // Filter by model (empty = all)
+	Model   string // Filter by model (empty = all)
+	Session string // Filter by session (empty = all)
 }
 
 // Write appends a structured JSONL entry to the log file.
@@ -86,6 +89,7 @@ func Write(dir string, level string, subject string, message string, opts WriteO
 		Task:            opts.Task,
 		Phase:           opts.Phase,
 		Model:           opts.Model,
+		Session:         opts.Session,
 		Detail:          opts.Detail,
 		TokensEstimate:  tokens,
 		ContextEstimate: opts.ContextEstimate,
@@ -152,6 +156,11 @@ func Read(dir string, opts ReadOpts) ([]Entry, error) {
 
 		// Apply model filter
 		if opts.Model != "" && entry.Model != opts.Model {
+			continue
+		}
+
+		// Apply session filter
+		if opts.Session != "" && entry.Session != opts.Session {
 			continue
 		}
 
