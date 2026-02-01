@@ -189,8 +189,10 @@ func WriteWithMemory(dir, task, skill, sourcePath string, opts MemoryInjectOpts)
 	return writeTOMLFile(dir, task, skill, raw)
 }
 
-// WriteWithRoutingAndMemory copies a TOML file with routing and auto-injects memory for certain skills.
-func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string, memoryRoot string) (string, error) {
+// WriteWithRoutingAndMemory copies a TOML file with routing and optionally injects memory.
+// If query is non-empty, memory is injected using that query.
+// If query is empty, memory is auto-injected only for specific skills (architect-interview, pm-interview).
+func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string, memoryRoot, query string) (string, error) {
 	raw, err := loadAndValidateTOML(sourcePath)
 	if err != nil {
 		return "", err
@@ -202,10 +204,10 @@ func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing Rout
 	// Inject cached territory and capabilities
 	injectTerritoryAndCapabilities(dir, raw)
 
-	// Auto-inject memory for certain skills
-	if shouldAutoInjectMemory(skill, memoryRoot) {
+	// Inject memory if query is provided or skill auto-injects
+	if query != "" || shouldAutoInjectMemory(skill, memoryRoot) {
 		opts := MemoryInjectOpts{
-			Query:      "", // Derive from task description
+			Query:      query, // Use provided query or derive from task description
 			MemoryRoot: memoryRoot,
 			Limit:      3,
 		}

@@ -12,11 +12,12 @@ import (
 )
 
 type contextWriteArgs struct {
-	Dir      string `targ:"flag,short=d,required,desc=Project directory"`
-	Task     string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-004)"`
-	Skill    string `targ:"flag,short=s,required,desc=Skill name (e.g. tdd-red)"`
-	File     string `targ:"flag,short=f,required,desc=Path to TOML context file"`
-	NoRouting bool  `targ:"flag,desc=Skip adding routing section"`
+	Dir          string `targ:"flag,short=d,required,desc=Project directory"`
+	Task         string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-004)"`
+	Skill        string `targ:"flag,short=s,required,desc=Skill name (e.g. tdd-red)"`
+	File         string `targ:"flag,short=f,required,desc=Path to TOML context file"`
+	NoRouting    bool   `targ:"flag,desc=Skip adding routing section"`
+	InjectMemory string `targ:"flag,desc=Query memory and inject top results into context"`
 }
 
 func contextWrite(args contextWriteArgs) error {
@@ -40,7 +41,15 @@ func contextWrite(args contextWriteArgs) error {
 			Complex: cfg.Routing.Complex,
 		}
 
-		path, err = context.WriteWithRouting(args.Dir, args.Task, args.Skill, args.File, routing, cfg.Routing.SkillComplexity)
+		// Use memory injection if --inject-memory is specified
+		if args.InjectMemory != "" {
+			memoryRoot := fmt.Sprintf("%s/.claude/memory", homeDir)
+			path, err = context.WriteWithRoutingAndMemory(args.Dir, args.Task, args.Skill, args.File, routing, cfg.Routing.SkillComplexity, memoryRoot, args.InjectMemory)
+		} else {
+			// WriteWithRoutingAndMemory handles auto-injection for specific skills
+			memoryRoot := fmt.Sprintf("%s/.claude/memory", homeDir)
+			path, err = context.WriteWithRoutingAndMemory(args.Dir, args.Task, args.Skill, args.File, routing, cfg.Routing.SkillComplexity, memoryRoot, "")
+		}
 	}
 
 	if err != nil {

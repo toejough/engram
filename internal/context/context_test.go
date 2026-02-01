@@ -665,7 +665,7 @@ func testAutoInjectForSkill(t *testing.T, skill, taskDesc, memoryContent string)
 	}
 	skillComplexity := map[string]string{skill: "complex"}
 
-	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", skill, source, routing, skillComplexity, memoryRoot)
+	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", skill, source, routing, skillComplexity, memoryRoot, "")
 	g.Expect(err).ToNot(HaveOccurred())
 
 	content, err := os.ReadFile(path)
