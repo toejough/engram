@@ -630,6 +630,62 @@ func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
 	})
 }
 
+// TEST-640 traces: TASK-064
+// Test state next returns validation_failed when AC incomplete at task-audit
+func TestNextWithChecker_ValidationFailed(t *testing.T) {
+	t.Run("returns validation_failed when AC incomplete at task-audit", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			acceptanceCriteriaComplete: false,
+		}
+		result := state.NextWithChecker(dir, checker)
+		g.Expect(result.Action).To(Equal("stop"))
+		g.Expect(result.Reason).To(Equal("validation_failed"))
+		g.Expect(result.Details).To(ContainSubstring("acceptance criteria"))
+	})
+
+	t.Run("returns continue when AC complete at task-audit", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			acceptanceCriteriaComplete: true,
+		}
+		result := state.NextWithChecker(dir, checker)
+		g.Expect(result.Action).To(Equal("continue"))
+		g.Expect(result.NextPhase).To(Equal("task-complete"))
+	})
+
+	t.Run("skips AC check for phases before task-audit", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "tdd-green")
+
+		checker := &mockPreconditionChecker{
+			acceptanceCriteriaComplete: false, // AC incomplete, but shouldn't matter
+		}
+		result := state.NextWithChecker(dir, checker)
+		g.Expect(result.Action).To(Equal("continue"))
+		g.Expect(result.NextPhase).To(Equal("commit-green"))
+	})
+}
+
 // TEST-306 traces: TASK-011
 // Test state next returns action: continue when unblocked work exists
 func TestNext_Continue(t *testing.T) {
