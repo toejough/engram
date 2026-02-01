@@ -67,7 +67,8 @@ func TestGenerate_TestsSection(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	// Create test files
+	// Create a Go project with test files
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
 	os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
 	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
 	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg_test.go"), []byte("package pkg1_test\n"), 0o644)

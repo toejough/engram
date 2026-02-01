@@ -73,5 +73,8 @@ func main() {
 			targ.Targ(usageReport).Name("report").Description("Generate token usage report from logs"),
 			targ.Targ(usageCheck).Name("check").Description("Check token usage against budget thresholds"),
 		),
+		targ.Group("map",
+			targ.Targ(mapGenerate).Name("generate").Description("Generate compressed territory map"),
+		),
 	)
 }
