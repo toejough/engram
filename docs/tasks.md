@@ -450,12 +450,12 @@ Integrate AC validation into state.Next() to return validation_failed when appro
 Add automated context budget checking that warns/blocks when thresholds exceeded.
 
 **Acceptance Criteria:**
-- [ ] `projctl context check --dir DIR` reads recent log entries with context_estimate
-- [ ] Compares cumulative estimate to configured thresholds (default: 80K warning, 90K limit)
-- [ ] Exit code 0 if under warning, 1 if over warning, 2 if over limit
-- [ ] Output includes recommendation: "Context at N% - consider compaction"
-- [ ] Thresholds configurable in project-config.toml `[context]` section
-- [ ] Control loop can call this after each skill dispatch
+- [x] `projctl context check --dir DIR` reads recent log entries with context_estimate
+- [x] Compares estimate to configured thresholds (default: 80K warning, 90K limit)
+- [x] Exit code 0 if under warning, 1 if over warning, 2 if over limit
+- [x] Output includes recommendation: "Context at N% - consider compaction"
+- [x] Thresholds configurable in project-config.toml `[budget]` section
+- [x] Control loop can call this after each skill dispatch
 
 **Test Requirements:**
 - Unit: Threshold comparison logic
