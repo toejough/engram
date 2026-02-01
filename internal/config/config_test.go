@@ -221,3 +221,68 @@ func TestDefault(t *testing.T) {
 	g.Expect(cfg.Paths.DocsDir).To(Equal("docs"))
 	g.Expect(cfg.Heuristics.PreserveThreshold).To(BeNumerically(">", 0))
 }
+
+// TEST-400 traces: TASK-014
+// Test routing config has default values (all sonnet)
+func TestRouting_Defaults(t *testing.T) {
+	g := NewWithT(t)
+
+	cfg := config.Default()
+	g.Expect(cfg.Routing.Simple).To(Equal("sonnet"))
+	g.Expect(cfg.Routing.Medium).To(Equal("sonnet"))
+	g.Expect(cfg.Routing.Complex).To(Equal("sonnet"))
+	g.Expect(cfg.Routing.ThresholdLines).To(Equal(100))
+}
+
+// TEST-401 traces: TASK-014
+// Test routing config loads from TOML
+func TestRouting_Load(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockConfigFS{
+		files: map[string]string{
+			"/project/.claude/project-config.toml": `
+[routing]
+simple = "haiku"
+medium = "sonnet"
+complex = "opus"
+threshold_lines = 50
+`,
+		},
+	}
+
+	cfg, err := config.Load("/project", "/home/user", fs)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(cfg.Routing.Simple).To(Equal("haiku"))
+	g.Expect(cfg.Routing.Medium).To(Equal("sonnet"))
+	g.Expect(cfg.Routing.Complex).To(Equal("opus"))
+	g.Expect(cfg.Routing.ThresholdLines).To(Equal(50))
+}
+
+// TEST-402 traces: TASK-014
+// Test routing config validates model names
+func TestRouting_ValidateModels(t *testing.T) {
+	g := NewWithT(t)
+
+	// Valid models
+	g.Expect(config.IsValidModel("haiku")).To(BeTrue())
+	g.Expect(config.IsValidModel("sonnet")).To(BeTrue())
+	g.Expect(config.IsValidModel("opus")).To(BeTrue())
+
+	// Invalid models
+	g.Expect(config.IsValidModel("gpt-4")).To(BeFalse())
+	g.Expect(config.IsValidModel("")).To(BeFalse())
+	g.Expect(config.IsValidModel("claude")).To(BeFalse())
+}
+
+// TEST-403 traces: TASK-014
+// Test GetRouting returns routing config
+func TestGetRouting(t *testing.T) {
+	g := NewWithT(t)
+
+	cfg := config.Default()
+	routing := cfg.GetRouting()
+	g.Expect(routing.Simple).To(Equal("sonnet"))
+	g.Expect(routing.Medium).To(Equal("sonnet"))
+	g.Expect(routing.Complex).To(Equal("sonnet"))
+}
