@@ -120,6 +120,66 @@ type StatusResult struct {
 
 // Status returns the installation status of all skills.
 func Status(repoSkillsDir, targetDir string) (StatusResult, error) {
-	// TODO: Implement
-	return StatusResult{}, nil
+	var result StatusResult
+
+	// Build map of repo skills
+	repoSkills := make(map[string]bool)
+	if entries, err := os.ReadDir(repoSkillsDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				repoSkills[entry.Name()] = true
+			}
+		}
+	}
+
+	// Build map of target skills
+	targetSkills := make(map[string]bool)
+	if entries, err := os.ReadDir(targetDir); err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() || entry.Type()&os.ModeSymlink != 0 {
+				targetSkills[entry.Name()] = true
+			}
+		}
+	}
+
+	// Check each repo skill
+	for name := range repoSkills {
+		srcPath := filepath.Join(repoSkillsDir, name)
+		dstPath := filepath.Join(targetDir, name)
+
+		info, err := os.Lstat(dstPath)
+		if os.IsNotExist(err) {
+			// Not installed
+			result.Missing = append(result.Missing, name)
+			continue
+		}
+		if err != nil {
+			return result, fmt.Errorf("failed to check %s: %w", dstPath, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			// It's a symlink - check where it points
+			target, err := os.Readlink(dstPath)
+			if err != nil {
+				return result, fmt.Errorf("failed to read symlink %s: %w", dstPath, err)
+			}
+			if target == srcPath {
+				result.Linked = append(result.Linked, name)
+			} else {
+				result.Stale = append(result.Stale, name)
+			}
+		} else {
+			// It's a regular directory - conflict
+			result.Conflicts = append(result.Conflicts, name)
+		}
+	}
+
+	// Check for local-only skills (in target but not in repo)
+	for name := range targetSkills {
+		if !repoSkills[name] {
+			result.Local = append(result.Local, name)
+		}
+	}
+
+	return result, nil
 }

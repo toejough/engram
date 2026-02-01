@@ -85,8 +85,78 @@ type skillsStatusArgs struct {
 }
 
 func skillsStatus(args skillsStatusArgs) error {
-	// TODO: Implement in TASK-057
-	return fmt.Errorf("not implemented")
+	// Default repo dir to current directory
+	repoDir := args.RepoDir
+	if repoDir == "" {
+		var err error
+		repoDir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+	}
+
+	// Default target to ~/.claude/skills
+	targetDir := args.TargetDir
+	if targetDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		targetDir = filepath.Join(home, ".claude", "skills")
+	}
+
+	// Skills dir is repo/skills
+	skillsDir := filepath.Join(repoDir, "skills")
+	if _, err := os.Stat(skillsDir); os.IsNotExist(err) {
+		return fmt.Errorf("skills directory not found: %s", skillsDir)
+	}
+
+	result, err := skills.Status(skillsDir, targetDir)
+	if err != nil {
+		return err
+	}
+
+	// Report results
+	hasIssues := false
+
+	if len(result.Linked) > 0 {
+		fmt.Printf("Linked (%d):\n", len(result.Linked))
+		for _, name := range result.Linked {
+			fmt.Printf("  ✓ %s\n", name)
+		}
+	}
+	if len(result.Missing) > 0 {
+		hasIssues = true
+		fmt.Printf("Missing (%d):\n", len(result.Missing))
+		for _, name := range result.Missing {
+			fmt.Printf("  ✗ %s\n", name)
+		}
+	}
+	if len(result.Stale) > 0 {
+		hasIssues = true
+		fmt.Printf("Stale (%d, needs update):\n", len(result.Stale))
+		for _, name := range result.Stale {
+			fmt.Printf("  ~ %s\n", name)
+		}
+	}
+	if len(result.Conflicts) > 0 {
+		hasIssues = true
+		fmt.Printf("Conflicts (%d, use --force to overwrite):\n", len(result.Conflicts))
+		for _, name := range result.Conflicts {
+			fmt.Printf("  ! %s\n", name)
+		}
+	}
+	if len(result.Local) > 0 {
+		fmt.Printf("Local only (%d):\n", len(result.Local))
+		for _, name := range result.Local {
+			fmt.Printf("  ? %s\n", name)
+		}
+	}
+
+	if hasIssues {
+		os.Exit(1)
+	}
+	return nil
 }
 
 type skillsUninstallArgs struct {
