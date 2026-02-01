@@ -1,0 +1,1737 @@
+[project]
+  name = "projctl-v2"
+  created = 2026-01-31T18:12:27.095147-05:00
+  phase = "commit-red"
+
+[progress]
+  current_task = "TASK-059"
+  current_subphase = ""
+  tasks_complete = 0
+  tasks_total = 0
+  tasks_escalated = 0
+
+[conflicts]
+  open = 0
+
+[meta]
+  corrections_since_last_audit = 0
+
+[[history]]
+  timestamp = 2026-01-31T18:12:27.095147-05:00
+  phase = "init"
+
+[[history]]
+  timestamp = 2026-01-31T18:12:57.226224-05:00
+  phase = "align-analyze"
+
+[[history]]
+  timestamp = 2026-01-31T18:13:06.313329-05:00
+  phase = "align-complete"
+
+[[history]]
+  timestamp = 2026-01-31T18:13:52.245791-05:00
+  phase = "implementation"
+
+[[history]]
+  timestamp = 2026-01-31T18:14:00.76856-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T18:14:09.02953-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:05.509965-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:42.881495-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:49.487052-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:49.492286-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:49.496976-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:49.501511-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T18:15:54.965611-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T18:16:00.603533-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T18:16:00.6081-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:17:20.300331-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:17:33.275691-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T18:18:47.500467-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T18:19:55.642434-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T18:19:55.646652-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T18:19:55.651-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T18:19:55.655792-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T18:20:10.774731-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T18:20:10.779438-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:21:03.934168-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T18:21:28.180557-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:49:35.91256-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:49:54.829385-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:49:54.835315-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:49:54.839929-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T19:49:54.844349-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T19:50:00.504933-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T19:50:00.509567-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:50:49.158136-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:01.0204-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:41.743747-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:54.361562-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:54.366323-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:54.370758-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T19:51:54.3756-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T19:52:44.815829-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T19:52:44.821058-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:53:57.055504-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:54:03.090134-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:54:55.534081-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:02.952769-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:02.957691-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:02.962797-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:02.967654-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:19.472159-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T19:55:19.476712-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:30.300615-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.909599-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.914525-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.919304-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.923912-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.928498-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T19:56:40.933033-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:02:01.719116-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:02:01.723999-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:38.501867-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.50842-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.513307-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.517916-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.523036-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.528041-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:03:45.533032-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:04:33.536909-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:04:33.542477-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:09.629474-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:14.598119-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:33.883287-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:41.711137-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:41.715833-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:41.720048-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:05:41.725319-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:13.482144-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:13.48752-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:52.245646-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.903977-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.910034-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.915113-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.919734-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.924377-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:06:58.929141-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:11:41.109611-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:11:44.212258-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.392792-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.397824-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.402405-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.407088-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.412122-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.416757-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:17.421225-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.233057-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.237631-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.241968-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.2472-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.252301-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.257191-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.261493-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.266452-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:12:36.270942-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.677181-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.682325-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.68692-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.691994-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.697279-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.702533-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.707386-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.712628-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:26:29.717656-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:27:00.789885-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:27:00.79581-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:28:01.157672-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:28:25.867436-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:29:10.250307-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:29:37.247618-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:29:42.541519-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:29:42.547078-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:30:01.096997-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:30:13.880162-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:30:13.885879-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:30:44.240071-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:05.235885-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:35.703637-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:58.410717-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:58.41571-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:58.420269-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:31:58.425175-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:32:03.607474-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:32:03.612625-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:32:48.322363-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:33:12.729354-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:16.788382-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:45.258768-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:45.263755-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:45.268902-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:45.273911-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:54.643714-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:34:54.648558-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:35:35.235046-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:35:35.240576-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:12.98314-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:12.989809-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:12.995336-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:13.000988-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:13.006398-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.071476-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.077304-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.082454-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.088131-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.094052-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.099533-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.105187-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.110645-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.116318-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.121979-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.127491-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.133454-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.139171-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.144589-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.149584-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.155172-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.160668-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.166092-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.171186-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.177118-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.182807-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.188516-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.194033-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.199512-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.205141-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.21042-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.2152-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.220209-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.225521-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.230901-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.236326-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.242478-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.247987-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.253343-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.259089-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:46.264951-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:57.368166-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:36:57.373275-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:08.305275-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:08.31037-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:37.207223-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:37.213599-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:37.219449-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:37.225123-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:37:37.230722-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:43:10.909332-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:43:10.916161-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:43:54.533367-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:44:26.54826-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:09.109529-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:41.716052-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:41.721119-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:41.725883-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:41.7315-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:55.95812-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:45:55.963154-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:48:11.943424-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:48:11.949182-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:16.451194-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:16.457309-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:21.904354-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:21.90986-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:21.915074-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:44.282893-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:50:44.289281-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:51:42.745109-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:51:42.750944-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:24.932185-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:24.938455-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:24.944551-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:24.9501-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:24.956096-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:30.564866-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:30.57051-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:54.798742-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:53:54.80427-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:36.223274-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:36.229312-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:36.235236-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:36.241575-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:36.247389-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:42.761099-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:54:42.766435-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:55:33.727532-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:55:33.733661-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:28.899804-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:28.906519-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:28.911905-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:28.917094-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:28.923287-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:35.726624-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T20:56:35.731867-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:57:12.923704-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T20:57:12.930253-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:09.944451-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:09.950679-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:09.956635-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:09.962726-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:09.9686-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:22.02763-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:22.033193-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:53.262573-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:04:53.268927-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:30.340619-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:30.34583-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:30.351516-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:30.357774-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:30.363673-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:42.287588-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:05:42.293442-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:01.725879-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:01.73194-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:51.035642-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:51.041654-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:51.0475-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:51.053827-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:51.06017-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:57.783653-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:06:57.789854-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:48.934237-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:48.940464-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:55.677528-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:55.683825-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:55.689932-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:55.69573-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:07:55.701635-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:08:01.137262-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:08:01.143097-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:44.99883-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.004845-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.010698-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.017188-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.023545-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.029884-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:45.0356-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:57.939889-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:09:57.94582-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.658433-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.665249-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.671295-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.677299-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.683432-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.689917-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:33.695805-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:40.50702-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:10:40.513014-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:11:16.64931-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:11:16.655986-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:13.394668-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:13.40135-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:13.407492-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:13.41421-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:13.420124-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:19.671829-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:19.678474-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:48.130932-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:12:48.137087-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:13:38.896337-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:13:38.902748-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:13:38.909277-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:13:38.915607-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:13:38.921579-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:19:25.7053-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:19:34.180333-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:20:16.773534-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:20:16.779376-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:19.899301-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:19.905838-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:19.911704-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:19.917696-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:19.923808-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:46.942326-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:22:46.948005-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:23:34.255985-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:23:34.262751-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:24:56.370395-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:24:56.376575-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:24:56.382518-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:24:56.388589-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:24:56.394703-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:25:06.718402-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:25:06.724323-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:25:52.089863-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:25:52.096408-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:00.001444-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:00.007481-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:00.015837-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:00.023441-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:00.029446-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:11.437324-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:28:11.444121-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:29:20.723194-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:29:20.730235-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:39.392365-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:39.399422-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:39.406321-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:39.412522-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:39.418954-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:51.874355-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:30:51.881572-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:31:39.110447-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:31:39.118188-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:09.117921-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:09.124558-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:09.130796-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:09.137611-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:09.144475-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:23.621377-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:33:23.627605-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:34:15.707754-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:34:15.714559-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:24.549527-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:24.557578-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:24.563952-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:24.570131-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:24.576437-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:43.282587-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-01-31T21:35:43.288467-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:36:51.902703-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-01-31T21:36:51.909786-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:38:11.166818-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-01-31T21:38:11.175205-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:38:11.182083-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-01-31T21:38:11.188924-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-01-31T21:38:11.195191-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T08:22:16.663993-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T08:22:16.671626-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T08:23:14.092207-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T08:23:14.09886-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T08:24:56.819809-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T08:24:56.827378-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T08:24:56.8341-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T08:24:56.84012-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T08:24:56.846301-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T08:25:05.385107-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T08:25:05.391287-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T08:26:00.529087-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T08:26:00.53706-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:41.406195-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:46.245712-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:46.259654-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:46.271176-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:46.282384-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.736401-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.743509-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.749982-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.756345-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.763383-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.770033-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.776296-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.783187-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:53.79037-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.354391-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.361441-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.368776-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.375404-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.382014-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.389627-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.39649-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.403343-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T09:09:59.41019-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.8968-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.903468-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.910443-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.917582-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.924183-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.931237-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.938675-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.94541-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:04.951998-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.40285-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.409272-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.416233-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.423682-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.430609-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.437795-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.444723-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.451801-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:10.459057-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:51.216748-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-01T09:10:55.267542-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-01T09:13:26.182456-05:00
+  phase = "commit-red"

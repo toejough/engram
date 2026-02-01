@@ -366,6 +366,120 @@ Document the 11-step control loop explicitly in /project skill so orchestration 
 
 ---
 
+### TASK-059: Implement completion gate for task-complete transitions
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Add precondition check on task-complete transition that validates acceptance criteria are met. Prevents agents from claiming tasks done when work is incomplete (the "Sisyphus" problem).
+
+**Acceptance Criteria:**
+- [ ] `projctl task validate --dir DIR --task TASK` parses acceptance criteria from tasks.md
+- [ ] Validates checkboxes: `- [x]` = complete, `- [ ]` = incomplete
+- [ ] Returns structured output: `{complete: N, incomplete: M, items: [...]}`
+- [ ] Exit code 0 if all AC complete, 1 if any incomplete
+- [ ] `projctl state transition task-complete` calls `task validate` as precondition
+- [ ] Transition fails with actionable error: "Cannot complete TASK-XXX: N acceptance criteria unmet"
+- [ ] Error lists specific incomplete AC items
+- [ ] `--force` flag bypasses validation (for recovery only)
+- [ ] Integration with `state.Next()`: returns `validation_failed` when AC incomplete
+
+**Test Requirements:**
+- Unit: AC checkbox parsing from markdown
+- Unit: Complete/incomplete counting
+- Integration: task-complete blocked when AC incomplete
+- Integration: task-complete succeeds when all AC complete
+- Integration: Force flag bypasses check
+
+**Dependencies:** TASK-009
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-060: Enforce sub-agent dispatch in /project skill
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Update /project skill to mandate sub-agent dispatch for all skill work. Orchestrator should never read/write code files directly - only dispatch and collect results.
+
+**Acceptance Criteria:**
+- [ ] /project SKILL.md has `## Sub-Agent Mandate` section
+- [ ] Rule: "NEVER use Read/Edit/Write tools directly for code files"
+- [ ] Rule: "ALL skill work dispatched via Task tool with appropriate subagent_type"
+- [ ] Rule: "Orchestrator only reads: state.toml, context/*.toml, result.toml, tasks.md"
+- [ ] Allowed inline: `projctl` commands, git status, territory map
+- [ ] Document which subagent_type maps to which skill
+- [ ] Add examples of correct dispatch patterns
+
+**Test Requirements:**
+- Integration: Skill file contains sub-agent mandate section
+- Behavioral: (manual) Orchestrator dispatches instead of inline work
+
+**Dependencies:** TASK-012
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-061: Add context budget tracking to /project skill
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Track context usage during orchestration and warn when approaching limits. Enables proactive compaction before control loop degrades.
+
+**Acceptance Criteria:**
+- [ ] /project SKILL.md has `## Context Budget` section
+- [ ] Rule: "After each skill dispatch, estimate context usage"
+- [ ] Rule: "If context > 80% capacity, log warning and consider compaction"
+- [ ] Rule: "If context > 90% capacity, complete current task then compact"
+- [ ] Document context estimation heuristic (message count, cumulative length)
+- [ ] Reference `projctl log write --context-estimate` for tracking
+- [ ] Add `--context-estimate N` to log write command
+
+**Test Requirements:**
+- Unit: Context estimate parameter accepted
+- Integration: Log entries include context estimate
+- Behavioral: (manual) Warning appears at threshold
+
+**Dependencies:** None
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-062: Minimize /project SKILL.md token footprint
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Compress /project skill to absolute minimum while preserving control loop. Move detailed docs to SKILL-full.md.
+
+**Acceptance Criteria:**
+- [ ] /project SKILL.md < 1500 characters (currently ~2000)
+- [ ] Control loop table preserved (essential)
+- [ ] Stop conditions table preserved (essential)
+- [ ] Sub-agent mandate compressed to single rule line
+- [ ] Context budget compressed to single rule line
+- [ ] Detailed examples moved to SKILL-full.md
+- [ ] `projctl skills docs --skillname project` returns full content
+
+**Test Requirements:**
+- Integration: Character count under limit
+- Integration: Full docs retrievable via command
+
+**Dependencies:** TASK-060, TASK-061
+
+**Traces to:** Phase 12
+
+---
+
 ### TASK-055: Create skills directory structure in projctl repo
 
 **Phase:** 15
@@ -1544,6 +1658,12 @@ TASK-009 (state preconditions)
     └── TASK-010 (phase skipping)
     └── TASK-011 (state next)
     └── TASK-018 (error capture)
+    └── TASK-059 (completion gate)
+
+TASK-012 (continuation rule)
+    └── TASK-060 (sub-agent mandate)
+    └── TASK-061 (context budget)
+    └── TASK-062 (minimize /project)
 
 TASK-011 (state next)
     └── TASK-012 (continuation rule)
@@ -1585,9 +1705,9 @@ TASK-055 (skills directory)
 
 ---
 
-**Total:** 58 tasks across 16 phases (0-15) plus housekeeping
+**Total:** 62 tasks across 16 phases (0-15) plus housekeeping
 
-**This Week:** 17 tasks (foundation) - includes Phase 15 skill management
+**This Week:** 21 tasks (foundation) - includes Phase 15 skill management + orchestrator thinning
 **This Month:** 13 tasks (reliability)
 **Next Month:** 13 tasks (efficiency)
 **Next Quarter:** 15 tasks (polish)
