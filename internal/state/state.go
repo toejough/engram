@@ -47,6 +47,16 @@ type PhaseTransition struct {
 	Phase     string    `toml:"phase"`
 }
 
+// ErrorInfo captures details about a failed transition.
+type ErrorInfo struct {
+	LastPhase  string    `toml:"last_phase"`
+	LastTask   string    `toml:"last_task"`
+	ErrorType  string    `toml:"error_type"` // "illegal_transition", "precondition_failed"
+	Message    string    `toml:"message"`
+	Timestamp  time.Time `toml:"timestamp"`
+	RetryCount int       `toml:"retry_count"`
+}
+
 // State is the complete project state.
 type State struct {
 	Project   Project           `toml:"project"`
@@ -54,6 +64,7 @@ type State struct {
 	Conflicts Conflicts         `toml:"conflicts"`
 	Meta      Meta              `toml:"meta"`
 	History   []PhaseTransition `toml:"history"`
+	Error     *ErrorInfo        `toml:"error,omitempty"`
 }
 
 // Init creates a new state file in the given directory.
@@ -180,24 +191,38 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	}
 
 	from := s.Project.Phase
+	t := now()
+
 	if !IsLegalTransition(from, to) {
 		targets := LegalTargets(from)
-		return State{}, fmt.Errorf(
+		transitionErr := fmt.Errorf(
 			"illegal transition: %s → %s (legal targets: %v)",
 			from, to, targets,
 		)
+
+		// Capture error in state
+		captureError(&s, "illegal_transition", transitionErr.Error(), t)
+		_ = writeAtomic(dir, s)
+
+		return State{}, transitionErr
 	}
 
 	// Check preconditions if checker provided and not forcing
 	if checker != nil && !opts.Force {
 		if precondCheck, ok := Preconditions[to]; ok {
 			if err := precondCheck(dir, checker); err != nil {
+				// Capture error in state
+				captureError(&s, "precondition_failed", err.Error(), t)
+				_ = writeAtomic(dir, s)
+
 				return State{}, err
 			}
 		}
 	}
 
-	t := now()
+	// Clear error on successful transition
+	s.Error = nil
+
 	s.Project.Phase = to
 	s.History = append(s.History, PhaseTransition{Timestamp: t, Phase: to})
 
@@ -214,6 +239,23 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	}
 
 	return s, nil
+}
+
+// captureError records error details in state, incrementing retry count if same error type.
+func captureError(s *State, errorType, message string, t time.Time) {
+	retryCount := 1
+	if s.Error != nil && s.Error.ErrorType == errorType {
+		retryCount = s.Error.RetryCount + 1
+	}
+
+	s.Error = &ErrorInfo{
+		LastPhase:  s.Project.Phase,
+		LastTask:   s.Progress.CurrentTask,
+		ErrorType:  errorType,
+		Message:    message,
+		Timestamp:  t,
+		RetryCount: retryCount,
+	}
 }
 
 func writeAtomic(dir string, s State) error {
