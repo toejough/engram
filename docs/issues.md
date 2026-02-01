@@ -94,3 +94,76 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 **Traces to:** Phase 12 (Relentless Continuation)
 
 ---
+
+## ISSUE-002: TDD for documentation tasks
+
+**Priority:** Medium-term
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+Documentation tasks should follow TDD discipline just like code tasks. Documentation is a feature - the same rigor should apply.
+
+### Problem
+
+Currently, documentation tasks (like updating SKILL.md files) are treated as "just edits" without the same TDD discipline applied to code:
+- No failing test first
+- No validation that the documentation achieves its purpose
+- No structured review of whether the changes fit the overall document structure
+
+This leads to:
+- Documentation drift from actual behavior
+- Inconsistent structure across documents
+- Missing or redundant sections
+- No regression detection when docs change
+
+### Proposed Approach
+
+Apply TDD to documentation:
+
+1. **Red phase (what should docs say?):**
+   - Write a test/validation that checks for expected content
+   - Could be: grep patterns, section presence, word count limits
+   - Could be: consistency checks against other docs
+   - Test fails because content doesn't exist yet
+
+2. **Green phase (do they say it?):**
+   - Write the documentation to make tests pass
+   - Minimal content to satisfy the requirements
+
+3. **Refactor phase (does it fit?):**
+   - Review structure in context of full document
+   - Check for redundancy with other sections
+   - Verify it doesn't break other "doc tests"
+
+### Implementation Considerations
+
+- `projctl docs validate` command to check documentation structure
+- Schema for expected sections in skill files
+- Linting rules for documentation consistency
+- Integration with trace validate for doc-to-code traceability
+
+### Questions to Resolve
+
+- What tooling exists for "testing" markdown?
+- How to define expected structure without over-constraining?
+- How to handle doc tests that are inherently subjective (readability)?
+- Should doc tests be code tests or a separate validation pass?
+
+### Relationship to Other Work
+
+- Affects all documentation-related tasks
+- Should be incorporated into skill definitions (what makes a "valid" skill doc?)
+- May need updates to task-audit to include doc validation
+
+### Acceptance Criteria
+
+- [ ] Document what "TDD for docs" means in practice
+- [ ] Update relevant skills to include doc validation
+- [ ] Create `projctl docs validate` or similar tooling
+- [ ] Apply to existing skill SKILL.md files as proof of concept
+
+**Traces to:** Process improvement
+
+---

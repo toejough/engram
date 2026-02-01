@@ -6,56 +6,30 @@ user-invocable: true
 
 # Project Orchestrator
 
-Manage projects through structured phases via state machine.
-
 ## Critical Rules
 
 | Rule | Details |
 |------|---------|
-| State transitions | Use `projctl state transition` - NEVER modify state.toml directly |
-| Logging | Use `projctl log write` for all logging |
-| Skill handoffs | Use `projctl context write/read` for context/result |
-| TDD commits | Red → commit → green → commit → refactor → commit |
-| Never skip audits | Audit loop runs until zero defects |
-| Never ask to continue | If `projctl state next` returns `continue`, proceed immediately |
-| Sub-agent dispatch | ALL skill work via Task tool - orchestrator never reads/writes code |
-| Context budget | At 80% warn, at 90% complete task then compact |
-
-## Sub-Agent Mandate
-
-**NEVER** use Read/Edit/Write tools directly for code files. **ALL** skill work dispatched via Task tool.
-
-| Orchestrator CAN | Orchestrator CANNOT |
-|------------------|---------------------|
-| `projctl` commands | Read source code files |
-| Read state.toml, context/*.toml | Edit source code files |
-| Read tasks.md, result.toml | Write source code files |
-| git status | Inline implementation work |
-
-**Dispatch:** `Skill tool` for /tdd-red, /commit, etc. `Task tool` for exploration.
-
-## Context Budget
-
-Track context after each dispatch: `projctl log write --context-estimate N`
-
-| Threshold | Action |
-|-----------|--------|
-| >80% | Log warning, consider compaction |
-| >90% | Complete current task, then compact |
-
-Estimate: count messages × avg length, or tool output sizes.
+| State | `projctl state transition` - NEVER modify state.toml |
+| Log | `projctl log write` for logging |
+| Handoffs | `projctl context write/read` |
+| TDD | Red→commit→green→commit→refactor→commit |
+| Audits | Loop until zero defects |
+| Continue | If `state next`=continue, proceed immediately |
+| Dispatch | ALL code work via Skill/Task tool |
+| Context | At 80% warn, 90% compact |
 
 ## Control Loop
 
 | Step | Type | Action |
 |------|------|--------|
-| 1 | [D] | `projctl state get` - read current phase |
-| 2 | [D] | `projctl state transition` - validates preconditions |
-| 3 | [D] | `projctl map --cached` - territory context |
-| 4 | [A] | Dispatch skill via Skill tool |
-| 5 | [D] | `projctl context read --result` - parse result |
-| 6 | [D] | `projctl state next` - check if work remains |
-| 7 | [A] | If continue: loop. If stop: check reason |
+| 1 | [D] | `projctl state get` |
+| 2 | [D] | `projctl state transition` |
+| 3 | [D] | `projctl map --cached` |
+| 4 | [A] | Dispatch skill |
+| 5 | [D] | `projctl context read --result` |
+| 6 | [D] | `projctl state next` |
+| 7 | [A] | If continue: loop |
 
 ## Stop Conditions
 
@@ -64,25 +38,15 @@ Estimate: count messages × avg length, or tool output sizes.
 | all_complete | Present summary |
 | escalation_pending | Present to user |
 | validation_failed | Run repair loop |
-| retries_exhausted | Present failure |
 
-## End-of-Command Sequence
+## End-of-Command
 
-Always run before completing:
 ```bash
 projctl integrate features --dir .
 projctl trace repair --dir .
 projctl trace validate --dir .
 ```
 
-## Modes
+## Full Docs
 
-| Mode | Purpose |
-|------|---------|
-| new | Full interview → task breakdown → implementation |
-| adopt | Infer artifacts from existing codebase |
-| resume | Continue from saved state |
-
-## Full Documentation
-
-`projctl skills docs --skillname project` or see SKILL-full.md
+`projctl skills docs --skillname project`
