@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -137,5 +138,110 @@ type SessionEndResult struct {
 
 // SessionEnd generates a compressed session summary.
 func SessionEnd(opts SessionEndOpts) (*SessionEndResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	if opts.Project == "" {
+		return nil, fmt.Errorf("project is required")
+	}
+
+	// Ensure sessions directory exists
+	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
+	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
+	}
+
+	// Build filename: {DATE}-{PROJECT}.md
+	today := time.Now().Format("2006-01-02")
+	filename := fmt.Sprintf("%s-%s.md", today, opts.Project)
+	filePath := filepath.Join(sessionsDir, filename)
+
+	// Read today's decisions if they exist
+	decisionsPath := filepath.Join(opts.MemoryRoot, "decisions", today+"-"+opts.Project+".jsonl")
+	decisions := readDecisions(decisionsPath)
+
+	// Generate summary
+	summary := generateSessionSummary(opts.Project, today, decisions)
+
+	// Ensure under 2000 characters
+	if len(summary) > 2000 {
+		summary = truncateSummary(summary, 2000)
+	}
+
+	// Write the summary
+	if err := os.WriteFile(filePath, []byte(summary), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write session summary: %w", err)
+	}
+
+	return &SessionEndResult{
+		FilePath: filePath,
+	}, nil
 }
+
+// readDecisions reads decisions from a JSONL file.
+func readDecisions(path string) []map[string]interface{} {
+	var decisions []map[string]interface{}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return decisions
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		var entry map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &entry); err == nil {
+			decisions = append(decisions, entry)
+		}
+	}
+
+	return decisions
+}
+
+// generateSessionSummary creates a markdown summary.
+func generateSessionSummary(project, date string, decisions []map[string]interface{}) string {
+	var sb strings.Builder
+
+	sb.WriteString("# Session Summary\n\n")
+	sb.WriteString(fmt.Sprintf("**Project:** %s\n", project))
+	sb.WriteString(fmt.Sprintf("**Date:** %s\n\n", date))
+
+	if len(decisions) > 0 {
+		sb.WriteString("## Decisions\n\n")
+		for i, d := range decisions {
+			if i >= 5 { // Limit to 5 decisions for brevity
+				sb.WriteString(fmt.Sprintf("... and %d more decisions\n", len(decisions)-5))
+				break
+			}
+			choice, _ := d["choice"].(string)
+			reason, _ := d["reason"].(string)
+			// Truncate reason if too long
+			if len(reason) > 50 {
+				reason = reason[:47] + "..."
+			}
+			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", choice, reason))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// truncateSummary truncates the summary to maxLen while keeping markdown valid.
+func truncateSummary(summary string, maxLen int) string {
+	if len(summary) <= maxLen {
+		return summary
+	}
+
+	// Find a good break point
+	truncated := summary[:maxLen-20]
+
+	// Find the last newline
+	lastNewline := strings.LastIndex(truncated, "\n")
+	if lastNewline > maxLen/2 {
+		truncated = truncated[:lastNewline]
+	}
+
+	return truncated + "\n\n...(truncated)\n"
+}
+
