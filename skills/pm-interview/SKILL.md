@@ -45,7 +45,7 @@ Each REQ-NNN has:
 | Before proceeding | Must articulate problem in one sentence |
 | Implementation | NEVER discuss - that's Architecture |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, requirements.md path, `[[decisions]]`
 

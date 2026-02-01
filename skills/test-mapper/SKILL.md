@@ -47,7 +47,7 @@ func TestSomething(t *testing.T) {...}
 - Match by semantic analysis, not string matching
 - One test function = one TEST-NNN ID
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, tests mapped, `[[decisions]]`
 

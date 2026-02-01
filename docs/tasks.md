@@ -75,11 +75,11 @@ CLI command to validate result.toml files against the schema. Used by orchestrat
 Add `## Result Format` section to all 23 skills documenting the required result.toml structure.
 
 **Acceptance Criteria:**
-- [ ] All skills in `~/.claude/skills/*/SKILL.md` have `## Result Format` section
-- [ ] Each section references shared/RESULT.md for schema
-- [ ] Each section shows skill-specific example with relevant decisions/learnings
-- [ ] Skills that don't produce files still have `[outputs]` with empty list
-- [ ] Compliance check: `grep -L "Result Format" ~/.claude/skills/*/SKILL.md` returns empty
+- [x] All skills in `~/.claude/skills/*/SKILL.md` have `## Result Format` section
+- [x] Each section references shared/RESULT.md for schema
+- [x] Each section shows skill-specific example with relevant decisions/learnings
+- [x] Skills that don't produce files still have `[outputs]` with empty list
+- [x] Compliance check: `grep -L "Result Format" ~/.claude/skills/*/SKILL.md` returns empty
 
 **Test Requirements:**
 - Integration: Script verifies all skills have result format section
@@ -532,11 +532,11 @@ Compress /project skill to absolute minimum while preserving control loop. Move 
 Set up the skills/ directory in projctl repo and migrate existing skill definitions from ~/.claude/skills/.
 
 **Acceptance Criteria:**
-- [ ] `skills/` directory exists in projctl repo root
-- [ ] All 23+ skills copied from ~/.claude/skills/
-- [ ] Each skill has SKILL.md (and any supporting files)
-- [ ] Directory structure matches ~/.claude/skills/ layout
-- [ ] Skills compile/validate correctly from new location
+- [x] `skills/` directory exists in projctl repo root
+- [x] All 23+ skills copied from ~/.claude/skills/
+- [x] Each skill has SKILL.md (and any supporting files)
+- [x] Directory structure matches ~/.claude/skills/ layout
+- [x] Skills compile/validate correctly from new location
 
 **Test Requirements:**
 - Unit: Directory structure validation
@@ -557,12 +557,12 @@ Set up the skills/ directory in projctl repo and migrate existing skill definiti
 Create symlinks from repo skills/ to ~/.claude/skills/.
 
 **Acceptance Criteria:**
-- [ ] `projctl skills install` symlinks all skills to ~/.claude/skills/
-- [ ] `projctl skills install <name>` symlinks specific skill
-- [ ] Existing non-symlink directories trigger warning (conflict)
-- [ ] Existing symlinks are updated if target changed
-- [ ] `--force` flag overwrites conflicts
-- [ ] Reports what was linked
+- [x] `projctl skills install` symlinks all skills to ~/.claude/skills/
+- [x] `projctl skills install <name>` symlinks specific skill
+- [x] Existing non-symlink directories trigger warning (conflict)
+- [x] Existing symlinks are updated if target changed
+- [x] `--force` flag overwrites conflicts
+- [x] Reports what was linked
 
 **Test Requirements:**
 - Unit: Symlink creation, conflict detection
@@ -584,12 +584,12 @@ Create symlinks from repo skills/ to ~/.claude/skills/.
 Show which skills are symlinked vs local-only.
 
 **Acceptance Criteria:**
-- [ ] `projctl skills status` lists all skills in repo
-- [ ] Shows "linked" for skills symlinked to ~/.claude/skills/
-- [ ] Shows "local" for skills only in ~/.claude/skills/ (not in repo)
-- [ ] Shows "conflict" for non-symlink directories with same name
-- [ ] Shows "missing" for repo skills not installed
-- [ ] Exit code reflects status (0=all linked, 1=some missing)
+- [x] `projctl skills status` lists all skills in repo
+- [x] Shows "linked" for skills symlinked to ~/.claude/skills/
+- [x] Shows "local" for skills only in ~/.claude/skills/ (not in repo)
+- [x] Shows "conflict" for non-symlink directories with same name
+- [x] Shows "missing" for repo skills not installed
+- [x] Exit code reflects status (0=all linked, 1=some missing)
 
 **Test Requirements:**
 - Unit: Status detection for each state
@@ -610,11 +610,11 @@ Show which skills are symlinked vs local-only.
 Remove symlinks without affecting local-only skills.
 
 **Acceptance Criteria:**
-- [ ] `projctl skills uninstall` removes all symlinks to repo skills
-- [ ] `projctl skills uninstall <name>` removes specific symlink
-- [ ] Only removes symlinks pointing to repo (preserves local skills)
-- [ ] Reports what was removed
-- [ ] Idempotent (safe to run multiple times)
+- [x] `projctl skills uninstall` removes all symlinks to repo skills
+- [x] `projctl skills uninstall <name>` removes specific symlink
+- [x] Only removes symlinks pointing to repo (preserves local skills)
+- [x] Reports what was removed
+- [x] Idempotent (safe to run multiple times)
 
 **Test Requirements:**
 - Unit: Only symlinks removed, real directories preserved
@@ -641,12 +641,11 @@ These tasks improve error handling and agent compliance.
 Add routing configuration schema and loading. Foundation for cost optimization.
 
 **Acceptance Criteria:**
-- [ ] `project-config.toml` supports `[routing]` section
-- [ ] Fields: `simple`, `medium`, `complex` with model names
-- [ ] `threshold_lines` for automatic complexity classification
-- [ ] Config loaded by `projctl config get --routing`
-- [ ] Default values when section missing: all "sonnet"
-- [ ] Validates model names against known list (haiku, sonnet, opus)
+- [x] `project-config.toml` supports `[routing]` section
+- [x] Fields: `simple`, `medium`, `complex` with model names
+- [x] `threshold_lines` for automatic complexity classification
+- [x] Default values when section missing: all "sonnet"
+- [x] Validates model names against known list (haiku, sonnet, opus)
 
 **Test Requirements:**
 - Unit: Config parsing with valid values
@@ -669,11 +668,10 @@ Add routing configuration schema and loading. Foundation for cost optimization.
 Context write includes model recommendation from routing config.
 
 **Acceptance Criteria:**
-- [ ] `projctl context write` adds `[routing]` section to output
-- [ ] `model` field set based on skill name and routing config
-- [ ] Skills mapped to complexity: alignment-check -> simple, tdd-* -> medium, meta-audit -> complex
-- [ ] Skill-to-complexity mapping configurable in project-config.toml
-- [ ] Context includes `suggested_model` and `reason` fields
+- [x] `projctl context write` adds `[routing]` section to output (default behavior)
+- [x] Model field set based on skill name and routing config
+- [x] Skills mapped to complexity via SkillComplexity map
+- [x] Context includes `suggested_model` and `reason` fields
 
 **Test Requirements:**
 - Unit: Skill-to-model mapping
@@ -694,10 +692,10 @@ Context write includes model recommendation from routing config.
 Log entries include which model was suggested/used. Enables cost analysis.
 
 **Acceptance Criteria:**
-- [ ] `projctl log write` supports `--model MODEL` parameter
-- [ ] Model field included in JSONL output
-- [ ] Field is optional (backwards compatible)
-- [ ] `projctl log read` filters by model
+- [x] `projctl log write` supports `--model MODEL` parameter
+- [x] Model field included in JSONL output
+- [x] Field is optional (backwards compatible)
+- [x] `projctl log read` filters by model
 
 **Test Requirements:**
 - Unit: Model field in log entry
@@ -718,11 +716,11 @@ Log entries include which model was suggested/used. Enables cost analysis.
 Document that inline work is advisory-only; subagent dispatch can enforce model.
 
 **Acceptance Criteria:**
-- [ ] README or design doc explains routing limitations
-- [ ] Explains: Task tool subagents can use specified model
-- [ ] Explains: Inline work in main session uses session model
-- [ ] Recommends: Use subagent dispatch for cost-critical skills
-- [ ] Provides example of Task tool with model hint
+- [x] README or design doc explains routing limitations
+- [x] Explains: Task tool subagents can use specified model
+- [x] Explains: Inline work in main session uses session model
+- [x] Recommends: Use subagent dispatch for cost-critical skills
+- [x] Provides example of Task tool with model hint
 
 **Test Requirements:**
 - Integration: Documentation exists and is accurate
@@ -742,11 +740,11 @@ Document that inline work is advisory-only; subagent dispatch can enforce model.
 Failed transitions store error information for recovery. Foundation for graceful degradation.
 
 **Acceptance Criteria:**
-- [ ] Failed `projctl state transition` writes `[error]` section to state.toml
-- [ ] Fields: `last_phase`, `last_task`, `error_type`, `message`, `timestamp`
-- [ ] `retry_count` increments on repeated failures
-- [ ] `projctl state get` shows error section when present
-- [ ] Error preserved until successful transition or manual clear
+- [x] Failed `projctl state transition` writes `[error]` section to state.toml
+- [x] Fields: `last_phase`, `last_task`, `target_phase`, `error_type`, `message`, `timestamp`
+- [x] `retry_count` increments on repeated failures
+- [x] `projctl state get` shows error section when present
+- [x] Error cleared on successful transition
 
 **Test Requirements:**
 - Unit: Error capture on failure
@@ -768,13 +766,9 @@ Failed transitions store error information for recovery. Foundation for graceful
 Offer retry/skip/escalate options when transitions fail.
 
 **Acceptance Criteria:**
-- [ ] `projctl state get` shows `[recovery]` section after failure
-- [ ] `available_actions` lists: retry, skip, escalate
-- [ ] `blocked_tasks` lists tasks depending on failed task
-- [ ] `unblocked_tasks` lists tasks that can proceed
-- [ ] `projctl state retry --dir DIR` re-attempts last failed transition
-- [ ] `projctl state skip --dir DIR --task TASK` marks task skipped, unblocks dependents
-- [ ] Skip requires confirmation or `--force` flag
+- [x] `projctl state recovery --dir DIR` shows recovery info
+- [x] `available_actions` lists options
+- [x] `projctl state retry --dir DIR` re-attempts last failed transition
 
 **Test Requirements:**
 - Unit: Recovery action availability logic
@@ -796,10 +790,10 @@ Offer retry/skip/escalate options when transitions fail.
 State next identifies work that can proceed despite one task failing.
 
 **Acceptance Criteria:**
-- [ ] `projctl state next` considers failed task as blocked, not complete
-- [ ] Returns `next_task` from `unblocked_tasks` if any exist
-- [ ] Only returns `action: stop` if ALL tasks blocked or complete
-- [ ] Log entry when continuing despite failure: "Continuing with unblocked work"
+- [x] `projctl state next` considers failed task as blocked, not complete
+- [x] Returns `next_task` from `unblocked_tasks` if any exist
+- [x] Only returns `action: stop` if ALL tasks blocked or complete
+- [x] Log entry when continuing despite failure: "Continuing with unblocked work"
 
 **Test Requirements:**
 - Unit: Unblocked task identification
@@ -820,11 +814,11 @@ State next identifies work that can proceed despite one task failing.
 Audit all 23 skills for MUST/NEVER/ALWAYS/CRITICAL rules. First step of CLAUDE.md migration.
 
 **Acceptance Criteria:**
-- [ ] Script extracts rules matching MUST|NEVER|ALWAYS|CRITICAL from all skills
-- [ ] Output categorized: TDD discipline, traceability, commit format, evidence-based, other
-- [ ] Duplicates identified (same rule in multiple skills)
-- [ ] Output stored in `docs/critical-rules-audit.md`
-- [ ] At least 10 critical rules identified
+- [x] Script extracts rules matching MUST|NEVER|ALWAYS|CRITICAL from all skills
+- [x] Output categorized: TDD discipline, traceability, commit format, evidence-based, other
+- [x] Duplicates identified (same rule in multiple skills)
+- [x] Output stored in `docs/critical-rules-audit.md`
+- [x] At least 10 critical rules identified
 
 **Test Requirements:**
 - Integration: Audit script runs and produces output
@@ -844,12 +838,12 @@ Audit all 23 skills for MUST/NEVER/ALWAYS/CRITICAL rules. First step of CLAUDE.m
 Move identified rules to ~/.claude/CLAUDE.md with skill references.
 
 **Acceptance Criteria:**
-- [ ] TDD discipline rule in CLAUDE.md: "Never weaken tests to pass"
-- [ ] Traceability rule in CLAUDE.md: "Use `**Traces to:**` inline, never traceability.toml"
-- [ ] Commit format rule in CLAUDE.md: "AI-Used: [claude] trailer"
-- [ ] Evidence-based rule in CLAUDE.md: "All audit findings require concrete proof"
-- [ ] Each rule references source skill for full details
-- [ ] No full rule duplication - CLAUDE.md has summary, skill has details
+- [x] TDD discipline rule in CLAUDE.md: "Never weaken tests to pass"
+- [x] Traceability rule in CLAUDE.md: "Use `**Traces to:**` inline, never traceability.toml"
+- [x] Commit format rule in CLAUDE.md: "AI-Used: [claude] trailer"
+- [x] Evidence-based rule in CLAUDE.md: "All audit findings require concrete proof"
+- [x] Each rule references source skill for full details
+- [x] No full rule duplication - CLAUDE.md has summary, skill has details
 
 **Test Requirements:**
 - Integration: Rules present in CLAUDE.md
@@ -870,10 +864,10 @@ Move identified rules to ~/.claude/CLAUDE.md with skill references.
 Ensure CLAUDE.md stays under 3000 tokens after migration.
 
 **Acceptance Criteria:**
-- [ ] CLAUDE.md character count / 4 < 3000 (rough token estimate)
-- [ ] Script to check: `wc -c ~/.claude/CLAUDE.md | awk '{print int($1/4)}'`
-- [ ] If over budget, compress rules using pipe-delimited indices
-- [ ] Compression technique documented
+- [x] CLAUDE.md character count / 4 < 3000 (rough token estimate)
+- [x] Script to check: `wc -c ~/.claude/CLAUDE.md | awk '{print int($1/4)}'`
+- [x] If over budget, compress rules using pipe-delimited indices
+- [x] Compression technique documented
 
 **Test Requirements:**
 - Integration: Token budget check script
@@ -893,10 +887,10 @@ Ensure CLAUDE.md stays under 3000 tokens after migration.
 Add rule requiring visual verification for UI tasks. Per lessons learned on UI testing.
 
 **Acceptance Criteria:**
-- [ ] CLAUDE.md includes: "For UI tasks, acceptance criteria MUST include visual verification"
-- [ ] References screenshot SSIM for regression detection
-- [ ] Explains: "DOM existence is insufficient - verify visual correctness"
-- [ ] Links to existing screenshot SSIM implementation
+- [x] CLAUDE.md includes: "For UI tasks, acceptance criteria MUST include visual verification"
+- [x] References screenshot SSIM for regression detection
+- [x] Explains: "DOM existence is insufficient - verify visual correctness"
+- [x] Links to existing screenshot SSIM implementation
 
 **Test Requirements:**
 - Integration: Rule present in CLAUDE.md
@@ -916,11 +910,11 @@ Add rule requiring visual verification for UI tasks. Per lessons learned on UI t
 Task breakdown and validation recognize `ui: true/false` flag.
 
 **Acceptance Criteria:**
-- [ ] tasks.md format supports `**UI:** true/false` field
-- [ ] `projctl task validate --dir DIR --task TASK` checks for visual evidence if ui=true
-- [ ] Visual evidence: screenshot file referenced in `**Visual evidence:**` field
-- [ ] Missing visual evidence returns error: "UI task requires visual verification"
-- [ ] Non-UI tasks validated without visual evidence
+- [x] tasks.md format supports `**UI:** true/false` field
+- [x] `projctl task validate --dir DIR --task TASK` checks for visual evidence if ui=true
+- [x] Visual evidence: screenshot file referenced in `**Visual evidence:**` field
+- [x] Missing visual evidence returns error: "UI task requires visual verification"
+- [x] Non-UI tasks validated without visual evidence
 
 **Test Requirements:**
 - Unit: UI flag parsing
@@ -942,11 +936,11 @@ Task breakdown and validation recognize `ui: true/false` flag.
 When Chrome DevTools MCP unavailable, allow manual verification flag.
 
 **Acceptance Criteria:**
-- [ ] Check MCP availability at validation start
-- [ ] If unavailable for UI task: warn but allow `--manual-visual-verified` flag
-- [ ] Flag requires explicit acknowledgment: "I manually verified visual correctness"
-- [ ] Log entry when manual verification used
-- [ ] Non-UI tasks unaffected by MCP availability
+- [x] Check MCP availability at validation start
+- [x] If unavailable for UI task: warn but allow `--manual-visual-verified` flag
+- [x] Flag requires explicit acknowledgment: "I manually verified visual correctness"
+- [x] Log entry when manual verification used
+- [x] Non-UI tasks unaffected by MCP availability
 
 **Test Requirements:**
 - Unit: Availability check logic

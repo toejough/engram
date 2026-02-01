@@ -43,7 +43,7 @@ Validate implementation follows documented architecture patterns.
 | Services | Verify interface + implementation + DI wiring |
 | Structure | Walk tree, compare to documented structure |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, violations by ARCH ID, `[[decisions]]`, `[[learnings]]`
 

@@ -35,7 +35,7 @@ Improve code quality while keeping all tests green.
 | Linter unclear | Note in findings, don't suppress |
 | Spec mismatch found | Report as finding - that's a blocker |
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

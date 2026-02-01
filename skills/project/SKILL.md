@@ -47,6 +47,10 @@ projctl trace repair --dir .
 projctl trace validate --dir .
 ```
 
+## Result Format
+
+Orchestrator skill - reads results from dispatched skills via `projctl context read --result`. Does not produce its own result.toml.
+
 ## Full Docs
 
 `projctl skills docs --skillname project`

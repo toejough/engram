@@ -126,6 +126,7 @@ type PreconditionChecker interface {
 	TestsPass(dir string) bool
 	AcceptanceCriteriaComplete(dir, taskID string) bool
 	IncompleteAcceptanceCriteria(dir, taskID string) []string // Returns list of incomplete AC items
+	UnblockedTasks(dir string, failedTask string) []string    // Returns unblocked tasks excluding the failed one
 }
 
 // Preconditions maps phases to their required preconditions.
@@ -405,8 +406,21 @@ func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 		}
 	}
 
-	// Check for error state
+	// Check for error state - but see if there are unblocked tasks
 	if s.Error != nil {
+		failedTask := s.Error.LastTask
+		if checker != nil && failedTask != "" {
+			unblockedTasks := checker.UnblockedTasks(dir, failedTask)
+			if len(unblockedTasks) > 0 {
+				// Continue with unblocked work
+				return NextResult{
+					Action:    "continue",
+					NextPhase: "task-start",
+					NextTask:  unblockedTasks[0],
+					Details:   "continuing with unblocked work despite failure in " + failedTask,
+				}
+			}
+		}
 		return NextResult{
 			Action:  "stop",
 			Reason:  "error_pending",

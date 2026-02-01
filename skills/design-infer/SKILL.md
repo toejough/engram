@@ -48,7 +48,7 @@ Description of design decision.
 - Every DES must trace to REQ
 - Focus on user-facing, not implementation
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, design.md path, `[[decisions]]`
 

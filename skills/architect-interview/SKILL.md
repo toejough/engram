@@ -52,7 +52,7 @@ Interview for tech choices, produce architecture.md with ARCH-NNN IDs.
 - Document alternatives considered
 - Every ARCH traces to REQ/DES
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, architecture.md path, `[[decisions]]`
 

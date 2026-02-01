@@ -39,7 +39,7 @@ Argue one position in cross-skill disagreements using evidence.
 
 Do NOT concede just to end negotiation - only when evidence supports it.
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool, outcome=argue|concede|compromise

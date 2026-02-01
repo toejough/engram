@@ -49,7 +49,7 @@ Each task must have:
 | Alignment | Validate REQ→ARCH coverage BEFORE decomposing |
 | Size | One function/method = one task (for pure functions) |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, tasks list, coverage matrix, `[[decisions]]`
 

@@ -45,7 +45,7 @@ Check structure before style.
 | Structure mismatch | CRITICAL - panel/section wrong |
 | Style mismatch | MAJOR/MINOR - visual details differ |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, findings by DES ID with screenshots, `[[decisions]]`
 

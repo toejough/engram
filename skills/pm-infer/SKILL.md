@@ -49,7 +49,7 @@ Description of requirement.
 - New IDs start after highest existing
 - Output to docs/requirements.md (not .project/)
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, requirements.md path, `[[decisions]]`
 

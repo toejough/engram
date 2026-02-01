@@ -47,7 +47,7 @@ Evidence that matters: **you did the action and saw the result**
 | Major | Friction, partial failure |
 | Minor | Polish issues |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, findings by REQ ID, `[[decisions]]`, `[[learnings]]`
 

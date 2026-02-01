@@ -36,7 +36,7 @@ Stage and commit changes with properly formatted message.
 | Mixed concerns | Separate functional changes from lint/style fixes |
 | VCS error | Check for `.jj` dir - use jj commands if present |
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

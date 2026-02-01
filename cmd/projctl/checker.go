@@ -108,3 +108,19 @@ func (c *DefaultChecker) IncompleteAcceptanceCriteria(dir, taskID string) []stri
 	}
 	return incomplete
 }
+
+func (c *DefaultChecker) UnblockedTasks(dir, failedTask string) []string {
+	parallelTasks, err := task.Parallel(dir)
+	if err != nil {
+		return nil
+	}
+
+	// Filter out the failed task
+	var unblocked []string
+	for _, t := range parallelTasks {
+		if t != failedTask {
+			unblocked = append(unblocked, t)
+		}
+	}
+	return unblocked
+}

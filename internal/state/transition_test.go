@@ -441,17 +441,18 @@ func TestTransitionPrecondition_TaskComplete(t *testing.T) {
 
 // mockPreconditionChecker implements state.PreconditionChecker for testing.
 type mockPreconditionChecker struct {
-	requirementsExists          bool
-	requirementsHasIDs          bool
-	designExists                bool
-	designHasIDs                bool
-	traceValidationPasses       bool
-	testsExist                  bool
-	testsFail                   bool
-	testsPass                   bool
-	acceptanceCriteriaComplete  bool
+	requirementsExists           bool
+	requirementsHasIDs           bool
+	designExists                 bool
+	designHasIDs                 bool
+	traceValidationPasses        bool
+	testsExist                   bool
+	testsFail                    bool
+	testsPass                    bool
+	acceptanceCriteriaComplete   bool
 	incompleteAcceptanceCriteria []string
-	currentTaskID               string
+	unblockedTasks               []string
+	currentTaskID                string
 }
 
 func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
@@ -493,6 +494,10 @@ func (m *mockPreconditionChecker) AcceptanceCriteriaComplete(dir, taskID string)
 
 func (m *mockPreconditionChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string {
 	return m.incompleteAcceptanceCriteria
+}
+
+func (m *mockPreconditionChecker) UnblockedTasks(dir, failedTask string) []string {
+	return m.unblockedTasks
 }
 
 // TEST-304 traces: TASK-010
@@ -968,6 +973,64 @@ func TestNext_ConsidersError(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 
 		result := state.Next(dir)
+		g.Expect(result.Action).To(Equal("stop"))
+		g.Expect(result.Reason).To(Equal("error_pending"))
+	})
+}
+
+// TEST-500 traces: TASK-020
+// Test state next continues with unblocked tasks when error exists.
+func TestNextWithChecker_ContinuesDespiteError(t *testing.T) {
+	t.Run("returns continue when unblocked tasks exist despite error", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{
+			Task: "TASK-001",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cause a failure
+		checker := &mockPreconditionChecker{requirementsExists: false}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		// Now check next with unblocked tasks available
+		checkerWithUnblocked := &mockPreconditionChecker{
+			unblockedTasks: []string{"TASK-002", "TASK-003"},
+		}
+		result := state.NextWithChecker(dir, checkerWithUnblocked)
+		g.Expect(result.Action).To(Equal("continue"))
+		g.Expect(result.NextTask).To(Equal("TASK-002"))
+		g.Expect(result.NextPhase).To(Equal("task-start"))
+		g.Expect(result.Details).To(ContainSubstring("continuing with unblocked work"))
+	})
+
+	t.Run("returns stop when no unblocked tasks despite checker", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{
+			Task: "TASK-001",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cause a failure
+		checker := &mockPreconditionChecker{requirementsExists: false}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		// Now check next with no unblocked tasks
+		checkerNoUnblocked := &mockPreconditionChecker{
+			unblockedTasks: []string{}, // Empty - all tasks blocked
+		}
+		result := state.NextWithChecker(dir, checkerNoUnblocked)
 		g.Expect(result.Action).To(Equal("stop"))
 		g.Expect(result.Reason).To(Equal("error_pending"))
 	})

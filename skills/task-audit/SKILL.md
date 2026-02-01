@@ -44,7 +44,7 @@ Validate completed task meets acceptance criteria and followed TDD discipline.
 | Test modified to pass | FAIL - test weakening detected |
 | Linter suppressed | FAIL - linter gaming detected |
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

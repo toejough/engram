@@ -30,7 +30,7 @@ Write failing tests that specify expected behavior before implementation.
 | Missing coverage | Map each acceptance criterion to at least one test |
 | Structural only | Test behavior chain: action -> event -> handler -> state -> UI |
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

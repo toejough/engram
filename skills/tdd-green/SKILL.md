@@ -36,7 +36,7 @@ Write minimal implementation to make failing tests pass.
 | Existing tests break | Fix them - don't dismiss as "pre-existing" |
 | Stuck after 3 attempts | Report as blocked with detailed findings |
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

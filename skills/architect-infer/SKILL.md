@@ -49,7 +49,7 @@ Rationale and implementation notes.
 - Every ARCH must trace to REQ/DES
 - Document technology choices with rationale
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, architecture.md path, `[[decisions]]`
 

@@ -44,7 +44,7 @@ Verify artifacts are properly linked via traceability.
 | No tests.md | TEST tracing is in source files, not tests.md |
 | Missing traces | Edit artifact directly to add **Traces to:** field |
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]` success=bool, `[[decisions]]`, `[[learnings]]`
 

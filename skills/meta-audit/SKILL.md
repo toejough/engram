@@ -41,7 +41,7 @@ Analyze patterns in corrections to propose permanent improvements.
 
 For each proposal: Would it have prevented ALL N occurrences?
 
-## Output Format
+## Result Format
 
 `result.toml` (see shared/RESULT.md):
 - `[status]` success=bool

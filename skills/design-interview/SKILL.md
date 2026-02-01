@@ -53,7 +53,7 @@ Transform requirements into visual designs via Pencil MCP.
 - Build design system BEFORE screens
 - Every DES traces to REQ
 
-## Output Format
+## Result Format
 
 `result.toml`: `[status]`, design.md path, .pen paths, `[[decisions]]`
 
