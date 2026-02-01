@@ -18,6 +18,20 @@ Manage projects through structured phases via state machine.
 | TDD commits | Red → commit → green → commit → refactor → commit |
 | Never skip audits | Audit loop runs until zero defects |
 | Never ask to continue | If `projctl state next` returns `continue`, proceed immediately |
+| Sub-agent dispatch | ALL skill work via Task tool - orchestrator never reads/writes code |
+
+## Sub-Agent Mandate
+
+**NEVER** use Read/Edit/Write tools directly for code files. **ALL** skill work dispatched via Task tool.
+
+| Orchestrator CAN | Orchestrator CANNOT |
+|------------------|---------------------|
+| `projctl` commands | Read source code files |
+| Read state.toml, context/*.toml | Edit source code files |
+| Read tasks.md, result.toml | Write source code files |
+| git status | Inline implementation work |
+
+**Dispatch:** `Skill tool` for /tdd-red, /commit, etc. `Task tool` for exploration.
 
 ## Control Loop
 
