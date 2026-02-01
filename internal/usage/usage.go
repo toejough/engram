@@ -5,6 +5,28 @@ import (
 	"github.com/toejough/projctl/internal/log"
 )
 
+// CheckStatus represents the budget check result status.
+type CheckStatus int
+
+const (
+	StatusOK      CheckStatus = 0
+	StatusWarning CheckStatus = 1
+	StatusLimit   CheckStatus = 2
+)
+
+// BudgetConfig holds token budget thresholds.
+type BudgetConfig struct {
+	WarningTokens int `toml:"warning_tokens"`
+	LimitTokens   int `toml:"limit_tokens"`
+}
+
+// CheckResult holds the result of a budget check.
+type CheckResult struct {
+	Status         CheckStatus
+	TotalTokens    int
+	Recommendation string
+}
+
 // UsageReport contains aggregated token usage data.
 type UsageReport struct {
 	TotalTokens int            `json:"total_tokens"`
@@ -37,4 +59,33 @@ func Report(dir string, opts ReportOpts) (UsageReport, error) {
 	}
 
 	return report, nil
+}
+
+// Check compares current token usage against budget thresholds.
+func Check(dir string, budget BudgetConfig) CheckResult {
+	report, err := Report(dir, ReportOpts{})
+	if err != nil {
+		return CheckResult{Status: StatusOK, TotalTokens: 0}
+	}
+
+	result := CheckResult{
+		TotalTokens: report.TotalTokens,
+		Status:      StatusOK,
+	}
+
+	// Check limit first (higher priority)
+	if budget.LimitTokens > 0 && report.TotalTokens >= budget.LimitTokens {
+		result.Status = StatusLimit
+		result.Recommendation = "token limit exceeded"
+		return result
+	}
+
+	// Check warning threshold
+	if budget.WarningTokens > 0 && report.TotalTokens >= budget.WarningTokens {
+		result.Status = StatusWarning
+		result.Recommendation = "consider using haiku for remaining tasks"
+		return result
+	}
+
+	return result
 }

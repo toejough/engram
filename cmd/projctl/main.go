@@ -65,6 +65,7 @@ func main() {
 		),
 		targ.Group("usage",
 			targ.Targ(usageReport).Name("report").Description("Generate token usage report from logs"),
+			targ.Targ(usageCheck).Name("check").Description("Check token usage against budget thresholds"),
 		),
 	)
 }

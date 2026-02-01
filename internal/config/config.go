@@ -19,6 +19,13 @@ type ProjectConfig struct {
 	Heuristics   HeuristicsConfig   `toml:"heuristics"`
 	Traceability TraceabilityConfig `toml:"traceability"`
 	Routing      RoutingConfig      `toml:"routing"`
+	Budget       BudgetConfig       `toml:"budget"`
+}
+
+// BudgetConfig defines token usage budget thresholds.
+type BudgetConfig struct {
+	WarningTokens int `toml:"warning_tokens"` // Warn when usage exceeds this
+	LimitTokens   int `toml:"limit_tokens"`   // Hard limit (exit code 2)
 }
 
 // RoutingConfig defines model routing for different complexity levels.
