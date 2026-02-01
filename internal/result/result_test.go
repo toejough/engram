@@ -1,6 +1,8 @@
 package result_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -181,4 +183,94 @@ func TestParse_RoundTrip(t *testing.T) {
 		g.Expect(len(parsed.Decisions)).To(Equal(len(r.Decisions)))
 		g.Expect(len(parsed.Learnings)).To(Equal(len(r.Learnings)))
 	})
+}
+
+// TEST-560 traces: TASK-033
+// Test Collect reads and merges multiple result files.
+func TestCollect_MergesResults(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create context directory
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	// Create result files for two tasks
+	result1 := `[status]
+success = true
+[outputs]
+files_modified = ["file1.go"]
+[[learnings]]
+content = "Learning from task 1"
+`
+	result2 := `[status]
+success = true
+[outputs]
+files_modified = ["file2.go"]
+[[learnings]]
+content = "Learning from task 2"
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-002-tdd-red.result.toml"), []byte(result2), 0o644)).To(Succeed())
+
+	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(collected.Succeeded).To(Equal(2))
+	g.Expect(collected.Failed).To(Equal(0))
+	g.Expect(collected.Learnings).To(HaveLen(2))
+}
+
+// TEST-561 traces: TASK-033
+// Test Collect reports failures for missing result files.
+func TestCollect_ReportsMissing(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create context directory with only one result
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	result1 := `[status]
+success = true
+[outputs]
+files_modified = []
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
+
+	// TASK-002 has no result file
+	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(collected.Succeeded).To(Equal(1))
+	g.Expect(collected.Failed).To(Equal(1))
+	g.Expect(collected.FailedTasks).To(ContainElement("TASK-002"))
+}
+
+// TEST-562 traces: TASK-033
+// Test Collect reports failures for unsuccessful results.
+func TestCollect_ReportsUnsuccessful(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	// TASK-001 succeeded, TASK-002 failed
+	result1 := `[status]
+success = true
+[outputs]
+files_modified = []
+`
+	result2 := `[status]
+success = false
+[outputs]
+files_modified = []
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-002-tdd-red.result.toml"), []byte(result2), 0o644)).To(Succeed())
+
+	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(collected.Succeeded).To(Equal(1))
+	g.Expect(collected.Failed).To(Equal(1))
+	g.Expect(collected.FailedTasks).To(ContainElement("TASK-002"))
 }
