@@ -219,23 +219,27 @@ func ValidateTaskCompleteWithOpts(dir, taskID string, checker PreconditionChecke
 	}
 
 	if !result.AllComplete {
-		// Build error message listing incomplete items
-		var incompleteItems []string
-		for _, item := range result.Items {
-			if !item.Complete {
-				incompleteItems = append(incompleteItems, item.Text)
-			}
-		}
-
-		errMsg := "acceptance criteria unmet. Incomplete items:\n"
-		for _, item := range incompleteItems {
-			errMsg += "- " + item + "\n"
-		}
-
-		return &ValidationError{Message: errMsg}
+		return &ValidationError{Message: buildIncompleteACError(result.Items)}
 	}
 
 	return nil
+}
+
+// buildIncompleteACError constructs an error message for incomplete acceptance criteria.
+func buildIncompleteACError(items []ACItem) string {
+	var incompleteItems []string
+	for _, item := range items {
+		if !item.Complete {
+			incompleteItems = append(incompleteItems, item.Text)
+		}
+	}
+
+	errMsg := "acceptance criteria unmet. Incomplete items:\n"
+	for _, item := range incompleteItems {
+		errMsg += "- " + item + "\n"
+	}
+
+	return errMsg
 }
 
 // ValidationError is returned when validation fails.
