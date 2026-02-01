@@ -86,6 +86,7 @@ func main() {
 		),
 		targ.Group("refactor",
 			targ.Targ(refactorRename).Name("rename").Description("Rename a symbol using LSP"),
+			targ.Targ(refactorExtractFunction).Name("extract-function").Description("Extract code into a new function using LSP"),
 			targ.Targ(refactorCapabilities).Name("capabilities").Description("Check available refactoring capabilities"),
 		),
 	)

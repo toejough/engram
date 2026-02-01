@@ -73,3 +73,53 @@ func refactorRename(args refactorRenameArgs) error {
 	fmt.Printf("Renamed %s in %d files\n", args.Symbol, result.FilesChanged)
 	return nil
 }
+
+type refactorExtractFunctionArgs struct {
+	File  string `targ:"flag,short=f,required,desc=File containing code to extract"`
+	Lines string `targ:"flag,short=l,required,desc=Line range to extract (e.g. 10-15)"`
+	Name  string `targ:"flag,short=n,required,desc=Name for the extracted function"`
+}
+
+func refactorExtractFunction(args refactorExtractFunctionArgs) error {
+	// Parse line range
+	var startLine, endLine int
+	_, err := fmt.Sscanf(args.Lines, "%d-%d", &startLine, &endLine)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: invalid line range format %q (expected START-END)\n", args.Lines)
+		os.Exit(1)
+	}
+
+	opts := refactor.ExtractOpts{
+		File:      args.File,
+		StartLine: startLine,
+		EndLine:   endLine,
+		Name:      args.Name,
+	}
+
+	result, err := refactor.ExtractFunction(opts)
+	if err != nil {
+		errStr := err.Error()
+		if strings.Contains(errStr, "file not found") {
+			fmt.Fprintf(os.Stderr, "Error: file not found: %s\n", args.File)
+			os.Exit(1)
+		}
+		if strings.Contains(errStr, "invalid line range") {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", errStr)
+			os.Exit(1)
+		}
+		if strings.Contains(errStr, "invalid function name") {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", errStr)
+			os.Exit(1)
+		}
+		if strings.Contains(errStr, "function name conflict") {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", errStr)
+			os.Exit(1)
+		}
+
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Extracted function %s\n", result.ExtractedFunction)
+	return nil
+}
