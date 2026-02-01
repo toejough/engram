@@ -81,3 +81,47 @@ func correctionsCount(args correctionsCountArgs) error {
 	fmt.Println(len(entries))
 	return nil
 }
+
+type correctionsAnalyzeArgs struct {
+	Dir            string `targ:"flag,short=d,desc=Project directory (omit for global)"`
+	MinOccurrences int    `targ:"flag,short=n,desc=Minimum occurrences to report (default: 2)"`
+}
+
+func correctionsAnalyze(args correctionsAnalyzeArgs) error {
+	opts := corrections.AnalyzeOpts{}
+	if args.MinOccurrences > 0 {
+		opts.MinOccurrences = args.MinOccurrences
+	}
+
+	var patterns []corrections.Pattern
+	var err error
+
+	if args.Dir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		patterns, err = corrections.AnalyzeGlobal(homeDir, opts)
+		if err != nil {
+			return err
+		}
+	} else {
+		patterns, err = corrections.Analyze(args.Dir, opts)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(patterns) == 0 {
+		fmt.Println("No patterns found.")
+		return nil
+	}
+
+	fmt.Printf("Found %d correction patterns:\n\n", len(patterns))
+	for i, p := range patterns {
+		fmt.Printf("%d. **%s** (count: %d)\n", i+1, p.Message, p.Count)
+		fmt.Printf("   Proposed rule: %s\n\n", p.Proposal)
+	}
+
+	return nil
+}
