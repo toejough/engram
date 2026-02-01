@@ -235,3 +235,85 @@ func TestRead_NoLogFile(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(entries).To(BeEmpty())
 }
+
+// TEST-500 traces: TASK-027
+// Test Write calculates token estimate from message length.
+func TestWrite_TokenEstimate(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// 40 characters / 4 = 10 tokens
+	message := "This is exactly forty characters long!!"
+	g.Expect(len(message)).To(Equal(40))
+
+	err := log.Write(dir, "status", "task-status", message, log.WriteOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(10))
+}
+
+// TEST-501 traces: TASK-027
+// Test Write uses explicit token override when provided.
+func TestWrite_TokenOverride(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "short", log.WriteOpts{
+		Tokens: 1000, // Override regardless of message length
+	}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(1000))
+}
+
+// TEST-502 traces: TASK-027
+// Test token estimate rounds up for partial tokens.
+func TestWrite_TokenEstimateRoundsUp(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// 5 characters / 4 = 1.25, should round up to 2
+	message := "hello"
+	g.Expect(len(message)).To(Equal(5))
+
+	err := log.Write(dir, "status", "task-status", message, log.WriteOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(2))
+}
+
+// TEST-503 traces: TASK-027
+// Test token estimate for empty message is zero.
+func TestWrite_TokenEstimateEmpty(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "", log.WriteOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(0))
+}
