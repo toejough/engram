@@ -105,3 +105,22 @@ func readEntries(path string) ([]Entry, error) {
 	}
 	return entries, nil
 }
+
+// Pattern represents a recurring correction pattern detected by analysis.
+type Pattern struct {
+	Message  string   // Representative message for the pattern
+	Count    int      // Number of occurrences
+	Proposal string   // Proposed CLAUDE.md addition
+	Examples []Entry  // Sample entries that match this pattern
+}
+
+// AnalyzeOpts holds options for analyzing correction patterns.
+type AnalyzeOpts struct {
+	MinOccurrences int // Minimum occurrences to report a pattern (default: 2)
+}
+
+// Analyze detects patterns in corrections using fuzzy matching.
+// Returns patterns sorted by count (descending).
+func Analyze(dir string, opts AnalyzeOpts) ([]Pattern, error) {
+	panic("not implemented: TASK-042")
+}

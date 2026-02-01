@@ -85,3 +85,75 @@ func TestCorrectionsLog_GlobalFileLocation(t *testing.T) {
 	_, err = os.Stat(globalPath)
 	g.Expect(err).ToNot(HaveOccurred())
 }
+
+// TEST-730 traces: TASK-042
+// Test correctionsAnalyze command identifies patterns
+func TestCorrectionsAnalyze_IdentifiesPatterns(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create repeated corrections
+	_ = corrections.Log(dir, "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Check VCS type first", "vcs", corrections.LogOpts{}, nil)
+
+	// This will be the actual CLI call pattern once implemented
+	// projctl corrections analyze --dir DIR --min-occurrences N
+
+	// For now, verify expected behavior through internal API
+	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+		MinOccurrences: 2,
+	})
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(patterns).To(HaveLen(1))
+	g.Expect(patterns[0].Count).To(Equal(2))
+	g.Expect(patterns[0].Message).To(Equal("Never amend pushed commits"))
+	g.Expect(patterns[0].Proposal).ToNot(BeEmpty())
+}
+
+// TEST-731 traces: TASK-042
+// Test correctionsAnalyze respects min-occurrences flag
+func TestCorrectionsAnalyze_MinOccurrencesFlag(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create corrections with different frequencies
+	_ = corrections.Log(dir, "Pattern A", "ctx", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Pattern A", "ctx", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Pattern B", "ctx", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Pattern B", "ctx", corrections.LogOpts{}, nil)
+	_ = corrections.Log(dir, "Pattern B", "ctx", corrections.LogOpts{}, nil)
+
+	// With min-occurrences=3, should only find Pattern B
+	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+		MinOccurrences: 3,
+	})
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(patterns).To(HaveLen(1))
+	g.Expect(patterns[0].Message).To(Equal("Pattern B"))
+	g.Expect(patterns[0].Count).To(Equal(3))
+}
+
+// TEST-732 traces: TASK-042
+// Test correctionsAnalyze with global corrections
+func TestCorrectionsAnalyze_GlobalCorrections(t *testing.T) {
+	g := NewWithT(t)
+	homeDir := t.TempDir()
+
+	// Log global corrections
+	_ = corrections.LogGlobal("Global pattern", "context", corrections.LogOpts{}, homeDir, nil)
+	_ = corrections.LogGlobal("Global pattern", "context", corrections.LogOpts{}, homeDir, nil)
+
+	// Analyze should work with global corrections too
+	// Once CLI is implemented: projctl corrections analyze (without --dir flag)
+	claudeDir := homeDir + "/.claude"
+	patterns, err := corrections.Analyze(claudeDir, corrections.AnalyzeOpts{
+		MinOccurrences: 2,
+	})
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(patterns).To(HaveLen(1))
+	g.Expect(patterns[0].Message).To(Equal("Global pattern"))
+}
