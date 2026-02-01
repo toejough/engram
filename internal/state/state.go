@@ -99,6 +99,7 @@ func Init(dir string, name string, now func() time.Time) (State, error) {
 type TransitionOpts struct {
 	Task     string
 	Subphase string
+	Force    bool // Bypass precondition checks (not transition graph checks)
 }
 
 // PreconditionChecker validates preconditions for phase transitions.
@@ -187,8 +188,8 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 		)
 	}
 
-	// Check preconditions if checker provided
-	if checker != nil {
+	// Check preconditions if checker provided and not forcing
+	if checker != nil && !opts.Force {
 		if precondCheck, ok := Preconditions[to]; ok {
 			if err := precondCheck(dir, checker); err != nil {
 				return State{}, err
