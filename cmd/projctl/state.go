@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -80,6 +81,28 @@ func stateTransition(args stateTransitionArgs) error {
 		s.Progress.CurrentTask,
 		s.Progress.CurrentSubphase,
 	)
+
+	return nil
+}
+
+type stateNextArgs struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func stateNext(args stateNextArgs) error {
+	result := state.Next(args.Dir)
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode result: %w", err)
+	}
+
+	fmt.Println(string(data))
+
+	// Return exit code based on action
+	if result.Action == "stop" && result.Reason != "all_complete" {
+		return fmt.Errorf("stop: %s", result.Reason)
+	}
 
 	return nil
 }

@@ -259,3 +259,45 @@ func Get(dir string) (State, error) {
 
 	return s, nil
 }
+
+// NextResult holds the result of Next().
+type NextResult struct {
+	Action     string `json:"action"`                // "continue" or "stop"
+	NextPhase  string `json:"next_phase,omitempty"`  // Next phase when action is continue
+	NextTask   string `json:"next_task,omitempty"`   // Next task when action is continue
+	Reason     string `json:"reason,omitempty"`      // Reason when action is stop
+	Escalation string `json:"escalation,omitempty"`  // Escalation ID if reason is escalation_pending
+	Details    string `json:"details,omitempty"`     // Details if reason is validation_failed
+}
+
+// Next determines the next action based on current state.
+// Returns "continue" with next phase/task, or "stop" with reason.
+func Next(dir string) NextResult {
+	s, err := Get(dir)
+	if err != nil {
+		return NextResult{
+			Action: "stop",
+			Reason: "state_error",
+			Details: err.Error(),
+		}
+	}
+
+	currentPhase := s.Project.Phase
+
+	// Check for legal targets
+	targets := LegalTargets(currentPhase)
+	if len(targets) == 0 {
+		// Terminal state
+		return NextResult{
+			Action: "stop",
+			Reason: "all_complete",
+		}
+	}
+
+	// Default: continue with first legal target
+	return NextResult{
+		Action:    "continue",
+		NextPhase: targets[0],
+		NextTask:  s.Progress.CurrentTask,
+	}
+}
