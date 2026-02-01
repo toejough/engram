@@ -267,6 +267,82 @@ type GrepResult struct {
 
 // Grep searches memory files for a pattern.
 func Grep(opts GrepOpts) (*GrepResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	if opts.Pattern == "" {
+		return nil, fmt.Errorf("pattern is required")
+	}
+
+	var matches []GrepMatch
+	pattern := strings.ToLower(opts.Pattern)
+
+	// Search index.md
+	indexPath := filepath.Join(opts.MemoryRoot, "index.md")
+	matches = append(matches, searchFile(indexPath, pattern, "")...)
+
+	// Search sessions directory
+	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
+	sessionMatches := searchDirectory(sessionsDir, pattern, opts.Project)
+	matches = append(matches, sessionMatches...)
+
+	// Search decisions if flag is set
+	if opts.IncludeDecisions {
+		decisionsDir := filepath.Join(opts.MemoryRoot, "decisions")
+		decisionMatches := searchDirectory(decisionsDir, pattern, opts.Project)
+		matches = append(matches, decisionMatches...)
+	}
+
+	return &GrepResult{
+		Matches: matches,
+	}, nil
+}
+
+// searchFile searches a single file for a pattern.
+func searchFile(path, pattern, projectFilter string) []GrepMatch {
+	var matches []GrepMatch
+
+	// If project filter is set, check if filename matches
+	if projectFilter != "" {
+		if !strings.Contains(filepath.Base(path), projectFilter) {
+			return matches
+		}
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return matches
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for i, line := range lines {
+		if strings.Contains(strings.ToLower(line), pattern) {
+			matches = append(matches, GrepMatch{
+				File:    path,
+				LineNum: i + 1,
+				Line:    line,
+			})
+		}
+	}
+
+	return matches
+}
+
+// searchDirectory searches all files in a directory for a pattern.
+func searchDirectory(dir, pattern, projectFilter string) []GrepMatch {
+	var matches []GrepMatch
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return matches
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		fileMatches := searchFile(path, pattern, projectFilter)
+		matches = append(matches, fileMatches...)
+	}
+
+	return matches
 }
 
