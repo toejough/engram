@@ -967,10 +967,10 @@ These tasks optimize cost and enable parallelism.
 Log entries include rough token count for cost tracking.
 
 **Acceptance Criteria:**
-- [ ] `projctl log write` calculates token estimate from message length (chars/4)
-- [ ] `tokens_estimate` field in JSONL output
-- [ ] Estimation works for any message content
-- [ ] Optional `--tokens N` to override estimate with known value
+- [x] `projctl log write` calculates token estimate from message length (chars/4)
+- [x] `tokens_estimate` field in JSONL output
+- [x] Estimation works for any message content
+- [x] Optional `--tokens N` to override estimate with known value
 
 **Test Requirements:**
 - Unit: Token estimation formula
@@ -991,12 +991,12 @@ Log entries include rough token count for cost tracking.
 Aggregate token usage from logs. Provides cost visibility.
 
 **Acceptance Criteria:**
-- [ ] `projctl usage report --dir DIR` sums tokens from project logs
-- [ ] `--session SESSION` filters to specific session
+- [x] `projctl usage report --dir DIR` sums tokens from project logs
+- [x] `--session SESSION` filters to specific session
 - [ ] `--project NAME` filters to specific project (cross-project)
-- [ ] `--format json` outputs structured data with totals and breakdowns
-- [ ] Breakdown by model if model field present
-- [ ] Human-readable default format with summary
+- [x] `--format json` outputs structured data with totals and breakdowns
+- [x] Breakdown by model if model field present
+- [x] Human-readable default format with summary
 
 **Test Requirements:**
 - Unit: Token summation
@@ -1018,11 +1018,11 @@ Aggregate token usage from logs. Provides cost visibility.
 Warn when session token usage exceeds threshold.
 
 **Acceptance Criteria:**
-- [ ] `project-config.toml` supports `[budget]` section with `warning_tokens` and `limit_tokens`
-- [ ] `projctl usage check --session` compares current usage to warning threshold
-- [ ] Returns exit code 1 if over warning, 2 if over limit
-- [ ] Output includes recommendation: "consider using haiku for remaining tasks"
-- [ ] Orchestrator can call this after each skill dispatch
+- [x] `project-config.toml` supports `[budget]` section with `warning_tokens` and `limit_tokens`
+- [x] `projctl usage check --session` compares current usage to warning threshold
+- [x] Returns exit code 1 if over warning, 2 if over limit
+- [x] Output includes recommendation: "consider using haiku for remaining tasks"
+- [x] Orchestrator can call this after each skill dispatch
 
 **Test Requirements:**
 - Unit: Threshold comparison
@@ -1031,6 +1031,8 @@ Warn when session token usage exceeds threshold.
 **Dependencies:** TASK-028
 
 **Traces to:** Phase 3
+
+**Status:** Complete - Implemented in internal/usage/usage.go and cmd/projctl/usage.go
 
 ---
 
@@ -1043,11 +1045,11 @@ Warn when session token usage exceeds threshold.
 Extract DAG from tasks.md for parallel dispatch analysis.
 
 **Acceptance Criteria:**
-- [ ] Parse `**Depends on:** TASK-XXX, TASK-YYY` fields
-- [ ] Build dependency graph in memory
-- [ ] Detect cycles and report error
-- [ ] `projctl tasks deps --dir DIR` outputs graph in DOT or JSON format
-- [ ] Handles tasks with no dependencies (roots)
+- [x] Parse `**Depends on:** TASK-XXX, TASK-YYY` fields
+- [x] Build dependency graph in memory
+- [x] Detect cycles and report error
+- [x] `projctl tasks deps --dir DIR` outputs graph in DOT or JSON format
+- [x] Handles tasks with no dependencies (roots)
 
 **Test Requirements:**
 - Unit: Dependency parsing
@@ -1057,6 +1059,8 @@ Extract DAG from tasks.md for parallel dispatch analysis.
 **Dependencies:** None
 
 **Traces to:** Phase 5
+
+**Status:** Complete - Implemented in internal/task/deps.go and cmd/projctl/tasks.go
 
 ---
 
@@ -1069,11 +1073,11 @@ Extract DAG from tasks.md for parallel dispatch analysis.
 Identify tasks that can run concurrently based on dependency analysis.
 
 **Acceptance Criteria:**
-- [ ] `projctl tasks parallel --dir DIR` returns list of independent tasks
-- [ ] Independent = no pending blockedBy tasks
-- [ ] Considers task status (only pending tasks)
-- [ ] Returns empty list if all tasks blocked or complete
-- [ ] `--format json` for programmatic use
+- [x] `projctl tasks parallel --dir DIR` returns list of independent tasks
+- [x] Independent = no pending blockedBy tasks
+- [x] Considers task status (only pending tasks)
+- [x] Returns empty list if all tasks blocked or complete
+- [x] `--format json` for programmatic use
 
 **Test Requirements:**
 - Unit: Independence detection
@@ -1082,6 +1086,8 @@ Identify tasks that can run concurrently based on dependency analysis.
 **Dependencies:** TASK-030
 
 **Traces to:** Phase 5
+
+**Status:** Complete - Implemented in internal/task/parallel.go and cmd/projctl/tasks.go
 
 ---
 
@@ -1094,10 +1100,10 @@ Identify tasks that can run concurrently based on dependency analysis.
 Create multiple context files for concurrent skill dispatch.
 
 **Acceptance Criteria:**
-- [ ] `projctl context write-parallel --dir DIR --tasks TASK-001,TASK-002` creates context for each
-- [ ] Each context file named `context/{TASK}-{SKILL}.toml`
-- [ ] Shared territory map included in all contexts
-- [ ] Skill determined from task phase (tdd-red for pending implementation tasks)
+- [x] `projctl context write-parallel --dir DIR --tasks TASK-001,TASK-002` creates context for each
+- [x] Each context file named `context/{TASK}-{SKILL}.toml`
+- [x] Shared territory map included in all contexts
+- [x] Skill determined from task phase (tdd-red for pending implementation tasks)
 
 **Test Requirements:**
 - Unit: Multiple file creation
@@ -1106,6 +1112,8 @@ Create multiple context files for concurrent skill dispatch.
 **Dependencies:** TASK-004, TASK-031
 
 **Traces to:** Phase 5
+
+**Status:** Complete - Implemented in internal/context/parallel.go and cmd/projctl/context.go
 
 ---
 
@@ -1118,12 +1126,12 @@ Create multiple context files for concurrent skill dispatch.
 Wait for parallel dispatches and combine results.
 
 **Acceptance Criteria:**
-- [ ] `projctl result collect --dir DIR --tasks TASK-001,TASK-002` waits for result files
-- [ ] Timeout configurable (default 10 minutes)
-- [ ] Merges escalations from all results into single list
-- [ ] Merges learnings from all results
-- [ ] Reports: "3/3 tasks complete" or "2/3 tasks complete, 1 failed"
-- [ ] Failed task details in output
+- [x] `projctl result collect --dir DIR --tasks TASK-001,TASK-002` waits for result files
+- [x] Timeout configurable (default 10 minutes)
+- [x] Merges escalations from all results into single list
+- [x] Merges learnings from all results
+- [x] Reports: "3/3 tasks complete" or "2/3 tasks complete, 1 failed"
+- [x] Failed task details in output
 
 **Test Requirements:**
 - Unit: Result merging
@@ -1133,6 +1141,8 @@ Wait for parallel dispatches and combine results.
 **Dependencies:** TASK-002
 
 **Traces to:** Phase 5
+
+**Status:** Complete - Implemented in internal/result/collect.go and cmd/projctl/result.go
 
 ---
 
@@ -1145,13 +1155,13 @@ Wait for parallel dispatches and combine results.
 Generate compressed territory map for codebase exploration.
 
 **Acceptance Criteria:**
-- [ ] `projctl map --dir DIR --output PATH` produces territory.toml
-- [ ] `[structure]` section: root, languages, build_tool, test_framework
-- [ ] `[entry_points]` section: cli, public_api locations
-- [ ] `[packages]` section: count, internal package list
-- [ ] `[tests]` section: pattern, count
-- [ ] `[docs]` section: readme, artifacts list
-- [ ] Output < 1000 tokens (< 4000 chars)
+- [x] `projctl map --dir DIR --output PATH` produces territory.toml
+- [x] `[structure]` section: root, languages, build_tool, test_framework
+- [x] `[entry_points]` section: cli, public_api locations
+- [x] `[packages]` section: count, internal package list
+- [x] `[tests]` section: pattern, count
+- [x] `[docs]` section: readme, artifacts list
+- [x] Output < 1000 tokens (< 4000 chars)
 
 **Test Requirements:**
 - Unit: Each section generation
@@ -1161,6 +1171,8 @@ Generate compressed territory map for codebase exploration.
 **Dependencies:** None
 
 **Traces to:** Phase 6
+
+**Status:** Complete - Implemented in internal/territory/ and cmd/projctl/map.go
 
 ---
 
@@ -1173,11 +1185,11 @@ Generate compressed territory map for codebase exploration.
 Reuse territory map within session to avoid redundant exploration.
 
 **Acceptance Criteria:**
-- [ ] `projctl map --cached` returns existing map if recent (< 1 hour old)
-- [ ] Cache stored in `context/territory.toml`
-- [ ] `--force` regenerates regardless of cache
-- [ ] Cache invalidated if file count changes significantly (> 10%)
-- [ ] Cache timestamp stored in map
+- [x] `projctl map --cached` returns existing map if recent (< 1 hour old)
+- [x] Cache stored in `context/territory.toml`
+- [x] `--force` regenerates regardless of cache
+- [x] Cache invalidated if file count changes significantly (> 10%)
+- [x] Cache timestamp stored in map
 
 **Test Requirements:**
 - Unit: Cache age check
@@ -1187,6 +1199,8 @@ Reuse territory map within session to avoid redundant exploration.
 **Dependencies:** TASK-034
 
 **Traces to:** Phase 6
+
+**Status:** Complete - Implemented in internal/territory/cache.go
 
 ---
 
@@ -1199,10 +1213,10 @@ Reuse territory map within session to avoid redundant exploration.
 Context write includes territory map automatically.
 
 **Acceptance Criteria:**
-- [ ] `projctl context write` checks for cached territory map
-- [ ] If exists, merges into context under `[territory]` section
-- [ ] Skills see territory without requesting it
-- [ ] Orchestrator doesn't need explicit `--with-territory` flag
+- [x] `projctl context write` checks for cached territory map
+- [x] If exists, merges into context under `[territory]` section
+- [x] Skills see territory without requesting it
+- [x] Orchestrator doesn't need explicit `--with-territory` flag
 
 **Test Requirements:**
 - Integration: Context includes territory when map exists
@@ -1210,6 +1224,8 @@ Context write includes territory map automatically.
 **Dependencies:** TASK-004, TASK-035
 
 **Traces to:** Phase 6
+
+**Status:** Complete - Implemented in internal/context/context.go (WriteWithRouting injects territory)
 
 ---
 
@@ -1222,12 +1238,12 @@ Context write includes territory map automatically.
 Define compressed skill format (< 500 tokens) with reference to full docs.
 
 **Acceptance Criteria:**
-- [ ] Template: Quick Reference, Failure Hints, Output Format, Full Documentation link
-- [ ] Quick Reference: pipe-delimited key rules
-- [ ] Failure Hints: common issues and fixes
-- [ ] Output Format: result.toml requirements
-- [ ] Full Documentation: link to SKILL-full.md or `projctl skill docs`
-- [ ] Template documented in `~/.claude/skills/shared/SKILL-TEMPLATE-COMPRESSED.md`
+- [x] Template: Quick Reference, Failure Hints, Output Format, Full Documentation link
+- [x] Quick Reference: pipe-delimited key rules
+- [x] Failure Hints: common issues and fixes
+- [x] Output Format: result.toml requirements
+- [x] Full Documentation: link to SKILL-full.md or `projctl skill docs`
+- [x] Template documented in `~/.claude/skills/shared/SKILL-TEMPLATE-COMPRESSED.md`
 
 **Test Requirements:**
 - Integration: Template exists and is complete
@@ -1235,6 +1251,8 @@ Define compressed skill format (< 500 tokens) with reference to full docs.
 **Dependencies:** None
 
 **Traces to:** Phase 10
+
+**Status:** Complete - Template at ~/.claude/skills/shared/SKILL-TEMPLATE-COMPRESSED.md
 
 ---
 
@@ -1247,10 +1265,10 @@ Define compressed skill format (< 500 tokens) with reference to full docs.
 Retrieve full skill documentation on demand.
 
 **Acceptance Criteria:**
-- [ ] `projctl skill docs SKILL-NAME` outputs full documentation
-- [ ] Reads from SKILL-full.md if exists, falls back to SKILL.md
-- [ ] `--section NAME` outputs specific section only
-- [ ] List available skills with `projctl skill list`
+- [x] `projctl skill docs SKILL-NAME` outputs full documentation
+- [x] Reads from SKILL-full.md if exists, falls back to SKILL.md
+- [x] `--section NAME` outputs specific section only
+- [x] List available skills with `projctl skill list`
 
 **Test Requirements:**
 - Unit: File resolution logic
@@ -1259,6 +1277,8 @@ Retrieve full skill documentation on demand.
 **Dependencies:** None
 
 **Traces to:** Phase 10
+
+**Status:** Complete - Implemented in cmd/projctl/skills.go
 
 ---
 
@@ -1271,11 +1291,11 @@ Retrieve full skill documentation on demand.
 Transform all 23 skills to compressed format with SKILL-full.md backup.
 
 **Acceptance Criteria:**
-- [ ] Each skill has SKILL.md (< 500 tokens) and SKILL-full.md (original content)
-- [ ] Compressed SKILL.md follows template from TASK-037
-- [ ] All original content preserved in SKILL-full.md
-- [ ] Compliance check: no SKILL.md > 2000 chars
-- [ ] `projctl skill docs` works for all skills
+- [x] Each skill has SKILL.md (< 500 tokens) and SKILL-full.md (original content)
+- [x] Compressed SKILL.md follows template from TASK-037
+- [x] All original content preserved in SKILL-full.md
+- [x] Compliance check: no SKILL.md > 2000 chars
+- [x] `projctl skill docs` works for all skills
 
 **Test Requirements:**
 - Integration: All skills compressed
@@ -1285,6 +1305,8 @@ Transform all 23 skills to compressed format with SKILL-full.md backup.
 **Dependencies:** TASK-037, TASK-038
 
 **Traces to:** Phase 10
+
+**Status:** Complete - All skills compressed, SKILL-full.md backups created
 
 ---
 
