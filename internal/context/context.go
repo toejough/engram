@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/toejough/projctl/internal/memory"
 	"github.com/toejough/projctl/internal/refactor"
 	"github.com/toejough/projctl/internal/territory"
 )
@@ -234,10 +236,227 @@ type MemoryInjectOpts struct {
 
 // WriteWithMemory copies a TOML file and injects memory query results.
 func WriteWithMemory(dir, task, skill, sourcePath string, opts MemoryInjectOpts) (string, error) {
-	panic("not implemented: WriteWithMemory")
+	contextDir := filepath.Join(dir, ContextDir)
+	if err := os.MkdirAll(contextDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create context directory: %w", err)
+	}
+
+	// Validate source is parseable TOML
+	if _, err := os.Stat(sourcePath); err != nil {
+		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+	}
+
+	var raw map[string]any
+	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
+		return "", fmt.Errorf("source file is not valid TOML: %w", err)
+	}
+
+	// Derive query from task description if query is empty
+	query := opts.Query
+	if query == "" {
+		if taskSection, ok := raw["task"].(map[string]any); ok {
+			if desc, ok := taskSection["description"].(string); ok {
+				query = desc
+			}
+		}
+	}
+
+	// Only inject memory if we have a query
+	if query != "" && opts.MemoryRoot != "" {
+		// Query memory using semantic search
+		queryOpts := QueryOpts{
+			Text:       query,
+			Limit:      opts.Limit,
+			MemoryRoot: opts.MemoryRoot,
+		}
+
+		results, err := Query(queryOpts)
+		if err == nil && len(results.Results) > 0 {
+			// Build memory section with compression to stay under 500 tokens
+			memorySection := buildMemorySection(results.Results, 500)
+			raw["memory"] = memorySection
+		}
+	}
+
+	targetName := Filename(task, skill)
+	targetPath := filepath.Join(contextDir, targetName)
+
+	f, err := os.Create(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create context file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(raw); err != nil {
+		return "", fmt.Errorf("failed to encode TOML: %w", err)
+	}
+
+	return targetPath, nil
 }
 
 // WriteWithRoutingAndMemory copies a TOML file with routing and auto-injects memory for certain skills.
 func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string, memoryRoot string) (string, error) {
-	panic("not implemented: WriteWithRoutingAndMemory")
+	contextDir := filepath.Join(dir, ContextDir)
+	if err := os.MkdirAll(contextDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create context directory: %w", err)
+	}
+
+	// Validate source is parseable TOML
+	if _, err := os.Stat(sourcePath); err != nil {
+		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+	}
+
+	var raw map[string]any
+	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
+		return "", fmt.Errorf("source file is not valid TOML: %w", err)
+	}
+
+	// Determine complexity and model
+	complexity, ok := skillComplexity[skill]
+	if !ok {
+		complexity = "medium" // default
+	}
+
+	var model string
+	switch complexity {
+	case "simple":
+		model = routing.Simple
+	case "complex":
+		model = routing.Complex
+	default:
+		model = routing.Medium
+	}
+
+	// Add routing section
+	raw["routing"] = RoutingInfo{
+		SuggestedModel: model,
+		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
+	}
+
+	// Inject cached territory map if available
+	cachePath := filepath.Join(dir, territory.CacheFile)
+	if data, err := os.ReadFile(cachePath); err == nil {
+		var cached territory.CachedMap
+		if _, err := toml.Decode(string(data), &cached); err == nil {
+			raw["territory"] = cached.Map
+		}
+	}
+
+	// Inject refactoring capabilities
+	caps := refactor.CheckCapabilities()
+	raw["capabilities"] = map[string]any{
+		"refactor": map[string]any{
+			"gopls_available": caps.GoplsAvailable,
+			"rename_support":  caps.RenameSupport,
+		},
+	}
+
+	// Auto-inject memory for certain skills
+	if memoryRoot != "" && (skill == "architect-interview" || skill == "pm-interview") {
+		// Derive query from task description
+		var query string
+		if taskSection, ok := raw["task"].(map[string]any); ok {
+			if desc, ok := taskSection["description"].(string); ok {
+				query = desc
+			}
+		}
+
+		if query != "" {
+			// Query memory using semantic search
+			queryOpts := QueryOpts{
+				Text:       query,
+				Limit:      3,
+				MemoryRoot: memoryRoot,
+			}
+
+			results, err := Query(queryOpts)
+			if err == nil && len(results.Results) > 0 {
+				// Build memory section with compression to stay under 500 tokens
+				memorySection := buildMemorySection(results.Results, 500)
+				raw["memory"] = memorySection
+			}
+		}
+	}
+
+	targetName := Filename(task, skill)
+	targetPath := filepath.Join(contextDir, targetName)
+
+	f, err := os.Create(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create context file: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(raw); err != nil {
+		return "", fmt.Errorf("failed to encode TOML: %w", err)
+	}
+
+	return targetPath, nil
+}
+
+// Type aliases for memory package types to avoid direct dependency in function signatures.
+type QueryOpts = memory.QueryOpts
+type QueryResults = memory.QueryResults
+type QueryResult = memory.QueryResult
+
+// Query is an alias for memory.Query.
+var Query = memory.Query
+
+// buildMemorySection formats query results into a TOML-compatible structure with compression.
+func buildMemorySection(results []QueryResult, maxTokens int) map[string]any {
+	section := make(map[string]any)
+
+	// Build results array with content and score
+	var resultMaps []map[string]any
+	for i, result := range results {
+		if i >= 3 {
+			break // Limit to top 3
+		}
+
+		// Normalize whitespace first
+		content := strings.Join(strings.Fields(result.Content), " ")
+
+		resultMap := map[string]any{
+			"content": content,
+			"score":   result.Score,
+			"source":  result.Source,
+		}
+		resultMaps = append(resultMaps, resultMap)
+	}
+
+	// Compress aggressively to stay under token limit
+	// Rough estimate: 1 token per 4 characters
+	// Account for TOML structure overhead (keys, quotes, brackets, etc.)
+	// Be conservative - use larger overhead and smaller multiplier
+	const overheadPerResult = 80 // characters for TOML structure per result
+	targetChars := (maxTokens * 3) - (len(resultMaps) * overheadPerResult)
+
+	// Calculate total current chars
+	totalChars := 0
+	for _, r := range resultMaps {
+		totalChars += len(r["content"].(string))
+	}
+
+	// If over limit, truncate proportionally
+	if totalChars > targetChars {
+		charsPerResult := targetChars / len(resultMaps)
+
+		for i, r := range resultMaps {
+			content := r["content"].(string)
+			if len(content) > charsPerResult {
+				// Truncate with ellipsis
+				if charsPerResult > 3 {
+					resultMaps[i]["content"] = content[:charsPerResult-3] + "..."
+				} else {
+					resultMaps[i]["content"] = "..."
+				}
+			}
+		}
+	}
+
+	section["results"] = resultMaps
+
+	return section
 }

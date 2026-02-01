@@ -1,7 +1,7 @@
 [project]
   name = "projctl-v2"
   created = 2026-01-31T18:12:27.095147-05:00
-  phase = "commit-red"
+  phase = "commit-green"
 
 [progress]
   current_task = "TASK-053"
@@ -2959,3 +2959,11 @@
 [[history]]
   timestamp = 2026-02-01T15:46:28.23832-05:00
   phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-01T15:46:43.653271-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-01T15:57:20.385858-05:00
+  phase = "commit-green"
