@@ -224,3 +224,20 @@ func WriteWithTerritory(dir, task, skill, sourcePath string) (string, error) {
 
 	return targetPath, nil
 }
+
+// MemoryInjectOpts holds options for memory injection into context.
+type MemoryInjectOpts struct {
+	Query      string
+	MemoryRoot string
+	Limit      int
+}
+
+// WriteWithMemory copies a TOML file and injects memory query results.
+func WriteWithMemory(dir, task, skill, sourcePath string, opts MemoryInjectOpts) (string, error) {
+	panic("not implemented: WriteWithMemory")
+}
+
+// WriteWithRoutingAndMemory copies a TOML file with routing and auto-injects memory for certain skills.
+func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string, memoryRoot string) (string, error) {
+	panic("not implemented: WriteWithRoutingAndMemory")
+}

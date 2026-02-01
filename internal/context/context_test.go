@@ -1,8 +1,10 @@
 package context_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -504,4 +506,277 @@ artifacts = ["docs/design.md"]
 	g.Expect(string(content)).To(ContainSubstring("cli"))
 	// Should include packages
 	g.Expect(string(content)).To(ContainSubstring("internal"))
+}
+
+// TEST-800 traces: TASK-053
+// Test WriteWithMemory includes memory query results when query is provided.
+func TestWriteWithMemory_IncludesQueryResults(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	// Create some test memories
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Always use dependency injection for testability\n- 2025-01-15 11:00: [projctl] Memory queries should use semantic search\n"), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	opts := context.MemoryInjectOpts{
+		Query:      "dependency injection testing",
+		MemoryRoot: memoryRoot,
+		Limit:      3,
+	}
+
+	path, err := context.WriteWithMemory(dir, "TASK-053", "tdd-red", source, opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain memory section
+	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+	g.Expect(string(content)).To(ContainSubstring("dependency injection"))
+}
+
+// TEST-801 traces: TASK-053
+// Test WriteWithMemory limits results to top 3.
+func TestWriteWithMemory_LimitsToTop3(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	// Create more than 3 memories
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Memory 1\n- 2025-01-15 11:00: [projctl] Memory 2\n- 2025-01-15 12:00: [projctl] Memory 3\n- 2025-01-15 13:00: [projctl] Memory 4\n- 2025-01-15 14:00: [projctl] Memory 5\n"), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	opts := context.MemoryInjectOpts{
+		Query:      "memory",
+		MemoryRoot: memoryRoot,
+		Limit:      3,
+	}
+
+	path, err := context.WriteWithMemory(dir, "TASK-053", "tdd-red", source, opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain memory section with at most 3 results
+	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+
+	// Count number of results in memory section
+	memorySection := extractMemorySection(string(content))
+	resultCount := countMemoryResults(memorySection)
+	g.Expect(resultCount).To(BeNumerically("<=", 3))
+}
+
+// TEST-802 traces: TASK-053
+// Test WriteWithMemory compresses to under 500 tokens.
+func TestWriteWithMemory_CompressesUnder500Tokens(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	// Create large memory entries
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	largeMemory := "- 2025-01-15 10:00: [projctl] " + strings.Repeat("This is a very long memory entry with lots of details that should be compressed. ", 50) + "\n"
+	g.Expect(os.WriteFile(indexPath, []byte(largeMemory+largeMemory+largeMemory), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	opts := context.MemoryInjectOpts{
+		Query:      "memory",
+		MemoryRoot: memoryRoot,
+		Limit:      3,
+	}
+
+	path, err := context.WriteWithMemory(dir, "TASK-053", "tdd-red", source, opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	memorySection := extractMemorySection(string(content))
+	tokenCount := estimateTokenCount(memorySection)
+	g.Expect(tokenCount).To(BeNumerically("<", 500))
+}
+
+// TEST-803 traces: TASK-053
+// Test WriteWithMemory derives query from task description when not provided.
+func TestWriteWithMemory_DerivesQueryFromTask(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Testing best practices\n"), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n\n[task]\ndescription = \"Implement memory query functionality with semantic search\"\n")
+
+	opts := context.MemoryInjectOpts{
+		Query:      "", // Empty - should derive from task
+		MemoryRoot: memoryRoot,
+		Limit:      3,
+	}
+
+	path, err := context.WriteWithMemory(dir, "TASK-053", "tdd-red", source, opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain memory section (query was derived)
+	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+}
+
+// TEST-804 traces: TASK-053
+// Test WriteWithMemory automatic injection for architect-interview.
+func TestWriteWithMemory_AutoInjectArchitectInterview(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Architecture decisions\n"), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"architect-interview\"\n\n[task]\ndescription = \"Design memory system architecture\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{"architect-interview": "complex"}
+
+	// Should auto-inject memory even without explicit opts
+	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", "architect-interview", source, routing, skillComplexity, memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain memory section (auto-injected for architect-interview)
+	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+}
+
+// TEST-805 traces: TASK-053
+// Test WriteWithMemory automatic injection for pm-interview.
+func TestWriteWithMemory_AutoInjectPMInterview(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	memoryRoot := filepath.Join(dir, ".memory")
+
+	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+	indexPath := filepath.Join(memoryRoot, "index.md")
+	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Product requirements\n"), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"pm-interview\"\n\n[task]\ndescription = \"Gather requirements for memory feature\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{"pm-interview": "complex"}
+
+	// Should auto-inject memory even without explicit opts
+	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", "pm-interview", source, routing, skillComplexity, memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain memory section (auto-injected for pm-interview)
+	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+}
+
+// TEST-806 traces: TASK-053
+// Test WriteWithMemory property: memory section always under token limit.
+func TestWriteWithMemory_TokenLimitProperty(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		memoryRoot := filepath.Join(dir, ".memory")
+
+		// Generate random memory entries
+		g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
+		indexPath := filepath.Join(memoryRoot, "index.md")
+
+		entryCount := rapid.IntRange(1, 10).Draw(rt, "entryCount")
+		var entries []string
+		for i := 0; i < entryCount; i++ {
+			content := rapid.StringMatching(`[a-zA-Z0-9 ]{10,200}`).Draw(rt, "content")
+			entries = append(entries, fmt.Sprintf("- 2025-01-15 10:00: [projctl] %s\n", content))
+		}
+		g.Expect(os.WriteFile(indexPath, []byte(strings.Join(entries, "")), 0o644)).To(Succeed())
+
+		source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+		opts := context.MemoryInjectOpts{
+			Query:      "test",
+			MemoryRoot: memoryRoot,
+			Limit:      3,
+		}
+
+		path, err := context.WriteWithMemory(dir, "TASK-053", "tdd-red", source, opts)
+		if err != nil {
+			return // Skip if write fails
+		}
+
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return
+		}
+
+		memorySection := extractMemorySection(string(content))
+		tokenCount := estimateTokenCount(memorySection)
+		g.Expect(tokenCount).To(BeNumerically("<", 500))
+	})
+}
+
+// Helper function to extract memory section from TOML content.
+func extractMemorySection(content string) string {
+	lines := strings.Split(content, "\n")
+	var memoryLines []string
+	inMemory := false
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "[memory]") {
+			inMemory = true
+			continue
+		}
+		if inMemory && strings.HasPrefix(line, "[") {
+			break
+		}
+		if inMemory {
+			memoryLines = append(memoryLines, line)
+		}
+	}
+
+	return strings.Join(memoryLines, "\n")
+}
+
+// Helper function to count memory results.
+func countMemoryResults(memorySection string) int {
+	count := 0
+	for _, line := range strings.Split(memorySection, "\n") {
+		if strings.Contains(line, "content") || strings.Contains(line, "score") {
+			count++
+		}
+	}
+	// Divide by 2 since each result has content and score
+	return (count + 1) / 2
+}
+
+// Helper function to estimate token count (rough approximation).
+func estimateTokenCount(text string) int {
+	// Rough estimate: 1 token per 4 characters
+	return len(text) / 4
 }
