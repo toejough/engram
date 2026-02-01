@@ -79,5 +79,9 @@ func main() {
 		targ.Group("map",
 			targ.Targ(mapGenerate).Name("generate").Description("Generate compressed territory map"),
 		),
+		targ.Group("corrections",
+			targ.Targ(correctionsLog).Name("log").Description("Log a correction for learning loop"),
+			targ.Targ(correctionsCount).Name("count").Description("Count corrections for meta-audit trigger"),
+		),
 	)
 }
