@@ -560,6 +560,11 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 			return nil
 		}
 
+		// Skip trace_test.go which contains test fixtures with TEST-NNN patterns
+		if info.Name() == "trace_test.go" {
+			return nil
+		}
+
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return nil // Skip unreadable files

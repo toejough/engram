@@ -627,13 +627,13 @@ Description.
 
 import "testing"
 
-// TEST-001: Parses positional arguments
+// TEST-901: Parses positional arguments
 // traces: TASK-001
 func TestParsePositionalArgs(t *testing.T) {
 	// test implementation
 }
 
-// TEST-002: Missing traces comment
+// TEST-902: Missing traces comment
 func TestSomethingElse(t *testing.T) {
 	// no traces comment - should be unlinked
 }
@@ -648,8 +648,8 @@ Description.
 
 		result, err := trace.ValidateV2Artifacts(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-001"), "TEST-001 has traces: comment")
-		// Note: TEST-002 would be unlinked if we detect it, but we only detect commented tests
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-901"), "TEST-901 has traces: comment")
+		// Note: TEST-902 would be unlinked if we detect it, but we only detect commented tests
 	})
 
 	t.Run("TEST in source file without traces comment is unlinked", func(t *testing.T) {
@@ -661,7 +661,7 @@ Description.
 
 import "testing"
 
-// TEST-003: Config loading test
+// TEST-903: Config loading test
 // No traces comment here
 func TestConfigLoad(t *testing.T) {
 	// test implementation
@@ -671,7 +671,7 @@ func TestConfigLoad(t *testing.T) {
 		result, err := trace.ValidateV2Artifacts(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeFalse())
-		g.Expect(result.UnlinkedIDs).To(ContainElement("TEST-003"), "TEST-003 has no traces: comment")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("TEST-903"), "TEST-903 has no traces: comment")
 	})
 
 	t.Run("scans test files from multiple packages", func(t *testing.T) {
@@ -682,7 +682,7 @@ func TestConfigLoad(t *testing.T) {
 
 import "testing"
 
-// TEST-010: Parser test
+// TEST-910: Parser test
 // traces: TASK-001
 func TestParser(t *testing.T) {}
 `)
@@ -691,7 +691,7 @@ func TestParser(t *testing.T) {}
 
 import "testing"
 
-// TEST-011: Config test
+// TEST-911: Config test
 // traces: TASK-002
 func TestConfig(t *testing.T) {}
 `)
@@ -705,7 +705,7 @@ func TestConfig(t *testing.T) {}
 
 		result, err := trace.ValidateV2Artifacts(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-010"))
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-011"))
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-910"))
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-911"))
 	})
 }

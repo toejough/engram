@@ -16,6 +16,7 @@ import (
 )
 
 // TEST-780: Memory learn creates index.md if not exists
+// traces: TASK-048
 func TestLearnCreatesIndexIfNotExists(t *testing.T) {
 	g := NewWithT(t)
 
@@ -40,6 +41,7 @@ func TestLearnCreatesIndexIfNotExists(t *testing.T) {
 }
 
 // TEST-781: Memory learn appends to existing index
+// traces: TASK-048
 func TestLearnAppendsToExistingIndex(t *testing.T) {
 	g := NewWithT(t)
 
@@ -68,6 +70,7 @@ func TestLearnAppendsToExistingIndex(t *testing.T) {
 }
 
 // TEST-782: Memory learn entry format has timestamp prefix
+// traces: TASK-048
 func TestLearnEntryFormat(t *testing.T) {
 	g := NewWithT(t)
 
@@ -91,6 +94,7 @@ func TestLearnEntryFormat(t *testing.T) {
 }
 
 // TEST-783: Memory learn includes project context when provided
+// traces: TASK-048
 func TestLearnWithProjectContext(t *testing.T) {
 	g := NewWithT(t)
 
@@ -115,6 +119,7 @@ func TestLearnWithProjectContext(t *testing.T) {
 }
 
 // TEST-784: Memory learn without project context
+// traces: TASK-048
 func TestLearnWithoutProjectContext(t *testing.T) {
 	g := NewWithT(t)
 
@@ -142,6 +147,7 @@ func TestLearnWithoutProjectContext(t *testing.T) {
 }
 
 // TEST-785: Memory learn uses current timestamp
+// traces: TASK-048
 func TestLearnUsesCurrentTimestamp(t *testing.T) {
 	g := NewWithT(t)
 
@@ -173,6 +179,7 @@ func TestLearnUsesCurrentTimestamp(t *testing.T) {
 }
 
 // TEST-786: Memory learn requires non-empty message
+// traces: TASK-048
 func TestLearnRequiresMessage(t *testing.T) {
 	g := NewWithT(t)
 
@@ -190,6 +197,7 @@ func TestLearnRequiresMessage(t *testing.T) {
 }
 
 // TEST-787: Property-based test for any message text
+// traces: TASK-048
 func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -223,6 +231,7 @@ func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 }
 
 // TEST-788: Memory learn multiple entries preserve order
+// traces: TASK-048
 func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 	g := NewWithT(t)
 
@@ -259,6 +268,7 @@ func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 // ============================================================================
 
 // TEST-790: Decision creates decisions directory if not exists
+// traces: TASK-049
 func TestDecideCreatesDirectoryIfNotExists(t *testing.T) {
 	g := NewWithT(t)
 
@@ -289,6 +299,7 @@ func TestDecideCreatesDirectoryIfNotExists(t *testing.T) {
 }
 
 // TEST-791: Decision file format is JSONL with proper filename
+// traces: TASK-049
 func TestDecideFileFormat(t *testing.T) {
 	g := NewWithT(t)
 
@@ -318,6 +329,7 @@ func TestDecideFileFormat(t *testing.T) {
 }
 
 // TEST-792: Decision entry contains all fields as JSON
+// traces: TASK-049
 func TestDecideEntryFormat(t *testing.T) {
 	g := NewWithT(t)
 
@@ -353,6 +365,7 @@ func TestDecideEntryFormat(t *testing.T) {
 }
 
 // TEST-793: Decision appends to existing file
+// traces: TASK-049
 func TestDecideAppendsToExistingFile(t *testing.T) {
 	g := NewWithT(t)
 
@@ -400,6 +413,7 @@ func TestDecideAppendsToExistingFile(t *testing.T) {
 }
 
 // TEST-794: Decision requires context
+// traces: TASK-049
 func TestDecideRequiresContext(t *testing.T) {
 	g := NewWithT(t)
 
@@ -421,6 +435,7 @@ func TestDecideRequiresContext(t *testing.T) {
 }
 
 // TEST-795: Decision requires choice
+// traces: TASK-049
 func TestDecideRequiresChoice(t *testing.T) {
 	g := NewWithT(t)
 
@@ -442,6 +457,7 @@ func TestDecideRequiresChoice(t *testing.T) {
 }
 
 // TEST-796: Decision requires reason
+// traces: TASK-049
 func TestDecideRequiresReason(t *testing.T) {
 	g := NewWithT(t)
 
@@ -463,6 +479,7 @@ func TestDecideRequiresReason(t *testing.T) {
 }
 
 // TEST-797: Decision works with empty alternatives
+// traces: TASK-049
 func TestDecideEmptyAlternatives(t *testing.T) {
 	g := NewWithT(t)
 
@@ -484,6 +501,7 @@ func TestDecideEmptyAlternatives(t *testing.T) {
 }
 
 // TEST-798: Decision uses today's date in filename
+// traces: TASK-049
 func TestDecideUsesTodayDate(t *testing.T) {
 	g := NewWithT(t)
 
@@ -512,6 +530,7 @@ func TestDecideUsesTodayDate(t *testing.T) {
 // ============================================================================
 
 // TEST-800: Session end creates sessions directory if not exists
+// traces: TASK-050
 func TestSessionEndCreatesDirectoryIfNotExists(t *testing.T) {
 	g := NewWithT(t)
 
@@ -538,6 +557,7 @@ func TestSessionEndCreatesDirectoryIfNotExists(t *testing.T) {
 }
 
 // TEST-801: Session end file format and location
+// traces: TASK-050
 func TestSessionEndFileLocation(t *testing.T) {
 	g := NewWithT(t)
 
@@ -563,6 +583,7 @@ func TestSessionEndFileLocation(t *testing.T) {
 }
 
 // TEST-802: Session summary includes key sections
+// traces: TASK-050
 func TestSessionEndIncludesKeySections(t *testing.T) {
 	g := NewWithT(t)
 
@@ -587,6 +608,7 @@ func TestSessionEndIncludesKeySections(t *testing.T) {
 }
 
 // TEST-803: Session summary is under character limit
+// traces: TASK-050
 func TestSessionEndUnderCharacterLimit(t *testing.T) {
 	g := NewWithT(t)
 
@@ -622,6 +644,7 @@ func TestSessionEndUnderCharacterLimit(t *testing.T) {
 }
 
 // TEST-804: Session end requires project name
+// traces: TASK-050
 func TestSessionEndRequiresProject(t *testing.T) {
 	g := NewWithT(t)
 
@@ -639,6 +662,7 @@ func TestSessionEndRequiresProject(t *testing.T) {
 }
 
 // TEST-805: Session end includes decisions from today
+// traces: TASK-050
 func TestSessionEndIncludesDecisions(t *testing.T) {
 	g := NewWithT(t)
 
@@ -673,6 +697,7 @@ func TestSessionEndIncludesDecisions(t *testing.T) {
 }
 
 // TEST-806: Property-based test for size limit
+// traces: TASK-050
 func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -720,6 +745,7 @@ func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
 // ============================================================================
 
 // TEST-810: Grep searches index.md
+// traces: TASK-051
 func TestGrepSearchesIndexMd(t *testing.T) {
 	g := NewWithT(t)
 
@@ -748,6 +774,7 @@ func TestGrepSearchesIndexMd(t *testing.T) {
 }
 
 // TEST-811: Grep searches sessions directory
+// traces: TASK-051
 func TestGrepSearchesSessions(t *testing.T) {
 	g := NewWithT(t)
 
@@ -777,6 +804,7 @@ Gin was selected as the web framework.`
 }
 
 // TEST-812: Grep returns file and line number
+// traces: TASK-051
 func TestGrepReturnsFileAndLineNumber(t *testing.T) {
 	g := NewWithT(t)
 
@@ -804,6 +832,7 @@ line three`
 }
 
 // TEST-813: Grep project filter limits search
+// traces: TASK-051
 func TestGrepProjectFilter(t *testing.T) {
 	g := NewWithT(t)
 
@@ -832,6 +861,7 @@ func TestGrepProjectFilter(t *testing.T) {
 }
 
 // TEST-814: Grep with decisions flag searches decisions
+// traces: TASK-051
 func TestGrepWithDecisionsFlag(t *testing.T) {
 	g := NewWithT(t)
 
@@ -860,6 +890,7 @@ func TestGrepWithDecisionsFlag(t *testing.T) {
 }
 
 // TEST-815: Grep returns empty results for no matches
+// traces: TASK-052
 func TestGrepNoMatches(t *testing.T) {
 	g := NewWithT(t)
 
@@ -882,6 +913,7 @@ func TestGrepNoMatches(t *testing.T) {
 }
 
 // TEST-816: Grep requires pattern
+// traces: TASK-052
 func TestGrepRequiresPattern(t *testing.T) {
 	g := NewWithT(t)
 
@@ -899,6 +931,7 @@ func TestGrepRequiresPattern(t *testing.T) {
 }
 
 // TEST-817: Grep is case insensitive
+// traces: TASK-052
 func TestGrepCaseInsensitive(t *testing.T) {
 	g := NewWithT(t)
 

@@ -34,7 +34,7 @@ Define the structured result format that all skills must return. This is the fou
 
 **Dependencies:** None
 
-**Traces to:** Phase 0
+**Traces to:** ARCH-001
 
 ---
 
@@ -62,7 +62,7 @@ CLI command to validate result.toml files against the schema. Used by orchestrat
 
 **Dependencies:** TASK-001
 
-**Traces to:** Phase 0
+**Traces to:** ARCH-001
 
 ---
 
@@ -87,7 +87,7 @@ Add `## Result Format` section to all 23 skills documenting the required result.
 
 **Dependencies:** TASK-001
 
-**Traces to:** Phase 0
+**Traces to:** ARCH-001
 
 ---
 
@@ -114,7 +114,7 @@ Write skill context TOML files to the context directory for skill handoff. Skill
 
 **Dependencies:** None
 
-**Traces to:** Phase 1
+**Traces to:** ARCH-002
 
 ---
 
@@ -140,7 +140,7 @@ Read skill context or result files. Complements context write for bidirectional 
 
 **Dependencies:** TASK-004
 
-**Traces to:** Phase 1
+**Traces to:** ARCH-002
 
 ---
 
@@ -167,7 +167,7 @@ Full escalation workflow: list, write, resolve. Skills reference these for manag
 
 **Dependencies:** None
 
-**Traces to:** Phase 1
+**Traces to:** ARCH-002
 
 ---
 
@@ -191,7 +191,7 @@ Merge feature-*.md files into consolidated artifact files. End-of-command sequen
 
 **Dependencies:** None
 
-**Traces to:** Phase 1
+**Traces to:** ARCH-002
 
 ---
 
@@ -216,7 +216,7 @@ Conflict tracking workflow: create, check, list. Skills reference these but they
 
 **Dependencies:** None
 
-**Traces to:** Phase 1
+**Traces to:** ARCH-002
 
 ---
 
@@ -246,7 +246,7 @@ Add precondition checks to state transitions. Prevents skipping critical workflo
 
 **Dependencies:** None
 
-**Traces to:** Phase 11
+**Traces to:** ARCH-012
 
 ---
 
@@ -271,7 +271,7 @@ Extend TASK-009 to prevent invalid phase sequences (e.g., pm-interview directly 
 
 **Dependencies:** TASK-009
 
-**Traces to:** Phase 11
+**Traces to:** ARCH-012
 
 ---
 
@@ -297,7 +297,7 @@ Determine next action (continue/stop) based on current state. Drives relentless 
 
 **Dependencies:** TASK-009
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -320,7 +320,7 @@ Add explicit continuation rule to /project skill. Eliminates "No response reques
 
 **Dependencies:** TASK-011
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -342,7 +342,7 @@ Document the 11-step control loop explicitly in /project skill so orchestration 
 
 **Dependencies:** TASK-001, TASK-004, TASK-011
 
-**Traces to:** Phase 0 (coherence from Part 4.5)
+**Traces to:** ARCH-001
 
 ---
 
@@ -367,7 +367,7 @@ Add function to validate acceptance criteria from tasks.md.
 
 **Dependencies:** TASK-009
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -392,7 +392,7 @@ Integrate AC validation as precondition for task-complete transitions.
 
 **Dependencies:** TASK-059
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -416,7 +416,7 @@ Integrate AC validation into state.Next() to return validation_failed when appro
 
 **Dependencies:** TASK-059, TASK-063
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -443,7 +443,7 @@ Add automated context budget checking that warns/blocks when thresholds exceeded
 
 **Dependencies:** TASK-061
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -466,7 +466,7 @@ Update /project skill to mandate sub-agent dispatch for all skill work. Orchestr
 
 **Dependencies:** TASK-012
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -492,7 +492,7 @@ Track context usage during orchestration and warn when approaching limits. Enabl
 
 **Dependencies:** None
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -519,7 +519,7 @@ Compress /project skill to absolute minimum while preserving control loop. Move 
 
 **Dependencies:** TASK-060, TASK-061
 
-**Traces to:** Phase 12
+**Traces to:** ARCH-013
 
 ---
 
@@ -544,7 +544,7 @@ Set up the skills/ directory in projctl repo and migrate existing skill definiti
 
 **Dependencies:** None
 
-**Traces to:** Phase 15
+**Traces to:** ARCH-016
 
 ---
 
@@ -571,7 +571,7 @@ Create symlinks from repo skills/ to ~/.claude/skills/.
 
 **Dependencies:** TASK-055
 
-**Traces to:** Phase 15
+**Traces to:** ARCH-016
 
 ---
 
@@ -597,7 +597,7 @@ Show which skills are symlinked vs local-only.
 
 **Dependencies:** TASK-055
 
-**Traces to:** Phase 15
+**Traces to:** ARCH-016
 
 ---
 
@@ -622,7 +622,7 @@ Remove symlinks without affecting local-only skills.
 
 **Dependencies:** TASK-056
 
-**Traces to:** Phase 15
+**Traces to:** ARCH-016
 
 ---
 
@@ -655,7 +655,7 @@ Add routing configuration schema and loading. Foundation for cost optimization.
 
 **Dependencies:** None
 
-**Traces to:** Phase 2
+**Traces to:** ARCH-003
 
 ---
 
@@ -679,7 +679,7 @@ Context write includes model recommendation from routing config.
 
 **Dependencies:** TASK-004, TASK-014
 
-**Traces to:** Phase 2
+**Traces to:** ARCH-003
 
 ---
 
@@ -703,7 +703,7 @@ Log entries include which model was suggested/used. Enables cost analysis.
 
 **Dependencies:** None
 
-**Traces to:** Phase 2
+**Traces to:** ARCH-003
 
 ---
 
@@ -727,7 +727,7 @@ Document that inline work is advisory-only; subagent dispatch can enforce model.
 
 **Dependencies:** TASK-015
 
-**Traces to:** Phase 2
+**Traces to:** ARCH-003
 
 ---
 
@@ -753,7 +753,7 @@ Failed transitions store error information for recovery. Foundation for graceful
 
 **Dependencies:** TASK-009
 
-**Traces to:** Phase 7
+**Traces to:** ARCH-008
 
 ---
 
@@ -777,7 +777,7 @@ Offer retry/skip/escalate options when transitions fail.
 
 **Dependencies:** TASK-018
 
-**Traces to:** Phase 7
+**Traces to:** ARCH-008
 
 ---
 
@@ -801,7 +801,7 @@ State next identifies work that can proceed despite one task failing.
 
 **Dependencies:** TASK-011, TASK-019
 
-**Traces to:** Phase 7
+**Traces to:** ARCH-008
 
 ---
 
@@ -825,7 +825,7 @@ Audit all 23 skills for MUST/NEVER/ALWAYS/CRITICAL rules. First step of CLAUDE.m
 
 **Dependencies:** None
 
-**Traces to:** Phase 9
+**Traces to:** ARCH-010
 
 ---
 
@@ -851,7 +851,7 @@ Move identified rules to ~/.claude/CLAUDE.md with skill references.
 
 **Dependencies:** TASK-021
 
-**Traces to:** Phase 9
+**Traces to:** ARCH-010
 
 ---
 
@@ -874,7 +874,7 @@ Ensure CLAUDE.md stays under 3000 tokens after migration.
 
 **Dependencies:** TASK-022
 
-**Traces to:** Phase 9
+**Traces to:** ARCH-010
 
 ---
 
@@ -897,7 +897,7 @@ Add rule requiring visual verification for UI tasks. Per lessons learned on UI t
 
 **Dependencies:** TASK-022
 
-**Traces to:** Phase 14
+**Traces to:** ARCH-015
 
 ---
 
@@ -923,7 +923,7 @@ Task breakdown and validation recognize `ui: true/false` flag.
 
 **Dependencies:** None
 
-**Traces to:** Phase 14
+**Traces to:** ARCH-015
 
 ---
 
@@ -948,7 +948,7 @@ When Chrome DevTools MCP unavailable, allow manual verification flag.
 
 **Dependencies:** TASK-025
 
-**Traces to:** Phase 14
+**Traces to:** ARCH-015
 
 ---
 
@@ -978,7 +978,7 @@ Log entries include rough token count for cost tracking.
 
 **Dependencies:** None
 
-**Traces to:** Phase 3
+**Traces to:** ARCH-004
 
 ---
 
@@ -1007,7 +1007,7 @@ Aggregate token usage from logs. Provides cost visibility.
 
 **Dependencies:** TASK-027
 
-**Traces to:** Phase 3
+**Traces to:** ARCH-004
 
 ---
 
@@ -1032,7 +1032,7 @@ Warn when session token usage exceeds threshold.
 
 **Dependencies:** TASK-028
 
-**Traces to:** Phase 3
+**Traces to:** ARCH-004
 
 **Status:** Complete - Implemented in internal/usage/usage.go and cmd/projctl/usage.go
 
@@ -1060,7 +1060,7 @@ Extract DAG from tasks.md for parallel dispatch analysis.
 
 **Dependencies:** None
 
-**Traces to:** Phase 5
+**Traces to:** ARCH-006
 
 **Status:** Complete - Implemented in internal/task/deps.go and cmd/projctl/tasks.go
 
@@ -1087,7 +1087,7 @@ Identify tasks that can run concurrently based on dependency analysis.
 
 **Dependencies:** TASK-030
 
-**Traces to:** Phase 5
+**Traces to:** ARCH-006
 
 **Status:** Complete - Implemented in internal/task/parallel.go and cmd/projctl/tasks.go
 
@@ -1113,7 +1113,7 @@ Create multiple context files for concurrent skill dispatch.
 
 **Dependencies:** TASK-004, TASK-031
 
-**Traces to:** Phase 5
+**Traces to:** ARCH-006
 
 **Status:** Complete - Implemented in internal/context/parallel.go and cmd/projctl/context.go
 
@@ -1142,7 +1142,7 @@ Wait for parallel dispatches and combine results.
 
 **Dependencies:** TASK-002
 
-**Traces to:** Phase 5
+**Traces to:** ARCH-006
 
 **Status:** Complete - Implemented in internal/result/collect.go and cmd/projctl/result.go
 
@@ -1172,7 +1172,7 @@ Generate compressed territory map for codebase exploration.
 
 **Dependencies:** None
 
-**Traces to:** Phase 6
+**Traces to:** ARCH-007
 
 **Status:** Complete - Implemented in internal/territory/ and cmd/projctl/map.go
 
@@ -1200,7 +1200,7 @@ Reuse territory map within session to avoid redundant exploration.
 
 **Dependencies:** TASK-034
 
-**Traces to:** Phase 6
+**Traces to:** ARCH-007
 
 **Status:** Complete - Implemented in internal/territory/cache.go
 
@@ -1225,7 +1225,7 @@ Context write includes territory map automatically.
 
 **Dependencies:** TASK-004, TASK-035
 
-**Traces to:** Phase 6
+**Traces to:** ARCH-007
 
 **Status:** Complete - Implemented in internal/context/context.go (WriteWithRouting injects territory)
 
@@ -1252,7 +1252,7 @@ Define compressed skill format (< 500 tokens) with reference to full docs.
 
 **Dependencies:** None
 
-**Traces to:** Phase 10
+**Traces to:** ARCH-011
 
 **Status:** Complete - Template at ~/.claude/skills/shared/SKILL-TEMPLATE-COMPRESSED.md
 
@@ -1278,7 +1278,7 @@ Retrieve full skill documentation on demand.
 
 **Dependencies:** None
 
-**Traces to:** Phase 10
+**Traces to:** ARCH-011
 
 **Status:** Complete - Implemented in cmd/projctl/skills.go
 
@@ -1306,7 +1306,7 @@ Transform all 23 skills to compressed format with SKILL-full.md backup.
 
 **Dependencies:** TASK-037, TASK-038
 
-**Traces to:** Phase 10
+**Traces to:** ARCH-011
 
 **Status:** Complete - All skills compressed, SKILL-full.md backups created
 
@@ -1340,7 +1340,7 @@ Track corrections for learning loop. Orchestrator calls this, not agent.
 
 **Dependencies:** None
 
-**Traces to:** Phase 4
+**Traces to:** ARCH-005
 
 **Status:** Complete - Implemented in internal/corrections/ and cmd/projctl/corrections.go
 
@@ -1367,7 +1367,7 @@ Count corrections for meta-audit trigger threshold.
 
 **Dependencies:** TASK-040
 
-**Traces to:** Phase 4
+**Traces to:** ARCH-005
 
 **Status:** Complete - Implemented alongside TASK-040 in cmd/projctl/corrections.go
 
@@ -1395,7 +1395,7 @@ Detect patterns in corrections for CLAUDE.md proposals.
 
 **Dependencies:** TASK-041
 
-**Traces to:** Phase 4
+**Traces to:** ARCH-005
 
 **Status:** Complete - Implemented in internal/corrections/corrections.go
 
@@ -1422,7 +1422,7 @@ Orchestrator detects correction signals and logs automatically.
 
 **Dependencies:** TASK-013, TASK-040
 
-**Traces to:** Phase 4
+**Traces to:** ARCH-005
 
 **Status:** Complete - Added to /project skill (SKILL.md and SKILL-full.md)
 
@@ -1449,7 +1449,7 @@ Auto-inject /meta-audit when correction threshold reached.
 
 **Dependencies:** TASK-041, TASK-013
 
-**Traces to:** Phase 4
+**Traces to:** ARCH-005
 
 **Status:** Complete - Documented in /project skill control loop (step 6 & 8)
 
@@ -1478,7 +1478,7 @@ LSP-backed symbol rename. Deterministic, finds all references.
 
 **Dependencies:** None
 
-**Traces to:** Phase 8
+**Traces to:** ARCH-009
 
 **Status:** Complete - Implemented in internal/refactor/ and cmd/projctl/refactor.go
 
@@ -1493,12 +1493,12 @@ LSP-backed symbol rename. Deterministic, finds all references.
 LSP-backed function extraction.
 
 **Acceptance Criteria:**
-- [ ] `projctl refactor extract-function --file PATH --lines START-END --name NAME` extracts function
-- [ ] Uses gopls for Go projects
-- [ ] Detects variables that need to be parameters
-- [ ] Detects return values
-- [ ] Produces compilable code
-- [ ] Atomic: no changes if extraction fails
+- [x] `projctl refactor extract-function --file PATH --lines START-END --name NAME` extracts function
+- [x] Uses gopls for Go projects
+- [x] Detects variables that need to be parameters
+- [x] Detects return values
+- [x] Produces compilable code
+- [x] Atomic: no changes if extraction fails
 
 **Test Requirements:**
 - Unit: gopls command construction
@@ -1507,7 +1507,9 @@ LSP-backed function extraction.
 
 **Dependencies:** None
 
-**Traces to:** Phase 8
+**Traces to:** ARCH-009
+
+**Status:** COMPLETE - Implemented in internal/refactor/refactor.go and cmd/projctl/main.go
 
 ---
 
@@ -1532,7 +1534,7 @@ Check LSP availability and use fallbacks when unavailable.
 
 **Dependencies:** TASK-045
 
-**Traces to:** Phase 8
+**Traces to:** ARCH-009
 
 **Status:** Complete - `projctl refactor capabilities` command + context injection
 
@@ -1561,7 +1563,7 @@ Store explicit learnings in global memory index.
 
 **Dependencies:** None
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1587,7 +1589,7 @@ Log decisions with reasoning and alternatives.
 
 **Dependencies:** None
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1613,7 +1615,7 @@ Generate compressed session summary.
 
 **Dependencies:** TASK-049
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1639,7 +1641,7 @@ Structured search across memory files.
 
 **Dependencies:** TASK-048
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1666,7 +1668,7 @@ Semantic search using embeddings.
 
 **Dependencies:** TASK-048, TASK-050
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1692,7 +1694,7 @@ Context write queries memory and includes relevant results.
 
 **Dependencies:** TASK-004, TASK-052
 
-**Traces to:** Phase 13
+**Traces to:** ARCH-014
 
 ---
 
@@ -1716,7 +1718,7 @@ Remove stub files identified in review.
 
 **Dependencies:** None
 
-**Traces to:** Part 4 Simplifications
+**Traces to:** ARCH-017
 
 **Status:** N/A - Parser is a real ~3000 LOC implementation, discovery/collect don't exist as separate packages
 
