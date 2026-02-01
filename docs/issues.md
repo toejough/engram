@@ -414,3 +414,86 @@ Add to docs that projects MUST have a `docs/` subdirectory. Update existing proj
 **Traces to:** CLI robustness
 
 ---
+
+## ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+When making changes that affect CLI output, TUI interfaces, or GUI components, TDD should include visual verification by default - validating not just structure but also behavior.
+
+### Problem
+
+Current TDD practice focuses on:
+- Unit tests for logic
+- Integration tests for data flow
+- Structural assertions (element exists, text matches)
+
+But for user-facing interfaces, this misses critical issues:
+- CLI output that is technically correct but unreadable
+- TUI layouts that render incorrectly despite correct data
+- GUI components that exist in DOM but don't display properly
+- Interactive elements that render but don't respond to input
+- Styling/formatting issues invisible to structural tests
+
+The CLAUDE.md lesson captures part of this:
+> "UI testing verifies visual correctness, not just DOM existence"
+> "Test behavior, not just presence"
+
+But there's no systematic enforcement during TDD.
+
+### Proposed Solution
+
+Integrate visual verification into TDD phases for UI-affecting changes:
+
+**Red phase:**
+1. Write structural test (element/output exists)
+2. Write behavioral test (interaction produces expected result)
+3. **Add visual verification step** (screenshot comparison or manual check)
+
+**Green phase:**
+1. Make structural test pass
+2. Make behavioral test pass
+3. **Verify visual output matches expectation**
+
+**Refactor phase:**
+1. Clean up code
+2. **Re-verify visual output unchanged**
+
+### Implementation Considerations
+
+For CLI:
+- Capture stdout/stderr and compare against expected output
+- Use ANSI-aware diffing for colored output
+- `projctl screenshot` could be extended for terminal screenshots
+
+For TUI:
+- Headless terminal rendering with screenshot comparison
+- SSIM-based regression detection (already exists in projctl)
+
+For GUI:
+- Chrome DevTools MCP for browser-based UI
+- Screenshot comparison with `projctl screenshot diff`
+- Behavioral verification via click/interaction tests
+
+### Integration with Skills
+
+Update TDD skills to prompt for visual verification:
+- `/tdd-red`: "For UI changes, include visual acceptance criteria"
+- `/tdd-green`: "Verify visual output matches design"
+- `/task-audit`: "Include visual verification evidence for UI tasks"
+
+### Acceptance Criteria
+
+- [ ] Document visual verification requirements in TDD skill docs
+- [ ] Add `ui` flag or marker to tasks requiring visual verification
+- [ ] `/tdd-green` prompts for visual check when `ui` flag present
+- [ ] `/task-audit` fails if UI task lacks visual evidence
+- [ ] CLAUDE.md lesson updated to make this standard practice
+
+**Traces to:** REQ-001
+
+---
