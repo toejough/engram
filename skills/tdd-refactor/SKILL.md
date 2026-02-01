@@ -7,102 +7,42 @@ skills: ownership-rules
 user-invocable: true
 ---
 
-# TDD Refactor Phase Skill
+# TDD Refactor Phase
 
-Refactor the implementation while keeping all tests green. This is the "refactor" phase of TDD.
+Improve code quality while keeping all tests green.
 
-## Purpose
+## Quick Reference
 
-Improve code quality, naming, structure, and adherence to conventions without changing behavior. Tests must stay green throughout.
+| Aspect | Details |
+|--------|---------|
+| Input | Context TOML via $ARGUMENTS | green phase summary | arch notes |
+| Process | Run linter | Fix issues by priority | Refactor for clarity | Run tests after each change | Linter again |
+| Rules | Tests STAY GREEN | NO behavior changes | NO new features | Fix ALL linter issues | NO blanket overrides |
 
-## Input
+## Linter Priority
 
-Receives context via `$ARGUMENTS` pointing to a context file (TOML) containing:
-- Task ID and description
-- Green phase summary (implementation files, approach, warnings about complexity)
-- Architecture notes (patterns, conventions, file structure)
-- Traceability IDs
-- Project conventions (linter config, style guide)
+| Priority | Categories |
+|----------|------------|
+| HIGH | Complexity (cyclop, gocognit, funlen, nestif) | Security (gosec) | Duplication (dupl) |
+| MEDIUM | Unused code | Error handling | Correctness |
+| LOW | Ordering/formatting (funcorder) - fix last or skip |
 
-## Process
+## Failure Hints
 
-1. **Run linter** - Execute the project's lint command (`mage check`, `golangci-lint run`, `npm run lint`, etc.)
-2. **Assess code quality** - Review implementation from green phase for:
-   - Naming clarity
-   - Code organization
-   - Duplication
-   - Complexity
-   - Convention adherence
-3. **Fix linter issues by priority:**
-   - **HIGH**: Complexity (cyclop, gocognit, funlen, nestif), Security (gosec), Duplication (dupl)
-   - **MEDIUM**: Unused code, error handling, correctness
-   - **LOW**: Ordering/formatting (funcorder) - fix last or skip
-4. **Refactor for clarity** - Improve naming, extract functions, reduce duplication
-5. **Run tests after each change** - Tests must stay GREEN
-6. **Run linter again** - Verify all issues resolved
+| Symptom | Fix |
+|---------|-----|
+| Tests break after change | REVERT immediately - refactoring doesn't change behavior |
+| Linter unclear | Note in findings, don't suppress |
+| Spec mismatch found | Report as finding - that's a blocker |
 
-## Rules
+## Output Format
 
-1. **Tests must stay green** - Run tests after every change. If a test breaks, revert.
-2. **No behavior changes** - Refactoring changes structure, not behavior
-3. **No new features** - Don't add functionality even if you see opportunities
-4. **Fix ALL linter issues** - Don't dismiss or suppress. If a fix is unclear, note it in findings.
-5. **No blanket lint overrides** - Never add exclusions, change thresholds, or disable rules. If a linter flags something, fix the code.
-6. **Extract, don't rewrite** - When moving code: COPY first, verify it works, THEN remove the original
-7. **Check specs** - If implementation differs from architecture/requirements, that's a finding
+`result.toml` (see shared/RESULT.md):
+- `[status]` success=bool
+- `[outputs]` files_modified=[]
+- `[[decisions]]` context, choice, reason
+- `[[learnings]]` content
 
-## Refactoring Priorities
+## Full Documentation
 
-1. **Fix linter issues** (required)
-2. **Improve naming** - Variables, functions, types should reveal intent
-3. **Reduce duplication** - But only real duplication, not superficial similarity
-4. **Simplify complexity** - Extract complex conditions, reduce nesting
-5. **Align with conventions** - File structure, patterns match project standards
-
-## What NOT to Do
-
-- Do not change behavior (tests are the contract)
-- Do not add features or error handling beyond what's tested
-- Do not add nolint comments without asking
-- Do not suppress linter rules globally
-- Do not skip running tests between changes
-- Do not dismiss linter findings
-
-## Structured Result
-
-When refactoring is complete, produce:
-
-```
-Status: success | failure | blocked
-Summary: Refactored [brief description]. All N tests still passing. Linter clean.
-Files modified: [list]
-Tests: N total, N passing, 0 failing
-Linter: clean | N remaining issues (with justification)
-Refactoring performed:
-  - [list of changes made]
-Traceability: [REQ/DES/ARCH IDs addressed]
-Findings:
-  - [spec mismatches, quality concerns, suggestions for future work]
-Context for next phase: [final state summary, any concerns for task audit]
-```
-
-## Result Format
-
-See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
-
-```toml
-[status]
-success = true
-
-[outputs]
-files_modified = ["internal/foo/foo.go"]
-
-[[decisions]]
-context = "Implementation approach"
-choice = "Minimal implementation"
-reason = "Only what's needed to pass tests"
-alternatives = []
-
-[[learnings]]
-content = "Found existing helper function that simplified implementation"
-```
+`projctl skills docs --skillname tdd-refactor` or see SKILL-full.md

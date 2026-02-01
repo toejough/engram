@@ -7,93 +7,45 @@ skills: ownership-rules
 user-invocable: true
 ---
 
-# Negotiate Skill
+# Negotiate
 
-Argue one position in a cross-skill disagreement using evidence and traceability references.
+Argue one position in cross-skill disagreements using evidence.
 
-## Purpose
+## Quick Reference
 
-When audit skills disagree (e.g., PM audit says a requirement isn't met but architect audit says the architecture makes it impractical), the orchestrator invokes this skill to argue each side. The skill receives a position and produces a reasoned argument or concession.
+| Aspect | Details |
+|--------|---------|
+| Input | Context TOML | conflict ID | position | opposing argument | round (1 or 2) |
+| Process | Understand position | Review traceability | Assess opposing | Argue with evidence OR Concede |
+| Rules | Evidence-based only | Acknowledge valid points | Max 2-3 key arguments | Reference traceability IDs |
 
-This skill is invoked multiple times per conflict -- once for each side, for up to 2 rounds of negotiation.
+## Argumentation
 
-## Input
-
-Receives context via `$ARGUMENTS` pointing to a context file (TOML) containing:
-- Conflict ID (CONF-NNN)
-- Which side to argue (e.g., "pm" or "architect")
-- The position to argue (what this side claims)
-- The opposing argument (what the other side said, if round > 1)
-- Traceability references (REQ/DES/ARCH/TASK IDs involved)
-- Round number (1 or 2)
-- Relevant artifact excerpts
-
-## Process
-
-1. **Understand the position** - Read the assigned position and supporting evidence
-2. **Review traceability** - Check which upstream artifacts support this position
-3. **Assess the opposing argument** (if round > 1) - Find weaknesses or acknowledge strengths
-4. **Produce reasoned argument** - Support position with evidence from artifacts, OR
-5. **Concede if warranted** - If the opposing argument is stronger, concede with justification
-
-## Argumentation Rules
-
-1. **Evidence-based only** - Every claim must reference a specific artifact and traceability ID
-2. **No ad hominem** - Argue positions, not skills
-3. **Acknowledge valid points** - If the other side has a strong point, say so
-4. **Propose compromises** - If neither position is clearly better, suggest a middle ground
-5. **Be concise** - Maximum 2-3 key arguments per round
-6. **Reference traceability** - Use REQ/DES/ARCH/TASK IDs in arguments
+| Principle | Details |
+|-----------|---------|
+| Evidence | Every claim references specific artifact + traceability ID |
+| Concision | Max 2-3 key arguments per round |
+| Fairness | Acknowledge opposing valid points |
+| Compromise | Propose middle ground if neither clearly better |
 
 ## Concession Criteria
 
-Concede when:
-- The opposing argument has stronger traceability backing
-- The position requires violating a higher-priority constraint
-- A compromise would satisfy both sides' core concerns
-- The position was based on a misunderstanding of the artifact
+| When to Concede | Reason |
+|-----------------|--------|
+| Stronger traceability | Opposing has better artifact backing |
+| Higher priority violated | Position requires breaking higher constraint |
+| Misunderstanding | Position based on artifact misread |
+| Compromise available | Both core concerns can be satisfied |
 
-Do NOT concede just to end the negotiation. Only concede when the evidence supports it.
+Do NOT concede just to end negotiation - only when evidence supports it.
 
-## Structured Result
+## Output Format
 
-```
-Status: success
-Summary: [Argued position | Conceded] for CONF-NNN round N.
-Outcome: argue | concede | compromise
-Argument:
-  position: <what this side claims>
-  key_points:
-    - point: <argument>
-      evidence: <artifact reference, traceability ID>
-    - point: <argument>
-      evidence: <artifact reference>
-  acknowledged_opposing_points:
-    - <valid point from other side>
-  weaknesses_in_opposing:
-    - <weakness found>
-      evidence: <why>
-Proposed resolution: <if compromise or concession, what specifically to do>
-Traceability: [IDs referenced in arguments]
-```
+`result.toml` (see shared/RESULT.md):
+- `[status]` success=bool, outcome=argue|concede|compromise
+- Key points with evidence
+- Proposed resolution if compromise/concession
 
-## Result Format
+## Full Documentation
 
-See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
-
-```toml
-[status]
-success = true
-
-[outputs]
-files_modified = []
-
-[[decisions]]
-context = "Process choice"
-choice = "Follow established convention"
-reason = "Consistency with existing patterns"
-alternatives = []
-
-[[learnings]]
-content = "Captured from execution"
-```
+`projctl skills docs --skillname negotiate` or see SKILL-full.md
