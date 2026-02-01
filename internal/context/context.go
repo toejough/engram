@@ -43,9 +43,7 @@ func Write(dir, task, skill, sourcePath string) (string, error) {
 	targetName := Filename(task, skill)
 	targetPath := filepath.Join(contextDir, targetName)
 
-	if _, err := os.Stat(targetPath); err == nil {
-		return "", fmt.Errorf("context file already exists: %s", targetPath)
-	}
+	// Overwrite existing file if present (no error check needed)
 
 	data, err := os.ReadFile(sourcePath)
 	if err != nil {
