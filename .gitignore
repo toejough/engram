@@ -1,2 +1,16 @@
 # Binaries
 /projctl
+
+# Project state and context
+.projctl/
+context/
+context.test
+
+# Test artifacts
+coverage.out
+internal/memory/testdata/
+
+# Skill results
+result.toml
+skills/*/result.toml
+skills/*/test-coverage.md
