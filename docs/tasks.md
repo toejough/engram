@@ -1325,11 +1325,11 @@ These tasks add advanced features and learning capabilities.
 Track corrections for learning loop. Orchestrator calls this, not agent.
 
 **Acceptance Criteria:**
-- [ ] `projctl corrections log --dir DIR --message TEXT --context CONTEXT` appends to corrections.jsonl
-- [ ] Entry includes: timestamp, message, context, session_id
-- [ ] Session ID from environment variable or `--session` flag
-- [ ] Cross-project corrections stored in `~/.claude/corrections.jsonl`
-- [ ] Project-specific corrections in `{dir}/corrections.jsonl`
+- [x] `projctl corrections log --dir DIR --message TEXT --context CONTEXT` appends to corrections.jsonl
+- [x] Entry includes: timestamp, message, context, session_id
+- [x] Session ID from environment variable or `--session` flag
+- [x] Cross-project corrections stored in `~/.claude/corrections.jsonl`
+- [x] Project-specific corrections in `{dir}/corrections.jsonl`
 
 **Test Requirements:**
 - Unit: Entry format
@@ -1339,6 +1339,8 @@ Track corrections for learning loop. Orchestrator calls this, not agent.
 **Dependencies:** None
 
 **Traces to:** Phase 4
+
+**Status:** Complete - Implemented in internal/corrections/ and cmd/projctl/corrections.go
 
 ---
 
@@ -1351,11 +1353,11 @@ Track corrections for learning loop. Orchestrator calls this, not agent.
 Count corrections for meta-audit trigger threshold.
 
 **Acceptance Criteria:**
-- [ ] `projctl corrections count --dir DIR` returns count
-- [ ] `--since TIMESTAMP` filters to recent corrections only
-- [ ] `--session SESSION` filters to specific session
-- [ ] Used by orchestrator in control loop step 9.5
-- [ ] Exit code 0 always (count in output, not exit code)
+- [x] `projctl corrections count --dir DIR` returns count
+- [x] `--since TIMESTAMP` filters to recent corrections only
+- [x] `--session SESSION` filters to specific session
+- [x] Used by orchestrator in control loop step 9.5
+- [x] Exit code 0 always (count in output, not exit code)
 
 **Test Requirements:**
 - Unit: Counting logic
@@ -1364,6 +1366,8 @@ Count corrections for meta-audit trigger threshold.
 **Dependencies:** TASK-040
 
 **Traces to:** Phase 4
+
+**Status:** Complete - Implemented alongside TASK-040 in cmd/projctl/corrections.go
 
 ---
 
@@ -1376,12 +1380,12 @@ Count corrections for meta-audit trigger threshold.
 Detect patterns in corrections for CLAUDE.md proposals.
 
 **Acceptance Criteria:**
-- [ ] `projctl corrections analyze --dir DIR` identifies repeated corrections
-- [ ] Groups similar corrections (fuzzy matching on keywords)
-- [ ] Reports patterns with count >= 2
-- [ ] Proposes CLAUDE.md addition for each pattern
-- [ ] `--min-occurrences N` changes threshold
-- [ ] Output includes pattern, count, proposed rule
+- [x] `projctl corrections analyze --dir DIR` identifies repeated corrections
+- [x] Groups similar corrections (fuzzy matching on keywords)
+- [x] Reports patterns with count >= 2
+- [x] Proposes CLAUDE.md addition for each pattern
+- [x] `--min-occurrences N` changes threshold
+- [x] Output includes pattern, count, proposed rule
 
 **Test Requirements:**
 - Unit: Pattern detection
@@ -1390,6 +1394,8 @@ Detect patterns in corrections for CLAUDE.md proposals.
 **Dependencies:** TASK-041
 
 **Traces to:** Phase 4
+
+**Status:** Complete - Implemented in internal/corrections/corrections.go
 
 ---
 
