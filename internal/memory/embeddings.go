@@ -25,9 +25,6 @@ const embeddingDim = 384
 // Note: Using all-MiniLM-L6-v2 as a compatible alternative with same 384 dimensions
 const e5SmallModelURL = "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx"
 
-// modelName identifies the model being used
-const modelName = "e5-small-v2"
-
 // onnxRuntimeVersion is the version of ONNX Runtime to download
 const onnxRuntimeVersion = "1.23.2"
 
@@ -89,35 +86,6 @@ func getExistingEmbeddings(db *sql.DB) (map[string]int64, error) {
 	return existing, rows.Err()
 }
 
-// generateMockEmbedding generates a deterministic mock embedding for text.
-// This is a stub implementation - real code would use ONNX model.
-func generateMockEmbedding(text string) []float32 {
-	// Create deterministic embedding based on text content
-	embedding := make([]float32, embeddingDim)
-
-	// Use simple hash-based approach for determinism
-	words := strings.Fields(strings.ToLower(text))
-	for i, word := range words {
-		hash := hashString(word)
-		for j := 0; j < embeddingDim; j++ {
-			// Mix word position and character hash into embedding
-			embedding[j] += float32(hash+i*13) / 1000000.0
-		}
-	}
-
-	// Normalize to unit vector
-	var magnitude float32
-	for _, v := range embedding {
-		magnitude += v * v
-	}
-	magnitude = float32(1.0 / (math.Sqrt(float64(magnitude)) + 0.0001))
-	for i := range embedding {
-		embedding[i] *= magnitude
-	}
-
-	return embedding
-}
-
 // hashString provides a simple hash for word->token mapping.
 func hashString(s string) int {
 	h := 0
@@ -173,7 +141,7 @@ func downloadONNXRuntime(modelDir string) (string, error) {
 
 	// Extract the library from the archive
 	if runtime.GOOS == "windows" {
-		return "", fmt.Errorf("Windows ZIP extraction not implemented")
+		return "", fmt.Errorf("windows ZIP extraction not implemented")
 	}
 
 	// Extract from tar.gz
@@ -336,19 +304,19 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create input_ids tensor: %w", err)
 	}
-	defer inputIDsTensor.Destroy()
+	defer func() { _ = inputIDsTensor.Destroy() }()
 
 	attentionMaskTensor, err := ort.NewTensor(inputShape, attentionMask)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create attention_mask tensor: %w", err)
 	}
-	defer attentionMaskTensor.Destroy()
+	defer func() { _ = attentionMaskTensor.Destroy() }()
 
 	tokenTypeIDsTensor, err := ort.NewTensor(inputShape, tokenTypeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token_type_ids tensor: %w", err)
 	}
-	defer tokenTypeIDsTensor.Destroy()
+	defer func() { _ = tokenTypeIDsTensor.Destroy() }()
 
 	// Create output tensor
 	outputShape := ort.NewShape(1, int64(inputSize), int64(embeddingDim))
@@ -356,7 +324,7 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create output tensor: %w", err)
 	}
-	defer outputTensor.Destroy()
+	defer func() { _ = outputTensor.Destroy() }()
 
 	// Run inference
 	inputs := []ort.Value{inputIDsTensor, attentionMaskTensor, tokenTypeIDsTensor}

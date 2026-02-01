@@ -1,7 +1,7 @@
 [project]
   name = "projctl-v2"
   created = 2026-01-31T18:12:27.095147-05:00
-  phase = "commit-green"
+  phase = "commit-refactor"
 
 [progress]
   current_task = "TASK-052"
@@ -2931,3 +2931,11 @@
 [[history]]
   timestamp = 2026-02-01T14:54:15.990067-05:00
   phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-01T14:54:38.757184-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-01T15:07:17.582051-05:00
+  phase = "commit-refactor"
