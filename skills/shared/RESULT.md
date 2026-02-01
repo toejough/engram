@@ -5,10 +5,70 @@ Standard format for result files written by skills for the `/project` orchestrat
 ## Purpose
 
 Result files provide the orchestrator with:
-1. **Completion status** - success, failure, needs_escalation
-2. **Outputs** - artifacts generated, files modified
-3. **Escalations** - questions that need user resolution
-4. **Context for next** - curated summary for subsequent skills
+1. **Completion status** - success or failure
+2. **Outputs** - files modified
+3. **Decisions** - choices made with context, reason, and alternatives
+4. **Learnings** - insights captured during execution
+5. **Escalations** - questions that need user resolution
+6. **Context for next** - curated summary for subsequent skills
+
+## Required Schema (Minimal)
+
+The control loop requires this minimal structure:
+
+```toml
+# Required sections
+[status]
+success = true  # boolean: did the skill complete successfully?
+
+[outputs]
+files_modified = ["docs/requirements.md", "docs/design.md"]
+
+# Optional sections
+[[decisions]]
+context = "Analyzing CLI structure"
+choice = "Use subcommands instead of flags"
+reason = "More intuitive for users"
+alternatives = ["Flat flags", "Positional arguments"]
+
+[[learnings]]
+content = "The codebase uses targ for CLI parsing"
+```
+
+### Validation Rules
+
+- `[status]` section is **required** with `success` boolean
+- `[outputs]` section is **required** with `files_modified` list
+- `[[decisions]]` is optional, but if present must have `context`, `choice`, `reason`
+- `[[learnings]]` is optional, but if present must have `content`
+- `alternatives` in decisions is optional
+
+### Invalid Examples
+
+**Missing status:**
+```toml
+# INVALID - no [status] section
+[outputs]
+files_modified = []
+```
+
+**Missing decision fields:**
+```toml
+# INVALID - decision missing context and reason
+[[decisions]]
+choice = "Use subcommands"
+```
+
+**Empty learning:**
+```toml
+# INVALID - learning missing content
+[[learnings]]
+# no content field
+```
+
+## Extended Format (Full)
+
+For richer orchestrator features, skills can provide additional metadata:
 
 ## File Format
 
