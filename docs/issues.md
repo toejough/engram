@@ -290,7 +290,7 @@ completed = ["TASK-063", "TASK-064"]
 ## ISSUE-005: Trace validation blocks transitions due to historical debt
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed (2026-02-01)
 **Created:** 2026-02-01
 
 ### Summary
@@ -317,9 +317,13 @@ Workaround is `--force`, but this bypasses a useful check.
 
 ### Acceptance Criteria
 
-- [ ] Decide on approach
-- [ ] Either fix existing trace gaps or adjust validation scope
-- [ ] Clean transitions without `--force` for new work
+- [x] Decide on approach
+- [x] Either fix existing trace gaps or adjust validation scope
+- [x] Clean transitions without `--force` for new work
+
+### Resolution
+
+Fixed by creating `docs/requirements.md` (REQ-001) and `docs/architecture.md` (ARCH-001 through ARCH-017). Updated all tasks to trace to ARCH-XXX instead of "Phase X". Added `// traces:` comments to test files. Trace validation now passes.
 
 **Traces to:** Housekeeping
 
