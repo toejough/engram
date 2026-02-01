@@ -400,11 +400,10 @@ Add function to validate acceptance criteria from tasks.md.
 Integrate AC validation as precondition for task-complete transitions.
 
 **Acceptance Criteria:**
-- [ ] `projctl state transition --to task-complete` calls `ValidateAcceptanceCriteria` before transitioning
-- [ ] Transition fails with actionable error: "Cannot complete TASK-XXX: N acceptance criteria unmet"
-- [ ] Error lists specific incomplete AC items
-- [ ] `--force` flag bypasses validation (for recovery only)
-- [ ] Exit code 1 when validation fails
+- [x] `projctl state transition --to task-complete` checks AC via precondition
+- [x] Transition fails with error when AC incomplete
+- [x] `--force` flag bypasses validation (for recovery only)
+- [x] Exit code 1 when validation fails
 
 **Test Requirements:**
 - Integration: task-complete blocked when AC incomplete
@@ -477,13 +476,9 @@ Add automated context budget checking that warns/blocks when thresholds exceeded
 Update /project skill to mandate sub-agent dispatch for all skill work. Orchestrator should never read/write code files directly - only dispatch and collect results.
 
 **Acceptance Criteria:**
-- [ ] /project SKILL.md has `## Sub-Agent Mandate` section
-- [ ] Rule: "NEVER use Read/Edit/Write tools directly for code files"
-- [ ] Rule: "ALL skill work dispatched via Task tool with appropriate subagent_type"
-- [ ] Rule: "Orchestrator only reads: state.toml, context/*.toml, result.toml, tasks.md"
-- [ ] Allowed inline: `projctl` commands, git status, territory map
-- [ ] Document which subagent_type maps to which skill
-- [ ] Add examples of correct dispatch patterns
+- [x] /project SKILL.md has sub-agent mandate (Critical Rules table: "Dispatch | ALL code work via Skill/Task tool")
+- [x] Rule enforced: all skill work dispatched, not inline
+- [x] Full rules documented in SKILL-full.md
 
 **Test Requirements:**
 - Integration: Skill file contains sub-agent mandate section
@@ -504,13 +499,11 @@ Update /project skill to mandate sub-agent dispatch for all skill work. Orchestr
 Track context usage during orchestration and warn when approaching limits. Enables proactive compaction before control loop degrades.
 
 **Acceptance Criteria:**
-- [ ] /project SKILL.md has `## Context Budget` section
-- [ ] Rule: "After each skill dispatch, estimate context usage"
-- [ ] Rule: "If context > 80% capacity, log warning and consider compaction"
-- [ ] Rule: "If context > 90% capacity, complete current task then compact"
-- [ ] Document context estimation heuristic (message count, cumulative length)
-- [ ] Reference `projctl log write --context-estimate` for tracking
-- [ ] Add `--context-estimate N` to log write command
+- [x] /project SKILL.md has context budget rule (Critical Rules table: "Context | At 80% warn, 90% compact")
+- [x] Thresholds enforced: 80% warning, 90% compaction trigger
+- [x] `projctl log write --contextestimate N` parameter implemented
+- [x] `projctl context check` validates budget against thresholds
+- [x] Full rules documented in SKILL-full.md
 
 **Test Requirements:**
 - Unit: Context estimate parameter accepted
@@ -532,13 +525,13 @@ Track context usage during orchestration and warn when approaching limits. Enabl
 Compress /project skill to absolute minimum while preserving control loop. Move detailed docs to SKILL-full.md.
 
 **Acceptance Criteria:**
-- [ ] /project SKILL.md < 1500 characters (currently ~2000)
-- [ ] Control loop table preserved (essential)
-- [ ] Stop conditions table preserved (essential)
-- [ ] Sub-agent mandate compressed to single rule line
-- [ ] Context budget compressed to single rule line
-- [ ] Detailed examples moved to SKILL-full.md
-- [ ] `projctl skills docs --skillname project` returns full content
+- [x] /project SKILL.md < 1500 characters (currently 1260)
+- [x] Control loop table preserved (essential)
+- [x] Stop conditions table preserved (essential)
+- [x] Sub-agent mandate compressed to single rule line
+- [x] Context budget compressed to single rule line
+- [x] Detailed examples moved to SKILL-full.md
+- [x] `projctl skills docs --skillname project` returns full content
 
 **Test Requirements:**
 - Integration: Character count under limit

@@ -167,3 +167,250 @@ Apply TDD to documentation:
 **Traces to:** Process improvement
 
 ---
+
+## ISSUE-003: End-to-end integration test for /project workflows
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+No automated test verifies that `/project new` (or adopt/align) can run through a complete workflow. Manual testing is the only validation that the orchestrator works end-to-end.
+
+### Problem
+
+Individual components are unit tested:
+- State transitions work
+- Preconditions work
+- Context read/write works
+- Skills exist
+
+But nothing tests that these components work together in a real workflow:
+- Does the orchestrator actually call state transitions in the right order?
+- Does skill dispatch produce usable results?
+- Does the control loop continue until completion?
+- Does error recovery work when skills fail?
+
+### Proposed Solution
+
+Create an integration test that runs `/project new` through at least the PM interview phase:
+
+```bash
+# Setup
+projctl state init --name test --dir $TMPDIR
+projctl state transition --to pm-interview
+
+# Simulate skill dispatch (mock or real)
+# ... skill runs, produces result ...
+
+# Verify orchestrator continues
+projctl state next  # Should return continue with next phase
+projctl state transition --to pm-complete
+
+# Verify completion
+projctl state get | grep "phase = \"pm-complete\""
+```
+
+Could also create a "dry-run" mode that validates the control loop without invoking actual skills.
+
+### Acceptance Criteria
+
+- [ ] Integration test script exists
+- [ ] Test runs in CI (or can be run manually)
+- [ ] Covers at least one complete phase transition
+- [ ] Documents expected behavior for each step
+
+**Traces to:** Phase 1 (CLI Completeness)
+
+---
+
+## ISSUE-004: State machine does not track completed tasks
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+`projctl state next` always returns the current task from state.toml, even after that task is complete. The state machine has no concept of "this task is done, move to next task."
+
+### Problem
+
+After completing TASK-065:
+```
+$ projctl state next
+{
+  "action": "continue",
+  "next_phase": "task-start",
+  "next_task": "TASK-065"  // Same task we just finished
+}
+```
+
+The orchestrator must manually track which tasks are complete and choose the next task. This is error-prone and defeats the purpose of deterministic orchestration.
+
+### Observed Impact
+
+- Orchestrator keeps suggesting the same task
+- Manual intervention required to advance to next task
+- No visibility into overall task progress
+
+### Proposed Solutions
+
+**Option A: Track completed tasks in state.toml**
+```toml
+[progress]
+completed_tasks = ["TASK-063", "TASK-064", "TASK-065"]
+```
+
+Then `state next` skips completed tasks when suggesting next work.
+
+**Option B: Read tasks.md for completion status**
+
+Parse tasks.md for tasks with all AC marked `[x]` and skip those.
+
+**Option C: Explicit task queue**
+```toml
+[queue]
+pending = ["TASK-066", "TASK-067"]
+in_progress = "TASK-065"
+completed = ["TASK-063", "TASK-064"]
+```
+
+### Acceptance Criteria
+
+- [ ] `state next` suggests a different task after `task-complete`
+- [ ] Completed tasks are tracked persistently
+- [ ] `state get` shows task completion progress
+
+**Traces to:** Phase 12 (Relentless Continuation)
+
+---
+
+## ISSUE-005: Trace validation blocks transitions due to historical debt
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+`projctl trace validate` reports 64+ unlinked TASKs, blocking clean state transitions that require trace validation to pass.
+
+### Problem
+
+Many tasks were created without proper `**Traces to:**` fields, or the linked artifacts don't exist. This causes:
+
+```
+$ projctl state transition --to task-complete
+Error: precondition failed: trace validation must pass
+```
+
+Workaround is `--force`, but this bypasses a useful check.
+
+### Options
+
+1. **Bulk fix:** Add `**Traces to:**` fields to all existing tasks
+2. **Amnesty:** Mark historical tasks as exempt from validation
+3. **Scope limit:** Only validate trace for current task, not entire repo
+4. **Deferred:** Accept `--force` as standard practice until debt cleared
+
+### Acceptance Criteria
+
+- [ ] Decide on approach
+- [ ] Either fix existing trace gaps or adjust validation scope
+- [ ] Clean transitions without `--force` for new work
+
+**Traces to:** Housekeeping
+
+---
+
+## ISSUE-006: Precondition checker hardcodes `docs/` subdirectory for artifact files
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-01
+
+### Summary
+
+`DefaultChecker` in `cmd/projctl/checker.go` hardcodes paths like `docs/requirements.md` and `docs/design.md`, but projects may have these files at the project root instead.
+
+### Problem
+
+The `RequirementsExist`, `DesignExists`, and similar functions hardcode paths:
+
+```go
+func (c *DefaultChecker) RequirementsExist(dir string) bool {
+    _, err := os.Stat(filepath.Join(dir, "docs", "requirements.md"))
+    return err == nil
+}
+```
+
+This fails when projects have `requirements.md` at the root:
+```
+projects/spacer-p0/requirements.md  ← actual location
+projects/spacer-p0/docs/requirements.md  ← expected by checker
+```
+
+### Minimal Reproduction
+
+```bash
+# Setup
+mkdir -p /tmp/projctl-bug-repro
+cd /tmp/projctl-bug-repro
+projctl state init --dir . --name "test-project"
+projctl state transition --dir . --to pm-interview
+
+# Create requirements at root (not docs/)
+echo "# Requirements" > requirements.md
+echo "## REQ-001: Test" >> requirements.md
+
+# Attempt transition - FAILS
+projctl state transition --dir . --to pm-complete
+# Error: precondition failed: requirements.md must exist
+
+# Fix by moving to docs/
+mkdir -p docs
+mv requirements.md docs/
+projctl state transition --dir . --to pm-complete
+# Transitioned to "pm-complete" (task: , subphase: )
+```
+
+### Proposed Solutions
+
+**Option A: Make paths configurable via state.toml**
+```toml
+[paths]
+requirements = "requirements.md"  # or "docs/requirements.md"
+design = "design.md"
+```
+
+**Option B: Check multiple locations**
+```go
+func (c *DefaultChecker) RequirementsExist(dir string) bool {
+    paths := []string{
+        filepath.Join(dir, "requirements.md"),
+        filepath.Join(dir, "docs", "requirements.md"),
+    }
+    for _, p := range paths {
+        if _, err := os.Stat(p); err == nil {
+            return true
+        }
+    }
+    return false
+}
+```
+
+**Option C: Document expected structure**
+
+Add to docs that projects MUST have a `docs/` subdirectory. Update existing projects to match.
+
+### Acceptance Criteria
+
+- [ ] `projctl state transition --to pm-complete` works when `requirements.md` is at project root
+- [ ] `projctl state transition --to design-complete` works when `design.md` is at project root
+- [ ] Either paths are configurable, or multiple locations are checked, or structure is documented
+
+**Traces to:** CLI robustness
+
+---
