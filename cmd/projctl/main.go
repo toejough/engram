@@ -63,5 +63,8 @@ func main() {
 		targ.Group("task",
 			targ.Targ(taskValidate).Name("validate").Description("Validate a task against requirements"),
 		),
+		targ.Group("usage",
+			targ.Targ(usageReport).Name("report").Description("Generate token usage report from logs"),
+		),
 	)
 }
