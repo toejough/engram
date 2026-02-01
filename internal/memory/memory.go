@@ -245,3 +245,28 @@ func truncateSummary(summary string, maxLen int) string {
 	return truncated + "\n\n...(truncated)\n"
 }
 
+// GrepOpts holds options for memory grep.
+type GrepOpts struct {
+	Pattern          string
+	Project          string
+	IncludeDecisions bool
+	MemoryRoot       string
+}
+
+// GrepMatch represents a single grep match.
+type GrepMatch struct {
+	File    string
+	LineNum int
+	Line    string
+}
+
+// GrepResult contains the results of a grep search.
+type GrepResult struct {
+	Matches []GrepMatch
+}
+
+// Grep searches memory files for a pattern.
+func Grep(opts GrepOpts) (*GrepResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+

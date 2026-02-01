@@ -114,3 +114,45 @@ func memorySessionEnd(args memorySessionEndArgs) error {
 	fmt.Printf("Session summary saved to: %s\n", result.FilePath)
 	return nil
 }
+
+type memoryGrepArgs struct {
+	Pattern          string `targ:"arg,required,desc=Pattern to search for"`
+	Project          string `targ:"flag,short=p,desc=Limit search to specific project"`
+	IncludeDecisions bool   `targ:"flag,short=d,desc=Also search decisions files"`
+	MemoryRoot       string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+}
+
+func memoryGrep(args memoryGrepArgs) error {
+	memoryRoot := args.MemoryRoot
+	if memoryRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		memoryRoot = home + "/.claude/memory"
+	}
+
+	opts := memory.GrepOpts{
+		Pattern:          args.Pattern,
+		Project:          args.Project,
+		IncludeDecisions: args.IncludeDecisions,
+		MemoryRoot:       memoryRoot,
+	}
+
+	result, err := memory.Grep(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(result.Matches) == 0 {
+		fmt.Println("No matches found")
+		return nil
+	}
+
+	for _, m := range result.Matches {
+		fmt.Printf("%s:%d: %s\n", m.File, m.LineNum, m.Line)
+	}
+
+	return nil
+}

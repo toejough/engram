@@ -713,3 +713,208 @@ func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
 		g.Expect(len(content)).To(BeNumerically("<", 2000))
 	})
 }
+
+// ============================================================================
+// Memory grep tests (TASK-051)
+// ============================================================================
+
+// TEST-810: Grep searches index.md
+func TestGrepSearchesIndexMd(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Create index.md with some content
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01 10:00: Learn about testing
+- 2024-01-01 11:00: Study Go patterns
+- 2024-01-01 12:00: Review TDD workflow`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "testing",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+	g.Expect(results.Matches[0].Line).To(ContainSubstring("testing"))
+}
+
+// TEST-811: Grep searches sessions directory
+func TestGrepSearchesSessions(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create a session file
+	sessionContent := `# Session Summary
+
+PostgreSQL was chosen for the database.
+Gin was selected as the web framework.`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-project.md"), []byte(sessionContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "PostgreSQL",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+	g.Expect(results.Matches[0].File).To(ContainSubstring("sessions"))
+}
+
+// TEST-812: Grep returns file and line number
+func TestGrepReturnsFileAndLineNumber(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `line one
+line two with pattern
+line three`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "pattern",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+	g.Expect(results.Matches[0].File).To(ContainSubstring("index.md"))
+	g.Expect(results.Matches[0].LineNum).To(Equal(2))
+}
+
+// TEST-813: Grep project filter limits search
+func TestGrepProjectFilter(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create sessions for different projects
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-proj-a.md"), []byte("Found in project A"), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-proj-b.md"), []byte("Found in project B"), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "Found",
+		Project:    "proj-a",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+	g.Expect(results.Matches[0].Line).To(ContainSubstring("project A"))
+}
+
+// TEST-814: Grep with decisions flag searches decisions
+func TestGrepWithDecisionsFlag(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	decisionsDir := filepath.Join(memoryDir, "decisions")
+	err := os.MkdirAll(decisionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create a decision file
+	decisionContent := `{"context":"API design","choice":"REST","reason":"simpler"}
+{"context":"Database","choice":"PostgreSQL","reason":"robust"}`
+	err = os.WriteFile(filepath.Join(decisionsDir, "2024-01-01-project.jsonl"), []byte(decisionContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:          "PostgreSQL",
+		IncludeDecisions: true,
+		MemoryRoot:       memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+	g.Expect(results.Matches[0].Line).To(ContainSubstring("PostgreSQL"))
+}
+
+// TEST-815: Grep returns empty results for no matches
+func TestGrepNoMatches(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("some content"), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "nonexistent",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(BeEmpty())
+}
+
+// TEST-816: Grep requires pattern
+func TestGrepRequiresPattern(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.GrepOpts{
+		Pattern:    "",
+		MemoryRoot: memoryDir,
+	}
+
+	_, err := memory.Grep(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("pattern"))
+}
+
+// TEST-817: Grep is case insensitive
+func TestGrepCaseInsensitive(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("PostgreSQL database"), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.GrepOpts{
+		Pattern:    "postgresql",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Grep(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.Matches).To(HaveLen(1))
+}

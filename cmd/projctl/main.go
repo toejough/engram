@@ -93,6 +93,7 @@ func main() {
 			targ.Targ(memoryLearn).Name("learn").Description("Store a learning in the memory index"),
 			targ.Targ(memoryDecide).Name("decide").Description("Log a decision with reasoning and alternatives"),
 			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
+			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
 		),
 	)
 }
