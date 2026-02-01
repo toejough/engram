@@ -18,6 +18,32 @@ type ProjectConfig struct {
 	Paths        PathsConfig        `toml:"paths"`
 	Heuristics   HeuristicsConfig   `toml:"heuristics"`
 	Traceability TraceabilityConfig `toml:"traceability"`
+	Routing      RoutingConfig      `toml:"routing"`
+}
+
+// RoutingConfig defines model routing for different complexity levels.
+type RoutingConfig struct {
+	Simple         string `toml:"simple"`          // Model for simple tasks (default: sonnet)
+	Medium         string `toml:"medium"`          // Model for medium tasks (default: sonnet)
+	Complex        string `toml:"complex"`         // Model for complex tasks (default: sonnet)
+	ThresholdLines int    `toml:"threshold_lines"` // Lines threshold for complexity (default: 100)
+}
+
+// ValidModels lists known valid model names.
+var ValidModels = map[string]bool{
+	"haiku":  true,
+	"sonnet": true,
+	"opus":   true,
+}
+
+// IsValidModel checks if a model name is valid.
+func IsValidModel(model string) bool {
+	return ValidModels[model]
+}
+
+// GetRouting returns the routing configuration.
+func (c *ProjectConfig) GetRouting() RoutingConfig {
+	return c.Routing
 }
 
 // PathsConfig defines artifact paths.
@@ -116,6 +142,12 @@ func Default() *ProjectConfig {
 			TaskPrefix:         "TASK",
 			TestPrefix:         "TEST",
 			IssuePrefix:        "ISSUE",
+		},
+		Routing: RoutingConfig{
+			Simple:         "sonnet",
+			Medium:         "sonnet",
+			Complex:        "sonnet",
+			ThresholdLines: 100,
 		},
 	}
 }

@@ -20,6 +20,71 @@ Manage projects through structured phases using a durable state machine. Dispatc
 8. **Stop only when all tasks blocked** - Continue with unblocked tasks when conflicts exist
 9. **Always run end-of-command sequence** - integrate → repair → validate before completing
 
+## Continuation Rule (CRITICAL)
+
+After completing ANY task or phase, immediately check:
+
+```bash
+projctl state next --dir <project-dir>
+```
+
+**If action is "continue":** Proceed to the next phase/task immediately. Do not stop.
+
+**If action is "stop":** Only then may you pause. Check the reason:
+- `all_complete` — Project finished, present summary
+- `escalation_pending` — Present escalation to user for resolution
+- `validation_failed` — Run repair loop
+- `retries_exhausted` — Present failure to user
+
+### Anti-patterns (NEVER do these)
+
+- **NEVER** say "No response requested" or stop with just a summary when work remains
+- **NEVER** ask "Should I continue?" or "Ready to proceed?" if `projctl state next` returns `continue`
+- **NEVER** wait for user confirmation between TDD phases (red → commit → green → commit → refactor → commit is one atomic sequence)
+
+### Legitimate reasons to stop
+
+Only stop and wait for user input when:
+1. An escalation requires a decision you cannot make
+2. A conflict needs resolution
+3. Validation fails repeatedly and user intervention is needed
+4. All tasks are complete (`action: stop, reason: all_complete`)
+
+## Control Loop
+
+The orchestrator executes this loop for each unit of work. Steps marked **[D]** are deterministic (CLI commands), steps marked **[A]** are agentic (LLM reasoning).
+
+### Step 0: Message Classification [A]
+- Classify incoming user message
+- Detect correction signals ("that's wrong", "no, do X", "remember that")
+- If correction detected: `projctl log write --level status --subject lesson --message "..."`
+
+### Steps 1-5: Setup [D]
+1. **State**: `projctl state get --dir .` — read current phase and task
+2. **Preconditions**: `projctl state transition` validates preconditions automatically
+3. **Map**: `projctl map --cached` — get territory map for context
+4. **Memory**: `projctl memory query "relevant to current task"` — retrieve relevant memories
+5. **Context Write**: `projctl context write --dir . --task TASK --skill SKILL --file context.toml`
+
+### Step 6: Skill Dispatch [A]
+- Dispatch skill via `Skill` tool (e.g., `/tdd-red`, `/commit`)
+- Skill executes as agentic black box
+- Skill writes result to `context/{TASK}-{SKILL}.result.toml`
+
+### Steps 7-9.5: Result Processing [D + A]
+7. **Result Parse**: `projctl context read --dir . --task TASK --skill SKILL --result`
+8. **Memory Log**: Extract decisions/learnings from result, store via `projctl memory`
+9. **State Next**: `projctl state next --dir .` — determine if work remains
+9.5 **Correction Check**: `projctl corrections count --since=session-start` — trigger meta-audit if threshold reached
+
+### Steps 10-11: Continue or Stop [A]
+10. **If action=continue**: Loop back to Step 1 with next phase/task
+11. **If action=stop**: Check reason and either present completion or await user input
+
+### Key Principle
+
+The control loop never stops between deterministic steps. From task-start through task-complete is one atomic execution unless a stop condition is reached.
+
 ## End-of-Command Sequence (CRITICAL)
 
 **Every** `/project` command MUST run this sequence before completing:
