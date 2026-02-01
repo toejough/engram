@@ -53,5 +53,8 @@ func main() {
 			targ.Targ(skillsStatus).Name("status").Description("Show skill installation status"),
 			targ.Targ(skillsUninstall).Name("uninstall").Description("Uninstall skills by removing symlinks"),
 		),
+		targ.Group("result",
+			targ.Targ(resultValidate).Name("validate").Description("Validate a result.toml file against the schema"),
+		),
 	)
 }
