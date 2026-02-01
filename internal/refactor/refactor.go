@@ -10,6 +10,42 @@ import (
 	"strings"
 )
 
+// Capabilities describes available refactoring capabilities.
+type Capabilities struct {
+	GoplsAvailable bool   `json:"gopls_available" toml:"gopls_available"`
+	GoplsVersion   string `json:"gopls_version,omitempty" toml:"gopls_version,omitempty"`
+	RenameSupport  bool   `json:"rename_support" toml:"rename_support"`
+}
+
+// CheckCapabilities returns the available refactoring capabilities.
+func CheckCapabilities() Capabilities {
+	caps := Capabilities{}
+
+	// Check for gopls
+	goplsPath, err := exec.LookPath("gopls")
+	if err == nil {
+		caps.GoplsAvailable = true
+		caps.RenameSupport = true
+
+		// Get version
+		cmd := exec.Command(goplsPath, "version")
+		output, err := cmd.Output()
+		if err == nil {
+			lines := strings.Split(string(output), "\n")
+			if len(lines) > 0 {
+				caps.GoplsVersion = strings.TrimSpace(lines[0])
+			}
+		}
+	}
+
+	return caps
+}
+
+// GoplsInstallInstructions returns installation instructions for gopls.
+func GoplsInstallInstructions() string {
+	return "gopls not found. Install with: go install golang.org/x/tools/gopls@latest"
+}
+
 // RenameOpts holds options for symbol renaming.
 type RenameOpts struct {
 	Dir    string

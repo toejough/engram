@@ -1518,11 +1518,11 @@ LSP-backed function extraction.
 Check LSP availability and use fallbacks when unavailable.
 
 **Acceptance Criteria:**
-- [ ] `projctl refactor` commands check for gopls availability
-- [ ] If unavailable: error with installation instructions, don't attempt
-- [ ] Capability stored in context for skills to check
-- [ ] Skills can request LSP operations only if available
-- [ ] Fallback documented: manual refactoring via LLM edit
+- [x] `projctl refactor` commands check for gopls availability
+- [x] If unavailable: error with installation instructions, don't attempt
+- [x] Capability stored in context for skills to check
+- [x] Skills can request LSP operations only if available
+- [x] Fallback documented: manual refactoring via LLM edit (skills use Edit tool)
 
 **Test Requirements:**
 - Unit: Availability check
@@ -1531,6 +1531,8 @@ Check LSP availability and use fallbacks when unavailable.
 **Dependencies:** TASK-045
 
 **Traces to:** Phase 8
+
+**Status:** Complete - `projctl refactor capabilities` command + context injection
 
 ---
 

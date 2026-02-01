@@ -1,12 +1,45 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/toejough/projctl/internal/refactor"
 )
+
+type refactorCapabilitiesArgs struct {
+	Format string `targ:"flag,short=f,desc=Output format: text (default) or json"`
+}
+
+func refactorCapabilities(args refactorCapabilitiesArgs) error {
+	caps := refactor.CheckCapabilities()
+
+	if args.Format == "json" {
+		data, err := json.MarshalIndent(caps, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// Text output
+	fmt.Println("Refactoring Capabilities")
+	fmt.Println("========================")
+	fmt.Printf("gopls available: %v\n", caps.GoplsAvailable)
+	if caps.GoplsVersion != "" {
+		fmt.Printf("gopls version:   %s\n", caps.GoplsVersion)
+	}
+	fmt.Printf("rename support:  %v\n", caps.RenameSupport)
+
+	if !caps.GoplsAvailable {
+		fmt.Printf("\n%s\n", refactor.GoplsInstallInstructions())
+	}
+
+	return nil
+}
 
 type refactorRenameArgs struct {
 	Dir    string `targ:"flag,short=d,required,desc=Directory containing Go code"`

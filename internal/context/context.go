@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/toejough/projctl/internal/refactor"
 	"github.com/toejough/projctl/internal/territory"
 )
 
@@ -152,6 +153,15 @@ func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig
 		if _, err := toml.Decode(string(data), &cached); err == nil {
 			raw["territory"] = cached.Map
 		}
+	}
+
+	// Inject refactoring capabilities
+	caps := refactor.CheckCapabilities()
+	raw["capabilities"] = map[string]any{
+		"refactor": map[string]any{
+			"gopls_available": caps.GoplsAvailable,
+			"rename_support":  caps.RenameSupport,
+		},
 	}
 
 	targetName := Filename(task, skill)

@@ -84,5 +84,9 @@ func main() {
 			targ.Targ(correctionsCount).Name("count").Description("Count corrections for meta-audit trigger"),
 			targ.Targ(correctionsAnalyze).Name("analyze").Description("Detect patterns in corrections"),
 		),
+		targ.Group("refactor",
+			targ.Targ(refactorRename).Name("rename").Description("Rename a symbol using LSP"),
+			targ.Targ(refactorCapabilities).Name("capabilities").Description("Check available refactoring capabilities"),
+		),
 	)
 }
