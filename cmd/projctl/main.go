@@ -89,5 +89,8 @@ func main() {
 			targ.Targ(refactorExtractFunction).Name("extract-function").Description("Extract code into a new function using LSP"),
 			targ.Targ(refactorCapabilities).Name("capabilities").Description("Check available refactoring capabilities"),
 		),
+		targ.Group("memory",
+			targ.Targ(memoryLearn).Name("learn").Description("Store a learning in the memory index"),
+		),
 	)
 }
