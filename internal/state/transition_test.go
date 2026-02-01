@@ -441,14 +441,16 @@ func TestTransitionPrecondition_TaskComplete(t *testing.T) {
 
 // mockPreconditionChecker implements state.PreconditionChecker for testing.
 type mockPreconditionChecker struct {
-	requirementsExists    bool
-	requirementsHasIDs    bool
-	designExists          bool
-	designHasIDs          bool
-	traceValidationPasses bool
-	testsExist            bool
-	testsFail             bool
-	testsPass             bool
+	requirementsExists         bool
+	requirementsHasIDs         bool
+	designExists               bool
+	designHasIDs               bool
+	traceValidationPasses      bool
+	testsExist                 bool
+	testsFail                  bool
+	testsPass                  bool
+	acceptanceCriteriaComplete bool
+	currentTaskID              string
 }
 
 func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
@@ -481,6 +483,11 @@ func (m *mockPreconditionChecker) TestsFail(dir string) bool {
 
 func (m *mockPreconditionChecker) TestsPass(dir string) bool {
 	return m.testsPass
+}
+
+func (m *mockPreconditionChecker) AcceptanceCriteriaComplete(dir, taskID string) bool {
+	m.currentTaskID = taskID
+	return m.acceptanceCriteriaComplete
 }
 
 // TEST-304 traces: TASK-010
@@ -540,6 +547,86 @@ func TestTransitionWithChecker_ForceFlag(t *testing.T) {
 		_, err = state.TransitionWithChecker(dir, "implementation", opts, nowFunc(), nil)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
+	})
+}
+
+// TEST-630 traces: TASK-063
+// Test task-complete transition checks acceptance criteria
+func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
+	t.Run("blocks when AC incomplete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses:      true,
+			acceptanceCriteriaComplete: false,
+		}
+		opts := state.TransitionOpts{Task: "TASK-001"}
+		_, err = state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("acceptance criteria"))
+	})
+
+	t.Run("succeeds when AC complete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses:      true,
+			acceptanceCriteriaComplete: true,
+		}
+		opts := state.TransitionOpts{Task: "TASK-001"}
+		s, err := state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("task-complete"))
+	})
+
+	t.Run("passes task ID to checker", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses:      true,
+			acceptanceCriteriaComplete: true,
+		}
+		opts := state.TransitionOpts{Task: "TASK-042"}
+		_, err = state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(checker.currentTaskID).To(Equal("TASK-042"))
+	})
+
+	t.Run("force bypasses AC check", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses:      true,
+			acceptanceCriteriaComplete: false, // AC not complete
+		}
+		opts := state.TransitionOpts{Task: "TASK-001", Force: true}
+		s, err := state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("task-complete"))
 	})
 }
 

@@ -124,11 +124,13 @@ type PreconditionChecker interface {
 	TestsExist(dir string) bool
 	TestsFail(dir string) bool
 	TestsPass(dir string) bool
+	AcceptanceCriteriaComplete(dir, taskID string) bool
 }
 
 // Preconditions maps phases to their required preconditions.
-var Preconditions = map[string]func(dir string, checker PreconditionChecker) error{
-	"pm-complete": func(dir string, c PreconditionChecker) error {
+// The function takes dir, opts, and checker so preconditions can access task ID.
+var Preconditions = map[string]func(dir string, opts TransitionOpts, checker PreconditionChecker) error{
+	"pm-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.RequirementsExist(dir) {
 			return fmt.Errorf("precondition failed: requirements.md must exist")
 		}
@@ -137,7 +139,7 @@ var Preconditions = map[string]func(dir string, checker PreconditionChecker) err
 		}
 		return nil
 	},
-	"design-complete": func(dir string, c PreconditionChecker) error {
+	"design-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.DesignExists(dir) {
 			return fmt.Errorf("precondition failed: design.md must exist")
 		}
@@ -146,19 +148,22 @@ var Preconditions = map[string]func(dir string, checker PreconditionChecker) err
 		}
 		return nil
 	},
-	"architect-complete": func(dir string, c PreconditionChecker) error {
+	"architect-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TraceValidationPasses(dir) {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
 		return nil
 	},
-	"task-complete": func(dir string, c PreconditionChecker) error {
+	"task-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TraceValidationPasses(dir) {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
+		if opts.Task != "" && !c.AcceptanceCriteriaComplete(dir, opts.Task) {
+			return fmt.Errorf("precondition failed: acceptance criteria for %s must be complete", opts.Task)
+		}
 		return nil
 	},
-	"tdd-green": func(dir string, c PreconditionChecker) error {
+	"tdd-green": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TestsExist(dir) {
 			return fmt.Errorf("precondition failed: test files must exist")
 		}
@@ -167,7 +172,7 @@ var Preconditions = map[string]func(dir string, checker PreconditionChecker) err
 		}
 		return nil
 	},
-	"tdd-refactor": func(dir string, c PreconditionChecker) error {
+	"tdd-refactor": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TestsPass(dir) {
 			return fmt.Errorf("precondition failed: all tests must pass")
 		}
@@ -211,7 +216,7 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	// Check preconditions if checker provided and not forcing
 	if checker != nil && !opts.Force {
 		if precondCheck, ok := Preconditions[to]; ok {
-			if err := precondCheck(dir, checker); err != nil {
+			if err := precondCheck(dir, opts, checker); err != nil {
 				// Capture error in state
 				captureError(&s, to, "precondition_failed", err.Error(), t)
 				_ = writeAtomic(dir, s)

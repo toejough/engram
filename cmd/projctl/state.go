@@ -65,13 +65,16 @@ type stateTransitionArgs struct {
 	To       string `targ:"flag,short=t,required,desc=Target phase"`
 	Task     string `targ:"flag,desc=Current task ID (e.g. TASK-004)"`
 	Subphase string `targ:"flag,desc=Current subphase (e.g. tdd-green)"`
+	Force    bool   `targ:"flag,short=f,desc=Force transition, bypassing precondition checks"`
 }
 
 func stateTransition(args stateTransitionArgs) error {
-	s, err := state.Transition(args.Dir, args.To, state.TransitionOpts{
+	checker := &DefaultChecker{}
+	s, err := state.TransitionWithChecker(args.Dir, args.To, state.TransitionOpts{
 		Task:     args.Task,
 		Subphase: args.Subphase,
-	}, time.Now)
+		Force:    args.Force,
+	}, time.Now, checker)
 	if err != nil {
 		return err
 	}
