@@ -155,3 +155,117 @@ func TestFilenameProperty(t *testing.T) {
 		g.Expect(resultName).To(HavePrefix(task))
 	})
 }
+
+// TEST-420 traces: TASK-015
+// Test WriteWithRouting adds routing section to context.
+func TestWriteWithRouting_AddsRoutingSection(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{
+		"tdd-red":   "medium",
+		"tdd-green": "medium",
+	}
+
+	path, err := context.WriteWithRouting(dir, "TASK-004", "tdd-red", source, routing, skillComplexity)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain original content
+	g.Expect(string(content)).To(ContainSubstring("tdd-red"))
+
+	// Should contain routing section
+	g.Expect(string(content)).To(ContainSubstring("[routing]"))
+	g.Expect(string(content)).To(ContainSubstring("suggested_model"))
+	g.Expect(string(content)).To(ContainSubstring("sonnet"))
+}
+
+// TEST-421 traces: TASK-015
+// Test WriteWithRouting uses skill-to-complexity mapping.
+func TestWriteWithRouting_UsesSkillMapping(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+
+	testCases := []struct {
+		skill           string
+		skillComplexity map[string]string
+		expectedModel   string
+	}{
+		{"alignment-check", map[string]string{"alignment-check": "simple"}, "haiku"},
+		{"tdd-red", map[string]string{"tdd-red": "medium"}, "sonnet"},
+		{"meta-audit", map[string]string{"meta-audit": "complex"}, "opus"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.skill, func(t *testing.T) {
+			g := NewWithT(t)
+			path, err := context.WriteWithRouting(dir, "TASK-001", tc.skill, source, routing, tc.skillComplexity)
+			g.Expect(err).ToNot(HaveOccurred())
+
+			content, err := os.ReadFile(path)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(string(content)).To(ContainSubstring(tc.expectedModel))
+		})
+	}
+}
+
+// TEST-422 traces: TASK-015
+// Test WriteWithRouting includes reason field.
+func TestWriteWithRouting_IncludesReason(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{"tdd-red": "medium"}
+
+	path, err := context.WriteWithRouting(dir, "TASK-001", "tdd-red", source, routing, skillComplexity)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("reason"))
+	g.Expect(string(content)).To(ContainSubstring("medium complexity"))
+}
+
+// TEST-423 traces: TASK-015
+// Test WriteWithRouting defaults to medium for unknown skills.
+func TestWriteWithRouting_DefaultsToMedium(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{} // Empty - skill not mapped
+
+	path, err := context.WriteWithRouting(dir, "TASK-001", "unknown-skill", source, routing, skillComplexity)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+	// Should default to medium model
+	g.Expect(string(content)).To(ContainSubstring("sonnet"))
+}
