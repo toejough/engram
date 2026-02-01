@@ -49,12 +49,13 @@ type PhaseTransition struct {
 
 // ErrorInfo captures details about a failed transition.
 type ErrorInfo struct {
-	LastPhase  string    `toml:"last_phase"`
-	LastTask   string    `toml:"last_task"`
-	ErrorType  string    `toml:"error_type"` // "illegal_transition", "precondition_failed"
-	Message    string    `toml:"message"`
-	Timestamp  time.Time `toml:"timestamp"`
-	RetryCount int       `toml:"retry_count"`
+	LastPhase   string    `toml:"last_phase"`
+	LastTask    string    `toml:"last_task"`
+	TargetPhase string    `toml:"target_phase"` // The phase we were trying to transition to
+	ErrorType   string    `toml:"error_type"`   // "illegal_transition", "precondition_failed"
+	Message     string    `toml:"message"`
+	Timestamp   time.Time `toml:"timestamp"`
+	RetryCount  int       `toml:"retry_count"`
 }
 
 // State is the complete project state.
@@ -201,7 +202,7 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 		)
 
 		// Capture error in state
-		captureError(&s, "illegal_transition", transitionErr.Error(), t)
+		captureError(&s, to, "illegal_transition", transitionErr.Error(), t)
 		_ = writeAtomic(dir, s)
 
 		return State{}, transitionErr
@@ -212,7 +213,7 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 		if precondCheck, ok := Preconditions[to]; ok {
 			if err := precondCheck(dir, checker); err != nil {
 				// Capture error in state
-				captureError(&s, "precondition_failed", err.Error(), t)
+				captureError(&s, to, "precondition_failed", err.Error(), t)
 				_ = writeAtomic(dir, s)
 
 				return State{}, err
@@ -242,19 +243,20 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 }
 
 // captureError records error details in state, incrementing retry count if same error type.
-func captureError(s *State, errorType, message string, t time.Time) {
+func captureError(s *State, targetPhase, errorType, message string, t time.Time) {
 	retryCount := 1
 	if s.Error != nil && s.Error.ErrorType == errorType {
 		retryCount = s.Error.RetryCount + 1
 	}
 
 	s.Error = &ErrorInfo{
-		LastPhase:  s.Project.Phase,
-		LastTask:   s.Progress.CurrentTask,
-		ErrorType:  errorType,
-		Message:    message,
-		Timestamp:  t,
-		RetryCount: retryCount,
+		LastPhase:   s.Project.Phase,
+		LastTask:    s.Progress.CurrentTask,
+		TargetPhase: targetPhase,
+		ErrorType:   errorType,
+		Message:     message,
+		Timestamp:   t,
+		RetryCount:  retryCount,
 	}
 }
 
@@ -310,6 +312,73 @@ type NextResult struct {
 	Reason     string `json:"reason,omitempty"`      // Reason when action is stop
 	Escalation string `json:"escalation,omitempty"`  // Escalation ID if reason is escalation_pending
 	Details    string `json:"details,omitempty"`     // Details if reason is validation_failed
+}
+
+// RecoveryInfo holds information about recovery options after a failure.
+type RecoveryInfo struct {
+	HasError         bool     `json:"has_error"`
+	AvailableActions []string `json:"available_actions,omitempty"`
+	LastError        string   `json:"last_error,omitempty"`
+}
+
+// GetRecovery returns recovery information for the current state.
+func GetRecovery(dir string) RecoveryInfo {
+	s, err := Get(dir)
+	if err != nil {
+		return RecoveryInfo{}
+	}
+
+	if s.Error == nil {
+		return RecoveryInfo{HasError: false}
+	}
+
+	return RecoveryInfo{
+		HasError:         true,
+		AvailableActions: []string{"retry", "skip", "escalate"},
+		LastError:        s.Error.Message,
+	}
+}
+
+// LastFailedTransition holds info about the last failed transition for retry.
+type LastFailedTransition struct {
+	FromPhase string
+	ToPhase   string
+}
+
+// getLastFailedTransition extracts the target phase from an error message.
+// This is a simplified implementation - in practice you'd store this explicitly.
+func getLastFailedTransition(s State) *LastFailedTransition {
+	if s.Error == nil {
+		return nil
+	}
+
+	// The target phase is in the error message for illegal transitions
+	// For precondition failures, we need to track it separately
+	// For now, we'll store the attempted "to" phase in a different way
+	// This is a gap - we should enhance ErrorInfo to store the target phase
+
+	return nil // Will need enhancement
+}
+
+// Retry re-attempts the last failed transition.
+// This is a simplified implementation that requires the caller to know the target phase.
+func Retry(dir string, now func() time.Time, checker PreconditionChecker) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if s.Error == nil {
+		return State{}, fmt.Errorf("no previous failure to retry")
+	}
+
+	// For now, we need to store the target phase in Error
+	// Let's enhance ErrorInfo to include TargetPhase
+	if s.Error.TargetPhase == "" {
+		return State{}, fmt.Errorf("no target phase recorded for retry")
+	}
+
+	return TransitionWithChecker(dir, s.Error.TargetPhase, TransitionOpts{}, now, checker)
 }
 
 // Next determines the next action based on current state.

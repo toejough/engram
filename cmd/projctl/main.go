@@ -9,6 +9,8 @@ func main() {
 			targ.Targ(stateGet).Name("get").Description("Get current project state"),
 			targ.Targ(stateTransition).Name("transition").Description("Transition to a new state"),
 			targ.Targ(stateNext).Name("next").Description("Determine next action based on current state"),
+			targ.Targ(stateRetry).Name("retry").Description("Re-attempt the last failed transition"),
+			targ.Targ(stateRecovery).Name("recovery").Description("Show recovery options after failure"),
 		),
 		targ.Group("log",
 			targ.Targ(logWrite).Name("write").Description("Write an entry to the project log"),

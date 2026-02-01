@@ -106,3 +106,35 @@ func stateNext(args stateNextArgs) error {
 
 	return nil
 }
+
+type stateRetryArgs struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func stateRetry(args stateRetryArgs) error {
+	s, err := state.Retry(args.Dir, time.Now, nil)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Retried successfully, now in phase %q\n", s.Project.Phase)
+
+	return nil
+}
+
+type stateRecoveryArgs struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func stateRecovery(args stateRecoveryArgs) error {
+	recovery := state.GetRecovery(args.Dir)
+
+	data, err := json.MarshalIndent(recovery, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode recovery info: %w", err)
+	}
+
+	fmt.Println(string(data))
+
+	return nil
+}
