@@ -35,24 +35,26 @@ var ValidSubjects = map[string]bool{
 
 // Entry is a single log entry.
 type Entry struct {
-	Timestamp      string `json:"timestamp"`
-	Level          string `json:"level"`
-	Subject        string `json:"subject"`
-	Task           string `json:"task,omitempty"`
-	Phase          string `json:"phase,omitempty"`
-	Model          string `json:"model,omitempty"`
-	Message        string `json:"message"`
-	Detail         any    `json:"detail,omitempty"`
-	TokensEstimate int    `json:"tokens_estimate,omitempty"`
+	Timestamp       string `json:"timestamp"`
+	Level           string `json:"level"`
+	Subject         string `json:"subject"`
+	Task            string `json:"task,omitempty"`
+	Phase           string `json:"phase,omitempty"`
+	Model           string `json:"model,omitempty"`
+	Message         string `json:"message"`
+	Detail          any    `json:"detail,omitempty"`
+	TokensEstimate  int    `json:"tokens_estimate,omitempty"`
+	ContextEstimate int    `json:"context_estimate,omitempty"`
 }
 
 // WriteOpts holds optional fields for a log entry.
 type WriteOpts struct {
-	Task   string
-	Phase  string
-	Model  string
-	Detail any
-	Tokens int // Override token estimate (0 = calculate from message)
+	Task            string
+	Phase           string
+	Model           string
+	Detail          any
+	Tokens          int // Override token estimate (0 = calculate from message)
+	ContextEstimate int // Current context usage estimate (tokens)
 }
 
 // ReadOpts holds options for reading log entries.
@@ -77,15 +79,16 @@ func Write(dir string, level string, subject string, message string, opts WriteO
 	}
 
 	entry := Entry{
-		Timestamp:      now().UTC().Format(time.RFC3339),
-		Level:          level,
-		Subject:        subject,
-		Message:        message,
-		Task:           opts.Task,
-		Phase:          opts.Phase,
-		Model:          opts.Model,
-		Detail:         opts.Detail,
-		TokensEstimate: tokens,
+		Timestamp:       now().UTC().Format(time.RFC3339),
+		Level:           level,
+		Subject:         subject,
+		Message:         message,
+		Task:            opts.Task,
+		Phase:           opts.Phase,
+		Model:           opts.Model,
+		Detail:          opts.Detail,
+		TokensEstimate:  tokens,
+		ContextEstimate: opts.ContextEstimate,
 	}
 
 	line, err := json.Marshal(entry)

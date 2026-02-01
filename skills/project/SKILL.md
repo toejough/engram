@@ -19,6 +19,7 @@ Manage projects through structured phases via state machine.
 | Never skip audits | Audit loop runs until zero defects |
 | Never ask to continue | If `projctl state next` returns `continue`, proceed immediately |
 | Sub-agent dispatch | ALL skill work via Task tool - orchestrator never reads/writes code |
+| Context budget | At 80% warn, at 90% complete task then compact |
 
 ## Sub-Agent Mandate
 
@@ -32,6 +33,17 @@ Manage projects through structured phases via state machine.
 | git status | Inline implementation work |
 
 **Dispatch:** `Skill tool` for /tdd-red, /commit, etc. `Task tool` for exploration.
+
+## Context Budget
+
+Track context after each dispatch: `projctl log write --context-estimate N`
+
+| Threshold | Action |
+|-----------|--------|
+| >80% | Log warning, consider compaction |
+| >90% | Complete current task, then compact |
+
+Estimate: count messages × avg length, or tool output sizes.
 
 ## Control Loop
 
