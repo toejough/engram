@@ -441,16 +441,17 @@ func TestTransitionPrecondition_TaskComplete(t *testing.T) {
 
 // mockPreconditionChecker implements state.PreconditionChecker for testing.
 type mockPreconditionChecker struct {
-	requirementsExists         bool
-	requirementsHasIDs         bool
-	designExists               bool
-	designHasIDs               bool
-	traceValidationPasses      bool
-	testsExist                 bool
-	testsFail                  bool
-	testsPass                  bool
-	acceptanceCriteriaComplete bool
-	currentTaskID              string
+	requirementsExists          bool
+	requirementsHasIDs          bool
+	designExists                bool
+	designHasIDs                bool
+	traceValidationPasses       bool
+	testsExist                  bool
+	testsFail                   bool
+	testsPass                   bool
+	acceptanceCriteriaComplete  bool
+	incompleteAcceptanceCriteria []string
+	currentTaskID               string
 }
 
 func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
@@ -488,6 +489,10 @@ func (m *mockPreconditionChecker) TestsPass(dir string) bool {
 func (m *mockPreconditionChecker) AcceptanceCriteriaComplete(dir, taskID string) bool {
 	m.currentTaskID = taskID
 	return m.acceptanceCriteriaComplete
+}
+
+func (m *mockPreconditionChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string {
+	return m.incompleteAcceptanceCriteria
 }
 
 // TEST-304 traces: TASK-010
@@ -643,12 +648,15 @@ func TestNextWithChecker_ValidationFailed(t *testing.T) {
 		walkToPhaseWithTask(t, dir, "task-audit", "TASK-001")
 
 		checker := &mockPreconditionChecker{
-			acceptanceCriteriaComplete: false,
+			acceptanceCriteriaComplete:   false,
+			incompleteAcceptanceCriteria: []string{"First AC item", "Second AC item"},
 		}
 		result := state.NextWithChecker(dir, checker)
 		g.Expect(result.Action).To(Equal("stop"))
 		g.Expect(result.Reason).To(Equal("validation_failed"))
-		g.Expect(result.Details).To(ContainSubstring("acceptance criteria"))
+		g.Expect(result.Details).To(ContainSubstring("acceptance criteria for TASK-001 are incomplete"))
+		g.Expect(result.Details).To(ContainSubstring("- First AC item"))
+		g.Expect(result.Details).To(ContainSubstring("- Second AC item"))
 	})
 
 	t.Run("returns continue when AC complete at task-audit", func(t *testing.T) {

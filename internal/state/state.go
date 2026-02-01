@@ -125,6 +125,7 @@ type PreconditionChecker interface {
 	TestsFail(dir string) bool
 	TestsPass(dir string) bool
 	AcceptanceCriteriaComplete(dir, taskID string) bool
+	IncompleteAcceptanceCriteria(dir, taskID string) []string // Returns list of incomplete AC items
 }
 
 // Preconditions maps phases to their required preconditions.
@@ -429,10 +430,15 @@ func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 	if currentPhase == "task-audit" && checker != nil {
 		taskID := s.Progress.CurrentTask
 		if taskID != "" && !checker.AcceptanceCriteriaComplete(dir, taskID) {
+			incompleteItems := checker.IncompleteAcceptanceCriteria(dir, taskID)
+			details := "acceptance criteria for " + taskID + " are incomplete:"
+			for _, item := range incompleteItems {
+				details += "\n- " + item
+			}
 			return NextResult{
 				Action:  "stop",
 				Reason:  "validation_failed",
-				Details: "acceptance criteria for " + taskID + " are incomplete",
+				Details: details,
 			}
 		}
 	}

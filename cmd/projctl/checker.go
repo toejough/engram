@@ -89,3 +89,22 @@ func (c *DefaultChecker) AcceptanceCriteriaComplete(dir, taskID string) bool {
 
 	return result.AllComplete
 }
+
+func (c *DefaultChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string {
+	if taskID == "" {
+		return nil
+	}
+
+	result := task.ValidateAcceptanceCriteria(dir, taskID)
+	if result.Error != "" {
+		return nil
+	}
+
+	var incomplete []string
+	for _, item := range result.Items {
+		if !item.Complete {
+			incomplete = append(incomplete, item.Text)
+		}
+	}
+	return incomplete
+}
