@@ -16,13 +16,15 @@ type logWriteArgs struct {
 	Task    string `targ:"flag,desc=Task ID (e.g. TASK-004)"`
 	Phase   string `targ:"flag,desc=Current phase"`
 	Model   string `targ:"flag,desc=Model used (haiku|sonnet|opus)"`
+	Tokens  int    `targ:"flag,desc=Override token estimate with known value"`
 }
 
 func logWrite(args logWriteArgs) error {
 	err := log.Write(args.Dir, args.Level, args.Subject, args.Message, log.WriteOpts{
-		Task:  args.Task,
-		Phase: args.Phase,
-		Model: args.Model,
+		Task:   args.Task,
+		Phase:  args.Phase,
+		Model:  args.Model,
+		Tokens: args.Tokens,
 	}, time.Now)
 	if err != nil {
 		return err

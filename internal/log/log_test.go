@@ -243,7 +243,7 @@ func TestWrite_TokenEstimate(t *testing.T) {
 	dir := t.TempDir()
 
 	// 40 characters / 4 = 10 tokens
-	message := "This is exactly forty characters long!!"
+	message := "This is exactly forty characters long!!!"
 	g.Expect(len(message)).To(Equal(40))
 
 	err := log.Write(dir, "status", "task-status", message, log.WriteOpts{}, nowFunc())

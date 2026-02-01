@@ -35,14 +35,15 @@ var ValidSubjects = map[string]bool{
 
 // Entry is a single log entry.
 type Entry struct {
-	Timestamp string `json:"timestamp"`
-	Level     string `json:"level"`
-	Subject   string `json:"subject"`
-	Task      string `json:"task,omitempty"`
-	Phase     string `json:"phase,omitempty"`
-	Model     string `json:"model,omitempty"`
-	Message   string `json:"message"`
-	Detail    any    `json:"detail,omitempty"`
+	Timestamp      string `json:"timestamp"`
+	Level          string `json:"level"`
+	Subject        string `json:"subject"`
+	Task           string `json:"task,omitempty"`
+	Phase          string `json:"phase,omitempty"`
+	Model          string `json:"model,omitempty"`
+	Message        string `json:"message"`
+	Detail         any    `json:"detail,omitempty"`
+	TokensEstimate int    `json:"tokens_estimate,omitempty"`
 }
 
 // WriteOpts holds optional fields for a log entry.
@@ -51,6 +52,7 @@ type WriteOpts struct {
 	Phase  string
 	Model  string
 	Detail any
+	Tokens int // Override token estimate (0 = calculate from message)
 }
 
 // ReadOpts holds options for reading log entries.
@@ -68,15 +70,22 @@ func Write(dir string, level string, subject string, message string, opts WriteO
 		return fmt.Errorf("invalid subject %q (valid: %v)", subject, subjectKeys())
 	}
 
+	// Calculate token estimate: chars/4, round up
+	tokens := opts.Tokens
+	if tokens == 0 && len(message) > 0 {
+		tokens = (len(message) + 3) / 4 // Round up
+	}
+
 	entry := Entry{
-		Timestamp: now().UTC().Format(time.RFC3339),
-		Level:     level,
-		Subject:   subject,
-		Message:   message,
-		Task:      opts.Task,
-		Phase:     opts.Phase,
-		Model:     opts.Model,
-		Detail:    opts.Detail,
+		Timestamp:      now().UTC().Format(time.RFC3339),
+		Level:          level,
+		Subject:        subject,
+		Message:        message,
+		Task:           opts.Task,
+		Phase:          opts.Phase,
+		Model:          opts.Model,
+		Detail:         opts.Detail,
+		TokensEstimate: tokens,
 	}
 
 	line, err := json.Marshal(entry)
