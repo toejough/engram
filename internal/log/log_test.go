@@ -115,6 +115,45 @@ func TestWrite(t *testing.T) {
 	})
 }
 
+// TEST-410 traces: TASK-016
+// Test Write includes model field in entry.
+func TestWrite_ModelField(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "dispatched", log.WriteOpts{
+		Task:  "TASK-001",
+		Model: "haiku",
+	}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.Model).To(Equal("haiku"))
+}
+
+// TEST-411 traces: TASK-016
+// Test Write omits model when empty (backwards compatible).
+func TestWrite_ModelOmittedWhenEmpty(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "started", log.WriteOpts{
+		Task: "TASK-001",
+	}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	line := strings.TrimSpace(string(content))
+	g.Expect(line).ToNot(ContainSubstring(`"model"`))
+}
+
 func TestWriteProperty(t *testing.T) {
 	levels := make([]string, 0, len(log.ValidLevels))
 	for k := range log.ValidLevels {
@@ -147,4 +186,52 @@ func TestWriteProperty(t *testing.T) {
 		g.Expect(entry.Subject).To(Equal(subject))
 		g.Expect(entry.Message).To(Equal(message))
 	})
+}
+
+// TEST-412 traces: TASK-016
+// Test Read returns all entries when no filter.
+func TestRead_AllEntries(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Write some entries
+	_ = log.Write(dir, "status", "task-status", "first", log.WriteOpts{Task: "TASK-001"}, nowFunc())
+	_ = log.Write(dir, "phase", "phase-change", "second", log.WriteOpts{}, nowFunc())
+
+	entries, err := log.Read(dir, log.ReadOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(HaveLen(2))
+	g.Expect(entries[0].Message).To(Equal("first"))
+	g.Expect(entries[1].Message).To(Equal("second"))
+}
+
+// TEST-413 traces: TASK-016
+// Test Read filters by model.
+func TestRead_FilterByModel(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Write entries with different models
+	_ = log.Write(dir, "status", "task-status", "haiku task", log.WriteOpts{Model: "haiku"}, nowFunc())
+	_ = log.Write(dir, "status", "task-status", "sonnet task", log.WriteOpts{Model: "sonnet"}, nowFunc())
+	_ = log.Write(dir, "status", "task-status", "opus task", log.WriteOpts{Model: "opus"}, nowFunc())
+	_ = log.Write(dir, "status", "task-status", "no model", log.WriteOpts{}, nowFunc())
+
+	// Filter by haiku
+	entries, err := log.Read(dir, log.ReadOpts{Model: "haiku"})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(HaveLen(1))
+	g.Expect(entries[0].Message).To(Equal("haiku task"))
+	g.Expect(entries[0].Model).To(Equal("haiku"))
+}
+
+// TEST-414 traces: TASK-016
+// Test Read returns empty slice when log file missing.
+func TestRead_NoLogFile(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	entries, err := log.Read(dir, log.ReadOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
 }
