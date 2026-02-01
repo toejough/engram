@@ -1541,15 +1541,16 @@ Check LSP availability and use fallbacks when unavailable.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Store explicit learnings in global memory index.
 
 **Acceptance Criteria:**
-- [ ] `projctl memory learn --message TEXT` appends to `~/.claude/memory/index.md`
-- [ ] Entry includes: timestamp, message, optional project context
-- [ ] Format: markdown list item with timestamp prefix
-- [ ] Creates index.md if doesn't exist
-- [ ] `--project NAME` tags learning with project
+- [x] `projctl memory learn --message TEXT` appends to `~/.claude/memory/index.md`
+- [x] Entry includes: timestamp, message, optional project context
+- [x] Format: markdown list item with timestamp prefix
+- [x] Creates index.md if doesn't exist
+- [x] `--project NAME` tags learning with project
 
 **Test Requirements:**
 - Unit: Entry format
@@ -1567,15 +1568,16 @@ Store explicit learnings in global memory index.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Log decisions with reasoning and alternatives.
 
 **Acceptance Criteria:**
-- [ ] `projctl memory decide --context CTX --choice CHOICE --reason REASON --alternatives ALT1,ALT2`
-- [ ] Appends to `~/.claude/memory/decisions/{DATE}-{PROJECT}.jsonl`
-- [ ] Entry: JSON with all fields plus timestamp
-- [ ] Creates directory structure if needed
-- [ ] Orchestrator extracts from result.toml and calls this
+- [x] `projctl memory decide --context CTX --choice CHOICE --reason REASON --alternatives ALT1,ALT2`
+- [x] Appends to `~/.claude/memory/decisions/{DATE}-{PROJECT}.jsonl`
+- [x] Entry: JSON with all fields plus timestamp
+- [x] Creates directory structure if needed
+- [x] Orchestrator extracts from result.toml and calls this
 
 **Test Requirements:**
 - Unit: Entry format
@@ -1592,15 +1594,16 @@ Log decisions with reasoning and alternatives.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Generate compressed session summary.
 
 **Acceptance Criteria:**
-- [ ] `projctl memory session-end --project NAME` creates session summary
-- [ ] Output: `~/.claude/memory/sessions/{DATE}-{PROJECT}.md`
-- [ ] Includes: session duration, tasks completed, key decisions, learnings
-- [ ] Compressed to < 2000 characters
-- [ ] Extracts from project logs and decisions.jsonl
+- [x] `projctl memory session-end --project NAME` creates session summary
+- [x] Output: `~/.claude/memory/sessions/{DATE}-{PROJECT}.md`
+- [x] Includes: session duration, tasks completed, key decisions, learnings
+- [x] Compressed to < 2000 characters
+- [x] Extracts from project logs and decisions.jsonl
 
 **Test Requirements:**
 - Unit: Summary generation
@@ -1617,15 +1620,16 @@ Generate compressed session summary.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Structured search across memory files.
 
 **Acceptance Criteria:**
-- [ ] `projctl memory grep PATTERN` searches index.md and sessions/
-- [ ] Returns matching lines with context
-- [ ] `--project NAME` limits to specific project
-- [ ] `--decisions` also searches decisions/ files
-- [ ] Output includes source file and line number
+- [x] `projctl memory grep PATTERN` searches index.md and sessions/
+- [x] Returns matching lines with context
+- [x] `--project NAME` limits to specific project
+- [x] `--decisions` also searches decisions/ files
+- [x] Output includes source file and line number
 
 **Test Requirements:**
 - Unit: Pattern matching
@@ -1642,16 +1646,17 @@ Structured search across memory files.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Semantic search using embeddings.
 
 **Acceptance Criteria:**
-- [ ] `projctl memory query TEXT` returns semantically similar memories
-- [ ] Uses SQLite-vec for vector storage
-- [ ] Uses local ONNX model for embeddings (no API calls)
-- [ ] Returns top N results (default 5) with similarity scores
-- [ ] Searches index.md and session summaries
-- [ ] Creates embeddings.db on first use
+- [x] `projctl memory query TEXT` returns semantically similar memories
+- [x] Uses SQLite-vec for vector storage
+- [x] Uses local ONNX model for embeddings (no API calls)
+- [x] Returns top N results (default 5) with similarity scores
+- [x] Searches index.md and session summaries
+- [x] Creates embeddings.db on first use
 
 **Test Requirements:**
 - Unit: Embedding generation
@@ -1668,15 +1673,16 @@ Semantic search using embeddings.
 **Phase:** 13
 **Priority:** Medium
 **Timeline:** Next Quarter
+**Status:** COMPLETE
 
 Context write queries memory and includes relevant results.
 
 **Acceptance Criteria:**
-- [ ] `projctl context write --inject-memory QUERY` queries memory
-- [ ] Includes top 3 relevant memories in context under `[memory]` section
-- [ ] Query derived from task description if not specified
-- [ ] Memory injection automatic for certain phases: architect-interview, pm-interview
-- [ ] Memories compressed to < 500 tokens total
+- [x] `projctl context write --inject-memory QUERY` queries memory
+- [x] Includes top 3 relevant memories in context under `[memory]` section
+- [x] Query derived from task description if not specified
+- [x] Memory injection automatic for certain phases: architect-interview, pm-interview
+- [x] Memories compressed to < 500 tokens total
 
 **Test Requirements:**
 - Integration: Memory appears in context
