@@ -110,6 +110,23 @@ func TestReport_PropertyTotalMatchesBreakdown(t *testing.T) {
 	})
 }
 
+// TEST-515 traces: TASK-028
+// Test Report filters by session.
+func TestReport_FilterBySession(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Write entries with different sessions
+	_ = log.Write(dir, "status", "task-status", "sess1-msg", log.WriteOpts{Tokens: 100, Session: "session-1"}, nowFunc())
+	_ = log.Write(dir, "status", "task-status", "sess2-msg", log.WriteOpts{Tokens: 200, Session: "session-2"}, nowFunc())
+	_ = log.Write(dir, "status", "task-status", "sess1-msg2", log.WriteOpts{Tokens: 50, Session: "session-1"}, nowFunc())
+
+	report, err := usage.Report(dir, usage.ReportOpts{Session: "session-1"})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(report.TotalTokens).To(Equal(150))
+	g.Expect(report.EntryCount).To(Equal(2))
+}
+
 // TEST-520 traces: TASK-029
 // Test Check returns OK when under warning threshold.
 func TestCheck_UnderWarning(t *testing.T) {
