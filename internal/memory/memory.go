@@ -351,6 +351,7 @@ type QueryOpts struct {
 	Text       string
 	Limit      int
 	MemoryRoot string
+	ModelDir   string // Directory for ONNX models (default: ~/.claude/models)
 }
 
 // QueryResult represents a single query result.
@@ -368,6 +369,15 @@ type QueryResults struct {
 	APICallsMade         bool
 	EmbeddingsCount      int
 	NewEmbeddingsCreated int
+	// ONNX model fields (TASK-052: Real ONNX inference)
+	EmbeddingDimensions int
+	UsedONNXRuntime     bool
+	ModelDownloaded     bool
+	ModelPath           string
+	ModelLoaded         bool
+	ModelType           string
+	InferenceExecuted   bool
+	UsedMockEmbeddings  bool
 }
 
 // Query searches memory for semantically similar content using embeddings.

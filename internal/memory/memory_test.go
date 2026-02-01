@@ -985,7 +985,7 @@ func TestQueryUsesSQLiteVec(t *testing.T) {
 	g.Expect(results.VectorStorage).To(Equal("sqlite-vec"))
 }
 
-// TEST-822: Query uses ONNX model for embeddings
+// TEST-822: Query uses ONNX model for embeddings with e5-small model
 func TestQueryUsesONNXModel(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1006,11 +1006,17 @@ func TestQueryUsesONNXModel(t *testing.T) {
 	results, err := memory.Query(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Results should indicate ONNX model was used
-	g.Expect(results.EmbeddingModel).To(ContainSubstring("onnx"))
+	// Results should indicate real ONNX model was used (not mock)
+	g.Expect(results.EmbeddingModel).To(Equal("e5-small-v2"))
+
+	// Model should be e5-small with 384 dimensions
+	g.Expect(results.EmbeddingDimensions).To(Equal(384))
 
 	// Should NOT have made any API calls (field should be false/zero)
 	g.Expect(results.APICallsMade).To(BeFalse())
+
+	// Should have actually loaded and run inference with ONNX Runtime
+	g.Expect(results.UsedONNXRuntime).To(BeTrue())
 }
 
 // TEST-823: Query uses semantic similarity not keyword matching
@@ -1287,5 +1293,222 @@ func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 
 		// Property: No API calls should have been made
 		g.Expect(results.APICallsMade).To(BeFalse())
+
+		// Property: ONNX model was actually used for inference
+		g.Expect(results.UsedONNXRuntime).To(BeTrue())
+		g.Expect(results.EmbeddingModel).To(Equal("e5-small-v2"))
 	})
+}
+
+// TEST-832: Query downloads e5-small model on first use
+func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Use custom model directory to avoid polluting real cache
+	modelDir := filepath.Join(tempDir, "models")
+	err = os.MkdirAll(modelDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Test content for model download`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Model should not exist yet
+	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+	_, err = os.Stat(modelPath)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	opts := memory.QueryOpts{
+		Text:       "test query",
+		MemoryRoot: memoryDir,
+		ModelDir:   modelDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Model should now exist after download
+	_, err = os.Stat(modelPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should have downloaded the model
+	g.Expect(results.ModelDownloaded).To(BeTrue())
+	g.Expect(results.ModelPath).To(Equal(modelPath))
+}
+
+// TEST-833: Query uses default model directory ~/.claude/models
+func TestQueryUsesDefaultModelDirectory(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Test content`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "test",
+		MemoryRoot: memoryDir,
+		// ModelDir not specified - should use default
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should use ~/.claude/models/e5-small-v2.onnx
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+	expectedPath := filepath.Join(homeDir, ".claude", "models", "e5-small-v2.onnx")
+	g.Expect(results.ModelPath).To(Equal(expectedPath))
+}
+
+// TEST-834: Query verifies model dimensions match e5-small (384)
+func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	modelDir := filepath.Join(tempDir, "models")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.MkdirAll(modelDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Test embedding dimensions`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "dimensions test",
+		MemoryRoot: memoryDir,
+		ModelDir:   modelDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Must verify e5-small produces 384-dimensional embeddings
+	g.Expect(results.EmbeddingDimensions).To(Equal(384))
+
+	// Should have actually run inference to verify dimensions
+	g.Expect(results.InferenceExecuted).To(BeTrue())
+}
+
+// TEST-835: Query loads ONNX model into memory
+func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	modelDir := filepath.Join(tempDir, "models")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.MkdirAll(modelDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Model loading test`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "load test",
+		MemoryRoot: memoryDir,
+		ModelDir:   modelDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should have loaded the ONNX model successfully
+	g.Expect(results.ModelLoaded).To(BeTrue())
+
+	// Model type should be ONNX
+	g.Expect(results.ModelType).To(Equal("onnx"))
+
+	// Should have ONNX Runtime session active during inference
+	g.Expect(results.UsedONNXRuntime).To(BeTrue())
+}
+
+// TEST-836: Query performs actual inference not mock embeddings
+func TestQueryPerformsActualInference(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	modelDir := filepath.Join(tempDir, "models")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.MkdirAll(modelDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Database design patterns
+- 2024-01-02: Frontend styling with CSS`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "database",
+		MemoryRoot: memoryDir,
+		ModelDir:   modelDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should have executed real inference
+	g.Expect(results.InferenceExecuted).To(BeTrue())
+
+	// Results should NOT be from mock embeddings
+	g.Expect(results.UsedMockEmbeddings).To(BeFalse())
+
+	// Should have used e5-small model for inference
+	g.Expect(results.EmbeddingModel).To(Equal("e5-small-v2"))
+
+	// Embeddings should be 384-dimensional vectors from real model
+	g.Expect(results.EmbeddingDimensions).To(Equal(384))
+}
+
+// TEST-837: Query reuses downloaded model on subsequent calls
+func TestQueryReusesDownloadedModel(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	modelDir := filepath.Join(tempDir, "models")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.MkdirAll(modelDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Model reuse test`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "test",
+		MemoryRoot: memoryDir,
+		ModelDir:   modelDir,
+	}
+
+	// First query should download model
+	results1, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results1.ModelDownloaded).To(BeTrue())
+
+	// Second query should reuse existing model
+	results2, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results2.ModelDownloaded).To(BeFalse())
+	g.Expect(results2.ModelLoaded).To(BeTrue())
+
+	// Both should use same model path
+	g.Expect(results1.ModelPath).To(Equal(results2.ModelPath))
 }
