@@ -723,6 +723,81 @@ func TestTransition_ClearsErrorOnSuccess(t *testing.T) {
 	g.Expect(s.Error).To(BeNil())
 }
 
+// TEST-440 traces: TASK-019
+// Test GetRecovery returns recovery info after failure.
+func TestGetRecovery_AfterFailure(t *testing.T) {
+	t.Run("shows available actions after failure", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cause a failure
+		checker := &mockPreconditionChecker{requirementsExists: false}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		recovery := state.GetRecovery(dir)
+		g.Expect(recovery.HasError).To(BeTrue())
+		g.Expect(recovery.AvailableActions).To(ContainElements("retry", "skip", "escalate"))
+	})
+
+	t.Run("no recovery info when no error", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		recovery := state.GetRecovery(dir)
+		g.Expect(recovery.HasError).To(BeFalse())
+		g.Expect(recovery.AvailableActions).To(BeEmpty())
+	})
+}
+
+// TEST-441 traces: TASK-019
+// Test Retry re-attempts the last failed transition.
+func TestRetry(t *testing.T) {
+	t.Run("retry succeeds when precondition fixed", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Fail first
+		failChecker := &mockPreconditionChecker{requirementsExists: false}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), failChecker)
+		g.Expect(err).To(HaveOccurred())
+
+		// Retry with fixed precondition
+		successChecker := &mockPreconditionChecker{requirementsExists: true, requirementsHasIDs: true}
+		s, err := state.Retry(dir, nowFunc(), successChecker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
+		g.Expect(s.Error).To(BeNil())
+	})
+
+	t.Run("retry errors when no previous failure", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Retry(dir, nowFunc(), nil)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("no previous failure"))
+	})
+}
+
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
 func walkToPhase(t *testing.T, dir, target string) {
