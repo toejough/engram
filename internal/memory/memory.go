@@ -123,3 +123,19 @@ func Decide(opts DecideOpts) (*DecideResult, error) {
 		FilePath: filePath,
 	}, nil
 }
+
+// SessionEndOpts holds options for session end summary.
+type SessionEndOpts struct {
+	Project    string
+	MemoryRoot string
+}
+
+// SessionEndResult contains the result of creating a session summary.
+type SessionEndResult struct {
+	FilePath string
+}
+
+// SessionEnd generates a compressed session summary.
+func SessionEnd(opts SessionEndOpts) (*SessionEndResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}

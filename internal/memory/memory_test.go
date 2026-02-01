@@ -505,3 +505,211 @@ func TestDecideUsesTodayDate(t *testing.T) {
 	today := time.Now().Format("2006-01-02")
 	g.Expect(result.FilePath).To(ContainSubstring(today))
 }
+
+// ============================================================================
+// Session end tests (TASK-050)
+// ============================================================================
+
+// TEST-800: Session end creates sessions directory if not exists
+func TestSessionEndCreatesDirectoryIfNotExists(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+
+	// Verify sessions directory doesn't exist
+	_, err := os.Stat(sessionsDir)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	opts := memory.SessionEndOpts{
+		Project:    "test-project",
+		MemoryRoot: memoryDir,
+	}
+
+	result, err := memory.SessionEnd(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeNil())
+
+	// Verify sessions directory was created
+	_, err = os.Stat(sessionsDir)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-801: Session end file format and location
+func TestSessionEndFileLocation(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.SessionEndOpts{
+		Project:    "my-project",
+		MemoryRoot: memoryDir,
+	}
+
+	result, err := memory.SessionEnd(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify file path format: {DATE}-{PROJECT}.md
+	today := time.Now().Format("2006-01-02")
+	expectedPath := filepath.Join(memoryDir, "sessions", today+"-my-project.md")
+	g.Expect(result.FilePath).To(Equal(expectedPath))
+
+	// Verify file exists
+	_, err = os.Stat(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-802: Session summary includes key sections
+func TestSessionEndIncludesKeySections(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.SessionEndOpts{
+		Project:    "test-project",
+		MemoryRoot: memoryDir,
+	}
+
+	result, err := memory.SessionEnd(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+	contentStr := string(content)
+
+	// Should include standard sections
+	g.Expect(contentStr).To(ContainSubstring("Session Summary"))
+	g.Expect(contentStr).To(ContainSubstring("test-project"))
+}
+
+// TEST-803: Session summary is under character limit
+func TestSessionEndUnderCharacterLimit(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Create some decisions to summarize
+	for i := 0; i < 10; i++ {
+		decideOpts := memory.DecideOpts{
+			Context:      strings.Repeat("Long context text ", 20),
+			Choice:       "Choice " + string(rune('A'+i)),
+			Reason:       strings.Repeat("Detailed reason ", 15),
+			Alternatives: []string{"Alt1", "Alt2", "Alt3"},
+			Project:      "large-project",
+			MemoryRoot:   memoryDir,
+		}
+		_, _ = memory.Decide(decideOpts)
+	}
+
+	opts := memory.SessionEndOpts{
+		Project:    "large-project",
+		MemoryRoot: memoryDir,
+	}
+
+	result, err := memory.SessionEnd(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Must be under 2000 characters
+	g.Expect(len(content)).To(BeNumerically("<", 2000))
+}
+
+// TEST-804: Session end requires project name
+func TestSessionEndRequiresProject(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.SessionEndOpts{
+		Project:    "",
+		MemoryRoot: memoryDir,
+	}
+
+	_, err := memory.SessionEnd(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("project"))
+}
+
+// TEST-805: Session end includes decisions from today
+func TestSessionEndIncludesDecisions(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Create a decision first
+	decideOpts := memory.DecideOpts{
+		Context:      "Test decision context",
+		Choice:       "PostgreSQL",
+		Reason:       "Better support",
+		Alternatives: []string{"MySQL"},
+		Project:      "decision-project",
+		MemoryRoot:   memoryDir,
+	}
+	_, err := memory.Decide(decideOpts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.SessionEndOpts{
+		Project:    "decision-project",
+		MemoryRoot: memoryDir,
+	}
+
+	result, err := memory.SessionEnd(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should include decision information
+	g.Expect(string(content)).To(ContainSubstring("PostgreSQL"))
+}
+
+// TEST-806: Property-based test for size limit
+func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		g := NewWithT(t)
+
+		// Use alphanumeric suffix only for valid filesystem paths
+		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
+		tempDir := os.TempDir()
+		memoryDir := filepath.Join(tempDir, "session-test-"+suffix)
+		defer os.RemoveAll(memoryDir)
+
+		projectName := rapid.StringMatching(`[a-z]{5,10}`).Draw(t, "project")
+
+		// Create random number of decisions
+		numDecisions := rapid.IntRange(0, 20).Draw(t, "numDecisions")
+		for i := 0; i < numDecisions; i++ {
+			decideOpts := memory.DecideOpts{
+				Context:      rapid.StringMatching(`[a-zA-Z0-9 ]{10,100}`).Draw(t, "context"),
+				Choice:       rapid.StringMatching(`[a-zA-Z0-9 ]{5,20}`).Draw(t, "choice"),
+				Reason:       rapid.StringMatching(`[a-zA-Z0-9 ]{10,50}`).Draw(t, "reason"),
+				Alternatives: []string{rapid.StringMatching(`[a-zA-Z0-9]{5,10}`).Draw(t, "alt")},
+				Project:      projectName,
+				MemoryRoot:   memoryDir,
+			}
+			_, _ = memory.Decide(decideOpts)
+		}
+
+		opts := memory.SessionEndOpts{
+			Project:    projectName,
+			MemoryRoot: memoryDir,
+		}
+
+		result, err := memory.SessionEnd(opts)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		content, err := os.ReadFile(result.FilePath)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Property: output always under 2000 characters
+		g.Expect(len(content)).To(BeNumerically("<", 2000))
+	})
+}

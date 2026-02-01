@@ -92,6 +92,7 @@ func main() {
 		targ.Group("memory",
 			targ.Targ(memoryLearn).Name("learn").Description("Store a learning in the memory index"),
 			targ.Targ(memoryDecide).Name("decide").Description("Log a decision with reasoning and alternatives"),
+			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
 		),
 	)
 }

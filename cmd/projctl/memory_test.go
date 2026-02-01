@@ -133,3 +133,19 @@ func TestMemoryDecideRequiresFields(t *testing.T) {
 	_, err := cmd.CombinedOutput()
 	g.Expect(err).To(HaveOccurred(), "Should fail without context")
 }
+
+// TestMemorySessionEndCommand tests the CLI interface for projctl memory session-end
+func TestMemorySessionEndCommand(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	cmd := exec.Command("projctl", "memory", "session-end",
+		"--project", "test-project",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Session summary saved"))
+}
