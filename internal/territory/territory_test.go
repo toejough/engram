@@ -1,9 +1,11 @@
 package territory_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/projctl/internal/territory"
@@ -130,4 +132,89 @@ func TestMarshal_UnderTokenBudget(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	// Must be under 4000 chars (1000 tokens)
 	g.Expect(len(data)).To(BeNumerically("<", 4000))
+}
+
+// TEST-580 traces: TASK-035
+// Test LoadCached returns cached map if recent.
+func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map with recent timestamp
+	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: dir},
+			Packages:  territory.Packages{Count: 5},
+		},
+		CachedAt:  time.Now(),
+		FileCount: 10,
+	}
+	data, _ := territory.MarshalCached(cached)
+	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+
+	// Create directory structure matching the cached count
+	for i := 0; i < 10; i++ {
+		os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+	}
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(hit).To(BeTrue())
+	g.Expect(result.Structure.Root).To(Equal(dir))
+}
+
+// TEST-581 traces: TASK-035
+// Test LoadCached regenerates if cache is old.
+func TestLoadCached_RegeneratesIfOld(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map with old timestamp
+	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: "/old/path"},
+		},
+		CachedAt:  time.Now().Add(-2 * time.Hour), // 2 hours ago
+		FileCount: 10,
+	}
+	data, _ := territory.MarshalCached(cached)
+	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(hit).To(BeFalse())
+	g.Expect(result.Structure.Root).To(Equal(dir)) // Fresh generation
+}
+
+// TEST-582 traces: TASK-035
+// Test LoadCached regenerates if file count changed significantly.
+func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map with file count of 100
+	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: "/old/path"},
+		},
+		CachedAt:  time.Now(),
+		FileCount: 100,
+	}
+	data, _ := territory.MarshalCached(cached)
+	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+
+	// Only create 5 files (> 10% difference from 100)
+	for i := 0; i < 5; i++ {
+		os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+	}
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(hit).To(BeFalse())
+	g.Expect(result.Structure.Root).To(Equal(dir))
 }
