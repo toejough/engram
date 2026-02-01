@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -250,4 +251,257 @@ func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 	// Verify order is preserved (appended, so later entries are after earlier ones)
 	g.Expect(pos1).To(BeNumerically("<", pos2))
 	g.Expect(pos2).To(BeNumerically("<", pos3))
+}
+
+// ============================================================================
+// Decision logging tests (TASK-049)
+// ============================================================================
+
+// TEST-790: Decision creates decisions directory if not exists
+func TestDecideCreatesDirectoryIfNotExists(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	decisionsDir := filepath.Join(memoryDir, "decisions")
+
+	// Verify decisions directory doesn't exist
+	_, err := os.Stat(decisionsDir)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	opts := memory.DecideOpts{
+		Context:      "Test context",
+		Choice:       "Option A",
+		Reason:       "Best option",
+		Alternatives: []string{"Option B", "Option C"},
+		Project:      "test-project",
+		MemoryRoot:   memoryDir,
+	}
+
+	result, err := memory.Decide(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeNil())
+
+	// Verify decisions directory was created
+	_, err = os.Stat(decisionsDir)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-791: Decision file format is JSONL with proper filename
+func TestDecideFileFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "Database selection",
+		Choice:       "PostgreSQL",
+		Reason:       "Better support for complex queries",
+		Alternatives: []string{"MySQL", "MongoDB"},
+		Project:      "my-project",
+		MemoryRoot:   memoryDir,
+	}
+
+	result, err := memory.Decide(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify file exists and has correct name format: {DATE}-{PROJECT}.jsonl
+	today := time.Now().Format("2006-01-02")
+	expectedPath := filepath.Join(memoryDir, "decisions", today+"-my-project.jsonl")
+	g.Expect(result.FilePath).To(Equal(expectedPath))
+
+	// Verify file exists
+	_, err = os.Stat(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-792: Decision entry contains all fields as JSON
+func TestDecideEntryFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "API framework",
+		Choice:       "Gin",
+		Reason:       "Performance and simplicity",
+		Alternatives: []string{"Echo", "Fiber"},
+		Project:      "api-project",
+		MemoryRoot:   memoryDir,
+	}
+
+	result, err := memory.Decide(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Read and parse the JSONL entry
+	content, err := os.ReadFile(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry map[string]interface{}
+	err = json.Unmarshal(content, &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify all fields are present
+	g.Expect(entry["context"]).To(Equal("API framework"))
+	g.Expect(entry["choice"]).To(Equal("Gin"))
+	g.Expect(entry["reason"]).To(Equal("Performance and simplicity"))
+	g.Expect(entry["alternatives"]).To(ContainElements("Echo", "Fiber"))
+	g.Expect(entry).To(HaveKey("timestamp"))
+}
+
+// TEST-793: Decision appends to existing file
+func TestDecideAppendsToExistingFile(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// First decision
+	opts1 := memory.DecideOpts{
+		Context:      "First decision",
+		Choice:       "Choice 1",
+		Reason:       "Reason 1",
+		Alternatives: []string{"Alt1"},
+		Project:      "append-test",
+		MemoryRoot:   memoryDir,
+	}
+	_, err := memory.Decide(opts1)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Second decision
+	opts2 := memory.DecideOpts{
+		Context:      "Second decision",
+		Choice:       "Choice 2",
+		Reason:       "Reason 2",
+		Alternatives: []string{"Alt2"},
+		Project:      "append-test",
+		MemoryRoot:   memoryDir,
+	}
+	result, err := memory.Decide(opts2)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Read the file and verify both entries
+	content, err := os.ReadFile(result.FilePath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	g.Expect(lines).To(HaveLen(2))
+
+	// Verify both entries are valid JSON
+	var entry1, entry2 map[string]interface{}
+	g.Expect(json.Unmarshal([]byte(lines[0]), &entry1)).To(Succeed())
+	g.Expect(json.Unmarshal([]byte(lines[1]), &entry2)).To(Succeed())
+
+	g.Expect(entry1["context"]).To(Equal("First decision"))
+	g.Expect(entry2["context"]).To(Equal("Second decision"))
+}
+
+// TEST-794: Decision requires context
+func TestDecideRequiresContext(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "",
+		Choice:       "Some choice",
+		Reason:       "Some reason",
+		Alternatives: []string{"Alt"},
+		Project:      "test",
+		MemoryRoot:   memoryDir,
+	}
+
+	_, err := memory.Decide(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("context"))
+}
+
+// TEST-795: Decision requires choice
+func TestDecideRequiresChoice(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "Some context",
+		Choice:       "",
+		Reason:       "Some reason",
+		Alternatives: []string{"Alt"},
+		Project:      "test",
+		MemoryRoot:   memoryDir,
+	}
+
+	_, err := memory.Decide(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("choice"))
+}
+
+// TEST-796: Decision requires reason
+func TestDecideRequiresReason(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "Some context",
+		Choice:       "Some choice",
+		Reason:       "",
+		Alternatives: []string{"Alt"},
+		Project:      "test",
+		MemoryRoot:   memoryDir,
+	}
+
+	_, err := memory.Decide(opts)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("reason"))
+}
+
+// TEST-797: Decision works with empty alternatives
+func TestDecideEmptyAlternatives(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "Solo decision",
+		Choice:       "Only option",
+		Reason:       "No alternatives",
+		Alternatives: []string{},
+		Project:      "test",
+		MemoryRoot:   memoryDir,
+	}
+
+	result, err := memory.Decide(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeNil())
+}
+
+// TEST-798: Decision uses today's date in filename
+func TestDecideUsesTodayDate(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	opts := memory.DecideOpts{
+		Context:      "Date test",
+		Choice:       "Test choice",
+		Reason:       "Test reason",
+		Alternatives: []string{},
+		Project:      "date-project",
+		MemoryRoot:   memoryDir,
+	}
+
+	result, err := memory.Decide(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain today's date
+	today := time.Now().Format("2006-01-02")
+	g.Expect(result.FilePath).To(ContainSubstring(today))
 }

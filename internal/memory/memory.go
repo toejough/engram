@@ -50,3 +50,23 @@ func Learn(opts LearnOpts) error {
 
 	return nil
 }
+
+// DecideOpts holds options for decision logging.
+type DecideOpts struct {
+	Context      string
+	Choice       string
+	Reason       string
+	Alternatives []string
+	Project      string
+	MemoryRoot   string
+}
+
+// DecideResult contains the result of logging a decision.
+type DecideResult struct {
+	FilePath string
+}
+
+// Decide logs a decision with reasoning and alternatives.
+func Decide(opts DecideOpts) (*DecideResult, error) {
+	return nil, fmt.Errorf("not implemented")
+}

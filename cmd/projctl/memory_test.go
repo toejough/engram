@@ -96,3 +96,40 @@ func TestMemoryLearnMultipleEntries(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("First CLI learning"))
 	g.Expect(string(content)).To(ContainSubstring("Second CLI learning"))
 }
+
+// TestMemoryDecideCommand tests the CLI interface for projctl memory decide
+func TestMemoryDecideCommand(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	cmd := exec.Command("projctl", "memory", "decide",
+		"--context", "Test decision context",
+		"--choice", "Option A",
+		"--reason", "Best option for testing",
+		"--alternatives", "Option B, Option C",
+		"--project", "test-project",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Decision logged"))
+}
+
+// TestMemoryDecideRequiresFields tests that required fields are enforced
+func TestMemoryDecideRequiresFields(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	// Missing context
+	cmd := exec.Command("projctl", "memory", "decide",
+		"--choice", "Option A",
+		"--reason", "Test reason",
+		"--project", "test",
+		"--memoryroot", memoryDir)
+	_, err := cmd.CombinedOutput()
+	g.Expect(err).To(HaveOccurred(), "Should fail without context")
+}

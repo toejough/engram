@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -35,5 +36,51 @@ func memoryLearn(args memoryLearnArgs) error {
 	}
 
 	fmt.Println("Learned: " + args.Message)
+	return nil
+}
+
+type memoryDecideArgs struct {
+	Context      string `targ:"flag,short=c,required,desc=Decision context"`
+	Choice       string `targ:"flag,required,desc=The choice made"`
+	Reason       string `targ:"flag,short=r,required,desc=Reason for the decision"`
+	Alternatives string `targ:"flag,short=a,desc=Comma-separated alternatives considered"`
+	Project      string `targ:"flag,short=p,required,desc=Project name"`
+	MemoryRoot   string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+}
+
+func memoryDecide(args memoryDecideArgs) error {
+	memoryRoot := args.MemoryRoot
+	if memoryRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		memoryRoot = home + "/.claude/memory"
+	}
+
+	var alternatives []string
+	if args.Alternatives != "" {
+		alternatives = strings.Split(args.Alternatives, ",")
+		for i := range alternatives {
+			alternatives[i] = strings.TrimSpace(alternatives[i])
+		}
+	}
+
+	opts := memory.DecideOpts{
+		Context:      args.Context,
+		Choice:       args.Choice,
+		Reason:       args.Reason,
+		Alternatives: alternatives,
+		Project:      args.Project,
+		MemoryRoot:   memoryRoot,
+	}
+
+	result, err := memory.Decide(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Decision logged to: %s\n", result.FilePath)
 	return nil
 }
