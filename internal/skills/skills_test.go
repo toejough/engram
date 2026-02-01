@@ -420,3 +420,125 @@ func TestUninstall_Idempotent(t *testing.T) {
 	// Then: No error, nothing removed
 	g.Expect(result.Removed).To(BeEmpty())
 }
+
+// TEST-600 traces: TASK-038
+// Test List returns all skill names
+func TestList_ReturnsAllSkills(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-b"), 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-c"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-b", "SKILL.md"), []byte("# B"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-c", "SKILL.md"), []byte("# C"), 0644)).To(Succeed())
+
+	names, err := skills.List(skillsDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(names).To(ConsistOf("skill-a", "skill-b", "skill-c"))
+}
+
+// TEST-601 traces: TASK-038
+// Test List excludes shared directory
+func TestList_ExcludesShared(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "shared"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "shared", "RESULT.md"), []byte("# Shared"), 0644)).To(Succeed())
+
+	names, err := skills.List(skillsDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(names).To(ConsistOf("skill-a"))
+	g.Expect(names).ToNot(ContainElement("shared"))
+}
+
+// TEST-602 traces: TASK-038
+// Test Docs returns SKILL-full.md if exists
+func TestDocs_PrefersFullMd(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Compressed"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL-full.md"), []byte("# Full Documentation"), 0644)).To(Succeed())
+
+	content, err := skills.Docs(skillsDir, "skill-a")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(content).To(ContainSubstring("Full Documentation"))
+}
+
+// TEST-603 traces: TASK-038
+// Test Docs falls back to SKILL.md
+func TestDocs_FallsBackToSkillMd(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Standard SKILL.md"), 0644)).To(Succeed())
+
+	content, err := skills.Docs(skillsDir, "skill-a")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(content).To(ContainSubstring("Standard SKILL.md"))
+}
+
+// TEST-604 traces: TASK-038
+// Test Docs errors for nonexistent skill
+func TestDocs_ErrorsForNonexistent(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+
+	_, err := skills.Docs(skillsDir, "nonexistent")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("not found"))
+}
+
+// TEST-605 traces: TASK-038
+// Test DocsSection returns specific section
+func TestDocsSection_ReturnsSection(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	content := `# Skill A
+
+## Purpose
+
+This is the purpose section.
+
+## Process
+
+1. Step one
+2. Step two
+
+## Rules
+
+- Rule one
+- Rule two
+`
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte(content), 0644)).To(Succeed())
+
+	section, err := skills.DocsSection(skillsDir, "skill-a", "Process")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(section).To(ContainSubstring("Step one"))
+	g.Expect(section).To(ContainSubstring("Step two"))
+	g.Expect(section).ToNot(ContainSubstring("Rule one"))
+}
+
+// TEST-606 traces: TASK-038
+// Test DocsSection errors for nonexistent section
+func TestDocsSection_ErrorsForNonexistentSection(t *testing.T) {
+	g := NewWithT(t)
+
+	skillsDir := t.TempDir()
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# Skill A\n\n## Purpose\n\nText."), 0644)).To(Succeed())
+
+	_, err := skills.DocsSection(skillsDir, "skill-a", "NonexistentSection")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("section"))
+}
