@@ -355,3 +355,24 @@ The design should be:
 - **Usable** - Core flows are obvious
 - **Documented** - Components named and organized
 - **Traceable** - Every element has a DES-NNN ID linked to REQ IDs
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/design.md"]
+
+[[decisions]]
+context = "Output format"
+choice = "Use structured tables"
+reason = "Easier to parse and reference"
+alternatives = ["Free-form prose"]
+
+[[learnings]]
+content = "Existing CLI uses consistent flag conventions"
+```

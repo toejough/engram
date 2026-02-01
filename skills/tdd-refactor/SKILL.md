@@ -85,3 +85,24 @@ Findings:
   - [spec mismatches, quality concerns, suggestions for future work]
 Context for next phase: [final state summary, any concerns for task audit]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["internal/foo/foo.go"]
+
+[[decisions]]
+context = "Implementation approach"
+choice = "Minimal implementation"
+reason = "Only what's needed to pass tests"
+alternatives = []
+
+[[learnings]]
+content = "Found existing helper function that simplified implementation"
+```

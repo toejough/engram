@@ -416,3 +416,24 @@ items_count = 10
 - **No CLI found**: Focus on API/library interface patterns
 - **No consistent patterns**: Document as "varied" and escalate
 - **UI project**: Use screenshots for visual design inference
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/design.md"]
+
+[[decisions]]
+context = "Output format"
+choice = "Use structured tables"
+reason = "Easier to parse and reference"
+alternatives = ["Free-form prose"]
+
+[[learnings]]
+content = "Existing CLI uses consistent flag conventions"
+```

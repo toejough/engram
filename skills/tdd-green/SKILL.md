@@ -79,3 +79,24 @@ Findings:
   - [any issues discovered, missing test coverage, etc.]
 Context for next phase: [implementation summary, files touched, areas that may benefit from refactoring, warnings about complexity]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["internal/foo/foo.go"]
+
+[[decisions]]
+context = "Implementation approach"
+choice = "Minimal implementation"
+reason = "Only what's needed to pass tests"
+alternatives = []
+
+[[learnings]]
+content = "Found existing helper function that simplified implementation"
+```

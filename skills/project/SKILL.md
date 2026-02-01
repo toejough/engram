@@ -898,3 +898,24 @@ Track correction count. After every 2 corrections, trigger `/meta-audit`.
 
 **State corruption:**
 - `projctl state get` will report errors. User can inspect/edit state.toml.
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = []
+
+[[decisions]]
+context = "Process choice"
+choice = "Follow established convention"
+reason = "Consistency with existing patterns"
+alternatives = []
+
+[[learnings]]
+content = "Captured from execution"
+```

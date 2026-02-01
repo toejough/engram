@@ -119,3 +119,24 @@ Layer violations: N
 Contract mismatches: N
 Recommendation: PASS | FIX_REQUIRED | PROPOSALS_PENDING
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/architecture.md"]
+
+[[decisions]]
+context = "Module structure"
+choice = "Use internal/ for implementation"
+reason = "Go convention for non-public code"
+alternatives = ["Flat package structure"]
+
+[[learnings]]
+content = "Codebase uses dependency injection pattern"
+```

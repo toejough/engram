@@ -475,3 +475,24 @@ items_count = 18
 - **No build files**: Document manual build process
 - **Mixed patterns**: Document as "varied" and escalate
 - **Unclear rationale**: Mark as "inferred" with lower confidence
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/architecture.md"]
+
+[[decisions]]
+context = "Module structure"
+choice = "Use internal/ for implementation"
+reason = "Go convention for non-public code"
+alternatives = ["Flat package structure"]
+
+[[learnings]]
+content = "Codebase uses dependency injection pattern"
+```

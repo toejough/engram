@@ -136,3 +136,24 @@ Acceptance criteria coverage:
 Traceability: [REQ/DES/ARCH IDs addressed]
 Context for next phase: [test file locations, key test descriptions, any stubs needed for compilation]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["internal/foo/foo_test.go"]
+
+[[decisions]]
+context = "Test organization"
+choice = "Use table-driven tests"
+reason = "Clearer coverage of edge cases"
+alternatives = ["Individual test functions"]
+
+[[learnings]]
+content = "The codebase uses gomega for assertions"
+```

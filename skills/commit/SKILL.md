@@ -131,3 +131,24 @@ Files committed: [list]
 Traceability: [TASK ID]
 Context for next phase: [commit hash, any notes]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = []
+
+[[decisions]]
+context = "Process choice"
+choice = "Follow established convention"
+reason = "Consistency with existing patterns"
+alternatives = []
+
+[[learnings]]
+content = "Captured from execution"
+```

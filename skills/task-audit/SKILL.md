@@ -224,3 +224,24 @@ Findings:
 Traceability: [TASK, REQ, DES, ARCH IDs]
 Recommendation: PASS | RETRY | ESCALATE
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/tasks.md"]
+
+[[decisions]]
+context = "Task granularity"
+choice = "One task per acceptance criterion"
+reason = "Clearer progress tracking"
+alternatives = ["Larger tasks with multiple criteria"]
+
+[[learnings]]
+content = "Tasks should include traceability IDs"
+```

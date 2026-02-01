@@ -410,3 +410,24 @@ Examples → REQ: Usage pattern requirements
 - **README not found**: Log warning, continue with other sources
 - **Parse error**: Log error, skip that source, continue
 - **No requirements found**: Report as failure, suggest manual creation
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/requirements.md"]
+
+[[decisions]]
+context = "Requirements scope"
+choice = "Focus on core functionality first"
+reason = "Reduces initial complexity"
+alternatives = ["Include all features upfront"]
+
+[[learnings]]
+content = "User has strong preference for CLI over GUI"
+```

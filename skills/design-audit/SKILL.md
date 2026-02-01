@@ -183,3 +183,24 @@ Traceability: [DES IDs audited]
 Screens audited: X/Y
 Recommendation: PASS | FIX_REQUIRED | PROPOSALS_PENDING
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/design.md"]
+
+[[decisions]]
+context = "Output format"
+choice = "Use structured tables"
+reason = "Easier to parse and reference"
+alternatives = ["Free-form prose"]
+
+[[learnings]]
+content = "Existing CLI uses consistent flag conventions"
+```

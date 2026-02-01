@@ -272,3 +272,24 @@ When re-running test-mapper:
 - **Parse error**: Skip file, log error, continue
 - **No tests found**: Report as success (nothing to map)
 - **Conflicting mapping**: Escalate for user decision
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/tasks.md"]
+
+[[decisions]]
+context = "Task granularity"
+choice = "One task per acceptance criterion"
+reason = "Clearer progress tracking"
+alternatives = ["Larger tasks with multiple criteria"]
+
+[[learnings]]
+content = "Tasks should include traceability IDs"
+```

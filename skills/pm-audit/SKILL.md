@@ -125,3 +125,24 @@ Success criteria met: X/Y
 Edge cases handled: X/Y
 Recommendation: PASS | FIX_REQUIRED | PROPOSALS_PENDING
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/requirements.md"]
+
+[[decisions]]
+context = "Requirements scope"
+choice = "Focus on core functionality first"
+reason = "Reduces initial complexity"
+alternatives = ["Include all features upfront"]
+
+[[learnings]]
+content = "User has strong preference for CLI over GUI"
+```

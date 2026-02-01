@@ -76,3 +76,24 @@ Argument:
 Proposed resolution: <if compromise or concession, what specifically to do>
 Traceability: [IDs referenced in arguments]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = []
+
+[[decisions]]
+context = "Process choice"
+choice = "Follow established convention"
+reason = "Consistency with existing patterns"
+alternatives = []
+
+[[learnings]]
+content = "Captured from execution"
+```

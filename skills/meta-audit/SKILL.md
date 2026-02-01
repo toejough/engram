@@ -95,3 +95,24 @@ Proposals:
       prevents: [correction IDs]
 No proposals needed: [patterns that don't meet threshold or already have rules]
 ```
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = []
+
+[[decisions]]
+context = "Process choice"
+choice = "Follow established convention"
+reason = "Consistency with existing patterns"
+alternatives = []
+
+[[learnings]]
+content = "Captured from execution"
+```

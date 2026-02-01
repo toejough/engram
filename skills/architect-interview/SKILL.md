@@ -335,3 +335,24 @@ The architecture spec should be:
 - **Testable** - DI enables unit testing without mocks
 - **Traceable** - Every decision has an ARCH-NNN ID linked to REQ/DES IDs
 - **Opinionated** - Clear recommendations, not just options
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/architecture.md"]
+
+[[decisions]]
+context = "Module structure"
+choice = "Use internal/ for implementation"
+reason = "Go convention for non-public code"
+alternatives = ["Flat package structure"]
+
+[[learnings]]
+content = "Codebase uses dependency injection pattern"
+```

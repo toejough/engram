@@ -319,3 +319,24 @@ The spec should be:
 - **Testable** - success criteria can be verified
 - **Honest about gaps** - open questions clearly marked
 - **Traceable** - every requirement has a REQ-NNN ID
+
+## Result Format
+
+See [shared/RESULT.md](../shared/RESULT.md) for the complete schema.
+
+```toml
+[status]
+success = true
+
+[outputs]
+files_modified = ["docs/requirements.md"]
+
+[[decisions]]
+context = "Requirements scope"
+choice = "Focus on core functionality first"
+reason = "Reduces initial complexity"
+alternatives = ["Include all features upfront"]
+
+[[learnings]]
+content = "User has strong preference for CLI over GUI"
+```
