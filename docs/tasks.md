@@ -1462,12 +1462,12 @@ Auto-inject /meta-audit when correction threshold reached.
 LSP-backed symbol rename. Deterministic, finds all references.
 
 **Acceptance Criteria:**
-- [ ] `projctl refactor rename --dir DIR --symbol NAME --to NEWNAME` renames symbol
-- [ ] Uses gopls for Go projects
-- [ ] Updates all references across package
-- [ ] Atomic: no changes if rename fails
-- [ ] Reports: "Renamed X in N files"
-- [ ] Exit code 1 if symbol not found or conflict exists
+- [x] `projctl refactor rename --dir DIR --symbol NAME --to NEWNAME` renames symbol
+- [x] Uses gopls for Go projects
+- [x] Updates all references across package
+- [x] Atomic: no changes if rename fails
+- [x] Reports: "Renamed X in N files"
+- [x] Exit code 1 if symbol not found or conflict exists
 
 **Test Requirements:**
 - Unit: gopls command construction
@@ -1477,6 +1477,8 @@ LSP-backed symbol rename. Deterministic, finds all references.
 **Dependencies:** None
 
 **Traces to:** Phase 8
+
+**Status:** Complete - Implemented in internal/refactor/ and cmd/projctl/refactor.go
 
 ---
 
