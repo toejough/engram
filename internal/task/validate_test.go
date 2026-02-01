@@ -196,3 +196,87 @@ func TestParseDependencies_RootTasks(t *testing.T) {
 	roots := graph.Roots()
 	g.Expect(roots).To(ConsistOf("TASK-001", "TASK-002"))
 }
+
+// TEST-540 traces: TASK-031
+// Test Parallel returns independent pending tasks.
+func TestParallel_IndependentTasks(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	tasksContent := `# Tasks
+
+### TASK-001: First
+
+**Dependencies:** None
+**Status:** pending
+
+### TASK-002: Second
+
+**Dependencies:** None
+**Status:** pending
+
+### TASK-003: Third
+
+**Dependencies:** TASK-001
+**Status:** pending
+`
+	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	parallel, err := task.Parallel(dir)
+	g.Expect(err).ToNot(HaveOccurred())
+	// TASK-001 and TASK-002 are independent (no deps)
+	// TASK-003 depends on TASK-001 which is pending
+	g.Expect(parallel).To(ConsistOf("TASK-001", "TASK-002"))
+}
+
+// TEST-541 traces: TASK-031
+// Test Parallel excludes tasks with pending dependencies.
+func TestParallel_BlockedTasks(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	tasksContent := `# Tasks
+
+### TASK-001: First
+
+**Dependencies:** None
+**Status:** complete
+
+### TASK-002: Second
+
+**Dependencies:** TASK-001
+**Status:** pending
+`
+	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	parallel, err := task.Parallel(dir)
+	g.Expect(err).ToNot(HaveOccurred())
+	// TASK-001 is complete, so TASK-002 is unblocked
+	g.Expect(parallel).To(Equal([]string{"TASK-002"}))
+}
+
+// TEST-542 traces: TASK-031
+// Test Parallel returns empty when all tasks complete.
+func TestParallel_AllComplete(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	tasksContent := `# Tasks
+
+### TASK-001: First
+
+**Dependencies:** None
+**Status:** complete
+`
+	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	parallel, err := task.Parallel(dir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(parallel).To(BeEmpty())
+}
