@@ -11,6 +11,7 @@ import (
 type DependencyGraph struct {
 	Tasks     []string            // All task IDs
 	Deps      map[string][]string // Task ID -> dependencies
+	Status    map[string]string   // Task ID -> status (pending, complete)
 	hasCycle  bool
 	cyclePath []string
 }
@@ -25,7 +26,8 @@ func ParseDependencies(dir string) (*DependencyGraph, error) {
 	}
 
 	graph := &DependencyGraph{
-		Deps: make(map[string][]string),
+		Deps:   make(map[string][]string),
+		Status: make(map[string]string),
 	}
 
 	// Find all tasks
@@ -42,6 +44,9 @@ func ParseDependencies(dir string) (*DependencyGraph, error) {
 		// Parse dependencies
 		deps := parseDependencies(taskContent)
 		graph.Deps[taskID] = deps
+
+		// Parse status
+		graph.Status[taskID] = parseStatus(taskContent)
 	}
 
 	// Check for cycles
@@ -67,6 +72,47 @@ func parseDependencies(content string) []string {
 	// Split by comma and extract task IDs
 	taskPattern := regexp.MustCompile(`TASK-\d+`)
 	return taskPattern.FindAllString(depsStr, -1)
+}
+
+// parseStatus extracts task status from content.
+func parseStatus(content string) string {
+	pattern := regexp.MustCompile(`(?m)^\*\*Status:\*\*\s*(\w+)`)
+	match := pattern.FindStringSubmatch(content)
+	if match == nil {
+		return "pending" // Default to pending
+	}
+	return strings.ToLower(match[1])
+}
+
+// Parallel returns tasks that can run in parallel (pending with no pending blockers).
+func Parallel(dir string) ([]string, error) {
+	graph, err := ParseDependencies(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	var parallel []string
+	for _, task := range graph.Tasks {
+		// Skip non-pending tasks
+		if graph.Status[task] != "pending" {
+			continue
+		}
+
+		// Check if all dependencies are complete
+		blocked := false
+		for _, dep := range graph.Deps[task] {
+			if graph.Status[dep] != "complete" {
+				blocked = true
+				break
+			}
+		}
+
+		if !blocked {
+			parallel = append(parallel, task)
+		}
+	}
+
+	return parallel, nil
 }
 
 // HasCycle returns true if the dependency graph contains a cycle.

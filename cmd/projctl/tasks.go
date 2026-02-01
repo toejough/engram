@@ -57,3 +57,36 @@ func tasksDeps(args tasksDepsArgs) error {
 
 	return nil
 }
+
+type tasksParallelArgs struct {
+	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
+	Format string `targ:"flag,short=f,desc=Output format: text (default) or json"`
+}
+
+func tasksParallel(args tasksParallelArgs) error {
+	parallel, err := task.Parallel(args.Dir)
+	if err != nil {
+		return err
+	}
+
+	if args.Format == "json" {
+		data, err := json.MarshalIndent(parallel, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	if len(parallel) == 0 {
+		fmt.Println("No parallel tasks available")
+		return nil
+	}
+
+	fmt.Println("Tasks that can run in parallel:")
+	for _, t := range parallel {
+		fmt.Printf("  %s\n", t)
+	}
+
+	return nil
+}

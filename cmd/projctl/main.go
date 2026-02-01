@@ -65,6 +65,7 @@ func main() {
 		),
 		targ.Group("tasks",
 			targ.Targ(tasksDeps).Name("deps").Description("Parse task dependencies and output graph"),
+			targ.Targ(tasksParallel).Name("parallel").Description("List tasks that can run in parallel"),
 		),
 		targ.Group("usage",
 			targ.Targ(usageReport).Name("report").Description("Generate token usage report from logs"),
