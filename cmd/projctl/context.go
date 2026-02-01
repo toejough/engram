@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/toejough/projctl/internal/config"
@@ -94,5 +95,36 @@ func contextRead(args contextReadArgs) error {
 	}
 
 	fmt.Print(content)
+	return nil
+}
+
+type contextWriteParallelArgs struct {
+	Dir      string `targ:"flag,short=d,required,desc=Project directory"`
+	Tasks    string `targ:"flag,short=t,required,desc=Comma-separated task IDs (e.g. TASK-001,TASK-002)"`
+	Skill    string `targ:"flag,short=s,desc=Skill name (default: tdd-red)"`
+	Template string `targ:"flag,short=f,required,desc=Path to template TOML context file"`
+}
+
+func contextWriteParallel(args contextWriteParallelArgs) error {
+	skill := args.Skill
+	if skill == "" {
+		skill = "tdd-red" // Default skill for pending implementation tasks
+	}
+
+	tasks := strings.Split(args.Tasks, ",")
+	for i := range tasks {
+		tasks[i] = strings.TrimSpace(tasks[i])
+	}
+
+	paths, err := context.WriteParallel(args.Dir, tasks, skill, args.Template)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Created %d context files:\n", len(paths))
+	for _, path := range paths {
+		fmt.Printf("  %s\n", path)
+	}
+
 	return nil
 }

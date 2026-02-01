@@ -89,6 +89,21 @@ type RoutingInfo struct {
 	Reason         string `toml:"reason"`
 }
 
+// WriteParallel creates context files for multiple tasks using a shared template.
+func WriteParallel(dir string, tasks []string, skill, templatePath string) ([]string, error) {
+	var paths []string
+
+	for _, task := range tasks {
+		path, err := Write(dir, task, skill, templatePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write context for %s: %w", task, err)
+		}
+		paths = append(paths, path)
+	}
+
+	return paths, nil
+}
+
 // WriteWithRouting copies a TOML file into the context directory and adds routing information.
 func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string) (string, error) {
 	contextDir := filepath.Join(dir, ContextDir)
