@@ -304,3 +304,119 @@ func TestStatus_ReturnsStaleForWrongSymlink(t *testing.T) {
 	// Then: Shows as stale (needs update)
 	g.Expect(result.Stale).To(ConsistOf("skill-a"))
 }
+
+// TEST-058-001 traces: TASK-058
+// Test that Uninstall removes all symlinks
+func TestUninstall_RemovesAllSymlinks(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-b"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-b", "SKILL.md"), []byte("# B"), 0644)).To(Succeed())
+
+	// Create symlinks
+	g.Expect(os.Symlink(filepath.Join(skillsDir, "skill-a"), filepath.Join(targetDir, "skill-a"))).To(Succeed())
+	g.Expect(os.Symlink(filepath.Join(skillsDir, "skill-b"), filepath.Join(targetDir, "skill-b"))).To(Succeed())
+
+	// When: Uninstall all
+	result, err := skills.Uninstall(skillsDir, targetDir, skills.UninstallOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Both removed
+	g.Expect(result.Removed).To(ConsistOf("skill-a", "skill-b"))
+
+	// Symlinks no longer exist
+	_, err = os.Lstat(filepath.Join(targetDir, "skill-a"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+	_, err = os.Lstat(filepath.Join(targetDir, "skill-b"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+}
+
+// TEST-058-002 traces: TASK-058
+// Test that Uninstall removes specific symlink
+func TestUninstall_RemovesSpecificSymlink(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-b"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-b", "SKILL.md"), []byte("# B"), 0644)).To(Succeed())
+
+	// Create symlinks
+	g.Expect(os.Symlink(filepath.Join(skillsDir, "skill-a"), filepath.Join(targetDir, "skill-a"))).To(Succeed())
+	g.Expect(os.Symlink(filepath.Join(skillsDir, "skill-b"), filepath.Join(targetDir, "skill-b"))).To(Succeed())
+
+	// When: Uninstall specific skill
+	result, err := skills.Uninstall(skillsDir, targetDir, skills.UninstallOpts{
+		SkillName: "skill-a",
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Only skill-a removed
+	g.Expect(result.Removed).To(ConsistOf("skill-a"))
+
+	// skill-a gone, skill-b still exists
+	_, err = os.Lstat(filepath.Join(targetDir, "skill-a"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+	_, err = os.Lstat(filepath.Join(targetDir, "skill-b"))
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-058-003 traces: TASK-058
+// Test that Uninstall preserves non-symlink directories
+func TestUninstall_PreservesNonSymlinks(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+
+	// Create non-symlink directory (local skill with same name)
+	g.Expect(os.MkdirAll(filepath.Join(targetDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(targetDir, "skill-a", "SKILL.md"), []byte("# Local"), 0644)).To(Succeed())
+
+	// When: Uninstall
+	result, err := skills.Uninstall(skillsDir, targetDir, skills.UninstallOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: Skipped (not removed)
+	g.Expect(result.Removed).To(BeEmpty())
+	g.Expect(result.Skipped).To(ConsistOf("skill-a"))
+
+	// Directory still exists
+	content, err := os.ReadFile(filepath.Join(targetDir, "skill-a", "SKILL.md"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(Equal("# Local"))
+}
+
+// TEST-058-004 traces: TASK-058
+// Test that Uninstall is idempotent
+func TestUninstall_Idempotent(t *testing.T) {
+	g := NewWithT(t)
+
+	// Setup - no symlinks, just empty dirs
+	repoDir := t.TempDir()
+	targetDir := t.TempDir()
+	skillsDir := filepath.Join(repoDir, "skills")
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "skill-a"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "skill-a", "SKILL.md"), []byte("# A"), 0644)).To(Succeed())
+
+	// When: Uninstall (nothing to uninstall)
+	result, err := skills.Uninstall(skillsDir, targetDir, skills.UninstallOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then: No error, nothing removed
+	g.Expect(result.Removed).To(BeEmpty())
+}

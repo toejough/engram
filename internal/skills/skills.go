@@ -109,6 +109,23 @@ func Install(repoSkillsDir, targetDir string, opts InstallOpts) (InstallResult, 
 	return result, nil
 }
 
+// UninstallOpts configures the Uninstall operation.
+type UninstallOpts struct {
+	SkillName string // If set, uninstall only this skill
+}
+
+// UninstallResult contains the results of an uninstall operation.
+type UninstallResult struct {
+	Removed []string // Skills whose symlinks were removed
+	Skipped []string // Skills that were skipped (non-symlinks)
+}
+
+// Uninstall removes symlinks from targetDir that point to repoSkillsDir.
+func Uninstall(repoSkillsDir, targetDir string, opts UninstallOpts) (UninstallResult, error) {
+	// TODO: Implement
+	return UninstallResult{}, nil
+}
+
 // StatusResult contains the status of all skills.
 type StatusResult struct {
 	Linked    []string // Skills properly symlinked to repo
