@@ -109,3 +109,67 @@ func TestReport_PropertyTotalMatchesBreakdown(t *testing.T) {
 		g.Expect(sum).To(Equal(report.TotalTokens))
 	})
 }
+
+// TEST-520 traces: TASK-029
+// Test Check returns OK when under warning threshold.
+func TestCheck_UnderWarning(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_ = log.Write(dir, "status", "task-status", "msg", log.WriteOpts{Tokens: 100}, nowFunc())
+
+	result := usage.Check(dir, usage.BudgetConfig{
+		WarningTokens: 500,
+		LimitTokens:   1000,
+	})
+	g.Expect(result.Status).To(Equal(usage.StatusOK))
+	g.Expect(result.TotalTokens).To(Equal(100))
+}
+
+// TEST-521 traces: TASK-029
+// Test Check returns warning when over warning but under limit.
+func TestCheck_OverWarning(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_ = log.Write(dir, "status", "task-status", "msg", log.WriteOpts{Tokens: 600}, nowFunc())
+
+	result := usage.Check(dir, usage.BudgetConfig{
+		WarningTokens: 500,
+		LimitTokens:   1000,
+	})
+	g.Expect(result.Status).To(Equal(usage.StatusWarning))
+	g.Expect(result.TotalTokens).To(Equal(600))
+	g.Expect(result.Recommendation).To(ContainSubstring("haiku"))
+}
+
+// TEST-522 traces: TASK-029
+// Test Check returns limit when over limit.
+func TestCheck_OverLimit(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_ = log.Write(dir, "status", "task-status", "msg", log.WriteOpts{Tokens: 1200}, nowFunc())
+
+	result := usage.Check(dir, usage.BudgetConfig{
+		WarningTokens: 500,
+		LimitTokens:   1000,
+	})
+	g.Expect(result.Status).To(Equal(usage.StatusLimit))
+	g.Expect(result.TotalTokens).To(Equal(1200))
+}
+
+// TEST-523 traces: TASK-029
+// Test Check with zero thresholds (disabled) returns OK.
+func TestCheck_DisabledThresholds(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_ = log.Write(dir, "status", "task-status", "msg", log.WriteOpts{Tokens: 10000}, nowFunc())
+
+	result := usage.Check(dir, usage.BudgetConfig{
+		WarningTokens: 0,
+		LimitTokens:   0,
+	})
+	g.Expect(result.Status).To(Equal(usage.StatusOK))
+}
