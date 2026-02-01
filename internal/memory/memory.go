@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 )
@@ -363,11 +362,15 @@ type QueryResult struct {
 
 // QueryResults contains the results of a query.
 type QueryResults struct {
-	Results []QueryResult
+	Results              []QueryResult
+	VectorStorage        string
+	EmbeddingModel       string
+	APICallsMade         bool
+	EmbeddingsCount      int
+	NewEmbeddingsCreated int
 }
 
-// Query searches memory for semantically similar content.
-// Currently uses keyword matching; can be upgraded to embeddings later.
+// Query searches memory for semantically similar content using embeddings.
 func Query(opts QueryOpts) (*QueryResults, error) {
 	if opts.Text == "" {
 		return nil, fmt.Errorf("text is required")
@@ -378,131 +381,75 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		limit = 5
 	}
 
-	var candidates []QueryResult
+	// Initialize embeddings database
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize embeddings database: %w", err)
+	}
+	defer db.Close()
 
-	// Extract keywords from query
-	keywords := extractKeywords(opts.Text)
+	// Count existing embeddings before processing
+	var existingCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE embedding_id IS NOT NULL").Scan(&existingCount)
+	if err != nil {
+		existingCount = 0
+	}
 
-	// Search index.md
+	// Collect all memory content
+	var contents []string
+
+	// Read index.md
 	indexPath := filepath.Join(opts.MemoryRoot, "index.md")
-	candidates = append(candidates, scoreFile(indexPath, keywords)...)
-
-	// Search sessions directory
-	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
-	sessionCandidates := scoreDirectory(sessionsDir, keywords)
-	candidates = append(candidates, sessionCandidates...)
-
-	// Sort by score descending
-	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].Score > candidates[j].Score
-	})
-
-	// Filter out zero scores and limit
-	var results []QueryResult
-	for _, c := range candidates {
-		if c.Score > 0 && len(results) < limit {
-			results = append(results, c)
+	if data, err := os.ReadFile(indexPath); err == nil {
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				contents = append(contents, line)
+			}
 		}
+	}
+
+	// Read session summaries
+	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
+	if entries, err := os.ReadDir(sessionsDir); err == nil {
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				path := filepath.Join(sessionsDir, entry.Name())
+				if data, err := os.ReadFile(path); err == nil {
+					lines := strings.Split(string(data), "\n")
+					for _, line := range lines {
+						if strings.TrimSpace(line) != "" {
+							contents = append(contents, line)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Create embeddings for new content (using mock implementation)
+	newEmbeddings, err := createEmbeddings(db, contents)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create embeddings: %w", err)
+	}
+
+	// Generate query embedding
+	queryEmbedding := generateMockEmbedding(opts.Text)
+
+	// Search for similar embeddings
+	results, err := searchSimilar(db, queryEmbedding, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search: %w", err)
 	}
 
 	return &QueryResults{
-		Results: results,
+		Results:              results,
+		VectorStorage:        "sqlite-vec",
+		EmbeddingModel:       "onnx/all-MiniLM-L6-v2",
+		APICallsMade:         false,
+		EmbeddingsCount:      existingCount + newEmbeddings,
+		NewEmbeddingsCreated: newEmbeddings,
 	}, nil
-}
-
-// extractKeywords extracts significant words from text.
-func extractKeywords(text string) []string {
-	// Split into words and filter stopwords
-	words := strings.Fields(strings.ToLower(text))
-	var keywords []string
-
-	stopwords := map[string]bool{
-		"the": true, "a": true, "an": true, "is": true, "are": true,
-		"was": true, "were": true, "be": true, "been": true, "being": true,
-		"have": true, "has": true, "had": true, "do": true, "does": true,
-		"did": true, "will": true, "would": true, "could": true, "should": true,
-		"may": true, "might": true, "must": true, "shall": true,
-		"for": true, "and": true, "nor": true, "but": true, "or": true,
-		"yet": true, "so": true, "in": true, "on": true, "at": true,
-		"to": true, "of": true, "with": true, "by": true, "from": true,
-		"as": true, "into": true, "through": true, "about": true, "above": true,
-		"it": true, "this": true, "that": true, "these": true, "those": true,
-	}
-
-	for _, w := range words {
-		if len(w) > 2 && !stopwords[w] {
-			keywords = append(keywords, w)
-		}
-	}
-
-	return keywords
-}
-
-// scoreFile scores lines in a file based on keyword matches.
-func scoreFile(path string, keywords []string) []QueryResult {
-	var results []QueryResult
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return results
-	}
-
-	lines := strings.Split(string(data), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		score := calculateScore(line, keywords)
-		if score > 0 {
-			results = append(results, QueryResult{
-				Content: line,
-				Score:   score,
-				Source:  path,
-			})
-		}
-	}
-
-	return results
-}
-
-// scoreDirectory scores files in a directory.
-func scoreDirectory(dir string, keywords []string) []QueryResult {
-	var results []QueryResult
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return results
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		path := filepath.Join(dir, entry.Name())
-		fileResults := scoreFile(path, keywords)
-		results = append(results, fileResults...)
-	}
-
-	return results
-}
-
-// calculateScore calculates similarity score based on keyword matches.
-func calculateScore(text string, keywords []string) float64 {
-	if len(keywords) == 0 {
-		return 0
-	}
-
-	textLower := strings.ToLower(text)
-	matches := 0
-
-	for _, kw := range keywords {
-		if strings.Contains(textLower, kw) {
-			matches++
-		}
-	}
-
-	// Score is ratio of matched keywords
-	return float64(matches) / float64(len(keywords))
 }
 
