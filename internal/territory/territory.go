@@ -6,9 +6,23 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
+
+// CacheMaxAge is the maximum age for a valid cache.
+const CacheMaxAge = time.Hour
+
+// CacheFile is the name of the cache file.
+const CacheFile = "context/territory.toml"
+
+// CachedMap wraps a Map with cache metadata.
+type CachedMap struct {
+	Map       `toml:"map"`
+	CachedAt  time.Time `toml:"cached_at"`
+	FileCount int       `toml:"file_count"`
+}
 
 // Map represents a compressed territory map of a codebase.
 type Map struct {
@@ -145,4 +159,89 @@ func Marshal(m Map) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// MarshalCached converts a CachedMap to TOML bytes.
+func MarshalCached(m CachedMap) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// LoadCached loads a cached territory map or generates a new one.
+// Returns (map, cacheHit, error).
+func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
+	cachePath := filepath.Join(dir, CacheFile)
+
+	// Count current files
+	currentCount := countFiles(dir)
+
+	// Try to load cached map
+	data, err := os.ReadFile(cachePath)
+	if err == nil {
+		var cached CachedMap
+		if _, err := toml.Decode(string(data), &cached); err == nil {
+			// Check if cache is still valid
+			age := now().Sub(cached.CachedAt)
+			if age < CacheMaxAge {
+				// Check if file count changed significantly (> 10%)
+				if cached.FileCount > 0 {
+					diff := abs(currentCount - cached.FileCount)
+					threshold := cached.FileCount / 10
+					if threshold < 1 {
+						threshold = 1
+					}
+					if diff <= threshold {
+						return cached.Map, true, nil
+					}
+				} else {
+					return cached.Map, true, nil
+				}
+			}
+		}
+	}
+
+	// Generate fresh map
+	m, err := Generate(dir)
+	if err != nil {
+		return Map{}, false, err
+	}
+
+	// Save to cache
+	cached := CachedMap{
+		Map:       m,
+		CachedAt:  now(),
+		FileCount: currentCount,
+	}
+	cacheData, err := MarshalCached(cached)
+	if err == nil {
+		os.MkdirAll(filepath.Dir(cachePath), 0o755)
+		os.WriteFile(cachePath, cacheData, 0o644)
+	}
+
+	return m, false, nil
+}
+
+// countFiles counts all files in a directory.
+func countFiles(dir string) int {
+	count := 0
+	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && !strings.Contains(path, ".git") {
+			count++
+		}
+		return nil
+	})
+	return count
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }
