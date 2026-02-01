@@ -106,6 +106,7 @@ func WriteParallel(dir string, tasks []string, skill, templatePath string) ([]st
 }
 
 // WriteWithRouting copies a TOML file into the context directory and adds routing information.
+// Also automatically injects cached territory map if available.
 func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string) (string, error) {
 	contextDir := filepath.Join(dir, ContextDir)
 	if err := os.MkdirAll(contextDir, 0o755); err != nil {
@@ -142,6 +143,15 @@ func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig
 	raw["routing"] = RoutingInfo{
 		SuggestedModel: model,
 		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
+	}
+
+	// Inject cached territory map if available
+	cachePath := filepath.Join(dir, territory.CacheFile)
+	if data, err := os.ReadFile(cachePath); err == nil {
+		var cached territory.CachedMap
+		if _, err := toml.Decode(string(data), &cached); err == nil {
+			raw["territory"] = cached.Map
+		}
 	}
 
 	targetName := Filename(task, skill)

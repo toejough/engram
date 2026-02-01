@@ -269,6 +269,67 @@ func TestWriteWithRouting_DefaultsToMedium(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("sonnet"))
 }
 
+// TEST-593 traces: TASK-036
+// Test WriteWithRouting injects territory map automatically.
+func TestWriteWithRouting_InjectsTerritory(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached territory map
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	territoryTOML := `cached_at = 2025-01-01T00:00:00Z
+file_count = 10
+
+[map]
+[map.structure]
+root = "` + dir + `"
+languages = ["go"]
+build_tool = "go"
+test_framework = "go test"
+
+[map.entry_points]
+cli = "cmd/app"
+
+[map.packages]
+count = 5
+internal = ["pkg1", "pkg2"]
+
+[map.tests]
+pattern = "*_test.go"
+count = 10
+
+[map.docs]
+readme = "README.md"
+artifacts = []
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "territory.toml"), []byte(territoryTOML), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	routing := context.RoutingConfig{
+		Simple:  "haiku",
+		Medium:  "sonnet",
+		Complex: "opus",
+	}
+	skillComplexity := map[string]string{"tdd-red": "medium"}
+
+	path, err := context.WriteWithRouting(dir, "TASK-001", "tdd-red", source, routing, skillComplexity)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain routing section
+	g.Expect(string(content)).To(ContainSubstring("[routing]"))
+	g.Expect(string(content)).To(ContainSubstring("sonnet"))
+
+	// Should also contain territory section
+	g.Expect(string(content)).To(ContainSubstring("[territory]"))
+	g.Expect(string(content)).To(ContainSubstring("languages"))
+}
+
 // TEST-550 traces: TASK-032
 // Test WriteParallel creates context files for multiple tasks.
 func TestWriteParallel_CreatesMultipleFiles(t *testing.T) {
