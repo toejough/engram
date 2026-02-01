@@ -101,9 +101,78 @@ type TransitionOpts struct {
 	Subphase string
 }
 
+// PreconditionChecker validates preconditions for phase transitions.
+type PreconditionChecker interface {
+	RequirementsExist(dir string) bool
+	RequirementsHaveIDs(dir string) bool
+	DesignExists(dir string) bool
+	DesignHasIDs(dir string) bool
+	TraceValidationPasses(dir string) bool
+	TestsExist(dir string) bool
+	TestsFail(dir string) bool
+	TestsPass(dir string) bool
+}
+
+// Preconditions maps phases to their required preconditions.
+var Preconditions = map[string]func(dir string, checker PreconditionChecker) error{
+	"pm-complete": func(dir string, c PreconditionChecker) error {
+		if !c.RequirementsExist(dir) {
+			return fmt.Errorf("precondition failed: requirements.md must exist")
+		}
+		if !c.RequirementsHaveIDs(dir) {
+			return fmt.Errorf("precondition failed: requirements.md must contain REQ-NNN IDs")
+		}
+		return nil
+	},
+	"design-complete": func(dir string, c PreconditionChecker) error {
+		if !c.DesignExists(dir) {
+			return fmt.Errorf("precondition failed: design.md must exist")
+		}
+		if !c.DesignHasIDs(dir) {
+			return fmt.Errorf("precondition failed: design.md must contain DES-NNN IDs")
+		}
+		return nil
+	},
+	"architect-complete": func(dir string, c PreconditionChecker) error {
+		if !c.TraceValidationPasses(dir) {
+			return fmt.Errorf("precondition failed: trace validation must pass")
+		}
+		return nil
+	},
+	"task-complete": func(dir string, c PreconditionChecker) error {
+		if !c.TraceValidationPasses(dir) {
+			return fmt.Errorf("precondition failed: trace validation must pass")
+		}
+		return nil
+	},
+	"tdd-green": func(dir string, c PreconditionChecker) error {
+		if !c.TestsExist(dir) {
+			return fmt.Errorf("precondition failed: test files must exist")
+		}
+		if !c.TestsFail(dir) {
+			return fmt.Errorf("precondition failed: tests must currently fail")
+		}
+		return nil
+	},
+	"tdd-refactor": func(dir string, c PreconditionChecker) error {
+		if !c.TestsPass(dir) {
+			return fmt.Errorf("precondition failed: all tests must pass")
+		}
+		return nil
+	},
+}
+
 // Transition moves the project to a new phase, validating the transition is legal.
 // Writes atomically (temp file + rename) to avoid corruption.
+// This variant does not check preconditions - use TransitionWithChecker for that.
 func Transition(dir string, to string, opts TransitionOpts, now func() time.Time) (State, error) {
+	return TransitionWithChecker(dir, to, opts, now, nil)
+}
+
+// TransitionWithChecker moves the project to a new phase, validating both
+// the transition graph and preconditions. If checker is nil, preconditions
+// are not validated.
+func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func() time.Time, checker PreconditionChecker) (State, error) {
 	s, err := Get(dir)
 	if err != nil {
 		return State{}, err
@@ -116,6 +185,15 @@ func Transition(dir string, to string, opts TransitionOpts, now func() time.Time
 			"illegal transition: %s → %s (legal targets: %v)",
 			from, to, targets,
 		)
+	}
+
+	// Check preconditions if checker provided
+	if checker != nil {
+		if precondCheck, ok := Preconditions[to]; ok {
+			if err := precondCheck(dir, checker); err != nil {
+				return State{}, err
+			}
+		}
 	}
 
 	t := now()
