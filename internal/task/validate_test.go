@@ -80,3 +80,31 @@ func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
 	result := task.Validate(dir, "TASK-001")
 	g.Expect(result.Valid).To(BeTrue())
 }
+
+// TEST-470 traces: TASK-026
+// Test ValidateTask with manual visual verified flag bypasses visual evidence requirement.
+func TestValidateTask_ManualVisualVerified(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	tasksContent := `# Tasks
+
+### TASK-001: Add button
+
+**UI:** true
+**Acceptance Criteria:**
+- Button renders
+`
+	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Without manual flag, should fail
+	result := task.ValidateWithOpts(dir, "TASK-001", task.ValidateOpts{})
+	g.Expect(result.Valid).To(BeFalse())
+
+	// With manual flag, should pass with warning
+	result = task.ValidateWithOpts(dir, "TASK-001", task.ValidateOpts{ManualVisualVerified: true})
+	g.Expect(result.Valid).To(BeTrue())
+	g.Expect(result.Warning).To(ContainSubstring("manual"))
+}
