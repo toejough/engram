@@ -925,6 +925,7 @@ func TestGrepCaseInsensitive(t *testing.T) {
 // ============================================================================
 
 // TEST-820: Query creates embeddings.db on first use
+// traces: TASK-052
 func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 	g := NewWithT(t)
 
@@ -957,6 +958,7 @@ func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 }
 
 // TEST-821: Query uses SQLite-vec for vector storage
+// traces: TASK-052
 func TestQueryUsesSQLiteVec(t *testing.T) {
 	g := NewWithT(t)
 
@@ -986,6 +988,7 @@ func TestQueryUsesSQLiteVec(t *testing.T) {
 }
 
 // TEST-822: Query uses ONNX model for embeddings with e5-small model
+// traces: TASK-052
 func TestQueryUsesONNXModel(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1020,6 +1023,7 @@ func TestQueryUsesONNXModel(t *testing.T) {
 }
 
 // TEST-823: Query uses semantic similarity not keyword matching
+// traces: TASK-052
 func TestQueryUsesSemanticSimilarity(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1056,6 +1060,7 @@ func TestQueryUsesSemanticSimilarity(t *testing.T) {
 }
 
 // TEST-824: Query returns default 5 results
+// traces: TASK-052
 func TestQueryDefaultLimit(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1083,6 +1088,7 @@ func TestQueryDefaultLimit(t *testing.T) {
 }
 
 // TEST-825: Query respects custom limit
+// traces: TASK-052
 func TestQueryCustomLimit(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1110,6 +1116,7 @@ func TestQueryCustomLimit(t *testing.T) {
 }
 
 // TEST-826: Query searches sessions
+// traces: TASK-052
 func TestQuerySearchesSessions(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1136,6 +1143,7 @@ Completed API design work.`
 }
 
 // TEST-827: Query requires text
+// traces: TASK-052
 func TestQueryRequiresText(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1153,6 +1161,7 @@ func TestQueryRequiresText(t *testing.T) {
 }
 
 // TEST-828: Query results include similarity scores
+// traces: TASK-052
 func TestQueryResultsIncludeScores(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1183,6 +1192,7 @@ func TestQueryResultsIncludeScores(t *testing.T) {
 }
 
 // TEST-829: Query results are sorted by score descending
+// traces: TASK-052
 func TestQueryResultsSortedByScore(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1212,6 +1222,7 @@ func TestQueryResultsSortedByScore(t *testing.T) {
 }
 
 // TEST-830: Query stores embeddings incrementally
+// traces: TASK-052
 func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1247,6 +1258,7 @@ func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
 }
 
 // TEST-831: Property-based test for embedding consistency
+// traces: TASK-052
 func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -1301,6 +1313,7 @@ func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 }
 
 // TEST-832: Query downloads e5-small model on first use
+// traces: TASK-052
 func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1342,6 +1355,7 @@ func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
 }
 
 // TEST-833: Query uses default model directory ~/.claude/models
+// traces: TASK-052
 func TestQueryUsesDefaultModelDirectory(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1371,6 +1385,7 @@ func TestQueryUsesDefaultModelDirectory(t *testing.T) {
 }
 
 // TEST-834: Query verifies model dimensions match e5-small (384)
+// traces: TASK-052
 func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1403,6 +1418,7 @@ func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
 }
 
 // TEST-835: Query loads ONNX model into memory
+// traces: TASK-052
 func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1438,6 +1454,7 @@ func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
 }
 
 // TEST-836: Query performs actual inference not mock embeddings
+// traces: TASK-052
 func TestQueryPerformsActualInference(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1477,6 +1494,7 @@ func TestQueryPerformsActualInference(t *testing.T) {
 }
 
 // TEST-837: Query reuses downloaded model on subsequent calls
+// traces: TASK-052
 func TestQueryReusesDownloadedModel(t *testing.T) {
 	g := NewWithT(t)
 
