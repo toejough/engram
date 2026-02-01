@@ -54,7 +54,7 @@ func Create(dir, skills, traceability, description string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open conflicts file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Write header if file is empty
 	info, _ := f.Stat()

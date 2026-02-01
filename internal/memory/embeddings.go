@@ -40,7 +40,7 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 	`
 
 	if _, err := db.Exec(createTable); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
@@ -53,7 +53,7 @@ func getExistingEmbeddings(db *sql.DB) (map[string]int64, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	existing := make(map[string]int64)
 	for rows.Next() {
@@ -173,7 +173,7 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var results []QueryResult
 	for rows.Next() {
@@ -194,47 +194,3 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	return results, rows.Err()
 }
 
-// extractKeywords extracts significant words from text.
-func extractKeywords(text string) []string {
-	words := strings.Fields(strings.ToLower(text))
-	var keywords []string
-
-	stopwords := map[string]bool{
-		"the": true, "a": true, "an": true, "is": true, "are": true,
-		"was": true, "were": true, "be": true, "been": true, "being": true,
-		"have": true, "has": true, "had": true, "do": true, "does": true,
-		"did": true, "will": true, "would": true, "could": true, "should": true,
-		"may": true, "might": true, "must": true, "shall": true,
-		"for": true, "and": true, "nor": true, "but": true, "or": true,
-		"yet": true, "so": true, "in": true, "on": true, "at": true,
-		"to": true, "of": true, "with": true, "by": true, "from": true,
-		"as": true, "into": true, "through": true, "about": true, "above": true,
-		"it": true, "this": true, "that": true, "these": true, "those": true,
-	}
-
-	for _, w := range words {
-		if len(w) > 2 && !stopwords[w] {
-			keywords = append(keywords, w)
-		}
-	}
-
-	return keywords
-}
-
-// calculateScore calculates similarity score based on keyword matches.
-func calculateScore(text string, keywords []string) float64 {
-	if len(keywords) == 0 {
-		return 0
-	}
-
-	textLower := strings.ToLower(text)
-	matches := 0
-
-	for _, kw := range keywords {
-		if strings.Contains(textLower, kw) {
-			matches++
-		}
-	}
-
-	return float64(matches) / float64(len(keywords))
-}

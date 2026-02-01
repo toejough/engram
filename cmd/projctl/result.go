@@ -38,7 +38,7 @@ func resultValidate(args resultValidateArgs) error {
 			}
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			enc.Encode(out)
+			_ = enc.Encode(out)
 			os.Exit(1)
 		}
 		return fmt.Errorf("failed to read file: %w", err)
@@ -54,7 +54,7 @@ func resultValidate(args resultValidateArgs) error {
 			}
 			enc := json.NewEncoder(os.Stdout)
 			enc.SetIndent("", "  ")
-			enc.Encode(out)
+			_ = enc.Encode(out)
 			os.Exit(1)
 		}
 		fmt.Fprintf(os.Stderr, "Validation failed: %s\n", err)

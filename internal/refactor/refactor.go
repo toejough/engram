@@ -378,7 +378,7 @@ func ExtractFunction(opts ExtractOpts) (*ExtractResult, error) {
 	if strings.Contains(newContentStr, extractedFuncPattern) {
 		newContentStr = strings.Replace(newContentStr, extractedFuncPattern, "func "+opts.Name+"(", 1)
 		// Also update the call site
-		newContentStr = strings.Replace(newContentStr, "newFunction(", opts.Name+"(", -1)
+		newContentStr = strings.ReplaceAll(newContentStr, "newFunction(", opts.Name+"(")
 		if err := os.WriteFile(opts.File, []byte(newContentStr), 0644); err != nil {
 			_ = os.WriteFile(opts.File, originalContent, 0644)
 			return nil, fmt.Errorf("failed to rename extracted function: %w", err)
@@ -408,12 +408,12 @@ func isValidIdentifier(name string) bool {
 	}
 	// Must start with letter or underscore
 	first := rune(name[0])
-	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_') {
+	if (first < 'a' || first > 'z') && (first < 'A' || first > 'Z') && first != '_' {
 		return false
 	}
 	// Rest can be letters, digits, or underscore
 	for _, ch := range name[1:] {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '_' {
 			return false
 		}
 	}

@@ -125,7 +125,7 @@ func Generate(dir string) (Map, error) {
 	}
 
 	// Count test files
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -217,8 +217,8 @@ func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
 	}
 	cacheData, err := MarshalCached(cached)
 	if err == nil {
-		os.MkdirAll(filepath.Dir(cachePath), 0o755)
-		os.WriteFile(cachePath, cacheData, 0o644)
+		_ = os.MkdirAll(filepath.Dir(cachePath), 0o755)
+		_ = os.WriteFile(cachePath, cacheData, 0o644)
 	}
 
 	return m, false, nil
@@ -227,7 +227,7 @@ func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
 // countFiles counts all files in a directory.
 func countFiles(dir string) int {
 	count := 0
-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

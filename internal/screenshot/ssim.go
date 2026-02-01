@@ -4,7 +4,6 @@ package screenshot
 import (
 	"image"
 	"image/color"
-	"math"
 )
 
 // SSIM constants from Wang et al. 2004.
@@ -17,8 +16,8 @@ const (
 )
 
 var (
-	c1 = math.Pow(k1*dynamicRange, 2)
-	c2 = math.Pow(k2*dynamicRange, 2)
+	c1 = (k1 * dynamicRange) * (k1 * dynamicRange)
+	c2 = (k2 * dynamicRange) * (k2 * dynamicRange)
 )
 
 // SSIMResult holds the result of an SSIM comparison.

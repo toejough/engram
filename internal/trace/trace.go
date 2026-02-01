@@ -444,7 +444,7 @@ func Repair(dir string) (RepairResult, error) {
 				prefix := strings.Split(id, "-")[0]
 				numStr := match[2]
 				var num int
-				fmt.Sscanf(numStr, "%d", &num)
+				_, _ = fmt.Sscanf(numStr, "%d", &num)
 				if num > maxIDByPrefix[prefix] {
 					maxIDByPrefix[prefix] = num
 				}

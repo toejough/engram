@@ -35,7 +35,7 @@ func Learn(opts LearnOpts) error {
 	if err != nil {
 		return fmt.Errorf("failed to open index file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Format entry: - YYYY-MM-DD HH:MM: [project] message
 	timestamp := time.Now().Format("2006-01-02 15:04")
@@ -96,7 +96,7 @@ func Decide(opts DecideOpts) (*DecideResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open decisions file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Build JSON entry
 	entry := map[string]interface{}{
@@ -387,7 +387,7 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize embeddings database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	// Count existing embeddings before processing
 	var existingCount int

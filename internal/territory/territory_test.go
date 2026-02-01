@@ -18,11 +18,11 @@ func TestGenerate_StructureSection(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a minimal Go project structure
-	os.MkdirAll(filepath.Join(dir, "cmd", "myapp"), 0o755)
-	os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "cmd", "myapp", "main.go"), []byte("package main\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, "cmd", "myapp"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "cmd", "myapp", "main.go"), []byte("package main\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -37,8 +37,8 @@ func TestGenerate_EntryPoints(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create CLI entry point
-	os.MkdirAll(filepath.Join(dir, "cmd", "mycli"), 0o755)
-	os.WriteFile(filepath.Join(dir, "cmd", "mycli", "main.go"), []byte("package main\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, "cmd", "mycli"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "cmd", "mycli", "main.go"), []byte("package main\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -52,10 +52,10 @@ func TestGenerate_PackagesSection(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create internal packages
-	os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
-	os.MkdirAll(filepath.Join(dir, "internal", "pkg2"), 0o755)
-	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "a.go"), []byte("package pkg1\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "internal", "pkg2", "b.go"), []byte("package pkg2\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg2"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "a.go"), []byte("package pkg1\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg2", "b.go"), []byte("package pkg2\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -70,10 +70,10 @@ func TestGenerate_TestsSection(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a Go project with test files
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
-	os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
-	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg_test.go"), []byte("package pkg1_test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg_test.go"), []byte("package pkg1_test\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -88,9 +88,9 @@ func TestGenerate_DocsSection(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create docs
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
-	os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0o644)
-	os.WriteFile(filepath.Join(dir, "docs", "design.md"), []byte("# Design\n"), 0o644)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "docs", "design.md"), []byte("# Design\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -141,7 +141,7 @@ func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a cached map with recent timestamp
-	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
 	cached := territory.CachedMap{
 		Map: territory.Map{
 			Structure: territory.Structure{Root: dir},
@@ -151,11 +151,11 @@ func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
 		FileCount: 10,
 	}
 	data, _ := territory.MarshalCached(cached)
-	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
 
 	// Create directory structure matching the cached count
 	for i := 0; i < 10; i++ {
-		os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
 	}
 
 	result, hit, err := territory.LoadCached(dir, time.Now)
@@ -171,7 +171,7 @@ func TestLoadCached_RegeneratesIfOld(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a cached map with old timestamp
-	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
 	cached := territory.CachedMap{
 		Map: territory.Map{
 			Structure: territory.Structure{Root: "/old/path"},
@@ -180,8 +180,8 @@ func TestLoadCached_RegeneratesIfOld(t *testing.T) {
 		FileCount: 10,
 	}
 	data, _ := territory.MarshalCached(cached)
-	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
 
 	result, hit, err := territory.LoadCached(dir, time.Now)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -196,7 +196,7 @@ func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create a cached map with file count of 100
-	os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
 	cached := territory.CachedMap{
 		Map: territory.Map{
 			Structure: territory.Structure{Root: "/old/path"},
@@ -205,12 +205,12 @@ func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
 		FileCount: 100,
 	}
 	data, _ := territory.MarshalCached(cached)
-	os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
-	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
 
 	// Only create 5 files (> 10% difference from 100)
 	for i := 0; i < 5; i++ {
-		os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
 	}
 
 	result, hit, err := territory.LoadCached(dir, time.Now)

@@ -198,7 +198,7 @@ func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
 		tempDir := os.TempDir()
 		memoryDir := filepath.Join(tempDir, "memory-test-"+suffix)
-		defer os.RemoveAll(memoryDir)
+		defer func() { _ = os.RemoveAll(memoryDir) }()
 
 		// Generate random non-empty message (exclude newlines for simpler parsing)
 		message := rapid.StringMatching(`[a-zA-Z0-9 .,!?'"-]+`).Draw(t, "message")
@@ -681,7 +681,7 @@ func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
 		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
 		tempDir := os.TempDir()
 		memoryDir := filepath.Join(tempDir, "session-test-"+suffix)
-		defer os.RemoveAll(memoryDir)
+		defer func() { _ = os.RemoveAll(memoryDir) }()
 
 		projectName := rapid.StringMatching(`[a-z]{5,10}`).Draw(t, "project")
 
@@ -1249,7 +1249,7 @@ func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
 		tempDir := os.TempDir()
 		memoryDir := filepath.Join(tempDir, "query-test-"+suffix)
-		defer os.RemoveAll(memoryDir)
+		defer func() { _ = os.RemoveAll(memoryDir) }()
 
 		err := os.MkdirAll(memoryDir, 0755)
 		g.Expect(err).ToNot(HaveOccurred())

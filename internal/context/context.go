@@ -171,7 +171,7 @@ func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig
 	if err != nil {
 		return "", fmt.Errorf("failed to create context file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	encoder := toml.NewEncoder(f)
 	if err := encoder.Encode(raw); err != nil {
@@ -215,7 +215,7 @@ func WriteWithTerritory(dir, task, skill, sourcePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create context file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	encoder := toml.NewEncoder(f)
 	if err := encoder.Encode(raw); err != nil {

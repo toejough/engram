@@ -156,7 +156,7 @@ func loadImage(path string) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	ext := strings.ToLower(filepath.Ext(path))
 
@@ -175,7 +175,7 @@ func saveImage(path string, img image.Image) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	ext := strings.ToLower(filepath.Ext(path))
 

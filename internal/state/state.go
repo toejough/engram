@@ -98,7 +98,7 @@ func Init(dir string, name string, now func() time.Time) (State, error) {
 	if err != nil {
 		return State{}, fmt.Errorf("failed to create state file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	if err := toml.NewEncoder(f).Encode(s); err != nil {
 		return State{}, fmt.Errorf("failed to encode state: %w", err)
@@ -277,20 +277,20 @@ func writeAtomic(dir string, s State) error {
 	}
 
 	if err := toml.NewEncoder(f).Encode(s); err != nil {
-		f.Close()
-		os.Remove(tmpPath)
+		_ = f.Close()
+		_ = os.Remove(tmpPath)
 
 		return fmt.Errorf("failed to encode state: %w", err)
 	}
 
 	if err := f.Close(); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
 	if err := os.Rename(tmpPath, statePath); err != nil {
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
@@ -352,20 +352,6 @@ type LastFailedTransition struct {
 	ToPhase   string
 }
 
-// getLastFailedTransition extracts the target phase from an error message.
-// This is a simplified implementation - in practice you'd store this explicitly.
-func getLastFailedTransition(s State) *LastFailedTransition {
-	if s.Error == nil {
-		return nil
-	}
-
-	// The target phase is in the error message for illegal transitions
-	// For precondition failures, we need to track it separately
-	// For now, we'll store the attempted "to" phase in a different way
-	// This is a gap - we should enhance ErrorInfo to store the target phase
-
-	return nil // Will need enhancement
-}
 
 // Retry re-attempts the last failed transition.
 // This is a simplified implementation that requires the caller to know the target phase.

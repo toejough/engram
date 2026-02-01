@@ -43,9 +43,9 @@ func correctionsCount(args correctionsCountArgs) error {
 	var err error
 
 	if args.Dir == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
+		homeDir, errHome := os.UserHomeDir()
+		if errHome != nil {
+			return fmt.Errorf("failed to get home directory: %w", errHome)
 		}
 		entries, err = corrections.ReadGlobal(homeDir)
 	} else {

@@ -132,13 +132,12 @@ func mergeFile(topLevelPath, perProjectPath, prefix string, fs MergeFS, idMappin
 	var itemsToAdd []string
 	for _, item := range perProjectItems {
 		newContent := item.Content
-		newID := item.ID
 
 		// Check for conflict
 		if existingIDs[item.ID] {
 			// Renumber
 			maxID++
-			newID = fmt.Sprintf("%s-%03d", prefix, maxID)
+			newID := fmt.Sprintf("%s-%03d", prefix, maxID)
 			newContent = strings.Replace(item.Content, item.ID, newID, 1)
 			idMapping[item.ID] = newID
 			renumbered++
