@@ -24,11 +24,8 @@ func TestValidateTask_UIRequiresVisualEvidence(t *testing.T) {
 **Acceptance Criteria:**
 - Button renders
 `
+	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
 	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
-	if err != nil {
-		os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
-		err = os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
-	}
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.Validate(dir, "TASK-001")
@@ -42,7 +39,7 @@ func TestValidateTask_UIWithVisualEvidence(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
 	tasksContent := `# Tasks
 
 ### TASK-001: Add button
@@ -65,7 +62,7 @@ func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
 	tasksContent := `# Tasks
 
 ### TASK-001: Add function
@@ -87,7 +84,7 @@ func TestValidateTask_ManualVisualVerified(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Add button
@@ -115,7 +112,7 @@ func TestParseDependencies(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: First task
@@ -147,7 +144,7 @@ func TestParseDependencies_DetectsCycle(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -173,7 +170,7 @@ func TestParseDependencies_RootTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Root A
@@ -203,7 +200,7 @@ func TestParallel_IndependentTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -237,7 +234,7 @@ func TestParallel_BlockedTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -265,7 +262,7 @@ func TestParallel_AllComplete(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -287,7 +284,7 @@ func TestValidateAcceptanceCriteria_CompleteCheckboxes(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -311,7 +308,7 @@ func TestValidateAcceptanceCriteria_IncompleteCheckboxes(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -341,7 +338,7 @@ func TestValidateAcceptanceCriteria_TaskNotFound(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -362,7 +359,7 @@ func TestValidateAcceptanceCriteria_NoAcceptanceCriteria(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -384,7 +381,7 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -430,7 +427,7 @@ func TestStateTransition_TaskCompleteSucceedsWithCompleteAC(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -453,7 +450,7 @@ func TestValidateAcceptanceCriteria_ForceBypass(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -480,7 +477,7 @@ func TestValidateAcceptanceCriteria_ErrorListsItems(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
