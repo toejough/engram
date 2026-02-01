@@ -23,10 +23,11 @@ type ProjectConfig struct {
 
 // RoutingConfig defines model routing for different complexity levels.
 type RoutingConfig struct {
-	Simple         string `toml:"simple"`          // Model for simple tasks (default: sonnet)
-	Medium         string `toml:"medium"`          // Model for medium tasks (default: sonnet)
-	Complex        string `toml:"complex"`         // Model for complex tasks (default: sonnet)
-	ThresholdLines int    `toml:"threshold_lines"` // Lines threshold for complexity (default: 100)
+	Simple          string            `toml:"simple"`           // Model for simple tasks (default: sonnet)
+	Medium          string            `toml:"medium"`           // Model for medium tasks (default: sonnet)
+	Complex         string            `toml:"complex"`          // Model for complex tasks (default: sonnet)
+	ThresholdLines  int               `toml:"threshold_lines"`  // Lines threshold for complexity (default: 100)
+	SkillComplexity map[string]string `toml:"skill_complexity"` // Skill name -> complexity level mapping
 }
 
 // ValidModels lists known valid model names.
@@ -148,6 +149,19 @@ func Default() *ProjectConfig {
 			Medium:         "sonnet",
 			Complex:        "sonnet",
 			ThresholdLines: 100,
+			SkillComplexity: map[string]string{
+				// Simple skills - lightweight checks
+				"alignment-check": "simple",
+				// Medium skills - standard development work
+				"tdd-red":      "medium",
+				"tdd-green":    "medium",
+				"tdd-refactor": "medium",
+				"commit":       "medium",
+				// Complex skills - deep analysis
+				"meta-audit":         "complex",
+				"architect-interview": "complex",
+				"pm-interview":        "complex",
+			},
 		},
 	}
 }

@@ -75,3 +75,72 @@ func Read(dir, task, skill string, isResult bool) (string, error) {
 
 	return string(data), nil
 }
+
+// RoutingConfig defines model routing for different complexity levels.
+type RoutingConfig struct {
+	Simple  string
+	Medium  string
+	Complex string
+}
+
+// RoutingInfo is added to context files.
+type RoutingInfo struct {
+	SuggestedModel string `toml:"suggested_model"`
+	Reason         string `toml:"reason"`
+}
+
+// WriteWithRouting copies a TOML file into the context directory and adds routing information.
+func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string) (string, error) {
+	contextDir := filepath.Join(dir, ContextDir)
+	if err := os.MkdirAll(contextDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create context directory: %w", err)
+	}
+
+	// Validate source is parseable TOML
+	if _, err := os.Stat(sourcePath); err != nil {
+		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+	}
+
+	var raw map[string]any
+	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
+		return "", fmt.Errorf("source file is not valid TOML: %w", err)
+	}
+
+	// Determine complexity and model
+	complexity, ok := skillComplexity[skill]
+	if !ok {
+		complexity = "medium" // default
+	}
+
+	var model string
+	switch complexity {
+	case "simple":
+		model = routing.Simple
+	case "complex":
+		model = routing.Complex
+	default:
+		model = routing.Medium
+	}
+
+	// Add routing section
+	raw["routing"] = RoutingInfo{
+		SuggestedModel: model,
+		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
+	}
+
+	targetName := Filename(task, skill)
+	targetPath := filepath.Join(contextDir, targetName)
+
+	f, err := os.Create(targetPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create context file: %w", err)
+	}
+	defer f.Close()
+
+	encoder := toml.NewEncoder(f)
+	if err := encoder.Encode(raw); err != nil {
+		return "", fmt.Errorf("failed to encode TOML: %w", err)
+	}
+
+	return targetPath, nil
+}

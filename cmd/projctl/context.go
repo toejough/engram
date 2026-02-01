@@ -6,18 +6,42 @@ import (
 	"os"
 
 	"github.com/BurntSushi/toml"
+	"github.com/toejough/projctl/internal/config"
 	"github.com/toejough/projctl/internal/context"
 )
 
 type contextWriteArgs struct {
-	Dir   string `targ:"flag,short=d,required,desc=Project directory"`
-	Task  string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-004)"`
-	Skill string `targ:"flag,short=s,required,desc=Skill name (e.g. tdd-red)"`
-	File  string `targ:"flag,short=f,required,desc=Path to TOML context file"`
+	Dir      string `targ:"flag,short=d,required,desc=Project directory"`
+	Task     string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-004)"`
+	Skill    string `targ:"flag,short=s,required,desc=Skill name (e.g. tdd-red)"`
+	File     string `targ:"flag,short=f,required,desc=Path to TOML context file"`
+	NoRouting bool  `targ:"flag,desc=Skip adding routing section"`
 }
 
 func contextWrite(args contextWriteArgs) error {
-	path, err := context.Write(args.Dir, args.Task, args.Skill, args.File)
+	var path string
+	var err error
+
+	if args.NoRouting {
+		path, err = context.Write(args.Dir, args.Task, args.Skill, args.File)
+	} else {
+		// Load config for routing
+		homeDir, _ := os.UserHomeDir()
+		cfg, cfgErr := config.Load(args.Dir, homeDir, &osConfigFS{})
+		if cfgErr != nil {
+			// Fall back to defaults if config loading fails
+			cfg = config.Default()
+		}
+
+		routing := context.RoutingConfig{
+			Simple:  cfg.Routing.Simple,
+			Medium:  cfg.Routing.Medium,
+			Complex: cfg.Routing.Complex,
+		}
+
+		path, err = context.WriteWithRouting(args.Dir, args.Task, args.Skill, args.File, routing, cfg.Routing.SkillComplexity)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -25,6 +49,22 @@ func contextWrite(args contextWriteArgs) error {
 	fmt.Printf("Context written: %s\n", path)
 
 	return nil
+}
+
+// osConfigFS implements config.ConfigFS using real filesystem operations.
+type osConfigFS struct{}
+
+func (f *osConfigFS) ReadFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (f *osConfigFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 type contextReadArgs struct {

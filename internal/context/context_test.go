@@ -191,7 +191,6 @@ func TestWriteWithRouting_AddsRoutingSection(t *testing.T) {
 // TEST-421 traces: TASK-015
 // Test WriteWithRouting uses skill-to-complexity mapping.
 func TestWriteWithRouting_UsesSkillMapping(t *testing.T) {
-	g := NewWithT(t)
 	dir := t.TempDir()
 	source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
 
