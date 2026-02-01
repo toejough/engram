@@ -10,13 +10,24 @@ import (
 
 // ValidationResult holds the result of task validation.
 type ValidationResult struct {
-	Valid bool
-	Error string
+	Valid   bool
+	Error   string
+	Warning string
+}
+
+// ValidateOpts holds options for task validation.
+type ValidateOpts struct {
+	ManualVisualVerified bool // Bypass visual evidence requirement with manual verification
 }
 
 // Validate checks if a task meets validation requirements.
 // For UI tasks, visual evidence is required.
 func Validate(dir, taskID string) ValidationResult {
+	return ValidateWithOpts(dir, taskID, ValidateOpts{})
+}
+
+// ValidateWithOpts checks if a task meets validation requirements with options.
+func ValidateWithOpts(dir, taskID string, opts ValidateOpts) ValidationResult {
 	tasksPath := filepath.Join(dir, "docs", "tasks.md")
 
 	content, err := os.ReadFile(tasksPath)
@@ -33,6 +44,13 @@ func Validate(dir, taskID string) ValidationResult {
 	hasVisualEvidence := parseVisualEvidence(taskContent)
 
 	if isUI && !hasVisualEvidence {
+		if opts.ManualVisualVerified {
+			return ValidationResult{
+				Valid:   true,
+				Warning: "visual evidence bypassed via manual verification flag",
+			}
+		}
+
 		return ValidationResult{Valid: false, Error: "UI task requires visual evidence (add **Visual evidence:** field)"}
 	}
 
