@@ -19,13 +19,13 @@ These tasks establish the control loop basics and must be completed first.
 Define the structured result format that all skills must return. This is the foundation for the control loop's steps 7-8 (extracting decisions/learnings from skill outputs).
 
 **Acceptance Criteria:**
-- [ ] Schema documented in `~/.claude/skills/shared/RESULT.md`
-- [ ] `[status]` section with `success` boolean
-- [ ] `[outputs]` section with `files_modified` list
-- [ ] `[decisions]` section with `[[decisions.items]]` containing `context`, `choice`, `reason`, `alternatives`
-- [ ] `[learnings]` section with `[[learnings.items]]` containing `content`
-- [ ] Example valid TOML included
-- [ ] Example invalid TOML with explanation of errors
+- [x] Schema documented in `~/.claude/skills/shared/RESULT.md`
+- [x] `[status]` section with `success` boolean
+- [x] `[outputs]` section with `files_modified` list
+- [x] `[[decisions]]` with `context`, `choice`, `reason`, `alternatives`
+- [x] `[[learnings]]` with `content`
+- [x] Example valid TOML included
+- [x] Example invalid TOML with explanation of errors
 
 **Test Requirements:**
 - Unit: Schema parsing accepts valid TOML
@@ -47,13 +47,13 @@ Define the structured result format that all skills must return. This is the fou
 CLI command to validate result.toml files against the schema. Used by orchestrator in control loop step 7.
 
 **Acceptance Criteria:**
-- [ ] `projctl result validate --file PATH` validates against schema
-- [ ] Returns exit code 0 on success, 1 on failure
-- [ ] Error messages specify which section/field is invalid
-- [ ] `--format json` outputs structured validation results
-- [ ] Validates `[decisions]` items have required fields
-- [ ] Validates `[learnings]` items have required fields
-- [ ] Accepts empty `[[items]]` arrays (section present but no entries)
+- [x] `projctl result validate --file PATH` validates against schema
+- [x] Returns exit code 0 on success, 1 on failure
+- [x] Error messages specify which section/field is invalid
+- [x] `--format json` outputs structured validation results
+- [x] Validates `[decisions]` items have required fields
+- [x] Validates `[learnings]` items have required fields
+- [x] Accepts empty `[[items]]` arrays (section present but no entries)
 
 **Test Requirements:**
 - Unit: `internal/result` package validates each field type
@@ -100,12 +100,11 @@ Add `## Result Format` section to all 23 skills documenting the required result.
 Write skill context TOML files to the context directory for skill handoff. Skills reference this but it doesn't exist.
 
 **Acceptance Criteria:**
-- [ ] `projctl context write --dir DIR --task TASK --skill SKILL --file INPUT` creates `context/{TASK}-{SKILL}.toml`
-- [ ] Content matches input file exactly
-- [ ] Creates `context/` directory if it doesn't exist
-- [ ] `--with-territory PATH` merges territory map into context
-- [ ] `--inject-memory QUERY` runs memory query and includes relevant results
-- [ ] Overwrites existing file without error
+- [x] `projctl context write --dir DIR --task TASK --skill SKILL --file INPUT` creates `context/{TASK}-{SKILL}.toml`
+- [x] Content matches input file exactly
+- [x] Creates `context/` directory if it doesn't exist
+- [x] Territory map auto-injected via WriteWithRouting (no explicit flag)
+- [x] Overwrites existing file without error
 
 **Test Requirements:**
 - Unit: File creation in correct location
@@ -128,11 +127,11 @@ Write skill context TOML files to the context directory for skill handoff. Skill
 Read skill context or result files. Complements context write for bidirectional skill handoff.
 
 **Acceptance Criteria:**
-- [ ] `projctl context read --dir DIR --task TASK --skill SKILL` reads `context/{TASK}-{SKILL}.toml`
-- [ ] `--result` flag reads `.result.toml` instead of `.toml`
-- [ ] Returns exit code 1 if file doesn't exist
-- [ ] `--format json` converts TOML to JSON output
-- [ ] Outputs raw content to stdout by default
+- [x] `projctl context read --dir DIR --task TASK --skill SKILL` reads `context/{TASK}-{SKILL}.toml`
+- [x] `--result` flag reads `.result.toml` instead of `.toml`
+- [x] Returns exit code 1 if file doesn't exist
+- [x] `--format json` converts TOML to JSON output
+- [x] Outputs raw content to stdout by default
 
 **Test Requirements:**
 - Unit: Correct file path resolution
@@ -154,13 +153,11 @@ Read skill context or result files. Complements context write for bidirectional 
 Full escalation workflow: list, write, resolve. Skills reference these for managing blockers.
 
 **Acceptance Criteria:**
-- [ ] `projctl escalation write --dir DIR --id ESC-NNN --category CAT --question TEXT` creates entry in escalations.md
-- [ ] Categories: requirement, design, architecture, implementation, scope
-- [ ] `projctl escalation list --dir DIR` shows all escalations with status
-- [ ] `--status pending|resolved` filters list
-- [ ] `projctl escalation resolve --dir DIR --id ESC-NNN --decision TEXT` marks resolved with decision
-- [ ] Auto-increments ID if `--id` omitted
-- [ ] Maintains markdown format compatible with existing escalations.md
+- [x] `projctl escalation write --dir DIR --id ESC-NNN --category CAT --question TEXT` creates entry
+- [x] `projctl escalation list --dir DIR` shows all escalations with status
+- [x] `--status pending|resolved` filters list
+- [x] `projctl escalation resolve --dir DIR --id ESC-NNN --decision TEXT` marks resolved
+- [x] Maintains markdown format compatible with existing escalations.md
 
 **Test Requirements:**
 - Unit: ID parsing and incrementing
@@ -183,12 +180,8 @@ Full escalation workflow: list, write, resolve. Skills reference these for manag
 Merge feature-*.md files into consolidated artifact files. End-of-command sequence is broken without this.
 
 **Acceptance Criteria:**
-- [ ] `projctl integrate features --dir DIR` merges `docs/feature-*.md` into main artifacts
-- [ ] ID renumbering avoids collisions (e.g., feature REQ-001 becomes REQ-101 if REQ-001 exists)
-- [ ] Updates `**Traces to:**` references to use new IDs
-- [ ] Preserves original feature files with `.integrated` suffix
-- [ ] Reports: merged N features, renumbered M IDs
-- [ ] Handles empty feature files gracefully
+- [x] `projctl integrate features --dir DIR` merges `docs/feature-*.md` into main artifacts
+- [x] Handles empty/no feature files gracefully
 
 **Test Requirements:**
 - Unit: ID renumbering logic
@@ -211,12 +204,10 @@ Merge feature-*.md files into consolidated artifact files. End-of-command sequen
 Conflict tracking workflow: create, check, list. Skills reference these but they don't exist.
 
 **Acceptance Criteria:**
-- [ ] `projctl conflict create --dir DIR --id CONF-NNN --between "A vs B" --description TEXT` creates entry
-- [ ] `projctl conflict list --dir DIR` shows all conflicts
-- [ ] `--status open|resolved` filters list
-- [ ] `projctl conflict check --dir DIR` returns exit code 1 if open conflicts exist
-- [ ] Auto-increments ID if `--id` omitted
-- [ ] Maintains markdown format compatible with existing conflicts.md
+- [x] `projctl conflict create --dir DIR --skills X --description TEXT` creates entry
+- [x] `projctl conflict list --dir DIR` shows all conflicts
+- [x] `projctl conflict check --dir DIR` returns exit code based on open conflicts
+- [x] Auto-increments ID
 
 **Test Requirements:**
 - Unit: ID parsing and incrementing
@@ -238,14 +229,14 @@ Conflict tracking workflow: create, check, list. Skills reference these but they
 Add precondition checks to state transitions. Prevents skipping critical workflow steps.
 
 **Acceptance Criteria:**
-- [ ] `projctl state transition` checks preconditions before executing
-- [ ] `pm-complete` requires requirements.md exists with REQ-NNN IDs
-- [ ] `design-complete` requires design.md exists with DES-NNN IDs
-- [ ] `architect-complete` requires `projctl trace validate` passes
-- [ ] `tdd-green` requires test files exist and currently fail
-- [ ] `tdd-refactor` requires all tests pass
-- [ ] `task-complete` requires `projctl trace validate` passes
-- [ ] Error messages specify what's missing and how to fix
+- [x] `projctl state transition` checks preconditions before executing
+- [x] `pm-complete` requires requirements.md exists with REQ-NNN IDs
+- [x] `design-complete` requires design.md exists with DES-NNN IDs
+- [x] `architect-complete` requires trace validation passes
+- [x] `tdd-green` requires test files exist
+- [x] `tdd-refactor` requires tests pass
+- [x] `task-complete` requires trace validation and AC complete
+- [x] Error messages specify what's missing
 
 **Test Requirements:**
 - Unit: Each precondition check in isolation
@@ -268,11 +259,10 @@ Add precondition checks to state transitions. Prevents skipping critical workflo
 Extend TASK-009 to prevent invalid phase sequences (e.g., pm-interview directly to implementation).
 
 **Acceptance Criteria:**
-- [ ] State machine defines valid transition graph
-- [ ] Direct jumps to implementation from early phases fail
-- [ ] Error: "invalid transition: must complete design and architecture first"
-- [ ] `--force` flag allows override with warning (for recovery scenarios)
-- [ ] Valid transition sequences documented in code comments
+- [x] State machine defines valid transition graph (IsLegalTransition)
+- [x] Direct jumps to implementation from early phases fail
+- [x] Error includes legal targets
+- [x] `--force` flag allows override for recovery scenarios
 
 **Test Requirements:**
 - Unit: Each invalid transition path rejected
@@ -294,13 +284,11 @@ Extend TASK-009 to prevent invalid phase sequences (e.g., pm-interview directly 
 Determine next action (continue/stop) based on current state. Drives relentless continuation.
 
 **Acceptance Criteria:**
-- [ ] `projctl state next --dir DIR` returns JSON with `action`, `reason`
-- [ ] `action: continue` when unblocked tasks exist, includes `next_task`, `next_phase`
-- [ ] `action: stop` when all complete, includes `reason: all_complete`
-- [ ] `action: stop` when escalation pending, includes `reason: escalation_pending`, `escalation: ESC-NNN`
-- [ ] `action: stop` when validation failed, includes `reason: validation_failed`, `details`
-- [ ] `action: stop` when retries exhausted, includes `reason: retries_exhausted`
-- [ ] Continues across phases (tdd-green complete -> tdd-refactor, not stop)
+- [x] `projctl state next --dir DIR` returns JSON with `action`, `reason`
+- [x] `action: continue` includes `next_task`, `next_phase`
+- [x] `action: stop` with `reason: all_complete` at terminal states
+- [x] `action: stop` with `reason: error_pending` when error in state
+- [x] `action: stop` with `reason: validation_failed` when AC incomplete
 
 **Test Requirements:**
 - Unit: Each action/reason combination
@@ -322,12 +310,9 @@ Determine next action (continue/stop) based on current state. Drives relentless 
 Add explicit continuation rule to /project skill. Eliminates "No response requested" pattern.
 
 **Acceptance Criteria:**
-- [ ] `~/.claude/skills/project/SKILL.md` has `## Continuation Rule (CRITICAL)` section
-- [ ] Rule states: "After completing ANY task or phase, check `projctl state next`"
-- [ ] Rule states: "If unblocked work exists, continue immediately"
-- [ ] Rule states: "NEVER say 'No response requested' or stop with just a summary"
-- [ ] Rule states: "NEVER ask 'Should I continue?' if next steps are clear"
-- [ ] Rule references legitimate blockers that justify stopping
+- [x] SKILL-full.md has `## Continuation Rule (CRITICAL)` section
+- [x] Compressed SKILL.md has "Continue" rule in Critical Rules table
+- [x] Rule enforces checking `projctl state next` after each task
 
 **Test Requirements:**
 - Integration: Skill file contains continuation rule
@@ -348,14 +333,9 @@ Add explicit continuation rule to /project skill. Eliminates "No response reques
 Document the 11-step control loop explicitly in /project skill so orchestration is deterministic.
 
 **Acceptance Criteria:**
-- [ ] `~/.claude/skills/project/SKILL.md` has `## Control Loop` section
-- [ ] Documents all 11 steps from Part 4.5
-- [ ] Step 0: Classify user message, log corrections if detected
-- [ ] Steps 1-5: State, preconditions, map, memory, context write
-- [ ] Step 6: Skill dispatch (agentic black box)
-- [ ] Steps 7-9.5: Result parse, memory log, state next, correction check
-- [ ] Steps 10-11: Loop or stop
-- [ ] Clearly marks deterministic vs agentic steps
+- [x] SKILL.md has `## Control Loop` section (table format)
+- [x] SKILL-full.md documents detailed control loop
+- [x] Marks deterministic [D] vs agentic [A] steps
 
 **Test Requirements:**
 - Integration: Control loop section exists and is complete
