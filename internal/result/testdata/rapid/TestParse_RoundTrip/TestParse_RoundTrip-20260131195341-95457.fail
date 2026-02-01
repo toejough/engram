@@ -1,0 +1,19 @@
+# 2026/01/31 19:53:41.939397 [TestParse_RoundTrip] [rapid] draw success: true
+# 2026/01/31 19:53:41.939399 [TestParse_RoundTrip] [rapid] draw files: []string{}
+# 2026/01/31 19:53:41.939400 [TestParse_RoundTrip] [rapid] draw numDecisions: 0
+# 2026/01/31 19:53:41.939401 [TestParse_RoundTrip] [rapid] draw numLearnings: 0
+# 2026/01/31 19:53:41.939405 [TestParse_RoundTrip] 
+# Expected
+#     <bool>: false
+# to equal
+#     <bool>: true
+# 
+v0.4.8#16306134090992174037
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
