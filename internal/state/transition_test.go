@@ -615,6 +615,114 @@ func TestNextResult_Fields(t *testing.T) {
 	g.Expect(result.NextTask).To(Equal("TASK-001"))
 }
 
+// TEST-430 traces: TASK-018
+// Test failed transition captures error details in state.toml.
+func TestTransition_CapturesError(t *testing.T) {
+	t.Run("captures error on precondition failure", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{
+			Task: "TASK-001",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Attempt transition that fails precondition
+		checker := &mockPreconditionChecker{
+			requirementsExists: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+
+		// Read state and verify error section exists
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Error).ToNot(BeNil())
+		g.Expect(s.Error.LastPhase).To(Equal("pm-interview"))
+		g.Expect(s.Error.LastTask).To(Equal("TASK-001"))
+		g.Expect(s.Error.ErrorType).To(Equal("precondition_failed"))
+		g.Expect(s.Error.Message).To(ContainSubstring("requirements.md"))
+	})
+
+	t.Run("captures error on illegal transition", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Attempt illegal transition
+		_, err = state.Transition(dir, "completion", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).To(HaveOccurred())
+
+		// Read state and verify error section exists
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Error).ToNot(BeNil())
+		g.Expect(s.Error.ErrorType).To(Equal("illegal_transition"))
+	})
+}
+
+// TEST-431 traces: TASK-018
+// Test retry count increments on repeated failures.
+func TestTransition_RetryCountIncrements(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_, err := state.Init(dir, "test-project", nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	checker := &mockPreconditionChecker{requirementsExists: false}
+
+	// First failure
+	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+	g.Expect(err).To(HaveOccurred())
+
+	s, _ := state.Get(dir)
+	g.Expect(s.Error.RetryCount).To(Equal(1))
+
+	// Second failure
+	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+	g.Expect(err).To(HaveOccurred())
+
+	s, _ = state.Get(dir)
+	g.Expect(s.Error.RetryCount).To(Equal(2))
+}
+
+// TEST-432 traces: TASK-018
+// Test error cleared on successful transition.
+func TestTransition_ClearsErrorOnSuccess(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_, err := state.Init(dir, "test-project", nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Cause a failure first
+	checker := &mockPreconditionChecker{requirementsExists: false}
+	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+	g.Expect(err).To(HaveOccurred())
+
+	s, _ := state.Get(dir)
+	g.Expect(s.Error).ToNot(BeNil())
+
+	// Now succeed with force
+	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{Force: true}, nowFunc(), checker)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	s, _ = state.Get(dir)
+	g.Expect(s.Error).To(BeNil())
+}
+
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
 func walkToPhase(t *testing.T, dir, target string) {
