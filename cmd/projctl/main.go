@@ -38,6 +38,7 @@ func main() {
 			targ.Targ(contextWrite).Name("write").Description("Write context for handoff"),
 			targ.Targ(contextRead).Name("read").Description("Read saved context"),
 			targ.Targ(contextWriteParallel).Name("write-parallel").Description("Create context files for multiple tasks"),
+			targ.Targ(contextCheck).Name("check").Description("Check context budget usage"),
 		),
 		targ.Group("screenshot",
 			targ.Targ(screenshotDiff).Name("diff").Description("Compare screenshots for visual differences"),

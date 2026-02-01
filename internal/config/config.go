@@ -170,6 +170,10 @@ func Default() *ProjectConfig {
 				"pm-interview":        "complex",
 			},
 		},
+		Budget: BudgetConfig{
+			WarningTokens: 80000,
+			LimitTokens:   90000,
+		},
 	}
 }
 

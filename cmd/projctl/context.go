@@ -128,3 +128,42 @@ func contextWriteParallel(args contextWriteParallelArgs) error {
 
 	return nil
 }
+
+type contextCheckArgs struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func contextCheck(args contextCheckArgs) error {
+	// Load config for thresholds
+	homeDir, _ := os.UserHomeDir()
+	cfg, err := config.Load(args.Dir, homeDir, &osConfigFS{})
+	if err != nil {
+		cfg = config.Default()
+	}
+
+	// Use config thresholds or defaults
+	thresholds := context.BudgetThresholds{
+		Warning: cfg.Budget.WarningTokens,
+		Limit:   cfg.Budget.LimitTokens,
+	}
+	if thresholds.Warning == 0 {
+		thresholds.Warning = 80000 // Default
+	}
+	if thresholds.Limit == 0 {
+		thresholds.Limit = 90000 // Default
+	}
+
+	result, err := context.CheckBudget(args.Dir, thresholds)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(result.Message)
+
+	// Return with appropriate exit code
+	if result.ExitCode != 0 {
+		os.Exit(result.ExitCode)
+	}
+
+	return nil
+}
