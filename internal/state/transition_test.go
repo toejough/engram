@@ -640,7 +640,7 @@ func TestNextWithChecker_ValidationFailed(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "task-audit")
+		walkToPhaseWithTask(t, dir, "task-audit", "TASK-001")
 
 		checker := &mockPreconditionChecker{
 			acceptanceCriteriaComplete: false,
@@ -658,7 +658,7 @@ func TestNextWithChecker_ValidationFailed(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "task-audit")
+		walkToPhaseWithTask(t, dir, "task-audit", "TASK-001")
 
 		checker := &mockPreconditionChecker{
 			acceptanceCriteriaComplete: true,
@@ -675,14 +675,14 @@ func TestNextWithChecker_ValidationFailed(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "tdd-green")
+		walkToPhaseWithTask(t, dir, "commit-green", "TASK-001")
 
 		checker := &mockPreconditionChecker{
 			acceptanceCriteriaComplete: false, // AC incomplete, but shouldn't matter
 		}
 		result := state.NextWithChecker(dir, checker)
 		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("commit-green"))
+		g.Expect(result.NextPhase).To(Equal("tdd-refactor"))
 	})
 }
 
@@ -967,6 +967,58 @@ func TestNext_ConsidersError(t *testing.T) {
 
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
+func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	paths := map[string][]string{
+		"task-audit": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
+			"commit-refactor", "task-audit",
+		},
+		"commit-green": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green",
+		},
+	}
+
+	phases, ok := paths[target]
+	if !ok {
+		t.Fatalf("unknown target phase: %s", target)
+	}
+
+	passChecker := &mockPreconditionChecker{
+		requirementsExists:         true,
+		requirementsHasIDs:         true,
+		designExists:               true,
+		designHasIDs:               true,
+		traceValidationPasses:      true,
+		testsExist:                 true,
+		testsFail:                  true,
+		testsPass:                  true,
+		acceptanceCriteriaComplete: true,
+	}
+
+	for _, phase := range phases {
+		opts := state.TransitionOpts{}
+		// Set task ID at task-start and after
+		if phase == "task-start" || phase == "tdd-red" || phase == "commit-red" ||
+			phase == "tdd-green" || phase == "commit-green" || phase == "tdd-refactor" ||
+			phase == "commit-refactor" || phase == "task-audit" {
+			opts.Task = taskID
+		}
+		_, err := state.TransitionWithChecker(dir, phase, opts, nowFunc(), passChecker)
+		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+	}
+}
+
 func walkToPhase(t *testing.T, dir, target string) {
 	t.Helper()
 	g := NewWithT(t)

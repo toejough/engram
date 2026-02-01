@@ -389,6 +389,12 @@ func Retry(dir string, now func() time.Time, checker PreconditionChecker) (State
 // Next determines the next action based on current state.
 // Returns "continue" with next phase/task, or "stop" with reason.
 func Next(dir string) NextResult {
+	return NextWithChecker(dir, nil)
+}
+
+// NextWithChecker determines the next action, optionally checking preconditions.
+// If checker is provided and we're at task-audit, validates AC before suggesting task-complete.
+func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 	s, err := Get(dir)
 	if err != nil {
 		return NextResult{
@@ -416,6 +422,18 @@ func Next(dir string) NextResult {
 		return NextResult{
 			Action: "stop",
 			Reason: "all_complete",
+		}
+	}
+
+	// If at task-audit and checker provided, verify AC before suggesting task-complete
+	if currentPhase == "task-audit" && checker != nil {
+		taskID := s.Progress.CurrentTask
+		if taskID != "" && !checker.AcceptanceCriteriaComplete(dir, taskID) {
+			return NextResult{
+				Action:  "stop",
+				Reason:  "validation_failed",
+				Details: "acceptance criteria for " + taskID + " are incomplete",
+			}
 		}
 	}
 
