@@ -366,33 +366,103 @@ Document the 11-step control loop explicitly in /project skill so orchestration 
 
 ---
 
-### TASK-059: Implement completion gate for task-complete transitions
+### TASK-059: Implement AC validation function
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+**Status:** COMPLETE
+
+Add function to validate acceptance criteria from tasks.md.
+
+**Acceptance Criteria:**
+- [x] `ValidateAcceptanceCriteria(dir, taskID)` parses acceptance criteria from tasks.md
+- [x] Validates checkboxes: `- [x]` = complete, `- [ ]` = incomplete
+- [x] Returns structured output: `{complete: N, incomplete: M, items: [...]}`
+- [x] Error messages list specific incomplete AC items
+
+**Test Requirements:**
+- Unit: AC checkbox parsing from markdown
+- Unit: Complete/incomplete counting
+
+**Dependencies:** TASK-009
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-063: Wire AC validation into state transitions
 
 **Phase:** 12
 **Priority:** High
 **Timeline:** This Week
 
-Add precondition check on task-complete transition that validates acceptance criteria are met. Prevents agents from claiming tasks done when work is incomplete (the "Sisyphus" problem).
+Integrate AC validation as precondition for task-complete transitions.
 
 **Acceptance Criteria:**
-- [ ] `projctl task validate --dir DIR --task TASK` parses acceptance criteria from tasks.md
-- [ ] Validates checkboxes: `- [x]` = complete, `- [ ]` = incomplete
-- [ ] Returns structured output: `{complete: N, incomplete: M, items: [...]}`
-- [ ] Exit code 0 if all AC complete, 1 if any incomplete
-- [ ] `projctl state transition task-complete` calls `task validate` as precondition
+- [ ] `projctl state transition --to task-complete` calls `ValidateAcceptanceCriteria` before transitioning
 - [ ] Transition fails with actionable error: "Cannot complete TASK-XXX: N acceptance criteria unmet"
 - [ ] Error lists specific incomplete AC items
 - [ ] `--force` flag bypasses validation (for recovery only)
-- [ ] Integration with `state.Next()`: returns `validation_failed` when AC incomplete
+- [ ] Exit code 1 when validation fails
 
 **Test Requirements:**
-- Unit: AC checkbox parsing from markdown
-- Unit: Complete/incomplete counting
 - Integration: task-complete blocked when AC incomplete
 - Integration: task-complete succeeds when all AC complete
 - Integration: Force flag bypasses check
 
-**Dependencies:** TASK-009
+**Dependencies:** TASK-059
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-064: Wire AC validation into state.Next()
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Integrate AC validation into state.Next() to return validation_failed when appropriate.
+
+**Acceptance Criteria:**
+- [ ] `state.Next()` checks AC status for current task
+- [ ] Returns `action: stop, reason: validation_failed` when AC incomplete
+- [ ] Includes `details` with list of incomplete AC items
+- [ ] Only checks when current phase is task-audit or later
+
+**Test Requirements:**
+- Unit: state.Next returns validation_failed when AC incomplete
+- Integration: Control loop stops when AC incomplete
+
+**Dependencies:** TASK-059, TASK-063
+
+**Traces to:** Phase 12
+
+---
+
+### TASK-065: Implement context budget alerting
+
+**Phase:** 12
+**Priority:** High
+**Timeline:** This Week
+
+Add automated context budget checking that warns/blocks when thresholds exceeded.
+
+**Acceptance Criteria:**
+- [ ] `projctl context check --dir DIR` reads recent log entries with context_estimate
+- [ ] Compares cumulative estimate to configured thresholds (default: 80K warning, 90K limit)
+- [ ] Exit code 0 if under warning, 1 if over warning, 2 if over limit
+- [ ] Output includes recommendation: "Context at N% - consider compaction"
+- [ ] Thresholds configurable in project-config.toml `[context]` section
+- [ ] Control loop can call this after each skill dispatch
+
+**Test Requirements:**
+- Unit: Threshold comparison logic
+- Unit: Exit codes match thresholds
+- Integration: Reads from actual log entries
+
+**Dependencies:** TASK-061
 
 **Traces to:** Phase 12
 
@@ -1663,7 +1733,12 @@ TASK-009 (state preconditions)
 TASK-012 (continuation rule)
     └── TASK-060 (sub-agent mandate)
     └── TASK-061 (context budget)
+        └── TASK-065 (context budget alerting)
     └── TASK-062 (minimize /project)
+
+TASK-059 (AC validation function)
+    └── TASK-063 (wire into state transitions)
+    └── TASK-064 (wire into state.Next)
 
 TASK-011 (state next)
     └── TASK-012 (continuation rule)
@@ -1705,9 +1780,9 @@ TASK-055 (skills directory)
 
 ---
 
-**Total:** 62 tasks across 16 phases (0-15) plus housekeeping
+**Total:** 65 tasks across 16 phases (0-15) plus housekeeping
 
-**This Week:** 21 tasks (foundation) - includes Phase 15 skill management + orchestrator thinning
+**This Week:** 24 tasks (foundation) - includes Phase 15 skill management + orchestrator enforcement
 **This Month:** 13 tasks (reliability)
 **Next Month:** 13 tasks (efficiency)
 **Next Quarter:** 15 tasks (polish)
