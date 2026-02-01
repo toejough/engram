@@ -2,6 +2,7 @@ package memory_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -923,8 +924,8 @@ func TestGrepCaseInsensitive(t *testing.T) {
 // Memory query tests (TASK-052)
 // ============================================================================
 
-// TEST-820: Query returns similar memories
-func TestQueryReturnsSimilarMemories(t *testing.T) {
+// TEST-820: Query creates embeddings.db on first use
+func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -932,17 +933,105 @@ func TestQueryReturnsSimilarMemories(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create memories with varying relevance
-	indexContent := `- 2024-01-01: Learned about PostgreSQL database design
-- 2024-01-02: Studied MySQL query optimization
-- 2024-01-03: Read about database indexing strategies
-- 2024-01-04: Explored React component patterns`
+	// Verify embeddings.db doesn't exist
+	embeddingsPath := filepath.Join(memoryDir, "embeddings.db")
+	_, err = os.Stat(embeddingsPath)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	// Create some memory content
+	indexContent := `- 2024-01-01: Learned about PostgreSQL database design`
 	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
-		Text:       "database performance",
-		Limit:      5,
+		Text:       "database",
+		MemoryRoot: memoryDir,
+	}
+
+	_, err = memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify embeddings.db was created
+	_, err = os.Stat(embeddingsPath)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TEST-821: Query uses SQLite-vec for vector storage
+func TestQueryUsesSQLiteVec(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Database indexing strategies`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "database",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify embeddings.db contains vec0 virtual table for SQLite-vec
+	embeddingsPath := filepath.Join(memoryDir, "embeddings.db")
+	g.Expect(embeddingsPath).To(BeAnExistingFile())
+
+	// The database should have embeddings stored as vectors
+	g.Expect(results.VectorStorage).To(Equal("sqlite-vec"))
+}
+
+// TEST-822: Query uses ONNX model for embeddings
+func TestQueryUsesONNXModel(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	indexContent := `- 2024-01-01: Testing ONNX embedding generation`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "embedding test",
+		MemoryRoot: memoryDir,
+	}
+
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Results should indicate ONNX model was used
+	g.Expect(results.EmbeddingModel).To(ContainSubstring("onnx"))
+
+	// Should NOT have made any API calls (field should be false/zero)
+	g.Expect(results.APICallsMade).To(BeFalse())
+}
+
+// TEST-823: Query uses semantic similarity not keyword matching
+func TestQueryUsesSemanticSimilarity(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create memories where semantic understanding is needed
+	indexContent := `- 2024-01-01: Database backup and recovery procedures
+- 2024-01-02: Web frontend styling with CSS
+- 2024-01-03: Data persistence and storage solutions`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "storing information",
+		Limit:      3,
 		MemoryRoot: memoryDir,
 	}
 
@@ -950,14 +1039,17 @@ func TestQueryReturnsSimilarMemories(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(results.Results).ToNot(BeEmpty())
 
-	// Database-related entries should rank higher than React
-	for _, r := range results.Results {
-		g.Expect(r.Score).To(BeNumerically(">", 0))
-		g.Expect(r.Content).ToNot(BeEmpty())
-	}
+	// Semantic similarity should rank "Data persistence" and "Database backup" higher
+	// than "CSS styling" even though no exact keyword matches exist
+	topResult := results.Results[0]
+	g.Expect(topResult.Content).To(Or(
+		ContainSubstring("persistence"),
+		ContainSubstring("backup"),
+	))
+	g.Expect(topResult.Content).ToNot(ContainSubstring("CSS"))
 }
 
-// TEST-821: Query returns default 5 results
+// TEST-824: Query returns default 5 results
 func TestQueryDefaultLimit(t *testing.T) {
 	g := NewWithT(t)
 
@@ -984,7 +1076,7 @@ func TestQueryDefaultLimit(t *testing.T) {
 	g.Expect(len(results.Results)).To(BeNumerically("<=", 5))
 }
 
-// TEST-822: Query respects custom limit
+// TEST-825: Query respects custom limit
 func TestQueryCustomLimit(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1011,7 +1103,7 @@ func TestQueryCustomLimit(t *testing.T) {
 	g.Expect(len(results.Results)).To(BeNumerically("<=", 3))
 }
 
-// TEST-823: Query searches sessions
+// TEST-826: Query searches sessions
 func TestQuerySearchesSessions(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1037,7 +1129,7 @@ Completed API design work.`
 	g.Expect(results.Results).ToNot(BeEmpty())
 }
 
-// TEST-824: Query requires text
+// TEST-827: Query requires text
 func TestQueryRequiresText(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1054,7 +1146,7 @@ func TestQueryRequiresText(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("text"))
 }
 
-// TEST-825: Query results include similarity scores
+// TEST-828: Query results include similarity scores
 func TestQueryResultsIncludeScores(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1084,7 +1176,7 @@ func TestQueryResultsIncludeScores(t *testing.T) {
 	}
 }
 
-// TEST-826: Query results are sorted by score descending
+// TEST-829: Query results are sorted by score descending
 func TestQueryResultsSortedByScore(t *testing.T) {
 	g := NewWithT(t)
 
@@ -1111,4 +1203,89 @@ func TestQueryResultsSortedByScore(t *testing.T) {
 	for i := 1; i < len(results.Results); i++ {
 		g.Expect(results.Results[i-1].Score).To(BeNumerically(">=", results.Results[i].Score))
 	}
+}
+
+// TEST-830: Query stores embeddings incrementally
+func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// First query with initial content
+	indexContent1 := `- 2024-01-01: First memory entry`
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent1), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	opts := memory.QueryOpts{
+		Text:       "first",
+		MemoryRoot: memoryDir,
+	}
+
+	results1, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	initialCount := results1.EmbeddingsCount
+
+	// Add new memory entry
+	indexContent2 := indexContent1 + "\n- 2024-01-02: Second memory entry"
+	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent2), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Second query should only create embedding for new entry
+	results2, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results2.EmbeddingsCount).To(Equal(initialCount + 1))
+	g.Expect(results2.NewEmbeddingsCreated).To(Equal(1))
+}
+
+// TEST-831: Property-based test for embedding consistency
+func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		g := NewWithT(t)
+
+		// Use alphanumeric suffix for valid filesystem paths
+		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
+		tempDir := os.TempDir()
+		memoryDir := filepath.Join(tempDir, "query-test-"+suffix)
+		defer os.RemoveAll(memoryDir)
+
+		err := os.MkdirAll(memoryDir, 0755)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Generate random memory content
+		numEntries := rapid.IntRange(1, 10).Draw(t, "numEntries")
+		var lines []string
+		for i := 0; i < numEntries; i++ {
+			content := rapid.StringMatching(`[a-zA-Z0-9 ]{10,50}`).Draw(t, "content")
+			lines = append(lines, fmt.Sprintf("- 2024-01-01: %s", content))
+		}
+		indexContent := strings.Join(lines, "\n")
+		err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		queryText := rapid.StringMatching(`[a-zA-Z0-9 ]{5,20}`).Draw(t, "query")
+
+		opts := memory.QueryOpts{
+			Text:       queryText,
+			MemoryRoot: memoryDir,
+		}
+
+		results, err := memory.Query(opts)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Property: Same query should return same results (deterministic)
+		results2, err := memory.Query(opts)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(len(results.Results)).To(Equal(len(results2.Results)))
+
+		// Property: Embeddings should be stored (db should exist)
+		embeddingsPath := filepath.Join(memoryDir, "embeddings.db")
+		_, err = os.Stat(embeddingsPath)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Property: No API calls should have been made
+		g.Expect(results.APICallsMade).To(BeFalse())
+	})
 }
