@@ -19,7 +19,7 @@ func TestMemoryLearnCommand(t *testing.T) {
 	// Run the memory learn command
 	cmd := exec.Command("projctl", "memory", "learn",
 		"--message", "Test learning from CLI",
-		"--memory-root", memoryDir)
+		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
@@ -42,7 +42,7 @@ func TestMemoryLearnWithProject(t *testing.T) {
 	cmd := exec.Command("projctl", "memory", "learn",
 		"--message", "Project-specific learning",
 		"--project", "my-project",
-		"--memory-root", memoryDir)
+		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
@@ -61,7 +61,7 @@ func TestMemoryLearnRequiresMessage(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
 	cmd := exec.Command("projctl", "memory", "learn",
-		"--memory-root", memoryDir)
+		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).To(HaveOccurred(), "Should fail without message")
@@ -78,14 +78,14 @@ func TestMemoryLearnMultipleEntries(t *testing.T) {
 	// Add first learning
 	cmd := exec.Command("projctl", "memory", "learn",
 		"--message", "First CLI learning",
-		"--memory-root", memoryDir)
+		"--memoryroot", memoryDir)
 	_, err := cmd.CombinedOutput()
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Add second learning
 	cmd = exec.Command("projctl", "memory", "learn",
 		"--message", "Second CLI learning",
-		"--memory-root", memoryDir)
+		"--memoryroot", memoryDir)
 	_, err = cmd.CombinedOutput()
 	g.Expect(err).ToNot(HaveOccurred())
 

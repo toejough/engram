@@ -192,8 +192,10 @@ func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
+		// Use alphanumeric suffix only for valid filesystem paths
+		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
 		tempDir := os.TempDir()
-		memoryDir := filepath.Join(tempDir, "memory-test-"+rapid.String().Draw(t, "suffix"))
+		memoryDir := filepath.Join(tempDir, "memory-test-"+suffix)
 		defer os.RemoveAll(memoryDir)
 
 		// Generate random non-empty message (exclude newlines for simpler parsing)
