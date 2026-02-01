@@ -543,6 +543,78 @@ func TestTransitionWithChecker_ForceFlag(t *testing.T) {
 	})
 }
 
+// TEST-306 traces: TASK-011
+// Test state next returns action: continue when unblocked work exists
+func TestNext_Continue(t *testing.T) {
+	t.Run("returns continue when in tdd-red", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "tdd-red")
+
+		result := state.Next(dir)
+		g.Expect(result.Action).To(Equal("continue"))
+		g.Expect(result.NextPhase).To(Equal("commit-red"))
+	})
+
+	t.Run("continues across phases", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "commit-green")
+
+		result := state.Next(dir)
+		g.Expect(result.Action).To(Equal("continue"))
+		g.Expect(result.NextPhase).To(Equal("tdd-refactor"))
+	})
+}
+
+// TEST-307 traces: TASK-011
+// Test state next returns action: stop when all complete
+func TestNext_Stop(t *testing.T) {
+	t.Run("returns stop at terminal states", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Manually set phase to a terminal state for test
+		walkToPhase(t, dir, "integrate-cleanup")
+		_, err = state.TransitionWithChecker(dir, "integrate-complete", state.TransitionOpts{}, nowFunc(), &mockPreconditionChecker{
+			traceValidationPasses: true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result := state.Next(dir)
+		g.Expect(result.Action).To(Equal("stop"))
+		g.Expect(result.Reason).To(Equal("all_complete"))
+	})
+}
+
+// TEST-308 traces: TASK-011
+// Test NextResult contains required fields
+func TestNextResult_Fields(t *testing.T) {
+	g := NewWithT(t)
+
+	result := state.NextResult{
+		Action:    "continue",
+		NextPhase: "tdd-green",
+		NextTask:  "TASK-001",
+		Reason:    "",
+	}
+
+	g.Expect(result.Action).To(Equal("continue"))
+	g.Expect(result.NextPhase).To(Equal("tdd-green"))
+	g.Expect(result.NextTask).To(Equal("TASK-001"))
+}
+
 // walkToPhase transitions through phases to reach the target phase.
 // Uses a passthrough checker that allows all preconditions.
 func walkToPhase(t *testing.T, dir, target string) {
@@ -566,6 +638,19 @@ func walkToPhase(t *testing.T, dir, target string) {
 			"pm-interview", "pm-complete", "design-interview", "design-complete",
 			"alignment-check", "architect-interview", "architect-complete",
 		},
+		"tdd-red": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+		},
+		"commit-green": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green",
+		},
 		"task-audit": {
 			"pm-interview", "pm-complete", "design-interview", "design-complete",
 			"alignment-check", "architect-interview", "architect-complete",
@@ -573,6 +658,16 @@ func walkToPhase(t *testing.T, dir, target string) {
 			"alignment-check", "implementation", "task-start", "tdd-red",
 			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
 			"commit-refactor", "task-audit",
+		},
+		"integrate-cleanup": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
+			"commit-refactor", "task-audit", "task-complete",
+			"implementation-complete", "audit", "audit-complete",
+			"completion", "integrate-commit", "integrate-merge", "integrate-cleanup",
 		},
 	}
 
