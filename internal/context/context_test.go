@@ -268,3 +268,52 @@ func TestWriteWithRouting_DefaultsToMedium(t *testing.T) {
 	// Should default to medium model
 	g.Expect(string(content)).To(ContainSubstring("sonnet"))
 }
+
+// TEST-550 traces: TASK-032
+// Test WriteParallel creates context files for multiple tasks.
+func TestWriteParallel_CreatesMultipleFiles(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	template := writeTOML(t, t.TempDir(), "template.toml", "[shared]\nmap = \"territory\"\n")
+
+	paths, err := context.WriteParallel(dir, []string{"TASK-001", "TASK-002", "TASK-003"}, "tdd-red", template)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(paths).To(HaveLen(3))
+
+	for _, path := range paths {
+		_, err := os.Stat(path)
+		g.Expect(err).ToNot(HaveOccurred())
+	}
+}
+
+// TEST-551 traces: TASK-032
+// Test WriteParallel uses correct naming convention.
+func TestWriteParallel_CorrectNaming(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	template := writeTOML(t, t.TempDir(), "template.toml", "key = \"value\"\n")
+
+	paths, err := context.WriteParallel(dir, []string{"TASK-001", "TASK-002"}, "tdd-red", template)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	g.Expect(paths[0]).To(ContainSubstring("TASK-001-tdd-red.toml"))
+	g.Expect(paths[1]).To(ContainSubstring("TASK-002-tdd-red.toml"))
+}
+
+// TEST-552 traces: TASK-032
+// Test WriteParallel includes shared content.
+func TestWriteParallel_IncludesSharedContent(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	template := writeTOML(t, t.TempDir(), "template.toml", "[territory]\nroot = \"src\"\n")
+
+	paths, err := context.WriteParallel(dir, []string{"TASK-001"}, "tdd-green", template)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(paths[0])
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("territory"))
+}
