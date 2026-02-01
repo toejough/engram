@@ -317,3 +317,39 @@ func TestWrite_TokenEstimateEmpty(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(entry.TokensEstimate).To(Equal(0))
 }
+
+// TEST-610 traces: TASK-061
+// Test Write includes context estimate field when provided.
+func TestWrite_ContextEstimate(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "skill dispatched", log.WriteOpts{
+		ContextEstimate: 45000, // 45% of 100K context
+	}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	var entry log.Entry
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.ContextEstimate).To(Equal(45000))
+}
+
+// TEST-611 traces: TASK-061
+// Test Write omits context estimate when zero (backwards compatible).
+func TestWrite_ContextEstimateOmittedWhenZero(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	err := log.Write(dir, "status", "task-status", "no context tracked", log.WriteOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(filepath.Join(dir, log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	line := strings.TrimSpace(string(content))
+	g.Expect(line).ToNot(ContainSubstring(`"context_estimate"`))
+}
