@@ -635,66 +635,56 @@ func TestWriteWithMemory_DerivesQueryFromTask(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("[memory]"))
 }
 
-// TEST-804 traces: TASK-053
-// Test WriteWithMemory automatic injection for architect-interview.
-func TestWriteWithMemory_AutoInjectArchitectInterview(t *testing.T) {
+// setupMemoryTestEnv creates a test environment with memory root and index file.
+func setupMemoryTestEnv(t *testing.T, dir, memoryContent string) string {
+	t.Helper()
 	g := NewWithT(t)
-	dir := t.TempDir()
-	memoryRoot := filepath.Join(dir, ".memory")
 
+	memoryRoot := filepath.Join(dir, ".memory")
 	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
 	indexPath := filepath.Join(memoryRoot, "index.md")
-	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Architecture decisions\n"), 0o644)).To(Succeed())
+	g.Expect(os.WriteFile(indexPath, []byte(memoryContent), 0o644)).To(Succeed())
 
-	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"architect-interview\"\n\n[task]\ndescription = \"Design memory system architecture\"\n")
+	return memoryRoot
+}
+
+// testAutoInjectForSkill tests auto-injection of memory for a specific skill.
+func testAutoInjectForSkill(t *testing.T, skill, taskDesc, memoryContent string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	memoryRoot := setupMemoryTestEnv(t, dir, memoryContent)
+
+	source := writeTOML(t, t.TempDir(), "input.toml", fmt.Sprintf("[dispatch]\nskill = \"%s\"\n\n[task]\ndescription = \"%s\"\n", skill, taskDesc))
 
 	routing := context.RoutingConfig{
 		Simple:  "haiku",
 		Medium:  "sonnet",
 		Complex: "opus",
 	}
-	skillComplexity := map[string]string{"architect-interview": "complex"}
+	skillComplexity := map[string]string{skill: "complex"}
 
-	// Should auto-inject memory even without explicit opts
-	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", "architect-interview", source, routing, skillComplexity, memoryRoot)
+	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", skill, source, routing, skillComplexity, memoryRoot)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	content, err := os.ReadFile(path)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Should contain memory section (auto-injected for architect-interview)
+	// Should contain memory section (auto-injected)
 	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+}
+
+// TEST-804 traces: TASK-053
+// Test WriteWithMemory automatic injection for architect-interview.
+func TestWriteWithMemory_AutoInjectArchitectInterview(t *testing.T) {
+	testAutoInjectForSkill(t, "architect-interview", "Design memory system architecture", "- 2025-01-15 10:00: [projctl] Architecture decisions\n")
 }
 
 // TEST-805 traces: TASK-053
 // Test WriteWithMemory automatic injection for pm-interview.
 func TestWriteWithMemory_AutoInjectPMInterview(t *testing.T) {
-	g := NewWithT(t)
-	dir := t.TempDir()
-	memoryRoot := filepath.Join(dir, ".memory")
-
-	g.Expect(os.MkdirAll(memoryRoot, 0o755)).To(Succeed())
-	indexPath := filepath.Join(memoryRoot, "index.md")
-	g.Expect(os.WriteFile(indexPath, []byte("- 2025-01-15 10:00: [projctl] Product requirements\n"), 0o644)).To(Succeed())
-
-	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"pm-interview\"\n\n[task]\ndescription = \"Gather requirements for memory feature\"\n")
-
-	routing := context.RoutingConfig{
-		Simple:  "haiku",
-		Medium:  "sonnet",
-		Complex: "opus",
-	}
-	skillComplexity := map[string]string{"pm-interview": "complex"}
-
-	// Should auto-inject memory even without explicit opts
-	path, err := context.WriteWithRoutingAndMemory(dir, "TASK-053", "pm-interview", source, routing, skillComplexity, memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := os.ReadFile(path)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Should contain memory section (auto-injected for pm-interview)
-	g.Expect(string(content)).To(ContainSubstring("[memory]"))
+	testAutoInjectForSkill(t, "pm-interview", "Gather requirements for memory feature", "- 2025-01-15 10:00: [projctl] Product requirements\n")
 }
 
 // TEST-806 traces: TASK-053

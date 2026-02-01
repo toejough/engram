@@ -111,76 +111,18 @@ func WriteParallel(dir string, tasks []string, skill, templatePath string) ([]st
 // WriteWithRouting copies a TOML file into the context directory and adds routing information.
 // Also automatically injects cached territory map if available.
 func WriteWithRouting(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string) (string, error) {
-	contextDir := filepath.Join(dir, ContextDir)
-	if err := os.MkdirAll(contextDir, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create context directory: %w", err)
-	}
-
-	// Validate source is parseable TOML
-	if _, err := os.Stat(sourcePath); err != nil {
-		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
-	}
-
-	var raw map[string]any
-	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
-		return "", fmt.Errorf("source file is not valid TOML: %w", err)
-	}
-
-	// Determine complexity and model
-	complexity, ok := skillComplexity[skill]
-	if !ok {
-		complexity = "medium" // default
-	}
-
-	var model string
-	switch complexity {
-	case "simple":
-		model = routing.Simple
-	case "complex":
-		model = routing.Complex
-	default:
-		model = routing.Medium
+	raw, err := loadAndValidateTOML(sourcePath)
+	if err != nil {
+		return "", err
 	}
 
 	// Add routing section
-	raw["routing"] = RoutingInfo{
-		SuggestedModel: model,
-		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
-	}
+	addRoutingSection(raw, skill, routing, skillComplexity)
 
-	// Inject cached territory map if available
-	cachePath := filepath.Join(dir, territory.CacheFile)
-	if data, err := os.ReadFile(cachePath); err == nil {
-		var cached territory.CachedMap
-		if _, err := toml.Decode(string(data), &cached); err == nil {
-			raw["territory"] = cached.Map
-		}
-	}
+	// Inject cached territory and capabilities
+	injectTerritoryAndCapabilities(dir, raw)
 
-	// Inject refactoring capabilities
-	caps := refactor.CheckCapabilities()
-	raw["capabilities"] = map[string]any{
-		"refactor": map[string]any{
-			"gopls_available": caps.GoplsAvailable,
-			"rename_support":  caps.RenameSupport,
-		},
-	}
-
-	targetName := Filename(task, skill)
-	targetPath := filepath.Join(contextDir, targetName)
-
-	f, err := os.Create(targetPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create context file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	encoder := toml.NewEncoder(f)
-	if err := encoder.Encode(raw); err != nil {
-		return "", fmt.Errorf("failed to encode TOML: %w", err)
-	}
-
-	return targetPath, nil
+	return writeTOMLFile(dir, task, skill, raw)
 }
 
 // WriteWithTerritory copies a TOML file and automatically includes cached territory map.
@@ -236,104 +178,94 @@ type MemoryInjectOpts struct {
 
 // WriteWithMemory copies a TOML file and injects memory query results.
 func WriteWithMemory(dir, task, skill, sourcePath string, opts MemoryInjectOpts) (string, error) {
-	contextDir := filepath.Join(dir, ContextDir)
-	if err := os.MkdirAll(contextDir, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create context directory: %w", err)
-	}
-
-	// Validate source is parseable TOML
-	if _, err := os.Stat(sourcePath); err != nil {
-		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
-	}
-
-	var raw map[string]any
-	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
-		return "", fmt.Errorf("source file is not valid TOML: %w", err)
-	}
-
-	// Derive query from task description if query is empty
-	query := opts.Query
-	if query == "" {
-		if taskSection, ok := raw["task"].(map[string]any); ok {
-			if desc, ok := taskSection["description"].(string); ok {
-				query = desc
-			}
-		}
-	}
-
-	// Only inject memory if we have a query
-	if query != "" && opts.MemoryRoot != "" {
-		// Query memory using semantic search
-		queryOpts := QueryOpts{
-			Text:       query,
-			Limit:      opts.Limit,
-			MemoryRoot: opts.MemoryRoot,
-		}
-
-		results, err := Query(queryOpts)
-		if err == nil && len(results.Results) > 0 {
-			// Build memory section with compression to stay under 500 tokens
-			memorySection := buildMemorySection(results.Results, 500)
-			raw["memory"] = memorySection
-		}
-	}
-
-	targetName := Filename(task, skill)
-	targetPath := filepath.Join(contextDir, targetName)
-
-	f, err := os.Create(targetPath)
+	raw, err := loadAndValidateTOML(sourcePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to create context file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	encoder := toml.NewEncoder(f)
-	if err := encoder.Encode(raw); err != nil {
-		return "", fmt.Errorf("failed to encode TOML: %w", err)
+		return "", err
 	}
 
-	return targetPath, nil
+	// Inject memory if query is provided or derivable
+	injectMemory(raw, opts)
+
+	return writeTOMLFile(dir, task, skill, raw)
 }
 
 // WriteWithRoutingAndMemory copies a TOML file with routing and auto-injects memory for certain skills.
 func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing RoutingConfig, skillComplexity map[string]string, memoryRoot string) (string, error) {
-	contextDir := filepath.Join(dir, ContextDir)
-	if err := os.MkdirAll(contextDir, 0o755); err != nil {
-		return "", fmt.Errorf("failed to create context directory: %w", err)
+	raw, err := loadAndValidateTOML(sourcePath)
+	if err != nil {
+		return "", err
 	}
 
-	// Validate source is parseable TOML
+	// Add routing section
+	addRoutingSection(raw, skill, routing, skillComplexity)
+
+	// Inject cached territory and capabilities
+	injectTerritoryAndCapabilities(dir, raw)
+
+	// Auto-inject memory for certain skills
+	if shouldAutoInjectMemory(skill, memoryRoot) {
+		opts := MemoryInjectOpts{
+			Query:      "", // Derive from task description
+			MemoryRoot: memoryRoot,
+			Limit:      3,
+		}
+		injectMemory(raw, opts)
+	}
+
+	return writeTOMLFile(dir, task, skill, raw)
+}
+
+// Type aliases for memory package types to avoid direct dependency in function signatures.
+type QueryOpts = memory.QueryOpts
+type QueryResults = memory.QueryResults
+type QueryResult = memory.QueryResult
+
+// Query is an alias for memory.Query.
+var Query = memory.Query
+
+// loadAndValidateTOML loads and validates a TOML file.
+func loadAndValidateTOML(sourcePath string) (map[string]any, error) {
 	if _, err := os.Stat(sourcePath); err != nil {
-		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+		return nil, fmt.Errorf("source file does not exist: %s", sourcePath)
 	}
 
 	var raw map[string]any
 	if _, err := toml.DecodeFile(sourcePath, &raw); err != nil {
-		return "", fmt.Errorf("source file is not valid TOML: %w", err)
+		return nil, fmt.Errorf("source file is not valid TOML: %w", err)
 	}
 
-	// Determine complexity and model
+	return raw, nil
+}
+
+// addRoutingSection adds routing information to the raw TOML data.
+func addRoutingSection(raw map[string]any, skill string, routing RoutingConfig, skillComplexity map[string]string) {
 	complexity, ok := skillComplexity[skill]
 	if !ok {
 		complexity = "medium" // default
 	}
 
-	var model string
-	switch complexity {
-	case "simple":
-		model = routing.Simple
-	case "complex":
-		model = routing.Complex
-	default:
-		model = routing.Medium
-	}
+	model := selectModel(complexity, routing)
 
-	// Add routing section
 	raw["routing"] = RoutingInfo{
 		SuggestedModel: model,
 		Reason:         fmt.Sprintf("%s skill: %s complexity", skill, complexity),
 	}
+}
 
+// selectModel chooses the appropriate model based on complexity.
+func selectModel(complexity string, routing RoutingConfig) string {
+	switch complexity {
+	case "simple":
+		return routing.Simple
+	case "complex":
+		return routing.Complex
+	default:
+		return routing.Medium
+	}
+}
+
+// injectTerritoryAndCapabilities adds territory map and refactoring capabilities to raw TOML data.
+func injectTerritoryAndCapabilities(dir string, raw map[string]any) {
 	// Inject cached territory map if available
 	cachePath := filepath.Join(dir, territory.CacheFile)
 	if data, err := os.ReadFile(cachePath); err == nil {
@@ -351,32 +283,56 @@ func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing Rout
 			"rename_support":  caps.RenameSupport,
 		},
 	}
+}
 
-	// Auto-inject memory for certain skills
-	if memoryRoot != "" && (skill == "architect-interview" || skill == "pm-interview") {
-		// Derive query from task description
-		var query string
-		if taskSection, ok := raw["task"].(map[string]any); ok {
-			if desc, ok := taskSection["description"].(string); ok {
-				query = desc
-			}
+// shouldAutoInjectMemory determines if memory should be auto-injected for a skill.
+func shouldAutoInjectMemory(skill, memoryRoot string) bool {
+	return memoryRoot != "" && (skill == "architect-interview" || skill == "pm-interview")
+}
+
+// injectMemory adds memory query results to the raw TOML data.
+func injectMemory(raw map[string]any, opts MemoryInjectOpts) {
+	// Derive query from task description if query is empty
+	query := opts.Query
+	if query == "" {
+		query = deriveQueryFromTask(raw)
+	}
+
+	// Only inject memory if we have a query
+	if query == "" || opts.MemoryRoot == "" {
+		return
+	}
+
+	// Query memory using semantic search
+	queryOpts := QueryOpts{
+		Text:       query,
+		Limit:      opts.Limit,
+		MemoryRoot: opts.MemoryRoot,
+	}
+
+	results, err := Query(queryOpts)
+	if err == nil && len(results.Results) > 0 {
+		// Build memory section with compression to stay under 500 tokens
+		memorySection := buildMemorySection(results.Results, 500)
+		raw["memory"] = memorySection
+	}
+}
+
+// deriveQueryFromTask extracts the task description from raw TOML data.
+func deriveQueryFromTask(raw map[string]any) string {
+	if taskSection, ok := raw["task"].(map[string]any); ok {
+		if desc, ok := taskSection["description"].(string); ok {
+			return desc
 		}
+	}
+	return ""
+}
 
-		if query != "" {
-			// Query memory using semantic search
-			queryOpts := QueryOpts{
-				Text:       query,
-				Limit:      3,
-				MemoryRoot: memoryRoot,
-			}
-
-			results, err := Query(queryOpts)
-			if err == nil && len(results.Results) > 0 {
-				// Build memory section with compression to stay under 500 tokens
-				memorySection := buildMemorySection(results.Results, 500)
-				raw["memory"] = memorySection
-			}
-		}
+// writeTOMLFile writes raw TOML data to a context file.
+func writeTOMLFile(dir, task, skill string, raw map[string]any) (string, error) {
+	contextDir := filepath.Join(dir, ContextDir)
+	if err := os.MkdirAll(contextDir, 0o755); err != nil {
+		return "", fmt.Errorf("failed to create context directory: %w", err)
 	}
 
 	targetName := Filename(task, skill)
@@ -395,14 +351,6 @@ func WriteWithRoutingAndMemory(dir, task, skill, sourcePath string, routing Rout
 
 	return targetPath, nil
 }
-
-// Type aliases for memory package types to avoid direct dependency in function signatures.
-type QueryOpts = memory.QueryOpts
-type QueryResults = memory.QueryResults
-type QueryResult = memory.QueryResult
-
-// Query is an alias for memory.Query.
-var Query = memory.Query
 
 // buildMemorySection formats query results into a TOML-compatible structure with compression.
 func buildMemorySection(results []QueryResult, maxTokens int) map[string]any {
