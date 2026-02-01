@@ -259,3 +259,281 @@ func TestTransitionMapCompleteness(t *testing.T) {
 		}
 	}
 }
+
+// TEST-300 traces: TASK-009
+// Test precondition: pm-complete requires requirements.md with REQ-NNN IDs
+func TestTransitionPrecondition_PMComplete(t *testing.T) {
+	t.Run("fails without requirements.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Walk to pm-interview
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Try to transition to pm-complete without requirements.md
+		checker := &mockPreconditionChecker{
+			requirementsExists: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("requirements.md"))
+	})
+
+	t.Run("fails without REQ-NNN IDs in requirements.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		checker := &mockPreconditionChecker{
+			requirementsExists: true,
+			requirementsHasIDs: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("REQ-"))
+	})
+
+	t.Run("succeeds with valid requirements.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm-interview", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		checker := &mockPreconditionChecker{
+			requirementsExists: true,
+			requirementsHasIDs: true,
+		}
+		s, err := state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
+	})
+}
+
+// TEST-301 traces: TASK-009
+// Test precondition: design-complete requires design.md with DES-NNN IDs
+func TestTransitionPrecondition_DesignComplete(t *testing.T) {
+	t.Run("fails without design.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Walk to design-interview
+		walkToPhase(t, dir, "design-interview")
+
+		checker := &mockPreconditionChecker{
+			designExists: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "design-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("design.md"))
+	})
+
+	t.Run("fails without DES-NNN IDs in design.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "design-interview")
+
+		checker := &mockPreconditionChecker{
+			designExists: true,
+			designHasIDs: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "design-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("DES-"))
+	})
+
+	t.Run("succeeds with valid design.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "design-interview")
+
+		checker := &mockPreconditionChecker{
+			designExists: true,
+			designHasIDs: true,
+		}
+		s, err := state.TransitionWithChecker(dir, "design-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("design-complete"))
+	})
+}
+
+// TEST-302 traces: TASK-009
+// Test precondition: architect-complete requires trace validate to pass
+func TestTransitionPrecondition_ArchitectComplete(t *testing.T) {
+	t.Run("fails when trace validation fails", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "architect-interview")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "architect-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("trace"))
+	})
+
+	t.Run("succeeds when trace validation passes", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "architect-interview")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses: true,
+		}
+		s, err := state.TransitionWithChecker(dir, "architect-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("architect-complete"))
+	})
+}
+
+// TEST-303 traces: TASK-009
+// Test precondition: task-complete requires trace validation to pass
+func TestTransitionPrecondition_TaskComplete(t *testing.T) {
+	t.Run("fails when trace validation fails", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToPhase(t, dir, "task-audit")
+
+		checker := &mockPreconditionChecker{
+			traceValidationPasses: false,
+		}
+		_, err = state.TransitionWithChecker(dir, "task-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("trace"))
+	})
+}
+
+// mockPreconditionChecker implements state.PreconditionChecker for testing.
+type mockPreconditionChecker struct {
+	requirementsExists    bool
+	requirementsHasIDs    bool
+	designExists          bool
+	designHasIDs          bool
+	traceValidationPasses bool
+	testsExist            bool
+	testsFail             bool
+	testsPass             bool
+}
+
+func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
+	return m.requirementsExists
+}
+
+func (m *mockPreconditionChecker) RequirementsHaveIDs(dir string) bool {
+	return m.requirementsHasIDs
+}
+
+func (m *mockPreconditionChecker) DesignExists(dir string) bool {
+	return m.designExists
+}
+
+func (m *mockPreconditionChecker) DesignHasIDs(dir string) bool {
+	return m.designHasIDs
+}
+
+func (m *mockPreconditionChecker) TraceValidationPasses(dir string) bool {
+	return m.traceValidationPasses
+}
+
+func (m *mockPreconditionChecker) TestsExist(dir string) bool {
+	return m.testsExist
+}
+
+func (m *mockPreconditionChecker) TestsFail(dir string) bool {
+	return m.testsFail
+}
+
+func (m *mockPreconditionChecker) TestsPass(dir string) bool {
+	return m.testsPass
+}
+
+// walkToPhase transitions through phases to reach the target phase.
+// Uses a passthrough checker that allows all preconditions.
+func walkToPhase(t *testing.T, dir, target string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	paths := map[string][]string{
+		"pm-interview": {"pm-interview"},
+		"pm-complete":  {"pm-interview", "pm-complete"},
+		"design-interview": {
+			"pm-interview", "pm-complete", "design-interview",
+		},
+		"design-complete": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+		},
+		"architect-interview": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview",
+		},
+		"architect-complete": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+		},
+		"task-audit": {
+			"pm-interview", "pm-complete", "design-interview", "design-complete",
+			"alignment-check", "architect-interview", "architect-complete",
+			"alignment-check", "task-breakdown", "planning-complete",
+			"alignment-check", "implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
+			"commit-refactor", "task-audit",
+		},
+	}
+
+	phases, ok := paths[target]
+	if !ok {
+		t.Fatalf("unknown target phase: %s", target)
+	}
+
+	passChecker := &mockPreconditionChecker{
+		requirementsExists:    true,
+		requirementsHasIDs:    true,
+		designExists:          true,
+		designHasIDs:          true,
+		traceValidationPasses: true,
+		testsExist:            true,
+		testsFail:             true,
+		testsPass:             true,
+	}
+
+	for _, phase := range phases {
+		_, err := state.TransitionWithChecker(dir, phase, state.TransitionOpts{}, nowFunc(), passChecker)
+		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+	}
+}
