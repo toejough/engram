@@ -4,21 +4,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/toejough/projctl/internal/config"
 	"github.com/toejough/projctl/internal/usage"
 )
 
 type usageReportArgs struct {
-	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
-	Model  string `targ:"flag,desc=Filter by model (haiku|sonnet|opus)"`
-	Format string `targ:"flag,short=f,desc=Output format: text (default) or json"`
+	Dir     string `targ:"flag,short=d,desc=Project directory (use this or --project)"`
+	Project string `targ:"flag,short=p,desc=Project name (looks up in ~/.projctl/projects/)"`
+	Session string `targ:"flag,desc=Filter by session ID"`
+	Model   string `targ:"flag,desc=Filter by model (haiku|sonnet|opus)"`
+	Format  string `targ:"flag,short=f,desc=Output format: text (default) or json"`
 }
 
 func usageReport(args usageReportArgs) error {
-	report, err := usage.Report(args.Dir, usage.ReportOpts{
-		Model: args.Model,
-	})
+	var report usage.UsageReport
+	var err error
+
+	opts := usage.ReportOpts{
+		Model:   args.Model,
+		Session: args.Session,
+	}
+
+	if args.Project != "" {
+		// Use project-based lookup
+		homeDir, homeErr := os.UserHomeDir()
+		if homeErr != nil {
+			return fmt.Errorf("failed to get home directory: %w", homeErr)
+		}
+		projctlDir := filepath.Join(homeDir, ".projctl")
+		report, err = usage.ReportByProject(args.Project, projctlDir, opts)
+	} else if args.Dir != "" {
+		report, err = usage.Report(args.Dir, opts)
+	} else {
+		return fmt.Errorf("either --dir or --project is required")
+	}
 	if err != nil {
 		return err
 	}

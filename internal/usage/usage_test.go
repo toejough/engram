@@ -1,6 +1,8 @@
 package usage_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -189,4 +191,36 @@ func TestCheck_DisabledThresholds(t *testing.T) {
 		LimitTokens:   0,
 	})
 	g.Expect(result.Status).To(Equal(usage.StatusOK))
+}
+
+// TEST-524 traces: TASK-028
+// Test ReportByProject reads logs from project directory by name.
+func TestReport_FilterByProject(t *testing.T) {
+	g := NewWithT(t)
+	projctlDir := t.TempDir()
+
+	// Create project directory structure
+	projectDir := filepath.Join(projctlDir, "projects", "my-project")
+	g.Expect(os.MkdirAll(projectDir, 0o755)).To(Succeed())
+
+	// Write logs to project directory
+	_ = log.Write(projectDir, "status", "task-status", "proj-msg1", log.WriteOpts{Tokens: 100}, nowFunc())
+	_ = log.Write(projectDir, "status", "task-status", "proj-msg2", log.WriteOpts{Tokens: 200}, nowFunc())
+
+	// Should read from project by name
+	report, err := usage.ReportByProject("my-project", projctlDir, usage.ReportOpts{})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(report.TotalTokens).To(Equal(300))
+	g.Expect(report.EntryCount).To(Equal(2))
+}
+
+// TEST-525 traces: TASK-028
+// Test ReportByProject returns error for non-existent project.
+func TestReport_ProjectNotFound(t *testing.T) {
+	g := NewWithT(t)
+	projctlDir := t.TempDir()
+
+	_, err := usage.ReportByProject("nonexistent", projctlDir, usage.ReportOpts{})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("project not found"))
 }

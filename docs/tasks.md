@@ -993,10 +993,12 @@ Aggregate token usage from logs. Provides cost visibility.
 **Acceptance Criteria:**
 - [x] `projctl usage report --dir DIR` sums tokens from project logs
 - [x] `--session SESSION` filters to specific session
-- [ ] `--project NAME` filters to specific project (cross-project)
+- [x] `--project NAME` filters to specific project (cross-project)
 - [x] `--format json` outputs structured data with totals and breakdowns
 - [x] Breakdown by model if model field present
 - [x] Human-readable default format with summary
+
+**Status:** COMPLETE
 
 **Test Requirements:**
 - Unit: Token summation

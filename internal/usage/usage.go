@@ -2,6 +2,10 @@
 package usage
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/toejough/projctl/internal/log"
 )
 
@@ -61,6 +65,19 @@ func Report(dir string, opts ReportOpts) (UsageReport, error) {
 	}
 
 	return report, nil
+}
+
+// ReportByProject generates a token usage report for a named project.
+// The project is looked up in projctlDir/projects/{projectName}/.
+func ReportByProject(projectName, projctlDir string, opts ReportOpts) (UsageReport, error) {
+	projectDir := filepath.Join(projctlDir, "projects", projectName)
+
+	// Check if project directory exists
+	if _, err := os.Stat(projectDir); os.IsNotExist(err) {
+		return UsageReport{}, fmt.Errorf("project not found: %s", projectName)
+	}
+
+	return Report(projectDir, opts)
 }
 
 // Check compares current token usage against budget thresholds.
