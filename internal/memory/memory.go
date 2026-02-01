@@ -391,6 +391,38 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		limit = 5
 	}
 
+	// Determine model directory
+	modelDir := opts.ModelDir
+	if modelDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		modelDir = filepath.Join(homeDir, ".claude", "models")
+	}
+
+	// Ensure model directory exists
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create model directory: %w", err)
+	}
+
+	// Initialize ONNX Runtime
+	if err := initializeONNXRuntime(modelDir); err != nil {
+		return nil, fmt.Errorf("failed to initialize ONNX Runtime: %w", err)
+	}
+
+	// Model path
+	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+
+	// Check if model needs to be downloaded
+	modelDownloaded := false
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		if err := downloadModel(modelPath); err != nil {
+			return nil, fmt.Errorf("failed to download model: %w", err)
+		}
+		modelDownloaded = true
+	}
+
 	// Initialize embeddings database
 	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
 	db, err := initEmbeddingsDB(dbPath)
@@ -438,14 +470,17 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		}
 	}
 
-	// Create embeddings for new content (using mock implementation)
-	newEmbeddings, err := createEmbeddings(db, contents)
+	// Create embeddings for new content using ONNX model
+	newEmbeddings, err := createEmbeddings(db, contents, modelPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embeddings: %w", err)
 	}
 
-	// Generate query embedding
-	queryEmbedding := generateMockEmbedding(opts.Text)
+	// Generate query embedding using ONNX model
+	queryEmbedding, err := generateEmbeddingONNX(opts.Text, modelPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate query embedding: %w", err)
+	}
 
 	// Search for similar embeddings
 	results, err := searchSimilar(db, queryEmbedding, limit)
@@ -456,8 +491,16 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	return &QueryResults{
 		Results:              results,
 		VectorStorage:        "sqlite-vec",
-		EmbeddingModel:       "onnx/all-MiniLM-L6-v2",
+		EmbeddingModel:       "e5-small-v2",
+		EmbeddingDimensions:  384,
 		APICallsMade:         false,
+		UsedONNXRuntime:      true,
+		ModelDownloaded:      modelDownloaded,
+		ModelPath:            modelPath,
+		ModelLoaded:          true,
+		ModelType:            "onnx",
+		InferenceExecuted:    true,
+		UsedMockEmbeddings:   false,
 		EmbeddingsCount:      existingCount + newEmbeddings,
 		NewEmbeddingsCreated: newEmbeddings,
 	}, nil
