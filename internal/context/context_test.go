@@ -317,3 +317,130 @@ func TestWriteParallel_IncludesSharedContent(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("territory"))
 }
+
+// TEST-590 traces: TASK-036
+// Test WriteWithTerritory includes territory map when cached.
+func TestWriteWithTerritory_IncludesCachedMap(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached territory map
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	// Create a cached territory file with structure matching territory.CachedMap
+	territoryTOML := `cached_at = 2025-01-01T00:00:00Z
+file_count = 10
+
+[map]
+[map.structure]
+root = "` + dir + `"
+languages = ["go"]
+build_tool = "go"
+test_framework = "go test"
+
+[map.entry_points]
+cli = "cmd/app"
+
+[map.packages]
+count = 5
+internal = ["pkg1", "pkg2"]
+
+[map.tests]
+pattern = "*_test.go"
+count = 10
+
+[map.docs]
+readme = "README.md"
+artifacts = []
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "territory.toml"), []byte(territoryTOML), 0o644)).To(Succeed())
+
+	// Create source TOML
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	path, err := context.WriteWithTerritory(dir, "TASK-001", "tdd-red", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain original dispatch section
+	g.Expect(string(content)).To(ContainSubstring("tdd-red"))
+
+	// Should contain territory section
+	g.Expect(string(content)).To(ContainSubstring("[territory]"))
+	g.Expect(string(content)).To(ContainSubstring("languages"))
+	g.Expect(string(content)).To(ContainSubstring("go"))
+}
+
+// TEST-591 traces: TASK-036
+// Test WriteWithTerritory works without cached map.
+func TestWriteWithTerritory_WorksWithoutCache(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// No territory cache exists
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	path, err := context.WriteWithTerritory(dir, "TASK-001", "tdd-red", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should still contain original content
+	g.Expect(string(content)).To(ContainSubstring("tdd-red"))
+}
+
+// TEST-592 traces: TASK-036
+// Test WriteWithTerritory includes structure info.
+func TestWriteWithTerritory_IncludesStructure(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached territory map
+	contextDir := filepath.Join(dir, "context")
+	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
+
+	territoryTOML := `cached_at = 2025-01-01T00:00:00Z
+file_count = 10
+
+[map]
+[map.structure]
+root = "` + dir + `"
+languages = ["go", "javascript"]
+build_tool = "go"
+test_framework = "go test"
+
+[map.entry_points]
+cli = "cmd/app"
+public_api = "project.go"
+
+[map.packages]
+count = 3
+internal = ["pkg1"]
+
+[map.tests]
+pattern = "*_test.go"
+count = 5
+
+[map.docs]
+readme = "README.md"
+artifacts = ["docs/design.md"]
+`
+	g.Expect(os.WriteFile(filepath.Join(contextDir, "territory.toml"), []byte(territoryTOML), 0o644)).To(Succeed())
+
+	source := writeTOML(t, t.TempDir(), "input.toml", "key = \"value\"\n")
+
+	path, err := context.WriteWithTerritory(dir, "TASK-001", "tdd-red", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should include entry_points info
+	g.Expect(string(content)).To(ContainSubstring("cli"))
+	// Should include packages
+	g.Expect(string(content)).To(ContainSubstring("internal"))
+}
