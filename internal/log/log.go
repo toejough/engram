@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -39,6 +40,7 @@ type Entry struct {
 	Subject   string `json:"subject"`
 	Task      string `json:"task,omitempty"`
 	Phase     string `json:"phase,omitempty"`
+	Model     string `json:"model,omitempty"`
 	Message   string `json:"message"`
 	Detail    any    `json:"detail,omitempty"`
 }
@@ -47,7 +49,13 @@ type Entry struct {
 type WriteOpts struct {
 	Task   string
 	Phase  string
+	Model  string
 	Detail any
+}
+
+// ReadOpts holds options for reading log entries.
+type ReadOpts struct {
+	Model string // Filter by model (empty = all)
 }
 
 // Write appends a structured JSONL entry to the log file.
@@ -67,6 +75,7 @@ func Write(dir string, level string, subject string, message string, opts WriteO
 		Message:   message,
 		Task:      opts.Task,
 		Phase:     opts.Phase,
+		Model:     opts.Model,
 		Detail:    opts.Detail,
 	}
 
@@ -97,4 +106,45 @@ func subjectKeys() []string {
 	}
 
 	return keys
+}
+
+// Read reads log entries from the log file with optional filtering.
+func Read(dir string, opts ReadOpts) ([]Entry, error) {
+	logPath := filepath.Join(dir, LogFile)
+
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []Entry{}, nil
+		}
+
+		return nil, fmt.Errorf("failed to read log file: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []Entry{}, nil
+	}
+
+	entries := make([]Entry, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var entry Entry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			return nil, fmt.Errorf("failed to parse log entry: %w", err)
+		}
+
+		// Apply model filter
+		if opts.Model != "" && entry.Model != opts.Model {
+			continue
+		}
+
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
 }

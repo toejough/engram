@@ -12,6 +12,7 @@ func main() {
 		),
 		targ.Group("log",
 			targ.Targ(logWrite).Name("write").Description("Write an entry to the project log"),
+			targ.Targ(logRead).Name("read").Description("Read log entries with optional filtering"),
 		),
 		targ.Group("config",
 			targ.Targ(configInit).Name("init").Description("Initialize project configuration"),
