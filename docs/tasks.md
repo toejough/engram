@@ -1693,11 +1693,11 @@ Context write queries memory and includes relevant results.
 Remove stub files identified in review.
 
 **Acceptance Criteria:**
-- [ ] Delete `internal/parser/` if stub
-- [ ] Delete `internal/discovery/` if stub
-- [ ] Delete `internal/collect/` if stub
-- [ ] Update any imports that reference these
-- [ ] Verify build still passes
+- [x] Delete `internal/parser/` if stub - N/A: parser is real implementation (3000 LOC)
+- [x] Delete `internal/discovery/` if stub - N/A: doesn't exist (consolidated in parser/)
+- [x] Delete `internal/collect/` if stub - N/A: doesn't exist (consolidated in parser/)
+- [x] Update any imports that reference these - N/A
+- [x] Verify build still passes - N/A
 
 **Test Requirements:**
 - Integration: Build succeeds after deletion
@@ -1705,6 +1705,8 @@ Remove stub files identified in review.
 **Dependencies:** None
 
 **Traces to:** Part 4 Simplifications
+
+**Status:** N/A - Parser is a real ~3000 LOC implementation, discovery/collect don't exist as separate packages
 
 ---
 
