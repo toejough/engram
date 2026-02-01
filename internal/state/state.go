@@ -387,9 +387,18 @@ func Next(dir string) NextResult {
 	s, err := Get(dir)
 	if err != nil {
 		return NextResult{
-			Action: "stop",
-			Reason: "state_error",
+			Action:  "stop",
+			Reason:  "state_error",
 			Details: err.Error(),
+		}
+	}
+
+	// Check for error state
+	if s.Error != nil {
+		return NextResult{
+			Action:  "stop",
+			Reason:  "error_pending",
+			Details: s.Error.Message,
 		}
 	}
 
