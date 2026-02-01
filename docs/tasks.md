@@ -426,10 +426,10 @@ Integrate AC validation as precondition for task-complete transitions.
 Integrate AC validation into state.Next() to return validation_failed when appropriate.
 
 **Acceptance Criteria:**
-- [ ] `state.Next()` checks AC status for current task
-- [ ] Returns `action: stop, reason: validation_failed` when AC incomplete
-- [ ] Includes `details` with list of incomplete AC items
-- [ ] Only checks when current phase is task-audit or later
+- [x] `state.Next()` checks AC status for current task
+- [x] Returns `action: stop, reason: validation_failed` when AC incomplete
+- [x] Includes `details` with list of incomplete AC items
+- [x] Only checks when current phase is task-audit or later
 
 **Test Requirements:**
 - Unit: state.Next returns validation_failed when AC incomplete
