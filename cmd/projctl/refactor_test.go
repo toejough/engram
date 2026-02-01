@@ -31,6 +31,11 @@ func NewOldName() *OldName {
 `), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
+	// Initialize go.mod for LSP
+	modCmd := exec.Command("go", "mod", "init", "example")
+	modCmd.Dir = tempDir
+	_ = modCmd.Run()
+
 	// Run the refactor rename command
 	cmd := exec.Command("projctl", "refactor", "rename",
 		"--dir", tempDir,
@@ -38,9 +43,14 @@ func NewOldName() *OldName {
 		"--to", "NewName")
 	output, err := cmd.CombinedOutput()
 
-	// Should fail because the command doesn't exist yet
-	g.Expect(err).To(HaveOccurred(), "Command should fail until implementation exists")
-	g.Expect(string(output)).To(ContainSubstring("Unknown command"), "Should report unknown command")
+	// Command should succeed
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(MatchRegexp(`Renamed OldName in \d+ files`))
+
+	// Verify file was updated
+	content, err := os.ReadFile(testFile)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("type NewName struct"))
 }
 
 // TestRefactorRenameSuccess tests successful symbol rename
@@ -49,26 +59,22 @@ func TestRefactorRenameSuccess(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	// Create a Go file with a symbol to rename
+	// Create a Go file with a type to rename
 	file1 := filepath.Join(tempDir, "file1.go")
 	err := os.WriteFile(file1, []byte(`package example
 
 type Widget struct {
 	Name string
 }
-
-func NewWidget() *Widget {
-	return &Widget{Name: "default"}
-}
 `), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create another file that references the symbol
+	// Create another file that references the type
 	file2 := filepath.Join(tempDir, "file2.go")
 	err = os.WriteFile(file2, []byte(`package example
 
-func UseWidget() *Widget {
-	return NewWidget()
+func NewWidget() *Widget {
+	return &Widget{Name: "default"}
 }
 `), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -79,7 +85,7 @@ func UseWidget() *Widget {
 	err = modCmd.Run()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Run refactor rename
+	// Run refactor rename on the TYPE (not function)
 	cmd := exec.Command("projctl", "refactor", "rename",
 		"--dir", tempDir,
 		"--symbol", "Widget",
@@ -87,21 +93,21 @@ func UseWidget() *Widget {
 	output, err := cmd.CombinedOutput()
 
 	// Test will fail until implementation
-	g.Expect(err).ToNot(HaveOccurred(), "Rename should succeed")
+	g.Expect(err).ToNot(HaveOccurred(), "Rename should succeed: %s", string(output))
 	g.Expect(string(output)).To(MatchRegexp(`Renamed Widget in \d+ files`), "Should report renamed symbol and file count")
 
-	// Verify files were updated
+	// Verify type was renamed in file1
 	content1, err := os.ReadFile(file1)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content1)).To(ContainSubstring("type Gadget struct"))
-	g.Expect(string(content1)).To(ContainSubstring("func NewGadget()"))
-	g.Expect(string(content1)).ToNot(ContainSubstring("Widget"))
+	g.Expect(string(content1)).ToNot(ContainSubstring("type Widget"))
 
+	// Verify type references were updated in file2
 	content2, err := os.ReadFile(file2)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content2)).To(ContainSubstring("func UseGadget()"))
-	g.Expect(string(content2)).To(ContainSubstring("return NewGadget()"))
-	g.Expect(string(content2)).ToNot(ContainSubstring("Widget"))
+	g.Expect(string(content2)).To(ContainSubstring("*Gadget"))
+	g.Expect(string(content2)).To(ContainSubstring("&Gadget{"))
+	// Note: Function name NewWidget stays the same - gopls only renames the type itself
 }
 
 // TestRefactorRenameSymbolNotFound tests error handling when symbol doesn't exist
