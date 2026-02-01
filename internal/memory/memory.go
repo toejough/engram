@@ -2,6 +2,7 @@
 package memory
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -68,5 +69,57 @@ type DecideResult struct {
 
 // Decide logs a decision with reasoning and alternatives.
 func Decide(opts DecideOpts) (*DecideResult, error) {
-	return nil, fmt.Errorf("not implemented")
+	if opts.Context == "" {
+		return nil, fmt.Errorf("context is required")
+	}
+	if opts.Choice == "" {
+		return nil, fmt.Errorf("choice is required")
+	}
+	if opts.Reason == "" {
+		return nil, fmt.Errorf("reason is required")
+	}
+
+	// Ensure decisions directory exists
+	decisionsDir := filepath.Join(opts.MemoryRoot, "decisions")
+	if err := os.MkdirAll(decisionsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create decisions directory: %w", err)
+	}
+
+	// Build filename: {DATE}-{PROJECT}.jsonl
+	today := time.Now().Format("2006-01-02")
+	filename := fmt.Sprintf("%s-%s.jsonl", today, opts.Project)
+	filePath := filepath.Join(decisionsDir, filename)
+
+	// Open file for appending (create if doesn't exist)
+	f, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open decisions file: %w", err)
+	}
+	defer f.Close()
+
+	// Build JSON entry
+	entry := map[string]interface{}{
+		"timestamp":    time.Now().Format(time.RFC3339),
+		"context":      opts.Context,
+		"choice":       opts.Choice,
+		"reason":       opts.Reason,
+		"alternatives": opts.Alternatives,
+	}
+
+	// Marshal and write
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal entry: %w", err)
+	}
+
+	if _, err := f.Write(data); err != nil {
+		return nil, fmt.Errorf("failed to write entry: %w", err)
+	}
+	if _, err := f.WriteString("\n"); err != nil {
+		return nil, fmt.Errorf("failed to write newline: %w", err)
+	}
+
+	return &DecideResult{
+		FilePath: filePath,
+	}, nil
 }
