@@ -6,15 +6,15 @@ A simplified, co-routine-based orchestration system combining user vision with t
 
 ## Design Principles
 
-| Principle | Rationale |
-|-----------|-----------|
-| Thin orchestrator | Orchestrator passes messages, doesn't make decisions |
-| Co-routine yields | Agents serialize state to disk, resume with answers |
-| Role-based agents | 9 roles mimicking human engineering teams |
-| Relentless continuation | Continue until legitimately blocked |
-| Passive critical rules | CLAUDE.md always visible, roles for workflow |
-| Local semantic memory | ONNX + SQLite-vec, no API calls |
-| External state | TOML files survive crashes |
+| Principle               | Rationale                                            |
+| ----------------------- | ---------------------------------------------------- |
+| Thin orchestrator       | Orchestrator passes messages, doesn't make decisions |
+| Co-routine yields       | Agents serialize state to disk, resume with answers  |
+| Role-based agents       | 9 roles mimicking human engineering teams            |
+| Relentless continuation | Continue until legitimately blocked                  |
+| Passive critical rules  | CLAUDE.md always visible, roles for workflow         |
+| Local semantic memory   | ONNX + SQLite-vec, no API calls                      |
+| External state          | TOML files survive crashes                           |
 
 ---
 
@@ -70,30 +70,31 @@ A simplified, co-routine-based orchestration system combining user vision with t
 
 Consolidated from 19 current skills:
 
-| Role | Responsibility | Current Skills Merged |
-|------|----------------|----------------------|
-| **Product Manager** | Problem-space discovery, requirements | pm-interview, pm-infer, pm-audit |
-| **Designer** | UX solution-space, visual design | design-interview, design-infer, design-audit |
-| **Architect** | Code solution-space, technology decisions | architect-interview, architect-infer, architect-audit |
-| **Planner** | Task breakdown, dependency ordering | task-breakdown |
-| **Implementer** | TDD: write tests, implement, refactor | tdd-red, tdd-green, tdd-refactor |
-| **QA** | Verify acceptance criteria, audit discipline | task-audit, alignment-check |
-| **Retro** | Analyze corrections, propose improvements | meta-audit |
-| **Project Manager** | Orchestration (this is the Go program) | project skill → becomes projctl pm |
-| **Tech Writer** | Documentation maintenance | (new) |
+| Role                | Responsibility                               | Current Skills Merged                                 |
+| ------------------- | -------------------------------------------- | ----------------------------------------------------- |
+| **Product Manager** | Problem-space discovery, requirements        | pm-interview, pm-infer, pm-audit                      |
+| **Designer**        | UX solution-space, visual design             | design-interview, design-infer, design-audit          |
+| **Architect**       | Code solution-space, technology decisions    | architect-interview, architect-infer, architect-audit |
+| **Planner**         | Task breakdown, dependency ordering          | task-breakdown                                        |
+| **Implementer**     | TDD: write tests, implement, refactor        | tdd-red, tdd-green, tdd-refactor                      |
+| **QA**              | Verify acceptance criteria, audit discipline | task-audit, alignment-check                           |
+| **Retro**           | Analyze corrections, propose improvements    | meta-audit                                            |
+| **Project Manager** | Orchestration (this is the Go program)       | project skill → becomes projctl pm                    |
+| **Tech Writer**     | Documentation maintenance                    | (new)                                                 |
 
 ### Role Modes
 
 Each role can operate in different modes:
 
-| Mode | Description | User Interaction |
-|------|-------------|------------------|
-| **interview** | Discover via questions | Yes - yields for answers |
-| **infer** | Deduce from existing artifacts | No |
-| **audit** | Verify against spec | No |
-| **execute** | Do the work (implement, refactor) | No |
+| Mode          | Description                       | User Interaction         |
+| ------------- | --------------------------------- | ------------------------ |
+| **interview** | Discover via questions            | Yes - yields for answers |
+| **infer**     | Deduce from existing artifacts    | No                       |
+| **audit**     | Verify against spec               | No                       |
+| **execute**   | Do the work (implement, refactor) | No                       |
 
 Example: Product Manager can run as:
+
 - `product-manager:interview` - Ask user about problem
 - `product-manager:infer` - Deduce requirements from code
 - `product-manager:audit` - Verify implementation matches requirements
@@ -123,14 +124,14 @@ context_file = "context/product-manager-state.toml"
 
 ### Yield Types
 
-| Type | Meaning | Orchestrator Action |
-|------|---------|---------------------|
-| `need-user-input` | Question for user | Prompt user, resume with answer |
-| `need-consult` | Need another role's input | Spawn that role, resume with result |
-| `need-decision` | Ambiguous, need user choice | Present options, resume with choice |
-| `complete` | Role finished successfully | Advance phase, continue |
-| `blocked` | Cannot proceed | Present blocker, await resolution |
-| `error` | Something went wrong | Retry or escalate |
+| Type              | Meaning                     | Orchestrator Action                 |
+| ----------------- | --------------------------- | ----------------------------------- |
+| `need-user-input` | Question for user           | Prompt user, resume with answer     |
+| `need-consult`    | Need another role's input   | Spawn that role, resume with result |
+| `need-decision`   | Ambiguous, need user choice | Present options, resume with choice |
+| `complete`        | Role finished successfully  | Advance phase, continue             |
+| `blocked`         | Cannot proceed              | Present blocker, await resolution   |
+| `error`           | Something went wrong        | Retry or escalate                   |
 
 ### Consult Yield (nested agent call)
 
@@ -268,11 +269,13 @@ so that I get fast feedback on my changes.
 ## Learnings
 
 ### 2026-02-02: projctl
+
 - Event sourcing was overkill for this scale
 - Property tests caught edge case with empty input
 - Recursive descent simpler than table-driven for our grammar
 
 ### 2026-02-01: other-project
+
 - React Query better than manual fetch for this use case
 ```
 
@@ -361,19 +364,19 @@ property_tests = true
 
 ### When to Map
 
-| Trigger | Why |
-|---------|-----|
-| `/project new` | Before PM interview, understand codebase |
-| `/project adopt` | Before inference, map what exists |
-| Task start | Before TDD, map relevant code |
+| Trigger          | Why                                      |
+| ---------------- | ---------------------------------------- |
+| `/project new`   | Before PM interview, understand codebase |
+| `/project adopt` | Before inference, map what exists        |
+| Task start       | Before TDD, map relevant code            |
 
 ### Cost Savings
 
-| Without mapping | With mapping |
-|-----------------|--------------|
+| Without mapping        | With mapping   |
+| ---------------------- | -------------- |
 | ~5000 tokens exploring | ~500 token map |
-| Agent wanders | Agent focused |
-| Repeated exploration | Cached map |
+| Agent wanders          | Agent focused  |
+| Repeated exploration   | Cached map     |
 
 ---
 
@@ -759,14 +762,14 @@ project/
 
 ## Migration from Current System
 
-| Current | New |
-|---------|-----|
-| `/project` skill | `projctl pm` command |
-| 19 skills | 9 roles with modes |
+| Current                | New                         |
+| ---------------------- | --------------------------- |
+| `/project` skill       | `projctl pm` command        |
+| 19 skills              | 9 roles with modes          |
 | Skills dispatch skills | Orchestrator dispatches all |
-| Agent calls projctl | Orchestrator calls projctl |
-| Context window state | TOML file state |
-| Hope for continuation | Relentless by design |
+| Agent calls projctl    | Orchestrator calls projctl  |
+| Context window state   | TOML file state             |
+| Hope for continuation  | Relentless by design        |
 
 ### Deprecation Path
 

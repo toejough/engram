@@ -83,7 +83,9 @@
   - repeat from task breakdown agent until satisfied or we've hit a 3x limit (then raise to user).
 - Task Loop Agent:
   - read the task breakdown doc
-  - for each task:
+  - queue up tasks in order of dependencies, structural impact, and simplicity: if a task is blocked by a dependency, it
+    cannot run. If a task has high structural impact, it should run earlier. If a task is simple, it should run earlier.
+  - for each task in the queue:
     - TDD Agent
       - Red (test) Agent
         - evaluate: what are the test impacts of the task? what is the existing testing for this task (if any)? what should the new tests be? what are the best practices and patterns and tools that apply?
@@ -97,45 +99,48 @@
         - raise to the task loop agent if it seems like the task itself needs clarification or correction
         - otherwise, identify suggested improvements or additions as needed, for handoff to the test agent.
         - repeat from test agent until satisfied or we've hit a 3x limit (then raise to user).
-    - Green (Implementation) Agent
-      - evaluate: what are the implementation impacts of the task? what is the existing implementation for this task (if
-        any)? what should the new implementation be? what are the best practices and patterns and tools that apply?
-        - gather any additional context needed to inform implementation (implementation code, historical memory, external
-          research, etc)
-        - write or update the relevant implementation code, tagged with the relevant
-          test names.
-        - Ensure the targeted tests pass. Repeat implementation as needed until tests pass.
-        - ensure all tests pass. Repeat implementation as needed until all tests pass.
-        - Commit agent: commit according to conventional commits standards
-    - Implementation Agent QA
-      - review the implementation code for completeness and clarity, clear traceability to the
-        tests, clearly address the task, and implementation that follow our guidelines, and all tests pass. Identify any misalignment or gaps between the task and the implementation.
-      - raise to the task loop agent if it seems like the task itself needs clarification or correction
-      - otherwise, identify suggested improvements or additions as needed, for handoff to the implementation agent.
-      - repeat from implementation agent until satisfied or we've hit a 3x limit (then raise to user).
-    - Refactor Agent
-      - evaluate: what are the refactoring opportunities in the implementation code for this task? what is the current
-        state of the codebase? what is the target state? what are the best
-        practices and patterns and tools that apply?
-        - gather any additional context needed to inform refactoring (implementation code, historical memory, external
-          research, etc)
-        - refactor the relevant implementation code, maintaining all existing functionality, and tagged with the relevant
-          test names.
-        - ensure all tests and linting rules pass. Repeat refactoring as needed until all tests and linting rules pass.
-        - Commit agent: commit according to conventional commits standards
-    - Refactor Agent QA
-      - review the refactored implementation code for completeness and clarity, clear traceability to the
-        tests, clearly address the task, and implementation that follow our guidelines, and all tests and linting rules pass. Identify any misalignment or gaps between the task and the implementation.
-      - raise to the task loop agent if it seems like the task itself needs clarification or correction
-      - otherwise, identify suggested improvements or additions as needed, for handoff to the refactor agent.
-      - repeat from refactor agent until satisfied or we've hit a 3x limit (then raise to user).
-  - TDD Agent QA
-    - review the overall task implementation and tests for completeness and clarity, clear traceability of
-      implementation to test, of test to the
-      task, clearly addresses the task, and test & implementation that follow our guidelines, and all tests and linting pass. Identify any misalignment or gaps between the task and the tests or implementation.
-    - raise to the task agent if it seems like the task itself needs clarification or correction
-    - otherwise, identify suggested improvements or additions as needed, for handoff to the tdd agent.
-    - repeat from tdd agent until satisfied or we've hit a 3x limit (then raise to user).
+      - Green (Implementation) Agent
+        - evaluate: what are the implementation impacts of the task? what is the existing implementation for this task (if
+          any)? what should the new implementation be? what are the best practices and patterns and tools that apply?
+          - gather any additional context needed to inform implementation (implementation code, historical memory, external
+            research, etc)
+          - write or update the relevant implementation code, tagged with the relevant
+            test names.
+          - Ensure the targeted tests pass. Repeat implementation as needed until tests pass.
+          - ensure all tests pass. Repeat implementation as needed until all tests pass.
+          - Commit agent: commit according to conventional commits standards
+      - Implementation Agent QA
+        - review the implementation code for completeness and clarity, clear traceability to the
+          tests, clearly address the task, and implementation that follow our guidelines, and all tests pass. Identify any misalignment or gaps between the task and the implementation.
+        - raise to the task loop agent if it seems like the task itself needs clarification or correction
+        - otherwise, identify suggested improvements or additions as needed, for handoff to the implementation agent.
+        - repeat from implementation agent until satisfied or we've hit a 3x limit (then raise to user).
+      - Refactor Agent
+        - evaluate: what are the refactoring opportunities in the implementation code for this task? what is the current
+          state of the codebase? what is the target state? what are the best
+          practices and patterns and tools that apply?
+          - gather any additional context needed to inform refactoring (implementation code, historical memory, external
+            research, etc)
+          - refactor the relevant implementation code, maintaining all existing functionality, and tagged with the relevant
+            test names.
+          - ensure all tests and linting rules pass. Repeat refactoring as needed until all tests and linting rules pass.
+          - Commit agent: commit according to conventional commits standards
+      - Refactor Agent QA
+        - review the refactored implementation code for completeness and clarity, clear traceability to the
+          tests, clearly address the task, and implementation that follow our guidelines, and all tests and linting rules pass. Identify any misalignment or gaps between the task and the implementation.
+        - raise to the task loop agent if it seems like the task itself needs clarification or correction
+        - otherwise, identify suggested improvements or additions as needed, for handoff to the refactor agent.
+        - repeat from refactor agent until satisfied or we've hit a 3x limit (then raise to user).
+    - TDD Agent QA
+      - review the overall task implementation and tests for completeness and clarity, clear traceability of
+        implementation to test, of test to the
+        task, clearly addresses the task, and test & implementation that follow our guidelines, and all tests and linting pass. Identify any misalignment or gaps between the task and the tests or implementation.
+      - raise to the task agent if it seems like the task itself needs clarification or correction
+      - otherwise, identify suggested improvements or additions as needed, for handoff to the tdd agent.
+      - repeat from tdd agent until satisfied or we've hit a 3x limit (then raise to user).
+  - mark the task complete
+  - re-evaluate and if necessary re-order the remaining tasks in the queue based on any changes from completed tasks.
+  - repeat until all tasks are complete.
 - tech-writer agent:
   - read the current repo docs (requirements, design, architecture, README, etc) and the entire project history
     (issues, requirements, designs, architectures, task breakdowns, tasks, tests, implementation code, git history,
@@ -182,3 +187,25 @@
 - next steps agent:
   - read the open issues in this repo and suggest next steps for the user based on the completed project and the open
     issues.
+
+# agent handoff and orchestration
+
+When an agent needs to call another agent, unless it's the top level orchestrator agent, it should package up all
+relevant context, save it, and then yield back to the orchestrator agent with a request to call the agent it wants. The
+orchestrator should call that agent, likewise handling any of that agent's sub-agent calls, and then return the result
+and saved context back to the original agent, which can then continue its work.
+
+the same pattern should apply for sub-agents that want to interact with the user.
+
+The top level agent should be a pure orchestrator that handles agent/sub-agent/user handoff & context management, and
+nothing else.
+
+# State management
+
+As much as possible, state management for the project should be managed through a deterministic tool like projctl.
+
+# Tool / model selection
+
+Prefer the most reliable tool for the job. If a deterministic tool can reliably handle the task, use or build one for
+that task. If a local ONNX model can handle it, use that. If an LLM is needed, prefer the cheapest, simplest model that
+can handle the task reliably.
