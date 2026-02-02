@@ -543,11 +543,204 @@ When product-manager needs architect input:
 
 ---
 
+---
+
+## Learnings from Tool Review (review-2025-01.md)
+
+### Gastown (Steve Yegge)
+
+| Adopted | Not Adopted |
+|---------|-------------|
+| External state (not context window) | Massive parallelization (20-30 agents) |
+| Graceful degradation | Complex role hierarchy (Mayor/Polecats) |
+| Real-time monitoring | ~$100/hour token burn |
+
+**Key pattern:** Git-backed persistent state survives context loss and crashes.
+
+### oh-my-opencode / oh-my-claudecode
+
+| Adopted | Not Adopted |
+|---------|-------------|
+| Auto model routing (Haiku→Sonnet→Opus) | Vendor-specific integrations |
+| Background territory mapping | - |
+| Token-aware routing (30-50% cost savings) | - |
+| LSP for deterministic refactoring | - |
+
+**Key pattern:** "Sisyphus agent" fires off background tasks to cheaper models to keep main context lean.
+
+### claude-flow
+
+| Adopted | Not Adopted |
+|---------|-------------|
+| Task routing by complexity | ML-driven routing (Q-learning, MoE) |
+| Cost metrics and visibility | Swarm topologies |
+| - | Byzantine consensus |
+
+**Key insight:** Simple routing (simple→Haiku, medium→Sonnet, complex→Opus) gets most benefit without ML complexity.
+
+### Vercel Research (January 2025)
+
+| Finding | Implication |
+|---------|-------------|
+| Skills invoked only 44% of time | Don't rely on agent calling things |
+| AGENTS.md: 100% pass rate | Critical rules in passive context |
+| Skills (default): 53% pass rate | Skills unreliable for agent-initiated work |
+| 80% compression still works | Compressed index + on-demand retrieval |
+
+**Winning instruction:** "Prefer retrieval-led reasoning over pre-training-led reasoning"
+
+---
+
+## Key Patterns to Implement
+
+### 1. Relentless Continuation ("Won't Quit")
+
+From oh-my-opencode's Sisyphus philosophy:
+
+```
+Current (bad):
+  Done. Created 2 commits.
+  No response requested.    ← STOPS
+
+Target (good):
+  Done. Created 2 commits for TASK-003.
+  Checking next... TASK-004 unblocked.
+  Starting TASK-004.        ← CONTINUES
+```
+
+**Legitimate stop conditions:**
+- All tasks complete
+- Escalation needs user decision
+- Validation failed after 3 retries
+- Ambiguous requirement needs clarification
+
+**NOT stop conditions:**
+- Task complete but more exist
+- Phase complete but next phase ready
+- Commit done (continue to next TDD phase)
+
+### 2. Background Territory Mapping
+
+Before main work, dispatch cheap agent to explore:
+
+```toml
+# context/territory.toml (~500 tokens vs ~5000 for exploration)
+[structure]
+languages = ["go"]
+build_tool = "mage"
+
+[entry_points]
+cli = "cmd/projctl/main.go"
+
+[packages]
+count = 12
+internal = ["config", "context", "state", ...]
+
+[tests]
+pattern = "*_test.go"
+count = 27
+```
+
+**When to map:**
+- `/project new` - before pm-interview
+- `/project adopt` - before inference
+- `tdd-red` - before writing tests
+- `tdd-green` - before implementation
+
+### 3. Cross-Project Memory with ONNX
+
+```
+~/.claude/memory/
+├── index.md           # Greppable learnings
+├── sessions/          # Compressed session summaries
+├── decisions/         # Decision logs (JSONL)
+└── embeddings.db      # SQLite-vec for semantic search
+```
+
+**Three-tier capture:**
+
+| Tier | What | Example |
+|------|------|---------|
+| Events | State transitions | "TASK-003 complete" |
+| Decisions | Choice + reason | "recursive descent because simpler" |
+| Summary | Compressed narrative | "Refactored parser via method extraction" |
+
+**Key design:**
+- Orchestrator extracts from structured results (not agent CLI calls)
+- Local embeddings via ONNX (no API calls)
+- SQLite-vec for semantic queries (no server)
+
+### 4. Model Routing
+
+```toml
+[routing]
+simple = "haiku"      # grep, read, simple edits
+medium = "sonnet"     # most development
+complex = "opus"      # architecture, meta-audit
+threshold_lines = 50  # >50 LOC = medium→complex
+```
+
+**Reality check:** Claude Code's model set at session start. Routing works for sub-agents (Task tool), advisory-only for inline work.
+
+### 5. Passive Context > Skills
+
+| Put in CLAUDE.md | Keep in Skills |
+|------------------|----------------|
+| TDD discipline (no test weakening) | Interview workflows |
+| Traceability format | TDD phase logic |
+| Commit conventions | Audit checklists |
+| Evidence-based findings | Domain-specific process |
+
+Skills are user-triggered only. Don't expect agent to self-invoke.
+
+### 6. Skill Compression
+
+Before (full content, ~2000 tokens):
+```markdown
+## Rules
+1. Write minimal code...
+2. Do not add features...
+... (500 lines)
+```
+
+After (compressed, ~500 tokens):
+```markdown
+## Quick Reference
+- Minimal code only | No extra features | No refactoring yet
+- On failure: check assertions → logic → dependencies
+
+## Full Docs
+projctl skills docs tdd-green
+```
+
+---
+
+## Unified Design Principles
+
+Combining user vision + tool review learnings:
+
+| Principle | Source | Implementation |
+|-----------|--------|----------------|
+| Thin orchestrator | User vision | Message passing only, no decisions |
+| Co-routine yields | User vision | Context serialization to disk |
+| Role-based agents | User vision | 9 roles mimicking human teams |
+| Relentless continuation | oh-my-opencode | Continue until legitimate blocker |
+| Background mapping | oh-my-opencode | Cheap agent pre-explores |
+| Passive critical rules | Vercel | CLAUDE.md over skills |
+| Skill compression | Vercel | Index + on-demand retrieval |
+| Local semantic memory | claude-flow | ONNX + SQLite-vec |
+| Simple model routing | claude-flow | Haiku/Sonnet/Opus by complexity |
+| External state | Gastown | TOML files survive crashes |
+| Graceful degradation | Gastown | Retry/skip/escalate on failure |
+
+---
+
 ## Next Steps
 
-1. Define yield protocol concretely
-2. Prototype thin orchestrator with one role (e.g., product-manager)
-3. Test yield/resume flow with user interaction
-4. Expand to full role set if prototype works
+1. Draft unified system design combining all learnings
+2. Define yield protocol with TOML format
+3. Map current 19 skills to 9 roles
+4. Design thin orchestrator (Go program, not LLM)
+5. Prototype with one role (product-manager)
 
 ---
