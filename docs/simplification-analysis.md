@@ -271,11 +271,163 @@ init
 
 ---
 
+## Vision (from User)
+
+### Core Desires
+
+1. **Simple, generic process** - works across API, docs, design, GUI, TUI, CLI, code, deployment, testing
+2. **Scalable orchestration** - top-level agent orchestrates calls, not decisions; sub-agents can yield needs for other sub-agents
+3. **Learning** - capture and apply learnings within and across projects
+4. **Role-based agents** mimicking modern human engineering teams
+
+### Role-Based Agent Model
+
+| Role | Responsibility |
+|------|----------------|
+| **Product Manager** | Problem-space discovery |
+| **Designer** | User-experience solution-space discovery |
+| **Architect** | Code solution-space discovery |
+| **Task Breakdown** | Decompose arch into implementable units |
+| **Implementer** | TDD: test → implement |
+| **QA** | Audit and verify |
+| **Retro** | Reflect on success/struggles per-part and process-wide |
+| **Project Manager** | Thread it all together, keep on rails |
+| **Tech Writer** | Keep documentation up to date |
+
+### Traceability Chain
+
+```
+(issue) → requirement → (design) → arch → (task) → test → implementation
+```
+
+Parentheses = optional depending on context:
+- Not every work item starts from an issue
+- Not everything needs design (pure backend, CLI)
+- Tasks are derived, not always explicit
+
+Audits and corrections fill gaps when traceability breaks.
+
+### Co-routine Model
+
+**Key insight:** Top-level orchestrator should orchestrate *calls*, not make *decisions*.
+
+**Flow:**
+```
+PM spawns product-manager
+  product-manager works...
+  product-manager yields: {need: "architect-consult", question: "REST or GraphQL?"}
+PM spawns architect with question
+  architect responds: "GraphQL because..."
+PM passes response back to product-manager
+  product-manager continues with answer
+  product-manager completes: {result: requirements.md}
+PM receives result, continues to next phase
+```
+
+**Benefits:**
+- Sub-agents can request other sub-agents without nesting
+- Orchestrator remains thin (just message passing)
+- Each agent focuses on its role
+- User interaction happens at orchestrator level (not buried in sub-agents)
+
+---
+
+## Current vs Vision Comparison
+
+| Aspect | Current | Vision |
+|--------|---------|--------|
+| Orchestrator | LLM runs control loop + dispatches | Thin message-passer only |
+| Sub-agent communication | Fire-and-forget | Yield/resume with needs |
+| User interaction | Broken (sub-agents can't ask) | Surfaced to orchestrator level |
+| Roles | Skills (20+) | Agents (9 roles) |
+| Traceability | REQ→DES→ARCH→TASK | issue→req→(des)→arch→(task)→test→impl |
+| Learning | corrections log, meta-audit | Active cross-project memory |
+
+---
+
+## Simplification Path
+
+### Step 1: Consolidate Skills into Roles
+
+Map 20+ skills to 9 roles:
+
+| Role | Current Skills |
+|------|----------------|
+| Product Manager | pm-interview, pm-infer, pm-audit |
+| Designer | design-interview, design-infer, design-audit |
+| Architect | architect-interview, architect-infer, architect-audit |
+| Task Breakdown | task-breakdown |
+| Implementer | tdd-red, tdd-green, tdd-refactor |
+| QA | task-audit, alignment-check |
+| Retro | meta-audit |
+| Project Manager | project (orchestrator) |
+| Tech Writer | (new - or integrate docs into other roles) |
+
+### Step 2: Define Yield Protocol
+
+Sub-agents communicate via structured yields:
+
+```toml
+# Sub-agent needs something
+[yield]
+type = "need-consult"  # or "need-user-input", "need-sub-agent", "complete"
+target = "architect"   # which role to consult
+question = "Should we use REST or GraphQL for the API?"
+context = "Building user service, need to decide API style"
+
+# Sub-agent completes
+[yield]
+type = "complete"
+result = "requirements.md created with REQ-001 through REQ-005"
+files_modified = ["docs/requirements.md"]
+```
+
+### Step 3: Simplify State Machine
+
+Current: ~15 phases with complex transitions
+Proposed: Role-based phases
+
+```
+discovery (product-manager + designer + architect)
+  → breakdown (task-breakdown)
+  → implement (implementer per task, with QA)
+  → retro (per task and overall)
+  → done
+```
+
+### Step 4: Learning Integration
+
+Every agent interaction captures:
+- Decisions made (choice + reason + alternatives)
+- Corrections received
+- What worked / what struggled
+
+`projctl memory` stores cross-project, `projctl retro` synthesizes.
+
+---
+
+## Open Questions
+
+1. **Yield implementation:** How does a sub-agent "yield" in Claude Code? Options:
+   - Structured output format parsed by orchestrator
+   - Exit with specific status + state file
+   - Stream markers in JSONL output
+
+2. **Role vs skill granularity:** Should "product-manager" be one agent that does interview/infer/audit, or separate?
+
+3. **Optional phases:** How does orchestrator know to skip design for CLI work? User declares? Auto-detect?
+
+4. **Tech writer timing:** After each phase? Only at end? On-demand?
+
+5. **Cross-agent memory:** How do agents access learnings from other agents/projects?
+
+---
+
 ## Next Steps
 
-1. Define what "co-routine based flow" means concretely
-2. Identify which skills need user interaction vs which are autonomous
-3. Prototype simplest possible orchestration that preserves core value
-4. Test whether simplification actually improves reliability
+1. Define yield protocol concretely
+2. Prototype thin orchestrator with one role (e.g., product-manager)
+3. Test yield/resume flow with user interaction
+4. Expand to full role set if prototype works
 
 ---
