@@ -406,12 +406,130 @@ Every agent interaction captures:
 
 ---
 
+## Yield Protocol Design
+
+### Core Mechanism
+
+Sub-agents serialize their continuation to disk before yielding:
+
+1. Agent works until it needs something (user input, another agent's output)
+2. Agent writes relevant context to `context/<role>-state.md`
+3. Agent exits with structured yield message
+4. Orchestrator handles the need
+5. Orchestrator spawns **new** agent with: role instructions + context file + answer
+
+### Yield Message Format
+
+```toml
+[yield]
+type = "need-user-input"  # or "need-consult", "complete", "need-decision"
+question = "What problem are you trying to solve?"
+context_file = "context/product-manager-state.md"
+
+# For need-consult
+target_role = "architect"
+consult_question = "Should we use REST or GraphQL?"
+
+# For complete
+result_file = "docs/requirements.md"
+files_modified = ["docs/requirements.md"]
+```
+
+### Context File Structure
+
+```markdown
+# Product Manager Context
+
+## Phase
+PROBLEM (1 of 5: PROBLEM → CURRENT STATE → FUTURE STATE → SUCCESS CRITERIA → EDGE CASES)
+
+## Gathered So Far
+(User answers from previous questions)
+
+## Current Question
+What problem are you trying to solve?
+
+## Remaining Questions
+- What's broken today?
+- Who is affected?
+- What's the impact?
+
+## Decisions Made
+- (none yet)
+
+## Learnings
+- (captured insights)
+```
+
+### Resume Flow
+
+When orchestrator resumes an agent:
+
+```
+Orchestrator prompt:
+  "You are Product Manager. Resume from the context below.
+
+   User's answer to your last question: <answer>
+
+   Context file:
+   <contents of context/product-manager-state.md>
+
+   Continue the interview from where you left off."
+```
+
+### Orchestrator State
+
+Orchestrator tracks minimal state:
+
+```toml
+[orchestrator]
+current_role = "product-manager"
+phase = "discovery"
+
+[pending_yield]
+role = "product-manager"
+type = "need-user-input"
+question = "What problem are you trying to solve?"
+context_file = "context/product-manager-state.md"
+```
+
+### Example Flow
+
+```
+1. PM spawns product-manager
+2. product-manager asks "What problem?"
+   → writes context/product-manager-state.md
+   → yields {type: "need-user-input", question: "What problem?"}
+3. PM surfaces question to user
+4. User answers: "The build is too slow"
+5. PM spawns new product-manager with context + answer
+6. product-manager reads context, continues
+   → asks "How slow is it today?"
+   → updates context file
+   → yields {type: "need-user-input", question: "How slow?"}
+7. (repeat until complete)
+8. product-manager yields {type: "complete", result_file: "docs/requirements.md"}
+9. PM moves to next role
+```
+
+### Nested Agent Calls
+
+When product-manager needs architect input:
+
+```
+1. product-manager yields {type: "need-consult", target: "architect", question: "REST or GraphQL?"}
+2. PM spawns architect with the question
+3. architect responds (may itself yield for user input)
+4. PM gets architect's answer
+5. PM spawns new product-manager with context + architect's answer
+6. product-manager continues
+```
+
+---
+
 ## Open Questions
 
-1. **Yield implementation:** How does a sub-agent "yield" in Claude Code? Options:
-   - Structured output format parsed by orchestrator
-   - Exit with specific status + state file
-   - Stream markers in JSONL output
+1. **Context file size:** How do we keep context files focused? Agent discipline? Token limits?
 
 2. **Role vs skill granularity:** Should "product-manager" be one agent that does interview/infer/audit, or separate?
 
@@ -420,6 +538,8 @@ Every agent interaction captures:
 4. **Tech writer timing:** After each phase? Only at end? On-demand?
 
 5. **Cross-agent memory:** How do agents access learnings from other agents/projects?
+
+6. **Context file format:** Markdown (human-readable) vs TOML (structured) vs both?
 
 ---
 
