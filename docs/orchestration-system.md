@@ -1094,6 +1094,8 @@ projctl memory query|learn|grep
 
 **Proves:** State management, context serialization, ID generation work.
 
+**Skill Updates:** None - foundation layer has no agent spawning.
+
 ### Layer 1: Leaf Commands
 
 Wrap simplest skills that don't spawn sub-agents:
@@ -1106,6 +1108,8 @@ projctl commit
 ```
 
 **Proves:** projctl can spawn Claude CLI, capture output, update state.
+
+**Skill Updates:** Verify `/commit` skill works when spawned by projctl. May need adjustments for non-interactive invocation.
 
 ### Layer 2: Single Pair Loop
 
@@ -1122,6 +1126,15 @@ projctl pair --phase pm
 
 **Proves:** Yield protocol works, pair loop logic is correct.
 
+**Skill Updates:** Create/update producer and QA agent prompts for each phase:
+- `pm-producer`, `pm-qa` (or update existing `pm-interview`, `pm-audit`)
+- `design-producer`, `design-qa`
+- `arch-producer`, `arch-qa`
+- `breakdown-producer`, `breakdown-qa`
+- `doc-producer`, `doc-qa`
+
+Skills must output yield protocol TOML and accept context from projctl.
+
 ### Layer 3: Nested Pair Loop (TDD)
 
 Wrap TDD loop with nested pairs:
@@ -1136,6 +1149,12 @@ projctl tdd --task TASK-1
 ```
 
 **Proves:** Nested loops work, task-level state management.
+
+**Skill Updates:** Create/update TDD agent prompts:
+- `tdd-red-producer`, `tdd-red-qa` (or update existing `tdd-red`)
+- `tdd-green-producer`, `tdd-green-qa` (or update existing `tdd-green`)
+- `tdd-refactor-producer`, `tdd-refactor-qa` (or update existing `tdd-refactor`)
+- `tdd-qa` (overall TDD quality gate)
 
 ### Layer 4: Phase Orchestration
 
@@ -1158,6 +1177,8 @@ projctl phase implementation
 
 **Proves:** Phase-level orchestration, task queue management.
 
+**Skill Updates:** Skills stabilize at this layer - projctl controls all orchestration logic. Skills now purely define agent behavior (prompts, guidelines) without orchestration concerns. Update `/project` skill to delegate phase execution to `projctl phase`.
+
 ### Layer 5: Workflow Orchestration
 
 Wrap complete workflows:
@@ -1179,6 +1200,8 @@ projctl workflow new
   └── projctl phase documentation
 ```
 
+**Skill Updates:** Update `/project` skill to delegate workflow selection to `projctl workflow`. Add alignment, retro, summary agents if not already present.
+
 ### Layer 6: Main Flow
 
 Full intake + workflow + common ending:
@@ -1195,6 +1218,8 @@ projctl project [description]
   └── runs: projctl phase next-steps
 ```
 
+**Skill Updates:** `/project` skill becomes a one-liner: invoke `projctl project` and display results. Add intake evaluation agent, next-steps agent.
+
 ### Layer 7: TUI
 
 Wrap CLI in bubbletea for better UX:
@@ -1202,6 +1227,8 @@ Wrap CLI in bubbletea for better UX:
 - Progress visualization
 - State dashboard
 - Same underlying projctl commands
+
+**Skill Updates:** No new skills needed - TUI is a presentation layer over existing projctl commands.
 
 ---
 
