@@ -1077,7 +1077,38 @@ func main() {
 
 ## 12. Implementation Plan
 
-Bottom-up approach: wrap lowest-level operations first, move up the stack. Each layer is testable independently before building the next.
+Two-phase migration: first unify skills to the new agent patterns, then migrate orchestration from `/project` skill to projctl. Each layer is testable independently before building the next.
+
+### Layer -1: Skill Unification
+
+Update all skills to unified pattern before projctl takes over orchestration. Test with current `/project` skill.
+
+**Phase Agent Skills** (producer + QA pairs):
+- `pm-producer` / `pm-qa` - requirements gathering and validation
+- `design-producer` / `design-qa` - UX design and validation
+- `arch-producer` / `arch-qa` - architecture decisions and validation
+- `breakdown-producer` / `breakdown-qa` - task decomposition and validation
+- `doc-producer` / `doc-qa` - documentation and validation
+
+**TDD Agent Skills** (nested producer + QA pairs):
+- `tdd-red-producer` / `tdd-red-qa` - test writing
+- `tdd-green-producer` / `tdd-green-qa` - implementation
+- `tdd-refactor-producer` / `tdd-refactor-qa` - refactoring
+- `tdd-qa` - overall TDD quality gate
+
+**Support Agent Skills**:
+- `alignment-producer` / `alignment-qa` - traceability validation
+- `retro-producer` / `retro-qa` - retrospective
+- `summary-producer` / `summary-qa` - project summary
+- `intake-evaluator` - request type classification
+- `next-steps` - suggest follow-up work
+
+**All skills must**:
+- Accept context via standard input format (from orchestrator)
+- Output yield protocol TOML (to orchestrator)
+- Follow producer or QA role guidelines
+
+**Proves:** Unified agent patterns work with existing `/project` orchestrator before projctl migration.
 
 ### Layer 0: Foundation
 
@@ -1094,7 +1125,7 @@ projctl memory query|learn|grep
 
 **Proves:** State management, context serialization, ID generation work.
 
-**Skill Updates:** None - foundation layer has no agent spawning.
+**Skill Updates:** None - skills already unified in Layer -1.
 
 ### Layer 1: Leaf Commands
 
@@ -1126,14 +1157,7 @@ projctl pair --phase pm
 
 **Proves:** Yield protocol works, pair loop logic is correct.
 
-**Skill Updates:** Create/update producer and QA agent prompts for each phase:
-- `pm-producer`, `pm-qa` (or update existing `pm-interview`, `pm-audit`)
-- `design-producer`, `design-qa`
-- `arch-producer`, `arch-qa`
-- `breakdown-producer`, `breakdown-qa`
-- `doc-producer`, `doc-qa`
-
-Skills must output yield protocol TOML and accept context from projctl.
+**Skill Updates:** Validate phase skills (created in Layer -1) work when spawned by `projctl pair`.
 
 ### Layer 3: Nested Pair Loop (TDD)
 
@@ -1150,11 +1174,7 @@ projctl tdd --task TASK-1
 
 **Proves:** Nested loops work, task-level state management.
 
-**Skill Updates:** Create/update TDD agent prompts:
-- `tdd-red-producer`, `tdd-red-qa` (or update existing `tdd-red`)
-- `tdd-green-producer`, `tdd-green-qa` (or update existing `tdd-green`)
-- `tdd-refactor-producer`, `tdd-refactor-qa` (or update existing `tdd-refactor`)
-- `tdd-qa` (overall TDD quality gate)
+**Skill Updates:** Validate TDD skills (created in Layer -1) work when spawned by `projctl tdd`.
 
 ### Layer 4: Phase Orchestration
 
@@ -1238,15 +1258,16 @@ Wrap CLI in bubbletea for better UX:
 
 At each layer, the current `/project` skill can call `projctl <command>` instead of doing work inline. Skills become thinner over time.
 
-| Layer Complete | `/project` Skill Does | projctl Does |
-|----------------|----------------------|--------------|
-| 0 | Everything | State, IDs, tracing |
-| 1 | Orchestration + phases | + commit |
-| 2 | Orchestration + phases | + pair loops |
-| 3 | Orchestration + phases | + TDD loops |
-| 4 | Orchestration | + all phases |
-| 5 | Dispatch only | + workflows |
-| 6 | Nothing | Everything |
+| Layer Complete | `/project` Skill Does | projctl Does | Skills |
+|----------------|----------------------|--------------|--------|
+| -1 | Everything (old patterns) | Nothing | Unified to new patterns |
+| 0 | Everything (new patterns) | State, IDs, tracing | Ready |
+| 1 | Orchestration + phases | + commit | Ready |
+| 2 | Orchestration + phases | + pair loops | Ready |
+| 3 | Orchestration + phases | + TDD loops | Ready |
+| 4 | Orchestration | + all phases | Ready |
+| 5 | Dispatch only | + workflows | Ready |
+| 6 | Nothing | Everything | Ready |
 
 ### Final State
 
