@@ -618,22 +618,41 @@ Local semantic memory with no API calls:
     └── <project>.jsonl
 ```
 
+**Embedding Engine (ONNX):**
+
+Local semantic search using ONNX runtime - no API calls required:
+
+| Component | Choice | Rationale |
+|-----------|--------|-----------|
+| Runtime | ONNX | Cross-platform, no Python dependency |
+| Model | e5-small | Good quality/size tradeoff, ~130MB |
+| Storage | SQLite-vec | Single file, no server, vector search built-in |
+
+**When embeddings are generated:**
+- `projctl memory learn` - embeds the message, stores in SQLite-vec
+- `projctl memory extract` - embeds extracted insights from agent results
+- `projctl memory session-end` - embeds session summary
+
+**When embeddings are queried:**
+- `projctl memory query` - embeds the query, returns top-k similar memories
+- Orchestrator control loop - queries memory before spawning each agent
+
 **Memory Commands:**
 
 ```bash
-# Semantic query before spawning agent
+# Semantic query before spawning agent (uses ONNX to embed query)
 projctl memory query "build performance patterns"
 
-# Structural search
+# Structural search (no ONNX, just grep)
 projctl memory grep "caching"
 
-# Learn from result
+# Learn from result (uses ONNX to embed)
 projctl memory extract --result .claude/context/pm-result.toml
 
-# User says "remember this"
+# User says "remember this" (uses ONNX to embed)
 projctl memory learn --message "GraphQL adds complexity we don't need"
 
-# Session end summary
+# Session end summary (uses ONNX to embed summary)
 projctl memory session-end --project myproject
 ```
 
@@ -1120,10 +1139,15 @@ projctl context write|read
 projctl id next --type REQ|DES|ARCH|TASK
 projctl trace validate|repair
 projctl territory map|show
-projctl memory query|learn|grep
+projctl memory query|learn|grep|extract|session-end
 ```
 
-**Proves:** State management, context serialization, ID generation work.
+**Dependencies:**
+- ONNX runtime (for embedding generation)
+- e5-small model (~130MB, downloaded on first use)
+- SQLite-vec (for vector storage/search)
+
+**Proves:** State management, context serialization, ID generation, semantic memory work.
 
 **Skill Updates:** None - skills already unified in Layer -1.
 
