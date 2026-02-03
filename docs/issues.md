@@ -7,7 +7,7 @@ Tracked issues for future work beyond the current task list.
 ## ISSUE-001: Implement deterministic orchestrator (projctl orchestrate)
 
 **Priority:** Medium-term
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 
 ### Summary
@@ -98,7 +98,7 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 ## ISSUE-002: TDD for documentation tasks
 
 **Priority:** Medium-term
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 
 ### Summary
@@ -171,7 +171,7 @@ Apply TDD to documentation:
 ## ISSUE-003: End-to-end integration test for /project workflows
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 
 ### Summary
@@ -430,7 +430,7 @@ Fixed via path-fixes project. Changed default DocsDir to empty string and fixed 
 ## ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 
 ### Summary
@@ -886,7 +886,7 @@ Fixed in commit 4087e0f
 ## ISSUE-014: Missing `projctl screenshot capture` command
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -914,7 +914,7 @@ This may be less critical if Chrome DevTools MCP handles capture. Evaluate wheth
 ## ISSUE-015: `projctl project` command group not implemented
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -1248,7 +1248,7 @@ Completed via orchestration-infrastructure project (ISSUE-026)
 ## ISSUE-022: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -1292,7 +1292,7 @@ Alternative: Add `projctl present --artifact <path>` command that formats and di
 ## ISSUE-023: Create projctl validate-spec command
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -1331,7 +1331,7 @@ Parses the spec doc for:
 ## ISSUE-024: Create ARCH-N for explicit orchestrator-skill contract
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -1456,7 +1456,7 @@ Project complete. Resolved ISSUE-004, 011, 012, 019, 020, 021, 025. Created foll
 ## ISSUE-027: Parallel TDD agents bypass commit-per-phase discipline
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 When running TDD tasks in parallel via Task tool, the commit-per-phase discipline (red→commit→green→commit→refactor→commit) is bypassed.
@@ -1470,6 +1470,10 @@ When running TDD tasks in parallel via Task tool, the commit-per-phase disciplin
 4. Each agent works on a branch, merge at end
 
 **Traces to:** Process improvement
+
+### Comment
+
+Resolved via parallel-worktree-strategy project. Implemented git worktree-based isolation where each parallel task gets its own branch and worktree directory. Agents make normal TDD commits on their branches, then rebase+ff-merge back to main.
 
 ---
 
@@ -1563,7 +1567,7 @@ Won't do - over-engineering. Fixing ISSUE-028 directly with simple command in or
 ## ISSUE-031: Define parallel commit strategy for task execution
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective R3:
@@ -1580,18 +1584,22 @@ From ISSUE-026 retrospective R3:
 3. Sequential-only for tasks requiring git history
 
 **Acceptance Criteria:**
-- [ ] Orchestration doc or README specifies parallel commit policy
-- [ ] Policy is implementable by orchestrator
-- [ ] Trade-offs are documented
+- [x] Orchestration doc or README specifies parallel commit policy
+- [x] Policy is implementable by orchestrator
+- [x] Trade-offs are documented
 
 **Traces to:** ISSUE-026 Retrospective R3, ISSUE-027
+
+### Comment
+
+Resolved via parallel-worktree-strategy project. Strategy: Option 1 (branch per task). Implementation: `projctl worktree create/merge/cleanup` commands. Trade-offs documented in project retro.
 
 ---
 
 ## ISSUE-032: Add integration test for state task tracking
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective R4:
@@ -1621,7 +1629,7 @@ From ISSUE-026 retrospective R4:
 ## ISSUE-033: Decision needed: Should parallel tasks use separate branches?
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective Q1:
@@ -1636,6 +1644,10 @@ From ISSUE-026 retrospective Q1:
 **Decision needed before:** Next parallel project execution
 
 **Traces to:** ISSUE-026 Retrospective Q1, ISSUE-027
+
+### Comment
+
+Decision: Option A (branch per task). Implemented via parallel-worktree-strategy project with `projctl worktree` commands using git worktrees for isolation.
 
 ---
 
@@ -1667,7 +1679,7 @@ Decision: projects always live in .claude/projects/<name>/. ISSUE-036 implements
 ## ISSUE-035: Decision needed: How to handle skill documentation without TDD?
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective Q3:
