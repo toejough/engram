@@ -102,9 +102,9 @@ func TestLoad_Defaults(t *testing.T) {
 	cfg, err := config.Load("/project", "/home/user", fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Check defaults
+	// Check defaults - DocsDir is empty by default (artifacts at project root)
 	g.Expect(cfg.Paths.Readme).To(Equal("README.md"))
-	g.Expect(cfg.Paths.DocsDir).To(Equal("docs"))
+	g.Expect(cfg.Paths.DocsDir).To(Equal(""))
 	g.Expect(cfg.Paths.Requirements).To(Equal("requirements.md"))
 	g.Expect(cfg.Paths.Design).To(Equal("design.md"))
 	g.Expect(cfg.Paths.Architecture).To(Equal("architecture.md"))
@@ -218,7 +218,7 @@ func TestDefault(t *testing.T) {
 
 	cfg := config.Default()
 	g.Expect(cfg).ToNot(BeNil())
-	g.Expect(cfg.Paths.DocsDir).To(Equal("docs"))
+	g.Expect(cfg.Paths.DocsDir).To(Equal("")) // Empty by default - artifacts at project root
 	g.Expect(cfg.Heuristics.PreserveThreshold).To(BeNumerically(">", 0))
 }
 

@@ -127,7 +127,7 @@ func Default() *ProjectConfig {
 	return &ProjectConfig{
 		Paths: PathsConfig{
 			Readme:       "README.md",
-			DocsDir:      "docs",
+			DocsDir:      "",
 			Requirements: "requirements.md",
 			Design:       "design.md",
 			Architecture: "architecture.md",

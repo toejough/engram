@@ -402,7 +402,7 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
-	docsDir := filepath.Join(dir, "docs")
+	docsDir := dir
 	featurePatterns := []string{
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
@@ -686,7 +686,7 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
-	docsDir := filepath.Join(dir, "docs")
+	docsDir := dir
 	featurePatterns := []string{
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),
@@ -895,7 +895,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph
 	}
 
 	// Also look for feature-specific files
-	docsDir := filepath.Join(dir, "docs")
+	docsDir := dir
 	featurePatterns := []string{
 		filepath.Join(docsDir, "design-*.md"),
 		filepath.Join(docsDir, "requirements-*.md"),

@@ -346,13 +346,8 @@ func TestImpact(t *testing.T) {
 func writeArtifact(t *testing.T, dir, name, content string) {
 	t.Helper()
 
-	// Write to docs/ subdirectory to match default config
-	docsDir := filepath.Join(dir, "docs")
-	if err := os.MkdirAll(docsDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	err := os.WriteFile(filepath.Join(docsDir, name), []byte(content), 0o644)
+	// Write to project root directory
+	err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -495,7 +490,7 @@ Duplicate.
 		g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
 
 		// Check the file was actually updated
-		content, err := os.ReadFile(filepath.Join(dir, "docs", "design-feature.md"))
+		content, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(string(content)).To(ContainSubstring("DES-002"))
 		g.Expect(string(content)).ToNot(ContainSubstring("DES-001"))
