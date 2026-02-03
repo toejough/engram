@@ -123,19 +123,21 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-5: Create pm-interview-producer
+### TASK-5: Create pm-interview-producer ✓
 
 **Description:** Create PM interview producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Implements GATHER → SYNTHESIZE → PRODUCE for requirements
-- [ ] Outputs yield protocol TOML
-- [ ] Can yield need-user-input for interview questions
-- [ ] Can yield need-context for existing docs
-- [ ] Produces requirements.md with REQ-N IDs
+**Status:** Complete
 
-**Files:** `skills/pm-interview-producer/SKILL.md`, `skills/pm-interview-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Implements GATHER → SYNTHESIZE → PRODUCE for requirements
+- [x] Outputs yield protocol TOML
+- [x] Can yield need-user-input for interview questions
+- [x] Can yield need-context for existing docs
+- [x] Produces requirements.md with REQ-N IDs
+
+**Files:** `skills/pm-interview-producer/SKILL.md`, `skills/pm-interview-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -143,18 +145,20 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-6: Create pm-infer-producer
+### TASK-6: Create pm-infer-producer ✓
 
 **Description:** Create PM infer producer skill for code analysis.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Analyzes existing code to infer requirements
-- [ ] Outputs yield protocol TOML
-- [ ] Can yield need-context for code exploration
-- [ ] Produces requirements.md with REQ-N IDs
+**Status:** Complete
 
-**Files:** `skills/pm-infer-producer/SKILL.md`, `skills/pm-infer-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Analyzes existing code to infer requirements
+- [x] Outputs yield protocol TOML
+- [x] Can yield need-context for code exploration
+- [x] Produces requirements.md with REQ-N IDs
+
+**Files:** `skills/pm-infer-producer/SKILL.md`, `skills/pm-infer-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -162,17 +166,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-7: Create design-interview-producer
+### TASK-7: Create design-interview-producer ✓
 
 **Description:** Create Design interview producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Implements UX design interview flow
-- [ ] Outputs yield protocol TOML
-- [ ] Produces design.md with DES-N IDs
+**Status:** Complete
 
-**Files:** `skills/design-interview-producer/SKILL.md`, `skills/design-interview-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Implements UX design interview flow
+- [x] Outputs yield protocol TOML
+- [x] Produces design.md with DES-N IDs
+
+**Files:** `skills/design-interview-producer/SKILL.md`, `skills/design-interview-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -180,17 +186,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-8: Create design-infer-producer
+### TASK-8: Create design-infer-producer ✓
 
 **Description:** Create Design infer producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Analyzes existing UI/UX to infer design decisions
-- [ ] Outputs yield protocol TOML
-- [ ] Produces design.md with DES-N IDs
+**Status:** Complete
 
-**Files:** `skills/design-infer-producer/SKILL.md`, `skills/design-infer-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Analyzes existing UI/UX to infer design decisions
+- [x] Outputs yield protocol TOML
+- [x] Produces design.md with DES-N IDs
+
+**Files:** `skills/design-infer-producer/SKILL.md`, `skills/design-infer-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -198,17 +206,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-9: Create arch-interview-producer
+### TASK-9: Create arch-interview-producer ✓
 
 **Description:** Create Architecture interview producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Implements architecture decision interview flow
-- [ ] Outputs yield protocol TOML
-- [ ] Produces architecture.md with ARCH-N IDs
+**Status:** Complete
 
-**Files:** `skills/arch-interview-producer/SKILL.md`, `skills/arch-interview-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Implements architecture decision interview flow
+- [x] Outputs yield protocol TOML
+- [x] Produces architecture.md with ARCH-N IDs
+
+**Files:** `skills/arch-interview-producer/SKILL.md`, `skills/arch-interview-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -216,17 +226,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-10: Create arch-infer-producer
+### TASK-10: Create arch-infer-producer ✓
 
 **Description:** Create Architecture infer producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Analyzes existing code to infer architecture decisions
-- [ ] Outputs yield protocol TOML
-- [ ] Produces architecture.md with ARCH-N IDs
+**Status:** Complete
 
-**Files:** `skills/arch-infer-producer/SKILL.md`, `skills/arch-infer-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Analyzes existing code to infer architecture decisions
+- [x] Outputs yield protocol TOML
+- [x] Produces architecture.md with ARCH-N IDs
+
+**Files:** `skills/arch-infer-producer/SKILL.md`, `skills/arch-infer-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -234,18 +246,20 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-11: Create breakdown-producer
+### TASK-11: Create breakdown-producer ✓
 
 **Description:** Create Task Breakdown producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Decomposes architecture into tasks
-- [ ] Outputs yield protocol TOML
-- [ ] Produces tasks.md with TASK-N IDs
-- [ ] Includes dependency graph
+**Status:** Complete
 
-**Files:** `skills/breakdown-producer/SKILL.md`, `skills/breakdown-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Decomposes architecture into tasks
+- [x] Outputs yield protocol TOML
+- [x] Produces tasks.md with TASK-N IDs
+- [x] Includes dependency graph
+
+**Files:** `skills/breakdown-producer/SKILL.md`, `skills/breakdown-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -253,15 +267,17 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-12: Create doc-producer
+### TASK-12: Create doc-producer ✓
 
 **Description:** Create Documentation producer skill.
 
+**Status:** Complete
+
 **Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Produces/updates README, API docs, user guides
-- [ ] Outputs yield protocol TOML
-- [ ] Traces to REQ-N, DES-N, ARCH-N
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Produces/updates README, API docs, user guides
+- [x] Outputs yield protocol TOML
+- [x] Traces to REQ-N, DES-N, ARCH-N
 
 **Files:** `skills/doc-producer/SKILL.md`, `skills/doc-producer/SKILL-full.md`
 
