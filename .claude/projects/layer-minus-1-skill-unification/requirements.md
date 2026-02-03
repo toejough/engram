@@ -91,7 +91,7 @@ As an orchestrator, I want TDD skills organized as nested producer/QA pairs, so 
 
 ### REQ-4: Support Agent Skills
 
-As an orchestrator, I want support skills for alignment, retro, summary, intake, and next-steps, so that I can run the complete workflow.
+As an orchestrator, I want support skills for alignment, retro, summary, intake, next-steps, and context exploration, so that I can run the complete workflow.
 
 **Acceptance Criteria:**
 - [ ] `alignment-producer` and `alignment-qa` skills exist
@@ -100,9 +100,28 @@ As an orchestrator, I want support skills for alignment, retro, summary, intake,
 - [ ] `summary-producer` and `summary-qa` skills exist
 - [ ] `intake-evaluator` skill exists (classifies request type)
 - [ ] `next-steps` skill exists (suggests follow-up work)
+- [ ] `context-explorer` skill exists (handles all context query types)
 - [ ] All support skills output yield protocol
 
 **Priority:** P1
+
+**Traces to:** ISSUE-008
+
+---
+
+### REQ-10: Context Exploration via Yield
+
+As a producer skill, I want to yield `need-context` with a list of queries, so that I can request parallel context gathering without implementing exploration myself.
+
+**Acceptance Criteria:**
+- [ ] Producer skills can yield type `need-context`
+- [ ] Yield payload contains list of queries with type and parameters
+- [ ] Supported query types: file, memory, territory, web, semantic
+- [ ] `context-explorer` agent handles all query types (B1 approach)
+- [ ] Orchestrator runs explorer, aggregates results, resumes producer with context
+- [ ] Producer receives aggregated results in resumed context
+
+**Priority:** P0
 
 **Traces to:** ISSUE-008
 

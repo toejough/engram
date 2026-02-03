@@ -329,6 +329,7 @@ state_file = ".claude/agents/pm-state.toml"
 | `need-user-input`     | Question for user           | Prompt user, resume with answer     |
 | `need-agent`          | Need another agent's work   | Spawn agent, resume with result     |
 | `need-decision`       | Ambiguous, need user choice | Present options, resume with choice |
+| `need-context`        | Need context from sources   | Run queries (parallel), resume with results |
 | `improvement-request` | QA returning to producer    | Resume producer with feedback       |
 | `escalate-phase`      | Issue in prior phase        | Return to prior phase agent         |
 | `escalate-user`       | Cannot resolve              | Present to user                     |
@@ -373,6 +374,48 @@ issues = [
     "REQ-005 missing edge case for empty input"
 ]
 ```
+
+### 3.5 Need Context Yield
+
+```toml
+[yield]
+type = "need-context"
+
+[[yield.queries]]
+type = "file"
+path = "docs/requirements.md"
+
+[[yield.queries]]
+type = "memory"
+query = "caching patterns"
+
+[[yield.queries]]
+type = "territory"
+scope = "tests"
+
+[[yield.queries]]
+type = "web"
+url = "https://example.com/docs"
+prompt = "Extract the API format"
+
+[[yield.queries]]
+type = "semantic"
+question = "How does authentication work in this codebase?"
+```
+
+**Query types:**
+
+| Type | Parameters | What it fetches |
+|------|------------|-----------------|
+| file | `path` | File contents |
+| memory | `query` | ONNX semantic memory results |
+| territory | `scope` | Codebase structure map |
+| web | `url`, `prompt` | URL content, interpreted by prompt |
+| semantic | `question` | Answer about codebase (LLM exploration) |
+
+**Execution:**
+- Layer -1 (B1): All queries handled by `context-explorer` agent
+- Layer 2+ (B2): Deterministic queries (file, memory, territory) via projctl, semantic via agent
 
 ---
 
@@ -1130,7 +1173,11 @@ Infer producers: analyze existing code to infer artifacts (Adopt Existing workfl
 - `summary-producer` / `summary-qa` - project summary
 - `intake-evaluator` - request type classification
 - `next-steps` - suggest follow-up work
+- `context-explorer` - handles all context queries (file, memory, territory, web, semantic)
 - `commit` - commit changes (unchanged from current)
+
+**Context Exploration (B1 approach):**
+Producer skills can yield `need-context` with a list of queries. The `context-explorer` agent handles all query types via LLM. This is simple but uses LLM even for deterministic operations. Layer 0+ optimizes with B2 hybrid approach.
 
 **All skills must**:
 - Accept context via standard input format (from orchestrator)
@@ -1200,6 +1247,23 @@ projctl pair --phase pm
 ```
 
 **Proves:** Yield protocol works, pair loop logic is correct.
+
+**Context Exploration (B2 hybrid approach):**
+Upgrade from B1 (all LLM) to B2 (hybrid):
+
+| Query Type | B1 (Layer -1) | B2 (Layer 2+) |
+|------------|---------------|---------------|
+| file | LLM reads | projctl reads (deterministic) |
+| memory | LLM queries | projctl queries ONNX (deterministic) |
+| territory | LLM maps | projctl maps (deterministic) |
+| web | LLM fetches | projctl fetches, LLM summarizes |
+| semantic | LLM explores | LLM explores (unchanged) |
+
+Orchestrator classifies each query in `need-context` yield:
+- Deterministic queries → projctl tools (parallel, no LLM)
+- Semantic queries → context-explorer agent
+
+This reduces LLM usage while maintaining capability.
 
 **Skill Updates:** Validate phase skills (created in Layer -1) work when spawned by `projctl pair`.
 

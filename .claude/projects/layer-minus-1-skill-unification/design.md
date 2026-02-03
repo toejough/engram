@@ -180,12 +180,75 @@ projctl yield parse .claude/context/<skill-name>-yield.toml
 
 ---
 
+### DES-7: Context Exploration Architecture (B1)
+
+**User Experience:** Producer skills can request context without implementing exploration logic.
+
+**Yield type:** `need-context`
+
+```toml
+[yield]
+type = "need-context"
+
+[[payload.queries]]
+type = "file"
+path = "docs/requirements.md"
+
+[[payload.queries]]
+type = "memory"
+query = "caching patterns"
+
+[[payload.queries]]
+type = "territory"
+scope = "tests"
+
+[[payload.queries]]
+type = "web"
+url = "https://example.com/docs"
+prompt = "Extract the API format"
+
+[[payload.queries]]
+type = "semantic"
+question = "How does authentication work in this codebase?"
+```
+
+**Query types:**
+
+| Type | What it does | Example |
+|------|--------------|---------|
+| file | Read file contents | `path = "docs/requirements.md"` |
+| memory | Query ONNX semantic memory | `query = "caching patterns"` |
+| territory | Map codebase structure | `scope = "tests"` |
+| web | Fetch and interpret URL | `url`, `prompt` |
+| semantic | Answer question about codebase | `question = "How does X work?"` |
+
+**B1 approach (Layer -1):** Single `context-explorer` agent handles ALL query types. Simple, unified, LLM-based.
+
+**B2 approach (Layer 0+):** Hybrid - projctl handles deterministic queries (file, memory, territory), LLM agent only for semantic queries. More efficient, added later.
+
+**Flow:**
+```
+Producer yields need-context
+        ↓
+Orchestrator dispatches to context-explorer (B1)
+        ↓
+Explorer runs queries (possibly in parallel internally)
+        ↓
+Orchestrator aggregates results into context
+        ↓
+Producer resumes with enriched context
+```
+
+**Traces to:** REQ-10
+
+---
+
 ## Out of Scope
 
 - Visual/UI design (no GUI components)
 - API design (skills are CLI-invoked)
 - Data model design (TOML formats defined in orchestration-system.md)
-- Parallel execution orchestration (Layer 0+ concern - skills just support it via provided paths)
+- B2 hybrid exploration (Layer 0+ concern)
 
 ---
 
