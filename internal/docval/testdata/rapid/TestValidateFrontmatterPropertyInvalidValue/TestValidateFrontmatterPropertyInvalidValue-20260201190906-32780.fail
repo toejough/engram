@@ -1,0 +1,40 @@
+# 2026/02/01 19:09:06.618663 [TestValidateFrontmatterPropertyInvalidValue] [rapid] draw fieldName: "a0"
+# 2026/02/01 19:09:06.618665 [TestValidateFrontmatterPropertyInvalidValue] [rapid] draw fieldValue: ""
+# 2026/02/01 19:09:06.618666 [TestValidateFrontmatterPropertyInvalidValue] [rapid] draw errorMsg: "     "
+# 2026/02/01 19:09:06.618669 [TestValidateFrontmatterPropertyInvalidValue] 
+# Failed validation should produce error
+# Expected
+#     <[]docval.ValidationError | len:0, cap:0>: nil
+# not to be empty
+# 
+v0.4.8#10358158304983201824
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

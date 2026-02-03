@@ -1,0 +1,20 @@
+[yield]
+type = "escalate-user"
+timestamp = "2026-02-03T19:30:00Z"
+
+[payload]
+reason = "Missing required context input"
+context = "summary-qa skill invoked but no context.toml file exists. The skill requires a context file with [inputs] section specifying the artifact path to validate (e.g., artifact_path = 'docs/project-summary.md'). Additionally, no project-summary.md file exists in docs/."
+question = "Which project summary artifact should be validated, or should summary-producer be run first to create the summary?"
+options = [
+    "Specify path to existing summary document",
+    "Run summary-producer skill first to create the summary",
+    "Provide context.toml with artifact path and configuration"
+]
+
+[context]
+phase = "summary"
+role = "qa"
+iteration = 1
+escalating = true
+working_directory = "/Users/joe/repos/personal/projctl"
