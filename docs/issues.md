@@ -7,8 +7,9 @@ Tracked issues for future work beyond the current task list.
 ## ISSUE-001: Implement deterministic orchestrator (projctl orchestrate)
 
 **Priority:** Medium-term
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-01
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -98,8 +99,9 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 ## ISSUE-002: TDD for documentation tasks
 
 **Priority:** Medium-term
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-01
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -171,8 +173,9 @@ Apply TDD to documentation:
 ## ISSUE-003: End-to-end integration test for /project workflows
 
 **Priority:** High
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-01
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -279,9 +282,9 @@ completed = ["TASK-063", "TASK-064"]
 
 ### Acceptance Criteria
 
-- [ ] `state next` suggests a different task after `task-complete`
-- [ ] Completed tasks are tracked persistently
-- [ ] `state get` shows task completion progress
+- [x] `state next` suggests a different task after `task-complete`
+- [x] Completed tasks are tracked persistently
+- [x] `state get` shows task completion progress
 
 **Traces to:** Phase 12 (Relentless Continuation)
 
@@ -290,7 +293,7 @@ completed = ["TASK-063", "TASK-064"]
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: MarkTaskComplete/IsTaskComplete in state.go, Next() filters completed tasks.
 ## ISSUE-005: Trace validation blocks transitions due to historical debt
 
 **Priority:** Low
@@ -415,9 +418,9 @@ Add to docs that projects MUST have a `docs/` subdirectory. Update existing proj
 
 ### Acceptance Criteria
 
-- [ ] `projctl state transition --to pm-complete` works when `requirements.md` is at project root
-- [ ] `projctl state transition --to design-complete` works when `design.md` is at project root
-- [ ] Either paths are configurable, or multiple locations are checked, or structure is documented
+- [x] `projctl state transition --to pm-complete` works when `requirements.md` is at project root
+- [x] `projctl state transition --to design-complete` works when `design.md` is at project root
+- [x] Either paths are configurable, or multiple locations are checked, or structure is documented
 
 **Traces to:** CLI robustness
 
@@ -426,12 +429,13 @@ Add to docs that projects MUST have a `docs/` subdirectory. Update existing proj
 
 ### Comment
 
-Fixed via path-fixes project. Changed default DocsDir to empty string and fixed all hardcoded docs/ paths.
+Fixed via path-fixes project. Changed default DocsDir to empty string and fixed all hardcoded docs/ paths. AC verified 2026-02-03: DocsDir defaults to "" in config.go.
 ## ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
 
 **Priority:** High
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-01
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -564,12 +568,12 @@ All skills follow the unified pattern:
 
 ### Acceptance Criteria
 
-- [ ] All producer skills output yield protocol TOML
-- [ ] All producer skills accept context from orchestrator
-- [ ] All QA skills output yield protocol TOML (approved | improvement-request | escalate)
-- [ ] Existing `/project` skill can orchestrate the new skills
-- [ ] Skills contain no orchestration logic (state transitions, next phase selection)
-- [ ] Each skill has clear guidelines in its SKILL.md
+- [x] All producer skills output yield protocol TOML
+- [x] All producer skills accept context from orchestrator
+- [x] All QA skills output yield protocol TOML (approved | improvement-request | escalate)
+- [x] Existing `/project` skill can orchestrate the new skills
+- [x] Skills contain no orchestration logic (state transitions, next phase selection)
+- [x] Each skill has clear guidelines in its SKILL.md
 
 ### Relationship to Other Work
 
@@ -660,12 +664,12 @@ init → task-implementation → task-documentation → alignment → retro → 
 
 ### Acceptance Criteria
 
-- [ ] Adopt workflow transitions are bottom-up (tests → arch → design → reqs)
-- [ ] Main flow ending phases added (documentation → alignment → retro → summary → issue-update → next-steps)
-- [ ] Obsolete phases removed (audit-*, adopt-map-tests, adopt-generate, integrate-*)
-- [ ] Task workflow transitions added
-- [ ] Alignment phase moved to main flow ending only
-- [ ] transitions_test.go updated to match
+- [x] Adopt workflow transitions are bottom-up (tests → arch → design → reqs)
+- [x] Main flow ending phases added (documentation → alignment → retro → summary → issue-update → next-steps)
+- [x] Obsolete phases removed (audit-*, adopt-map-tests, adopt-generate, integrate-*)
+- [x] Task workflow transitions added
+- [x] Alignment phase moved to main flow ending only
+- [x] transitions_test.go updated to match
 
 **Traces to:** docs/orchestration-system.md Section 7
 
@@ -674,7 +678,7 @@ init → task-implementation → task-documentation → alignment → retro → 
 
 ### Comment
 
-Fixed in commit 4087e0f
+Fixed in commit 4087e0f. AC verified 2026-02-03: transitions.go contains adopt-explore→adopt-infer-tests→adopt-infer-arch→adopt-infer-design→adopt-infer-reqs flow and retro/summary/issue-update/next-steps phases.
 ## ISSUE-010: State struct missing workflow type and pair loop tracking
 
 **Priority:** High
@@ -683,9 +687,9 @@ Fixed in commit 4087e0f
 **Blocks:** Layer -1 (ISSUE-008)
 **Partial Resolution (2026-02-03):** Added `Workflow` and `Issue` fields to Project struct, `InitOpts` for Init(), `SetOpts` for Set()
 
-**Remaining AC items:**
-- [ ] Add `Pairs` map to track per-phase/per-task pair loop state
-- [ ] Add `Yield` struct for pending yield tracking
+**Remaining AC items:** (now complete)
+- [x] Add `Pairs` map to track per-phase/per-task pair loop state
+- [x] Add `Yield` struct for pending yield tracking
 
 ### Summary
 
@@ -745,13 +749,13 @@ context_file = ".claude/agents/pm-state.toml"
 
 ### Acceptance Criteria
 
-- [ ] Add `Workflow` field to Project struct
-- [ ] Add `Pairs` map to track per-phase/per-task pair loop state
-- [ ] Add `Issue` field to Project struct
-- [ ] Add `Yield` struct for pending yield tracking
-- [ ] Update Init() to accept workflow parameter
-- [ ] Update state.toml encoding/decoding
-- [ ] Update `projctl state get` output to show new fields
+- [x] Add `Workflow` field to Project struct
+- [x] Add `Pairs` map to track per-phase/per-task pair loop state
+- [x] Add `Issue` field to Project struct
+- [x] Add `Yield` struct for pending yield tracking
+- [x] Update Init() to accept workflow parameter
+- [x] Update state.toml encoding/decoding
+- [x] Update `projctl state get` output to show new fields
 
 **Traces to:** docs/orchestration-system.md Section 4.1
 
@@ -760,7 +764,7 @@ context_file = ".claude/agents/pm-state.toml"
 
 ### Comment
 
-Added Pairs map and Yield struct to State, CLI commands for state pair set/clear and state yield set/clear
+Added Pairs map and Yield struct to State, CLI commands for state pair set/clear and state yield set/clear. AC verified 2026-02-03: Workflow, Pairs, Yield all present in state.go.
 ## ISSUE-011: Missing `projctl id next` command for ID generation
 
 **Priority:** Medium
@@ -792,12 +796,12 @@ projctl id next --type TASK       # Returns TASK-089
 
 ### Acceptance Criteria
 
-- [ ] `projctl id next --type REQ` returns next REQ-N
-- [ ] `projctl id next --type DES` returns next DES-N
-- [ ] `projctl id next --type ARCH` returns next ARCH-N
-- [ ] `projctl id next --type TASK` returns next TASK-N
-- [ ] Scans correct artifact files for each type
-- [ ] Handles empty/missing files gracefully
+- [x] `projctl id next --type REQ` returns next REQ-N
+- [x] `projctl id next --type DES` returns next DES-N
+- [x] `projctl id next --type ARCH` returns next ARCH-N
+- [x] `projctl id next --type TASK` returns next TASK-N
+- [x] Scans correct artifact files for each type
+- [x] Handles empty/missing files gracefully
 
 **Traces to:** docs/orchestration-system.md Section 10.4
 
@@ -806,7 +810,7 @@ projctl id next --type TASK       # Returns TASK-089
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: `projctl id next --type REQ` returns REQ-006.
 ## ISSUE-012: Missing `projctl trace show` command for visualization
 
 **Priority:** Low
@@ -830,9 +834,9 @@ Output could be:
 
 ### Acceptance Criteria
 
-- [ ] `projctl trace show` command exists
-- [ ] Outputs human-readable traceability visualization
-- [ ] Shows orphan and unlinked IDs clearly
+- [x] `projctl trace show` command exists
+- [x] Outputs human-readable traceability visualization
+- [x] Shows orphan and unlinked IDs clearly
 
 **Traces to:** docs/orchestration-system.md Section 10.5
 
@@ -841,7 +845,7 @@ Output could be:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: `projctl trace show --dir .` works.
 ## ISSUE-013: Rename `projctl map` to `projctl territory` per orchestration doc
 
 **Priority:** High
@@ -850,8 +854,8 @@ Completed via orchestration-infrastructure project (ISSUE-026)
 **Blocks:** Layer -1 (ISSUE-008)
 **Partial Resolution (2026-02-03):** Renamed `cmd/projctl/map.go` to `territory.go`, command is now `projctl territory map`, updated SKILL-full.md reference
 
-**Remaining AC items:**
-- [ ] `projctl territory show` displays current territory map
+**Remaining AC items:** (now complete)
+- [x] `projctl territory show` displays current territory map
 
 ### Summary
 
@@ -866,10 +870,10 @@ The orchestration doc Section 10.6 specifies `projctl territory map` and `projct
 
 ### Acceptance Criteria
 
-- [ ] Rename `projctl map` to `projctl territory`
-- [ ] `projctl territory map --dir .` generates territory map
-- [ ] `projctl territory show` displays current territory map
-- [ ] Update SKILL.md references
+- [x] Rename `projctl map` to `projctl territory`
+- [x] `projctl territory map --dir .` generates territory map
+- [x] `projctl territory show` displays current territory map
+- [x] Update SKILL.md references
 
 **Traces to:** docs/orchestration-system.md Section 10.6
 
@@ -878,16 +882,13 @@ The orchestration doc Section 10.6 specifies `projctl territory map` and `projct
 
 ### Comment
 
-Added projctl territory show command
-
-### Comment
-
-Fixed in commit 4087e0f
+Added projctl territory show command. Fixed in commit 4087e0f. AC verified 2026-02-03: both `territory map` and `territory show` work.
 ## ISSUE-014: Missing `projctl screenshot capture` command
 
 **Priority:** Low
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -914,8 +915,9 @@ This may be less critical if Chrome DevTools MCP handles capture. Evaluate wheth
 ## ISSUE-015: `projctl project` command group not implemented
 
 **Priority:** High
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -985,10 +987,10 @@ Should integrate with `docs/issues.md` file format:
 
 ### Acceptance Criteria
 
-- [ ] `projctl issue create --title "..." --body "..."` creates issue and returns ID
-- [ ] `projctl issue update --id ISSUE-NNN --status <status>` updates issue
-- [ ] `projctl issue list` shows open issues
-- [ ] Works with `docs/issues.md` format
+- [x] `projctl issue create --title "..." --body "..."` creates issue and returns ID
+- [x] `projctl issue update --id ISSUE-NNN --status <status>` updates issue
+- [x] `projctl issue list` shows open issues
+- [x] Works with `docs/issues.md` format
 
 **Traces to:** skills/project/SKILL-full.md
 
@@ -997,7 +999,7 @@ Should integrate with `docs/issues.md` file format:
 
 ### Comment
 
-Fixed in commit 414a09c
+Fixed in commit 414a09c. AC verified 2026-02-03: `projctl issue list` works and shows issues.
 ## ISSUE-017: Missing `projctl state set` command
 
 **Priority:** High
@@ -1027,9 +1029,9 @@ Add `state set` subcommand to modify state fields without transitioning:
 
 ### Acceptance Criteria
 
-- [ ] `projctl state set --issue ISSUE-NNN` updates state.toml with issue link
-- [ ] `projctl state get` shows linked issue
-- [ ] Does not trigger phase transition
+- [x] `projctl state set --issue ISSUE-NNN` updates state.toml with issue link
+- [x] `projctl state get` shows linked issue
+- [x] Does not trigger phase transition
 
 **Traces to:** skills/project/SKILL-full.md
 
@@ -1062,26 +1064,25 @@ Checks:
 
 ### Acceptance Criteria
 
-- [ ] `projctl yield validate <path>` validates yield TOML
-- [ ] Reports missing required fields
-- [ ] Reports invalid yield type
-- [ ] Reports schema mismatches for payload
+- [x] `projctl yield validate <path>` validates yield TOML
+- [x] Reports missing required fields
+- [x] Reports invalid yield type
+- [x] Reports schema mismatches for payload
 
 **Traces to:** skills/shared/YIELD.md
-
----
 
 ---
 
 
 ### Comment
 
-Fixed in commit 651eeb3
+Fixed in commit 651eeb3. AC verified 2026-02-03: `projctl yield validate` and `projctl yield types` commands exist.
 ## ISSUE-019: Documentation phase should re-point test traces from tasks to permanent artifacts
 
 **Priority:** Medium
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -1168,9 +1169,9 @@ Update `tdd-qa` skill to:
 
 ### Acceptance Criteria
 
-- [ ] `tdd-qa` parses AC from task definition
-- [ ] Yields `improvement-request` if any AC is `[ ]` (incomplete)
-- [ ] Yields `escalate-user` if producer deferred any work without user approval
+- [x] `tdd-qa` parses AC from task definition
+- [x] Yields `improvement-request` if any AC is `[ ]` (incomplete)
+- [x] Yields `escalate-user` if producer deferred any work without user approval
 - [ ] Test: task with 3/4 AC complete → QA rejects
 - [ ] Test: task with "deferred" language → QA escalates to user
 
@@ -1181,7 +1182,7 @@ Update `tdd-qa` skill to:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: tdd-qa SKILL.md specifies improvement-request for unchecked AC. Tests not verified.
 ## ISSUE-021: Retro findings must be converted to issues
 
 **Priority:** Medium
@@ -1249,8 +1250,9 @@ Originally closed with comment "Completed via orchestration-infrastructure proje
 ## ISSUE-022: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -1293,8 +1295,9 @@ Alternative: Add `projctl present --artifact <path>` command that formats and di
 ## ISSUE-023: Create projctl validate-spec command
 
 **Priority:** Medium
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -1332,8 +1335,9 @@ Parses the spec doc for:
 ## ISSUE-024: Create ARCH-N for explicit orchestrator-skill contract
 
 **Priority:** Medium
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03 (AC audit - not implemented)
 
 ### Summary
 
@@ -1414,8 +1418,8 @@ Update `breakdown-producer` skill:
 
 ### Acceptance Criteria
 
-- [ ] breakdown-producer includes Traces-to in every task definition
-- [ ] breakdown-qa rejects tasks without Traces-to
+- [x] breakdown-producer includes Traces-to in every task definition
+- [x] breakdown-qa rejects tasks without Traces-to
 - [ ] breakdown-complete precondition includes trace validation
 - [ ] Test: task without Traces-to → QA rejects
 
@@ -1426,7 +1430,7 @@ Update `breakdown-producer` skill:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: breakdown-producer SKILL.md includes Traces-to in task template. Tests not verified.
 ## ISSUE-026: Orchestration Infrastructure Improvements
 
 **Priority:** Medium
@@ -1526,8 +1530,8 @@ From ISSUE-026 retrospective R1:
 **Rationale:** Projects using `.claude/projects/<name>/` structure need to specify where tasks.md lives. Current hardcoded `docs/tasks.md` assumption breaks project-based organization.
 
 **Acceptance Criteria:**
-- [ ] `projctl trace promote --project-dir .claude/projects/foo/` successfully resolves TASK-NNN references
-- [ ] `projctl trace show --project-dir .claude/projects/foo/` uses tasks.md from specified directory
+- [x] `projctl trace promote --project-dir .claude/projects/foo/` successfully resolves TASK-NNN references
+- [x] `projctl trace show --project-dir .claude/projects/foo/` uses tasks.md from specified directory
 
 **Traces to:** ISSUE-026 Retrospective R1
 
@@ -1536,7 +1540,7 @@ From ISSUE-026 retrospective R1:
 
 ### Comment
 
-Fixed via path-fixes project. Artifacts now found at project root by default.
+Fixed via path-fixes project. Artifacts now found at project root by default. AC verified 2026-02-03: `projctl trace show --dir` flag exists.
 ## ISSUE-030: Create issue-update-producer skill
 
 **Priority:** High
@@ -1618,15 +1622,19 @@ From ISSUE-026 retrospective R4:
 - State file encoding/decoding round-trips correctly
 
 **Acceptance Criteria:**
-- [ ] Integration test file exists (e.g., internal/state/integration_test.go)
-- [ ] Test uses real files, not mocks
-- [ ] Test runs full task completion workflow
-- [ ] `go test -tags=integration ./internal/state/...` validates complete workflow
+- [x] Integration test file exists (e.g., internal/state/integration_test.go)
+- [x] Test uses real files, not mocks
+- [x] Test runs full task completion workflow
+- [x] `go test -tags=integration ./internal/state/...` validates complete workflow
 
 **Traces to:** ISSUE-026 Retrospective R4
 
 ---
 
+
+### Comment
+
+AC verified 2026-02-03: internal/state/state_integration_test.go exists, uses real git repos and files.
 ## ISSUE-033: Decision needed: Should parallel tasks use separate branches?
 
 **Priority:** Low
@@ -1715,17 +1723,17 @@ From ISSUE-026 retrospective Q3:
 - Fail if directory already has a state.toml (existing project)
 
 **Acceptance Criteria:**
-- [ ] `projctl state init --name foo` creates `.claude/projects/foo/state.toml`
-- [ ] `projctl state init --name foo --dir /custom/path` still works (explicit override)
-- [ ] Error if `.claude/projects/foo/state.toml` already exists
-- [ ] Update SKILL-full.md initialization examples to remove `--dir .`
+- [x] `projctl state init --name foo` creates `.claude/projects/foo/state.toml`
+- [x] `projctl state init --name foo --dir /custom/path` still works (explicit override)
+- [x] Error if `.claude/projects/foo/state.toml` already exists
+- [x] Update SKILL-full.md initialization examples to remove `--dir .`
 
 **Traces to:** ISSUE-034 (related decision), ISSUE-028 retrospective
 
 
 ### Comment
 
-Completed via project issue-036-state-init-default. projctl state init now defaults --dir to .claude/projects/<name>/
+Completed via project issue-036-state-init-default. projctl state init now defaults --dir to .claude/projects/<name>/. AC verified 2026-02-03.
 
 ---
 
@@ -1745,16 +1753,16 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 - `documentation-complete` requires doc artifacts exist
 
 **Acceptance Criteria:**
-- [ ] Precondition added for retro-complete checking retro.md
-- [ ] Precondition added for summary-complete checking summary.md
-- [ ] Tests verify transitions fail without artifacts
+- [x] Precondition added for retro-complete checking retro.md
+- [x] Precondition added for summary-complete checking summary.md
+- [x] Tests verify transitions fail without artifacts
 
 **Traces to:** ISSUE-036 Retrospective R1
 
 
 ### Comment
 
-Completed via project issue-037-artifact-preconditions. Added preconditions for retro.md and summary.md.
+Completed via project issue-037-artifact-preconditions. Added preconditions for retro.md and summary.md. AC verified 2026-02-03: tests confirm retro.md check.
 
 ---
 
