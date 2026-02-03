@@ -1892,3 +1892,61 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 - [ ] Documents known limitations and workarounds
 
 **Traces to:** parallel-worktree-strategy Retrospective I1-I3, L1-L3
+
+---
+
+## ISSUE-042: Batch issue resolution must validate each issue's AC individually
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** ISSUE-026 (orchestration-infrastructure) was a batch project that claimed to close 7 issues (ISSUE-004, 011, 012, 019, 020, 021, 025). However, ISSUE-021 was closed with all acceptance criteria still unchecked - no actual implementation occurred.
+
+This reveals a process gap: when multiple issues are batched into a single project, there's no verification that each issue's AC are individually satisfied before closure.
+
+**Root Cause Analysis:**
+
+The current process validates:
+- Task AC are met before task-complete (via tdd-qa)
+- Project deliverables exist before phase transitions
+
+But it does NOT validate:
+- Each linked issue's AC are met before closing the issue
+- Batch projects verify per-issue completion
+
+**Questions to Answer:**
+
+1. **Is issue AC validation missing entirely?** Do we validate issue AC anywhere in the process, or only task AC?
+
+2. **Is it a batch-specific gap?** Does single-issue linking work correctly, but batch linking skip validation?
+
+3. **Where should validation live?** Options:
+   - In `issue-update` phase (check AC before closing)
+   - In `projctl issue update --status Closed` (refuse if AC unchecked)
+   - In QA skill for issue-update phase
+   - As a precondition on project completion
+
+**Proposed Solution:**
+
+Before any issue can be closed (whether single or batch):
+1. Parse the issue's acceptance criteria from issues.md
+2. Verify all `- [ ]` items are now `- [x]`
+3. If any AC unchecked, either:
+   - Fail the closure with clear error
+   - Or require `--force` with explicit acknowledgment
+
+For batch projects specifically:
+- Each linked issue must pass AC validation independently
+- Project cannot complete until all linked issues are closeable
+- Summary should list per-issue closure status
+
+**Acceptance Criteria:**
+- [ ] Determine if issue AC validation exists anywhere in current process
+- [ ] Identify why batch closure bypassed validation (if it exists)
+- [ ] Implement AC check before issue closure (single or batch)
+- [ ] `projctl issue update --status Closed` fails if AC unchecked (without --force)
+- [ ] Batch project completion validates each linked issue's AC
+- [ ] Test: attempt to close issue with unchecked AC → rejected
+
+**Traces to:** ISSUE-021 (reopened), ISSUE-026 (revealed the gap)
