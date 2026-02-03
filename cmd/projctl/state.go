@@ -14,10 +14,11 @@ import (
 )
 
 type stateInitArgs struct {
-	Name  string `targ:"flag,short=n,required,desc=Project name"`
-	Dir   string `targ:"flag,short=d,desc=Project directory (defaults to .claude/projects/<name>/)"`
-	Mode  string `targ:"flag,short=m,desc=Workflow mode: new (default), adopt, align, task"`
-	Issue string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-042)"`
+	Name    string `targ:"flag,short=n,required,desc=Project name"`
+	Dir     string `targ:"flag,short=d,desc=Project directory (defaults to .claude/projects/<name>/)"`
+	Mode    string `targ:"flag,short=m,desc=Workflow mode: new (default), adopt, align, task"`
+	Issue   string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-042)"`
+	RepoDir string `targ:"flag,short=r,desc=Repository root (auto-detected if not provided)"`
 }
 
 func stateInit(args stateInitArgs) error {
@@ -39,6 +40,16 @@ func stateInit(args stateInitArgs) error {
 		dir = filepath.Join(".claude", "projects", args.Name)
 	}
 
+	// Auto-detect repo dir if not provided
+	repoDir := args.RepoDir
+	if repoDir == "" {
+		detected, err := state.FindRepoRoot(".")
+		if err == nil {
+			repoDir = detected
+		}
+		// If not in a git repo, repoDir stays empty (that's OK)
+	}
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create project directory: %w", err)
@@ -47,6 +58,7 @@ func stateInit(args stateInitArgs) error {
 	s, err := state.Init(dir, args.Name, time.Now, state.InitOpts{
 		Workflow: mode,
 		Issue:    args.Issue,
+		RepoDir:  repoDir,
 	})
 	if err != nil {
 		return err

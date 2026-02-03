@@ -3,6 +3,7 @@ package main_test
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -182,9 +183,66 @@ func TestStateInit_RespectsExplicitDir(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
+// traces: ISSUE-038
+// Test stateInit auto-detects repo dir when --repo-dir not provided.
+func TestStateInit_AutoDetectsRepoDir(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	// Resolve symlinks for macOS
+	dir, _ = filepath.EvalSymlinks(dir)
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	g.Expect(cmd.Run()).To(Succeed())
+
+	// Change to temp dir
+	oldWd, err := os.Getwd()
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = os.Chdir(oldWd) }()
+	g.Expect(os.Chdir(dir)).To(Succeed())
+
+	// Init project without --repo-dir
+	err = stateInitWithDefaultsAndRepoDir("my-project", "", "new", "", "")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify repo_dir was set
+	projectDir := filepath.Join(dir, ".claude", "projects", "my-project")
+	s, err := state.Get(projectDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Project.RepoDir).To(Equal(dir))
+}
+
+// traces: ISSUE-038
+// Test stateInit accepts explicit --repo-dir.
+func TestStateInit_AcceptsExplicitRepoDir(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	oldWd, err := os.Getwd()
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = os.Chdir(oldWd) }()
+	g.Expect(os.Chdir(dir)).To(Succeed())
+
+	// Init project with explicit --repo-dir
+	err = stateInitWithDefaultsAndRepoDir("my-project", "", "new", "", "/custom/repo/path")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify repo_dir was set to explicit value
+	projectDir := filepath.Join(dir, ".claude", "projects", "my-project")
+	s, err := state.Get(projectDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Project.RepoDir).To(Equal("/custom/repo/path"))
+}
+
 // stateInitWithDefaults wraps the CLI logic for testing.
 // This replicates the defaulting behavior from stateInit in state.go.
 func stateInitWithDefaults(name, dir, mode, issue string) error {
+	return stateInitWithDefaultsAndRepoDir(name, dir, mode, issue, "")
+}
+
+// stateInitWithDefaultsAndRepoDir includes repo_dir handling.
+func stateInitWithDefaultsAndRepoDir(name, dir, mode, issue, repoDir string) error {
 	// Default mode is "new"
 	if mode == "" {
 		mode = "new"
@@ -195,6 +253,15 @@ func stateInitWithDefaults(name, dir, mode, issue string) error {
 		dir = filepath.Join(".claude", "projects", name)
 	}
 
+	// Auto-detect repo dir if not provided
+	if repoDir == "" {
+		detected, err := state.FindRepoRoot(".")
+		if err == nil {
+			repoDir = detected
+		}
+		// If not in a git repo, repoDir stays empty (that's OK)
+	}
+
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create project directory: %w", err)
@@ -203,6 +270,7 @@ func stateInitWithDefaults(name, dir, mode, issue string) error {
 	_, err := state.Init(dir, name, func() time.Time { return time.Now() }, state.InitOpts{
 		Workflow: mode,
 		Issue:    issue,
+		RepoDir:  repoDir,
 	})
 	return err
 }
