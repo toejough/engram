@@ -12,35 +12,82 @@ user-invocable: true
 |------|---------|
 | State | `projctl state transition` - NEVER modify state.toml |
 | Log | `projctl log write` for logging |
-| Handoffs | `projctl context write/read` |
+| Handoffs | `projctl context write/read` with `output.yield_path` |
+| PAIR LOOP | Producer → QA → iterate (max 3x) or advance |
 | TDD | Red→commit→green→commit→refactor→commit |
-| Audits | Loop until zero defects |
 | Continue | If `state next`=continue, proceed immediately |
 | Dispatch | ALL code work via Skill/Task tool |
-| Context | At 80% warn, 90% compact |
 
-## Correction Detection
+## Skill Dispatch (New Names)
 
-Before each loop iteration, scan user messages for correction patterns:
-- "that's wrong", "no, do X", "I said X not Y", "remember that"
-- "actually", "not X, Y", "you forgot", "I already told you"
+| Phase | Producer Skill | QA Skill |
+|-------|---------------|----------|
+| PM | `pm-interview-producer` or `pm-infer-producer` | `pm-qa` |
+| Design | `design-interview-producer` or `design-infer-producer` | `design-qa` |
+| Architecture | `arch-interview-producer` or `arch-infer-producer` | `arch-qa` |
+| Breakdown | `breakdown-producer` | `breakdown-qa` |
+| TDD | `tdd-producer` (composite) | `tdd-qa` |
+| Documentation | `doc-producer` | `doc-qa` |
+| Alignment | `alignment-producer` | `alignment-qa` |
+| Retro | `retro-producer` | `retro-qa` |
+| Summary | `summary-producer` | `summary-qa` |
 
-When detected: `projctl corrections log --dir . --message "PATTERN" --context "TASK/PHASE"`
+## PAIR LOOP Pattern
 
-## Control Loop
+```
+PAIR LOOP (for each phase):
+1. Write context with output.yield_path
+2. Dispatch PRODUCER skill
+3. Read yield (see shared/YIELD.md)
+4. If yield.type = "complete":
+   - Dispatch QA skill
+   - Read QA yield
+5. Handle QA yield:
+   - "approved" → advance to next phase
+   - "improvement-request" → resume producer with feedback (max 3x)
+   - "escalate-phase" → return to prior phase with proposed_changes
+   - "escalate-user" → present to user
+```
 
-| Step | Type | Action |
-|------|------|--------|
-| 0 | [A] | Detect corrections in user input |
-| 1 | [D] | `projctl state get` |
-| 2 | [D] | `projctl state transition` |
-| 3 | [D] | `projctl map --cached` |
-| 4 | [A] | Dispatch skill |
-| 5 | [D] | `projctl context read --result` |
-| 6 | [D] | `projctl corrections count --session` |
-| 7 | [D] | `projctl state next` |
-| 8 | [A] | If corrections >= 2: dispatch /meta-audit |
-| 9 | [A] | If continue: loop |
+## Yield Type Handling
+
+| Yield Type | Orchestrator Action |
+|------------|---------------------|
+| `complete` | Advance to QA or next phase |
+| `approved` | Phase complete, advance |
+| `need-user-input` | Prompt user, resume with answer |
+| `need-context` | Dispatch `context-explorer`, resume with results |
+| `need-decision` | Present options, resume with choice |
+| `improvement-request` | Resume producer with feedback |
+| `escalate-phase` | Return to prior phase |
+| `escalate-user` | Present to user |
+| `blocked` | Present blocker, await resolution |
+| `error` | Retry (max 3x) or escalate |
+
+## Context Format
+
+When writing context for skills:
+```toml
+[input]
+phase = "pm"
+task = "TASK-5"
+# ... phase-specific data
+
+[output]
+yield_path = ".claude/agents/pm-interview-producer-yield.toml"
+```
+
+Skills write their yield to the provided `yield_path`.
+
+## Support Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `context-explorer` | Handle need-context queries (file, memory, territory, web, semantic) |
+| `intake-evaluator` | Classify request type (new, adopt, align, single-task) |
+| `parallel-looper` | Run N independent PAIR LOOPs in parallel |
+| `consistency-checker` | Validate parallel outputs for consistency |
+| `next-steps` | Suggest follow-up work |
 
 ## Stop Conditions
 
@@ -58,10 +105,6 @@ projctl trace repair --dir .
 projctl trace validate --dir .
 ```
 
-## Result Format
-
-Orchestrator skill - reads results from dispatched skills via `projctl context read --result`. Does not produce its own result.toml.
-
 ## Full Docs
 
-`projctl skills docs --skillname project`
+`projctl skills docs --skillname project` or see SKILL-full.md
