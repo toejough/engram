@@ -24,23 +24,39 @@ Every workflow progresses through phases. The "new project" workflow uses all ph
 
 ### 1.2 Looper Agent
 
-Controls iteration within a phase or across tasks:
+Controls iteration within a phase or across tasks. Decides between sequential and parallel execution:
 
 ```
 LOOPER AGENT:
-1. Create/Recreate Queue (tasks to do based on dependencies, impact, simplicity)
-2. If task in Queue:
-   a. Run PAIR LOOP with first task
-   b. On completion, re-evaluate and re-order remaining queue
-   c. Return to step 1
-3. Stop & return when queue is empty or entirely blocked
+1. Create/Recreate Queue (items to do based on dependencies, impact, simplicity)
+2. Identify next batch:
+   - Find all items with no blocking dependencies
+   - If single item → execute via PAIR LOOP
+   - If N independent items → delegate to PARALLEL LOOPER
+3. Execute batch
+4. On completion, re-evaluate queue (dependencies may have resolved)
+5. Return to step 1
+6. Stop & return when queue is empty or entirely blocked
 ```
 
-Task ordering uses:
+**Execution paths:**
+
+```
+LOOPER
+├── PAIR LOOP (single item)
+│   └── producer + qa
+└── PARALLEL LOOPER (N independent items)
+    ├── N × PAIR LOOP (in parallel)
+    └── consistency-checker (validates batch)
+```
+
+**Queue ordering uses:**
 
 - **Dependencies**: Automated from explicit TASK-N references in `Dependencies:` field
 - **Structural Impact**: LLM analysis (haiku) - tasks that enable others run first
 - **Simplicity**: LLM analysis (haiku) - simpler tasks run earlier when impact is equal
+
+**Parallelization principle:** Maximize batch size. If 5 items have no dependencies on each other, run all 5 in parallel rather than picking one.
 
 ### 1.3 Pair Loop
 
@@ -58,7 +74,80 @@ PAIR LOOP:
 
 Pair state is tracked in the project state file (see Section 4.1), enabling parallel execution of multiple phases or tasks.
 
-### 1.4 Producer Agent Pattern
+### 1.4 Parallel Looper
+
+Invoked by LOOPER when N independent items can be processed in parallel. Runs N PAIR LOOPs concurrently, then validates consistency.
+
+```
+PARALLEL LOOPER:
+1. Receive items from LOOPER (all verified independent)
+2. SPAWN: Launch PAIR LOOP for each item (in parallel)
+3. WAIT: Collect all yields
+4. DISPATCH: Run CONSISTENCY CHECKER on aggregated results
+5. RETURN: Aggregated result to LOOPER (or remediation needs)
+
+CONSISTENCY CHECKER (QA for parallel batches):
+1. REVIEW: Compare outputs across all parallel results
+2. CHECK: Apply domain-specific consistency rules
+3. RETURN:
+   - If consistent → approved (aggregate and return)
+   - If minor issues → approved with remediations applied
+   - If major issues → improvement-request (batch fails, items need rework)
+```
+
+**Key principle:** Each item runs through a full PAIR LOOP. The consistency-checker acts as batch-level QA, ensuring parallel results are coherent.
+
+**Applies to:**
+- Context exploration queries (need-context with multiple queries)
+- Independent task execution
+- Parallel skill creation
+- Batch file analysis
+- Any N independent items
+
+**Consistency checks are domain-specific:**
+- For context queries: results don't contradict, all queries answered
+- For task execution: no conflicting file changes
+- For skill creation: naming, format, cross-references align
+- For file analysis: findings categorized consistently
+
+**Implementation by layer:**
+
+| Layer | Parallel Looper | Consistency Checker |
+|-------|-----------------|---------------------|
+| -1 | `parallel-looper` skill | `consistency-checker` skill |
+| 0+ | `projctl parallel` command | `projctl consistency` or inline |
+
+**Parallel Looper Yield:**
+
+```toml
+[yield]
+type = "complete"
+timestamp = 2026-02-02T10:30:00Z
+
+[payload]
+items_processed = 8
+items_succeeded = 7
+items_failed = 1
+consistency_status = "passed"  # passed | failed | remediated
+
+[[payload.results]]
+item = "TASK-5"
+status = "complete"
+artifact = "skills/pm-interview-producer/SKILL.md"
+
+[[payload.results]]
+item = "TASK-6"
+status = "complete"
+artifact = "skills/pm-infer-producer/SKILL.md"
+
+[[payload.consistency_issues]]
+type = "naming"
+items = ["TASK-7", "TASK-8"]
+issue = "Inconsistent frontmatter phase values"
+resolution = "Standardized to 'design'"
+```
+
+### 1.5 Producer Agent Pattern
 
 Every producing agent follows this pattern:
 
@@ -96,7 +185,7 @@ PRODUCER AGENT:
    - Checkpoint state
 ```
 
-### 1.5 QA Agent Pattern
+### 1.6 QA Agent Pattern
 
 ```
 QA AGENT:
@@ -188,34 +277,42 @@ Execution order determined by Looper Agent based on dependencies, structural imp
 | Aspect             | Details                                            |
 | ------------------ | -------------------------------------------------- |
 | Entry Criteria     | Tasks defined, DAG valid                           |
-| Producer           | Nested: Red + Green + Refactor (each with own QA)  |
-| QA                 | TDD QA (overall compliance after all three phases) |
+| Producer           | TDD Producer (composite - runs nested pair loops)  |
+| QA                 | TDD QA (overall compliance after nested loops)     |
 | Artifacts Produced | Test files, implementation code                    |
 | IDs Created        | None (test names trace to TASK-N)                  |
 | Traces To          | TASK-N (via test name/comments)                    |
 | Exit Criteria      | All tests pass, linter clean, TDD QA approved      |
 
-**TDD Loop per Task:**
+**TDD as Composite PAIR LOOP:**
 
-Each task runs through nested Pair Loops (commit after producer, then QA), then overall TDD QA:
+TDD follows the universal PAIR LOOP pattern, but the producer is composite - it runs nested pair loops internally:
 
 ```
-1. RED Pair Loop:
-   - Red Producer: Write failing tests → /commit
-   - Red QA: Verify tests cover ACs, fail for right reasons
+TDD PAIR LOOP (per task):
+├── Producer: tdd-producer (composite)
+│   └── Internally runs (always serial):
+│       1. RED PAIR LOOP
+│       │   ├── red-producer: Write failing tests → /commit
+│       │   └── red-qa: Verify tests cover ACs, fail for right reasons
+│       │
+│       2. GREEN PAIR LOOP
+│       │   ├── green-producer: Minimal implementation → /commit
+│       │   └── green-qa: Verify all tests pass, no regressions
+│       │
+│       3. REFACTOR PAIR LOOP
+│           ├── refactor-producer: Improve quality → /commit
+│           └── refactor-qa: Verify tests still pass, code improved
+│
+└── QA: tdd-qa
+    └── Verify overall AC compliance and TDD discipline
 
-2. GREEN Pair Loop:
-   - Green Producer: Minimal implementation to pass → /commit
-   - Green QA: Verify all tests pass, no regressions
-
-3. REFACTOR Pair Loop:
-   - Refactor Producer: Improve quality, fix linter issues → /commit
-   - Refactor QA: Verify tests still pass, code improved
-
-4. TDD QA: Verify overall AC compliance and TDD discipline
-
-5. Mark task complete, re-evaluate queue
+On completion: Mark task complete, LOOPER re-evaluates queue
 ```
+
+**Why nested pair loops are always serial:** RED must complete before GREEN (can't implement without tests), GREEN must complete before REFACTOR (can't refactor broken code). The LOOPER/PARALLEL LOOPER pattern applies at the task level, not within TDD.
+
+**Parallelization at task level:** Multiple independent tasks can run through TDD PAIR LOOPs in parallel via the PARALLEL LOOPER.
 
 ### 2.6 Documentation Phase
 
@@ -413,9 +510,26 @@ question = "How does authentication work in this codebase?"
 | web | `url`, `prompt` | URL content, interpreted by prompt |
 | semantic | `question` | Answer about codebase (LLM exploration) |
 
-**Execution:**
-- Layer -1 (B1): All queries handled by `context-explorer` agent
-- Layer 2+ (B2): Deterministic queries (file, memory, territory) via projctl, semantic via agent
+**Execution as PAIR LOOP:**
+
+Context gathering follows the universal PAIR LOOP pattern:
+
+```
+CONTEXT PAIR LOOP:
+├── Producer: context-explorer
+│   └── Gathers results for all queries
+│   └── May use PARALLEL LOOPER if multiple queries
+└── QA: context-qa
+    └── Validates results are useful, relevant, consistent
+    └── Checks all queries were answered
+    └── Flags contradictions or stale data
+```
+
+**Implementation by layer:**
+- Layer -1 (B1): All queries handled by `context-explorer` + `context-qa` agents
+- Layer 2+ (B2): Deterministic queries (file, memory, territory) via projctl, semantic via agent, then `context-qa`
+
+**Parallelization:** When multiple queries have no dependencies, `context-explorer` delegates to PARALLEL LOOPER. The consistency-checker validates the batch, then `context-qa` validates the aggregate is useful for the requesting producer.
 
 ### 3.6 Escalate Phase Yield
 
@@ -1215,7 +1329,9 @@ Infer producers: analyze existing code to infer artifacts (Adopt Existing workfl
 - `summary-producer` / `summary-qa` - project summary
 - `intake-evaluator` - request type classification
 - `next-steps` - suggest follow-up work
-- `context-explorer` - handles all context queries (file, memory, territory, web, semantic)
+- `context-explorer` / `context-qa` - gathers context, validates usefulness/consistency
+- `parallel-looper` - runs N PAIR LOOPs in parallel, dispatches consistency check
+- `consistency-checker` - batch QA for parallel results, validates consistency
 - `commit` - commit changes (unchanged from current)
 
 **Context Exploration (B1 approach):**

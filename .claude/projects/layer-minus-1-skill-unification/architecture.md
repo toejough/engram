@@ -80,7 +80,10 @@ skills/
 ├── summary-producer/
 ├── summary-qa/
 │
-├── context-explorer/       # Handles need-context queries
+├── context-explorer/       # Gathers context from queries
+├── context-qa/             # Validates gathered context
+├── parallel-looper/        # Runs N PAIR LOOPs in parallel
+├── consistency-checker/    # Batch QA for parallel results
 ├── intake-evaluator/
 ├── next-steps/
 ├── commit/                 # Unchanged
@@ -300,14 +303,18 @@ context-explorer/
 | CREATE | skills/tdd-green-qa/ | New QA |
 | CREATE | skills/tdd-refactor-producer/ | Rename from tdd-refactor |
 | CREATE | skills/tdd-refactor-qa/ | New QA |
-| CREATE | skills/tdd-qa/ | New overall TDD QA |
+| CREATE | skills/tdd-producer/ | Composite producer (runs nested RED/GREEN/REFACTOR) |
+| CREATE | skills/tdd-qa/ | Overall TDD QA |
 | CREATE | skills/alignment-producer/ | Rename from alignment-check |
 | CREATE | skills/alignment-qa/ | New QA |
 | CREATE | skills/retro-producer/ | New producer |
 | CREATE | skills/retro-qa/ | New QA |
 | CREATE | skills/summary-producer/ | New producer |
 | CREATE | skills/summary-qa/ | New QA |
-| CREATE | skills/context-explorer/ | New explorer |
+| CREATE | skills/context-explorer/ | Context gathering producer |
+| CREATE | skills/context-qa/ | Context validation QA |
+| CREATE | skills/parallel-looper/ | Runs N PAIR LOOPs in parallel |
+| CREATE | skills/consistency-checker/ | Batch QA for parallel results |
 | CREATE | skills/intake-evaluator/ | New standalone |
 | CREATE | skills/next-steps/ | New standalone |
 | UPDATE | skills/commit/ | Minor updates for yield protocol |

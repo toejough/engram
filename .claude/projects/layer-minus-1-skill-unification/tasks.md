@@ -22,6 +22,9 @@ TASK-4 (QA-TEMPLATE.md)
 TASK-5 through TASK-12 (Producer skills) ──────┐
 TASK-13 through TASK-24 (QA skills)            │
     ↓                                          │
+TASK-25a (parallel-looper) ────────────────────┤
+TASK-25b (consistency-checker) ────────────────┤
+TASK-25c (context-qa) ─────────────────────────┤
 TASK-25 (context-explorer)                     │
 TASK-26 (intake-evaluator)                     │
 TASK-27 (next-steps)                           │
@@ -60,16 +63,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-2: Update shared/CONTEXT.md
+### TASK-2: Update shared/CONTEXT.md ✓
 
 **Description:** Add yield_path and query results fields to context format.
 
-**Acceptance Criteria:**
-- [ ] Add `[output]` section with `yield_path` field
-- [ ] Document query result injection for need-context resumption
-- [ ] Maintain backward compatibility notes
+**Status:** Complete
 
-**Files:** `skills/shared/CONTEXT.md`
+**Acceptance Criteria:**
+- [x] Add `[output]` section with `yield_path` field
+- [x] Document query result injection for need-context resumption
+- [x] Maintain backward compatibility notes
+
+**Files:** `skills/shared/CONTEXT.md`, `skills/shared/CONTEXT_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -77,17 +82,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-3: Create PRODUCER-TEMPLATE.md
+### TASK-3: Create PRODUCER-TEMPLATE.md ✓
 
 **Description:** Create template for producer skills.
 
-**Acceptance Criteria:**
-- [ ] Include frontmatter with role, phase, variant fields
-- [ ] Document GATHER → SYNTHESIZE → PRODUCE pattern
-- [ ] Include yield format section
-- [ ] Reference YIELD.md for protocol details
+**Status:** Complete
 
-**Files:** `skills/shared/PRODUCER-TEMPLATE.md`
+**Acceptance Criteria:**
+- [x] Include frontmatter with role, phase, variant fields
+- [x] Document GATHER → SYNTHESIZE → PRODUCE pattern
+- [x] Include yield format section
+- [x] Reference YIELD.md for protocol details
+
+**Files:** `skills/shared/PRODUCER-TEMPLATE.md`, `skills/shared/PRODUCER-TEMPLATE_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -95,18 +102,20 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-4: Create QA-TEMPLATE.md
+### TASK-4: Create QA-TEMPLATE.md ✓
 
 **Description:** Create template for QA skills.
 
-**Acceptance Criteria:**
-- [ ] Include frontmatter with role field
-- [ ] Document REVIEW → RETURN pattern
-- [ ] Include escalation responsibilities (error/gap/conflict)
-- [ ] Document proposed_changes format for escalate-phase
-- [ ] Reference YIELD.md for protocol details
+**Status:** Complete
 
-**Files:** `skills/shared/QA-TEMPLATE.md`
+**Acceptance Criteria:**
+- [x] Include frontmatter with role field
+- [x] Document REVIEW → RETURN pattern
+- [x] Include escalation responsibilities (error/gap/conflict)
+- [x] Document proposed_changes format for escalate-phase
+- [x] Reference YIELD.md for protocol details
+
+**Files:** `skills/shared/QA-TEMPLATE.md`, `skills/shared/QA-TEMPLATE_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -440,6 +449,26 @@ TASK-31 (validation & cleanup)
 
 ---
 
+### TASK-22b: Create tdd-producer
+
+**Description:** Create composite TDD producer that runs nested RED/GREEN/REFACTOR pair loops.
+
+**Acceptance Criteria:**
+- [ ] Follows PRODUCER-TEMPLATE structure (composite variant)
+- [ ] Runs RED PAIR LOOP (red-producer + red-qa) internally
+- [ ] Runs GREEN PAIR LOOP (green-producer + green-qa) internally
+- [ ] Runs REFACTOR PAIR LOOP (refactor-producer + refactor-qa) internally
+- [ ] Handles iteration/improvement within each nested pair loop
+- [ ] Outputs yield protocol TOML after all nested loops complete
+
+**Files:** `skills/tdd-producer/SKILL.md`, `skills/tdd-producer/SKILL-full.md`
+
+**Dependencies:** TASK-18, TASK-19, TASK-20, TASK-21, TASK-22
+
+**Traces to:** ARCH-1, REQ-3
+
+---
+
 ### TASK-23: Create tdd-qa
 
 **Description:** Create overall TDD QA skill.
@@ -477,6 +506,67 @@ TASK-31 (validation & cleanup)
 **Dependencies:** TASK-3, TASK-4
 
 **Traces to:** ARCH-1, REQ-4
+
+---
+
+### TASK-25a: Create parallel-looper
+
+**Description:** Create parallel looper skill for running N PAIR LOOPs in parallel.
+
+**Acceptance Criteria:**
+- [ ] Receives list of independent items from LOOPER
+- [ ] Spawns PAIR LOOP for each item via Task tool (in parallel)
+- [ ] Aggregates results from all parallel PAIR LOOPs
+- [ ] Dispatches to consistency-checker for batch QA
+- [ ] Handles partial failures (some items fail, others succeed)
+- [ ] Outputs yield protocol TOML
+
+**Files:** `skills/parallel-looper/SKILL.md`, `skills/parallel-looper/SKILL-full.md`
+
+**Dependencies:** TASK-1
+
+**Traces to:** ARCH-1
+
+---
+
+### TASK-25b: Create consistency-checker
+
+**Description:** Create consistency checker skill for validating parallel results.
+
+**Acceptance Criteria:**
+- [ ] Reviews outputs across all parallel results
+- [ ] Applies domain-specific consistency rules (passed as input)
+- [ ] Yields approved if consistent
+- [ ] Yields improvement-request (batch) if inconsistent
+- [ ] Documents specific inconsistencies and resolutions
+- [ ] Outputs yield protocol TOML
+
+**Files:** `skills/consistency-checker/SKILL.md`, `skills/consistency-checker/SKILL-full.md`
+
+**Dependencies:** TASK-1
+
+**Traces to:** ARCH-1
+
+---
+
+### TASK-25c: Create context-qa
+
+**Description:** Create context QA skill to validate gathered context.
+
+**Acceptance Criteria:**
+- [ ] Follows QA-TEMPLATE structure
+- [ ] Validates all queries were answered
+- [ ] Checks results are relevant to the request
+- [ ] Flags contradictions between sources
+- [ ] Identifies stale or outdated information
+- [ ] Can yield approved, improvement-request
+- [ ] Outputs yield protocol TOML
+
+**Files:** `skills/context-qa/SKILL.md`, `skills/context-qa/SKILL-full.md`
+
+**Dependencies:** TASK-4
+
+**Traces to:** ARCH-1
 
 ---
 

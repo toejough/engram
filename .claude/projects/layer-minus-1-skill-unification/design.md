@@ -16,17 +16,19 @@
 **User Experience:** Users invoke skills via `/skillname` or orchestrator dispatches by name.
 
 **Convention:**
+
 ```
 <phase>-<variant>-<role>
 ```
 
-| Component | Values | Examples |
-|-----------|--------|----------|
-| phase | pm, design, arch, breakdown, doc, tdd-red, tdd-green, tdd-refactor, alignment, retro, summary | |
-| variant | interview, infer | (optional, only for pm/design/arch) |
-| role | producer, qa | |
+| Component | Values                                                                                        | Examples                            |
+| --------- | --------------------------------------------------------------------------------------------- | ----------------------------------- |
+| phase     | pm, design, arch, breakdown, doc, tdd-red, tdd-green, tdd-refactor, alignment, retro, summary |                                     |
+| variant   | interview, infer                                                                              | (optional, only for pm/design/arch) |
+| role      | producer, qa                                                                                  |                                     |
 
 **Examples:**
+
 - `pm-interview-producer` - PM requirements via user Q&A
 - `pm-infer-producer` - PM requirements from code analysis
 - `pm-qa` - PM quality gate
@@ -34,6 +36,7 @@
 - `tdd-red-qa` - Verify tests cover ACs
 
 **Standalone skills (no role suffix):**
+
 - `intake-evaluator` - Classifies request type
 - `next-steps` - Suggests follow-up work
 - `commit` - Commits changes
@@ -47,6 +50,7 @@
 **User Experience:** Skills write yield to a location provided by orchestrator, enabling parallel execution.
 
 **Context provides yield path:**
+
 ```toml
 [output]
 yield_path = ".claude/context/pm-interview-producer-<session-id>-yield.toml"
@@ -55,6 +59,7 @@ yield_path = ".claude/context/pm-interview-producer-<session-id>-yield.toml"
 **Skill reads path from context and writes there.** Skills do NOT hardcode yield paths.
 
 **Format:** Per Section 4 of orchestration-system.md:
+
 ```toml
 [yield]
 type = "complete"  # or need-user-input, blocked, approved, improvement-request, escalate-phase
@@ -67,6 +72,7 @@ type = "complete"  # or need-user-input, blocked, approved, improvement-request,
 ```
 
 **Parallelism implications:**
+
 - Skills are parallelism-agnostic (just write to provided path)
 - Orchestrator (Layer 0+) provides unique paths with session/task IDs
 - Orchestrator tracks which yield corresponds to which invocation
@@ -96,18 +102,18 @@ user-invocable: true|false
 
 ## Quick Reference
 
-| Aspect | Details |
-|--------|---------|
-| Role | Producer or QA |
-| Input | Context TOML | <specific inputs> |
-| Output | Yield TOML | <artifacts produced> |
+| Aspect      | Details                            |
+| ----------- | ---------------------------------- | -------------------- |
+| Role        | Producer or QA                     |
+| Input       | Context TOML                       | <specific inputs>    |
+| Output      | Yield TOML                         | <artifacts produced> |
 | Yield Types | <valid yield types for this skill> |
 
 ## Process
 
 1. GATHER: <what to read/query>
 2. SYNTHESIZE: <what to analyze>
-3. PRODUCE: <what to output>  # or REVIEW/RETURN for QA
+3. PRODUCE: <what to output> # or REVIEW/RETURN for QA
 
 ## Yield Format
 
@@ -127,12 +133,14 @@ user-invocable: true|false
 **User Experience:** Clear separation of concerns in skill behavior.
 
 **Producer skills:**
+
 - GATHER → SYNTHESIZE → PRODUCE pattern
 - Create or modify artifacts
 - Valid yields: `complete`, `need-user-input`, `blocked`
 - Commit after producing
 
 **QA skills:**
+
 - REVIEW → RETURN pattern
 - Read artifacts, do not modify
 - Valid yields: `approved`, `improvement-request`, `escalate-phase`
@@ -140,6 +148,7 @@ user-invocable: true|false
 
 **Escalation responsibilities:**
 When yielding `escalate-phase`, QA must:
+
 1. Specify reason: `error` (incorrect), `gap` (missing), or `conflict` (blocking)
 2. Draft proposed upstream changes (not just flag the issue)
 3. Identify all affected artifacts (requirements, design, source docs)
@@ -154,13 +163,13 @@ This enables prior phase producers to review and apply changes rather than re-di
 
 **User Experience:** Some skills are user-invocable, others are orchestrator-only.
 
-| Skill Type | User Invocable | Rationale |
-|------------|----------------|-----------|
-| Interview producers | Yes | User may want to run standalone |
-| Infer producers | Yes | User may want to run on existing code |
-| QA skills | No | Only meaningful in pair loop context |
-| Support skills | Mixed | intake-evaluator: No, next-steps: Yes |
-| commit | Yes | Already user-invocable |
+| Skill Type          | User Invocable | Rationale                             |
+| ------------------- | -------------- | ------------------------------------- |
+| Interview producers | Yes            | User may want to run standalone       |
+| Infer producers     | Yes            | User may want to run on existing code |
+| QA skills           | No             | Only meaningful in pair loop context  |
+| Support skills      | Mixed          | intake-evaluator: No, next-steps: Yes |
+| commit              | Yes            | Already user-invocable                |
 
 **Traces to:** REQ-8
 
@@ -171,11 +180,13 @@ This enables prior phase producers to review and apply changes rather than re-di
 **User Experience:** `/project` invokes skills and parses their yields.
 
 **Dispatch pattern:**
+
 ```bash
 claude --skill <skill-name> --context .claude/context/<skill-name>-context.toml
 ```
 
 **Parse pattern:**
+
 ```bash
 projctl yield parse .claude/context/<skill-name>-yield.toml
 ```
@@ -222,19 +233,20 @@ question = "How does authentication work in this codebase?"
 
 **Query types:**
 
-| Type | What it does | Example |
-|------|--------------|---------|
-| file | Read file contents | `path = "docs/requirements.md"` |
-| memory | Query ONNX semantic memory | `query = "caching patterns"` |
-| territory | Map codebase structure | `scope = "tests"` |
-| web | Fetch and interpret URL | `url`, `prompt` |
-| semantic | Answer question about codebase | `question = "How does X work?"` |
+| Type      | What it does                   | Example                         |
+| --------- | ------------------------------ | ------------------------------- |
+| file      | Read file contents             | `path = "docs/requirements.md"` |
+| memory    | Query ONNX semantic memory     | `query = "caching patterns"`    |
+| territory | Map codebase structure         | `scope = "tests"`               |
+| web       | Fetch and interpret URL        | `url`, `prompt`                 |
+| semantic  | Answer question about codebase | `question = "How does X work?"` |
 
 **B1 approach (Layer -1):** Single `context-explorer` agent handles ALL query types. Simple, unified, LLM-based.
 
 **B2 approach (Layer 0+):** Hybrid - projctl handles deterministic queries (file, memory, territory), LLM agent only for semantic queries. More efficient, added later.
 
 **Flow:**
+
 ```
 Producer yields need-context
         ↓

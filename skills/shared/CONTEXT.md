@@ -9,6 +9,8 @@ Context files provide skills with:
 2. **Artifact locations** - resolved paths from project config
 3. **Input summaries** - relevant information from previous phases
 4. **Project state** - current progress, known issues
+5. **Output destination** - where to write yield file
+6. **Query results** - injected data when resuming after need-context yield
 
 ## File Format
 
@@ -77,6 +79,24 @@ tasks_complete = 0
 tasks_total = 0
 escalations_pending = 0
 open_conflicts = 0
+
+[output]
+# Where to write yield file (see shared/YIELD.md)
+yield_path = ".claude/context/pm-infer-yield.toml"
+
+[query_results]
+# Injected by orchestrator when resuming after need-context yield
+# See YIELD.md for query types
+
+[[query_results.items]]
+query_type = "file"
+query_path = "docs/requirements.md"
+result = "... file contents ..."
+
+[[query_results.items]]
+query_type = "semantic"
+query_question = "How does authentication work?"
+result = "... exploration result ..."
 ```
 
 ## Mode Parameter
@@ -117,6 +137,41 @@ The `[inputs]` section contains curated summaries of information relevant to the
 4. Writes focused summaries
 
 This prevents context bloat while giving skills necessary information.
+
+## Output Section
+
+The `[output]` section tells skills where to write their yield file:
+
+```toml
+[output]
+yield_path = ".claude/context/pm-interview-producer-yield.toml"
+```
+
+The orchestrator provides a unique `yield_path` for each skill invocation. Skills must write their yield to this path using the format defined in [YIELD.md](./YIELD.md).
+
+**Important:** The `yield_path` includes a unique identifier when running parallel skills to prevent collisions.
+
+## Query Result Injection
+
+When a skill yields `need-context` (see [YIELD.md](./YIELD.md)), the orchestrator:
+1. Executes the requested queries
+2. Aggregates results
+3. Resumes the skill with results injected in `[query_results]`
+
+```toml
+[query_results]
+[[query_results.items]]
+query_type = "file"
+query_path = "docs/requirements.md"
+result = "... file contents ..."
+
+[[query_results.items]]
+query_type = "semantic"
+query_question = "How does authentication work?"
+result = "Authentication uses JWT tokens stored in..."
+```
+
+Skills check for `[query_results]` on invocation. If present, they're resuming after a `need-context` yield and should use the provided results.
 
 ## Reading Context in Skills
 
@@ -187,4 +242,7 @@ test_count = 45
 [inputs.previous_phase]
 skill = "coverage-analyze"
 summary = "Coverage: 35%, recommendation: migrate"
+
+[output]
+yield_path = ".claude/context/pm-infer-producer-yield.toml"
 ```
