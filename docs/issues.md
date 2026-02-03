@@ -1185,8 +1185,9 @@ Completed via orchestration-infrastructure project (ISSUE-026)
 ## ISSUE-021: Retro findings must be converted to issues
 
 **Priority:** Medium
-**Status:** Closed
+**Status:** Open
 **Created:** 2026-02-03
+**Reopened:** 2026-02-03
 
 ### Summary
 
@@ -1242,9 +1243,9 @@ Zero of these became issues in the project tracker.
 ---
 
 
-### Comment
+### Comment (2026-02-03)
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Originally closed with comment "Completed via orchestration-infrastructure project (ISSUE-026)" but all acceptance criteria remained unchecked. No automation was implemented - ISSUE-026 was an organizational project that batch-closed issues without verifying implementation. Reopened for actual implementation.
 ## ISSUE-022: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
