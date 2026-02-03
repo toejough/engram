@@ -129,10 +129,12 @@ Commands: new | adopt | align | task | continue
 
 | Flow | Command |
 |------|---------|
-| new | `projctl state init --name NAME --dir DIR` |
-| adopt | `projctl state init --name NAME --dir DIR --mode adopt` |
-| align | `projctl state init --name NAME-align --dir DIR --mode align` |
-| task | `projctl state init --name NAME --dir DIR --mode task` |
+| new | `projctl state init --name NAME` |
+| adopt | `projctl state init --name NAME --mode adopt` |
+| align | `projctl state init --name NAME-align --mode align` |
+| task | `projctl state init --name NAME --mode task` |
+
+Note: `--dir` defaults to `.claude/projects/<NAME>/` and creates it if needed.
 
 ### PM Phase
 
