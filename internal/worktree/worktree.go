@@ -99,6 +99,36 @@ func (m *Manager) Cleanup(taskID string) error {
 	return nil
 }
 
+// CleanupAll removes all task worktrees and their branches.
+func (m *Manager) CleanupAll() error {
+	parentDir := m.ParentDir()
+
+	// Check if parent directory exists
+	entries, err := os.ReadDir(parentDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// No worktrees to clean up
+			return nil
+		}
+		return fmt.Errorf("failed to read worktrees directory: %w", err)
+	}
+
+	// Clean up each worktree found in the parent directory
+	for _, entry := range entries {
+		if entry.IsDir() {
+			taskID := entry.Name()
+			if err := m.Cleanup(taskID); err != nil {
+				return fmt.Errorf("failed to cleanup worktree %s: %w", taskID, err)
+			}
+		}
+	}
+
+	// Try to remove parent dir if empty (should be after all cleanups)
+	_ = os.Remove(parentDir)
+
+	return nil
+}
+
 // Merge rebases a task branch onto the target and fast-forward merges.
 func (m *Manager) Merge(taskID, onto string) error {
 	branch := m.BranchName(taskID)
