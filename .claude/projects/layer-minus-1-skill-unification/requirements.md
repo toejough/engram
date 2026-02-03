@@ -3,7 +3,7 @@
 **Project:** Layer -1 Skill Unification
 **Issue:** ISSUE-008
 **Created:** 2026-02-02
-**Status:** Draft
+**Status:** PM Complete
 
 ---
 
@@ -42,6 +42,7 @@ As an orchestrator, I want all producer and QA skills to output yield protocol T
 - [ ] Valid QA yield types: `approved`, `improvement-request`, `escalate-phase`
 - [ ] Yield includes `[context]` section for state serialization
 - [ ] Yield includes optional `[payload]` for type-specific data
+- [ ] Format follows Section 4 (Yield Protocol) of `docs/orchestration-system.md`
 
 **Priority:** P0
 
@@ -152,6 +153,39 @@ As a maintainer, I want obsolete skills deleted after migration, so that there's
 - [ ] Symlinks in ~/.claude/skills removed for deleted skills
 
 **Priority:** P1
+
+**Traces to:** ISSUE-008
+
+---
+
+### REQ-8: Update /project Skill for New Dispatch
+
+As an orchestrator, I want the `/project` skill updated to dispatch new skills and parse yield protocol, so that unified skills can be tested before projctl migration.
+
+**Acceptance Criteria:**
+- [ ] `/project` dispatches to new producer/QA skill names
+- [ ] `/project` parses yield protocol TOML from skill output
+- [ ] `/project` implements pair loop logic (producer → QA → iterate/advance)
+- [ ] `/project` handles all yield types (complete, need-user-input, blocked, approved, improvement-request, escalate-phase)
+- [ ] Existing workflows (new/adopt/align/task) work with new skills
+
+**Priority:** P0
+
+**Traces to:** ISSUE-008
+
+---
+
+### REQ-9: Skill Validation
+
+As a developer, I want a way to validate that skills output correct yield protocol, so that I can catch format errors early.
+
+**Acceptance Criteria:**
+- [ ] Each skill can be invoked with test context
+- [ ] Skill output can be validated against yield protocol schema
+- [ ] Validation errors report which field is malformed
+- [ ] CI can run skill validation (or manual test documented)
+
+**Priority:** P2
 
 **Traces to:** ISSUE-008
 
