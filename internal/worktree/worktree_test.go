@@ -419,3 +419,231 @@ func TestManager_List(t *testing.T) {
 		_ = cmd.Run()
 	})
 }
+func TestManager_Cleanup(t *testing.T) {
+	t.Run("removes worktree directory", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create worktree
+		wtPath, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(wtPath).To(BeADirectory())
+
+		// Cleanup
+		err = m.Cleanup("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Worktree directory should be gone
+		g.Expect(wtPath).ToNot(BeADirectory())
+	})
+
+	t.Run("deletes the task branch", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create worktree
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify branch exists
+		cmd := exec.Command("git", "branch", "--list", "task/TASK-001")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(output)).To(ContainSubstring("task/TASK-001"))
+
+		// Cleanup
+		err = m.Cleanup("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Branch should be gone
+		cmd = exec.Command("git", "branch", "--list", "task/TASK-001")
+		cmd.Dir = repoDir
+		output, err = cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(strings.TrimSpace(string(output))).To(BeEmpty())
+	})
+
+	t.Run("removes parent dir if empty", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create worktree
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Parent dir should exist
+		g.Expect(m.ParentDir()).To(BeADirectory())
+
+		// Cleanup
+		err = m.Cleanup("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Parent dir should be gone (was empty)
+		g.Expect(m.ParentDir()).ToNot(BeADirectory())
+	})
+
+	t.Run("leaves parent dir if other worktrees exist", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create two worktrees
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cleanup only one
+		err = m.Cleanup("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Parent dir should still exist
+		g.Expect(m.ParentDir()).To(BeADirectory())
+
+		// Cleanup the other
+		_ = m.Cleanup("TASK-002")
+	})
+
+	t.Run("succeeds even if worktree does not exist", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Cleanup non-existent worktree should not error
+		err := m.Cleanup("TASK-NONEXISTENT")
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+}
+
+func TestManager_CleanupAll(t *testing.T) {
+	t.Run("removes all task worktrees", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create multiple worktrees
+		path1, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		path2, err := m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+		path3, err := m.Create("TASK-003")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// All should exist
+		g.Expect(path1).To(BeADirectory())
+		g.Expect(path2).To(BeADirectory())
+		g.Expect(path3).To(BeADirectory())
+
+		// Cleanup all
+		err = m.CleanupAll()
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// All worktree directories should be gone
+		g.Expect(path1).ToNot(BeADirectory())
+		g.Expect(path2).ToNot(BeADirectory())
+		g.Expect(path3).ToNot(BeADirectory())
+	})
+
+	t.Run("deletes all task branches", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create multiple worktrees
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cleanup all
+		err = m.CleanupAll()
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// All branches should be gone
+		cmd := exec.Command("git", "branch", "--list", "task/*")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(strings.TrimSpace(string(output))).To(BeEmpty())
+	})
+
+	t.Run("removes parent dir when all cleaned", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create worktrees
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Parent dir should exist
+		g.Expect(m.ParentDir()).To(BeADirectory())
+
+		// Cleanup all
+		err = m.CleanupAll()
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Parent dir should be gone
+		g.Expect(m.ParentDir()).ToNot(BeADirectory())
+	})
+
+	t.Run("succeeds when no worktrees exist", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// No worktrees created, cleanup should still succeed
+		err := m.CleanupAll()
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("leaves no artifacts", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create worktrees
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Cleanup all
+		err = m.CleanupAll()
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify no task branches remain
+		cmd := exec.Command("git", "branch", "--list", "task/*")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(strings.TrimSpace(string(output))).To(BeEmpty())
+
+		// Verify parent directory doesn't exist
+		g.Expect(m.ParentDir()).ToNot(BeADirectory())
+
+		// Verify git worktree list only shows main worktree
+		cmd = exec.Command("git", "worktree", "list")
+		cmd.Dir = repoDir
+		output, err = cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		g.Expect(lines).To(HaveLen(1)) // Only the main worktree
+	})
+}
