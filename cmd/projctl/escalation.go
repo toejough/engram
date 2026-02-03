@@ -27,7 +27,7 @@ func (r *realEscalationFS) ReadFile(path string) (string, error) {
 
 type escalationWriteArgs struct {
 	Dir      string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	File     string `targ:"flag,short=f,desc=Output file path (default: docs/escalations.md)"`
+	File     string `targ:"flag,short=f,desc=Output file path (default: escalations.md)"`
 	ID       string `targ:"flag,desc=Escalation ID (e.g. ESC-001),required"`
 	Category string `targ:"flag,short=c,desc=Category: requirement, design, architecture, task,required"`
 	Context  string `targ:"flag,desc=What was being analyzed,required"`
@@ -46,7 +46,7 @@ func escalationWrite(args escalationWriteArgs) error {
 
 	filePath := args.File
 	if filePath == "" {
-		filePath = filepath.Join(dir, "docs", "escalations.md")
+		filePath = filepath.Join(dir, "escalations.md")
 	}
 
 	fs := &realEscalationFS{}
@@ -88,7 +88,7 @@ func escalationWrite(args escalationWriteArgs) error {
 
 type escalationReviewArgs struct {
 	Dir  string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	File string `targ:"flag,short=f,desc=Escalation file path (default: docs/escalations.md)"`
+	File string `targ:"flag,short=f,desc=Escalation file path (default: escalations.md)"`
 }
 
 func escalationReview(args escalationReviewArgs) error {
@@ -103,7 +103,7 @@ func escalationReview(args escalationReviewArgs) error {
 
 	filePath := args.File
 	if filePath == "" {
-		filePath = filepath.Join(dir, "docs", "escalations.md")
+		filePath = filepath.Join(dir, "escalations.md")
 	}
 
 	fs := &realEscalationFS{}
@@ -153,14 +153,14 @@ func runCommand(name string, args ...string) error {
 
 type escalationListArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	File   string `targ:"flag,short=f,desc=Escalation file path (default: docs/escalations.md)"`
+	File   string `targ:"flag,short=f,desc=Escalation file path (default: escalations.md)"`
 	Status string `targ:"flag,short=s,desc=Filter by status (pending, resolved, deferred, issue)"`
 	JSON   bool   `targ:"flag,short=j,desc=Output as JSON"`
 }
 
 type escalationResolveArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	File   string `targ:"flag,short=f,desc=Escalation file path (default: docs/escalations.md)"`
+	File   string `targ:"flag,short=f,desc=Escalation file path (default: escalations.md)"`
 	ID     string `targ:"flag,desc=Escalation ID to resolve (e.g. ESC-001),required"`
 	Status string `targ:"flag,short=s,desc=New status: resolved, deferred, issue,required"`
 	Notes  string `targ:"flag,short=n,desc=Resolution notes"`
@@ -178,7 +178,7 @@ func escalationResolve(args escalationResolveArgs) error {
 
 	filePath := args.File
 	if filePath == "" {
-		filePath = filepath.Join(dir, "docs", "escalations.md")
+		filePath = filepath.Join(dir, "escalations.md")
 	}
 
 	fs := &realEscalationFS{}
@@ -220,7 +220,7 @@ func escalationList(args escalationListArgs) error {
 
 	filePath := args.File
 	if filePath == "" {
-		filePath = filepath.Join(dir, "docs", "escalations.md")
+		filePath = filepath.Join(dir, "escalations.md")
 	}
 
 	fs := &realEscalationFS{}
