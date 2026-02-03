@@ -80,7 +80,7 @@ func TestAnalyze_FullyDocumented(t *testing.T) {
 
 	fs := &mockFS{
 		files: map[string]string{
-			"/project/docs/requirements.md": `
+			"/project/requirements.md": `
 # Requirements
 
 ## REQ-001: User Authentication
@@ -89,19 +89,19 @@ Users must be able to log in.
 ## REQ-002: User Registration
 Users must be able to register.
 `,
-			"/project/docs/design.md": `
+			"/project/design.md": `
 # Design
 
 ## DES-001: Login Flow
 Traces: REQ-001
 `,
-			"/project/docs/architecture.md": `
+			"/project/architecture.md": `
 # Architecture
 
 ## ARCH-001: Auth Service
 Traces: DES-001
 `,
-			"/project/docs/tasks.md": `
+			"/project/tasks.md": `
 # Tasks
 
 ## TASK-001: Implement login
@@ -109,8 +109,7 @@ Traces: ARCH-001
 `,
 		},
 		dirs: map[string]bool{
-			"/project":      true,
-			"/project/docs": true,
+			"/project": true,
 		},
 	}
 
@@ -130,7 +129,7 @@ func TestAnalyze_PartialCoverage(t *testing.T) {
 
 	fs := &mockFS{
 		files: map[string]string{
-			"/project/docs/requirements.md": `
+			"/project/requirements.md": `
 # Requirements
 
 ## REQ-001: Feature One
@@ -154,7 +153,6 @@ func privateFunc() {}
 		},
 		dirs: map[string]bool{
 			"/project":          true,
-			"/project/docs":     true,
 			"/project/internal": true,
 		},
 	}
@@ -217,10 +215,10 @@ func TestAnalyze_TestsWithTraceability(t *testing.T) {
 
 	fs := &mockFS{
 		files: map[string]string{
-			"/project/docs/requirements.md": `
+			"/project/requirements.md": `
 ## REQ-001: Feature
 `,
-			"/project/docs/tasks.md": `
+			"/project/tasks.md": `
 ## TASK-001: Implement feature
 `,
 			"/project/feature_test.go": `
@@ -231,8 +229,7 @@ func TestFeature(t *testing.T) {}
 `,
 		},
 		dirs: map[string]bool{
-			"/project":      true,
-			"/project/docs": true,
+			"/project": true,
 		},
 	}
 
