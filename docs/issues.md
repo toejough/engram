@@ -1634,7 +1634,7 @@ From ISSUE-026 retrospective Q1:
 ## ISSUE-034: Decision needed: Where should project artifacts live?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective Q2:
@@ -1652,6 +1652,10 @@ From ISSUE-026 retrospective Q2:
 
 ---
 
+
+### Comment
+
+Decision: projects always live in .claude/projects/<name>/. ISSUE-036 implements this as the default.
 ## ISSUE-035: Decision needed: How to handle skill documentation without TDD?
 
 **Priority:** Low
@@ -1676,7 +1680,7 @@ From ISSUE-026 retrospective Q3:
 ## ISSUE-036: projctl state init should default to .claude/projects/<name>/
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** When initializing a project with `projctl state init --name X --dir .`, the state.toml is created at the repo root instead of in the proper project directory. This leads to:
@@ -1696,3 +1700,8 @@ From ISSUE-026 retrospective Q3:
 - [ ] Update SKILL-full.md initialization examples to remove `--dir .`
 
 **Traces to:** ISSUE-034 (related decision), ISSUE-028 retrospective
+
+
+### Comment
+
+Completed via project issue-036-state-init-default. projctl state init now defaults --dir to .claude/projects/<name>/
