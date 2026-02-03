@@ -3,7 +3,7 @@
 **Project:** Layer -1 Skill Unification
 **Issue:** ISSUE-008
 **Created:** 2026-02-02
-**Status:** Draft
+**Status:** Complete
 
 **Traces to:** ARCH-1, ARCH-2, ARCH-3, ARCH-4, ARCH-5, ARCH-6, ARCH-7
 
@@ -742,25 +742,15 @@ TASK-31 (validation & cleanup)
 
 **Description:** Validate all skills work and clean up old skills.
 
-**Status:** Validation complete - cleanup pending user verification
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [x] All new skills can be invoked (37 skills with tests pass)
 - [x] Yield protocol output validates (all SKILL_test.sh pass)
 - [x] /project can orchestrate full workflow (SKILL.md updated)
-- [ ] Delete old skill directories (18 directories - defer until verified)
-- [ ] Delete shared/RESULT.md (defer until verified)
-- [x] Update any remaining references (only old skills reference RESULT.md)
-
-**Cleanup commands (run after verification):**
-```bash
-# Delete old skills from repo
-rm -rf skills/{alignment-check,architect-audit,architect-infer,architect-interview}
-rm -rf skills/{design-audit,design-infer,design-interview,meta-audit,negotiate}
-rm -rf skills/{pm-audit,pm-infer,pm-interview,task-audit,task-breakdown}
-rm -rf skills/{tdd-green,tdd-red,tdd-refactor,test-mapper}
-rm skills/shared/RESULT.md
-```
+- [x] Delete old skill directories (18 directories deleted)
+- [x] Delete shared/RESULT.md (deleted)
+- [x] Update any remaining references (only old skills referenced RESULT.md)
 
 **Files:** Multiple deletions per ARCH-1
 
