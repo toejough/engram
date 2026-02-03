@@ -138,6 +138,14 @@ user-invocable: true|false
 - Valid yields: `approved`, `improvement-request`, `escalate-phase`
 - No commit (reviewing, not producing)
 
+**Escalation responsibilities:**
+When yielding `escalate-phase`, QA must:
+1. Specify reason: `error` (incorrect), `gap` (missing), or `conflict` (blocking)
+2. Draft proposed upstream changes (not just flag the issue)
+3. Identify all affected artifacts (requirements, design, source docs)
+
+This enables prior phase producers to review and apply changes rather than re-discover the issue.
+
 **Traces to:** REQ-2, REQ-6
 
 ---

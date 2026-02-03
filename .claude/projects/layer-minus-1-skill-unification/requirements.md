@@ -63,6 +63,8 @@ As an orchestrator, I want skills organized as producer/QA pairs, so that I can 
 - [ ] Each producer skill follows GATHER → SYNTHESIZE → PRODUCE pattern
 - [ ] Each QA skill follows REVIEW → RETURN pattern
 - [ ] QA skills include negotiation capability for `escalate-phase` yields
+- [ ] QA skills draft proposed upstream changes when escalating (not just flag issues)
+- [ ] QA escalations include reason: error | gap | conflict
 
 **Priority:** P0
 

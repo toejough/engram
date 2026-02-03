@@ -331,7 +331,7 @@ state_file = ".claude/agents/pm-state.toml"
 | `need-decision`       | Ambiguous, need user choice | Present options, resume with choice |
 | `need-context`        | Need context from sources   | Run queries (parallel), resume with results |
 | `improvement-request` | QA returning to producer    | Resume producer with feedback       |
-| `escalate-phase`      | Issue in prior phase        | Return to prior phase agent         |
+| `escalate-phase`      | Prior phase needs update    | Return to prior phase agent         |
 | `escalate-user`       | Cannot resolve              | Present to user                     |
 | `complete`            | Phase finished              | Advance to next phase               |
 | `blocked`             | Cannot proceed              | Present blocker, await resolution   |
@@ -416,6 +416,48 @@ question = "How does authentication work in this codebase?"
 **Execution:**
 - Layer -1 (B1): All queries handled by `context-explorer` agent
 - Layer 2+ (B2): Deterministic queries (file, memory, territory) via projctl, semantic via agent
+
+### 3.6 Escalate Phase Yield
+
+```toml
+[yield]
+type = "escalate-phase"
+
+[yield.escalation]
+from_phase = "design"
+to_phase = "pm"
+reason = "gap"              # error | gap | conflict
+
+[yield.issue]
+summary = "Parallelism not addressed in requirements"
+context = "Design phase discovered need for context exploration"
+
+[yield.proposed_changes]
+# QA drafts the upstream changes, not just flags the issue
+
+[[yield.proposed_changes.requirements]]
+action = "add"
+id = "REQ-10"
+title = "Context Exploration via Yield"
+content = "Producer skills can yield need-context..."
+
+[[yield.proposed_changes.source_docs]]
+file = "docs/orchestration-system.md"
+section = "3.2 Yield Types"
+change = "Add need-context yield type"
+```
+
+**Escalation reasons:**
+
+| Reason | Meaning | Example |
+|--------|---------|---------|
+| `error` | Prior phase output is incorrect | "REQ-3 contradicts REQ-1" |
+| `gap` | Discovery reveals missing content | "Parallelism not addressed" |
+| `conflict` | Can't proceed without upstream change | "Design requires capability not in requirements" |
+
+**QA responsibility:** When escalating, QA should draft the upstream changes (proposed_changes), not just flag the issue. This enables the prior phase producer to review and apply, rather than re-discover.
+
+**Propagation:** Escalation may cascade - a gap in requirements may also require updating the source issue or orchestration spec.
 
 ---
 
