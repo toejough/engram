@@ -40,3 +40,21 @@ Spawn agents with instruction to periodically `git fetch origin <base>` and chec
 - [ ] Update orchestrator to merge branches as agents complete
 - [ ] Add file-overlap detection to task scheduler
 - [ ] Document parallel execution best practices
+
+## Process Observation
+
+**Retro findings not auto-converted to issues**
+
+ISSUE-021 mandated that retro findings become issues, but this didn't happen automatically. The orchestrator completed the project without prompting for issue creation from retro items.
+
+**Why it didn't happen:**
+1. No automated tooling exists to extract action items from retro.md
+2. The issue-update phase only closes the *linked* issue, doesn't process retro
+3. I (Claude) forgot to do it manually despite knowing ISSUE-021 exists
+4. The skill/workflow doesn't enforce this step
+
+**This is itself a retro finding** - the retro-to-issues pipeline remains broken despite ISSUE-021 being "closed".
+
+**Implication:** ISSUE-021 was prematurely closed, or its "fix" was incomplete. Need either:
+- Reopen ISSUE-021 with concrete implementation requirements
+- Create new issue for retro-to-issues automation
