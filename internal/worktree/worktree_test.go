@@ -324,3 +324,98 @@ func TestManager_Merge(t *testing.T) {
 		g.Expect(conflictErr.TaskID).To(Equal("TASK-001"))
 	})
 }
+
+func TestManager_List(t *testing.T) {
+	t.Run("returns empty slice when no task worktrees exist", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+		worktrees, err := m.List()
+
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(BeEmpty())
+	})
+
+	t.Run("returns worktree after create", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create a worktree
+		wtPath, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// List should return it
+		worktrees, err := m.List()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(HaveLen(1))
+
+		wt := worktrees[0]
+		g.Expect(wt.TaskID).To(Equal("TASK-001"))
+		g.Expect(wt.Path).To(Equal(wtPath))
+		g.Expect(wt.Branch).To(Equal("task/TASK-001"))
+
+		// Cleanup
+		_ = m.Cleanup("TASK-001")
+	})
+
+	t.Run("returns multiple worktrees", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create multiple worktrees
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.Create("TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// List should return both
+		worktrees, err := m.List()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(HaveLen(2))
+
+		// Extract task IDs
+		taskIDs := make([]string, len(worktrees))
+		for i, wt := range worktrees {
+			taskIDs[i] = wt.TaskID
+		}
+		g.Expect(taskIDs).To(ConsistOf("TASK-001", "TASK-002"))
+
+		// Cleanup
+		_ = m.Cleanup("TASK-001")
+		_ = m.Cleanup("TASK-002")
+	})
+
+	t.Run("filters out non-task branches", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		// Create a task worktree
+		_, err := m.Create("TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Create a non-task worktree manually (feature branch)
+		featurePath := filepath.Join(m.ParentDir(), "feature-x")
+		cmd := exec.Command("git", "worktree", "add", "-b", "feature/x", featurePath)
+		cmd.Dir = repoDir
+		g.Expect(cmd.Run()).To(Succeed())
+
+		// List should only return task worktree
+		worktrees, err := m.List()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(HaveLen(1))
+		g.Expect(worktrees[0].TaskID).To(Equal("TASK-001"))
+
+		// Cleanup
+		_ = m.Cleanup("TASK-001")
+		cmd = exec.Command("git", "worktree", "remove", "--force", featurePath)
+		cmd.Dir = repoDir
+		_ = cmd.Run()
+	})
+}
