@@ -1,0 +1,111 @@
+[project]
+  name = "issue-037-artifact-preconditions"
+  created = 2026-02-03T14:52:26.812289-05:00
+  phase = "complete"
+  workflow = "task"
+  issue = "ISSUE-037"
+
+[progress]
+  current_task = ""
+  current_subphase = ""
+  tasks_complete = 0
+  tasks_total = 0
+  tasks_escalated = 0
+
+[conflicts]
+  open = 0
+
+[meta]
+  corrections_since_last_audit = 0
+
+[[history]]
+  timestamp = 2026-02-03T14:52:26.812289-05:00
+  phase = "init"
+
+[[history]]
+  timestamp = 2026-02-03T14:52:26.81284-05:00
+  phase = "task-implementation"
+
+[[history]]
+  timestamp = 2026-02-03T14:52:42.116666-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-03T14:52:42.124625-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-03T14:54:35.430994-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-03T14:54:35.43767-05:00
+  phase = "tdd-green"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.093885-05:00
+  phase = "commit-green"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.10163-05:00
+  phase = "tdd-refactor"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.108862-05:00
+  phase = "commit-refactor"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.115915-05:00
+  phase = "task-audit"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.122607-05:00
+  phase = "task-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:28.130327-05:00
+  phase = "implementation-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:34.046823-05:00
+  phase = "documentation"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:34.054772-05:00
+  phase = "documentation-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:34.062332-05:00
+  phase = "alignment"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:34.070326-05:00
+  phase = "alignment-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:34.078111-05:00
+  phase = "retro"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:48.77488-05:00
+  phase = "retro-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:56:48.78288-05:00
+  phase = "summary"
+
+[[history]]
+  timestamp = 2026-02-03T14:57:02.278112-05:00
+  phase = "summary-complete"
+
+[[history]]
+  timestamp = 2026-02-03T14:57:02.28498-05:00
+  phase = "issue-update"
+
+[[history]]
+  timestamp = 2026-02-03T14:57:14.511886-05:00
+  phase = "next-steps"
+
+[[history]]
+  timestamp = 2026-02-03T14:57:14.519337-05:00
+  phase = "complete"

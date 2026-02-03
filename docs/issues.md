@@ -1711,7 +1711,7 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 ## ISSUE-037: State transitions should enforce artifact preconditions
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** Phase transitions like `retro → retro-complete` can succeed without the required artifact (retro.md) existing. This allows skipping phases without producing outputs.
@@ -1729,3 +1729,8 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 - [ ] Tests verify transitions fail without artifacts
 
 **Traces to:** ISSUE-036 Retrospective R1
+
+
+### Comment
+
+Completed via project issue-037-artifact-preconditions. Added preconditions for retro.md and summary.md.
