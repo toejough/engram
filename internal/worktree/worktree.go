@@ -164,34 +164,6 @@ func (m *Manager) Cleanup(taskID string) error {
 }
 
 // CleanupAll removes all task worktrees and their branches.
-func (m *Manager) CleanupAll() error {
-	parentDir := m.ParentDir()
-
-	// Check if parent directory exists
-	entries, err := os.ReadDir(parentDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// No worktrees to clean up
-			return nil
-		}
-		return fmt.Errorf("failed to read worktrees directory: %w", err)
-	}
-
-	// Clean up each worktree found in the parent directory
-	for _, entry := range entries {
-		if entry.IsDir() {
-			taskID := entry.Name()
-			if err := m.Cleanup(taskID); err != nil {
-				return fmt.Errorf("failed to cleanup worktree %s: %w", taskID, err)
-			}
-		}
-	}
-
-	// Try to remove parent dir if empty (should be after all cleanups)
-	_ = os.Remove(parentDir)
-
-	return nil
-}
 
 // Merge rebases a task branch onto the target and fast-forward merges.
 func (m *Manager) Merge(taskID, onto string) error {
@@ -253,82 +225,6 @@ type MergeConflictError struct {
 
 func (e *MergeConflictError) Error() string {
 	return fmt.Sprintf("merge conflict for task %s: %s", e.TaskID, e.Message)
-}
-
-// Worktree represents an active task worktree.
-type Worktree struct {
-	TaskID string // The task ID (e.g., "TASK-001")
-	Path   string // Absolute path to worktree directory
-	Branch string // Branch name (e.g., "task/TASK-001")
-}
-
-// List returns all active task worktrees.
-// It parses `git worktree list` output and filters to task/* branches only.
-func (m *Manager) List() ([]Worktree, error) {
-	output, err := m.git("worktree", "list")
-	if err != nil {
-		return nil, fmt.Errorf("failed to list worktrees: %w", err)
-	}
-
-	var worktrees []Worktree
-	lines := strings.Split(strings.TrimSpace(output), "\n")
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		// Parse format: <path> <commit> [<branch>]
-		// Example: /path/to/worktree  abc1234 [task/TASK-001]
-		wt, ok := parseWorktreeLine(line)
-		if !ok {
-			continue
-		}
-
-		// Filter to task/* branches only
-		if !strings.HasPrefix(wt.Branch, "task/") {
-			continue
-		}
-
-		// Extract task ID from branch name
-		wt.TaskID = strings.TrimPrefix(wt.Branch, "task/")
-		worktrees = append(worktrees, wt)
-	}
-
-	return worktrees, nil
-}
-
-// parseWorktreeLine parses a single line from `git worktree list` output.
-// Returns the Worktree and true if parsing succeeded, otherwise empty and false.
-func parseWorktreeLine(line string) (Worktree, bool) {
-	// Format: <path> <commit> [<branch>]
-	// The path can contain spaces, but is followed by multiple spaces before commit
-	// Branch is in square brackets at the end
-
-	// Find the branch in brackets at the end
-	bracketStart := strings.LastIndex(line, "[")
-	bracketEnd := strings.LastIndex(line, "]")
-	if bracketStart == -1 || bracketEnd == -1 || bracketEnd < bracketStart {
-		return Worktree{}, false
-	}
-
-	branch := line[bracketStart+1 : bracketEnd]
-
-	// Everything before the bracket section is path + commit
-	// Split by whitespace to get path (first part) and commit (middle part)
-	beforeBracket := strings.TrimSpace(line[:bracketStart])
-	fields := strings.Fields(beforeBracket)
-	if len(fields) < 2 {
-		return Worktree{}, false
-	}
-
-	// Path is everything except the last field (which is commit)
-	path := strings.Join(fields[:len(fields)-1], " ")
-
-	return Worktree{
-		Path:   path,
-		Branch: branch,
-	}, true
 }
 
 // git runs a git command in the repo directory.
