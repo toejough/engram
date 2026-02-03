@@ -1462,3 +1462,32 @@ When running TDD tasks in parallel via Task tool, the commit-per-phase disciplin
 4. Each agent works on a branch, merge at end
 
 **Traces to:** Process improvement
+
+---
+
+## ISSUE-028: Issue closure should be automatic when linked work completes
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+When a project completes work linked to an issue (via state.toml `issue` field), the issue should be automatically closed or prompted for closure.
+
+**Current state:**
+- Main flow ending includes "Update Issues" phase
+- No `issue-update-producer` skill exists
+- Orchestrator must manually remember to close issues
+- User had to explicitly request issue closure
+
+**Expected:**
+- When `projctl state transition --to complete` (or similar) runs for a project with a linked issue, automatically:
+  1. Update issue status to Closed
+  2. Add comment linking to the project/commits
+  3. Or at minimum, prompt user to confirm closure
+
+**Options:**
+1. Add `issue-update-producer` skill that handles this
+2. Make `projctl state transition --to complete` auto-close linked issue
+3. Add explicit step in orchestrator after implementation-complete
+
+**Traces to:** Process automation
