@@ -109,6 +109,40 @@ If user corrects dispatch decision, capture in retrospective as a learning.
 
 ---
 
+## Project Layout
+
+Project artifacts live at the **project root directory**, not in a `docs/` subdirectory.
+
+```
+.claude/projects/<project-name>/
+├── state.toml           # Project state (phase, task, progress)
+├── requirements.md      # REQ-NNN items
+├── design.md            # DES-NNN items
+├── architecture.md      # ARCH-NNN items
+├── tasks.md             # TASK-NNN breakdown with dependencies
+├── escalations.md       # ESC-NNN unresolved issues
+├── retro.md             # Project retrospective
+└── summary.md           # Project summary
+```
+
+**Key points:**
+- `projctl state init --name foo` creates `.claude/projects/foo/` and `state.toml`
+- All artifact lookups use the project dir directly (not `project-dir/docs/`)
+- The **documentation phase** copies completed artifacts to repo-level `docs/`:
+  - `requirements.md` → `docs/requirements.md`
+  - `design.md` → `docs/design.md`
+  - `architecture.md` → `docs/architecture.md`
+- `tasks.md` stays in the project dir as historical record
+
+**Repo-level docs vs project artifacts:**
+| Location | Purpose |
+|----------|---------|
+| `.claude/projects/<name>/` | Working artifacts for active project |
+| `docs/` | Permanent documentation (updated by doc phase) |
+| `docs/issues.md` | Repo-wide issue tracking |
+
+---
+
 ## Phase Reference
 
 ### Dashboard (`/project`)
