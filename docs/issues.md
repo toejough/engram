@@ -597,7 +597,7 @@ Layer -1 complete. 37 skills unified with yield protocol. See .claude/projects/l
 ## ISSUE-009: State machine transitions don't match orchestration doc
 
 **Priority:** High
-**Status:** Closed (2026-02-03)
+**Status:** Closed
 **Created:** 2026-02-03
 **Blocks:** Layer -1 (ISSUE-008)
 **Resolution:** Updated `internal/state/transitions.go` with correct workflow phases
@@ -667,6 +667,10 @@ init → task-implementation → task-documentation → alignment → retro → 
 
 ---
 
+
+### Comment
+
+Fixed in commit 4087e0f
 ## ISSUE-010: State struct missing workflow type and pair loop tracking
 
 **Priority:** High
@@ -871,6 +875,10 @@ The orchestration doc Section 10.6 specifies `projctl territory map` and `projct
 ### Comment
 
 Added projctl territory show command
+
+### Comment
+
+Fixed in commit 4087e0f
 ## ISSUE-014: Missing `projctl screenshot capture` command
 
 **Priority:** Low
@@ -943,7 +951,7 @@ ISSUE-001 describes the deterministic orchestrator architecture. This issue trac
 ## ISSUE-016: Missing `projctl issue` command for issue tracking
 
 **Priority:** High
-**Status:** Closed (2026-02-03)
+**Status:** Closed
 **Created:** 2026-02-03
 **Blocks:** Layer -1
 **Resolution:** Added `internal/issue` package and CLI commands: `issue create`, `issue update`, `issue list`, `issue get`
@@ -982,6 +990,10 @@ Should integrate with `docs/issues.md` file format:
 
 ---
 
+
+### Comment
+
+Fixed in commit 414a09c
 ## ISSUE-017: Missing `projctl state set` command
 
 **Priority:** High
@@ -1022,7 +1034,7 @@ Add `state set` subcommand to modify state fields without transitioning:
 ## ISSUE-018: Missing `projctl yield validate` command
 
 **Priority:** Medium
-**Status:** Closed (2026-02-03)
+**Status:** Closed
 **Created:** 2026-02-03
 **Blocks:** Layer -1 (validation only)
 **Resolution:** Added `internal/yield` package and CLI commands: `yield validate`, `yield types`
@@ -1057,6 +1069,10 @@ Checks:
 
 ---
 
+
+### Comment
+
+Fixed in commit 651eeb3
 ## ISSUE-019: Documentation phase should re-point test traces from tasks to permanent artifacts
 
 **Priority:** Medium
