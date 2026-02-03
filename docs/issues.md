@@ -1472,7 +1472,7 @@ When running TDD tasks in parallel via Task tool, the commit-per-phase disciplin
 ## ISSUE-028: Issue closure should be automatic when linked work completes
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 When a project completes work linked to an issue (via state.toml `issue` field), the issue should be automatically closed or prompted for closure.
@@ -1498,6 +1498,10 @@ When a project completes work linked to an issue (via state.toml `issue` field),
 
 ---
 
+
+### Comment
+
+Completed via project issue-028-auto-close. Made issue auto-close explicit in SKILL-full.md with deterministic bash commands.
 ## ISSUE-029: Add --project-dir flag to trace commands
 
 **Priority:** High
