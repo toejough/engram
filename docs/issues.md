@@ -336,7 +336,7 @@ Fixed by creating `docs/requirements.md` (REQ-001) and `docs/architecture.md` (A
 ## ISSUE-006: Precondition checker hardcodes `docs/` subdirectory for artifact files
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 
 ### Summary
@@ -423,6 +423,10 @@ Add to docs that projects MUST have a `docs/` subdirectory. Update existing proj
 
 ---
 
+
+### Comment
+
+Fixed via path-fixes project. Changed default DocsDir to empty string and fixed all hardcoded docs/ paths.
 ## ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
 
 **Priority:** High
@@ -1505,7 +1509,7 @@ Completed via project issue-028-auto-close. Made issue auto-close explicit in SK
 ## ISSUE-029: Add --project-dir flag to trace commands
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective R1:
@@ -1524,6 +1528,10 @@ From ISSUE-026 retrospective R1:
 
 ---
 
+
+### Comment
+
+Fixed via path-fixes project. Artifacts now found at project root by default.
 ## ISSUE-030: Create issue-update-producer skill
 
 **Priority:** High
@@ -1734,3 +1742,51 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 ### Comment
 
 Completed via project issue-037-artifact-preconditions. Added preconditions for retro.md and summary.md.
+
+---
+
+## ISSUE-038: State machine should track repo dir separately from project dir
+
+**Priority:** Medium
+**Status:** Closed
+**Created:** 2026-02-03
+
+## Problem
+
+Precondition checks (like `TestsExist`) receive the project directory (e.g., `.claude/projects/path-fixes/`) but need to check the repo's source tree for code artifacts like tests.
+
+Currently, transitioning through TDD phases requires `--force` because `TestsExist` looks for `*_test.go` in the project dir, which only contains planning artifacts.
+
+## Proposal
+
+Track both directories in state:
+
+```toml
+[project]
+name = "path-fixes"
+project_dir = ".claude/projects/path-fixes"
+repo_dir = "."  # auto-detect git root or accept --repo-dir flag
+```
+
+Update precondition checks to use the appropriate directory:
+- Artifact checks (requirements, design, tasks, AC) → `project_dir`
+- Code checks (tests exist, tests pass) → `repo_dir`
+
+## Affected Code
+
+- `internal/state/state.go` - Add `RepoDir` field to ProjectState
+- `cmd/projctl/state.go` - Add `--repo-dir` flag to init, default to git root
+- `cmd/projctl/checker.go` - Update `TestsExist` to use repo dir
+- `internal/state/transitions.go` - Pass both dirs to precondition checker
+
+## Acceptance Criteria
+
+- [x] `projctl state init` accepts optional `--repo-dir` flag
+- [x] `projctl state init` auto-detects git root if `--repo-dir` not provided
+- [x] `state.toml` includes `repo_dir` field
+- [x] `TestsExist` checks repo dir, not project dir
+- [x] TDD phase transitions work without `--force` when tests exist in repo
+
+### Comment
+
+Completed via project state-machine-improvements. Added RepoDir field to state, FindRepoRoot utility for git root detection, --repo-dir flag to init with auto-detection, and wired repo dir to preconditions for code checks. Integration test verifies TDD cycle works with repo dir separation.
