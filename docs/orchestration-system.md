@@ -1103,29 +1103,45 @@ Two-phase migration: first unify skills to the new agent patterns, then migrate 
 Update all skills to unified pattern before projctl takes over orchestration. Test with current `/project` skill.
 
 **Phase Agent Skills** (producer + QA pairs):
-- `pm-producer` / `pm-qa` - requirements gathering and validation
-- `design-producer` / `design-qa` - UX design and validation
-- `arch-producer` / `arch-qa` - architecture decisions and validation
-- `breakdown-producer` / `breakdown-qa` - task decomposition and validation
-- `doc-producer` / `doc-qa` - documentation and validation
+
+| Phase | Interview Producer | Infer Producer | QA |
+|-------|-------------------|----------------|-----|
+| PM | `pm-interview-producer` | `pm-infer-producer` | `pm-qa` |
+| Design | `design-interview-producer` | `design-infer-producer` | `design-qa` |
+| Architecture | `arch-interview-producer` | `arch-infer-producer` | `arch-qa` |
+| Breakdown | `breakdown-producer` | - | `breakdown-qa` |
+| Documentation | `doc-producer` | - | `doc-qa` |
+
+Interview producers: gather requirements via user Q&A (New Project workflow)
+Infer producers: analyze existing code to infer artifacts (Adopt Existing workflow)
 
 **TDD Agent Skills** (nested producer + QA pairs):
-- `tdd-red-producer` / `tdd-red-qa` - test writing
-- `tdd-green-producer` / `tdd-green-qa` - implementation
-- `tdd-refactor-producer` / `tdd-refactor-qa` - refactoring
-- `tdd-qa` - overall TDD quality gate
+
+| Phase | Producer | Infer Producer | QA |
+|-------|----------|----------------|-----|
+| RED | `tdd-red-producer` | `tdd-red-infer-producer` | `tdd-red-qa` |
+| GREEN | `tdd-green-producer` | - | `tdd-green-qa` |
+| REFACTOR | `tdd-refactor-producer` | - | `tdd-refactor-qa` |
+| Overall | - | - | `tdd-qa` |
 
 **Support Agent Skills**:
 - `alignment-producer` / `alignment-qa` - traceability validation
-- `retro-producer` / `retro-qa` - retrospective
+- `retro-producer` / `retro-qa` - retrospective (includes process improvement)
 - `summary-producer` / `summary-qa` - project summary
 - `intake-evaluator` - request type classification
 - `next-steps` - suggest follow-up work
+- `commit` - commit changes (unchanged from current)
 
 **All skills must**:
 - Accept context via standard input format (from orchestrator)
 - Output yield protocol TOML (to orchestrator)
 - Follow producer or QA role guidelines
+
+**Skills to delete** (functionality merged into new skills):
+- `pm-audit`, `design-audit`, `architect-audit`, `task-audit` → merged into QA skills
+- `negotiate` → merged into QA escalate-phase capability
+- `meta-audit` → merged into retro-producer
+- `test-mapper` → obsolete (no TEST-NNN IDs)
 
 **Proves:** Unified agent patterns work with existing `/project` orchestrator before projctl migration.
 

@@ -501,3 +501,74 @@ Update TDD skills to prompt for visual verification:
 **Traces to:** REQ-001
 
 ---
+
+## ISSUE-008: Layer -1 - Unify skills to new orchestration patterns
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-02
+
+### Summary
+
+Update all skills to the unified orchestration patterns (producer/QA pairs, yield protocol) before migrating orchestration from `/project` skill to projctl. This is Layer -1 of the implementation plan in `docs/orchestration-system.md`.
+
+### Problem
+
+The current skills are inconsistent:
+- Some have interview/infer/audit variants, others don't
+- No standard yield protocol output format
+- No standard context input format
+- Orchestration logic mixed with agent behavior
+- Skills don't follow the producer/QA pair pattern
+
+This blocks projctl from taking over orchestration (Layers 0-7) because it needs predictable skill interfaces.
+
+### Desired State
+
+All skills follow the unified pattern:
+1. **Producer/QA pairs** for each phase (pm, design, arch, breakdown, doc, tdd-red, tdd-green, tdd-refactor, alignment, retro, summary)
+2. **Yield protocol TOML output** (type, payload, optional context)
+3. **Standard context input** from orchestrator
+4. **No orchestration logic** - skills just do their work and yield
+
+### Scope
+
+**Phase Agent Skills** (producer + QA pairs):
+- `pm-producer` / `pm-qa`
+- `design-producer` / `design-qa`
+- `arch-producer` / `arch-qa`
+- `breakdown-producer` / `breakdown-qa`
+- `doc-producer` / `doc-qa`
+
+**TDD Agent Skills** (nested producer + QA pairs):
+- `tdd-red-producer` / `tdd-red-qa`
+- `tdd-green-producer` / `tdd-green-qa`
+- `tdd-refactor-producer` / `tdd-refactor-qa`
+- `tdd-qa` (overall TDD quality gate)
+
+**Support Agent Skills**:
+- `alignment-producer` / `alignment-qa`
+- `retro-producer` / `retro-qa`
+- `summary-producer` / `summary-qa`
+- `intake-evaluator`
+- `next-steps`
+- `commit` (already exists, verify compatibility)
+
+### Acceptance Criteria
+
+- [ ] All producer skills output yield protocol TOML
+- [ ] All producer skills accept context from orchestrator
+- [ ] All QA skills output yield protocol TOML (approved | improvement-request | escalate)
+- [ ] Existing `/project` skill can orchestrate the new skills
+- [ ] Skills contain no orchestration logic (state transitions, next phase selection)
+- [ ] Each skill has clear guidelines in its SKILL.md
+
+### Relationship to Other Work
+
+- Prerequisite for ISSUE-001 (deterministic orchestrator)
+- Implements Layer -1 from `docs/orchestration-system.md`
+- Must complete before Layers 0-7 can begin
+
+**Traces to:** docs/orchestration-system.md Section 12 (Implementation Plan)
+
+---
