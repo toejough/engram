@@ -276,7 +276,7 @@ Returns to main flow for Alignment → Retro → Summary → Next Steps.
 
 ```bash
 # Get linked issue from state
-ISSUE=$(projctl state get --dir . | grep -oP 'issue = "\K[^"]+')
+ISSUE=$(projctl state get --dir . | grep 'issue = ' | sed 's/.*issue = "\([^"]*\)".*/\1/')
 
 # If project has a linked issue, close it automatically
 if [ -n "$ISSUE" ]; then
