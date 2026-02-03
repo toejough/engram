@@ -20,6 +20,7 @@ type Project struct {
 	Phase    string    `toml:"phase"`
 	Workflow string    `toml:"workflow"` // new | adopt | align | task
 	Issue    string    `toml:"issue,omitempty"`
+	RepoDir  string    `toml:"repo_dir,omitempty"` // Repository root for code artifacts
 }
 
 // Progress tracks implementation progress.
@@ -94,6 +95,7 @@ type State struct {
 type InitOpts struct {
 	Workflow string // new | adopt | align | task (defaults to "new")
 	Issue    string // optional issue ID to link
+	RepoDir  string // repository root for code artifacts (optional)
 }
 
 // Init creates a new state file in the given directory.
@@ -114,11 +116,13 @@ func Init(dir string, name string, now func() time.Time, opts ...InitOpts) (Stat
 	// Apply options
 	workflow := "new"
 	issue := ""
+	repoDir := ""
 	if len(opts) > 0 {
 		if opts[0].Workflow != "" {
 			workflow = opts[0].Workflow
 		}
 		issue = opts[0].Issue
+		repoDir = opts[0].RepoDir
 	}
 
 	s := State{
@@ -128,6 +132,7 @@ func Init(dir string, name string, now func() time.Time, opts ...InitOpts) (Stat
 			Phase:    "init",
 			Workflow: workflow,
 			Issue:    issue,
+			RepoDir:  repoDir,
 		},
 		History: []PhaseTransition{
 			{Timestamp: t, Phase: "init"},

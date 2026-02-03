@@ -134,6 +134,34 @@ func TestInit(t *testing.T) {
 		g.Expect(loaded.Project.Workflow).To(Equal("task"))
 		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-099"))
 	})
+
+	t.Run("accepts repo_dir option", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			RepoDir: "/path/to/repo",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.RepoDir).To(Equal("/path/to/repo"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.RepoDir).To(Equal("/path/to/repo"))
+	})
+
+	t.Run("repo_dir defaults to empty when not provided", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.RepoDir).To(Equal(""))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.RepoDir).To(Equal(""))
+	})
 }
 
 func TestInitProperty(t *testing.T) {
