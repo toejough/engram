@@ -508,6 +508,117 @@ func TestCompletedTasksProperty(t *testing.T) {
 	})
 }
 
+// traces: ISSUE-037
+// Test that retro-complete requires retro.md to exist.
+func TestArtifactPreconditions(t *testing.T) {
+	// Use adopt workflow which has a simpler path to main flow ending
+	adoptPathToRetro := []string{
+		"adopt-explore", "adopt-infer-tests", "adopt-infer-arch",
+		"adopt-infer-design", "adopt-infer-reqs", "adopt-escalations",
+		"adopt-documentation", "alignment", "alignment-complete", "retro",
+	}
+
+	t.Run("retro-complete fails without retro.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Fast-forward to retro phase using adopt workflow
+		for _, phase := range adoptPathToRetro {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+		}
+
+		// Now try to transition to retro-complete without retro.md
+		checker := &mockArtifactChecker{retroExists: false}
+		_, err = state.TransitionWithChecker(dir, "retro-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("retro.md"))
+	})
+
+	t.Run("retro-complete succeeds with retro.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Fast-forward to retro phase using adopt workflow
+		for _, phase := range adoptPathToRetro {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+		}
+
+		// Now try to transition to retro-complete with retro.md existing
+		checker := &mockArtifactChecker{retroExists: true}
+		_, err = state.TransitionWithChecker(dir, "retro-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("summary-complete fails without summary.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Fast-forward to summary phase using adopt workflow
+		adoptPathToSummary := append(adoptPathToRetro, "retro-complete", "summary")
+		for _, phase := range adoptPathToSummary {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+		}
+
+		// Now try to transition to summary-complete without summary.md
+		checker := &mockArtifactChecker{summaryExists: false}
+		_, err = state.TransitionWithChecker(dir, "summary-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("summary.md"))
+	})
+
+	t.Run("summary-complete succeeds with summary.md", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Fast-forward to summary phase using adopt workflow
+		adoptPathToSummary := append(adoptPathToRetro, "retro-complete", "summary")
+		for _, phase := range adoptPathToSummary {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+		}
+
+		// Now try to transition to summary-complete with summary.md existing
+		checker := &mockArtifactChecker{summaryExists: true}
+		_, err = state.TransitionWithChecker(dir, "summary-complete", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+}
+
+// mockArtifactChecker implements PreconditionChecker for testing artifact preconditions.
+type mockArtifactChecker struct {
+	retroExists   bool
+	summaryExists bool
+}
+
+func (m *mockArtifactChecker) RequirementsExist(dir string) bool              { return true }
+func (m *mockArtifactChecker) RequirementsHaveIDs(dir string) bool            { return true }
+func (m *mockArtifactChecker) DesignExists(dir string) bool                   { return true }
+func (m *mockArtifactChecker) DesignHasIDs(dir string) bool                   { return true }
+func (m *mockArtifactChecker) TraceValidationPasses(dir string) bool          { return true }
+func (m *mockArtifactChecker) TestsExist(dir string) bool                     { return true }
+func (m *mockArtifactChecker) TestsFail(dir string) bool                      { return true }
+func (m *mockArtifactChecker) TestsPass(dir string) bool                      { return true }
+func (m *mockArtifactChecker) AcceptanceCriteriaComplete(dir, taskID string) bool { return true }
+func (m *mockArtifactChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string { return nil }
+func (m *mockArtifactChecker) UnblockedTasks(dir string, failedTask string) []string { return nil }
+func (m *mockArtifactChecker) RetroExists(dir string) bool                    { return m.retroExists }
+func (m *mockArtifactChecker) SummaryExists(dir string) bool                  { return m.summaryExists }
+
 func TestYieldTracking(t *testing.T) {
 	t.Run("tracks pending yield", func(t *testing.T) {
 		g := NewWithT(t)
