@@ -384,17 +384,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-18: Create tdd-red-producer
+### TASK-18: Create tdd-red-producer ✓
 
 **Description:** Create TDD Red producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Writes failing tests for task
-- [ ] Outputs yield protocol TOML
-- [ ] Tests must fail (verifies correct red state)
+**Status:** Complete
 
-**Files:** `skills/tdd-red-producer/SKILL.md`, `skills/tdd-red-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Writes failing tests for task
+- [x] Outputs yield protocol TOML
+- [x] Tests must fail (verifies correct red state)
+
+**Files:** `skills/tdd-red-producer/SKILL.md`, `skills/tdd-red-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -402,17 +404,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-19: Create tdd-red-infer-producer
+### TASK-19: Create tdd-red-infer-producer ✓
 
 **Description:** Create TDD Red infer producer for existing code.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Analyzes existing implementation to infer needed tests
-- [ ] Outputs yield protocol TOML
-- [ ] Can yield need-context for code exploration
+**Status:** Complete
 
-**Files:** `skills/tdd-red-infer-producer/SKILL.md`, `skills/tdd-red-infer-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Analyzes existing implementation to infer needed tests
+- [x] Outputs yield protocol TOML
+- [x] Can yield need-context for code exploration
+
+**Files:** `skills/tdd-red-infer-producer/SKILL.md`, `skills/tdd-red-infer-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -420,17 +424,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-20: Create tdd-green-producer
+### TASK-20: Create tdd-green-producer ✓
 
 **Description:** Create TDD Green producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Writes minimal implementation to pass tests
-- [ ] Outputs yield protocol TOML
-- [ ] All targeted tests must pass
+**Status:** Complete
 
-**Files:** `skills/tdd-green-producer/SKILL.md`, `skills/tdd-green-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Writes minimal implementation to pass tests
+- [x] Outputs yield protocol TOML
+- [x] All targeted tests must pass
+
+**Files:** `skills/tdd-green-producer/SKILL.md`, `skills/tdd-green-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -438,17 +444,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-21: Create tdd-refactor-producer
+### TASK-21: Create tdd-refactor-producer ✓
 
 **Description:** Create TDD Refactor producer skill.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure
-- [ ] Improves code quality while keeping tests green
-- [ ] Outputs yield protocol TOML
-- [ ] All tests must still pass after refactor
+**Status:** Complete
 
-**Files:** `skills/tdd-refactor-producer/SKILL.md`, `skills/tdd-refactor-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure
+- [x] Improves code quality while keeping tests green
+- [x] Outputs yield protocol TOML
+- [x] All tests must still pass after refactor
+
+**Files:** `skills/tdd-refactor-producer/SKILL.md`, `skills/tdd-refactor-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-3
 
@@ -456,16 +464,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-22: Create tdd-red-qa, tdd-green-qa, tdd-refactor-qa
+### TASK-22: Create tdd-red-qa, tdd-green-qa, tdd-refactor-qa ✓
 
 **Description:** Create QA skills for each TDD phase.
 
+**Status:** Complete
+
 **Acceptance Criteria:**
-- [ ] Each follows QA-TEMPLATE structure
-- [ ] tdd-red-qa: Verifies tests cover ACs, fail for right reasons
-- [ ] tdd-green-qa: Verifies all tests pass, no regressions
-- [ ] tdd-refactor-qa: Verifies tests still pass, code improved
-- [ ] All can yield approved, improvement-request, escalate-phase
+- [x] Each follows QA-TEMPLATE structure
+- [x] tdd-red-qa: Verifies tests cover ACs, fail for right reasons
+- [x] tdd-green-qa: Verifies all tests pass, no regressions
+- [x] tdd-refactor-qa: Verifies tests still pass, code improved
+- [x] All can yield approved, improvement-request, escalate-phase
 
 **Files:** `skills/tdd-red-qa/`, `skills/tdd-green-qa/`, `skills/tdd-refactor-qa/`
 
@@ -495,17 +505,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-23: Create tdd-qa
+### TASK-23: Create tdd-qa ✓
 
 **Description:** Create overall TDD QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Validates overall AC compliance after RED/GREEN/REFACTOR
-- [ ] Checks TDD discipline was followed
-- [ ] Can yield approved, improvement-request, escalate-phase
+**Status:** Complete
 
-**Files:** `skills/tdd-qa/SKILL.md`, `skills/tdd-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Validates overall AC compliance after RED/GREEN/REFACTOR
+- [x] Checks TDD discipline was followed
+- [x] Can yield approved, improvement-request, escalate-phase
+
+**Files:** `skills/tdd-qa/SKILL.md`, `skills/tdd-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
