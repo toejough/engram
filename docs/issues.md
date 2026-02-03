@@ -1670,3 +1670,29 @@ From ISSUE-026 retrospective Q3:
 **Decision needed before:** Next skill enhancement project
 
 **Traces to:** ISSUE-026 Retrospective Q3, ISSUE-002
+
+---
+
+## ISSUE-036: projctl state init should default to .claude/projects/<name>/
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** When initializing a project with `projctl state init --name X --dir .`, the state.toml is created at the repo root instead of in the proper project directory. This leads to:
+- Project artifacts scattered in wrong locations
+- Manual cleanup required after project completion
+- Easy to forget the correct `--dir` value
+
+**Solution:** When `--name` is provided, automatically use `.claude/projects/<name>/` as the default directory:
+- Create the directory if it doesn't exist
+- Make `--dir` optional (override only if explicitly provided)
+- Fail if directory already has a state.toml (existing project)
+
+**Acceptance Criteria:**
+- [ ] `projctl state init --name foo` creates `.claude/projects/foo/state.toml`
+- [ ] `projctl state init --name foo --dir /custom/path` still works (explicit override)
+- [ ] Error if `.claude/projects/foo/state.toml` already exists
+- [ ] Update SKILL-full.md initialization examples to remove `--dir .`
+
+**Traces to:** ISSUE-034 (related decision), ISSUE-028 retrospective
