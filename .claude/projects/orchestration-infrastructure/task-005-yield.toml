@@ -1,0 +1,46 @@
+[yield]
+type = "complete"
+timestamp = 2026-02-03T00:00:00Z
+
+[payload]
+task_id = "TASK-005"
+summary = "Added trace.Show() function for ASCII tree and JSON graph visualization"
+
+[payload.changes]
+files = [
+    "internal/trace/trace.go",
+    "internal/trace/trace_test.go"
+]
+additions = [
+    "Added Show(dir, format) function - returns ASCII tree or JSON graph",
+    "Added ShowNode struct with ID, Orphan, Unlinked fields for JSON output",
+    "Added ShowEdge struct with From, To fields for JSON output",
+    "Added ShowGraph struct with Nodes, Edges arrays for JSON output",
+    "Added buildShowGraph() - constructs graph from artifact files using ValidateV2Artifacts",
+    "Added formatJSON() - returns indented JSON representation",
+    "Added formatASCII() - returns hierarchical tree with box-drawing characters",
+    "Added printTree() - recursive tree rendering with cycle detection",
+    "Orphan IDs marked with [ORPHAN] in ASCII output",
+    "Unlinked IDs marked with [UNLINKED] in ASCII output",
+    "Added 8 test cases covering both formats and edge cases"
+]
+
+[payload.acceptance_criteria]
+ascii_tree_output = true
+json_graph_output = true
+orphan_ids_marked = true
+unlinked_ids_marked = true
+uses_validate_logic = true
+unit_tests_both_formats = true
+
+[payload.test_coverage]
+test_cases = [
+    "returns ASCII tree for simple chain",
+    "marks orphan IDs in ASCII output",
+    "marks unlinked IDs in ASCII output",
+    "returns JSON graph format",
+    "JSON includes orphan and unlinked markers",
+    "rejects invalid format",
+    "handles empty directory",
+    "ASCII tree shows hierarchical structure"
+]

@@ -25,24 +25,31 @@ This skill follows the QA-TEMPLATE pattern.
 
 Validate that TDD was executed correctly and acceptance criteria are satisfied:
 
-1. Read task context and acceptance criteria
-2. Verify RED phase discipline:
+1. Read task context and acceptance criteria from tasks.md
+2. Parse AC completeness:
+   - Extract all acceptance criteria items (`- [ ]` or `- [x]`)
+   - Track which AC items are checked vs unchecked
+   - Note any deferral language in producer artifacts or commits
+3. Verify RED phase discipline:
    - Tests were written first (before implementation)
    - Tests initially failed for correct reasons
    - All acceptance criteria mapped to at least one test
-3. Verify GREEN phase discipline:
+4. Verify GREEN phase discipline:
    - Implementation was minimal (no premature optimization)
    - All tests now pass
    - No behavior beyond acceptance criteria added
-4. Verify REFACTOR phase discipline:
+5. Verify REFACTOR phase discipline:
    - Tests stayed green throughout
    - No behavior changes during refactoring
    - Code quality improved (linter issues fixed)
-5. Validate overall acceptance criteria:
+6. Validate overall acceptance criteria:
    - Each criterion has passing test(s)
    - Implementation matches requirements
    - No regressions in existing functionality
-6. Compile findings
+7. Check for AC completeness violations:
+   - Any `[ ]` (unchecked) AC items = incomplete work
+   - Deferral language ("defer", "skip", "out of scope", "later", "future") in producer output = escalation needed
+8. Compile findings
 
 #### TDD Discipline Checklist
 
@@ -60,6 +67,8 @@ Validate that TDD was executed correctly and acceptance criteria are satisfied:
 - [ ] Implementation matches requirements spec
 - [ ] No unrelated changes included
 - [ ] Traceability maintained (TASK-N links)
+- [ ] All AC items are `[x]` (none remain `[ ]`)
+- [ ] No deferral language in producer artifacts
 
 ### 2. RETURN Phase
 
@@ -108,6 +117,35 @@ issues = [
     "AC-3 missing test coverage",
     "Implementation added behavior not in acceptance criteria",
     "Linter issues remain unfixed"
+]
+
+[context]
+phase = "tdd"
+role = "qa"
+iteration = 2
+max_iterations = 3
+```
+
+**Yield `improvement-request` for unchecked AC items:**
+
+When parsing the task definition shows acceptance criteria that remain unchecked (`[ ]`), this indicates incomplete work.
+
+```toml
+[yield]
+type = "improvement-request"
+timestamp = 2026-02-02T12:05:00Z
+
+[payload]
+from_agent = "tdd-qa"
+to_agent = "tdd-green"
+iteration = 2
+issues = [
+    "AC incomplete: '[ ] Error if task doesn't exist in tasks.md' - not implemented",
+    "AC incomplete: '[ ] Unit tests cover all new methods' - missing test coverage"
+]
+unchecked_ac = [
+    "Error if task doesn't exist in tasks.md",
+    "Unit tests cover all new methods"
 ]
 
 [context]
@@ -171,6 +209,33 @@ role = "qa"
 escalating = true
 ```
 
+**Yield `escalate-user` for deferral claims:**
+
+When producer output contains deferral language (defer, skip, out of scope, later, future), escalate to user for explicit approval. Do not allow silent deferral.
+
+```toml
+[yield]
+type = "escalate-user"
+timestamp = 2026-02-02T12:15:00Z
+
+[payload]
+reason = "Producer claimed deferral without user approval"
+context = "Producer output contains: 'Error handling deferred to future task'"
+deferral_detected = "Error handling deferred to future task"
+question = "Approve deferral of error handling, or require completion now?"
+options = [
+    "Approve deferral - create follow-up issue",
+    "Reject deferral - must complete in this task",
+    "Modify scope - adjust acceptance criteria"
+]
+
+[context]
+phase = "tdd"
+role = "qa"
+escalating = true
+deferral_keywords_found = ["deferred", "future"]
+```
+
 ## Iteration Limits
 
 QA tracks iterations to prevent infinite loops:
@@ -185,6 +250,35 @@ After max iterations:
 1. Yield `escalate-user` if issues remain unresolved
 2. Or yield `approved` with caveats noted in payload
 
+## AC Completeness Validation
+
+This skill enforces strict acceptance criteria completeness. No silent deferrals.
+
+### Parsing AC from tasks.md
+
+1. Locate the task definition in tasks.md by TASK-N ID
+2. Extract all lines matching `- [ ]` or `- [x]` under **Acceptance Criteria:**
+3. Build a checklist of AC items with their completion status
+
+### Unchecked AC Items
+
+If any AC item remains `[ ]` (unchecked):
+- This is incomplete work, not a minor issue
+- Yield `improvement-request` with explicit list of unchecked items
+- Producer must complete the work or escalate
+
+### Deferral Detection
+
+Scan producer artifacts (code, commits, yield files) for deferral language:
+- Keywords: "defer", "skip", "out of scope", "later", "future", "TODO", "FIXME"
+- Context: comments, commit messages, yield payloads
+
+If deferral language detected:
+- Yield `escalate-user` immediately
+- Include the exact deferral text found
+- User must explicitly approve or reject deferral
+- No silent deferrals are permitted
+
 ## Quality Criteria
 
 TDD execution must demonstrate:
@@ -194,3 +288,4 @@ TDD execution must demonstrate:
 3. **Correctness**: Implementation matches spec
 4. **Cleanliness**: Linter issues addressed
 5. **Traceability**: Links to TASK-N maintained
+6. **Completeness**: All AC items checked, no silent deferrals

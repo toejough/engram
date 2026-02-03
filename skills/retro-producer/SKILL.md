@@ -10,7 +10,7 @@ phase: retro
 
 # Retrospective Producer
 
-Produce a project retrospective analyzing what went well, what could improve, and actionable recommendations for process improvement.
+Produce a project retrospective analyzing what went well, what could improve, and actionable recommendations for process improvement. Creates issues for high-priority recommendations.
 
 ## Quick Reference
 
@@ -18,7 +18,7 @@ Produce a project retrospective analyzing what went well, what could improve, an
 |--------|---------|
 | Input | Context TOML with project artifacts and session data |
 | Analysis | Requirements, design, implementation, decisions, blockers |
-| Output | Retrospective with successes, challenges, and action items |
+| Output | Retrospective with successes, challenges, action items, and issue creation |
 
 ## Workflow
 
@@ -51,8 +51,34 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - **Successes**: What went well
    - **Challenges**: What could improve
    - **Recommendations**: Action items for future projects
+   - **Open Questions**: Unresolved decisions or ambiguities
 2. Include metrics where available (iteration counts, blockers)
-3. Yield `complete` with artifact path
+3. Create issues for actionable items (see Issue Creation below)
+4. Yield `complete` with artifact path and issue IDs
+
+### Issue Creation
+
+After generating the retrospective, create issues for follow-up work:
+
+1. **High/Medium priority recommendations**: For each recommendation with priority High or Medium:
+   ```bash
+   projctl issue create \
+     --title "Retro: <recommendation action>" \
+     --priority <High|Medium> \
+     --body "From retrospective: <rationale>"
+   ```
+
+2. **Open questions**: For each unresolved question:
+   ```bash
+   projctl issue create \
+     --title "Decision needed: <question summary>" \
+     --priority Medium \
+     --body "Context: <question context>"
+   ```
+
+3. **Track created IDs**: Collect all created issue IDs for the yield payload
+
+Low priority recommendations do not get issues - they are documented for future reference only.
 
 ## Yield Protocol
 
@@ -62,7 +88,7 @@ See [YIELD.md](../shared/YIELD.md) for full protocol.
 
 | Type | When |
 |------|------|
-| `complete` | Retrospective generated successfully |
+| `complete` | Retrospective generated and issues created |
 | `need-context` | Need session data, artifacts, or logs |
 | `blocked` | Cannot proceed (missing project data) |
 | `error` | Something failed |
@@ -76,7 +102,8 @@ timestamp = 2026-02-02T16:00:00Z
 
 [payload]
 artifact = "docs/retrospective.md"
-files_modified = ["docs/retrospective.md"]
+files_modified = ["docs/retrospective.md", "docs/issues.md"]
+issues_created = ["ISSUE-007", "ISSUE-008", "ISSUE-009"]
 
 [[payload.successes]]
 area = "Requirements Phase"
@@ -90,6 +117,24 @@ description = "Missing context on existing auth system caused rework"
 priority = "high"
 action = "Include system inventory in project kickoff"
 rationale = "Would have avoided ARCH-3 rework"
+issue = "ISSUE-007"
+
+[[payload.recommendations]]
+priority = "medium"
+action = "Add context caching for frequently-accessed artifacts"
+rationale = "Reduce redundant file reads"
+issue = "ISSUE-008"
+
+[[payload.recommendations]]
+priority = "low"
+action = "Consider batch yield validation"
+rationale = "Minor efficiency gain"
+# No issue created for low priority
+
+[[payload.open_questions]]
+question = "Should skills support multiple concurrent yields?"
+context = "Edge case discovered during implementation"
+issue = "ISSUE-009"
 
 [context]
 phase = "retro"
@@ -132,6 +177,17 @@ Example recommendations:
 - "Include edge case checklist in requirements template"
 - "Establish context caching for frequently-accessed artifacts"
 
+### 5. Open Questions
+
+Document unresolved decisions or ambiguities discovered during the project:
+- Questions that arose but weren't answered
+- Deferred decisions that need future attention
+- Scope items that were excluded but may be valuable
+
+Example open questions:
+- "Should offline mode support bidirectional sync?"
+- "What is the retention policy for cached context?"
+
 ## Traceability
 
 Retrospective traces to:
@@ -141,8 +197,48 @@ Retrospective traces to:
 
 ## Result Format
 
-`result.toml`: `[status]`, artifact path, `[[successes]]`, `[[challenges]]`, `[[recommendations]]`
+`result.toml`: `[status]`, artifact path, `[[successes]]`, `[[challenges]]`, `[[recommendations]]`, `[[open_questions]]`, `issues_created`
 
 ## Full Documentation
 
 `projctl skills docs --skillname retro-producer` or see SKILL-full.md
+
+## Issue Creation Details
+
+The skill creates issues automatically for:
+
+| Item Type | Condition | Issue Title Format |
+|-----------|-----------|-------------------|
+| Recommendation | Priority = High | "Retro: <action>" |
+| Recommendation | Priority = Medium | "Retro: <action>" |
+| Open Question | Always | "Decision needed: <question>" |
+
+Issues are NOT created for:
+- Low priority recommendations (documented only)
+- Successes (no follow-up needed)
+- Challenges (addressed by recommendations)
+
+### Issue Body Format
+
+For recommendations:
+```
+From retrospective: <rationale>
+
+Area: <area>
+Related challenges: <if applicable>
+```
+
+For open questions:
+```
+Unresolved question from retrospective.
+
+Context: <question context>
+```
+
+### Error Handling
+
+If `projctl issue create` fails:
+- Log the error
+- Continue with remaining issues
+- Include partial `issues_created` list in yield
+- Add failed items to `issues_failed` array in payload

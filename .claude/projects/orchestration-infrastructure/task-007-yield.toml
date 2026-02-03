@@ -1,0 +1,42 @@
+# Yield for TASK-007: Add trace promote functionality to internal/trace
+
+[yield]
+type = "task-complete"
+task_id = "TASK-007"
+status = "complete"
+
+[yield.summary]
+description = "Implemented trace.Promote() function that finds test files with TASK traces and replaces them with permanent artifact IDs"
+
+[yield.artifacts]
+created = [
+    "internal/trace/promote.go",
+    "internal/trace/promote_test.go",
+]
+
+[yield.acceptance_criteria]
+completed = [
+    "`trace.Promote(dir)` finds test files with TASK traces",
+    "Looks up TASK's Traces-to field in tasks.md",
+    "Replaces `// traces: TASK-NNN` with permanent ID",
+    "Returns list of promotions made",
+    "Handles Go, TypeScript, JavaScript test files",
+    "Unit tests with example test files",
+]
+
+[yield.test_results]
+tests_run = 14
+tests_passed = 14
+tests_failed = 0
+coverage_relevant = true
+
+[yield.implementation_notes]
+details = """
+The implementation:
+1. Scans directories recursively for test files (*_test.go, *.test.ts, *.spec.ts, etc.)
+2. Parses tasks.md to build a map of TASK-NNN -> Traces-to targets
+3. Finds `// traces: TASK-NNN` comments and replaces with the permanent trace targets
+4. Returns PromoteResult with Promotions (successful) and Skipped (failed) lists
+5. Skips vendor/, node_modules/, and .git/ directories
+6. Handles edge cases: task not found, task has no Traces-to field, multiple trace targets
+"""

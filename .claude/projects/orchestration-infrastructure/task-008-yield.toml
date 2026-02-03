@@ -1,0 +1,53 @@
+# Yield for TASK-008: Add `projctl trace promote` CLI command
+
+[yield]
+type = "complete"
+task_id = "TASK-008"
+timestamp = "2026-02-03T17:07:58Z"
+
+[yield.summary]
+description = "Implemented `projctl trace promote` CLI command that promotes TASK traces in test files to permanent artifact IDs"
+
+[yield.artifacts]
+modified = [
+    "internal/trace/promote.go",
+    "internal/trace/promote_test.go",
+    "cmd/projctl/trace.go",
+    "cmd/projctl/trace_test.go",
+    "cmd/projctl/main.go",
+]
+
+[yield.acceptance_criteria]
+completed = [
+    "`projctl trace promote` promotes all TASK traces to permanent artifact IDs",
+    "--dryrun flag shows what would be changed without modifying files",
+    "Reports number of files modified",
+    "--json flag outputs structured JSON",
+    "Unit tests verify CLI behavior",
+]
+
+[yield.test_results]
+tests_run = 19
+tests_passed = 19
+tests_failed = 0
+coverage_relevant = true
+
+[yield.implementation_notes]
+details = """
+Changes made:
+1. Added `dryRun` parameter to internal trace.Promote() function
+2. Implemented tracePromote CLI handler in cmd/projctl/trace.go
+3. Registered command in main.go as `projctl trace promote`
+4. Added TEST-314 for dry-run behavior in internal tests
+5. Added TEST-800 through TEST-803 for CLI tests
+
+CLI options:
+  --dir, -d: Project directory (required)
+  --dryrun, -n: Show what would be changed without modifying files
+  --json, -j: Output as JSON
+
+Output includes:
+- List of promotions (file, line, old trace, new trace)
+- List of skipped traces with reasons
+- Count of files modified/would be modified
+"""

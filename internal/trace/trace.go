@@ -2,10 +2,12 @@
 package trace
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -821,4 +823,288 @@ func save(dir string, m Matrix) error {
 	}
 
 	return nil
+}
+
+// ShowNode represents a node in the trace graph for JSON output.
+type ShowNode struct {
+	ID       string `json:"id"`
+	Orphan   bool   `json:"orphan,omitempty"`
+	Unlinked bool   `json:"unlinked,omitempty"`
+}
+
+// ShowEdge represents an edge in the trace graph for JSON output.
+type ShowEdge struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// ShowGraph represents the complete trace graph for JSON output.
+type ShowGraph struct {
+	Nodes []ShowNode `json:"nodes"`
+	Edges []ShowEdge `json:"edges"`
+}
+
+// Show returns a visualization of the traceability graph.
+// Format can be "ascii" for an ASCII tree or "json" for a JSON graph.
+func Show(dir, format string) (string, error) {
+	if format != "ascii" && format != "json" {
+		return "", fmt.Errorf("invalid format: %s (must be 'ascii' or 'json')", format)
+	}
+
+	// Use ValidateV2Artifacts to get orphan/unlinked status
+	result, err := ValidateV2Artifacts(dir)
+	if err != nil {
+		return "", err
+	}
+
+	// Build graph from artifact files
+	graph, err := buildShowGraph(dir, result)
+	if err != nil {
+		return "", err
+	}
+
+	if format == "json" {
+		return formatJSON(graph)
+	}
+
+	return formatASCII(graph, result)
+}
+
+// buildShowGraph constructs the graph from artifact files.
+func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return ShowGraph{}, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
+	if err != nil {
+		return ShowGraph{}, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Collect all defined IDs and edges
+	definedIDs := make(map[string]bool)
+	edges := make([]ShowEdge, 0)
+
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
+	}
+
+	// Also look for feature-specific files
+	docsDir := filepath.Join(dir, "docs")
+	featurePatterns := []string{
+		filepath.Join(docsDir, "design-*.md"),
+		filepath.Join(docsDir, "requirements-*.md"),
+		filepath.Join(docsDir, "architecture-*.md"),
+	}
+
+	for _, pattern := range featurePatterns {
+		matches, globErr := filepath.Glob(pattern)
+		if globErr == nil {
+			for _, match := range matches {
+				relPath, _ := filepath.Rel(dir, match)
+				artifactPaths = append(artifactPaths, relPath)
+			}
+		}
+	}
+
+	// Patterns for parsing
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}):\s*`)
+	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
+
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return ShowGraph{}, fmt.Errorf("failed to read %s: %w", relPath, err)
+		}
+
+		lines := strings.Split(string(data), "\n")
+		var currentID string
+		for _, line := range lines {
+			// Check for ID definitions
+			if match := idDefPattern.FindStringSubmatch(line); match != nil {
+				currentID = match[1]
+				definedIDs[currentID] = true
+			}
+
+			// Check for Traces to: references
+			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
+				refs := idRefPattern.FindAllString(match[1], -1)
+				for _, ref := range refs {
+					if currentID != "" {
+						edges = append(edges, ShowEdge{From: currentID, To: ref})
+					}
+				}
+			}
+		}
+	}
+
+	// Also scan test files for TEST traces
+	testTraces, err := scanTestFiles(dir)
+	if err != nil {
+		return ShowGraph{}, fmt.Errorf("failed to scan test files: %w", err)
+	}
+
+	for id, testTrace := range testTraces {
+		definedIDs[id] = true
+		for _, target := range testTrace.TracesTo {
+			edges = append(edges, ShowEdge{From: id, To: target})
+		}
+	}
+
+	// Build orphan and unlinked sets for quick lookup
+	orphanSet := make(map[string]bool)
+	for _, id := range validation.OrphanIDs {
+		orphanSet[id] = true
+	}
+
+	unlinkedSet := make(map[string]bool)
+	for _, id := range validation.UnlinkedIDs {
+		unlinkedSet[id] = true
+	}
+
+	// Create node list
+	var nodes []ShowNode
+	allIDs := make(map[string]bool)
+
+	// Add defined IDs
+	for id := range definedIDs {
+		allIDs[id] = true
+	}
+
+	// Add orphan IDs (referenced but not defined)
+	for _, id := range validation.OrphanIDs {
+		allIDs[id] = true
+	}
+
+	// Sort IDs for deterministic output
+	sortedIDs := make([]string, 0, len(allIDs))
+	for id := range allIDs {
+		sortedIDs = append(sortedIDs, id)
+	}
+	sort.Strings(sortedIDs)
+
+	for _, id := range sortedIDs {
+		nodes = append(nodes, ShowNode{
+			ID:       id,
+			Orphan:   orphanSet[id],
+			Unlinked: unlinkedSet[id],
+		})
+	}
+
+	return ShowGraph{Nodes: nodes, Edges: edges}, nil
+}
+
+func formatJSON(graph ShowGraph) (string, error) {
+	data, err := json.MarshalIndent(graph, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+	return string(data), nil
+}
+
+func formatASCII(graph ShowGraph, validation ValidateV2ArtifactsResult) (string, error) {
+	// Build adjacency list: parent -> children (reverse of edges direction)
+	// edges go from child to parent (e.g., DES-001 -> REQ-001)
+	// for tree display, we want parent -> children
+	children := make(map[string][]string)
+	hasParent := make(map[string]bool)
+
+	for _, edge := range graph.Edges {
+		// edge.From traces to edge.To, meaning edge.To is the parent
+		children[edge.To] = append(children[edge.To], edge.From)
+		hasParent[edge.From] = true
+	}
+
+	// Build sets for markers
+	orphanSet := make(map[string]bool)
+	for _, id := range validation.OrphanIDs {
+		orphanSet[id] = true
+	}
+
+	unlinkedSet := make(map[string]bool)
+	for _, id := range validation.UnlinkedIDs {
+		unlinkedSet[id] = true
+	}
+
+	// Find root nodes (IDs that have no parent, or are orphans referenced but not defined)
+	var roots []string
+	for _, node := range graph.Nodes {
+		if !hasParent[node.ID] {
+			roots = append(roots, node.ID)
+		}
+	}
+	sort.Strings(roots)
+
+	// Handle case with no nodes
+	if len(graph.Nodes) == 0 {
+		return "(empty trace graph)\n", nil
+	}
+
+	var sb strings.Builder
+	visited := make(map[string]bool)
+
+	// Print each root and its descendants
+	for i, root := range roots {
+		printTree(&sb, root, "", i == len(roots)-1, children, orphanSet, unlinkedSet, visited)
+	}
+
+	return sb.String(), nil
+}
+
+func printTree(sb *strings.Builder, id, prefix string, isLast bool, children map[string][]string, orphanSet, unlinkedSet map[string]bool, visited map[string]bool) {
+	// Prevent infinite loops from cycles
+	if visited[id] {
+		return
+	}
+	visited[id] = true
+
+	// Determine connector
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+	if prefix == "" {
+		connector = ""
+	}
+
+	// Build line with markers
+	line := prefix + connector + id
+	if orphanSet[id] {
+		line += " [ORPHAN]"
+	}
+	if unlinkedSet[id] {
+		line += " [UNLINKED]"
+	}
+	sb.WriteString(line + "\n")
+
+	// Get and sort children
+	childIDs := children[id]
+	sort.Strings(childIDs)
+
+	// Calculate new prefix for children
+	newPrefix := prefix
+	if prefix != "" {
+		if isLast {
+			newPrefix += "    "
+		} else {
+			newPrefix += "│   "
+		}
+	}
+
+	// Print children
+	for i, child := range childIDs {
+		isChildLast := i == len(childIDs)-1
+		printTree(sb, child, newPrefix, isChildLast, children, orphanSet, unlinkedSet, visited)
+	}
 }

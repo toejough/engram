@@ -15,18 +15,21 @@ const StateFile = "state.toml"
 
 // Project holds the project identification and phase.
 type Project struct {
-	Name    string    `toml:"name"`
-	Created time.Time `toml:"created"`
-	Phase   string    `toml:"phase"`
+	Name     string    `toml:"name"`
+	Created  time.Time `toml:"created"`
+	Phase    string    `toml:"phase"`
+	Workflow string    `toml:"workflow"` // new | adopt | align | task
+	Issue    string    `toml:"issue,omitempty"`
 }
 
 // Progress tracks implementation progress.
 type Progress struct {
-	CurrentTask     string `toml:"current_task"`
-	CurrentSubphase string `toml:"current_subphase"`
-	TasksComplete   int    `toml:"tasks_complete"`
-	TasksTotal      int    `toml:"tasks_total"`
-	TasksEscalated  int    `toml:"tasks_escalated"`
+	CurrentTask     string   `toml:"current_task"`
+	CurrentSubphase string   `toml:"current_subphase"`
+	TasksComplete   int      `toml:"tasks_complete"`
+	TasksTotal      int      `toml:"tasks_total"`
+	TasksEscalated  int      `toml:"tasks_escalated"`
+	CompletedTasks  []string `toml:"completed_tasks,omitempty"`
 }
 
 // Conflicts tracks conflict state.
@@ -58,18 +61,43 @@ type ErrorInfo struct {
 	RetryCount  int       `toml:"retry_count"`
 }
 
+// PairState tracks the state of a PAIR LOOP for a phase or task.
+type PairState struct {
+	Iteration          int    `toml:"iteration"`
+	MaxIterations      int    `toml:"max_iterations"`
+	ProducerComplete   bool   `toml:"producer_complete"`
+	QAVerdict          string `toml:"qa_verdict,omitempty"`           // approved, improvement-request, escalate-phase, escalate-user
+	ImprovementRequest string `toml:"improvement_request,omitempty"` // Feedback from QA if verdict is improvement-request
+}
+
+// YieldState tracks a pending yield from a skill.
+type YieldState struct {
+	Pending     bool   `toml:"pending"`
+	Type        string `toml:"type"`                    // need-user-input, need-context, need-decision, blocked, error
+	Agent       string `toml:"agent"`                   // Which agent yielded
+	ContextFile string `toml:"context_file,omitempty"` // Path to context file for resumption
+}
+
 // State is the complete project state.
 type State struct {
-	Project   Project           `toml:"project"`
-	Progress  Progress          `toml:"progress"`
-	Conflicts Conflicts         `toml:"conflicts"`
-	Meta      Meta              `toml:"meta"`
-	History   []PhaseTransition `toml:"history"`
-	Error     *ErrorInfo        `toml:"error,omitempty"`
+	Project   Project              `toml:"project"`
+	Progress  Progress             `toml:"progress"`
+	Conflicts Conflicts            `toml:"conflicts"`
+	Meta      Meta                 `toml:"meta"`
+	History   []PhaseTransition    `toml:"history"`
+	Error     *ErrorInfo           `toml:"error,omitempty"`
+	Pairs     map[string]PairState `toml:"pairs,omitempty"`
+	Yield     *YieldState          `toml:"yield,omitempty"`
+}
+
+// InitOpts holds optional parameters for Init.
+type InitOpts struct {
+	Workflow string // new | adopt | align | task (defaults to "new")
+	Issue    string // optional issue ID to link
 }
 
 // Init creates a new state file in the given directory.
-func Init(dir string, name string, now func() time.Time) (State, error) {
+func Init(dir string, name string, now func() time.Time, opts ...InitOpts) (State, error) {
 	statePath := filepath.Join(dir, StateFile)
 
 	if _, err := os.Stat(statePath); err == nil {
@@ -83,11 +111,23 @@ func Init(dir string, name string, now func() time.Time) (State, error) {
 
 	t := now()
 
+	// Apply options
+	workflow := "new"
+	issue := ""
+	if len(opts) > 0 {
+		if opts[0].Workflow != "" {
+			workflow = opts[0].Workflow
+		}
+		issue = opts[0].Issue
+	}
+
 	s := State{
 		Project: Project{
-			Name:    name,
-			Created: t,
-			Phase:   "init",
+			Name:     name,
+			Created:  t,
+			Phase:    "init",
+			Workflow: workflow,
+			Issue:    issue,
 		},
 		History: []PhaseTransition{
 			{Timestamp: t, Phase: "init"},
@@ -352,6 +392,136 @@ type LastFailedTransition struct {
 	ToPhase   string
 }
 
+// SetOpts holds fields to update via Set().
+// Empty strings are ignored (not cleared).
+type SetOpts struct {
+	Issue    string // Set linked issue ID
+	Task     string // Set current task ID
+	Workflow string // Set workflow type
+}
+
+// Set updates state fields without triggering a phase transition.
+func Set(dir string, opts SetOpts) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if opts.Issue != "" {
+		s.Project.Issue = opts.Issue
+	}
+	if opts.Task != "" {
+		s.Progress.CurrentTask = opts.Task
+	}
+	if opts.Workflow != "" {
+		s.Project.Workflow = opts.Workflow
+	}
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// SetPair updates the pair loop state for a phase or task.
+func SetPair(dir string, key string, ps PairState) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if s.Pairs == nil {
+		s.Pairs = make(map[string]PairState)
+	}
+	s.Pairs[key] = ps
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// ClearPair removes the pair loop state for a phase or task.
+func ClearPair(dir string, key string) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if s.Pairs != nil {
+		delete(s.Pairs, key)
+	}
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// SetYield updates the pending yield state.
+func SetYield(dir string, ys *YieldState) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	s.Yield = ys
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// ClearYield clears the pending yield state.
+func ClearYield(dir string) (State, error) {
+	return SetYield(dir, nil)
+}
+
+// MarkTaskComplete marks a task as complete and persists to state file.
+// This is idempotent - marking the same task complete multiple times
+// will not add duplicates.
+func MarkTaskComplete(dir string, taskID string) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	// Check if already complete (idempotent)
+	for _, completed := range s.Progress.CompletedTasks {
+		if completed == taskID {
+			return s, nil
+		}
+	}
+
+	s.Progress.CompletedTasks = append(s.Progress.CompletedTasks, taskID)
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// IsTaskComplete checks if a task has been marked as complete.
+func IsTaskComplete(dir string, taskID string) (bool, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return false, err
+	}
+
+	for _, completed := range s.Progress.CompletedTasks {
+		if completed == taskID {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
 
 // Retry re-attempts the last failed transition.
 // This is a simplified implementation that requires the caller to know the target phase.
@@ -443,10 +613,45 @@ func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 		}
 	}
 
+	// If at task-complete, check for remaining incomplete tasks
+	if currentPhase == "task-complete" && checker != nil {
+		// Get unblocked tasks from checker, filter out completed ones
+		unblockedTasks := checker.UnblockedTasks(dir, "")
+		nextTask := filterFirstIncompleteTask(unblockedTasks, s.Progress.CompletedTasks)
+		if nextTask != "" {
+			return NextResult{
+				Action:    "continue",
+				NextPhase: "task-start",
+				NextTask:  nextTask,
+			}
+		}
+		// All tasks complete, suggest implementation-complete
+		return NextResult{
+			Action:    "continue",
+			NextPhase: "implementation-complete",
+		}
+	}
+
 	// Default: continue with first legal target
 	return NextResult{
 		Action:    "continue",
 		NextPhase: targets[0],
 		NextTask:  s.Progress.CurrentTask,
 	}
+}
+
+// filterFirstIncompleteTask returns the first task from candidates that is not in completed.
+func filterFirstIncompleteTask(candidates []string, completed []string) string {
+	completedSet := make(map[string]bool, len(completed))
+	for _, c := range completed {
+		completedSet[c] = true
+	}
+
+	for _, candidate := range candidates {
+		if !completedSet[candidate] {
+			return candidate
+		}
+	}
+
+	return ""
 }

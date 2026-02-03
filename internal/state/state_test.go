@@ -73,6 +73,67 @@ func TestInit(t *testing.T) {
 		g.Expect(loaded.Project.Phase).To(Equal(original.Project.Phase))
 		g.Expect(loaded.History).To(HaveLen(1))
 	})
+
+	t.Run("defaults workflow to new when no options provided", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Workflow).To(Equal("new"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Workflow).To(Equal("new"))
+	})
+
+	t.Run("accepts workflow option", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "adopt",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Workflow).To(Equal("adopt"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Workflow).To(Equal("adopt"))
+	})
+
+	t.Run("accepts issue option", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-042",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-042"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-042"))
+	})
+
+	t.Run("accepts both workflow and issue options", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "task",
+			Issue:    "ISSUE-099",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Workflow).To(Equal("task"))
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-099"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Workflow).To(Equal("task"))
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-099"))
+	})
 }
 
 func TestInitProperty(t *testing.T) {
@@ -90,6 +151,91 @@ func TestInitProperty(t *testing.T) {
 		loaded, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(loaded.Project.Name).To(Equal(name))
+	})
+}
+
+func TestSet(t *testing.T) {
+	t.Run("sets issue without transitioning", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-042"))
+		g.Expect(s.Project.Phase).To(Equal("init")) // No transition
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-042"))
+	})
+
+	t.Run("sets task without transitioning", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Set(dir, state.SetOpts{Task: "TASK-007"})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-007"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Progress.CurrentTask).To(Equal("TASK-007"))
+	})
+
+	t.Run("sets workflow without transitioning", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Set(dir, state.SetOpts{Workflow: "adopt"})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Workflow).To(Equal("adopt"))
+
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Project.Workflow).To(Equal("adopt"))
+	})
+
+	t.Run("sets multiple fields at once", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Set(dir, state.SetOpts{
+			Issue:    "ISSUE-099",
+			Task:     "TASK-001",
+			Workflow: "task",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-099"))
+		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-001"))
+		g.Expect(s.Project.Workflow).To(Equal("task"))
+	})
+
+	t.Run("ignores empty string values", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-001",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Set only task, issue should remain unchanged
+		s, err := state.Set(dir, state.SetOpts{Task: "TASK-001"})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-001")) // Unchanged
+		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-001"))
 	})
 }
 
@@ -114,5 +260,322 @@ func TestGet(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Project.Name).To(Equal("read-test"))
 		g.Expect(s.Project.Phase).To(Equal("init"))
+	})
+}
+
+func TestPairLoopTracking(t *testing.T) {
+	t.Run("tracks pair loop state for phases", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetPair(dir, "pm", state.PairState{
+			Iteration:        2,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			QAVerdict:        "improvement-request",
+			ImprovementRequest: "REQ-003 acceptance criteria are not measurable",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs).To(HaveKey("pm"))
+		g.Expect(s.Pairs["pm"].Iteration).To(Equal(2))
+		g.Expect(s.Pairs["pm"].QAVerdict).To(Equal("improvement-request"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Pairs).To(HaveKey("pm"))
+		g.Expect(loaded.Pairs["pm"].Iteration).To(Equal(2))
+	})
+
+	t.Run("tracks pair loop state for tasks", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetPair(dir, "TASK-007", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			QAVerdict:        "approved",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs).To(HaveKey("TASK-007"))
+		g.Expect(s.Pairs["TASK-007"].QAVerdict).To(Equal("approved"))
+	})
+
+	t.Run("updates existing pair loop state", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			QAVerdict:        "improvement-request",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetPair(dir, "pm", state.PairState{
+			Iteration:        2,
+			MaxIterations:    3,
+			ProducerComplete: false,
+			QAVerdict:        "",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].Iteration).To(Equal(2))
+		g.Expect(s.Pairs["pm"].ProducerComplete).To(BeFalse())
+	})
+
+	t.Run("ClearPair removes pair loop state", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration: 2,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.ClearPair(dir, "pm")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs).ToNot(HaveKey("pm"))
+	})
+}
+
+func TestCompletedTasks(t *testing.T) {
+	t.Run("Progress has CompletedTasks field", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CompletedTasks).To(BeEmpty())
+
+		// Verify persistence - empty slice persists correctly
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Progress.CompletedTasks).To(BeEmpty())
+	})
+
+	t.Run("MarkTaskComplete appends to slice and persists", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CompletedTasks).To(Equal([]string{"TASK-001"}))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Progress.CompletedTasks).To(Equal([]string{"TASK-001"}))
+	})
+
+	t.Run("MarkTaskComplete appends multiple tasks in order", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.MarkTaskComplete(dir, "TASK-003")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.MarkTaskComplete(dir, "TASK-002")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CompletedTasks).To(Equal([]string{"TASK-001", "TASK-003", "TASK-002"}))
+	})
+
+	t.Run("MarkTaskComplete is idempotent - same task not added twice", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CompletedTasks).To(Equal([]string{"TASK-001"}))
+	})
+
+	t.Run("MarkTaskComplete errors if state file does not exist", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("failed to read"))
+	})
+
+	t.Run("IsTaskComplete returns true for completed task", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.MarkTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		complete, err := state.IsTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(complete).To(BeTrue())
+	})
+
+	t.Run("IsTaskComplete returns false for incomplete task", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		complete, err := state.IsTaskComplete(dir, "TASK-001")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(complete).To(BeFalse())
+	})
+
+	t.Run("IsTaskComplete errors if state file does not exist", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.IsTaskComplete(dir, "TASK-001")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("failed to read"))
+	})
+}
+
+func TestCompletedTasksProperty(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Generate a set of task IDs
+		taskCount := rapid.IntRange(1, 10).Draw(rt, "taskCount")
+		taskIDs := make([]string, taskCount)
+		for i := 0; i < taskCount; i++ {
+			taskIDs[i] = rapid.StringMatching(`TASK-[0-9]{3}`).Draw(rt, "taskID")
+		}
+
+		// Mark all tasks complete
+		for _, taskID := range taskIDs {
+			_, err := state.MarkTaskComplete(dir, taskID)
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+
+		// Verify all tasks are complete
+		for _, taskID := range taskIDs {
+			complete, err := state.IsTaskComplete(dir, taskID)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(complete).To(BeTrue(), "task %s should be complete", taskID)
+		}
+
+		// Verify a random non-completed task is not complete
+		nonExistent := "TASK-999"
+		found := false
+		for _, taskID := range taskIDs {
+			if taskID == nonExistent {
+				found = true
+				break
+			}
+		}
+		if !found {
+			complete, err := state.IsTaskComplete(dir, nonExistent)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(complete).To(BeFalse())
+		}
+	})
+}
+
+func TestYieldTracking(t *testing.T) {
+	t.Run("tracks pending yield", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetYield(dir, &state.YieldState{
+			Pending:     true,
+			Type:        "need-user-input",
+			Agent:       "pm",
+			ContextFile: ".claude/agents/pm-state.toml",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Yield).ToNot(BeNil())
+		g.Expect(s.Yield.Pending).To(BeTrue())
+		g.Expect(s.Yield.Type).To(Equal("need-user-input"))
+		g.Expect(s.Yield.Agent).To(Equal("pm"))
+		g.Expect(s.Yield.ContextFile).To(Equal(".claude/agents/pm-state.toml"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Yield).ToNot(BeNil())
+		g.Expect(loaded.Yield.Type).To(Equal("need-user-input"))
+	})
+
+	t.Run("clears yield by setting to nil", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetYield(dir, &state.YieldState{
+			Pending: true,
+			Type:    "need-context",
+			Agent:   "arch",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetYield(dir, nil)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Yield).To(BeNil())
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Yield).To(BeNil())
+	})
+
+	t.Run("ClearYield clears pending yield", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetYield(dir, &state.YieldState{
+			Pending: true,
+			Type:    "blocked",
+			Agent:   "tdd-green",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.ClearYield(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Yield).To(BeNil())
 	})
 }

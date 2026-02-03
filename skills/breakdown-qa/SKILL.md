@@ -34,17 +34,23 @@ Validate task decomposition completeness and dependency graph structure.
    - Sequential numbering (no gaps)
    - Each task has required fields
 
-3. Validate decomposition completeness:
+3. **Validate traceability (REQUIRED):**
+   - Every task MUST have a `**Traces to:**` field
+   - Run `projctl trace validate -d <project-dir>`
+   - If orphan IDs exist (referenced but undefined), reject the breakdown
+   - If unlinked IDs exist (defined but not connected), flag for review
+
+4. Validate decomposition completeness:
    - All ARCH-N IDs have at least one implementing TASK
    - No orphan tasks (all trace to ARCH/DES/REQ)
    - Appropriate granularity (not too large/small)
 
-4. Validate dependency graph:
+5. Validate dependency graph:
    - All dependencies reference valid TASK-N IDs
    - No cycle in dependency graph (must be DAG)
    - No prose dependencies ("all previous", "depends on earlier")
 
-5. Check acceptance criteria:
+6. Check acceptance criteria:
    - Each task has testable criteria
    - Criteria are measurable, not vague
 
@@ -69,7 +75,8 @@ checklist = [
     { item = "All tasks have TASK-N IDs", passed = true },
     { item = "Decomposition is complete", passed = true },
     { item = "Dependency graph is valid DAG", passed = true },
-    { item = "All traces link to upstream", passed = true }
+    { item = "All tasks have Traces-to field", passed = true },
+    { item = "projctl trace validate passes", passed = true }
 ]
 
 [context]
@@ -94,7 +101,9 @@ iteration = 2
 issues = [
     "TASK-3 has cycle with TASK-5",
     "ARCH-4 has no implementing task",
-    "TASK-7 missing acceptance criteria"
+    "TASK-7 missing acceptance criteria",
+    "TASK-8 missing Traces-to field",
+    "projctl trace validate: orphan ID ARCH-99 referenced by TASK-5"
 ]
 
 [context]
@@ -144,8 +153,48 @@ escalating = true
 | Sequencing | No gaps in numbering |
 | Completeness | All ARCH IDs covered |
 | DAG validity | No dependency cycle detected |
-| Traceability | All tasks trace to upstream |
+| Traces-to field | Every task has `**Traces to:**` field |
+| projctl validate | `projctl trace validate` passes with no orphans |
 | Criteria | All tasks have testable acceptance |
+
+---
+
+## Traceability Validation
+
+**Every task MUST have a Traces-to field.** This is non-negotiable.
+
+### Manual Check
+
+Scan tasks.md for tasks missing the field:
+```
+**Traces to:** ARCH-NNN
+```
+
+### Automated Validation
+
+Run `projctl trace validate` on the project directory:
+
+```bash
+projctl trace validate -d <project-dir>
+```
+
+**Pass:** Output shows "Validation passed: all IDs properly linked"
+
+**Fail:** Output lists orphan or unlinked IDs. Example:
+```
+Orphan IDs (referenced but not defined):
+  - ARCH-99 (referenced by TASK-5)
+
+Unlinked IDs (defined but not connected):
+  - TASK-12
+```
+
+### Rejection Criteria
+
+Reject the breakdown (yield `improvement-request`) if:
+- Any task is missing `**Traces to:**` field
+- `projctl trace validate` reports orphan IDs (referenced but undefined)
+- Tasks trace to non-existent upstream IDs
 
 ---
 
@@ -169,7 +218,7 @@ TASK-1 -> TASK-2 -> TASK-3 -> TASK-1  # INVALID
 
 | Type | When |
 |------|------|
-| `approved` | Tasks complete, valid DAG, all traces valid |
-| `improvement-request` | Producer can fix (cycles, gaps, missing criteria) |
+| `approved` | Tasks complete, valid DAG, all traces valid, projctl validate passes |
+| `improvement-request` | Producer can fix (cycles, gaps, missing criteria, missing Traces-to, orphan IDs) |
 | `escalate-phase` | Architecture/design needs upstream change |
 | `escalate-user` | Cannot resolve conflict |

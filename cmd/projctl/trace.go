@@ -103,3 +103,90 @@ func traceValidateArtifacts(args traceValidateArtifactsArgs) error {
 
 	return nil
 }
+
+type traceShowArgs struct {
+	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
+	Format string `targ:"flag,short=f,desc=Output format: ascii (default) or json"`
+}
+
+func traceShow(args traceShowArgs) error {
+	format := args.Format
+	if format == "" {
+		format = "ascii"
+	}
+
+	output, err := trace.Show(args.Dir, format)
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(output)
+
+	return nil
+}
+
+type tracePromoteArgs struct {
+	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
+	DryRun bool   `targ:"flag,short=n,desc=Show what would be changed without modifying files"`
+	JSON   bool   `targ:"flag,short=j,desc=Output as JSON"`
+}
+
+func tracePromote(args tracePromoteArgs) error {
+	result, err := trace.Promote(args.Dir, args.DryRun)
+	if err != nil {
+		return err
+	}
+
+	if args.JSON {
+		data, err := json.MarshalIndent(result, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to encode result: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// Count unique files modified
+	filesModified := make(map[string]bool)
+	for _, p := range result.Promotions {
+		filesModified[p.File] = true
+	}
+
+	if args.DryRun {
+		fmt.Println("Trace promotion (dry run)")
+		fmt.Println("=========================")
+	} else {
+		fmt.Println("Trace promotion complete")
+		fmt.Println("========================")
+	}
+
+	if len(result.Promotions) > 0 {
+		fmt.Printf("\nPromotions (%d):\n", len(result.Promotions))
+		for _, p := range result.Promotions {
+			fmt.Printf("  %s:%d: %s -> %s\n", p.File, p.Line, p.OldTrace, p.NewTrace)
+		}
+	}
+
+	if len(result.Skipped) > 0 {
+		fmt.Printf("\nSkipped (%d):\n", len(result.Skipped))
+		for _, s := range result.Skipped {
+			fmt.Printf("  %s:%d: %s - %s\n", s.File, s.Line, s.TaskID, s.Reason)
+		}
+	}
+
+	if len(result.Promotions) == 0 && len(result.Skipped) == 0 {
+		fmt.Println("\nNo TASK traces found in test files.")
+	} else {
+		fileWord := "file"
+		if len(filesModified) != 1 {
+			fileWord = "files"
+		}
+		if args.DryRun {
+			fmt.Printf("\nWould modify %d %s.\n", len(filesModified), fileWord)
+		} else {
+			fmt.Printf("\nModified %d %s.\n", len(filesModified), fileWord)
+		}
+	}
+
+	return nil
+}

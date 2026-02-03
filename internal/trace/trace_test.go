@@ -709,3 +709,195 @@ func TestConfig(t *testing.T) {}
 		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-911"))
 	})
 }
+
+// TEST-005: Show function returns ASCII tree representation
+// traces: TASK-005
+func TestShow(t *testing.T) {
+	t.Run("returns ASCII tree for simple chain", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Feature
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
+`)
+		writeArtifact(t, dir, "tasks.md", `# Tasks
+
+### TASK-001: Implementation
+
+**Traces to:** ARCH-001
+`)
+
+		output, err := trace.Show(dir, "ascii")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(output).To(ContainSubstring("REQ-001"))
+		g.Expect(output).To(ContainSubstring("DES-001"))
+		g.Expect(output).To(ContainSubstring("ARCH-001"))
+		g.Expect(output).To(ContainSubstring("TASK-001"))
+	})
+
+	t.Run("marks orphan IDs in ASCII output", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// DES-001 references undefined REQ-999
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-999
+`)
+
+		output, err := trace.Show(dir, "ascii")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(output).To(ContainSubstring("REQ-999"))
+		g.Expect(output).To(ContainSubstring("[ORPHAN]"))
+	})
+
+	t.Run("marks unlinked IDs in ASCII output", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// DES-002 is defined but nothing traces to it
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Feature
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+
+### DES-002: Orphan Design
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
+`)
+
+		output, err := trace.Show(dir, "ascii")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(output).To(ContainSubstring("DES-002"))
+		g.Expect(output).To(ContainSubstring("[UNLINKED]"))
+	})
+
+	t.Run("returns JSON graph format", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Feature
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`)
+
+		output, err := trace.Show(dir, "json")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(output).To(ContainSubstring(`"nodes"`))
+		g.Expect(output).To(ContainSubstring(`"edges"`))
+		g.Expect(output).To(ContainSubstring(`"REQ-001"`))
+		g.Expect(output).To(ContainSubstring(`"DES-001"`))
+	})
+
+	t.Run("JSON includes orphan and unlinked markers", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Create a design that references undefined REQ-999
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-999
+
+### DES-002: Unlinked Design
+
+**Traces to:** REQ-999
+`)
+
+		output, err := trace.Show(dir, "json")
+		g.Expect(err).ToNot(HaveOccurred())
+		// JSON uses spaces around colon in pretty-printed format
+		g.Expect(output).To(ContainSubstring(`"orphan": true`))
+		g.Expect(output).To(ContainSubstring(`"unlinked": true`))
+	})
+
+	t.Run("rejects invalid format", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := trace.Show(dir, "invalid")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("invalid format"))
+	})
+
+	t.Run("handles empty directory", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		output, err := trace.Show(dir, "ascii")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(output).ToNot(BeEmpty())
+	})
+
+	t.Run("ASCII tree shows hierarchical structure", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		writeArtifact(t, dir, "requirements.md", `# Requirements
+
+### REQ-001: Feature
+
+Description.
+`)
+		writeArtifact(t, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`)
+		writeArtifact(t, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
+
+### ARCH-002: Another Arch
+
+**Traces to:** DES-001
+`)
+
+		output, err := trace.Show(dir, "ascii")
+		g.Expect(err).ToNot(HaveOccurred())
+		// Should show tree structure with indentation
+		g.Expect(output).To(MatchRegexp(`REQ-001.*\n.*DES-001`))
+	})
+}

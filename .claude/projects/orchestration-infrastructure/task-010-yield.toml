@@ -1,0 +1,74 @@
+[yield]
+type = "complete"
+timestamp = 2026-02-03T12:00:00Z
+
+[payload]
+task = "TASK-010"
+title = "Update retro-producer skill for issue creation"
+artifact = "~/.claude/skills/retro-producer/SKILL.md"
+files_modified = ["~/.claude/skills/retro-producer/SKILL.md"]
+
+[payload.summary]
+description = "Updated retro-producer skill to create issues from retrospective recommendations"
+
+[[payload.changes]]
+section = "Quick Reference"
+change = "Updated output to include issue creation"
+
+[[payload.changes]]
+section = "PRODUCE workflow"
+change = "Added Open Questions output and issue creation step"
+
+[[payload.changes]]
+section = "Issue Creation (new)"
+change = "Added detailed instructions for creating issues via projctl issue create"
+
+[[payload.changes]]
+section = "Yield Types table"
+change = "Updated complete type description to include issues"
+
+[[payload.changes]]
+section = "Complete Yield Example"
+change = "Added issues_created array, issue field on recommendations, and open_questions section"
+
+[[payload.changes]]
+section = "Retrospective Structure"
+change = "Added section 5 for Open Questions"
+
+[[payload.changes]]
+section = "Result Format"
+change = "Added open_questions and issues_created to result format"
+
+[[payload.changes]]
+section = "Issue Creation Details (new)"
+change = "Added table of issue creation rules, body format, and error handling"
+
+[[payload.acceptance_criteria]]
+criterion = "Parses recommendations from retrospective.md"
+status = "complete"
+evidence = "Skill documents parsing in PRODUCE workflow step"
+
+[[payload.acceptance_criteria]]
+criterion = "Creates issue for each High/Medium priority item"
+status = "complete"
+evidence = "Issue Creation section with projctl issue create commands and priority handling"
+
+[[payload.acceptance_criteria]]
+criterion = "Creates issue for each open question"
+status = "complete"
+evidence = "Issue Creation section includes open question handling with 'Decision needed:' title format"
+
+[[payload.acceptance_criteria]]
+criterion = "Includes created issue IDs in yield payload"
+status = "complete"
+evidence = "Complete Yield Example shows issues_created array and per-item issue fields"
+
+[[payload.acceptance_criteria]]
+criterion = "Skill documentation updated"
+status = "complete"
+evidence = "SKILL.md updated with Issue Creation section, examples, and error handling"
+
+[context]
+phase = "implementation"
+task = "TASK-010"
+traces_to = "ARCH-006"

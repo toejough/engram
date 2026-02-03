@@ -1,0 +1,23 @@
+[yield]
+type = "complete"
+task = "TASK-004"
+
+[outcome]
+summary = "Implemented `projctl id next` CLI command"
+artifacts = [
+    "cmd/projctl/id.go",
+    "cmd/projctl/id_test.go",
+]
+tests_added = [
+    "TEST-181: idNext outputs next REQ ID",
+    "TEST-182: idNext outputs next TASK ID",
+    "TEST-183: idNext returns TYPE-001 when no IDs exist",
+    "TEST-184: idNext returns error for invalid type",
+    "TEST-185: idNext handles ARCH prefix",
+    "TEST-186: idNext handles ISSUE prefix",
+]
+
+[verification]
+tests_pass = true
+build_succeeds = true
+manual_verification = "Tested `projctl id next --type REQ/TASK/DES` and shell capture works correctly"
