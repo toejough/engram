@@ -99,6 +99,68 @@ func (m *Manager) Cleanup(taskID string) error {
 	return nil
 }
 
+// Merge rebases a task branch onto the target and fast-forward merges.
+func (m *Manager) Merge(taskID, onto string) error {
+	branch := m.BranchName(taskID)
+	wtPath := m.Path(taskID)
+
+	// First remove the worktree (but keep the branch)
+	// Can't rebase a branch that's checked out in a worktree
+	if _, err := os.Stat(wtPath); err == nil {
+		if _, err := m.git("worktree", "remove", "--force", wtPath); err != nil {
+			// Try manual removal
+			if rmErr := os.RemoveAll(wtPath); rmErr != nil {
+				return fmt.Errorf("failed to remove worktree before merge: %w", rmErr)
+			}
+			_, _ = m.git("worktree", "prune")
+		}
+	}
+
+	// Rebase task branch onto target
+	output, err := m.git("rebase", onto, branch)
+	if err != nil {
+		// Check if it's a conflict
+		if strings.Contains(output, "CONFLICT") || strings.Contains(output, "could not apply") {
+			// Abort the rebase
+			_, _ = m.git("rebase", "--abort")
+			return &MergeConflictError{
+				TaskID:  taskID,
+				Message: output,
+			}
+		}
+		return fmt.Errorf("rebase failed: %s: %w", output, err)
+	}
+
+	// Fast-forward merge
+	output, err = m.git("checkout", onto)
+	if err != nil {
+		return fmt.Errorf("checkout failed: %s: %w", output, err)
+	}
+
+	output, err = m.git("merge", "--ff-only", branch)
+	if err != nil {
+		return fmt.Errorf("merge failed: %s: %w", output, err)
+	}
+
+	// Delete the branch (worktree already removed)
+	_, _ = m.git("branch", "-D", branch)
+
+	// Try to remove parent dir if empty
+	_ = os.Remove(m.ParentDir())
+
+	return nil
+}
+
+// MergeConflictError indicates a merge conflict occurred.
+type MergeConflictError struct {
+	TaskID  string
+	Message string
+}
+
+func (e *MergeConflictError) Error() string {
+	return fmt.Sprintf("merge conflict for task %s: %s", e.TaskID, e.Message)
+}
+
 // git runs a git command in the repo directory.
 func (m *Manager) git(args ...string) (string, error) {
 	cmd := exec.Command("git", args...)
