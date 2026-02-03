@@ -1705,3 +1705,27 @@ From ISSUE-026 retrospective Q3:
 ### Comment
 
 Completed via project issue-036-state-init-default. projctl state init now defaults --dir to .claude/projects/<name>/
+
+---
+
+## ISSUE-037: State transitions should enforce artifact preconditions
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** Phase transitions like `retro → retro-complete` can succeed without the required artifact (retro.md) existing. This allows skipping phases without producing outputs.
+
+**Found in:** ISSUE-036 retrospective (R1)
+
+**Solution:** Add preconditions to the state machine:
+- `retro-complete` requires `retro.md` exists in project dir
+- `summary-complete` requires `summary.md` exists in project dir
+- `documentation-complete` requires doc artifacts exist
+
+**Acceptance Criteria:**
+- [ ] Precondition added for retro-complete checking retro.md
+- [ ] Precondition added for summary-complete checking summary.md
+- [ ] Tests verify transitions fail without artifacts
+
+**Traces to:** ISSUE-036 Retrospective R1
