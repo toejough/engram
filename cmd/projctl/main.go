@@ -122,5 +122,12 @@ func main() {
 		targ.Group("id",
 			targ.Targ(idNext).Name("next").Description("Get next sequential ID for a type"),
 		),
+		targ.Group("worktree",
+			targ.Targ(worktreeCreate).Name("create").Description("Create a worktree for a task"),
+			targ.Targ(worktreeList).Name("list").Description("List all task worktrees"),
+			targ.Targ(worktreeMerge).Name("merge").Description("Merge a task worktree onto target branch"),
+			targ.Targ(worktreeCleanup).Name("cleanup").Description("Remove a task worktree"),
+			targ.Targ(worktreeCleanupAll).Name("cleanup-all").Description("Remove all task worktrees"),
+		),
 	)
 }

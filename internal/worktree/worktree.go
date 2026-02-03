@@ -75,6 +75,70 @@ func (m *Manager) Create(taskID string) (string, error) {
 	return wtPath, nil
 }
 
+// WorktreeInfo contains information about a worktree.
+type WorktreeInfo struct {
+	TaskID string
+	Path   string
+	Branch string
+}
+
+// List returns all worktrees managed by this manager.
+func (m *Manager) List() ([]WorktreeInfo, error) {
+	output, err := m.git("worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list worktrees: %w", err)
+	}
+
+	var worktrees []WorktreeInfo
+	parentDir := m.ParentDir()
+
+	// Parse porcelain output: "worktree <path>\nHEAD <sha>\nbranch refs/heads/<branch>\n\n"
+	lines := strings.Split(output, "\n")
+	var currentPath, currentBranch string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "worktree ") {
+			currentPath = strings.TrimPrefix(line, "worktree ")
+		} else if strings.HasPrefix(line, "branch refs/heads/") {
+			currentBranch = strings.TrimPrefix(line, "branch refs/heads/")
+		} else if line == "" && currentPath != "" {
+			// Only include worktrees in our managed directory
+			if strings.HasPrefix(currentPath, parentDir) && strings.HasPrefix(currentBranch, "task/") {
+				taskID := strings.TrimPrefix(currentBranch, "task/")
+				worktrees = append(worktrees, WorktreeInfo{
+					TaskID: taskID,
+					Path:   currentPath,
+					Branch: currentBranch,
+				})
+			}
+			currentPath = ""
+			currentBranch = ""
+		}
+	}
+
+	return worktrees, nil
+}
+
+// CleanupAll removes all worktrees managed by this manager.
+func (m *Manager) CleanupAll() error {
+	worktrees, err := m.List()
+	if err != nil {
+		return err
+	}
+
+	var errs []string
+	for _, wt := range worktrees {
+		if err := m.Cleanup(wt.TaskID); err != nil {
+			errs = append(errs, fmt.Sprintf("%s: %v", wt.TaskID, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to cleanup some worktrees: %s", strings.Join(errs, "; "))
+	}
+
+	return nil
+}
+
 // Cleanup removes a worktree and its branch.
 func (m *Manager) Cleanup(taskID string) error {
 	wtPath := m.Path(taskID)
