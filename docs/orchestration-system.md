@@ -1158,6 +1158,10 @@ projctl territory map|show
 projctl memory query|learn|grep|extract|session-end
 ```
 
+**Context write must include:**
+- `output.yield_path` with unique session/task ID for parallel execution support
+- Skills write to provided path, enabling multiple simultaneous invocations
+
 **Dependencies:**
 - ONNX runtime (for embedding generation)
 - e5-small model (~130MB, downloaded on first use)
@@ -1234,6 +1238,11 @@ projctl phase implementation
   └── loops: projctl tdd --task <id> for each unblocked task
   └── re-evaluates: queue after each task
 ```
+
+**Parallel execution (future consideration):**
+- Independent tasks (no shared dependencies) could run in parallel
+- Orchestrator provides unique yield paths per invocation (prepared in Layer 0)
+- Decision: Start sequential, add parallelism when proven stable
 
 **Proves:** Phase-level orchestration, task queue management.
 

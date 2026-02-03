@@ -117,6 +117,8 @@ As a skill, I want to receive context via the existing CONTEXT.md format, so tha
 - [ ] Context format remains compatible with CONTEXT.md spec
 - [ ] Skills extract mode, task, phase from context
 - [ ] Skills read artifact paths from context
+- [ ] Skills read `output.yield_path` from context and write yield there
+- [ ] Skills do NOT hardcode yield output paths (enables parallel execution)
 
 **Priority:** P0
 
