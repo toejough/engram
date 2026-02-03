@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 type stateInitArgs struct {
 	Name  string `targ:"flag,short=n,required,desc=Project name"`
-	Dir   string `targ:"flag,short=d,required,desc=Project directory"`
+	Dir   string `targ:"flag,short=d,desc=Project directory (defaults to .claude/projects/<name>/)"`
 	Mode  string `targ:"flag,short=m,desc=Workflow mode: new (default), adopt, align, task"`
 	Issue string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-042)"`
 }
@@ -32,7 +33,18 @@ func stateInit(args stateInitArgs) error {
 		return fmt.Errorf("unknown mode: %s (valid: new, adopt, align, task)", mode)
 	}
 
-	s, err := state.Init(args.Dir, args.Name, time.Now, state.InitOpts{
+	// Default dir to .claude/projects/<name>/
+	dir := args.Dir
+	if dir == "" {
+		dir = filepath.Join(".claude", "projects", args.Name)
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("failed to create project directory: %w", err)
+	}
+
+	s, err := state.Init(dir, args.Name, time.Now, state.InitOpts{
 		Workflow: mode,
 		Issue:    args.Issue,
 	})
@@ -59,7 +71,7 @@ func stateInit(args stateInitArgs) error {
 	}
 
 	fmt.Printf("Initialized project %q in %s (workflow: %s, phase: %s)\n",
-		s.Project.Name, args.Dir, s.Project.Workflow, s.Project.Phase)
+		s.Project.Name, dir, s.Project.Workflow, s.Project.Phase)
 
 	return nil
 }
