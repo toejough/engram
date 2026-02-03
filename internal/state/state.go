@@ -156,7 +156,8 @@ func Init(dir string, name string, now func() time.Time, opts ...InitOpts) (Stat
 type TransitionOpts struct {
 	Task     string
 	Subphase string
-	Force    bool // Bypass precondition checks (not transition graph checks)
+	Force    bool   // Bypass precondition checks (not transition graph checks)
+	RepoDir  string // Repository root for code-related checks (populated from state if not set)
 }
 
 // PreconditionChecker validates preconditions for phase transitions.
@@ -213,10 +214,15 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		return nil
 	},
 	"tdd-green": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.TestsExist(dir) {
+		// Use repo dir for code-related checks, fallback to project dir
+		codeDir := opts.RepoDir
+		if codeDir == "" {
+			codeDir = dir
+		}
+		if !c.TestsExist(codeDir) {
 			return fmt.Errorf("precondition failed: test files must exist")
 		}
-		if !c.TestsFail(dir) {
+		if !c.TestsFail(codeDir) {
 			return fmt.Errorf("precondition failed: tests must currently fail")
 		}
 		return nil
@@ -255,6 +261,11 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	s, err := Get(dir)
 	if err != nil {
 		return State{}, err
+	}
+
+	// Populate RepoDir from state if not explicitly set
+	if opts.RepoDir == "" && s.Project.RepoDir != "" {
+		opts.RepoDir = s.Project.RepoDir
 	}
 
 	from := s.Project.Phase
