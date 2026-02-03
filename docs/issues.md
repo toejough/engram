@@ -1803,3 +1803,92 @@ Update precondition checks to use the appropriate directory:
 ### Comment
 
 Completed via project state-machine-improvements. Added RepoDir field to state, FindRepoRoot utility for git root detection, --repo-dir flag to init with auto-detection, and wired repo dir to preconditions for code checks. Integration test verifies TDD cycle works with repo dir separation.
+
+---
+
+## ISSUE-039: Orchestrator should merge branches as parallel agents complete
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** During parallel-worktree-strategy execution, all 4 agent branches were merged at the end after all agents completed. This caused:
+- Increased conflict complexity (later branches couldn't rebase onto already-merged work)
+- Duplicate method implementations (TASK-006 added List/CleanupAll that TASK-003/005 had already implemented)
+- More manual conflict resolution needed
+
+**Solution:** When an agent completes its work on a task branch:
+1. Immediately remove the worktree
+2. Rebase the branch onto the target (main)
+3. Fast-forward merge
+4. Delete the branch
+5. Continue with remaining parallel agents
+
+This "merge-on-complete" pattern reduces the window for conflicts and lets later-completing agents benefit from already-merged work.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator detects when individual parallel agents complete
+- [ ] Merge workflow runs immediately per agent, not batched
+- [ ] Later agents' branches incorporate earlier merges on rebase
+- [ ] Document the merge-on-complete pattern in orchestration docs
+
+**Traces to:** parallel-worktree-strategy Retrospective I1, L1
+
+---
+
+## ISSUE-040: Task scheduler should detect file overlap for parallel execution
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** During parallel-worktree-strategy execution, multiple agents modified the same files (worktree.go, worktree_test.go) without coordination. This led to:
+- Merge conflicts requiring manual resolution
+- Duplicate code (multiple agents adding similar methods)
+- No visibility into shared file contention
+
+**Solution:** Before spawning parallel agents, analyze task scope for file overlap:
+1. Parse task definitions for likely affected files (from AC, file paths mentioned)
+2. Build overlap matrix showing which tasks touch which files
+3. Either:
+   - Warn user about potential conflicts
+   - Serialize tasks with high overlap
+   - Assign overlapping tasks to same worktree
+
+**Acceptance Criteria:**
+- [ ] `projctl` can analyze tasks.md for file overlap indicators
+- [ ] Overlapping tasks identified before parallel execution begins
+- [ ] Option to serialize high-overlap tasks or warn user
+- [ ] Document file-overlap considerations for parallel execution
+
+**Traces to:** parallel-worktree-strategy Retrospective I2, I3, L2
+
+---
+
+## ISSUE-041: Document parallel execution best practices
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-03
+
+**Problem:** parallel-worktree-strategy project proved the worktree-based parallel execution works, but learned several lessons that should be documented:
+- Merge-on-complete pattern (not batch merge at end)
+- File overlap detection before parallelizing
+- Agents need base branch awareness
+- Task assignment considerations
+
+**Solution:** Add documentation covering:
+1. When to use parallel execution vs sequential
+2. How to identify parallelizable tasks (independent, no file overlap)
+3. The worktree workflow (create → work → merge → cleanup)
+4. Merge-on-complete pattern and rationale
+5. Handling merge conflicts from parallel work
+6. Agent coordination limitations
+
+**Acceptance Criteria:**
+- [ ] Documentation exists in orchestration-system.md or separate parallel-execution.md
+- [ ] Covers when to parallelize and when not to
+- [ ] Includes worktree workflow diagram/steps
+- [ ] Documents known limitations and workarounds
+
+**Traces to:** parallel-worktree-strategy Retrospective I1-I3, L1-L3

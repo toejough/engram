@@ -37,9 +37,9 @@ Spawn agents with instruction to periodically `git fetch origin <base>` and chec
 
 ## Action Items
 
-- [ ] Update orchestrator to merge branches as agents complete
-- [ ] Add file-overlap detection to task scheduler
-- [ ] Document parallel execution best practices
+- [x] Update orchestrator to merge branches as agents complete → ISSUE-039
+- [x] Add file-overlap detection to task scheduler → ISSUE-040
+- [x] Document parallel execution best practices → ISSUE-041
 
 ## Process Observation
 
