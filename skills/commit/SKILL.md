@@ -36,12 +36,33 @@ Stage and commit changes with properly formatted message.
 | Mixed concerns | Separate functional changes from lint/style fixes |
 | VCS error | Check for `.jj` dir - use jj commands if present |
 
-## Result Format
+## Yield Format
 
-`result.toml` (see shared/RESULT.md):
-- `[status]` success=bool
-- `[outputs]` files_modified=[]
-- `[[decisions]]` context, choice, reason
+Write yield to path from context (`output.yield_path`). See `shared/YIELD.md`.
+
+**On success (complete):**
+```toml
+[yield]
+type = "complete"
+timestamp = 2026-02-02T10:30:00Z
+
+[payload]
+commit_hash = "abc123f"
+files_modified = ["internal/foo.go", "internal/foo_test.go"]
+message = "feat(foo): implement feature"
+```
+
+**On failure (error):**
+```toml
+[yield]
+type = "error"
+timestamp = 2026-02-02T10:30:00Z
+
+[payload]
+error = "Pre-commit hook failed"
+details = "golangci-lint found issues"
+recoverable = true
+```
 
 ## Full Documentation
 
