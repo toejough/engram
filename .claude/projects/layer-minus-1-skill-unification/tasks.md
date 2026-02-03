@@ -287,17 +287,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-13: Create pm-qa
+### TASK-13: Create pm-qa ✓
 
 **Description:** Create PM QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Implements REVIEW → RETURN for requirements
-- [ ] Can yield approved, improvement-request, escalate-phase
-- [ ] Includes escalation with reason and proposed_changes
+**Status:** Complete
 
-**Files:** `skills/pm-qa/SKILL.md`, `skills/pm-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Implements REVIEW → RETURN for requirements
+- [x] Can yield approved, improvement-request, escalate-phase
+- [x] Includes escalation with reason and proposed_changes
+
+**Files:** `skills/pm-qa/SKILL.md`, `skills/pm-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
@@ -305,16 +307,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-14: Create design-qa
+### TASK-14: Create design-qa ✓
 
 **Description:** Create Design QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Implements REVIEW → RETURN for design
-- [ ] Can yield approved, improvement-request, escalate-phase
+**Status:** Complete
 
-**Files:** `skills/design-qa/SKILL.md`, `skills/design-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Implements REVIEW → RETURN for design
+- [x] Can yield approved, improvement-request, escalate-phase
+
+**Files:** `skills/design-qa/SKILL.md`, `skills/design-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
@@ -322,16 +326,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-15: Create arch-qa
+### TASK-15: Create arch-qa ✓
 
 **Description:** Create Architecture QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Implements REVIEW → RETURN for architecture
-- [ ] Can yield approved, improvement-request, escalate-phase
+**Status:** Complete
 
-**Files:** `skills/arch-qa/SKILL.md`, `skills/arch-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Implements REVIEW → RETURN for architecture
+- [x] Can yield approved, improvement-request, escalate-phase
+
+**Files:** `skills/arch-qa/SKILL.md`, `skills/arch-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
@@ -339,17 +345,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-16: Create breakdown-qa
+### TASK-16: Create breakdown-qa ✓
 
 **Description:** Create Breakdown QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Validates task decomposition completeness
-- [ ] Checks dependency graph for cycles
-- [ ] Can yield approved, improvement-request, escalate-phase
+**Status:** Complete
 
-**Files:** `skills/breakdown-qa/SKILL.md`, `skills/breakdown-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Validates task decomposition completeness
+- [x] Checks dependency graph for cycles
+- [x] Can yield approved, improvement-request, escalate-phase
+
+**Files:** `skills/breakdown-qa/SKILL.md`, `skills/breakdown-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
@@ -357,16 +365,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-17: Create doc-qa
+### TASK-17: Create doc-qa ✓
 
 **Description:** Create Documentation QA skill.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Validates documentation completeness and accuracy
-- [ ] Can yield approved, improvement-request, escalate-phase
+**Status:** Complete
 
-**Files:** `skills/doc-qa/SKILL.md`, `skills/doc-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Validates documentation completeness and accuracy
+- [x] Can yield approved, improvement-request, escalate-phase
+
+**Files:** `skills/doc-qa/SKILL.md`, `skills/doc-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
