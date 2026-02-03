@@ -485,19 +485,21 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-22b: Create tdd-producer
+### TASK-22b: Create tdd-producer ✓
 
 **Description:** Create composite TDD producer that runs nested RED/GREEN/REFACTOR pair loops.
 
-**Acceptance Criteria:**
-- [ ] Follows PRODUCER-TEMPLATE structure (composite variant)
-- [ ] Runs RED PAIR LOOP (red-producer + red-qa) internally
-- [ ] Runs GREEN PAIR LOOP (green-producer + green-qa) internally
-- [ ] Runs REFACTOR PAIR LOOP (refactor-producer + refactor-qa) internally
-- [ ] Handles iteration/improvement within each nested pair loop
-- [ ] Outputs yield protocol TOML after all nested loops complete
+**Status:** Complete
 
-**Files:** `skills/tdd-producer/SKILL.md`, `skills/tdd-producer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows PRODUCER-TEMPLATE structure (composite variant)
+- [x] Runs RED PAIR LOOP (red-producer + red-qa) internally
+- [x] Runs GREEN PAIR LOOP (green-producer + green-qa) internally
+- [x] Runs REFACTOR PAIR LOOP (refactor-producer + refactor-qa) internally
+- [x] Handles iteration/improvement within each nested pair loop
+- [x] Outputs yield protocol TOML after all nested loops complete
+
+**Files:** `skills/tdd-producer/SKILL.md`, `skills/tdd-producer/SKILL_test.sh`
 
 **Dependencies:** TASK-18, TASK-19, TASK-20, TASK-21, TASK-22
 
@@ -525,19 +527,21 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-24: Create support producer/QA pairs
+### TASK-24: Create support producer/QA pairs ✓
 
 **Description:** Create alignment, retro, summary producer and QA skills.
 
+**Status:** Complete
+
 **Acceptance Criteria:**
-- [ ] alignment-producer: Validates traceability chain
-- [ ] alignment-qa: Reviews traceability validation
-- [ ] retro-producer: Project retrospective + process improvement
-- [ ] retro-qa: Reviews retro completeness
-- [ ] summary-producer: Project summary
-- [ ] summary-qa: Reviews summary accuracy
-- [ ] All follow appropriate templates
-- [ ] All output yield protocol TOML
+- [x] alignment-producer: Validates traceability chain
+- [x] alignment-qa: Reviews traceability validation
+- [x] retro-producer: Project retrospective + process improvement
+- [x] retro-qa: Reviews retro completeness
+- [x] summary-producer: Project summary
+- [x] summary-qa: Reviews summary accuracy
+- [x] All follow appropriate templates
+- [x] All output yield protocol TOML
 
 **Files:** `skills/alignment-producer/`, `skills/alignment-qa/`, `skills/retro-producer/`, `skills/retro-qa/`, `skills/summary-producer/`, `skills/summary-qa/`
 
@@ -547,19 +551,21 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-25a: Create parallel-looper
+### TASK-25a: Create parallel-looper ✓
 
 **Description:** Create parallel looper skill for running N PAIR LOOPs in parallel.
 
-**Acceptance Criteria:**
-- [ ] Receives list of independent items from LOOPER
-- [ ] Spawns PAIR LOOP for each item via Task tool (in parallel)
-- [ ] Aggregates results from all parallel PAIR LOOPs
-- [ ] Dispatches to consistency-checker for batch QA
-- [ ] Handles partial failures (some items fail, others succeed)
-- [ ] Outputs yield protocol TOML
+**Status:** Complete
 
-**Files:** `skills/parallel-looper/SKILL.md`, `skills/parallel-looper/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Receives list of independent items from LOOPER
+- [x] Spawns PAIR LOOP for each item via Task tool (in parallel)
+- [x] Aggregates results from all parallel PAIR LOOPs
+- [x] Dispatches to consistency-checker for batch QA
+- [x] Handles partial failures (some items fail, others succeed)
+- [x] Outputs yield protocol TOML
+
+**Files:** `skills/parallel-looper/SKILL.md`, `skills/parallel-looper/SKILL_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -567,19 +573,21 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-25b: Create consistency-checker
+### TASK-25b: Create consistency-checker ✓
 
 **Description:** Create consistency checker skill for validating parallel results.
 
-**Acceptance Criteria:**
-- [ ] Reviews outputs across all parallel results
-- [ ] Applies domain-specific consistency rules (passed as input)
-- [ ] Yields approved if consistent
-- [ ] Yields improvement-request (batch) if inconsistent
-- [ ] Documents specific inconsistencies and resolutions
-- [ ] Outputs yield protocol TOML
+**Status:** Complete
 
-**Files:** `skills/consistency-checker/SKILL.md`, `skills/consistency-checker/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Reviews outputs across all parallel results
+- [x] Applies domain-specific consistency rules (passed as input)
+- [x] Yields approved if consistent
+- [x] Yields improvement-request (batch) if inconsistent
+- [x] Documents specific inconsistencies and resolutions
+- [x] Outputs yield protocol TOML
+
+**Files:** `skills/consistency-checker/SKILL.md`, `skills/consistency-checker/SKILL_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -587,20 +595,22 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-25c: Create context-qa
+### TASK-25c: Create context-qa ✓
 
 **Description:** Create context QA skill to validate gathered context.
 
-**Acceptance Criteria:**
-- [ ] Follows QA-TEMPLATE structure
-- [ ] Validates all queries were answered
-- [ ] Checks results are relevant to the request
-- [ ] Flags contradictions between sources
-- [ ] Identifies stale or outdated information
-- [ ] Can yield approved, improvement-request
-- [ ] Outputs yield protocol TOML
+**Status:** Complete
 
-**Files:** `skills/context-qa/SKILL.md`, `skills/context-qa/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Follows QA-TEMPLATE structure
+- [x] Validates all queries were answered
+- [x] Checks results are relevant to the request
+- [x] Flags contradictions between sources
+- [x] Identifies stale or outdated information
+- [x] Can yield approved, improvement-request
+- [x] Outputs yield protocol TOML
+
+**Files:** `skills/context-qa/SKILL.md`, `skills/context-qa/SKILL_test.sh`
 
 **Dependencies:** TASK-4
 
@@ -608,17 +618,19 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-25: Create context-explorer
+### TASK-25: Create context-explorer ✓
 
 **Description:** Create context explorer skill for need-context queries.
 
-**Acceptance Criteria:**
-- [ ] Handles all query types: file, memory, territory, web, semantic
-- [ ] Can parallelize queries internally (via Task tool)
-- [ ] Returns aggregated context
-- [ ] Outputs yield protocol TOML (complete with results)
+**Status:** Complete
 
-**Files:** `skills/context-explorer/SKILL.md`, `skills/context-explorer/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Handles all query types: file, memory, territory, web, semantic
+- [x] Can parallelize queries internally (via Task tool)
+- [x] Returns aggregated context
+- [x] Outputs yield protocol TOML (complete with results)
+
+**Files:** `skills/context-explorer/SKILL.md`, `skills/context-explorer/SKILL_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -626,16 +638,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-26: Create intake-evaluator
+### TASK-26: Create intake-evaluator ✓
 
 **Description:** Create intake evaluator standalone skill.
 
-**Acceptance Criteria:**
-- [ ] Classifies request type (new, adopt, align, single-task)
-- [ ] Outputs yield protocol TOML with classification
-- [ ] Can escalate to user if classification uncertain
+**Status:** Complete
 
-**Files:** `skills/intake-evaluator/SKILL.md`, `skills/intake-evaluator/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Classifies request type (new, adopt, align, single-task)
+- [x] Outputs yield protocol TOML with classification
+- [x] Can escalate to user if classification uncertain
+
+**Files:** `skills/intake-evaluator/SKILL.md`, `skills/intake-evaluator/SKILL_test.sh`
 
 **Dependencies:** TASK-1
 
@@ -643,16 +657,18 @@ TASK-31 (validation & cleanup)
 
 ---
 
-### TASK-27: Create next-steps
+### TASK-27: Create next-steps ✓
 
 **Description:** Create next-steps standalone skill.
 
-**Acceptance Criteria:**
-- [ ] Suggests follow-up work based on completed project
-- [ ] References open issues
-- [ ] Outputs yield protocol TOML
+**Status:** Complete
 
-**Files:** `skills/next-steps/SKILL.md`, `skills/next-steps/SKILL-full.md`
+**Acceptance Criteria:**
+- [x] Suggests follow-up work based on completed project
+- [x] References open issues
+- [x] Outputs yield protocol TOML
+
+**Files:** `skills/next-steps/SKILL.md`, `skills/next-steps/SKILL_test.sh`
 
 **Dependencies:** TASK-1
 
