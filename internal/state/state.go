@@ -74,21 +74,30 @@ type PairState struct {
 // YieldState tracks a pending yield from a skill.
 type YieldState struct {
 	Pending     bool   `toml:"pending"`
-	Type        string `toml:"type"`                    // need-user-input, need-context, need-decision, blocked, error
-	Agent       string `toml:"agent"`                   // Which agent yielded
+	Type        string `toml:"type"`                   // need-user-input, need-context, need-decision, blocked, error
+	Agent       string `toml:"agent"`                  // Which agent yielded
 	ContextFile string `toml:"context_file,omitempty"` // Path to context file for resumption
+}
+
+// WorktreeState tracks the state of a git worktree for a task.
+type WorktreeState struct {
+	Path    string    `toml:"path"`
+	Branch  string    `toml:"branch"`
+	Created time.Time `toml:"created"`
+	Status  string    `toml:"status"` // active, merged, failed
 }
 
 // State is the complete project state.
 type State struct {
-	Project   Project              `toml:"project"`
-	Progress  Progress             `toml:"progress"`
-	Conflicts Conflicts            `toml:"conflicts"`
-	Meta      Meta                 `toml:"meta"`
-	History   []PhaseTransition    `toml:"history"`
-	Error     *ErrorInfo           `toml:"error,omitempty"`
-	Pairs     map[string]PairState `toml:"pairs,omitempty"`
-	Yield     *YieldState          `toml:"yield,omitempty"`
+	Project   Project                  `toml:"project"`
+	Progress  Progress                 `toml:"progress"`
+	Conflicts Conflicts                `toml:"conflicts"`
+	Meta      Meta                     `toml:"meta"`
+	History   []PhaseTransition        `toml:"history"`
+	Error     *ErrorInfo               `toml:"error,omitempty"`
+	Pairs     map[string]PairState     `toml:"pairs,omitempty"`
+	Yield     *YieldState              `toml:"yield,omitempty"`
+	Worktrees map[string]WorktreeState `toml:"worktrees,omitempty"`
 }
 
 // InitOpts holds optional parameters for Init.
@@ -510,6 +519,43 @@ func SetYield(dir string, ys *YieldState) (State, error) {
 // ClearYield clears the pending yield state.
 func ClearYield(dir string) (State, error) {
 	return SetYield(dir, nil)
+}
+
+// SetWorktree updates the worktree state for a task.
+func SetWorktree(dir string, key string, ws WorktreeState) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if s.Worktrees == nil {
+		s.Worktrees = make(map[string]WorktreeState)
+	}
+	s.Worktrees[key] = ws
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
+}
+
+// ClearWorktree removes the worktree state for a task.
+func ClearWorktree(dir string, key string) (State, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return State{}, err
+	}
+
+	if s.Worktrees != nil {
+		delete(s.Worktrees, key)
+	}
+
+	if err := writeAtomic(dir, s); err != nil {
+		return State{}, err
+	}
+
+	return s, nil
 }
 
 // MarkTaskComplete marks a task as complete and persists to state file.
