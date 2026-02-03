@@ -14,12 +14,12 @@ import (
 type DefaultChecker struct{}
 
 func (c *DefaultChecker) RequirementsExist(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, "docs", "requirements.md"))
+	_, err := os.Stat(filepath.Join(dir, "requirements.md"))
 	return err == nil
 }
 
 func (c *DefaultChecker) RequirementsHaveIDs(dir string) bool {
-	content, err := os.ReadFile(filepath.Join(dir, "docs", "requirements.md"))
+	content, err := os.ReadFile(filepath.Join(dir, "requirements.md"))
 	if err != nil {
 		return false
 	}
@@ -29,12 +29,12 @@ func (c *DefaultChecker) RequirementsHaveIDs(dir string) bool {
 }
 
 func (c *DefaultChecker) DesignExists(dir string) bool {
-	_, err := os.Stat(filepath.Join(dir, "docs", "design.md"))
+	_, err := os.Stat(filepath.Join(dir, "design.md"))
 	return err == nil
 }
 
 func (c *DefaultChecker) DesignHasIDs(dir string) bool {
-	content, err := os.ReadFile(filepath.Join(dir, "docs", "design.md"))
+	content, err := os.ReadFile(filepath.Join(dir, "design.md"))
 	if err != nil {
 		return false
 	}
