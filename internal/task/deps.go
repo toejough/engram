@@ -18,7 +18,7 @@ type DependencyGraph struct {
 
 // ParseDependencies parses task dependencies from tasks.md.
 func ParseDependencies(dir string) (*DependencyGraph, error) {
-	tasksPath := filepath.Join(dir, "docs", "tasks.md")
+	tasksPath := filepath.Join(dir, "tasks.md")
 
 	content, err := os.ReadFile(tasksPath)
 	if err != nil {

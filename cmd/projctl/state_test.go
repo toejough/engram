@@ -24,7 +24,7 @@ func TestStateComplete_MarksTaskComplete(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Create tasks.md with the task
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -32,7 +32,7 @@ func TestStateComplete_MarksTaskComplete(t *testing.T) {
 **Acceptance Criteria:**
 - [x] Done
 `
-	err = os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err = os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Mark complete - uses internal API that CLI wraps
@@ -56,7 +56,7 @@ func TestStateComplete_ErrorsWhenTaskNotFound(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Create tasks.md without the target task
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Different task
@@ -64,7 +64,7 @@ func TestStateComplete_ErrorsWhenTaskNotFound(t *testing.T) {
 **Acceptance Criteria:**
 - [x] Done
 `
-	err = os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err = os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Try to mark non-existent task complete

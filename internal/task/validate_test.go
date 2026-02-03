@@ -24,8 +24,8 @@ func TestValidateTask_UIRequiresVisualEvidence(t *testing.T) {
 **Acceptance Criteria:**
 - Button renders
 `
-	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.Validate(dir, "TASK-001")
@@ -39,7 +39,7 @@ func TestValidateTask_UIWithVisualEvidence(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Add button
@@ -49,7 +49,7 @@ func TestValidateTask_UIWithVisualEvidence(t *testing.T) {
 **Acceptance Criteria:**
 - Button renders
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.Validate(dir, "TASK-001")
@@ -62,7 +62,7 @@ func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	g.Expect(os.MkdirAll(filepath.Join(dir, "docs"), 0o755)).To(Succeed())
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Add function
@@ -71,7 +71,7 @@ func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
 **Acceptance Criteria:**
 - Function works
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.Validate(dir, "TASK-001")
@@ -84,7 +84,7 @@ func TestValidateTask_ManualVisualVerified(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Add button
@@ -93,7 +93,7 @@ func TestValidateTask_ManualVisualVerified(t *testing.T) {
 **Acceptance Criteria:**
 - Button renders
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Without manual flag, should fail
@@ -112,7 +112,7 @@ func TestParseDependencies(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: First task
@@ -127,7 +127,7 @@ func TestParseDependencies(t *testing.T) {
 
 **Dependencies:** TASK-001, TASK-002
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	graph, err := task.ParseDependencies(dir)
@@ -144,7 +144,7 @@ func TestParseDependencies_DetectsCycle(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -155,7 +155,7 @@ func TestParseDependencies_DetectsCycle(t *testing.T) {
 
 **Dependencies:** TASK-001
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	graph, err := task.ParseDependencies(dir)
@@ -170,7 +170,7 @@ func TestParseDependencies_RootTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Root A
@@ -185,7 +185,7 @@ func TestParseDependencies_RootTasks(t *testing.T) {
 
 **Dependencies:** TASK-001, TASK-002
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	graph, err := task.ParseDependencies(dir)
@@ -200,7 +200,7 @@ func TestParallel_IndependentTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -218,7 +218,7 @@ func TestParallel_IndependentTasks(t *testing.T) {
 **Dependencies:** TASK-001
 **Status:** pending
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	parallel, err := task.Parallel(dir)
@@ -234,7 +234,7 @@ func TestParallel_BlockedTasks(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -247,7 +247,7 @@ func TestParallel_BlockedTasks(t *testing.T) {
 **Dependencies:** TASK-001
 **Status:** pending
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	parallel, err := task.Parallel(dir)
@@ -262,7 +262,7 @@ func TestParallel_AllComplete(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: First
@@ -270,7 +270,7 @@ func TestParallel_AllComplete(t *testing.T) {
 **Dependencies:** None
 **Status:** complete
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	parallel, err := task.Parallel(dir)
@@ -284,7 +284,7 @@ func TestValidateAcceptanceCriteria_CompleteCheckboxes(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -293,7 +293,7 @@ func TestValidateAcceptanceCriteria_CompleteCheckboxes(t *testing.T) {
 - [x] First criterion done
 - [x] Second criterion done
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.ValidateAcceptanceCriteria(dir, "TASK-001")
@@ -308,7 +308,7 @@ func TestValidateAcceptanceCriteria_IncompleteCheckboxes(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -318,7 +318,7 @@ func TestValidateAcceptanceCriteria_IncompleteCheckboxes(t *testing.T) {
 - [ ] Second criterion pending
 - [ ] Third criterion pending
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.ValidateAcceptanceCriteria(dir, "TASK-001")
@@ -338,7 +338,7 @@ func TestValidateAcceptanceCriteria_TaskNotFound(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -346,7 +346,7 @@ func TestValidateAcceptanceCriteria_TaskNotFound(t *testing.T) {
 **Acceptance Criteria:**
 - [x] Done
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.ValidateAcceptanceCriteria(dir, "TASK-999")
@@ -359,14 +359,14 @@ func TestValidateAcceptanceCriteria_NoAcceptanceCriteria(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
 
 **Description:** Some description
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result := task.ValidateAcceptanceCriteria(dir, "TASK-001")
@@ -381,7 +381,7 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -390,7 +390,7 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 - [x] Done
 - [ ] Not done
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Create state file in task-audit phase
@@ -427,7 +427,7 @@ func TestStateTransition_TaskCompleteSucceedsWithCompleteAC(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -436,7 +436,7 @@ func TestStateTransition_TaskCompleteSucceedsWithCompleteAC(t *testing.T) {
 - [x] First done
 - [x] Second done
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	checker := &task.DefaultPreconditionChecker{}
@@ -450,7 +450,7 @@ func TestValidateAcceptanceCriteria_ForceBypass(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -458,7 +458,7 @@ func TestValidateAcceptanceCriteria_ForceBypass(t *testing.T) {
 **Acceptance Criteria:**
 - [ ] Not done
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Without force, should fail
@@ -477,7 +477,7 @@ func TestValidateAcceptanceCriteria_ErrorListsItems(t *testing.T) {
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+
 	tasksContent := `# Tasks
 
 ### TASK-001: Test task
@@ -487,7 +487,7 @@ func TestValidateAcceptanceCriteria_ErrorListsItems(t *testing.T) {
 - [ ] Missing item A
 - [ ] Missing item B
 `
-	err := os.WriteFile(filepath.Join(dir, "docs", "tasks.md"), []byte(tasksContent), 0o644)
+	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	checker := &task.DefaultPreconditionChecker{}

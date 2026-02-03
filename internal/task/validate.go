@@ -28,7 +28,7 @@ func Validate(dir, taskID string) ValidationResult {
 
 // ValidateWithOpts checks if a task meets validation requirements with options.
 func ValidateWithOpts(dir, taskID string, opts ValidateOpts) ValidationResult {
-	tasksPath := filepath.Join(dir, "docs", "tasks.md")
+	tasksPath := filepath.Join(dir, "tasks.md")
 
 	content, err := os.ReadFile(tasksPath)
 	if err != nil {
@@ -117,7 +117,7 @@ type ACResult struct {
 
 // ValidateAcceptanceCriteria checks acceptance criteria completion status.
 func ValidateAcceptanceCriteria(dir, taskID string) ACResult {
-	tasksPath := filepath.Join(dir, "docs", "tasks.md")
+	tasksPath := filepath.Join(dir, "tasks.md")
 
 	content, err := os.ReadFile(tasksPath)
 	if err != nil {
