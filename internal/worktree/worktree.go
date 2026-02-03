@@ -1,6 +1,9 @@
 package worktree
 
 import (
+	"fmt"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -45,4 +48,61 @@ func (m *Manager) Path(taskID string) string {
 // Pattern: task/<task-id>
 func (m *Manager) BranchName(taskID string) string {
 	return "task/" + taskID
+}
+
+// Create creates a new worktree for the given task.
+// Creates the branch and worktree directory.
+func (m *Manager) Create(taskID string) (string, error) {
+	wtPath := m.Path(taskID)
+	branch := m.BranchName(taskID)
+
+	// Create parent directory if needed
+	if err := os.MkdirAll(m.ParentDir(), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create worktree parent dir: %w", err)
+	}
+
+	// Check if worktree already exists
+	if _, err := os.Stat(wtPath); err == nil {
+		return "", fmt.Errorf("worktree already exists at %s", wtPath)
+	}
+
+	// Create branch and worktree in one command
+	output, err := m.git("worktree", "add", "-b", branch, wtPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create worktree: %s: %w", output, err)
+	}
+
+	return wtPath, nil
+}
+
+// Cleanup removes a worktree and its branch.
+func (m *Manager) Cleanup(taskID string) error {
+	wtPath := m.Path(taskID)
+	branch := m.BranchName(taskID)
+
+	// Remove worktree
+	if _, err := m.git("worktree", "remove", "--force", wtPath); err != nil {
+		// Try manual removal if git command fails
+		if rmErr := os.RemoveAll(wtPath); rmErr != nil {
+			return fmt.Errorf("failed to remove worktree directory: %w", rmErr)
+		}
+		// Prune worktree list
+		_, _ = m.git("worktree", "prune")
+	}
+
+	// Delete branch
+	_, _ = m.git("branch", "-D", branch)
+
+	// Try to remove parent dir if empty
+	_ = os.Remove(m.ParentDir())
+
+	return nil
+}
+
+// git runs a git command in the repo directory.
+func (m *Manager) git(args ...string) (string, error) {
+	cmd := exec.Command("git", args...)
+	cmd.Dir = m.repoDir
+	output, err := cmd.CombinedOutput()
+	return string(output), err
 }
