@@ -110,3 +110,82 @@ func markTaskCompleteWithValidation(dir, taskID string) error {
 func containsNotFound(s string) bool {
 	return strings.Contains(s, "not found")
 }
+
+// traces: ISSUE-036
+// Test stateInit defaults to .claude/projects/<name>/ when --dir is not provided.
+func TestStateInit_DefaultsToProjectDir(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Change to temp dir to test relative path behavior
+	oldWd, err := os.Getwd()
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = os.Chdir(oldWd) }()
+	g.Expect(os.Chdir(dir)).To(Succeed())
+
+	// Call stateInit with name but no dir - should default to .claude/projects/<name>/
+	err = stateInitWithDefaults("my-project", "", "new", "")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify state file was created in the default location
+	expectedPath := filepath.Join(dir, ".claude", "projects", "my-project", "state.toml")
+	_, err = os.Stat(expectedPath)
+	g.Expect(err).ToNot(HaveOccurred(), "state.toml should exist at %s", expectedPath)
+
+	// Verify state content
+	s, err := state.Get(filepath.Join(dir, ".claude", "projects", "my-project"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Project.Name).To(Equal("my-project"))
+}
+
+// traces: ISSUE-036
+// Test stateInit creates the directory if it doesn't exist.
+func TestStateInit_CreatesDirectory(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	oldWd, err := os.Getwd()
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = os.Chdir(oldWd) }()
+	g.Expect(os.Chdir(dir)).To(Succeed())
+
+	// .claude/projects doesn't exist yet
+	projectDir := filepath.Join(dir, ".claude", "projects", "new-project")
+	_, err = os.Stat(projectDir)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
+
+	// stateInit should create it
+	err = stateInitWithDefaults("new-project", "", "new", "")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Directory should now exist
+	info, err := os.Stat(projectDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(info.IsDir()).To(BeTrue())
+}
+
+// traces: ISSUE-036
+// Test stateInit still respects explicit --dir when provided.
+func TestStateInit_RespectsExplicitDir(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	customDir := filepath.Join(dir, "custom", "location")
+	g.Expect(os.MkdirAll(customDir, 0o755)).To(Succeed())
+
+	err := stateInitWithDefaults("my-project", customDir, "new", "")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify state file was created in the explicit location
+	expectedPath := filepath.Join(customDir, "state.toml")
+	_, err = os.Stat(expectedPath)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// stateInitWithDefaults wraps the CLI logic for testing.
+// This is the function that should implement the defaulting behavior.
+func stateInitWithDefaults(name, dir, mode, issue string) error {
+	// TODO: This should be implemented in state.go
+	// For now, this fails because the function doesn't exist
+	return fmt.Errorf("stateInitWithDefaults not implemented")
+}
