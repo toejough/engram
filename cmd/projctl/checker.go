@@ -124,3 +124,13 @@ func (c *DefaultChecker) UnblockedTasks(dir, failedTask string) []string {
 	}
 	return unblocked
 }
+
+func (c *DefaultChecker) RetroExists(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "retro.md"))
+	return err == nil
+}
+
+func (c *DefaultChecker) SummaryExists(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "summary.md"))
+	return err == nil
+}

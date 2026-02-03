@@ -407,6 +407,8 @@ type mockPreconditionChecker struct {
 	incompleteAcceptanceCriteria []string
 	unblockedTasks               []string
 	currentTaskID                string
+	retroExists                  bool
+	summaryExists                bool
 }
 
 func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
@@ -452,6 +454,14 @@ func (m *mockPreconditionChecker) IncompleteAcceptanceCriteria(dir, taskID strin
 
 func (m *mockPreconditionChecker) UnblockedTasks(dir, failedTask string) []string {
 	return m.unblockedTasks
+}
+
+func (m *mockPreconditionChecker) RetroExists(dir string) bool {
+	return m.retroExists
+}
+
+func (m *mockPreconditionChecker) SummaryExists(dir string) bool {
+	return m.summaryExists
 }
 
 // Test that illegal transitions provide helpful error messages
@@ -1035,6 +1045,8 @@ func walkToPhase(t *testing.T, dir, target string) {
 		testsFail:                  true,
 		testsPass:                  true,
 		acceptanceCriteriaComplete: true,
+		retroExists:                true,
+		summaryExists:              true,
 	}
 
 	for _, phase := range phases {

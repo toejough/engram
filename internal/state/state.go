@@ -167,6 +167,8 @@ type PreconditionChecker interface {
 	AcceptanceCriteriaComplete(dir, taskID string) bool
 	IncompleteAcceptanceCriteria(dir, taskID string) []string // Returns list of incomplete AC items
 	UnblockedTasks(dir string, failedTask string) []string    // Returns unblocked tasks excluding the failed one
+	RetroExists(dir string) bool                              // Check for retro.md in project dir
+	SummaryExists(dir string) bool                            // Check for summary.md in project dir
 }
 
 // Preconditions maps phases to their required preconditions.
@@ -217,6 +219,18 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 	"tdd-refactor": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TestsPass(dir) {
 			return fmt.Errorf("precondition failed: all tests must pass")
+		}
+		return nil
+	},
+	"retro-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+		if !c.RetroExists(dir) {
+			return fmt.Errorf("precondition failed: retro.md must exist")
+		}
+		return nil
+	},
+	"summary-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+		if !c.SummaryExists(dir) {
+			return fmt.Errorf("precondition failed: summary.md must exist")
 		}
 		return nil
 	},
