@@ -64,7 +64,7 @@ func stateInit(args stateInitArgs) error {
 			firstState = "task-implementation"
 		}
 
-		s, err = state.Transition(args.Dir, firstState, state.TransitionOpts{}, time.Now)
+		s, err = state.Transition(dir, firstState, state.TransitionOpts{}, time.Now)
 		if err != nil {
 			return fmt.Errorf("failed to transition to %s: %w", firstState, err)
 		}
