@@ -1491,3 +1491,170 @@ When a project completes work linked to an issue (via state.toml `issue` field),
 3. Add explicit step in orchestrator after implementation-complete
 
 **Traces to:** Process automation
+
+---
+
+## ISSUE-029: Add --project-dir flag to trace commands
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective R1:
+
+**Problem:** `projctl trace promote` looks for tasks.md in docs/ not .claude/projects/.
+
+**Action:** Update `projctl trace promote` and `projctl trace show` to accept `--project-dir` flag for finding tasks.md in non-standard locations.
+
+**Rationale:** Projects using `.claude/projects/<name>/` structure need to specify where tasks.md lives. Current hardcoded `docs/tasks.md` assumption breaks project-based organization.
+
+**Acceptance Criteria:**
+- [ ] `projctl trace promote --project-dir .claude/projects/foo/` successfully resolves TASK-NNN references
+- [ ] `projctl trace show --project-dir .claude/projects/foo/` uses tasks.md from specified directory
+
+**Traces to:** ISSUE-026 Retrospective R1
+
+---
+
+## ISSUE-030: Create issue-update-producer skill
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective R2:
+
+**Problem:** Issues linked to projects aren't automatically closed when project completes.
+
+**Action:** Implement skill that closes linked issues when project completes.
+
+**Rationale:** Manual issue closure is error-prone and creates tracker drift. Automation ensures issues are closed when their linked work completes.
+
+**Acceptance Criteria:**
+- [ ] issue-update-producer skill exists with SKILL.md
+- [ ] Skill reads project state to find linked issue(s)
+- [ ] Skill invokes `projctl issue update --status Closed` for linked issues
+- [ ] After implementation-complete, linked issues show 'Closed' status with project reference
+
+**Traces to:** ISSUE-026 Retrospective R2, ISSUE-028
+
+---
+
+## ISSUE-031: Define parallel commit strategy for task execution
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective R3:
+
+**Problem:** Parallel agents bypass commit-per-phase discipline (no commits during parallel work).
+
+**Action:** Document and implement a strategy for commits during parallel task execution.
+
+**Rationale:** Current situation (no commits during parallel work) loses granular history. Need explicit policy.
+
+**Options:**
+1. Each agent commits to a branch, merge at end
+2. Accept bulk commits for parallel work (document as intentional)
+3. Sequential-only for tasks requiring git history
+
+**Acceptance Criteria:**
+- [ ] Orchestration doc or README specifies parallel commit policy
+- [ ] Policy is implementable by orchestrator
+- [ ] Trade-offs are documented
+
+**Traces to:** ISSUE-026 Retrospective R3, ISSUE-027
+
+---
+
+## ISSUE-032: Add integration test for state task tracking
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective R4:
+
+**Problem:** State tracking changes (TASK-001/002) have unit tests but no integration test.
+
+**Action:** Create integration test that runs full workflow with task completion tracking.
+
+**Rationale:** TASK-001/002 are foundational - bugs here break orchestration. Integration test catches edge cases unit tests miss.
+
+**Test should verify:**
+- MarkTaskComplete persists across process boundaries
+- IsTaskComplete returns correct results after state reload
+- Next() correctly filters completed tasks in full workflow
+- State file encoding/decoding round-trips correctly
+
+**Acceptance Criteria:**
+- [ ] Integration test file exists (e.g., internal/state/integration_test.go)
+- [ ] Test uses real files, not mocks
+- [ ] Test runs full task completion workflow
+- [ ] `go test -tags=integration ./internal/state/...` validates complete workflow
+
+**Traces to:** ISSUE-026 Retrospective R4
+
+---
+
+## ISSUE-033: Decision needed: Should parallel tasks use separate branches?
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective Q1:
+
+**Context:** Parallel task execution creates merge challenges. Git branches could isolate work.
+
+**Options:**
+- **A:** Each task on own branch, orchestrator merges (clean history, complex orchestration)
+- **B:** All tasks share working tree, bulk commit (simple, no history)
+- **C:** Sequential only when git history matters (selective parallelism)
+
+**Decision needed before:** Next parallel project execution
+
+**Traces to:** ISSUE-026 Retrospective Q1, ISSUE-027
+
+---
+
+## ISSUE-034: Decision needed: Where should project artifacts live?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective Q2:
+
+**Context:** This project used `.claude/projects/orchestration-infrastructure/` but trace commands assume `docs/`.
+
+**Options:**
+- **A:** All projects use `docs/` (simple, but pollutes repo)
+- **B:** Projects use `.claude/projects/<name>/` with configurable paths (current)
+- **C:** Configurable via `state.toml` artifact paths (flexible, complex)
+
+**Decision needed before:** ISSUE-006 resolution
+
+**Traces to:** ISSUE-026 Retrospective Q2, ISSUE-006
+
+---
+
+## ISSUE-035: Decision needed: How to handle skill documentation without TDD?
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-03
+
+From ISSUE-026 retrospective Q3:
+
+**Context:** Skill updates (TASK-009/010/011) can't follow TDD because skills are documentation, not code.
+
+**Options:**
+- **A:** Accept documentation updates aren't testable (status quo)
+- **B:** Implement doc testing framework (relates to ISSUE-002)
+- **C:** Skills are code (refactor to executable format)
+
+**Decision needed before:** Next skill enhancement project
+
+**Traces to:** ISSUE-026 Retrospective Q3, ISSUE-002
