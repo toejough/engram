@@ -647,6 +647,208 @@ func (m *mockArtifactChecker) UnblockedTasks(dir string, failedTask string) []st
 func (m *mockArtifactChecker) RetroExists(dir string) bool                    { return m.retroExists }
 func (m *mockArtifactChecker) SummaryExists(dir string) bool                  { return m.summaryExists }
 
+func TestWorktreeTracking(t *testing.T) {
+	t.Run("State has Worktrees map", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		s, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees).To(BeNil()) // nil by default, not empty map
+
+		// Verify persistence - nil map persists correctly
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees).To(BeNil())
+	})
+
+	t.Run("SetWorktree adds a worktree and persists", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		created := fixedTime()
+		s, err := state.SetWorktree(dir, "TASK-007", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-007",
+			Branch:  "task/TASK-007",
+			Created: created,
+			Status:  "active",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees).To(HaveKey("TASK-007"))
+		g.Expect(s.Worktrees["TASK-007"].Path).To(Equal("/path/to/worktree/TASK-007"))
+		g.Expect(s.Worktrees["TASK-007"].Branch).To(Equal("task/TASK-007"))
+		g.Expect(s.Worktrees["TASK-007"].Created).To(Equal(created))
+		g.Expect(s.Worktrees["TASK-007"].Status).To(Equal("active"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees).To(HaveKey("TASK-007"))
+		g.Expect(loaded.Worktrees["TASK-007"].Path).To(Equal("/path/to/worktree/TASK-007"))
+		g.Expect(loaded.Worktrees["TASK-007"].Branch).To(Equal("task/TASK-007"))
+		g.Expect(loaded.Worktrees["TASK-007"].Status).To(Equal("active"))
+	})
+
+	t.Run("SetWorktree updates existing worktree", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		created := fixedTime()
+		_, err = state.SetWorktree(dir, "TASK-007", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-007",
+			Branch:  "task/TASK-007",
+			Created: created,
+			Status:  "active",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Update to merged
+		s, err := state.SetWorktree(dir, "TASK-007", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-007",
+			Branch:  "task/TASK-007",
+			Created: created,
+			Status:  "merged",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees["TASK-007"].Status).To(Equal("merged"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees["TASK-007"].Status).To(Equal("merged"))
+	})
+
+	t.Run("ClearWorktree removes worktree", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetWorktree(dir, "TASK-007", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-007",
+			Branch:  "task/TASK-007",
+			Created: fixedTime(),
+			Status:  "active",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.ClearWorktree(dir, "TASK-007")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees).ToNot(HaveKey("TASK-007"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees).ToNot(HaveKey("TASK-007"))
+	})
+
+	t.Run("multiple worktrees can coexist", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		created := fixedTime()
+		_, err = state.SetWorktree(dir, "TASK-007", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-007",
+			Branch:  "task/TASK-007",
+			Created: created,
+			Status:  "active",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.SetWorktree(dir, "TASK-008", state.WorktreeState{
+			Path:    "/path/to/worktree/TASK-008",
+			Branch:  "task/TASK-008",
+			Created: created,
+			Status:  "active",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees).To(HaveLen(2))
+		g.Expect(s.Worktrees).To(HaveKey("TASK-007"))
+		g.Expect(s.Worktrees).To(HaveKey("TASK-008"))
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees).To(HaveLen(2))
+	})
+
+	t.Run("WorktreeState status tracks active/merged/failed", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		created := fixedTime()
+
+		// Test all status values
+		for _, status := range []string{"active", "merged", "failed"} {
+			taskID := "TASK-" + status
+			s, err := state.SetWorktree(dir, taskID, state.WorktreeState{
+				Path:    "/path/to/worktree/" + taskID,
+				Branch:  "task/" + taskID,
+				Created: created,
+				Status:  status,
+			})
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(s.Worktrees[taskID].Status).To(Equal(status))
+		}
+
+		// Verify persistence
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees["TASK-active"].Status).To(Equal("active"))
+		g.Expect(loaded.Worktrees["TASK-merged"].Status).To(Equal("merged"))
+		g.Expect(loaded.Worktrees["TASK-failed"].Status).To(Equal("failed"))
+	})
+}
+
+func TestWorktreeTrackingProperty(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Generate random worktree data
+		taskID := rapid.StringMatching(`TASK-[0-9]{3}`).Draw(rt, "taskID")
+		path := rapid.StringMatching(`/[a-z]+/[a-z]+/` + taskID).Draw(rt, "path")
+		branch := rapid.StringMatching(`task/` + taskID).Draw(rt, "branch")
+		status := rapid.SampledFrom([]string{"active", "merged", "failed"}).Draw(rt, "status")
+
+		// Set worktree
+		s, err := state.SetWorktree(dir, taskID, state.WorktreeState{
+			Path:    path,
+			Branch:  branch,
+			Created: fixedTime(),
+			Status:  status,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Worktrees).To(HaveKey(taskID))
+		g.Expect(s.Worktrees[taskID].Path).To(Equal(path))
+		g.Expect(s.Worktrees[taskID].Branch).To(Equal(branch))
+		g.Expect(s.Worktrees[taskID].Status).To(Equal(status))
+
+		// Roundtrip: read back should match
+		loaded, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(loaded.Worktrees[taskID].Path).To(Equal(path))
+		g.Expect(loaded.Worktrees[taskID].Branch).To(Equal(branch))
+		g.Expect(loaded.Worktrees[taskID].Status).To(Equal(status))
+	})
+}
+
 func TestYieldTracking(t *testing.T) {
 	t.Run("tracks pending yield", func(t *testing.T) {
 		g := NewWithT(t)
