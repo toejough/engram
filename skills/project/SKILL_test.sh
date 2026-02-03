@@ -70,5 +70,31 @@ echo "Test 10: Maintains core state machine"
 grep -qi "pm\|design\|arch\|implementation" "$SKILL_FILE" || fail "Missing phase references"
 pass "Maintains state machine"
 
+# Test 11: Documents intake flow
+echo "Test 11: Documents intake flow"
+grep -qi "intake.*flow\|intake-evaluator" "$SKILL_FILE" || fail "Missing intake flow documentation"
+pass "Documents intake flow"
+
+# Test 12: Documents issue handling
+echo "Test 12: Documents issue handling"
+grep -qi "issue" "$SKILL_FILE" || fail "Missing issue handling"
+grep -qi "create.*issue\|link.*issue\|update.*issue" "$SKILL_FILE" || fail "Missing issue create/link/update"
+pass "Documents issue handling"
+
+# Test 13: Documents /project task command
+echo "Test 13: Documents /project task command"
+grep -q "/project task\|project task" "$SKILL_FILE" || fail "Missing /project task command"
+pass "Documents /project task"
+
+# Test 14: Documents main flow ending
+echo "Test 14: Documents main flow ending"
+grep -qi "main flow ending\|alignment.*retro.*summary" "$SKILL_FILE" || fail "Missing main flow ending"
+pass "Documents main flow ending"
+
+# Test 15: Documents workflow dispatch
+echo "Test 15: Documents workflow dispatch routing"
+grep -qi "multi-task\|single task" "$SKILL_FILE" || fail "Missing workflow dispatch criteria"
+pass "Documents workflow dispatch"
+
 echo ""
 echo "=== All tests passed ==="
