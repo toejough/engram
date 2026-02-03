@@ -3,6 +3,7 @@ package territory
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,6 +169,24 @@ func MarshalCached(m CachedMap) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// Show returns the cached territory map without regenerating.
+// Returns an error if no cache exists.
+func Show(dir string) (CachedMap, error) {
+	cachePath := filepath.Join(dir, CacheFile)
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return CachedMap{}, fmt.Errorf("no cached territory map: %w", err)
+	}
+
+	var cached CachedMap
+	if _, err := toml.Decode(string(data), &cached); err != nil {
+		return CachedMap{}, fmt.Errorf("failed to parse cached territory: %w", err)
+	}
+
+	return cached, nil
 }
 
 // LoadCached loads a cached territory map or generates a new one.

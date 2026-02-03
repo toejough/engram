@@ -1,17 +1,32 @@
 package state
 
 // LegalTransitions maps each phase to its valid next phases.
+// Aligned with docs/orchestration-system.md Section 7 workflows.
 var LegalTransitions = map[string][]string{
-	"init":                    {"pm-interview", "adopt-analyze", "align-analyze"},
-	"pm-interview":            {"pm-complete"},
-	"pm-complete":             {"design-interview"},
-	"design-interview":        {"design-complete"},
-	"design-complete":         {"alignment-check"},
-	"architect-interview":     {"architect-complete"},
-	"architect-complete":      {"alignment-check"},
-	"alignment-check":         {"architect-interview", "design-interview", "task-breakdown", "implementation", "audit", "completion"},
-	"task-breakdown":          {"planning-complete"},
-	"planning-complete":       {"alignment-check"},
+	// === INIT ===
+	// Can start any workflow
+	"init": {"pm", "adopt-explore", "align-explore", "task-implementation"},
+
+	// === NEW PROJECT WORKFLOW (Section 7.2) ===
+	// PM → Design → Architecture → Breakdown → Implementation → Documentation → (main flow ending)
+
+	// PM phase
+	"pm":          {"pm-complete"},
+	"pm-complete": {"design"},
+
+	// Design phase
+	"design":          {"design-complete"},
+	"design-complete": {"architect"},
+
+	// Architecture phase
+	"architect":          {"architect-complete"},
+	"architect-complete": {"breakdown"},
+
+	// Breakdown phase
+	"breakdown":          {"breakdown-complete"},
+	"breakdown-complete": {"implementation"},
+
+	// Implementation phase (TDD loop)
 	"implementation":          {"task-start"},
 	"task-start":              {"tdd-red"},
 	"tdd-red":                 {"commit-red"},
@@ -21,35 +36,54 @@ var LegalTransitions = map[string][]string{
 	"tdd-refactor":            {"commit-refactor"},
 	"commit-refactor":         {"task-audit"},
 	"task-audit":              {"task-complete", "task-retry", "task-escalated"},
-	"task-complete":           {"task-start", "implementation-complete"},
+	"task-complete":           {"task-start", "implementation-complete", "task-documentation"}, // task-documentation for single-task workflow
 	"task-retry":              {"tdd-red"},
 	"task-escalated":          {"task-start", "implementation-complete"},
-	"implementation-complete": {"audit"},
-	"audit":                   {"audit-complete", "audit-fix"},
-	"audit-fix":               {"audit"},
-	"audit-complete":          {"completion"},
-	"completion":              {"integrate-commit"},
-	"integrate-commit":        {"integrate-merge"},
-	"integrate-merge":         {"integrate-cleanup"},
-	"integrate-cleanup":       {"integrate-complete"},
-	"integrate-complete":      {},
-	// Adopt workflow
-	"adopt-analyze":              {"adopt-infer-pm"},
-	"adopt-infer-pm":             {"adopt-infer-pm-complete"},
-	"adopt-infer-pm-complete":    {"adopt-infer-design"},
-	"adopt-infer-design":         {"adopt-infer-design-complete"},
-	"adopt-infer-design-complete": {"adopt-infer-arch"},
-	"adopt-infer-arch":           {"adopt-infer-arch-complete"},
-	"adopt-infer-arch-complete":  {"adopt-map-tests"},
-	"adopt-map-tests":            {"adopt-map-tests-complete"},
-	"adopt-map-tests-complete":   {"adopt-escalations"},
-	"adopt-escalations":          {"adopt-escalations-complete"},
-	"adopt-escalations-complete": {"adopt-generate"},
-	"adopt-generate":             {"adopt-complete"},
-	"adopt-complete":             {},
-	// Align workflow
-	"align-analyze":  {"align-complete"},
-	"align-complete": {"implementation", "task-breakdown"},
+	"implementation-complete": {"documentation"},
+
+	// Documentation phase
+	"documentation":          {"documentation-complete"},
+	"documentation-complete": {"alignment"},
+
+	// === MAIN FLOW ENDING (runs after every workflow) ===
+	// Alignment → Retro → Summary → Issue Update → Next Steps → Complete
+
+	"alignment":          {"alignment-complete"},
+	"alignment-complete": {"retro"},
+	"retro":              {"retro-complete"},
+	"retro-complete":     {"summary"},
+	"summary":            {"summary-complete"},
+	"summary-complete":   {"issue-update"},
+	"issue-update":       {"next-steps"},
+	"next-steps":         {"complete"},
+	"complete":           {}, // Terminal state
+
+	// === ADOPT WORKFLOW (Section 7.3 - bottom-up) ===
+	// Explore → Infer-Tests → Infer-Arch → Infer-Design → Infer-Reqs → Escalations → Documentation → (main flow ending)
+
+	"adopt-explore":       {"adopt-infer-tests"},
+	"adopt-infer-tests":   {"adopt-infer-arch"},
+	"adopt-infer-arch":    {"adopt-infer-design"},
+	"adopt-infer-design":  {"adopt-infer-reqs"},
+	"adopt-infer-reqs":    {"adopt-escalations"},
+	"adopt-escalations":   {"adopt-documentation"},
+	"adopt-documentation": {"alignment"}, // Joins main flow ending
+
+	// === ALIGN WORKFLOW (Section 7.4 - same as adopt) ===
+
+	"align-explore":       {"align-infer-tests"},
+	"align-infer-tests":   {"align-infer-arch"},
+	"align-infer-arch":    {"align-infer-design"},
+	"align-infer-design":  {"align-infer-reqs"},
+	"align-infer-reqs":    {"align-escalations"},
+	"align-escalations":   {"align-documentation"},
+	"align-documentation": {"alignment"}, // Joins main flow ending
+
+	// === TASK WORKFLOW (Section 7.5 - single task) ===
+	// Implementation → Documentation (optional) → (main flow ending)
+
+	"task-implementation": {"task-start"},       // Enters TDD loop
+	"task-documentation":  {"alignment"},        // After single task, joins main flow ending
 }
 
 // IsLegalTransition checks whether transitioning from one phase to another is allowed.

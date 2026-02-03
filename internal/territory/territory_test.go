@@ -218,3 +218,45 @@ func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
 	g.Expect(hit).To(BeFalse())
 	g.Expect(result.Structure.Root).To(Equal(dir))
 }
+
+// Test Show returns the cached territory map.
+func TestShow_ReturnsCache(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{
+				Root:      dir,
+				Languages: []string{"go"},
+				BuildTool: "go",
+			},
+			Packages: territory.Packages{
+				Count:    3,
+				Internal: []string{"pkg1", "pkg2", "pkg3"},
+			},
+		},
+		CachedAt:  time.Now(),
+		FileCount: 10,
+	}
+	data, _ := territory.MarshalCached(cached)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+
+	result, err := territory.Show(dir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Map.Structure.Root).To(Equal(dir))
+	g.Expect(result.Map.Structure.Languages).To(ContainElement("go"))
+	g.Expect(result.Map.Packages.Count).To(Equal(3))
+}
+
+// Test Show errors when no cache exists.
+func TestShow_ErrorsWhenNoCache(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_, err := territory.Show(dir)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("no cached territory"))
+}

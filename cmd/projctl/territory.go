@@ -8,14 +8,14 @@ import (
 	"github.com/toejough/projctl/internal/territory"
 )
 
-type mapGenerateArgs struct {
+type territoryMapArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	Output string `targ:"flag,short=o,desc=Output file path (default: stdout)"`
-	Cached bool   `targ:"flag,short=c,desc=Use cached map if available"`
+	Cached bool   `targ:"flag,short=c,desc=Use cached territory if available"`
 	Force  bool   `targ:"flag,short=f,desc=Force regeneration (ignore cache)"`
 }
 
-func mapGenerate(args mapGenerateArgs) error {
+func territoryMap(args territoryMapArgs) error {
 	dir := args.Dir
 	if dir == "" {
 		var err error
@@ -55,6 +55,34 @@ func mapGenerate(args mapGenerateArgs) error {
 		}
 		fmt.Printf("Territory map written to: %s\n", args.Output)
 		return nil
+	}
+
+	fmt.Print(string(data))
+	return nil
+}
+
+type territoryShowArgs struct {
+	Dir string `targ:"flag,short=d,desc=Project directory (default: current)"`
+}
+
+func territoryShow(args territoryShowArgs) error {
+	dir := args.Dir
+	if dir == "" {
+		var err error
+		dir, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get current directory: %w", err)
+		}
+	}
+
+	cached, err := territory.Show(dir)
+	if err != nil {
+		return err
+	}
+
+	data, err := territory.MarshalCached(cached)
+	if err != nil {
+		return fmt.Errorf("failed to marshal territory map: %w", err)
 	}
 
 	fmt.Print(string(data))
