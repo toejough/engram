@@ -1523,7 +1523,7 @@ From ISSUE-026 retrospective R1:
 ## ISSUE-030: Create issue-update-producer skill
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 From ISSUE-026 retrospective R2:
@@ -1544,6 +1544,10 @@ From ISSUE-026 retrospective R2:
 
 ---
 
+
+### Comment
+
+Won't do - over-engineering. Fixing ISSUE-028 directly with simple command in orchestrator.
 ## ISSUE-031: Define parallel commit strategy for task execution
 
 **Priority:** Medium

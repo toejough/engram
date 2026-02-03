@@ -272,13 +272,23 @@ Returns to main flow for Alignment → Retro → Summary → Next Steps.
 
 ### Issue Update (main flow ending)
 
-1. Update linked issue with summary
-2. Close issue if all acceptance criteria met
-3. Add follow-up issues from retro findings
+**Automatic issue closure** - no skill dispatch needed.
 
 ```bash
-projctl issue update --id ISSUE-NNN --status closed --comment "Completed via project <name>"
+# Get linked issue from state
+ISSUE=$(projctl state get --dir . | grep -oP 'issue = "\K[^"]+')
+
+# If project has a linked issue, close it automatically
+if [ -n "$ISSUE" ]; then
+  projctl issue update -i "$ISSUE" --status Closed \
+    --comment "Completed via project $(projctl state get --dir . --field name)"
+fi
+
+# Create follow-up issues from retro findings (if any)
+# These are created by retro-producer, not this phase
 ```
+
+**This is deterministic** - just run the commands above. No PAIR LOOP.
 
 ### Next Steps Phase (main flow ending)
 
