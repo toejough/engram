@@ -437,7 +437,7 @@ Fixed via path-fixes project. Changed default DocsDir to empty string and fixed 
 ## ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -508,13 +508,22 @@ Update TDD skills to prompt for visual verification:
 
 ### Acceptance Criteria
 
-- [ ] Document visual verification requirements in TDD skill docs
-- [ ] Add `ui` flag or marker to tasks requiring visual verification
-- [ ] `/tdd-green` prompts for visual check when `ui` flag present
-- [ ] `/task-audit` fails if UI task lacks visual evidence
-- [ ] CLAUDE.md lesson updated to make this standard practice
+- [x] Document visual verification requirements in TDD skill docs
+- [x] Add `ui` flag or marker to tasks requiring visual verification
+- [x] `/tdd-green` prompts for visual check when `ui` flag present
+- [x] `/task-audit` fails if UI task lacks visual evidence
+- [x] CLAUDE.md lesson updated to make this standard practice
 
 **Traces to:** REQ-001
+
+### Comment
+
+Completed via visual-verification-tdd project (2026-02-04):
+- tdd-red-producer: Added unified interface testing model (structure + behavior + properties)
+- breakdown-producer: Added `[visual]` task marker detection heuristics
+- tdd-green-producer: Added visual verification step with capture mechanisms
+- tdd-qa: Added visual evidence requirement for `[visual]` tasks
+- CLAUDE.md: Expanded lessons to cover all interface types (UI, CLI, API)
 
 ---
 
@@ -890,7 +899,7 @@ Added projctl territory show command. Fixed in commit 4087e0f. AC verified 2026-
 ## ISSUE-014: Missing `projctl screenshot capture` command
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -910,9 +919,13 @@ This may be less critical if Chrome DevTools MCP handles capture. Evaluate wheth
 
 ### Acceptance Criteria
 
-- [ ] Either implement `projctl screenshot capture` OR update orchestration doc to reflect MCP-based approach
+- [x] Either implement `projctl screenshot capture` OR update orchestration doc to reflect MCP-based approach
 
 **Traces to:** docs/orchestration-system.md Section 10.7
+
+### Comment
+
+Resolved via visual-verification-tdd project (2026-02-04): Documented MCP-based approach in tdd-green-producer SKILL.md. Chrome DevTools MCP `take_screenshot` for web UI, shell redirection for CLI output. Decided not to implement separate command per DD-3 (existing tools sufficient).
 
 ---
 
