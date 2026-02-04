@@ -2261,7 +2261,7 @@ From layer-0-foundation retro R2: Cache ONNX sessions across test functions to a
 ## ISSUE-049: Skills: add output validation before yield
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
 
 From layer-0-foundation retro R3: Skills should validate their output before yielding. If a retro-producer yields without creating retro.md, it should error rather than yielding success.
@@ -2272,6 +2272,10 @@ From layer-0-foundation retro R3: Skills should validate their output before yie
 
 ---
 
+
+### Comment
+
+Superseded by ISSUE-053 - meta-fix where QA validates producer against its own SKILL.md
 ## ISSUE-050: Document worktree workflow for parallel execution
 
 **Priority:** Low
@@ -2289,7 +2293,7 @@ From layer-0-foundation retro R4: Add explicit documentation for parallel execut
 ## ISSUE-051: retro-producer: require issue creation for recommendations
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
 
 The retro-producer skill and/or project orchestrator should explicitly require creating issues for High/Medium priority recommendations and open questions from retrospectives.
@@ -2307,6 +2311,10 @@ The retro-producer skill and/or project orchestrator should explicitly require c
 
 ---
 
+
+### Comment
+
+Superseded by ISSUE-053 - meta-fix where QA validates producer against its own SKILL.md
 ## ISSUE-052: Orchestrator/skills must maintain tasks.md acceptance criteria
 
 **Priority:** High
@@ -2331,3 +2339,32 @@ Skills and the orchestrator don't update tasks.md as work progresses. Acceptance
 3. Make AC tracking part of state.toml with tasks.md as derived view
 
 **Traces to:** layer-0-foundation experience, supersedes ISSUE-047
+
+---
+
+## ISSUE-053: QA agents should validate producer against its SKILL.md contract
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+Currently each QA skill manually duplicates the producer's requirements in its own checklist. This leads to drift and missed validations (e.g., retro-qa doesn't verify issue creation even though retro-producer SKILL.md requires it).
+
+**Meta-fix:** QA agents should receive the producer's SKILL.md as context and validate that the producer did what its documentation says.
+
+**Orchestrator passes to QA:**
+- Producer's SKILL.md (the contract)
+- Producer's yield (what it claims it did)
+- The artifacts (what actually exists)
+
+**QA's job becomes:** Does reality match the contract?
+
+**Benefits:**
+- Single source of truth (producer SKILL.md)
+- No duplication between producer and QA docs
+- Adding producer requirements automatically makes QA check them
+- No drift between what producer should do and what QA verifies
+
+**Supersedes:** ISSUE-049 (skill output validation), ISSUE-051 (retro issue creation)
+
+**Traces to:** layer-0-foundation retro discussion
