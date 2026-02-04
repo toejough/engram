@@ -909,25 +909,35 @@ task-ordering = "haiku"
 
 When running multiple tasks in parallel, each task operates in an isolated git worktree to prevent file conflicts during execution.
 
+**Commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `projctl worktree create --taskid TASK-001` | Create isolated worktree for task |
+| `projctl worktree merge --taskid TASK-001 [--onto main]` | Merge task branch to target |
+| `projctl worktree cleanup --taskid TASK-001` | Remove single task worktree |
+| `projctl worktree cleanup-all` | Remove all task worktrees |
+| `projctl worktree list` | List active worktrees |
+
 **Worktree Workflow:**
 
 ```
-1. CREATE: projctl worktree create --task TASK-NNN
-   - Creates branch: task-NNN
-   - Creates worktree: .worktrees/task-NNN/
+1. CREATE: projctl worktree create --taskid TASK-001
+   - Creates branch: task-001
+   - Creates worktree: .worktrees/task-001/
    - Agent works in isolated directory
 
 2. WORK: Agent executes TDD cycle in worktree
    - All file changes isolated to worktree
    - Normal commits on task branch
 
-3. MERGE (on completion): projctl worktree merge --task TASK-NNN
-   - Remove worktree directory
+3. MERGE (on completion): projctl worktree merge --taskid TASK-001
    - Rebase branch onto target (main)
    - Fast-forward merge if clean
+   - Remove worktree directory
    - Delete branch after merge
 
-4. CLEANUP: projctl worktree cleanup
+4. CLEANUP: projctl worktree cleanup-all
    - Remove any orphaned worktrees
    - Report cleanup failures (don't block)
 ```
