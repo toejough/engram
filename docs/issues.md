@@ -1829,7 +1829,7 @@ Completed via project state-machine-improvements. Added RepoDir field to state, 
 ## ISSUE-039: Orchestrator should merge branches as parallel agents complete
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** During parallel-worktree-strategy execution, all 4 agent branches were merged at the end after all agents completed. This caused:
@@ -1856,10 +1856,14 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 
 ---
 
+
+### Comment
+
+Resolved via parallel-execution-improvements project. Merge-on-complete pattern documented in orchestration-system.md Section 6.5 and SKILL-full.md.
 ## ISSUE-040: Task scheduler should detect file overlap for parallel execution
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** During parallel-worktree-strategy execution, multiple agents modified the same files (worktree.go, worktree_test.go) without coordination. This led to:
@@ -1885,10 +1889,14 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 
 ---
 
+
+### Comment
+
+Won't do - rejected premise. Parallel work in branches handles file overlap via rebasing and conflict resolution. That's just part of building software.
 ## ISSUE-041: Document parallel execution best practices
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** parallel-worktree-strategy project proved the worktree-based parallel execution works, but learned several lessons that should be documented:
@@ -1915,6 +1923,10 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 
 ---
 
+
+### Comment
+
+Resolved via parallel-execution-improvements project. Best practices documented in orchestration-system.md Section 6.5, SKILL-full.md, and SKILL.md.
 ## ISSUE-042: Batch issue resolution must validate each issue's AC individually
 
 **Priority:** High
@@ -1980,3 +1992,46 @@ Implemented issue AC validation:
 3. projctl issue update --status Closed validates AC (--force to bypass)
 4. issue-update precondition in state machine validates linked issue AC
 5. All tests passing
+
+---
+
+## ISSUE-043: ID format should be simple incrementing numbers, not zero-padded
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-03
+
+### Summary
+
+ID generation and validation should use simple incrementing numbers (REQ-1, REQ-2, REQ-10) not zero-padded 3-digit format (REQ-001, REQ-002).
+
+### Problem
+
+Current implementation has inconsistent 3-digit requirements:
+
+| Location | Pattern | Issue |
+|----------|---------|-------|
+| `internal/id/id.go` | `\d{3,}` scan, zero-pad output | Generates REQ-001 |
+| `cmd/projctl/checker.go` | `\d{3}` | Validates exactly 3 digits |
+| `cmd/projctl/checker_test.go` | `\d{3}` | Tests exactly 3 digits |
+| `internal/trace/promote.go` | `\d{3}` | Matches exactly 3 digits |
+
+This causes:
+- Skills manually creating IDs (REQ-1) fail validation
+- IDs >= 1000 would fail validation (TASK-1000 doesn't match `\d{3}`)
+- Inconsistency between generation and validation
+
+### Acceptance Criteria
+
+- [ ] `internal/id/id.go` generates simple numbers: REQ-1, REQ-2, REQ-10 (no zero-padding)
+- [ ] `internal/id/id.go` scans for `\d+` pattern (any number of digits)
+- [ ] `cmd/projctl/checker.go` validates `\d+` pattern
+- [ ] `cmd/projctl/checker_test.go` updated for new format
+- [ ] `internal/trace/promote.go` uses `\d+` pattern
+- [ ] Existing 3-digit IDs in docs still work (REQ-001 matches `\d+`)
+
+**Traces to:** ISSUE-011 (follow-up)
