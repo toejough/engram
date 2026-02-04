@@ -73,7 +73,8 @@ func requirementsHaveIDs(dir string) bool {
 	if err != nil {
 		return false
 	}
-	matched, _ := regexp.MatchString(`REQ-\d{3}`, string(content))
+	// Match any number of digits
+	matched, _ := regexp.MatchString(`REQ-\d+`, string(content))
 	return matched
 }
 
@@ -87,6 +88,37 @@ func designHaveIDs(dir string) bool {
 	if err != nil {
 		return false
 	}
-	matched, _ := regexp.MatchString(`DES-\d{3}`, string(content))
+	// Match any number of digits
+	matched, _ := regexp.MatchString(`DES-\d+`, string(content))
 	return matched
+}
+
+// TEST-182 traces: TASK-001
+// Test checker validates simple number IDs (REQ-1, REQ-2, ...)
+func TestChecker_ValidatesSimpleNumberIDs(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create requirements.md with simple number IDs
+	content := "# Requirements\n\n## REQ-1: First requirement\n## REQ-42: Another\n"
+	err := os.WriteFile(filepath.Join(dir, "requirements.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Checker should find these IDs
+	g.Expect(requirementsHaveIDs(dir)).To(BeTrue(), "should find REQ-N IDs")
+}
+
+// TEST-183 traces: TASK-001
+// Test checker validates design with simple number IDs
+func TestChecker_ValidatesSimpleNumberDesignIDs(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create design.md with simple number IDs
+	content := "# Design\n\n## DES-1: First design\n## DES-99: Another\n"
+	err := os.WriteFile(filepath.Join(dir, "design.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Checker should find these IDs
+	g.Expect(designHaveIDs(dir)).To(BeTrue(), "should find DES-N IDs")
 }

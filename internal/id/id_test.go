@@ -12,7 +12,7 @@ import (
 )
 
 // TEST-161 traces: TASK-003
-// Test Next returns TYPE-001 when no files exist
+// Test Next returns TYPE-1 when no files exist
 func TestNext_NoFiles_ReturnsFirst(t *testing.T) {
 	g := NewWithT(t)
 
@@ -20,11 +20,11 @@ func TestNext_NoFiles_ReturnsFirst(t *testing.T) {
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-001"))
+	g.Expect(result).To(Equal("REQ-1"))
 }
 
 // TEST-162 traces: TASK-003
-// Test Next returns TYPE-001 when files exist but have no IDs
+// Test Next returns TYPE-1 when files exist but have no IDs
 func TestNext_FilesWithoutIDs_ReturnsFirst(t *testing.T) {
 	g := NewWithT(t)
 
@@ -36,7 +36,7 @@ func TestNext_FilesWithoutIDs_ReturnsFirst(t *testing.T) {
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-001"))
+	g.Expect(result).To(Equal("REQ-1"))
 }
 
 // TEST-163 traces: TASK-003
@@ -61,7 +61,7 @@ More content
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-003"))
+	g.Expect(result).To(Equal("REQ-3"))
 }
 
 // TEST-164 traces: TASK-003
@@ -85,7 +85,7 @@ Some content
 
 	result, err := id.Next(dir, "ARCH")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("ARCH-006"))
+	g.Expect(result).To(Equal("ARCH-6"))
 }
 
 // TEST-165 traces: TASK-003
@@ -116,7 +116,7 @@ func TestNext_ScansRootAndDocs(t *testing.T) {
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-008"))
+	g.Expect(result).To(Equal("REQ-8"))
 }
 
 // TEST-166 traces: TASK-003
@@ -135,7 +135,7 @@ func TestNext_DESPrefix(t *testing.T) {
 
 	result, err := id.Next(dir, "DES")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("DES-011"))
+	g.Expect(result).To(Equal("DES-11"))
 }
 
 // TEST-167 traces: TASK-003
@@ -154,7 +154,7 @@ func TestNext_TASKPrefix(t *testing.T) {
 
 	result, err := id.Next(dir, "TASK")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("TASK-043"))
+	g.Expect(result).To(Equal("TASK-43"))
 }
 
 // TEST-168 traces: TASK-003
@@ -196,7 +196,7 @@ func TestNext_OnlyCountsRequestedType(t *testing.T) {
 
 	reqResult, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(reqResult).To(Equal("REQ-051"))
+	g.Expect(reqResult).To(Equal("REQ-51"))
 
 	taskResult, err := id.Next(dir, "TASK")
 	g.Expect(err).ToNot(HaveOccurred())
@@ -204,7 +204,7 @@ func TestNext_OnlyCountsRequestedType(t *testing.T) {
 
 	archResult, err := id.Next(dir, "ARCH")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(archResult).To(Equal("ARCH-026"))
+	g.Expect(archResult).To(Equal("ARCH-26"))
 }
 
 // TEST-170 traces: TASK-003
@@ -234,7 +234,7 @@ REQ-002 mentioned inline
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-006"))
+	g.Expect(result).To(Equal("REQ-6"))
 }
 
 // TEST-171 traces: TASK-003
@@ -254,7 +254,7 @@ func TestNext_IgnoresNonMarkdown(t *testing.T) {
 
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-002")) // Should ignore .txt file
+	g.Expect(result).To(Equal("REQ-2")) // Should ignore .txt file
 }
 
 // TEST-172 traces: TASK-003
@@ -277,28 +277,28 @@ func TestNext_HandlesLargeNumbers(t *testing.T) {
 }
 
 // TEST-173 traces: TASK-003
-// Test Next zero-pads to at least 3 digits
-func TestNext_ZeroPadsToThreeDigits(t *testing.T) {
+// Test Next generates simple incrementing numbers
+func TestNext_GeneratesIncrementingNumbers(t *testing.T) {
 	g := NewWithT(t)
 
 	dir := t.TempDir()
 
-	// When starting fresh, should get 001
+	// When starting fresh, should get 1
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-001"))
+	g.Expect(result).To(Equal("REQ-1"))
 
-	// Create REQ-009
-	content := `## REQ-009: Ninth requirement`
+	// Create REQ-9
+	content := `## REQ-9: Ninth requirement`
 	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	result, err = id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-010"))
+	g.Expect(result).To(Equal("REQ-10"))
 
-	// Create REQ-099
-	content = `## REQ-099: 99th requirement`
+	// Create REQ-99
+	content = `## REQ-99: 99th requirement`
 	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -322,7 +322,7 @@ func TestNext_PropertyValidFormat(t *testing.T) {
 		if numExisting > 0 {
 			var content string
 			for i := 1; i <= numExisting; i++ {
-				content += "## " + idType + "-" + padNum(i) + ": Item\n\n"
+				content += "## " + idType + "-" + itoa(i) + ": Item\n\n"
 			}
 			err := os.WriteFile(filepath.Join(dir, "artifacts.md"), []byte(content), 0o644)
 			g.Expect(err).ToNot(HaveOccurred())
@@ -331,8 +331,8 @@ func TestNext_PropertyValidFormat(t *testing.T) {
 		result, err := id.Next(dir, idType)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Should match PREFIX-NNN format
-		g.Expect(result).To(MatchRegexp(`^` + idType + `-\d{3,}$`))
+		// Should match PREFIX-N format (any number of digits)
+		g.Expect(result).To(MatchRegexp(`^` + idType + `-\d+$`))
 	})
 }
 
@@ -348,14 +348,14 @@ func TestNext_PropertyIncrements(t *testing.T) {
 		maxExisting := rapid.IntRange(1, 500).Draw(rt, "maxExisting")
 
 		// Create files with IDs up to maxExisting (not necessarily all of them)
-		content := "## " + idType + "-" + padNum(maxExisting) + ": Max item\n"
+		content := "## " + idType + "-" + itoa(maxExisting) + ": Max item\n"
 		err := os.WriteFile(filepath.Join(dir, "artifacts.md"), []byte(content), 0o644)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := id.Next(dir, idType)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		expected := idType + "-" + padNum(maxExisting+1)
+		expected := idType + "-" + itoa(maxExisting+1)
 		g.Expect(result).To(Equal(expected))
 	})
 }
@@ -383,17 +383,96 @@ func TestNext_EmptyPrefix(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// padNum pads a number to at least 3 digits
-func padNum(n int) string {
-	if n < 10 {
-		return "00" + itoa(n)
-	}
-	if n < 100 {
-		return "0" + itoa(n)
-	}
-	return itoa(n)
+// TEST-178 traces: TASK-001
+// Test Next generates simple numbers (REQ-1, REQ-2, ...) not zero-padded (REQ-001)
+func TestNext_GeneratesSimpleNumbers(t *testing.T) {
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	// First ID should be REQ-1
+	result, err := id.Next(dir, "REQ")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal("REQ-1"))
+
+	// Create REQ-9
+	content := `## REQ-9: Ninth requirement`
+	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result, err = id.Next(dir, "REQ")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal("REQ-10"))
 }
 
+// TEST-179 traces: TASK-001
+// Test Next scans for \d+ pattern (any number of digits)
+func TestNext_ScansAnyNumberDigits(t *testing.T) {
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	// Create files with 1, 2, 3, 4, and 5 digit IDs
+	content := `# Requirements
+## REQ-1: One digit
+## REQ-99: Two digits
+## REQ-500: Three digits
+## REQ-1234: Four digits
+## REQ-99999: Five digits
+`
+	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result, err := id.Next(dir, "REQ")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal("REQ-100000"))
+}
+
+// TEST-180 traces: TASK-001
+// Test Next is backward compatible with existing 3-digit zero-padded IDs
+func TestNext_BackwardCompatibleWithPaddedIDs(t *testing.T) {
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	// Create old-style zero-padded IDs
+	content := `# Requirements
+## REQ-001: First
+## REQ-002: Second
+## REQ-042: Forty-second
+`
+	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should recognize 042 as 42 and return next as 43 (without padding)
+	result, err := id.Next(dir, "REQ")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal("REQ-43"))
+}
+
+// TEST-181 traces: TASK-001
+// Test Next handles mix of padded and unpadded IDs
+func TestNext_HandlesMixedFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	// Mix of old padded and new unpadded format
+	content := `# Requirements
+## REQ-001: Old style
+## REQ-5: New style
+## REQ-099: Old style
+## REQ-200: Could be either
+`
+	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result, err := id.Next(dir, "REQ")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal("REQ-201"))
+}
+
+// itoa converts int to string for test helpers
 func itoa(n int) string {
 	if n == 0 {
 		return "0"

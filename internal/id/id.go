@@ -33,7 +33,8 @@ func Next(dir, prefix string) (string, error) {
 	}
 
 	// Build regex pattern for the specific prefix
-	pattern := regexp.MustCompile(regexp.QuoteMeta(prefix) + `-(\d{3,})`)
+	// Match any number of digits (backward compatible with 3-digit padded IDs)
+	pattern := regexp.MustCompile(regexp.QuoteMeta(prefix) + `-(\d+)`)
 
 	maxNum := 0
 
@@ -48,9 +49,9 @@ func Next(dir, prefix string) (string, error) {
 		return "", err
 	}
 
-	// Format next ID with zero-padding (at least 3 digits)
+	// Format next ID as simple number (no padding)
 	nextNum := maxNum + 1
-	return fmt.Sprintf("%s-%s", prefix, formatNum(nextNum)), nil
+	return fmt.Sprintf("%s-%d", prefix, nextNum), nil
 }
 
 // scanDir scans markdown files in a directory for IDs matching the pattern.
@@ -92,15 +93,4 @@ func scanDir(dir string, pattern *regexp.Regexp, maxNum *int) error {
 	}
 
 	return nil
-}
-
-// formatNum formats a number with zero-padding to at least 3 digits.
-func formatNum(n int) string {
-	if n < 10 {
-		return fmt.Sprintf("00%d", n)
-	}
-	if n < 100 {
-		return fmt.Sprintf("0%d", n)
-	}
-	return strconv.Itoa(n)
 }

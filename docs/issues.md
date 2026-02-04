@@ -2006,11 +2006,7 @@ Implemented issue AC validation:
 ## ISSUE-043: ID format should be simple incrementing numbers, not zero-padded
 
 **Priority:** Medium
-**Status:** Open
-**Created:** 2026-02-03
-
-**Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 ### Summary
@@ -2035,11 +2031,73 @@ This causes:
 
 ### Acceptance Criteria
 
-- [ ] `internal/id/id.go` generates simple numbers: REQ-1, REQ-2, REQ-10 (no zero-padding)
-- [ ] `internal/id/id.go` scans for `\d+` pattern (any number of digits)
-- [ ] `cmd/projctl/checker.go` validates `\d+` pattern
-- [ ] `cmd/projctl/checker_test.go` updated for new format
-- [ ] `internal/trace/promote.go` uses `\d+` pattern
-- [ ] Existing 3-digit IDs in docs still work (REQ-001 matches `\d+`)
+- [x] `internal/id/id.go` generates simple numbers: REQ-1, REQ-2, REQ-10 (no zero-padding)
+- [x] `internal/id/id.go` scans for `\d+` pattern (any number of digits)
+- [x] `cmd/projctl/checker.go` validates `\d+` pattern
+- [x] `cmd/projctl/checker_test.go` updated for new format
+- [x] `internal/trace/promote.go` uses `\d+` pattern
+- [x] Existing 3-digit IDs in docs still work (REQ-001 matches `\d+`)
+
+### Comment
+
+Completed via project issue-043-id-format-simplification. Changed regex patterns from `\d{3}` to `\d+` and format from `%03d` to `%d`. Backward compatible - existing 3-digit IDs still work.
 
 **Traces to:** ISSUE-011 (follow-up)
+
+---
+
+## ISSUE-044: Trace validation should be phase-aware
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+### Summary
+
+Trace validation at `architect-complete` fails because ARCH-NNN IDs are "unlinked" (nothing traces TO them). But at that phase, tasks don't exist yet - they're created during breakdown. Similarly, TASK-NNN IDs are "unlinked" at `breakdown-complete` because tests don't exist yet.
+
+### Problem
+
+Current validation logic (internal/trace/trace.go:774-789):
+- ISSUE, REQ: can be roots (nothing needs to trace to them)
+- TEST: leaf node (nothing traces TO it, but must trace to something)
+- DES, ARCH, TASK: need something tracing TO them
+
+This is too strict for the workflow timeline:
+
+| Phase | What Exists | What's "Unlinked" |
+|-------|-------------|-------------------|
+| architect-complete | REQ, DES, ARCH | ARCH (no tasks yet) |
+| breakdown-complete | + TASK | TASK (no tests yet) |
+| task-complete | + tests | Should be complete |
+
+### Observed Impact
+
+- `projctl state transition --to architect-complete` fails with "trace validation must pass"
+- Projects have been using `--force` to bypass this (hidden workaround)
+- Discovered during ISSUE-043 project when --force usage was questioned
+
+### Proposed Solution
+
+Make trace validation phase-aware:
+
+1. Accept a `phase` parameter in validation
+2. At `architect-complete`: Allow ARCH to be unlinked (leaf for this phase)
+3. At `breakdown-complete`: Allow TASK to be unlinked (leaf for this phase)
+4. At `task-complete` and later: Require full chain (tests → tasks → arch → des → req)
+
+Implementation options:
+- Add `phase` parameter to `Validate()` and `ValidateV2Artifacts()`
+- Or create `ValidateForPhase(dir, phase string)` wrapper
+- Update preconditions to pass current phase to validation
+
+### Acceptance Criteria
+
+- [ ] Trace validation accepts optional phase parameter
+- [ ] At `architect-complete`: ARCH-NNN allowed to be unlinked
+- [ ] At `breakdown-complete`: TASK-NNN allowed to be unlinked  
+- [ ] At `task-complete`: Full chain required (tests must trace to tasks)
+- [ ] `projctl trace validate` works without phase (strictest validation)
+- [ ] `projctl trace validate --phase architect-complete` uses phase-aware rules
+- [ ] Preconditions pass correct phase to validation
+- [ ] No more --force needed for normal workflow transitions

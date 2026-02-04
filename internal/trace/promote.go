@@ -20,10 +20,10 @@ type Promotion struct {
 
 // SkippedPromotion represents a trace that couldn't be promoted.
 type SkippedPromotion struct {
-	File   string `json:"file"`   // relative path to file
-	Line   int    `json:"line"`   // line number
+	File   string `json:"file"`    // relative path to file
+	Line   int    `json:"line"`    // line number
 	TaskID string `json:"task_id"` // the TASK-NNN that couldn't be promoted
-	Reason string `json:"reason"` // why it was skipped
+	Reason string `json:"reason"`  // why it was skipped
 }
 
 // PromoteResult holds the results of a promote operation.
@@ -48,8 +48,8 @@ func Promote(dir string, dryRun bool) (*PromoteResult, error) {
 		Skipped:    make([]SkippedPromotion, 0),
 	}
 
-	// Pattern for TASK traces in test files: // traces: TASK-NNN
-	taskTracePattern := regexp.MustCompile(`^(\s*//\s*traces:\s*)TASK-(\d{3})\s*$`)
+	// Pattern for TASK traces in test files: // traces: TASK-N (any number of digits)
+	taskTracePattern := regexp.MustCompile(`^(\s*//\s*traces:\s*)TASK-(\d+)\s*$`)
 
 	// Walk directory looking for test files
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -205,8 +205,8 @@ type taskInfo struct {
 func parseTaskTraces(content string) map[string]taskInfo {
 	result := make(map[string]taskInfo)
 
-	// Pattern for task header: ### TASK-NNN: Title
-	taskPattern := regexp.MustCompile(`^###\s+(TASK-\d{3}):\s*`)
+	// Pattern for task header: ### TASK-N: Title (any number of digits)
+	taskPattern := regexp.MustCompile(`^###\s+(TASK-\d+):\s*`)
 	// Pattern for traces-to field: **Traces to:** TARGET-NNN[, TARGET-NNN...]
 	tracesToPattern := regexp.MustCompile(`^\*\*Traces to:\*\*\s*(.+)`)
 

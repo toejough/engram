@@ -24,8 +24,8 @@ func (c *DefaultChecker) RequirementsHaveIDs(dir string) bool {
 	if err != nil {
 		return false
 	}
-	// Check for REQ-NNN pattern
-	matched, _ := regexp.MatchString(`REQ-\d{3}`, string(content))
+	// Check for REQ-N pattern (any number of digits)
+	matched, _ := regexp.MatchString(`REQ-\d+`, string(content))
 	return matched
 }
 
@@ -39,8 +39,8 @@ func (c *DefaultChecker) DesignHasIDs(dir string) bool {
 	if err != nil {
 		return false
 	}
-	// Check for DES-NNN pattern
-	matched, _ := regexp.MatchString(`DES-\d{3}`, string(content))
+	// Check for DES-N pattern (any number of digits)
+	matched, _ := regexp.MatchString(`DES-\d+`, string(content))
 	return matched
 }
 

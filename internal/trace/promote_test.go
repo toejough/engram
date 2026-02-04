@@ -502,3 +502,94 @@ func TestFeature(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(Equal(originalContent))
 }
+
+// TEST-320: Promote handles simple number IDs (TASK-1, TASK-42, etc.)
+// traces: TASK-001
+func TestPromote_SimpleNumberIDs(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	writeArtifact(t, dir, "tasks.md", `# Tasks
+
+### TASK-1: First feature
+
+**Traces to:** ARCH-1
+
+### TASK-42: Another feature
+
+**Traces to:** ARCH-42
+`)
+
+	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+
+import "testing"
+
+// TEST-100: First test
+// traces: TASK-1
+func TestFeature(t *testing.T) {
+}
+
+// TEST-101: Second test
+// traces: TASK-42
+func TestAnotherFeature(t *testing.T) {
+}
+`)
+
+	result, err := trace.Promote(dir, false)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Promotions).To(HaveLen(2))
+	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-1"))
+	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-1"))
+	g.Expect(result.Promotions[1].OldTrace).To(Equal("TASK-42"))
+	g.Expect(result.Promotions[1].NewTrace).To(Equal("ARCH-42"))
+
+	// Verify file content
+	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-1"))
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-42"))
+}
+
+// TEST-321: Promote handles backward compatibility with 3-digit IDs
+// traces: TASK-001
+func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Mix of old padded and new unpadded IDs
+	writeArtifact(t, dir, "tasks.md", `# Tasks
+
+### TASK-001: Old style task
+
+**Traces to:** ARCH-001
+
+### TASK-5: New style task
+
+**Traces to:** ARCH-5
+`)
+
+	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+
+import "testing"
+
+// TEST-100: Old style test
+// traces: TASK-001
+func TestOldStyle(t *testing.T) {
+}
+
+// TEST-101: New style test
+// traces: TASK-5
+func TestNewStyle(t *testing.T) {
+}
+`)
+
+	result, err := trace.Promote(dir, false)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Promotions).To(HaveLen(2))
+
+	// Verify both formats work
+	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001"))
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-5"))
+}
