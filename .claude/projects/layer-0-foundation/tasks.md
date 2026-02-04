@@ -243,7 +243,7 @@ TASK-5 (trace repair tests) ----------------+
 
 **Description:** Integration tests proving memory system works end-to-end: learn/decide/extract → query returns relevant results with semantic similarity. Tests verify ONNX model download and embedding generation.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] `internal/memory/memory_integration_test.go` exists
@@ -305,10 +305,10 @@ TASK-5 (trace repair tests) ----------------+
 
 **Description:** Create comprehensive docs/commands/memory.md documenting all memory commands (query, learn, decide, extract, grep, session-end), architecture (ONNX + e5-small + SQLite-vec), and first-use auto-download behavior.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] `docs/commands/memory.md` exists
+- [x] `docs/commands/memory.md` exists
 - [ ] Overview section explains semantic memory vs. grep (when to use each)
 - [ ] Commands section documents each memory subcommand
 - [ ] memory query: semantic search examples with flags
@@ -393,10 +393,10 @@ TASK-5 (trace repair tests) ----------------+
 
 **Description:** Create docs/layer-0-implementation.md as high-level summary showing all Layer 0 commands by category, marking status (existing/enhanced/new), architecture summary, key patterns, and links to detailed docs.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] `docs/layer-0-implementation.md` exists
+- [x] `docs/layer-0-implementation.md` exists
 - [ ] Overview section references orchestration-system.md Section 13.3
 - [ ] Command inventory section organized by category
 - [ ] State commands listed: get, transition, next (mark as EXISTING)
