@@ -1,0 +1,31 @@
+[context]
+project_name = "parallel-execution-improvements"
+phase = "pm"
+subphase = "revision"
+iteration = 2
+
+[input]
+artifact_path = ".claude/projects/parallel-execution-improvements/requirements.md"
+qa_feedback_path = ".claude/projects/parallel-execution-improvements/yield-pm-qa.toml"
+linked_issues = ["ISSUE-039", "ISSUE-041"]
+
+[qa_feedback]
+type = "improvement-request"
+issues = [
+    "REQ-1 AC: 'Handled with conflict resolution if needed' - not measurable. Specify expected behavior.",
+    "REQ-1 AC: Documentation location needs section specificity.",
+    "REQ-1 AC: Worktree cleanup - missing error handling.",
+    "REQ-1 AC: 'Fast-forward merged if clean' - define 'clean'.",
+    "REQ-1: Missing edge case - agent failure mid-execution.",
+    "REQ-1: Missing edge case - merge conflict resolution failure.",
+    "REQ-1: Missing edge case - simultaneous completions.",
+    "REQ-2 AC: Ambiguous conditional about requirements.md update.",
+    "REQ-2 AC: Specify decision factors for parallel vs sequential.",
+    "REQ-2 AC: How many examples minimum?",
+    "REQ-2 AC: List specific limitations to document.",
+    "Priority labels inconsistent (P1/P2 vs Medium/Low)."
+]
+
+[output]
+yield_path = ".claude/projects/parallel-execution-improvements/yield-pm.toml"
+artifact_path = ".claude/projects/parallel-execution-improvements/requirements.md"
