@@ -212,24 +212,24 @@ TASK-5 (trace repair tests) ----------------+
 
 **Description:** Add `projctl memory extract` CLI command with --result and --yield flags. Formats output as TOML (machine-readable) and terminal summary (human-readable) per DES-001 and DES-002.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] `cmd/projctl/memory_extract.go` exists
-- [ ] Cobra command registered: `memory extract`
-- [ ] Flag: `--result <path>` (mutually exclusive with --yield)
-- [ ] Flag: `--yield <path>` (mutually exclusive with --result)
-- [ ] Error if both flags or neither flag provided
-- [ ] Calls memory.Extract() from TASK-4
-- [ ] Terminal output shows success: "✓ Extracted N items from {file}"
-- [ ] Terminal output shows item breakdown: "- X decisions\n- Y learnings"
-- [ ] Terminal output shows storage location: "Stored in semantic memory (~/.claude/memory/embeddings.db)"
-- [ ] Terminal output shows errors per DES-009 format
-- [ ] TOML output written to stdout (for orchestrator consumption)
-- [ ] Integration test via subprocess verifies CLI works end-to-end
-- [ ] Integration test verifies --result flag works
-- [ ] Integration test verifies --yield flag works
-- [ ] Integration test verifies mutual exclusion error
+- [x] `cmd/projctl/memory_extract.go` exists
+- [x] Cobra command registered: `memory extract`
+- [x] Flag: `--result <path>` (mutually exclusive with --yield)
+- [x] Flag: `--yield <path>` (mutually exclusive with --result)
+- [x] Error if both flags or neither flag provided
+- [x] Calls memory.Extract() from TASK-4
+- [x] Terminal output shows success: "✓ Extracted N items from {file}"
+- [x] Terminal output shows item breakdown: "- X decisions\n- Y learnings"
+- [x] Terminal output shows storage location: "Stored in semantic memory (~/.claude/memory/embeddings.db)"
+- [x] Terminal output shows errors per DES-009 format
+- [x] TOML output written to stdout (for orchestrator consumption)
+- [x] Integration test via subprocess verifies CLI works end-to-end
+- [x] Integration test verifies --result flag works
+- [x] Integration test verifies --yield flag works
+- [x] Integration test verifies mutual exclusion error
 
 **Files:** `cmd/projctl/memory_extract.go`, `cmd/projctl/memory_extract_test.go`
 
@@ -366,20 +366,20 @@ TASK-5 (trace repair tests) ----------------+
 
 **Description:** Enhance docs/commands/context.md (or create if missing) to document output.yield_path pattern. Explains how skills read yield_path from context and write results there, enabling parallel execution.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] `docs/commands/context.md` exists or is created
-- [ ] Documents context write command
-- [ ] Explains output.yield_path field in generated context files
-- [ ] Shows example context file with output.yield_path
-- [ ] Shows yield_path format: `.claude/context/{date}-{project}-{uuid}/{datetime}-{phase}-{taskID}-{uuid}.toml`
-- [ ] Explains that yield_path is always absolute
-- [ ] Explains that UUID ensures uniqueness for parallel execution
-- [ ] Shows skill usage pattern: read context → extract yield_path → write result
-- [ ] Example: skill reads yield_path and writes result.toml there
-- [ ] Documents sequential vs. parallel path patterns
-- [ ] References orchestration-system.md Section 13.3
+- [x] `docs/commands/context.md` exists or is created
+- [x] Documents context write command
+- [x] Explains output.yield_path field in generated context files
+- [x] Shows example context file with output.yield_path
+- [x] Shows yield_path format: `.claude/context/{date}-{project}-{uuid}/{datetime}-{phase}-{taskID}-{uuid}.toml`
+- [x] Explains that yield_path is always absolute
+- [x] Explains that UUID ensures uniqueness for parallel execution
+- [x] Shows skill usage pattern: read context → extract yield_path → write result
+- [x] Example: skill reads yield_path and writes result.toml there
+- [x] Documents sequential vs. parallel path patterns
+- [x] References orchestration-system.md Section 13.3
 
 **Files:** `docs/commands/context.md`
 
