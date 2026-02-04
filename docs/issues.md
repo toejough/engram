@@ -2223,3 +2223,59 @@ Add to parallel-looper SKILL.md:
 - Mention that each parallel task should run in isolated worktree
 - Reference projctl worktree create/merge commands
 - Link to orchestration-system.md Section 6.5 for full details
+
+---
+
+## ISSUE-047: State machine: auto-detect task completion
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+From layer-0-foundation retro R1: Enhance `projctl state next` to parse tasks.md and detect when all tasks have `Status: Complete`. Automatically suggest `implementation-complete` transition.
+
+**Rationale:** Eliminates manual verification step; reduces orchestrator confusion.
+
+**Traces to:** layer-0-foundation retro R1
+
+---
+
+## ISSUE-048: Memory tests: add ONNX session caching
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+From layer-0-foundation retro R2: Cache ONNX sessions across test functions to avoid repeated model loading. Use `sync.Once` or test-level fixture.
+
+**Rationale:** Could reduce memory test suite from ~290s to ~60s by loading model once.
+
+**Traces to:** layer-0-foundation retro R2
+
+---
+
+## ISSUE-049: Skills: add output validation before yield
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+From layer-0-foundation retro R3: Skills should validate their output before yielding. If a retro-producer yields without creating retro.md, it should error rather than yielding success.
+
+**Rationale:** Fail-fast catches incorrect behavior before orchestrator continues.
+
+**Traces to:** layer-0-foundation retro R3
+
+---
+
+## ISSUE-050: Document worktree workflow for parallel execution
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-04
+
+From layer-0-foundation retro R4: Add explicit documentation for parallel execution using git worktrees. Include commands for setup, merge, and cleanup.
+
+**Rationale:** Pattern proved highly effective in layer-0-foundation; should be standard practice.
+
+**Traces to:** layer-0-foundation retro R4
