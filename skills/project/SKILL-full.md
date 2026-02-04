@@ -72,6 +72,40 @@ Controls iteration within a phase or across tasks:
 
 Applies to: independent tasks, context queries, batch file analysis.
 
+**Git Worktrees for Parallel Tasks:**
+
+When running parallel tasks, each agent works in an isolated git worktree:
+
+```bash
+# On task start (per parallel agent)
+projctl worktree create --task TASK-NNN
+# Agent works in .worktrees/task-NNN/ directory
+
+# On agent completion - MERGE IMMEDIATELY
+projctl worktree merge --task TASK-NNN
+# Rebases onto main, merges, cleans up
+```
+
+**Merge-on-Complete Pattern (REQUIRED):**
+
+When a parallel agent completes, merge its branch immediately - do NOT wait for all agents:
+
+| When agent completes... | Do this |
+|------------------------|---------|
+| Task succeeded | `projctl worktree merge --task TASK-NNN` immediately |
+| Task failed | Cleanup worktree, log failure, continue with others |
+| Merge conflict | Pause, prompt user to resolve, then continue |
+| Cleanup failure | Log error, continue, report at end |
+
+**Why merge-on-complete matters:**
+- Later-completing agents rebase onto already-merged work
+- Reduces conflict complexity (no N-way merge at end)
+- Agents benefit from each other's completed work
+
+**Simultaneous completions:** If multiple agents complete at the same time, serialize merges by completion timestamp (earliest first).
+
+See `docs/orchestration-system.md` Section 6.5 for full details on worktree workflow and decision factors for parallelization.
+
 ---
 
 ## Intake Flow

@@ -64,6 +64,7 @@ When user provides a request (not an explicit command):
 | TDD       | Red→commit→green→commit→refactor→commit               |
 | Continue  | If `state next`=continue, proceed immediately         |
 | Dispatch  | ALL code work via Skill/Task tool                     |
+| Parallel  | Merge-on-complete (not batch at end) - see SKILL-full.md |
 
 ## Skill Dispatch
 

@@ -900,6 +900,85 @@ territory-mapping = "haiku"
 task-ordering = "haiku"
 ```
 
+### 6.5 Git Worktrees for Parallel Execution
+
+When running multiple tasks in parallel, each task operates in an isolated git worktree to prevent file conflicts during execution.
+
+**Worktree Workflow:**
+
+```
+1. CREATE: projctl worktree create --task TASK-NNN
+   - Creates branch: task-NNN
+   - Creates worktree: .worktrees/task-NNN/
+   - Agent works in isolated directory
+
+2. WORK: Agent executes TDD cycle in worktree
+   - All file changes isolated to worktree
+   - Normal commits on task branch
+
+3. MERGE (on completion): projctl worktree merge --task TASK-NNN
+   - Remove worktree directory
+   - Rebase branch onto target (main)
+   - Fast-forward merge if clean
+   - Delete branch after merge
+
+4. CLEANUP: projctl worktree cleanup
+   - Remove any orphaned worktrees
+   - Report cleanup failures (don't block)
+```
+
+**Merge-on-Complete Pattern:**
+
+When a parallel agent completes, merge immediately - don't wait for all agents to finish:
+
+| Pattern | Behavior | Result |
+|---------|----------|--------|
+| Batch merge (old) | Wait for all agents, merge all at end | More conflicts, duplicate code |
+| Merge-on-complete | Merge each branch when its agent completes | Less conflicts, later agents benefit |
+
+Benefits of merge-on-complete:
+- Later-completing agents rebase onto already-merged work
+- Reduces conflict window
+- Simplifies conflict resolution
+- No batch of N-way merges at the end
+
+**Error Handling:**
+
+| Situation | Behavior |
+|-----------|----------|
+| Rebase conflict | Pause orchestration, prompt user to resolve |
+| Agent failure mid-execution | Don't merge branch, cleanup worktree, log failure, continue with others |
+| Cleanup failure (locked files) | Log error, continue, report at end |
+| Simultaneous completions | Serialize by completion timestamp (earliest first) |
+
+**Decision Factors for Parallel Execution:**
+
+| Factor | Parallel-friendly | Sequential-preferred |
+|--------|-------------------|---------------------|
+| Task independence | No shared state or coordination needed | Tasks depend on each other's output |
+| File overlap | Low/no shared files | High overlap, tight coupling |
+| Coordination needs | None during execution | Need to coordinate decisions |
+| Task granularity | Atomic, well-bounded work | Large, sprawling changes |
+
+**Examples:**
+
+Good parallel candidates:
+- Independent feature additions to different modules
+- Test coverage for separate components
+- Documentation updates for different subsystems
+
+Poor parallel candidates:
+- Refactoring same function with different goals
+- Sequential pipeline stages (design → implement → test same feature)
+- Tasks that need to share intermediate decisions
+
+**Known Limitations:**
+
+- Agents cannot coordinate during execution (no shared state)
+- File overlap causes merge conflicts (handled via rebase/manual resolution)
+- No pre-flight file overlap detection (accepted tradeoff - rebase handles it)
+- Simultaneous completions require serialization
+
 ---
 
 ## 7. Workflows
