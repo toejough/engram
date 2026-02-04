@@ -208,3 +208,157 @@ Remove stub code and consolidate implementations.
 
 ---
 
+### ARCH-018: Orchestrator-Skill Contract
+
+**Phase:** 0
+**Priority:** High
+**Timeline:** This Week
+
+Defines the bidirectional communication protocol between the `/project` orchestrator and skills. All skills must read context TOML and write yield TOML using this contract.
+
+#### Context Input Format
+
+The orchestrator provides context to skills via TOML files at `.claude/context/<skill-name>-context.toml`:
+
+```toml
+[invocation]
+skill = "pm-infer"           # Skill being invoked
+mode = "infer"               # "interview", "infer", or "update"
+task = "PHASE"               # Current task ID or "PHASE" for phase-level work
+timestamp = 2024-01-15T10:30:00Z
+
+[project]
+name = "my-project"
+dir = "/path/to/project"
+phase = "adopt-infer-pm"     # Current state machine phase
+
+[config]
+# Resolved artifact paths from project-config.toml
+docs_dir = "docs"
+requirements_path = "docs/requirements.md"
+design_path = "docs/design.md"
+architecture_path = "docs/architecture.md"
+
+[inputs]
+# Curated summaries of relevant information
+
+[inputs.readme]
+exists = true
+summary = "CLI tool for managing project documentation..."
+
+[inputs.previous_phase]
+skill = "coverage-analyze"
+summary = "Coverage: 45%, recommendation: migrate"
+
+[state]
+tasks_complete = 0
+tasks_total = 0
+escalations_pending = 0
+
+[output]
+yield_path = ".claude/context/pm-infer-yield.toml"
+
+[query_results]
+# Injected when resuming after need-context yield
+```
+
+**Modes:**
+- `interview` - Interactive Q&A with user
+- `infer` - Analyze artifacts, generate content
+- `update` - Lightweight mode for `/project align`
+
+#### Yield Output Format
+
+Skills write yield TOML to the path specified in `output.yield_path`:
+
+```toml
+[yield]
+type = "<yield-type>"
+timestamp = 2026-02-02T10:30:00Z
+
+[payload]
+# Type-specific fields
+
+[context]
+# State for resumption
+phase = "pm"
+iteration = 1
+```
+
+**Producer Yield Types:**
+
+| Type | Meaning | Orchestrator Action |
+|------|---------|---------------------|
+| `complete` | Work finished | Advance to QA or next phase |
+| `need-user-input` | Question for user | Prompt user, resume with answer |
+| `need-context` | Need information | Run queries, resume with results |
+| `need-decision` | Ambiguous choice | Present options, resume with choice |
+| `need-agent` | Need another agent | Spawn agent, resume with result |
+| `blocked` | Cannot proceed | Present blocker, await resolution |
+| `error` | Something failed | Retry (max 3x) or escalate |
+
+**QA Yield Types:**
+
+| Type | Meaning | Orchestrator Action |
+|------|---------|---------------------|
+| `approved` | Work passes QA | Advance to next phase |
+| `improvement-request` | Needs fixes | Resume producer with feedback |
+| `escalate-phase` | Prior phase issue | Return to prior phase with proposed changes |
+| `escalate-user` | Cannot resolve | Present to user |
+
+#### Resumption Protocol
+
+Each yield type triggers a specific orchestrator response:
+
+1. **complete** - Orchestrator advances to QA skill or next phase. No skill resumption.
+
+2. **need-user-input** - Orchestrator prompts user, captures response, writes to `[query_results]` section, re-invokes skill.
+
+3. **need-context** - Orchestrator executes queries in parallel:
+   - `file` queries: Read file contents
+   - `memory` queries: ONNX semantic memory search
+   - `territory` queries: Codebase structure map
+   - `web` queries: URL fetch with prompt interpretation
+   - `semantic` queries: LLM exploration via context-explorer agent
+
+   Results injected into `[query_results.items]`, skill re-invoked.
+
+4. **need-decision** - Orchestrator presents options to user, captures choice, writes to `[query_results]`, re-invokes skill.
+
+5. **need-agent** - Orchestrator spawns specified agent with input, captures result, writes to `[query_results]`, re-invokes skill.
+
+6. **blocked** - Orchestrator presents blocker to user, awaits resolution signal, re-invokes skill.
+
+7. **error** - Orchestrator retries up to 3 times. If recoverable=false or retries exhausted, escalates to user.
+
+8. **approved** (QA) - Orchestrator advances to next phase. No resumption.
+
+9. **improvement-request** (QA) - Orchestrator re-invokes producer with feedback in `[inputs.qa_feedback]`.
+
+10. **escalate-phase** (QA) - Orchestrator returns to prior phase producer with proposed changes in `[inputs.escalation]`.
+
+11. **escalate-user** (QA) - Orchestrator presents to user, awaits resolution, resumes with decision.
+
+#### Query Result Injection
+
+When resuming after `need-context`, the orchestrator injects results:
+
+```toml
+[query_results]
+[[query_results.items]]
+query_type = "file"
+query_path = "docs/requirements.md"
+result = "... file contents ..."
+
+[[query_results.items]]
+query_type = "semantic"
+query_question = "How does authentication work?"
+result = "Authentication uses JWT tokens..."
+```
+
+Skills check for `[query_results]` presence to detect resumption vs fresh invocation.
+
+**Traces to:** REQ-001, ARCH-001, ARCH-013
+
+---
+
