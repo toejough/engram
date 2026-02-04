@@ -2158,7 +2158,7 @@ Implemented via project issue-044-phase-aware-trace-validation:
 ## ISSUE-045: Layer 0: Foundation infrastructure
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
 
 ### Summary
@@ -2194,16 +2194,16 @@ State management, context serialization, ID generation, semantic memory work.
 
 ### Acceptance Criteria
 
-- [ ] `projctl memory query <text>` searches semantic memory
-- [ ] `projctl memory learn <text>` adds to semantic memory
-- [ ] `projctl memory grep <pattern>` pattern search in memory
-- [ ] `projctl memory extract` extracts learnings from session
-- [ ] `projctl memory session-end` processes end-of-session
-- [ ] `projctl trace repair` fixes broken trace links
-- [ ] `projctl context write` includes `output.yield_path`
-- [ ] ONNX runtime integration for embeddings
-- [ ] SQLite-vec integration for vector storage
-- [ ] e5-small model auto-download on first use
+- [x] `projctl memory query <text>` searches semantic memory
+- [x] `projctl memory learn <text>` adds to semantic memory
+- [x] `projctl memory grep <pattern>` pattern search in memory
+- [x] `projctl memory extract` extracts learnings from session
+- [x] `projctl memory session-end` processes end-of-session
+- [x] `projctl trace repair` fixes broken trace links
+- [x] `projctl context write` includes `output.yield_path`
+- [x] ONNX runtime integration for embeddings
+- [x] SQLite-vec integration for vector storage
+- [x] e5-small model auto-download on first use
 
 **Traces to:** docs/orchestration-system.md Section 13.3
 
