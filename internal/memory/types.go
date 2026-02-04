@@ -43,7 +43,7 @@ type ExtractResult struct {
 }
 
 // ExtractedItem represents a single extracted item from a yield or result file.
-// Each item has a type, situational context, and content.
+// Each item has a type, situational context, content, and source information.
 type ExtractedItem struct {
 	// Type indicates the kind of item. Common values: "decision", "learning", "finding", "summary"
 	Type string `json:"type"`
@@ -53,6 +53,9 @@ type ExtractedItem struct {
 
 	// Content is the actual content of the extracted item
 	Content string `json:"content"`
+
+	// Source identifies where the item was extracted from. Format: "yield:{filename}" or "result:{filename}"
+	Source string `json:"source"`
 }
 
 // YieldFile represents the structure of a yield protocol TOML file.
