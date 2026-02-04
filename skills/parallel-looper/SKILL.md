@@ -344,6 +344,73 @@ yield_path = ".claude/context/consistency-checker-yield.toml"
 
 ---
 
+## Git Worktrees for Isolation
+
+When executing tasks in parallel, each task runs in an isolated git worktree to prevent file conflicts.
+
+### Worktree Lifecycle
+
+```
+FOR EACH item IN inputs.items (in parallel):
+    1. CREATE: projctl worktree create --taskid <item.id>
+       - Creates branch and isolated worktree directory
+       - Agent works in .worktrees/<item.id>/
+
+    2. WORK: Execute PAIR LOOP in worktree
+       - All file changes isolated
+       - Normal commits on task branch
+
+    3. MERGE (on completion): projctl worktree merge --taskid <item.id>
+       - Rebase onto target branch
+       - Fast-forward merge
+       - Remove worktree and branch
+```
+
+### Merge-on-Complete Pattern
+
+Merge each task immediately when it completes - don't wait for all parallel tasks:
+
+| Pattern | Behavior | Result |
+|---------|----------|--------|
+| Batch merge (old) | Wait for all, merge all at end | More conflicts |
+| Merge-on-complete | Merge each as it completes | Fewer conflicts |
+
+Benefits:
+- Later-completing agents rebase onto already-merged work
+- Reduces conflict window
+- Simplifies conflict resolution
+- No batch of N-way merges at the end
+
+### Conflict Handling
+
+| Situation | Action |
+|-----------|--------|
+| Rebase conflict | Pause orchestration, prompt user to resolve |
+| Agent failure | Don't merge branch, cleanup worktree, log failure |
+| Cleanup failure | Log error, continue, report at end |
+| Simultaneous completions | Serialize by completion timestamp |
+
+### Commands Reference
+
+```bash
+# Create worktree for task
+projctl worktree create --taskid TASK-001
+
+# List active worktrees
+projctl worktree list
+
+# Merge completed task (auto-cleans up)
+projctl worktree merge --taskid TASK-001 [--onto main]
+
+# Manual cleanup single worktree
+projctl worktree cleanup --taskid TASK-001
+
+# Cleanup all worktrees
+projctl worktree cleanup-all
+```
+
+---
+
 ## Summary
 
 | Yield Type | When |
