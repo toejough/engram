@@ -216,3 +216,109 @@ func TestList(t *testing.T) {
 		g.Expect(issues[1].ID).To(Equal("ISSUE-003"))
 	})
 }
+
+func TestParseAcceptanceCriteria(t *testing.T) {
+	t.Run("parses AC from issue body", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Summary
+
+This is a test issue.
+
+### Acceptance Criteria
+
+- [x] First AC item is complete
+- [ ] Second AC item is incomplete
+- [x] Third AC item is complete
+
+**Traces to:** something
+`), 0o644)).To(Succeed())
+
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		g.Expect(result.Error).To(BeEmpty())
+		g.Expect(result.Items).To(HaveLen(3))
+		g.Expect(result.Complete).To(Equal(2))
+		g.Expect(result.Incomplete).To(Equal(1))
+		g.Expect(result.AllComplete).To(BeFalse())
+		g.Expect(result.Items[0].Text).To(Equal("First AC item is complete"))
+		g.Expect(result.Items[0].Complete).To(BeTrue())
+		g.Expect(result.Items[1].Text).To(Equal("Second AC item is incomplete"))
+		g.Expect(result.Items[1].Complete).To(BeFalse())
+	})
+
+	t.Run("returns AllComplete true when all AC are checked", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: All Done
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [x] One complete
+- [x] Two complete
+`), 0o644)).To(Succeed())
+
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		g.Expect(result.Error).To(BeEmpty())
+		g.Expect(result.AllComplete).To(BeTrue())
+		g.Expect(result.Complete).To(Equal(2))
+		g.Expect(result.Incomplete).To(Equal(0))
+	})
+
+	t.Run("handles issue with no AC section gracefully", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: No AC Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Summary
+
+No acceptance criteria defined.
+`), 0o644)).To(Succeed())
+
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		g.Expect(result.Error).To(BeEmpty())
+		g.Expect(result.Items).To(BeEmpty())
+		g.Expect(result.AllComplete).To(BeTrue()) // No AC = vacuously complete
+	})
+
+	t.Run("returns error for unknown issue", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+`), 0o644)).To(Succeed())
+
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-999")
+		g.Expect(result.Error).To(ContainSubstring("not found"))
+	})
+}

@@ -301,3 +301,84 @@ func List(dir string, statusFilter string) ([]Issue, error) {
 
 	return filtered, nil
 }
+
+// ACItem represents a single acceptance criterion item.
+type ACItem struct {
+	Text     string
+	Complete bool
+}
+
+// ACResult holds the result of acceptance criteria parsing.
+type ACResult struct {
+	Complete    int
+	Incomplete  int
+	AllComplete bool
+	Items       []ACItem
+	Error       string
+}
+
+// ParseAcceptanceCriteria extracts and validates acceptance criteria for an issue.
+func ParseAcceptanceCriteria(dir, issueID string) ACResult {
+	issue, err := Get(dir, issueID)
+	if err != nil {
+		return ACResult{Error: err.Error()}
+	}
+
+	items := parseACItems(issue.Body)
+
+	complete := 0
+	incomplete := 0
+
+	for _, item := range items {
+		if item.Complete {
+			complete++
+		} else {
+			incomplete++
+		}
+	}
+
+	return ACResult{
+		Complete:    complete,
+		Incomplete:  incomplete,
+		AllComplete: incomplete == 0,
+		Items:       items,
+	}
+}
+
+// parseACItems extracts AC items from issue body content.
+func parseACItems(body string) []ACItem {
+	// Find AC section header
+	acPattern := regexp.MustCompile(`(?m)^### Acceptance Criteria\s*$`)
+	loc := acPattern.FindStringIndex(body)
+	if loc == nil {
+		return nil
+	}
+
+	// Get content after AC header
+	rest := body[loc[1]:]
+
+	// Find next section (### or ** header) or end
+	nextPattern := regexp.MustCompile(`(?m)^(###|\*\*[^*]+:\*\*)`)
+	nextLoc := nextPattern.FindStringIndex(rest)
+
+	var acContent string
+	if nextLoc == nil {
+		acContent = rest
+	} else {
+		acContent = rest[:nextLoc[0]]
+	}
+
+	// Parse checkboxes
+	var items []ACItem
+	checkboxPattern := regexp.MustCompile(`(?m)^-\s+\[([ xX])\]\s+(.+)$`)
+	matches := checkboxPattern.FindAllStringSubmatch(acContent, -1)
+
+	for _, m := range matches {
+		items = append(items, ACItem{
+			Text:     strings.TrimSpace(m[2]),
+			Complete: strings.ToLower(m[1]) == "x",
+		})
+	}
+
+	return items
+}
