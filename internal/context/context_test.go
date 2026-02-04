@@ -770,3 +770,220 @@ func estimateTokenCount(text string) int {
 	// Rough estimate: 1 token per 4 characters
 	return len(text) / 4
 }
+
+// setupProjectDir creates a project directory with state.toml for yield path tests.
+func setupProjectDir(t *testing.T, projectName, projectUUID string) string {
+	t.Helper()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	claudeDir := filepath.Join(dir, ".claude")
+	g.Expect(os.MkdirAll(claudeDir, 0o755)).To(Succeed())
+
+	stateContent := fmt.Sprintf(`[project]
+name = "%s"
+created = 2026-02-04T12:00:00Z
+phase = "test"
+workflow = "new"
+uuid = "%s"
+`, projectName, projectUUID)
+	g.Expect(os.WriteFile(filepath.Join(claudeDir, "state.toml"), []byte(stateContent), 0o644)).To(Succeed())
+
+	return dir
+}
+
+// TEST-TASK6-001 traces: TASK-6
+// Test WriteWithYieldPath function exists and adds output.yield_path field.
+func TestWriteWithYieldPath_AddsYieldPathField(t *testing.T) {
+	g := NewWithT(t)
+	dir := setupProjectDir(t, "yield-test", "yield-uuid-123")
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	path, err := context.WriteWithYieldPath(dir, "impl", "TASK-001", source)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(path).ToNot(BeEmpty())
+
+	// Read the context file and verify output.yield_path exists
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("[output]"))
+	g.Expect(string(content)).To(ContainSubstring("yield_path"))
+}
+
+// TEST-TASK6-002 traces: TASK-6
+// Test WriteWithYieldPath generates absolute yield_path.
+func TestWriteWithYieldPath_YieldPathIsAbsolute(t *testing.T) {
+	g := NewWithT(t)
+	dir := setupProjectDir(t, "abs-yield-test", "abs-yield-uuid")
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	path, err := context.WriteWithYieldPath(dir, "impl", "TASK-002", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Parse the context file to extract yield_path
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Extract yield_path value from TOML
+	yieldPath := extractYieldPath(string(content))
+	g.Expect(yieldPath).ToNot(BeEmpty(), "yield_path should be present")
+	g.Expect(filepath.IsAbs(yieldPath)).To(BeTrue(), "yield_path %s should be absolute", yieldPath)
+}
+
+// TEST-TASK6-003 traces: TASK-6
+// Test WriteWithYieldPath returns error before writing if path generation fails.
+func TestWriteWithYieldPath_ErrorBeforeWriteOnPathGenerationFailure(t *testing.T) {
+	g := NewWithT(t)
+	// Use a directory without state.toml - GenerateYieldPath will fail
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	_, err := context.WriteWithYieldPath(dir, "impl", "TASK-003", source)
+	g.Expect(err).To(HaveOccurred(), "should return error when path generation fails")
+
+	// Verify no context file was created
+	contextDir := filepath.Join(dir, context.ContextDir)
+	_, statErr := os.Stat(contextDir)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(), "context directory should not exist when path generation fails")
+}
+
+// TEST-TASK6-004 traces: TASK-6
+// Test existing Write function is unchanged (backward compatibility).
+func TestWrite_BackwardCompatibility(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	// Write() should still work without yield_path
+	path, err := context.Write(dir, "TASK-BC", "tdd-red", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should NOT contain output.yield_path (backward compatibility)
+	g.Expect(string(content)).ToNot(ContainSubstring("yield_path"))
+}
+
+// TEST-TASK6-005 traces: TASK-6
+// Test WriteWithYieldPath uses GenerateYieldPath from yieldpath.go.
+func TestWriteWithYieldPath_UsesGenerateYieldPath(t *testing.T) {
+	g := NewWithT(t)
+	dir := setupProjectDir(t, "gen-yield-test", "gen-yield-uuid")
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n")
+
+	path, err := context.WriteWithYieldPath(dir, "impl", "TASK-004", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	yieldPath := extractYieldPath(string(content))
+	g.Expect(yieldPath).ToNot(BeEmpty())
+
+	// Verify yield_path follows GenerateYieldPath pattern:
+	// .claude/context/{date}-{project}-{projectUUID}/{datetime}-{phase}-{taskID}-{fileUUID}.toml
+	g.Expect(yieldPath).To(ContainSubstring(".claude/context/"))
+	g.Expect(yieldPath).To(ContainSubstring("gen-yield-test"))
+	g.Expect(yieldPath).To(ContainSubstring("gen-yield-uuid"))
+	g.Expect(yieldPath).To(ContainSubstring("impl"))
+	g.Expect(yieldPath).To(ContainSubstring("TASK-004"))
+	g.Expect(yieldPath).To(HaveSuffix(".toml"))
+}
+
+// TEST-TASK6-006 traces: TASK-6
+// Test WriteWithYieldPath sequential execution (no taskID).
+func TestWriteWithYieldPath_SequentialExecution(t *testing.T) {
+	g := NewWithT(t)
+	dir := setupProjectDir(t, "seq-yield-test", "seq-yield-uuid")
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"architect\"\n")
+
+	// Sequential: empty taskID
+	path, err := context.WriteWithYieldPath(dir, "pm", "", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	yieldPath := extractYieldPath(string(content))
+	g.Expect(yieldPath).ToNot(BeEmpty())
+	g.Expect(filepath.IsAbs(yieldPath)).To(BeTrue())
+
+	// Verify sequential pattern (no taskID in path)
+	g.Expect(yieldPath).To(ContainSubstring("pm"))
+	g.Expect(yieldPath).ToNot(ContainSubstring("TASK-"))
+}
+
+// TEST-TASK6-007 traces: TASK-6
+// Test WriteWithYieldPath preserves original content.
+func TestWriteWithYieldPath_PreservesOriginalContent(t *testing.T) {
+	g := NewWithT(t)
+	dir := setupProjectDir(t, "preserve-test", "preserve-uuid")
+	source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"tdd-red\"\n\n[task]\ndescription = \"Test task\"\n")
+
+	path, err := context.WriteWithYieldPath(dir, "impl", "TASK-005", source)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := os.ReadFile(path)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should contain original dispatch section
+	g.Expect(string(content)).To(ContainSubstring("[dispatch]"))
+	g.Expect(string(content)).To(ContainSubstring("tdd-red"))
+
+	// Should contain original task section
+	g.Expect(string(content)).To(ContainSubstring("[task]"))
+	g.Expect(string(content)).To(ContainSubstring("Test task"))
+}
+
+// TEST-TASK6-008 traces: TASK-6
+// Test WriteWithYieldPath property: yield_path is always unique.
+func TestWriteWithYieldPath_PropertyYieldPathUniqueness(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+		projectName := rapid.StringMatching(`[a-z]{3,8}`).Draw(rt, "projectName")
+		projectUUID := rapid.StringMatching(`[a-f0-9]{8}`).Draw(rt, "projectUUID")
+		phase := rapid.StringMatching(`[a-z]{2,6}`).Draw(rt, "phase")
+		taskID1 := rapid.StringMatching(`TASK-[0-9]{3}`).Draw(rt, "taskID1")
+		taskID2 := rapid.StringMatching(`TASK-[0-9]{3}`).Draw(rt, "taskID2")
+
+		dir := setupProjectDir(t, projectName, projectUUID)
+		source := writeTOML(t, t.TempDir(), "input.toml", "[dispatch]\nskill = \"test\"\n")
+
+		// Generate two paths with different task IDs to avoid overwriting context file
+		path1, err := context.WriteWithYieldPath(dir, phase, taskID1, source)
+		if err != nil {
+			return // Skip if setup fails
+		}
+		content1, _ := os.ReadFile(path1)
+		yieldPath1 := extractYieldPath(string(content1))
+
+		path2, err := context.WriteWithYieldPath(dir, phase, taskID2, source)
+		if err != nil {
+			return
+		}
+		content2, _ := os.ReadFile(path2)
+		yieldPath2 := extractYieldPath(string(content2))
+
+		// Each invocation generates its own unique yield path
+		g.Expect(yieldPath1).ToNot(BeEmpty())
+		g.Expect(yieldPath2).ToNot(BeEmpty())
+		g.Expect(yieldPath1).ToNot(Equal(yieldPath2), "yield_paths should be unique across invocations")
+	})
+}
+
+// extractYieldPath extracts the yield_path value from TOML content.
+func extractYieldPath(content string) string {
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "yield_path") {
+			// Format: yield_path = "/path/to/file.toml"
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				// Remove quotes and whitespace
+				return strings.Trim(strings.TrimSpace(parts[1]), "\"")
+			}
+		}
+	}
+	return ""
+}

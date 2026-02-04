@@ -354,6 +354,36 @@ func writeTOMLFile(dir, task, skill string, raw map[string]any) (string, error) 
 	return targetPath, nil
 }
 
+// WriteWithYieldPath copies a TOML file into the context directory and adds output.yield_path field.
+// The yield_path is an absolute path where skills write their results.
+// Returns error before writing context if path generation fails.
+func WriteWithYieldPath(dir, phase, taskID, sourcePath string) (string, error) {
+	// Generate yield path FIRST - fail before any file operations
+	yieldPath, err := GenerateYieldPath(dir, phase, taskID)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate yield path: %w", err)
+	}
+
+	// Load and validate source TOML
+	raw, err := loadAndValidateTOML(sourcePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Add output section with yield_path
+	raw["output"] = map[string]any{
+		"yield_path": yieldPath,
+	}
+
+	// Generate context filename based on phase/task
+	task := taskID
+	if task == "" {
+		task = phase // Use phase as task identifier for sequential execution
+	}
+
+	return writeTOMLFile(dir, task, phase, raw)
+}
+
 // buildMemorySection formats query results into a TOML-compatible structure with compression.
 func buildMemorySection(results []QueryResult, maxTokens int) map[string]any {
 	section := make(map[string]any)
