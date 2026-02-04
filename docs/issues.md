@@ -2229,7 +2229,7 @@ Add to parallel-looper SKILL.md:
 ## ISSUE-047: State machine: auto-detect task completion
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
 
 From layer-0-foundation retro R1: Enhance `projctl state next` to parse tasks.md and detect when all tasks have `Status: Complete`. Automatically suggest `implementation-complete` transition.
@@ -2240,6 +2240,10 @@ From layer-0-foundation retro R1: Enhance `projctl state next` to parse tasks.md
 
 ---
 
+
+### Comment
+
+Misdiagnosed - state machine detection won't help if tasks.md isn't being maintained. See ISSUE-052 for the real problem.
 ## ISSUE-048: Memory tests: add ONNX session caching
 
 **Priority:** Medium
@@ -2300,3 +2304,30 @@ The retro-producer skill and/or project orchestrator should explicitly require c
 **Rationale:** Retrospective insights are wasted if they don't become tracked work items.
 
 **Traces to:** layer-0-foundation experience, CLAUDE.md lesson
+
+---
+
+## ISSUE-052: Orchestrator/skills must maintain tasks.md acceptance criteria
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+Skills and the orchestrator don't update tasks.md as work progresses. Acceptance criteria checkboxes remain unchecked, task statuses remain 'Ready' even after work is complete. This requires manual cleanup and causes state machine confusion.
+
+**Current state:** tasks.md is written during breakdown phase, then never touched. All updates are manual.
+
+**Expected behavior:**
+1. Skills know which acceptance criteria they're addressing (from context)
+2. When a skill completes work satisfying a criterion, it checks off that criterion in tasks.md
+3. When all acceptance criteria for a task are checked, task status is updated to Complete
+4. State machine can then accurately detect project completion
+
+**Root cause:** No skill or orchestrator step is responsible for maintaining tasks.md after creation.
+
+**Fix options:**
+1. Add tasks.md update to skill yield protocol - skills report which AC they satisfied, orchestrator updates file
+2. Add post-task-complete hook that prompts for AC verification and updates
+3. Make AC tracking part of state.toml with tasks.md as derived view
+
+**Traces to:** layer-0-foundation experience, supersedes ISSUE-047
