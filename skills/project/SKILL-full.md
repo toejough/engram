@@ -350,12 +350,15 @@ Returns to main flow for Alignment → Retro → Summary → Next Steps.
 1. Dispatch `retro-producer`
 2. Dispatch `retro-qa`
 3. Output: `.claude/projects/<name>/retro.md`, follow-up issues
+4. **Present artifact to user**: Read and display `retro.md` content (not a paraphrase)
 
 ### Summary Phase (main flow ending)
 
 1. Dispatch `summary-producer`
 2. Dispatch `summary-qa`
 3. Output: `.claude/projects/<name>/summary.md`
+4. **Present artifact to user**: Read and display `summary.md` content (not a paraphrase)
+   - For long summaries (>50 lines), show Executive Overview + link to full file
 
 ### Issue Update (main flow ending)
 

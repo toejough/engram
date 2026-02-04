@@ -47,7 +47,11 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - API docs: Types, functions, interfaces
    - User guides: Tutorials, recipes, FAQs
 2. Add traceability comments linking to REQ-N, DES-N, ARCH-N
-3. Yield `complete` with artifact paths
+3. **Re-point test traces**: Replace `// traces: TASK-NNN` with permanent artifact IDs
+   - Look up each task's `**Traces to:**` field in tasks.md
+   - Replace with the lowest-level permanent artifact (prefer ARCH-N, then DES-N, then REQ-N)
+   - Run `projctl trace validate` to verify no orphan TASK references remain
+4. Yield `complete` with artifact paths
 
 ## Yield Protocol
 

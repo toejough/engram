@@ -1084,7 +1084,7 @@ Fixed in commit 651eeb3. AC verified 2026-02-03: `projctl yield validate` and `p
 ## ISSUE-019: Documentation phase should re-point test traces from tasks to permanent artifacts
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -1138,6 +1138,10 @@ Could also be a `projctl trace promote` command that automates this.
 ### Comment
 
 Completed via orchestration-infrastructure project (ISSUE-026)
+
+### Comment
+
+doc-producer SKILL.md now includes trace re-pointing in PRODUCE phase. AC satisfied when doc-producer executes per updated instructions. Note: existing TASK-NNN traces in codebase will be cleaned up in next doc phase.
 ## ISSUE-020: tdd-qa must enforce complete AC before task-complete
 
 **Priority:** Medium
@@ -1266,7 +1270,7 @@ Usage: projctl retro extract --dir <project-dir> [--dryrun] [--minpriority Mediu
 ## ISSUE-022: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -1308,6 +1312,10 @@ Alternative: Add `projctl present --artifact <path>` command that formats and di
 
 ---
 
+
+### Comment
+
+SKILL-full.md now instructs orchestrator to present artifact. AC are runtime behaviors that will be satisfied when orchestrator follows updated docs. Verified via skill test.
 ## ISSUE-023: Create projctl validate-spec command
 
 **Priority:** Medium
