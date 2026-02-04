@@ -99,7 +99,7 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 ## ISSUE-002: TDD for documentation tasks
 
 **Priority:** Medium-term
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -170,6 +170,10 @@ Apply TDD to documentation:
 
 ---
 
+
+### Comment
+
+Completed via doc-testing-framework project. TDD skills now support documentation testing with word matching, semantic matching (ONNX), and structural tests. Orchestrator updated to not skip TDD for doc-focused tasks.
 ## ISSUE-003: End-to-end integration test for /project workflows
 
 **Priority:** High
