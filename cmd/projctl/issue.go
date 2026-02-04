@@ -43,6 +43,7 @@ type issueUpdateArgs struct {
 	ID      string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-042)"`
 	Status  string `targ:"flag,short=s,desc=New status (Open, Closed, etc.)"`
 	Comment string `targ:"flag,short=c,desc=Comment to append"`
+	Force   bool   `targ:"flag,short=f,desc=Force close even if AC incomplete"`
 }
 
 func issueUpdate(args issueUpdateArgs) error {
@@ -62,6 +63,7 @@ func issueUpdate(args issueUpdateArgs) error {
 	if err := issue.Update(dir, args.ID, issue.UpdateOpts{
 		Status:  args.Status,
 		Comment: args.Comment,
+		Force:   args.Force,
 	}); err != nil {
 		return err
 	}

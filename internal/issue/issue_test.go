@@ -321,4 +321,222 @@ No acceptance criteria defined.
 		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-999")
 		g.Expect(result.Error).To(ContainSubstring("not found"))
 	})
+
+	t.Run("parses AC with bold field format", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+**Problem:** Some problem description.
+
+**Acceptance Criteria:**
+- [x] First AC item is complete
+- [ ] Second AC item is incomplete
+
+**Traces to:** something
+`), 0o644)).To(Succeed())
+
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		g.Expect(result.Error).To(BeEmpty())
+		g.Expect(result.Items).To(HaveLen(2))
+		g.Expect(result.Complete).To(Equal(1))
+		g.Expect(result.Incomplete).To(Equal(1))
+		g.Expect(result.AllComplete).To(BeFalse())
+	})
+}
+
+func TestValidateClose(t *testing.T) {
+	t.Run("rejects closure when AC incomplete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [x] First AC complete
+- [ ] Second AC incomplete
+`), 0o644)).To(Succeed())
+
+		err := issue.ValidateClose(dir, "ISSUE-001")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("incomplete"))
+		g.Expect(err.Error()).To(ContainSubstring("Second AC incomplete"))
+	})
+
+	t.Run("allows closure when all AC complete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [x] First AC complete
+- [x] Second AC complete
+`), 0o644)).To(Succeed())
+
+		err := issue.ValidateClose(dir, "ISSUE-001")
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("allows closure when no AC defined", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: No AC Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Summary
+
+No acceptance criteria.
+`), 0o644)).To(Succeed())
+
+		err := issue.ValidateClose(dir, "ISSUE-001")
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+}
+
+func TestUpdateWithValidation(t *testing.T) {
+	t.Run("rejects status Closed when AC incomplete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [ ] Incomplete AC
+`), 0o644)).To(Succeed())
+
+		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+			Status: "Closed",
+		})
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("incomplete"))
+
+		// Verify status was NOT changed
+		content, _ := os.ReadFile(filepath.Join(docsDir, "issues.md"))
+		g.Expect(string(content)).To(ContainSubstring("**Status:** Open"))
+	})
+
+	t.Run("allows status Closed with --force when AC incomplete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [ ] Incomplete AC
+`), 0o644)).To(Succeed())
+
+		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+			Status: "Closed",
+			Force:  true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify status was changed
+		content, _ := os.ReadFile(filepath.Join(docsDir, "issues.md"))
+		g.Expect(string(content)).To(ContainSubstring("**Status:** Closed"))
+	})
+
+	t.Run("allows non-Closed status changes without AC check", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [ ] Incomplete AC
+`), 0o644)).To(Succeed())
+
+		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+			Status: "In Progress",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("allows comment-only updates without AC check", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		docsDir := filepath.Join(dir, "docs")
+		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
+		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
+
+## ISSUE-001: Test Issue
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-01-01
+
+### Acceptance Criteria
+
+- [ ] Incomplete AC
+`), 0o644)).To(Succeed())
+
+		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+			Comment: "Adding a comment",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+	})
 }

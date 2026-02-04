@@ -214,10 +214,18 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 type UpdateOpts struct {
 	Status  string // New status (Open, Closed, etc.)
 	Comment string // Optional comment to append
+	Force   bool   // Skip AC validation when closing
 }
 
 // Update modifies an existing issue.
 func Update(dir string, id string, opts UpdateOpts) error {
+	// Validate AC before closing (unless forced)
+	if strings.EqualFold(opts.Status, "closed") && !opts.Force {
+		if err := ValidateClose(dir, id); err != nil {
+			return err
+		}
+	}
+
 	path := filepath.Join(dir, IssuesFile)
 	content, err := os.ReadFile(path)
 	if err != nil {
@@ -302,6 +310,32 @@ func List(dir string, statusFilter string) ([]Issue, error) {
 	return filtered, nil
 }
 
+// ValidateClose checks if an issue can be closed (all AC must be complete).
+func ValidateClose(dir, issueID string) error {
+	result := ParseAcceptanceCriteria(dir, issueID)
+	if result.Error != "" {
+		return fmt.Errorf("failed to parse AC: %s", result.Error)
+	}
+
+	if !result.AllComplete {
+		var incompleteItems []string
+		for _, item := range result.Items {
+			if !item.Complete {
+				incompleteItems = append(incompleteItems, item.Text)
+			}
+		}
+
+		errMsg := fmt.Sprintf("cannot close %s: %d acceptance criteria incomplete:\n", issueID, result.Incomplete)
+		for _, item := range incompleteItems {
+			errMsg += "- " + item + "\n"
+		}
+
+		return fmt.Errorf("%s", errMsg)
+	}
+
+	return nil
+}
+
 // ACItem represents a single acceptance criterion item.
 type ACItem struct {
 	Text     string
@@ -347,8 +381,10 @@ func ParseAcceptanceCriteria(dir, issueID string) ACResult {
 
 // parseACItems extracts AC items from issue body content.
 func parseACItems(body string) []ACItem {
-	// Find AC section header
-	acPattern := regexp.MustCompile(`(?m)^### Acceptance Criteria\s*$`)
+	// Find AC section header - supports both formats:
+	// ### Acceptance Criteria (h3 header)
+	// **Acceptance Criteria:** (bold field)
+	acPattern := regexp.MustCompile(`(?m)^(### Acceptance Criteria\s*$|\*\*Acceptance Criteria:\*\*\s*$)`)
 	loc := acPattern.FindStringIndex(body)
 	if loc == nil {
 		return nil
@@ -357,7 +393,7 @@ func parseACItems(body string) []ACItem {
 	// Get content after AC header
 	rest := body[loc[1]:]
 
-	// Find next section (### or ** header) or end
+	// Find next section (### header or **field:** format) or end
 	nextPattern := regexp.MustCompile(`(?m)^(###|\*\*[^*]+:\*\*)`)
 	nextLoc := nextPattern.FindStringIndex(rest)
 
