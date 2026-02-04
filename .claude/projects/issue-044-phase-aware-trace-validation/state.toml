@@ -1,0 +1,44 @@
+[project]
+  name = "issue-044-phase-aware-trace-validation"
+  created = 2026-02-04T08:59:00.127372-05:00
+  phase = "tdd-green"
+  workflow = "task"
+  issue = "ISSUE-044"
+  repo_dir = "/Users/joe/repos/personal/projctl"
+
+[progress]
+  current_task = "TASK-1"
+  current_subphase = ""
+  tasks_complete = 0
+  tasks_total = 0
+  tasks_escalated = 0
+
+[conflicts]
+  open = 0
+
+[meta]
+  corrections_since_last_audit = 0
+
+[[history]]
+  timestamp = 2026-02-04T08:59:00.127372-05:00
+  phase = "init"
+
+[[history]]
+  timestamp = 2026-02-04T08:59:09.969504-05:00
+  phase = "task-implementation"
+
+[[history]]
+  timestamp = 2026-02-04T09:00:12.800419-05:00
+  phase = "task-start"
+
+[[history]]
+  timestamp = 2026-02-04T09:00:17.034156-05:00
+  phase = "tdd-red"
+
+[[history]]
+  timestamp = 2026-02-04T09:03:33.031427-05:00
+  phase = "commit-red"
+
+[[history]]
+  timestamp = 2026-02-04T09:03:37.347136-05:00
+  phase = "tdd-green"

@@ -637,7 +637,7 @@ func (m *mockArtifactChecker) RequirementsExist(dir string) bool              { 
 func (m *mockArtifactChecker) RequirementsHaveIDs(dir string) bool            { return true }
 func (m *mockArtifactChecker) DesignExists(dir string) bool                   { return true }
 func (m *mockArtifactChecker) DesignHasIDs(dir string) bool                   { return true }
-func (m *mockArtifactChecker) TraceValidationPasses(dir string) bool          { return true }
+func (m *mockArtifactChecker) TraceValidationPasses(dir string, phase string) bool { return true }
 func (m *mockArtifactChecker) TestsExist(dir string) bool                     { return true }
 func (m *mockArtifactChecker) TestsFail(dir string) bool                      { return true }
 func (m *mockArtifactChecker) TestsPass(dir string) bool                      { return true }

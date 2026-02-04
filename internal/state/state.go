@@ -175,7 +175,7 @@ type PreconditionChecker interface {
 	RequirementsHaveIDs(dir string) bool
 	DesignExists(dir string) bool
 	DesignHasIDs(dir string) bool
-	TraceValidationPasses(dir string) bool
+	TraceValidationPasses(dir string, phase string) bool // phase enables phase-aware validation
 	TestsExist(dir string) bool
 	TestsFail(dir string) bool
 	TestsPass(dir string) bool
@@ -210,13 +210,13 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		return nil
 	},
 	"architect-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.TraceValidationPasses(dir) {
+		if !c.TraceValidationPasses(dir, "architect-complete") {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
 		return nil
 	},
 	"task-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.TraceValidationPasses(dir) {
+		if !c.TraceValidationPasses(dir, "task-complete") {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
 		if opts.Task != "" && !c.AcceptanceCriteriaComplete(dir, opts.Task) {

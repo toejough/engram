@@ -429,7 +429,7 @@ func (m *mockPreconditionChecker) DesignHasIDs(dir string) bool {
 	return m.designHasIDs
 }
 
-func (m *mockPreconditionChecker) TraceValidationPasses(dir string) bool {
+func (m *mockPreconditionChecker) TraceValidationPasses(dir string, phase string) bool {
 	return m.traceValidationPasses
 }
 

@@ -55,12 +55,20 @@ func traceRepair(args traceRepairArgs) error {
 }
 
 type traceValidateArtifactsArgs struct {
-	Dir  string `targ:"flag,short=d,required,desc=Project directory"`
-	JSON bool   `targ:"flag,short=j,desc=Output as JSON"`
+	Dir   string `targ:"flag,short=d,required,desc=Project directory"`
+	Phase string `targ:"flag,short=p,desc=Workflow phase for phase-aware validation (e.g. architect-complete)"`
+	JSON  bool   `targ:"flag,short=j,desc=Output as JSON"`
 }
 
 func traceValidateArtifacts(args traceValidateArtifactsArgs) error {
-	result, err := trace.ValidateV2Artifacts(args.Dir)
+	var result trace.ValidateV2ArtifactsResult
+	var err error
+
+	if args.Phase != "" {
+		result, err = trace.ValidateV2Artifacts(args.Dir, args.Phase)
+	} else {
+		result, err = trace.ValidateV2Artifacts(args.Dir)
+	}
 	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}

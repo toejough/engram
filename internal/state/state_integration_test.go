@@ -146,7 +146,7 @@ func (c *integrationChecker) DesignHasIDs(dir string) bool {
 	return true // Simplified
 }
 
-func (c *integrationChecker) TraceValidationPasses(dir string) bool {
+func (c *integrationChecker) TraceValidationPasses(dir string, phase string) bool {
 	return true // Simplified
 }
 

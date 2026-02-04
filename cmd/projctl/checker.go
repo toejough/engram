@@ -44,8 +44,15 @@ func (c *DefaultChecker) DesignHasIDs(dir string) bool {
 	return matched
 }
 
-func (c *DefaultChecker) TraceValidationPasses(dir string) bool {
-	result, err := trace.Validate(dir)
+func (c *DefaultChecker) TraceValidationPasses(dir string, phase string) bool {
+	var result trace.ValidateV2ArtifactsResult
+	var err error
+
+	if phase != "" {
+		result, err = trace.ValidateV2Artifacts(dir, phase)
+	} else {
+		result, err = trace.ValidateV2Artifacts(dir)
+	}
 	if err != nil {
 		return false
 	}

@@ -654,13 +654,117 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 	return result, err
 }
 
+// phaseAllowsUnlinked returns which ID prefixes are allowed to be unlinked at a given phase.
+// The workflow creates artifacts progressively:
+//   - At design-complete: DES exists but ARCH doesn't trace to it yet
+//   - At architect-complete: ARCH exists but TASK doesn't trace to it yet
+//   - At breakdown-complete: TASK exists but TEST doesn't trace to it yet
+//   - At task-complete and later: full chain required
+func phaseAllowsUnlinked(phase string) map[string]bool {
+	allowed := make(map[string]bool)
+
+	switch phase {
+	case "pm", "pm-complete":
+		// Only REQ exists, nothing traces to it - REQ is always allowed as root
+		// No special exemptions needed
+	case "design", "design-complete":
+		// DES exists, but ARCH doesn't exist yet to trace to it
+		allowed["DES-"] = true
+	case "architect", "architect-complete":
+		// ARCH exists, but TASK doesn't exist yet to trace to it
+		// DES should have ARCH tracing to it now
+		allowed["ARCH-"] = true
+	case "breakdown", "breakdown-complete":
+		// TASK exists, but TEST doesn't exist yet to trace to it
+		// ARCH should have TASK tracing to it now
+		allowed["TASK-"] = true
+	case "":
+		// No phase specified = strictest validation (default behavior)
+	default:
+		// All other phases (implementation, task-*, documentation, etc.)
+		// require full chain - no exemptions
+	}
+
+	return allowed
+}
+
+// validPhases lists all valid phase names for validation.
+var validPhases = map[string]bool{
+	"":                       true, // empty = strictest
+	"init":                   true,
+	"pm":                     true,
+	"pm-complete":            true,
+	"design":                 true,
+	"design-complete":        true,
+	"architect":              true,
+	"architect-complete":     true,
+	"breakdown":              true,
+	"breakdown-complete":     true,
+	"implementation":         true,
+	"task-start":             true,
+	"tdd-red":                true,
+	"commit-red":             true,
+	"tdd-green":              true,
+	"commit-green":           true,
+	"tdd-refactor":           true,
+	"commit-refactor":        true,
+	"task-audit":             true,
+	"task-complete":          true,
+	"task-retry":             true,
+	"task-escalated":         true,
+	"implementation-complete": true,
+	"documentation":          true,
+	"documentation-complete": true,
+	"alignment":              true,
+	"alignment-complete":     true,
+	"retro":                  true,
+	"retro-complete":         true,
+	"summary":                true,
+	"summary-complete":       true,
+	"issue-update":           true,
+	"next-steps":             true,
+	"complete":               true,
+	"task-implementation":    true,
+	"task-documentation":     true,
+	"adopt-explore":          true,
+	"adopt-infer-tests":      true,
+	"adopt-infer-arch":       true,
+	"adopt-infer-design":     true,
+	"adopt-infer-reqs":       true,
+	"adopt-escalations":      true,
+	"adopt-documentation":    true,
+	"align-explore":          true,
+	"align-infer-tests":      true,
+	"align-infer-arch":       true,
+	"align-infer-design":     true,
+	"align-infer-reqs":       true,
+	"align-escalations":      true,
+	"align-documentation":    true,
+}
+
 // ValidateV2Artifacts validates traceability by scanning artifact files directly.
 // Unlike Validate, this doesn't use the traceability.toml matrix.
 // - Orphan: ID in **Traces to:** field but not defined as header (### ID: Title)
 // - Unlinked: ID defined but not connected to chain:
 //   - DES, ARCH, TASK: nothing traces TO them
 //   - TEST: doesn't trace TO anything (no **Traces to:** field or // traces: comment)
-func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
+//
+// The optional phase parameter enables phase-aware validation:
+//   - At design-complete: DES allowed to be unlinked (ARCH doesn't exist yet)
+//   - At architect-complete: ARCH allowed to be unlinked (TASK doesn't exist yet)
+//   - At breakdown-complete: TASK allowed to be unlinked (TEST doesn't exist yet)
+//   - Without phase or at later phases: full chain required (strictest)
+func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult, error) {
+	// Validate and extract phase parameter
+	currentPhase := ""
+	if len(phase) > 0 {
+		currentPhase = phase[0]
+	}
+	if !validPhases[currentPhase] {
+		return ValidateV2ArtifactsResult{}, fmt.Errorf("invalid phase: %q", currentPhase)
+	}
+
+	allowedUnlinked := phaseAllowsUnlinked(currentPhase)
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to get home directory: %w", err)
@@ -771,7 +875,7 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Unlinked: defined but not connected to the chain
-	// - DES, ARCH, TASK: need something tracing TO them
+	// - DES, ARCH, TASK: need something tracing TO them (unless phase allows it)
 	// - TEST: needs to trace TO something (must have Traces to: field)
 	// - ISSUE, REQ: can be roots (exempt)
 	for id := range definedIDs {
@@ -784,8 +888,18 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 		} else if !strings.HasPrefix(id, "ISSUE-") && !strings.HasPrefix(id, "REQ-") {
 			// DES, ARCH, TASK need something tracing TO them
 			if !referencedIDs[id] {
-				result.UnlinkedIDs = append(result.UnlinkedIDs, id)
-				result.Pass = false
+				// Check if this ID type is allowed to be unlinked at the current phase
+				isAllowed := false
+				for prefix := range allowedUnlinked {
+					if strings.HasPrefix(id, prefix) {
+						isAllowed = true
+						break
+					}
+				}
+				if !isAllowed {
+					result.UnlinkedIDs = append(result.UnlinkedIDs, id)
+					result.Pass = false
+				}
 			}
 		}
 	}
