@@ -43,6 +43,47 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 3. Run full test suite to verify no regressions
 4. Yield `complete` with files modified
 
+## Visual Verification
+
+When the task has `[visual]` marker in its title (e.g., `TASK-5: [visual] Add carousel buttons`):
+
+### Detection
+
+Check if the task title contains `[visual]`. This marker indicates user-visible output that requires visual verification beyond passing tests.
+
+### Capture Visual Evidence
+
+After tests pass, capture visual evidence:
+
+| Interface | Capture Method | Tool |
+|-----------|----------------|------|
+| Web UI | Browser screenshot | `mcp__chrome-devtools__take_screenshot` |
+| CLI | Output redirection | `command > output.txt 2>&1` |
+| CLI (ANSI) | Script recording | `script -q output.txt command` |
+| Desktop app | Manual screenshot | System screenshot tool |
+
+### Compare Against Expectation
+
+- **If design spec/baseline exists**: `projctl screenshot diff --baseline <spec> --current <screenshot>`
+- **If no baseline**: Manual review of captured output to verify it matches acceptance criteria
+
+### Document Evidence
+
+Include visual verification in yield payload:
+- `visual_verified = true` confirms verification was performed
+- `visual_evidence` path to screenshot or output capture
+
+### No Screenshot Capture Tool
+
+If dedicated capture tooling is unavailable:
+
+1. **Web UI**: Use Chrome DevTools MCP - `mcp__chrome-devtools__take_screenshot`
+2. **CLI plain text**: Redirect output to file - `cmd > output.txt 2>&1`
+3. **CLI with ANSI colors**: Use `script` command - `script -q output.txt command`
+4. **Desktop/native apps**: Use system screenshot tools manually
+
+Visual verification is required even without dedicated tooling. The above methods provide sufficient evidence for QA review.
+
 ## Rules
 
 | Rule | Rationale |
@@ -129,6 +170,33 @@ reason = "Consistency with codebase"
 [context]
 phase = "tdd-green"
 task = "TASK-5"
+subphase = "complete"
+```
+
+### Complete Yield with Visual Evidence
+
+For tasks with `[visual]` marker:
+
+```toml
+[yield]
+type = "complete"
+timestamp = 2026-02-02T10:30:00Z
+
+[payload]
+artifact = "components/Button.tsx"
+files_modified = ["components/Button.tsx", "components/Button.css"]
+tests_passing = ["TestButtonLoading", "TestButtonDisabled"]
+visual_verified = true
+visual_evidence = "screenshots/button-loading-state.png"
+
+[[payload.decisions]]
+context = "Visual verification"
+choice = "Screenshot captured and reviewed"
+reason = "Matches design spec"
+
+[context]
+phase = "tdd-green"
+task = "TASK-7"
 subphase = "complete"
 ```
 
