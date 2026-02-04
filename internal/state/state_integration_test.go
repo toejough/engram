@@ -190,3 +190,11 @@ func (c *integrationChecker) SummaryExists(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, "summary.md"))
 	return err == nil
 }
+
+func (c *integrationChecker) IssueACComplete(repoDir, issueID string) bool {
+	return true // Simplified for integration test
+}
+
+func (c *integrationChecker) IncompleteIssueAC(repoDir, issueID string) []string {
+	return nil
+}

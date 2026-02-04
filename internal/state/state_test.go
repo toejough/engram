@@ -646,6 +646,8 @@ func (m *mockArtifactChecker) IncompleteAcceptanceCriteria(dir, taskID string) [
 func (m *mockArtifactChecker) UnblockedTasks(dir string, failedTask string) []string { return nil }
 func (m *mockArtifactChecker) RetroExists(dir string) bool                    { return m.retroExists }
 func (m *mockArtifactChecker) SummaryExists(dir string) bool                  { return m.summaryExists }
+func (m *mockArtifactChecker) IssueACComplete(repoDir, issueID string) bool   { return true }
+func (m *mockArtifactChecker) IncompleteIssueAC(repoDir, issueID string) []string { return nil }
 
 func TestWorktreeTracking(t *testing.T) {
 	t.Run("State has Worktrees map", func(t *testing.T) {

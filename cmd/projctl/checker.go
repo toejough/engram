@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/toejough/projctl/internal/issue"
 	"github.com/toejough/projctl/internal/task"
 	"github.com/toejough/projctl/internal/trace"
 )
@@ -133,4 +134,40 @@ func (c *DefaultChecker) RetroExists(dir string) bool {
 func (c *DefaultChecker) SummaryExists(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, "summary.md"))
 	return err == nil
+}
+
+func (c *DefaultChecker) IssueACComplete(repoDir, issueID string) bool {
+	if issueID == "" {
+		return true // No issue specified, skip AC check
+	}
+
+	result := issue.ParseAcceptanceCriteria(repoDir, issueID)
+	if result.Error != "" {
+		// Issue not found or parse error
+		if strings.Contains(result.Error, "not found") {
+			return true // Issue not in issues.md, skip AC check
+		}
+		return false
+	}
+
+	return result.AllComplete
+}
+
+func (c *DefaultChecker) IncompleteIssueAC(repoDir, issueID string) []string {
+	if issueID == "" {
+		return nil
+	}
+
+	result := issue.ParseAcceptanceCriteria(repoDir, issueID)
+	if result.Error != "" {
+		return nil
+	}
+
+	var incomplete []string
+	for _, item := range result.Items {
+		if !item.Complete {
+			incomplete = append(incomplete, item.Text)
+		}
+	}
+	return incomplete
 }

@@ -184,6 +184,8 @@ type PreconditionChecker interface {
 	UnblockedTasks(dir string, failedTask string) []string    // Returns unblocked tasks excluding the failed one
 	RetroExists(dir string) bool                              // Check for retro.md in project dir
 	SummaryExists(dir string) bool                            // Check for summary.md in project dir
+	IssueACComplete(repoDir, issueID string) bool             // Check if issue's AC are all complete
+	IncompleteIssueAC(repoDir, issueID string) []string       // Returns list of incomplete issue AC items
 }
 
 // Preconditions maps phases to their required preconditions.
@@ -251,6 +253,30 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 	"summary-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.SummaryExists(dir) {
 			return fmt.Errorf("precondition failed: summary.md must exist")
+		}
+		return nil
+	},
+	"issue-update": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+		// Read state to get linked issue
+		s, err := Get(dir)
+		if err != nil {
+			return fmt.Errorf("precondition failed: could not read state: %w", err)
+		}
+
+		// If no linked issue, skip AC check
+		if s.Project.Issue == "" {
+			return nil
+		}
+
+		// Get repo dir for issue lookup (issues.md is in repo, not project dir)
+		repoDir := s.Project.RepoDir
+		if repoDir == "" {
+			repoDir = dir // Fallback to project dir
+		}
+
+		// Check issue AC
+		if !c.IssueACComplete(repoDir, s.Project.Issue) {
+			return fmt.Errorf("precondition failed: acceptance criteria for %s are incomplete", s.Project.Issue)
 		}
 		return nil
 	},

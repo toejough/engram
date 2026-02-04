@@ -409,6 +409,8 @@ type mockPreconditionChecker struct {
 	currentTaskID                string
 	retroExists                  bool
 	summaryExists                bool
+	issueACComplete              bool
+	incompleteIssueAC            []string
 }
 
 func (m *mockPreconditionChecker) RequirementsExist(dir string) bool {
@@ -462,6 +464,14 @@ func (m *mockPreconditionChecker) RetroExists(dir string) bool {
 
 func (m *mockPreconditionChecker) SummaryExists(dir string) bool {
 	return m.summaryExists
+}
+
+func (m *mockPreconditionChecker) IssueACComplete(repoDir, issueID string) bool {
+	return m.issueACComplete
+}
+
+func (m *mockPreconditionChecker) IncompleteIssueAC(repoDir, issueID string) []string {
+	return m.incompleteIssueAC
 }
 
 // Test that illegal transitions provide helpful error messages
@@ -561,6 +571,110 @@ func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Project.Phase).To(Equal("task-complete"))
 	})
+}
+
+// Test precondition: issue-update requires linked issue's AC to be complete
+func TestTransitionPrecondition_IssueUpdate(t *testing.T) {
+	t.Run("fails when linked issue has incomplete AC", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Set up state with linked issue
+		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToSummaryComplete(t, dir)
+
+		checker := &mockPreconditionChecker{
+			issueACComplete:   false,
+			incompleteIssueAC: []string{"First incomplete AC", "Second incomplete AC"},
+		}
+
+		_, err = state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("ISSUE-042"))
+		g.Expect(err.Error()).To(ContainSubstring("acceptance criteria"))
+	})
+
+	t.Run("succeeds when linked issue AC complete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToSummaryComplete(t, dir)
+
+		checker := &mockPreconditionChecker{
+			issueACComplete: true,
+		}
+
+		s, err := state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("issue-update"))
+	})
+
+	t.Run("succeeds when no linked issue", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		walkToSummaryComplete(t, dir)
+
+		// No linked issue, should skip AC check
+		checker := &mockPreconditionChecker{
+			issueACComplete: false, // Doesn't matter - no issue linked
+		}
+
+		s, err := state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("issue-update"))
+	})
+}
+
+// walkToSummaryComplete gets to summary-complete phase
+func walkToSummaryComplete(t *testing.T, dir string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	phases := []string{
+		"pm", "pm-complete", "design", "design-complete",
+		"architect", "architect-complete", "breakdown", "breakdown-complete",
+		"implementation", "task-start", "tdd-red",
+		"commit-red", "tdd-green", "commit-green", "tdd-refactor",
+		"commit-refactor", "task-audit", "task-complete",
+		"implementation-complete", "documentation", "documentation-complete",
+		"alignment", "alignment-complete", "retro", "retro-complete",
+		"summary", "summary-complete",
+	}
+
+	passChecker := &mockPreconditionChecker{
+		requirementsExists:         true,
+		requirementsHasIDs:         true,
+		designExists:               true,
+		designHasIDs:               true,
+		traceValidationPasses:      true,
+		testsExist:                 true,
+		testsFail:                  true,
+		testsPass:                  true,
+		acceptanceCriteriaComplete: true,
+		retroExists:                true,
+		summaryExists:              true,
+		issueACComplete:            true, // Default to passing
+	}
+
+	for _, phase := range phases {
+		_, err := state.TransitionWithChecker(dir, phase, state.TransitionOpts{}, nowFunc(), passChecker)
+		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
+	}
 }
 
 // Test state next returns validation_failed when AC incomplete at task-audit
@@ -1047,6 +1161,7 @@ func walkToPhase(t *testing.T, dir, target string) {
 		acceptanceCriteriaComplete: true,
 		retroExists:                true,
 		summaryExists:              true,
+		issueACComplete:            true,
 	}
 
 	for _, phase := range phases {
