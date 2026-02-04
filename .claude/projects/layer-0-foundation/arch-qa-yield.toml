@@ -1,0 +1,72 @@
+[yield]
+type = "escalate-phase"
+timestamp = "2026-02-04T13:30:00Z"
+
+[payload.escalation]
+from_phase = "arch"
+to_phase = "requirements"
+reason = "conflict"
+
+[payload.issue]
+summary = "Embedding model specification mismatch between requirements and implementation"
+context = """
+Requirements (REQ-1 line 31, REQ-6 line 139, REQ-8 line 179) specify e5-small model.
+Architecture (ARCH-003 lines 157-158) documents all-MiniLM-L6-v2 is actually implemented.
+
+ARCH-003 claims these are "functionally equivalent for semantic search" (both 384-dimensional),
+but this represents a spec-to-implementation mismatch that should be resolved upstream.
+
+Either:
+1. Requirements should be updated to reflect all-MiniLM-L6-v2 as the chosen model
+2. Implementation should be changed to use e5-small as specified
+3. Requirements should acknowledge both models as acceptable alternatives
+
+Additional concern: ARCH-003 documents simplified hash-based tokenization (not production-quality BERT)
+as sufficient for "development/testing" but REQ-3 line 76 requires semantic similarity tests.
+Need clarification on whether simplified tokenization meets acceptance criteria.
+"""
+
+[[payload.proposed_changes.requirements]]
+action = "update"
+id = "REQ-1"
+field = "line 31"
+current = "Generates embeddings via ONNX e5-small model"
+proposed = "Generates embeddings via ONNX all-MiniLM-L6-v2 model (384 dimensions)"
+reason = "Align with actual implementation documented in ARCH-003"
+
+[[payload.proposed_changes.requirements]]
+action = "update"
+id = "REQ-6"
+field = "line 139"
+current = "Documents embedding model (e5-small, 384 dimensions)"
+proposed = "Documents embedding model (all-MiniLM-L6-v2, 384 dimensions)"
+reason = "Align with actual implementation documented in ARCH-003"
+
+[[payload.proposed_changes.requirements]]
+action = "update"
+id = "REQ-8"
+field = "line 179"
+current = "Explains e5-small model download (~130MB)"
+proposed = "Explains all-MiniLM-L6-v2 model download (~130MB)"
+reason = "Align with actual implementation documented in ARCH-003"
+
+[[payload.proposed_changes.requirements]]
+action = "clarify"
+id = "REQ-3"
+field = "Acceptance criteria"
+current = "Tests verify semantic similarity (related queries rank higher than unrelated)"
+proposed = "Add acceptance criteria: 'Tests verify semantic similarity using simplified hash-based tokenization (sufficient for development/testing, production BERT tokenizer is future enhancement)'"
+reason = "ARCH-003 documents simplified tokenization; requirements should explicitly accept this for Layer 0 scope"
+
+[[payload.secondary_issues]]
+location = "ARCH-007 line 479 vs line 692"
+description = "Internal inconsistency: memory.md described as both 'does not currently exist, will be created as new file' and 'Enhanced' in implementation plan"
+fix = "Producer should clarify whether memory.md exists (enhance) or doesn't exist (create new)"
+severity = "minor"
+
+[context]
+phase = "arch"
+role = "qa"
+iteration = 2
+escalating = true
+reviewed_artifact = "architecture.md"

@@ -1,0 +1,42 @@
+[yield]
+type = "complete"
+timestamp = "2026-02-04T17:24:43Z"
+
+[payload]
+artifact = ".claude/projects/layer-0-foundation/design.md"
+ids_created = ["DES-001", "DES-002", "DES-003", "DES-004", "DES-005", "DES-006", "DES-007", "DES-008", "DES-009", "DES-010"]
+files_modified = [".claude/projects/layer-0-foundation/design.md"]
+
+[[payload.decisions]]
+context = "CLI Output Format"
+choice = "TOML format for memory extract output"
+reason = "User specified 'mix of human/machine readable' and 'TOML satisfies both.' Consistent with other projctl outputs."
+alternatives = ["JSON (too verbose for humans)", "Plain text (not machine-parseable)", "Two separate outputs (unnecessary complexity)"]
+
+[[payload.decisions]]
+context = "Error Handling Strategy"
+choice = "Strict schema validation with fail-fast behavior"
+reason = "User specified 'check schema before extracting.' Prevents silent failures and data corruption in memory system."
+alternatives = ["Best-effort extraction (could miss required fields)", "Lenient parsing (could extract invalid data)"]
+
+[[payload.decisions]]
+context = "Documentation Organization"
+choice = "Enhance existing docs rather than creating new files"
+reason = "User specified 'add to existing README/docs rather than creating new files.' Maintains single source of truth per command group."
+alternatives = ["One file per subcommand (too fragmented)", "Single mega-doc (hard to navigate)"]
+
+[[payload.decisions]]
+context = "Yield Path Pattern"
+choice = "Timestamp + UUID structure: .claude/context/{creation-date}-{project}-{uuid}/{datetime}-{phase}-{taskID}-{uuid}.toml"
+reason = "User specified exact format. Timestamp provides chronological ordering for humans, UUID provides uniqueness for parallel execution."
+alternatives = ["UUID only (hard for humans to navigate)", "Timestamp only (not unique for parallel execution)", "Sequential counter (requires coordination/locking)"]
+
+[[payload.decisions]]
+context = "Path Format in Context Files"
+choice = "Absolute paths for output.yield_path"
+reason = "User specified 'absolute path (not relative).' Avoids working directory ambiguity when skills spawn subprocesses."
+alternatives = ["Relative paths (ambiguous with different working directories)", "Both formats supported (unnecessary complexity)"]
+
+[context]
+phase = "design"
+subphase = "complete"

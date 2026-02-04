@@ -1,0 +1,25 @@
+[project]
+name = "layer-0-foundation"
+dir = ".claude/projects/layer-0-foundation"
+repo_dir = "/Users/joe/repos/personal/projctl"
+phase = "breakdown"
+workflow = "new"
+
+[input]
+issue = "ISSUE-045"
+requirements_path = ".claude/projects/layer-0-foundation/requirements.md"
+design_path = ".claude/projects/layer-0-foundation/design.md"
+architecture_path = ".claude/projects/layer-0-foundation/architecture.md"
+description = """
+Break down the Layer 0 foundation architecture into implementation tasks.
+Key implementation areas:
+1. Memory extract command (REQ-1, ARCH-001)
+2. Yield path generation (REQ-2, ARCH-002)
+3. Update embedding model to e5-small (ARCH-003)
+4. Integration tests (REQ-3, REQ-4, REQ-9, ARCH-005)
+5. Documentation (REQ-5, REQ-6, REQ-7, REQ-8, ARCH-007)
+"""
+
+[output]
+artifact_path = ".claude/projects/layer-0-foundation/tasks.md"
+yield_path = ".claude/projects/layer-0-foundation/breakdown-yield.toml"

@@ -7,7 +7,7 @@ Tracked issues for future work beyond the current task list.
 ## ISSUE-001: Implement deterministic orchestrator (projctl orchestrate)
 
 **Priority:** Medium-term
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -96,6 +96,10 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 
 ---
 
+
+### Comment
+
+Superseded by Layer 0-5 architecture in docs/orchestration-system.md. The layered approach provides incremental implementation of the deterministic orchestrator.
 ## ISSUE-002: TDD for documentation tasks
 
 **Priority:** Medium-term
@@ -177,7 +181,7 @@ Completed via doc-testing-framework project. TDD skills now support documentatio
 ## ISSUE-003: End-to-end integration test for /project workflows
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-01
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -232,6 +236,10 @@ Could also create a "dry-run" mode that validates the control loop without invok
 
 ---
 
+
+### Comment
+
+Superseded by Layer 0-5 architecture. Each layer includes 'Proves:' criteria that serve as integration tests for that layer's functionality.
 ## ISSUE-004: State machine does not track completed tasks
 
 **Priority:** Medium
@@ -932,7 +940,7 @@ Resolved via visual-verification-tdd project (2026-02-04): Documented MCP-based 
 ## ISSUE-015: `projctl project` command group not implemented
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -971,6 +979,10 @@ ISSUE-001 describes the deterministic orchestrator architecture. This issue trac
 
 ---
 
+
+### Comment
+
+Superseded by Layer 5 (projctl workflow new|adopt|align|task) in docs/orchestration-system.md.
 ## ISSUE-016: Missing `projctl issue` command for issue tracking
 
 **Priority:** High
@@ -2140,3 +2152,74 @@ Implemented via project issue-044-phase-aware-trace-validation:
 - CLI: Added `--phase` flag to `projctl trace validate`
 - Preconditions at architect-complete and task-complete now pass phase to validation
 - Design-complete allows DES unlinked, architect-complete allows ARCH unlinked, breakdown-complete allows TASK unlinked
+
+---
+
+## ISSUE-045: Layer 0: Foundation infrastructure
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+### Summary
+
+Build core projctl infrastructure without agent spawning, as specified in docs/orchestration-system.md Section 13.3 "Layer 0: Foundation".
+
+### Commands to Implement
+
+```
+projctl state get|transition|next      (already exists)
+projctl context write|read             (already exists)
+projctl id next --type REQ|DES|ARCH|TASK  (already exists)
+projctl trace validate|repair          (validate exists, repair needed)
+projctl territory map|show             (already exists)
+projctl memory query|learn|grep|extract|session-end  (NEW)
+```
+
+### Context Write Enhancement
+
+Context write must include:
+- `output.yield_path` with unique session/task ID for parallel execution support
+- Skills write to provided path, enabling multiple simultaneous invocations
+
+### Dependencies
+
+- ONNX runtime (for embedding generation)
+- e5-small model (~130MB, downloaded on first use)
+- SQLite-vec (for vector storage/search)
+
+### Proves
+
+State management, context serialization, ID generation, semantic memory work.
+
+### Acceptance Criteria
+
+- [ ] `projctl memory query <text>` searches semantic memory
+- [ ] `projctl memory learn <text>` adds to semantic memory
+- [ ] `projctl memory grep <pattern>` pattern search in memory
+- [ ] `projctl memory extract` extracts learnings from session
+- [ ] `projctl memory session-end` processes end-of-session
+- [ ] `projctl trace repair` fixes broken trace links
+- [ ] `projctl context write` includes `output.yield_path`
+- [ ] ONNX runtime integration for embeddings
+- [ ] SQLite-vec integration for vector storage
+- [ ] e5-small model auto-download on first use
+
+**Traces to:** docs/orchestration-system.md Section 13.3
+
+---
+
+## ISSUE-046: parallel-looper skill should document worktree usage
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+The parallel-looper skill documentation doesn't mention that worktrees should be used for parallel task execution. The project orchestrator SKILL-full.md clearly documents worktree workflow, but parallel-looper has no mention. This led to running parallel agents in the same worktree during layer-0-foundation, risking conflicts.
+
+### Fix Required
+
+Add to parallel-looper SKILL.md:
+- Mention that each parallel task should run in isolated worktree
+- Reference projctl worktree create/merge commands
+- Link to orchestration-system.md Section 6.5 for full details

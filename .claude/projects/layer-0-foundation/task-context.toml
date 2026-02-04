@@ -1,0 +1,16 @@
+[project]
+name = "layer-0-foundation"
+dir = ".claude/projects/layer-0-foundation"
+repo_dir = "/Users/joe/repos/personal/projctl"
+phase = "implementation"
+workflow = "new"
+
+[input]
+task_id = "TASK-2"
+tasks_path = ".claude/projects/layer-0-foundation/tasks.md"
+architecture_path = ".claude/projects/layer-0-foundation/architecture.md"
+design_path = ".claude/projects/layer-0-foundation/design.md"
+requirements_path = ".claude/projects/layer-0-foundation/requirements.md"
+
+[output]
+yield_path = ".claude/projects/layer-0-foundation/tdd-yield.toml"
