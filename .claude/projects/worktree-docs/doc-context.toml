@@ -1,0 +1,37 @@
+# Documentation Context for ISSUE-050
+# Document worktree workflow for parallel execution
+
+[invocation]
+skill = "doc-producer"
+timestamp = "2026-02-04T17:15:00Z"
+
+[inputs]
+issue = "ISSUE-050"
+description = "Document worktree workflow for parallel execution"
+
+[inputs.scope]
+# Two files need updates:
+files_to_update = [
+    "docs/orchestration-system.md",
+    "skills/parallel-looper/SKILL.md"
+]
+
+[inputs.requirements]
+# What needs to be documented:
+requirements = [
+    "Update orchestration-system.md Section 6.5 to use correct CLI flag names (--taskid not --task)",
+    "Add worktree usage section to parallel-looper SKILL.md explaining integration with parallel execution",
+    "Include actual projctl worktree commands: create, merge, cleanup, cleanup-all, list",
+    "Document workflow: create worktree -> work in isolation -> merge on complete -> cleanup"
+]
+
+[inputs.cli_commands]
+# Actual commands from projctl worktree --help:
+create = "projctl worktree create --taskid TASK-001"
+merge = "projctl worktree merge --taskid TASK-001 [--onto main]"
+cleanup = "projctl worktree cleanup --taskid TASK-001"
+cleanup_all = "projctl worktree cleanup-all"
+list = "projctl worktree list"
+
+[output]
+yield_path = ".claude/projects/worktree-docs/doc-yield.toml"
