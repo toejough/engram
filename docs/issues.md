@@ -1906,7 +1906,7 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 ## ISSUE-042: Batch issue resolution must validate each issue's AC individually
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 
 **Problem:** ISSUE-026 (orchestration-infrastructure) was a batch project that claimed to close 7 issues (ISSUE-004, 011, 012, 019, 020, 021, 025). However, ISSUE-021 was closed with all acceptance criteria still unchecked - no actual implementation occurred.
@@ -1950,11 +1950,21 @@ For batch projects specifically:
 - Summary should list per-issue closure status
 
 **Acceptance Criteria:**
-- [ ] Determine if issue AC validation exists anywhere in current process
-- [ ] Identify why batch closure bypassed validation (if it exists)
-- [ ] Implement AC check before issue closure (single or batch)
-- [ ] `projctl issue update --status Closed` fails if AC unchecked (without --force)
-- [ ] Batch project completion validates each linked issue's AC
-- [ ] Test: attempt to close issue with unchecked AC → rejected
+- [x] Determine if issue AC validation exists anywhere in current process
+- [x] Identify why batch closure bypassed validation (if it exists)
+- [x] Implement AC check before issue closure (single or batch)
+- [x] `projctl issue update --status Closed` fails if AC unchecked (without --force)
+- [x] Batch project completion validates each linked issue's AC
+- [x] Test: attempt to close issue with unchecked AC → rejected
 
 **Traces to:** ISSUE-021 (reopened), ISSUE-026 (revealed the gap)
+
+
+### Comment
+
+Implemented issue AC validation:
+1. ParseAcceptanceCriteria function in internal/issue/issue.go
+2. ValidateClose function checks AC before closure
+3. projctl issue update --status Closed validates AC (--force to bypass)
+4. issue-update precondition in state machine validates linked issue AC
+5. All tests passing

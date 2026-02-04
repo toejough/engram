@@ -129,5 +129,8 @@ func main() {
 			targ.Targ(worktreeCleanup).Name("cleanup").Description("Remove a task worktree"),
 			targ.Targ(worktreeCleanupAll).Name("cleanup-all").Description("Remove all task worktrees"),
 		),
+		targ.Group("retro",
+			targ.Targ(retroExtract).Name("extract").Description("Extract recommendations and questions from retro.md and create issues"),
+		),
 	)
 }
