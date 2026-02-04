@@ -2049,8 +2049,9 @@ Completed via project issue-043-id-format-simplification. Changed regex patterns
 ## ISSUE-044: Trace validation should be phase-aware
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
+**Completed:** 2026-02-04
 
 ### Summary
 
@@ -2093,11 +2094,20 @@ Implementation options:
 
 ### Acceptance Criteria
 
-- [ ] Trace validation accepts optional phase parameter
-- [ ] At `architect-complete`: ARCH-NNN allowed to be unlinked
-- [ ] At `breakdown-complete`: TASK-NNN allowed to be unlinked  
-- [ ] At `task-complete`: Full chain required (tests must trace to tasks)
-- [ ] `projctl trace validate` works without phase (strictest validation)
-- [ ] `projctl trace validate --phase architect-complete` uses phase-aware rules
-- [ ] Preconditions pass correct phase to validation
-- [ ] No more --force needed for normal workflow transitions
+- [x] Trace validation accepts optional phase parameter
+- [x] At `architect-complete`: ARCH-NNN allowed to be unlinked
+- [x] At `breakdown-complete`: TASK-NNN allowed to be unlinked
+- [x] At `task-complete`: Full chain required (tests must trace to tasks)
+- [x] `projctl trace validate` works without phase (strictest validation)
+- [x] `projctl trace validate --phase architect-complete` uses phase-aware rules
+- [x] Preconditions pass correct phase to validation
+- [x] No more --force needed for normal workflow transitions
+
+### Comment
+
+Implemented via project issue-044-phase-aware-trace-validation:
+- Added `phaseAllowsUnlinked()` and `validPhases` map to internal/trace/trace.go
+- `ValidateV2Artifacts` now accepts optional variadic phase parameter
+- CLI: Added `--phase` flag to `projctl trace validate`
+- Preconditions at architect-complete and task-complete now pass phase to validation
+- Design-complete allows DES unlinked, architect-complete allows ARCH unlinked, breakdown-complete allows TASK unlinked
