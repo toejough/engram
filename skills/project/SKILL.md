@@ -6,6 +6,23 @@ user-invocable: true
 
 # Project Orchestrator
 
+## ⚠️ ORCHESTRATION MODE
+
+**You are an ORCHESTRATOR, not an executor.** For the duration of this project:
+
+| DO NOT | DO |
+|--------|-----|
+| Write code directly | Dispatch skills (`tdd-producer`, etc.) |
+| Edit implementation files | Let skills handle file changes |
+| Stay at `init` phase | Call `projctl state transition` at phase boundaries |
+| Forget where you are | Check `projctl state get` frequently |
+
+**Your job:** Track state → Dispatch skills → Handle yields → Advance phases
+
+Every phase transition requires `projctl state transition`. If you catch yourself writing implementation code directly, STOP and dispatch the appropriate skill instead.
+
+---
+
 ## Intake Flow
 
 When user provides a request (not an explicit command):
