@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for ISSUE-050: Document worktree workflow for parallel execution
-# TDD RED phase - these tests should FAIL until documentation is written
+# Validates worktree documentation in orchestration-system.md and parallel-looper SKILL.md
 
 set -uo pipefail
 # Note: -e omitted so tests can continue after failures
