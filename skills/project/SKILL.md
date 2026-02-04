@@ -61,9 +61,9 @@ When user provides a request (not an explicit command):
 | Log       | `projctl log write` for logging                       |
 | Handoffs  | `projctl context write/read` with `output.yield_path` |
 | PAIR LOOP | Producer → QA → iterate (max 3x) or advance           |
-| TDD       | Red→commit→green→commit→refactor→commit               |
+| TDD       | Red→commit→green→commit→refactor→commit (ALL artifacts: code, docs, design) |
 | Continue  | If `state next`=continue, proceed immediately         |
-| Dispatch  | ALL code work via Skill/Task tool                     |
+| Dispatch  | ALL artifact work via Skill/Task tool (code, docs, .pen files) |
 | Parallel  | Merge-on-complete (not batch at end) - see SKILL-full.md |
 
 ## Skill Dispatch
