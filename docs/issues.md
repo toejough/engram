@@ -2279,3 +2279,24 @@ From layer-0-foundation retro R4: Add explicit documentation for parallel execut
 **Rationale:** Pattern proved highly effective in layer-0-foundation; should be standard practice.
 
 **Traces to:** layer-0-foundation retro R4
+
+---
+
+## ISSUE-051: retro-producer: require issue creation for recommendations
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+The retro-producer skill and/or project orchestrator should explicitly require creating issues for High/Medium priority recommendations and open questions from retrospectives.
+
+**Current state:** Retro recommendations are documented in retro.md but issue creation is not enforced or prompted.
+
+**Fix options:**
+1. Add to retro-producer skill: after generating retro.md, prompt to create issues
+2. Add to project orchestrator: after retro-complete, verify issues exist for recommendations
+3. Add precondition check: retro-complete transition requires issues for R1-RN with High/Medium priority
+
+**Rationale:** Retrospective insights are wasted if they don't become tracked work items.
+
+**Traces to:** layer-0-foundation experience, CLAUDE.md lesson
