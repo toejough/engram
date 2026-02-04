@@ -1186,7 +1186,7 @@ Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026
 ## ISSUE-021: Retro findings must be converted to issues
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03
 
@@ -1233,11 +1233,11 @@ Zero of these became issues in the project tracker.
 
 ### Acceptance Criteria
 
-- [ ] Retro recommendations with priority High/Medium become issues
-- [ ] Open questions become issues with appropriate labels
-- [ ] Each created issue traces back to retrospective
-- [ ] User can see what issues were created from retro
-- [ ] Test: retro with 3 High recommendations → 3 issues created
+- [x] Retro recommendations with priority High/Medium become issues
+- [x] Open questions become issues with appropriate labels
+- [x] Each created issue traces back to retrospective
+- [x] User can see what issues were created from retro
+- [x] Test: retro with 3 High recommendations → 3 issues created
 
 **Traces to:** Process completeness
 
@@ -1247,6 +1247,18 @@ Zero of these became issues in the project tracker.
 ### Comment (2026-02-03)
 
 Originally closed with comment "Completed via orchestration-infrastructure project (ISSUE-026)" but all acceptance criteria remained unchecked. No automation was implemented - ISSUE-026 was an organizational project that batch-closed issues without verifying implementation. Reopened for actual implementation.
+
+### Comment
+
+Implemented via projctl retro extract command:
+- Parses retro.md/retrospective.md for ## Process Improvement Recommendations
+- Extracts R1, R2, etc. with priority (High/Medium/Low)
+- Extracts ## Open Questions (Q1, Q2, etc.)
+- Creates issues with traces back to retrospective IDs
+- --dryrun flag shows what would be created
+- --minpriority flag filters by priority threshold
+
+Usage: projctl retro extract --dir <project-dir> [--dryrun] [--minpriority Medium]
 ## ISSUE-022: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
