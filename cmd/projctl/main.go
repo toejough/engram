@@ -114,6 +114,7 @@ func main() {
 			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
 			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
 			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
+			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from yield/result files"),
 		),
 		targ.Group("yield",
 			targ.Targ(yieldValidate).Name("validate").Description("Validate a yield TOML file"),
