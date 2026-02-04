@@ -116,7 +116,7 @@ Rules:
 ## Task Format
 
 ```markdown
-### TASK-N: Title
+### TASK-N: [visual] Title
 
 **Description:** What this task accomplishes
 
@@ -131,6 +131,36 @@ Rules:
 **Dependencies:** TASK-X, TASK-Y | None
 
 **Traces to:** ARCH-1, DES-2
+```
+
+---
+
+## Visual Task Detection
+
+Apply `[visual]` marker to tasks when:
+
+1. **Files created/modified** include:
+   - UI components (`.tsx`, `.vue`, `.svelte`)
+   - CSS/styling files
+   - CLI output formatting code
+   - Template/view files
+
+2. **Description mentions**:
+   - "display", "show", "render", "appearance"
+   - "button", "dialog", "modal", "form"
+   - "output format", "table", "color"
+
+3. **Acceptance criteria reference**:
+   - Visual properties (size, color, position)
+   - User-visible behavior
+   - Design spec compliance
+
+### Example
+
+Task affects `components/Button.tsx` and AC says "button displays loading spinner":
+
+```markdown
+### TASK-7: [visual] Add loading state to submit button
 ```
 
 ---
