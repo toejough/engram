@@ -34,7 +34,7 @@ func (r *realConfigFS) FileExists(path string) bool {
 }
 
 // idPattern matches a traceability ID.
-var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}$`)
+var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+$`)
 
 // Link represents a single traceability link.
 type Link struct {
@@ -323,7 +323,7 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, erro
 		cfg.ResolvePath("tasks"),
 	}
 
-	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}`)
+	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -420,9 +420,9 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-(\d{3})):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-(\d+)):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -542,10 +542,10 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 	// Pattern for TEST-NNN comment followed by traces comment
 	// We look for: // TEST-NNN: ...
 	//              // traces: ...
-	testIDPattern := regexp.MustCompile(`^//\s*(TEST-\d{3}):\s*(.*)`)
+	testIDPattern := regexp.MustCompile(`^//\s*(TEST-\d+):\s*(.*)`)
 	tracesPattern := regexp.MustCompile(`^//\s*traces:\s*(.+)`)
 	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -704,9 +704,9 @@ func ValidateV2Artifacts(dir string) (ValidateV2ArtifactsResult, error) {
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
@@ -913,9 +913,9 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph
 	}
 
 	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3}):\s*`)
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+):\s*`)
 	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3})`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
 
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)

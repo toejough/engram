@@ -27,7 +27,7 @@ type Result struct {
 }
 
 // idPattern matches traceability IDs in documentation.
-var idPattern = regexp.MustCompile(`(REQ|DES|ARCH|TASK|TEST)-\d{3}`)
+var idPattern = regexp.MustCompile(`(REQ|DES|ARCH|TASK|TEST)-\d+`)
 
 // exportPattern matches exported Go symbols (functions, types, vars, consts).
 var exportPattern = regexp.MustCompile(`(?m)^(?:func|type|var|const)\s+([A-Z][a-zA-Z0-9_]*)`)

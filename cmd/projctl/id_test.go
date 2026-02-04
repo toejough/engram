@@ -28,7 +28,7 @@ func TestIdNext_REQ(t *testing.T) {
 	// The CLI will call id.Next internally
 	result, err := id.Next(dir, "REQ")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("REQ-003"))
+	g.Expect(result).To(Equal("REQ-3"))
 }
 
 // TEST-182 traces: TASK-004
@@ -47,7 +47,7 @@ func TestIdNext_TASK(t *testing.T) {
 
 	result, err := id.Next(dir, "TASK")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("TASK-043"))
+	g.Expect(result).To(Equal("TASK-43"))
 }
 
 // TEST-183 traces: TASK-004
@@ -58,7 +58,7 @@ func TestIdNext_NoExisting(t *testing.T) {
 
 	result, err := id.Next(dir, "DES")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("DES-001"))
+	g.Expect(result).To(Equal("DES-1"))
 }
 
 // TEST-184 traces: TASK-004
@@ -87,7 +87,7 @@ func TestIdNext_ARCH(t *testing.T) {
 
 	result, err := id.Next(dir, "ARCH")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("ARCH-011"))
+	g.Expect(result).To(Equal("ARCH-11"))
 }
 
 // TEST-186 traces: TASK-004
@@ -105,5 +105,5 @@ func TestIdNext_ISSUE(t *testing.T) {
 
 	result, err := id.Next(dir, "ISSUE")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("ISSUE-006"))
+	g.Expect(result).To(Equal("ISSUE-6"))
 }

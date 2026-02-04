@@ -14,18 +14,16 @@ func TestTraceShowASCII(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	docsDir := filepath.Join(tempDir, "docs")
-	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	// Create artifacts with trace links
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "requirements.md"), []byte(`# Requirements
+	// Create artifacts with trace links (at root, since DocsDir defaults to "")
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
 
 ### REQ-001: Feature
 
 Description.
 `), 0o644)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "design.md"), []byte(`# Design
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
 
 ### DES-001: Design
 
@@ -45,18 +43,16 @@ func TestTraceShowJSON(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	docsDir := filepath.Join(tempDir, "docs")
-	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	// Create artifacts with trace links
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "requirements.md"), []byte(`# Requirements
+	// Create artifacts with trace links (at root, since DocsDir defaults to "")
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
 
 ### REQ-001: Feature
 
 Description.
 `), 0o644)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "design.md"), []byte(`# Design
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
 
 ### DES-001: Design
 
@@ -92,11 +88,9 @@ func TestTracePromote(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	docsDir := filepath.Join(tempDir, "docs")
-	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	// Create tasks.md with TASK-001 tracing to ARCH-001
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "tasks.md"), []byte(`# Tasks
+	// tasks.md goes at root (DocsDir is empty by default)
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
 
 ### TASK-001: Implement feature
 
@@ -137,10 +131,9 @@ func TestTracePromoteDryRun(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	docsDir := filepath.Join(tempDir, "docs")
-	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "tasks.md"), []byte(`# Tasks
+	// tasks.md goes at root (DocsDir is empty by default)
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
 
 ### TASK-001: Implement feature
 
@@ -184,7 +177,7 @@ func TestTracePromoteReportsFileCount(t *testing.T) {
 	docsDir := filepath.Join(tempDir, "docs")
 	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "tasks.md"), []byte(`# Tasks
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
 
 ### TASK-001: Feature one
 
@@ -228,10 +221,9 @@ func TestTracePromoteJSON(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	docsDir := filepath.Join(tempDir, "docs")
-	g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(docsDir, "tasks.md"), []byte(`# Tasks
+	// tasks.md goes at root (DocsDir is empty by default)
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
 
 ### TASK-001: Implement feature
 

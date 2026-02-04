@@ -19,16 +19,20 @@ func TestValidID(t *testing.T) {
 		g.Expect(trace.ValidID("DES-042")).To(BeTrue())
 		g.Expect(trace.ValidID("ARCH-123")).To(BeTrue())
 		g.Expect(trace.ValidID("TASK-007")).To(BeTrue())
+		// Simple incrementing numbers are valid
+		g.Expect(trace.ValidID("REQ-1")).To(BeTrue())
+		g.Expect(trace.ValidID("REQ-42")).To(BeTrue())
+		g.Expect(trace.ValidID("REQ-0001")).To(BeTrue())
 	})
 
 	t.Run("rejects invalid IDs", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(trace.ValidID("REQ-1")).To(BeFalse())
-		g.Expect(trace.ValidID("CONF-001")).To(BeFalse())
-		g.Expect(trace.ValidID("req-001")).To(BeFalse())
-		g.Expect(trace.ValidID("REQ001")).To(BeFalse())
-		g.Expect(trace.ValidID("")).To(BeFalse())
-		g.Expect(trace.ValidID("REQ-0001")).To(BeFalse())
+		g.Expect(trace.ValidID("CONF-001")).To(BeFalse()) // invalid prefix
+		g.Expect(trace.ValidID("req-001")).To(BeFalse()) // lowercase
+		g.Expect(trace.ValidID("REQ001")).To(BeFalse())  // missing hyphen
+		g.Expect(trace.ValidID("")).To(BeFalse())        // empty
+		g.Expect(trace.ValidID("REQ-")).To(BeFalse())    // missing number
+		g.Expect(trace.ValidID("-001")).To(BeFalse())    // missing prefix
 	})
 }
 
