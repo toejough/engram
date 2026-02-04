@@ -70,6 +70,67 @@ Validate that TDD was executed correctly and acceptance criteria are satisfied:
 - [ ] All AC items are `[x]` (none remain `[ ]`)
 - [ ] No deferral language in producer artifacts
 
+#### Visual Evidence Checklist (for `[visual]` tasks)
+
+- [ ] Screenshot or output capture provided
+- [ ] Visual matches acceptance criteria
+- [ ] No obvious visual defects (blank, corrupted, misaligned)
+
+### Visual Task Validation
+
+For tasks with `[visual]` marker in the title:
+
+1. **Check for visual evidence in producer yield**:
+   - `visual_verified = true` must be present
+   - `visual_evidence` path must be provided
+
+2. **If evidence missing**, yield `improvement-request`:
+   ```toml
+   [yield]
+   type = "improvement-request"
+   timestamp = 2026-02-02T12:05:00Z
+
+   [payload]
+   from_agent = "tdd-qa"
+   to_agent = "tdd-green"
+   iteration = 2
+   issues = ["Visual verification required for [visual] task but no evidence provided"]
+   missing_visual_evidence = true
+
+   [context]
+   phase = "tdd"
+   role = "qa"
+   iteration = 2
+   max_iterations = 3
+   ```
+
+3. **Waiver process**: If visual verification is impractical:
+   - Producer must explain why in their yield payload
+   - QA escalates to user for explicit approval via `escalate-user`
+
+   ```toml
+   [yield]
+   type = "escalate-user"
+   timestamp = 2026-02-02T12:15:00Z
+
+   [payload]
+   reason = "Visual verification waiver requested"
+   context = "Producer claims visual verification impractical: 'No browser available in CI environment'"
+   waiver_reason = "No browser available in CI environment"
+   question = "Approve visual verification waiver, or require evidence?"
+   options = [
+       "Approve waiver - accept without visual evidence",
+       "Reject waiver - must provide visual evidence",
+       "Defer task - wait for proper tooling"
+   ]
+
+   [context]
+   phase = "tdd"
+   role = "qa"
+   escalating = true
+   visual_waiver_requested = true
+   ```
+
 ### 2. RETURN Phase
 
 Based on REVIEW findings, yield one of:
