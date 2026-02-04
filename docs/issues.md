@@ -1376,7 +1376,7 @@ Won't do - separate concern. Doc testing (ISSUE-002) handles validation through 
 ## ISSUE-024: Create ARCH-N for explicit orchestrator-skill contract
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -1418,13 +1418,21 @@ Add to docs/architecture.md:
 
 ### Acceptance Criteria
 
-- [ ] ARCH-N section added to architecture.md
-- [ ] Specifies context TOML format orchestrator provides
-- [ ] Specifies yield TOML format skills must return
-- [ ] Specifies resumption protocol for each yield type
-- [ ] Traces to all skills that implement this contract
+- [x] ARCH-N section added to architecture.md
+- [x] Specifies context TOML format orchestrator provides
+- [x] Specifies yield TOML format skills must return
+- [x] Specifies resumption protocol for each yield type
+- [x] Traces to all skills that implement this contract
 
 **Traces to:** Layer -1 Retrospective R4, Challenge 2
+
+### Comment
+
+Completed via project orchestrator-skill-contract (2026-02-04). Added ARCH-018: Orchestrator-Skill Contract to docs/architecture.md with:
+- Context TOML format (invocation, project, config, inputs, state, output, query_results sections)
+- Yield TOML format (yield type, payload, context sections)
+- Resumption protocol for all 11 yield types
+- Traces to REQ-001, ARCH-001, ARCH-013
 
 ---
 
