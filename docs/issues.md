@@ -1307,7 +1307,7 @@ Alternative: Add `projctl present --artifact <path>` command that formats and di
 ## ISSUE-023: Create projctl validate-spec command
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-03
 **Reopened:** 2026-02-03 (AC audit - not implemented)
 
@@ -1344,6 +1344,10 @@ Parses the spec doc for:
 
 ---
 
+
+### Comment
+
+Won't do - separate concern. Doc testing (ISSUE-002) handles validation through TDD, not a separate validate-spec command.
 ## ISSUE-024: Create ARCH-N for explicit orchestrator-skill contract
 
 **Priority:** Medium
@@ -1712,7 +1716,7 @@ From ISSUE-026 retrospective Q3:
 - **B:** Implement doc testing framework (relates to ISSUE-002)
 - **C:** Skills are code (refactor to executable format)
 
-**Decision needed before:** Next skill enhancement project
+**Decision:** Option B - Implement doc testing framework. See ISSUE-002 and ISSUE-023.
 
 **Traces to:** ISSUE-026 Retrospective Q3, ISSUE-002
 

@@ -53,6 +53,47 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 | Follow arch patterns | Consistency with codebase |
 | NO new tests | That's tdd-red's job |
 
+## Making Documentation Tests Pass
+
+When doc tests fail, edit the documentation minimally to make them pass.
+
+### Principles
+
+1. **Add only what's needed** - Don't over-document
+2. **Match the test's expectation** - If test checks for "## Yield Types", add that exact heading
+3. **Preserve existing content** - Don't remove working content while adding new
+
+### Examples
+
+**Example 1: Word matching test fails**
+
+Test: `grep -q "## Acceptance Criteria" SKILL.md`
+Failure: Section doesn't exist
+
+Minimal fix - add exactly the section the test expects:
+```markdown
+## Acceptance Criteria
+
+[Add criteria here]
+```
+
+**Example 2: Semantic test fails**
+
+Test: README must explain "how to install the tool" (similarity >= 0.7)
+Failure: Score is 0.45 - concept not conveyed strongly enough
+
+Minimal fix - add installation section with clear, direct language:
+```markdown
+## Installation
+
+To install the tool, run:
+\`\`\`bash
+go install github.com/example/tool@latest
+\`\`\`
+```
+
+Don't add extra sections or elaborate beyond what's needed to pass the semantic match.
+
 ## Debugging Heuristics
 
 | Issue | Check |

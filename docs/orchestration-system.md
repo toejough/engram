@@ -98,6 +98,7 @@ CONSISTENCY CHECKER (QA for parallel batches):
 **Key principle:** Each item runs through a full PAIR LOOP. The consistency-checker acts as batch-level QA, ensuring parallel results are coherent.
 
 **Applies to:**
+
 - Context exploration queries (need-context with multiple queries)
 - Independent task execution
 - Parallel skill creation
@@ -105,6 +106,7 @@ CONSISTENCY CHECKER (QA for parallel batches):
 - Any N independent items
 
 **Consistency checks are domain-specific:**
+
 - For context queries: results don't contradict, all queries answered
 - For task execution: no conflicting file changes
 - For skill creation: naming, format, cross-references align
@@ -112,10 +114,10 @@ CONSISTENCY CHECKER (QA for parallel batches):
 
 **Implementation by layer:**
 
-| Layer | Parallel Looper | Consistency Checker |
-|-------|-----------------|---------------------|
-| -1 | `parallel-looper` skill | `consistency-checker` skill |
-| 0+ | `projctl parallel` command | `projctl consistency` or inline |
+| Layer | Parallel Looper            | Consistency Checker             |
+| ----- | -------------------------- | ------------------------------- |
+| -1    | `parallel-looper` skill    | `consistency-checker` skill     |
+| 0+    | `projctl parallel` command | `projctl consistency` or inline |
 
 **Parallel Looper Yield:**
 
@@ -274,15 +276,15 @@ Execution order determined by Looper Agent based on dependencies, structural imp
 
 ### 2.5 Implementation Phase
 
-| Aspect             | Details                                            |
-| ------------------ | -------------------------------------------------- |
-| Entry Criteria     | Tasks defined, DAG valid                           |
-| Producer           | TDD Producer (composite - runs nested pair loops)  |
-| QA                 | TDD QA (overall compliance after nested loops)     |
-| Artifacts Produced | Test files, implementation code                    |
-| IDs Created        | None (test names trace to TASK-N)                  |
-| Traces To          | TASK-N (via test name/comments)                    |
-| Exit Criteria      | All tests pass, linter clean, TDD QA approved      |
+| Aspect             | Details                                           |
+| ------------------ | ------------------------------------------------- |
+| Entry Criteria     | Tasks defined, DAG valid                          |
+| Producer           | TDD Producer (composite - runs nested pair loops) |
+| QA                 | TDD QA (overall compliance after nested loops)    |
+| Artifacts Produced | Test files, implementation code                   |
+| IDs Created        | None (test names trace to TASK-N)                 |
+| Traces To          | TASK-N (via test name/comments)                   |
+| Exit Criteria      | All tests pass, linter clean, TDD QA approved     |
 
 **TDD as Composite PAIR LOOP:**
 
@@ -421,18 +423,18 @@ state_file = ".claude/agents/pm-state.toml"
 
 ### 3.2 Yield Types
 
-| Type                  | Meaning                     | Orchestrator Action                 |
-| --------------------- | --------------------------- | ----------------------------------- |
-| `need-user-input`     | Question for user           | Prompt user, resume with answer     |
-| `need-agent`          | Need another agent's work   | Spawn agent, resume with result     |
-| `need-decision`       | Ambiguous, need user choice | Present options, resume with choice |
+| Type                  | Meaning                     | Orchestrator Action                         |
+| --------------------- | --------------------------- | ------------------------------------------- |
+| `need-user-input`     | Question for user           | Prompt user, resume with answer             |
+| `need-agent`          | Need another agent's work   | Spawn agent, resume with result             |
+| `need-decision`       | Ambiguous, need user choice | Present options, resume with choice         |
 | `need-context`        | Need context from sources   | Run queries (parallel), resume with results |
-| `improvement-request` | QA returning to producer    | Resume producer with feedback       |
-| `escalate-phase`      | Prior phase needs update    | Return to prior phase agent         |
-| `escalate-user`       | Cannot resolve              | Present to user                     |
-| `complete`            | Phase finished              | Advance to next phase               |
-| `blocked`             | Cannot proceed              | Present blocker, await resolution   |
-| `error`               | Something went wrong        | Retry (max 3x) or escalate          |
+| `improvement-request` | QA returning to producer    | Resume producer with feedback               |
+| `escalate-phase`      | Prior phase needs update    | Return to prior phase agent                 |
+| `escalate-user`       | Cannot resolve              | Present to user                             |
+| `complete`            | Phase finished              | Advance to next phase                       |
+| `blocked`             | Cannot proceed              | Present blocker, await resolution           |
+| `error`               | Something went wrong        | Retry (max 3x) or escalate                  |
 
 ### 3.3 Complete Yield
 
@@ -502,13 +504,13 @@ question = "How does authentication work in this codebase?"
 
 **Query types:**
 
-| Type | Parameters | What it fetches |
-|------|------------|-----------------|
-| file | `path` | File contents |
-| memory | `query` | ONNX semantic memory results |
-| territory | `scope` | Codebase structure map |
-| web | `url`, `prompt` | URL content, interpreted by prompt |
-| semantic | `question` | Answer about codebase (LLM exploration) |
+| Type      | Parameters      | What it fetches                         |
+| --------- | --------------- | --------------------------------------- |
+| file      | `path`          | File contents                           |
+| memory    | `query`         | ONNX semantic memory results            |
+| territory | `scope`         | Codebase structure map                  |
+| web       | `url`, `prompt` | URL content, interpreted by prompt      |
+| semantic  | `question`      | Answer about codebase (LLM exploration) |
 
 **Execution as PAIR LOOP:**
 
@@ -526,6 +528,7 @@ CONTEXT PAIR LOOP:
 ```
 
 **Implementation by layer:**
+
 - Layer -1 (B1): All queries handled by `context-explorer` + `context-qa` agents
 - Layer 2+ (B2): Deterministic queries (file, memory, territory) via projctl, semantic via agent, then `context-qa`
 
@@ -563,10 +566,10 @@ change = "Add need-context yield type"
 
 **Escalation reasons:**
 
-| Reason | Meaning | Example |
-|--------|---------|---------|
-| `error` | Prior phase output is incorrect | "REQ-3 contradicts REQ-1" |
-| `gap` | Discovery reveals missing content | "Parallelism not addressed" |
+| Reason     | Meaning                               | Example                                          |
+| ---------- | ------------------------------------- | ------------------------------------------------ |
+| `error`    | Prior phase output is incorrect       | "REQ-3 contradicts REQ-1"                        |
+| `gap`      | Discovery reveals missing content     | "Parallelism not addressed"                      |
 | `conflict` | Can't proceed without upstream change | "Design requires capability not in requirements" |
 
 **QA responsibility:** When escalating, QA should draft the upstream changes (proposed_changes), not just flag the issue. This enables the prior phase producer to review and apply, rather than re-discover.
@@ -821,18 +824,20 @@ Local semantic memory with no API calls:
 
 Local semantic search using ONNX runtime - no API calls required:
 
-| Component | Choice | Rationale |
-|-----------|--------|-----------|
-| Runtime | ONNX | Cross-platform, no Python dependency |
-| Model | e5-small | Good quality/size tradeoff, ~130MB |
-| Storage | SQLite-vec | Single file, no server, vector search built-in |
+| Component | Choice     | Rationale                                      |
+| --------- | ---------- | ---------------------------------------------- |
+| Runtime   | ONNX       | Cross-platform, no Python dependency           |
+| Model     | e5-small   | Good quality/size tradeoff, ~130MB             |
+| Storage   | SQLite-vec | Single file, no server, vector search built-in |
 
 **When embeddings are generated:**
+
 - `projctl memory learn` - embeds the message, stores in SQLite-vec
 - `projctl memory extract` - embeds extracted insights from agent results
 - `projctl memory session-end` - embeds session summary
 
 **When embeddings are queried:**
+
 - `projctl memory query` - embeds the query, returns top-k similar memories
 - Orchestrator control loop - queries memory before spawning each agent
 
@@ -931,12 +936,13 @@ When running multiple tasks in parallel, each task operates in an isolated git w
 
 When a parallel agent completes, merge immediately - don't wait for all agents to finish:
 
-| Pattern | Behavior | Result |
-|---------|----------|--------|
-| Batch merge (old) | Wait for all agents, merge all at end | More conflicts, duplicate code |
+| Pattern           | Behavior                                   | Result                               |
+| ----------------- | ------------------------------------------ | ------------------------------------ |
+| Batch merge (old) | Wait for all agents, merge all at end      | More conflicts, duplicate code       |
 | Merge-on-complete | Merge each branch when its agent completes | Less conflicts, later agents benefit |
 
 Benefits of merge-on-complete:
+
 - Later-completing agents rebase onto already-merged work
 - Reduces conflict window
 - Simplifies conflict resolution
@@ -944,30 +950,32 @@ Benefits of merge-on-complete:
 
 **Error Handling:**
 
-| Situation | Behavior |
-|-----------|----------|
-| Rebase conflict | Pause orchestration, prompt user to resolve |
-| Agent failure mid-execution | Don't merge branch, cleanup worktree, log failure, continue with others |
-| Cleanup failure (locked files) | Log error, continue, report at end |
-| Simultaneous completions | Serialize by completion timestamp (earliest first) |
+| Situation                      | Behavior                                                                |
+| ------------------------------ | ----------------------------------------------------------------------- |
+| Rebase conflict                | Pause orchestration, prompt user to resolve                             |
+| Agent failure mid-execution    | Don't merge branch, cleanup worktree, log failure, continue with others |
+| Cleanup failure (locked files) | Log error, continue, report at end                                      |
+| Simultaneous completions       | Serialize by completion timestamp (earliest first)                      |
 
 **Decision Factors for Parallel Execution:**
 
-| Factor | Parallel-friendly | Sequential-preferred |
-|--------|-------------------|---------------------|
-| Task independence | No shared state or coordination needed | Tasks depend on each other's output |
-| File overlap | Low/no shared files | High overlap, tight coupling |
-| Coordination needs | None during execution | Need to coordinate decisions |
-| Task granularity | Atomic, well-bounded work | Large, sprawling changes |
+| Factor             | Parallel-friendly                      | Sequential-preferred                |
+| ------------------ | -------------------------------------- | ----------------------------------- |
+| Task independence  | No shared state or coordination needed | Tasks depend on each other's output |
+| File overlap       | Low/no shared files                    | High overlap, tight coupling        |
+| Coordination needs | None during execution                  | Need to coordinate decisions        |
+| Task granularity   | Atomic, well-bounded work              | Large, sprawling changes            |
 
 **Examples:**
 
 Good parallel candidates:
+
 - Independent feature additions to different modules
 - Test coverage for separate components
 - Documentation updates for different subsystems
 
 Poor parallel candidates:
+
 - Refactoring same function with different goals
 - Sequential pipeline stages (design → implement → test same feature)
 - Tasks that need to share intermediate decisions
@@ -1382,27 +1390,28 @@ Update all skills to unified pattern before projctl takes over orchestration. Te
 
 **Phase Agent Skills** (producer + QA pairs):
 
-| Phase | Interview Producer | Infer Producer | QA |
-|-------|-------------------|----------------|-----|
-| PM | `pm-interview-producer` | `pm-infer-producer` | `pm-qa` |
-| Design | `design-interview-producer` | `design-infer-producer` | `design-qa` |
-| Architecture | `arch-interview-producer` | `arch-infer-producer` | `arch-qa` |
-| Breakdown | `breakdown-producer` | - | `breakdown-qa` |
-| Documentation | `doc-producer` | - | `doc-qa` |
+| Phase         | Interview Producer          | Infer Producer          | QA             |
+| ------------- | --------------------------- | ----------------------- | -------------- |
+| PM            | `pm-interview-producer`     | `pm-infer-producer`     | `pm-qa`        |
+| Design        | `design-interview-producer` | `design-infer-producer` | `design-qa`    |
+| Architecture  | `arch-interview-producer`   | `arch-infer-producer`   | `arch-qa`      |
+| Breakdown     | `breakdown-producer`        | -                       | `breakdown-qa` |
+| Documentation | `doc-producer`              | -                       | `doc-qa`       |
 
 Interview producers: gather requirements via user Q&A (New Project workflow)
 Infer producers: analyze existing code to infer artifacts (Adopt Existing workflow)
 
 **TDD Agent Skills** (nested producer + QA pairs):
 
-| Phase | Producer | Infer Producer | QA |
-|-------|----------|----------------|-----|
-| RED | `tdd-red-producer` | `tdd-red-infer-producer` | `tdd-red-qa` |
-| GREEN | `tdd-green-producer` | - | `tdd-green-qa` |
-| REFACTOR | `tdd-refactor-producer` | - | `tdd-refactor-qa` |
-| Overall | - | - | `tdd-qa` |
+| Phase    | Producer                | Infer Producer           | QA                |
+| -------- | ----------------------- | ------------------------ | ----------------- |
+| RED      | `tdd-red-producer`      | `tdd-red-infer-producer` | `tdd-red-qa`      |
+| GREEN    | `tdd-green-producer`    | -                        | `tdd-green-qa`    |
+| REFACTOR | `tdd-refactor-producer` | -                        | `tdd-refactor-qa` |
+| Overall  | -                       | -                        | `tdd-qa`          |
 
 **Support Agent Skills**:
+
 - `alignment-producer` / `alignment-qa` - traceability validation
 - `retro-producer` / `retro-qa` - retrospective (includes process improvement)
 - `summary-producer` / `summary-qa` - project summary
@@ -1417,11 +1426,13 @@ Infer producers: analyze existing code to infer artifacts (Adopt Existing workfl
 Producer skills can yield `need-context` with a list of queries. The `context-explorer` agent handles all query types via LLM. This is simple but uses LLM even for deterministic operations. Layer 0+ optimizes with B2 hybrid approach.
 
 **All skills must**:
+
 - Accept context via standard input format (from orchestrator)
 - Output yield protocol TOML (to orchestrator)
 - Follow producer or QA role guidelines
 
 **Skills to delete** (functionality merged into new skills):
+
 - `pm-audit`, `design-audit`, `architect-audit`, `task-audit` → merged into QA skills
 - `negotiate` → merged into QA escalate-phase capability
 - `meta-audit` → merged into retro-producer
@@ -1443,10 +1454,12 @@ projctl memory query|learn|grep|extract|session-end
 ```
 
 **Context write must include:**
+
 - `output.yield_path` with unique session/task ID for parallel execution support
 - Skills write to provided path, enabling multiple simultaneous invocations
 
 **Dependencies:**
+
 - ONNX runtime (for embedding generation)
 - e5-small model (~130MB, downloaded on first use)
 - SQLite-vec (for vector storage/search)
@@ -1488,15 +1501,16 @@ projctl pair --phase pm
 **Context Exploration (B2 hybrid approach):**
 Upgrade from B1 (all LLM) to B2 (hybrid):
 
-| Query Type | B1 (Layer -1) | B2 (Layer 2+) |
-|------------|---------------|---------------|
-| file | LLM reads | projctl reads (deterministic) |
-| memory | LLM queries | projctl queries ONNX (deterministic) |
-| territory | LLM maps | projctl maps (deterministic) |
-| web | LLM fetches | projctl fetches, LLM summarizes |
-| semantic | LLM explores | LLM explores (unchanged) |
+| Query Type | B1 (Layer -1) | B2 (Layer 2+)                        |
+| ---------- | ------------- | ------------------------------------ |
+| file       | LLM reads     | projctl reads (deterministic)        |
+| memory     | LLM queries   | projctl queries ONNX (deterministic) |
+| territory  | LLM maps      | projctl maps (deterministic)         |
+| web        | LLM fetches   | projctl fetches, LLM summarizes      |
+| semantic   | LLM explores  | LLM explores (unchanged)             |
 
 Orchestrator classifies each query in `need-context` yield:
+
 - Deterministic queries → projctl tools (parallel, no LLM)
 - Semantic queries → context-explorer agent
 
@@ -1533,6 +1547,7 @@ projctl phase pm|design|arch|breakdown|implementation|documentation
 ```
 
 For implementation phase:
+
 ```
 projctl phase implementation
   └── builds: task queue from dependencies, impact, simplicity
@@ -1541,6 +1556,7 @@ projctl phase implementation
 ```
 
 **Parallel execution (future consideration):**
+
 - Independent tasks (no shared dependencies) could run in parallel
 - Orchestrator provides unique yield paths per invocation (prepared in Layer 0)
 - Decision: Start sequential, add parallelism when proven stable
@@ -1560,6 +1576,7 @@ projctl workflow new|adopt|align|task
 ```
 
 Example for `new`:
+
 ```
 projctl workflow new
   └── projctl phase pm
@@ -1593,6 +1610,7 @@ projctl project [description]
 ### Layer 7: TUI
 
 Wrap CLI in bubbletea for better UX:
+
 - Pretty prompts for yields
 - Progress visualization
 - State dashboard
@@ -1608,16 +1626,16 @@ Wrap CLI in bubbletea for better UX:
 
 At each layer, the current `/project` skill can call `projctl <command>` instead of doing work inline. Skills become thinner over time.
 
-| Layer Complete | `/project` Skill Does | projctl Does | Skills |
-|----------------|----------------------|--------------|--------|
-| -1 | Everything (old patterns) | Nothing | Unified to new patterns |
-| 0 | Everything (new patterns) | State, IDs, tracing | Ready |
-| 1 | Orchestration + phases | + commit | Ready |
-| 2 | Orchestration + phases | + pair loops | Ready |
-| 3 | Orchestration + phases | + TDD loops | Ready |
-| 4 | Orchestration | + all phases | Ready |
-| 5 | Dispatch only | + workflows | Ready |
-| 6 | Nothing | Everything | Ready |
+| Layer Complete | `/project` Skill Does     | projctl Does        | Skills                  |
+| -------------- | ------------------------- | ------------------- | ----------------------- |
+| -1             | Everything (old patterns) | Nothing             | Unified to new patterns |
+| 0              | Everything (new patterns) | State, IDs, tracing | Ready                   |
+| 1              | Orchestration + phases    | + commit            | Ready                   |
+| 2              | Orchestration + phases    | + pair loops        | Ready                   |
+| 3              | Orchestration + phases    | + TDD loops         | Ready                   |
+| 4              | Orchestration             | + all phases        | Ready                   |
+| 5              | Dispatch only             | + workflows         | Ready                   |
+| 6              | Nothing                   | Everything          | Ready                   |
 
 ### Final State
 
@@ -1632,6 +1650,7 @@ The `/project` skill becomes a one-liner that invokes projctl.
 ### Testing at Each Layer
 
 Before moving to next layer:
+
 1. Unit tests for projctl commands
 2. Integration test: run full flow with mock agents
 3. End-to-end test: run on real project with Claude CLI

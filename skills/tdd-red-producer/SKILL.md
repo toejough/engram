@@ -62,6 +62,62 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 | Go | `package foo_test` | gomega + rapid |
 | TypeScript | `.test.ts` | vitest + fast-check |
 
+## Documentation Tests
+
+When the task involves documentation changes (.md files, SKILL.md, README, etc.), write tests that validate the documentation's intent.
+
+### Test Types
+
+| Type | When to Use | Example Test |
+|------|-------------|--------------|
+| Word/phrase matching | Specific terms must appear | `grep -q "## Acceptance Criteria" file.md` |
+| Semantic matching | Concepts must be conveyed | `projctl memory query` against doc content |
+| Structural | Required sections/format | `grep -c "^## " file.md` to count H2 sections |
+
+### Examples
+
+**Word matching test:**
+```bash
+# Test: SKILL.md must document yield types
+test_yield_types_documented() {
+    grep -q "## Yield Types" skills/my-skill/SKILL.md
+}
+```
+
+**Semantic matching test:**
+```bash
+# Test: README explains the project purpose
+# Uses ONNX embeddings via projctl memory query
+test_readme_explains_purpose() {
+    # Index the README content first
+    projctl memory learn --content "$(cat README.md)" --source README
+    # Query for the concept - score >= 0.7 means semantic match
+    projctl memory query --text "project purpose and goals" --limit 1 | grep -qE "score: 0\.[7-9]|score: 1\.0"
+}
+```
+
+**Structural test:**
+```bash
+# Test: SKILL.md has required sections
+test_skill_structure() {
+    grep -q "^## Purpose" SKILL.md &&
+    grep -q "^## Usage" SKILL.md &&
+    grep -q "^## Output" SKILL.md
+}
+```
+
+### Applying to Task AC
+
+When a task's acceptance criteria include documentation deliverables:
+
+```markdown
+**Acceptance Criteria:**
+- [ ] README includes installation instructions
+- [ ] API.md documents all endpoints
+```
+
+Write tests that verify these exist and convey the right meaning, just as you would for code features.
+
 ## Yield Protocol
 
 See [YIELD.md](../shared/YIELD.md) for full protocol.

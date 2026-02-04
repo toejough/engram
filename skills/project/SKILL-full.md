@@ -270,6 +270,23 @@ projctl state transition --dir . --to task-start --task TASK-NNN
 - Fail (< 3 attempts) → `task-retry` → back to tdd-red
 - Fail (>= 3 attempts) → `task-escalated`
 
+### Documentation-Focused Tasks
+
+Documentation tasks get full TDD treatment when ANY of these indicators are present:
+
+| Indicator | Example |
+|-----------|---------|
+| Issue mentions docs | "Update SKILL.md with new yield types" |
+| Task AC target .md files | "- [ ] README.md includes installation" |
+| Task explicitly about docs | "Document the API endpoints" |
+
+**Do NOT skip TDD for doc tasks.** Apply the same red-green-refactor cycle:
+- RED: Write tests for what the doc should contain (grep, semantic matching, structure)
+- GREEN: Write the doc to make tests pass
+- REFACTOR: Improve clarity, structure, readability
+
+Only skip TDD for truly incidental doc updates (typo fixes, minor clarifications during code work).
+
 ### Escalation Handling
 
 Continue with unblocked tasks. When all blocked:

@@ -148,6 +148,35 @@ linter_clean = true
 
 ---
 
+## Refactoring Documentation
+
+After doc tests pass, refactor for clarity and organization while keeping tests green.
+
+### Documentation Best Practices
+
+| Practice | Description |
+|----------|-------------|
+| Progressive disclosure | Most important info first, details later |
+| Clarity and conciseness | Remove filler words, be direct |
+| Consistent structure | Same heading hierarchy, same patterns |
+| Remove redundancy | Don't repeat information across sections |
+| Doc-type-specific | READMEs need quick start; API docs need exhaustive detail |
+
+### Refactoring Checklist
+
+- [ ] Tests still pass after each change
+- [ ] Most important content is near the top
+- [ ] No redundant sections saying the same thing
+- [ ] Consistent heading levels (H2 for main sections, H3 for subsections)
+- [ ] Code examples are minimal and runnable
+- [ ] Links work and point to correct locations
+
+### Key Rule
+
+**Tests must still pass after refactoring.** Re-run your doc tests after every structural change. If a test breaks, you've lost essential content - revert and try again.
+
+---
+
 ## Reference
 
 - Pattern: [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
