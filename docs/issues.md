@@ -2212,7 +2212,7 @@ State management, context serialization, ID generation, semantic memory work.
 ## ISSUE-046: parallel-looper skill should document worktree usage
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
 
 The parallel-looper skill documentation doesn't mention that worktrees should be used for parallel task execution. The project orchestrator SKILL-full.md clearly documents worktree workflow, but parallel-looper has no mention. This led to running parallel agents in the same worktree during layer-0-foundation, risking conflicts.
@@ -2226,6 +2226,10 @@ Add to parallel-looper SKILL.md:
 
 ---
 
+
+### Comment
+
+Duplicate of ISSUE-050 - both about documenting worktree workflow
 ## ISSUE-047: State machine: auto-detect task completion
 
 **Priority:** High
@@ -2290,6 +2294,10 @@ From layer-0-foundation retro R4: Add explicit documentation for parallel execut
 
 ---
 
+
+### Comment
+
+Also covers parallel-looper skill documentation (from ISSUE-046). Should document worktree usage in both orchestration docs and parallel-looper SKILL.md.
 ## ISSUE-051: retro-producer: require issue creation for recommendations
 
 **Priority:** High
