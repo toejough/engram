@@ -143,6 +143,37 @@ Rules:
 
 ---
 
+## Simplicity Assessment
+
+The simplicity assessment field documents whether the task breakdown is appropriately scoped or if simpler alternatives exist.
+
+### When to Document Alternatives
+
+Include alternatives considered when:
+
+1. **Combining tasks**: "Considered merging TASK-X and TASK-Y but kept separate due to different dependencies"
+2. **Splitting tasks**: "Split from TASK-Z to isolate integration testing"
+3. **Using existing code**: "Considered reusing module X but incompatible interface"
+4. **Skipping abstraction**: "Could add abstraction layer but unnecessary for single use case"
+
+### Simplest Approach
+
+If no viable alternatives exist, document:
+- "Simplest approach - no viable alternatives identified"
+- "Minimal change required - direct implementation"
+
+### Example Assessments
+
+**Good**: "Considered combining with TASK-3 database setup, but kept separate because TASK-3 blocks on schema design while this can proceed with mocks"
+
+**Good**: "Simplest approach - single function addition with no dependencies"
+
+**Poor**: "N/A" or "None" (doesn't show thinking)
+
+**Poor**: "Best approach" (doesn't document alternatives)
+
+---
+
 ## Visual Task Detection
 
 Apply `[visual]` marker to tasks when:
