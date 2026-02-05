@@ -2680,12 +2680,10 @@ The --force flags were needed because trace validation was producing false posit
 ## ISSUE-065: Add simplicity check to breakdown-producer
 
 **Priority:** Low
-**Status:** open
+**Status:** duplicate
 **Created:** 2026-02-05
+**Closed:** 2026-02-05
 
-ISSUE-061 showed that simple issues can generate many tasks when a simpler approach exists. The breakdown-producer should:
-- Check if issue can be solved with 1-3 tasks
-- Prefer direct implementation over elaborate decomposition
-- Flag when breakdown seems over-engineered for scope
+Duplicate of ISSUE-058 (same goal: simplicity check in breakdown-producer).
 
-**Traces to:** ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-058, ISSUE-061 (Performance Analysis)
