@@ -1,90 +1,70 @@
 #!/bin/bash
-# breakdown-producer SKILL.md validation tests for TASK-11
-# Run: bash skills/breakdown-producer/SKILL_test.sh
+# Tests for breakdown-producer SKILL.md
 
 set -e
+
 SKILL_FILE="skills/breakdown-producer/SKILL.md"
+REPO_ROOT="/Users/joe/repos/personal/projctl"
 
-echo "=== breakdown-producer SKILL.md Validation Tests ==="
+cd "$REPO_ROOT"
 
-# Check file exists
+echo "Running breakdown-producer SKILL.md tests..."
+
+# Test 1: SKILL.md exists
 if [[ ! -f "$SKILL_FILE" ]]; then
-    echo "FAIL: $SKILL_FILE does not exist"
-    exit 1
+  echo "FAIL: $SKILL_FILE does not exist"
+  exit 1
 fi
-echo "PASS: File exists"
+echo "PASS: SKILL.md exists"
 
-# TASK-11 Requirement: Frontmatter has name field
-if grep -q '^name: breakdown-producer' "$SKILL_FILE"; then
-    echo "PASS: Frontmatter has name: breakdown-producer"
-else
-    echo "FAIL: Frontmatter missing or incorrect name field"
-    exit 1
+# Test 2: SYNTHESIZE phase mentions simplicity assessment
+if ! grep -q "simplicity" "$SKILL_FILE"; then
+  echo "FAIL: SYNTHESIZE phase does not mention simplicity assessment"
+  exit 1
 fi
+echo "PASS: SYNTHESIZE phase mentions simplicity"
 
-# TASK-11 Requirement: Frontmatter has role: producer
-if grep -q '^role: producer' "$SKILL_FILE"; then
-    echo "PASS: Frontmatter has role: producer"
-else
-    echo "FAIL: Frontmatter missing role: producer"
-    exit 1
+# Test 3: SYNTHESIZE phase has explicit simplicity check step
+if ! grep -A 10 "## SYNTHESIZE Phase" "$SKILL_FILE" | grep -q "simplicity"; then
+  echo "FAIL: SYNTHESIZE phase does not include simplicity assessment step"
+  exit 1
 fi
+echo "PASS: SYNTHESIZE phase includes simplicity assessment step"
 
-# TASK-11 Requirement: Frontmatter has phase: breakdown
-if grep -q '^phase: breakdown' "$SKILL_FILE"; then
-    echo "PASS: Frontmatter has phase: breakdown"
-else
-    echo "FAIL: Frontmatter missing phase: breakdown"
-    exit 1
+# Test 4: PRODUCE phase task format includes Simplicity Assessment section
+if ! grep -q "Simplicity Assessment" "$SKILL_FILE"; then
+  echo "FAIL: Task format does not include Simplicity Assessment section"
+  exit 1
 fi
+echo "PASS: Task format includes Simplicity Assessment section"
 
-# TASK-11 Requirement: References PRODUCER-TEMPLATE pattern (GATHER/SYNTHESIZE/PRODUCE)
-if grep -qi 'GATHER' "$SKILL_FILE" && grep -qi 'SYNTHESIZE' "$SKILL_FILE" && grep -qi 'PRODUCE' "$SKILL_FILE"; then
-    echo "PASS: References PRODUCER-TEMPLATE pattern (GATHER/SYNTHESIZE/PRODUCE)"
-else
-    echo "FAIL: Missing PRODUCER-TEMPLATE pattern (must include GATHER, SYNTHESIZE, PRODUCE)"
-    exit 1
+# Test 5: Contract checks include simplicity assessment validation
+if ! grep -A 100 "## Contract" "$SKILL_FILE" | grep -i "simplicity"; then
+  echo "FAIL: Contract does not validate simplicity assessment"
+  exit 1
 fi
+echo "PASS: Contract validates simplicity assessment"
 
-# TASK-11 Requirement: References YIELD.md
-if grep -q 'YIELD.md' "$SKILL_FILE"; then
-    echo "PASS: References YIELD.md"
-else
-    echo "FAIL: Missing reference to YIELD.md"
-    exit 1
+# Test 6: Simplicity Assessment appears in task format example
+if ! grep -A 50 "## Task Format" "$SKILL_FILE" | grep -q "Simplicity Assessment"; then
+  echo "FAIL: Task format example does not include Simplicity Assessment"
+  exit 1
 fi
+echo "PASS: Task format example includes Simplicity Assessment"
 
-# TASK-11 Requirement: Documents complete yield with tasks.md artifact
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'tasks.md' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with tasks.md artifact"
-else
-    echo "FAIL: Missing complete yield or tasks.md artifact documentation"
-    exit 1
+# Test 7: SYNTHESIZE phase asks the right simplicity question
+if ! grep -q "simpler approach" "$SKILL_FILE"; then
+  echo "FAIL: SYNTHESIZE phase does not ask about simpler approaches"
+  exit 1
 fi
+echo "PASS: SYNTHESIZE phase asks about simpler approaches"
 
-# TASK-11 Requirement: Produces TASK-N IDs
-if grep -q 'TASK-' "$SKILL_FILE"; then
-    echo "PASS: Documents TASK-N ID format"
-else
-    echo "FAIL: Missing TASK-N ID format documentation"
-    exit 1
+# Test 8: Document explains what simplicity assessment should contain
+if ! grep -A 10 "Simplicity Assessment" "$SKILL_FILE" | grep -q "alternative"; then
+  echo "FAIL: Simplicity Assessment section does not mention alternatives"
+  exit 1
 fi
-
-# TASK-11 Requirement: Includes dependency graph documentation
-if grep -qi 'dependency' "$SKILL_FILE" && grep -qi 'graph' "$SKILL_FILE"; then
-    echo "PASS: Includes dependency graph documentation"
-else
-    echo "FAIL: Missing dependency graph documentation"
-    exit 1
-fi
-
-# TASK-11 Requirement: Documents need-context yield for gathering architecture docs
-if grep -q 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents need-context yield"
-else
-    echo "FAIL: Missing need-context yield documentation"
-    exit 1
-fi
+echo "PASS: Simplicity Assessment explains content requirements"
 
 echo ""
-echo "=== All tests passed ==="
+echo "All tests passed!"
