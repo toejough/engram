@@ -226,3 +226,89 @@ As a maintainer, I want QA to fall back to heuristics when a producer lacks a fo
 **Depends on:** REQ-005, REQ-006
 
 **Traces to:** ISSUE-053
+
+---
+
+## ISSUE-056: Warn When Specs Exceed User Requests
+
+Requirements for adding explicit warnings when producer skills infer specifications beyond what the user explicitly requested.
+
+---
+
+### REQ-012: Inferred Specification Yield Type
+
+As a user, I want producer skills to yield a distinct `need-user-input` with an `inferred` flag when they add specifications not explicitly requested, so that the orchestrator pauses and I can accept or reject each inferred item before it becomes part of the artifact.
+
+**Acceptance Criteria:**
+- [ ] New yield subtype: `need-user-input` with `payload.inferred = true` field
+- [ ] Payload includes: the inferred specification text, the reasoning for inference (context, edge case, or best practice), and the source that triggered the inference
+- [ ] Orchestrator pauses on `inferred` yields and presents them to the user for accept/reject
+- [ ] User response is recorded: accepted inferred items proceed into the artifact, rejected items are dropped
+- [ ] Yield format documented in `skills/shared/YIELD.md`
+
+**Priority:** P0
+
+**Depends on:** None
+
+**Traces to:** ISSUE-056
+
+---
+
+### REQ-013: Producer Skills Flag Inferred Specifications
+
+As a user, I want all producer skills (both interview and infer variants) to identify when they are adding specifications beyond what was explicitly requested, so that nothing is silently added to my project artifacts.
+
+**Acceptance Criteria:**
+- [ ] pm-interview-producer yields `inferred` for requirements not directly stated by the user or issue
+- [ ] pm-infer-producer yields `inferred` for requirements not directly present in analyzed code/docs
+- [ ] design-interview-producer yields `inferred` for design decisions not directly requested
+- [ ] design-infer-producer yields `inferred` for design decisions not directly present in analyzed code/docs
+- [ ] arch-interview-producer yields `inferred` for architecture decisions not directly requested
+- [ ] arch-infer-producer yields `inferred` for architecture decisions not directly present in analyzed code/docs
+- [ ] Each inferred yield includes reasoning: what triggered the inference (edge case, best practice, implicit need)
+- [ ] Producers distinguish between "user said this" and "I think this is needed" for every specification item
+
+**Priority:** P0
+
+**Depends on:** REQ-012
+
+**Traces to:** ISSUE-056
+
+---
+
+### REQ-014: Orchestrator Handles Inferred Specification Yields
+
+As a user, I want the orchestrator to present inferred specifications for my approval before they are included in artifacts, so that I have explicit control over scope.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator detects `payload.inferred = true` on `need-user-input` yields
+- [ ] Orchestrator presents inferred item to user with the reasoning and asks for accept/reject
+- [ ] Accepted items: orchestrator resumes producer with acceptance noted
+- [ ] Rejected items: orchestrator resumes producer with rejection, producer drops the item from the artifact
+- [ ] Multiple inferred items can be batched into a single user prompt (not one-by-one)
+- [ ] User response is logged for traceability
+
+**Priority:** P0
+
+**Depends on:** REQ-012
+
+**Traces to:** ISSUE-056
+
+---
+
+### REQ-015: Shared Producer Guidelines for Inference Detection
+
+As a maintainer, I want shared documentation that defines how producers distinguish explicit from inferred specifications, so that the behavior is consistent across all producer skills.
+
+**Acceptance Criteria:**
+- [ ] Guidelines documented in shared producer template or dedicated shared doc
+- [ ] Guidelines define "explicit": directly stated in user input, issue description, or gathered context
+- [ ] Guidelines define "inferred": added by the producer based on best practices, edge cases, implicit needs, or professional judgment
+- [ ] Guidelines provide examples of each category
+- [ ] All 6 affected producer skills reference the shared guidelines
+
+**Priority:** P1
+
+**Depends on:** REQ-012, REQ-013
+
+**Traces to:** ISSUE-056
