@@ -2633,3 +2633,68 @@ Unresolved question from ISSUE-054 retrospective (Q3).
 **Observation:** Thorough PM phase may have prevented downstream rework.
 
 **Traces to:** ISSUE-054, C5 (Multiple Interview Iterations in PM Phase)
+
+---
+
+## ISSUE-062: Add doc-only task shortcut to state machine
+
+**Priority:** Medium
+**Status:** open
+**Created:** 2026-02-05
+
+ISSUE-061 performance analysis revealed that doc-only tasks (writing SKILL.md, shared patterns) are forced through full TDD cycle with red/green/refactor phases. This adds overhead for tasks that produce documentation artifacts rather than code.
+
+**Proposed solution:** Add a `doc-only` task type that skips code-focused TDD phases but still validates:
+- Documentation completeness
+- Traceability links
+- Section structure tests
+
+**Traces to:** ISSUE-061 (Performance Analysis)
+
+---
+
+## ISSUE-063: Fix trace validation false positives
+
+**Priority:** Medium
+**Status:** open
+**Created:** 2026-02-05
+
+ISSUE-061 revealed that trace validation reports false positives:
+- ISSUE-* tracking IDs reported as "orphan IDs"
+- TASK-* IDs reported as "unlinked"
+
+These are valid tracking references, not traceability chain entries. The validator should distinguish between:
+- Source IDs (ISSUE-*, TASK-*) - tracking references, no upstream required
+- Artifact IDs (REQ-*, DES-*, ARCH-*) - must trace to something
+
+**Traces to:** ISSUE-061 (Performance Analysis)
+
+---
+
+## ISSUE-064: Add phase boundary documentation to project/SKILL.md
+
+**Priority:** Low
+**Status:** open
+**Created:** 2026-02-05
+
+ISSUE-061 required multiple --force flags to transition states when intermediate phases were skipped. The state machine allows this but documentation doesn't clearly explain:
+- Which phases are required vs optional
+- When --force is appropriate
+- Consequences of skipping phases
+
+**Traces to:** ISSUE-061 (Performance Analysis)
+
+---
+
+## ISSUE-065: Add simplicity check to breakdown-producer
+
+**Priority:** Low
+**Status:** open
+**Created:** 2026-02-05
+
+ISSUE-061 showed that simple issues can generate many tasks when a simpler approach exists. The breakdown-producer should:
+- Check if issue can be solved with 1-3 tasks
+- Prefer direct implementation over elaborate decomposition
+- Flag when breakdown seems over-engineered for scope
+
+**Traces to:** ISSUE-061 (Performance Analysis)
