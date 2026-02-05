@@ -2639,15 +2639,13 @@ Unresolved question from ISSUE-054 retrospective (Q3).
 ## ISSUE-062: Add doc-only task shortcut to state machine
 
 **Priority:** Medium
-**Status:** open
+**Status:** wontdo
 **Created:** 2026-02-05
+**Closed:** 2026-02-05
 
 ISSUE-061 performance analysis revealed that doc-only tasks (writing SKILL.md, shared patterns) are forced through full TDD cycle with red/green/refactor phases. This adds overhead for tasks that produce documentation artifacts rather than code.
 
-**Proposed solution:** Add a `doc-only` task type that skips code-focused TDD phases but still validates:
-- Documentation completeness
-- Traceability links
-- Section structure tests
+**Resolution:** Won't do. TDD wasn't the bottleneck - implementation was fast. TDD applies to all content creation (docs, code, designs), not just code. This has been clarified in multiple prior issues.
 
 **Traces to:** ISSUE-061 (Performance Analysis)
 
