@@ -1,0 +1,8 @@
+[response]
+question_1 = "Not sure - open to suggestions, but don't overthink it"
+question_2 = "Don't overthink this. Just update the orchestrator to only orchestrate - don't pass extra instructions without explicit user instructions to do so."
+question_3 = "Not specified - keep it simple"
+question_4 = "Not specified - keep it simple"
+
+[meta]
+user_feedback = "We might be overthinking this. Simple fix: orchestrator should only orchestrate, not pass extra instructions."

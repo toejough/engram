@@ -1,0 +1,8 @@
+[input]
+issue_id = "ISSUE-054"
+requirements_path = ".claude/projects/issue-054-pm-interview/requirements.md"
+design_path = ".claude/projects/issue-054-pm-interview/design.md"
+
+[output]
+yield_path = ".claude/projects/issue-054-pm-interview/yield.toml"
+architecture_path = ".claude/projects/issue-054-pm-interview/architecture.md"

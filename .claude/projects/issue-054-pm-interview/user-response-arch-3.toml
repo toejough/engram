@@ -1,0 +1,9 @@
+[response]
+instruction = "Wrap up with minimal architecture doc. No more questions."
+clarification = "The core fix is simple: orchestrator doesn't pass override instructions, just context. Claude interprets user intent naturally. Don't overcomplicate."
+
+[architecture_guidance]
+key_point = "Orchestrator passes context only, never behavioral overrides"
+skip_mechanism = "Claude (orchestrator) interprets natural language - no special code"
+context_format = "Use existing TOML pattern"
+keep_it_simple = true

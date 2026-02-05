@@ -1,0 +1,37 @@
+[yield]
+type = "improvement-request"
+timestamp = 2026-02-04T22:22:00Z
+
+[payload]
+from_agent = "breakdown-qa"
+to_agent = "breakdown-producer"
+iteration = 2
+issues = [
+    "projctl trace validate reports 'unlinked IDs' for all tasks (TASK-1 through TASK-7) - tasks are missing reverse **Traces to:** fields that link them back into the traceability chain",
+    "projctl trace validate reports orphan ID ISSUE-054 - the issue is defined in docs/issues.md at line 2382 but projctl doesn't recognize it as properly defined",
+    "Manual validation confirms: all TASK-N IDs are sequentially numbered (1-7), all tasks have required fields (Description, Status, Acceptance Criteria, Files, Dependencies, Traces to), dependency graph is valid DAG with no cycles, all referenced upstream IDs (REQ-1 through REQ-4, DES-001 through DES-006, ARCH-1 through ARCH-4) are properly defined and covered by at least one task",
+    "Issue severity: The unlinked IDs issue prevents projctl trace validate from passing, which is a blocking requirement per the SKILL guidelines"
+]
+
+[context]
+phase = "breakdown"
+role = "qa"
+iteration = 2
+max_iterations = 3
+
+[validation_results]
+task_structure = "passed"
+sequential_numbering = "passed"
+required_fields = "passed"
+dependency_dag = "passed"
+coverage_check = "passed"
+projctl_trace_validate = "failed"
+
+[validation_details]
+total_tasks = 7
+dependency_cycle_check = "no cycles detected"
+arch_coverage = "4/4 covered"
+req_coverage = "4/4 covered"
+des_coverage = "6/6 covered"
+orphan_ids_reported = ["ISSUE-054"]
+unlinked_ids_reported = ["TASK-1", "TASK-2", "TASK-3", "TASK-4", "TASK-5", "TASK-6", "TASK-7"]

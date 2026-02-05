@@ -1,0 +1,7 @@
+[response]
+question = "How to detect skip phrases?"
+choice = "None of the above"
+clarification = "The orchestrator IS Claude. It can just interpret natural language directly - no special detection code needed. If user says 'skip interviews', Claude understands that. Don't overthink it."
+
+[meta]
+simplification = "No code needed for skip detection. Orchestrator (Claude) interprets user intent naturally."

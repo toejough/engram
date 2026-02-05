@@ -1,0 +1,19 @@
+[response]
+question_1 = """
+Root cause found: The ORCHESTRATOR told the skill to skip interview.
+
+Evidence: ARGUMENTS passed said "not conduct a new interview" and "problem and solution are already defined".
+
+So: Spec is correct, skill follows spec, but orchestrator bypassed the spec by telling skill to skip.
+"""
+
+question_2 = """
+The enforcement mechanism needed is in the ORCHESTRATOR:
+- Orchestrator should NEVER tell interview producers to skip interview
+- Even if issue description seems complete, orchestrator must require user confirmation
+"""
+
+question_3 = """
+This is specific to the orchestrator's handling of interview-producer skills.
+Other interview producers (design-interview-producer, arch-interview-producer) could have same bypass risk if orchestrator decides their input "seems complete".
+"""

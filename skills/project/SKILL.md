@@ -65,6 +65,23 @@ When user provides a request (not an explicit command):
 | Continue  | If `state next`=continue, proceed immediately         |
 | Dispatch  | ALL artifact work via Skill/Task tool (code, docs, .pen files) |
 | Parallel  | Merge-on-complete (not batch at end) - see SKILL-full.md |
+| Context   | Pass ONLY context to skills, NEVER behavioral overrides (see below) |
+
+## Context-Only Contract
+
+**When dispatching skills, pass ONLY context:**
+- Issue ID and description
+- File paths to relevant artifacts
+- References to prior phase outputs
+
+**NEVER pass behavioral override instructions like:**
+- "skip interview" / "do not conduct interview"
+- "already defined" / "requirements are complete"
+- "just formalize" / "no need to gather"
+
+Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally - but don't tell the skill to bypass its own logic.
+
+**Why:** ISSUE-053 failed because the orchestrator told pm-interview-producer to skip its interview phase. The skill followed instructions but produced the wrong solution because it never confirmed understanding with the user.
 
 ## Skill Dispatch
 

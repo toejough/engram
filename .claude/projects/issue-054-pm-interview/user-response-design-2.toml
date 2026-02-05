@@ -1,0 +1,7 @@
+[response]
+scenario_1 = "C - Progressive disclosure: start high-level, drill down only if user says clarify"
+scenario_2 = "C - Structured list: Problem: X, Solution: Y, Acceptance: Z. Confirm all? (y/n/which)"
+scenario_3 = "D - Natural language: if user starts with 'skip interviews' or 'skip the X interview', tell the skill to only interview if absolutely necessary. Still call the skill."
+
+[notes]
+skip_mechanism = "User says it in natural language at conversation start, orchestrator passes this preference to skill, skill still runs but only asks questions if absolutely necessary"
