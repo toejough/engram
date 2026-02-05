@@ -1,0 +1,103 @@
+[yield]
+type = "approved"
+timestamp = 2026-02-05T06:15:00Z
+
+[payload]
+reviewed_artifact = "internal/yield/yield.go"
+test_results = "26/26 tests passing (17 gap_analysis + 9 existing)"
+lint_before = 0
+lint_after = 0
+race_detector = "clean"
+quality_improvement = "Extracted magic values to package-level constants (ValidGapSizes, RequiredGapAnalysisFields). Validation logic now uses loops instead of hardcoded conditionals, making it more maintainable and generating better error messages."
+
+[[payload.checklist]]
+item = "All tests still pass after refactoring"
+passed = true
+evidence = "go test -v ./internal/yield/... - 26/26 tests passing"
+
+[[payload.checklist]]
+item = "Linter issues resolved"
+passed = true
+evidence = "golangci-lint run ./internal/yield/... - 0 issues"
+
+[[payload.checklist]]
+item = "No new lint issues introduced"
+passed = true
+evidence = "golangci-lint run ./internal/yield/... - 0 issues"
+
+[[payload.checklist]]
+item = "Behavior unchanged"
+passed = true
+evidence = "All existing tests pass, no test modifications needed"
+
+[[payload.checklist]]
+item = "Code readability improved"
+passed = true
+evidence = "Constants make valid values discoverable, error messages generated dynamically"
+
+[[payload.checklist]]
+item = "No blanket lint suppressions added"
+passed = true
+evidence = "No nolint comments or exclusions added"
+
+[payload.improvements]
+before = """
+// Hardcoded validation:
+if ga.GapSize != "" && ga.GapSize != "small" && ga.GapSize != "medium" && ga.GapSize != "large" {
+    result.Errors = append(result.Errors, "invalid gap_size: must be one of: small, medium, large")
+}
+
+// Inline required fields list:
+requiredFields := []string{
+    "total_key_questions",
+    "questions_answered",
+    "coverage_percent",
+    "gap_size",
+    "question_count",
+    "sources",
+}
+"""
+after = """
+// Package-level constants:
+var ValidGapSizes = []string{"small", "medium", "large"}
+var RequiredGapAnalysisFields = []string{
+    "total_key_questions",
+    "questions_answered",
+    "coverage_percent",
+    "gap_size",
+    "question_count",
+    "sources",
+}
+
+// Dynamic validation:
+for _, validSize := range ValidGapSizes {
+    if ga.GapSize == validSize {
+        valid = true
+        break
+    }
+}
+if !valid {
+    result.Errors = append(result.Errors,
+        fmt.Sprintf("invalid gap_size: must be one of: %s", strings.Join(ValidGapSizes, ", ")))
+}
+
+// Use constant:
+for _, field := range RequiredGapAnalysisFields {
+    if _, exists := gaMap[field]; !exists {
+        result.Errors = append(result.Errors, fmt.Sprintf("missing required field: [context.gap_analysis].%s", field))
+    }
+}
+"""
+benefits = [
+    "Single source of truth for valid gap sizes and required fields",
+    "Error messages dynamically generated from constants",
+    "Easier to add new gap sizes in the future",
+    "Package-level visibility makes valid values discoverable",
+    "Consistent with existing pattern (ValidProducerTypes, ValidQATypes)"
+]
+
+[context]
+phase = "tdd-refactor"
+role = "qa"
+iteration = 1
+task = "TASK-7"

@@ -1,0 +1,71 @@
+{
+  "yield": {
+    "type": "complete",
+    "timestamp": "2026-02-05T09:29:01Z"
+  },
+  "payload": {
+    "artifact": "skills/arch-interview-producer/SKILL_test_assess.sh",
+    "files_modified": [
+      "skills/arch-interview-producer/SKILL_test_assess.sh",
+      ".claude/projects/ISSUE-061/test-coverage-task5.md"
+    ],
+    "test_summary": {
+      "total": 10,
+      "passing": 0,
+      "failing": 10
+    },
+    "test_coverage": [
+      {
+        "criterion": "AC-1: Code added after context gathering, before interview",
+        "tests": [
+          "test_assess_phase_placement",
+          "test_assess_phase_has_structured_instructions"
+        ]
+      },
+      {
+        "criterion": "AC-2: For each key question, determines if answerable from context",
+        "tests": [
+          "test_question_assessment_instructions"
+        ]
+      },
+      {
+        "criterion": "AC-3: Uses coverage calculation function (TASK-3) to compute gap metrics",
+        "tests": [
+          "test_coverage_calculation_usage",
+          "test_assess_uses_task3_function"
+        ]
+      },
+      {
+        "criterion": "AC-4: Logs assessment results: total questions, answered count, coverage %, gap size",
+        "tests": [
+          "test_logging_instructions"
+        ]
+      },
+      {
+        "criterion": "AC-5: Handles contradictory context: yields need-decision with conflicts if detected",
+        "tests": [
+          "test_contradictory_context_handling"
+        ]
+      },
+      {
+        "criterion": "AC-6: Stores gap assessment in yield metadata for observability",
+        "tests": [
+          "test_yield_metadata_storage"
+        ]
+      },
+      {
+        "criterion": "Integration: Complete ASSESS workflow",
+        "tests": [
+          "test_assess_workflow_integration",
+          "test_assess_instructions_actionable"
+        ]
+      }
+    ]
+  },
+  "context": {
+    "phase": "tdd-red",
+    "subphase": "complete",
+    "task": "TASK-5",
+    "issue": "ISSUE-061"
+  }
+}

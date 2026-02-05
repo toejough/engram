@@ -1,0 +1,134 @@
+{
+  "yield": {
+    "type": "approved",
+    "timestamp": "2026-02-05T00:00:00Z"
+  },
+  "payload": {
+    "reviewed_artifact": "skills/shared/INTERVIEW-PATTERN_test.sh",
+    "test_count": 30,
+    "criteria_coverage": "7/7 acceptance criteria covered",
+    "checklist": [
+      {
+        "item": "Each acceptance criterion has tests",
+        "passed": true,
+        "details": "All 7 ACs have corresponding test cases"
+      },
+      {
+        "item": "Tests fail for correct reasons",
+        "passed": true,
+        "details": "Test fails because target file does not exist (implementation missing), not due to syntax/import errors"
+      },
+      {
+        "item": "No compilation errors",
+        "passed": true,
+        "details": "bash -n confirms script syntax is valid"
+      },
+      {
+        "item": "Tests describe expected behavior",
+        "passed": true,
+        "details": "Clear PASS/FAIL messages, tests validate content patterns not just file existence"
+      },
+      {
+        "item": "Property-based testing used appropriately",
+        "passed": true,
+        "details": "Documentation tests use appropriate pattern matching (grep) for semantic validation"
+      },
+      {
+        "item": "Tests are blackbox",
+        "passed": true,
+        "details": "Tests examine only public artifact (INTERVIEW-PATTERN.md) via file content inspection"
+      },
+      {
+        "item": "No implementation code beyond minimal stubs",
+        "passed": true,
+        "details": "No implementation artifact created, only test script"
+      }
+    ],
+    "coverage_analysis": {
+      "AC-1": {
+        "criterion": "File created at ~/.claude/skills/shared/INTERVIEW-PATTERN.md",
+        "tests": [
+          "Lines 12-17: File existence check"
+        ],
+        "status": "covered"
+      },
+      "AC-2": {
+        "criterion": "Documents five-phase flow with clear phase boundaries",
+        "tests": [
+          "Lines 21-29: Presence of all five phases (GATHER, ASSESS, INTERVIEW, SYNTHESIZE, PRODUCE)",
+          "Lines 32-38: Phase boundary clarity via heading count"
+        ],
+        "status": "covered"
+      },
+      "AC-3": {
+        "criterion": "Includes context gathering mechanism descriptions",
+        "tests": [
+          "Lines 41-49: Three context mechanisms (territory, memory, context-explorer)",
+          "Lines 52-57: Territory map command documentation",
+          "Lines 60-65: Memory query command documentation"
+        ],
+        "status": "covered"
+      },
+      "AC-4": {
+        "criterion": "Defines gap assessment approach",
+        "tests": [
+          "Lines 69-74: Coverage calculation mentioned",
+          "Lines 77-89: Depth tiers (small, medium, large) documented",
+          "Lines 92-97: Coverage percentage thresholds present"
+        ],
+        "status": "covered"
+      },
+      "AC-5": {
+        "criterion": "Specifies error handling patterns for context failures",
+        "tests": [
+          "Lines 101-106: Territory map failure handling",
+          "Lines 109-114: Memory query failure/timeout handling",
+          "Lines 117-122: Contradictory context handling"
+        ],
+        "status": "covered"
+      },
+      "AC-6": {
+        "criterion": "Includes yield context enrichment format with gap analysis metadata",
+        "tests": [
+          "Lines 126-131: Gap analysis metadata format",
+          "Lines 134-139: Yield context enrichment mentioned",
+          "Lines 142-154: Gap analysis fields (total_key_questions, questions_answered, coverage_percent)"
+        ],
+        "status": "covered"
+      },
+      "AC-7": {
+        "criterion": "Documents when to yield blocked, need-decision, or continue with partial context",
+        "tests": [
+          "Lines 158-165: Yield types (blocked, need-decision) documented",
+          "Lines 168-173: Partial context handling documented"
+        ],
+        "status": "covered"
+      }
+    },
+    "strengths": [
+      "Comprehensive coverage of all 7 acceptance criteria",
+      "Clear PASS/FAIL output makes test failures immediately actionable",
+      "Uses appropriate testing patterns: grep for semantic content validation, not just structure",
+      "Tests validate behavior (presence of concepts) not just file existence",
+      "Flexible pattern matching (e.g., 'coverage_percent|coverage.*percent') handles formatting variations",
+      "Tests exit immediately on first failure with clear diagnostic",
+      "Set -e ensures test script fails fast on any error",
+      "No hardcoded expectations for exact wording, allows for documentation style flexibility"
+    ],
+    "test_failure_verification": {
+      "expected_failure": "File does not exist at /Users/joe/.claude/skills/shared/INTERVIEW-PATTERN.md",
+      "actual_failure": "FAIL: File does not exist at /Users/joe/.claude/skills/shared/INTERVIEW-PATTERN.md",
+      "failure_reason": "correct",
+      "notes": "Test fails because implementation artifact is missing, not due to syntax/import errors. This is the correct red phase failure."
+    }
+  },
+  "context": {
+    "phase": "tdd-red",
+    "role": "qa",
+    "iteration": 1,
+    "task_id": "TASK-1",
+    "issue_id": "ISSUE-061",
+    "reviewed_by": "tdd-red-qa",
+    "producer": "tdd-red-producer"
+  }
+}

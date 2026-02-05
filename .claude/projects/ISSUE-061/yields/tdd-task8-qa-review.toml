@@ -1,0 +1,63 @@
+[yield]
+type = "improvement-request"
+timestamp = "2026-02-05T21:45:00Z"
+
+[payload]
+from_agent = "tdd-red-qa"
+to_agent = "tdd-red-producer"
+iteration = 2
+issues = [
+    "AC-6 test mismatch: Separate test_gap_metrics_in_yield and test_question_relevance don't align with AC-6 intent. AC-6 states 'Each test validates: question count, gap metrics in yield, question relevance' - meaning ALL scenario tests (AC-1, AC-2, AC-3) should validate these three properties, not have separate tests for them.",
+    "Missing explicit assertion structure in scenario tests: Tests AC-1, AC-2, AC-3 have commented-out assertions but don't show the full validation logic. Even though tests will fail, they should show the assertion structure that will be used in green phase.",
+    "Test numbering confusion: test_question_relevance is labeled as AC-7 but there are only 6 acceptance criteria in TASK-8. Remove AC-7 label and consolidate into scenario tests.",
+    "Restructure needed: Merge test_gap_metrics_in_yield and test_question_relevance validation logic into the three scenario tests (sparse/medium/rich context). Each scenario should validate all three aspects: question count matches tier, gap metrics present in yield, questions are relevant to unanswered topics."
+]
+
+[context]
+phase = "tdd-red"
+role = "qa"
+iteration = 2
+max_iterations = 3
+
+[review_details]
+reviewed_artifact = "~/.claude/skills/arch-interview-producer/SKILL_test.sh"
+test_count = 7
+acceptance_criteria_count = 6
+criteria_coverage = "5/6 acceptance criteria properly covered"
+uncovered_criteria = ["AC-6 (misinterpreted as separate tests rather than validation aspects for all tests)"]
+
+[[review_details.checklist]]
+item = "Each acceptance criterion has tests"
+passed = false
+note = "AC-6 misinterpreted"
+
+[[review_details.checklist]]
+item = "Tests fail for correct reasons"
+passed = true
+note = "All tests use explicit fail() with descriptive messages"
+
+[[review_details.checklist]]
+item = "No compilation errors"
+passed = true
+note = "Bash script is syntactically valid"
+
+[[review_details.checklist]]
+item = "Tests describe expected behavior"
+passed = true
+note = "Clear comments explaining expected outcomes"
+
+[[review_details.checklist]]
+item = "Tests are blackbox"
+passed = true
+note = "Tests invoke skill through projctl interface (integration tests)"
+
+[[review_details.checklist]]
+item = "Appropriate test patterns used"
+passed = false
+note = "Could benefit from property tests for invariants, but fixture-based integration tests are acceptable"
+
+[positive_observations]
+failure_mode = "Correct - tests fail with explicit fail() calls explaining missing implementation"
+fixture_design = "Good - clear coverage levels (0%, 65%, 90%) with reproducible fixtures"
+test_structure = "Clear - each test documents expected behavior"
+integration_approach = "Correct - tests invoke skill end-to-end via projctl"

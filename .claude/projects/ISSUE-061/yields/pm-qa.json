@@ -1,0 +1,21 @@
+{
+  "yield": {
+    "type": "approved",
+    "timestamp": "2026-02-04T23:35:00-05:00"
+  },
+  "payload": {
+    "from_agent": "pm-qa",
+    "artifacts_approved": ["docs/requirements.md"],
+    "ids_approved": ["REQ-002", "REQ-003", "REQ-004"],
+    "final_fixes_applied": [
+      "REQ-003: Added 'as documented in each skill's SKILL.md' for key responsibilities",
+      "REQ-004: Added 'Pattern allows skill-specific adaptations where justified and documented'"
+    ]
+  },
+  "context": {
+    "phase": "pm",
+    "role": "qa",
+    "iteration": 3,
+    "status": "approved"
+  }
+}

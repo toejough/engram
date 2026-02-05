@@ -1,0 +1,47 @@
+{
+  "yield": {
+    "type": "blocked",
+    "timestamp": "2026-02-05T09:30:00Z"
+  },
+  "payload": {
+    "blocker": "Specification conflict: Two contradictory coverage calculation formulas",
+    "details": "The architecture document contains two different formulas for coverage calculation:\n\n1. ARCH-002 (line 53): coverage = (answered / total) * 100\n   - Simple ratio formula\n   - All questions weighted equally\n   \n2. ARCH-005 (lines 180-182): Penalty-based weights\n   - Critical unanswered: -15% each\n   - Important unanswered: -10% each\n   - Optional unanswered: -5% each\n   - Formula: coverage = 100% - sum(unanswered_penalties)\n\nThe tests appear to mix both approaches:\n- TestCalculateGap_AllAnswered expects 100% (works with either formula)\n- TestCalculateGap_NoneAnswered expects 0% (only works with ratio formula)\n- TestCalculateGap_CriticalUnanswered expects 85% (only works with penalty formula)\n- TestCalculateGap_MixedPriorities expects 60% (only works with penalty formula)\n\nWith penalty formula and NoneAnswered test data (2C, 1I, 1O):\n- Expected: 0%\n- Actual: 100% - 30% - 10% - 5% = 55%\n\nWith ratio formula and CriticalUnanswered test data (2C, 1 answered):\n- Expected: 85%\n- Actual: 50%\n\nNo single formula satisfies all test expectations.",
+    "evidence": [
+      {
+        "file": ".claude/projects/ISSUE-061/architecture.md",
+        "location": "ARCH-002, line 53",
+        "content": "coverage = (questions_answered_by_context / total_key_questions) * 100"
+      },
+      {
+        "file": ".claude/projects/ISSUE-061/architecture.md",
+        "location": "ARCH-005, lines 180-182",
+        "content": "Critical unanswered: -15% coverage each\nImportant unanswered: -10% coverage each\nOptional unanswered: -5% coverage each"
+      },
+      {
+        "file": "internal/interview/gap_test.go",
+        "location": "TestCalculateGap_NoneAnswered, line 49",
+        "content": "Expects 0% with 0 answers (ratio formula)"
+      },
+      {
+        "file": "internal/interview/gap_test.go",
+        "location": "TestCalculateGap_CriticalUnanswered, line 71",
+        "content": "Expects 85% with 1 of 2 critical answered (penalty formula: 100% - 15%)"
+      }
+    ],
+    "suggested_resolution": "Clarify which formula is correct, or specify if a hybrid approach is intended. Options:\n\nOption A: Pure penalty formula (ARCH-005)\n- Fix TestCalculateGap_NoneAnswered to expect 55% instead of 0%\n- Or change test data to have enough questions that all unanswered = 100% penalty\n\nOption B: Pure ratio formula (ARCH-002)\n- Remove priority weights from tests\n- Fix all tests expecting weighted behavior\n- Update ARCH-005 to remove contradictory weights\n\nOption C: Hybrid formula\n- Define clearly how ratio and penalties combine\n- Update both architecture docs and tests to match\n- Example: base = ratio, then apply penalties: coverage = (answered/total * 100) - unanswered_penalties",
+    "phase_blocked": "GREEN (minimal implementation)",
+    "previous_phases": {
+      "RED": "Complete with 19 tests (3 passing property tests, 16 failing example tests)",
+      "GREEN": "Blocked after multiple formula attempts"
+    }
+  },
+  "context": {
+    "phase": "tdd",
+    "subphase": "green-loop",
+    "task": "TASK-3",
+    "issue": "ISSUE-061",
+    "awaiting": "spec-clarification",
+    "nested_loop": "green",
+    "iteration": 1
+  }
+}

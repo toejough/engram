@@ -1,0 +1,115 @@
+[status]
+result = "complete"
+timestamp = "2026-02-05T09:10:00Z"
+
+[summary]
+phase = "tdd-red"
+task_id = "TASK-3"
+artifact = "internal/interview/gap.go"
+test_file = "internal/interview/gap_test.go"
+
+[test_results]
+total = 19
+passing = 3
+failing = 16
+red_state_verified = true
+
+[files_modified]
+paths = [
+  "internal/interview/gap.go",
+  "internal/interview/gap_test.go",
+]
+
+[[decisions]]
+decision = "Created new package internal/interview for interview gap analysis functionality"
+rationale = "Existing coverage package is for documentation coverage analysis, not interview gap analysis. Interview logic needs its own domain package."
+alternatives = ["Reuse coverage package", "Create at cmd level"]
+chosen = "New internal/interview package"
+
+[[decisions]]
+decision = "Used blackbox testing pattern (package interview_test)"
+rationale = "Tests behavior of public API without accessing internal implementation. Follows project convention seen in trace_test, parser_test, etc."
+alternatives = ["Whitebox testing"]
+chosen = "Blackbox testing"
+
+[[decisions]]
+decision = "Combined example-based and property-based tests"
+rationale = "Example tests verify specific scenarios and edge cases. Property tests verify invariants hold across random inputs. Both are needed for thorough coverage."
+alternatives = ["Only example tests", "Only property tests"]
+chosen = "Combined approach"
+
+[[decisions]]
+decision = "Created stub implementation that makes tests fail"
+rationale = "Tests must be verified to fail before implementation. Stub returns 0% coverage which causes expected failures."
+alternatives = ["No stub", "Partial implementation"]
+chosen = "Minimal stub"
+
+[coverage]
+# Each acceptance criterion mapped to tests
+
+[[coverage.criteria]]
+id = "AC-1"
+description = "Function accepts: list of key questions (with priorities), list of answered questions"
+tests = [
+  "TestCalculateGap_AllAnswered",
+  "TestCalculateGap_NoneAnswered",
+  "TestCalculateGap_EmptyKeyQuestions",
+  "TestCalculateGap_ExtraAnsweredQuestionsIgnored"
+]
+
+[[coverage.criteria]]
+id = "AC-2"
+description = "Returns: coverage percentage (0-100), gap size classification (small/medium/large), list of unanswered questions"
+tests = [
+  "TestCalculateGap_AllAnswered",
+  "TestCalculateGap_NoneAnswered"
+]
+
+[[coverage.criteria]]
+id = "AC-3"
+description = "Applies priority weights: critical unanswered = -15%, important = -10%, optional = -5%"
+tests = [
+  "TestCalculateGap_CriticalUnanswered",
+  "TestCalculateGap_ImportantUnanswered",
+  "TestCalculateGap_OptionalUnanswered",
+  "TestCalculateGap_MixedPriorities_MediumGap",
+  "TestCalculateGap_LargeGap"
+]
+
+[[coverage.criteria]]
+id = "AC-4"
+description = "Classifies gaps: ≥80% = small, 50-79% = medium, <50% = large"
+tests = [
+  "TestCalculateGap_CriticalUnanswered",
+  "TestCalculateGap_ImportantUnanswered",
+  "TestCalculateGap_OptionalUnanswered",
+  "TestCalculateGap_MixedPriorities_MediumGap",
+  "TestCalculateGap_LargeGap",
+  "TestCalculateGap_Boundary_80Percent",
+  "TestCalculateGap_Boundary_79Percent",
+  "TestCalculateGap_Boundary_50Percent",
+  "TestCalculateGap_Boundary_49Percent"
+]
+
+[[coverage.criteria]]
+id = "AC-5"
+description = "Handles edge case: when total coverage <20%, returns large regardless of calculation"
+tests = [
+  "TestCalculateGap_EdgeCase_VeryLowCoverage",
+  "TestCalculateGap_EdgeCase_Exactly20Percent",
+  "TestCalculateGap_EdgeCase_Below20Percent"
+]
+
+[[coverage.criteria]]
+id = "AC-6"
+description = "Unit tests cover: all answered (100%), all unanswered (0%), mixed priorities, edge case"
+tests = [
+  "TestCalculateGap_Property_CoverageRange",
+  "TestCalculateGap_Property_AllAnsweredMeansNoUnanswered",
+  "TestCalculateGap_Property_GapSizeConsistentWithCoverage"
+]
+
+[traceability]
+task = "TASK-3"
+upstream = ["ARCH-002", "ARCH-005"]
+artifacts = ["internal/interview/gap.go", "internal/interview/gap_test.go"]

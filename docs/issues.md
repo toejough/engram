@@ -2605,7 +2605,7 @@ Unresolved question from ISSUE-054 retrospective (Q2).
 ## ISSUE-061: Decision needed: What's the right PM interview depth?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-04
 
 Unresolved question from ISSUE-054 retrospective (Q3).

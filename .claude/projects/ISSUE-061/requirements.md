@@ -1,25 +1,12 @@
-# projctl Requirements
+# ISSUE-061 Requirements: Adaptive Interview Depth
 
-Requirements derived from [review-2025-01.md](./review-2025-01.md) executive summary.
+**Issue:** ISSUE-061 - Decision needed: What's the right PM interview depth?
 
----
+**Global Requirements Updated:** [docs/requirements.md](../../../docs/requirements.md)
 
-### REQ-001: Dependable Agent Orchestrator
+## Requirements Created
 
-Build a dependable Claude Code agent orchestrator with:
-- Maximum autonomy with minimum human intervention
-- Cheapest agents + smallest context possible
-- Dedicated deterministic tooling over LLM judgment
-- Learning from corrections
-- Behavioral correctness with tests
-- Confident traceability from idea to implementation
-- Support for existing codebases, alignment, and new projects
-
-**Source:** User stated goals in review-2025-01.md
-
----
-
-### REQ-002: Context-Aware Interview Skills
+### REQ-002: Context-Aware Interview Skills (P0)
 
 As a user, I want interview skills to understand existing context before asking questions, so that I'm not asked about information that's already available.
 
@@ -31,15 +18,11 @@ As a user, I want interview skills to understand existing context before asking 
 - [ ] When context gathering fails (territory map error, memory query timeout), skill yields `blocked` with diagnostic information
 - [ ] When gathered context contains contradictory information, skill yields `need-decision` with conflicting statements for user resolution
 
-**Priority:** P0
-
-**Depends on:** None
-
 **Source:** ISSUE-061
 
 ---
 
-### REQ-003: Adaptive Interview Depth
+### REQ-003: Adaptive Interview Depth (P1)
 
 As a user, I want interview depth to adapt based on information gaps, so that simple issues get quick confirmation while complex issues get thorough exploration.
 
@@ -52,15 +35,13 @@ As a user, I want interview depth to adapt based on information gaps, so that si
 - [ ] Depth decision is explicit and traceable in yield context (includes gap percentage and question count)
 - [ ] When both issue description AND gathered context are sparse (<20% coverage), skill yields full interview by default
 
-**Priority:** P1
-
 **Depends on:** REQ-002
 
 **Source:** ISSUE-061
 
 ---
 
-### REQ-004: Consistent Interview Pattern
+### REQ-004: Consistent Interview Pattern (P1)
 
 As a maintainer, I want all interview skills to follow the same context-aware pattern, so that the system has predictable behavior across all phases.
 
@@ -73,8 +54,6 @@ As a maintainer, I want all interview skills to follow the same context-aware pa
 - [ ] Pattern defines error handling for context gathering failures
 - [ ] Pattern defines resolution process for contradictory context
 - [ ] Pattern allows skill-specific adaptations where justified and documented
-
-**Priority:** P1
 
 **Depends on:** REQ-002, REQ-003
 

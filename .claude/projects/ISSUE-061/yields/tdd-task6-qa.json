@@ -1,0 +1,80 @@
+{
+  "yield": {
+    "type": "improvement-request",
+    "timestamp": "2026-02-05T13:00:00Z"
+  },
+  "payload": {
+    "from_agent": "tdd-red-qa",
+    "to_agent": "tdd-red-producer",
+    "iteration": 2,
+    "reviewed_artifact": "internal/interview/interview_test.go",
+    "test_count": 10,
+    "tests_failing_correctly": 9,
+    "tests_passing_as_expected": 1,
+    "issues": [
+      {
+        "severity": "medium",
+        "test": "TestSelectQuestions_IncludesContextInformation (TEST-305)",
+        "issue": "Test has weak assertion that doesn't verify AC-5 requirement",
+        "details": "Test only checks `g.Expect(q).NotTo(BeNil())` which always passes for any struct. AC-5 requires 'Question text references gathered context where relevant', but this test doesn't verify that context is actually referenced or included.",
+        "suggested_fix": "Test should verify that when relevant context exists in `gathered` map, the InterviewQuestion.Context field is populated OR the question text includes context references. For example, check that when 'related-tech' context mentions SQLite, the tech-stack question's Context field contains that information."
+      }
+    ],
+    "strengths": [
+      "All 6 acceptance criteria have corresponding tests",
+      "Tests fail for correct reason: stub returns empty list, not compilation/import errors",
+      "9/10 tests fail as expected in red phase",
+      "1 test (all answered → empty) correctly passes with stub behavior",
+      "Tests use appropriate gomega matchers for readability",
+      "Tests are blackbox: testing public SelectQuestions API",
+      "Good coverage of gap size tiers: small (85%), medium (60-65%), large (20-30%)",
+      "Priority ordering tested across multiple scenarios",
+      "Edge cases covered: all answered, no critical unanswered, all priorities",
+      "Test data is realistic with proper priority distributions"
+    ],
+    "checklist": [
+      {
+        "item": "Each acceptance criterion has at least one test",
+        "passed": true,
+        "details": "AC-1: 2 tests, AC-2: 3 tests, AC-3: 2 tests, AC-4: 2 tests, AC-5: 2 tests, AC-6: 2 tests"
+      },
+      {
+        "item": "Tests fail for correct reasons",
+        "passed": true,
+        "details": "9 tests fail because stub returns empty list (expected behavior missing), not due to syntax/import/compilation errors"
+      },
+      {
+        "item": "No compilation errors",
+        "passed": true,
+        "details": "All tests compile and run successfully"
+      },
+      {
+        "item": "Tests describe expected behavior clearly",
+        "passed": true,
+        "details": "Test names and comments clearly indicate what behavior is being tested"
+      },
+      {
+        "item": "Tests are blackbox (test public API)",
+        "passed": true,
+        "details": "Tests use package interview_test and only call exported SelectQuestions function"
+      },
+      {
+        "item": "No implementation code beyond minimal stubs",
+        "passed": true,
+        "details": "SelectQuestions is stub returning empty list, no real implementation exists"
+      },
+      {
+        "item": "Tests verify behavior, not just structure",
+        "passed": false,
+        "details": "TEST-305 only checks struct is not nil, doesn't verify actual context behavior. Other tests properly verify behavior."
+      }
+    ]
+  },
+  "context": {
+    "phase": "tdd-red",
+    "role": "qa",
+    "iteration": 2,
+    "max_iterations": 3,
+    "task": "TASK-6"
+  }
+}

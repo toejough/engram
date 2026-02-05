@@ -1,0 +1,82 @@
+{
+  "yield": {
+    "type": "complete",
+    "timestamp": "2026-02-05T09:10:00Z"
+  },
+  "payload": {
+    "artifact": "internal/interview/gap.go",
+    "files_modified": [
+      "internal/interview/gap.go",
+      "internal/interview/gap_test.go"
+    ],
+    "test_summary": {
+      "total": 19,
+      "passing": 3,
+      "failing": 16
+    },
+    "test_coverage": [
+      {
+        "criterion": "AC-1: Function accepts list of key questions (with priorities), list of answered questions",
+        "tests": [
+          "TestCalculateGap_AllAnswered",
+          "TestCalculateGap_NoneAnswered",
+          "TestCalculateGap_EmptyKeyQuestions",
+          "TestCalculateGap_ExtraAnsweredQuestionsIgnored"
+        ]
+      },
+      {
+        "criterion": "AC-2: Returns coverage percentage (0-100), gap size classification (small/medium/large), list of unanswered questions",
+        "tests": [
+          "TestCalculateGap_AllAnswered",
+          "TestCalculateGap_NoneAnswered"
+        ]
+      },
+      {
+        "criterion": "AC-3: Applies priority weights: critical unanswered = -15%, important = -10%, optional = -5%",
+        "tests": [
+          "TestCalculateGap_CriticalUnanswered",
+          "TestCalculateGap_ImportantUnanswered",
+          "TestCalculateGap_OptionalUnanswered",
+          "TestCalculateGap_MixedPriorities_MediumGap",
+          "TestCalculateGap_LargeGap"
+        ]
+      },
+      {
+        "criterion": "AC-4: Classifies gaps: ≥80% = small, 50-79% = medium, <50% = large",
+        "tests": [
+          "TestCalculateGap_CriticalUnanswered",
+          "TestCalculateGap_ImportantUnanswered",
+          "TestCalculateGap_OptionalUnanswered",
+          "TestCalculateGap_MixedPriorities_MediumGap",
+          "TestCalculateGap_LargeGap",
+          "TestCalculateGap_Boundary_80Percent",
+          "TestCalculateGap_Boundary_79Percent",
+          "TestCalculateGap_Boundary_50Percent",
+          "TestCalculateGap_Boundary_49Percent"
+        ]
+      },
+      {
+        "criterion": "AC-5: Handles edge case: when total coverage <20%, returns large regardless of calculation",
+        "tests": [
+          "TestCalculateGap_EdgeCase_VeryLowCoverage",
+          "TestCalculateGap_EdgeCase_Exactly20Percent",
+          "TestCalculateGap_EdgeCase_Below20Percent"
+        ]
+      },
+      {
+        "criterion": "AC-6: Unit tests cover: all answered (100%), all unanswered (0%), mixed priorities, edge case",
+        "tests": [
+          "TestCalculateGap_Property_CoverageRange",
+          "TestCalculateGap_Property_AllAnsweredMeansNoUnanswered",
+          "TestCalculateGap_Property_GapSizeConsistentWithCoverage"
+        ]
+      }
+    ]
+  },
+  "context": {
+    "phase": "tdd-red",
+    "subphase": "complete",
+    "task": "TASK-3",
+    "issue": "ISSUE-061"
+  }
+}

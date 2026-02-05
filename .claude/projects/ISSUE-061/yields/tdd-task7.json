@@ -1,0 +1,88 @@
+{
+  "yield": {
+    "type": "complete",
+    "timestamp": "2026-02-05T06:20:00Z"
+  },
+  "payload": {
+    "task": "TASK-7",
+    "artifact": "TDD cycle complete - yield context enrichment with gap_analysis",
+    "files_modified": [
+      "internal/yield/yield.go",
+      "internal/yield/enrichment_test.go",
+      "~/.claude/skills/arch-interview-producer/SKILL.md"
+    ],
+    "cycle_summary": {
+      "red": {
+        "tests_created": 17,
+        "test_ids": [
+          "TEST-400", "TEST-401", "TEST-402", "TEST-403", "TEST-404", "TEST-405",
+          "TEST-406", "TEST-407", "TEST-408", "TEST-409", "TEST-410", "TEST-411",
+          "TEST-412", "TEST-413", "TEST-414", "TEST-415", "TEST-416"
+        ],
+        "iterations": 1,
+        "status": "approved"
+      },
+      "green": {
+        "tests_passing": 26,
+        "implementation_approach": "Double TOML decode (map for presence, struct for validation)",
+        "iterations": 1,
+        "status": "approved"
+      },
+      "refactor": {
+        "lint_before": 0,
+        "lint_after": 0,
+        "quality_improvements": [
+          "Extracted ValidGapSizes constant for single source of truth",
+          "Extracted RequiredGapAnalysisFields constant for discoverability",
+          "Dynamic error message generation from constants"
+        ],
+        "iterations": 1,
+        "status": "approved"
+      }
+    },
+    "acceptance_criteria_completed": [
+      "AC-1: Yield includes [context.gap_analysis] section",
+      "AC-2: Fields: total_key_questions, questions_answered, coverage_percent, gap_size, question_count",
+      "AC-3: Field: sources array listing which mechanisms provided context",
+      "AC-4: Field: unanswered_critical listing any critical questions not answered",
+      "AC-5: Yield validates against schema before output",
+      "AC-6: Example yield included in SKILL.md documentation"
+    ],
+    "decisions": [
+      {
+        "context": "TDD cycle orchestration",
+        "choice": "Standard RED -> GREEN -> REFACTOR sequence",
+        "reason": "No escalations required during cycle, all phases completed successfully"
+      },
+      {
+        "context": "Field presence detection",
+        "choice": "Double TOML decode (map + struct)",
+        "reason": "TOML decoder sets missing fields to zero values, making it impossible to distinguish missing from legitimate zeros without map lookup"
+      },
+      {
+        "context": "GapAnalysis struct design",
+        "choice": "Pointer field in ContextSection",
+        "reason": "Makes gap_analysis naturally optional (nil when not present)"
+      },
+      {
+        "context": "Code quality improvements",
+        "choice": "Extract constants ValidGapSizes and RequiredGapAnalysisFields",
+        "reason": "Single source of truth, better maintainability, consistent with existing patterns"
+      }
+    ],
+    "test_summary": {
+      "total": 26,
+      "new": 17,
+      "existing": 9,
+      "passing": 26,
+      "failing": 0
+    }
+  },
+  "context": {
+    "phase": "tdd",
+    "subphase": "complete",
+    "all_loops_passed": true,
+    "task": "TASK-7",
+    "issue": "ISSUE-061"
+  }
+}

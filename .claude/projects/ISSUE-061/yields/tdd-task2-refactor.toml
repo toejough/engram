@@ -1,0 +1,29 @@
+[yield]
+type = "complete"
+timestamp = "2026-02-05T00:00:00Z"
+
+[payload]
+artifact = "refactored Key Questions section"
+files_modified = ["~/.claude/skills/arch-interview-producer/SKILL.md"]
+
+[[payload.decisions]]
+context = "Clarity improvement"
+choice = "Added reference to INTERVIEW-PATTERN and explained adaptive depth"
+reason = "Makes it clear why coverage calculation matters - it determines interview depth"
+alternatives = ["Keep original text", "Add separate subsection for adaptive depth"]
+
+[[payload.decisions]]
+context = "Example clarity"
+choice = "Made explicit that each question influences 1-3 architecture entries"
+reason = "Previous text mentioned this but examples didn't emphasize it clearly"
+alternatives = ["Keep original layout", "Add more examples"]
+
+[[payload.learnings]]
+content = "Test regex patterns determine allowed formats - AC-2a regex required non-numbered format"
+
+[context]
+phase = "tdd-refactor"
+subphase = "complete"
+tests_passing = true
+linter_clean = true
+task_id = "TASK-2"

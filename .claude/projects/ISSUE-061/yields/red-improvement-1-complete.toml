@@ -1,0 +1,61 @@
+[yield]
+type = "complete"
+timestamp = "2026-02-05T18:30:00Z"
+
+[payload]
+artifact = "internal/interview/interview_test.go"
+files_modified = ["internal/interview/interview_test.go"]
+
+[payload.test_summary]
+total = 30
+passing = 20
+failing = 10
+
+[[payload.test_coverage]]
+criterion = "AC-5: Question text references gathered context where relevant"
+tests = ["TestSelectQuestions_IncludesContextInformation"]
+improvement = "Strengthened assertion from vacuous NotTo(BeNil()) to verify Context field contains actual gathered information"
+
+[payload.improvement_details]
+test_id = "TEST-305"
+test_name = "TestSelectQuestions_IncludesContextInformation"
+old_assertion = "g.Expect(q).NotTo(BeNil())"
+new_assertion = """
+hasContextReference := false
+for _, q := range questions {
+    if q.Context != \"\" {
+        hasContextReference = true
+        g.Expect(q.Context).To(ContainSubstring(\"Context\"),
+            \"Context field should reference gathered information, got: %s\", q.Context)
+    }
+}
+g.Expect(hasContextReference).To(BeTrue(),
+    \"When gathered context exists, at least one question should reference it in Context field\")
+"""
+
+[payload.improvement_details.verification]
+verifies_context_usage = true
+checks_context_field = true
+ensures_meaningful_content = true
+
+[context]
+phase = "tdd-red"
+subphase = "improvement"
+task = "TASK-6"
+iteration = 1
+improvement_source = ".claude/projects/ISSUE-061/context/red-improvement-1.toml"
+
+[[decisions]]
+choice = "Verify Context field population rather than question text modification"
+rationale = "InterviewQuestion struct has explicit Context field (line 8 of interview.go). Testing field population is more direct than text parsing."
+alternatives = ["Parse question text for context references", "Test both Context field and text"]
+
+[[decisions]]
+choice = "Require at least one question to have context when gathered data exists"
+rationale = "AC-5 says 'where relevant' - not every question needs context, but when gathered data exists, at least one question should reference it"
+alternatives = ["Require all questions to have context", "Make it optional with no verification"]
+
+[[decisions]]
+choice = "Use ContainSubstring('Context') as content check"
+rationale = "Ensures Context field contains meaningful gathered information, not just arbitrary strings. Gathered map values start with 'Context shows/mentions'."
+alternatives = ["Accept any non-empty string", "Parse for specific gathered values"]

@@ -1,0 +1,50 @@
+{
+  "yield": {
+    "type": "complete",
+    "timestamp": "2026-02-05T00:00:00Z",
+    "skill": "breakdown-producer"
+  },
+  "payload": {
+    "artifact": ".claude/projects/ISSUE-061/tasks.md",
+    "ids_created": [
+      "TASK-1",
+      "TASK-2",
+      "TASK-3",
+      "TASK-4",
+      "TASK-5",
+      "TASK-6",
+      "TASK-7",
+      "TASK-8",
+      "TASK-9"
+    ],
+    "task_count": 9,
+    "visual_tasks": [],
+    "parallel_opportunities": [
+      "TASK-2 and TASK-4 can start after TASK-1",
+      "TASK-3 independent once TASK-2 defines format"
+    ]
+  },
+  "context": {
+    "phase": "breakdown",
+    "subphase": "complete",
+    "issue": "ISSUE-061",
+    "architecture_coverage": {
+      "total_decisions": 6,
+      "decisions_mapped": 6,
+      "arch_ids": ["ARCH-001", "ARCH-002", "ARCH-003", "ARCH-004", "ARCH-005", "ARCH-006"]
+    },
+    "requirements_coverage": {
+      "total_requirements": 3,
+      "requirements_mapped": 3,
+      "req_ids": ["REQ-002", "REQ-003", "REQ-004"]
+    },
+    "decomposition_strategy": "dependency_graph",
+    "sizing_priority": [
+      "Pure functions (coverage calculation)",
+      "Type definitions (key questions registry)",
+      "Infrastructure (context gathering)",
+      "Business logic (gap assessment, adaptive logic)",
+      "Integration (yield enrichment, tests, validation)"
+    ]
+  }
+}

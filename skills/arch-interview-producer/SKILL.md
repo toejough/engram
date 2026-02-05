@@ -29,17 +29,58 @@ Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern. Outputs [YI
 
 ### GATHER Phase
 
-1. Read context file for requirements.md and design.md paths
-2. Yield `need-context` if files not provided in context
-3. Extract technical implications from requirements
-4. Identify decision categories (language, framework, database, etc.)
-5. Yield `need-user-input` for each architecture decision
+Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) with architecture-specific queries.
 
-**Interview Topics:**
-- Technology preferences (language, frameworks)
-- Constraints (team skills, timeline, existing systems)
-- Scale expectations (users, data volume, performance)
-- Deployment (cloud, self-hosted, platforms)
+1. Execute `projctl territory map` to get file structure and artifact locations
+2. Execute `projctl memory query` with architecture domain queries (e.g., "technology stack decisions", "system design choices", "technical constraints")
+3. Parse territory and memory results into structured data for coverage assessment
+4. Read context file for requirements.md and design.md paths
+5. Yield `need-context` if critical files missing
+6. Extract technical implications from requirements
+7. Identify decision categories (language, framework, database, etc.)
+8. Log context sources used (territory, memory, files) in yield metadata
+
+**Error Handling:**
+- Territory map failure → Yield `blocked` with diagnostic information (infrastructure problem, cannot proceed safely)
+- Memory query timeout → Continue with available context, note limitation in yield metadata (degraded mode)
+
+### ASSESS Phase
+
+After gathering context, assess which key questions are answerable before interviewing the user.
+
+1. **Assess each key question against gathered context** - For each of the 10 key questions in the "Key Questions" section, determine if answerable from gathered context (issue description, territory map results, memory query results, and context files). Mark question as answered if context provides sufficient detail.
+
+2. **Execute coverage calculation** - calculate coverage using the CalculateGap function from `internal/interview/gap.go` (TASK-3) with the list of key questions and answered question IDs. The weighted formula applies priority penalties: critical unanswered = -15%, important unanswered = -10%, optional unanswered = -5%. Result includes coverage percentage (0-100), gap size classification (small/medium/large), and list of unanswered questions.
+
+3. **Determine interview depth from gap classification** - classify gap size based on coverage calculation results: ≥80% = small gap (1-2 confirmation questions), 50-79% = medium gap (3-5 questions), <50% = large gap (6+ questions). Edge case: <20% coverage always yields large gap.
+
+4. **Check for contradictory context** - If gathered context contains conflicting information (e.g., territory shows SQLite but memory references PostgreSQL), yield `need-decision` with conflict details for user resolution. Include what conflicts and which sources disagree.
+
+5. **Record the assessment metrics** - log assessment results in yield metadata with `[context.gap_analysis]` section including: total key questions (10), answered count, coverage percentage, gap size classification, question count, and unanswered critical items. This provides traceability and observability for debugging interview depth decisions.
+
+**Proceed to INTERVIEW Phase** with question count determined by gap size.
+
+### INTERVIEW Phase
+
+Select and phrase questions based on gap size and gathered context.
+
+**Depth Strategy:**
+
+| Gap Size | Coverage | Question Count | Approach |
+|----------|----------|----------------|----------|
+| Small | ≥80% | 1-2 | Confirmation-style questions for critical unanswered items only |
+| Medium | 50-79% | 3-5 | Clarification questions referencing gathered context |
+| Large | <50% | 6+ | Comprehensive interview covering all unanswered questions |
+
+**Question Phrasing:**
+- **Small gaps**: Confirm or verify information mostly clear from context (e.g., "Confirm that X is correct?", "Is it accurate that Y?")
+- **Medium gaps**: Reference gathered context in questions (e.g., "I see X in docs, confirm Y?", "From requirements, you mentioned X - does that mean Y?")
+- **Large gaps**: Ask comprehensive questions without assuming too much from sparse context
+
+**Implementation:**
+1. Use SelectQuestions function from `internal/interview/interview.go` (TASK-6) with key questions, gap analysis, and gathered context
+2. Prioritize questions by importance: critical, then important, then optional
+3. Skip fully answered topics - only ask where information is missing or ambiguous
 
 ### SYNTHESIZE Phase
 
@@ -54,12 +95,44 @@ Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern. Outputs [YI
 2. Include `**Traces to:**` for each decision
 3. Yield `complete` with artifact details
 
+## Key Questions
+
+These 10 questions represent minimum viable context for architecture decisions. During the ASSESS phase (see [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md)), coverage is calculated by checking how many questions are answerable from gathered context. This determines interview depth: high coverage means fewer questions, low coverage means thorough interview.
+
+**Coverage Weights:** Unanswered questions reduce coverage by their priority weight:
+- Critical: -15% each
+- Important: -10% each
+- Optional: -5% each
+
+**Questions:**
+
+**Technology Stack** - What languages and frameworks should be used for implementation? (critical)
+**Scale Requirements** - What are the expected user volumes and data scale? (critical)
+**Deployment Target** - Where will the system run (cloud, on-prem, embedded)? (critical)
+**External Integrations** - What external systems or APIs need integration? (important)
+**Performance SLA** - What are the response time and throughput requirements? (important)
+**Security Model** - What authentication, authorization, and data protection are needed? (important)
+**Data Durability** - What is the acceptable data loss tolerance? (important)
+**Observability Strategy** - What logging, monitoring, and alerting are needed? (optional)
+**Development Environment** - What are the local development and testing requirements? (optional)
+**Migration Path** - Are there existing systems to migrate from or integrate with? (optional)
+
+**Example Mappings:**
+
+Each question typically influences 1-3 architecture entries:
+
+- **Technology Stack** → ARCH-1 (language choice), ARCH-2 (framework selection)
+- **Scale Requirements** → ARCH-5 (database choice for volume), ARCH-8 (caching strategy)
+- **Security Model** → ARCH-6 (auth mechanism), ARCH-7 (data encryption)
+
 ## Yield Types
 
 | Type | When |
 |------|------|
-| `need-user-input` | Interview question for technology decision |
 | `need-context` | Need requirements.md, design.md, or codebase info |
+| `need-decision` | Contradictory context requires user resolution |
+| `need-user-input` | Interview question for technology decision |
+| `blocked` | Infrastructure failure prevents proceeding |
 | `complete` | architecture.md written |
 
 ### need-user-input Example
@@ -85,6 +158,16 @@ phase = "arch"
 subphase = "GATHER"
 awaiting = "user-response"
 topic = "backend-language"
+sources = ["territory", "memory", "requirements.md"]
+
+[context.gap_analysis]
+total_key_questions = 10
+questions_answered = 7
+coverage_percent = 75.0
+gap_size = "medium"
+question_count = 3
+sources = ["territory", "memory", "requirements.md"]
+unanswered_critical = ["scale-requirements"]
 ```
 
 ### complete Example
@@ -114,6 +197,15 @@ alternatives = ["PostgreSQL", "JSON files"]
 [context]
 phase = "arch"
 subphase = "complete"
+sources = ["territory", "memory", "requirements.md", "design.md", "user-interview"]
+
+[context.gap_analysis]
+total_key_questions = 10
+questions_answered = 10
+coverage_percent = 100.0
+gap_size = "small"
+question_count = 0
+sources = ["territory", "memory", "requirements.md", "design.md", "user-interview"]
 ```
 
 ## ARCH Entry Format
