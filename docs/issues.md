@@ -2654,33 +2654,26 @@ ISSUE-061 performance analysis revealed that doc-only tasks (writing SKILL.md, s
 ## ISSUE-063: Fix trace validation false positives
 
 **Priority:** Medium
-**Status:** open
+**Status:** duplicate
 **Created:** 2026-02-05
+**Closed:** 2026-02-05
 
-ISSUE-061 revealed that trace validation reports false positives:
-- ISSUE-* tracking IDs reported as "orphan IDs"
-- TASK-* IDs reported as "unlinked"
+Duplicate of ISSUE-057 (same problem: ISSUE-* reported as orphan IDs).
 
-These are valid tracking references, not traceability chain entries. The validator should distinguish between:
-- Source IDs (ISSUE-*, TASK-*) - tracking references, no upstream required
-- Artifact IDs (REQ-*, DES-*, ARCH-*) - must trace to something
-
-**Traces to:** ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-057, ISSUE-061 (Performance Analysis)
 
 ---
 
 ## ISSUE-064: Add phase boundary documentation to project/SKILL.md
 
 **Priority:** Low
-**Status:** open
+**Status:** wontdo
 **Created:** 2026-02-05
+**Closed:** 2026-02-05
 
-ISSUE-061 required multiple --force flags to transition states when intermediate phases were skipped. The state machine allows this but documentation doesn't clearly explain:
-- Which phases are required vs optional
-- When --force is appropriate
-- Consequences of skipping phases
+The --force flags were needed because trace validation was producing false positives (ISSUE-057). Once ISSUE-057 is fixed, --force won't be needed and this documentation becomes unnecessary.
 
-**Traces to:** ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-057, ISSUE-061 (Performance Analysis)
 
 ---
 
