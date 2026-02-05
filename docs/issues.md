@@ -2382,7 +2382,7 @@ Currently each QA skill manually duplicates the producer's requirements in its o
 ## ISSUE-054: PM phase must interview user before producing artifacts
 
 **Priority:** High
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-04
 
 During ISSUE-053, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
@@ -2413,3 +2413,223 @@ The pm-interview-producer skill doesn't enforce user interaction. It can complet
 - Trust erosion in the orchestration system
 
 Traces to: ISSUE-053 failure
+
+
+### Comment
+
+### Root Cause Analysis (2026-02-04)
+
+**Revised diagnosis:** This is an **orchestrator bug**, not a pm-interview-producer skill bug.
+
+**Evidence from session logs:**
+
+The orchestrator passed these ARGUMENTS to pm-interview-producer:
+```
+This contains ISSUE-053 which already has clear requirements.
+Your job is to formalize these into requirements.md format with REQ-N IDs,
+not conduct a new interview. The problem and solution are already defined in the context file.
+```
+
+**What actually happened:**
+1. Orchestrator read ISSUE-053 description
+2. Orchestrator decided "this seems complete, no interview needed"
+3. Orchestrator explicitly told skill to skip interview and just formalize
+4. Skill correctly followed instructions (but instructions were wrong)
+5. User wanted different solution than what orchestrator assumed
+
+**Proof the skill works correctly:**
+When dispatched properly for ISSUE-054, pm-interview-producer immediately yielded `need-user-input` with clarifying questions about the problem.
+
+**Revised fix:**
+1. Orchestrator MUST NOT tell pm-interview-producer to skip interview
+2. Orchestrator should always require at least one user confirmation before proceeding
+3. Even if issue description "seems complete", present it to user: "Is this what you want?"
+
+**Impact:** Fix belongs in project orchestrator skill (SKILL.md), not pm-interview-producer.
+
+---
+
+## ISSUE-055: Retro: Establish 'User Experience First' design principle
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+From ISSUE-054 retrospective (R1):
+
+Design phase should focus on USER EXPERIENCE and interaction patterns, not implementation details (file formats, validation logic, data structures).
+
+**Action:** Add explicit guideline to design-interview-producer SKILL.md: 'Design phase focuses on USER EXPERIENCE and interaction patterns. Implementation details belong in Architecture phase.'
+
+**Rationale:** Design phase in ISSUE-054 initially asked implementation questions (file validation, context passing format), requiring user redirect. Clear phase boundaries prevent this.
+
+**Measurable outcome:** Design artifacts focus on UX scenarios, flows, and interaction patterns. No pseudocode or validation logic in design.md.
+
+**Evidence from ISSUE-054:**
+- user-response-design-1: User redirected from implementation questions to UX focus
+- Design phase had to pivot mid-interview when it asked about validation mechanisms
+
+**Traces to:** ISSUE-054, C2 (Challenge 2: Design Phase Over-Specification)
+
+---
+
+## ISSUE-056: Retro: Warn when specs exceed user requests
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+From ISSUE-054 retrospective (R2):
+
+When producing requirements, design, or architecture, explicitly note when a specification goes beyond what user requested.
+
+**Action:** Interview producers should flag inferred features with: 'Note: [Specification X] was not explicitly requested but inferred from [context/edge case/best practice]. Confirm this is desired.'
+
+**Rationale:** REQ-2 validation mechanism, ARCH-4 file checking, and other features in ISSUE-054 were added without user requesting them. User had to explicitly reject these during interviews ('User-response file validation: I never asked for this. Drop it.').
+
+**Measurable outcome:** User sees explicit callouts for inferred requirements/design/architecture, can accept or reject before implementation.
+
+**Evidence from ISSUE-054:**
+- REQ-2: Added user-response file validation mechanism not requested
+- ARCH-4: Documented file-checking logic user explicitly rejected
+- user-response-design-1: User had to say 'I never asked for this. Drop it.'
+
+**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+
+---
+
+## ISSUE-057: Retro: Fix projctl trace validate issue recognition
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+From ISSUE-054 retrospective (R3):
+
+Investigate why `projctl trace validate` reports ISSUE-054 as orphan ID when issue is defined in docs/issues.md at line 2382.
+
+**Action:** Fix issue ID recognition logic in projctl trace validate command.
+
+**Rationale:** Breakdown QA failed due to traceability validation issues. If the tool doesn't recognize properly-defined issues, it creates false failure signals and rework.
+
+**Measurable outcome:** `projctl trace validate` correctly recognizes issues defined in docs/issues.md and doesn't report them as orphan IDs.
+
+**Evidence from ISSUE-054:**
+- yield.toml from breakdown-qa shows: orphan_ids_reported = ['ISSUE-054']
+- ISSUE-054 is properly defined in docs/issues.md at line 2382
+- Breakdown QA iteration 2 failed on traceability validation
+
+**Traces to:** ISSUE-054, C4 (Breakdown QA Traceability Failure)
+
+---
+
+## ISSUE-058: Retro: Add simplicity check to breakdown phase
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+From ISSUE-054 retrospective (R4):
+
+Breakdown-producer should perform simplicity check asking: 'Could this be done with fewer tasks/components/changes?'
+
+**Action:** Add explicit simplicity assessment to breakdown-producer GATHER phase: 'Is there a simpler approach that achieves the same outcome?'
+
+**Rationale:** ISSUE-054 was ultimately a 17-line documentation change, but early breakdown iterations had complexity (validation mechanisms, file checking) that wasn't needed. Simplicity check might catch over-engineering earlier.
+
+**Measurable outcome:** Breakdown artifacts include explicit 'Simplicity assessment' section discussing alternatives considered and why current approach is appropriately scoped.
+
+**Evidence from ISSUE-054:**
+- Initial breakdown had validation mechanisms and file checks
+- User said 'don't overthink it' multiple times during PM/Design
+- Final implementation was minimal (17 lines, 1 file, documentation-only)
+
+**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+
+---
+
+## ISSUE-059: Decision needed: Should skills have scope creep detection?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+Unresolved question from ISSUE-054 retrospective (Q1).
+
+**Context:** Throughout ISSUE-054, requirements, design, and architecture all added features user didn't request. User had to explicitly reject these during interviews.
+
+**Question:** Should interview-producer skills have built-in 'scope creep' detection that flags when a specification exceeds the issue description or user requests?
+
+**Possible approaches:**
+1. Skills explicitly ask: 'These items weren't in the issue. Should I include them?'
+2. Skills mark inferred items with [INFERRED] tag for user review
+3. No change - rely on user to catch and reject during interviews
+
+**Impact:** Could reduce interview iterations and prevent over-engineering.
+
+**Related:** ISSUE-056 (warn when specs exceed requests) addresses part of this.
+
+**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+
+---
+
+## ISSUE-060: Decision needed: Should traceability validation be blocking or advisory?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+Unresolved question from ISSUE-054 retrospective (Q2).
+
+**Context:** Breakdown phase was blocked due to `projctl trace validate` failures related to tooling issues (issue ID recognition, unlinked task IDs).
+
+**Question:** Should traceability validation be a blocking requirement (fail if validation fails) or advisory (warn but allow completion)?
+
+**Tradeoffs:**
+- **Blocking:** Ensures clean traceability but vulnerable to tooling bugs (false negatives like ISSUE-054's orphan ID report)
+- **Advisory:** Allows progress despite tooling issues but risks incomplete traceability chains
+
+**Current state:** Breakdown SKILL guidelines treat `projctl trace validate` as blocking requirement.
+
+**Evidence from ISSUE-054:**
+- Breakdown QA iteration 1 failed due to traceability validation
+- Issues were false positives (ISSUE-054 was properly defined, tasks had proper structure)
+- Tooling issue (ISSUE-057) blocked legitimate completion
+
+**Related:** ISSUE-057 (fix projctl trace validate) addresses the tooling bug.
+
+**Traces to:** ISSUE-054, C4 (Breakdown QA Traceability Failure)
+
+---
+
+## ISSUE-061: Decision needed: What's the right PM interview depth?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-04
+
+Unresolved question from ISSUE-054 retrospective (Q3).
+
+**Context:** PM phase required 4 user responses. This was thorough but potentially longer than needed.
+
+**Question:** Should PM interview aim for:
+1. Minimal interaction (1-2 questions, quick confirmation)
+2. Thorough exploration (3-5+ questions, deep understanding)
+3. Adaptive depth (quick for simple issues, deep for complex ones)
+
+**Consideration:** ISSUE-054 was conceptually simple (add documentation rule) but had nuance (skip mechanism, validation). More complex issues might benefit from deeper interviews upfront.
+
+**Tradeoffs:**
+- **Minimal:** Fast, low friction, but risks missing important context
+- **Thorough:** Deep understanding, fewer surprises, but higher time cost
+- **Adaptive:** Best of both worlds, but requires good heuristics to decide depth
+
+**Evidence from ISSUE-054:**
+- PM phase had 4 user responses
+- User responses 1-2: Root cause clarification and scope definition
+- User responses 3-4: Simplicity preference confirmation
+- Post-PM phases (Design, Arch, Breakdown) had 0 rework iterations
+
+**Observation:** Thorough PM phase may have prevented downstream rework.
+
+**Traces to:** ISSUE-054, C5 (Multiple Interview Iterations in PM Phase)
