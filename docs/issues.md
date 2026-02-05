@@ -2597,7 +2597,7 @@ Unresolved question from ISSUE-054 retrospective (Q1).
 ### ISSUE-060: Decision needed: Should traceability validation be blocking or advisory?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (decision: keep blocking, fix bugs instead)
 **Created:** 2026-02-04
 
 Unresolved question from ISSUE-054 retrospective (Q2).
@@ -2732,7 +2732,7 @@ Measurable outcome: Test commits show stable line counts (no large deletions dur
 ### ISSUE-067: Decision needed: Should simplicity assessment CHECK-012 be error or warning?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (moot - CHECK-012 removed by ISSUE-068)
 **Created:** 2026-02-05
 
 Unresolved question from ISSUE-058 retrospective (Q1).
