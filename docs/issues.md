@@ -2357,8 +2357,9 @@ Skills and the orchestrator don't update tasks.md as work progresses. Acceptance
 ### ISSUE-053: QA agents should validate producer against its SKILL.md contract
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-04
+**Closed:** 2026-02-05
 
 Currently each QA skill manually duplicates the producer's requirements in its own checklist. This leads to drift and missed validations (e.g., retro-qa doesn't verify issue creation even though retro-producer SKILL.md requires it).
 
@@ -2378,6 +2379,15 @@ Currently each QA skill manually duplicates the producer's requirements in its o
 - No drift between what producer should do and what QA verifies
 
 **Supersedes:** ISSUE-049 (skill output validation), ISSUE-051 (retro issue creation)
+
+**Resolution:** Implemented across 6 tasks:
+- TASK-1: Created skills/shared/CONTRACT.md (contract standard)
+- TASK-2: Created skills/qa/SKILL.md (universal QA skill)
+- TASK-3: Gap analysis of all 13 QA skills vs producer contracts
+- TASK-4: Added Contract sections to all 15 producer SKILL.md files
+- TASK-5: Updated orchestrator dispatch to universal QA
+- TASK-6: Deleted 13 phase-specific QA skills
+Full artifacts: docs/requirements.md (REQ-005-011), docs/design.md (DES-001-013), docs/architecture.md (ARCH-019-030), docs/tasks.md (TASK-1-6)
 
 **Traces to:** layer-0-foundation retro discussion
 
@@ -2697,7 +2707,7 @@ Duplicate of ISSUE-058 (same goal: simplicity check in breakdown-producer).
 
 ---
 
-## ISSUE-001: Retro: Add test planning step before writing tests
+### ISSUE-066: Retro: Add test planning step before writing tests
 
 **Priority:** Medium
 **Status:** Open
@@ -2711,9 +2721,11 @@ Area: Testing Process
 Rationale: Would have caught test complexity that led to refactoring during test creation (C1 in retrospective).
 Measurable outcome: Test commits show stable line counts (no large deletions during test creation phase).
 
+**Traces to:** ISSUE-058
+
 ---
 
-## ISSUE-002: Decision needed: Should simplicity assessment CHECK-012 be error or warning?
+### ISSUE-067: Decision needed: Should simplicity assessment CHECK-012 be error or warning?
 
 **Priority:** Medium
 **Status:** Open
@@ -2729,9 +2741,11 @@ Tradeoff:
 
 Decision needed: Should CHECK-012 be promoted to error severity after observing whether it adds value in practice?
 
+**Traces to:** ISSUE-058
+
 ---
 
-## ISSUE-003: Decision needed: Simplicity assessment in SYNTHESIZE vs PRODUCE phase?
+### ISSUE-068: Decision needed: Simplicity assessment in SYNTHESIZE vs PRODUCE phase?
 
 **Priority:** Medium
 **Status:** Open
@@ -2748,3 +2762,5 @@ Current implementation: Per-task assessments (PRODUCE phase output)
 Alternative: Single assessment in SYNTHESIZE phase asking 'Is this breakdown as simple as possible?' before generating tasks.
 
 Decision needed: Which approach provides more value?
+
+**Traces to:** ISSUE-058
