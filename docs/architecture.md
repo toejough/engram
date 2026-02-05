@@ -1069,3 +1069,152 @@ Summary of all files requiring modification for this change.
 | ARCH-029 | REQ-005 |
 | ARCH-030 | REQ-005, REQ-007, REQ-009 |
 
+---
+
+## ISSUE-056: Inferred Specification Warning Architecture
+
+Technical architecture for how producers detect and yield inferred specifications, and how the orchestrator handles them.
+
+---
+
+### ARCH-031: Inferred Yield Extension to YIELD.md
+
+Extend the existing `need-user-input` yield type with an optional `inferred` flag rather than introducing a new yield type.
+
+**Extension to YIELD.md:**
+
+```toml
+[yield]
+type = "need-user-input"
+timestamp = 2026-02-05T12:00:00Z
+
+[payload]
+inferred = true
+question = "The following specifications were inferred and not explicitly requested. Accept or reject each."
+
+[[payload.items]]
+specification = "REQ-X: Input validation for empty strings"
+reasoning = "Edge case: empty input could cause downstream errors"
+source = "edge-case"
+
+[[payload.items]]
+specification = "REQ-Y: Rate limiting on API calls"
+reasoning = "Implicit need: without rate limiting, external API costs could spike"
+source = "implicit-need"
+
+[context]
+phase = "pm"
+subphase = "SYNTHESIZE"
+awaiting = "user-response"
+```
+
+**New payload fields when `inferred = true`:**
+- `payload.inferred` (bool): Distinguishes inference confirmations from regular questions
+- `payload.items` (array): Each item has `specification`, `reasoning`, and `source`
+- `source` enum: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
+
+**Backward compatibility:** Existing `need-user-input` yields without `inferred` field continue working unchanged. The orchestrator checks for `payload.inferred` to determine handling.
+
+**File to modify:** `skills/shared/YIELD.md`
+
+**Traces to:** REQ-012, DES-014, ARCH-018, TASK-7
+
+---
+
+### ARCH-032: Orchestrator Inferred Yield Handling
+
+The orchestrator adds a new branch in its `need-user-input` handler to detect and present inferred specifications.
+
+**Modified resumption protocol (ARCH-018, step 2):**
+
+```
+2. **need-user-input** - Orchestrator checks payload:
+   a. If payload.inferred = true:
+      - Format items as numbered accept/reject list
+      - Present to user with reasoning for each
+      - Capture per-item accept/reject decisions
+      - Write decisions to [query_results.inferred_decisions]
+      - Re-invoke skill
+   b. Else (regular question):
+      - Prompt user, capture response (existing behavior)
+      - Write to [query_results]
+      - Re-invoke skill
+```
+
+**Response format written back to producer:**
+
+```toml
+[query_results]
+[[query_results.inferred_decisions]]
+specification = "REQ-X: Input validation for empty strings"
+accepted = true
+
+[[query_results.inferred_decisions]]
+specification = "REQ-Y: Rate limiting on API calls"
+accepted = false
+```
+
+**File to modify:** `skills/project/SKILL.md` (PAIR LOOP pattern), `skills/project/SKILL-full.md`
+
+**Traces to:** REQ-014, DES-015, ARCH-018, TASK-8
+
+---
+
+### ARCH-033: Producer Inference Detection Pattern
+
+Producers add an inference classification step between SYNTHESIZE and PRODUCE phases.
+
+**Modified producer workflow:**
+
+```
+GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
+```
+
+**CLASSIFY step:**
+
+1. After SYNTHESIZE, producer reviews each specification it plans to create
+2. For each specification, determine if it is:
+   - **Explicit**: Directly traceable to user input, issue description, interview response, or gathered context document
+   - **Inferred**: Added by the producer based on best practices, edge cases, implicit needs, or professional judgment
+3. If any inferred items exist, yield `need-user-input` with `inferred = true` before proceeding to PRODUCE
+4. After receiving user decisions, drop rejected items and proceed to PRODUCE with only explicit + accepted items
+
+**Classification heuristic:**
+- If a specification can be traced to a specific user statement, issue field, or context document passage: **explicit**
+- If a specification requires the producer to make a judgment call or assumption: **inferred**
+- When in doubt: classify as **inferred** (conservative approach)
+
+**Shared documentation:** Add classification guidelines to `skills/shared/PRODUCER-TEMPLATE.md`
+
+**Files to modify:**
+- `skills/shared/PRODUCER-TEMPLATE.md` - Add CLASSIFY step and guidelines
+- `skills/pm-interview-producer/SKILL.md` - Reference shared guidelines
+- `skills/pm-infer-producer/SKILL.md` - Reference shared guidelines
+- `skills/design-interview-producer/SKILL.md` - Reference shared guidelines
+- `skills/design-infer-producer/SKILL.md` - Reference shared guidelines
+- `skills/arch-interview-producer/SKILL.md` - Reference shared guidelines
+- `skills/arch-infer-producer/SKILL.md` - Reference shared guidelines
+
+**Traces to:** REQ-013, REQ-015, DES-016, TASK-9
+
+---
+
+### ISSUE-056 Architecture Summary
+
+| Decision | Choice |
+|----------|--------|
+| Yield mechanism | `need-user-input` with `inferred = true` flag (not new type) |
+| Orchestrator handling | New branch in need-user-input handler |
+| Producer workflow | New CLASSIFY step between SYNTHESIZE and PRODUCE |
+| Classification default | When in doubt, classify as inferred (conservative) |
+| Source categories | best-practice, edge-case, implicit-need, professional-judgment |
+| Affected files | YIELD.md, PRODUCER-TEMPLATE.md, project SKILL.md, 6 producer SKILL.md files |
+
+**Traceability Matrix:**
+
+| ARCH ID | Traces to |
+|---------|-----------|
+| ARCH-031 | REQ-012, DES-014 |
+| ARCH-032 | REQ-014, DES-015 |
+| ARCH-033 | REQ-013, REQ-015, DES-016 |
+
