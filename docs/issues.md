@@ -2713,7 +2713,7 @@ Duplicate of ISSUE-058 (same goal: simplicity check in breakdown-producer).
 ### ISSUE-066: Retro: Add test planning step before writing tests
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (won't do)
 **Created:** 2026-02-05
 
 From ISSUE-058 retrospective (R1):
