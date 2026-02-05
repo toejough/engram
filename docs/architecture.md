@@ -1117,7 +1117,7 @@ awaiting = "user-response"
 
 **File to modify:** `skills/shared/YIELD.md`
 
-**Traces to:** REQ-012, DES-014, ARCH-018, TASK-7
+**Traces to:** REQ-012, DES-014, ARCH-018, TASK-11
 
 ---
 
@@ -1156,7 +1156,7 @@ accepted = false
 
 **File to modify:** `skills/project/SKILL.md` (PAIR LOOP pattern), `skills/project/SKILL-full.md`
 
-**Traces to:** REQ-014, DES-015, ARCH-018, TASK-8
+**Traces to:** REQ-014, DES-015, ARCH-018, TASK-13
 
 ---
 
@@ -1195,7 +1195,7 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
 - `skills/arch-interview-producer/SKILL.md` - Reference shared guidelines
 - `skills/arch-infer-producer/SKILL.md` - Reference shared guidelines
 
-**Traces to:** REQ-013, REQ-015, DES-016, TASK-9
+**Traces to:** REQ-013, REQ-015, DES-016, TASK-12, TASK-14
 
 ---
 
@@ -1214,7 +1214,7 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
 
 | ARCH ID | Traces to |
 |---------|-----------|
-| ARCH-031 | REQ-012, DES-014 |
-| ARCH-032 | REQ-014, DES-015 |
-| ARCH-033 | REQ-013, REQ-015, DES-016 |
+| ARCH-031 | REQ-012, DES-014, TASK-11 |
+| ARCH-032 | REQ-014, DES-015, TASK-13 |
+| ARCH-033 | REQ-013, REQ-015, DES-016, TASK-12, TASK-14 |
 

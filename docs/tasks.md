@@ -294,6 +294,135 @@ These tasks track projctl architecture roadmap items that are implemented or in 
 
 ---
 
+## ISSUE-056: Inferred Specification Warning Tasks
+
+Implementation tasks for adding inference detection and user confirmation to producer skills.
+
+---
+
+### Dependency Graph (ISSUE-056)
+
+```
+TASK-11 (YIELD.md extension)
+    |
+    +---> TASK-12 (PRODUCER-TEMPLATE.md update)
+    |         |
+    |         +---> TASK-14 (update 6 producer SKILL.md files)
+    |
+    +---> TASK-13 (orchestrator inferred handling)
+```
+
+---
+
+### TASK-11: Extend YIELD.md with inferred specification format
+
+**Description:** Add documentation for the `inferred` flag on `need-user-input` yields to `skills/shared/YIELD.md`. Define the `payload.inferred`, `payload.items` array, and `source` enum fields.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `skills/shared/YIELD.md` documents `payload.inferred = true` field on `need-user-input`
+- [ ] Documents `payload.items` array with `specification`, `reasoning`, `source` fields
+- [ ] Documents `source` enum: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
+- [ ] Includes complete TOML example of an inferred yield
+- [ ] Documents that `inferred` field is optional (backward compatible)
+- [ ] Documents the `query_results.inferred_decisions` response format
+
+**Files:** `skills/shared/YIELD.md`
+
+**Dependencies:** None
+
+**Traces to:** ARCH-031, REQ-012, DES-014
+
+---
+
+### TASK-12: Add inference classification guidelines to PRODUCER-TEMPLATE.md
+
+**Description:** Add a CLASSIFY step and inference detection guidelines to `skills/shared/PRODUCER-TEMPLATE.md`. Define how producers distinguish explicit from inferred specifications.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `skills/shared/PRODUCER-TEMPLATE.md` documents the CLASSIFY step between SYNTHESIZE and PRODUCE
+- [ ] Defines "explicit": directly traceable to user input, issue description, or gathered context
+- [ ] Defines "inferred": added based on best practices, edge cases, implicit needs, or professional judgment
+- [ ] Provides examples of explicit vs inferred specifications
+- [ ] Documents the conservative default: when in doubt, classify as inferred
+- [ ] Documents the yield-before-produce pattern for inferred items
+
+**Files:** `skills/shared/PRODUCER-TEMPLATE.md`
+
+**Dependencies:** TASK-11
+
+**Traces to:** ARCH-033, REQ-015, DES-016
+
+---
+
+### TASK-13: Update orchestrator to handle inferred specification yields
+
+**Description:** Update `skills/project/SKILL.md` and `skills/project/SKILL-full.md` to detect `payload.inferred = true` on `need-user-input` yields and present inferred items as a numbered accept/reject list.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Orchestrator PAIR LOOP pattern handles `payload.inferred = true` on `need-user-input`
+- [ ] Inferred items presented as numbered list with reasoning
+- [ ] User can accept all, reject all, or selectively accept/reject
+- [ ] Accepted/rejected decisions written to `query_results.inferred_decisions`
+- [ ] Producer resumed with decisions after user responds
+- [ ] SKILL-full.md resume map updated for inferred yield handling
+
+**Files:**
+- `skills/project/SKILL.md`
+- `skills/project/SKILL-full.md`
+
+**Dependencies:** TASK-11
+
+**Traces to:** ARCH-032, REQ-014, DES-015
+
+---
+
+### TASK-14: Update 6 producer SKILL.md files to reference inference guidelines
+
+**Description:** Update all 6 affected producer skills (pm-interview, pm-infer, design-interview, design-infer, arch-interview, arch-infer) to reference the shared inference classification guidelines and include the CLASSIFY step in their workflows.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] pm-interview-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] pm-infer-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] design-interview-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] design-infer-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] arch-interview-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] arch-infer-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
+- [ ] Each skill's workflow section includes the CLASSIFY step between SYNTHESIZE and PRODUCE
+- [ ] Each skill's yield types table includes the inferred variant of `need-user-input`
+
+**Files:**
+- `skills/pm-interview-producer/SKILL.md`
+- `skills/pm-infer-producer/SKILL.md`
+- `skills/design-interview-producer/SKILL.md`
+- `skills/design-infer-producer/SKILL.md`
+- `skills/arch-interview-producer/SKILL.md`
+- `skills/arch-infer-producer/SKILL.md`
+
+**Dependencies:** TASK-12
+
+**Traces to:** ARCH-033, REQ-013
+
+---
+
+### ISSUE-056 Task Summary
+
+| Task | Title | Dependencies | Key Traces |
+|------|-------|--------------|------------|
+| TASK-11 | Extend YIELD.md with inferred specification format | None | ARCH-031, REQ-012 |
+| TASK-12 | Add inference classification guidelines to PRODUCER-TEMPLATE.md | TASK-11 | ARCH-033, REQ-015 |
+| TASK-13 | Update orchestrator to handle inferred specification yields | TASK-11 | ARCH-032, REQ-014 |
+| TASK-14 | Update 6 producer SKILL.md files to reference inference guidelines | TASK-12 | ARCH-033, REQ-013 |
+
+---
+
 ## Test Stub Tasks
 
 These TASK IDs are referenced in trace tool test files as examples.
