@@ -18,6 +18,23 @@ Gather design decisions through structured user interview and produce design.md 
 
 **Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
 
+## User Experience First
+
+Design phase focuses on **user experience** and **interaction patterns**. Implementation details (file formats, validation logic, data structures, algorithms) belong in the Architecture phase.
+
+**Do not** ask about or include:
+- File formats or data structures
+- Validation logic or error handling mechanisms
+- Internal APIs or system interfaces
+- Algorithms or processing pipelines
+
+**Do** focus on:
+- User workflows and task flows
+- Screen layouts and navigation
+- Interaction patterns (how users accomplish goals)
+- Visual hierarchy and information architecture
+- Feedback and affordances (what users see/hear/feel)
+
 ## Quick Reference
 
 | Aspect | Details |
@@ -32,23 +49,26 @@ Gather design decisions through structured user interview and produce design.md 
 
 ### 1. GATHER Phase
 
-Collect design information via interview:
+Collect user experience and interaction pattern decisions via interview. Focus on what users see and do, not how the system implements it.
 
 1. Read context from `[inputs]` section
 2. Check for `[query_results]` (resuming after need-context)
 3. If requirements not available:
    - Yield `need-context` requesting requirements.md
-4. Interview user about design preferences:
+4. Interview user about user experience and interaction patterns:
    - Yield `need-user-input` with design questions
-   - Questions cover: visual style, layout preferences, component patterns, accessibility needs
+   - Questions cover: user workflows, screen layouts, interaction patterns, accessibility needs
 5. Proceed to SYNTHESIZE when sufficient information gathered
 
 **Yield `need-user-input` for:**
+- User workflows and task flows
 - Visual style preferences (colors, typography, spacing)
 - Layout approach (responsive, fixed, adaptive)
-- Component library preferences
+- Interaction patterns and navigation
 - Accessibility requirements
 - Brand guidelines or constraints
+
+**Avoid asking about** implementation details like file formats, validation logic, data structures, or internal APIs. These belong in the Architecture phase.
 
 ### 2. SYNTHESIZE Phase
 
@@ -128,6 +148,8 @@ subphase = "complete"
 
 | Rule | Action |
 |------|--------|
+| User experience first | Design focuses on user experience and interaction patterns, not implementation |
+| Implementation details → Architecture | Do not ask about file formats, validation logic, or data structures |
 | Missing requirements | Yield `need-context` to request requirements.md |
 | Ambiguous preference | Yield `need-user-input` with clarifying question |
 | Every DES-N | Must trace to at least one REQ-N |

@@ -3,7 +3,8 @@
 # Target file: ~/.claude/skills/design-interview-producer/SKILL.md
 set -euo pipefail
 
-SKILL_FILE="$HOME/.claude/skills/design-interview-producer/SKILL.md"
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_FILE="$REPO_DIR/skills/design-interview-producer/SKILL.md"
 FAILURES=0
 PASSES=0
 
@@ -32,17 +33,11 @@ else
 fi
 
 # Test 3: The principle is prominent (in a section header, rule table, or dedicated guideline block)
-# It should NOT just be buried in prose - it needs to be findable
-if grep -qE "^(#|##|###|\|)" "$SKILL_FILE" | head -1 && grep -qi "user experience" "$SKILL_FILE"; then
-    # Check if UX language appears near a structural element (header or table row)
-    # Use awk to find if "user experience" or "UX" appears within 3 lines of a header or table row
-    if awk '/^#|^\|/{found=NR} /[Uu]ser [Ee]xperience|UX/{if(found && NR-found<=3) exit 0} END{exit 1}' "$SKILL_FILE"; then
-        pass "UX principle is prominently placed (near header or table)"
-    else
-        fail "UX principle exists but is not prominently placed"
-    fi
+# It should NOT just be buried in prose - it needs to be in a header or table row
+if grep -qE "^#{1,3} .*[Uu]ser [Ee]xperience" "$SKILL_FILE" || grep -qE "^\|.*[Uu]ser [Ee]xperience" "$SKILL_FILE"; then
+    pass "UX principle is prominently placed (in header or table row)"
 else
-    fail "UX principle not found in structural elements"
+    fail "UX principle not found in a header or table row"
 fi
 
 # Test 4: No pseudocode or validation logic examples in the SKILL.md
