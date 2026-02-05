@@ -2376,3 +2376,40 @@ Currently each QA skill manually duplicates the producer's requirements in its o
 **Supersedes:** ISSUE-049 (skill output validation), ISSUE-051 (retro issue creation)
 
 **Traces to:** layer-0-foundation retro discussion
+
+---
+
+## ISSUE-054: PM phase must interview user before producing artifacts
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-04
+
+During ISSUE-053, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
+
+**What happened:**
+1. Orchestrator dispatched pm-interview-producer with issue context
+2. Skill read issue description and assumed it understood the requirements
+3. Skill produced requirements.md WITHOUT asking the user any clarifying questions
+4. 10 requirements were created, design/arch/breakdown followed
+5. Implementation started on the WRONG solution
+
+**What should have happened:**
+1. pm-interview-producer should have asked: "What exactly do you want?"
+2. User would have clarified: "One universal /qa skill, not 12 modified QA skills"
+3. Requirements would reflect the actual desired solution
+
+**Root cause:**
+The pm-interview-producer skill doesn't enforce user interaction. It can complete successfully without ever prompting the user.
+
+**Proposed fix:**
+1. pm-interview-producer MUST yield `need-user-input` at least once during GATHER phase
+2. If issue description seems complete, ask confirming questions like "Is this what you want?" or "Any clarifications?"
+3. Never assume issue description = complete requirements
+
+**Impact:**
+- Wasted work on wrong solution
+- User frustration
+- Trust erosion in the orchestration system
+
+Traces to: ISSUE-053 failure
