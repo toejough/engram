@@ -181,3 +181,51 @@ After doc tests pass, refactor for clarity and organization while keeping tests 
 
 - Pattern: [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
 - Yield protocol: [YIELD.md](../shared/YIELD.md)
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "<refactored-files>"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+    - "<test-file>"
+
+  checks:
+    - id: "CHECK-001"
+      description: "All tests still pass after refactoring"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Behavior unchanged (refactoring only changes structure)"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Linter issues reduced or eliminated"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "No new linter issues introduced"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "No blanket lint suppressions added"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Code readability improved"
+      severity: warning
+
+    - id: "CHECK-007"
+      description: "Complexity reduced where possible"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Duplication removed where possible"
+      severity: warning
+```

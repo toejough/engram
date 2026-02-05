@@ -183,3 +183,69 @@ For each significant decision:
 ## Full Documentation
 
 `projctl skills docs --skillname summary-producer` or see SKILL-full.md
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/project-summary.md"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/requirements.md"
+    - "docs/design.md"
+    - "docs/architecture.md"
+    - "docs/tasks.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Executive overview present"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "All major decisions documented"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Outcomes and deliverables documented"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Lessons learned section included"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Traces to REQ-N, DES-N, ARCH-N, TASK-N"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Decision descriptions match actual choices made (accuracy)"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Outcomes reflect actual implementation results (accuracy)"
+      severity: error
+
+    - id: "CHECK-008"
+      description: "Metrics are verifiable (coverage %, performance numbers)"
+      severity: error
+
+    - id: "CHECK-009"
+      description: "No contradictions with upstream artifacts"
+      severity: error
+
+    - id: "CHECK-010"
+      description: "Key trade-offs explained"
+      severity: warning
+
+    - id: "CHECK-011"
+      description: "Known limitations documented"
+      severity: warning
+
+    - id: "CHECK-012"
+      description: "Timeline and milestones accurate"
+      severity: warning
+```

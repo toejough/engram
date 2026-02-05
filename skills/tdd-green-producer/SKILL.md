@@ -252,3 +252,47 @@ awaiting = "blocker-resolution"
 | Existing tests break | Fix them - never dismiss as "pre-existing" |
 | Stuck after 3 attempts | Yield `blocked` with detailed findings |
 | Architecture unclear | Yield `need-context` for semantic exploration |
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "<implementation-file>"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+    - "<test-file>"
+
+  checks:
+    - id: "CHECK-001"
+      description: "All new tests from red phase pass"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "All existing tests still pass (no regressions)"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Implementation is minimal (no over-engineering)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "No new tests added (that's tdd-red's job)"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Build succeeds with no errors"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Implementation follows architecture patterns"
+      severity: warning
+
+    - id: "CHECK-007"
+      description: "Visual verification for tasks with [visual] marker"
+      severity: warning
+```

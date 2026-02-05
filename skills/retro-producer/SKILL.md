@@ -242,3 +242,61 @@ If `projctl issue create` fails:
 - Continue with remaining issues
 - Include partial `issues_created` list in yield
 - Add failed items to `issues_failed` array in payload
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/retrospective.md"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+    - "docs/architecture.md"
+    - "docs/design.md"
+    - "docs/requirements.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Project summary is accurate"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "What went well section has specific examples"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "What could improve section identifies real challenges"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Recommendations are actionable"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Recommendations are prioritized (High/Medium/Low)"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Recommendations include rationale"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Issues created for High/Medium priority recommendations"
+      severity: error
+
+    - id: "CHECK-008"
+      description: "Open questions section included"
+      severity: error
+
+    - id: "CHECK-009"
+      description: "Metrics and data support observations where available"
+      severity: warning
+
+    - id: "CHECK-010"
+      description: "All phases reviewed (completeness)"
+      severity: warning
+```

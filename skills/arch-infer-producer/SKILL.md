@@ -168,3 +168,51 @@ reason = "Go standard layout for encapsulation"
 phase = "arch"
 subphase = "complete"
 ```
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/architecture.md"
+      id_format: "ARCH-N"
+
+  traces_to:
+    - "docs/design.md"
+    - "docs/requirements.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Every architecture decision has ARCH-N identifier"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Every ARCH-N traces to at least one DES-N or REQ-N"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "All technical implications from requirements addressed (completeness)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "All technology decisions from design covered"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "No conflicts with requirements or design"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "No orphan references (mentions IDs that don't exist)"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Technical decisions include rationale"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Inferred architecture traces to observable code patterns"
+      severity: warning
+```

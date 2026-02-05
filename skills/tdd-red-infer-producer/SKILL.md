@@ -203,3 +203,55 @@ When analyzing existing code, look for:
 | infer | Create _test.go from implementation analysis |
 | update | Add new tests, preserve existing |
 | gap | Identify untested code paths only |
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "<test-file>"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+    - "<source-implementation>"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Test file exists at specified path"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Tests fail when run (red phase)"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Tests fail for correct reasons (missing implementation, not syntax errors)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "No compilation or import errors"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "No implementation code beyond minimal stubs"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Inferred tests cover observable code behaviors"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Tests describe expected behavior clearly"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Tests are blackbox (test public API, not internals)"
+      severity: warning
+
+    - id: "CHECK-009"
+      description: "Existing tests preserved when updating"
+      severity: warning
+```

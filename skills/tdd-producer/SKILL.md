@@ -285,3 +285,60 @@ escalating = true
 - GREEN QA: [tdd-green-qa](../tdd-green-qa/SKILL.md)
 - REFACTOR producer: [tdd-refactor-producer](../tdd-refactor-producer/SKILL.md)
 - REFACTOR QA: [tdd-refactor-qa](../tdd-refactor-qa/SKILL.md)
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "<test-files>"
+      id_format: "N/A"
+    - path: "<implementation-files>"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Tests written before implementation (RED phase first)"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Tests failed initially for correct reasons"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "All tests pass after implementation (GREEN phase)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Refactoring preserved behavior (tests still pass)"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Each acceptance criterion has corresponding test(s)"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "All AC items are checked [x] (none remain unchecked)"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "No deferral language in producer artifacts"
+      severity: error
+
+    - id: "CHECK-008"
+      description: "Linter issues addressed during REFACTOR"
+      severity: error
+
+    - id: "CHECK-009"
+      description: "Minimal implementation (GREEN phase is minimal)"
+      severity: warning
+
+    - id: "CHECK-010"
+      description: "Visual evidence for tasks with [visual] marker"
+      severity: warning
+```

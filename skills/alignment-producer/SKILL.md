@@ -176,3 +176,53 @@ Also check that artifacts stay in their domain:
 - **ARCH**: Implementation only (no problem redef, no user-facing)
 
 Flag domain violations in the report.
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: ".claude/context/alignment-report.toml"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/requirements.md"
+    - "docs/design.md"
+    - "docs/architecture.md"
+    - "docs/tasks.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "All expected artifact files were analyzed"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "ID extraction used correct patterns (REQ-N, DES-N, ARCH-N, TASK-N)"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Orphan IDs detection accurate (cross-file validation)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Unlinked IDs detection accurate"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Chain direction is correct (downstream traces to upstream)"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Suggested fixes are actionable and specific"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Domain boundary violations correctly identified"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Coverage metrics included"
+      severity: warning
+```

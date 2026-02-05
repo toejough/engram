@@ -270,3 +270,54 @@ func TestAuthentication(t *testing.T) {
 ## Full Documentation
 
 `projctl skills docs --skillname tdd-red-producer` or see SKILL-full.md
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "<test-file>"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/tasks.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Test file exists at specified path"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Tests fail when run (red phase)"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Tests fail for correct reasons (missing implementation, not syntax errors)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Tests cover task acceptance criteria"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "No compilation or import errors"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "No implementation code beyond minimal stubs"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Tests describe expected behavior clearly"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Property tests used for invariants and edge cases"
+      severity: warning
+
+    - id: "CHECK-009"
+      description: "Tests are blackbox (test public API, not internals)"
+      severity: warning
+```

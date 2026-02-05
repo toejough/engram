@@ -192,3 +192,50 @@ Subcommands are grouped by category with headers.
 | infer | Create design.md from UI/UX analysis |
 | update | Add new decisions, preserve existing |
 | normalize | Convert legacy format to DES-N headers |
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/design.md"
+      id_format: "DES-N"
+
+  traces_to:
+    - "docs/requirements.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Every design decision has DES-N identifier"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Every DES-N traces to at least one REQ-N"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "All user-facing REQ-N have corresponding DES-N (coverage)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "No conflicting design decisions (consistency)"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "All screens and flows addressed (completeness)"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Design describes user-facing behavior, not implementation"
+      severity: warning
+
+    - id: "CHECK-007"
+      description: "No orphan REQ-N references"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Inferred designs include rationale"
+      severity: warning
+```

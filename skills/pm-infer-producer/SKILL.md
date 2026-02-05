@@ -165,3 +165,50 @@ subphase = "complete"
 | Primary yield | `need-context` | `need-user-input` |
 | Certainty | Lower (inference) | Higher (explicit) |
 | Use case | Adoption, documentation | New development |
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/requirements.md"
+      id_format: "REQ-N"
+
+  traces_to:
+    - "issue description"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Every requirement has REQ-N identifier"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Every REQ-N has acceptance criteria"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Every REQ-N traces to the issue (if available)"
+      severity: warning
+
+    - id: "CHECK-004"
+      description: "Acceptance criteria are measurable and testable"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "No ambiguous language (should, may, might)"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "Inferred requirements trace to observable code behavior"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Edge cases identified where applicable"
+      severity: warning
+
+    - id: "CHECK-008"
+      description: "Dependencies between requirements documented"
+      severity: warning
+```

@@ -105,3 +105,60 @@ Users can authenticate via OAuth 2.0...
 ## Full Documentation
 
 `projctl skills docs --skillname doc-producer` or see SKILL-full.md
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "README.md"
+      id_format: "N/A"
+    - path: "docs/api.md"
+      id_format: "N/A"
+    - path: "docs/user-guide.md"
+      id_format: "N/A"
+
+  traces_to:
+    - "docs/requirements.md"
+    - "docs/design.md"
+    - "docs/architecture.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "All public APIs documented"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Installation and quick start present"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "Traces to REQ-N, DES-N, ARCH-N included"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Code examples compile and run (accuracy)"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "API signatures match implementation"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "No orphan traces (referencing non-existent IDs)"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "projctl trace validate passes"
+      severity: error
+
+    - id: "CHECK-008"
+      description: "Version numbers current"
+      severity: warning
+
+    - id: "CHECK-009"
+      description: "User guides cover key workflows"
+      severity: warning
+```
