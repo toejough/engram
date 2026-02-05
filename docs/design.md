@@ -338,6 +338,96 @@ Orchestrator resolves this to:
 
 ---
 
+## ISSUE-056: Inferred Specification Warning Design
+
+Design decisions for how producers flag inferred specifications and how the orchestrator presents them for user approval.
+
+---
+
+### DES-014: Inferred Yield Format
+
+Inferred specifications use the existing `need-user-input` yield type with an added `inferred = true` flag in the payload. This avoids a new yield type while clearly distinguishing inferred items from regular interview questions.
+
+```toml
+[yield]
+type = "need-user-input"
+timestamp = 2026-02-05T12:00:00Z
+
+[payload]
+inferred = true
+question = "Accept this inferred specification?"
+
+[[payload.items]]
+specification = "REQ-X: Input validation for empty strings"
+reasoning = "Edge case: empty input could cause downstream errors"
+source = "best-practice"
+
+[[payload.items]]
+specification = "REQ-Y: Rate limiting on API calls"
+reasoning = "Implicit need: without rate limiting, external API costs could spike"
+source = "edge-case"
+
+[context]
+phase = "pm"
+subphase = "SYNTHESIZE"
+awaiting = "user-response"
+```
+
+**Key fields:**
+- `payload.inferred = true`: Signals this is not a regular question but an inference confirmation
+- `payload.items`: Array of inferred specifications, each with specification text, reasoning, and source category
+- `source` values: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
+
+**Traces to:** REQ-012
+
+---
+
+### DES-015: Orchestrator Presentation of Inferred Items
+
+The orchestrator presents inferred items as a numbered list with reasoning. The user can accept all, reject all, or selectively accept/reject individual items.
+
+**User prompt format:**
+```
+The producer inferred the following specifications that were not
+explicitly requested. Please accept or reject each:
+
+1. [ACCEPT/REJECT] REQ-X: Input validation for empty strings
+   Reasoning: Edge case - empty input could cause downstream errors
+
+2. [ACCEPT/REJECT] REQ-Y: Rate limiting on API calls
+   Reasoning: Implicit need - without rate limiting, external API costs could spike
+
+Accept all, reject all, or specify by number (e.g., "accept 1, reject 2"):
+```
+
+**User response handling:**
+- "accept all" / "reject all" for batch decisions
+- Individual responses: "accept 1, reject 2"
+- Free-form responses interpreted by orchestrator
+
+**Traces to:** REQ-014
+
+---
+
+### DES-016: Producer Inference Detection Workflow
+
+During the SYNTHESIZE phase, producers separate gathered information into two categories before producing artifacts:
+
+1. **Explicit**: Directly traceable to user input, issue description, or gathered context
+2. **Inferred**: Added by the producer based on professional judgment
+
+**Workflow:**
+1. Producer completes GATHER phase (interview or context analysis)
+2. During SYNTHESIZE, producer classifies each specification as explicit or inferred
+3. If any inferred items exist, producer yields `need-user-input` with `inferred = true` BEFORE producing the artifact
+4. Orchestrator presents inferred items to user
+5. Producer receives accept/reject responses
+6. Producer produces artifact with only explicit + accepted items
+
+**Traces to:** REQ-013, REQ-015
+
+---
+
 ## Summary
 
 | Decision | Choice |
@@ -352,3 +442,6 @@ Orchestrator resolves this to:
 | Upstream issues | `escalate-phase` with proposed changes |
 | Unresolvable | `escalate-user` with options |
 | Max iterations | 3, then escalate to user |
+| Inferred spec format | `need-user-input` with `inferred = true` flag |
+| Inferred presentation | Numbered list with reasoning, accept/reject per item |
+| Inference detection | SYNTHESIZE phase classifies explicit vs inferred before producing |
