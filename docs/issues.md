@@ -2751,19 +2751,16 @@ Decision needed: Should CHECK-012 be promoted to error severity after observing 
 ### ISSUE-068: Decision needed: Simplicity assessment in SYNTHESIZE vs PRODUCE phase?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
-Unresolved question from ISSUE-058 retrospective (Q2).
+**Decision:** Single holistic assessment in SYNTHESIZE phase. Per-task `**Simplicity Assessment:**` field removed from task template. Rationale:
 
-Context: The breakdown-producer skill documentation places simplicity check in SYNTHESIZE phase (before decomposition) but the output appears in PRODUCE phase (task templates).
+1. The most impactful simplicity question ("Is this breakdown as simple as possible?") is holistic, not per-task
+2. Per-task assessments degenerate into boilerplate ("Simplest approach - no viable alternatives")
+3. Individual task granularity is already covered by CHECK-010 ("Appropriate granularity")
+4. SYNTHESIZE is the natural phase - it runs before decomposition, when the decision to simplify is still actionable
 
-Consideration: Should each individual task have its own simplicity assessment, or should there be one overall simplicity assessment for the entire breakdown?
-
-Current implementation: Per-task assessments (PRODUCE phase output)
-
-Alternative: Single assessment in SYNTHESIZE phase asking 'Is this breakdown as simple as possible?' before generating tasks.
-
-Decision needed: Which approach provides more value?
+Changes: breakdown-producer SKILL.md updated to consolidate simplicity assessment in SYNTHESIZE, add "simplicity rationale" to tasks.md header, remove per-task field and CHECK-012.
 
 **Traces to:** ISSUE-058

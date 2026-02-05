@@ -51,9 +51,11 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 1. Validate alignment: All REQ -> ARCH coverage
 
 2. **Assess simplicity**: Before decomposing, ask:
+   - "Is this breakdown as simple as possible?"
    - "Is there a simpler approach that achieves the same outcome?"
    - "Could this be done with fewer tasks/components/changes?"
    - Document alternatives considered and why current approach is appropriate
+   - Record a **simplicity rationale** for inclusion in tasks.md header
 
 3. Identify decomposition units:
    - Pure functions (no dependencies)
@@ -75,6 +77,7 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 ## PRODUCE Phase
 
 1. Generate tasks.md with:
+   - **Simplicity rationale** section in header (from SYNTHESIZE assessment)
    - TASK-N IDs (sequential)
    - Title + description
    - Acceptance criteria (checkboxes)
@@ -136,41 +139,8 @@ Rules:
 
 **Dependencies:** TASK-X, TASK-Y | None
 
-**Simplicity Assessment:** Brief explanation of alternatives considered (e.g., "Considered combining with TASK-X but kept separate due to different dependencies" or "Simplest approach - no viable alternatives identified")
-
 **Traces to:** ARCH-1, DES-2
 ```
-
----
-
-## Simplicity Assessment
-
-The simplicity assessment field documents whether the task breakdown is appropriately scoped or if simpler alternatives exist.
-
-### When to Document Alternatives
-
-Include alternatives considered when:
-
-1. **Combining tasks**: "Considered merging TASK-X and TASK-Y but kept separate due to different dependencies"
-2. **Splitting tasks**: "Split from TASK-Z to isolate integration testing"
-3. **Using existing code**: "Considered reusing module X but incompatible interface"
-4. **Skipping abstraction**: "Could add abstraction layer but unnecessary for single use case"
-
-### Simplest Approach
-
-If no viable alternatives exist, document:
-- "Simplest approach - no viable alternatives identified"
-- "Minimal change required - direct implementation"
-
-### Example Assessments
-
-**Good**: "Considered combining with TASK-3 database setup, but kept separate because TASK-3 blocks on schema design while this can proceed with mocks"
-
-**Good**: "Simplest approach - single function addition with no dependencies"
-
-**Poor**: "N/A" or "None" (doesn't show thinking)
-
-**Poor**: "Best approach" (doesn't document alternatives)
 
 ---
 
@@ -284,9 +254,5 @@ contract:
 
     - id: "CHECK-011"
       description: "Visual tasks marked with [visual] tag"
-      severity: warning
-
-    - id: "CHECK-012"
-      description: "Each task includes simplicity assessment explaining alternatives considered"
       severity: warning
 ```

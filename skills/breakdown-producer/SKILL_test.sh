@@ -4,7 +4,7 @@
 set -e
 
 SKILL_FILE="skills/breakdown-producer/SKILL.md"
-REPO_ROOT="/Users/joe/repos/personal/projctl"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 cd "$REPO_ROOT"
 
@@ -31,26 +31,26 @@ if ! grep -A 10 "## SYNTHESIZE Phase" "$SKILL_FILE" | grep -q "simplicity"; then
 fi
 echo "PASS: SYNTHESIZE phase includes simplicity assessment step"
 
-# Test 4: PRODUCE phase task format includes Simplicity Assessment section
-if ! grep -q "Simplicity Assessment" "$SKILL_FILE"; then
-  echo "FAIL: Task format does not include Simplicity Assessment section"
+# Test 4: Simplicity is holistic (SYNTHESIZE), not per-task (no per-task field in template)
+if grep -A 50 "## Task Format" "$SKILL_FILE" | grep -q "Simplicity Assessment"; then
+  echo "FAIL: Task format should NOT include per-task Simplicity Assessment (moved to SYNTHESIZE)"
   exit 1
 fi
-echo "PASS: Task format includes Simplicity Assessment section"
+echo "PASS: Task format does not include per-task Simplicity Assessment"
 
-# Test 5: Contract checks include simplicity assessment validation
-if ! grep -A 100 "## Contract" "$SKILL_FILE" | grep -i "simplicity"; then
-  echo "FAIL: Contract does not validate simplicity assessment"
+# Test 5: No per-task simplicity contract check (CHECK-012 removed)
+if grep -q "CHECK-012" "$SKILL_FILE"; then
+  echo "FAIL: CHECK-012 (per-task simplicity) should be removed"
   exit 1
 fi
-echo "PASS: Contract validates simplicity assessment"
+echo "PASS: CHECK-012 removed from contract"
 
-# Test 6: Simplicity Assessment appears in task format example
-if ! grep -A 50 "## Task Format" "$SKILL_FILE" | grep -q "Simplicity Assessment"; then
-  echo "FAIL: Task format example does not include Simplicity Assessment"
+# Test 6: Simplicity rationale is in tasks.md header (PRODUCE phase output)
+if ! grep -q "Simplicity rationale" "$SKILL_FILE"; then
+  echo "FAIL: PRODUCE phase should include simplicity rationale in tasks.md header"
   exit 1
 fi
-echo "PASS: Task format example includes Simplicity Assessment"
+echo "PASS: PRODUCE phase includes simplicity rationale in header"
 
 # Test 7: SYNTHESIZE phase asks the right simplicity question
 if ! grep -q "simpler approach" "$SKILL_FILE"; then
@@ -59,12 +59,12 @@ if ! grep -q "simpler approach" "$SKILL_FILE"; then
 fi
 echo "PASS: SYNTHESIZE phase asks about simpler approaches"
 
-# Test 8: Document explains what simplicity assessment should contain
-if ! grep -A 10 "Simplicity Assessment" "$SKILL_FILE" | grep -q "alternative"; then
-  echo "FAIL: Simplicity Assessment section does not mention alternatives"
+# Test 8: SYNTHESIZE simplicity step documents alternatives considered
+if ! grep -A 10 "Assess simplicity" "$SKILL_FILE" | grep -q "alternatives considered"; then
+  echo "FAIL: SYNTHESIZE simplicity step does not mention documenting alternatives"
   exit 1
 fi
-echo "PASS: Simplicity Assessment explains content requirements"
+echo "PASS: SYNTHESIZE simplicity step documents alternatives"
 
 echo ""
 echo "All tests passed!"
