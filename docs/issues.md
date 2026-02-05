@@ -2519,7 +2519,7 @@ When producing requirements, design, or architecture, explicitly note when a spe
 ### ISSUE-057: Retro: Fix projctl trace validate issue recognition
 
 **Priority:** Medium
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-04
 
 From ISSUE-054 retrospective (R3):

@@ -465,8 +465,9 @@ func Repair(dir string) (RepairResult, error) {
 	result := RepairResult{}
 
 	// Find dangling references: referenced but not defined
+	// ISSUE IDs are exempt because they are defined at repo root, not in project directories
 	for ref := range referencedIDs {
-		if len(definedIDs[ref]) == 0 {
+		if len(definedIDs[ref]) == 0 && !strings.HasPrefix(ref, "ISSUE-") {
 			result.DanglingRefs = append(result.DanglingRefs, ref)
 			// Create escalation for dangling ref
 			result.Escalations = append(result.Escalations, EscalationInfo{
@@ -867,8 +868,12 @@ func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult
 	result := ValidateV2ArtifactsResult{Pass: true}
 
 	// Orphan: referenced in Traces to: but not defined
+	// ISSUE IDs are exempt from orphan checks because issues are always defined
+	// at the repo-level docs/issues.md, not in project subdirectories. When
+	// validation runs from a project subdirectory, ISSUE-NNN references are
+	// cross-boundary references to the repo root and cannot be resolved locally.
 	for ref := range referencedIDs {
-		if !definedIDs[ref] {
+		if !definedIDs[ref] && !strings.HasPrefix(ref, "ISSUE-") {
 			result.OrphanIDs = append(result.OrphanIDs, ref)
 			result.Pass = false
 		}
