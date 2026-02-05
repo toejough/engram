@@ -2330,7 +2330,7 @@ Superseded by ISSUE-053 - meta-fix where QA validates producer against its own S
 ### ISSUE-052: Orchestrator/skills must maintain tasks.md acceptance criteria
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed (won't do)
 **Created:** 2026-02-04
 
 Skills and the orchestrator don't update tasks.md as work progresses. Acceptance criteria checkboxes remain unchecked, task statuses remain 'Ready' even after work is complete. This requires manual cleanup and causes state machine confusion.
