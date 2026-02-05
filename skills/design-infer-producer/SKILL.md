@@ -17,6 +17,23 @@ Analyze existing UI/UX to infer design decisions. Produces design.md with DES-N 
 **Template:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
 **Yield Protocol:** [YIELD.md](../shared/YIELD.md)
 
+## User Experience First
+
+Design phase focuses on **user experience** and **interaction patterns**. Implementation details belong in Architecture phase.
+
+**When inferring design decisions:**
+- Extract user workflows and task flows
+- Document screen layouts and navigation patterns
+- Identify interaction patterns and affordances
+- Note visual hierarchy and information architecture
+- Document feedback mechanisms
+
+**Avoid documenting:**
+- File formats or data structures (belongs in Architecture)
+- Validation logic or error handling mechanisms (belongs in Architecture)
+- Internal APIs or system interfaces (belongs in Architecture)
+- Algorithms or processing pipelines (belongs in Architecture)
+
 ---
 
 ## Purpose
@@ -80,6 +97,15 @@ Process gathered UI/UX information:
 3. Map decisions to requirements (REQ-N)
 4. Check for conflicts with existing design.md
 5. If blocked, yield `blocked` with details
+
+### 2b. CLASSIFY (Inference Detection)
+
+Classify each planned design decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each design decision from SYNTHESIZE, determine if it was directly present in analyzed code/UI or inferred by the producer
+2. If any inferred design decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
 ### 3. PRODUCE
 
@@ -154,6 +180,7 @@ yield_path = "context/design-infer-producer-yield.toml"
 |------|-------------|
 | `complete` | Design artifact created successfully |
 | `need-context` | Need UI/UX files, screenshots, or semantic exploration |
+| `need-user-input` (inferred) | Present inferred design decisions for user accept/reject |
 | `need-decision` | Multiple valid design interpretations |
 | `blocked` | Cannot proceed (missing visual assets, unclear patterns) |
 | `error` | Something failed (retryable) |

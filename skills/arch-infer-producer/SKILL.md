@@ -16,6 +16,23 @@ Analyze existing code to infer architecture decisions and produce architecture.m
 
 **Protocol:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) | [YIELD.md](../shared/YIELD.md)
 
+## Technical Decisions Only
+
+Architecture phase focuses on **technology choices** and **system design**. Problem discovery belongs in PM, user experience belongs in Design.
+
+**When inferring architecture decisions:**
+- Extract technology stack (languages, frameworks, libraries)
+- Document system structure (modules, layers, boundaries)
+- Identify data models and schemas
+- Note API contracts and interfaces
+- Document integration patterns
+
+**Avoid documenting:**
+- What problems the code solves (belongs in PM)
+- What features users need (belongs in PM)
+- UI/UX patterns or visual design (belongs in Design)
+- Interaction flows or user workflows (belongs in Design)
+
 ## Purpose
 
 This skill examines code structure, dependencies, and patterns to reverse-engineer architecture decisions. Used for:
@@ -67,6 +84,15 @@ Analyze gathered code structure:
 4. Detect configuration and build patterns
 5. Map to upstream requirements (REQ-N) and design (DES-N) where traceable
 
+### 2b. CLASSIFY (Inference Detection)
+
+Classify each planned architecture decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each architecture decision from SYNTHESIZE, determine if it was directly present in analyzed code/docs or inferred by the producer
+2. If any inferred architecture decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+
 ### 3. PRODUCE
 
 Create architecture.md artifact:
@@ -112,6 +138,7 @@ Uses Mage for build automation with targets defined in dev/.
 | Yield | When | Payload |
 |-------|------|---------|
 | `need-context` | Need code structure analysis | `queries[]` with territory/file/semantic |
+| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject | `inferred = true`, `items[]` |
 | `need-decision` | Ambiguous architecture choice | Options with recommendation |
 | `complete` | architecture.md created | `artifact`, `ids_created[]` |
 | `blocked` | Cannot analyze (e.g., binary-only) | Blocker details |

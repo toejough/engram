@@ -17,6 +17,21 @@ Analyzes existing code to infer requirements for codebase adoption.
 **Template:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
 **Yield Protocol:** [YIELD.md](../shared/YIELD.md)
 
+## Problem Discovery First
+
+PM phase focuses on **problem discovery** and **user needs**. Implementation details, UI/UX design, and technology choices belong in downstream phases.
+
+**When inferring requirements:**
+- Extract functional capabilities (what it does)
+- Identify user needs served by the code
+- Document observable behaviors and acceptance criteria
+- Note constraints and limitations
+
+**Avoid documenting:**
+- UI/UX design patterns or visual elements (belongs in Design)
+- Technology choices or implementation details (belongs in Architecture)
+- Internal algorithms or data structures (belongs in Architecture)
+
 ## Quick Reference
 
 | Aspect | Details |
@@ -70,6 +85,15 @@ Process gathered code analysis:
 - Error handling (failure modes)
 - Performance (if observable)
 
+### 2b. CLASSIFY Phase (Inference Detection)
+
+Classify each planned requirement as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each requirement from SYNTHESIZE, determine if it was directly present in analyzed code/docs or inferred by the producer
+2. If any inferred requirements exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+
 ### 3. PRODUCE Phase
 
 Create requirements artifact:
@@ -97,6 +121,7 @@ Description of requirement inferred from code.
 | Yield | When |
 |-------|------|
 | `need-context` | Need code exploration (semantic/file/territory queries) |
+| `need-user-input` (inferred) | Present inferred requirements for user accept/reject |
 | `blocked` | Cannot proceed (missing access, unreadable code) |
 | `complete` | requirements.md created successfully |
 | `error` | Parse failure or other recoverable error |

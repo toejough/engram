@@ -18,13 +18,33 @@ Producer skill that gathers requirements through structured user interview and p
 
 **Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
 
+## Problem Discovery First
+
+PM phase focuses on **problem discovery** and **user needs**. Implementation details, UI/UX design, and technology choices belong in downstream phases.
+
+**Do not** ask about or include:
+- UI/UX design patterns or visual elements
+- Technology choices (languages, frameworks, databases)
+- Implementation strategies or algorithms
+- Architecture decisions or system design
+- File formats or data structures
+
+**Do** focus on:
+- Problem identification and pain points
+- User personas and affected parties
+- Current state assessment
+- Desired outcomes and benefits
+- Success criteria and measurement
+- Constraints and limitations
+- Edge cases and exceptional scenarios
+
 ---
 
 ## Workflow
 
 ### 1. GATHER Phase
 
-Collect requirements through structured interview:
+Collect requirements through structured interview. Focus on what problems need solving and who they affect, not how to solve them.
 
 1. Read context from `[inputs]` section for project info
 2. Check `[query_results]` for previous responses (if resuming)
@@ -37,6 +57,8 @@ Collect requirements through structured interview:
    - **EDGE CASES**: What could go wrong?
 5. Accumulate responses until sufficient for synthesis
 
+**Avoid asking about** implementation details like UI design, technology choices, or system architecture. These belong in Design and Architecture phases.
+
 ### 2. SYNTHESIZE Phase
 
 Process gathered interview responses:
@@ -47,6 +69,15 @@ Process gathered interview responses:
 4. Structure into user stories with acceptance criteria
 5. Assign priorities (P0/P1/P2)
 6. If blocked by contradictions, yield `blocked` with details
+
+### 2b. CLASSIFY Phase (Inference Detection)
+
+Classify each planned requirement as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each requirement from SYNTHESIZE, determine if it was directly requested by the user or inferred
+2. If any inferred requirements exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
 ### 3. PRODUCE Phase
 
@@ -77,6 +108,7 @@ Generate requirements.md artifact:
 |------------|-----------|
 | `need-context` | Gather existing docs before interview |
 | `need-user-input` | Each interview question |
+| `need-user-input` (inferred) | Present inferred requirements for user accept/reject |
 | `need-decision` | When user provides conflicting requirements |
 | `blocked` | Cannot proceed without resolution |
 | `complete` | requirements.md artifact produced |
@@ -171,14 +203,28 @@ Each requirement includes:
 
 ---
 
+## Rules
+
+| Rule | Action |
+|------|--------|
+| Problem discovery first | PM focuses on problem space and user needs, not solution implementation |
+| Implementation details → Architecture | Do not ask about technology choices, algorithms, or system design |
+| UI/UX details → Design | Do not ask about visual design, layouts, or interaction patterns |
+| Missing context | Yield `need-context` to request existing docs |
+| Conflicting needs | Yield `need-decision` with clarifying question |
+| Every REQ-N | Must have acceptance criteria and trace to issue |
+| Measurable criteria | Acceptance criteria must be testable and unambiguous |
+
 ## Boundaries
 
 | In Scope | Out of Scope |
 |----------|--------------|
-| Problem discovery | UI/UX design |
+| Problem discovery | UI/UX design patterns |
 | User needs | Technology choices |
 | Success criteria | Implementation details |
 | Edge cases | Architecture decisions |
+| Pain points | Visual design elements |
+| Constraints | File formats or data structures |
 
 Out-of-scope topics are noted for downstream phases (Design, Architecture) and conversation redirects to problem discovery.
 

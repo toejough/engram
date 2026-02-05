@@ -105,8 +105,14 @@ All phases use the universal `qa` skill. Context must include producer metadata.
 1. Write context with output.yield_path
 2. Dispatch PRODUCER skill
 3. Read yield
-4. If yield.type = "complete": write QA context and dispatch `qa` skill
-5. Handle QA yield:
+4. If yield.type = "need-user-input" AND payload.inferred = true:
+   a. Present inferred items as numbered accept/reject list with reasoning
+   b. User responds: "accept all", "reject all", or per-item (e.g., "accept 1, reject 2")
+   c. Write decisions to [query_results.inferred_decisions]
+   d. Resume producer with decisions
+   e. Go to step 3
+5. If yield.type = "complete": write QA context and dispatch `qa` skill
+6. Handle QA yield:
    - "approved" → advance
    - "improvement-request" → resume producer (max 3x)
    - "escalate-phase" → return to prior phase
@@ -134,7 +140,8 @@ max_iterations = 3
 | --------------------- | ----------------------------------- |
 | `complete`            | Advance to QA or next phase         |
 | `approved`            | Phase complete, advance             |
-| `need-user-input`     | Prompt user, resume with answer     |
+| `need-user-input`     | Prompt user, resume with answer (see below for inferred) |
+| `need-user-input` (inferred) | Present inferred items for accept/reject, resume with decisions |
 | `need-context`        | Dispatch `context-explorer`, resume |
 | `need-decision`       | Present options, resume with choice |
 | `improvement-request` | Resume producer with feedback       |

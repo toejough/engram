@@ -14,6 +14,26 @@ variant: interview
 
 Gather architecture decisions via user interview, produce architecture.md with ARCH-N IDs.
 
+## Technical Decisions Only
+
+Architecture phase focuses on **technology choices** and **system design**. Problem discovery belongs in PM, user experience belongs in Design.
+
+**Do not** ask about or include:
+- What problems to solve (belongs in PM)
+- What features users need (belongs in PM)
+- UI/UX patterns or visual design (belongs in Design)
+- Interaction flows or user workflows (belongs in Design)
+
+**Do** focus on:
+- Technology stack (languages, frameworks, libraries)
+- System structure (modules, layers, boundaries)
+- Data models and schemas
+- API contracts and interfaces
+- Integration patterns with external systems
+- Performance and scalability approaches
+- Security and authorization mechanisms
+- Deployment and infrastructure
+
 ## Quick Reference
 
 | Aspect | Details |
@@ -29,7 +49,7 @@ Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern. Outputs [YI
 
 ### GATHER Phase
 
-Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) with architecture-specific queries.
+Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) with architecture-specific queries. Focus on technical decisions needed to implement the requirements and design.
 
 1. Execute `projctl territory map` to get file structure and artifact locations
 2. Execute `projctl memory query` with architecture domain queries (e.g., "technology stack decisions", "system design choices", "technical constraints")
@@ -39,6 +59,8 @@ Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) wi
 6. Extract technical implications from requirements
 7. Identify decision categories (language, framework, database, etc.)
 8. Log context sources used (territory, memory, files) in yield metadata
+
+**Avoid asking about** problem discovery (what to build) or user experience design (how users interact). These are inputs from PM and Design phases.
 
 **Error Handling:**
 - Territory map failure → Yield `blocked` with diagnostic information (infrastructure problem, cannot proceed safely)
@@ -89,6 +111,15 @@ Select and phrase questions based on gap size and gathered context.
 3. Identify conflicts or gaps
 4. Structure ARCH-N entries with traceability
 
+### CLASSIFY Phase (Inference Detection)
+
+Classify each planned architecture decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each architecture decision from SYNTHESIZE, determine if it was directly requested by the user or inferred
+2. If any inferred architecture decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+
 ### PRODUCE Phase
 
 1. Generate architecture.md with ARCH-N IDs
@@ -132,6 +163,7 @@ Each question typically influences 1-3 architecture entries:
 | `need-context` | Need requirements.md, design.md, or codebase info |
 | `need-decision` | Contradictory context requires user resolution |
 | `need-user-input` | Interview question for technology decision |
+| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
 | `blocked` | Infrastructure failure prevents proceeding |
 | `complete` | architecture.md written |
 
@@ -221,6 +253,18 @@ Go selected for backend implementation.
 
 **Traces to:** REQ-1, REQ-3
 ```
+
+## Rules
+
+| Rule | Action |
+|------|--------|
+| Technical decisions first | Architecture focuses on technology and system design, not problem space |
+| Problem discovery → PM | Do not ask what features are needed or what problems exist |
+| User experience → Design | Do not ask about UI patterns, workflows, or visual elements |
+| Missing requirements/design | Yield `need-context` to request upstream artifacts |
+| Contradictory context | Yield `need-decision` with conflict details |
+| Every ARCH-N | Must trace to at least one REQ-N or DES-N |
+| Include rationale | Document why decisions were made and alternatives considered |
 
 ## Domain Ownership
 

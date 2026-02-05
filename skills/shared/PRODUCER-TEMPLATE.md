@@ -58,6 +58,36 @@ Process gathered information:
 5. Prepare structured output
 ```
 
+### 2b. CLASSIFY (Inference Detection)
+
+After SYNTHESIZE, classify each planned specification as explicit or inferred before producing the artifact. This ensures users are never surprised by unwanted scope additions.
+
+**Definitions:**
+- **Explicit**: Directly traceable to a specific user statement, issue description field, interview response, or gathered context document passage.
+- **Inferred**: Added by the producer based on best practices, edge cases, implicit needs, or professional judgment. The user did not ask for it.
+
+**Classification heuristic:**
+- Can you point to a specific sentence the user wrote or said that requested this? -> **explicit**
+- Did you add this because it seems like a good idea, covers an edge case, or follows best practices? -> **inferred**
+- When in doubt: classify as **inferred** (conservative default)
+
+**Examples:**
+
+| Specification | Classification | Why |
+|---------------|---------------|-----|
+| "Support --help flag" (user said "build a CLI tool") | Explicit | Standard CLI expectation from user's request |
+| "Validate input file exists before processing" | Inferred | Edge case not mentioned by user |
+| "Add rate limiting to API calls" | Inferred | Best practice not requested |
+| "Return error on empty input" (user said "handle errors gracefully") | Explicit | Directly follows from user's stated need |
+
+**Workflow:**
+1. Review each specification planned during SYNTHESIZE
+2. Classify as explicit or inferred
+3. If any inferred items exist: yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](./YIELD.md))
+4. Wait for user accept/reject decisions
+5. Drop rejected items, keep accepted items
+6. Proceed to PRODUCE with only explicit + accepted items
+
 ### 3. PRODUCE
 
 Create the artifact:

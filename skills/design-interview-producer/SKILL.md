@@ -80,6 +80,15 @@ Process gathered design information:
 4. If blocked, yield `blocked` with details
 5. Structure findings for design.md
 
+### 2b. CLASSIFY Phase (Inference Detection)
+
+Classify each planned design decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
+
+1. For each design decision from SYNTHESIZE, determine if it was directly requested by the user or inferred
+2. If any inferred design decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+3. Wait for user accept/reject decisions
+4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+
 ### 3. PRODUCE Phase
 
 Create the design.md artifact:

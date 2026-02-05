@@ -107,6 +107,63 @@ subphase = "PROBLEM"
 awaiting = "user-response"
 ```
 
+### need-user-input (inferred specifications)
+
+When a producer infers specifications not explicitly requested by the user, it yields `need-user-input` with `payload.inferred = true`. The orchestrator presents these for user accept/reject before the producer includes them in the artifact.
+
+**When to use:** During SYNTHESIZE phase, after classifying specifications as explicit or inferred per PRODUCER-TEMPLATE.md guidelines. Yield before PRODUCE phase so rejected items are excluded from the artifact.
+
+```toml
+[yield]
+type = "need-user-input"
+timestamp = 2026-02-05T12:00:00Z
+
+[payload]
+inferred = true
+question = "The following specifications were inferred and not explicitly requested. Accept or reject each."
+
+[[payload.items]]
+specification = "REQ-X: Input validation for empty strings"
+reasoning = "Edge case: empty input could cause downstream errors"
+source = "edge-case"
+
+[[payload.items]]
+specification = "REQ-Y: Rate limiting on API calls"
+reasoning = "Implicit need: without rate limiting, external API costs could spike"
+source = "implicit-need"
+
+[context]
+phase = "pm"
+subphase = "SYNTHESIZE"
+awaiting = "user-response"
+```
+
+**Payload fields (when `inferred = true`):**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `inferred` | bool | Must be `true`. Distinguishes from regular questions. |
+| `question` | string | Prompt text for the user. |
+| `items` | array | List of inferred specifications. |
+| `items[].specification` | string | The inferred specification text. |
+| `items[].reasoning` | string | Why this was inferred. |
+| `items[].source` | string | Category: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment` |
+
+**Orchestrator response format (written to `[query_results]`):**
+
+```toml
+[query_results]
+[[query_results.inferred_decisions]]
+specification = "REQ-X: Input validation for empty strings"
+accepted = true
+
+[[query_results.inferred_decisions]]
+specification = "REQ-Y: Rate limiting on API calls"
+accepted = false
+```
+
+**Backward compatibility:** The `inferred` field is optional. Existing `need-user-input` yields without it continue to work as regular questions.
+
 ### need-context
 
 ```toml
