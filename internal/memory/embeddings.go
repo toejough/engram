@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	_ "github.com/mattn/go-sqlite3"
@@ -30,10 +31,52 @@ const onnxRuntimeVersion = "1.23.2"
 
 var onnxRuntimeInitialized bool
 
+// Session cache for ISSUE-048: Cache ONNX sessions across test functions
+var (
+	sessionCache     map[string]*ort.DynamicAdvancedSession
+	sessionCacheMu   sync.RWMutex
+	sessionInitCount int
+	sessionInitMu    sync.Mutex
+	sessionOnce      map[string]*sync.Once
+	sessionOnceMu    sync.Mutex
+	modelDownloadMu  sync.Mutex
+)
+
 func init() {
 	// Auto-register sqlite-vec extension
 	sqlite_vec.Auto()
 	// ONNX Runtime will be initialized on first use
+
+	// Initialize session cache
+	sessionCache = make(map[string]*ort.DynamicAdvancedSession)
+	sessionOnce = make(map[string]*sync.Once)
+}
+
+// GetSessionInitCount returns the number of times sessions have been initialized.
+// This is a test-only function for verifying caching behavior.
+func GetSessionInitCount() int {
+	sessionInitMu.Lock()
+	defer sessionInitMu.Unlock()
+	return sessionInitCount
+}
+
+// ClearSessionCache clears the session cache and destroys all cached sessions.
+// This is a test-only function for test isolation.
+func ClearSessionCache() {
+	sessionCacheMu.Lock()
+	defer sessionCacheMu.Unlock()
+
+	// Destroy all cached sessions
+	for _, session := range sessionCache {
+		_ = session.Destroy()
+	}
+
+	// Clear the caches
+	sessionCache = make(map[string]*ort.DynamicAdvancedSession)
+
+	sessionOnceMu.Lock()
+	sessionOnce = make(map[string]*sync.Once)
+	sessionOnceMu.Unlock()
 }
 
 // initEmbeddingsDB initializes the embeddings database with sqlite-vec.
@@ -195,8 +238,18 @@ func downloadONNXRuntime(modelDir string) (string, error) {
 }
 
 // downloadModel downloads the e5-small-v2 model from HuggingFace if not already present.
+// Thread-safe: uses mutex to prevent concurrent downloads.
 func downloadModel(modelPath string) error {
-	// Check if model already exists
+	// Fast path: check without lock
+	if _, err := os.Stat(modelPath); err == nil {
+		return nil // Model already exists
+	}
+
+	// Acquire lock for download
+	modelDownloadMu.Lock()
+	defer modelDownloadMu.Unlock()
+
+	// Check again after acquiring lock (another goroutine may have downloaded)
 	if _, err := os.Stat(modelPath); err == nil {
 		return nil // Model already exists
 	}
@@ -232,6 +285,9 @@ func downloadModel(modelPath string) error {
 		return fmt.Errorf("failed to save model: %w", err)
 	}
 
+	// Close the file before renaming (required on Windows)
+	_ = out.Close()
+
 	// Rename temp file to final path
 	if err := os.Rename(tempPath, modelPath); err != nil {
 		_ = os.Remove(tempPath)
@@ -265,8 +321,70 @@ func initializeONNXRuntime(modelDir string) error {
 	return nil
 }
 
+// getOrCreateSession retrieves a cached session or creates a new one.
+// Returns the session and whether it was newly created in THIS call.
+func getOrCreateSession(modelPath string) (*ort.DynamicAdvancedSession, bool, error) {
+	// Try read lock first for fast path (session already exists)
+	sessionCacheMu.RLock()
+	if session, exists := sessionCache[modelPath]; exists {
+		sessionCacheMu.RUnlock()
+		return session, false, nil
+	}
+	sessionCacheMu.RUnlock()
+
+	// Get or create the sync.Once for this model path
+	sessionOnceMu.Lock()
+	once, exists := sessionOnce[modelPath]
+	if !exists {
+		once = &sync.Once{}
+		sessionOnce[modelPath] = once
+	}
+	sessionOnceMu.Unlock()
+
+	// Track if we actually created the session in THIS goroutine
+	var session *ort.DynamicAdvancedSession
+	var err error
+	createdInThisCall := false
+
+	once.Do(func() {
+		session, err = ort.NewDynamicAdvancedSession(modelPath,
+			[]string{"input_ids", "attention_mask", "token_type_ids"},
+			[]string{"last_hidden_state"},
+			nil)
+		if err != nil {
+			return
+		}
+
+		// Store in cache
+		sessionCacheMu.Lock()
+		sessionCache[modelPath] = session
+		sessionCacheMu.Unlock()
+
+		// Increment init count
+		sessionInitMu.Lock()
+		sessionInitCount++
+		sessionInitMu.Unlock()
+
+		createdInThisCall = true
+	})
+
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to create ONNX session: %w", err)
+	}
+
+	// If we didn't create it in this call, retrieve from cache
+	if !createdInThisCall {
+		sessionCacheMu.RLock()
+		session = sessionCache[modelPath]
+		sessionCacheMu.RUnlock()
+	}
+
+	return session, createdInThisCall, nil
+}
+
 // generateEmbeddingONNX generates an embedding using the e5-small-v2 ONNX model.
-func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
+// Returns the embedding, whether a new session was created, and whether a session was reused.
+func generateEmbeddingONNX(text string, modelPath string) ([]float32, bool, bool, error) {
 	// Simple tokenization (this is a placeholder - real implementation would use proper tokenizer)
 	// For now, we'll use a basic word-based approach
 	words := strings.Fields(strings.ToLower(text))
@@ -288,33 +406,30 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 		tokenTypeIDs[i] = 0                           // All zeros for single sequence
 	}
 
-	// Create ONNX Runtime session
-	session, err := ort.NewDynamicAdvancedSession(modelPath,
-		[]string{"input_ids", "attention_mask", "token_type_ids"},
-		[]string{"last_hidden_state"},
-		nil)
+	// Get or create cached session
+	session, sessionCreated, err := getOrCreateSession(modelPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ONNX session: %w", err)
+		return nil, false, false, err
 	}
-	defer func() { _ = session.Destroy() }()
+	// Don't destroy the session - it's cached for reuse
 
 	// Create input tensors
 	inputShape := ort.NewShape(1, int64(inputSize))
 	inputIDsTensor, err := ort.NewTensor(inputShape, inputIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create input_ids tensor: %w", err)
+		return nil, false, false, fmt.Errorf("failed to create input_ids tensor: %w", err)
 	}
 	defer func() { _ = inputIDsTensor.Destroy() }()
 
 	attentionMaskTensor, err := ort.NewTensor(inputShape, attentionMask)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create attention_mask tensor: %w", err)
+		return nil, false, false, fmt.Errorf("failed to create attention_mask tensor: %w", err)
 	}
 	defer func() { _ = attentionMaskTensor.Destroy() }()
 
 	tokenTypeIDsTensor, err := ort.NewTensor(inputShape, tokenTypeIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create token_type_ids tensor: %w", err)
+		return nil, false, false, fmt.Errorf("failed to create token_type_ids tensor: %w", err)
 	}
 	defer func() { _ = tokenTypeIDsTensor.Destroy() }()
 
@@ -322,7 +437,7 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 	outputShape := ort.NewShape(1, int64(inputSize), int64(embeddingDim))
 	outputTensor, err := ort.NewEmptyTensor[float32](outputShape)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create output tensor: %w", err)
+		return nil, false, false, fmt.Errorf("failed to create output tensor: %w", err)
 	}
 	defer func() { _ = outputTensor.Destroy() }()
 
@@ -330,7 +445,7 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 	inputs := []ort.Value{inputIDsTensor, attentionMaskTensor, tokenTypeIDsTensor}
 	outputs := []ort.Value{outputTensor}
 	if err := session.Run(inputs, outputs); err != nil {
-		return nil, fmt.Errorf("failed to run inference: %w", err)
+		return nil, false, false, fmt.Errorf("failed to run inference: %w", err)
 	}
 
 	// Extract embeddings from output
@@ -374,17 +489,21 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, error) {
 		}
 	}
 
-	return embedding, nil
+	sessionReused := !sessionCreated
+
+	return embedding, sessionCreated, sessionReused, nil
 }
 
 // createEmbeddings processes content and creates embeddings using ONNX model.
-func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, error) {
+// Returns the number of new embeddings created, whether a session was created, and whether it was reused.
+func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, bool, bool, error) {
 	existing, err := getExistingEmbeddings(db)
 	if err != nil {
-		return 0, err
+		return 0, false, false, err
 	}
 
 	newCount := 0
+	var sessionCreated, sessionReused bool
 
 	for _, content := range contents {
 		// Skip if already embedded
@@ -393,20 +512,26 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, err
 		}
 
 		// Generate embedding using ONNX model
-		embedding, err := generateEmbeddingONNX(content, modelPath)
+		embedding, created, reused, err := generateEmbeddingONNX(content, modelPath)
 		if err != nil {
-			return newCount, fmt.Errorf("failed to generate embedding: %w", err)
+			return newCount, sessionCreated, sessionReused, fmt.Errorf("failed to generate embedding: %w", err)
+		}
+
+		// Track session status from first call
+		if newCount == 0 {
+			sessionCreated = created
+			sessionReused = reused
 		}
 
 		// Insert into vec table using sqlite-vec SerializeFloat32
 		vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
 		embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
 		if err != nil {
-			return newCount, err
+			return newCount, sessionCreated, sessionReused, err
 		}
 		result, err := db.Exec(vecStmt, embeddingBlob)
 		if err != nil {
-			return newCount, err
+			return newCount, sessionCreated, sessionReused, err
 		}
 
 		embeddingID, _ := result.LastInsertId()
@@ -414,13 +539,13 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, err
 		// Insert into metadata table
 		metaStmt := `INSERT INTO embeddings(content, source, embedding_id) VALUES (?, ?, ?)`
 		if _, err := db.Exec(metaStmt, content, "memory", embeddingID); err != nil {
-			return newCount, err
+			return newCount, sessionCreated, sessionReused, err
 		}
 
 		newCount++
 	}
 
-	return newCount, nil
+	return newCount, sessionCreated, sessionReused, nil
 }
 
 // searchSimilar finds the most similar embeddings using cosine similarity.

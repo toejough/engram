@@ -378,10 +378,16 @@ type QueryResults struct {
 	ModelType           string
 	InferenceExecuted   bool
 	UsedMockEmbeddings  bool
+	// Session caching fields (ISSUE-048)
+	SessionCreatedNew bool
+	SessionReused     bool
+	QueryDuration     time.Duration
 }
 
 // Query searches memory for semantically similar content using embeddings.
 func Query(opts QueryOpts) (*QueryResults, error) {
+	startTime := time.Now()
+
 	if opts.Text == "" {
 		return nil, fmt.Errorf("text is required")
 	}
@@ -471,15 +477,23 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	}
 
 	// Create embeddings for new content using ONNX model
-	newEmbeddings, err := createEmbeddings(db, contents, modelPath)
+	newEmbeddings, sessionCreated, sessionReused, err := createEmbeddings(db, contents, modelPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create embeddings: %w", err)
 	}
 
 	// Generate query embedding using ONNX model
-	queryEmbedding, err := generateEmbeddingONNX(opts.Text, modelPath)
+	queryEmbedding, querySessionCreated, querySessionReused, err := generateEmbeddingONNX(opts.Text, modelPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate query embedding: %w", err)
+	}
+
+	// If session wasn't created during content embedding, check query embedding
+	if !sessionCreated && querySessionCreated {
+		sessionCreated = true
+		sessionReused = false
+	} else if !sessionReused && querySessionReused {
+		sessionReused = true
 	}
 
 	// Search for similar embeddings
@@ -487,6 +501,8 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to search: %w", err)
 	}
+
+	duration := time.Since(startTime)
 
 	return &QueryResults{
 		Results:              results,
@@ -503,6 +519,9 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		UsedMockEmbeddings:   false,
 		EmbeddingsCount:      existingCount + newEmbeddings,
 		NewEmbeddingsCreated: newEmbeddings,
+		SessionCreatedNew:    sessionCreated,
+		SessionReused:        sessionReused,
+		QueryDuration:        duration,
 	}, nil
 }
 
