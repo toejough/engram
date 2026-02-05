@@ -211,6 +211,14 @@ Note: `--dir` defaults to `.claude/projects/<NAME>/` and creates it if needed.
 
 Output: requirements.md with REQ-NNN IDs
 
+QA: Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/pm-interview-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/pm-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/requirements.md"]
+```
+
 ### Design Phase
 
 **Interview mode** (new): Dispatch `design-interview-producer`
@@ -218,12 +226,28 @@ Output: requirements.md with REQ-NNN IDs
 
 Output: design.md with DES-NNN IDs, optional .pen files
 
+QA: Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/design-interview-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/design-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/design.md"]
+```
+
 ### Architecture Phase
 
 **Interview mode** (new): Dispatch `arch-interview-producer`
 **Infer mode** (adopt/align): Dispatch `arch-infer-producer`
 
 Output: architecture.md with ARCH-NNN IDs
+
+QA: Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/arch-interview-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/arch-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/architecture.md"]
+```
 
 ### Alignment Phase (main flow ending)
 
@@ -239,11 +263,27 @@ If fails:
 3. Re-validate (max 2 iterations)
 4. Escalate unresolved gaps to user
 
+QA: Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/alignment-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/alignment-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/requirements.md", ".claude/projects/<name>/design.md", ".claude/projects/<name>/architecture.md"]
+```
+
 ### Task Breakdown Phase
 
 Dispatch `breakdown-producer`
 
 Output: tasks.md with TASK-NNN IDs and dependency graph
+
+QA: Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/breakdown-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/breakdown-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/tasks.md"]
+```
 
 ### TDD Implementation Loop
 
@@ -263,7 +303,19 @@ projctl state transition --dir . --to task-start --task TASK-NNN
 | commit-green | `commit` | tdd-refactor |
 | tdd-refactor | `tdd-refactor-producer` | commit-refactor |
 | commit-refactor | `commit` | task-audit |
-| task-audit | `tdd-qa` | task-complete or retry |
+| task-audit | `qa` | task-complete or retry |
+
+QA context for task-audit:
+```toml
+[inputs]
+producer_skill_path = "skills/tdd-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/tdd-producer-yield.toml"
+artifact_paths = ["<implementation files from task>"]
+
+[context]
+iteration = 1
+max_iterations = 3
+```
 
 **After audit:**
 - Pass → `task-complete`
@@ -310,7 +362,13 @@ Options:
 Runs after Implementation completes.
 
 1. Dispatch `doc-producer`
-2. Dispatch `doc-qa`
+2. Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/doc-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/doc-producer-yield.toml"
+artifact_paths = ["docs/requirements.md", "docs/design.md", "docs/architecture.md"]
+```
 3. Integrates project artifacts into repo-level docs:
    - `.claude/projects/<name>/requirements.md` → `docs/requirements.md`
    - `.claude/projects/<name>/design.md` → `docs/design.md`
@@ -326,11 +384,13 @@ Infers artifacts from existing code, working upward:
 |-------|-------|--------|
 | Explore | Implementation Explorer | Codebase analysis |
 | Infer Tests | Test inference | Test mapping |
-| Infer Arch | `arch-infer-producer` + `arch-qa` | architecture.md |
-| Infer Design | `design-infer-producer` + `design-qa` | design.md |
-| Infer Reqs | `pm-infer-producer` + `pm-qa` | requirements.md |
+| Infer Arch | `arch-infer-producer` + `qa` | architecture.md |
+| Infer Design | `design-infer-producer` + `qa` | design.md |
+| Infer Reqs | `pm-infer-producer` + `qa` | requirements.md |
 | Escalations | User resolution | Resolved ambiguities |
-| Documentation | `doc-producer` + `doc-qa` | Repo-level docs |
+| Documentation | `doc-producer` + `qa` | Repo-level docs |
+
+All QA uses the universal `qa` skill with appropriate context (producer_skill_path, producer_yield_path, artifact_paths).
 
 Escalations collected during inference are batched for user resolution.
 
@@ -348,14 +408,26 @@ Returns to main flow for Alignment → Retro → Summary → Next Steps.
 ### Retrospective Phase (main flow ending)
 
 1. Dispatch `retro-producer`
-2. Dispatch `retro-qa`
+2. Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/retro-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/retro-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/retro.md"]
+```
 3. Output: `.claude/projects/<name>/retro.md`, follow-up issues
 4. **Present artifact to user**: Read and display `retro.md` content (not a paraphrase)
 
 ### Summary Phase (main flow ending)
 
 1. Dispatch `summary-producer`
-2. Dispatch `summary-qa`
+2. Dispatch `qa` with context:
+```toml
+[inputs]
+producer_skill_path = "skills/summary-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/summary-producer-yield.toml"
+artifact_paths = [".claude/projects/<name>/summary.md"]
+```
 3. Output: `.claude/projects/<name>/summary.md`
 4. **Present artifact to user**: Read and display `summary.md` content (not a paraphrase)
    - For long summaries (>50 lines), show Executive Overview + link to full file
@@ -425,17 +497,34 @@ Loop until pass or abort.
 | State | Resume Action |
 |-------|---------------|
 | init | Start PM |
+| pm-producer | Resume PM producer |
+| pm-qa | Resume QA with PM context |
 | pm-complete | Start Design |
+| design-producer | Resume Design producer |
+| design-qa | Resume QA with Design context |
 | design-complete | Start Architecture |
+| arch-producer | Resume Architecture producer |
+| arch-qa | Resume QA with Architecture context |
 | architect-complete | Start Breakdown |
+| breakdown-producer | Resume Breakdown producer |
+| breakdown-qa | Resume QA with Breakdown context |
 | breakdown-complete | Start Implementation |
 | task-start, tdd-* | Resume TDD at sub-phase |
 | commit-* | Resume commit |
+| task-audit | Resume QA with TDD context |
 | task-complete | Next task or Implementation complete |
 | implementation-complete | Start Documentation |
+| doc-producer | Resume Documentation producer |
+| doc-qa | Resume QA with Documentation context |
 | documentation-complete | Start Alignment (main flow ending) |
+| alignment-producer | Resume Alignment producer |
+| alignment-qa | Resume QA with Alignment context |
 | alignment-complete | Start Retro |
+| retro-producer | Resume Retro producer |
+| retro-qa | Resume QA with Retro context |
 | retro-complete | Start Summary |
+| summary-producer | Resume Summary producer |
+| summary-qa | Resume QA with Summary context |
 | summary-complete | Start Issue Update |
 | issue-update-complete | Start Next Steps |
 | adopt-explore | Resume exploration |
@@ -449,9 +538,13 @@ Loop until pass or abort.
 | task-implementation | Resume single-task TDD |
 | task-documentation | Resume single-task documentation |
 
+**QA Resume**: When resuming at a `*-qa` state, read the corresponding producer yield and dispatch the universal `qa` skill with appropriate context.
+
 ---
 
 ## Context Format
+
+### Producer Context
 
 ```toml
 [input]
@@ -460,8 +553,28 @@ task = "TASK-5"
 # phase-specific data
 
 [output]
-yield_path = ".claude/agents/pm-interview-producer-yield.toml"
+yield_path = ".projctl/yields/pm-producer-yield.toml"
 ```
+
+### QA Context (Universal)
+
+All phases use the universal `qa` skill with this context schema:
+
+```toml
+[inputs]
+producer_skill_path = "skills/<phase>-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/<phase>-producer-yield.toml"
+artifact_paths = ["<artifact files>"]
+
+[context]
+iteration = 1
+max_iterations = 3
+
+[output]
+yield_path = ".projctl/yields/qa-yield.toml"
+```
+
+The QA skill reads the producer's SKILL.md to understand acceptance criteria and the producer yield to see what was produced.
 
 ---
 

@@ -85,17 +85,19 @@ Skills decide their own behavior based on context. If the user wants to skip int
 
 ## Skill Dispatch
 
-| Phase         | Producer                                              | QA             |
-| ------------- | ----------------------------------------------------- | -------------- |
-| PM            | `pm-interview-producer` / `pm-infer-producer`         | `pm-qa`        |
-| Design        | `design-interview-producer` / `design-infer-producer` | `design-qa`    |
-| Architecture  | `arch-interview-producer` / `arch-infer-producer`     | `arch-qa`      |
-| Breakdown     | `breakdown-producer`                                  | `breakdown-qa` |
-| TDD           | `tdd-producer` (composite)                            | `tdd-qa`       |
-| Documentation | `doc-producer`                                        | `doc-qa`       |
-| Alignment     | `alignment-producer`                                  | `alignment-qa` |
-| Retro         | `retro-producer`                                      | `retro-qa`     |
-| Summary       | `summary-producer`                                    | `summary-qa`   |
+| Phase         | Producer                                              | QA   |
+| ------------- | ----------------------------------------------------- | ---- |
+| PM            | `pm-interview-producer` / `pm-infer-producer`         | `qa` |
+| Design        | `design-interview-producer` / `design-infer-producer` | `qa` |
+| Architecture  | `arch-interview-producer` / `arch-infer-producer`     | `qa` |
+| Breakdown     | `breakdown-producer`                                  | `qa` |
+| TDD           | `tdd-producer` (composite)                            | `qa` |
+| Documentation | `doc-producer`                                        | `qa` |
+| Alignment     | `alignment-producer`                                  | `qa` |
+| Retro         | `retro-producer`                                      | `qa` |
+| Summary       | `summary-producer`                                    | `qa` |
+
+All phases use the universal `qa` skill. Context must include producer metadata.
 
 ## PAIR LOOP Pattern
 
@@ -103,12 +105,27 @@ Skills decide their own behavior based on context. If the user wants to skip int
 1. Write context with output.yield_path
 2. Dispatch PRODUCER skill
 3. Read yield
-4. If yield.type = "complete": dispatch QA skill
+4. If yield.type = "complete": write QA context and dispatch `qa` skill
 5. Handle QA yield:
    - "approved" → advance
    - "improvement-request" → resume producer (max 3x)
    - "escalate-phase" → return to prior phase
    - "escalate-user" → present to user
+```
+
+### QA Context Schema
+
+When dispatching the universal `qa` skill, write context with:
+
+```toml
+[inputs]
+producer_skill_path = "skills/<phase>-producer/SKILL.md"
+producer_yield_path = ".projctl/yields/<phase>-producer-yield.toml"
+artifact_paths = ["docs/<artifact>.md"]
+
+[context]
+iteration = 1
+max_iterations = 3
 ```
 
 ## Yield Types
