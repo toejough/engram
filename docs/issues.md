@@ -2572,7 +2572,7 @@ Breakdown-producer should perform simplicity check asking: 'Could this be done w
 ### ISSUE-059: Decision needed: Should skills have scope creep detection?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (duplicate of ISSUE-056)
 **Created:** 2026-02-04
 
 Unresolved question from ISSUE-054 retrospective (Q1).
