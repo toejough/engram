@@ -49,7 +49,13 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 ## SYNTHESIZE Phase
 
 1. Validate alignment: All REQ -> ARCH coverage
-2. Identify decomposition units:
+
+2. **Assess simplicity**: Before decomposing, ask:
+   - "Is there a simpler approach that achieves the same outcome?"
+   - "Could this be done with fewer tasks/components/changes?"
+   - Document alternatives considered and why current approach is appropriate
+
+3. Identify decomposition units:
    - Pure functions (no dependencies)
    - Types/interfaces
    - Storage layer
@@ -57,12 +63,12 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
    - Components
    - Integration points
 
-3. Build dependency graph:
+4. Build dependency graph:
    - Explicit TASK-N references only
    - No cycles (DAG requirement)
    - No prose like "All previous"
 
-4. If blocked, yield `blocked` with details
+5. If blocked, yield `blocked` with details
 
 ---
 
@@ -130,6 +136,8 @@ Rules:
 
 **Dependencies:** TASK-X, TASK-Y | None
 
+**Simplicity Assessment:** Brief explanation of alternatives considered (e.g., "Considered combining with TASK-X but kept separate due to different dependencies" or "Simplest approach - no viable alternatives identified")
+
 **Traces to:** ARCH-1, DES-2
 ```
 
@@ -186,3 +194,68 @@ Task affects `components/Button.tsx` and AC says "button displays loading spinne
 | `need-context` | Need architecture/requirements files |
 | `blocked` | Cannot decompose (missing info, conflicts) |
 | `error` | Parse failure, invalid input |
+
+---
+
+## Contract
+
+```yaml
+contract:
+  outputs:
+    - path: "docs/tasks.md"
+      id_format: "TASK-N"
+
+  traces_to:
+    - "docs/architecture.md"
+    - "docs/design.md"
+    - "docs/requirements.md"
+
+  checks:
+    - id: "CHECK-001"
+      description: "Every task has TASK-N identifier"
+      severity: error
+
+    - id: "CHECK-002"
+      description: "Every TASK-N traces to at least one ARCH-N, DES-N, or REQ-N"
+      severity: error
+
+    - id: "CHECK-003"
+      description: "All ARCH-N IDs have at least one implementing TASK (architecture coverage)"
+      severity: error
+
+    - id: "CHECK-004"
+      description: "Tasks have testable acceptance criteria"
+      severity: error
+
+    - id: "CHECK-005"
+      description: "Acceptance criteria are measurable, not vague"
+      severity: error
+
+    - id: "CHECK-006"
+      description: "No orphan tasks (all trace to ARCH/DES/REQ)"
+      severity: error
+
+    - id: "CHECK-007"
+      description: "Sequential numbering (no gaps)"
+      severity: error
+
+    - id: "CHECK-008"
+      description: "Dependencies reference valid TASK-N IDs"
+      severity: error
+
+    - id: "CHECK-009"
+      description: "No prose dependencies (explicit TASK-N references only)"
+      severity: error
+
+    - id: "CHECK-010"
+      description: "Appropriate granularity (not too large/small)"
+      severity: warning
+
+    - id: "CHECK-011"
+      description: "Visual tasks marked with [visual] tag"
+      severity: warning
+
+    - id: "CHECK-012"
+      description: "Each task includes simplicity assessment explaining alternatives considered"
+      severity: warning
+```
