@@ -79,3 +79,150 @@ As a maintainer, I want all interview skills to follow the same context-aware pa
 **Depends on:** REQ-002, REQ-003
 
 **Source:** ISSUE-061
+
+---
+
+## ISSUE-053: Universal QA Skill
+
+Requirements for replacing 13 phase-specific QA skills with one universal QA skill that validates producers against their SKILL.md contracts.
+
+---
+
+### REQ-005: Universal QA Skill
+
+As a maintainer, I want one universal `/qa` skill that validates any producer against its SKILL.md contract, so that QA logic is centralized and drift-free.
+
+**Acceptance Criteria:**
+- [ ] Single `skills/qa/SKILL.md` replaces all 13 phase-specific QA skills
+- [ ] QA skill receives producer's SKILL.md as context input
+- [ ] QA skill receives producer's yield (what it claims it did)
+- [ ] QA skill receives the produced artifacts (what actually exists)
+- [ ] QA validates: does reality match the contract?
+- [ ] QA uses Haiku model (fast, cheap, capable enough)
+- [ ] QA supports all existing yield types: `approved`, `improvement-request`, `escalate-phase`, `escalate-user`
+- [ ] When yield is malformed (invalid TOML, missing required fields), QA yields `improvement-request` with parse error details
+- [ ] When artifacts are missing (file not found), QA yields `improvement-request` listing missing files
+- [ ] When producer SKILL.md is missing or unreadable, QA yields `error` (cannot validate without contract)
+
+**Priority:** P0
+
+**Depends on:** REQ-006
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-006: Contract Standard Definition
+
+As a maintainer, I want a standard contract format for producer SKILL.md files, so that QA can programmatically extract validation criteria.
+
+**Acceptance Criteria:**
+- [ ] Standard documented in `skills/shared/CONTRACT.md`
+- [ ] Format uses YAML code blocks within a "Contract" markdown section
+- [ ] Contract includes: requirements table with ID, description, severity (error/warning)
+- [ ] Contract includes: expected outputs (artifact paths, ID formats)
+- [ ] Contract includes: required traces (what upstream artifacts must be referenced)
+- [ ] Contract format is extensible for future needs
+- [ ] When prose requirements don't fit the format, update CONTRACT.md to accommodate (format evolves with needs)
+- [ ] CONTRACT.md includes version field; QA logs warning if producer uses older version but continues validation
+
+**Priority:** P0
+
+**Depends on:** None
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-007: Producer Skill Contract Sections
+
+As a maintainer, I want all producer skills to have contract sections in their SKILL.md, so that QA can validate them consistently.
+
+**Acceptance Criteria:**
+- [ ] All producer skills updated to include Contract section per REQ-006 format
+- [ ] Contract sections capture everything the producer is responsible for
+- [ ] Existing prose requirements converted to structured contract format
+- [ ] Producer skills affected: pm-interview-producer, pm-infer-producer, design-interview-producer, design-infer-producer, arch-interview-producer, arch-infer-producer, breakdown-producer, tdd-red-producer, tdd-green-producer, tdd-refactor-producer, doc-producer, alignment-producer, retro-producer, summary-producer
+
+**Priority:** P0
+
+**Depends on:** REQ-006
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-008: Gap Analysis Before QA Deletion
+
+As a maintainer, I want gap analysis performed before deleting QA skills, so that no validation logic is lost.
+
+**Acceptance Criteria:**
+- [ ] For each QA skill, compare its checklist against corresponding producer's contract
+- [ ] If QA checks something the producer doesn't document, flag as gap
+- [ ] Gaps require user decision: add to producer contract OR explicitly drop
+- [ ] Do NOT port QA checks blindly - each gap requires explicit confirmation
+- [ ] Gap analysis documented before any QA skill deletion
+- [ ] QA skills (13 total): pm-qa, design-qa, arch-qa, breakdown-qa, tdd-qa, tdd-red-qa, tdd-green-qa, tdd-refactor-qa, doc-qa, context-qa, alignment-qa, retro-qa, summary-qa
+
+**Priority:** P0
+
+**Depends on:** REQ-007
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-009: QA Skill Deletion
+
+As a maintainer, I want the 13 phase-specific QA skills deleted after migration, so that there's a single source of truth for QA.
+
+**Acceptance Criteria:**
+- [ ] All 13 QA skills deleted from `skills/` directory
+- [ ] Deletion only after: (1) gap analysis complete (REQ-008), (2) producer contracts complete (REQ-007), (3) universal QA skill functional (REQ-005)
+- [ ] Hard cutover - no parallel operation period
+- [ ] QA-TEMPLATE.md updated or removed as appropriate
+- [ ] Any references to deleted skills updated (orchestrator, documentation)
+
+**Priority:** P1
+
+**Depends on:** REQ-005, REQ-007, REQ-008
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-010: Orchestrator Updates for Universal QA
+
+As a maintainer, I want the orchestrator to dispatch the universal QA skill correctly, so that it receives the right context.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator passes producer's SKILL.md path to QA
+- [ ] Orchestrator passes producer's yield file to QA
+- [ ] Orchestrator passes artifact paths to QA
+- [ ] Orchestrator uses single `/qa` skill for all phases (no phase-specific dispatch)
+- [ ] QA context file format documented
+
+**Priority:** P0
+
+**Depends on:** REQ-005
+
+**Traces to:** ISSUE-053
+
+---
+
+### REQ-011: Contract-Based Fallback Heuristics
+
+As a maintainer, I want QA to fall back to heuristics when a producer lacks a formal contract, so that validation still works during migration.
+
+**Acceptance Criteria:**
+- [ ] If producer SKILL.md has no Contract section, QA reads entire SKILL.md
+- [ ] QA extracts implicit requirements from prose (best effort)
+- [ ] QA logs warning that producer should add contract section
+- [ ] Fallback is transitional - all producers should eventually have contracts
+- [ ] Contract format is the norm; prose fallback is the exception
+
+**Priority:** P1
+
+**Depends on:** REQ-005, REQ-006
+
+**Traces to:** ISSUE-053
