@@ -5,6 +5,8 @@
 .projctl/
 context/
 context.test
+state.toml
+updates.jsonl
 
 # Test artifacts
 coverage.out
