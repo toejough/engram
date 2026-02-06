@@ -37,7 +37,7 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 | Aspect | Details |
 |--------|---------|
 | Pattern | GATHER -> SYNTHESIZE -> PRODUCE |
-| Input | Context TOML with project path |
+| Input | Spawn prompt (team mode) or context TOML (legacy) |
 | Output | requirements.md with REQ-N IDs |
 | Primary Yield | `need-context` for code exploration |
 | Terminal Yield | `complete` with artifact path |
@@ -48,8 +48,8 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 
 Collect information by exploring existing codebase:
 
-1. Read context from `[inputs]` section
-2. Check `[query_results]` for resumed context
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
+2. Check `[query_results]` for resumed context (legacy mode)
 3. If code exploration needed, yield `need-context`:
    - `semantic` queries for understanding code behavior
    - `file` queries for specific source files
@@ -101,7 +101,12 @@ Create requirements artifact:
 1. Generate requirements.md with REQ-N format
 2. Include `**Traces to:**` links (ISSUE if available)
 3. Write to path from `[config]`
-4. Yield `complete` with artifact details
+4. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - REQ IDs created
+   - Files modified
+   - Key decisions made
+5. In legacy mode, yield `complete` with artifact details
 
 ## REQ Format
 
@@ -173,6 +178,30 @@ alternatives = ["Include inferred internals", "Ask user"]
 phase = "pm"
 subphase = "complete"
 ```
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `need-context` | Need code exploration (semantic/file/territory queries) |
+| `need-user-input` (inferred) | Present inferred requirements for user accept/reject |
+| `blocked` | Cannot proceed (missing access, unreadable code) |
+| `complete` | requirements.md created successfully |
+| `error` | Parse failure or other recoverable error |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
+
+---
 
 ## Rules
 

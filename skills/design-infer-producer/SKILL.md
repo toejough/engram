@@ -51,8 +51,8 @@ Deduce design decisions from existing user interfaces without user interview. Us
 
 Collect information about existing UI/UX:
 
-1. Read context from `[inputs]` section
-2. Check for `[query_results]` (resuming after need-context)
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
+2. Check for `[query_results]` (resuming after need-context, legacy mode)
 3. If missing interface information, yield `need-context`:
 
 ```toml
@@ -125,7 +125,12 @@ Description of the inferred design decision.
 
 2. Include `**Traces to:**` links to requirements
 3. Write to configured path from context
-4. Yield `complete`:
+4. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - DES IDs created
+   - Files modified
+   - Key decisions made
+5. In legacy mode, yield `complete`:
 
 ```toml
 [yield]
@@ -152,7 +157,7 @@ subphase = "complete"
 
 ## Input Context
 
-Read from `<project>/.claude/context/design-infer-producer-context.toml`:
+In team mode, context is provided via the spawn prompt. In legacy mode, read from `<project>/.claude/context/design-infer-producer-context.toml`:
 
 ```toml
 [invocation]
@@ -199,6 +204,31 @@ Subcommands are grouped by category with headers.
 
 **Traces to:** REQ-003
 ```
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `need-context` | Need UI/UX files, screenshots, or semantic exploration |
+| `need-user-input` (inferred) | Present inferred design decisions for user accept/reject |
+| `need-decision` | Multiple valid design interpretations |
+| `blocked` | Cannot proceed (missing visual assets, unclear patterns) |
+| `complete` | Design artifact created successfully |
+| `error` | Something failed (retryable) |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

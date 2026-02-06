@@ -46,8 +46,8 @@ This skill examines code structure, dependencies, and patterns to reverse-engine
 
 Collect information about code structure:
 
-1. Read context from `[inputs]` section
-2. Check for `[query_results]` (resuming after need-context)
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
+2. Check for `[query_results]` (resuming after need-context, legacy mode)
 3. If code analysis needed, yield `need-context` with queries:
    - `territory` queries for directory structure
    - `file` queries for go.mod, package.json, Makefile, etc.
@@ -100,9 +100,16 @@ Create architecture.md artifact:
 1. Generate ARCH-N IDs for each decision
 2. Include `**Traces to:**` links to REQ/DES IDs
 3. Write to configured output path
-4. Yield `complete` with artifact details
+4. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - ARCH IDs created
+   - Files modified
+   - Key decisions made
+5. In legacy mode, yield `complete` with artifact details
 
-## Input (Context TOML)
+## Input
+
+In team mode, context is provided via the spawn prompt. In legacy mode, read from context TOML:
 
 ```toml
 [inputs]
@@ -195,6 +202,31 @@ reason = "Go standard layout for encapsulation"
 phase = "arch"
 subphase = "complete"
 ```
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `need-context` | Need code structure analysis |
+| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
+| `need-decision` | Ambiguous architecture choice |
+| `blocked` | Cannot analyze (e.g., binary-only) |
+| `complete` | architecture.md created |
+| `error` | Parse/access failure |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 
