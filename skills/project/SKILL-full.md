@@ -1,6 +1,6 @@
 ---
 name: project
-description: State-machine-driven project orchestrator
+description: State-machine-driven project orchestrator (team lead)
 user-invocable: true
 ---
 
@@ -17,31 +17,87 @@ Every phase follows this pattern:
 ```
 [D] = Deterministic (CLI)    [A] = Agentic (LLM)
 
-[A] 0. Classify message (detect corrections → log lesson)
 [D] 1. projctl state get --dir .
 [D] 2. projctl territory map --cached
 [D] 3. projctl memory query "relevant to current task"
-[D] 4. projctl context write --dir . --task TASK --skill SKILL --file context.toml
-[A] 5. Dispatch skill via Skill tool
-[D] 6. projctl context read --dir . --task TASK --skill SKILL --result
-[D] 7. projctl state next --dir .
-[A] 8. If action=continue: loop. If action=stop: check reason.
+[A] 4. Spawn producer teammate with context (project info, artifacts, prior results)
+[A] 5. Receive producer result via message
+[A] 6. Spawn QA teammate with context (producer SKILL.md, artifacts, iteration)
+[A] 7. Receive QA verdict via message
+[A] 8. Handle verdict: advance, iterate, or escalate
+[D] 9. /commit (after each phase completion)
+[D] 10. projctl state transition --dir . --to <next-phase>
 ```
 
-### Stop Reasons
+### Verdict Handling
 
-| Reason | Action |
-|--------|--------|
-| `all_complete` | Present summary |
-| `escalation_pending` | Present to user |
-| `validation_failed` | Run repair loop |
-| `retries_exhausted` | Present failure |
+| Verdict | Action |
+|---------|--------|
+| `approved` | Commit, advance to next phase |
+| `improvement-request` | Spawn new producer with QA feedback (max 3x) |
+| `escalate-phase` | Return to prior phase |
+| `escalate-user` | Present to user |
 
 ### Anti-patterns
 
 - NEVER say "No response requested" when work remains
 - NEVER ask "Should I continue?" if `state next` returns `continue`
 - NEVER wait for confirmation between TDD phases
+- NEVER relay user questions through messages — teammates ask directly
+
+---
+
+## Team Lifecycle
+
+### Startup
+
+```
+Teammate(operation: "spawnTeam", team_name: "<project-name>")
+```
+
+Creates a team. All subsequent Task calls with `team_name` join this team.
+
+### Spawning Teammates
+
+Each phase spawns a producer teammate and a QA teammate:
+
+```
+Task(subagent_type: "general-purpose",
+     team_name: "<project>",
+     name: "pm-producer",
+     prompt: "Invoke /pm-interview-producer for this project.
+
+Project: <name>
+Issue: ISSUE-NNN
+Phase: pm
+Docs dir: docs/
+Requirements path: docs/requirements.md
+
+Prior context:
+<territory map summary>
+<memory query results>
+<issue description>
+
+When complete, send me a message with:
+- Artifact path
+- IDs created (REQ-N list)
+- Files modified
+- Key decisions made")
+```
+
+### Receiving Results
+
+Messages from teammates are delivered automatically. Parse the message to determine:
+- Was it a completion (artifact produced)?
+- Was it a blocker (needs escalation)?
+
+### Shutdown
+
+After all phases complete:
+```
+SendMessage(type: "shutdown_request", recipient: "<teammate-name>")
+Teammate(operation: "cleanup")
+```
 
 ---
 
@@ -54,23 +110,11 @@ Controls iteration within a phase or across tasks:
 2. Identify next batch:
    - Find all items with no blocking dependencies
    - Single item → PAIR LOOP
-   - N independent items → PARALLEL LOOPER
+   - N independent items → spawn one teammate per item (parallel)
 3. Execute batch
 4. Re-evaluate queue (dependencies may have resolved)
 5. Repeat until queue empty or entirely blocked
 ```
-
-**Parallel Looper** (for N independent items):
-
-```
-1. Receive items (all verified independent)
-2. Launch PAIR LOOP for each item (in parallel)
-3. Collect all yields
-4. Run `consistency-checker` on aggregated results
-5. Return aggregated result or remediation needs
-```
-
-Applies to: independent tasks, context queries, batch file analysis.
 
 **Git Worktrees for Parallel Tasks:**
 
@@ -88,7 +132,7 @@ projctl worktree merge --task TASK-NNN
 
 **Merge-on-Complete Pattern (REQUIRED):**
 
-When a parallel agent completes, merge its branch immediately - do NOT wait for all agents:
+When a parallel agent completes, merge its branch immediately — do NOT wait for all agents:
 
 | When agent completes... | Do this |
 |------------------------|---------|
@@ -96,15 +140,6 @@ When a parallel agent completes, merge its branch immediately - do NOT wait for 
 | Task failed | Cleanup worktree, log failure, continue with others |
 | Merge conflict | Pause, prompt user to resolve, then continue |
 | Cleanup failure | Log error, continue, report at end |
-
-**Why merge-on-complete matters:**
-- Later-completing agents rebase onto already-merged work
-- Reduces conflict complexity (no N-way merge at end)
-- Agents benefit from each other's completed work
-
-**Simultaneous completions:** If multiple agents complete at the same time, serialize merges by completion timestamp (earliest first).
-
-See `docs/orchestration-system.md` Section 6.5 for full details on worktree workflow and decision factors for parallelization.
 
 ---
 
@@ -150,11 +185,11 @@ Project artifacts live at the **project root directory**, not in a `docs/` subdi
 ```
 .claude/projects/<project-name>/
 ├── state.toml           # Project state (phase, task, progress)
-├── requirements.md      # REQ-NNN items
-├── design.md            # DES-NNN items
-├── architecture.md      # ARCH-NNN items
-├── tasks.md             # TASK-NNN breakdown with dependencies
-├── escalations.md       # ESC-NNN unresolved issues
+├── requirements.md      # REQ-N items
+├── design.md            # DES-N items
+├── architecture.md      # ARCH-N items
+├── tasks.md             # TASK-N breakdown with dependencies
+├── escalations.md       # ESC-N unresolved issues
 ├── retro.md             # Project retrospective
 └── summary.md           # Project summary
 ```
@@ -167,13 +202,6 @@ Project artifacts live at the **project root directory**, not in a `docs/` subdi
   - `design.md` → `docs/design.md`
   - `architecture.md` → `docs/architecture.md`
 - `tasks.md` stays in the project dir as historical record
-
-**Repo-level docs vs project artifacts:**
-| Location | Purpose |
-|----------|---------|
-| `.claude/projects/<name>/` | Working artifacts for active project |
-| `docs/` | Permanent documentation (updated by doc phase) |
-| `docs/issues.md` | Repo-wide issue tracking |
 
 ---
 
@@ -206,47 +234,44 @@ Note: `--dir` defaults to `.claude/projects/<NAME>/` and creates it if needed.
 
 ### PM Phase
 
-**Interview mode** (new): Dispatch `pm-interview-producer`
-**Infer mode** (adopt/align): Dispatch `pm-infer-producer` with mode=create or mode=update
+**Interview mode** (new): Spawn teammate → invoke `pm-interview-producer`
+**Infer mode** (adopt/align): Spawn teammate → invoke `pm-infer-producer`
 
-Output: requirements.md with REQ-NNN IDs
+Output: requirements.md with REQ-N IDs
 
-QA: Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/pm-interview-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/pm-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/requirements.md"]
+QA: Spawn teammate → invoke `qa` with context:
+```
+Producer SKILL.md: skills/pm-interview-producer/SKILL.md
+Artifacts: .claude/projects/<name>/requirements.md
+Iteration: 1/3
 ```
 
 ### Design Phase
 
-**Interview mode** (new): Dispatch `design-interview-producer`
-**Infer mode** (adopt/align): Dispatch `design-infer-producer`
+**Interview mode** (new): Spawn teammate → invoke `design-interview-producer`
+**Infer mode** (adopt/align): Spawn teammate → invoke `design-infer-producer`
 
-Output: design.md with DES-NNN IDs, optional .pen files
+Output: design.md with DES-N IDs, optional .pen files
 
-QA: Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/design-interview-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/design-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/design.md"]
+QA: Spawn teammate → invoke `qa` with context:
+```
+Producer SKILL.md: skills/design-interview-producer/SKILL.md
+Artifacts: .claude/projects/<name>/design.md
+Iteration: 1/3
 ```
 
 ### Architecture Phase
 
-**Interview mode** (new): Dispatch `arch-interview-producer`
-**Infer mode** (adopt/align): Dispatch `arch-infer-producer`
+**Interview mode** (new): Spawn teammate → invoke `arch-interview-producer`
+**Infer mode** (adopt/align): Spawn teammate → invoke `arch-infer-producer`
 
-Output: architecture.md with ARCH-NNN IDs
+Output: architecture.md with ARCH-N IDs
 
-QA: Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/arch-interview-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/arch-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/architecture.md"]
+QA: Spawn teammate → invoke `qa` with context:
+```
+Producer SKILL.md: skills/arch-interview-producer/SKILL.md
+Artifacts: .claude/projects/<name>/architecture.md
+Iteration: 1/3
 ```
 
 ### Alignment Phase (main flow ending)
@@ -258,31 +283,22 @@ projctl trace validate --dir .
 ```
 
 If fails:
-1. Dispatch `alignment-producer` to interpret gaps
+1. Spawn alignment-producer teammate to interpret gaps
 2. Apply fixes to `**Traces to:**` fields
 3. Re-validate (max 2 iterations)
 4. Escalate unresolved gaps to user
 
-QA: Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/alignment-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/alignment-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/requirements.md", ".claude/projects/<name>/design.md", ".claude/projects/<name>/architecture.md"]
-```
-
 ### Task Breakdown Phase
 
-Dispatch `breakdown-producer`
+Spawn teammate → invoke `breakdown-producer`
 
-Output: tasks.md with TASK-NNN IDs and dependency graph
+Output: tasks.md with TASK-N IDs and dependency graph
 
-QA: Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/breakdown-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/breakdown-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/tasks.md"]
+QA: Spawn teammate → invoke `qa` with context:
+```
+Producer SKILL.md: skills/breakdown-producer/SKILL.md
+Artifacts: .claude/projects/<name>/tasks.md
+Iteration: 1/3
 ```
 
 ### TDD Implementation Loop
@@ -305,18 +321,6 @@ projctl state transition --dir . --to task-start --task TASK-NNN
 | commit-refactor | `commit` | task-audit |
 | task-audit | `qa` | task-complete or retry |
 
-QA context for task-audit:
-```toml
-[inputs]
-producer_skill_path = "skills/tdd-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/tdd-producer-yield.toml"
-artifact_paths = ["<implementation files from task>"]
-
-[context]
-iteration = 1
-max_iterations = 3
-```
-
 **After audit:**
 - Pass → `task-complete`
 - Fail (< 3 attempts) → `task-retry` → back to tdd-red
@@ -336,8 +340,6 @@ Documentation tasks get full TDD treatment when ANY of these indicators are pres
 - RED: Write tests for what the doc should contain (grep, semantic matching, structure)
 - GREEN: Write the doc to make tests pass
 - REFACTOR: Improve clarity, structure, readability
-
-Only skip TDD for truly incidental doc updates (typo fixes, minor clarifications during code work).
 
 ### Escalation Handling
 
@@ -361,13 +363,12 @@ Options:
 
 Runs after Implementation completes.
 
-1. Dispatch `doc-producer`
-2. Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/doc-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/doc-producer-yield.toml"
-artifact_paths = ["docs/requirements.md", "docs/design.md", "docs/architecture.md"]
+1. Spawn teammate → invoke `doc-producer`
+2. Spawn teammate → invoke `qa` with context:
+```
+Producer SKILL.md: skills/doc-producer/SKILL.md
+Artifacts: docs/requirements.md, docs/design.md, docs/architecture.md
+Iteration: 1/3
 ```
 3. Integrates project artifacts into repo-level docs:
    - `.claude/projects/<name>/requirements.md` → `docs/requirements.md`
@@ -390,8 +391,6 @@ Infers artifacts from existing code, working upward:
 | Escalations | User resolution | Resolved ambiguities |
 | Documentation | `doc-producer` + `qa` | Repo-level docs |
 
-All QA uses the universal `qa` skill with appropriate context (producer_skill_path, producer_yield_path, artifact_paths).
-
 Escalations collected during inference are batched for user resolution.
 
 ### Single Task Workflow (`/project task`)
@@ -407,34 +406,22 @@ Returns to main flow for Alignment → Retro → Summary → Next Steps.
 
 ### Retrospective Phase (main flow ending)
 
-1. Dispatch `retro-producer`
-2. Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/retro-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/retro-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/retro.md"]
-```
+1. Spawn teammate → invoke `retro-producer`
+2. Spawn teammate → invoke `qa`
 3. Output: `.claude/projects/<name>/retro.md`, follow-up issues
 4. **Present artifact to user**: Read and display `retro.md` content (not a paraphrase)
 
 ### Summary Phase (main flow ending)
 
-1. Dispatch `summary-producer`
-2. Dispatch `qa` with context:
-```toml
-[inputs]
-producer_skill_path = "skills/summary-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/summary-producer-yield.toml"
-artifact_paths = [".claude/projects/<name>/summary.md"]
-```
+1. Spawn teammate → invoke `summary-producer`
+2. Spawn teammate → invoke `qa`
 3. Output: `.claude/projects/<name>/summary.md`
 4. **Present artifact to user**: Read and display `summary.md` content (not a paraphrase)
    - For long summaries (>50 lines), show Executive Overview + link to full file
 
 ### Issue Update (main flow ending)
 
-**Automatic issue closure** - no skill dispatch needed.
+**Automatic issue closure** — no teammate needed.
 
 ```bash
 # Get linked issue from state
@@ -445,12 +432,7 @@ if [ -n "$ISSUE" ]; then
   projctl issue update -i "$ISSUE" --status Closed \
     --comment "Completed via project $(projctl state get --dir . --field name)"
 fi
-
-# Create follow-up issues from retro findings (if any)
-# These are created by retro-producer, not this phase
 ```
-
-**This is deterministic** - just run the commands above. No PAIR LOOP.
 
 ### Next Steps Phase (main flow ending)
 
@@ -479,8 +461,6 @@ Unlinked IDs: 3
   REQ-005: No downstream design
   DES-008: No downstream architecture
   ARCH-012: No downstream task
-
-Pending Escalations: 2
 
 Options:
 1. Resolve now
@@ -538,57 +518,7 @@ Loop until pass or abort.
 | task-implementation | Resume single-task TDD |
 | task-documentation | Resume single-task documentation |
 
-**QA Resume**: When resuming at a `*-qa` state, read the corresponding producer yield and dispatch the universal `qa` skill with appropriate context.
-
----
-
-## Context Format
-
-### Producer Context
-
-```toml
-[input]
-phase = "pm"
-task = "TASK-5"
-# phase-specific data
-
-[output]
-yield_path = ".projctl/yields/pm-producer-yield.toml"
-```
-
-### QA Context (Universal)
-
-All phases use the universal `qa` skill with this context schema:
-
-```toml
-[inputs]
-producer_skill_path = "skills/<phase>-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/<phase>-producer-yield.toml"
-artifact_paths = ["<artifact files>"]
-
-[context]
-iteration = 1
-max_iterations = 3
-
-[output]
-yield_path = ".projctl/yields/qa-yield.toml"
-```
-
-The QA skill reads the producer's SKILL.md to understand acceptance criteria and the producer yield to see what was produced.
-
----
-
-## Logging
-
-```bash
-projctl log write --dir . --level LEVEL --subject SUBJECT --message "..."
-```
-
-| Level | When | Subjects |
-|-------|------|----------|
-| verbose | Every dispatch/result | thinking, skill-change |
-| status | Task completions | skill-result, task-status, lesson |
-| phase | Phase transitions | phase-change, phase-result |
+**Resume**: When resuming, re-create the team (`spawnTeam`) and spawn a new teammate for the current phase. The state machine tracks where you left off; teammates are ephemeral.
 
 ---
 
@@ -596,6 +526,6 @@ projctl log write --dir . --level LEVEL --subject SUBJECT --message "..."
 
 | Error | Action |
 |-------|--------|
-| Skill dispatch fails | Log, notify user, offer retry or skip |
+| Teammate fails to respond | Check idle notification, re-spawn with same context |
 | Task repeatedly fails | After 3 attempts escalate, continue unblocked |
 | State corruption | `projctl state get` reports errors, user inspects state.toml |

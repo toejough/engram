@@ -1,25 +1,44 @@
 ---
 name: project
-description: State-machine-driven project orchestrator
+description: State-machine-driven project orchestrator (team lead)
 user-invocable: true
 ---
 
 # Project Orchestrator
 
-## ⚠️ ORCHESTRATION MODE
+## Team Lead Mode
 
-**You are an ORCHESTRATOR, not an executor.** For the duration of this project:
+**You are a TEAM LEAD in delegate mode.** You coordinate teammates but never edit files directly.
 
 | DO NOT | DO |
 |--------|-----|
-| Write code directly | Dispatch skills (`tdd-producer`, etc.) |
-| Edit implementation files | Let skills handle file changes |
+| Write code or docs directly | Spawn teammates to invoke skills |
+| Edit implementation files | Let teammates handle file changes |
 | Stay at `init` phase | Call `projctl state transition` at phase boundaries |
 | Forget where you are | Check `projctl state get` frequently |
+| Relay user questions | Teammates use `AskUserQuestion` directly |
 
-**Your job:** Track state → Dispatch skills → Handle yields → Advance phases
+**Your job:** Create team → Spawn teammates → Receive results → Advance phases
 
-Every phase transition requires `projctl state transition`. If you catch yourself writing implementation code directly, STOP and dispatch the appropriate skill instead.
+Every phase transition requires `projctl state transition`. If you catch yourself writing files directly, STOP and spawn a teammate instead.
+
+---
+
+## Startup
+
+```
+1. Teammate(operation: "spawnTeam", team_name: "<project-name>")
+2. projctl state init --name "<project-name>" --issue ISSUE-NNN
+3. projctl state set --workflow <new|task|adopt|align>
+4. Begin phase dispatch
+```
+
+## Shutdown
+
+```
+1. Send shutdown_request to all active teammates
+2. Teammate(operation: "cleanup")
+```
 
 ---
 
@@ -58,18 +77,16 @@ When user provides a request (not an explicit command):
 | Rule      | Details                                               |
 | --------- | ----------------------------------------------------- |
 | State     | `projctl state transition` - NEVER modify state.toml  |
-| Log       | `projctl log write` for logging                       |
-| Handoffs  | `projctl context write/read` with `output.yield_path` |
-| PAIR LOOP | Producer → QA → iterate (max 3x) or advance           |
+| Delegate  | Lead never edits files — spawn teammates for ALL artifact work |
+| PAIR LOOP | Spawn producer → receive result → spawn QA → receive verdict → iterate or advance |
 | TDD       | Red→commit→green→commit→refactor→commit (ALL artifacts: code, docs, design) |
 | Continue  | If `state next`=continue, proceed immediately         |
-| Dispatch  | ALL artifact work via Skill/Task tool (code, docs, .pen files) |
-| Parallel  | Merge-on-complete (not batch at end) - see SKILL-full.md |
-| Context   | Pass ONLY context to skills, NEVER behavioral overrides (see below) |
+| Context   | Pass ONLY context to teammates, NEVER behavioral overrides (see below) |
+| Commit    | Commit after every phase/skill completion              |
 
 ## Context-Only Contract
 
-**When dispatching skills, pass ONLY context:**
+**When spawning teammates, pass ONLY context:**
 - Issue ID and description
 - File paths to relevant artifacts
 - References to prior phase outputs
@@ -79,9 +96,9 @@ When user provides a request (not an explicit command):
 - "already defined" / "requirements are complete"
 - "just formalize" / "no need to gather"
 
-Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally - but don't tell the skill to bypass its own logic.
+Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally — but don't tell the skill to bypass its own logic.
 
-**Why:** ISSUE-053 failed because the orchestrator told pm-interview-producer to skip its interview phase. The skill followed instructions but produced the wrong solution because it never confirmed understanding with the user.
+**Why:** ISSUE-53 failed because the orchestrator told pm-interview-producer to skip its interview phase. The skill followed instructions but produced the wrong solution because it never confirmed understanding with the user.
 
 ## Skill Dispatch
 
@@ -97,68 +114,49 @@ Skills decide their own behavior based on context. If the user wants to skip int
 | Retro         | `retro-producer`                                      | `qa` |
 | Summary       | `summary-producer`                                    | `qa` |
 
-All phases use the universal `qa` skill. Context must include producer metadata.
+All phases use the universal `qa` skill. Context must include producer SKILL.md path.
 
 ## PAIR LOOP Pattern
 
 ```
-1. Write context with output.yield_path
-2. Dispatch PRODUCER skill
-3. Read yield
-4. If yield.type = "need-user-input" AND payload.inferred = true:
-   a. Present inferred items as numbered accept/reject list with reasoning
-   b. User responds: "accept all", "reject all", or per-item (e.g., "accept 1, reject 2")
-   c. Write decisions to [query_results.inferred_decisions]
-   d. Resume producer with decisions
-   e. Go to step 3
-5. If yield.type = "complete": write QA context and dispatch `qa` skill
-6. Handle QA yield:
-   - "approved" → advance
-   - "improvement-request" → resume producer (max 3x)
+1. Spawn producer teammate:
+   Task(subagent_type: "general-purpose", team_name: "<project>",
+        name: "<phase>-producer",
+        prompt: "Invoke /<skill-name>. Context: <project info, artifacts, prior results>
+                 When complete, send me a message with: artifact path, IDs created,
+                 files modified, key decisions.")
+
+2. Receive producer result via message (automatic delivery)
+
+3. Parse result:
+   - If "complete": proceed to QA (step 4)
+   - If "blocked": present blocker to user, resume when resolved
+
+4. Spawn QA teammate:
+   Task(subagent_type: "general-purpose", team_name: "<project>",
+        name: "<phase>-qa",
+        prompt: "Invoke /qa. Context:
+                 Producer SKILL.md: skills/<phase>-producer/SKILL.md
+                 Artifacts: <artifact paths>
+                 Iteration: N/3
+                 Send me your verdict.")
+
+5. Receive QA verdict via message
+
+6. Handle verdict:
+   - "approved" → commit, advance phase
+   - "improvement-request" → spawn new producer with QA feedback (max 3x)
    - "escalate-phase" → return to prior phase
    - "escalate-user" → present to user
 ```
-
-### QA Context Schema
-
-When dispatching the universal `qa` skill, write context with:
-
-```toml
-[inputs]
-producer_skill_path = "skills/<phase>-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/<phase>-producer-yield.toml"
-artifact_paths = ["docs/<artifact>.md"]
-
-[context]
-iteration = 1
-max_iterations = 3
-```
-
-## Yield Types
-
-| Type                  | Action                              |
-| --------------------- | ----------------------------------- |
-| `complete`            | Advance to QA or next phase         |
-| `approved`            | Phase complete, advance             |
-| `need-user-input`     | Prompt user, resume with answer (see below for inferred) |
-| `need-user-input` (inferred) | Present inferred items for accept/reject, resume with decisions |
-| `need-context`        | Dispatch `context-explorer`, resume |
-| `need-decision`       | Present options, resume with choice |
-| `improvement-request` | Resume producer with feedback       |
-| `escalate-phase`      | Return to prior phase               |
-| `escalate-user`       | Present to user                     |
-| `blocked`             | Present blocker, await resolution   |
-| `error`               | Retry (max 3x) or escalate          |
 
 ## Support Skills
 
 | Skill                 | Purpose                      |
 | --------------------- | ---------------------------- |
-| `context-explorer`    | Handle need-context queries  |
 | `intake-evaluator`    | Classify request type        |
-| `parallel-looper`     | Run N PAIR LOOPs in parallel |
-| `consistency-checker` | Validate parallel outputs    |
 | `next-steps`          | Suggest follow-up work       |
+| `commit`              | Create git commits           |
 
 ## End-of-Command (always run)
 
@@ -171,4 +169,3 @@ projctl trace validate --dir .
 ## Full Docs
 
 - **SKILL-full.md** - Phase details and resume map
-- **../shared/YIELD.md** - Yield protocol format and examples
