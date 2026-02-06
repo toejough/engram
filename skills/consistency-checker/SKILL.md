@@ -1,14 +1,17 @@
 ---
 name: consistency-checker
-description: Reviews parallel producer outputs for consistency across batch results
+description: "[DEPRECATED] Reviews parallel producer outputs for consistency across batch results"
 context: fork
 model: sonnet
 skills: ownership-rules
 user-invocable: true
 role: qa
+deprecated: true
 ---
 
 # Consistency Checker Skill
+
+> **DEPRECATED (ISSUE-83):** This skill is deprecated. Its sole consumer was the parallel-looper skill, which has been replaced by native Claude Code team parallelism (ISSUE-79). The orchestrator now handles batch validation inline via QA teammates during parallel task execution. Do not use this skill for new work. It is retained temporarily for rollback purposes.
 
 Reviews outputs from parallel producers to ensure consistency across all batch results. Applies domain-specific consistency rules passed as input.
 

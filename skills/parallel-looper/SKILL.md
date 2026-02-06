@@ -1,14 +1,17 @@
 ---
 name: parallel-looper
-description: Runs N PAIR LOOPs in parallel for independent items
+description: "[DEPRECATED] Runs N PAIR LOOPs in parallel for independent items"
 context: fork
 model: sonnet
 skills: ownership-rules
 user-invocable: false
 role: standalone
+deprecated: true
 ---
 
 # Parallel Looper
+
+> **DEPRECATED (ISSUE-83):** This skill is deprecated and replaced by native Claude Code team parallelism (ISSUE-79). The orchestrator now spawns concurrent teammates directly for independent tasks, using git worktrees for isolation and TaskList for coordination. Do not use this skill for new work. It is retained temporarily for rollback purposes.
 
 Orchestrates parallel execution of PAIR LOOPs for independent items.
 
