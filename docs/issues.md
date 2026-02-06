@@ -3223,7 +3223,7 @@ More checklist text won't help - the SKILL.md already describes the process. Nee
 ### ISSUE-86: Retro: Auto-read skill model from frontmatter before spawning
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Note:** Superseded by ISSUE-89 (`projctl step next`). Phase registry includes model from skill frontmatter; `step next` output includes the model for the LLM to use when spawning.
 
@@ -3231,6 +3231,10 @@ From retrospective (retro-phase2.md R2): QA teammates were spawned on opus inste
 
 ---
 
+
+### Comment
+
+Added model: result.model to spawn-producer and spawn-qa examples in SKILL.md
 ### ISSUE-87: Decision needed: Consolidate Phase 1/2 migration memory notes
 
 **Priority:** Medium
