@@ -10,6 +10,42 @@ import (
 // TestPerPhaseQAInTDDLoop verifies ISSUE-92 acceptance criteria:
 // Each TDD sub-phase (red, green, refactor) has its own QA phase.
 
+// navigateToPhase is a helper that transitions through a sequence of phases.
+// It fails the test if any transition fails.
+func navigateToPhase(t *testing.T, dir string, targetPhase string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	// Define the full phase sequence from init to commit-refactor-qa
+	allPhases := []string{
+		"pm", "pm-complete", "design", "design-complete",
+		"architect", "architect-complete", "breakdown", "breakdown-complete",
+		"implementation", "task-start", "tdd-red", "tdd-red-qa",
+		"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
+		"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+		"commit-refactor", "commit-refactor-qa", "task-audit",
+	}
+
+	// Find the index of the target phase
+	targetIdx := -1
+	for i, phase := range allPhases {
+		if phase == targetPhase {
+			targetIdx = i
+			break
+		}
+	}
+
+	if targetIdx == -1 {
+		t.Fatalf("target phase %s not found in sequence", targetPhase)
+	}
+
+	// Transition through phases up to and including the target
+	for i := 0; i <= targetIdx; i++ {
+		_, err := state.Transition(dir, allPhases[i], state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", allPhases[i])
+	}
+}
+
 func TestTDDRedToRedQATransition(t *testing.T) {
 	t.Run("tdd-red can transition to tdd-red-qa", func(t *testing.T) {
 		g := NewWithT(t)
@@ -18,29 +54,7 @@ func TestTDDRedToRedQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red phase
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToPhase(t, dir, "tdd-red")
 
 		// Test: tdd-red → tdd-red-qa transition
 		s, err := state.Transition(dir, "tdd-red-qa", state.TransitionOpts{}, nowFunc())
@@ -55,29 +69,7 @@ func TestTDDRedToRedQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red phase
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToPhase(t, dir, "tdd-red")
 
 		// Test: tdd-red → commit-red should be illegal (must go through tdd-red-qa)
 		_, err = state.Transition(dir, "commit-red", state.TransitionOpts{}, nowFunc())
@@ -94,31 +86,7 @@ func TestTDDRedQAToCommitRedTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red-qa phase
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "design-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "architect-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "breakdown-complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToPhase(t, dir, "tdd-red-qa")
 
 		// Test: tdd-red-qa → commit-red transition
 		s, err := state.Transition(dir, "commit-red", state.TransitionOpts{}, nowFunc())
@@ -135,17 +103,7 @@ func TestTDDGreenToGreenQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-green phase (via full chain)
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-green")
 
 		// Test: tdd-green → tdd-green-qa transition
 		s, err := state.Transition(dir, "tdd-green-qa", state.TransitionOpts{}, nowFunc())
@@ -160,17 +118,7 @@ func TestTDDGreenToGreenQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-green phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-green")
 
 		// Test: tdd-green → commit-green should be illegal
 		_, err = state.Transition(dir, "commit-green", state.TransitionOpts{}, nowFunc())
@@ -187,17 +135,7 @@ func TestTDDGreenQAToCommitGreenTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-green-qa phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-green-qa")
 
 		// Test: tdd-green-qa → commit-green transition
 		s, err := state.Transition(dir, "commit-green", state.TransitionOpts{}, nowFunc())
@@ -214,18 +152,7 @@ func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-refactor phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
-			"tdd-refactor",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-refactor")
 
 		// Test: tdd-refactor → tdd-refactor-qa transition
 		s, err := state.Transition(dir, "tdd-refactor-qa", state.TransitionOpts{}, nowFunc())
@@ -240,18 +167,7 @@ func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-refactor phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
-			"tdd-refactor",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-refactor")
 
 		// Test: tdd-refactor → commit-refactor should be illegal
 		_, err = state.Transition(dir, "commit-refactor", state.TransitionOpts{}, nowFunc())
@@ -268,18 +184,7 @@ func TestTDDRefactorQAToCommitRefactorTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-refactor-qa phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
-			"tdd-refactor", "tdd-refactor-qa",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "tdd-refactor-qa")
 
 		// Test: tdd-refactor-qa → commit-refactor transition
 		s, err := state.Transition(dir, "commit-refactor", state.TransitionOpts{}, nowFunc())
@@ -296,17 +201,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-red phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-red")
 
 		// Test: commit-red → commit-red-qa transition
 		s, err := state.Transition(dir, "commit-red-qa", state.TransitionOpts{}, nowFunc())
@@ -321,17 +216,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-red-qa phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-red-qa")
 
 		// Test: commit-red-qa → tdd-green transition
 		s, err := state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
@@ -346,18 +231,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-green phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-green")
 
 		// Test: commit-green → commit-green-qa transition
 		s, err := state.Transition(dir, "commit-green-qa", state.TransitionOpts{}, nowFunc())
@@ -372,18 +246,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-green-qa phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green", "commit-green-qa",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-green-qa")
 
 		// Test: commit-green-qa → tdd-refactor transition
 		s, err := state.Transition(dir, "tdd-refactor", state.TransitionOpts{}, nowFunc())
@@ -398,19 +261,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-refactor phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-refactor")
 
 		// Test: commit-refactor → commit-refactor-qa transition
 		s, err := state.Transition(dir, "commit-refactor-qa", state.TransitionOpts{}, nowFunc())
@@ -425,19 +276,7 @@ func TestCommitPairLoops(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to commit-refactor-qa phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToPhase(t, dir, "commit-refactor-qa")
 
 		// Test: commit-refactor-qa → task-audit transition
 		s, err := state.Transition(dir, "task-audit", state.TransitionOpts{}, nowFunc())
