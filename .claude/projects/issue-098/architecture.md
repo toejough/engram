@@ -1,6 +1,6 @@
 # Architecture: Model Validation for Teammate Spawning
 
-## ARCH-001: TaskParams Struct Added to NextResult
+### ARCH-001: TaskParams Struct Added to NextResult
 
 `NextResult` gains an optional `TaskParams *TaskParams` field. `TaskParams` is a new struct in `internal/step` containing `SubagentType`, `Name`, `Model`, and `Prompt` fields with JSON tags matching the Task tool call parameter names exactly.
 
@@ -15,7 +15,7 @@ Non-spawn actions (`commit`, `transition`, `all-complete`) leave `TaskParams` as
 
 ---
 
-## ARCH-002: Handshake Instruction Prefix
+### ARCH-002: Handshake Instruction Prefix
 
 A package-level constant `HandshakeInstruction` in `internal/step` holds the literal string:
 
@@ -32,7 +32,7 @@ This constant is prepended to every generated `TaskParams.Prompt`. It is not con
 
 ---
 
-## ARCH-003: ExpectedModel Field on NextResult
+### ARCH-003: ExpectedModel Field on NextResult
 
 `NextResult` gains an `ExpectedModel string` field (`json:"expected_model,omitempty"`). For spawn actions, this is populated from `PhaseInfo.ProducerModel` or `PhaseInfo.QAModel` depending on the action. For non-spawn actions, it is empty.
 
@@ -45,7 +45,7 @@ The orchestrator (SKILL.md) performs case-insensitive substring matching of `Exp
 
 ---
 
-## ARCH-004: SpawnAttempts and FailedModels on PairState
+### ARCH-004: SpawnAttempts and FailedModels on PairState
 
 `PairState` in `internal/state/state.go` gains two fields:
 
@@ -61,7 +61,7 @@ Go zero-value semantics (`int` defaults to 0, `[]string` defaults to nil) provid
 
 ---
 
-## ARCH-005: CompleteResult Gains ReportedModel Field
+### ARCH-005: CompleteResult Gains ReportedModel Field
 
 `CompleteResult` gains a `ReportedModel string` field (`json:"reported_model,omitempty"`). When the orchestrator calls `step complete` with `status: "failed"` for a spawn action, it passes the model name the teammate actually reported. This value is appended to `PairState.FailedModels`.
 
@@ -75,7 +75,7 @@ The CLI surfaces this as a `--reported-model` flag on the `step complete` subcom
 
 ---
 
-## ARCH-006: Failed Spawn Path in Complete()
+### ARCH-006: Failed Spawn Path in Complete()
 
 `Complete()` currently handles `spawn-producer` and `spawn-qa` as success-only paths (sets `ProducerComplete = true` or records QA verdict). The new logic branches on `result.Status`:
 
@@ -91,7 +91,7 @@ This branching is added to both the `spawn-producer` and `spawn-qa` cases in the
 
 ---
 
-## ARCH-007: SpawnAttempts Reset on Successful Spawn
+### ARCH-007: SpawnAttempts Reset on Successful Spawn
 
 When `Complete()` processes a spawn action with `status: "done"` (or empty), it sets `SpawnAttempts = 0` and `FailedModels = nil` on the `PairState` before persisting. This ensures each sub-phase gets a fresh retry budget.
 
@@ -104,7 +104,7 @@ This is part of the same code path modified in ARCH-006, not a separate function
 
 ---
 
-## ARCH-008: Retry and Escalation Logic in Next()
+### ARCH-008: Retry and Escalation Logic in Next()
 
 `Next()` gains awareness of `SpawnAttempts` when deciding spawn actions. The existing spawn conditions remain, but before emitting a spawn action, `Next()` checks the `PairState`:
 
@@ -121,7 +121,7 @@ This keeps all retry/escalation logic in `Next()`/`Complete()`. Teammates are st
 
 ---
 
-## ARCH-009: Prompt Assembly in Next()
+### ARCH-009: Prompt Assembly in Next()
 
 The `TaskParams.Prompt` is assembled deterministically in `Next()` by concatenating:
 
@@ -140,7 +140,7 @@ This moves prompt construction from the orchestrator LLM to deterministic Go cod
 
 ---
 
-## ARCH-010: Orchestrator Model Validation Flow
+### ARCH-010: Orchestrator Model Validation Flow
 
 The orchestrator (SKILL.md) performs model validation after each teammate spawn. The flow is:
 

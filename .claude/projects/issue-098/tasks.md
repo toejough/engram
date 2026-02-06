@@ -20,7 +20,7 @@ TASK-1 (TaskParams struct + ExpectedModel field)
 
 ---
 
-## TASK-1: Add TaskParams struct and ExpectedModel to NextResult
+### TASK-1: Add TaskParams struct and ExpectedModel to NextResult
 
 **Priority:** P0
 **Estimated scope:** Small (one file, ~30 lines)
@@ -44,7 +44,7 @@ Add the `TaskParams` struct and two new fields to `NextResult`: `TaskParams *Tas
 
 ---
 
-## TASK-2: Add SpawnAttempts and FailedModels to PairState
+### TASK-2: Add SpawnAttempts and FailedModels to PairState
 
 **Priority:** P0
 **Estimated scope:** Small (one file, ~5 lines)
@@ -65,7 +65,7 @@ Add `SpawnAttempts int` (`toml:"spawn_attempts"`) and `FailedModels []string` (`
 
 ---
 
-## TASK-3: Prompt assembly with handshake instruction
+### TASK-3: Prompt assembly with handshake instruction
 
 **Priority:** P0
 **Estimated scope:** Medium (one file, ~40 lines)
@@ -88,7 +88,7 @@ Add `HandshakeInstruction` constant and `buildPrompt()` helper in `internal/step
 
 ---
 
-## TASK-4: Failed spawn path in Complete() and retry/escalation in Next()
+### TASK-4: Failed spawn path in Complete() and retry/escalation in Next()
 
 **Priority:** P1
 **Estimated scope:** Medium (one file, ~50 lines)
@@ -124,7 +124,7 @@ Add `Details string` field to `NextResult`.
 
 ---
 
-## TASK-5: Orchestrator SKILL.md model validation instructions
+### TASK-5: Orchestrator SKILL.md model validation instructions
 
 **Priority:** P0
 **Estimated scope:** Small (one file, ~20 lines of instruction text)
@@ -154,7 +154,7 @@ Also update instructions to use `TaskParams` fields directly for Task tool calls
 
 ---
 
-## TASK-6: CLI --reported-model flag on step complete
+### TASK-6: CLI --reported-model flag on step complete
 
 **Priority:** P1
 **Estimated scope:** Small (one file, ~5 lines)

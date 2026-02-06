@@ -1,6 +1,6 @@
 # Design: Model Validation for Teammate Spawning
 
-## DES-001: Literal Task Tool Parameters in step next Output
+### DES-001: Literal Task Tool Parameters in step next Output
 
 `step next` spawn actions (`spawn-producer`, `spawn-qa`) emit a new `TaskParams` field containing the exact Task tool call parameters: `subagent_type`, `name`, `model`, and `prompt`. The orchestrator copies these values directly into the Task tool call with no interpretation.
 
@@ -25,7 +25,7 @@ The `Prompt` field is assembled by `step.Next()` from the skill path, context (i
 
 ---
 
-## DES-002: Model Handshake Instruction in Generated Prompt
+### DES-002: Model Handshake Instruction in Generated Prompt
 
 The `Prompt` field in `TaskParams` begins with:
 
@@ -41,7 +41,7 @@ This instruction appears before any skill-specific content. The teammate's first
 
 ---
 
-## DES-003: ExpectedModel Field in step next Output
+### DES-003: ExpectedModel Field in step next Output
 
 `NextResult` gains an `ExpectedModel string` field populated from the phase registry's `ProducerModel` or `QAModel` (depending on the spawn action). This is the ground-truth value the orchestrator compares against the teammate's handshake response.
 
@@ -53,7 +53,7 @@ The registry currently stores short names like `"sonnet"` and `"haiku"`. The `Ex
 
 ---
 
-## DES-004: Orchestrator Model Validation Flow
+### DES-004: Orchestrator Model Validation Flow
 
 After spawning a teammate, the orchestrator:
 
@@ -68,7 +68,7 @@ This validation logic lives in the orchestrator's SKILL.md instructions, not in 
 
 ---
 
-## DES-005: SpawnAttempts Field in PairState
+### DES-005: SpawnAttempts Field in PairState
 
 `PairState` gains two fields:
 - `SpawnAttempts int` with TOML tag `spawn_attempts` — counts failed attempts
@@ -82,7 +82,7 @@ Both fields are scoped to the current sub-phase (producer or QA) within a pair l
 
 ---
 
-## DES-006: Retry Logic in step complete and step next
+### DES-006: Retry Logic in step complete and step next
 
 **step complete with failed spawn:**
 - Reads current `PairState` for the phase
@@ -101,7 +101,7 @@ This keeps the retry logic entirely in `step next`/`step complete`. No changes t
 
 ---
 
-## DES-007: Escalation After 3 Failed Spawns
+### DES-007: Escalation After 3 Failed Spawns
 
 When `step next` detects `SpawnAttempts >= 3` and the sub-phase spawn hasn't succeeded:
 
@@ -119,7 +119,7 @@ The orchestrator presents this escalation to the user as a blocking issue requir
 
 ---
 
-## DES-008: SpawnAttempts Reset on Success
+### DES-008: SpawnAttempts Reset on Success
 
 When `step complete` receives `status: "done"` for a `spawn-producer` or `spawn-qa` action:
 - Sets `SpawnAttempts = 0` on the `PairState`
@@ -132,7 +132,7 @@ This ensures each sub-phase gets a fresh retry budget and clean failure history.
 
 ---
 
-## DES-009: step complete Handles Failed Status for Spawn Actions
+### DES-009: step complete Handles Failed Status for Spawn Actions
 
 Currently, `step complete` only handles the `done` path for `spawn-producer` and `spawn-qa`. The `failed` status path needs to be added:
 
