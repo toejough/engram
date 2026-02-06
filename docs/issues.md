@@ -3507,7 +3507,7 @@ From ISSUE-89 retro Q1: Currently the registry is a Go map literal in registry.g
 ### Comment
 
 Decision: keep static. Compile-time validation and simplicity outweigh the convenience of runtime config.
-### ISSUE-96: Decision needed: How should step complete handle failures?
+### ISSUE-96: Implement failure recovery paths in step complete
 
 **Priority:** Medium
 **Status:** Open
@@ -3521,6 +3521,14 @@ From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does 
 ### Comment
 
 Decision: (1) Producer/QA crash/error: retry 3x at team-lead level, then escalate-user. (2) Commit/transition failure: escalate to prior agent 3x, then escalate-user.
+
+### Comment
+
+Decision already recorded: (1) Producer/QA crash: retry 3x then escalate-user. (2) Commit/transition failure: escalate 3x then escalate-user. Already implemented in step loop.
+
+### Comment
+
+Reopened - decision made but needs implementation.
 ### ISSUE-97: Retro: Add CLI flag validation to documentation TDD pattern
 
 **Priority:** Medium
@@ -3635,7 +3643,7 @@ Retro R3 from ISSUE-98: Add a projctl worktree verify command or integrate into 
 ### Comment
 
 Redundant — solved by ISSUE-99. Teammates don't commit; the orchestrator does. No worktree commit verification needed. Closing.
-### ISSUE-102: Decision needed: scope of model validation enforcement
+### ISSUE-102: Implement blanket model validation and update QA to sonnet
 
 **Priority:** medium
 **Status:** Open
@@ -3654,6 +3662,14 @@ Model assignments decided: opus for producers on pm, design, architect, breakdow
 
 ---
 
+
+### Comment
+
+Decision: blanket enforcement. Updated model assignment: QA bumped from haiku to sonnet. All producers per prior decision. Closing as decided.
+
+### Comment
+
+Reopened - decision made (blanket enforcement, QA bumped to sonnet) but needs implementation.
 ### ISSUE-103: team_name missing from task_params and related team integration issues
 
 **Priority:** Medium
@@ -3820,7 +3836,7 @@ Related challenges: Partial commit strategy increased commit overhead and unclea
 ### ISSUE-110: Decision needed: Should allowlists be version-controlled separately from test scripts?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 Unresolved question from retrospective.
@@ -3831,10 +3847,14 @@ Tradeoff: Separate file = easier to update, but adds another file to track. Embe
 
 ---
 
+
+### Comment
+
+Closed as moot - yield cleanup (ISSUE-88) is done.
 ### ISSUE-111: Decision needed: What is the retention policy for completed project directories?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 Unresolved question from retrospective.
@@ -3845,10 +3865,14 @@ Tradeoff: Keeping everything = full history, but repo size grows. Archiving = cl
 
 ---
 
+
+### Comment
+
+Decision: keep forever. Small text files, git handles it fine. No pruning policy needed.
 ### ISSUE-112: Decision needed: Should grep-based cleanup tasks always use a discovery script?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 Unresolved question from retrospective.
@@ -3859,6 +3883,10 @@ Tradeoff: Standard pattern = more consistent, but may be overkill for simple sin
 
 ---
 
+
+### Comment
+
+Closed as moot - good practice but not worth a ticket. Use judgment per task.
 ### ISSUE-113: Retro: Increase QA model or add hallucination guards
 
 **Priority:** High
@@ -3898,7 +3926,7 @@ Related challenges: C-004 from ISSUE-88 retro
 
 ---
 
-### ISSUE-116: Decision needed: What should happen to live yield code in internal/memory?
+### ISSUE-116: Remove yield infrastructure from internal/memory
 
 **Priority:** Medium
 **Status:** Open
@@ -3907,3 +3935,8 @@ Related challenges: C-004 from ISSUE-88 retro
 Unresolved question from ISSUE-88 retrospective.
 
 Context: The projctl memory extract --yield command still uses yield infrastructure at runtime. This was correctly excluded from ISSUE-88 (doc cleanup only), but the live code may need its own migration or deprecation plan. Files: internal/memory/types.go, internal/memory/parse.go, internal/memory/extract.go, cmd/projctl/memory_extract.go
+
+
+### Comment
+
+Decision: remove. No active workflow produces yield.toml files. The --yield flag on memory extract is dead code. Remove yield types, parsing, and the --yield flag from memory extract. Files: internal/memory/types.go, internal/memory/parse.go, internal/memory/extract.go, cmd/projctl/memory_extract.go.
