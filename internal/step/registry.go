@@ -293,5 +293,73 @@ var Registry = &PhaseRegistry{
 			QAModel:         "haiku",
 			CompletionPhase: "alignment",
 		},
+
+		// === TDD QA PHASES ===
+		// Per-phase QA for TDD red/green/refactor sub-phases
+
+		"tdd-red-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
+		"tdd-green-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
+		"tdd-refactor-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
+
+		// === COMMIT QA PHASES ===
+		// Per-phase QA for commit red/green/refactor sub-phases
+
+		"commit-red-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
+		"commit-green-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
+		"commit-refactor-qa": {
+			Producer:      "qa",
+			ProducerPath:  "skills/qa/SKILL.md",
+			QA:            "qa",
+			QAPath:        "skills/qa/SKILL.md",
+			Artifact:      "",
+			IDFormat:      "",
+			ProducerModel: "haiku",
+			QAModel:       "haiku",
+		},
 	},
 }

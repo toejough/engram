@@ -233,6 +233,111 @@ Per ARCH-021, extract contract from producer SKILL.md:
 
 ---
 
+## Commit-QA Validation Contract
+
+When validating commit-producer phases (`commit-red-qa`, `commit-green-qa`, `commit-refactor-qa`), apply these checks:
+
+### Phase-Specific Checks
+
+| Check ID | Description | Severity |
+|----------|-------------|----------|
+| CHECK-COMMIT-001 | Files staged match phase scope | error |
+| CHECK-COMMIT-002 | No secrets in staged files | error |
+| CHECK-COMMIT-003 | Commit message follows conventional format | error |
+| CHECK-COMMIT-004 | Commit message describes change accurately | warning |
+| CHECK-COMMIT-005 | No blanket lint suppressions added | error |
+| CHECK-COMMIT-006 | Commit created successfully | error |
+
+### Phase Scope Validation
+
+| Phase | Expected Files |
+|-------|----------------|
+| commit-red-qa | Only test files (no implementation) |
+| commit-green-qa | Test files + implementation (no refactoring-only changes) |
+| commit-refactor-qa | Implementation files (behavior unchanged) |
+
+### Validation Steps
+
+1. **Read commit details:**
+   ```bash
+   git log -1 --pretty=format:"%H%n%s%n%b" HEAD
+   git show --stat --name-only HEAD
+   ```
+
+2. **Validate staged files:**
+   - Extract file list from `git show --name-only HEAD`
+   - Check each file against phase scope rules
+   - Flag violations as CHECK-COMMIT-001 failures
+
+3. **Check for secrets:**
+   - Scan file paths for: `.env`, `.env.*`, `credentials.json`, `secrets.yaml`
+   - Scan file content for: `API_KEY=`, `SECRET=`, `PASSWORD=`, `-----BEGIN PRIVATE KEY-----`
+   - Flag violations as CHECK-COMMIT-002 failures
+
+4. **Validate commit message format:**
+   - Pattern: `^(feat|fix|test|refactor|docs|chore)(\([^)]+\))?: .+$`
+   - Check for `AI-Used: [claude]` trailer (NOT `Co-Authored-By`)
+   - Flag violations as CHECK-COMMIT-003 failures
+
+5. **Validate message accuracy:**
+   - Compare commit description to actual changes
+   - Check type matches phase (test for red, feat for green, refactor for refactor)
+   - Flag mismatches as CHECK-COMMIT-004 warnings
+
+6. **Check for blanket suppressions:**
+   - Scan for patterns: `// nolint`, `/* eslint-disable */`, `[[linters.exclusions.rules]]`
+   - Flag violations as CHECK-COMMIT-005 failures
+
+7. **Verify commit exists:**
+   - Check `git log -1` succeeds
+   - Verify commit hash returned
+   - Flag failures as CHECK-COMMIT-006 failures
+
+### QA Responses on Failure
+
+| Failure Type | QA Response |
+|--------------|-------------|
+| Wrong files staged | `improvement-request: unstage <files>, re-stage correct scope` |
+| Secrets detected | `improvement-request: remove commit, unstage <files>, add to .gitignore` |
+| Bad commit message | `improvement-request: amend commit message to: <suggestion>` |
+| Commit doesn't exist | `error: commit creation failed: <details>` |
+| Max iterations reached | `escalate-user: commit issues unresolved after 3 attempts` |
+
+### Example Output
+
+**Pass:**
+```
+QA Results: PASSED
+
+[x] CHECK-COMMIT-001: Files staged match phase scope (commit-red: 2 test files)
+[x] CHECK-COMMIT-002: No secrets in staged files
+[x] CHECK-COMMIT-003: Commit message follows conventional format
+[x] CHECK-COMMIT-004: Commit message describes change accurately
+[x] CHECK-COMMIT-005: No blanket lint suppressions added
+[x] CHECK-COMMIT-006: Commit created successfully (abc1234)
+```
+
+**Fail:**
+```
+QA Results: FAILED
+
+[x] CHECK-COMMIT-001: Files staged match phase scope (commit-red)
+[ ] CHECK-COMMIT-002: No secrets in staged files
+    - .env file contains API_KEY
+    - credentials.json staged
+[x] CHECK-COMMIT-003: Commit message follows conventional format
+[ ] CHECK-COMMIT-005: No blanket lint suppressions added
+    - internal/foo/bar.go:10 has // nolint:errcheck
+[x] CHECK-COMMIT-006: Commit created successfully
+
+Verdict: improvement-request
+- Remove .env and credentials.json from staging
+- Add to .gitignore
+- Remove nolint comment at internal/foo/bar.go:10
+```
+
+---
+
 ## Related Documents
 
 - **CONTRACT.md**: Contract format specification
@@ -245,3 +350,4 @@ Per ARCH-021, extract contract from producer SKILL.md:
 - **ARCH-021**: Contract extraction algorithm
 - **ARCH-024**: Prose fallback behavior
 - **ARCH-028**: Iteration tracking (max 3)
+- **ARCH-040**: Commit-QA validation contract (ISSUE-92)

@@ -12,6 +12,17 @@ import (
 // It instructs the teammate to respond with its model name before doing any work.
 const HandshakeInstruction = "First, respond with your model name so I can verify you're running the correct model."
 
+// isQAOnlyPhase returns true for phases that only run QA (no producer).
+func isQAOnlyPhase(phase string) bool {
+	switch phase {
+	case "tdd-red-qa", "tdd-green-qa", "tdd-refactor-qa",
+		"commit-red-qa", "commit-green-qa", "commit-refactor-qa":
+		return true
+	default:
+		return false
+	}
+}
+
 // buildPrompt assembles the full prompt for a spawn action.
 func buildPrompt(skillName string, ctx StepContext) string {
 	prompt := HandshakeInstruction + "\n\nThen invoke /" + skillName + "."
@@ -105,13 +116,47 @@ func Next(dir string) (NextResult, error) {
 		}, nil
 	}
 
-	// Determine sub-phase from pair state
-	pair, hasPair := s.Pairs[currentPhase]
-
+	// Initialize context early for all registered phases
 	ctx := StepContext{
 		Issue:          s.Project.Issue,
 		PriorArtifacts: []string{},
 	}
+
+	// Special handling for QA-only phases (tdd-red-qa, tdd-green-qa, etc.)
+	// These phases only run QA, no producer
+	if isQAOnlyPhase(currentPhase) {
+		pair, hasPair := s.Pairs[currentPhase]
+		if !hasPair || pair.QAVerdict == "" {
+			// No QA verdict yet: spawn QA
+			if pair.SpawnAttempts >= 3 {
+				return escalateResult(currentPhase, "qa", info.QAModel, pair.FailedModels), nil
+			}
+			return NextResult{
+				Action:    "spawn-qa",
+				Skill:     info.QA,
+				SkillPath: info.QAPath,
+				Model:     info.QAModel,
+				Phase:     currentPhase,
+				Context:   ctx,
+				TaskParams: &TaskParams{
+					SubagentType: "general-purpose",
+					Name:         info.QA,
+					Model:        info.QAModel,
+					TeamName:     s.Project.Name,
+					Prompt:       buildPrompt(info.QA, ctx),
+				},
+				ExpectedModel: info.QAModel,
+			}, nil
+		}
+		// QA complete: transition to next phase
+		return NextResult{
+			Action: "transition",
+			Phase:  targets[0],
+		}, nil
+	}
+
+	// Determine sub-phase from pair state
+	pair, hasPair := s.Pairs[currentPhase]
 
 	// Sub-phase logic based on pair state
 	switch {
