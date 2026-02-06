@@ -26,7 +26,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 
 ### GATHER
 
-1. Read context from `[inputs]` section
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Load REQ-N from requirements.md
 3. Load DES-N from design.md
 4. Load ARCH-N from architecture.md
@@ -58,7 +58,11 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - Outcomes and deliverables
    - Lessons learned
 2. Include traceability to REQ-N, DES-N, ARCH-N, TASK-N
-3. Yield `complete` with artifact path
+3. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - Files modified
+   - Key decisions documented
+   - Outcomes summary
 
 ## Yield Protocol
 
@@ -183,6 +187,29 @@ For each significant decision:
 ## Full Documentation
 
 `projctl skills docs --skillname summary-producer` or see SKILL-full.md
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Summary generated successfully |
+| `need-context` | Need files, artifacts, or history |
+| `blocked` | Cannot proceed (missing artifacts) |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

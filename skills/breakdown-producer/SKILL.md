@@ -27,7 +27,7 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 
 ## GATHER Phase
 
-1. Read context for artifact paths:
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode):
    - requirements.md (REQ-N IDs)
    - design.md (DES-N IDs)
    - architecture.md (ARCH-N IDs)
@@ -87,19 +87,11 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 
 2. Include dependency graph visualization
 
-3. Yield `complete`:
-   ```toml
-   [yield]
-   type = "complete"
-
-   [payload]
-   artifact = "docs/tasks.md"
-   ids_created = ["TASK-1", "TASK-2", "TASK-3"]
-
-   [context]
-   phase = "breakdown"
-   subphase = "complete"
-   ```
+3. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - TASK IDs created
+   - Files modified
+   - Dependency graph summary
 
 ---
 
@@ -195,6 +187,29 @@ Task affects `components/Button.tsx` and AC says "button displays loading spinne
 | `need-context` | Need architecture/requirements files |
 | `blocked` | Cannot decompose (missing info, conflicts) |
 | `error` | Parse failure, invalid input |
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | tasks.md created with all TASK-N IDs |
+| `need-context` | Need architecture/requirements files |
+| `blocked` | Cannot decompose (missing info, conflicts) |
+| `error` | Parse failure, invalid input |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

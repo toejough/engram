@@ -26,7 +26,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 
 ### GATHER
 
-1. Read context from `[inputs]` section
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Load project artifacts (requirements, design, architecture, tasks)
 3. Review decision log and blockers encountered
 4. Analyze iteration history and QA feedback loops
@@ -54,7 +54,11 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - **Open Questions**: Unresolved decisions or ambiguities
 2. Include metrics where available (iteration counts, blockers)
 3. Create issues for actionable items (see Issue Creation below)
-4. Yield `complete` with artifact path and issue IDs
+4. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - Issue IDs created
+   - Files modified
+   - Summary of successes, challenges, recommendations
 
 ### Issue Creation
 
@@ -242,6 +246,30 @@ If `projctl issue create` fails:
 - Continue with remaining issues
 - Include partial `issues_created` list in yield
 - Add failed items to `issues_failed` array in payload
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Run projctl commands | `Bash` tool directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Retrospective generated and issues created |
+| `need-context` | Need session data, artifacts, or logs |
+| `blocked` | Cannot proceed (missing project data) |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

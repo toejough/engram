@@ -25,7 +25,7 @@ This skill follows the PRODUCER-TEMPLATE pattern.
 
 Collect all artifact files for validation:
 
-1. Read context from `[inputs]` section for project directory
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode) for project directory
 2. If missing artifacts, yield `need-context` with queries for:
    - `docs/requirements.md` (REQ-NNN IDs)
    - `docs/design.md` (DES-NNN IDs with `**Traces to:**`)
@@ -88,7 +88,11 @@ Analyze traceability coverage:
 
 ### 3. PRODUCE Phase
 
-Generate validation report and yield complete:
+Generate validation report and send results to team lead via `SendMessage`:
+- Artifact path
+- Summary statistics (total, linked, orphan, unlinked counts)
+- Chain coverage percentage
+- Specific issues found
 
 #### Validation Report Structure
 
@@ -176,6 +180,30 @@ Also check that artifacts stay in their domain:
 - **ARCH**: Implementation only (no problem redef, no user-facing)
 
 Flag domain violations in the report.
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Run projctl commands | `Bash` tool directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Alignment report generated with coverage metrics |
+| `need-context` | Need artifact files for validation |
+| `blocked` | Cannot proceed (missing project data) |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 
