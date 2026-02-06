@@ -3321,7 +3321,7 @@ Implemented projctl step next/complete commands with phase registry, sub-phase t
 ### ISSUE-90: Simplify orchestrator SKILL.md for step-driven execution
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Depends on:** ISSUE-89
 
@@ -3363,6 +3363,10 @@ Acceptance criteria:
 
 ---
 
+
+### Comment
+
+Completed: orchestrator SKILL.md simplified to step-driven loop
 ### ISSUE-91: Rename `task-audit` phase to `tdd-qa`
 
 **Priority:** Low
