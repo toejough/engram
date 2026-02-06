@@ -72,7 +72,7 @@ TASK-1 (CONTRACT.md)
 
 **Dependencies:** TASK-1
 
-**Traces to:** ARCH-019, ARCH-021, ARCH-023, ARCH-024, ARCH-027, ARCH-028, ARCH-029, REQ-005, DES-003, DES-005, DES-006, DES-007, DES-008, DES-009, DES-010, DES-011, DES-012
+**Traces to:** ARCH-019, ARCH-021, ARCH-023, ARCH-024, ARCH-028, ARCH-029, REQ-005, DES-003, DES-005, DES-006, DES-007, DES-008, DES-009, DES-010, DES-011, DES-012
 
 ---
 
@@ -166,7 +166,6 @@ TASK-1 (CONTRACT.md)
 **Acceptance Criteria:**
 - [ ] Dispatch table in SKILL.md uses single `qa` for all phases
 - [ ] Orchestrator writes QA context with `producer_skill_path`, `producer_yield_path`, `artifact_paths`
-- [ ] Context file format matches ARCH-026 schema
 - [ ] SKILL-full.md phase details updated to reference universal QA
 - [ ] Resume map updated for universal QA yield handling
 - [ ] No references to old phase-specific QA skills remain
@@ -177,7 +176,7 @@ TASK-1 (CONTRACT.md)
 
 **Dependencies:** TASK-2
 
-**Traces to:** ARCH-022, ARCH-026, REQ-010, DES-004, DES-013
+**Traces to:** ARCH-022, REQ-010, DES-004, DES-013
 
 ---
 
@@ -489,3 +488,268 @@ Test file example for unlinked ID detection tests.
 Test file example for phase-aware validation tests.
 
 **Traces to:** ARCH-001
+
+---
+
+## ISSUE-92: Per-Phase QA in TDD Loop Tasks
+
+Implementation tasks for restructuring the TDD loop with per-phase QA and commit validation.
+
+---
+
+### Simplicity Rationale
+
+The per-phase QA approach applies the existing PAIR LOOP pattern (producer → QA) consistently across all TDD sub-phases. While it adds more state machine phases (10 new phases total), each phase has a single, focused concern. This is simpler than deferring all validation to a complex end-of-cycle QA that must validate three phases worth of work at once.
+
+**Alternatives considered:**
+- Keep QA at end: Issues compound, late detection, one QA must validate 3 phases
+- QA between phases only (no commit QA): Misses commit-specific issues like staging errors or secrets
+- Pre-commit hooks only: Not enforced in orchestrator, inconsistent behavior
+
+**Why current approach is appropriate:**
+- Consistent with existing phase/QA pattern used in pm, design, arch phases
+- Smaller QA scope per phase means simpler validation logic
+- State machine enforcement prevents shortcuts programmatically
+- Reuses existing universal QA skill (no new skill needed)
+- Immediate feedback loop catches issues early when context is fresh
+
+---
+
+### Dependency Graph (ISSUE-92)
+
+```
+TASK-15 (foundation: state machine phases)
+    |
+    +---> TASK-16 (transitions.go)
+    |
+    +---> TASK-17 (tests for transitions)
+    |
+TASK-18 (step registry updates)
+    |
+    +---> TASK-19 (step next logic verification)
+    |
+TASK-20 (commit-producer skill)
+    |
+    +---> TASK-21 (commit-QA contract)
+            |
+            +---> TASK-22 (integration test)
+```
+
+---
+
+### TASK-15: Add TDD sub-phase and commit phases to state machine
+
+**Description:** Add 10 new phases to the state machine phase enumeration to support per-phase QA in the TDD loop.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Phase constants added: `tdd-red-qa`, `tdd-green-qa`, `tdd-refactor-qa`
+- [ ] Phase constants added: `commit-red`, `commit-red-qa`, `commit-green`, `commit-green-qa`, `commit-refactor`, `commit-refactor-qa`
+- [ ] All phase constants follow existing naming convention
+- [ ] Phase validation logic accepts new phases
+- [ ] `go test ./internal/state` passes
+
+**Files:** `internal/state/state.go`
+
+**Dependencies:** None
+
+**Traces to:** ARCH-034, ARCH-035, ARCH-041
+
+---
+
+### TASK-16: Update state transition rules
+
+**Description:** Modify the legal transitions map to enforce QA phases between producer and commit, and between commit and next TDD phase.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `tdd-red` legal targets: `["tdd-red-qa"]`
+- [ ] `tdd-red-qa` legal targets: `["commit-red"]`
+- [ ] `commit-red` legal targets: `["commit-red-qa"]`
+- [ ] `commit-red-qa` legal targets: `["tdd-green"]`
+- [ ] `tdd-green` legal targets: `["tdd-green-qa"]`
+- [ ] `tdd-green-qa` legal targets: `["commit-green"]`
+- [ ] `commit-green` legal targets: `["commit-green-qa"]`
+- [ ] `commit-green-qa` legal targets: `["tdd-refactor"]`
+- [ ] `tdd-refactor` legal targets: `["tdd-refactor-qa"]`
+- [ ] `tdd-refactor-qa` legal targets: `["commit-refactor"]`
+- [ ] `commit-refactor` legal targets: `["commit-refactor-qa"]`
+- [ ] `commit-refactor-qa` legal targets: `["task-audit"]`
+- [ ] No illegal shortcuts exist (e.g., tdd-red → commit-red blocked)
+
+**Files:** `internal/state/transitions.go`
+
+**Dependencies:** TASK-15
+
+**Traces to:** ARCH-036, ARCH-041
+
+---
+
+### TASK-17: Add transition enforcement tests
+
+**Description:** Expand the existing test file `internal/state/tdd_qa_phases_test.go` to validate all legal and illegal transitions for the new TDD QA phases.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Tests verify all legal transitions succeed (12 new transitions)
+- [ ] Tests verify illegal transitions fail with "illegal transition" error
+- [ ] Test verifies full chain from tdd-red to task-audit works
+- [ ] Test verifies shortcut attempts (e.g., tdd-red → commit-red) fail
+- [ ] `go test ./internal/state` passes
+- [ ] All tests use table-driven test pattern for clarity
+
+**Files:** `internal/state/tdd_qa_phases_test.go`
+
+**Dependencies:** TASK-16
+
+**Traces to:** ARCH-036, ARCH-041
+
+---
+
+### TASK-18: Add TDD sub-phase QA entries to step registry
+
+**Description:** Add registry entries for tdd-red-qa, tdd-green-qa, and tdd-refactor-qa phases in the step registry, mapping each to the universal QA skill.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Registry entry for `tdd-red-qa`: QA skill is `"qa"`, QAPath is `"skills/qa/SKILL.md"`
+- [ ] Registry entry for `tdd-green-qa`: QA skill is `"qa"`, QAPath is `"skills/qa/SKILL.md"`
+- [ ] Registry entry for `tdd-refactor-qa`: QA skill is `"qa"`, QAPath is `"skills/qa/SKILL.md"`
+- [ ] All entries use model `"haiku"` (per ARCH-029)
+- [ ] Registry lookup returns correct PhaseInfo for each new phase
+- [ ] `go test ./internal/step` passes
+
+**Files:** `internal/step/registry.go`
+
+**Dependencies:** TASK-15
+
+**Traces to:** ARCH-034, ARCH-037
+
+---
+
+### TASK-19: Verify step next returns QA actions for TDD sub-phases
+
+**Description:** Ensure `projctl step next` correctly returns QA actions for the new TDD sub-phase QA phases.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] When phase is `tdd-red-qa`, `step next` returns action `"spawn-qa"` with skill `"qa"`
+- [ ] When phase is `tdd-green-qa`, `step next` returns action `"spawn-qa"` with skill `"qa"`
+- [ ] When phase is `tdd-refactor-qa`, `step next` returns action `"spawn-qa"` with skill `"qa"`
+- [ ] Response includes producer_skill_path (e.g., `"skills/tdd-red-producer/SKILL.md"`)
+- [ ] `go test ./internal/step` passes
+- [ ] Manual verification: `projctl state set tdd-red-qa && projctl step next` returns expected QA action
+
+**Files:** `internal/step/next.go`, `internal/step/next_test.go`
+
+**Dependencies:** TASK-18
+
+**Traces to:** ARCH-037
+
+---
+
+### TASK-20: Create commit-producer skill specification
+
+**Description:** Define the commit-producer skill behavior in a SKILL.md file. This skill handles staging files and creating commits for each TDD phase.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] SKILL.md documents phase-specific staging rules (red=tests, green=tests+impl, refactor=impl)
+- [ ] SKILL.md documents secret detection patterns
+- [ ] SKILL.md documents conventional commit message format
+- [ ] SKILL.md includes Contract section with outputs and checks
+- [ ] Skill uses model `"haiku"` (lightweight task)
+- [ ] Skill workflow documented: read phase → stage files → validate no secrets → generate message → commit → report
+
+**Files:** `skills/commit-producer/SKILL.md`
+
+**Dependencies:** None
+
+**Traces to:** ARCH-039
+
+---
+
+### TASK-21: Define commit-QA validation contract
+
+**Description:** Document the validation contract for commit-QA phases. This defines what the universal QA skill checks when validating commits.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Contract includes CHECK-COMMIT-001: Files staged match phase scope (error severity)
+- [ ] Contract includes CHECK-COMMIT-002: No secrets in staged files (error severity)
+- [ ] Contract includes CHECK-COMMIT-003: Commit message follows conventional format (error severity)
+- [ ] Contract includes CHECK-COMMIT-004: Commit message describes change accurately (warning severity)
+- [ ] Contract includes CHECK-COMMIT-005: No blanket lint suppressions added (error severity)
+- [ ] Contract includes CHECK-COMMIT-006: Commit created successfully (error severity)
+- [ ] Phase-specific file scope validation documented (red vs green vs refactor)
+- [ ] QA response patterns documented for each failure type
+
+**Files:** `skills/qa/SKILL.md` (update with commit validation guidance) or separate doc reference
+
+**Dependencies:** TASK-20
+
+**Traces to:** ARCH-038, ARCH-040
+
+---
+
+### TASK-22: Add integration test for full TDD cycle with per-phase QA
+
+**Description:** Create an end-to-end integration test that validates the full TDD loop with per-phase QA executes correctly from tdd-red through task-audit.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Test starts at `tdd-red` phase
+- [ ] Test executes each transition in sequence: tdd-red → tdd-red-qa → commit-red → commit-red-qa → tdd-green → tdd-green-qa → commit-green → commit-green-qa → tdd-refactor → tdd-refactor-qa → commit-refactor → commit-refactor-qa → task-audit
+- [ ] Test verifies state updates correctly at each transition
+- [ ] Test verifies `step next` returns correct actions at each phase
+- [ ] `go test ./internal/state -run Integration` passes
+- [ ] Test output clearly shows the full phase progression
+
+**Files:** `internal/state/tdd_integration_test.go`
+
+**Dependencies:** TASK-17, TASK-19, TASK-21
+
+**Traces to:** ARCH-041
+
+---
+
+### ISSUE-92 Task Summary
+
+| Task | Title | Dependencies | Key Traces |
+|------|-------|--------------|------------|
+| TASK-15 | Add TDD sub-phase and commit phases to state machine | None | ARCH-034, ARCH-035, ARCH-041 |
+| TASK-16 | Update state transition rules | TASK-15 | ARCH-036, ARCH-041 |
+| TASK-17 | Add transition enforcement tests | TASK-16 | ARCH-036, ARCH-041 |
+| TASK-18 | Add TDD sub-phase QA entries to step registry | TASK-15 | ARCH-034, ARCH-037 |
+| TASK-19 | Verify step next returns QA actions for TDD sub-phases | TASK-18 | ARCH-037 |
+| TASK-20 | Create commit-producer skill specification | None | ARCH-039 |
+| TASK-21 | Define commit-QA validation contract | TASK-20 | ARCH-040 |
+| TASK-22 | Add integration test for full TDD cycle with per-phase QA | TASK-17, TASK-19, TASK-21 | ARCH-041 |
+
+---
+
+### Summary Metrics (ISSUE-92)
+
+| Metric | Count |
+|--------|-------|
+| Total tasks | 8 |
+| New files | 2 (commit-producer/SKILL.md, tdd_integration_test.go) |
+| Modified files | 6 (state.go, transitions.go, tdd_qa_phases_test.go, registry.go, next.go, next_test.go) |
+| New phases | 10 |
+| New transitions | 12 |
+| Architecture items covered | 8 (ARCH-034 through ARCH-041) |
+
+**Critical path:** TASK-15 → TASK-16 → TASK-17 (state machine foundation must be solid before step registry and skill work)
+
+**Parallel opportunities:** TASK-18 and TASK-20 can proceed in parallel after TASK-15 completes
+
+**Testing strategy:** Progressive - unit tests for transitions (TASK-17), step logic tests (TASK-19), integration test for full cycle (TASK-22)
+
