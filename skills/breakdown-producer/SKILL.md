@@ -13,8 +13,6 @@ phase: breakdown
 
 Transform architecture specs into executable TDD tasks with TASK-N IDs.
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ## Quick Reference
 
 | Aspect | Details |
@@ -199,17 +197,6 @@ Task affects `components/Button.tsx` and AC says "button displays loading spinne
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | tasks.md created with all TASK-N IDs |
-| `need-context` | Need architecture/requirements files |
-| `blocked` | Cannot decompose (missing info, conflicts) |
-| `error` | Parse failure, invalid input |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

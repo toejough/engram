@@ -15,13 +15,9 @@ deprecated: true
 
 Reviews outputs from parallel producers to ensure consistency across all batch results. Applies domain-specific consistency rules passed as input.
 
-## Yield Protocol
-
-See [YIELD.md](../shared/YIELD.md) for full protocol specification.
-
 ## Workflow: REVIEW -> RETURN
 
-This skill follows the QA-TEMPLATE pattern for batch QA operations.
+This skill follows the QA pattern for batch QA operations.
 
 ### 1. REVIEW Phase
 

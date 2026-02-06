@@ -11,8 +11,6 @@ role: evaluator
 
 Standalone skill that evaluates incoming user requests and classifies them into the appropriate workflow type. Outputs a yield protocol TOML with the classification. Escalates to user if classification is uncertain.
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ---
 
 ## Classification Types

@@ -45,7 +45,7 @@ Architecture phase focuses on **technology choices** and **system design**. Prob
 
 ## Workflow
 
-Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern. Outputs [YIELD](../shared/YIELD.md) protocol TOML.
+Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern. 
 
 ### GATHER Phase
 
@@ -269,19 +269,6 @@ Go selected for backend implementation.
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `need-context` | Gather existing docs before interview |
-| `need-user-input` | Each interview question |
-| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
-| `need-decision` | Contradictory context requires user resolution |
-| `blocked` | Infrastructure failure prevents proceeding |
-| `complete` | architecture.md artifact produced |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

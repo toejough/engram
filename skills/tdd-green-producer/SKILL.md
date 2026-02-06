@@ -146,8 +146,6 @@ Don't add extra sections or elaborate beyond what's needed to pass the semantic 
 
 ## Yield Protocol
 
-See [YIELD.md](../shared/YIELD.md) for full specification.
-
 ### Complete Yield
 
 When all tests pass:
@@ -272,17 +270,6 @@ On completion, send a message to the team lead with:
 - Files modified
 - Visual evidence path (for `[visual]` tasks)
 - Key decisions made
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | All tests pass with minimal implementation |
-| `need-context` | Need test files, architecture context |
-| `blocked` | Cannot proceed (test expectations unclear) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

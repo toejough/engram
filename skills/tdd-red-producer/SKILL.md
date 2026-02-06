@@ -16,7 +16,7 @@ Write failing tests that specify expected behavior before implementation. This i
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML with task ID, acceptance criteria, architecture notes |
+| Input | Context from spawn prompt: task ID, acceptance criteria, architecture notes |
 | Output | Test files that fail (red state verified) |
 | Traces | TASK-N acceptance criteria |
 
@@ -215,8 +215,6 @@ Write tests that verify these exist and convey the right meaning, just as you wo
 
 ## Yield Protocol
 
-See [YIELD.md](../shared/YIELD.md) for full protocol.
-
 ### Yield Types
 
 | Type | When |
@@ -289,17 +287,6 @@ On completion, send a message to the team lead with:
 - Test results summary (total, passing, failing)
 - Files modified
 - Key decisions made
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Tests written and verified failing |
-| `need-context` | Need files, architecture, or conventions |
-| `blocked` | Cannot proceed (missing task details) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

@@ -328,5 +328,4 @@ contract:
 - **DES-002**: Contract Section Placement - Where contracts live in SKILL.md
 - **ARCH-020**: Contract Standard Location - Why this file exists at `skills/shared/CONTRACT.md`
 - **ARCH-021**: Contract Extraction Algorithm - How QA extracts contracts from SKILL.md
-- **YIELD.md**: Yield protocol for producer and QA skills
 - **PRODUCER-TEMPLATE.md**: Template for creating producer skills

@@ -15,8 +15,6 @@ deprecated: true
 
 Orchestrates parallel execution of PAIR LOOPs for independent items.
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ## Quick Reference
 
 | Aspect | Details |
@@ -60,7 +58,6 @@ domain = "tdd"
 rules = ["no shared file conflicts", "test isolation"]
 
 [output]
-yield_path = ".claude/context/parallel-looper-yield.toml"
 ```
 
 ---
@@ -342,7 +339,6 @@ name = "test-isolation"
 description = "Tests should not depend on execution order"
 
 [output]
-yield_path = ".claude/context/consistency-checker-yield.toml"
 ```
 
 ---

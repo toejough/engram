@@ -18,8 +18,7 @@ Improve code quality while keeping all tests green. This is the "refactor" phase
 | Aspect | Details |
 |--------|---------|
 | Pattern | GATHER -> SYNTHESIZE -> PRODUCE |
-| Input | Context TOML with green phase results, implementation files |
-| Output | Refactored code with yield to [YIELD.md](../shared/YIELD.md) |
+| Input | Context from spawn prompt: green phase results, implementation files |
 | Key Rule | All tests must still pass after every refactor |
 
 ---
@@ -195,23 +194,11 @@ On completion, send a message to the team lead with:
 - Files modified
 - Key decisions made
 
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Refactoring done, tests green, linter clean |
-| `need-context` | Need project conventions, linter config |
-| `blocked` | Spec mismatch found, cannot proceed |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
-
 ---
 
 ## Reference
 
 - Pattern: [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
-- Yield protocol: [YIELD.md](../shared/YIELD.md)
 
 ---
 

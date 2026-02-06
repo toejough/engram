@@ -12,8 +12,6 @@ role: standalone
 
 Standalone skill that executes queries from need-context yields and returns aggregated context to the requesting producer.
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ---
 
 ## Purpose

@@ -30,12 +30,12 @@ else
     exit 1
 fi
 
-# TASK-25 Requirement: References YIELD.md
+# No legacy YIELD.md references
 if grep -q 'YIELD.md' "$SKILL_FILE"; then
-    echo "PASS: References YIELD.md"
-else
-    echo "FAIL: Missing reference to YIELD.md"
+    echo "FAIL: Legacy YIELD.md reference still present"
     exit 1
+else
+    echo "PASS: No legacy YIELD.md references"
 fi
 
 # TASK-25 Requirement: Handles file query type

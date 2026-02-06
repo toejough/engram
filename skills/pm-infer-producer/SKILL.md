@@ -15,7 +15,6 @@ variant: infer
 Analyzes existing code to infer requirements for codebase adoption.
 
 **Template:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
-**Yield Protocol:** [YIELD.md](../shared/YIELD.md)
 
 ## Problem Discovery First
 
@@ -90,7 +89,7 @@ Process gathered code analysis:
 Classify each planned requirement as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
 
 1. For each requirement from SYNTHESIZE, determine if it was directly present in analyzed code/docs or inferred by the producer
-2. If any inferred requirements exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+2. If any inferred requirements exist, use `AskUserQuestion` to present them for accept/reject
 3. Wait for user accept/reject decisions
 4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
@@ -188,18 +187,6 @@ subphase = "complete"
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `need-context` | Need code exploration (semantic/file/territory queries) |
-| `need-user-input` (inferred) | Present inferred requirements for user accept/reject |
-| `blocked` | Cannot proceed (missing access, unreadable code) |
-| `complete` | requirements.md created successfully |
-| `error` | Parse failure or other recoverable error |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

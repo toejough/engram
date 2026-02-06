@@ -14,8 +14,6 @@ Validates any producer's output against the contract defined in its SKILL.md fil
 
 **Contract Standard:** See [CONTRACT.md](../shared/CONTRACT.md)
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ## Quick Reference
 
 | Aspect | Details |
@@ -37,8 +35,6 @@ Load and parse all inputs needed for validation.
 - Producer SKILL.md path
 - Artifact paths to validate
 - Iteration number and max iterations
-
-**Legacy mode:** Read TOML context file with `[inputs]` section.
 
 **Then for both modes:**
 
@@ -198,10 +194,6 @@ Issues remain after 3 QA iterations. Unresolved:
 - CHECK-002: DES-003 has no traces
 ```
 
-### Legacy Mode (yield protocol)
-
-See [YIELD.md](../shared/YIELD.md) for TOML yield format examples.
-
 ---
 
 ## Error Handling Summary
@@ -244,7 +236,6 @@ Per ARCH-021, extract contract from producer SKILL.md:
 ## Related Documents
 
 - **CONTRACT.md**: Contract format specification
-- **YIELD.md**: Yield protocol for all skills
 - **DES-003**: QA output format (full checklist)
 - **DES-004**: QA context input schema
 - **DES-005**: QA yield types

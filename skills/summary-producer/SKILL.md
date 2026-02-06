@@ -16,7 +16,7 @@ Produce a comprehensive project summary capturing key decisions, outcomes, and l
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML with artifact paths |
+| Input | Context from spawn prompt: artifact paths |
 | Analysis | Requirements, design, architecture, tasks, implementation |
 | Output | Project summary with decisions and outcomes |
 
@@ -65,8 +65,6 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - Outcomes summary
 
 ## Yield Protocol
-
-See [YIELD.md](../shared/YIELD.md) for full protocol.
 
 ### Yield Types
 
@@ -199,17 +197,6 @@ For each significant decision:
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Summary generated successfully |
-| `need-context` | Need files, artifacts, or history |
-| `blocked` | Cannot proceed (missing artifacts) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

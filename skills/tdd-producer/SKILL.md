@@ -18,8 +18,7 @@ Orchestrates the complete TDD cycle by running nested pair loops for RED, GREEN,
 | Aspect | Details |
 |--------|---------|
 | Pattern | GATHER -> SYNTHESIZE -> PRODUCE (composite variant) |
-| Input | Context TOML with task ID, acceptance criteria, architecture notes |
-| Output | Complete TDD cycle results with yield to [YIELD.md](../shared/YIELD.md) |
+| Input | Context from spawn prompt: task ID, acceptance criteria, architecture notes |
 | Nature | Composite orchestrator - runs nested pair loops |
 
 ---
@@ -162,8 +161,6 @@ If any nested loop yields `escalate-phase` or `escalate-user`:
 
 ## Yield Protocol
 
-See [YIELD.md](../shared/YIELD.md) for full protocol specification.
-
 ### Complete Yield
 
 When all three pair loops complete successfully:
@@ -294,24 +291,11 @@ On completion, send a message to the team lead with:
 - Files modified
 - Key decisions made
 
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | All three pair loops finished successfully |
-| `need-context` | Missing information before starting loops |
-| `blocked` | Cannot proceed (ambiguous requirements) |
-| `escalate-phase` | Nested loop discovered phase-level issue |
-| `escalate-user` | Nested loop needs user intervention |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
-
 ---
 
 ## Reference
 
 - Producer template: [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
-- Yield protocol: [YIELD.md](../shared/YIELD.md)
 - RED producer: [tdd-red-producer](../tdd-red-producer/SKILL.md)
 - RED QA: [tdd-red-qa](../tdd-red-qa/SKILL.md)
 - GREEN producer: [tdd-green-producer](../tdd-green-producer/SKILL.md)

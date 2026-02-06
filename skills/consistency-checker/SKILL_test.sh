@@ -30,20 +30,20 @@ else
     exit 1
 fi
 
-# TASK-25b Requirement: References QA-TEMPLATE pattern (REVIEW/RETURN)
+# Requirement: Has REVIEW/RETURN workflow pattern
 if grep -qi 'REVIEW' "$SKILL_FILE" && grep -qi 'RETURN' "$SKILL_FILE"; then
-    echo "PASS: References QA-TEMPLATE pattern (REVIEW/RETURN)"
+    echo "PASS: Has REVIEW/RETURN workflow pattern"
 else
-    echo "FAIL: Missing QA-TEMPLATE pattern (must include REVIEW, RETURN)"
+    echo "FAIL: Missing REVIEW/RETURN workflow pattern"
     exit 1
 fi
 
-# TASK-25b Requirement: References YIELD.md
+# No legacy YIELD.md references
 if grep -q 'YIELD.md' "$SKILL_FILE"; then
-    echo "PASS: References YIELD.md"
-else
-    echo "FAIL: Missing reference to YIELD.md"
+    echo "FAIL: Legacy YIELD.md reference still present"
     exit 1
+else
+    echo "PASS: No legacy YIELD.md references"
 fi
 
 # TASK-25b Requirement: Reviews outputs across all parallel results

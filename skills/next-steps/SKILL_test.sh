@@ -46,19 +46,19 @@ else
     exit 1
 fi
 
-# TASK-27 Requirement: Outputs yield protocol TOML
-if grep -q 'YIELD.md' "$SKILL_FILE" || grep -qi '\[yield\]' "$SKILL_FILE"; then
-    echo "PASS: References yield protocol"
-else
-    echo "FAIL: Missing reference to yield protocol"
+# No legacy YIELD.md references
+if grep -q 'YIELD.md' "$SKILL_FILE"; then
+    echo "FAIL: Legacy YIELD.md reference still present"
     exit 1
+else
+    echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-27 Requirement: Has complete yield example with TOML
-if grep -q 'type = "complete"' "$SKILL_FILE"; then
-    echo "PASS: Has complete yield example"
+# Has completion message example
+if grep -qi 'complete' "$SKILL_FILE" && grep -qi 'SendMessage\|completion message' "$SKILL_FILE"; then
+    echo "PASS: Has completion message documentation"
 else
-    echo "FAIL: Missing complete yield example"
+    echo "FAIL: Missing completion message documentation"
     exit 1
 fi
 

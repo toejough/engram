@@ -16,8 +16,6 @@ Gather design decisions through structured user interview and produce design.md 
 
 **Pattern:** GATHER → SYNTHESIZE → PRODUCE (see [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md))
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ## User Experience First
 
 Design phase focuses on **user experience** and **interaction patterns**. Implementation details (file formats, validation logic, data structures, algorithms) belong in the Architecture phase.
@@ -167,18 +165,6 @@ subphase = "complete"
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `need-context` | Gather existing docs before interview |
-| `need-user-input` | Each interview question |
-| `need-user-input` (inferred) | Present inferred design decisions for user accept/reject |
-| `blocked` | Cannot proceed without resolution |
-| `complete` | design.md artifact produced |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

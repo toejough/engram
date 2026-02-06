@@ -1,6 +1,5 @@
 #!/bin/bash
-# SKILL_test.sh - Tests for commit skill yield protocol compliance
-# TASK-28: Update commit skill for yield protocol compatibility
+# SKILL_test.sh - Tests for commit skill
 
 set -euo pipefail
 
@@ -15,7 +14,7 @@ NC='\033[0m' # No Color
 pass() { echo -e "${GREEN}PASS${NC}: $1"; }
 fail() { echo -e "${RED}FAIL${NC}: $1"; exit 1; }
 
-echo "=== Commit Skill Yield Protocol Tests ==="
+echo "=== Commit Skill Tests ==="
 echo ""
 
 # Test 1: Skill file exists
@@ -29,44 +28,40 @@ grep -q "^name: commit" "$SKILL_FILE" || fail "Missing name field"
 grep -q "^user-invocable: true" "$SKILL_FILE" || fail "Missing user-invocable field"
 pass "Has required frontmatter"
 
-# Test 3: References YIELD.md not RESULT.md
-echo "Test 3: References YIELD.md (not RESULT.md)"
+# Test 3: No legacy YIELD.md or RESULT.md references
+echo "Test 3: No legacy references"
 if grep -q "RESULT.md" "$SKILL_FILE"; then
     fail "Still references old RESULT.md format"
 fi
-grep -q "YIELD.md" "$SKILL_FILE" || fail "Does not reference YIELD.md"
-pass "References YIELD.md"
+if grep -q "YIELD.md" "$SKILL_FILE"; then
+    fail "Still references legacy YIELD.md"
+fi
+pass "No legacy references"
 
-# Test 4: Documents yield types (complete, error)
-echo "Test 4: Documents valid yield types"
-grep -qi "complete" "$SKILL_FILE" || fail "Does not mention 'complete' yield type"
-grep -qi "error" "$SKILL_FILE" || fail "Does not mention 'error' yield type"
-pass "Documents yield types"
+# Test 4: Documents completion and error reporting
+echo "Test 4: Documents result reporting"
+grep -qi "complete\|success" "$SKILL_FILE" || fail "Does not mention completion reporting"
+grep -qi "error\|failure" "$SKILL_FILE" || fail "Does not mention error reporting"
+pass "Documents result reporting"
 
-# Test 5: Shows TOML yield format
-echo "Test 5: Shows TOML yield format example"
-grep -q '\[yield\]' "$SKILL_FILE" || fail "Does not show [yield] TOML format"
-grep -q 'type = ' "$SKILL_FILE" || fail "Does not show type field in yield"
-pass "Shows TOML yield format"
-
-# Test 6: Maintains commit functionality
-echo "Test 6: Maintains core commit functionality"
+# Test 5: Maintains core commit functionality
+echo "Test 5: Maintains core commit functionality"
 grep -qi "git" "$SKILL_FILE" || fail "Does not mention git"
 grep -qi "commit" "$SKILL_FILE" || fail "Does not mention commit"
 grep -qi "AI-Used" "$SKILL_FILE" || fail "Does not mention AI-Used trailer"
 pass "Maintains commit functionality"
 
-# Test 7: Has TDD phase templates
-echo "Test 7: Has TDD phase commit templates"
+# Test 6: Has TDD phase templates
+echo "Test 6: Has TDD phase commit templates"
 grep -qi "TDD Red" "$SKILL_FILE" || fail "Missing TDD Red template"
 grep -qi "TDD Green" "$SKILL_FILE" || fail "Missing TDD Green template"
 grep -qi "TDD Refactor" "$SKILL_FILE" || fail "Missing TDD Refactor template"
 pass "Has TDD phase templates"
 
-# Test 8: Documents files_modified in payload
-echo "Test 8: Documents files_modified in complete yield"
-grep -q "files_modified" "$SKILL_FILE" || fail "Does not document files_modified field"
-pass "Documents files_modified"
+# Test 7: Documents files modified in completion
+echo "Test 7: Documents files modified in completion"
+grep -qi "files.modified\|files modified" "$SKILL_FILE" || fail "Does not document files modified"
+pass "Documents files modified"
 
 echo ""
 echo "=== All tests passed ==="

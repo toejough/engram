@@ -15,7 +15,6 @@ variant: infer
 Analyze existing implementation to infer what tests are needed. Produces test files with failing tests.
 
 **Template:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
-**Yield Protocol:** [YIELD.md](../shared/YIELD.md)
 
 ---
 
@@ -136,7 +135,6 @@ subphase = "complete"
 
 ## Input Context
 
-Read from `<project>/.claude/context/tdd-red-infer-producer-context.toml`:
 
 ```toml
 [invocation]
@@ -154,7 +152,6 @@ preserve_existing_tests = true
 output_path = "internal/parser/parser_test.go"
 
 [output]
-yield_path = "context/tdd-red-infer-producer-yield.toml"
 ```
 
 ---
@@ -203,18 +200,6 @@ On completion, send a message to the team lead with:
 - Files modified
 - Inferred test rationale (why each test was created)
 - Key decisions made
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Test file created with failing tests |
-| `need-context` | Need source files, semantic exploration of code |
-| `need-decision` | Multiple valid test approaches |
-| `blocked` | Cannot proceed (missing source, unclear behavior) |
-| `error` | Something failed (retryable) |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

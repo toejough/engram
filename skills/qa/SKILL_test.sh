@@ -122,9 +122,9 @@ else
 fi
 
 # Check QA context inputs documented (DES-004)
-CONTEXT_FIELDS=("producer_skill_path" "producer_yield_path" "artifact_paths")
+CONTEXT_FIELDS=("SKILL.md path" "Artifact paths" "Iteration")
 for field in "${CONTEXT_FIELDS[@]}"; do
-    if grep -q "$field" "$SKILL_FILE"; then
+    if grep -qi "$field" "$SKILL_FILE"; then
         echo "PASS: Context field '$field' documented"
     else
         echo "FAIL: Context field '$field' NOT documented"

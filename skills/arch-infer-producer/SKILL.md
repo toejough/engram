@@ -14,8 +14,6 @@ variant: infer
 
 Analyze existing code to infer architecture decisions and produce architecture.md.
 
-**Protocol:** [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) | [YIELD.md](../shared/YIELD.md)
-
 ## Technical Decisions Only
 
 Architecture phase focuses on **technology choices** and **system design**. Problem discovery belongs in PM, user experience belongs in Design.
@@ -89,7 +87,7 @@ Analyze gathered code structure:
 Classify each planned architecture decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
 
 1. For each architecture decision from SYNTHESIZE, determine if it was directly present in analyzed code/docs or inferred by the producer
-2. If any inferred architecture decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
+2. If any inferred architecture decisions exist, use `AskUserQuestion` to present them for accept/reject
 3. Wait for user accept/reject decisions
 4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
@@ -214,19 +212,6 @@ subphase = "complete"
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `need-context` | Need code structure analysis |
-| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
-| `need-decision` | Ambiguous architecture choice |
-| `blocked` | Cannot analyze (e.g., binary-only) |
-| `complete` | architecture.md created |
-| `error` | Parse/access failure |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

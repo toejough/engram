@@ -16,8 +16,6 @@ Producer skill that gathers requirements through structured user interview and p
 
 **Pattern:** GATHER -> SYNTHESIZE -> PRODUCE (see [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md))
 
-**Yield Protocol:** See [YIELD.md](../shared/YIELD.md)
-
 ## Problem Discovery First
 
 PM phase focuses on **problem discovery** and **user needs**. Implementation details, UI/UX design, and technology choices belong in downstream phases.
@@ -119,19 +117,6 @@ Generate requirements.md artifact:
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `need-context` | Gather existing docs before interview |
-| `need-user-input` | Each interview question |
-| `need-user-input` (inferred) | Present inferred requirements for user accept/reject |
-| `need-decision` | When user provides conflicting requirements |
-| `blocked` | Cannot proceed without resolution |
-| `complete` | requirements.md artifact produced |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

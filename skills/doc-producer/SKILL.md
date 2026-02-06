@@ -16,7 +16,7 @@ Produce and update README, API docs, and user guides based on project artifacts.
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML with artifact paths |
+| Input | Context from spawn prompt: artifact paths |
 | Analysis | Requirements, design, architecture, code |
 | Output | README.md, API docs, user guides |
 
@@ -57,8 +57,6 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - Key decisions made
 
 ## Yield Protocol
-
-See [YIELD.md](../shared/YIELD.md) for full protocol.
 
 ### Yield Types
 
@@ -120,17 +118,6 @@ Users can authenticate via OAuth 2.0...
 | Read existing docs | `Read`, `Glob`, `Grep` tools directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Documentation generated successfully |
-| `need-context` | Need files, code, or examples |
-| `blocked` | Cannot proceed (missing artifacts) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

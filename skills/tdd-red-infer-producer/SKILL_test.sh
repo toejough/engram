@@ -87,14 +87,14 @@ test_producer_pattern() {
     fi
 }
 
-# Test: References YIELD.md
-test_yield_reference() {
+# Test: No legacy YIELD.md references
+test_no_yield_reference() {
     if ! test_skill_exists; then
         return 1
     fi
 
-    if ! grep -q 'YIELD.md' "$SKILL_FILE"; then
-        fail "Missing reference to YIELD.md"
+    if grep -q 'YIELD.md' "$SKILL_FILE"; then
+        fail "Legacy YIELD.md reference still present"
     fi
 }
 
@@ -155,7 +155,7 @@ main() {
     test_skill_exists
     test_frontmatter
     test_producer_pattern
-    test_yield_reference
+    test_no_yield_reference
     test_infer_from_implementation
     test_need_context_yield
     test_complete_yield

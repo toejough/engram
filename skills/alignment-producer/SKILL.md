@@ -15,8 +15,6 @@ Validates the traceability chain (REQ -> DES -> ARCH -> TASK) across all project
 
 ## Yield Protocol
 
-See [YIELD.md](../shared/YIELD.md) for full protocol specification.
-
 ## Workflow: GATHER -> SYNTHESIZE -> PRODUCE
 
 This skill follows the PRODUCER-TEMPLATE pattern.
@@ -193,17 +191,6 @@ Flag domain violations in the report.
 | Run projctl commands | `Bash` tool directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Alignment report generated with coverage metrics |
-| `need-context` | Need artifact files for validation |
-| `blocked` | Cannot proceed (missing project data) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

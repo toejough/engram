@@ -15,15 +15,15 @@ Analyze completed work and suggest follow-up actions based on open issues and pr
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML via $ARGUMENTS | completed task/phase | project dir |
-| Analysis | Recent commits | Open issues.md | Remaining tasks | Learnings |
-| Output | Yield TOML with prioritized next steps |
+| Input | Context from spawn prompt: completed task/phase, project dir |
+| Analysis | Recent commits, open issues.md, remaining tasks, learnings |
+| Output | Prioritized next steps via `SendMessage` to lead |
 
 ## Workflow
 
 ### 1. Gather Context
 
-1. Read completed task or phase information from input
+1. Read completed task or phase information from spawn prompt
 2. Scan `docs/issues.md` for open ISSUE-NNN entries
 3. Check `docs/tasks.md` for remaining TASK-NNN items
 4. Review recent decisions and learnings
@@ -39,61 +39,26 @@ Analyze completed work and suggest follow-up actions based on open issues and pr
 
 ### 3. Produce
 
-Generate yield TOML with prioritized recommendations.
+Send completion message to lead with prioritized recommendations.
 
-## Yield Protocol
+### Example Completion Message
 
-See [YIELD.md](../shared/YIELD.md) for full protocol.
+```
+Complete: next-steps analysis
 
-### Yield Types
+Summary: 3 recommended next steps based on TASK-15 completion
 
-| Type | When |
-|------|------|
-| `complete` | Recommendations generated |
-| `need-context` | Need additional project files |
-| `blocked` | Cannot analyze (missing artifacts) |
+Recommendations:
+1. [ISSUE-3] Add caching layer - now unblocked by completed authentication work
+2. [TASK-18] Write integration tests - new feature needs test coverage
+3. [improvement] Refactor error handling - pattern emerged during TASK-15
 
-### Complete Yield Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-summary = "3 recommended next steps based on TASK-15 completion"
-
-[[payload.recommendations]]
-priority = 1
-type = "issue"
-id = "ISSUE-3"
-title = "Add caching layer"
-reason = "Now unblocked by completed authentication work"
-
-[[payload.recommendations]]
-priority = 2
-type = "task"
-id = "TASK-18"
-title = "Write integration tests"
-reason = "New feature needs test coverage"
-
-[[payload.recommendations]]
-priority = 3
-type = "improvement"
-title = "Refactor error handling"
-reason = "Pattern emerged during TASK-15 that could be generalized"
-
-[[payload.learnings]]
-content = "Authentication module ready for caching integration"
-
-[context]
-phase = "next-steps"
-completed_task = "TASK-15"
+Learnings: Authentication module ready for caching integration
 ```
 
 ## Result Format
 
-`result.toml`: `[status]`, `[[recommendations]]`, `[[learnings]]`
+Completion message to lead with: summary, prioritized recommendations, learnings.
 
 ## Full Documentation
 

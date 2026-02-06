@@ -15,9 +15,9 @@ Stage and commit changes with properly formatted message.
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML via $ARGUMENTS | phase | task ID | summary |
-| Process | Check VCS type | Check state | Review style | Stage specific files | Compose message | Commit | Verify |
-| Rules | Trailer is `AI-Used: [claude]` | NEVER amend pushed | Stage specific files | NO dangerous commands |
+| Input | Context from spawn prompt: phase, task ID, summary |
+| Process | Check VCS type, check state, review style, stage specific files, compose message, commit, verify |
+| Rules | Trailer is `AI-Used: [claude]`, NEVER amend pushed, stage specific files, NO dangerous commands |
 
 ## Message Templates
 
@@ -36,32 +36,24 @@ Stage and commit changes with properly formatted message.
 | Mixed concerns | Separate functional changes from lint/style fixes |
 | VCS error | Check for `.jj` dir - use jj commands if present |
 
-## Yield Format
+## Reporting Results
 
-Write yield to path from context (`output.yield_path`). See `shared/YIELD.md`.
+On success, send completion message to lead:
+```
+Complete: commit created
 
-**On success (complete):**
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-commit_hash = "abc123f"
-files_modified = ["internal/foo.go", "internal/foo_test.go"]
-message = "feat(foo): implement feature"
+Commit hash: abc123f
+Files modified: internal/foo.go, internal/foo_test.go
+Message: feat(foo): implement feature
 ```
 
-**On failure (error):**
-```toml
-[yield]
-type = "error"
-timestamp = 2026-02-02T10:30:00Z
+On failure, send error message to lead:
+```
+Error: commit failed
 
-[payload]
-error = "Pre-commit hook failed"
-details = "golangci-lint found issues"
-recoverable = true
+Error: Pre-commit hook failed
+Details: golangci-lint found issues
+Recoverable: yes
 ```
 
 ## Full Documentation

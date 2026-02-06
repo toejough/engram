@@ -16,7 +16,7 @@ Produce a project retrospective analyzing what went well, what could improve, an
 
 | Aspect | Details |
 |--------|---------|
-| Input | Context TOML with project artifacts and session data |
+| Input | Context from spawn prompt: project artifacts and session data |
 | Analysis | Requirements, design, implementation, decisions, blockers |
 | Output | Retrospective with successes, challenges, action items, and issue creation |
 
@@ -85,8 +85,6 @@ After generating the retrospective, create issues for follow-up work:
 Low priority recommendations do not get issues - they are documented for future reference only.
 
 ## Yield Protocol
-
-See [YIELD.md](../shared/YIELD.md) for full protocol.
 
 ### Yield Types
 
@@ -259,17 +257,6 @@ If `projctl issue create` fails:
 | Run projctl commands | `Bash` tool directly |
 | Report completion | `SendMessage` to team lead |
 | Report blocker | `SendMessage` to team lead |
-
-### Legacy Mode (yield protocol)
-
-| Yield Type | When Used |
-|------------|-----------|
-| `complete` | Retrospective generated and issues created |
-| `need-context` | Need session data, artifacts, or logs |
-| `blocked` | Cannot proceed (missing project data) |
-| `error` | Something failed |
-
-See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 
