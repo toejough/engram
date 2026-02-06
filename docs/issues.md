@@ -3238,13 +3238,17 @@ Added model: result.model to spawn-producer and spawn-qa examples in SKILL.md
 ### ISSUE-87: Decision needed: Consolidate Phase 1/2 migration memory notes
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 Unresolved question from retrospective (retro-phase2.md Q1). Context: Both Phase 1 and Phase 2 of the team migration added memory notes. These notes are scattered across the migration sessions. A consolidation pass would ensure all lessons are properly captured in MEMORY.md.
 
 ---
 
+
+### Comment
+
+Scan complete. Three lessons preserved in CLAUDE.md (duplicate role guards, pattern reuse, test structure sketching). No MEMORY.md needed — lessons are captured where they belong.
 ### ISSUE-88: Decision needed: Clean up remaining yield references in docs
 
 **Priority:** Medium
@@ -3488,13 +3492,17 @@ Will be addressed by ISSUE-90 (step-driven execution). projctl step next output 
 ### ISSUE-95: Decision needed: Should the phase registry be runtime config instead of static code?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 From ISSUE-89 retro Q1: Currently the registry is a Go map literal in registry.go. Adding a new skill or changing a model requires recompiling. A TOML/YAML config file would allow changes without rebuilding, but adds parsing complexity and runtime failure modes. Tradeoff: Static (current) gives compile-time validation and simplicity. Dynamic gives easier updates but adds failure modes. Current recommendation: keep static.
 
 ---
 
+
+### Comment
+
+Decision: keep static. Compile-time validation and simplicity outweigh the convenience of runtime config.
 ### ISSUE-96: Decision needed: How should step complete handle failures?
 
 **Priority:** Medium
@@ -3512,3 +3520,61 @@ From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does 
 **Created:** 2026-02-05
 
 From ISSUE-90 retro R1: When writing tests for skill documentation that references CLI commands, include tests that verify the exact flag names and values match the CLI implementation. Flag mismatches between SKILL.md examples and the actual CLI interface are integration bugs. QA caught two such bugs in ISSUE-90 (--status retry invalid, --qa-verdict approved missing). Measurable outcome: zero QA findings related to CLI flag mismatches in SKILL.md files.
+
+---
+
+### ISSUE-98: How do we launch teammates with the right models?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Reading skill frontmatter to extract the model field was attempted during Phase 2 and ISSUE-89 but didn't work reliably in practice. The orchestrator still spawned teammates on wrong models. Need a mechanism that actually ensures teammates use the correct model. Options to explore: projctl step next already emits the model from the registry — is that sufficient? Does the spawning agent actually use it? Is there a way to enforce it rather than suggest it?
+
+
+### Comment
+
+## Design Decision
+
+The `model` parameter on Task works correctly — tested and confirmed. The problem was the orchestrator LLM not passing it, not a tooling gap.
+
+### Solution: Literal instructions + model handshake + state machine validation
+
+**1. `projctl step next` emits literal Task tool instructions**
+
+Instead of pseudocode the LLM interprets, `step next` outputs the actual instructions the orchestrator should execute — subagent_type, name, model, and full prompt text. Removes the "LLM interprets pseudocode" failure mode.
+
+**2. Teammate model handshake**
+
+The generated prompt instructs the teammate to respond with its model name as its first message. This gives the team lead a visible, verifiable signal before any work begins.
+
+**3. Orchestrator validates the model response**
+
+`step next` output includes a `validate-model` step after spawn. The orchestrator checks the teammate's first response against the expected model. If wrong → kill teammate, report `step complete --status failed`. If correct → proceed.
+
+**4. State machine retry with escalation**
+
+Track spawn attempts in PairState. On model mismatch:
+- Attempts 1-3: `step next` re-emits the spawn action (retry)
+- After 3 failures: `step next` emits `escalate-user` action
+
+### Flow
+
+1. `step next` → action: spawn-producer (with literal Task instructions, expected model in output)
+2. Orchestrator executes Task tool call exactly as instructed
+3. Teammate responds with model name
+4. Orchestrator checks model name against expected
+5a. Match → `step complete --action spawn-producer --status done`
+5b. Mismatch → `step complete --action spawn-producer --status failed`
+6. On failure, `step next` increments spawn attempts, re-emits spawn (up to 3x)
+7. After 3 failures → `step next` emits escalate-user
+
+### Acceptance Criteria
+
+- [ ] `step next` spawn actions include literal Task tool instructions with model parameter
+- [ ] Generated prompt includes "respond with your model name" as first instruction
+- [ ] `step next` output includes expected_model field for orchestrator validation
+- [ ] PairState tracks spawn_attempts count
+- [ ] Failed spawn increments spawn_attempts; step next retries up to 3x
+- [ ] After 3 failed spawns, step next emits escalate-user action
+- [ ] Orchestrator SKILL.md updated with model validation step
