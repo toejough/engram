@@ -2,6 +2,7 @@ package step
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/toejough/projctl/internal/state"
@@ -59,15 +60,17 @@ type NextResult struct {
 	Context       StepContext `json:"context"`                   // Contextual information
 	TaskParams    *TaskParams `json:"task_params,omitempty"`     // Task tool call parameters (non-nil for spawn actions)
 	ExpectedModel string     `json:"expected_model,omitempty"`  // Expected model for handshake validation
+	Details       string     `json:"details,omitempty"`         // Details for escalation actions
 }
 
 // CompleteResult holds the input to step complete.
 type CompleteResult struct {
-	Action     string `json:"action"`                // What was completed
-	Status     string `json:"status"`                // done, failed
-	QAVerdict  string `json:"qa_verdict,omitempty"`   // approved, improvement-request, escalate-phase, escalate-user
-	QAFeedback string `json:"qa_feedback,omitempty"`  // Feedback text from QA
-	Phase      string `json:"phase,omitempty"`        // Target phase for transition actions
+	Action        string `json:"action"`                  // What was completed
+	Status        string `json:"status"`                  // done, failed
+	QAVerdict     string `json:"qa_verdict,omitempty"`     // approved, improvement-request, escalate-phase, escalate-user
+	QAFeedback    string `json:"qa_feedback,omitempty"`    // Feedback text from QA
+	Phase         string `json:"phase,omitempty"`          // Target phase for transition actions
+	ReportedModel string `json:"reported_model,omitempty"` // Model reported by teammate (for failed spawns)
 }
 
 // Next determines the next action based on the current project state.
@@ -113,6 +116,9 @@ func Next(dir string) (NextResult, error) {
 	switch {
 	case !hasPair || (!pair.ProducerComplete && pair.QAVerdict == ""):
 		// No pair state or producer not done yet: spawn producer
+		if pair.SpawnAttempts >= 3 {
+			return escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels), nil
+		}
 		if pair.ImprovementRequest != "" {
 			ctx.QAFeedback = pair.ImprovementRequest
 		}
@@ -135,6 +141,9 @@ func Next(dir string) (NextResult, error) {
 
 	case pair.ProducerComplete && pair.QAVerdict == "":
 		// Producer done, no QA yet: spawn QA
+		if pair.SpawnAttempts >= 3 {
+			return escalateResult(currentPhase, "qa", info.QAModel, pair.FailedModels), nil
+		}
 		return NextResult{
 			Action:    "spawn-qa",
 			Skill:     info.QA,
@@ -154,6 +163,9 @@ func Next(dir string) (NextResult, error) {
 
 	case pair.QAVerdict == "improvement-request":
 		// QA requested improvements: re-run producer with feedback
+		if pair.SpawnAttempts >= 3 {
+			return escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels), nil
+		}
 		ctx.QAFeedback = pair.ImprovementRequest
 		return NextResult{
 			Action:    "spawn-producer",
@@ -206,22 +218,37 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 
 	switch result.Action {
 	case "spawn-producer":
-		// Producer completed: update pair state
 		pair := getPair(s, currentPhase)
+		if result.Status == "failed" {
+			pair.SpawnAttempts++
+			pair.FailedModels = append(pair.FailedModels, result.ReportedModel)
+			_, err = state.SetPair(dir, currentPhase, pair)
+			return err
+		}
+		// done (or empty for backward compat)
 		pair.ProducerComplete = true
+		pair.SpawnAttempts = 0
+		pair.FailedModels = nil
 		if pair.Iteration == 0 {
 			pair.Iteration = 1
 			pair.MaxIterations = 3
 		}
-		// Clear previous QA verdict/feedback for new iteration
 		pair.QAVerdict = ""
 		pair.ImprovementRequest = ""
 		_, err = state.SetPair(dir, currentPhase, pair)
 		return err
 
 	case "spawn-qa":
-		// QA completed: update pair state with verdict
 		pair := getPair(s, currentPhase)
+		if result.Status == "failed" {
+			pair.SpawnAttempts++
+			pair.FailedModels = append(pair.FailedModels, result.ReportedModel)
+			_, err = state.SetPair(dir, currentPhase, pair)
+			return err
+		}
+		// done (or empty for backward compat)
+		pair.SpawnAttempts = 0
+		pair.FailedModels = nil
 		pair.QAVerdict = result.QAVerdict
 		if result.QAVerdict == "improvement-request" {
 			pair.ImprovementRequest = result.QAFeedback
@@ -254,6 +281,19 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 
 	default:
 		return fmt.Errorf("unknown action: %q", result.Action)
+	}
+}
+
+// escalateResult builds a NextResult for the escalate-user action.
+func escalateResult(phase, subPhase, expectedModel string, failedModels []string) NextResult {
+	details := fmt.Sprintf(
+		"spawn failed 3 times for %s %s: expected model '%s', got models: ['%s']",
+		phase, subPhase, expectedModel, strings.Join(failedModels, "', '"),
+	)
+	return NextResult{
+		Action:  "escalate-user",
+		Phase:   phase,
+		Details: details,
 	}
 }
 

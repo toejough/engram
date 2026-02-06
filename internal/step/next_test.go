@@ -711,6 +711,231 @@ func TestPromptAssembly(t *testing.T) {
 	})
 }
 
+func TestCompleteFailedSpawn(t *testing.T) {
+	t.Run("failed spawn-producer increments SpawnAttempts and appends FailedModels", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = step.Complete(dir, step.CompleteResult{
+			Action:        "spawn-producer",
+			Status:        "failed",
+			ReportedModel: "haiku",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].SpawnAttempts).To(Equal(1))
+		g.Expect(s.Pairs["pm"].FailedModels).To(Equal([]string{"haiku"}))
+	})
+
+	t.Run("failed spawn-producer does NOT set ProducerComplete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = step.Complete(dir, step.CompleteResult{
+			Action:        "spawn-producer",
+			Status:        "failed",
+			ReportedModel: "haiku",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].ProducerComplete).To(BeFalse())
+	})
+
+	t.Run("failed spawn-qa does NOT set QAVerdict", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = step.Complete(dir, step.CompleteResult{
+			Action:        "spawn-qa",
+			Status:        "failed",
+			ReportedModel: "sonnet",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].QAVerdict).To(BeEmpty())
+		g.Expect(s.Pairs["pm"].SpawnAttempts).To(Equal(1))
+		g.Expect(s.Pairs["pm"].FailedModels).To(Equal([]string{"sonnet"}))
+	})
+
+	t.Run("done spawn-producer resets SpawnAttempts and FailedModels", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Set some prior failed attempts
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			SpawnAttempts: 2,
+			FailedModels:  []string{"haiku", "opus"},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = step.Complete(dir, step.CompleteResult{
+			Action: "spawn-producer",
+			Status: "done",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].SpawnAttempts).To(Equal(0))
+		g.Expect(s.Pairs["pm"].FailedModels).To(BeNil())
+		g.Expect(s.Pairs["pm"].ProducerComplete).To(BeTrue())
+	})
+
+	t.Run("empty status works as done path (backward compat)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		err = step.Complete(dir, step.CompleteResult{
+			Action: "spawn-producer",
+			Status: "",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["pm"].ProducerComplete).To(BeTrue())
+		g.Expect(s.Pairs["pm"].SpawnAttempts).To(Equal(0))
+	})
+}
+
+func TestNextRetryEscalation(t *testing.T) {
+	t.Run("SpawnAttempts == 0 emits normal spawn", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-producer"))
+		g.Expect(result.Details).To(BeEmpty())
+	})
+
+	t.Run("SpawnAttempts == 1 emits same spawn (retry)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			SpawnAttempts: 1,
+			FailedModels:  []string{"haiku"},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-producer"))
+		g.Expect(result.Details).To(BeEmpty())
+	})
+
+	t.Run("SpawnAttempts == 2 emits same spawn (retry)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			SpawnAttempts: 2,
+			FailedModels:  []string{"haiku", "haiku"},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-producer"))
+	})
+
+	t.Run("SpawnAttempts >= 3 emits escalate-user with Details", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			SpawnAttempts: 3,
+			FailedModels:  []string{"haiku", "haiku", "haiku"},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("escalate-user"))
+		g.Expect(result.Details).To(ContainSubstring("sonnet"))
+		g.Expect(result.Details).To(ContainSubstring("haiku"))
+	})
+
+	t.Run("SpawnAttempts >= 3 for spawn-qa emits escalate-user", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			SpawnAttempts:    3,
+			FailedModels:     []string{"sonnet", "sonnet", "sonnet"},
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("escalate-user"))
+		g.Expect(result.Details).To(ContainSubstring("haiku"))
+		g.Expect(result.Details).To(ContainSubstring("sonnet"))
+	})
+}
+
 func TestNextResult_JSON(t *testing.T) {
 	t.Run("NextResult contains all required fields", func(t *testing.T) {
 		g := NewWithT(t)
