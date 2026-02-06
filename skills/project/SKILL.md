@@ -135,8 +135,8 @@ Task(subagent_type: "general-purpose",
 ```
 
 Handle the QA verdict:
-- "approved": `projctl step complete --dir . --action spawn-qa --status done`
-- "improvement-request": `projctl step complete --dir . --action spawn-qa --status retry --feedback "<qa feedback>"`
+- "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
+- "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
 - "escalate-user": Present to user
 
 #### commit
