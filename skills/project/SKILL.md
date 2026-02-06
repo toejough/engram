@@ -83,6 +83,7 @@ When user provides a request (not an explicit command):
 | Continue  | If `state next`=continue, proceed immediately         |
 | Context   | Pass ONLY context to teammates, NEVER behavioral overrides (see below) |
 | Commit    | Commit after every phase/skill completion              |
+| TaskList  | Use TaskCreate/TaskUpdate for runtime task coordination during implementation |
 
 ## Context-Only Contract
 
@@ -149,6 +150,34 @@ All phases use the universal `qa` skill. Context must include producer SKILL.md 
    - "escalate-phase" → return to prior phase
    - "escalate-user" → present to user
 ```
+
+## Implementation Task Coordination
+
+During the implementation phase (after breakdown), use Claude Code's native TaskList for runtime coordination:
+
+### Setup (after breakdown QA passes)
+
+1. Parse `tasks.md` for TASK-N items and their dependencies
+2. `TaskCreate` for each TASK-N with:
+   - subject: "TASK-N: \<title\>"
+   - description: acceptance criteria from tasks.md
+   - activeForm: present continuous of the task title
+3. Set dependencies with `TaskUpdate(addBlockedBy: [...])` matching tasks.md dependency graph
+4. Metadata: `{"task_id": "TASK-N"}` for cross-reference
+
+### Execution Loop
+
+1. `TaskList` to find unblocked tasks (no blockedBy, status pending)
+2. `TaskUpdate(status: "in_progress")` on selected task
+3. Spawn TDD producer teammate for the task
+4. On completion: `TaskUpdate(status: "completed")`
+5. Repeat until all tasks complete or all remaining are blocked/escalated
+
+### Rules
+
+- `tasks.md` remains the canonical traced artifact (TaskList is runtime coordination only)
+- TaskList entries carry TASK-N in metadata for cross-reference
+- Prefer tasks in ID order when multiple are unblocked
 
 ## Support Skills
 

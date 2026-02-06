@@ -309,6 +309,21 @@ For each task in dependency order:
 projctl state transition --dir . --to task-start --task TASK-NNN
 ```
 
+#### TaskList Coordination
+
+Before starting the first task, create TaskList entries from tasks.md:
+
+```
+# Parse tasks.md for TASK-N items (orchestrator does this, not a teammate)
+# For each TASK-N:
+TaskCreate(subject: "TASK-N: <title>", description: "<AC from tasks.md>",
+           activeForm: "<doing title>", metadata: {"task_id": "TASK-N"})
+# Set dependencies:
+TaskUpdate(taskId: N, addBlockedBy: [<dependent task IDs>])
+```
+
+Use `TaskList` between tasks to select the next unblocked item. Update status to `in_progress` before spawning the TDD teammate, and `completed` after QA passes.
+
 **Red → Commit → Green → Commit → Refactor → Commit** (atomic sequence)
 
 | Sub-phase | Skill | Next |
@@ -343,7 +358,7 @@ Documentation tasks get full TDD treatment when ANY of these indicators are pres
 
 ### Escalation Handling
 
-Continue with unblocked tasks. When all blocked:
+Continue with unblocked tasks. Mark escalated tasks in TaskList: `TaskUpdate(taskId: N, status: "completed", metadata: {"escalated": true})`. When all remaining tasks are blocked:
 
 ```
 Implementation paused: N tasks escalated.
