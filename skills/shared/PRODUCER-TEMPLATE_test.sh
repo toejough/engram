@@ -1,5 +1,5 @@
 #!/bin/bash
-# PRODUCER-TEMPLATE.md validation tests for TASK-3
+# PRODUCER-TEMPLATE.md validation tests
 # Run: bash skills/shared/PRODUCER-TEMPLATE_test.sh
 
 set -e
@@ -14,7 +14,7 @@ if [[ ! -f "$TEMPLATE_FILE" ]]; then
 fi
 echo "PASS: File exists"
 
-# TASK-3 Requirement: Frontmatter with role field
+# Frontmatter with role field
 if grep -q 'role:' "$TEMPLATE_FILE"; then
     echo "PASS: Frontmatter has role field"
 else
@@ -22,7 +22,7 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: Frontmatter with phase field
+# Frontmatter with phase field
 if grep -q 'phase:' "$TEMPLATE_FILE"; then
     echo "PASS: Frontmatter has phase field"
 else
@@ -30,7 +30,7 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: Frontmatter with variant field
+# Frontmatter with variant field
 if grep -q 'variant:' "$TEMPLATE_FILE"; then
     echo "PASS: Frontmatter has variant field"
 else
@@ -38,7 +38,7 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: GATHER pattern documented
+# GATHER pattern documented
 if grep -qi 'GATHER' "$TEMPLATE_FILE"; then
     echo "PASS: GATHER pattern documented"
 else
@@ -46,7 +46,7 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: SYNTHESIZE pattern documented
+# SYNTHESIZE pattern documented
 if grep -qi 'SYNTHESIZE' "$TEMPLATE_FILE"; then
     echo "PASS: SYNTHESIZE pattern documented"
 else
@@ -54,7 +54,7 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: PRODUCE pattern documented
+# PRODUCE pattern documented
 if grep -qi 'PRODUCE' "$TEMPLATE_FILE"; then
     echo "PASS: PRODUCE pattern documented"
 else
@@ -62,20 +62,36 @@ else
     exit 1
 fi
 
-# TASK-3 Requirement: Yield format section
-if grep -qi 'yield' "$TEMPLATE_FILE"; then
-    echo "PASS: Yield format section exists"
+# Team mode: AskUserQuestion documented
+if grep -q 'AskUserQuestion' "$TEMPLATE_FILE"; then
+    echo "PASS: AskUserQuestion documented"
 else
-    echo "FAIL: Yield format section missing"
+    echo "FAIL: AskUserQuestion not documented"
     exit 1
 fi
 
-# TASK-3 Requirement: Reference to YIELD.md
-if grep -q 'YIELD.md' "$TEMPLATE_FILE"; then
-    echo "PASS: References YIELD.md"
+# Team mode: SendMessage documented
+if grep -q 'SendMessage' "$TEMPLATE_FILE"; then
+    echo "PASS: SendMessage documented"
 else
-    echo "FAIL: Missing reference to YIELD.md"
+    echo "FAIL: SendMessage not documented"
     exit 1
+fi
+
+# No legacy YIELD.md references
+if grep -q 'YIELD.md' "$TEMPLATE_FILE"; then
+    echo "FAIL: Legacy YIELD.md reference still present"
+    exit 1
+else
+    echo "PASS: No legacy YIELD.md references"
+fi
+
+# No legacy TOML references
+if grep -q 'TOML' "$TEMPLATE_FILE"; then
+    echo "FAIL: Legacy TOML reference still present"
+    exit 1
+else
+    echo "PASS: No legacy TOML references"
 fi
 
 # Should specify role = producer

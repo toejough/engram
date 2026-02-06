@@ -25,19 +25,19 @@ Producer skills follow the GATHER → SYNTHESIZE → PRODUCE pattern:
 ### 1. GATHER
 
 Collect information needed for the task:
-- Read context file for inputs and previous phase data
-- If information is missing, yield `need-context` with queries
-- If user input is needed, yield `need-user-input` with question
-- If decision is needed, yield `need-decision` with options
+- Read context from spawn prompt and referenced files
+- If information is missing, read files directly (Glob, Grep, Read tools)
+- If user input is needed, use `AskUserQuestion`
+- If decision is needed, present options via `AskUserQuestion`
 
 ```markdown
 ## GATHER Phase
 
-1. Read context from `[inputs]` section
-2. Check for `[query_results]` (resuming after need-context)
+1. Read context from spawn prompt (project info, artifact paths, prior outputs)
+2. Read referenced files directly
 3. If missing information:
-   - Yield `need-context` with specific queries
-   - OR yield `need-user-input` for interview questions
+   - Read additional files using Glob, Grep, Read tools
+   - OR use `AskUserQuestion` for interview questions
 4. Proceed to SYNTHESIZE when sufficient information gathered
 ```
 
@@ -54,7 +54,7 @@ Process gathered information:
 1. Analyze gathered information
 2. Identify key decisions and their rationale
 3. Check for conflicts with existing artifacts
-4. If blocked, yield `blocked` with details
+4. If blocked, send message to lead describing the blocker
 5. Prepare structured output
 ```
 
@@ -83,7 +83,7 @@ After SYNTHESIZE, classify each planned specification as explicit or inferred be
 **Workflow:**
 1. Review each specification planned during SYNTHESIZE
 2. Classify as explicit or inferred
-3. If any inferred items exist: yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](./YIELD.md))
+3. If any inferred items exist: use `AskUserQuestion` to present them for accept/reject
 4. Wait for user accept/reject decisions
 5. Drop rejected items, keep accepted items
 6. Proceed to PRODUCE with only explicit + accepted items
@@ -93,7 +93,7 @@ After SYNTHESIZE, classify each planned specification as explicit or inferred be
 Create the artifact:
 - Write output file with proper IDs (REQ-N, DES-N, ARCH-N, TASK-N)
 - Include traceability links
-- Yield `complete` with artifact details
+- Send completion message to team lead
 
 ```markdown
 ## PRODUCE Phase
@@ -101,14 +101,10 @@ Create the artifact:
 1. Generate artifact with proper ID format
 2. Include `**Traces to:**` links to upstream artifacts
 3. Write to configured path from context
-4. Yield `complete` with artifact path and IDs created
+4. Send completion message to lead with artifact path and IDs created
 ```
 
-## Team Mode
-
-When invoked as a teammate (via Task tool with team_name), use direct interaction instead of yield files:
-
-### Receiving Context
+## Receiving Context
 
 Context arrives in your spawn prompt from the team lead. It includes:
 - Project name and issue ID
@@ -117,16 +113,16 @@ Context arrives in your spawn prompt from the team lead. It includes:
 - Prior phase outputs (upstream artifacts to read)
 - Territory map summary and memory query results
 
-Read referenced files directly — no TOML context files needed.
+Read referenced files directly.
 
-### User Interaction
+## User Interaction
 
 Use `AskUserQuestion` directly for:
-- Interview questions (no yield-resume relay)
+- Interview questions
 - CLASSIFY phase (presenting inferred items for accept/reject)
-- Conflict resolution (`need-decision` scenarios)
+- Conflict resolution (need-decision scenarios)
 
-### Reporting Results
+## Reporting Results
 
 On completion, send a message to the team lead via `SendMessage` with:
 - **Artifact path** (e.g., `docs/requirements.md`)
@@ -151,82 +147,6 @@ Traces validated: all REQ-N trace to ISSUE-42
 ```
 
 ---
-
-## Legacy Mode (Yield Protocol)
-
-When invoked via the Skill tool with TOML context files, use the yield protocol.
-
-See [YIELD.md](./YIELD.md) for full protocol specification.
-
-Producer skills can yield:
-
-| Type | When to Use |
-|------|-------------|
-| `complete` | Work finished, artifact created |
-| `need-user-input` | Need answer from user (interview mode) |
-| `need-context` | Need files, memory, or exploration |
-| `need-decision` | Multiple valid approaches, user must choose |
-| `need-agent` | Need another agent's work |
-| `blocked` | Cannot proceed without external action |
-| `error` | Something failed (retryable) |
-
-### Complete Yield Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-artifact = "docs/requirements.md"
-ids_created = ["REQ-1", "REQ-2", "REQ-3"]
-files_modified = ["docs/requirements.md"]
-
-[[payload.decisions]]
-context = "Scope definition"
-choice = "CLI only, no GUI"
-reason = "User's immediate need"
-alternatives = ["Include GUI", "API first"]
-
-[context]
-phase = "pm"
-subphase = "complete"
-```
-
-### Need-Context Yield Example
-
-```toml
-[yield]
-type = "need-context"
-timestamp = 2026-02-02T10:35:00Z
-
-[[payload.queries]]
-type = "file"
-path = "docs/architecture.md"
-
-[[payload.queries]]
-type = "semantic"
-question = "How is error handling implemented?"
-
-[context]
-phase = "pm"
-subphase = "GATHER"
-awaiting = "context-results"
-```
-
-## Context Reading (Legacy)
-
-On invocation via Skill tool, read context from path provided by orchestrator:
-
-```markdown
-1. Read context file at `<project>/.claude/context/<skill>-context.toml`
-2. Check `[query_results]` - if present, resuming after need-context
-3. Extract mode from `invocation.mode`:
-   - `interview`: Interactive Q&A flow
-   - `infer`: Analysis-based generation
-4. Read artifact paths from `[config]`
-5. Write yield to `[output].yield_path`
-```
 
 ## ID Format
 
@@ -255,7 +175,7 @@ Users can log in with email/password.
 
 | Variant | Behavior |
 |---------|----------|
-| `interview` | Interactive Q&A, yields `need-user-input` frequently |
-| `infer` | Analyzes existing code/docs, yields `need-context` for exploration |
+| `interview` | Interactive Q&A, uses `AskUserQuestion` frequently |
+| `infer` | Analyzes existing code/docs, reads files for exploration |
 
 Both variants produce the same artifact format - they differ in how they gather information.
