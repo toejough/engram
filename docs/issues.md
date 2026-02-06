@@ -3007,7 +3007,7 @@ All skills migrated to team mode (ISSUE-73-76). Orchestrator already wired in IS
 ### ISSUE-78: TaskList-based implementation coordination
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-78)
 
@@ -3036,7 +3036,7 @@ Depends on: ISSUE-77
 ### ISSUE-79: Native parallel task execution via teams
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-79)
 
@@ -3064,7 +3064,7 @@ Depends on: ISSUE-78
 ### ISSUE-80: Remove legacy yield infrastructure
 
 **Priority:** Low
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-80)
 
