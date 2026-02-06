@@ -296,6 +296,7 @@ var Registry = &PhaseRegistry{
 
 		// === TDD QA PHASES ===
 		// Per-phase QA for TDD red/green/refactor sub-phases
+		// Traces: ARCH-034, ARCH-037
 
 		"tdd-red-qa": {
 			Producer:      "qa",
@@ -330,6 +331,7 @@ var Registry = &PhaseRegistry{
 
 		// === COMMIT QA PHASES ===
 		// Per-phase QA for commit red/green/refactor sub-phases
+		// Traces: ARCH-035, ARCH-037
 
 		"commit-red-qa": {
 			Producer:      "qa",

@@ -11,6 +11,8 @@ phase: commit-red | commit-green | commit-refactor
 
 # Commit Producer
 
+<!-- Traces: ARCH-039 -->
+
 Create git commits scoped to current TDD phase (red/green/refactor).
 
 ## Workflow: GATHER -> SYNTHESIZE -> PRODUCE
@@ -215,6 +217,8 @@ On completion, send a message to the team lead with:
 ---
 
 ## Contract
+
+<!-- Traces: ARCH-040 -->
 
 ```yaml
 contract:

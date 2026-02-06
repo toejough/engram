@@ -10,6 +10,7 @@ import (
 
 // TestTDDQAStepNext verifies TASK-19 acceptance criteria:
 // `step next` returns QA actions for TDD sub-phase QA phases.
+// Traces: ARCH-037
 
 // navigateToPhaseForStepNext is a helper to reach a specific phase for step next testing.
 func navigateToPhaseForStepNext(t *testing.T, dir string, targetPhase string) {

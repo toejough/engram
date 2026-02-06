@@ -807,8 +807,6 @@ Summary of all files requiring modification for this change.
 | ARCH-023 | REQ-005, DES-003, DES-005 |
 | ARCH-024 | REQ-011, DES-008 |
 | ARCH-025 | REQ-008 |
-| ARCH-026 | REQ-010, DES-004 |
-| ARCH-027 | REQ-005, DES-005, DES-006, DES-007, DES-009 |
 | ARCH-028 | REQ-005, DES-012 |
 | ARCH-029 | REQ-005 |
 | ARCH-030 | REQ-005, REQ-007, REQ-009 |
@@ -929,4 +927,358 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [SEND INFERRED MESSAGE] -> PRODUCE
 | ARCH-031 | REQ-012, DES-014, TASK-11 |
 | ARCH-032 | REQ-014, DES-015, TASK-13 |
 | ARCH-033 | REQ-013, REQ-015, DES-016, TASK-12, TASK-14 |
+
+---
+
+## ISSUE-92: Per-Phase QA in TDD Loop Architecture
+
+Technical architecture for restructuring the TDD loop so each sub-phase (red, green, refactor) has its own producer/QA pair instead of deferring all QA to the end.
+
+---
+
+### ARCH-034: TDD Sub-Phase QA Phases
+
+Add QA phases for each TDD sub-phase in the state machine.
+
+**New state machine phases:**
+- `tdd-red-qa`: QA validation after tdd-red-producer completes
+- `tdd-green-qa`: QA validation after tdd-green-producer completes
+- `tdd-refactor-qa`: QA validation after tdd-refactor-producer completes
+
+**Phase registry entries:**
+
+All three TDD sub-phases already have PhaseInfo entries in `internal/step/registry.go` with `QA: "qa"` and `QAPath: "skills/qa/SKILL.md"`.
+
+**State transitions:**
+```
+tdd-red → tdd-red-qa → commit-red →
+tdd-green → tdd-green-qa → commit-green →
+tdd-refactor → tdd-refactor-qa → commit-refactor →
+task-audit
+```
+
+**Rationale:** Immediate QA feedback after each TDD phase catches issues early. A failing test in red phase is caught before green/refactor happen. Smaller QA scope per phase makes validation focused and fast.
+
+**Alternatives considered:**
+- Keep QA at end (current): Issues compound, late detection
+- QA between phases only (no commit QA): Misses commit-specific issues
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-035: Commit-Phase Pair Loops
+
+Add commit producer and QA phases for each TDD commit.
+
+**New state machine phases:**
+- `commit-red`: Producer creates commit after tdd-red-qa approval
+- `commit-red-qa`: QA validates commit correctness
+- `commit-green`: Producer creates commit after tdd-green-qa approval
+- `commit-green-qa`: QA validates commit correctness
+- `commit-refactor`: Producer creates commit after tdd-refactor-qa approval
+- `commit-refactor-qa`: QA validates commit correctness
+
+**Commit-producer responsibilities:**
+1. Stage appropriate files (no secrets, no unrelated changes)
+2. Generate conventional commit message
+3. Create commit
+4. Report commit hash and files staged
+
+**Commit-QA validation criteria:**
+1. Right files staged (matches phase scope)
+2. No secrets committed (.env, credentials)
+3. Commit message follows convention
+4. Commit message describes change accurately
+5. No blanket lint suppressions added
+
+**Phase registry:**
+
+Commit phases are not producer/QA pairs in the traditional sense. They use existing tools:
+- Producer: Likely `/commit` skill or orchestrator-driven git commands
+- QA: Validate via git status/log analysis
+
+**Rationale:** Commit errors are expensive if caught late. Staging wrong files, committing secrets, or malformed messages break CI/CD. QA before pushing ensures commits are clean.
+
+**Alternatives considered:**
+- No commit QA: Relies on pre-commit hooks (unreliable, inconsistent)
+- Single commit at end: Loses per-phase commit discipline
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-036: Transition Enforcement
+
+Update state machine transitions to enforce QA phases between producer and commit.
+
+**Illegal transitions to prevent:**
+- `tdd-red → commit-red` (must go through tdd-red-qa)
+- `tdd-green → commit-green` (must go through tdd-green-qa)
+- `tdd-refactor → commit-refactor` (must go through tdd-refactor-qa)
+- `commit-red → tdd-green` (must go through commit-red-qa)
+- `commit-green → tdd-refactor` (must go through commit-green-qa)
+- `commit-refactor → task-audit` (must go through commit-refactor-qa)
+
+**Implementation:**
+
+Legal targets in `internal/state/transitions.go`:
+```
+"tdd-red": []string{"tdd-red-qa"},
+"tdd-red-qa": []string{"commit-red"},
+"commit-red": []string{"commit-red-qa"},
+"commit-red-qa": []string{"tdd-green"},
+...
+```
+
+**Verification:**
+
+Tests in `internal/state/tdd_qa_phases_test.go` validate:
+- Legal transitions succeed
+- Illegal transitions fail with "illegal transition" error
+- Full chain from tdd-red to task-audit works
+
+**Rationale:** Enforcing transitions programmatically prevents skipping QA. State machine guarantees no shortcuts.
+
+**Alternatives considered:**
+- Soft enforcement (warnings): Unreliable, agents could skip
+- Manual orchestrator logic: Error-prone, duplicates state machine knowledge
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-037: projctl step next Integration
+
+Update `projctl step next` to return QA actions between producer and commit.
+
+**Current behavior:**
+
+`projctl step next` reads the current phase from state and looks up the PhaseInfo in the registry. It returns the action for that phase (spawn producer or spawn QA).
+
+**Expected behavior with ISSUE-92:**
+
+When phase is `tdd-red`, `step next` returns:
+```json
+{
+  "action": "spawn-producer",
+  "skill": "tdd-red-producer",
+  "skill_path": "skills/tdd-red-producer/SKILL.md",
+  "model": "sonnet"
+}
+```
+
+After producer completes and state transitions to `tdd-red-qa`, `step next` returns:
+```json
+{
+  "action": "spawn-qa",
+  "skill": "qa",
+  "skill_path": "skills/qa/SKILL.md",
+  "model": "haiku",
+  "producer_skill_path": "skills/tdd-red-producer/SKILL.md"
+}
+```
+
+**Implementation:**
+
+The registry already has QA configured for tdd-red, tdd-green, tdd-refactor. `step next` logic in `internal/step/next.go` checks if the phase is in the registry and returns the appropriate action.
+
+For commit phases (`commit-red`, `commit-green`, `commit-refactor`), the orchestrator handles these differently (not via step registry, but via state transitions).
+
+**Rationale:** `step next` already drives per-phase QA for other phases (pm, design, arch). Extending to TDD sub-phases is consistent with existing pattern.
+
+**Alternatives considered:**
+- Orchestrator hardcodes TDD flow: Duplicates state machine knowledge
+- No step next support: Forces manual orchestration
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-038: TDD-QA Scope Reduction
+
+Reduce `tdd-qa` (final QA after refactor) to a meta-check instead of full validation.
+
+**Current tdd-qa responsibilities:**
+- Verify all tests pass
+- Verify implementation is complete
+- Verify refactoring is done
+- Verify AC coverage
+- Verify no deferrals
+
+**New tdd-qa responsibilities (meta-check only):**
+- Did tdd-red complete with passing QA?
+- Did tdd-green complete with passing QA?
+- Did tdd-refactor complete with passing QA?
+- Did all three commits happen?
+- Are we ready to transition to task-audit?
+
+**Rationale:** Per-phase QA already validates each step. tdd-qa becomes a lightweight sanity check that the full RED/GREEN/REFACTOR cycle completed properly.
+
+**Alternatives considered:**
+- Remove tdd-qa entirely: Loses explicit cycle completion verification
+- Keep full tdd-qa validation: Duplicates per-phase QA work
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-039: Commit Producer Skill Requirements
+
+Define requirements for commit-producer skill behavior.
+
+**Skill responsibilities:**
+
+1. **Read current phase** - Determine scope (red/green/refactor)
+2. **Stage appropriate files** - Use `git add <files>` for changed files in scope
+3. **Validate no secrets** - Check staged files for .env, credentials, API keys
+4. **Generate commit message** - Follow conventional commits format
+5. **Create commit** - Execute `git commit` with generated message
+6. **Report result** - Send completion message with commit hash, files staged
+
+**Commit message format:**
+
+```
+<type>(<scope>): <description>
+
+<optional body>
+
+AI-Used: [claude]
+```
+
+Where `<type>` is one of: `feat`, `fix`, `test`, `refactor`, `docs`, `chore`.
+
+**Staging rules by phase:**
+
+| Phase | Files to Stage |
+|-------|----------------|
+| commit-red | Test files only (new tests from tdd-red) |
+| commit-green | Test files + implementation files (from tdd-green) |
+| commit-refactor | Implementation files only (refactored code from tdd-refactor) |
+
+**Secret detection patterns:**
+
+- `.env`, `.env.*` files
+- `credentials.json`, `secrets.yaml`
+- Files containing `API_KEY=`, `SECRET=`, `PASSWORD=`
+- Private key patterns (`-----BEGIN PRIVATE KEY-----`)
+
+**Rationale:** Explicit staging rules per phase prevent cross-phase contamination. Red commits should not include implementation code. Green commits should not include refactoring.
+
+**Alternatives considered:**
+- `/commit` skill handles all commits: Needs phase-aware logic
+- Orchestrator creates commits directly: Loses commit skill reusability
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-040: Commit-QA Validation Contract
+
+Define validation criteria for commit-QA phases.
+
+**Validation checks:**
+
+| Check ID | Description | Severity |
+|----------|-------------|----------|
+| CHECK-COMMIT-001 | Files staged match phase scope | error |
+| CHECK-COMMIT-002 | No secrets in staged files | error |
+| CHECK-COMMIT-003 | Commit message follows conventional format | error |
+| CHECK-COMMIT-004 | Commit message describes change accurately | warning |
+| CHECK-COMMIT-005 | No blanket lint suppressions added | error |
+| CHECK-COMMIT-006 | Commit created successfully | error |
+
+**Phase-specific scope validation:**
+
+| Phase | Expected Files |
+|-------|----------------|
+| commit-red-qa | Only test files (no implementation) |
+| commit-green-qa | Test files + implementation (no refactoring-only changes) |
+| commit-refactor-qa | Implementation files (behavior unchanged) |
+
+**QA actions on failure:**
+
+| Failure Type | QA Response |
+|--------------|-------------|
+| Wrong files staged | `improvement-request: unstage <files>, stage <correct-files>` |
+| Secrets detected | `improvement-request: remove <files> from staging, add to .gitignore` |
+| Bad commit message | `improvement-request: amend commit message to: <suggestion>` |
+| Commit failed | `error: commit creation failed: <details>` |
+
+**Rationale:** Automated commit validation catches common mistakes before they reach CI. Secret detection prevents credential leaks.
+
+**Alternatives considered:**
+- Pre-commit hooks only: Not enforced in orchestrator, inconsistent
+- Manual review: Too slow, error-prone
+
+**Traces to:** ISSUE-92
+
+---
+
+### ARCH-041: State Machine Changes Summary
+
+Summary of all state machine modifications for ISSUE-92.
+
+**New phases added (10 total):**
+- `tdd-red-qa`
+- `tdd-green-qa`
+- `tdd-refactor-qa`
+- `commit-red`
+- `commit-red-qa`
+- `commit-green`
+- `commit-green-qa`
+- `commit-refactor`
+- `commit-refactor-qa`
+- (tdd-qa scope changed, not new)
+
+**Transition updates:**
+
+```
+OLD: tdd-red → commit-red → tdd-green → commit-green → tdd-refactor → commit-refactor → tdd-qa
+
+NEW: tdd-red → tdd-red-qa → commit-red → commit-red-qa →
+     tdd-green → tdd-green-qa → commit-green → commit-green-qa →
+     tdd-refactor → tdd-refactor-qa → commit-refactor → commit-refactor-qa →
+     task-audit
+```
+
+**Files to modify:**
+- `internal/state/transitions.go` - Add new phases to legal targets
+- `internal/step/registry.go` - Add commit-phase entries (if using registry for commits)
+- `internal/state/state.go` - No changes needed (generic transition logic)
+
+**Tests:**
+- `internal/state/tdd_qa_phases_test.go` - Already exists with full test coverage
+
+**Rationale:** Clean separation of QA and commit responsibilities. Each phase has a single concern.
+
+**Traces to:** ISSUE-92
+
+---
+
+## ISSUE-92 Architecture Summary
+
+| Decision | Choice |
+|----------|--------|
+| TDD sub-phase QA | tdd-red-qa, tdd-green-qa, tdd-refactor-qa phases |
+| Commit pattern | commit-producer → commit-qa for each TDD phase |
+| Transition enforcement | State machine prevents skipping QA |
+| projctl step next | Returns QA actions between producer and commit |
+| tdd-qa scope | Meta-check only (did the right steps happen?) |
+| Commit staging rules | Phase-specific file scope (red=tests, green=tests+impl, refactor=impl) |
+| Secret detection | Pre-commit validation for .env, credentials, API keys |
+| Commit message format | Conventional commits with AI-Used trailer |
+
+**Traceability Matrix:**
+
+| ARCH ID | Traces to |
+|---------|-----------|
+| ARCH-034 | ISSUE-92 |
+| ARCH-035 | ISSUE-92 |
+| ARCH-036 | ISSUE-92 |
+| ARCH-037 | ISSUE-92 |
+| ARCH-038 | ISSUE-92 |
+| ARCH-039 | ISSUE-92 |
+| ARCH-040 | ISSUE-92 |
+| ARCH-041 | ISSUE-92 |
 

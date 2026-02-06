@@ -107,6 +107,8 @@ projctl usage check --dir .
 
 ### Phases and Workflows
 
+<!-- Traces: ARCH-034, ARCH-035, ARCH-036 -->
+
 projctl organizes work into phases, each with a dedicated producer and QA agent:
 
 | Phase | Purpose | Artifacts |
@@ -119,6 +121,42 @@ projctl organizes work into phases, each with a dedicated producer and QA agent:
 | **Documentation** | Update repo-level docs | README, API docs |
 | **Retrospective** | Capture learnings, file issues | `docs/retro.md` |
 | **Summary** | Summarize accomplishments | `docs/summary.md` |
+
+#### TDD Loop Structure
+
+<!-- Traces: ARCH-034, ARCH-035, ARCH-036 -->
+
+The implementation phase uses a structured TDD loop with per-phase QA and commits. Each TDD sub-phase (red, green, refactor) has its own producer/QA pair followed by commit validation:
+
+```
+tdd-red → tdd-red-qa → commit-red → commit-red-qa →
+tdd-green → tdd-green-qa → commit-green → commit-green-qa →
+tdd-refactor → tdd-refactor-qa → commit-refactor → commit-refactor-qa →
+task-audit
+```
+
+**Why per-phase QA?** Immediate feedback catches issues early. If tdd-red writes bad tests, you find out before green/refactor happen. Smaller QA scope per phase keeps validation focused and fast.
+
+**TDD Sub-Phases:**
+
+| Phase | Producer Action | QA Validation | Commit Scope |
+|-------|----------------|---------------|--------------|
+| **tdd-red** | Write failing tests | Verify tests fail for right reasons | Test files only |
+| **tdd-green** | Minimal implementation to pass tests | Verify tests pass, no over-implementation | Tests + implementation |
+| **tdd-refactor** | Improve code quality | Verify tests still pass, code improved | Implementation only |
+
+**Commit Validation:**
+
+<!-- Traces: ARCH-039, ARCH-040 -->
+
+Each commit phase uses `commit-producer` skill to create phase-scoped commits, followed by `commit-qa` validation:
+
+- **Staging rules** - Only files modified in current phase (prevents cross-phase contamination)
+- **Secret detection** - Catches .env, credentials, API keys before commit
+- **Message format** - Conventional commits with AI-Used trailer
+- **Lint suppressions** - Flags blanket suppressions (no mass nolint additions)
+
+State machine enforcement prevents shortcuts (e.g., cannot skip from tdd-red directly to commit-red without tdd-red-qa).
 
 ### Team Communication Protocol
 
@@ -348,6 +386,7 @@ Skills are located in `~/.claude/skills/` and define agent behaviors. Key skills
 - **tdd-red-producer** - Write failing tests
 - **tdd-green-producer** - Make tests pass
 - **tdd-refactor-producer** - Improve code quality
+- **commit-producer** - Create phase-scoped git commits (red/green/refactor)
 - **doc-producer** - Documentation generation
 - **alignment-producer** - Align artifacts with changes
 - **retro-producer** - Generate retrospective

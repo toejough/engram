@@ -235,6 +235,8 @@ Per ARCH-021, extract contract from producer SKILL.md:
 
 ## Commit-QA Validation Contract
 
+<!-- Traces: ARCH-040 -->
+
 When validating commit-producer phases (`commit-red-qa`, `commit-green-qa`, `commit-refactor-qa`), apply these checks:
 
 ### Phase-Specific Checks

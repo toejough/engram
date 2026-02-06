@@ -9,6 +9,7 @@ import (
 
 // TestPerPhaseQAInTDDLoop verifies ISSUE-92 acceptance criteria:
 // Each TDD sub-phase (red, green, refactor) has its own QA phase.
+// Traces: ARCH-034, ARCH-036
 
 // navigateToPhase is a helper that transitions through a sequence of phases.
 // It fails the test if any transition fails.
@@ -46,6 +47,7 @@ func navigateToPhase(t *testing.T, dir string, targetPhase string) {
 	}
 }
 
+// Traces: ARCH-036
 func TestTDDRedToRedQATransition(t *testing.T) {
 	t.Run("tdd-red can transition to tdd-red-qa", func(t *testing.T) {
 		g := NewWithT(t)
@@ -78,6 +80,7 @@ func TestTDDRedToRedQATransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestTDDRedQAToCommitRedTransition(t *testing.T) {
 	t.Run("tdd-red-qa can transition to commit-red", func(t *testing.T) {
 		g := NewWithT(t)
@@ -95,6 +98,7 @@ func TestTDDRedQAToCommitRedTransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestTDDGreenToGreenQATransition(t *testing.T) {
 	t.Run("tdd-green can transition to tdd-green-qa", func(t *testing.T) {
 		g := NewWithT(t)
@@ -127,6 +131,7 @@ func TestTDDGreenToGreenQATransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestTDDGreenQAToCommitGreenTransition(t *testing.T) {
 	t.Run("tdd-green-qa can transition to commit-green", func(t *testing.T) {
 		g := NewWithT(t)
@@ -144,6 +149,7 @@ func TestTDDGreenQAToCommitGreenTransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 	t.Run("tdd-refactor can transition to tdd-refactor-qa", func(t *testing.T) {
 		g := NewWithT(t)
@@ -176,6 +182,7 @@ func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestTDDRefactorQAToCommitRefactorTransition(t *testing.T) {
 	t.Run("tdd-refactor-qa can transition to commit-refactor", func(t *testing.T) {
 		g := NewWithT(t)
@@ -193,6 +200,7 @@ func TestTDDRefactorQAToCommitRefactorTransition(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-035, ARCH-036
 func TestCommitPairLoops(t *testing.T) {
 	t.Run("commit-red can transition to commit-red-qa", func(t *testing.T) {
 		g := NewWithT(t)
@@ -285,6 +293,7 @@ func TestCommitPairLoops(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-036
 func TestLegalTargetsWithPerPhaseQA(t *testing.T) {
 	t.Run("tdd-red legal targets include tdd-red-qa", func(t *testing.T) {
 		g := NewWithT(t)

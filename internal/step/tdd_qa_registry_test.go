@@ -9,6 +9,7 @@ import (
 
 // TestTDDQAPhaseRegistry verifies TASK-18 acceptance criteria:
 // TDD sub-phase QA entries are registered correctly.
+// Traces: ARCH-034, ARCH-037
 
 func TestTDDRedQARegistry(t *testing.T) {
 	t.Run("tdd-red-qa phase is registered", func(t *testing.T) {
@@ -25,6 +26,7 @@ func TestTDDRedQARegistry(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-034, ARCH-037
 func TestTDDGreenQARegistry(t *testing.T) {
 	t.Run("tdd-green-qa phase is registered", func(t *testing.T) {
 		g := NewWithT(t)
@@ -40,6 +42,7 @@ func TestTDDGreenQARegistry(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-034, ARCH-037
 func TestTDDRefactorQARegistry(t *testing.T) {
 	t.Run("tdd-refactor-qa phase is registered", func(t *testing.T) {
 		g := NewWithT(t)
@@ -55,6 +58,7 @@ func TestTDDRefactorQARegistry(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-035, ARCH-037
 func TestCommitRedQARegistry(t *testing.T) {
 	t.Run("commit-red-qa phase is registered", func(t *testing.T) {
 		g := NewWithT(t)
@@ -70,6 +74,7 @@ func TestCommitRedQARegistry(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-035, ARCH-037
 func TestCommitGreenQARegistry(t *testing.T) {
 	t.Run("commit-green-qa phase is registered", func(t *testing.T) {
 		g := NewWithT(t)
@@ -85,6 +90,7 @@ func TestCommitGreenQARegistry(t *testing.T) {
 	})
 }
 
+// Traces: ARCH-035, ARCH-037
 func TestCommitRefactorQARegistry(t *testing.T) {
 	t.Run("commit-refactor-qa phase is registered", func(t *testing.T) {
 		g := NewWithT(t)

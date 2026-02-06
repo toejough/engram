@@ -27,6 +27,7 @@ var LegalTransitions = map[string][]string{
 	"breakdown-complete": {"implementation"},
 
 	// Implementation phase (TDD loop with per-phase QA)
+	// Traces: ARCH-034, ARCH-035, ARCH-036
 	"implementation":          {"task-start"},
 	"task-start":              {"tdd-red"},
 	"tdd-red":                 {"tdd-red-qa"},

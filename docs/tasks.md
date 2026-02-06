@@ -541,7 +541,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Add 10 new phases to the state machine phase enumeration to support per-phase QA in the TDD loop.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] Phase constants added: `tdd-red-qa`, `tdd-green-qa`, `tdd-refactor-qa`
@@ -562,7 +562,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Modify the legal transitions map to enforce QA phases between producer and commit, and between commit and next TDD phase.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] `tdd-red` legal targets: `["tdd-red-qa"]`
@@ -591,7 +591,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Expand the existing test file `internal/state/tdd_qa_phases_test.go` to validate all legal and illegal transitions for the new TDD QA phases.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] Tests verify all legal transitions succeed (12 new transitions)
@@ -613,7 +613,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Add registry entries for tdd-red-qa, tdd-green-qa, and tdd-refactor-qa phases in the step registry, mapping each to the universal QA skill.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] Registry entry for `tdd-red-qa`: QA skill is `"qa"`, QAPath is `"skills/qa/SKILL.md"`
@@ -635,7 +635,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Ensure `projctl step next` correctly returns QA actions for the new TDD sub-phase QA phases.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] When phase is `tdd-red-qa`, `step next` returns action `"spawn-qa"` with skill `"qa"`
@@ -657,7 +657,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Define the commit-producer skill behavior in a SKILL.md file. This skill handles staging files and creating commits for each TDD phase.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] SKILL.md documents phase-specific staging rules (red=tests, green=tests+impl, refactor=impl)
@@ -679,7 +679,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Document the validation contract for commit-QA phases. This defines what the universal QA skill checks when validating commits.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
 - [ ] Contract includes CHECK-COMMIT-001: Files staged match phase scope (error severity)
@@ -703,7 +703,7 @@ TASK-20 (commit-producer skill)
 
 **Description:** Create an end-to-end integration test that validates the full TDD loop with per-phase QA executes correctly from tdd-red through task-audit.
 
-**Status:** Ready
+**Status:** Pending
 
 **Acceptance Criteria:**
 - [ ] Test starts at `tdd-red` phase
