@@ -3398,7 +3398,7 @@ Completed: orchestrator SKILL.md simplified to step-driven loop
 ### ISSUE-91: Rename `task-audit` phase to `tdd-qa`
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 Rename the `task-audit` state machine phase to `tdd-qa` for consistency with the TDD pair loop naming pattern.
@@ -3420,10 +3420,14 @@ Acceptance criteria:
 
 ---
 
+
+### Comment
+
+Resolved by ISSUE-92: tdd-qa phase removed entirely, making rename moot.
 ### ISSUE-92: Per-phase QA in TDD loop
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Depends on:** ISSUE-89, ISSUE-91
 
@@ -3465,6 +3469,10 @@ Acceptance criteria:
 
 ---
 
+
+### Comment
+
+Implementation complete. 10 new phases, 12 new transitions, 6 QA registry entries, commit-producer skill, commit-QA contract. All tests pass. Also closes ISSUE-91 (tdd-qa rename moot - phase removed).
 ### ISSUE-93: Guard against duplicate role assignments in team coordination
 
 **Priority:** High
