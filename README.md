@@ -1,0 +1,551 @@
+# projctl
+
+<!-- Traces: REQ-001 -->
+
+A dependable Claude Code agent orchestrator with maximum autonomy, minimum intervention, and confident traceability from idea to implementation.
+
+## Overview
+
+<!-- Traces: REQ-001, DES-001, ARCH-018 -->
+
+projctl is a CLI tool that orchestrates Claude Code agents through structured workflows for software development projects. It provides:
+
+- **Maximum autonomy** with minimum human intervention through intelligent agent coordination
+- **Cheapest operation** using smallest context and most cost-effective models (Haiku → Sonnet → Opus)
+- **Deterministic tooling** over LLM judgment for consistency and reliability
+- **Learning from corrections** to improve future behavior
+- **Behavioral correctness** enforced through tests
+- **Confident traceability** from requirements through to implementation
+- **Support for all project types**: existing codebases, alignment tasks, and new projects
+
+## Installation
+
+<!-- Traces: REQ-001 -->
+
+### Prerequisites
+
+- Go 1.25.6 or later
+- Git
+- [targ](https://github.com/toejough/targ) (optional, for build automation)
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/toejough/projctl.git
+cd projctl
+
+# Option 1: Using targ (recommended)
+targ install
+
+# Option 2: Using go install directly
+go install ./cmd/projctl
+projctl skills install
+```
+
+### Verify Installation
+
+```bash
+projctl --help
+```
+
+## Quick Start
+
+<!-- Traces: REQ-001, ARCH-001, ARCH-012, ARCH-013 -->
+
+### Initialize a Project
+
+```bash
+# Initialize project state and configuration
+projctl state init
+projctl config init
+
+# Check current state
+projctl state get
+```
+
+### Create an Issue
+
+```bash
+# Create a new issue to track work
+projctl issue create --title "Add user authentication" \
+  --description "Users need to log in with email/password"
+```
+
+### Run the Orchestrator
+
+The orchestrator (via `/project` skill in Claude Code) automatically:
+
+1. Analyzes requirements and gathers context
+2. Produces design and architecture artifacts
+3. Breaks work into tasks
+4. Implements each task using TDD discipline
+5. Updates documentation
+6. Generates retrospective and summary
+
+Each phase uses a producer-QA pair loop for quality assurance before advancing.
+
+### Check Progress
+
+```bash
+# View current project state
+projctl state get
+
+# List all issues
+projctl issue list
+
+# View project log
+projctl log read
+
+# Check token usage against budget
+projctl usage check --dir .
+```
+
+## Core Concepts
+
+<!-- Traces: REQ-001, ARCH-018 -->
+
+### Phases and Workflows
+
+projctl organizes work into phases, each with a dedicated producer and QA agent:
+
+| Phase | Purpose | Artifacts |
+|-------|---------|-----------|
+| **PM** | Discover problems, produce requirements | `docs/requirements.md` |
+| **Design** | Define user experience | `docs/design.md` |
+| **Architecture** | Define technical approach | `docs/architecture.md` |
+| **Task Breakdown** | Decompose into executable tasks | `docs/tasks.md` |
+| **Implementation** | Build with test-first discipline | Code, tests |
+| **Documentation** | Update repo-level docs | README, API docs |
+| **Retrospective** | Capture learnings, file issues | `docs/retro.md` |
+| **Summary** | Summarize accomplishments | `docs/summary.md` |
+
+### Yield Protocol
+
+<!-- Traces: ARCH-018 -->
+
+Skills communicate with the orchestrator through structured TOML yield files. Producer yield types:
+
+- `complete` - Work finished successfully
+- `need-user-input` - Question for user
+- `need-context` - Need information from codebase/memory
+- `need-decision` - Ambiguous choice requires user decision
+- `need-agent` - Need another agent to perform sub-task
+- `blocked` - Cannot proceed without resolution
+- `error` - Something failed (retryable or fatal)
+
+QA yield types:
+
+- `approved` - Work passes quality checks
+- `improvement-request` - Producer needs to fix issues
+- `escalate-phase` - Problem in prior phase artifact
+- `escalate-user` - Cannot resolve without user input
+
+### Traceability Chain
+
+<!-- Traces: REQ-001, ARCH-018 -->
+
+Every artifact traces to upstream work using inline `**Traces to:**` fields:
+
+```markdown
+### REQ-003: User Authentication
+
+Users must be able to log in with email and password.
+
+**Traces to:** ISSUE-15
+```
+
+Validate traceability:
+
+```bash
+projctl trace validate --dir .
+```
+
+### State Management
+
+<!-- Traces: ARCH-012, ARCH-013 -->
+
+The orchestrator tracks project state to enable resumption and parallel work:
+
+```bash
+# View current state
+projctl state get
+
+# Manual state transitions (usually not needed)
+projctl state transition --from pm --to design
+```
+
+State includes:
+- Current phase and sub-phase
+- Active tasks and their status
+- Pair loop iteration counts
+- Escalation and conflict records
+
+## CLI Commands
+
+<!-- Traces: REQ-001, ARCH-002 -->
+
+### State Commands
+
+```bash
+projctl state init              # Initialize project state file
+projctl state get               # Show current state
+projctl state set               # Update state fields
+projctl state transition        # Transition to new state
+projctl state next              # Determine next action
+projctl state retry             # Re-attempt failed transition
+projctl state complete          # Mark task complete
+```
+
+### Configuration
+
+```bash
+projctl config init             # Initialize project config
+projctl config get              # Get configuration value
+projctl config path             # Show config file path
+```
+
+### Issue Management
+
+```bash
+projctl issue create            # Create new issue
+projctl issue update            # Update existing issue
+projctl issue list              # List all issues
+projctl issue get               # Get issue details
+```
+
+### Traceability
+
+```bash
+projctl trace validate          # Validate traceability links
+projctl trace repair            # Detect and report issues
+projctl trace show              # Show traceability graph
+projctl trace promote           # Promote TASK traces to artifact IDs
+```
+
+### Memory System
+
+<!-- Traces: ARCH-014 -->
+
+```bash
+projctl memory learn            # Store a learning
+projctl memory decide           # Log a decision with reasoning
+projctl memory query            # Find semantically similar memories
+projctl memory grep             # Search memory files by pattern
+projctl memory extract          # Extract from yield/result files
+projctl memory session-end      # Generate session summary
+```
+
+### Context and Territory
+
+<!-- Traces: ARCH-007 -->
+
+```bash
+projctl context check           # Check context budget usage
+projctl territory map           # Generate compressed territory map
+projctl territory show          # Show cached territory map
+```
+
+### Code Quality
+
+```bash
+projctl coverage analyze        # Analyze test coverage
+projctl coverage report         # Generate coverage report
+projctl refactor rename         # Rename symbol using LSP
+projctl refactor extract-function  # Extract function using LSP
+```
+
+### Visual Verification
+
+<!-- Traces: ARCH-015 -->
+
+```bash
+projctl screenshot diff         # Compare screenshots for differences
+```
+
+### Usage Tracking
+
+<!-- Traces: ARCH-004 -->
+
+```bash
+projctl usage report            # Generate token usage report
+projctl usage check             # Check against budget thresholds
+```
+
+### Skills Management
+
+<!-- Traces: ARCH-016 -->
+
+```bash
+projctl skills list             # List available skills
+projctl skills install          # Install skills (create symlinks)
+projctl skills status           # Show installation status
+projctl skills uninstall        # Uninstall skills
+projctl skills docs             # Show full skill documentation
+```
+
+### Other Commands
+
+```bash
+projctl log write               # Write log entry
+projctl log read                # Read log entries with filtering
+projctl conflict create         # Create conflict record
+projctl conflict check          # Check for unresolved conflicts
+projctl conflict list           # List all conflicts
+projctl escalation write        # Write escalation record
+projctl escalation review       # Review pending escalations
+projctl escalation resolve      # Resolve escalation by ID
+projctl worktree create         # Create worktree for task
+projctl worktree merge          # Merge task worktree
+projctl retro extract           # Extract retro recommendations
+projctl step next               # Get next orchestration action (JSON)
+projctl step complete           # Record step result
+projctl step complete --reportedmodel <model>  # Record failed spawn with model mismatch
+```
+
+## Configuration
+
+<!-- Traces: REQ-001 -->
+
+Project configuration lives in `project-config.toml`:
+
+```toml
+[project]
+name = "my-project"
+type = "existing"  # or "new", "alignment"
+
+[docs]
+dir = "docs"
+requirements_path = "docs/requirements.md"
+design_path = "docs/design.md"
+architecture_path = "docs/architecture.md"
+tasks_path = "docs/tasks.md"
+
+[budget]
+warning_tokens = 50000
+limit_tokens = 100000
+
+[memory]
+index_path = ".projctl/memory/index.sqlite"
+embeddings_path = ".projctl/memory/embeddings"
+```
+
+Initialize with defaults:
+
+```bash
+projctl config init
+```
+
+## Skills
+
+<!-- Traces: ARCH-016, ARCH-018 -->
+
+Skills are located in `~/.claude/skills/` and define agent behaviors. Key skills:
+
+- **project** - Main orchestrator skill (invoked via `/project`)
+- **qa** - Universal QA skill that validates producers against contracts
+- **pm-interview-producer** / **pm-infer-producer** - Requirements gathering
+- **design-interview-producer** / **design-infer-producer** - Design specification
+- **arch-interview-producer** / **arch-infer-producer** - Architecture definition
+- **breakdown-producer** - Task decomposition
+- **tdd-red-producer** - Write failing tests
+- **tdd-green-producer** - Make tests pass
+- **tdd-refactor-producer** - Improve code quality
+- **doc-producer** - Documentation generation
+- **alignment-producer** - Align artifacts with changes
+- **retro-producer** - Generate retrospective
+- **summary-producer** - Generate summary
+
+Each skill follows the GATHER → SYNTHESIZE → PRODUCE pattern and communicates via yields.
+
+## Model Routing
+
+<!-- Traces: ARCH-003 -->
+
+projctl automatically selects the most cost-effective model for each task:
+
+- **Haiku** - Simple validation, QA checks, territory mapping
+- **Sonnet** - Most producers, complex analysis
+- **Opus** - Complex design decisions, architecture (when explicitly needed)
+
+Skills declare their model in frontmatter. The orchestrator respects these declarations for optimal cost/quality balance.
+
+### Model Handshake Enforcement
+
+When spawning a teammate, `step next` includes an `expected_model` field and prepends a handshake instruction to the task prompt. The teammate must report its model name as its first message. The orchestrator then verifies the reported model matches the expected model.
+
+If the model does not match:
+
+1. The orchestrator calls `step complete` with `--status failed --reportedmodel <model>` to record the mismatch.
+2. The failed model is appended to the `FailedModels` list and `SpawnAttempts` is incremented in the pair state.
+3. The orchestrator retries the spawn (up to 3 attempts).
+4. After 3 failed attempts, `step next` returns an `escalate-user` action with details listing the expected model and all models that were received.
+
+On a successful spawn (model matches), `SpawnAttempts` resets to 0 and `FailedModels` is cleared.
+
+### Task Parameters
+
+For spawn actions, `step next` output includes a `task_params` object with the exact parameters for the Claude Code Task tool call:
+
+```json
+{
+  "subagent_type": "code",
+  "name": "tdd-red-producer",
+  "model": "claude-sonnet-4-5-20250929",
+  "prompt": "First, respond with your model name so I can verify you're running the correct model.\n\nThen invoke /tdd-red-producer.\n\n..."
+}
+```
+
+The `expected_model` field at the top level tells the orchestrator what model to validate against the teammate's handshake response.
+
+## Development
+
+### Build
+
+```bash
+# Using targ
+targ install
+
+# Or using go directly
+go build ./cmd/projctl
+```
+
+### Test
+
+```bash
+go test ./...
+```
+
+### Code Quality
+
+```bash
+# Analyze coverage
+projctl coverage analyze --dir .
+
+# Check traceability
+projctl trace validate --dir .
+```
+
+## Architecture
+
+<!-- Traces: ARCH-001, ARCH-012, ARCH-013, ARCH-018 -->
+
+projctl uses a structured result format where all skills return TOML files with:
+
+- **Status** - Success/failure indicator
+- **Outputs** - Artifacts produced (file paths, IDs)
+- **Decisions** - Key choices made with reasoning
+- **Learnings** - Patterns discovered for future use
+
+The orchestrator operates as a control loop:
+
+1. Read current state
+2. Determine next action
+3. Dispatch appropriate skill
+4. Read yield
+5. Update state based on yield type
+6. Resume or advance as needed
+
+State machine preconditions prevent skipping workflow steps, ensuring deterministic behavior.
+
+## Traceability
+
+<!-- Traces: REQ-001 -->
+
+All artifacts use inline traceability. Each section with an ID includes a `**Traces to:**` field:
+
+```markdown
+### DES-005: Login Form Layout
+
+The login form has email and password fields with a submit button.
+
+**Traces to:** REQ-003
+```
+
+Validate the traceability chain:
+
+```bash
+projctl trace validate --dir .
+```
+
+This ensures:
+- No orphan references (traced-to IDs exist)
+- No unlinked IDs (defined IDs are connected to chain)
+- Complete chain from ISSUE → REQ → DES → ARCH → TASK → TEST
+
+## Learning System
+
+<!-- Traces: ARCH-005, ARCH-014 -->
+
+projctl learns from corrections to improve future behavior:
+
+1. **Log corrections** - Record when user corrects agent output
+2. **Detect patterns** - Analyze corrections for recurring issues
+3. **Store learnings** - Persist discoveries to memory system
+4. **Apply context** - Inject relevant learnings for future tasks
+
+```bash
+# Log a correction
+projctl corrections log --context "test naming" \
+  --correction "Use descriptive test names, not Test1/Test2"
+
+# Analyze patterns
+projctl corrections analyze
+
+# Query relevant learnings
+projctl memory query "test naming conventions"
+```
+
+## Token Budget
+
+<!-- Traces: ARCH-004 -->
+
+Track and control token usage:
+
+```bash
+# Check current usage
+projctl usage report --dir .
+
+# Validate against budget
+projctl usage check --dir .
+```
+
+Set thresholds in `project-config.toml`:
+
+```toml
+[budget]
+warning_tokens = 50000  # Warn when exceeded
+limit_tokens = 100000   # Fail when exceeded
+```
+
+## Contributing
+
+projctl is a personal tool for orchestrating Claude Code agents. Issues and learnings are tracked through the tool's own issue management system:
+
+```bash
+projctl issue create --title "..." --description "..."
+```
+
+## License
+
+<!-- Traces: REQ-001 -->
+
+See LICENSE file for details.
+
+## Documentation
+
+<!-- Traces: REQ-001 -->
+
+- [Requirements](docs/requirements.md) - Detailed requirements with traceability
+- [Design](docs/design.md) - Design decisions and user experience
+- [Architecture](docs/architecture.md) - Technical architecture and decisions
+- [Orchestration System](docs/orchestration-system.md) - Complete orchestration reference
+- [Tasks](docs/tasks.md) - Implementation task breakdown
+
+## Support
+
+projctl is a personal tool. For questions or issues, create an issue via:
+
+```bash
+projctl issue create --title "..." --description "..."
+```
