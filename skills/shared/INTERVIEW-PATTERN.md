@@ -17,7 +17,7 @@ Standardized pattern for interview skills that adapts question depth based on av
 ## Overview
 
 ```
-GATHER → ASSESS → INTERVIEW → SYNTHESIZE → PRODUCE
+GATHER → ASSESS → INTERVIEW → SYNTHESIZE → CLASSIFY → PRODUCE
 ```
 
 **Phase Summary:**
@@ -25,7 +25,43 @@ GATHER → ASSESS → INTERVIEW → SYNTHESIZE → PRODUCE
 - **ASSESS**: Calculate coverage percentage, classify gap size (small/medium/large)
 - **INTERVIEW**: Ask questions matching gap size (1-2 / 3-5 / 6+ questions)
 - **SYNTHESIZE**: Combine context and responses, check for conflicts
+- **CLASSIFY**: Separate explicit vs inferred items, get user approval for inferred
 - **PRODUCE**: Generate artifact with traceability and gap metadata
+
+---
+
+## Team Mode
+
+When invoked as a teammate, interview the user directly via `AskUserQuestion` instead of yielding `need-user-input` for relay.
+
+### Direct User Interaction
+
+In team mode, the skill has direct access to the user. Use `AskUserQuestion` for:
+
+1. **INTERVIEW phase questions** — Ask adaptive-depth questions directly. Group related questions into a single `AskUserQuestion` call (up to 4 questions per call) to minimize round-trips.
+
+2. **CLASSIFY phase approval** — Present inferred items for accept/reject via `AskUserQuestion` with `multiSelect: true`.
+
+3. **Conflict resolution** — When contradictory context is found, present options via `AskUserQuestion` instead of yielding `need-decision`.
+
+### What Changes
+
+| Legacy (yield relay) | Team mode (direct) |
+|---|---|
+| Yield `need-user-input` with question | `AskUserQuestion` directly |
+| Yield `need-user-input` with `inferred=true` | `AskUserQuestion` with multiSelect |
+| Yield `need-decision` with options | `AskUserQuestion` with options |
+| Yield `need-context` for file reads | Read files directly (Glob, Grep, Read tools) |
+| Yield `blocked` for infrastructure failure | `SendMessage` to lead describing blocker |
+| Yield `complete` with artifact | `SendMessage` to lead with results |
+
+### What Stays the Same
+
+- GATHER → ASSESS → INTERVIEW → SYNTHESIZE → CLASSIFY → PRODUCE workflow
+- Gap assessment formula and adaptive depth
+- Key questions registry with priority weights
+- Traceability in output artifacts
+- Contract section for QA validation
 
 ---
 

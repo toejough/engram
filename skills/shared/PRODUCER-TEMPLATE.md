@@ -104,7 +104,57 @@ Create the artifact:
 4. Yield `complete` with artifact path and IDs created
 ```
 
-## Yield Format
+## Team Mode
+
+When invoked as a teammate (via Task tool with team_name), use direct interaction instead of yield files:
+
+### Receiving Context
+
+Context arrives in your spawn prompt from the team lead. It includes:
+- Project name and issue ID
+- Current phase
+- Artifact paths (where to write output)
+- Prior phase outputs (upstream artifacts to read)
+- Territory map summary and memory query results
+
+Read referenced files directly — no TOML context files needed.
+
+### User Interaction
+
+Use `AskUserQuestion` directly for:
+- Interview questions (no yield-resume relay)
+- CLASSIFY phase (presenting inferred items for accept/reject)
+- Conflict resolution (`need-decision` scenarios)
+
+### Reporting Results
+
+On completion, send a message to the team lead via `SendMessage` with:
+- **Artifact path** (e.g., `docs/requirements.md`)
+- **IDs created** (e.g., REQ-1, REQ-2, REQ-3)
+- **Files modified**
+- **Key decisions made**
+
+On failure, send a message describing:
+- What went wrong
+- Whether it's recoverable (lead should retry) or needs escalation
+
+### Example Completion Message
+
+```
+Complete: docs/requirements.md
+
+IDs created: REQ-1, REQ-2, REQ-3
+Files modified: docs/requirements.md
+Key decisions: CLI only (no GUI), single-user scope
+
+Traces validated: all REQ-N trace to ISSUE-42
+```
+
+---
+
+## Legacy Mode (Yield Protocol)
+
+When invoked via the Skill tool with TOML context files, use the yield protocol.
 
 See [YIELD.md](./YIELD.md) for full protocol specification.
 
@@ -164,9 +214,9 @@ subphase = "GATHER"
 awaiting = "context-results"
 ```
 
-## Context Reading
+## Context Reading (Legacy)
 
-On invocation, read context from path provided by orchestrator:
+On invocation via Skill tool, read context from path provided by orchestrator:
 
 ```markdown
 1. Read context file at `<project>/.claude/context/<skill>-context.toml`
@@ -198,7 +248,7 @@ All IDs must include `**Traces to:**` linking to upstream artifacts:
 
 Users can log in with email/password.
 
-**Traces to:** ISSUE-001
+**Traces to:** ISSUE-1
 ```
 
 ## Interview vs Infer Variants
