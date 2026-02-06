@@ -3095,7 +3095,7 @@ Depends on: ISSUE-77
 ### ISSUE-81: Remove legacy context TOML infrastructure
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-81)
 
@@ -3120,10 +3120,14 @@ Depends on: ISSUE-77
 
 ---
 
+
+### Comment
+
+Legacy context TOML infrastructure removed (-1301 lines)
 ### ISSUE-82: Clean up shared templates (remove legacy sections)
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-82)
 
@@ -3146,10 +3150,14 @@ Depends on: ISSUE-80, ISSUE-81
 
 ---
 
+
+### Comment
+
+Shared templates cleaned, legacy YIELD/CONTEXT/QA-TEMPLATE deleted (-1093 lines)
 ### ISSUE-83: Deprecate parallel-looper and consistency-checker skills
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-83)
 
@@ -3164,6 +3172,10 @@ Depends on: ISSUE-79
 
 ---
 
+
+### Comment
+
+parallel-looper and consistency-checker deprecated with notices
 ### ISSUE-84: Explore enforcement and QA via Claude Code hooks
 
 **Priority:** Low
