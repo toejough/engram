@@ -4,7 +4,7 @@
 **Phase:** Design
 **Created:** 2026-02-04
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -496,4 +496,4 @@ The following are explicitly not covered by this design:
 
 - **Specification:** docs/orchestration-system.md Section 13.3 Layer 0: Foundation
 - **Requirements:** .claude/projects/layer-0-foundation/requirements.md
-- **Issue:** ISSUE-045
+- **Issue:** ISSUE-45

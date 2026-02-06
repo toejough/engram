@@ -28,4 +28,4 @@ Added `RepoDir` field to track the repository root separately from the project d
 
 ## Closes
 
-- ISSUE-038: State machine should track repo dir separately from project dir
+- ISSUE-38: State machine should track repo dir separately from project dir

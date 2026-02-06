@@ -24,7 +24,7 @@ changes = [
     "Removed ambiguous conditional about requirements.md updates",
     "Specified exact decision factors to document (task independence, file overlap, coordination needs, granularity)",
     "Specified minimum example counts (3 good, 2 poor) with detail level (2-3 sentence scenarios)",
-    "Listed explicit limitations from ISSUE-041 to document (agent coordination, file overlap, pre-flight detection, simultaneous completions)",
+    "Listed explicit limitations from ISSUE-41 to document (agent coordination, file overlap, pre-flight detection, simultaneous completions)",
     "Fixed priority label from 'P2 (Low)' to 'P2'"
 ]
 
@@ -43,6 +43,6 @@ qa_feedback_addressed = [
     "REQ-2 AC: Removed ambiguous conditional about requirements.md",
     "REQ-2 AC: Specified decision factors explicitly",
     "REQ-2 AC: Specified minimum example counts (3 good, 2 poor)",
-    "REQ-2 AC: Listed specific limitations from ISSUE-041",
+    "REQ-2 AC: Listed specific limitations from ISSUE-41",
     "Priority labels: Changed 'P1 (Medium)' to 'P1', 'P2 (Low)' to 'P2'"
 ]

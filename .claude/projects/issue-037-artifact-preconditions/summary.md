@@ -1,6 +1,6 @@
 # Project: issue-037-artifact-preconditions
 
-**Issue:** ISSUE-037 - State transitions should enforce artifact preconditions
+**Issue:** ISSUE-37 - State transitions should enforce artifact preconditions
 **Workflow:** task
 **Status:** complete
 

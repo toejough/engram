@@ -35,7 +35,7 @@ As a user, I want interview skills to understand existing context before asking 
 
 **Depends on:** None
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61
 
 ---
 
@@ -56,7 +56,7 @@ As a user, I want interview depth to adapt based on information gaps, so that si
 
 **Depends on:** REQ-002
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61
 
 ---
 
@@ -78,11 +78,11 @@ As a maintainer, I want all interview skills to follow the same context-aware pa
 
 **Depends on:** REQ-002, REQ-003
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61
 
 ---
 
-## ISSUE-053: Universal QA Skill
+## ISSUE-53: Universal QA Skill
 
 Requirements for replacing 13 phase-specific QA skills with one universal QA skill that validates producers against their SKILL.md contracts.
 
@@ -108,7 +108,7 @@ As a maintainer, I want one universal `/qa` skill that validates any producer ag
 
 **Depends on:** REQ-006
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -130,7 +130,7 @@ As a maintainer, I want a standard contract format for producer SKILL.md files, 
 
 **Depends on:** None
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -148,7 +148,7 @@ As a maintainer, I want all producer skills to have contract sections in their S
 
 **Depends on:** REQ-006
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -168,7 +168,7 @@ As a maintainer, I want gap analysis performed before deleting QA skills, so tha
 
 **Depends on:** REQ-007
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -187,7 +187,7 @@ As a maintainer, I want the 13 phase-specific QA skills deleted after migration,
 
 **Depends on:** REQ-005, REQ-007, REQ-008
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -206,7 +206,7 @@ As a maintainer, I want the orchestrator to dispatch the universal QA skill corr
 
 **Depends on:** REQ-005
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
@@ -225,11 +225,11 @@ As a maintainer, I want QA to fall back to heuristics when a producer lacks a fo
 
 **Depends on:** REQ-005, REQ-006
 
-**Traces to:** ISSUE-053
+**Traces to:** ISSUE-53
 
 ---
 
-## ISSUE-056: Warn When Specs Exceed User Requests
+## ISSUE-56: Warn When Specs Exceed User Requests
 
 Requirements for adding explicit warnings when producer skills infer specifications beyond what the user explicitly requested.
 
@@ -250,7 +250,7 @@ As a user, I want producer skills to yield a distinct `need-user-input` with an 
 
 **Depends on:** None
 
-**Traces to:** ISSUE-056
+**Traces to:** ISSUE-56
 
 ---
 
@@ -272,7 +272,7 @@ As a user, I want all producer skills (both interview and infer variants) to ide
 
 **Depends on:** REQ-012
 
-**Traces to:** ISSUE-056
+**Traces to:** ISSUE-56
 
 ---
 
@@ -292,7 +292,7 @@ As a user, I want the orchestrator to present inferred specifications for my app
 
 **Depends on:** REQ-012
 
-**Traces to:** ISSUE-056
+**Traces to:** ISSUE-56
 
 ---
 
@@ -311,4 +311,4 @@ As a maintainer, I want shared documentation that defines how producers distingu
 
 **Depends on:** REQ-012, REQ-013
 
-**Traces to:** ISSUE-056
+**Traces to:** ISSUE-56

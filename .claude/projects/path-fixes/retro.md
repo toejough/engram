@@ -28,4 +28,4 @@ None - the fix is complete and self-contained.
 
 - Tasks: 5 completed, 0 escalated
 - Commits: 4 (one per major change + docs)
-- Issues addressed: ISSUE-006, ISSUE-029
+- Issues addressed: ISSUE-6, ISSUE-29

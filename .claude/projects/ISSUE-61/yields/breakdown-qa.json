@@ -5,10 +5,10 @@
   },
   "payload": {
     "from_agent": "breakdown-qa",
-    "artifacts_approved": [".claude/projects/ISSUE-061/tasks.md"],
+    "artifacts_approved": [".claude/projects/ISSUE-61/tasks.md"],
     "task_ids_approved": ["TASK-1", "TASK-2", "TASK-3", "TASK-4", "TASK-5", "TASK-6", "TASK-7", "TASK-8", "TASK-9"],
     "fixes_applied": [
-      "Changed 'Traces to: ISSUE-061' to 'Source: ISSUE-061' in requirements (ISSUE-* are tracking IDs, not artifact IDs)"
+      "Changed 'Traces to: ISSUE-61' to 'Source: ISSUE-61' in requirements (ISSUE-* are tracking IDs, not artifact IDs)"
     ],
     "known_limitation": "TASK-* items are leaf nodes that trace UP but nothing traces DOWN to them - correct behavior but trace validator flags as 'unlinked'"
   },

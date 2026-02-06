@@ -166,7 +166,7 @@ func TestNext_ISSUEPrefix(t *testing.T) {
 
 	content := `# Issues
 
-## ISSUE-099: Bug report
+## ISSUE-99: Bug report
 `
 	err := os.WriteFile(filepath.Join(dir, "issues.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())

@@ -1,4 +1,4 @@
-# Summary: ISSUE-050 Worktree Documentation
+# Summary: ISSUE-50 Worktree Documentation
 
 ## Completed
 

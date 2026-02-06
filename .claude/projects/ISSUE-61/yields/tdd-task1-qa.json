@@ -113,7 +113,7 @@
     "phase": "tdd-green",
     "role": "qa",
     "task": "TASK-1",
-    "issue": "ISSUE-061",
+    "issue": "ISSUE-61",
     "iteration": 1
   }
 }

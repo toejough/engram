@@ -1,7 +1,7 @@
 # Visual Verification TDD - Project Summary
 
 **Project:** visual-verification-tdd
-**Issues Resolved:** ISSUE-007, ISSUE-014
+**Issues Resolved:** ISSUE-7, ISSUE-14
 **Type:** Documentation-only (skill file updates)
 **Duration:** ~23 minutes
 
@@ -102,7 +102,7 @@ Existing UI-specific lessons generalized to all user interfaces:
 ## Traceability
 
 All changes traced through the full chain:
-- ISSUE-007, ISSUE-014 -> REQ-1 through REQ-11 -> DES-1 through DES-9 -> TASK-1 through TASK-5
+- ISSUE-7, ISSUE-14 -> REQ-1 through REQ-11 -> DES-1 through DES-9 -> TASK-1 through TASK-5
 
 ---
 

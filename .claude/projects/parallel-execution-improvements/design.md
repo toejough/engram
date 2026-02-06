@@ -75,4 +75,4 @@ Add operational guidance to `/project` SKILL.md (the short version) for quick re
 
 - No code changes to projctl CLI
 - No changes to worktree commands (already implemented)
-- No file overlap detection (ISSUE-040 rejected)
+- No file overlap detection (ISSUE-40 rejected)

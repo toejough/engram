@@ -1,4 +1,4 @@
-# Summary: ID Format Simplification (ISSUE-043)
+# Summary: ID Format Simplification (ISSUE-43)
 
 ## Outcome
 
@@ -23,4 +23,4 @@ Existing documents with 3-digit IDs continue to work.
 
 ## Follow-up Issues
 
-- **ISSUE-044**: Trace validation should be phase-aware (discovered during this project)
+- **ISSUE-44**: Trace validation should be phase-aware (discovered during this project)

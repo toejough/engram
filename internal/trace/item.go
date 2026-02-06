@@ -22,7 +22,7 @@ const (
 // TraceItem represents a parsed traceability item before graph construction.
 // It supports both documentation nodes (REQ/DES/ARCH/TASK) and test nodes (TEST).
 type TraceItem struct {
-	ID        string    // REQ-001, TEST-042, etc.
+	ID        string    // REQ-1, TEST-42, etc.
 	Type      NodeType  // REQ, DES, ARCH, TASK, TEST
 	Project   string    // Project identifier
 	Title     string    // One-line summary
@@ -62,8 +62,8 @@ var validStatuses = map[string]bool{
 	"deprecated": true,
 }
 
-// itemIDPattern matches a valid traceability ID: PREFIX-NNN (3+ digits).
-var itemIDPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d{3,}$`)
+// itemIDPattern matches a valid traceability ID: PREFIX-N (1+ digits).
+var itemIDPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+$`)
 
 // Validate checks that the TraceItem has all required fields and valid values.
 // Returns nil if valid, or an error describing the validation failure.
@@ -99,7 +99,7 @@ func (item *TraceItem) Validate() error {
 
 	// Validate ID format
 	if !itemIDPattern.MatchString(item.ID) {
-		return fmt.Errorf("field ID must match format PREFIX-NNN (e.g., REQ-001); got %q", item.ID)
+		return fmt.Errorf("field ID must match format PREFIX-N (e.g., REQ-1); got %q", item.ID)
 	}
 
 	// Validate ID prefix matches Type

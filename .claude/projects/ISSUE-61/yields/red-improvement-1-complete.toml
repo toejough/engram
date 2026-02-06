@@ -43,7 +43,7 @@ phase = "tdd-red"
 subphase = "improvement"
 task = "TASK-6"
 iteration = 1
-improvement_source = ".claude/projects/ISSUE-061/context/red-improvement-1.toml"
+improvement_source = ".claude/projects/ISSUE-61/context/red-improvement-1.toml"
 
 [[decisions]]
 choice = "Verify Context field population rather than question text modification"

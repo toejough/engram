@@ -537,7 +537,7 @@ Each artifact has `**Traces to:**` field:
 
 As a developer, I want CI builds under 2 minutes...
 
-**Traces to:** ISSUE-042
+**Traces to:** ISSUE-42
 ```
 
 ```markdown

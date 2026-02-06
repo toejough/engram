@@ -378,7 +378,7 @@ type QueryResults struct {
 	ModelType           string
 	InferenceExecuted   bool
 	UsedMockEmbeddings  bool
-	// Session caching fields (ISSUE-048)
+	// Session caching fields (ISSUE-48)
 	SessionCreatedNew bool
 	SessionReused     bool
 	QueryDuration     time.Duration

@@ -72,6 +72,6 @@ phase = "tdd-green"
 role = "qa"
 iteration = 2
 task = "TASK-8"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 qa_resolved_iteration_1_issues = true
 ready_for_refactor = true

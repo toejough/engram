@@ -18,7 +18,7 @@ details = "All ACs use specific, verifiable checkboxes with concrete behaviors"
 [[payload.checklist]]
 item = "Traces to upstream artifacts"
 passed = true
-details = "All requirements trace to ISSUE-045, top-level traces to ISSUE-045"
+details = "All requirements trace to ISSUE-45, top-level traces to ISSUE-45"
 
 [[payload.checklist]]
 item = "No conflicting requirements"
@@ -51,7 +51,7 @@ passed = true
 details = "All Layer 0 commands from orchestration-system.md addressed, technical details match spec"
 
 [payload.notes]
-clarification = "Requirements state trace repair already exists (needs only documentation). This differs from ISSUE-045 which suggests implementation needed. User explicitly confirmed in pm-interview that current implementation is correct (auto-fixes duplicates, escalates dangling refs), documented in pm-yield.toml decisions."
+clarification = "Requirements state trace repair already exists (needs only documentation). This differs from ISSUE-45 which suggests implementation needed. User explicitly confirmed in pm-interview that current implementation is correct (auto-fixes duplicates, escalates dangling refs), documented in pm-yield.toml decisions."
 
 success_metrics = [
     "9 requirements covering implementation gaps (REQ-1, REQ-2)",

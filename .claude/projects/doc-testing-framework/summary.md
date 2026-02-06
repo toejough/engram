@@ -2,7 +2,7 @@
 
 **Project:** doc-testing-framework
 **Completed:** 2026-02-04
-**Issue:** ISSUE-002
+**Issue:** ISSUE-2
 
 ## Accomplishment
 
@@ -31,6 +31,6 @@ Added TDD support for documentation work to the skill system. Documentation is n
 
 ## Related Issues
 
-- **ISSUE-002:** Closed (this project)
-- **ISSUE-023:** Closed as won't do (validate-spec) - TDD handles this
-- **ISSUE-035:** Decision recorded: Option B (doc testing framework)
+- **ISSUE-2:** Closed (this project)
+- **ISSUE-23:** Closed as won't do (validate-spec) - TDD handles this
+- **ISSUE-35:** Decision recorded: Option B (doc testing framework)

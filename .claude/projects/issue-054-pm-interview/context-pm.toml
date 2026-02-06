@@ -1,8 +1,8 @@
 [input]
-issue_id = "ISSUE-054"
+issue_id = "ISSUE-54"
 issue_title = "PM phase must interview user before producing artifacts"
 issue_body = """
-During ISSUE-053, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
+During ISSUE-53, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
 
 **What happened:**
 1. Orchestrator dispatched pm-interview-producer with issue context
@@ -29,7 +29,7 @@ The pm-interview-producer skill doesn't enforce user interaction. It can complet
 - User frustration
 - Trust erosion in the orchestration system
 
-Traces to: ISSUE-053 failure
+Traces to: ISSUE-53 failure
 """
 
 [output]

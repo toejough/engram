@@ -16,4 +16,4 @@ Make trace validation accept an optional phase parameter that relaxes validation
 - [x] No more `--force` needed for normal workflow transitions
 - [x] Unit tests verify phase-aware behavior
 
-**Traces to:** ISSUE-044
+**Traces to:** ISSUE-44

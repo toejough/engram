@@ -1,10 +1,10 @@
 # Architecture: PM Interview Enforcement
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Created:** 2026-02-04
 **Status:** Draft
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 
@@ -22,7 +22,7 @@ This architecture implements the PM interview enforcement feature with minimal c
 
 **Decision:** Orchestrator communicates with interview-producer skills using pure context only, never passing behavioral instructions.
 
-**Rationale:** The root cause of ISSUE-053 was the orchestrator passing override instructions ("skip interview", "problem already defined") in the ARGUMENTS field to pm-interview-producer. This violated the skill's autonomy and caused it to bypass its intended interview logic.
+**Rationale:** The root cause of ISSUE-53 was the orchestrator passing override instructions ("skip interview", "problem already defined") in the ARGUMENTS field to pm-interview-producer. This violated the skill's autonomy and caused it to bypass its intended interview logic.
 
 **Implementation:**
 - Orchestrator constructs context files (context-pm.toml, context-design.toml, context-arch.toml)
@@ -31,7 +31,7 @@ This architecture implements the PM interview enforcement feature with minimal c
 - Skills read context and decide their own behavior
 
 **Alternatives considered:**
-- Direct instruction passing (rejected: caused ISSUE-053)
+- Direct instruction passing (rejected: caused ISSUE-53)
 - Skill-specific protocols (rejected: unnecessary complexity)
 
 **Traces to:** REQ-1, REQ-4, DES-001, DES-002, DES-004, DES-005
@@ -134,7 +134,7 @@ else:
 │                           User                               │
 └───────────────────────────┬─────────────────────────────────┘
                             │
-                            │ "projctl project start ISSUE-054 [skip interviews]"
+                            │ "projctl project start ISSUE-54 [skip interviews]"
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
@@ -290,7 +290,7 @@ This architecture requires NO new components:
 - Then `skip_interview_preference = true`
 
 **T2: Context file generation (no skip)**
-- Given user message "start project for ISSUE-054"
+- Given user message "start project for ISSUE-54"
 - When orchestrator creates context-pm.toml
 - Then `skip_interview_preference = false` (or field absent)
 
@@ -322,14 +322,14 @@ This architecture requires NO new components:
 ### Integration Tests
 
 **T7: End-to-end with skip**
-- User: "projctl project start ISSUE-054 skip interviews"
+- User: "projctl project start ISSUE-54 skip interviews"
 - Orchestrator creates context with skip=true
 - pm-interview-producer reads context, evaluates issue, yields complete (no questions)
 - Orchestrator accepts completion
 - requirements.md produced
 
 **T8: End-to-end without skip**
-- User: "projctl project start ISSUE-054"
+- User: "projctl project start ISSUE-54"
 - Orchestrator creates context with skip=false
 - pm-interview-producer yields need-user-input (structured confirmation)
 - User responds "y"
@@ -371,4 +371,4 @@ This architecture implements PM interview enforcement with minimal changes:
 2. **Skills:** Read skip preference from context, adjust interview behavior accordingly
 3. **No new components:** Leverages existing TOML context pattern and Claude's natural language understanding
 
-The architecture is simple, testable, and directly addresses the root cause of ISSUE-053 by enforcing a context-only communication contract between orchestrator and skills.
+The architecture is simple, testable, and directly addresses the root cause of ISSUE-53 by enforcing a context-only communication contract between orchestrator and skills.

@@ -1,11 +1,11 @@
 # Layer -1: Skill Unification - Project Summary
 
 **Project:** Layer -1 Skill Unification
-**Issue:** ISSUE-008
+**Issue:** ISSUE-8
 **Status:** Complete
 **Duration:** 2026-02-02 to 2026-02-03 (2 days)
 
-**Traces to:** REQ-1 through REQ-10, ISSUE-008
+**Traces to:** REQ-1 through REQ-10, ISSUE-8
 
 ---
 
@@ -38,30 +38,30 @@ Unified 21 inconsistent skills into 37 skills following the producer/QA pair pat
 - **Tasks:** 31 completed, 0 escalated
 - **Parallel batches:** 4 (leveraging PARALLEL LOOPER)
 - **Test pass rate:** 100% (37/37 SKILL_test.sh passing)
-- **Issues filed:** 10 (ISSUE-009 through ISSUE-018 for projctl gaps)
+- **Issues filed:** 10 (ISSUE-9 through ISSUE-18 for projctl gaps)
 
 ## Blockers Resolved
 
-- ISSUE-009: State machine transitions (closed)
-- ISSUE-010: Pairs/Yield tracking in state (closed)
-- ISSUE-013: Territory show command (closed)
-- ISSUE-016: Issue create/update commands (closed)
-- ISSUE-017: State set command (closed)
-- ISSUE-018: Yield validate command (closed)
+- ISSUE-9: State machine transitions (closed)
+- ISSUE-10: Pairs/Yield tracking in state (closed)
+- ISSUE-13: Territory show command (closed)
+- ISSUE-16: Issue create/update commands (closed)
+- ISSUE-17: State set command (closed)
+- ISSUE-18: Yield validate command (closed)
 
 ## Open Items
 
-- ISSUE-011: `projctl id next` command
-- ISSUE-012: `projctl trace show` command
-- ISSUE-014: `projctl screenshot capture` command
-- ISSUE-015: `projctl project` command group
-- ISSUE-019: Test trace cleanup in doc phase (new)
+- ISSUE-11: `projctl id next` command
+- ISSUE-12: `projctl trace show` command
+- ISSUE-14: `projctl screenshot capture` command
+- ISSUE-15: `projctl project` command group
+- ISSUE-19: Test trace cleanup in doc phase (new)
 
 ## Follow-on Work
 
-1. **Layer 0-7**: Implement deterministic orchestrator per ISSUE-001
-2. **Integration testing**: Add end-to-end workflow test per ISSUE-003
-3. **Trace cleanup**: Implement doc phase trace promotion per ISSUE-019
+1. **Layer 0-7**: Implement deterministic orchestrator per ISSUE-1
+2. **Integration testing**: Add end-to-end workflow test per ISSUE-3
+3. **Trace cleanup**: Implement doc phase trace promotion per ISSUE-19
 
 ---
 

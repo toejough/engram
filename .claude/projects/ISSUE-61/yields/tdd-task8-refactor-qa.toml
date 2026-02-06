@@ -76,5 +76,5 @@ readability_improvement = "Table format more scannable than previous numbered li
 phase = "tdd-refactor"
 role = "qa"
 task = "TASK-8"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 iteration = 1

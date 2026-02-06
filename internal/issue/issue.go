@@ -125,14 +125,14 @@ func NextID(dir string) (string, error) {
 
 	maxNum := 0
 	for _, issue := range issues {
-		// Extract number from ISSUE-NNN
+		// Extract number from ISSUE-N
 		numStr := strings.TrimPrefix(issue.ID, "ISSUE-")
 		if num, err := strconv.Atoi(numStr); err == nil && num > maxNum {
 			maxNum = num
 		}
 	}
 
-	return fmt.Sprintf("ISSUE-%03d", maxNum+1), nil
+	return fmt.Sprintf("ISSUE-%d", maxNum+1), nil
 }
 
 // CreateOpts holds options for creating an issue.

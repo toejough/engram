@@ -1,5 +1,5 @@
 [input]
-issue_id = "ISSUE-054"
+issue_id = "ISSUE-54"
 requirements_path = ".claude/projects/issue-054-pm-interview/requirements.md"
 design_path = ".claude/projects/issue-054-pm-interview/design.md"
 

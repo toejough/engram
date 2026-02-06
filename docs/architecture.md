@@ -362,7 +362,7 @@ Skills check for `[query_results]` presence to detect resumption vs fresh invoca
 
 ---
 
-## ISSUE-053: Universal QA Skill Architecture
+## ISSUE-53: Universal QA Skill Architecture
 
 Technical architecture for replacing 13 phase-specific QA skills with one universal QA skill.
 
@@ -1039,7 +1039,7 @@ Summary of all files requiring modification for this change.
 
 ---
 
-### ISSUE-053 Architecture Summary
+### ISSUE-53 Architecture Summary
 
 | Decision | Choice |
 |----------|--------|
@@ -1071,7 +1071,7 @@ Summary of all files requiring modification for this change.
 
 ---
 
-## ISSUE-056: Inferred Specification Warning Architecture
+## ISSUE-56: Inferred Specification Warning Architecture
 
 Technical architecture for how producers detect and yield inferred specifications, and how the orchestrator handles them.
 
@@ -1199,7 +1199,7 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
 
 ---
 
-### ISSUE-056 Architecture Summary
+### ISSUE-56 Architecture Summary
 
 | Decision | Choice |
 |----------|--------|

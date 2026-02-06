@@ -31,7 +31,7 @@ const onnxRuntimeVersion = "1.23.2"
 
 var onnxRuntimeInitialized bool
 
-// Session cache for ISSUE-048: Cache ONNX sessions across test functions
+// Session cache for ISSUE-48: Cache ONNX sessions across test functions
 var (
 	sessionCache     map[string]*ort.DynamicAdvancedSession
 	sessionCacheMu   sync.RWMutex

@@ -17,7 +17,7 @@ type stateInitArgs struct {
 	Name    string `targ:"flag,short=n,required,desc=Project name"`
 	Dir     string `targ:"flag,short=d,desc=Project directory (defaults to .claude/projects/<name>/)"`
 	Mode    string `targ:"flag,short=m,desc=Workflow mode: new (default), adopt, align, task"`
-	Issue   string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-042)"`
+	Issue   string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-42)"`
 	RepoDir string `targ:"flag,short=r,desc=Repository root (auto-detected if not provided)"`
 }
 
@@ -185,7 +185,7 @@ func stateRecovery(args stateRecoveryArgs) error {
 
 type stateSetArgs struct {
 	Dir      string `targ:"flag,short=d,required,desc=Project directory"`
-	Issue    string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-042)"`
+	Issue    string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-42)"`
 	Task     string `targ:"flag,short=t,desc=Current task ID (e.g. TASK-007)"`
 	Workflow string `targ:"flag,short=w,desc=Workflow type (new, adopt, align, task)"`
 }

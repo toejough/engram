@@ -1,10 +1,10 @@
 # Design: PM Interview Enforcement
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Created:** 2026-02-04
 **Status:** Draft
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 
@@ -71,7 +71,7 @@ Users express interview skip preference using natural language at conversation s
 - "no interview needed"
 
 **User experience:**
-1. User includes skip phrase in initial command or message: `projctl project start ISSUE-054 skip interviews`
+1. User includes skip phrase in initial command or message: `projctl project start ISSUE-54 skip interviews`
 2. If issue description contains sufficient information, user sees no interview questions - proceeds directly to next phase
 3. If issue description lacks critical information, user still sees minimal questions asking only for fundamentally missing information
 4. Skip preference means "interview only if absolutely necessary", not "never interview"
@@ -128,7 +128,7 @@ When user responds with `clarify`, the skill expands the structured summary into
 User must respond to at least one confirmation question before requirements are produced (unless explicit skip preference provided).
 
 **User experience:**
-1. User starts project: `projctl project start ISSUE-054`
+1. User starts project: `projctl project start ISSUE-54`
 2. PM interview skill presents at least one question (minimum: structured confirmation from DES-002)
 3. User responds to question
 4. Requirements are produced
@@ -148,14 +148,14 @@ User must respond to at least one confirmation question before requirements are 
 ### Typical Flow (No Skip)
 
 ```
-User: projctl project start ISSUE-054
+User: projctl project start ISSUE-54
   ↓
 Orchestrator: Invokes pm-interview-producer
   ↓
 PM Skill: [Yields need-user-input with structured summary]
   ↓
 User sees:
-  Problem: Orchestrator bypassed PM interview in ISSUE-053
+  Problem: Orchestrator bypassed PM interview in ISSUE-53
   Solution: Enforce minimum user interaction
   Acceptance: At least one confirmation question asked
 
@@ -171,7 +171,7 @@ Orchestrator: Validates user-response file exists, accepts completion
 ### Skip Preference Flow
 
 ```
-User: projctl project start ISSUE-054 --skip-interviews
+User: projctl project start ISSUE-54 --skip-interviews
   ↓
 Orchestrator: Detects skip phrase, adds to context, invokes pm-interview-producer
   ↓
@@ -188,7 +188,7 @@ Orchestrator: Sees skip preference in context, accepts completion without user-r
 ### Clarification Flow
 
 ```
-User: projctl project start ISSUE-054
+User: projctl project start ISSUE-54
   ↓
 [PM Skill presents structured summary]
   ↓

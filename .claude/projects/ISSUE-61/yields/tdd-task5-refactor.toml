@@ -43,7 +43,7 @@ regression_suites = ["SKILL_test.sh (10/10)", "SKILL_test_gather_v2.sh (13/13)"]
 phase = "tdd-refactor"
 subphase = "complete"
 task = "TASK-5"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 tests_passing = true
 refactoring_performed = false
 rationale = "QA recommendation + minimal implementation + test constraints = no refactoring value"

@@ -302,7 +302,7 @@ fi
 - GATHER phase section (lines 30-36)
 - Needs update to make tests pass
 
-**Yield File:** `.claude/projects/ISSUE-061/yields/tdd-task4-qa-iteration2.toml`
+**Yield File:** `.claude/projects/ISSUE-61/yields/tdd-task4-qa-iteration2.toml`
 
 ## Next Steps
 

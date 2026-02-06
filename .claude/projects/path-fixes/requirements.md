@@ -4,7 +4,7 @@
 
 Fix hardcoded `docs/` path assumptions so project artifacts are found at project directory root (`.claude/projects/<name>/`), while preserving repo-level `docs/` for documentation phase integration.
 
-**Linked Issues:** ISSUE-006, ISSUE-029
+**Linked Issues:** ISSUE-6, ISSUE-29
 
 ## Requirements
 

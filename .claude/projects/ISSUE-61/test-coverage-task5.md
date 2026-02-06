@@ -2,7 +2,7 @@
 
 **Task:** TASK-5 - Implement ASSESS phase that compares gathered context against key questions to determine coverage percentage and gap size.
 
-**Issue:** ISSUE-061
+**Issue:** ISSUE-61
 
 **Artifact:** `skills/arch-interview-producer/SKILL_test_assess.sh`
 

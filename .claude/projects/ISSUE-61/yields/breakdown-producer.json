@@ -5,7 +5,7 @@
     "skill": "breakdown-producer"
   },
   "payload": {
-    "artifact": ".claude/projects/ISSUE-061/tasks.md",
+    "artifact": ".claude/projects/ISSUE-61/tasks.md",
     "ids_created": [
       "TASK-1",
       "TASK-2",
@@ -27,7 +27,7 @@
   "context": {
     "phase": "breakdown",
     "subphase": "complete",
-    "issue": "ISSUE-061",
+    "issue": "ISSUE-61",
     "architecture_coverage": {
       "total_decisions": 6,
       "decisions_mapped": 6,

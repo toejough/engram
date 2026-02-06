@@ -1,18 +1,18 @@
-# Retrospective: PM Interview Enforcement (ISSUE-054)
+# Retrospective: PM Interview Enforcement (ISSUE-54)
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Created:** 2026-02-04
 **Completed:** 2026-02-04
 **Duration:** ~2.5 hours
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 
 ## Project Summary
 
 ### Scope
-Fix orchestrator's handling of interview-producer skills to prevent bypass of user interaction. Root cause analysis revealed ISSUE-053 failed because orchestrator passed override instructions ("skip interview", "already defined") to pm-interview-producer, causing it to skip user confirmation and produce wrong requirements.
+Fix orchestrator's handling of interview-producer skills to prevent bypass of user interaction. Root cause analysis revealed ISSUE-53 failed because orchestrator passed override instructions ("skip interview", "already defined") to pm-interview-producer, causing it to skip user confirmation and produce wrong requirements.
 
 ### Deliverables
 - Requirements: 4 requirements (context-only contract, minimum interaction, skip mechanism, skill independence)
@@ -49,7 +49,7 @@ When design-interview-producer initially focused on implementation details (file
 
 Design phase pivoted successfully, producing UX-focused elements (progressive disclosure, structured confirmation format, minimal friction path).
 
-**Impact:** Design artifacts became valuable for future interview UX improvements, not just ISSUE-054.
+**Impact:** Design artifacts became valuable for future interview UX improvements, not just ISSUE-54.
 
 ---
 
@@ -136,7 +136,7 @@ This directly contradicts user feedback from Design phase: "User-response file v
 
 Breakdown QA failed on iteration 2 due to traceability validation issues:
 - All tasks (TASK-1 through TASK-7 initially) reported as "unlinked IDs"
-- ISSUE-054 reported as orphan ID
+- ISSUE-54 reported as orphan ID
 - `projctl trace validate` failed, blocking completion per SKILL guidelines
 
 **Root cause:** Tasks were missing reverse `**Traces to:**` fields linking them back into the traceability chain.
@@ -150,7 +150,7 @@ Breakdown QA failed on iteration 2 due to traceability validation issues:
 
 PM phase required 4 user responses before requirements were approved. While thorough, this suggests either:
 1. Initial questions weren't focused enough, OR
-2. Issue description (ISSUE-054) wasn't sufficiently detailed for quick convergence
+2. Issue description (ISSUE-54) wasn't sufficiently detailed for quick convergence
 
 **Evidence:** User responses 1-2 clarified scope and root cause. User responses 3-4 confirmed simplicity preference.
 
@@ -165,7 +165,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 
 **Action:** Add explicit guideline to design-interview-producer SKILL.md: "Design phase focuses on USER EXPERIENCE and interaction patterns. Implementation details (file formats, validation logic, data structures) belong in Architecture phase."
 
-**Rationale:** Design phase in ISSUE-054 initially asked implementation questions, requiring user redirect. Clear phase boundaries prevent this.
+**Rationale:** Design phase in ISSUE-54 initially asked implementation questions, requiring user redirect. Clear phase boundaries prevent this.
 
 **Measurable outcome:** Design artifacts focus on UX scenarios, flows, and interaction patterns. No pseudocode or validation logic in design.md.
 
@@ -189,7 +189,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 ### R3: Fix projctl trace validate Issue Recognition
 **Priority:** Medium
 
-**Action:** Investigate why `projctl trace validate` reports ISSUE-054 as orphan ID when issue is defined in docs/issues.md at line 2382. Fix issue ID recognition logic.
+**Action:** Investigate why `projctl trace validate` reports ISSUE-54 as orphan ID when issue is defined in docs/issues.md at line 2382. Fix issue ID recognition logic.
 
 **Rationale:** Breakdown QA failed due to traceability validation issues. If the tool doesn't recognize properly-defined issues, it creates false failure signals and rework.
 
@@ -204,7 +204,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 
 **Action:** Breakdown-producer should perform simplicity check: "Could this be done with fewer tasks/components/changes?" Include explicit question in GATHER phase: "Is there a simpler approach that achieves the same outcome?"
 
-**Rationale:** ISSUE-054 was ultimately a 17-line documentation change. If breakdown had asked "Is there a simpler approach?", it might have caught the validation mechanism complexity earlier.
+**Rationale:** ISSUE-54 was ultimately a 17-line documentation change. If breakdown had asked "Is there a simpler approach?", it might have caught the validation mechanism complexity earlier.
 
 **Measurable outcome:** Breakdown artifacts include explicit "Simplicity assessment" section discussing alternatives considered and why current approach is appropriately scoped.
 
@@ -221,7 +221,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 - Architecture: System structure, component decisions, data formats, validation logic
 - Breakdown: Task decomposition, implementation order
 
-**Rationale:** PM, Design, and Architecture phases in ISSUE-054 all had some scope bleed (PM added validation, Design asked implementation questions, Architecture documented rejected features).
+**Rationale:** PM, Design, and Architecture phases in ISSUE-54 all had some scope bleed (PM added validation, Design asked implementation questions, Architecture documented rejected features).
 
 **Measurable outcome:** Orchestrator can reference phase boundaries when dispatching skills. Skills have clearer focus.
 
@@ -233,7 +233,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 
 ### Q1: Should Skills Have "Scope Creep" Detection?
 
-**Context:** Throughout ISSUE-054, requirements, design, and architecture all added features user didn't request. User had to explicitly reject these during interviews.
+**Context:** Throughout ISSUE-54, requirements, design, and architecture all added features user didn't request. User had to explicitly reject these during interviews.
 
 **Question:** Should interview-producer skills have built-in "scope creep" detection that flags when a specification exceeds the issue description or user requests?
 
@@ -273,7 +273,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 2. Thorough exploration (3-5+ questions, deep understanding)
 3. Adaptive depth (quick for simple issues, deep for complex ones)
 
-**Consideration:** ISSUE-054 was conceptually simple (add documentation rule) but had nuance (skip mechanism, validation). More complex issues might benefit from deeper interviews upfront.
+**Consideration:** ISSUE-54 was conceptually simple (add documentation rule) but had nuance (skip mechanism, validation). More complex issues might benefit from deeper interviews upfront.
 
 **Traces to:** C5
 
@@ -301,7 +301,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 
 ## Traceability
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Requirements:** REQ-1, REQ-2, REQ-3, REQ-4
 **Design:** DES-001, DES-002, DES-003, DES-004, DES-005, DES-006
 **Architecture:** ARCH-1, ARCH-2, ARCH-3, ARCH-4
@@ -330,7 +330,7 @@ PM phase required 4 user responses before requirements were approved. While thor
 
 ## Summary
 
-ISSUE-054 successfully addressed the root cause of ISSUE-053's failure: orchestrator passing override instructions to interview-producer skills. The fix was minimal (17 lines in project/SKILL.md) and well-scoped.
+ISSUE-54 successfully addressed the root cause of ISSUE-53's failure: orchestrator passing override instructions to interview-producer skills. The fix was minimal (17 lines in project/SKILL.md) and well-scoped.
 
 **Key Success:** Root cause analysis was thorough and targeted the right component (orchestrator, not skills).
 

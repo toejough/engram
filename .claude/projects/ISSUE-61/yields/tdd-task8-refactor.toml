@@ -55,7 +55,7 @@ content = "Table format is more effective than numbered lists for reference info
 phase = "tdd-refactor"
 subphase = "complete"
 task = "TASK-8"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 tests_passing = true
 linter_clean = true
 

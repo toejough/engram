@@ -17,16 +17,16 @@
 
 | # | Issue | Status | What to Fix |
 |---|-------|--------|-------------|
-| 1 | ISSUE-009 | ✅ DONE | State machine transitions - add missing phases, fix adopt order |
-| 2 | ISSUE-010 | ⚠️ PARTIAL | Workflow/Issue fields done; Pairs map and Yield struct NOT done |
-| 3 | ISSUE-013 | ⚠️ PARTIAL | `territory map` done; `territory show` NOT done |
-| 4 | ISSUE-017 | ✅ DONE | Add `projctl state set` command |
-| 5 | ISSUE-016 | ✅ DONE | Add `projctl issue create/update` commands |
-| 6 | ISSUE-018 | ✅ DONE | Add `projctl yield validate` command |
+| 1 | ISSUE-9 | ✅ DONE | State machine transitions - add missing phases, fix adopt order |
+| 2 | ISSUE-10 | ⚠️ PARTIAL | Workflow/Issue fields done; Pairs map and Yield struct NOT done |
+| 3 | ISSUE-13 | ⚠️ PARTIAL | `territory map` done; `territory show` NOT done |
+| 4 | ISSUE-17 | ✅ DONE | Add `projctl state set` command |
+| 5 | ISSUE-16 | ✅ DONE | Add `projctl issue create/update` commands |
+| 6 | ISSUE-18 | ✅ DONE | Add `projctl yield validate` command |
 
 ---
 
-## ISSUE-009: State Machine Transitions
+## ISSUE-9: State Machine Transitions
 
 ### Problem
 `internal/state/transitions.go` has wrong phases:
@@ -71,11 +71,11 @@ issue-update → next-steps → complete
 
 Until projctl is fixed, emulate by:
 1. **State transitions**: Call `projctl state transition` for phases that exist, skip/log for phases that don't
-2. **Workflow type**: Track in memory or temp file until ISSUE-010 is fixed
+2. **Workflow type**: Track in memory or temp file until ISSUE-10 is fixed
 3. **Territory command**: Call `projctl map generate` instead of `projctl territory map`
-4. **Issue commands**: Use direct file editing of `docs/issues.md` until ISSUE-016 is fixed
-5. **State set**: Modify state.toml directly until ISSUE-017 is fixed
-6. **Yield validate**: Skip validation until ISSUE-018 is fixed
+4. **Issue commands**: Use direct file editing of `docs/issues.md` until ISSUE-16 is fixed
+5. **State set**: Modify state.toml directly until ISSUE-17 is fixed
+6. **Yield validate**: Skip validation until ISSUE-18 is fixed
 
 ---
 
@@ -96,21 +96,21 @@ Until projctl is fixed, emulate by:
 ## Progress Log
 
 - 2026-02-03: Created emulation plan
-- 2026-02-03: Starting ISSUE-009
-- 2026-02-03: ISSUE-009 COMPLETE - transitions.go and tests updated, all tests pass
-- 2026-02-03: Starting ISSUE-010
-- 2026-02-03: ISSUE-010 COMPLETE - workflow/issue fields added to Project struct, InitOpts, CLI updated
-- 2026-02-03: Starting ISSUE-013
-- 2026-02-03: ISSUE-013 COMPLETE - renamed map.go to territory.go, `projctl territory map`
-- 2026-02-03: Starting ISSUE-017
-- 2026-02-03: ISSUE-017 COMPLETE - added Set() function and CLI command
-- 2026-02-03: Starting ISSUE-016
-- 2026-02-03: ISSUE-016 COMPLETE - added issue package and CLI commands
-- 2026-02-03: Starting ISSUE-018
-- 2026-02-03: ISSUE-018 COMPLETE - added yield package and CLI commands
-- 2026-02-03: CORRECTION - ISSUE-010 and ISSUE-013 have incomplete AC items
-  - ISSUE-010: Missing Pairs map and Yield struct
-  - ISSUE-013: Missing `territory show` command
+- 2026-02-03: Starting ISSUE-9
+- 2026-02-03: ISSUE-9 COMPLETE - transitions.go and tests updated, all tests pass
+- 2026-02-03: Starting ISSUE-10
+- 2026-02-03: ISSUE-10 COMPLETE - workflow/issue fields added to Project struct, InitOpts, CLI updated
+- 2026-02-03: Starting ISSUE-13
+- 2026-02-03: ISSUE-13 COMPLETE - renamed map.go to territory.go, `projctl territory map`
+- 2026-02-03: Starting ISSUE-17
+- 2026-02-03: ISSUE-17 COMPLETE - added Set() function and CLI command
+- 2026-02-03: Starting ISSUE-16
+- 2026-02-03: ISSUE-16 COMPLETE - added issue package and CLI commands
+- 2026-02-03: Starting ISSUE-18
+- 2026-02-03: ISSUE-18 COMPLETE - added yield package and CLI commands
+- 2026-02-03: CORRECTION - ISSUE-10 and ISSUE-13 have incomplete AC items
+  - ISSUE-10: Missing Pairs map and Yield struct
+  - ISSUE-13: Missing `territory show` command
 - 2026-02-03: L-1 unblocked but issues reopened with remaining AC documented
 
 ---

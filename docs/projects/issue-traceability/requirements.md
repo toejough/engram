@@ -6,7 +6,7 @@ The traceability chain currently starts at REQ, but issues should be the optiona
 
 ## Success Criteria
 
-SC-01: `projctl trace add --from ISSUE-001 --to REQ-001` works correctly
+SC-01: `projctl trace add --from ISSUE-1 --to REQ-001` works correctly
 SC-02: `projctl trace validate` recognizes ISSUE- prefix without errors
 SC-03: ISSUE links only to REQ (not directly to DES/ARCH/TASK)
 SC-04: REQs without upstream ISSUE are valid (no warning, truly optional)
@@ -16,18 +16,18 @@ SC-05: Existing traceability without ISSUE continues to work unchanged
 
 ### REQ-001: Trace Add Accepts ISSUE Prefix
 **Priority:** P0
-**Links:** ISSUE-002
+**Links:** ISSUE-2
 
 The `projctl trace add` command MUST accept ISSUE-NNN as the `--from` argument.
 
 **Acceptance Criteria:**
-- [ ] `projctl trace add --from ISSUE-001 --to REQ-001` succeeds
+- [ ] `projctl trace add --from ISSUE-1 --to REQ-001` succeeds
 - [ ] ISSUE can only link to REQ (not DES, ARCH, TASK directly)
 - [ ] Error message if ISSUE tries to link to non-REQ target
 
 ### REQ-002: Trace Validate Recognizes ISSUE Prefix
 **Priority:** P0
-**Links:** ISSUE-002
+**Links:** ISSUE-2
 
 The `projctl trace validate` command MUST recognize ISSUE-NNN IDs in traceability.toml.
 
@@ -38,7 +38,7 @@ The `projctl trace validate` command MUST recognize ISSUE-NNN IDs in traceabilit
 
 ### REQ-003: ISSUE is Optional Head
 **Priority:** P0
-**Links:** ISSUE-002
+**Links:** ISSUE-2
 
 The traceability chain MUST work with or without ISSUE as the head.
 
@@ -49,24 +49,24 @@ The traceability chain MUST work with or without ISSUE as the head.
 
 ### REQ-004: ISSUE Links Only to REQ
 **Priority:** P1
-**Links:** ISSUE-002
+**Links:** ISSUE-2
 
 ISSUE MUST only be allowed to link to REQ, not to DES/ARCH/TASK/TEST directly.
 
 **Acceptance Criteria:**
-- [ ] `projctl trace add --from ISSUE-001 --to DES-001` returns error
-- [ ] `projctl trace add --from ISSUE-001 --to ARCH-001` returns error
+- [ ] `projctl trace add --from ISSUE-1 --to DES-001` returns error
+- [ ] `projctl trace add --from ISSUE-1 --to ARCH-001` returns error
 - [ ] Error message is clear: "ISSUE can only link to REQ"
 
 ### REQ-005: Trace Impact Includes ISSUE
 **Priority:** P1
-**Links:** ISSUE-002
+**Links:** ISSUE-2
 
 The `projctl trace impact` command MUST include ISSUE in forward/backward analysis.
 
 **Acceptance Criteria:**
 - [ ] `projctl trace impact --id REQ-001 --reverse` shows upstream ISSUE if linked
-- [ ] `projctl trace impact --id ISSUE-001` shows downstream REQs
+- [ ] `projctl trace impact --id ISSUE-1` shows downstream REQs
 
 ## Out of Scope
 
@@ -78,8 +78,8 @@ The `projctl trace impact` command MUST include ISSUE in forward/backward analys
 
 | ID | Links To |
 |----|----------|
-| REQ-001 | ISSUE-002 |
-| REQ-002 | ISSUE-002 |
-| REQ-003 | ISSUE-002 |
-| REQ-004 | ISSUE-002 |
-| REQ-005 | ISSUE-002 |
+| REQ-001 | ISSUE-2 |
+| REQ-002 | ISSUE-2 |
+| REQ-003 | ISSUE-2 |
+| REQ-004 | ISSUE-2 |
+| REQ-005 | ISSUE-2 |

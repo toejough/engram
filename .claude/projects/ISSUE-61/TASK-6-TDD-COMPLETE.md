@@ -1,7 +1,7 @@
 # TASK-6 TDD Cycle Complete
 
 **Task:** Implement adaptive interview logic
-**Issue:** ISSUE-061
+**Issue:** ISSUE-61
 **Date:** 2026-02-05
 **Status:** ✅ Complete (All three pair loops approved)
 
@@ -340,7 +340,7 @@ func determineMaxQuestions(gapSize GapSize, totalUnanswered int) int {
 
 ## Next Steps
 
-### Immediate (ISSUE-061)
+### Immediate (ISSUE-61)
 1. **TASK-7:** Add yield context enrichment with gap analysis metadata
 2. **Integration:** Wire SelectQuestions into arch-interview-producer SKILL.md
 3. **Verification:** Test complete interview flow end-to-end
@@ -374,16 +374,16 @@ func determineMaxQuestions(gapSize GapSize, totalUnanswered int) int {
 ## References
 
 ### Project Files
-- **Context:** `.claude/projects/ISSUE-061/context/TASK-6-tdd-producer.toml`
-- **Yield:** `.claude/projects/ISSUE-061/yields/tdd-task6-complete.toml`
+- **Context:** `.claude/projects/ISSUE-61/context/TASK-6-tdd-producer.toml`
+- **Yield:** `.claude/projects/ISSUE-61/yields/tdd-task6-complete.toml`
 - **Implementation:** `/Users/joe/repos/personal/projctl/internal/interview/interview.go`
 - **Tests:** `/Users/joe/repos/personal/projctl/internal/interview/interview_test.go`
 
 ### Documentation
-- **Issue:** `.claude/projects/ISSUE-061/ISSUE-061.md`
-- **Task:** `.claude/projects/ISSUE-061/tasks/TASK-6.md`
-- **Architecture:** `.claude/projects/ISSUE-061/architecture.md` (ARCH-002, ARCH-004)
-- **Requirements:** `.claude/projects/ISSUE-061/requirements.md` (REQ-003)
+- **Issue:** `.claude/projects/ISSUE-61/ISSUE-61.md`
+- **Task:** `.claude/projects/ISSUE-61/tasks/TASK-6.md`
+- **Architecture:** `.claude/projects/ISSUE-61/architecture.md` (ARCH-002, ARCH-004)
+- **Requirements:** `.claude/projects/ISSUE-61/requirements.md` (REQ-003)
 
 ### Skills Used
 - tdd-red-producer (2 iterations)

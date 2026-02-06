@@ -5,11 +5,11 @@ timestamp = 2026-02-03T17:30:00Z
 [payload]
 task = "retrospective"
 project = "orchestration-infrastructure"
-issue = "ISSUE-026"
+issue = "ISSUE-26"
 artifact = ".claude/projects/orchestration-infrastructure/retrospective.md"
 
 [payload.summary]
-description = "Created retrospective for ISSUE-026 orchestration-infrastructure project"
+description = "Created retrospective for ISSUE-26 orchestration-infrastructure project"
 what_went_well = [
     "Parallel task execution - 6 tasks ran simultaneously",
     "Well-defined task dependencies enabled confident parallel dispatch",
@@ -29,25 +29,25 @@ what_could_improve = [
 id = "R1"
 priority = "High"
 title = "Add --project-dir flag to trace commands"
-issue = "ISSUE-029"
+issue = "ISSUE-29"
 
 [[payload.recommendations]]
 id = "R2"
 priority = "High"
 title = "Create issue-update-producer skill"
-issue = "ISSUE-030"
+issue = "ISSUE-30"
 
 [[payload.recommendations]]
 id = "R3"
 priority = "Medium"
 title = "Define parallel commit strategy for task execution"
-issue = "ISSUE-031"
+issue = "ISSUE-31"
 
 [[payload.recommendations]]
 id = "R4"
 priority = "Medium"
 title = "Add integration test for state task tracking"
-issue = "ISSUE-032"
+issue = "ISSUE-32"
 
 [[payload.recommendations]]
 id = "R5"
@@ -58,24 +58,24 @@ issue = ""  # Low priority, no issue created
 [[payload.open_questions]]
 id = "Q1"
 title = "Should parallel tasks use separate branches?"
-issue = "ISSUE-033"
+issue = "ISSUE-33"
 decision_needed_before = "Next parallel project execution"
 
 [[payload.open_questions]]
 id = "Q2"
 title = "Where should project artifacts live?"
-issue = "ISSUE-034"
-decision_needed_before = "ISSUE-006 resolution"
+issue = "ISSUE-34"
+decision_needed_before = "ISSUE-6 resolution"
 
 [[payload.open_questions]]
 id = "Q3"
 title = "How to handle skill documentation without TDD?"
-issue = "ISSUE-035"
+issue = "ISSUE-35"
 decision_needed_before = "Next skill enhancement project"
 
 [payload.issues_created]
-recommendations = ["ISSUE-029", "ISSUE-030", "ISSUE-031", "ISSUE-032"]
-open_questions = ["ISSUE-033", "ISSUE-034", "ISSUE-035"]
+recommendations = ["ISSUE-29", "ISSUE-30", "ISSUE-31", "ISSUE-32"]
+open_questions = ["ISSUE-33", "ISSUE-34", "ISSUE-35"]
 total = 7
 
 [payload.metrics]

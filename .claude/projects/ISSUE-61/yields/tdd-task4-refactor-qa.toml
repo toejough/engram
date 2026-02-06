@@ -69,4 +69,4 @@ phase = "tdd-refactor"
 role = "qa"
 iteration = 1
 task = "TASK-4"
-issue = "ISSUE-061"
+issue = "ISSUE-61"

@@ -1,4 +1,4 @@
-# Project Retrospective: ISSUE-058
+# Project Retrospective: ISSUE-58
 
 **Project:** Add simplicity check to breakdown-producer
 **Duration:** Single session (2026-02-05)
@@ -9,7 +9,7 @@
 
 ## Project Summary
 
-Enhanced the breakdown-producer skill to include explicit simplicity assessment in task decomposition. The project added a new step to the SYNTHESIZE phase asking "Is there a simpler approach?" and requiring each task to document alternatives considered. This was a targeted improvement identified from ISSUE-054 retrospective findings.
+Enhanced the breakdown-producer skill to include explicit simplicity assessment in task decomposition. The project added a new step to the SYNTHESIZE phase asking "Is there a simpler approach?" and requiring each task to document alternatives considered. This was a targeted improvement identified from ISSUE-54 retrospective findings.
 
 ### Key Metrics
 
@@ -47,7 +47,7 @@ This validated the skill architecture's modularity - producer skills are truly i
 **Area:** Quality Assurance
 
 QA approved the implementation on first iteration with no requested changes. This indicates:
-- Clear requirements from ISSUE-058
+- Clear requirements from ISSUE-58
 - Well-defined acceptance criteria
 - Appropriate test coverage
 - Good alignment between issue description and implementation
@@ -56,7 +56,7 @@ QA approved the implementation on first iteration with no requested changes. Thi
 
 **Area:** Process Improvement Loop
 
-ISSUE-058 was itself a retrospective recommendation (R4) from ISSUE-054. The fact that this recommendation led to a completed implementation demonstrates the retrospective process is working as designed:
+ISSUE-58 was itself a retrospective recommendation (R4) from ISSUE-54. The fact that this recommendation led to a completed implementation demonstrates the retrospective process is working as designed:
 - Retros identify actionable improvements
 - Improvements become tracked issues
 - Issues get implemented
@@ -157,8 +157,8 @@ While SKILL.md tests verify the documentation describes simplicity assessment, t
 ## Traceability
 
 **Traces to:**
-- ISSUE-058 (parent issue)
-- ISSUE-054 (source of retrospective recommendation R4)
+- ISSUE-58 (parent issue)
+- ISSUE-54 (source of retrospective recommendation R4)
 - skills/breakdown-producer/SKILL.md (artifact modified)
 - Commits: 2429c2a, 4bd94d1, 58aa303
 

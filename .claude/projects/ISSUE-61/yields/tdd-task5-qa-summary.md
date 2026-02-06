@@ -1,6 +1,6 @@
 # TASK-5 TDD Red QA: Gap Assessment Phase Tests - APPROVED
 
-**Issue:** ISSUE-061
+**Issue:** ISSUE-61
 **Task:** TASK-5 - Implement ASSESS phase that compares gathered context against key questions
 **Phase:** TDD Red (QA Review)
 **Status:** ✓ APPROVED
@@ -258,8 +258,8 @@ All 10 tests should pass after implementation.
 ## Files
 
 **Test Artifact:** `/Users/joe/repos/personal/projctl/skills/arch-interview-producer/SKILL_test_assess.sh`
-**Coverage Report:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/test-coverage-task5.md`
-**QA Result:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/yields/tdd-task5-qa-result.toml`
+**Coverage Report:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/test-coverage-task5.md`
+**QA Result:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/yields/tdd-task5-qa-result.toml`
 
 ---
 

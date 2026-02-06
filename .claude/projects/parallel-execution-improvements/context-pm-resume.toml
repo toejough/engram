@@ -7,7 +7,7 @@ iteration = 2
 [input]
 artifact_path = ".claude/projects/parallel-execution-improvements/requirements.md"
 qa_feedback_path = ".claude/projects/parallel-execution-improvements/yield-pm-qa.toml"
-linked_issues = ["ISSUE-039", "ISSUE-041"]
+linked_issues = ["ISSUE-39", "ISSUE-41"]
 
 [qa_feedback]
 type = "improvement-request"

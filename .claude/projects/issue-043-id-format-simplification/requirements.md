@@ -1,6 +1,6 @@
 # Requirements: ID Format Simplification
 
-### ISSUE-043: ID format should be simple incrementing numbers
+### ISSUE-43: ID format should be simple incrementing numbers
 
 **Traces to:** (root)
 
@@ -21,4 +21,4 @@ ID generation and validation should use simple incrementing numbers (REQ-1, REQ-
 - [ ] Validation patterns updated across all affected files
 - [ ] Existing 3-digit IDs remain valid (backward compatible)
 
-**Traces to:** ISSUE-043
+**Traces to:** ISSUE-43

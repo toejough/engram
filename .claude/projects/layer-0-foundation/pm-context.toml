@@ -6,7 +6,7 @@ phase = "pm"
 workflow = "new"
 
 [input]
-issue = "ISSUE-045"
+issue = "ISSUE-45"
 description = """
 Build core projctl infrastructure without agent spawning, as specified in docs/orchestration-system.md Section 13.3 "Layer 0: Foundation".
 

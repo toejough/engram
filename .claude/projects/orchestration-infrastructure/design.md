@@ -47,7 +47,7 @@ projctl trace show [--format ascii|json] [--dir <path>]
 
 ASCII output (default):
 ```
-ISSUE-026 "Orchestration Infrastructure"
+ISSUE-26 "Orchestration Infrastructure"
 ├── REQ-001 "Completed task tracking"
 │   ├── DES-001 [ARCH-001]
 │   │   └── TASK-001 → test_completed_tracking.go [OK]

@@ -1,4 +1,4 @@
-# Project Summary: ISSUE-044 Phase-Aware Trace Validation
+# Project Summary: ISSUE-44 Phase-Aware Trace Validation
 
 ## Outcome
 
@@ -28,5 +28,5 @@ Implemented phase-aware trace validation that allows workflow transitions withou
 
 ## Commits
 
-1. `d782237` - test: add failing tests for phase-aware trace validation (ISSUE-044)
-2. `cd778ea` - feat: implement phase-aware trace validation (ISSUE-044)
+1. `d782237` - test: add failing tests for phase-aware trace validation (ISSUE-44)
+2. `cd778ea` - feat: implement phase-aware trace validation (ISSUE-44)

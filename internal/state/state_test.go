@@ -107,14 +107,14 @@ func TestInit(t *testing.T) {
 		dir := t.TempDir()
 
 		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Issue: "ISSUE-042",
+			Issue: "ISSUE-42",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Issue).To(Equal("ISSUE-042"))
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-42"))
 
 		loaded, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-042"))
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-42"))
 	})
 
 	t.Run("accepts both workflow and issue options", func(t *testing.T) {
@@ -123,16 +123,16 @@ func TestInit(t *testing.T) {
 
 		s, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
 			Workflow: "task",
-			Issue:    "ISSUE-099",
+			Issue:    "ISSUE-99",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Project.Workflow).To(Equal("task"))
-		g.Expect(s.Project.Issue).To(Equal("ISSUE-099"))
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-99"))
 
 		loaded, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(loaded.Project.Workflow).To(Equal("task"))
-		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-099"))
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-99"))
 	})
 
 	t.Run("accepts repo_dir option", func(t *testing.T) {
@@ -190,14 +190,14 @@ func TestSet(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		s, err := state.Set(dir, state.SetOpts{Issue: "ISSUE-42"})
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Issue).To(Equal("ISSUE-042"))
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-42"))
 		g.Expect(s.Project.Phase).To(Equal("init")) // No transition
 
 		loaded, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-042"))
+		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-42"))
 	})
 
 	t.Run("sets task without transitioning", func(t *testing.T) {
@@ -240,12 +240,12 @@ func TestSet(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, err := state.Set(dir, state.SetOpts{
-			Issue:    "ISSUE-099",
+			Issue:    "ISSUE-99",
 			Task:     "TASK-001",
 			Workflow: "task",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Issue).To(Equal("ISSUE-099"))
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-99"))
 		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-001"))
 		g.Expect(s.Project.Workflow).To(Equal("task"))
 	})
@@ -255,14 +255,14 @@ func TestSet(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Issue: "ISSUE-001",
+			Issue: "ISSUE-1",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Set only task, issue should remain unchanged
 		s, err := state.Set(dir, state.SetOpts{Task: "TASK-001"})
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Issue).To(Equal("ISSUE-001")) // Unchanged
+		g.Expect(s.Project.Issue).To(Equal("ISSUE-1")) // Unchanged
 		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-001"))
 	})
 }
@@ -536,7 +536,7 @@ func TestCompletedTasksProperty(t *testing.T) {
 	})
 }
 
-// traces: ISSUE-037
+// traces: ISSUE-37
 // Test that retro-complete requires retro.md to exist.
 func TestArtifactPreconditions(t *testing.T) {
 	// Use adopt workflow which has a simpler path to main flow ending

@@ -48,12 +48,12 @@ notes = "Retrospective captures key project dynamics: root cause analysis succes
 [[payload.checklist]]
 item = "Traces to project artifacts"
 passed = true
-notes = "Traceability section references ISSUE-054, REQ-1 through REQ-4, DES-001 through DES-006, ARCH-1 through ARCH-4, TASK-1, and commit ID. All IDs verified in respective artifact files."
+notes = "Traceability section references ISSUE-54, REQ-1 through REQ-4, DES-001 through DES-006, ARCH-1 through ARCH-4, TASK-1, and commit ID. All IDs verified in respective artifact files."
 
 [[payload.checklist]]
 item = "Issues created for recommendations and open questions"
 passed = true
-notes = "Seven issues created: ISSUE-055 (R1), ISSUE-056 (R2), ISSUE-057 (R3), ISSUE-058 (R4), ISSUE-059 (Q1), ISSUE-060 (Q2), ISSUE-061 (Q3). High/medium priority items tracked. Verified in docs/issues.md."
+notes = "Seven issues created: ISSUE-55 (R1), ISSUE-56 (R2), ISSUE-57 (R3), ISSUE-58 (R4), ISSUE-59 (Q1), ISSUE-60 (Q2), ISSUE-61 (Q3). High/medium priority items tracked. Verified in docs/issues.md."
 
 [payload.strengths]
 depth = "Retrospective provides detailed analysis with specific evidence citations rather than vague statements"

@@ -56,7 +56,7 @@ func ValidID(id string) bool {
 // Creates the file if it doesn't exist. Rejects duplicate links.
 func Add(dir, from string, to []string) error {
 	if !ValidID(from) {
-		return fmt.Errorf("invalid source ID: %s (must match ISSUE|REQ|DES|ARCH|TASK-NNN)", from)
+		return fmt.Errorf("invalid source ID: %s (must match ISSUE|REQ|DES|ARCH|TASK-N)", from)
 	}
 
 	for _, t := range to {
@@ -489,7 +489,7 @@ func Repair(dir string) (RepairResult, error) {
 
 				// Generate new ID
 				maxIDByPrefix[prefix]++
-				newID := fmt.Sprintf("%s-%03d", prefix, maxIDByPrefix[prefix])
+				newID := fmt.Sprintf("%s-%d", prefix, maxIDByPrefix[prefix])
 
 				// Update the file
 				path := filepath.Join(dir, loc.File)

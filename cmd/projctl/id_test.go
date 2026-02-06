@@ -98,7 +98,7 @@ func TestIdNext_ISSUE(t *testing.T) {
 
 	content := `# Issues
 
-## ISSUE-005: A bug
+## ISSUE-5: A bug
 `
 	err := os.WriteFile(filepath.Join(dir, "issues.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())

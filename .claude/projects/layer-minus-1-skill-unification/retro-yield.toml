@@ -24,7 +24,7 @@ description = "All 37 skills include executable SKILL_test.sh validation scripts
 
 [[payload.successes]]
 area = "Blocker Documentation"
-description = "Immediate filing of ISSUE-009 through ISSUE-018 enabled partial AC completion via emulation"
+description = "Immediate filing of ISSUE-9 through ISSUE-18 enabled partial AC completion via emulation"
 
 [[payload.challenges]]
 area = "projctl Readiness"
@@ -53,7 +53,7 @@ description = "context-explorer skill created but not tested with real file/terr
 [[payload.recommendations]]
 priority = "high"
 action = "Create projctl validate-spec command"
-rationale = "Would have caught ISSUE-009 through ISSUE-018 before Layer -1 started. Prevents aspirational specs from blocking work."
+rationale = "Would have caught ISSUE-9 through ISSUE-18 before Layer -1 started. Prevents aspirational specs from blocking work."
 measurable = "Run in CI, fail if any specified command doesn't exist"
 
 [[payload.recommendations]]
@@ -64,7 +64,7 @@ measurable = "Breakdown-QA checks for integration test task when dependency grap
 
 [[payload.recommendations]]
 priority = "high"
-action = "Close ISSUE-009 through ISSUE-018 before Layer 0"
+action = "Close ISSUE-9 through ISSUE-18 before Layer 0"
 rationale = "Layer 0 will hit same blockers. Fix foundation before building on it."
 measurable = "All blockers with 'Blocks: Layer -1' closed before Layer 0 intake"
 
@@ -114,4 +114,4 @@ test_pass_rate = 1.0
 phase = "retro"
 subphase = "complete"
 project = "Layer -1: Skill Unification"
-issue = "ISSUE-008"
+issue = "ISSUE-8"

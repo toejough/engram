@@ -4,9 +4,9 @@
     "timestamp": "2026-02-05T00:20:00Z"
   },
   "payload": {
-    "artifact": ".claude/projects/ISSUE-061/architecture.md",
+    "artifact": ".claude/projects/ISSUE-61/architecture.md",
     "ids_created": ["ARCH-001", "ARCH-002", "ARCH-003", "ARCH-004", "ARCH-005", "ARCH-006"],
-    "files_modified": [".claude/projects/ISSUE-061/architecture.md"],
+    "files_modified": [".claude/projects/ISSUE-61/architecture.md"],
     "decisions": [
       {
         "context": "Context gathering mechanism",

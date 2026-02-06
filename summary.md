@@ -1,4 +1,4 @@
-# ISSUE-058 Summary: Add Simplicity Check to Breakdown Phase
+# ISSUE-58 Summary: Add Simplicity Check to Breakdown Phase
 
 ## Outcome
 
@@ -25,4 +25,4 @@ Added explicit simplicity assessment to `breakdown-producer` SKILL.md, ensuring 
 
 ## Traces
 
-**Traces to:** ISSUE-058, ISSUE-054 (origin retrospective)
+**Traces to:** ISSUE-58, ISSUE-54 (origin retrospective)

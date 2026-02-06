@@ -1,9 +1,9 @@
 [project]
-  name = "ISSUE-061"
+  name = "ISSUE-61"
   created = 2026-02-04T22:59:25.267418-05:00
   phase = "complete"
   workflow = "new"
-  issue = "ISSUE-061"
+  issue = "ISSUE-61"
   repo_dir = "."
 
 [progress]

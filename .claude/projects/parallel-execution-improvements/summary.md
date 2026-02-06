@@ -8,9 +8,9 @@ This project documented the **merge-on-complete pattern** for parallel task exec
 
 | Issue | Status | Summary |
 |-------|--------|---------|
-| ISSUE-039 | ✅ Resolved | Merge-on-complete pattern documented |
-| ISSUE-040 | ❌ Won't do | File overlap detection rejected |
-| ISSUE-041 | ✅ Resolved | Parallel execution best practices documented |
+| ISSUE-39 | ✅ Resolved | Merge-on-complete pattern documented |
+| ISSUE-40 | ❌ Won't do | File overlap detection rejected |
+| ISSUE-41 | ✅ Resolved | Parallel execution best practices documented |
 
 ### Documentation Added
 
@@ -45,4 +45,4 @@ Benefits:
 
 ## Follow-up Issue
 
-**ISSUE-043** filed: ID format should be simple incrementing numbers (REQ-1) not zero-padded (REQ-001).
+**ISSUE-43** filed: ID format should be simple incrementing numbers (REQ-1) not zero-padded (REQ-001).

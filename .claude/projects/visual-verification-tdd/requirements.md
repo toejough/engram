@@ -2,7 +2,7 @@
 
 Requirements for integrating visual/interaction verification into TDD workflow for UI, CLI, and API changes.
 
-**Linked Issues:** ISSUE-007, ISSUE-014
+**Linked Issues:** ISSUE-7, ISSUE-14
 
 ---
 
@@ -23,7 +23,7 @@ Current mental model treats code as testable and "visual stuff" as not really te
 - [ ] Skills do not skip or shortcut TDD for "visual" or "user-facing" tasks
 - [ ] AC language for visual tasks is treated as testable specification, not prose description
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -47,7 +47,7 @@ Example: "Every screen has an add-note affordance" decomposes to structural test
 - [ ] tdd-red-producer documents structure testing for API (endpoint existence, request/response shape)
 - [ ] Structure tests fail before implementation, pass after (normal TDD red/green)
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -72,7 +72,7 @@ The CLAUDE.md lesson captures this: "Test behavior, not just presence" and "Wire
 - [ ] tdd-green-producer requires behavior tests to pass, not just structure tests
 - [ ] tdd-qa validates behavior chain is tested, not just element presence
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -98,7 +98,7 @@ Properties can be verified systematically across all cases, not just hand-picked
 - [ ] Properties expressed for behavior (invariant holds across all interaction paths)
 - [ ] Randomized/exhaustive property exploration encouraged where applicable
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -122,7 +122,7 @@ Visual verification requires:
 - [ ] Visual evidence path documented in yield payload or commit message
 - [ ] SSIM-based regression detection available via `projctl screenshot diff`
 
-**Traces to:** ISSUE-007, ISSUE-014
+**Traces to:** ISSUE-7, ISSUE-14
 
 ---
 
@@ -132,7 +132,7 @@ Provide mechanism for capturing visual output for verification.
 
 ### Context
 
-ISSUE-014 notes that `projctl screenshot capture` doesn't exist, only `projctl screenshot diff`. Options:
+ISSUE-14 notes that `projctl screenshot capture` doesn't exist, only `projctl screenshot diff`. Options:
 1. Implement `projctl screenshot capture --url <url> --output <path>`
 2. Document Chrome DevTools MCP as the capture mechanism
 3. Document manual screenshot workflow
@@ -144,7 +144,7 @@ ISSUE-014 notes that `projctl screenshot capture` doesn't exist, only `projctl s
 - [ ] Capture mechanism documented for CLI output (terminal snapshot)
 - [ ] Integration with TDD workflow documented (when/how to capture)
 
-**Traces to:** ISSUE-014
+**Traces to:** ISSUE-14
 
 ---
 
@@ -154,7 +154,7 @@ Tasks requiring visual verification should be identifiable.
 
 ### Context
 
-ISSUE-007 AC includes: "Add `ui` flag or marker to tasks requiring visual verification"
+ISSUE-7 AC includes: "Add `ui` flag or marker to tasks requiring visual verification"
 
 This enables:
 - tdd-green-producer to prompt for visual check when marker present
@@ -168,7 +168,7 @@ This enables:
 - [ ] tdd-green-producer detects marker and prompts for visual verification
 - [ ] tdd-qa detects marker and requires visual evidence before approval
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -178,7 +178,7 @@ Update relevant skills to incorporate visual verification requirements.
 
 ### Context
 
-ISSUE-007 AC specifies: "Document visual verification requirements in TDD skill docs"
+ISSUE-7 AC specifies: "Document visual verification requirements in TDD skill docs"
 
 Skills requiring updates:
 - tdd-red-producer: Include visual acceptance criteria for UI changes
@@ -194,7 +194,7 @@ Skills requiring updates:
 - [ ] breakdown-producer SKILL.md updated to flag visual tasks
 - [ ] CLAUDE.md lesson "UI validation is critical" reinforced in skill docs
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -218,7 +218,7 @@ For CLI, "visual verification" might mean capturing terminal output or using ASC
 - [ ] ANSI-aware comparison available for colored CLI output
 - [ ] Example CLI test patterns included in skill docs
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -240,7 +240,7 @@ API is a programmatic interface but still has user (developer) experience. Testi
 - [ ] Example API test patterns included in skill docs
 - [ ] Integration with existing test tooling (http client mocks, etc.)
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7
 
 ---
 
@@ -250,7 +250,7 @@ Update CLAUDE.md to codify visual verification as standard TDD practice for all 
 
 ### Context
 
-ISSUE-007 AC explicitly states: "CLAUDE.md lesson updated to make this standard practice"
+ISSUE-7 AC explicitly states: "CLAUDE.md lesson updated to make this standard practice"
 
 This is distinct from updating skill docs (REQ-8). CLAUDE.md contains persistent lessons that guide all work, making visual verification a baseline expectation rather than a skill-specific detail.
 
@@ -261,4 +261,4 @@ This is distinct from updating skill docs (REQ-8). CLAUDE.md contains persistent
 - [ ] Lesson reinforces structure + behavior testing, not just "look at the screenshot"
 - [ ] Property-based interaction testing added as standard practice
 
-**Traces to:** ISSUE-007
+**Traces to:** ISSUE-7

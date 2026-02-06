@@ -4,7 +4,7 @@
     "timestamp": "2026-02-05T00:25:00Z"
   },
   "payload": {
-    "reviewed_artifact": ".claude/projects/ISSUE-061/architecture.md",
+    "reviewed_artifact": ".claude/projects/ISSUE-61/architecture.md",
     "checklist": [
       {
         "item": "All entries have ARCH-N IDs",
@@ -58,6 +58,6 @@
     "phase": "arch",
     "role": "qa",
     "iteration": 1,
-    "issue": "ISSUE-061"
+    "issue": "ISSUE-61"
   }
 }

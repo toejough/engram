@@ -43,7 +43,7 @@ P1
 
 ### Traces to
 
-ISSUE-039
+ISSUE-39
 
 ---
 
@@ -79,7 +79,7 @@ The parallel-worktree-strategy project proved the worktree-based parallel execut
   - Reduces conflict window
   - Later agents benefit from earlier completions
   - Simplifies conflict resolution
-- [ ] Known limitations explicitly documented (from ISSUE-041):
+- [ ] Known limitations explicitly documented (from ISSUE-41):
   - Agents cannot coordinate during execution (no shared state)
   - File overlap causes merge conflicts (handled via rebase/manual resolution)
   - No pre-flight file overlap detection (accepted tradeoff)
@@ -100,10 +100,10 @@ P2
 
 ### Traces to
 
-ISSUE-041
+ISSUE-41
 
 ---
 
 ## Out of Scope
 
-**ISSUE-040: File Overlap Detection** - User rejected this requirement. File overlap between parallel tasks is handled through normal rebasing and conflict resolution processes. Pre-flight analysis is not needed because we cannot always predict what else needs to change during implementation.
+**ISSUE-40: File Overlap Detection** - User rejected this requirement. File overlap between parallel tasks is handled through normal rebasing and conflict resolution processes. Pre-flight analysis is not needed because we cannot always predict what else needs to change during implementation.

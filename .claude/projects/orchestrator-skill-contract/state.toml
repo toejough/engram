@@ -3,7 +3,7 @@
   created = 2026-02-04T10:54:05.934743-05:00
   phase = "complete"
   workflow = "new"
-  issue = "ISSUE-024"
+  issue = "ISSUE-24"
   repo_dir = "/Users/joe/repos/personal/projctl"
 
 [progress]

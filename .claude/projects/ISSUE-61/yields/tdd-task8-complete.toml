@@ -49,7 +49,7 @@ alternatives = ["Skip refactoring (would leave warnings unresolved)"]
 phase = "tdd"
 subphase = "complete"
 all_loops_passed = true
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 task = "TASK-8"
 
 [context.red_loop]

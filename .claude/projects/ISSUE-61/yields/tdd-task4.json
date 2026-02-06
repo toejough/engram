@@ -70,7 +70,7 @@
     "phase": "tdd-red",
     "subphase": "complete",
     "task": "TASK-4",
-    "issue": "ISSUE-061"
+    "issue": "ISSUE-61"
   },
   "verification": {
     "red_state_confirmed": true,

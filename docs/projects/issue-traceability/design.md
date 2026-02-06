@@ -12,15 +12,15 @@ CLI interaction design for ISSUE prefix support in projctl trace commands.
 When user attempts invalid ISSUE link:
 
 ```bash
-$ projctl trace add --from ISSUE-001 --to DES-001
+$ projctl trace add --from ISSUE-1 --to DES-001
 error: ISSUE can only link to REQ (got DES-001)
 ```
 
 When user attempts valid ISSUE link:
 
 ```bash
-$ projctl trace add --from ISSUE-001 --to REQ-001
-Added link: ISSUE-001 → REQ-001
+$ projctl trace add --from ISSUE-1 --to REQ-001
+Added link: ISSUE-1 → REQ-001
 ```
 
 ### DES-002: Trace Validate Output
@@ -33,7 +33,7 @@ $ projctl trace validate --dir .
 {
   "pass": true,
   "coverage": {
-    "ISSUE-001": ["REQ-001", "REQ-002"],
+    "ISSUE-1": ["REQ-001", "REQ-002"],
     "REQ-001": ["ARCH-001", "ARCH-002"],
     ...
   }
@@ -59,8 +59,8 @@ $ projctl trace validate --dir .
 Forward impact from ISSUE shows downstream chain:
 
 ```bash
-$ projctl trace impact --id ISSUE-001
-Impact analysis for ISSUE-001:
+$ projctl trace impact --id ISSUE-1
+Impact analysis for ISSUE-1:
   → REQ-001
     → ARCH-001
       → TASK-001
@@ -74,7 +74,7 @@ Reverse impact from REQ shows upstream ISSUE:
 ```bash
 $ projctl trace impact --id REQ-001 --reverse
 Reverse impact for REQ-001:
-  ← ISSUE-001
+  ← ISSUE-1
 ```
 
 ### DES-004: Orphan Detection
@@ -86,8 +86,8 @@ When ISSUE in traceability.toml doesn't exist in issues.md:
 $ projctl trace validate --dir .
 {
   "pass": false,
-  "orphan_ids": ["ISSUE-003"],
-  "message": "ISSUE-003 in traceability but not found in docs/issues.md"
+  "orphan_ids": ["ISSUE-3"],
+  "message": "ISSUE-3 in traceability but not found in docs/issues.md"
 }
 ```
 

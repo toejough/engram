@@ -4,7 +4,7 @@
 **Status:** Complete
 **Duration:** 2026-02-04 (single day)
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -106,5 +106,5 @@ From retrospective R1-R4:
 ## References
 
 - **Specification:** docs/orchestration-system.md Section 13.3
-- **Issue:** ISSUE-045
+- **Issue:** ISSUE-45
 - **Artifacts:** .claude/projects/layer-0-foundation/

@@ -86,7 +86,7 @@ passing_rate = "100%"
 
 [payload.traceability]
 task = "TASK-5"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 architecture = ["ARCH-001", "ARCH-002", "ARCH-003"]
 requirements = ["REQ-002", "REQ-003"]
 pattern = "INTERVIEW-PATTERN.md"

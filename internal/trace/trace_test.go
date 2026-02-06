@@ -14,7 +14,7 @@ import (
 func TestValidID(t *testing.T) {
 	t.Run("accepts valid IDs", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(trace.ValidID("ISSUE-001")).To(BeTrue())
+		g.Expect(trace.ValidID("ISSUE-1")).To(BeTrue())
 		g.Expect(trace.ValidID("REQ-001")).To(BeTrue())
 		g.Expect(trace.ValidID("DES-042")).To(BeTrue())
 		g.Expect(trace.ValidID("ARCH-123")).To(BeTrue())
@@ -48,7 +48,7 @@ func TestValidIDProperty(t *testing.T) {
 }
 
 func padNumber(n int) string {
-	return fmt.Sprintf("%03d", n)
+	return fmt.Sprintf("%d", n)
 }
 
 func TestAdd(t *testing.T) {
@@ -117,7 +117,7 @@ func TestAdd(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-001", []string{"REQ-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"REQ-001"})
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -125,7 +125,7 @@ func TestAdd(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-001", []string{"DES-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"DES-001"})
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
@@ -134,7 +134,7 @@ func TestAdd(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-001", []string{"ARCH-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"ARCH-001"})
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
@@ -218,20 +218,20 @@ func TestValidate(t *testing.T) {
 		dir := t.TempDir()
 
 		// Create artifacts including issues.md
-		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+		writeArtifact(t, dir, "issues.md", "### ISSUE-1: Bug report\n")
 		writeArtifact(t, dir, "requirements.md", "### REQ-001: Feature\n")
 		writeArtifact(t, dir, "architecture.md", "### ARCH-001: Decision\n")
 		writeArtifact(t, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// Add trace links including ISSUE
-		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
 
 		result, err := trace.Validate(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		// ISSUE-001 should be detected in issues.md, so no orphans
-		g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-001"))
+		// ISSUE-1 should be detected in issues.md, so no orphans
+		g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-1"))
 	})
 
 	t.Run("ISSUE with no downstream passes (optional coverage)", func(t *testing.T) {
@@ -239,9 +239,9 @@ func TestValidate(t *testing.T) {
 		dir := t.TempDir()
 
 		// ISSUE exists but has no downstream links
-		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+		writeArtifact(t, dir, "issues.md", "### ISSUE-1: Bug report\n")
 
-		// No links from ISSUE-001
+		// No links from ISSUE-1
 
 		result, err := trace.Validate(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -255,13 +255,13 @@ func TestValidate(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		writeArtifact(t, dir, "issues.md", "### ISSUE-001: Bug report\n")
+		writeArtifact(t, dir, "issues.md", "### ISSUE-1: Bug report\n")
 		writeArtifact(t, dir, "requirements.md", "### REQ-001: Feature\n")
 		writeArtifact(t, dir, "architecture.md", "### ARCH-001: Decision\n")
 		writeArtifact(t, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// Complete chain starting from ISSUE
-		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
 
@@ -323,11 +323,11 @@ func TestImpact(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"})).To(Succeed())
 
-		result, err := trace.Impact(dir, "ISSUE-001", false)
+		result, err := trace.Impact(dir, "ISSUE-1", false)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ARCH-001", "TASK-001"))
 		g.Expect(result.Reverse).To(BeFalse())
@@ -337,12 +337,12 @@ func TestImpact(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "ISSUE-001", []string{"REQ-001"})).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"})).To(Succeed())
 		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"})).To(Succeed())
 
 		result, err := trace.Impact(dir, "ARCH-001", true)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ISSUE-001"))
+		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ISSUE-1"))
 		g.Expect(result.Reverse).To(BeTrue())
 	})
 }
@@ -491,12 +491,12 @@ Duplicate.
 		// Should have renumbered the duplicate
 		g.Expect(result.Renumbered).To(HaveLen(1))
 		g.Expect(result.Renumbered[0].OldID).To(Equal("DES-001"))
-		g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
+		g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
 
 		// Check the file was actually updated
 		content, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(string(content)).To(ContainSubstring("DES-002"))
+		g.Expect(string(content)).To(ContainSubstring("DES-2"))
 		g.Expect(string(content)).ToNot(ContainSubstring("DES-001"))
 	})
 

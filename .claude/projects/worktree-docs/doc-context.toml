@@ -1,4 +1,4 @@
-# Documentation Context for ISSUE-050
+# Documentation Context for ISSUE-50
 # Document worktree workflow for parallel execution
 
 [invocation]
@@ -6,7 +6,7 @@ skill = "doc-producer"
 timestamp = "2026-02-04T17:15:00Z"
 
 [inputs]
-issue = "ISSUE-050"
+issue = "ISSUE-50"
 description = "Document worktree workflow for parallel execution"
 
 [inputs.scope]

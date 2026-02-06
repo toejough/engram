@@ -11,7 +11,7 @@ issues = [
     "Quality Metrics table (line 150) claims 'Post-PM QA Passes: 1st attempt' but retro.md section C4 and S5 document breakdown-qa failed iteration 1 due to traceability issues - contradiction in reported metrics. Correct to '1st attempt (except breakdown: 1 iteration)'.",
     "Known Limitation L2 (lines 175-183) states 'skip mechanism context format unspecified' and 'TASK-1 does not specify exact TOML field name', but summary's own Decision 2 (lines 49-66) and Feature F2 (lines 122-129) explicitly document 'skip_interview_preference' as the field name - internal contradiction. Either remove L2 entirely (format IS specified in architecture) or rewrite to clarify that architecture documented the format but implementation was deferred.",
     "Feature F2 Evidence (lines 122-129) claims 'guidance included in SKILL.md context rules' but git diff 123e232 shows only Context-Only Contract prohibition was added, no skip_interview_preference field implementation in SKILL.md - overstated implementation claim. Clarify: F1 (context-only contract) was delivered in SKILL.md. F2 (skip mechanism) was architecturally designed (ARCH-2, ARCH-3) but the specific context passing implementation was deferred - only the general guidance 'respect that naturally' was added.",
-    "Traceability validation issue: projctl trace validate reports ISSUE-054 as orphan ID and ARCH-2, ARCH-3, ARCH-4, TASK-1 as unlinked, but grep confirms ISSUE-054 IS properly defined in docs/issues.md at line 2382. Summary should acknowledge this is a known tooling limitation (documented in retro R3, tracked in ISSUE-057) rather than treating as a project defect. Add note in Traceability Chain section or Known Limitations."
+    "Traceability validation issue: projctl trace validate reports ISSUE-54 as orphan ID and ARCH-2, ARCH-3, ARCH-4, TASK-1 as unlinked, but grep confirms ISSUE-54 IS properly defined in docs/issues.md at line 2382. Summary should acknowledge this is a known tooling limitation (documented in retro R3, tracked in ISSUE-57) rather than treating as a project defect. Add note in Traceability Chain section or Known Limitations."
 ]
 
 [context]
@@ -25,7 +25,7 @@ timeline_verification = "summary.md lines 5-6 show only date '2026-02-04', no ti
 qa_passes_contradiction = "summary.md line 150 'Post-PM QA Passes: 1st attempt' contradicts retro.md lines 134-145 (C4) and lines 76-82 (S5 states 'QA Efficiency - Post-PM' success EXCEPT breakdown which failed iteration 1)"
 limitation_l2_contradiction = "summary.md L2 (lines 175-183) claims field name unspecified, but Decision 2 (lines 54-62) explicitly documents 'Claude adds skip_interview_preference = true to context TOML' and F2 (lines 126-127) states 'orchestrator includes skip_interview_preference = true in context TOML'"
 feature_f2_evidence = "git show 123e232 -- skills/project/SKILL.md shows only Context-Only Contract section added (17 lines), no implementation of skip_interview_preference field or context passing logic - only behavioral prohibition documented"
-traceability_tooling = "projctl trace validate reports 'Orphan IDs (1): ISSUE-054' but grep docs/issues.md confirms line 2382 '## ISSUE-054: PM phase must interview user'. Retro R3/ISSUE-057 documents this tooling issue. Summary should note this limitation."
+traceability_tooling = "projctl trace validate reports 'Orphan IDs (1): ISSUE-54' but grep docs/issues.md confirms line 2382 '## ISSUE-54: PM phase must interview user'. Retro R3/ISSUE-57 documents this tooling issue. Summary should note this limitation."
 
 [payload.accuracy_checks]
 decisions_accurate = true
@@ -52,6 +52,6 @@ limitations_note = "L2 contains internal contradiction with Decision 2 and F2. S
 decisions_trace_valid = true
 outcomes_trace_valid = true
 no_orphan_traces = false
-orphan_note = "ISSUE-054 reported orphan by projctl trace validate but confirmed defined at docs/issues.md:2382. This is known tooling issue ISSUE-057 (created from retro R3). Summary should acknowledge tooling limitation."
+orphan_note = "ISSUE-54 reported orphan by projctl trace validate but confirmed defined at docs/issues.md:2382. This is known tooling issue ISSUE-57 (created from retro R3). Summary should acknowledge tooling limitation."
 all_artifacts_referenced = true
 artifacts_note = "Lines 356-377 properly list all documentation, implementation, user interactions, and version control artifacts"

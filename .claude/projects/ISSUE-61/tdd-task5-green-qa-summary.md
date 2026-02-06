@@ -1,6 +1,6 @@
 # TASK-5 TDD Green QA: Gap Assessment Phase Implementation - APPROVED
 
-**Issue:** ISSUE-061
+**Issue:** ISSUE-61
 **Task:** TASK-5 - Implement ASSESS phase that compares gathered context against key questions
 **Phase:** TDD Green (QA Review)
 **Status:** ✓ APPROVED FOR REFACTOR PHASE
@@ -239,9 +239,9 @@ Since this is documentation (not code), traditional refactoring (extract functio
 
 **Implementation:** `/Users/joe/repos/personal/projctl/skills/arch-interview-producer/SKILL.md` (lines 47-63)
 **Test Artifact:** `/Users/joe/repos/personal/projctl/skills/arch-interview-producer/SKILL_test_assess.sh`
-**QA Result:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/yields/tdd-task5-green-qa.toml`
-**Coverage Report:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/test-coverage-task5.md`
-**Red Phase QA:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/yields/tdd-task5-qa-result.toml`
+**QA Result:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/yields/tdd-task5-green-qa.toml`
+**Coverage Report:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/test-coverage-task5.md`
+**Red Phase QA:** `/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/yields/tdd-task5-qa-result.toml`
 
 ---
 

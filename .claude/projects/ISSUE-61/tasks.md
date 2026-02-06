@@ -1,6 +1,6 @@
-# ISSUE-061 Tasks: Adaptive Interview Depth
+# ISSUE-61 Tasks: Adaptive Interview Depth
 
-**Issue:** ISSUE-061 - Decision needed: What's the right PM interview depth?
+**Issue:** ISSUE-61 - Decision needed: What's the right PM interview depth?
 
 ## Dependency Graph
 
@@ -224,9 +224,9 @@ TASK-9 (validation on real issues) - depends on TASK-8
 - [ ] Verify: questions felt appropriate (not redundant, not too sparse)
 - [ ] Verify: yield metadata enabled debugging when needed
 - [ ] Document any adjustments needed to key questions or weights
-- [ ] Validation summary added to ISSUE-061 retrospective
+- [ ] Validation summary added to ISSUE-61 retrospective
 
-**Files:** `.claude/projects/ISSUE-061/validation-log.md`
+**Files:** `.claude/projects/ISSUE-61/validation-log.md`
 
 **Dependencies:** TASK-8
 

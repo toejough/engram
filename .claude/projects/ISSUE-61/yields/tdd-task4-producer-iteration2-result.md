@@ -14,8 +14,8 @@ Successfully produced failing tests for TASK-4 (Context gathering phase) that ve
 - **Executable:** Yes (chmod +x applied)
 
 ### Supporting Documents
-- **Yield:** `.claude/projects/ISSUE-061/yields/tdd-task4-producer-iteration2.toml`
-- **This Result:** `.claude/projects/ISSUE-061/yields/tdd-task4-producer-iteration2-result.md`
+- **Yield:** `.claude/projects/ISSUE-61/yields/tdd-task4-producer-iteration2.toml`
+- **This Result:** `.claude/projects/ISSUE-61/yields/tdd-task4-producer-iteration2-result.md`
 
 ## Test Execution Results
 

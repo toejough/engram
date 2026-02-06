@@ -3,7 +3,7 @@
   created = 2026-02-03T14:13:07.229165-05:00
   phase = "complete"
   workflow = "task"
-  issue = "ISSUE-028"
+  issue = "ISSUE-28"
 
 [progress]
   current_task = ""

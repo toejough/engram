@@ -6,7 +6,7 @@ The state machine must track the repository root directory separately from the p
 
 **Rationale:** Currently preconditions like `TestsExist` look in the project directory (`.claude/projects/<name>/`), but tests live in the repo source tree.
 
-**Traces to:** ISSUE-038
+**Traces to:** ISSUE-38
 
 ---
 
@@ -16,7 +16,7 @@ When initializing a project, the system should auto-detect the git repository ro
 
 **Rationale:** Reduces friction - users shouldn't need to specify repo root for typical single-repo workflows.
 
-**Traces to:** ISSUE-038
+**Traces to:** ISSUE-38
 
 ---
 
@@ -28,7 +28,7 @@ Precondition checks must use the correct directory for each artifact type:
 
 **Rationale:** This is the core fix that enables TDD phase transitions to work without `--force`.
 
-**Traces to:** ISSUE-038
+**Traces to:** ISSUE-38
 
 ---
 
@@ -38,7 +38,7 @@ An integration test must verify that the state machine correctly tracks task com
 
 **Rationale:** Ensures task tracking works end-to-end, not just in unit tests.
 
-**Traces to:** ISSUE-032
+**Traces to:** ISSUE-32
 
 ---
 
@@ -48,4 +48,4 @@ Existing state.toml files without `repo_dir` should continue to work, defaulting
 
 **Rationale:** Don't break existing projects.
 
-**Traces to:** ISSUE-038
+**Traces to:** ISSUE-38

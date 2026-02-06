@@ -4,7 +4,7 @@
 **Phase:** Architecture
 **Created:** 2026-02-04
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -735,7 +735,7 @@ This ARCH entry exists to document that trace repair is complete and only needs 
 - **Specification:** docs/orchestration-system.md Section 13.3 Layer 0: Foundation
 - **Requirements:** .claude/projects/layer-0-foundation/requirements.md
 - **Design:** .claude/projects/layer-0-foundation/design.md
-- **Issue:** ISSUE-045
+- **Issue:** ISSUE-45
 - **Existing Code:**
   - `internal/memory/memory.go` - Memory commands implementation
   - `internal/memory/embeddings.go` - ONNX Runtime integration

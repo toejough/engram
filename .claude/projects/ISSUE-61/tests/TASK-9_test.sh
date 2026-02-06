@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-VALIDATION_LOG=".claude/projects/ISSUE-061/validation-log.md"
+VALIDATION_LOG=".claude/projects/ISSUE-61/validation-log.md"
 
 # Test 1: Validation log file exists
 test_validation_log_exists() {

@@ -1,11 +1,11 @@
 # Orchestration Infrastructure Retrospective
 
 **Project:** Orchestration Infrastructure
-**Issue:** ISSUE-026
+**Issue:** ISSUE-26
 **Date:** 2026-02-03
 **Status:** Complete
 
-**Traces to:** ISSUE-004, ISSUE-011, ISSUE-012, ISSUE-019, ISSUE-020, ISSUE-021, ISSUE-025
+**Traces to:** ISSUE-4, ISSUE-11, ISSUE-12, ISSUE-19, ISSUE-20, ISSUE-21, ISSUE-25
 
 ---
 
@@ -85,7 +85,7 @@ Rather than tackling issues one-by-one, batching them into a single project:
 - Enabled efficient parallel work
 - Provided cohesive architectural changes
 
-**Evidence:** ISSUE-004, 011, 012, 019, 020, 021, 025 all addressed
+**Evidence:** ISSUE-4, 011, 012, 019, 020, 021, 025 all addressed
 
 ---
 
@@ -104,7 +104,7 @@ When 6 tasks ran simultaneously, none could commit because they'd conflict with 
 
 **Root Cause:** Parallel execution is inherently incompatible with sequential commit discipline.
 
-**Filed as:** ISSUE-027
+**Filed as:** ISSUE-27
 
 ---
 
@@ -112,7 +112,7 @@ When 6 tasks ran simultaneously, none could commit because they'd conflict with 
 
 **Challenge:** Issues linked to the project weren't automatically closed.
 
-The project linked to 7 issues via the batch project issue (ISSUE-026), but:
+The project linked to 7 issues via the batch project issue (ISSUE-26), but:
 - No automatic closure of sub-issues when project completed
 - User had to explicitly request issue closure
 - "Update Issues" phase exists in workflow but has no skill
@@ -124,7 +124,7 @@ The project linked to 7 issues via the batch project issue (ISSUE-026), but:
 
 **Root Cause:** No `issue-update-producer` skill exists.
 
-**Filed as:** ISSUE-028
+**Filed as:** ISSUE-28
 
 ---
 
@@ -141,7 +141,7 @@ When running trace promote for test files, it couldn't find the TASK definitions
 - Manual intervention or workaround required
 - Inconsistent with project-based file organization
 
-**Root Cause:** Hardcoded path assumption, same pattern as ISSUE-006.
+**Root Cause:** Hardcoded path assumption, same pattern as ISSUE-6.
 
 ---
 
@@ -175,7 +175,7 @@ These tasks:
 - Skills may diverge from documentation
 - Regression possible on future changes
 
-**Related:** ISSUE-002 (TDD for documentation tasks)
+**Related:** ISSUE-2 (TDD for documentation tasks)
 
 ---
 
@@ -276,7 +276,7 @@ These tasks:
 - **B:** Projects use `.claude/projects/<name>/` with configurable paths (current)
 - **C:** Configurable via `state.toml` artifact paths (flexible, complex)
 
-**Decision needed before:** ISSUE-006 resolution
+**Decision needed before:** ISSUE-6 resolution
 
 ---
 
@@ -286,7 +286,7 @@ These tasks:
 
 **Options:**
 - **A:** Accept documentation updates aren't testable (status quo)
-- **B:** Implement doc testing framework (ISSUE-002)
+- **B:** Implement doc testing framework (ISSUE-2)
 - **C:** Skills are code (refactor to executable format)
 
 **Decision needed before:** Next skill enhancement project
@@ -347,10 +347,10 @@ The infrastructure foundation is stronger. Subsequent projects can rely on:
 ---
 
 **Next Steps:** See issues created from recommendations:
-- ISSUE-029: Add --project-dir flag to trace commands (R1, High)
-- ISSUE-030: Create issue-update-producer skill (R2, High)
-- ISSUE-031: Define parallel commit strategy for task execution (R3, Medium)
-- ISSUE-032: Add integration test for state task tracking (R4, Medium)
-- ISSUE-033: Decision needed: Should parallel tasks use separate branches? (Q1)
-- ISSUE-034: Decision needed: Where should project artifacts live? (Q2)
-- ISSUE-035: Decision needed: How to handle skill documentation without TDD? (Q3)
+- ISSUE-29: Add --project-dir flag to trace commands (R1, High)
+- ISSUE-30: Create issue-update-producer skill (R2, High)
+- ISSUE-31: Define parallel commit strategy for task execution (R3, Medium)
+- ISSUE-32: Add integration test for state task tracking (R4, Medium)
+- ISSUE-33: Decision needed: Should parallel tasks use separate branches? (Q1)
+- ISSUE-34: Decision needed: Where should project artifacts live? (Q2)
+- ISSUE-35: Decision needed: How to handle skill documentation without TDD? (Q3)

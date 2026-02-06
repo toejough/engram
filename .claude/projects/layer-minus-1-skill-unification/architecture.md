@@ -1,7 +1,7 @@
 # Layer -1: Skill Unification Architecture
 
 **Project:** Layer -1 Skill Unification
-**Issue:** ISSUE-008
+**Issue:** ISSUE-8
 **Created:** 2026-02-02
 **Status:** Draft
 

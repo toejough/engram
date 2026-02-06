@@ -37,7 +37,7 @@ func TestTraceItem_ValidIssueItem(t *testing.T) {
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:           "ISSUE-001",
+		ID:           "ISSUE-1",
 		Type:         trace.NodeTypeISSUE,
 		Project:      "my-project",
 		Title:        "Fix the traceability chain",
@@ -172,13 +172,11 @@ func TestTraceItem_InvalidIDFormat(t *testing.T) {
 	g := NewWithT(t)
 
 	testCases := []string{
-		"INVALID-001",  // Wrong prefix
-		"REQ001",       // Missing hyphen
-		"REQ-",         // Missing number
-		"REQ-1",        // Too few digits (need 3+)
-		"REQ-01",       // Too few digits
-		"req-001",      // Lowercase prefix
-		"TEST-ABC",     // Non-numeric
+		"INVALID-1",  // Wrong prefix
+		"REQ001",     // Missing hyphen
+		"REQ-",       // Missing number
+		"req-1",      // Lowercase prefix
+		"TEST-ABC",   // Non-numeric
 	}
 
 	for _, id := range testCases {

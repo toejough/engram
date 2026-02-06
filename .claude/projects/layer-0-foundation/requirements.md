@@ -4,7 +4,7 @@
 **Phase:** PM
 **Created:** 2026-02-04
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -36,7 +36,7 @@ As a projctl orchestrator, I want to extract key insights from yield/result TOML
 
 **Priority:** P0
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -56,7 +56,7 @@ As a projctl orchestrator, I want a single method to generate unique yield/resul
 
 **Priority:** P0
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -78,7 +78,7 @@ As a projctl maintainer, I want integration tests proving the memory system work
 
 **Priority:** P1
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -98,7 +98,7 @@ As a projctl maintainer, I want integration tests proving context write generate
 
 **Priority:** P1
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -117,7 +117,7 @@ As a projctl user, I want documentation explaining trace repair behavior, so tha
 
 **Priority:** P1
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -141,7 +141,7 @@ As a projctl user, I want comprehensive memory system documentation, so that I u
 
 **Priority:** P1
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -166,7 +166,7 @@ As a projctl contributor, I want a summary document showing what was implemented
 
 **Priority:** P2
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -186,7 +186,7 @@ As a projctl user, I want to know what happens on first use of memory commands, 
 
 **Priority:** P2
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -205,7 +205,7 @@ As a projctl maintainer, I want integration tests proving trace repair works cor
 
 **Priority:** P1
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 

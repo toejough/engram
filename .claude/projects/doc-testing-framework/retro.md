@@ -2,7 +2,7 @@
 
 **Project:** doc-testing-framework
 **Date:** 2026-02-04
-**Issue:** ISSUE-002
+**Issue:** ISSUE-2
 
 ## What Went Well
 

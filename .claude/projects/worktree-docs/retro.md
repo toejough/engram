@@ -1,4 +1,4 @@
-# Retrospective: ISSUE-050 Worktree Documentation
+# Retrospective: ISSUE-50 Worktree Documentation
 
 ## What Went Well
 

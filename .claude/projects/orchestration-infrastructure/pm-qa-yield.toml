@@ -10,26 +10,26 @@ summary = "Requirements review: minor improvements needed for traceability consi
 severity = "minor"
 requirement = "REQ-003"
 issue = "Acceptance criteria vagueness"
-detail = "AC 'Outputs human-readable traceability visualization' does not specify output format. Source issue ISSUE-012 mentions ASCII tree, Mermaid, or JSON as options."
+detail = "AC 'Outputs human-readable traceability visualization' does not specify output format. Source issue ISSUE-12 mentions ASCII tree, Mermaid, or JSON as options."
 recommendation = "Add specific format to AC, e.g., 'Outputs ASCII tree visualization showing ISSUE->REQ->DES->ARCH->TASK chain' or explicitly allow multiple formats with --format flag"
 
 [[payload.findings]]
 severity = "minor"
 requirement = "REQ-004, REQ-005, REQ-006, REQ-007"
 issue = "Missing Traces to field"
-detail = "REQ-001, REQ-002, REQ-003 include '**Traces to:** ISSUE-NNN' but REQ-004 through REQ-007 do not, despite having clear source issues (ISSUE-019, ISSUE-020, ISSUE-021, ISSUE-025)."
-recommendation = "Add Traces to field to each: REQ-004 -> ISSUE-019, REQ-005 -> ISSUE-020, REQ-006 -> ISSUE-021, REQ-007 -> ISSUE-025"
+detail = "REQ-001, REQ-002, REQ-003 include '**Traces to:** ISSUE-NNN' but REQ-004 through REQ-007 do not, despite having clear source issues (ISSUE-19, ISSUE-20, ISSUE-21, ISSUE-25)."
+recommendation = "Add Traces to field to each: REQ-004 -> ISSUE-19, REQ-005 -> ISSUE-20, REQ-006 -> ISSUE-21, REQ-007 -> ISSUE-25"
 
 [[payload.findings]]
 severity = "informational"
 requirement = "REQ-002"
 issue = "Ambiguous scope for ID reservation"
-detail = "Source ISSUE-011 mentions 'Optionally reserve/write the ID to prevent race conditions' but requirements don't clarify if this is in scope."
+detail = "Source ISSUE-11 mentions 'Optionally reserve/write the ID to prevent race conditions' but requirements don't clarify if this is in scope."
 recommendation = "Either add AC for reservation behavior or explicitly state it's out of scope for this iteration"
 
 [payload.coverage]
 status = "complete"
-issues_covered = ["ISSUE-004", "ISSUE-011", "ISSUE-012", "ISSUE-019", "ISSUE-020", "ISSUE-021", "ISSUE-025"]
+issues_covered = ["ISSUE-4", "ISSUE-11", "ISSUE-12", "ISSUE-19", "ISSUE-20", "ISSUE-21", "ISSUE-25"]
 note = "All 7 source issues have corresponding requirements with testable AC"
 
 [payload.verdict]

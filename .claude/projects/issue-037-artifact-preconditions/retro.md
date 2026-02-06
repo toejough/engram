@@ -4,7 +4,7 @@
 
 1. **TDD flow worked smoothly** - Wrote failing tests, implemented, tests passed
 2. **Interface extension was clean** - Adding methods to PreconditionChecker was straightforward
-3. **Caught bug from previous work** - Found and fixed ISSUE-036 bug (args.Dir vs dir) during project init
+3. **Caught bug from previous work** - Found and fixed ISSUE-36 bug (args.Dir vs dir) during project init
 
 ## What Could Be Improved
 

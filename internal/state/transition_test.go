@@ -583,7 +583,7 @@ func TestTransitionPrecondition_IssueUpdate(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Set up state with linked issue
-		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-42"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		walkToSummaryComplete(t, dir)
@@ -595,7 +595,7 @@ func TestTransitionPrecondition_IssueUpdate(t *testing.T) {
 
 		_, err = state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("ISSUE-042"))
+		g.Expect(err.Error()).To(ContainSubstring("ISSUE-42"))
 		g.Expect(err.Error()).To(ContainSubstring("acceptance criteria"))
 	})
 
@@ -606,7 +606,7 @@ func TestTransitionPrecondition_IssueUpdate(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-042"})
+		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-42"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		walkToSummaryComplete(t, dir)

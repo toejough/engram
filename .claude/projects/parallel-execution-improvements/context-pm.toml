@@ -7,20 +7,20 @@ workflow = "new"
 description = """
 Improve parallel task execution in projctl. Originally three issues, now two after user decision:
 
-ISSUE-039: Merge-on-complete pattern
+ISSUE-39: Merge-on-complete pattern
 - Problem: All 4 agent branches merged at end, causing conflict complexity
 - Solution: Merge each branch immediately when agent completes
 - AC: Orchestrator detects completion, merges immediately, later agents benefit from earlier merges
 
-ISSUE-040: CLOSED (won't do) - User rejected premise. File overlap handled by rebasing/conflict resolution.
+ISSUE-40: CLOSED (won't do) - User rejected premise. File overlap handled by rebasing/conflict resolution.
 
-ISSUE-041: Documentation
+ISSUE-41: Documentation
 - Problem: Lessons learned not captured
 - Solution: Document parallel execution patterns
 - AC: Documentation covers when to parallelize, worktree workflow, limitations
 """
 
-linked_issues = ["ISSUE-039", "ISSUE-041"]
+linked_issues = ["ISSUE-39", "ISSUE-41"]
 
 [user_responses]
 q1_orchestrator = """
@@ -29,7 +29,7 @@ parallel execution - update the skill to implement merge-on-complete pattern.
 """
 
 q2_file_overlap = """
-REJECTED - Close ISSUE-040 as won't do. We can't always predict what else needs to change.
+REJECTED - Close ISSUE-40 as won't do. We can't always predict what else needs to change.
 We handle this with rebasing and conflict resolution - that's just part of building software.
 """
 
@@ -40,7 +40,7 @@ Documentation should be updated in:
 3. The /project skill documentation (.claude/skills/project/)
 """
 
-priority = "ISSUE-039 and ISSUE-041 are now the only issues. Treat equally."
+priority = "ISSUE-39 and ISSUE-41 are now the only issues. Treat equally."
 
 [output]
 yield_path = ".claude/projects/parallel-execution-improvements/yield-pm.toml"

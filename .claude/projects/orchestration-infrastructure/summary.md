@@ -1,6 +1,6 @@
 # Orchestration Infrastructure Project Summary
 
-**Project:** ISSUE-026 (Orchestration Infrastructure)
+**Project:** ISSUE-26 (Orchestration Infrastructure)
 **Date:** 2026-02-03
 **Status:** Complete
 
@@ -22,9 +22,9 @@ Addressed 7 accumulated infrastructure issues through a single batched project. 
 | `projctl id next --type TYPE` | Generate sequential IDs (REQ, DES, ARCH, TASK, ISSUE) |
 | `projctl trace show` | Visualize traceability chain (ASCII/JSON) |
 | `projctl trace promote` | Re-point TASK traces to permanent artifacts |
-| `projctl issue create/update/list/get` | Issue tracking (ISSUE-016) |
-| `projctl yield validate/types` | Yield protocol validation (ISSUE-018) |
-| `projctl territory show` | Display territory map (ISSUE-013) |
+| `projctl issue create/update/list/get` | Issue tracking (ISSUE-16) |
+| `projctl yield validate/types` | Yield protocol validation (ISSUE-18) |
+| `projctl territory show` | Display territory map (ISSUE-13) |
 
 ### New Packages
 
@@ -55,13 +55,13 @@ Addressed 7 accumulated infrastructure issues through a single batched project. 
 
 | Issue | Summary |
 |-------|---------|
-| ISSUE-004 | State machine completed task tracking |
-| ISSUE-011 | `projctl id next` command |
-| ISSUE-012 | `projctl trace show` command |
-| ISSUE-019 | Test trace promotion to permanent artifacts |
-| ISSUE-020 | tdd-qa AC completeness enforcement |
-| ISSUE-021 | Retro findings to issues conversion |
-| ISSUE-025 | Mandatory Traces-to in task breakdown |
+| ISSUE-4 | State machine completed task tracking |
+| ISSUE-11 | `projctl id next` command |
+| ISSUE-12 | `projctl trace show` command |
+| ISSUE-19 | Test trace promotion to permanent artifacts |
+| ISSUE-20 | tdd-qa AC completeness enforcement |
+| ISSUE-21 | Retro findings to issues conversion |
+| ISSUE-25 | Mandatory Traces-to in task breakdown |
 
 ---
 
@@ -69,15 +69,15 @@ Addressed 7 accumulated infrastructure issues through a single batched project. 
 
 | Issue | Summary | Priority |
 |-------|---------|----------|
-| ISSUE-027 | Parallel TDD agents bypass commit discipline | Medium |
-| ISSUE-028 | Automatic issue closure when work completes | Medium |
-| ISSUE-029 | Add --project-dir flag to trace commands | High |
-| ISSUE-030 | Create issue-update-producer skill | High |
-| ISSUE-031 | Define parallel commit strategy | Medium |
-| ISSUE-032 | Integration test for state task tracking | Medium |
-| ISSUE-033 | Decision: parallel tasks on separate branches? | Low |
-| ISSUE-034 | Decision: where should project artifacts live? | Medium |
-| ISSUE-035 | Decision: skill documentation TDD approach? | Low |
+| ISSUE-27 | Parallel TDD agents bypass commit discipline | Medium |
+| ISSUE-28 | Automatic issue closure when work completes | Medium |
+| ISSUE-29 | Add --project-dir flag to trace commands | High |
+| ISSUE-30 | Create issue-update-producer skill | High |
+| ISSUE-31 | Define parallel commit strategy | Medium |
+| ISSUE-32 | Integration test for state task tracking | Medium |
+| ISSUE-33 | Decision: parallel tasks on separate branches? | Low |
+| ISSUE-34 | Decision: where should project artifacts live? | Medium |
+| ISSUE-35 | Decision: skill documentation TDD approach? | Low |
 
 ---
 
@@ -125,4 +125,4 @@ Addressed 7 accumulated infrastructure issues through a single batched project. 
 
 ---
 
-**Traces to:** ISSUE-004, ISSUE-011, ISSUE-012, ISSUE-019, ISSUE-020, ISSUE-021, ISSUE-025
+**Traces to:** ISSUE-4, ISSUE-11, ISSUE-12, ISSUE-19, ISSUE-20, ISSUE-21, ISSUE-25

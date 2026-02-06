@@ -9,7 +9,7 @@ files_modified = [".claude/projects/issue-054-pm-interview/summary.md"]
 [[payload.decisions]]
 context = "Architecture selection"
 choice = "Context-Only Communication Contract"
-reason = "Root cause of ISSUE-053 was orchestrator passing override instructions to skills, violating skill autonomy"
+reason = "Root cause of ISSUE-53 was orchestrator passing override instructions to skills, violating skill autonomy"
 phase = "arch"
 traces_to = ["ARCH-1", "REQ-1", "REQ-4"]
 
@@ -87,4 +87,4 @@ category = "process"
 [context]
 phase = "summary"
 subphase = "complete"
-issue_id = "ISSUE-054"
+issue_id = "ISSUE-54"

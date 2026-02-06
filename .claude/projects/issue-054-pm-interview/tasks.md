@@ -1,10 +1,10 @@
 # Tasks: PM Interview Enforcement
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Created:** 2026-02-04
 **Status:** Draft
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 

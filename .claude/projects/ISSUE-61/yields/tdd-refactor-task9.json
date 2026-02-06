@@ -6,7 +6,7 @@
   "payload": {
     "artifact": "refactored validation log documentation",
     "files_modified": [
-      ".claude/projects/ISSUE-061/validation-log.md"
+      ".claude/projects/ISSUE-61/validation-log.md"
     ],
     "decisions": [
       {

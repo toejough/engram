@@ -103,7 +103,7 @@ timestamp = 2026-02-02T16:00:00Z
 [payload]
 artifact = "docs/retrospective.md"
 files_modified = ["docs/retrospective.md", "docs/issues.md"]
-issues_created = ["ISSUE-007", "ISSUE-008", "ISSUE-009"]
+issues_created = ["ISSUE-7", "ISSUE-8", "ISSUE-9"]
 
 [[payload.successes]]
 area = "Requirements Phase"
@@ -117,13 +117,13 @@ description = "Missing context on existing auth system caused rework"
 priority = "high"
 action = "Include system inventory in project kickoff"
 rationale = "Would have avoided ARCH-3 rework"
-issue = "ISSUE-007"
+issue = "ISSUE-7"
 
 [[payload.recommendations]]
 priority = "medium"
 action = "Add context caching for frequently-accessed artifacts"
 rationale = "Reduce redundant file reads"
-issue = "ISSUE-008"
+issue = "ISSUE-8"
 
 [[payload.recommendations]]
 priority = "low"
@@ -134,7 +134,7 @@ rationale = "Minor efficiency gain"
 [[payload.open_questions]]
 question = "Should skills support multiple concurrent yields?"
 context = "Edge case discovered during implementation"
-issue = "ISSUE-009"
+issue = "ISSUE-9"
 
 [context]
 phase = "retro"

@@ -5,7 +5,7 @@
 **Created:** 2026-02-04
 **Duration:** 1 day (single session)
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 
@@ -54,7 +54,7 @@ Memory extract reused existing ONNX runtime, e5-small model, and SQLite-vec stor
 
 Every task traced to specific requirements and architecture decisions. This made review easier and ensured no orphan work.
 
-**Evidence:** `projctl trace validate` shows complete traceability chain from ISSUE-045 through REQ/DES/ARCH to TASKs.
+**Evidence:** `projctl trace validate` shows complete traceability chain from ISSUE-45 through REQ/DES/ARCH to TASKs.
 
 ---
 
@@ -157,7 +157,7 @@ Current hash-based tokenization (not true BERT WordPiece) works for development.
 
 ## References
 
-- **Issue:** ISSUE-045
+- **Issue:** ISSUE-45
 - **Requirements:** .claude/projects/layer-0-foundation/requirements.md
 - **Architecture:** .claude/projects/layer-0-foundation/architecture.md
 - **Tasks:** .claude/projects/layer-0-foundation/tasks.md

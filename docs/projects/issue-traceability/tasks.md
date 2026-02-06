@@ -15,7 +15,7 @@ Update the `idPattern` regex in `internal/trace/trace.go` to accept ISSUE- prefi
 
 **Acceptance Criteria:**
 - [ ] `idPattern` regex updated to include ISSUE
-- [ ] `ValidID("ISSUE-001")` returns true
+- [ ] `ValidID("ISSUE-1")` returns true
 - [ ] Existing REQ/DES/ARCH/TASK IDs still validate
 
 **Files:**
@@ -32,8 +32,8 @@ Update the `idPattern` regex in `internal/trace/trace.go` to accept ISSUE- prefi
 Add validation in `trace.Add()` that ISSUE can only link to REQ.
 
 **Acceptance Criteria:**
-- [ ] `trace.Add("ISSUE-001", "REQ-001")` succeeds
-- [ ] `trace.Add("ISSUE-001", "DES-001")` returns error
+- [ ] `trace.Add("ISSUE-1", "REQ-001")` succeeds
+- [ ] `trace.Add("ISSUE-1", "DES-001")` returns error
 - [ ] Error message: "ISSUE can only link to REQ (got DES-001)"
 
 **Files:**
@@ -53,7 +53,7 @@ Add ISSUE to item.go constants, validNodeTypes map, and itemIDPattern.
 - [ ] `NodeTypeISSUE = "ISSUE"` constant added
 - [ ] ISSUE in `validNodeTypes` map
 - [ ] `itemIDPattern` regex includes ISSUE
-- [ ] `TraceItem{ID: "ISSUE-001"}.Validate()` passes
+- [ ] `TraceItem{ID: "ISSUE-1"}.Validate()` passes
 
 **Files:**
 - `internal/trace/item.go`
@@ -105,7 +105,7 @@ Ensure ISSUE has no mandatory downstream coverage (optional head of chain).
 Ensure `trace impact` includes ISSUE in forward/reverse analysis.
 
 **Acceptance Criteria:**
-- [ ] `trace impact --id ISSUE-001` shows downstream REQs
+- [ ] `trace impact --id ISSUE-1` shows downstream REQs
 - [ ] `trace impact --id REQ-001 --reverse` shows upstream ISSUE
 
 **Files:**

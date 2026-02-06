@@ -1,6 +1,6 @@
 # Orchestration Infrastructure Requirements
 
-Requirements inferred from ISSUE-004, ISSUE-011, ISSUE-012, ISSUE-019, ISSUE-020, ISSUE-021, ISSUE-025.
+Requirements inferred from ISSUE-4, ISSUE-11, ISSUE-12, ISSUE-19, ISSUE-20, ISSUE-21, ISSUE-25.
 
 ---
 
@@ -16,7 +16,7 @@ The state machine must track which tasks have been completed so that `state next
 - Completed tasks are tracked persistently in state.toml
 - `state get` shows task completion progress
 
-**Traces to:** ISSUE-004
+**Traces to:** ISSUE-4
 
 ---
 
@@ -33,7 +33,7 @@ The CLI must provide `projctl id next` to generate sequential traceable IDs for 
 - Scans correct artifact files for each type
 - Handles empty/missing files gracefully (returns TYPE-001)
 
-**Traces to:** ISSUE-011
+**Traces to:** ISSUE-11
 
 ---
 
@@ -49,7 +49,7 @@ The CLI must provide `projctl trace show` to visualize the traceability chain be
 - Orphan IDs (referenced but not defined) are marked with `[ORPHAN]`
 - Unlinked IDs (defined but not connected) are marked with `[UNLINKED]`
 
-**Traces to:** ISSUE-012
+**Traces to:** ISSUE-12
 
 ---
 
@@ -65,7 +65,7 @@ The documentation phase must re-point test traceability from ephemeral TASK-NNN 
 - No orphan TASK-NNN references remain after documentation completes
 - Trace validation passes with tests tracing to arch/des/req chain
 
-**Traces to:** ISSUE-019
+**Traces to:** ISSUE-19
 
 ---
 
@@ -81,7 +81,7 @@ The tdd-qa skill must enforce that all acceptance criteria are complete before a
 - Test: task with 3/4 AC complete results in QA rejection
 - Test: task with "deferred" language results in QA escalation to user
 
-**Traces to:** ISSUE-020
+**Traces to:** ISSUE-20
 
 ---
 
@@ -97,7 +97,7 @@ Retrospective findings (recommendations and open questions) must be converted to
 - User can see what issues were created from retro
 - Test: retro with 3 High recommendations results in 3 issues created
 
-**Traces to:** ISSUE-021
+**Traces to:** ISSUE-21
 
 ---
 
@@ -112,6 +112,6 @@ The breakdown-producer skill must include `**Traces to:**` as a mandatory field 
 - breakdown-complete precondition includes trace validation
 - Test: task without Traces-to results in QA rejection
 
-**Traces to:** ISSUE-025
+**Traces to:** ISSUE-25
 
 ---

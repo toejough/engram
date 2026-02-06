@@ -112,7 +112,7 @@ func containsNotFound(s string) bool {
 	return strings.Contains(s, "not found")
 }
 
-// traces: ISSUE-036
+// traces: ISSUE-36
 // Test stateInit defaults to .claude/projects/<name>/ when --dir is not provided.
 func TestStateInit_DefaultsToProjectDir(t *testing.T) {
 	g := NewWithT(t)
@@ -139,7 +139,7 @@ func TestStateInit_DefaultsToProjectDir(t *testing.T) {
 	g.Expect(s.Project.Name).To(Equal("my-project"))
 }
 
-// traces: ISSUE-036
+// traces: ISSUE-36
 // Test stateInit creates the directory if it doesn't exist.
 func TestStateInit_CreatesDirectory(t *testing.T) {
 	g := NewWithT(t)
@@ -165,7 +165,7 @@ func TestStateInit_CreatesDirectory(t *testing.T) {
 	g.Expect(info.IsDir()).To(BeTrue())
 }
 
-// traces: ISSUE-036
+// traces: ISSUE-36
 // Test stateInit still respects explicit --dir when provided.
 func TestStateInit_RespectsExplicitDir(t *testing.T) {
 	g := NewWithT(t)
@@ -183,7 +183,7 @@ func TestStateInit_RespectsExplicitDir(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-// traces: ISSUE-038
+// traces: ISSUE-38
 // Test stateInit auto-detects repo dir when --repo-dir not provided.
 func TestStateInit_AutoDetectsRepoDir(t *testing.T) {
 	g := NewWithT(t)
@@ -213,7 +213,7 @@ func TestStateInit_AutoDetectsRepoDir(t *testing.T) {
 	g.Expect(s.Project.RepoDir).To(Equal(dir))
 }
 
-// traces: ISSUE-038
+// traces: ISSUE-38
 // Test stateInit accepts explicit --repo-dir.
 func TestStateInit_AcceptsExplicitRepoDir(t *testing.T) {
 	g := NewWithT(t)

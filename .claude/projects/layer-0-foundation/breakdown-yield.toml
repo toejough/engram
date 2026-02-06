@@ -92,4 +92,4 @@ architecture_covered = [
 phase = "breakdown"
 subphase = "complete"
 project = "layer-0-foundation"
-issue = "ISSUE-045"
+issue = "ISSUE-45"

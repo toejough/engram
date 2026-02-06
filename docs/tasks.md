@@ -1,4 +1,4 @@
-# ISSUE-053: Universal QA Skill Tasks
+# ISSUE-53: Universal QA Skill Tasks
 
 Implementation tasks for replacing 13 phase-specific QA skills with one universal QA skill.
 
@@ -294,13 +294,13 @@ These tasks track projctl architecture roadmap items that are implemented or in 
 
 ---
 
-## ISSUE-056: Inferred Specification Warning Tasks
+## ISSUE-56: Inferred Specification Warning Tasks
 
 Implementation tasks for adding inference detection and user confirmation to producer skills.
 
 ---
 
-### Dependency Graph (ISSUE-056)
+### Dependency Graph (ISSUE-56)
 
 ```
 TASK-11 (YIELD.md extension)
@@ -412,7 +412,7 @@ TASK-11 (YIELD.md extension)
 
 ---
 
-### ISSUE-056 Task Summary
+### ISSUE-56 Task Summary
 
 | Task | Title | Dependencies | Key Traces |
 |------|-------|--------------|------------|

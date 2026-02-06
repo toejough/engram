@@ -40,7 +40,7 @@ func issueCreate(args issueCreateArgs) error {
 
 type issueUpdateArgs struct {
 	Dir     string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	ID      string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-042)"`
+	ID      string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-42)"`
 	Status  string `targ:"flag,short=s,desc=New status (Open, Closed, etc.)"`
 	Comment string `targ:"flag,short=c,desc=Comment to append"`
 	Force   bool   `targ:"flag,short=f,desc=Force close even if AC incomplete"`
@@ -106,7 +106,7 @@ func issueList(args issueListArgs) error {
 
 type issueGetArgs struct {
 	Dir string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	ID  string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-042)"`
+	ID  string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-42)"`
 }
 
 func issueGet(args issueGetArgs) error {

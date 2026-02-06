@@ -4,7 +4,7 @@ timestamp = 2026-02-05T19:45:00Z
 
 [payload]
 artifact = "internal/yield/enrichment_test.go"
-files_modified = ["internal/yield/enrichment_test.go", ".claude/projects/ISSUE-061/tdd-task7-summary.md"]
+files_modified = ["internal/yield/enrichment_test.go", ".claude/projects/ISSUE-61/tdd-task7-summary.md"]
 
 [[payload.test_coverage]]
 criterion = "AC-1: Yield includes [context.gap_analysis] section"
@@ -44,4 +44,4 @@ details = [
 phase = "tdd"
 subphase = "red"
 task = "TASK-7"
-issue = "ISSUE-061"
+issue = "ISSUE-61"

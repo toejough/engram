@@ -55,17 +55,17 @@ Description.
 	g.Expect(result.DuplicateIDs).To(ContainElement("DES-001"))
 	g.Expect(result.Renumbered).To(HaveLen(1))
 	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-001"))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
 	g.Expect(result.Renumbered[0].File).To(Equal("design.md"))
 
 	// Verify file was actually modified
 	updatedContent, err := os.ReadFile(filepath.Join(dir, "design.md"))
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Due to ReplaceAll behavior, BOTH occurrences of DES-001 become DES-002
+	// Due to ReplaceAll behavior, BOTH occurrences of DES-001 become DES-2
 	// (this is current behavior - arguably a bug but this test documents it)
-	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-002: First Design"))
-	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-002: Duplicate Design"))
+	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: First Design"))
+	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: Duplicate Design"))
 	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-001"))
 	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-002"))
 
@@ -115,18 +115,18 @@ Description.
 	g.Expect(result.DuplicateIDs).To(ContainElement("DES-001"))
 	g.Expect(result.Renumbered).To(HaveLen(1))
 	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-001"))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
 
 	// Verify the first file kept DES-001
 	mainContent, err := os.ReadFile(filepath.Join(dir, "design.md"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(mainContent)).To(ContainSubstring("### DES-001: Main Design"))
-	g.Expect(string(mainContent)).ToNot(ContainSubstring("DES-002"))
+	g.Expect(string(mainContent)).ToNot(ContainSubstring("DES-2"))
 
-	// Verify the second file was renumbered to DES-002
+	// Verify the second file was renumbered to DES-2
 	featureContent, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(featureContent)).To(ContainSubstring("### DES-002: Feature Design"))
+	g.Expect(string(featureContent)).To(ContainSubstring("### DES-2: Feature Design"))
 	g.Expect(string(featureContent)).ToNot(ContainSubstring("DES-001"))
 
 	// No escalations for duplicate IDs (auto-fixed)
@@ -234,15 +234,15 @@ Description.
 	// Should detect duplicate
 	g.Expect(result.DuplicateIDs).To(ContainElement("DES-003"))
 
-	// Should renumber to DES-006 (next available after DES-005)
+	// Should renumber to DES-6 (next available after DES-005)
 	g.Expect(result.Renumbered).To(HaveLen(1))
 	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-003"))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-006"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-6"))
 
 	// Verify file was updated correctly
 	featureContent, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(featureContent)).To(ContainSubstring("### DES-006: Duplicate Three"))
+	g.Expect(string(featureContent)).To(ContainSubstring("### DES-6: Duplicate Three"))
 }
 
 func TestIntegrationRepairNoDuplicateEscalations(t *testing.T) {
@@ -408,12 +408,12 @@ Description.
 	// Should renumber both duplicates
 	g.Expect(result.Renumbered).To(HaveLen(2))
 
-	// Both should be renumbered to new IDs (DES-003 and DES-004)
+	// Both should be renumbered to new IDs (DES-3 and DES-4)
 	newIDs := make([]string, 0, 2)
 	for _, r := range result.Renumbered {
 		newIDs = append(newIDs, r.NewID)
 	}
-	g.Expect(newIDs).To(ContainElements("DES-003", "DES-004"))
+	g.Expect(newIDs).To(ContainElements("DES-3", "DES-4"))
 
 	// Should detect both dangling references
 	g.Expect(result.DanglingRefs).To(ContainElements("REQ-999", "REQ-888"))
@@ -482,11 +482,11 @@ Description.
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(mainContent)).To(Equal(originalContent))
 
-	// The feature file should have DES-002 but preserve structure
+	// The feature file should have DES-2 but preserve structure
 	featureContent, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(featureContent)).To(ContainSubstring("# Feature Design"))
-	g.Expect(string(featureContent)).To(ContainSubstring("### DES-002: Duplicate Design"))
+	g.Expect(string(featureContent)).To(ContainSubstring("### DES-2: Duplicate Design"))
 	g.Expect(string(featureContent)).To(ContainSubstring("**Traces to:** REQ-001"))
 }
 
@@ -565,15 +565,15 @@ Description.
 
 	// Should renumber the duplicate
 	g.Expect(result.Renumbered).To(HaveLen(1))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-002"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
 
-	// The feature file should have ALL occurrences of DES-001 replaced with DES-002
+	// The feature file should have ALL occurrences of DES-001 replaced with DES-2
 	// (the ReplaceAll behavior in the implementation)
 	featureContent, err := os.ReadFile(filepath.Join(dir, "design-feature.md"))
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Note: The current implementation uses strings.ReplaceAll which replaces
 	// ALL occurrences of the duplicate ID in the file, including in body text
-	g.Expect(string(featureContent)).To(ContainSubstring("### DES-002: Feature Design"))
-	g.Expect(string(featureContent)).To(ContainSubstring("extends DES-002"))
+	g.Expect(string(featureContent)).To(ContainSubstring("### DES-2: Feature Design"))
+	g.Expect(string(featureContent)).To(ContainSubstring("extends DES-2"))
 }

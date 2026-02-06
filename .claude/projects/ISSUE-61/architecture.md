@@ -1,6 +1,6 @@
-# ISSUE-061 Architecture: Adaptive Interview Depth
+# ISSUE-61 Architecture: Adaptive Interview Depth
 
-**Issue:** ISSUE-061 - Decision needed: What's the right PM interview depth?
+**Issue:** ISSUE-61 - Decision needed: What's the right PM interview depth?
 
 **Global Architecture Updated:** [docs/architecture.md](../../../docs/architecture.md)
 
@@ -239,7 +239,7 @@ Pattern updates roll out to skills one at a time, validating before proceeding.
 **Testing:**
 - Unit tests for coverage calculation
 - Integration test with mocked context (sparse, medium, full)
-- Validation on real issues (ISSUE-061 itself is first validation)
+- Validation on real issues (ISSUE-61 itself is first validation)
 
 **Performance:**
 - Context gathering adds ~2-5 seconds before first question

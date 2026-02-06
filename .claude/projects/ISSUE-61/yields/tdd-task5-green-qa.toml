@@ -198,6 +198,6 @@ phase = "tdd-green"
 role = "qa"
 iteration = 1
 task = "TASK-5"
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 reviewed_by = "tdd-green-qa"
 approved_for = "tdd-refactor"

@@ -8,7 +8,7 @@ Successfully completed the full TDD cycle for TASK-5 (Gap Assessment Phase Imple
 
 **Task:** TASK-5 - Implement ASSESS phase that compares gathered context against key questions to determine coverage percentage and gap size
 
-**Issue:** ISSUE-061 - Decision needed: What's the right PM interview depth?
+**Issue:** ISSUE-61 - Decision needed: What's the right PM interview depth?
 
 **Artifact:** Documentation added to `~/.claude/skills/arch-interview-producer/SKILL.md`
 
@@ -135,7 +135,7 @@ Successfully completed the full TDD cycle for TASK-5 (Gap Assessment Phase Imple
 
 **Traces to:**
 - TASK-5: Gap Assessment Phase Implementation
-- ISSUE-061: Adaptive Interview Depth
+- ISSUE-61: Adaptive Interview Depth
 - ARCH-001: Context-First Interview Pattern
 - ARCH-002: Gap-Based Depth Calculation
 - ARCH-003: Yield Context Enrichment

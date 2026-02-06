@@ -4,7 +4,7 @@ Tracked issues for future work beyond the current task list.
 
 ---
 
-### ISSUE-001: Implement deterministic orchestrator (projctl orchestrate)
+### ISSUE-1: Implement deterministic orchestrator (projctl orchestrate)
 
 **Priority:** Medium-term
 **Status:** Closed
@@ -100,7 +100,7 @@ This is the "medium-term" solution. Short-term mitigations (TASK-060 through TAS
 ### Comment
 
 Superseded by Layer 0-5 architecture in docs/orchestration-system.md. The layered approach provides incremental implementation of the deterministic orchestrator.
-### ISSUE-002: TDD for documentation tasks
+### ISSUE-2: TDD for documentation tasks
 
 **Priority:** Medium-term
 **Status:** Closed
@@ -178,7 +178,7 @@ Apply TDD to documentation:
 ### Comment
 
 Completed via doc-testing-framework project. TDD skills now support documentation testing with word matching, semantic matching (ONNX), and structural tests. Orchestrator updated to not skip TDD for doc-focused tasks.
-### ISSUE-003: End-to-end integration test for /project workflows
+### ISSUE-3: End-to-end integration test for /project workflows
 
 **Priority:** High
 **Status:** Closed
@@ -240,7 +240,7 @@ Could also create a "dry-run" mode that validates the control loop without invok
 ### Comment
 
 Superseded by Layer 0-5 architecture. Each layer includes 'Proves:' criteria that serve as integration tests for that layer's functionality.
-### ISSUE-004: State machine does not track completed tasks
+### ISSUE-4: State machine does not track completed tasks
 
 **Priority:** Medium
 **Status:** Closed
@@ -305,8 +305,8 @@ completed = ["TASK-063", "TASK-064"]
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: MarkTaskComplete/IsTaskComplete in state.go, Next() filters completed tasks.
-### ISSUE-005: Trace validation blocks transitions due to historical debt
+Completed via orchestration-infrastructure project (ISSUE-26). AC verified 2026-02-03: MarkTaskComplete/IsTaskComplete in state.go, Next() filters completed tasks.
+### ISSUE-5: Trace validation blocks transitions due to historical debt
 
 **Priority:** Low
 **Status:** Closed (2026-02-01)
@@ -348,7 +348,7 @@ Fixed by creating `docs/requirements.md` (REQ-001) and `docs/architecture.md` (A
 
 ---
 
-### ISSUE-006: Precondition checker hardcodes `docs/` subdirectory for artifact files
+### ISSUE-6: Precondition checker hardcodes `docs/` subdirectory for artifact files
 
 **Priority:** High
 **Status:** Closed
@@ -442,7 +442,7 @@ Add to docs that projects MUST have a `docs/` subdirectory. Update existing proj
 ### Comment
 
 Fixed via path-fixes project. Changed default DocsDir to empty string and fixed all hardcoded docs/ paths. AC verified 2026-02-03: DocsDir defaults to "" in config.go.
-### ISSUE-007: Visual verification required for CLI/TUI/GUI changes in TDD
+### ISSUE-7: Visual verification required for CLI/TUI/GUI changes in TDD
 
 **Priority:** High
 **Status:** Closed
@@ -535,7 +535,7 @@ Completed via visual-verification-tdd project (2026-02-04):
 
 ---
 
-### ISSUE-008: Layer -1 - Unify skills to new orchestration patterns
+### ISSUE-8: Layer -1 - Unify skills to new orchestration patterns
 
 **Priority:** High
 **Status:** Closed
@@ -598,7 +598,7 @@ All skills follow the unified pattern:
 
 ### Relationship to Other Work
 
-- Prerequisite for ISSUE-001 (deterministic orchestrator)
+- Prerequisite for ISSUE-1 (deterministic orchestrator)
 - Implements Layer -1 from `docs/orchestration-system.md`
 - Must complete before Layers 0-7 can begin
 
@@ -608,12 +608,12 @@ L-1 skills are complete but depend on projctl commands that are missing or broke
 
 | Issue | Blocker |
 |-------|---------|
-| ISSUE-009 | State machine missing phases skills need to transition to |
-| ISSUE-010 | `state init` doesn't accept `--mode` for workflow type |
-| ISSUE-013 | context-explorer expects `projctl territory` but command is `projctl map` |
-| ISSUE-016 | Missing `projctl issue create/update` commands |
-| ISSUE-017 | Missing `projctl state set` command |
-| ISSUE-018 | Missing `projctl yield validate` command |
+| ISSUE-9 | State machine missing phases skills need to transition to |
+| ISSUE-10 | `state init` doesn't accept `--mode` for workflow type |
+| ISSUE-13 | context-explorer expects `projctl territory` but command is `projctl map` |
+| ISSUE-16 | Missing `projctl issue create/update` commands |
+| ISSUE-17 | Missing `projctl state set` command |
+| ISSUE-18 | Missing `projctl yield validate` command |
 
 **Traces to:** docs/orchestration-system.md Section 12 (Implementation Plan)
 
@@ -623,12 +623,12 @@ L-1 skills are complete but depend on projctl commands that are missing or broke
 ### Comment
 
 Layer -1 complete. 37 skills unified with yield protocol. See .claude/projects/layer-minus-1-skill-unification/ for artifacts.
-### ISSUE-009: State machine transitions don't match orchestration doc
+### ISSUE-9: State machine transitions don't match orchestration doc
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
-**Blocks:** Layer -1 (ISSUE-008)
+**Blocks:** Layer -1 (ISSUE-8)
 **Resolution:** Updated `internal/state/transitions.go` with correct workflow phases
 
 ### Summary
@@ -700,12 +700,12 @@ init → task-implementation → task-documentation → alignment → retro → 
 ### Comment
 
 Fixed in commit 4087e0f. AC verified 2026-02-03: transitions.go contains adopt-explore→adopt-infer-tests→adopt-infer-arch→adopt-infer-design→adopt-infer-reqs flow and retro/summary/issue-update/next-steps phases.
-### ISSUE-010: State struct missing workflow type and pair loop tracking
+### ISSUE-10: State struct missing workflow type and pair loop tracking
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
-**Blocks:** Layer -1 (ISSUE-008)
+**Blocks:** Layer -1 (ISSUE-8)
 **Partial Resolution (2026-02-03):** Added `Workflow` and `Issue` fields to Project struct, `InitOpts` for Init(), `SetOpts` for Set()
 
 **Remaining AC items:** (now complete)
@@ -756,7 +756,7 @@ qa_verdict = "approved"
 3. **Issue tracking** - Link to issues.md
 ```toml
 [project]
-issue = "ISSUE-042"
+issue = "ISSUE-42"
 ```
 
 4. **Yield state** - Track pending yields
@@ -786,7 +786,7 @@ context_file = ".claude/agents/pm-state.toml"
 ### Comment
 
 Added Pairs map and Yield struct to State, CLI commands for state pair set/clear and state yield set/clear. AC verified 2026-02-03: Workflow, Pairs, Yield all present in state.go.
-### ISSUE-011: Missing `projctl id next` command for ID generation
+### ISSUE-11: Missing `projctl id next` command for ID generation
 
 **Priority:** Medium
 **Status:** Closed
@@ -831,8 +831,8 @@ projctl id next --type TASK       # Returns TASK-089
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: `projctl id next --type REQ` returns REQ-006.
-### ISSUE-012: Missing `projctl trace show` command for visualization
+Completed via orchestration-infrastructure project (ISSUE-26). AC verified 2026-02-03: `projctl id next --type REQ` returns REQ-006.
+### ISSUE-12: Missing `projctl trace show` command for visualization
 
 **Priority:** Low
 **Status:** Closed
@@ -866,13 +866,13 @@ Output could be:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: `projctl trace show --dir .` works.
-### ISSUE-013: Rename `projctl map` to `projctl territory` per orchestration doc
+Completed via orchestration-infrastructure project (ISSUE-26). AC verified 2026-02-03: `projctl trace show --dir .` works.
+### ISSUE-13: Rename `projctl map` to `projctl territory` per orchestration doc
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
-**Blocks:** Layer -1 (ISSUE-008)
+**Blocks:** Layer -1 (ISSUE-8)
 **Partial Resolution (2026-02-03):** Renamed `cmd/projctl/map.go` to `territory.go`, command is now `projctl territory map`, updated SKILL-full.md reference
 
 **Remaining AC items:** (now complete)
@@ -904,7 +904,7 @@ The orchestration doc Section 10.6 specifies `projctl territory map` and `projct
 ### Comment
 
 Added projctl territory show command. Fixed in commit 4087e0f. AC verified 2026-02-03: both `territory map` and `territory show` work.
-### ISSUE-014: Missing `projctl screenshot capture` command
+### ISSUE-14: Missing `projctl screenshot capture` command
 
 **Priority:** Low
 **Status:** Closed
@@ -937,7 +937,7 @@ Resolved via visual-verification-tdd project (2026-02-04): Documented MCP-based 
 
 ---
 
-### ISSUE-015: `projctl project` command group not implemented
+### ISSUE-15: `projctl project` command group not implemented
 
 **Priority:** High
 **Status:** Closed
@@ -946,7 +946,7 @@ Resolved via visual-verification-tdd project (2026-02-04): Documented MCP-based 
 
 ### Summary
 
-The orchestration doc Section 10.1 specifies a `projctl project` command group for workflow orchestration, but it doesn't exist. This is the CLI interface for the deterministic orchestrator (ISSUE-001).
+The orchestration doc Section 10.1 specifies a `projctl project` command group for workflow orchestration, but it doesn't exist. This is the CLI interface for the deterministic orchestrator (ISSUE-1).
 
 ### Missing Commands
 
@@ -960,9 +960,9 @@ projctl project status            # Show current state
 projctl project skip <phase>      # Skip optional phase
 ```
 
-### Relationship to ISSUE-001
+### Relationship to ISSUE-1
 
-ISSUE-001 describes the deterministic orchestrator architecture. This issue tracks the CLI interface for that orchestrator. They can be implemented together or separately (CLI first as stub, then orchestrator logic).
+ISSUE-1 describes the deterministic orchestrator architecture. This issue tracks the CLI interface for that orchestrator. They can be implemented together or separately (CLI first as stub, then orchestrator logic).
 
 ### Acceptance Criteria
 
@@ -975,7 +975,7 @@ ISSUE-001 describes the deterministic orchestrator architecture. This issue trac
 - [ ] `projctl project status` shows current workflow state
 - [ ] `projctl project skip <phase>` skips optional phase
 
-**Traces to:** docs/orchestration-system.md Section 10.1, ISSUE-001
+**Traces to:** docs/orchestration-system.md Section 10.1, ISSUE-1
 
 ---
 
@@ -983,7 +983,7 @@ ISSUE-001 describes the deterministic orchestrator architecture. This issue trac
 ### Comment
 
 Superseded by Layer 5 (projctl workflow new|adopt|align|task) in docs/orchestration-system.md.
-### ISSUE-016: Missing `projctl issue` command for issue tracking
+### ISSUE-16: Missing `projctl issue` command for issue tracking
 
 **Priority:** High
 **Status:** Closed
@@ -1029,7 +1029,7 @@ Should integrate with `docs/issues.md` file format:
 ### Comment
 
 Fixed in commit 414a09c. AC verified 2026-02-03: `projctl issue list` works and shows issues.
-### ISSUE-017: Missing `projctl state set` command
+### ISSUE-17: Missing `projctl state set` command
 
 **Priority:** High
 **Status:** Closed (2026-02-03)
@@ -1066,7 +1066,7 @@ Add `state set` subcommand to modify state fields without transitioning:
 
 ---
 
-### ISSUE-018: Missing `projctl yield validate` command
+### ISSUE-18: Missing `projctl yield validate` command
 
 **Priority:** Medium
 **Status:** Closed
@@ -1106,7 +1106,7 @@ Checks:
 ### Comment
 
 Fixed in commit 651eeb3. AC verified 2026-02-03: `projctl yield validate` and `projctl yield types` commands exist.
-### ISSUE-019: Documentation phase should re-point test traces from tasks to permanent artifacts
+### ISSUE-19: Documentation phase should re-point test traces from tasks to permanent artifacts
 
 **Priority:** Medium
 **Status:** Closed
@@ -1162,12 +1162,12 @@ Could also be a `projctl trace promote` command that automates this.
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026)
+Completed via orchestration-infrastructure project (ISSUE-26)
 
 ### Comment
 
 doc-producer SKILL.md now includes trace re-pointing in PRODUCE phase. AC satisfied when doc-producer executes per updated instructions. Note: existing TASK-NNN traces in codebase will be cleaned up in next doc phase.
-### ISSUE-020: tdd-qa must enforce complete AC before task-complete
+### ISSUE-20: tdd-qa must enforce complete AC before task-complete
 
 **Priority:** Medium
 **Status:** Closed
@@ -1215,8 +1215,8 @@ Update `tdd-qa` skill to:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: tdd-qa SKILL.md specifies improvement-request for unchecked AC. Tests not verified.
-### ISSUE-021: Retro findings must be converted to issues
+Completed via orchestration-infrastructure project (ISSUE-26). AC verified 2026-02-03: tdd-qa SKILL.md specifies improvement-request for unchecked AC. Tests not verified.
+### ISSUE-21: Retro findings must be converted to issues
 
 **Priority:** Medium
 **Status:** Closed
@@ -1232,7 +1232,7 @@ The retrospective produced 8 actionable recommendations (R1-R8) and 3 open quest
 From Layer -1 retrospective:
 - R1: Create projctl validate-spec command
 - R2: Add integration test AC to multi-component projects
-- R3: Close ISSUE-009 through ISSUE-018 before Layer 0
+- R3: Close ISSUE-9 through ISSUE-18 before Layer 0
 - R4: Create ARCH-N for orchestrator-skill contract
 - R5: Implement projctl docs validate
 - R6: Add traceability enforcement to task creation
@@ -1245,7 +1245,7 @@ Zero of these became issues in the project tracker.
 ### Root Cause
 
 1. `retro-producer` creates recommendations but doesn't file issues
-2. `issue-update` phase only updates the *linked* issue (ISSUE-008), doesn't process retro
+2. `issue-update` phase only updates the *linked* issue (ISSUE-8), doesn't process retro
 3. No step in main flow ending extracts actionable items from retro
 
 ### Fix Required
@@ -1279,7 +1279,7 @@ Zero of these became issues in the project tracker.
 
 ### Comment (2026-02-03)
 
-Originally closed with comment "Completed via orchestration-infrastructure project (ISSUE-026)" but all acceptance criteria remained unchecked. No automation was implemented - ISSUE-026 was an organizational project that batch-closed issues without verifying implementation. Reopened for actual implementation.
+Originally closed with comment "Completed via orchestration-infrastructure project (ISSUE-26)" but all acceptance criteria remained unchecked. No automation was implemented - ISSUE-26 was an organizational project that batch-closed issues without verifying implementation. Reopened for actual implementation.
 
 ### Comment
 
@@ -1292,7 +1292,7 @@ Implemented via projctl retro extract command:
 - --minpriority flag filters by priority threshold
 
 Usage: projctl retro extract --dir <project-dir> [--dryrun] [--minpriority Medium]
-### ISSUE-022: Summary phase must present artifact to user, not generate prose summary
+### ISSUE-22: Summary phase must present artifact to user, not generate prose summary
 
 **Priority:** Medium
 **Status:** Closed
@@ -1341,7 +1341,7 @@ Alternative: Add `projctl present --artifact <path>` command that formats and di
 ### Comment
 
 SKILL-full.md now instructs orchestrator to present artifact. AC are runtime behaviors that will be satisfied when orchestrator follows updated docs. Verified via skill test.
-### ISSUE-023: Create projctl validate-spec command
+### ISSUE-23: Create projctl validate-spec command
 
 **Priority:** Medium
 **Status:** Closed
@@ -1356,7 +1356,7 @@ Create a command that validates orchestration-system.md (or other spec docs) aga
 
 Orchestration-system.md specified commands like `projctl territory map`, `projctl issue create`, etc. that didn't exist. This created a false sense of readiness and blocked Layer -1 work.
 
-> "Would have caught ISSUE-009 through ISSUE-018 before Layer -1 started"
+> "Would have caught ISSUE-9 through ISSUE-18 before Layer -1 started"
 
 ### Proposed Solution
 
@@ -1384,8 +1384,8 @@ Parses the spec doc for:
 
 ### Comment
 
-Won't do - separate concern. Doc testing (ISSUE-002) handles validation through TDD, not a separate validate-spec command.
-### ISSUE-024: Create ARCH-N for explicit orchestrator-skill contract
+Won't do - separate concern. Doc testing (ISSUE-2) handles validation through TDD, not a separate validate-spec command.
+### ISSUE-24: Create ARCH-N for explicit orchestrator-skill contract
 
 **Priority:** Medium
 **Status:** Closed
@@ -1448,7 +1448,7 @@ Completed via project orchestrator-skill-contract (2026-02-04). Added ARCH-018: 
 
 ---
 
-### ISSUE-025: breakdown-producer must include Traces-to as mandatory AC
+### ISSUE-25: breakdown-producer must include Traces-to as mandatory AC
 
 **Priority:** Medium
 **Status:** Closed
@@ -1491,8 +1491,8 @@ Update `breakdown-producer` skill:
 
 ### Comment
 
-Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026-02-03: breakdown-producer SKILL.md includes Traces-to in task template. Tests not verified.
-### ISSUE-026: Orchestration Infrastructure Improvements
+Completed via orchestration-infrastructure project (ISSUE-26). AC verified 2026-02-03: breakdown-producer SKILL.md includes Traces-to in task template. Tests not verified.
+### ISSUE-26: Orchestration Infrastructure Improvements
 
 **Priority:** Medium
 **Status:** Closed
@@ -1501,25 +1501,25 @@ Completed via orchestration-infrastructure project (ISSUE-026). AC verified 2026
 Batch project to address fundamental orchestration issues:
 
 **CLI Commands:**
-- ISSUE-004: State machine doesn't track completed tasks
-- ISSUE-011: Missing projctl id next command
-- ISSUE-012: Missing projctl trace show command
+- ISSUE-4: State machine doesn't track completed tasks
+- ISSUE-11: Missing projctl id next command
+- ISSUE-12: Missing projctl trace show command
 
 **Skill Enforcement:**
-- ISSUE-019: Doc phase re-points test traces to permanent artifacts
-- ISSUE-020: tdd-qa must enforce complete AC before task-complete
-- ISSUE-021: Retro findings must be converted to issues
-- ISSUE-025: breakdown-producer must include Traces-to as mandatory AC
+- ISSUE-19: Doc phase re-points test traces to permanent artifacts
+- ISSUE-20: tdd-qa must enforce complete AC before task-complete
+- ISSUE-21: Retro findings must be converted to issues
+- ISSUE-25: breakdown-producer must include Traces-to as mandatory AC
 
-**Traces to:** ISSUE-004, ISSUE-011, ISSUE-012, ISSUE-019, ISSUE-020, ISSUE-021, ISSUE-025
+**Traces to:** ISSUE-4, ISSUE-11, ISSUE-12, ISSUE-19, ISSUE-20, ISSUE-21, ISSUE-25
 
 ---
 
 
 ### Comment
 
-Project complete. Resolved ISSUE-004, 011, 012, 019, 020, 021, 025. Created follow-up issues ISSUE-027 through ISSUE-035.
-### ISSUE-027: Parallel TDD agents bypass commit-per-phase discipline
+Project complete. Resolved ISSUE-4, 011, 012, 019, 020, 021, 025. Created follow-up issues ISSUE-27 through ISSUE-35.
+### ISSUE-27: Parallel TDD agents bypass commit-per-phase discipline
 
 **Priority:** Medium
 **Status:** Closed
@@ -1527,7 +1527,7 @@ Project complete. Resolved ISSUE-004, 011, 012, 019, 020, 021, 025. Created foll
 
 When running TDD tasks in parallel via Task tool, the commit-per-phase discipline (red→commit→green→commit→refactor→commit) is bypassed.
 
-**Observed during:** ISSUE-026 (orchestration-infrastructure) - 6 tasks ran in parallel, no intermediate commits.
+**Observed during:** ISSUE-26 (orchestration-infrastructure) - 6 tasks ran in parallel, no intermediate commits.
 
 **Options:**
 1. Agents commit as they go (risk: merge conflicts with parallel work)
@@ -1543,7 +1543,7 @@ Resolved via parallel-worktree-strategy project. Implemented git worktree-based 
 
 ---
 
-### ISSUE-028: Issue closure should be automatic when linked work completes
+### ISSUE-28: Issue closure should be automatic when linked work completes
 
 **Priority:** Medium
 **Status:** Closed
@@ -1576,13 +1576,13 @@ When a project completes work linked to an issue (via state.toml `issue` field),
 ### Comment
 
 Completed via project issue-028-auto-close. Made issue auto-close explicit in SKILL-full.md with deterministic bash commands.
-### ISSUE-029: Add --project-dir flag to trace commands
+### ISSUE-29: Add --project-dir flag to trace commands
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective R1:
+From ISSUE-26 retrospective R1:
 
 **Problem:** `projctl trace promote` looks for tasks.md in docs/ not .claude/projects/.
 
@@ -1594,7 +1594,7 @@ From ISSUE-026 retrospective R1:
 - [x] `projctl trace promote --project-dir .claude/projects/foo/` successfully resolves TASK-NNN references
 - [x] `projctl trace show --project-dir .claude/projects/foo/` uses tasks.md from specified directory
 
-**Traces to:** ISSUE-026 Retrospective R1
+**Traces to:** ISSUE-26 Retrospective R1
 
 ---
 
@@ -1602,13 +1602,13 @@ From ISSUE-026 retrospective R1:
 ### Comment
 
 Fixed via path-fixes project. Artifacts now found at project root by default. AC verified 2026-02-03: `projctl trace show --dir` flag exists.
-### ISSUE-030: Create issue-update-producer skill
+### ISSUE-30: Create issue-update-producer skill
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective R2:
+From ISSUE-26 retrospective R2:
 
 **Problem:** Issues linked to projects aren't automatically closed when project completes.
 
@@ -1622,21 +1622,21 @@ From ISSUE-026 retrospective R2:
 - [ ] Skill invokes `projctl issue update --status Closed` for linked issues
 - [ ] After implementation-complete, linked issues show 'Closed' status with project reference
 
-**Traces to:** ISSUE-026 Retrospective R2, ISSUE-028
+**Traces to:** ISSUE-26 Retrospective R2, ISSUE-28
 
 ---
 
 
 ### Comment
 
-Won't do - over-engineering. Fixing ISSUE-028 directly with simple command in orchestrator.
-### ISSUE-031: Define parallel commit strategy for task execution
+Won't do - over-engineering. Fixing ISSUE-28 directly with simple command in orchestrator.
+### ISSUE-31: Define parallel commit strategy for task execution
 
 **Priority:** Medium
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective R3:
+From ISSUE-26 retrospective R3:
 
 **Problem:** Parallel agents bypass commit-per-phase discipline (no commits during parallel work).
 
@@ -1654,7 +1654,7 @@ From ISSUE-026 retrospective R3:
 - [x] Policy is implementable by orchestrator
 - [x] Trade-offs are documented
 
-**Traces to:** ISSUE-026 Retrospective R3, ISSUE-027
+**Traces to:** ISSUE-26 Retrospective R3, ISSUE-27
 
 ### Comment
 
@@ -1662,13 +1662,13 @@ Resolved via parallel-worktree-strategy project. Strategy: Option 1 (branch per 
 
 ---
 
-### ISSUE-032: Add integration test for state task tracking
+### ISSUE-32: Add integration test for state task tracking
 
 **Priority:** Medium
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective R4:
+From ISSUE-26 retrospective R4:
 
 **Problem:** State tracking changes (TASK-001/002) have unit tests but no integration test.
 
@@ -1688,7 +1688,7 @@ From ISSUE-026 retrospective R4:
 - [x] Test runs full task completion workflow
 - [x] `go test -tags=integration ./internal/state/...` validates complete workflow
 
-**Traces to:** ISSUE-026 Retrospective R4
+**Traces to:** ISSUE-26 Retrospective R4
 
 ---
 
@@ -1696,13 +1696,13 @@ From ISSUE-026 retrospective R4:
 ### Comment
 
 AC verified 2026-02-03: internal/state/state_integration_test.go exists, uses real git repos and files.
-### ISSUE-033: Decision needed: Should parallel tasks use separate branches?
+### ISSUE-33: Decision needed: Should parallel tasks use separate branches?
 
 **Priority:** Low
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective Q1:
+From ISSUE-26 retrospective Q1:
 
 **Context:** Parallel task execution creates merge challenges. Git branches could isolate work.
 
@@ -1713,7 +1713,7 @@ From ISSUE-026 retrospective Q1:
 
 **Decision needed before:** Next parallel project execution
 
-**Traces to:** ISSUE-026 Retrospective Q1, ISSUE-027
+**Traces to:** ISSUE-26 Retrospective Q1, ISSUE-27
 
 ### Comment
 
@@ -1721,13 +1721,13 @@ Decision: Option A (branch per task). Implemented via parallel-worktree-strategy
 
 ---
 
-### ISSUE-034: Decision needed: Where should project artifacts live?
+### ISSUE-34: Decision needed: Where should project artifacts live?
 
 **Priority:** Medium
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective Q2:
+From ISSUE-26 retrospective Q2:
 
 **Context:** This project used `.claude/projects/orchestration-infrastructure/` but trace commands assume `docs/`.
 
@@ -1736,38 +1736,38 @@ From ISSUE-026 retrospective Q2:
 - **B:** Projects use `.claude/projects/<name>/` with configurable paths (current)
 - **C:** Configurable via `state.toml` artifact paths (flexible, complex)
 
-**Decision needed before:** ISSUE-006 resolution
+**Decision needed before:** ISSUE-6 resolution
 
-**Traces to:** ISSUE-026 Retrospective Q2, ISSUE-006
+**Traces to:** ISSUE-26 Retrospective Q2, ISSUE-6
 
 ---
 
 
 ### Comment
 
-Decision: projects always live in .claude/projects/<name>/. ISSUE-036 implements this as the default.
-### ISSUE-035: Decision needed: How to handle skill documentation without TDD?
+Decision: projects always live in .claude/projects/<name>/. ISSUE-36 implements this as the default.
+### ISSUE-35: Decision needed: How to handle skill documentation without TDD?
 
 **Priority:** Low
 **Status:** Closed
 **Created:** 2026-02-03
 
-From ISSUE-026 retrospective Q3:
+From ISSUE-26 retrospective Q3:
 
 **Context:** Skill updates (TASK-009/010/011) can't follow TDD because skills are documentation, not code.
 
 **Options:**
 - **A:** Accept documentation updates aren't testable (status quo)
-- **B:** Implement doc testing framework (relates to ISSUE-002)
+- **B:** Implement doc testing framework (relates to ISSUE-2)
 - **C:** Skills are code (refactor to executable format)
 
-**Decision:** Option B - Implement doc testing framework. See ISSUE-002 and ISSUE-023.
+**Decision:** Option B - Implement doc testing framework. See ISSUE-2 and ISSUE-23.
 
-**Traces to:** ISSUE-026 Retrospective Q3, ISSUE-002
+**Traces to:** ISSUE-26 Retrospective Q3, ISSUE-2
 
 ---
 
-### ISSUE-036: projctl state init should default to .claude/projects/<name>/
+### ISSUE-36: projctl state init should default to .claude/projects/<name>/
 
 **Priority:** High
 **Status:** Closed
@@ -1789,7 +1789,7 @@ From ISSUE-026 retrospective Q3:
 - [x] Error if `.claude/projects/foo/state.toml` already exists
 - [x] Update SKILL-full.md initialization examples to remove `--dir .`
 
-**Traces to:** ISSUE-034 (related decision), ISSUE-028 retrospective
+**Traces to:** ISSUE-34 (related decision), ISSUE-28 retrospective
 
 
 ### Comment
@@ -1798,7 +1798,7 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 
 ---
 
-### ISSUE-037: State transitions should enforce artifact preconditions
+### ISSUE-37: State transitions should enforce artifact preconditions
 
 **Priority:** Medium
 **Status:** Closed
@@ -1806,7 +1806,7 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 
 **Problem:** Phase transitions like `retro → retro-complete` can succeed without the required artifact (retro.md) existing. This allows skipping phases without producing outputs.
 
-**Found in:** ISSUE-036 retrospective (R1)
+**Found in:** ISSUE-36 retrospective (R1)
 
 **Solution:** Add preconditions to the state machine:
 - `retro-complete` requires `retro.md` exists in project dir
@@ -1818,7 +1818,7 @@ Completed via project issue-036-state-init-default. projctl state init now defau
 - [x] Precondition added for summary-complete checking summary.md
 - [x] Tests verify transitions fail without artifacts
 
-**Traces to:** ISSUE-036 Retrospective R1
+**Traces to:** ISSUE-36 Retrospective R1
 
 
 ### Comment
@@ -1827,7 +1827,7 @@ Completed via project issue-037-artifact-preconditions. Added preconditions for 
 
 ---
 
-### ISSUE-038: State machine should track repo dir separately from project dir
+### ISSUE-38: State machine should track repo dir separately from project dir
 
 **Priority:** Medium
 **Status:** Closed
@@ -1875,7 +1875,7 @@ Completed via project state-machine-improvements. Added RepoDir field to state, 
 
 ---
 
-### ISSUE-039: Orchestrator should merge branches as parallel agents complete
+### ISSUE-39: Orchestrator should merge branches as parallel agents complete
 
 **Priority:** Medium
 **Status:** Closed
@@ -1909,7 +1909,7 @@ This "merge-on-complete" pattern reduces the window for conflicts and lets later
 ### Comment
 
 Resolved via parallel-execution-improvements project. Merge-on-complete pattern documented in orchestration-system.md Section 6.5 and SKILL-full.md.
-### ISSUE-040: Task scheduler should detect file overlap for parallel execution
+### ISSUE-40: Task scheduler should detect file overlap for parallel execution
 
 **Priority:** Medium
 **Status:** Closed
@@ -1942,7 +1942,7 @@ Resolved via parallel-execution-improvements project. Merge-on-complete pattern 
 ### Comment
 
 Won't do - rejected premise. Parallel work in branches handles file overlap via rebasing and conflict resolution. That's just part of building software.
-### ISSUE-041: Document parallel execution best practices
+### ISSUE-41: Document parallel execution best practices
 
 **Priority:** Low
 **Status:** Closed
@@ -1976,13 +1976,13 @@ Won't do - rejected premise. Parallel work in branches handles file overlap via 
 ### Comment
 
 Resolved via parallel-execution-improvements project. Best practices documented in orchestration-system.md Section 6.5, SKILL-full.md, and SKILL.md.
-### ISSUE-042: Batch issue resolution must validate each issue's AC individually
+### ISSUE-42: Batch issue resolution must validate each issue's AC individually
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-03
 
-**Problem:** ISSUE-026 (orchestration-infrastructure) was a batch project that claimed to close 7 issues (ISSUE-004, 011, 012, 019, 020, 021, 025). However, ISSUE-021 was closed with all acceptance criteria still unchecked - no actual implementation occurred.
+**Problem:** ISSUE-26 (orchestration-infrastructure) was a batch project that claimed to close 7 issues (ISSUE-4, 011, 012, 019, 020, 021, 025). However, ISSUE-21 was closed with all acceptance criteria still unchecked - no actual implementation occurred.
 
 This reveals a process gap: when multiple issues are batched into a single project, there's no verification that each issue's AC are individually satisfied before closure.
 
@@ -2030,7 +2030,7 @@ For batch projects specifically:
 - [x] Batch project completion validates each linked issue's AC
 - [x] Test: attempt to close issue with unchecked AC → rejected
 
-**Traces to:** ISSUE-021 (reopened), ISSUE-026 (revealed the gap)
+**Traces to:** ISSUE-21 (reopened), ISSUE-26 (revealed the gap)
 
 
 ### Comment
@@ -2044,7 +2044,7 @@ Implemented issue AC validation:
 
 ---
 
-### ISSUE-043: ID format should be simple incrementing numbers, not zero-padded
+### ISSUE-43: ID format should be simple incrementing numbers, not zero-padded
 
 **Priority:** Medium
 **Status:** Closed
@@ -2083,11 +2083,11 @@ This causes:
 
 Completed via project issue-043-id-format-simplification. Changed regex patterns from `\d{3}` to `\d+` and format from `%03d` to `%d`. Backward compatible - existing 3-digit IDs still work.
 
-**Traces to:** ISSUE-011 (follow-up)
+**Traces to:** ISSUE-11 (follow-up)
 
 ---
 
-### ISSUE-044: Trace validation should be phase-aware
+### ISSUE-44: Trace validation should be phase-aware
 
 **Priority:** High
 **Status:** Closed
@@ -2117,7 +2117,7 @@ This is too strict for the workflow timeline:
 
 - `projctl state transition --to architect-complete` fails with "trace validation must pass"
 - Projects have been using `--force` to bypass this (hidden workaround)
-- Discovered during ISSUE-043 project when --force usage was questioned
+- Discovered during ISSUE-43 project when --force usage was questioned
 
 ### Proposed Solution
 
@@ -2155,7 +2155,7 @@ Implemented via project issue-044-phase-aware-trace-validation:
 
 ---
 
-### ISSUE-045: Layer 0: Foundation infrastructure
+### ISSUE-45: Layer 0: Foundation infrastructure
 
 **Priority:** High
 **Status:** Closed
@@ -2209,7 +2209,7 @@ State management, context serialization, ID generation, semantic memory work.
 
 ---
 
-### ISSUE-046: parallel-looper skill should document worktree usage
+### ISSUE-46: parallel-looper skill should document worktree usage
 
 **Priority:** Medium
 **Status:** Closed
@@ -2229,8 +2229,8 @@ Add to parallel-looper SKILL.md:
 
 ### Comment
 
-Duplicate of ISSUE-050 - both about documenting worktree workflow
-### ISSUE-047: State machine: auto-detect task completion
+Duplicate of ISSUE-50 - both about documenting worktree workflow
+### ISSUE-47: State machine: auto-detect task completion
 
 **Priority:** High
 **Status:** Closed
@@ -2247,8 +2247,8 @@ From layer-0-foundation retro R1: Enhance `projctl state next` to parse tasks.md
 
 ### Comment
 
-Misdiagnosed - state machine detection won't help if tasks.md isn't being maintained. See ISSUE-052 for the real problem.
-### ISSUE-048: Memory tests: add ONNX session caching
+Misdiagnosed - state machine detection won't help if tasks.md isn't being maintained. See ISSUE-52 for the real problem.
+### ISSUE-48: Memory tests: add ONNX session caching
 
 **Priority:** Medium
 **Status:** Closed
@@ -2266,7 +2266,7 @@ From layer-0-foundation retro R2: Cache ONNX sessions across test functions to a
 ### Comment
 
 Implemented ONNX session caching with sync.Once pattern. Query tests improved from 99s to 8.5s (11x faster). Committed in 357cf41.
-### ISSUE-049: Skills: add output validation before yield
+### ISSUE-49: Skills: add output validation before yield
 
 **Priority:** Medium
 **Status:** Closed
@@ -2283,8 +2283,8 @@ From layer-0-foundation retro R3: Skills should validate their output before yie
 
 ### Comment
 
-Superseded by ISSUE-053 - meta-fix where QA validates producer against its own SKILL.md
-### ISSUE-050: Document worktree workflow for parallel execution
+Superseded by ISSUE-53 - meta-fix where QA validates producer against its own SKILL.md
+### ISSUE-50: Document worktree workflow for parallel execution
 
 **Priority:** Low
 **Status:** Closed
@@ -2301,8 +2301,8 @@ From layer-0-foundation retro R4: Add explicit documentation for parallel execut
 
 ### Comment
 
-Also covers parallel-looper skill documentation (from ISSUE-046). Should document worktree usage in both orchestration docs and parallel-looper SKILL.md.
-### ISSUE-051: retro-producer: require issue creation for recommendations
+Also covers parallel-looper skill documentation (from ISSUE-46). Should document worktree usage in both orchestration docs and parallel-looper SKILL.md.
+### ISSUE-51: retro-producer: require issue creation for recommendations
 
 **Priority:** High
 **Status:** Closed
@@ -2326,8 +2326,8 @@ The retro-producer skill and/or project orchestrator should explicitly require c
 
 ### Comment
 
-Superseded by ISSUE-053 - meta-fix where QA validates producer against its own SKILL.md
-### ISSUE-052: Orchestrator/skills must maintain tasks.md acceptance criteria
+Superseded by ISSUE-53 - meta-fix where QA validates producer against its own SKILL.md
+### ISSUE-52: Orchestrator/skills must maintain tasks.md acceptance criteria
 
 **Priority:** High
 **Status:** Closed (won't do)
@@ -2350,11 +2350,11 @@ Skills and the orchestrator don't update tasks.md as work progresses. Acceptance
 2. Add post-task-complete hook that prompts for AC verification and updates
 3. Make AC tracking part of state.toml with tasks.md as derived view
 
-**Traces to:** layer-0-foundation experience, supersedes ISSUE-047
+**Traces to:** layer-0-foundation experience, supersedes ISSUE-47
 
 ---
 
-### ISSUE-053: QA agents should validate producer against its SKILL.md contract
+### ISSUE-53: QA agents should validate producer against its SKILL.md contract
 
 **Priority:** High
 **Status:** Closed
@@ -2378,7 +2378,7 @@ Currently each QA skill manually duplicates the producer's requirements in its o
 - Adding producer requirements automatically makes QA check them
 - No drift between what producer should do and what QA verifies
 
-**Supersedes:** ISSUE-049 (skill output validation), ISSUE-051 (retro issue creation)
+**Supersedes:** ISSUE-49 (skill output validation), ISSUE-51 (retro issue creation)
 
 **Resolution:** Implemented across 6 tasks:
 - TASK-1: Created skills/shared/CONTRACT.md (contract standard)
@@ -2393,13 +2393,13 @@ Full artifacts: docs/requirements.md (REQ-005-011), docs/design.md (DES-001-013)
 
 ---
 
-### ISSUE-054: PM phase must interview user before producing artifacts
+### ISSUE-54: PM phase must interview user before producing artifacts
 
 **Priority:** High
 **Status:** done
 **Created:** 2026-02-04
 
-During ISSUE-053, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
+During ISSUE-53, the pm-interview-producer skill was invoked but it did NOT actually interview the user. Instead, it read the issue description and immediately produced requirements.md based on its own interpretation.
 
 **What happened:**
 1. Orchestrator dispatched pm-interview-producer with issue context
@@ -2426,7 +2426,7 @@ The pm-interview-producer skill doesn't enforce user interaction. It can complet
 - User frustration
 - Trust erosion in the orchestration system
 
-Traces to: ISSUE-053 failure
+Traces to: ISSUE-53 failure
 
 
 ### Comment
@@ -2439,20 +2439,20 @@ Traces to: ISSUE-053 failure
 
 The orchestrator passed these ARGUMENTS to pm-interview-producer:
 ```
-This contains ISSUE-053 which already has clear requirements.
+This contains ISSUE-53 which already has clear requirements.
 Your job is to formalize these into requirements.md format with REQ-N IDs,
 not conduct a new interview. The problem and solution are already defined in the context file.
 ```
 
 **What actually happened:**
-1. Orchestrator read ISSUE-053 description
+1. Orchestrator read ISSUE-53 description
 2. Orchestrator decided "this seems complete, no interview needed"
 3. Orchestrator explicitly told skill to skip interview and just formalize
 4. Skill correctly followed instructions (but instructions were wrong)
 5. User wanted different solution than what orchestrator assumed
 
 **Proof the skill works correctly:**
-When dispatched properly for ISSUE-054, pm-interview-producer immediately yielded `need-user-input` with clarifying questions about the problem.
+When dispatched properly for ISSUE-54, pm-interview-producer immediately yielded `need-user-input` with clarifying questions about the problem.
 
 **Revised fix:**
 1. Orchestrator MUST NOT tell pm-interview-producer to skip interview
@@ -2463,68 +2463,68 @@ When dispatched properly for ISSUE-054, pm-interview-producer immediately yielde
 
 ---
 
-### ISSUE-055: Retro: Establish 'User Experience First' design principle
+### ISSUE-55: Retro: Establish 'User Experience First' design principle
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-04
 **Closed:** 2026-02-05
 
-From ISSUE-054 retrospective (R1):
+From ISSUE-54 retrospective (R1):
 
 Design phase should focus on USER EXPERIENCE and interaction patterns, not implementation details (file formats, validation logic, data structures).
 
 **Action:** Add explicit guideline to design-interview-producer SKILL.md: 'Design phase focuses on USER EXPERIENCE and interaction patterns. Implementation details belong in Architecture phase.'
 
-**Rationale:** Design phase in ISSUE-054 initially asked implementation questions (file validation, context passing format), requiring user redirect. Clear phase boundaries prevent this.
+**Rationale:** Design phase in ISSUE-54 initially asked implementation questions (file validation, context passing format), requiring user redirect. Clear phase boundaries prevent this.
 
 **Measurable outcome:** Design artifacts focus on UX scenarios, flows, and interaction patterns. No pseudocode or validation logic in design.md.
 
-**Evidence from ISSUE-054:**
+**Evidence from ISSUE-54:**
 - user-response-design-1: User redirected from implementation questions to UX focus
 - Design phase had to pivot mid-interview when it asked about validation mechanisms
 
 **Resolution:** Added "User Experience First" section to design-interview-producer SKILL.md with explicit do/don't guidelines, updated GATHER phase instructions to focus on UX, and added rules table entries. Test suite (test_issue055.sh) verifies all 7 acceptance criteria pass.
 
-**Traces to:** ISSUE-054, C2 (Challenge 2: Design Phase Over-Specification)
+**Traces to:** ISSUE-54, C2 (Challenge 2: Design Phase Over-Specification)
 
 ---
 
-### ISSUE-056: Retro: Warn when specs exceed user requests
+### ISSUE-56: Retro: Warn when specs exceed user requests
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-02-04
 **Closed:** 2026-02-05
 
-From ISSUE-054 retrospective (R2):
+From ISSUE-54 retrospective (R2):
 
 When producing requirements, design, or architecture, explicitly note when a specification goes beyond what user requested.
 
 **Action:** Interview producers should flag inferred features with: 'Note: [Specification X] was not explicitly requested but inferred from [context/edge case/best practice]. Confirm this is desired.'
 
-**Rationale:** REQ-2 validation mechanism, ARCH-4 file checking, and other features in ISSUE-054 were added without user requesting them. User had to explicitly reject these during interviews ('User-response file validation: I never asked for this. Drop it.').
+**Rationale:** REQ-2 validation mechanism, ARCH-4 file checking, and other features in ISSUE-54 were added without user requesting them. User had to explicitly reject these during interviews ('User-response file validation: I never asked for this. Drop it.').
 
 **Measurable outcome:** User sees explicit callouts for inferred requirements/design/architecture, can accept or reject before implementation.
 
-**Evidence from ISSUE-054:**
+**Evidence from ISSUE-54:**
 - REQ-2: Added user-response file validation mechanism not requested
 - ARCH-4: Documented file-checking logic user explicitly rejected
 - user-response-design-1: User had to say 'I never asked for this. Drop it.'
 
-**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+**Traces to:** ISSUE-54, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
 
 ---
 
-### ISSUE-057: Retro: Fix projctl trace validate issue recognition
+### ISSUE-57: Retro: Fix projctl trace validate issue recognition
 
 **Priority:** Medium
 **Status:** done
 **Created:** 2026-02-04
 
-From ISSUE-054 retrospective (R3):
+From ISSUE-54 retrospective (R3):
 
-Investigate why `projctl trace validate` reports ISSUE-054 as orphan ID when issue is defined in docs/issues.md at line 2382.
+Investigate why `projctl trace validate` reports ISSUE-54 as orphan ID when issue is defined in docs/issues.md at line 2382.
 
 **Action:** Fix issue ID recognition logic in projctl trace validate command.
 
@@ -2532,52 +2532,52 @@ Investigate why `projctl trace validate` reports ISSUE-054 as orphan ID when iss
 
 **Measurable outcome:** `projctl trace validate` correctly recognizes issues defined in docs/issues.md and doesn't report them as orphan IDs.
 
-**Evidence from ISSUE-054:**
-- yield.toml from breakdown-qa shows: orphan_ids_reported = ['ISSUE-054']
-- ISSUE-054 is properly defined in docs/issues.md at line 2382
+**Evidence from ISSUE-54:**
+- yield.toml from breakdown-qa shows: orphan_ids_reported = ['ISSUE-54']
+- ISSUE-54 is properly defined in docs/issues.md at line 2382
 - Breakdown QA iteration 2 failed on traceability validation
 
-**Traces to:** ISSUE-054, C4 (Breakdown QA Traceability Failure)
+**Traces to:** ISSUE-54, C4 (Breakdown QA Traceability Failure)
 
 ---
 
-### ISSUE-058: Retro: Add simplicity check to breakdown phase
+### ISSUE-58: Retro: Add simplicity check to breakdown phase
 
 **Priority:** Medium
 **Status:** Done
 **Created:** 2026-02-04
 **Closed:** 2026-02-05
 
-From ISSUE-054 retrospective (R4):
+From ISSUE-54 retrospective (R4):
 
 Breakdown-producer should perform simplicity check asking: 'Could this be done with fewer tasks/components/changes?'
 
 **Action:** Add explicit simplicity assessment to breakdown-producer GATHER phase: 'Is there a simpler approach that achieves the same outcome?'
 
-**Rationale:** ISSUE-054 was ultimately a 17-line documentation change, but early breakdown iterations had complexity (validation mechanisms, file checking) that wasn't needed. Simplicity check might catch over-engineering earlier.
+**Rationale:** ISSUE-54 was ultimately a 17-line documentation change, but early breakdown iterations had complexity (validation mechanisms, file checking) that wasn't needed. Simplicity check might catch over-engineering earlier.
 
 **Measurable outcome:** Breakdown artifacts include explicit 'Simplicity assessment' section discussing alternatives considered and why current approach is appropriately scoped.
 
 **Resolution:** Implemented in skills/breakdown-producer/SKILL.md. Added simplicity assessment step to SYNTHESIZE phase (step 2), Simplicity Assessment field to task format template, guidance section with examples, and CHECK-012 contract validation (warning severity).
 
-**Evidence from ISSUE-054:**
+**Evidence from ISSUE-54:**
 - Initial breakdown had validation mechanisms and file checks
 - User said 'don't overthink it' multiple times during PM/Design
 - Final implementation was minimal (17 lines, 1 file, documentation-only)
 
-**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+**Traces to:** ISSUE-54, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
 
 ---
 
-### ISSUE-059: Decision needed: Should skills have scope creep detection?
+### ISSUE-59: Decision needed: Should skills have scope creep detection?
 
 **Priority:** Medium
-**Status:** Closed (duplicate of ISSUE-056)
+**Status:** Closed (duplicate of ISSUE-56)
 **Created:** 2026-02-04
 
-Unresolved question from ISSUE-054 retrospective (Q1).
+Unresolved question from ISSUE-54 retrospective (Q1).
 
-**Context:** Throughout ISSUE-054, requirements, design, and architecture all added features user didn't request. User had to explicitly reject these during interviews.
+**Context:** Throughout ISSUE-54, requirements, design, and architecture all added features user didn't request. User had to explicitly reject these during interviews.
 
 **Question:** Should interview-producer skills have built-in 'scope creep' detection that flags when a specification exceeds the issue description or user requests?
 
@@ -2588,48 +2588,48 @@ Unresolved question from ISSUE-054 retrospective (Q1).
 
 **Impact:** Could reduce interview iterations and prevent over-engineering.
 
-**Related:** ISSUE-056 (warn when specs exceed requests) addresses part of this.
+**Related:** ISSUE-56 (warn when specs exceed requests) addresses part of this.
 
-**Traces to:** ISSUE-054, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
+**Traces to:** ISSUE-54, C1 (Requirements Scope Expansion), C3 (Architecture Added Unwanted Complexity)
 
 ---
 
-### ISSUE-060: Decision needed: Should traceability validation be blocking or advisory?
+### ISSUE-60: Decision needed: Should traceability validation be blocking or advisory?
 
 **Priority:** Medium
 **Status:** Closed (decision: keep blocking, fix bugs instead)
 **Created:** 2026-02-04
 
-Unresolved question from ISSUE-054 retrospective (Q2).
+Unresolved question from ISSUE-54 retrospective (Q2).
 
 **Context:** Breakdown phase was blocked due to `projctl trace validate` failures related to tooling issues (issue ID recognition, unlinked task IDs).
 
 **Question:** Should traceability validation be a blocking requirement (fail if validation fails) or advisory (warn but allow completion)?
 
 **Tradeoffs:**
-- **Blocking:** Ensures clean traceability but vulnerable to tooling bugs (false negatives like ISSUE-054's orphan ID report)
+- **Blocking:** Ensures clean traceability but vulnerable to tooling bugs (false negatives like ISSUE-54's orphan ID report)
 - **Advisory:** Allows progress despite tooling issues but risks incomplete traceability chains
 
 **Current state:** Breakdown SKILL guidelines treat `projctl trace validate` as blocking requirement.
 
-**Evidence from ISSUE-054:**
+**Evidence from ISSUE-54:**
 - Breakdown QA iteration 1 failed due to traceability validation
-- Issues were false positives (ISSUE-054 was properly defined, tasks had proper structure)
-- Tooling issue (ISSUE-057) blocked legitimate completion
+- Issues were false positives (ISSUE-54 was properly defined, tasks had proper structure)
+- Tooling issue (ISSUE-57) blocked legitimate completion
 
-**Related:** ISSUE-057 (fix projctl trace validate) addresses the tooling bug.
+**Related:** ISSUE-57 (fix projctl trace validate) addresses the tooling bug.
 
-**Traces to:** ISSUE-054, C4 (Breakdown QA Traceability Failure)
+**Traces to:** ISSUE-54, C4 (Breakdown QA Traceability Failure)
 
 ---
 
-### ISSUE-061: Decision needed: What's the right PM interview depth?
+### ISSUE-61: Decision needed: What's the right PM interview depth?
 
 **Priority:** Medium
 **Status:** done
 **Created:** 2026-02-04
 
-Unresolved question from ISSUE-054 retrospective (Q3).
+Unresolved question from ISSUE-54 retrospective (Q3).
 
 **Context:** PM phase required 4 user responses. This was thorough but potentially longer than needed.
 
@@ -2638,14 +2638,14 @@ Unresolved question from ISSUE-054 retrospective (Q3).
 2. Thorough exploration (3-5+ questions, deep understanding)
 3. Adaptive depth (quick for simple issues, deep for complex ones)
 
-**Consideration:** ISSUE-054 was conceptually simple (add documentation rule) but had nuance (skip mechanism, validation). More complex issues might benefit from deeper interviews upfront.
+**Consideration:** ISSUE-54 was conceptually simple (add documentation rule) but had nuance (skip mechanism, validation). More complex issues might benefit from deeper interviews upfront.
 
 **Tradeoffs:**
 - **Minimal:** Fast, low friction, but risks missing important context
 - **Thorough:** Deep understanding, fewer surprises, but higher time cost
 - **Adaptive:** Best of both worlds, but requires good heuristics to decide depth
 
-**Evidence from ISSUE-054:**
+**Evidence from ISSUE-54:**
 - PM phase had 4 user responses
 - User responses 1-2: Root cause clarification and scope definition
 - User responses 3-4: Simplicity preference confirmation
@@ -2653,71 +2653,71 @@ Unresolved question from ISSUE-054 retrospective (Q3).
 
 **Observation:** Thorough PM phase may have prevented downstream rework.
 
-**Traces to:** ISSUE-054, C5 (Multiple Interview Iterations in PM Phase)
+**Traces to:** ISSUE-54, C5 (Multiple Interview Iterations in PM Phase)
 
 ---
 
-### ISSUE-062: Add doc-only task shortcut to state machine
+### ISSUE-62: Add doc-only task shortcut to state machine
 
 **Priority:** Medium
 **Status:** wontdo
 **Created:** 2026-02-05
 **Closed:** 2026-02-05
 
-ISSUE-061 performance analysis revealed that doc-only tasks (writing SKILL.md, shared patterns) are forced through full TDD cycle with red/green/refactor phases. This adds overhead for tasks that produce documentation artifacts rather than code.
+ISSUE-61 performance analysis revealed that doc-only tasks (writing SKILL.md, shared patterns) are forced through full TDD cycle with red/green/refactor phases. This adds overhead for tasks that produce documentation artifacts rather than code.
 
 **Resolution:** Won't do. TDD wasn't the bottleneck - implementation was fast. TDD applies to all content creation (docs, code, designs), not just code. This has been clarified in multiple prior issues.
 
-**Traces to:** ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-61 (Performance Analysis)
 
 ---
 
-### ISSUE-063: Fix trace validation false positives
+### ISSUE-63: Fix trace validation false positives
 
 **Priority:** Medium
 **Status:** duplicate
 **Created:** 2026-02-05
 **Closed:** 2026-02-05
 
-Duplicate of ISSUE-057 (same problem: ISSUE-* reported as orphan IDs).
+Duplicate of ISSUE-57 (same problem: ISSUE-* reported as orphan IDs).
 
-**Traces to:** ISSUE-057, ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-57, ISSUE-61 (Performance Analysis)
 
 ---
 
-### ISSUE-064: Add phase boundary documentation to project/SKILL.md
+### ISSUE-64: Add phase boundary documentation to project/SKILL.md
 
 **Priority:** Low
 **Status:** wontdo
 **Created:** 2026-02-05
 **Closed:** 2026-02-05
 
-The --force flags were needed because trace validation was producing false positives (ISSUE-057). Once ISSUE-057 is fixed, --force won't be needed and this documentation becomes unnecessary.
+The --force flags were needed because trace validation was producing false positives (ISSUE-57). Once ISSUE-57 is fixed, --force won't be needed and this documentation becomes unnecessary.
 
-**Traces to:** ISSUE-057, ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-57, ISSUE-61 (Performance Analysis)
 
 ---
 
-### ISSUE-065: Add simplicity check to breakdown-producer
+### ISSUE-65: Add simplicity check to breakdown-producer
 
 **Priority:** Low
 **Status:** duplicate
 **Created:** 2026-02-05
 **Closed:** 2026-02-05
 
-Duplicate of ISSUE-058 (same goal: simplicity check in breakdown-producer).
+Duplicate of ISSUE-58 (same goal: simplicity check in breakdown-producer).
 
-**Traces to:** ISSUE-058, ISSUE-061 (Performance Analysis)
+**Traces to:** ISSUE-58, ISSUE-61 (Performance Analysis)
 
 ---
 
-### ISSUE-066: Retro: Add test planning step before writing tests
+### ISSUE-66: Retro: Add test planning step before writing tests
 
 **Priority:** Medium
 **Status:** Closed (won't do)
 **Created:** 2026-02-05
 
-From ISSUE-058 retrospective (R1):
+From ISSUE-58 retrospective (R1):
 
 Before writing tests, sketch expected test structure (Given/When/Then or similar). Review sketch for simplicity before implementing.
 
@@ -2725,17 +2725,17 @@ Area: Testing Process
 Rationale: Would have caught test complexity that led to refactoring during test creation (C1 in retrospective).
 Measurable outcome: Test commits show stable line counts (no large deletions during test creation phase).
 
-**Traces to:** ISSUE-058
+**Traces to:** ISSUE-58
 
 ---
 
-### ISSUE-067: Decision needed: Should simplicity assessment CHECK-012 be error or warning?
+### ISSUE-67: Decision needed: Should simplicity assessment CHECK-012 be error or warning?
 
 **Priority:** Medium
-**Status:** Closed (moot - CHECK-012 removed by ISSUE-068)
+**Status:** Closed (moot - CHECK-012 removed by ISSUE-68)
 **Created:** 2026-02-05
 
-Unresolved question from ISSUE-058 retrospective (Q1).
+Unresolved question from ISSUE-58 retrospective (Q1).
 
 Context: Currently CHECK-012 (simplicity assessment validation) has severity 'warning', not 'error'. This means tasks without simplicity assessments will be flagged but won't block progress.
 
@@ -2745,11 +2745,11 @@ Tradeoff:
 
 Decision needed: Should CHECK-012 be promoted to error severity after observing whether it adds value in practice?
 
-**Traces to:** ISSUE-058
+**Traces to:** ISSUE-58
 
 ---
 
-### ISSUE-068: Decision needed: Simplicity assessment in SYNTHESIZE vs PRODUCE phase?
+### ISSUE-68: Decision needed: Simplicity assessment in SYNTHESIZE vs PRODUCE phase?
 
 **Priority:** Medium
 **Status:** Closed
@@ -2764,11 +2764,11 @@ Decision needed: Should CHECK-012 be promoted to error severity after observing 
 
 Changes: breakdown-producer SKILL.md updated to consolidate simplicity assessment in SYNTHESIZE, add "simplicity rationale" to tasks.md header, remove per-task field and CHECK-012.
 
-**Traces to:** ISSUE-058
+**Traces to:** ISSUE-58
 
 ---
 
-### ISSUE-069: Create team-mode project orchestrator
+### ISSUE-69: Create team-mode project orchestrator
 
 **Priority:** High
 **Status:** Open
@@ -2798,16 +2798,16 @@ Acceptance criteria:
 - On improvement-request: lead spawns new PM teammate with feedback
 - `projctl trace validate` passes after PM phase
 
-Depends on: ISSUE-070, ISSUE-071, ISSUE-072
+Depends on: ISSUE-70, ISSUE-71, ISSUE-72
 
 ---
 
-### ISSUE-070: Migrate pm-interview-producer to direct user interaction
+### ISSUE-70: Migrate pm-interview-producer to direct user interaction
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-070)
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-70)
 
 Phase 1 — Foundation + Proof of Concept
 
@@ -2825,16 +2825,16 @@ Changes:
 
 Backward compat: Skill detects context source. If TOML context file exists at expected path, use legacy mode. If invoked with context in conversation, use team mode.
 
-Blocks: ISSUE-069
+Blocks: ISSUE-69
 
 ---
 
-### ISSUE-071: Migrate QA skill to team mode
+### ISSUE-71: Migrate QA skill to team mode
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-071)
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-71)
 
 Phase 1 — Foundation + Proof of Concept
 
@@ -2848,16 +2848,16 @@ Changes:
 - Keep: contract extraction from producer SKILL.md `## Contract` section
 - Keep: three-phase workflow (LOAD → VALIDATE → RETURN)
 
-Blocks: ISSUE-069
+Blocks: ISSUE-69
 
 ---
 
-### ISSUE-072: Update shared templates for team mode
+### ISSUE-72: Update shared templates for team mode
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-072)
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-72)
 
 Phase 1 — Foundation + Proof of Concept
 
@@ -2869,16 +2869,16 @@ Files unchanged: CONTRACT.md, ownership-rules/
 
 The templates need to support both legacy TOML mode and new team mode until Phase 4 cleanup.
 
-Blocks: ISSUE-069
+Blocks: ISSUE-69
 
 ---
 
-### ISSUE-073: Migrate interview producers (design + arch) to team mode
+### ISSUE-73: Migrate interview producers (design + arch) to team mode
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-073)
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-73)
 
 Phase 2 — All Skills Migrated
 
@@ -2886,18 +2886,18 @@ Modify these skills to work as teammates with direct user interaction:
 - skills/design-interview-producer/SKILL.md
 - skills/arch-interview-producer/SKILL.md
 
-Same pattern as pm-interview-producer (ISSUE-070): direct AskUserQuestion for interviews, SendMessage results to lead on completion. Remove yield TOML writing, remove need-user-input yield relay.
+Same pattern as pm-interview-producer (ISSUE-70): direct AskUserQuestion for interviews, SendMessage results to lead on completion. Remove yield TOML writing, remove need-user-input yield relay.
 
-Depends on: ISSUE-070 (establishes the pattern), ISSUE-072 (shared templates updated)
+Depends on: ISSUE-70 (establishes the pattern), ISSUE-72 (shared templates updated)
 
 ---
 
-### ISSUE-074: Migrate inference producers to team mode
+### ISSUE-74: Migrate inference producers to team mode
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-074)
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-74)
 
 Phase 2 — All Skills Migrated
 
@@ -2912,16 +2912,16 @@ These don't need AskUserQuestion (they analyze existing code, not interview user
 - Send results via SendMessage to lead (artifact paths, IDs created, files modified)
 - Remove yield TOML writing
 
-Depends on: ISSUE-072 (shared templates updated)
+Depends on: ISSUE-72 (shared templates updated)
 
 ---
 
-### ISSUE-075: Migrate remaining producers to team mode
+### ISSUE-75: Migrate remaining producers to team mode
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-075)
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-75)
 
 Phase 2 — All Skills Migrated
 
@@ -2934,16 +2934,16 @@ Modify these producers:
 
 Same pattern: context from spawn prompt, results via SendMessage. No user interaction needed for these producers.
 
-Depends on: ISSUE-072 (shared templates updated)
+Depends on: ISSUE-72 (shared templates updated)
 
 ---
 
-### ISSUE-076: Migrate TDD skills to team mode
+### ISSUE-76: Migrate TDD skills to team mode
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-076)
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-76)
 
 Phase 2 — All Skills Migrated
 
@@ -2958,16 +2958,16 @@ The TDD composite becomes: lead spawns red-teammate → QA → green-teammate �
 
 Each sub-producer follows the standard pattern: context from spawn prompt, results via SendMessage. The composite tdd-producer needs special attention since it coordinates the red/green/refactor cycle.
 
-Depends on: ISSUE-072 (shared templates), ISSUE-071 (QA migration for sub-phase QA)
+Depends on: ISSUE-72 (shared templates), ISSUE-71 (QA migration for sub-phase QA)
 
 ---
 
-### ISSUE-077: Wire all phases into team-mode orchestrator
+### ISSUE-77: Wire all phases into team-mode orchestrator
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-077)
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-77)
 
 Phase 2 — All Skills Migrated
 
@@ -2980,16 +2980,16 @@ Complete the orchestrator (skills/project/SKILL.md, skills/project/SKILL-full.md
 
 Each phase spawns producer teammate → receives result → spawns QA teammate → receives verdict → iterates or advances.
 
-Depends on: ISSUE-069, ISSUE-073, ISSUE-074, ISSUE-075, ISSUE-076
+Depends on: ISSUE-69, ISSUE-73, ISSUE-74, ISSUE-75, ISSUE-76
 
 ---
 
-### ISSUE-078: TaskList-based implementation coordination
+### ISSUE-78: TaskList-based implementation coordination
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-078)
+**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-78)
 
 Phase 3 — Runtime Task Coordination + Parallel Execution
 
@@ -3009,16 +3009,16 @@ Acceptance criteria:
 - Dependencies correctly reflected in TaskList blockedBy/blocks
 - `projctl trace validate` passes
 
-Depends on: ISSUE-077
+Depends on: ISSUE-77
 
 ---
 
-### ISSUE-079: Native parallel task execution via teams
+### ISSUE-79: Native parallel task execution via teams
 
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-079)
+**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-79)
 
 Phase 3 — Runtime Task Coordination + Parallel Execution
 
@@ -3037,16 +3037,16 @@ Acceptance criteria:
 - Merge-on-complete preserves work from earlier completions
 - `projctl trace validate` passes
 
-Depends on: ISSUE-078
+Depends on: ISSUE-78
 
 ---
 
-### ISSUE-080: Remove legacy yield infrastructure
+### ISSUE-80: Remove legacy yield infrastructure
 
 **Priority:** Low
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-080)
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-80)
 
 Phase 4 — Cleanup
 
@@ -3068,16 +3068,16 @@ Acceptance criteria:
 - `golangci-lint run` passes
 - No yield TOML files created during execution
 
-Depends on: ISSUE-077
+Depends on: ISSUE-77
 
 ---
 
-### ISSUE-081: Remove legacy context TOML infrastructure
+### ISSUE-81: Remove legacy context TOML infrastructure
 
 **Priority:** Low
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-081)
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-81)
 
 Phase 4 — Cleanup
 
@@ -3096,16 +3096,16 @@ Acceptance criteria:
 - `golangci-lint run` passes
 - No TOML context files created during execution
 
-Depends on: ISSUE-077
+Depends on: ISSUE-77
 
 ---
 
-### ISSUE-082: Clean up shared templates (remove legacy sections)
+### ISSUE-82: Clean up shared templates (remove legacy sections)
 
 **Priority:** Low
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-082)
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-82)
 
 Phase 4 — Cleanup
 
@@ -3122,29 +3122,29 @@ Files to delete:
 
 Also remove backward-compat TOML detection from all migrated SKILL.md files.
 
-Depends on: ISSUE-080, ISSUE-081
+Depends on: ISSUE-80, ISSUE-81
 
 ---
 
-### ISSUE-083: Deprecate parallel-looper and consistency-checker skills
+### ISSUE-83: Deprecate parallel-looper and consistency-checker skills
 
 **Priority:** Low
 **Status:** Open
 **Created:** 2026-02-05
-**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-083)
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-83)
 
 Phase 4 — Cleanup
 
-- skills/parallel-looper/ — Mark deprecated, replaced by native team parallelism (ISSUE-079)
+- skills/parallel-looper/ — Mark deprecated, replaced by native team parallelism (ISSUE-79)
 - skills/consistency-checker/ — Evaluate if still useful for batch QA; if not, deprecate
 
 If deprecating: add deprecation notice to SKILL.md files pointing to the team-based replacement. Do not delete yet in case rollback is needed.
 
-Depends on: ISSUE-079
+Depends on: ISSUE-79
 
 ---
 
-### ISSUE-084: Explore enforcement and QA via Claude Code hooks
+### ISSUE-84: Explore enforcement and QA via Claude Code hooks
 
 **Priority:** Medium
 **Status:** Open

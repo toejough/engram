@@ -5,7 +5,7 @@
 Successfully completed the full TDD cycle for TASK-7, adding gap analysis metadata to yield `[context]` sections for observability and debugging.
 
 **Status:** ✅ Complete
-**Issue:** ISSUE-061
+**Issue:** ISSUE-61
 **Task:** TASK-7
 **Completion:** 2026-02-05
 
@@ -200,7 +200,7 @@ All 6 acceptance criteria completed:
 ## Traceability
 
 **Traces to:**
-- ISSUE-061: Deeper context gathering via projctl territory and memory
+- ISSUE-61: Deeper context gathering via projctl territory and memory
 - ARCH-003: Interview Pattern with Gap Analysis
 - REQ-003: Context-Driven Interview Depth
 

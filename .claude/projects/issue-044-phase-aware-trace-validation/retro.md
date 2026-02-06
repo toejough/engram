@@ -1,4 +1,4 @@
-# Retrospective: ISSUE-044 Phase-Aware Trace Validation
+# Retrospective: ISSUE-44 Phase-Aware Trace Validation
 
 ## Summary
 

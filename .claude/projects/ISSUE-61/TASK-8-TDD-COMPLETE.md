@@ -219,7 +219,7 @@ Tests validate end-to-end flow through three phases:
 ## Traceability
 
 **Task:** TASK-8 (Create integration tests for adaptive flow)
-**Issue:** ISSUE-061 (Adaptive Interview Depth)
+**Issue:** ISSUE-61 (Adaptive Interview Depth)
 **Depends on:** TASK-7 (Yield enrichment)
 **Enables:** TASK-9 (Validation on real issues)
 
@@ -307,7 +307,7 @@ Consider implementing CLI integration for arch-interview-producer:
 
 ## Yield Files
 
-All phase yields saved to `.claude/projects/ISSUE-061/yields/`:
+All phase yields saved to `.claude/projects/ISSUE-61/yields/`:
 
 - `tdd-task8.json` - Initial RED phase yield
 - `tdd-task8-qa-review.toml` - RED QA iteration 1 review

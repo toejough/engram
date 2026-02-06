@@ -7,8 +7,8 @@ task = "TASK-2"
 artifact = "Key Questions section in arch-interview-producer/SKILL.md"
 files_modified = [
     "/Users/joe/.claude/skills/arch-interview-producer/SKILL.md",
-    "/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/tests/task2_key_questions_test.sh",
-    "/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-061/test-coverage-task2.md"
+    "/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/tests/task2_key_questions_test.sh",
+    "/Users/joe/repos/personal/projctl/.claude/projects/ISSUE-61/test-coverage-task2.md"
 ]
 
 [payload.cycle_summary]
@@ -41,5 +41,5 @@ phase = "tdd"
 subphase = "complete"
 all_loops_passed = true
 no_escalations = true
-issue = "ISSUE-061"
+issue = "ISSUE-61"
 task = "TASK-2"

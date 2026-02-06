@@ -1,7 +1,7 @@
 # Layer -1: Skill Unification Requirements
 
 **Project:** Layer -1 Skill Unification
-**Issue:** ISSUE-008
+**Issue:** ISSUE-8
 **Created:** 2026-02-02
 **Status:** PM Complete
 
@@ -46,7 +46,7 @@ As an orchestrator, I want all producer and QA skills to output yield protocol T
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -68,7 +68,7 @@ As an orchestrator, I want skills organized as producer/QA pairs, so that I can 
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -87,7 +87,7 @@ As an orchestrator, I want TDD skills organized as nested producer/QA pairs, so 
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -107,7 +107,7 @@ As an orchestrator, I want support skills for alignment, retro, summary, intake,
 
 **Priority:** P1
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -125,7 +125,7 @@ As a producer skill, I want to yield `need-context` with a list of queries, so t
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -143,7 +143,7 @@ As a skill, I want to receive context via the existing CONTEXT.md format, so tha
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -160,7 +160,7 @@ As an orchestrator, I want skills to contain no orchestration logic, so that I c
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -177,7 +177,7 @@ As a maintainer, I want obsolete skills deleted after migration, so that there's
 
 **Priority:** P1
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -194,7 +194,7 @@ As an orchestrator, I want the `/project` skill updated to dispatch new skills a
 
 **Priority:** P0
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 
@@ -210,7 +210,7 @@ As a developer, I want a way to validate that skills output correct yield protoc
 
 **Priority:** P2
 
-**Traces to:** ISSUE-008
+**Traces to:** ISSUE-8
 
 ---
 

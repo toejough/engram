@@ -1,12 +1,12 @@
-# ISSUE-061 Validation Log: Adaptive Interview Pattern
+# ISSUE-61 Validation Log: Adaptive Interview Pattern
 
 This document records validation sessions where the adaptive interview pattern was applied to real issues to verify gap assessment accuracy and interview depth appropriateness.
 
 ---
 
-## Validation Session 1: ISSUE-003 (New Feature)
+## Validation Session 1: ISSUE-3 (New Feature)
 
-**Issue ID:** ISSUE-003
+**Issue ID:** ISSUE-3
 **Issue Type:** New Feature
 **Issue Title:** End-to-end integration test for /project workflows
 **Date:** 2026-02-05
@@ -107,9 +107,9 @@ unanswered_critical = ["technology-stack", "scale-requirements"]
 
 ---
 
-## Validation Session 2: ISSUE-008 (Refactoring)
+## Validation Session 2: ISSUE-8 (Refactoring)
 
-**Issue ID:** ISSUE-008
+**Issue ID:** ISSUE-8
 **Issue Type:** Refactoring
 **Issue Title:** Layer -1 - Unify skills to new orchestration patterns
 **Date:** 2026-02-05
@@ -211,14 +211,14 @@ unanswered_critical = []
 
 **Pattern Validation:** ✅ **Passed**
 
-The adaptive interview pattern successfully differentiated between sparse context (ISSUE-003, 40% coverage, 7 questions) and rich context (ISSUE-008, 90% coverage, 2 questions). Interview depth matched user expectations in both cases.
+The adaptive interview pattern successfully differentiated between sparse context (ISSUE-3, 40% coverage, 7 questions) and rich context (ISSUE-8, 90% coverage, 2 questions). Interview depth matched user expectations in both cases.
 
 ### Coverage Accuracy
 
 | Session | Coverage | Gap Size | Expected Q | Actual Q | Match |
 |---------|----------|----------|------------|----------|-------|
-| ISSUE-003 | 40% | Large | 6+ | 7 | ✅ |
-| ISSUE-008 | 90% | Small | 1-2 | 2 | ✅ |
+| ISSUE-3 | 40% | Large | 6+ | 7 | ✅ |
+| ISSUE-8 | 90% | Small | 1-2 | 2 | ✅ |
 
 **Finding:** Gap assessment produced sensible depth decisions for both extremes (new feature with sparse context vs. refactoring with rich context).
 
@@ -257,11 +257,11 @@ The `gap_analysis` metadata enabled retrospective analysis of why specific quest
 
 **Migration Path:** Change from `optional` (-5%) to `important` (-10%) for refactoring-type issues. Rationale: Migration strategy is central to refactoring work, not optional.
 
-**Impact:** Would lower ISSUE-008 coverage from 90% to 85%, keeping it in "small gap" tier but closer to medium boundary. This is appropriate.
+**Impact:** Would lower ISSUE-8 coverage from 90% to 85%, keeping it in "small gap" tier but closer to medium boundary. This is appropriate.
 
 #### Question Registry
 
-**Test Fixture Strategy:** Consider adding as 11th question (optional priority) for issues tagged as "test infrastructure" or "testing". Rationale: Test data management appeared in ISSUE-003 interview but wasn't in key questions.
+**Test Fixture Strategy:** Consider adding as 11th question (optional priority) for issues tagged as "test infrastructure" or "testing". Rationale: Test data management appeared in ISSUE-3 interview but wasn't in key questions.
 
 **Impact:** Would improve coverage calculation for test-related features.
 

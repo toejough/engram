@@ -1,6 +1,6 @@
-# ISSUE-061 Requirements: Adaptive Interview Depth
+# ISSUE-61 Requirements: Adaptive Interview Depth
 
-**Issue:** ISSUE-061 - Decision needed: What's the right PM interview depth?
+**Issue:** ISSUE-61 - Decision needed: What's the right PM interview depth?
 
 **Global Requirements Updated:** [docs/requirements.md](../../../docs/requirements.md)
 
@@ -18,7 +18,7 @@ As a user, I want interview skills to understand existing context before asking 
 - [ ] When context gathering fails (territory map error, memory query timeout), skill yields `blocked` with diagnostic information
 - [ ] When gathered context contains contradictory information, skill yields `need-decision` with conflicting statements for user resolution
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61
 
 ---
 
@@ -37,7 +37,7 @@ As a user, I want interview depth to adapt based on information gaps, so that si
 
 **Depends on:** REQ-002
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61
 
 ---
 
@@ -57,4 +57,4 @@ As a maintainer, I want all interview skills to follow the same context-aware pa
 
 **Depends on:** REQ-002, REQ-003
 
-**Source:** ISSUE-061
+**Source:** ISSUE-61

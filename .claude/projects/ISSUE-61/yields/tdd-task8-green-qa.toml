@@ -75,4 +75,4 @@ role = "qa"
 iteration = 1
 max_iterations = 3
 task = "TASK-8"
-issue = "ISSUE-061"
+issue = "ISSUE-61"

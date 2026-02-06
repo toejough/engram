@@ -7,7 +7,7 @@
     "artifact": "skills/arch-interview-producer/SKILL_test_assess.sh",
     "files_modified": [
       "skills/arch-interview-producer/SKILL_test_assess.sh",
-      ".claude/projects/ISSUE-061/test-coverage-task5.md"
+      ".claude/projects/ISSUE-61/test-coverage-task5.md"
     ],
     "test_summary": {
       "total": 10,
@@ -66,6 +66,6 @@
     "phase": "tdd-red",
     "subphase": "complete",
     "task": "TASK-5",
-    "issue": "ISSUE-061"
+    "issue": "ISSUE-61"
   }
 }

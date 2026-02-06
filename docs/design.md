@@ -1,4 +1,4 @@
-# ISSUE-053: Universal QA Skill Design
+# ISSUE-53: Universal QA Skill Design
 
 Design decisions for replacing 13 phase-specific QA skills with one universal QA skill.
 
@@ -338,7 +338,7 @@ Orchestrator resolves this to:
 
 ---
 
-## ISSUE-056: Inferred Specification Warning Design
+## ISSUE-56: Inferred Specification Warning Design
 
 Design decisions for how producers flag inferred specifications and how the orchestrator presents them for user approval.
 

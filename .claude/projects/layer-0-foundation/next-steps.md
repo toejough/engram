@@ -3,7 +3,7 @@
 **Project:** layer-0-foundation
 **Status:** Complete
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 
 ---
 

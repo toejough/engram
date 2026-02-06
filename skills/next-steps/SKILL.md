@@ -66,7 +66,7 @@ summary = "3 recommended next steps based on TASK-15 completion"
 [[payload.recommendations]]
 priority = 1
 type = "issue"
-id = "ISSUE-003"
+id = "ISSUE-3"
 title = "Add caching layer"
 reason = "Now unblocked by completed authentication work"
 

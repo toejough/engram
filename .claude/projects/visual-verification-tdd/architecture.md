@@ -21,7 +21,7 @@ This project modifies skill documentation files only. No code architecture decis
 ### No Code Changes
 
 - No Go code modified
-- No test files created (skill docs are verified by TDD doc-testing framework per ISSUE-002)
+- No test files created (skill docs are verified by TDD doc-testing framework per ISSUE-2)
 - No CLI commands added (screenshot capture deferred per DD-3)
 
 **Traces to:** DES-7, DES-9

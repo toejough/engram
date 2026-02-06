@@ -229,16 +229,16 @@ Description.
 
 // TEST-209: ISSUE IDs referenced in Traces to are not reported as orphan when defined in issues.md
 // traces: TASK-1
-// Reproduces ISSUE-057: projctl trace validate reported ISSUE-054 as orphan
+// Reproduces ISSUE-57: projctl trace validate reported ISSUE-54 as orphan
 func TestValidateV2Artifacts_IssueIDNotOrphan(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 
-	// ISSUE-054 is defined in issues.md
+	// ISSUE-54 is defined in issues.md
 	g.Expect(os.WriteFile(filepath.Join(tempDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-054: PM phase must interview user before producing artifacts
+### ISSUE-54: PM phase must interview user before producing artifacts
 
 **Priority:** High
 **Status:** done
@@ -251,17 +251,17 @@ func TestValidateV2Artifacts_IssueIDNotOrphan(t *testing.T) {
 
 The PM skill must interview the user.
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 `), 0o644)).To(Succeed())
 
 	result, err := trace.ValidateV2Artifacts(tempDir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-054"), "ISSUE-054 is defined in issues.md, should not be orphan")
+	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-54"), "ISSUE-54 is defined in issues.md, should not be orphan")
 }
 
 // TEST-210: ISSUE IDs not orphan when docs_dir is configured
 // traces: TASK-1
-// Reproduces ISSUE-057 with docs_dir = "docs" (real project config)
+// Reproduces ISSUE-57 with docs_dir = "docs" (real project config)
 func TestValidateV2Artifacts_IssueIDNotOrphan_WithDocsDir(t *testing.T) {
 	g := NewWithT(t)
 
@@ -274,10 +274,10 @@ func TestValidateV2Artifacts_IssueIDNotOrphan_WithDocsDir(t *testing.T) {
 docs_dir = "docs"
 `), 0o644)).To(Succeed())
 
-	// ISSUE-054 is defined in docs/issues.md
+	// ISSUE-54 is defined in docs/issues.md
 	g.Expect(os.WriteFile(filepath.Join(tempDir, "docs", "issues.md"), []byte(`# Issues
 
-### ISSUE-054: PM phase must interview user before producing artifacts
+### ISSUE-54: PM phase must interview user before producing artifacts
 
 **Priority:** High
 **Status:** done
@@ -290,17 +290,17 @@ docs_dir = "docs"
 
 The PM skill must interview the user.
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 `), 0o644)).To(Succeed())
 
 	result, err := trace.ValidateV2Artifacts(tempDir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-054"), "ISSUE-054 is defined in docs/issues.md, should not be orphan")
+	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-54"), "ISSUE-54 is defined in docs/issues.md, should not be orphan")
 }
 
 // TEST-211: ISSUE IDs not orphan when validated from project subdirectory
 // traces: TASK-1
-// Core ISSUE-057 scenario: project artifacts in subdirectory reference ISSUE-NNN
+// Core ISSUE-57 scenario: project artifacts in subdirectory reference ISSUE-NNN
 // defined in repo-level docs/issues.md. Validation from subdirectory must not
 // report ISSUE IDs as orphans since issues are always defined at repo root.
 func TestValidateV2Artifacts_IssueIDNotOrphan_ProjectSubdir(t *testing.T) {
@@ -312,7 +312,7 @@ func TestValidateV2Artifacts_IssueIDNotOrphan_ProjectSubdir(t *testing.T) {
 	projectDir := filepath.Join(tempDir, ".claude", "projects", "my-project")
 	g.Expect(os.MkdirAll(projectDir, 0o755)).To(Succeed())
 
-	// ISSUE-045 defined at repo root in docs/issues.md
+	// ISSUE-45 defined at repo root in docs/issues.md
 	g.Expect(os.MkdirAll(filepath.Join(tempDir, "docs"), 0o755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(tempDir, ".claude"), 0o755)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(tempDir, ".claude", "project-config.toml"), []byte(`[paths]
@@ -320,7 +320,7 @@ docs_dir = "docs"
 `), 0o644)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(tempDir, "docs", "issues.md"), []byte(`# Issues
 
-### ISSUE-045: Layer 0 Foundation
+### ISSUE-45: Layer 0 Foundation
 
 Description.
 `), 0o644)).To(Succeed())
@@ -332,7 +332,7 @@ Description.
 
 Description.
 
-**Traces to:** ISSUE-045
+**Traces to:** ISSUE-45
 `), 0o644)).To(Succeed())
 
 	g.Expect(os.WriteFile(filepath.Join(projectDir, "architecture.md"), []byte(`# Architecture
@@ -356,8 +356,8 @@ Description.
 	// Validate from project subdirectory (the actual scenario that fails)
 	result, err := trace.ValidateV2Artifacts(projectDir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-045"),
-		"ISSUE-045 should not be orphan - issues are defined at repo root, not in project directories")
+	g.Expect(result.OrphanIDs).ToNot(ContainElement("ISSUE-45"),
+		"ISSUE-45 should not be orphan - issues are defined at repo root, not in project directories")
 }
 
 // TEST-208: Invalid phase parameter returns error

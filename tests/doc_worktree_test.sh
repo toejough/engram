@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for ISSUE-050: Document worktree workflow for parallel execution
+# Tests for ISSUE-50: Document worktree workflow for parallel execution
 # Validates worktree documentation in orchestration-system.md and parallel-looper SKILL.md
 
 set -uo pipefail
@@ -108,7 +108,7 @@ test_parallel_commands() {
 }
 
 # Run all tests
-echo "=== Testing ISSUE-050: Worktree Documentation ==="
+echo "=== Testing ISSUE-50: Worktree Documentation ==="
 echo ""
 echo "--- orchestration-system.md ---"
 test_orch_commands_table

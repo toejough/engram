@@ -1,6 +1,6 @@
 # TDD Red Phase Improvement - TEST-305
 
-**Issue:** ISSUE-061 - Adaptive Interview Depth
+**Issue:** ISSUE-61 - Adaptive Interview Depth
 **Task:** TASK-6 - Implement adaptive interview logic
 **Iteration:** 1 of 3 max
 **Date:** 2026-02-05

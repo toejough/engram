@@ -30,8 +30,8 @@ Fixed hardcoded `docs/` path assumptions throughout the projctl codebase so that
 
 ## Issues Resolved
 
-- ISSUE-006: projctl preconditions look in wrong location
-- ISSUE-029: Artifact path assumptions need fixing
+- ISSUE-6: projctl preconditions look in wrong location
+- ISSUE-29: Artifact path assumptions need fixing
 
 ## Testing
 

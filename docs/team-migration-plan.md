@@ -108,9 +108,9 @@ status as teammates complete work.
 
 **Goal:** Team-aware orchestrator + one complete phase (PM) working end-to-end.
 
-**Issues:** ISSUE-069, ISSUE-070, ISSUE-071, ISSUE-072
+**Issues:** ISSUE-69, ISSUE-70, ISSUE-71, ISSUE-72
 
-### ISSUE-069: Create team-mode project orchestrator
+### ISSUE-69: Create team-mode project orchestrator
 
 **Files to create:**
 - `skills/project/SKILL.md` — Rewrite for team lead (delegate mode)
@@ -148,7 +148,7 @@ When complete, send me a message with:
 - Key decisions made
 ```
 
-### ISSUE-070: Migrate pm-interview-producer to support direct user interaction
+### ISSUE-70: Migrate pm-interview-producer to support direct user interaction
 
 **File to modify:** `skills/pm-interview-producer/SKILL.md`
 
@@ -166,7 +166,7 @@ When complete, send me a message with:
 at expected path, use legacy mode. If invoked with context in conversation, use
 team mode. This is natural — Claude reads whatever context is available.
 
-### ISSUE-071: Migrate QA skill to team mode
+### ISSUE-71: Migrate QA skill to team mode
 
 **File to modify:** `skills/qa/SKILL.md`
 
@@ -178,7 +178,7 @@ team mode. This is natural — Claude reads whatever context is available.
 - Keep: contract extraction from producer SKILL.md `## Contract` section
 - Keep: three-phase workflow (LOAD → VALIDATE → RETURN)
 
-### ISSUE-072: Update shared templates for team mode
+### ISSUE-72: Update shared templates for team mode
 
 **Files to modify:**
 - `skills/shared/PRODUCER-TEMPLATE.md` — Add "Team Mode" section for context
@@ -203,9 +203,9 @@ team mode. This is natural — Claude reads whatever context is available.
 
 **Goal:** Every producer and QA skill works as a teammate.
 
-**Issues:** ISSUE-073, ISSUE-074, ISSUE-075, ISSUE-076, ISSUE-077
+**Issues:** ISSUE-73, ISSUE-74, ISSUE-75, ISSUE-76, ISSUE-77
 
-### ISSUE-073: Migrate interview producers (design + arch)
+### ISSUE-73: Migrate interview producers (design + arch)
 
 **Files to modify:**
 - `skills/design-interview-producer/SKILL.md`
@@ -213,7 +213,7 @@ team mode. This is natural — Claude reads whatever context is available.
 
 Same pattern as pm-interview-producer: direct AskUserQuestion, SendMessage results.
 
-### ISSUE-074: Migrate inference producers
+### ISSUE-74: Migrate inference producers
 
 **Files to modify:**
 - `skills/pm-infer-producer/SKILL.md`
@@ -223,7 +223,7 @@ Same pattern as pm-interview-producer: direct AskUserQuestion, SendMessage resul
 These don't need AskUserQuestion (they analyze, not interview). Changes:
 context from message, results via SendMessage.
 
-### ISSUE-075: Migrate remaining producers
+### ISSUE-75: Migrate remaining producers
 
 **Files to modify:**
 - `skills/breakdown-producer/SKILL.md`
@@ -234,7 +234,7 @@ context from message, results via SendMessage.
 
 Same pattern: context from message, results via SendMessage.
 
-### ISSUE-076: Migrate TDD skills
+### ISSUE-76: Migrate TDD skills
 
 **Files to modify:**
 - `skills/tdd-producer/SKILL.md` (composite)
@@ -246,7 +246,7 @@ Same pattern: context from message, results via SendMessage.
 The TDD composite becomes: lead spawns red-teammate → QA → green-teammate →
 QA → refactor-teammate → QA, with commit skill invoked between each.
 
-### ISSUE-077: Wire all phases into orchestrator
+### ISSUE-77: Wire all phases into orchestrator
 
 **Files to modify:** `skills/project/SKILL.md`, `skills/project/SKILL-full.md`
 
@@ -269,9 +269,9 @@ Complete the orchestrator to handle all workflows:
 
 **Goal:** TaskList replaces custom task tracking; parallel tasks via native teams.
 
-**Issues:** ISSUE-078, ISSUE-079
+**Issues:** ISSUE-78, ISSUE-79
 
-### ISSUE-078: TaskList-based implementation coordination
+### ISSUE-78: TaskList-based implementation coordination
 
 **Changes in orchestrator:**
 - After breakdown phase: parse tasks.md via `projctl tasks deps --format json`
@@ -281,7 +281,7 @@ Complete the orchestrator to handle all workflows:
 - Use `TaskList` to find next available work
 - tasks.md remains the canonical traced artifact
 
-### ISSUE-079: Native parallel task execution
+### ISSUE-79: Native parallel task execution
 
 **Changes in orchestrator:**
 - Identify parallel tasks: `projctl tasks parallel` or TaskList with no blockers
@@ -305,9 +305,9 @@ Complete the orchestrator to handle all workflows:
 
 **Goal:** Remove legacy infrastructure, simplify codebase.
 
-**Issues:** ISSUE-080, ISSUE-081, ISSUE-082, ISSUE-083
+**Issues:** ISSUE-80, ISSUE-81, ISSUE-82, ISSUE-83
 
-### ISSUE-080: Remove legacy yield infrastructure
+### ISSUE-80: Remove legacy yield infrastructure
 
 **Go code to remove:**
 - `internal/yield/yield.go` (~240 lines) — Yield type definitions and TOML validation
@@ -320,7 +320,7 @@ Complete the orchestrator to handle all workflows:
 - Remove `state yield set/clear` CLI commands
 - Keep `PairState` (still tracks producer/QA iterations)
 
-### ISSUE-081: Remove legacy context TOML infrastructure
+### ISSUE-81: Remove legacy context TOML infrastructure
 
 **Go code to remove:**
 - `internal/context/context.go` Write/Read/WriteParallel functions (~440 lines)
@@ -330,7 +330,7 @@ Complete the orchestrator to handle all workflows:
 **Keep:**
 - `internal/context/budget.go` — Token budget checking (still useful)
 
-### ISSUE-082: Clean up shared templates
+### ISSUE-82: Clean up shared templates
 
 **Files to update:**
 - `skills/shared/PRODUCER-TEMPLATE.md` — Remove legacy TOML sections
@@ -343,7 +343,7 @@ Complete the orchestrator to handle all workflows:
 
 Remove backward-compat TOML detection from all migrated SKILL.md files.
 
-### ISSUE-083: Deprecate parallel-looper and consistency-checker skills
+### ISSUE-83: Deprecate parallel-looper and consistency-checker skills
 
 - `skills/parallel-looper/` — Mark deprecated, replaced by native team parallelism
 - `skills/consistency-checker/` — Keep if still useful for batch QA, otherwise deprecate
@@ -360,7 +360,7 @@ Remove backward-compat TOML detection from all migrated SKILL.md files.
 
 ## Future Considerations
 
-### ISSUE-084: Explore enforcement and QA via Claude Code hooks
+### ISSUE-84: Explore enforcement and QA via Claude Code hooks
 
 - **PostToolUse hook** for `projctl trace validate` after Write/Edit
 - **Stop hook** for QA verification

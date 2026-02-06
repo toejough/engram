@@ -79,11 +79,10 @@ func TestValidateTESTIDFormat_Valid(t *testing.T) {
 func TestValidateTESTIDFormat_Invalid(t *testing.T) {
 	g := NewWithT(t)
 
-	g.Expect(trace.ValidateTESTIDFormat("TEST-1")).To(BeFalse())   // Too few digits
-	g.Expect(trace.ValidateTESTIDFormat("TEST-01")).To(BeFalse())  // Too few digits
-	g.Expect(trace.ValidateTESTIDFormat("test-001")).To(BeFalse()) // Lowercase
-	g.Expect(trace.ValidateTESTIDFormat("TST-001")).To(BeFalse())  // Wrong prefix
-	g.Expect(trace.ValidateTESTIDFormat("TEST001")).To(BeFalse())  // No hyphen
+	g.Expect(trace.ValidateTESTIDFormat("test-1")).To(BeFalse())   // Lowercase
+	g.Expect(trace.ValidateTESTIDFormat("TST-1")).To(BeFalse())   // Wrong prefix
+	g.Expect(trace.ValidateTESTIDFormat("TEST001")).To(BeFalse()) // No hyphen
+	g.Expect(trace.ValidateTESTIDFormat("TEST-")).To(BeFalse())   // Missing number
 }
 
 // TEST-151 traces: TASK-023
@@ -92,10 +91,10 @@ func TestValidateTESTIDFormats_ReturnsInvalid(t *testing.T) {
 	g := NewWithT(t)
 
 	// Testing format validation function directly with ID strings
-	ids := []string{"TEST-001", "TEST-1", "TEST-002", "TEST-02"}
+	ids := []string{"TEST-1", "test-2", "TEST-3", "TST-4"}
 
 	invalid := trace.ValidateTESTIDFormats(ids)
-	g.Expect(invalid).To(ConsistOf("TEST-1", "TEST-02"))
+	g.Expect(invalid).To(ConsistOf("test-2", "TST-4"))
 }
 
 // TEST-152 traces: TASK-023

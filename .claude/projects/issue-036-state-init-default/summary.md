@@ -1,6 +1,6 @@
 # Project: issue-036-state-init-default
 
-**Issue:** ISSUE-036 - projctl state init should default to .claude/projects/<name>/
+**Issue:** ISSUE-36 - projctl state init should default to .claude/projects/<name>/
 **Workflow:** task
 **Status:** complete
 
@@ -18,8 +18,8 @@ This prevents the common mistake of initializing projects in the wrong directory
 
 ## Related
 
-- Closes ISSUE-034 (decision: projects always live in .claude/projects/<name>/)
-- Closes ISSUE-036
+- Closes ISSUE-34 (decision: projects always live in .claude/projects/<name>/)
+- Closes ISSUE-36
 
 ## Commits
 

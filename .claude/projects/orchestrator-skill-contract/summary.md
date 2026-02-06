@@ -22,7 +22,7 @@ Added **ARCH-018: Orchestrator-Skill Contract** to `docs/architecture.md`, forma
 
 ## Issue Resolved
 
-- **ISSUE-024**: Create ARCH-N for explicit orchestrator-skill contract ✅
+- **ISSUE-24**: Create ARCH-N for explicit orchestrator-skill contract ✅
 
 ## Commit
 

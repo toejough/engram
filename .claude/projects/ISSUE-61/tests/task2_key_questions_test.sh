@@ -1,7 +1,7 @@
 #!/bin/bash
 # TASK-2: Key Questions section validation tests
 # Verifies arch-interview-producer SKILL.md has Key Questions section with proper structure
-# Run: bash .claude/projects/ISSUE-061/tests/task2_key_questions_test.sh
+# Run: bash .claude/projects/ISSUE-61/tests/task2_key_questions_test.sh
 
 set -e
 SKILL_FILE="$HOME/.claude/skills/arch-interview-producer/SKILL.md"

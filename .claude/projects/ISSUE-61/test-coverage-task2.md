@@ -1,7 +1,7 @@
 # TASK-2 Test Coverage Report
 
 **Task:** Add key questions registry to arch-interview-producer
-**Test File:** `.claude/projects/ISSUE-061/tests/task2_key_questions_test.sh`
+**Test File:** `.claude/projects/ISSUE-61/tests/task2_key_questions_test.sh`
 **Status:** RED (all tests failing as expected)
 
 ## Test Summary
@@ -68,7 +68,7 @@ Tests that examples are provided showing question-to-decision mapping.
 
 ```bash
 # Run tests
-bash .claude/projects/ISSUE-061/tests/task2_key_questions_test.sh
+bash .claude/projects/ISSUE-61/tests/task2_key_questions_test.sh
 
 # Expected output (red state):
 # FAIL: AC-1 - ## Key Questions section missing

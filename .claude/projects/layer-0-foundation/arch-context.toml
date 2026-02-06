@@ -6,7 +6,7 @@ phase = "architect"
 workflow = "new"
 
 [input]
-issue = "ISSUE-045"
+issue = "ISSUE-45"
 requirements_path = ".claude/projects/layer-0-foundation/requirements.md"
 design_path = ".claude/projects/layer-0-foundation/design.md"
 description = """

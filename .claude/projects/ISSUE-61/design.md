@@ -1,6 +1,6 @@
-# ISSUE-061 Design
+# ISSUE-61 Design
 
-**Issue:** ISSUE-061 - Adaptive Interview Depth
+**Issue:** ISSUE-61 - Adaptive Interview Depth
 
 ## DES-001: Design Phase Not Applicable
 

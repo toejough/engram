@@ -1,16 +1,16 @@
 # Requirements: PM Interview Enforcement
 
-**Issue:** ISSUE-054
+**Issue:** ISSUE-54
 **Created:** 2026-02-04
 **Status:** Draft
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 
 ## Overview
 
-Ensure the orchestrator enforces minimum user interaction during PM interview phase. The root cause of ISSUE-053 was that the orchestrator passed override instructions ("skip interview", "problem already defined") to pm-interview-producer, causing it to skip the interview entirely and produce requirements based on its own interpretation.
+Ensure the orchestrator enforces minimum user interaction during PM interview phase. The root cause of ISSUE-53 was that the orchestrator passed override instructions ("skip interview", "problem already defined") to pm-interview-producer, causing it to skip the interview entirely and produce requirements based on its own interpretation.
 
 **Core principle:** Orchestrator should only pass context to skills, never override instructions.
 
@@ -29,7 +29,7 @@ As a project orchestrator, I want to pass only context (issue description, files
 
 **Priority:** P0
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 ---
 
@@ -46,7 +46,7 @@ As a user invoking pm-interview-producer, I want to be presented with the proble
 
 **Priority:** P0
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 **Enforcement:** Orchestrator validates that at least one user-response file exists before accepting `complete` yield.
 
@@ -64,7 +64,7 @@ As a user, I want the ability to explicitly skip the PM interview when I'm confi
 
 **Priority:** P1
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 **Notes:** Mechanism details (flag syntax, context format) are design-phase concerns. Requirements specify the contract: user provides skip instruction → orchestrator includes in context → skill reads from context.
 
@@ -82,7 +82,7 @@ As an interview-producer skill, I want to decide when I have sufficient informat
 
 **Priority:** P1
 
-**Traces to:** ISSUE-054
+**Traces to:** ISSUE-54
 
 **Notes:** This requirement clarifies the boundary: orchestrator enforces minimum interaction externally (by checking for user-response files), while skill controls interview depth and logic internally. The orchestrator's role is to validate minimum interaction occurred, NOT to instruct skills on whether to interview.
 
@@ -166,5 +166,5 @@ This issue is resolved when:
 
 ## Traceability
 
-**Upstream:** ISSUE-054
+**Upstream:** ISSUE-54
 **Downstream:** (Design and Architecture phases will reference these REQ-IDs)

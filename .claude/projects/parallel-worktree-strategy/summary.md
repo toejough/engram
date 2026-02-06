@@ -49,6 +49,6 @@ Successfully executed 4 tasks in parallel using worktrees:
 
 ## Closes
 
-- ISSUE-027: Parallel TDD agents bypass commit-per-phase discipline
-- ISSUE-031: Define parallel commit strategy for task execution
-- ISSUE-033: Decision needed: Should parallel tasks use separate branches?
+- ISSUE-27: Parallel TDD agents bypass commit-per-phase discipline
+- ISSUE-31: Define parallel commit strategy for task execution
+- ISSUE-33: Decision needed: Should parallel tasks use separate branches?

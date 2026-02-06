@@ -110,4 +110,4 @@ phase = "tdd-red"
 role = "qa"
 iteration = 1
 task = "TASK-5"
-issue = "ISSUE-061"
+issue = "ISSUE-61"

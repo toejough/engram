@@ -4,7 +4,7 @@
 
 1. **Proper project initialization** - This time initialized the project in `.claude/projects/` instead of repo root
 2. **TDD flow followed** - Wrote failing tests first, then implementation
-3. **Issue auto-close worked** - Used the mechanism documented in ISSUE-028
+3. **Issue auto-close worked** - Used the mechanism documented in ISSUE-28
 
 ## What Could Be Improved
 

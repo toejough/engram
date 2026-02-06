@@ -1,7 +1,7 @@
 # Layer -1: Skill Unification Retrospective
 
 **Project:** Layer -1 Skill Unification
-**Issue:** ISSUE-008
+**Issue:** ISSUE-8
 **Date:** 2026-02-03
 **Status:** Complete
 
@@ -88,7 +88,7 @@ Separation of requirements, design, architecture, tasks into dedicated files mad
 
 ### 6. Immediate Blocker Documentation
 
-**Success:** Blockers documented in ISSUE-009 through ISSUE-018 as discovered.
+**Success:** Blockers documented in ISSUE-9 through ISSUE-18 as discovered.
 
 Rather than accumulating blockers silently, each projctl gap was immediately filed as an issue with:
 - Clear problem statement
@@ -111,7 +111,7 @@ The orchestration-system.md document specified commands like `projctl territory 
 **Impact:**
 - Required L1-EMULATION-PLAN.md workaround document
 - Blocked clean state transitions during implementation
-- Required 6 new issues (ISSUE-009 through ISSUE-018) for projctl fixes
+- Required 6 new issues (ISSUE-9 through ISSUE-18) for projctl fixes
 - Actual completion was "skills complete, projctl partial"
 
 **Root Cause:** Orchestration doc was aspirational spec, not validated implementation inventory.
@@ -152,7 +152,7 @@ Individual skills were tested in isolation (SKILL_test.sh validates yield format
 - Manual testing required before Layer 0 work begins
 - Risk of interface mismatches discovered late
 
-**Relates to:** ISSUE-003 (End-to-end integration test for /project workflows)
+**Relates to:** ISSUE-3 (End-to-end integration test for /project workflows)
 
 ---
 
@@ -186,7 +186,7 @@ While all 37 skills have functional SKILL.md files, only a subset have full docu
 - Onboarding new contributors harder
 - Risk of forgetting design rationale
 
-**Relates to:** ISSUE-002 (TDD for documentation tasks)
+**Relates to:** ISSUE-2 (TDD for documentation tasks)
 
 ---
 
@@ -257,7 +257,7 @@ Unit testing each skill in isolation is necessary but insufficient. End-to-end w
 
 **L5: TDD for documentation works**
 
-Executable SKILL_test.sh files caught format errors early and provided regression detection. Extending this pattern to full documentation (ISSUE-002) would prevent drift.
+Executable SKILL_test.sh files caught format errors early and provided regression detection. Extending this pattern to full documentation (ISSUE-2) would prevent drift.
 
 **Action:** Create `projctl docs validate` command that checks documentation structure.
 
@@ -267,7 +267,7 @@ Executable SKILL_test.sh files caught format errors early and provided regressio
 
 L1-EMULATION-PLAN.md successfully unblocked Layer -1 work, but its existence signals architectural gaps. If emulation is needed, the underlying system needs fixing.
 
-**Action:** After Layer -1, prioritize closing ISSUE-009 through ISSUE-018 before Layer 0.
+**Action:** After Layer -1, prioritize closing ISSUE-9 through ISSUE-18 before Layer 0.
 
 ---
 
@@ -305,7 +305,7 @@ QA skills that yield `escalate-phase` with `proposed_changes` enable negotiation
 
 **Action:** Implement `projctl validate-spec` that checks orchestration-system.md against actual CLI.
 
-**Rationale:** Prevents aspirational specs from blocking work. Would have caught ISSUE-009 through ISSUE-018 before Layer -1 started.
+**Rationale:** Prevents aspirational specs from blocking work. Would have caught ISSUE-9 through ISSUE-18 before Layer -1 started.
 
 **Measurable:** Run `projctl validate-spec` in CI. Fail if any specified command doesn't exist.
 
@@ -325,7 +325,7 @@ QA skills that yield `escalate-phase` with `proposed_changes` enable negotiation
 
 ---
 
-#### R3: Close ISSUE-009 through ISSUE-018 before Layer 0
+#### R3: Close ISSUE-9 through ISSUE-18 before Layer 0
 
 **Action:** Prioritize projctl command implementation over Layer 0 orchestrator work.
 
@@ -412,7 +412,7 @@ QA skills that yield `escalate-phase` with `proposed_changes` enable negotiation
 | Skills created | 37 |
 | Skills deleted | 18 |
 | Parallel batches | 4 |
-| Issues filed | 10 (ISSUE-009 through ISSUE-018) |
+| Issues filed | 10 (ISSUE-9 through ISSUE-18) |
 
 ### Iteration
 
@@ -428,16 +428,16 @@ QA skills that yield `escalate-phase` with `proposed_changes` enable negotiation
 | Metric | Value |
 |--------|-------|
 | SKILL_test.sh pass rate | 100% (37/37) |
-| Trace validation | Partial (see ISSUE-005 resolution) |
+| Trace validation | Partial (see ISSUE-5 resolution) |
 | AC completion | Partial (TASK-29, projctl blockers) |
 
 ### Blockers
 
 | Category | Count | Examples |
 |----------|-------|----------|
-| Missing commands | 6 | ISSUE-016, 017, 018 |
-| Broken transitions | 1 | ISSUE-009 |
-| API mismatches | 3 | ISSUE-010, 013 |
+| Missing commands | 6 | ISSUE-16, 017, 018 |
+| Broken transitions | 1 | ISSUE-9 |
+| API mismatches | 3 | ISSUE-10, 013 |
 
 ---
 
@@ -449,7 +449,7 @@ QA skills that yield `escalate-phase` with `proposed_changes` enable negotiation
 
 **Options:**
 - **A:** Continue using `/project` as LLM-based orchestrator, iterate toward determinism
-- **B:** Implement `projctl project` deterministic orchestrator per ISSUE-001, bypass `/project` skill
+- **B:** Implement `projctl project` deterministic orchestrator per ISSUE-1, bypass `/project` skill
 
 **Decision needed before:** Layer 0 intake
 

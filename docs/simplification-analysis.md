@@ -239,7 +239,7 @@ init
 **Idea:** Non-LLM program manages state, invokes LLM only for skill work.
 
 **Pro:** Process guaranteed.
-**Con:** Significant implementation effort. (This is ISSUE-001 approach)
+**Con:** Significant implementation effort. (This is ISSUE-1 approach)
 
 ### H5: Simpler State Machine
 

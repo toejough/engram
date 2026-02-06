@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for ISSUE-055: Establish 'User Experience First' design principle
+# Tests for ISSUE-55: Establish 'User Experience First' design principle
 # Target file: ~/.claude/skills/design-interview-producer/SKILL.md
 set -euo pipefail
 

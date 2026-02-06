@@ -1,7 +1,7 @@
 # Requirements: Documentation Testing Framework
 
 **Project:** doc-testing-framework
-**Issue:** ISSUE-002
+**Issue:** ISSUE-2
 **Created:** 2026-02-04
 
 ## Problem Statement
@@ -40,7 +40,7 @@ When the task involves documentation changes, `tdd-red-producer` must know how t
 - [ ] Examples show semantic matching tests (ONNX)
 - [ ] Examples show structural tests
 
-**Traces to:** ISSUE-002
+**Traces to:** ISSUE-2
 
 ### REQ-001b: tdd-green-producer makes doc tests pass
 
@@ -50,7 +50,7 @@ When doc tests are failing, `tdd-green-producer` must know how to write/edit doc
 - [ ] tdd-green-producer SKILL.md covers doc editing to pass tests
 - [ ] Includes at least 2 examples showing minimal doc edits that make tests pass without unnecessary additions
 
-**Traces to:** ISSUE-002
+**Traces to:** ISSUE-2
 
 ### REQ-001c: tdd-refactor-producer refactors documentation
 
@@ -68,7 +68,7 @@ After doc tests pass, `tdd-refactor-producer` must know documentation refactorin
 - [ ] Lists at least these documentation best practices: progressive disclosure, clarity and conciseness, consistent structure, remove redundancy, doc-type-specific practices
 - [ ] Emphasizes tests must still pass after refactor
 
-**Traces to:** ISSUE-002
+**Traces to:** ISSUE-2
 
 ## REQ-002: Orchestrator Treats Doc Tasks Like Code Tasks
 
@@ -87,13 +87,13 @@ When a task or issue specifies documentation work (not just incidental doc updat
 - [ ] Orchestrator SKILL-full.md documents this rule (canonical orchestrator documentation)
 - [ ] Clear guidance on when doc work gets full TDD vs when it's incidental
 
-**Traces to:** ISSUE-002
+**Traces to:** ISSUE-2
 
 ## Out of Scope
 
 - `doc-producer` skill changes (future work)
 - New CLI commands like `projctl docs validate`
-- ISSUE-023 (validate-spec) - closed as won't do
+- ISSUE-23 (validate-spec) - closed as won't do
 
 ## Success Criteria
 

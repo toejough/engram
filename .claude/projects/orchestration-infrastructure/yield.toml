@@ -11,5 +11,5 @@ cli_commands = ["REQ-001", "REQ-002", "REQ-003"]
 skill_enforcement = ["REQ-004", "REQ-005", "REQ-006", "REQ-007"]
 
 [payload.source_issues]
-cli = ["ISSUE-004", "ISSUE-011", "ISSUE-012"]
-skills = ["ISSUE-019", "ISSUE-020", "ISSUE-021", "ISSUE-025"]
+cli = ["ISSUE-4", "ISSUE-11", "ISSUE-12"]
+skills = ["ISSUE-19", "ISSUE-20", "ISSUE-21", "ISSUE-25"]

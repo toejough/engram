@@ -18,7 +18,7 @@ evidence = "REQ-1: Specific actions defined (detect, rebase, merge, delete) with
 [[payload.checklist]]
 item = "Traces to source issue/request"
 passed = true
-evidence = "REQ-1 → ISSUE-039 (line 46), REQ-2 → ISSUE-041 (line 103)"
+evidence = "REQ-1 → ISSUE-39 (line 46), REQ-2 → ISSUE-41 (line 103)"
 
 [[payload.checklist]]
 item = "No ambiguous language (should/may/might)"
@@ -63,7 +63,7 @@ iteration_2_improvements = [
     "Removed ambiguous conditional about requirements.md updates",
     "Specified decision factors explicitly (lines 68-72)",
     "Specified minimum example counts (lines 87-95)",
-    "Listed explicit limitations from ISSUE-041 (lines 82-86)",
+    "Listed explicit limitations from ISSUE-41 (lines 82-86)",
     "Fixed priority labels (P1, P2 without qualifiers)"
 ]
 

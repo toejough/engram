@@ -25,7 +25,7 @@ func TestParseContent(t *testing.T) {
 
 ---
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -37,7 +37,7 @@ This is a test issue.
 `
 		issues := issue.ParseContent(content)
 		g.Expect(issues).To(HaveLen(1))
-		g.Expect(issues[0].ID).To(Equal("ISSUE-001"))
+		g.Expect(issues[0].ID).To(Equal("ISSUE-1"))
 		g.Expect(issues[0].Title).To(Equal("Test Issue"))
 		g.Expect(issues[0].Priority).To(Equal("High"))
 		g.Expect(issues[0].Status).To(Equal("Open"))
@@ -49,7 +49,7 @@ This is a test issue.
 		g := NewWithT(t)
 		content := `# Issues
 
-### ISSUE-001: First
+### ISSUE-1: First
 
 **Priority:** High
 **Status:** Open
@@ -57,7 +57,7 @@ This is a test issue.
 
 ---
 
-### ISSUE-002: Second
+### ISSUE-2: Second
 
 **Priority:** Low
 **Status:** Closed
@@ -65,8 +65,8 @@ This is a test issue.
 `
 		issues := issue.ParseContent(content)
 		g.Expect(issues).To(HaveLen(2))
-		g.Expect(issues[0].ID).To(Equal("ISSUE-001"))
-		g.Expect(issues[1].ID).To(Equal("ISSUE-002"))
+		g.Expect(issues[0].ID).To(Equal("ISSUE-1"))
+		g.Expect(issues[1].ID).To(Equal("ISSUE-2"))
 		g.Expect(issues[1].Status).To(Equal("Closed"))
 	})
 }
@@ -85,7 +85,7 @@ func TestCreate(t *testing.T) {
 		}, nowFunc())
 
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(i.ID).To(Equal("ISSUE-001"))
+		g.Expect(i.ID).To(Equal("ISSUE-1"))
 		g.Expect(i.Title).To(Equal("Test Issue"))
 		g.Expect(i.Priority).To(Equal("High"))
 		g.Expect(i.Status).To(Equal("Open"))
@@ -93,7 +93,7 @@ func TestCreate(t *testing.T) {
 		// Verify file was created
 		content, err := os.ReadFile(filepath.Join(dir, issue.IssuesFile))
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(string(content)).To(ContainSubstring("ISSUE-001"))
+		g.Expect(string(content)).To(ContainSubstring("ISSUE-1"))
 		g.Expect(string(content)).To(ContainSubstring("Test Issue"))
 	})
 
@@ -106,7 +106,7 @@ func TestCreate(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-005: Existing
+### ISSUE-5: Existing
 
 **Priority:** Medium
 **Status:** Open
@@ -118,7 +118,7 @@ func TestCreate(t *testing.T) {
 		}, nowFunc())
 
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(i.ID).To(Equal("ISSUE-006"))
+		g.Expect(i.ID).To(Equal("ISSUE-6"))
 	})
 
 	t.Run("defaults priority to Medium", func(t *testing.T) {
@@ -145,14 +145,14 @@ func TestUpdate(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test
+### ISSUE-1: Test
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-01-01
 `), 0o644)).To(Succeed())
 
-		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+		err := issue.Update(dir, "ISSUE-1", issue.UpdateOpts{
 			Status: "Closed",
 		})
 
@@ -190,19 +190,19 @@ func TestList(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Open One
+### ISSUE-1: Open One
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-01-01
 
-### ISSUE-002: Closed One
+### ISSUE-2: Closed One
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-01-01
 
-### ISSUE-003: Open Two
+### ISSUE-3: Open Two
 
 **Priority:** High
 **Status:** Open
@@ -212,8 +212,8 @@ func TestList(t *testing.T) {
 		issues, err := issue.List(dir, "Open")
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(issues).To(HaveLen(2))
-		g.Expect(issues[0].ID).To(Equal("ISSUE-001"))
-		g.Expect(issues[1].ID).To(Equal("ISSUE-003"))
+		g.Expect(issues[0].ID).To(Equal("ISSUE-1"))
+		g.Expect(issues[1].ID).To(Equal("ISSUE-3"))
 	})
 }
 
@@ -226,7 +226,7 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -245,7 +245,7 @@ This is a test issue.
 **Traces to:** something
 `), 0o644)).To(Succeed())
 
-		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-1")
 		g.Expect(result.Error).To(BeEmpty())
 		g.Expect(result.Items).To(HaveLen(3))
 		g.Expect(result.Complete).To(Equal(2))
@@ -265,7 +265,7 @@ This is a test issue.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: All Done
+### ISSUE-1: All Done
 
 **Priority:** High
 **Status:** Open
@@ -277,7 +277,7 @@ This is a test issue.
 - [x] Two complete
 `), 0o644)).To(Succeed())
 
-		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-1")
 		g.Expect(result.Error).To(BeEmpty())
 		g.Expect(result.AllComplete).To(BeTrue())
 		g.Expect(result.Complete).To(Equal(2))
@@ -292,7 +292,7 @@ This is a test issue.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: No AC Issue
+### ISSUE-1: No AC Issue
 
 **Priority:** High
 **Status:** Open
@@ -303,7 +303,7 @@ This is a test issue.
 No acceptance criteria defined.
 `), 0o644)).To(Succeed())
 
-		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-1")
 		g.Expect(result.Error).To(BeEmpty())
 		g.Expect(result.Items).To(BeEmpty())
 		g.Expect(result.AllComplete).To(BeTrue()) // No AC = vacuously complete
@@ -330,7 +330,7 @@ No acceptance criteria defined.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -345,7 +345,7 @@ No acceptance criteria defined.
 **Traces to:** something
 `), 0o644)).To(Succeed())
 
-		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-001")
+		result := issue.ParseAcceptanceCriteria(dir, "ISSUE-1")
 		g.Expect(result.Error).To(BeEmpty())
 		g.Expect(result.Items).To(HaveLen(2))
 		g.Expect(result.Complete).To(Equal(1))
@@ -363,7 +363,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -375,7 +375,7 @@ func TestValidateClose(t *testing.T) {
 - [ ] Second AC incomplete
 `), 0o644)).To(Succeed())
 
-		err := issue.ValidateClose(dir, "ISSUE-001")
+		err := issue.ValidateClose(dir, "ISSUE-1")
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("incomplete"))
 		g.Expect(err.Error()).To(ContainSubstring("Second AC incomplete"))
@@ -389,7 +389,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -401,7 +401,7 @@ func TestValidateClose(t *testing.T) {
 - [x] Second AC complete
 `), 0o644)).To(Succeed())
 
-		err := issue.ValidateClose(dir, "ISSUE-001")
+		err := issue.ValidateClose(dir, "ISSUE-1")
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -413,7 +413,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: No AC Issue
+### ISSUE-1: No AC Issue
 
 **Priority:** High
 **Status:** Open
@@ -424,7 +424,7 @@ func TestValidateClose(t *testing.T) {
 No acceptance criteria.
 `), 0o644)).To(Succeed())
 
-		err := issue.ValidateClose(dir, "ISSUE-001")
+		err := issue.ValidateClose(dir, "ISSUE-1")
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 }
@@ -438,7 +438,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -449,7 +449,7 @@ func TestUpdateWithValidation(t *testing.T) {
 - [ ] Incomplete AC
 `), 0o644)).To(Succeed())
 
-		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+		err := issue.Update(dir, "ISSUE-1", issue.UpdateOpts{
 			Status: "Closed",
 		})
 		g.Expect(err).To(HaveOccurred())
@@ -468,7 +468,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -479,7 +479,7 @@ func TestUpdateWithValidation(t *testing.T) {
 - [ ] Incomplete AC
 `), 0o644)).To(Succeed())
 
-		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+		err := issue.Update(dir, "ISSUE-1", issue.UpdateOpts{
 			Status: "Closed",
 			Force:  true,
 		})
@@ -498,7 +498,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -509,7 +509,7 @@ func TestUpdateWithValidation(t *testing.T) {
 - [ ] Incomplete AC
 `), 0o644)).To(Succeed())
 
-		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+		err := issue.Update(dir, "ISSUE-1", issue.UpdateOpts{
 			Status: "In Progress",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
@@ -523,7 +523,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-### ISSUE-001: Test Issue
+### ISSUE-1: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -534,7 +534,7 @@ func TestUpdateWithValidation(t *testing.T) {
 - [ ] Incomplete AC
 `), 0o644)).To(Succeed())
 
-		err := issue.Update(dir, "ISSUE-001", issue.UpdateOpts{
+		err := issue.Update(dir, "ISSUE-1", issue.UpdateOpts{
 			Comment: "Adding a comment",
 		})
 		g.Expect(err).ToNot(HaveOccurred())

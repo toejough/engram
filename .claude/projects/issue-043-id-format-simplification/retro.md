@@ -4,7 +4,7 @@
 
 1. **TDD cycle was straightforward** - Clear AC made implementation simple
 2. **Backward compatibility verified** - Existing 3-digit IDs still work with `\d+` pattern
-3. **Discovered process issue** - Found ISSUE-044 (trace validation too strict for workflow)
+3. **Discovered process issue** - Found ISSUE-44 (trace validation too strict for workflow)
 
 ## What Could Be Improved
 
@@ -13,9 +13,9 @@
 
 ## Process Improvement Recommendations
 
-### R1: Fix trace validation timing (ISSUE-044)
+### R1: Fix trace validation timing (ISSUE-44)
 **Priority:** High
-Trace validation at `architect-complete` is premature - tasks don't exist yet, so ARCH is always "unlinked". Already filed as ISSUE-044.
+Trace validation at `architect-complete` is premature - tasks don't exist yet, so ARCH is always "unlinked". Already filed as ISSUE-44.
 
 ## Metrics
 

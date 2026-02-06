@@ -131,9 +131,9 @@ if nodeType == NodeTypeISSUE {
 - `internal/trace/validate_test.go` - Add ISSUE in V2 validation tests
 
 **Test cases needed:**
-1. `ISSUE-001` is valid ID format
-2. `projctl trace add --from ISSUE-001 --to REQ-001` succeeds
-3. `projctl trace add --from ISSUE-001 --to DES-001` fails with error
+1. `ISSUE-1` is valid ID format
+2. `projctl trace add --from ISSUE-1 --to REQ-001` succeeds
+3. `projctl trace add --from ISSUE-1 --to DES-001` fails with error
 4. `projctl trace validate` passes with ISSUE in traceability.toml
 5. Orphan ISSUE detection works
 6. REQ without upstream ISSUE passes validation (no warning)

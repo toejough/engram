@@ -8,16 +8,16 @@ summary = "Layer -1 complete. 37 unified skills deployed. 8 open implementation 
 [[payload.recommendations]]
 priority = 1
 type = "issue"
-id = "ISSUE-015"
+id = "ISSUE-15"
 title = "`projctl project` command group not implemented"
-reason = "BLOCKING: This is the CLI interface for the deterministic orchestrator (ISSUE-001). All downstream orchestration work depends on this. Skills are unified but have nowhere to be invoked from. High impact: enables all Layer 0-7 work."
+reason = "BLOCKING: This is the CLI interface for the deterministic orchestrator (ISSUE-1). All downstream orchestration work depends on this. Skills are unified but have nowhere to be invoked from. High impact: enables all Layer 0-7 work."
 blocking = true
 layer = 0
 
 [[payload.recommendations]]
 priority = 2
 type = "issue"
-id = "ISSUE-004"
+id = "ISSUE-4"
 title = "State machine does not track completed tasks"
 reason = "BLOCKING: Orchestrator cannot auto-advance through task queue. Must be fixed before implementing deterministic loop. Medium-term blocker for production workflows."
 blocking = true
@@ -26,7 +26,7 @@ layer = 1
 [[payload.recommendations]]
 priority = 3
 type = "issue"
-id = "ISSUE-003"
+id = "ISSUE-3"
 title = "End-to-end integration test for /project workflows"
 reason = "HIGH: No automated verification that orchestration works. Current validation is manual. Should write E2E test before scaling to all workflows. Catch regressions early."
 blocking = false
@@ -35,7 +35,7 @@ confidence = "high"
 [[payload.recommendations]]
 priority = 4
 type = "issue"
-id = "ISSUE-011"
+id = "ISSUE-11"
 title = "Missing `projctl id next` command for ID generation"
 reason = "MEDIUM: Skills need deterministic ID generation (REQ-N, ARCH-N, etc.). Currently implicit. Easy win for completeness."
 blocking = false
@@ -44,7 +44,7 @@ layer = 1
 [[payload.recommendations]]
 priority = 5
 type = "issue"
-id = "ISSUE-006"
+id = "ISSUE-6"
 title = "Precondition checker hardcodes `docs/` subdirectory for artifact files"
 reason = "MEDIUM: CLI breaks on reasonable project structures. Should accept root-level artifacts. Improves robustness without breaking existing work."
 blocking = false
@@ -53,17 +53,17 @@ layer = 0
 [[payload.recommendations]]
 priority = 6
 type = "issue"
-id = "ISSUE-001"
+id = "ISSUE-1"
 title = "Implement deterministic orchestrator (projctl orchestrate)"
-reason = "LONG-TERM ARCHITECTURE: Once ISSUE-015 and ISSUE-004 are resolved, implement the non-LLM control loop. This is the reliability fix for orchestration."
+reason = "LONG-TERM ARCHITECTURE: Once ISSUE-15 and ISSUE-4 are resolved, implement the non-LLM control loop. This is the reliability fix for orchestration."
 blocking = false
-depends_on = ["ISSUE-015", "ISSUE-004"]
+depends_on = ["ISSUE-15", "ISSUE-4"]
 phase = "layer-0"
 
 [[payload.recommendations]]
 priority = 7
 type = "issue"
-id = "ISSUE-002"
+id = "ISSUE-2"
 title = "TDD for documentation tasks"
 reason = "PROCESS IMPROVEMENT: Lower priority. Should be tackled after core features stable. Affects how doc tasks are validated but not critical path."
 blocking = false
@@ -72,7 +72,7 @@ phase = "layer-2-process"
 [[payload.recommendations]]
 priority = 8
 type = "issue"
-id = "ISSUE-007"
+id = "ISSUE-7"
 title = "Visual verification required for CLI/TUI/GUI changes in TDD"
 reason = "QUALITY STANDARD: Formalize the CLAUDE.md lesson about UI testing. Affects TDD discipline going forward. Can be deferred until Phase 2."
 blocking = false
@@ -81,7 +81,7 @@ phase = "layer-2-process"
 [[payload.recommendations]]
 priority = 9
 type = "issue"
-id = "ISSUE-012"
+id = "ISSUE-12"
 title = "Missing `projctl trace show` command for visualization"
 reason = "LOW: Visualization aid for understanding traceability. `trace validate` works, this is convenience. Can be added after main features."
 blocking = false
@@ -90,7 +90,7 @@ phase = "layer-1-nice-to-have"
 [[payload.recommendations]]
 priority = 10
 type = "issue"
-id = "ISSUE-014"
+id = "ISSUE-14"
 title = "Missing `projctl screenshot capture` command"
 reason = "LOW: May be superceded by Chrome DevTools MCP. Evaluate whether needed before implementing. Nice-to-have for tooling completeness."
 blocking = false
@@ -122,10 +122,10 @@ content = "Added 7 new projctl commands (state get/set/transition, issue create/
 content = "State machine now tracks workflow type, pair loop iterations, issue links, and yield state per orchestration doc. Integration with skills is solid. PAIR LOOP abstraction works cleanly in /project skill. Ready to scale to multi-task workflows."
 
 [[payload.learnings]]
-content = "Next blocker after ISSUE-015: ISSUE-004 (task completion tracking). Orchestrator can't auto-advance if state machine can't distinguish 'current task' from 'completed tasks'. This needs state.toml enhancement: add `completed_tasks = [...]` array and logic in `state next` to skip those."
+content = "Next blocker after ISSUE-15: ISSUE-4 (task completion tracking). Orchestrator can't auto-advance if state machine can't distinguish 'current task' from 'completed tasks'. This needs state.toml enhancement: add `completed_tasks = [...]` array and logic in `state next` to skip those."
 
 [[payload.learnings]]
-content = "E2E testing (ISSUE-003) should happen soon but after ISSUE-015 resolved. Currently can't write E2E test without `projctl project new`. Test should: init → pm-interview → pm-complete → design-interview → design-complete → verify all phases transitioned correctly. Good regression detector."
+content = "E2E testing (ISSUE-3) should happen soon but after ISSUE-15 resolved. Currently can't write E2E test without `projctl project new`. Test should: init → pm-interview → pm-complete → design-interview → design-complete → verify all phases transitioned correctly. Good regression detector."
 
 [context]
 phase = "post-layer-minus-1"

@@ -736,7 +736,7 @@ As a [persona], I want [capability], so that [benefit].
 
 **Priority:** P1
 
-**Traces to:** ISSUE-042
+**Traces to:** ISSUE-42
 ```
 
 ```markdown
