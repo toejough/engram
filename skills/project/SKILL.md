@@ -1,6 +1,7 @@
 ---
 name: project
 description: State-machine-driven project orchestrator (team lead)
+model: haiku
 user-invocable: true
 ---
 
@@ -14,13 +15,12 @@ user-invocable: true
 |--------|-----|
 | Write code or docs directly | Spawn teammates to invoke skills |
 | Edit implementation files | Let teammates handle file changes |
-| Stay at `init` phase | Call `projctl state transition` at phase boundaries |
-| Forget where you are | Check `projctl state get` frequently |
+| Forget where you are | Check `projctl step next` frequently |
 | Relay user questions | Teammates use `AskUserQuestion` directly |
 
-**Your job:** Create team → Spawn teammates → Receive results → Advance phases
+**Your job:** Create team, run the step loop, spawn teammates, receive results, report completions.
 
-Every phase transition requires `projctl state transition`. If you catch yourself writing files directly, STOP and spawn a teammate instead.
+Every action is driven by `projctl step next`. If you catch yourself writing files directly, STOP and spawn a teammate instead.
 
 ---
 
@@ -30,7 +30,7 @@ Every phase transition requires `projctl state transition`. If you catch yoursel
 1. Teammate(operation: "spawnTeam", team_name: "<project-name>")
 2. projctl state init --name "<project-name>" --issue ISSUE-NNN
 3. projctl state set --workflow <new|task|adopt|align>
-4. Begin phase dispatch
+4. Enter the step-driven control loop
 ```
 
 ## Shutdown
@@ -59,31 +59,105 @@ When user provides a request (not an explicit command):
 | Existing code needs docs | `/project adopt` |
 | Drift between code/docs | `/project align` |
 
-## Flows
+---
 
-| Command             | Purpose              | Phases                                                                                      |
-| ------------------- | -------------------- | ------------------------------------------------------------------------------------------- |
-| `/project`          | Dashboard            | Show open projects and commands                                                             |
-| `/project new`      | Greenfield project   | PM → Design → Arch → Breakdown → Implementation → Documentation → (main flow ending)        |
-| `/project adopt`    | Infer docs from code | Explore → Infer-Tests → Infer-Arch → Infer-Design → Infer-Reqs → Escalations → Documentation |
-| `/project align`    | Sync docs with drift | Same as adopt (detect and fix drift)                                                        |
-| `/project task`     | Single task          | Implementation → Documentation (optional) → (main flow ending)                              |
-| `/project continue` | Resume incomplete    | Read state → Resume at exact sub-phase                                                      |
+## Step-Driven Control Loop
 
-**Main Flow Ending** (runs after every workflow): Alignment → Retro → Summary → Update Issues → Next Steps
+The orchestrator is a mechanical step loop. `projctl step next` returns the next action; you execute it and report completion.
 
-## Critical Rules
+```
+loop:
+  1. result = projctl step next --dir <project-dir>
+  2. Parse result JSON
+  3. Switch on result.action:
+     - "spawn-producer": Spawn teammate to invoke /<skill> with context
+     - "spawn-qa": Spawn QA teammate with producer SKILL.md + artifacts
+     - "commit": Run /commit
+     - "transition": projctl step complete --dir . --action transition --status done --phase <phase>
+     - "all-complete": Stop looping, run end-of-command sequence
+  4. Report result: projctl step complete --dir . --action <action> --status done [flags]
+  5. goto loop
+```
 
-| Rule      | Details                                               |
-| --------- | ----------------------------------------------------- |
-| State     | `projctl state transition` - NEVER modify state.toml  |
-| Delegate  | Lead never edits files — spawn teammates for ALL artifact work |
-| PAIR LOOP | Spawn producer → receive result → spawn QA → receive verdict → iterate or advance |
-| TDD       | Red→commit→green→commit→refactor→commit (ALL artifacts: code, docs, design) |
-| Continue  | If `state next`=continue, proceed immediately         |
-| Context   | Pass ONLY context to teammates, NEVER behavioral overrides (see below) |
-| Commit    | Commit after every phase/skill completion              |
-| TaskList  | Use TaskCreate/TaskUpdate for runtime task coordination during implementation |
+### Step Next JSON Output
+
+`projctl step next` returns JSON describing what to do:
+
+```json
+{
+  "action": "spawn-producer",
+  "skill": "pm-interview-producer",
+  "skill_path": "skills/pm-interview-producer/SKILL.md",
+  "model": "sonnet",
+  "artifact": "requirements.md",
+  "phase": "pm",
+  "context": {
+    "issue": "ISSUE-90",
+    "prior_artifacts": ["requirements.md"],
+    "qa_feedback": ""
+  }
+}
+```
+
+### Action Handlers
+
+#### spawn-producer
+
+Spawn a teammate to run the producer skill indicated by `result.skill`:
+
+```
+Task(subagent_type: "general-purpose",
+     team_name: "<project>",
+     name: "<phase>-producer",
+     prompt: "Invoke /<skill>. Context: <result.context>
+              When complete, send me a message with: artifact path, IDs created,
+              files modified, key decisions.")
+```
+
+On completion, report:
+```
+projctl step complete --dir . --action spawn-producer --status done
+```
+
+#### spawn-qa
+
+Spawn a QA teammate with the producer's SKILL.md and artifacts:
+
+```
+Task(subagent_type: "general-purpose",
+     team_name: "<project>",
+     name: "<phase>-qa",
+     prompt: "Invoke /qa. Context:
+              Producer SKILL.md: <result.skill_path>
+              Artifacts: <artifact paths>
+              Iteration: N/3
+              Send me your verdict.")
+```
+
+Handle the QA verdict:
+- "approved": `projctl step complete --dir . --action spawn-qa --status done`
+- "improvement-request": `projctl step complete --dir . --action spawn-qa --status retry --feedback "<qa feedback>"`
+- "escalate-user": Present to user
+
+#### commit
+
+Run `/commit` to create a git commit, then report:
+```
+projctl step complete --dir . --action commit --status done
+```
+
+#### transition
+
+Phase boundary crossing. Report:
+```
+projctl step complete --dir . --action transition --status done --phase <phase>
+```
+
+#### all-complete
+
+All phases are done. Stop the loop and run the end-of-command sequence.
+
+---
 
 ## Context-Only Contract
 
@@ -97,103 +171,87 @@ When user provides a request (not an explicit command):
 - "already defined" / "requirements are complete"
 - "just formalize" / "no need to gather"
 
-Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally — but don't tell the skill to bypass its own logic.
+Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally -- but don't tell the skill to bypass its own logic.
 
 **Why:** ISSUE-53 failed because the orchestrator told pm-interview-producer to skip its interview phase. The skill followed instructions but produced the wrong solution because it never confirmed understanding with the user.
 
-## Skill Dispatch
+---
 
-| Phase         | Producer                                              | QA   |
-| ------------- | ----------------------------------------------------- | ---- |
-| PM            | `pm-interview-producer` / `pm-infer-producer`         | `qa` |
-| Design        | `design-interview-producer` / `design-infer-producer` | `qa` |
-| Architecture  | `arch-interview-producer` / `arch-infer-producer`     | `qa` |
-| Breakdown     | `breakdown-producer`                                  | `qa` |
-| TDD           | `tdd-producer` (composite)                            | `qa` |
-| Documentation | `doc-producer`                                        | `qa` |
-| Alignment     | `alignment-producer`                                  | `qa` |
-| Retro         | `retro-producer`                                      | `qa` |
-| Summary       | `summary-producer`                                    | `qa` |
+## Looper Pattern
 
-All phases use the universal `qa` skill. Context must include producer SKILL.md path.
-
-## PAIR LOOP Pattern
+Controls parallel task execution within the implementation phase:
 
 ```
-1. Spawn producer teammate:
-   Task(subagent_type: "general-purpose", team_name: "<project>",
-        name: "<phase>-producer",
-        prompt: "Invoke /<skill-name>. Context: <project info, artifacts, prior results>
-                 When complete, send me a message with: artifact path, IDs created,
-                 files modified, key decisions.")
-
-2. Receive producer result via message (automatic delivery)
-
-3. Parse result:
-   - If "complete": proceed to QA (step 4)
-   - If "blocked": present blocker to user, resume when resolved
-
-4. Spawn QA teammate:
-   Task(subagent_type: "general-purpose", team_name: "<project>",
-        name: "<phase>-qa",
-        prompt: "Invoke /qa. Context:
-                 Producer SKILL.md: skills/<phase>-producer/SKILL.md
-                 Artifacts: <artifact paths>
-                 Iteration: N/3
-                 Send me your verdict.")
-
-5. Receive QA verdict via message
-
-6. Handle verdict:
-   - "approved" → commit, advance phase
-   - "improvement-request" → spawn new producer with QA feedback (max 3x)
-   - "escalate-phase" → return to prior phase
-   - "escalate-user" → present to user
+1. Create/Recreate Queue (items by dependencies, impact, simplicity)
+2. Identify next batch:
+   - `TaskList` to find all unblocked tasks
+   - Check file overlap (via task AC or `projctl tasks overlap`)
+   - Single item or file overlap: sequential execution
+   - N independent items, no overlap: spawn N teammates (parallel)
+3. Execute batch
+4. Re-evaluate queue (dependencies may have resolved)
+5. Repeat until queue empty or entirely blocked
 ```
 
-## Implementation Task Coordination
+**Git Worktrees for Parallel Tasks:**
 
-During the implementation phase (after breakdown), use Claude Code's native TaskList for runtime coordination:
+When running parallel tasks, each agent works in an isolated git worktree:
 
-### Setup (after breakdown QA passes)
+```bash
+# On task start (per parallel agent)
+projctl worktree create --task TASK-NNN
+# Agent works in .worktrees/task-NNN/ directory
 
-1. Parse `tasks.md` for TASK-N items and their dependencies
-2. `TaskCreate` for each TASK-N with:
-   - subject: "TASK-N: \<title\>"
-   - description: acceptance criteria from tasks.md
-   - activeForm: present continuous of the task title
-3. Set dependencies with `TaskUpdate(addBlockedBy: [...])` matching tasks.md dependency graph
-4. Metadata: `{"task_id": "TASK-N"}` for cross-reference
+# On agent completion - MERGE IMMEDIATELY
+projctl worktree merge --task TASK-NNN
+# Rebases onto main, merges, cleans up
+```
 
-### Execution Loop
+**Merge-on-Complete Pattern (REQUIRED):**
 
-1. `TaskList` to find unblocked tasks (no blockedBy, status pending)
-2. If single unblocked task:
-   - `TaskUpdate(status: "in_progress")` → spawn TDD producer teammate
-3. If multiple unblocked tasks with no file overlap:
-   - `TaskUpdate(status: "in_progress")` for each
-   - Spawn one TDD producer teammate per task (concurrent)
-   - Each teammate works in a git worktree: `projctl worktree create --task TASK-NNN`
-   - On completion: `projctl worktree merge --task TASK-NNN` then `TaskUpdate(status: "completed")`
-4. If multiple unblocked tasks with file overlap:
-   - Execute sequentially (single task at a time)
-5. Repeat until all tasks complete or all remaining are blocked/escalated
+When a parallel agent completes, merge its branch immediately -- do NOT wait for all agents:
 
-### Rules
+| When agent completes... | Do this |
+|------------------------|---------|
+| Task succeeded | `projctl worktree merge --task TASK-NNN` immediately |
+| Task failed | Cleanup worktree, log failure, continue with others |
+| Merge conflict | Pause, prompt user to resolve, then continue |
 
-- `tasks.md` remains the canonical traced artifact (TaskList is runtime coordination only)
-- TaskList entries carry TASK-N in metadata for cross-reference
-- Prefer tasks in ID order when multiple are unblocked
+**TaskList Coordination:**
 
-## Support Skills
+Before starting the first task, create TaskList entries from tasks.md:
 
-| Skill                 | Purpose                      |
-| --------------------- | ---------------------------- |
-| `intake-evaluator`    | Classify request type        |
-| `next-steps`          | Suggest follow-up work       |
-| `commit`              | Create git commits           |
+```
+TaskCreate(subject: "TASK-N: <title>", description: "<AC from tasks.md>",
+           activeForm: "<doing title>", metadata: {"task_id": "TASK-N"})
+TaskUpdate(taskId: N, addBlockedBy: [<dependent task IDs>])
+```
 
-## End-of-Command (always run)
+Use `TaskList` between tasks to select the next unblocked item. Prefer tasks in ID order.
+
+---
+
+## Escalation Handling
+
+Continue with unblocked tasks. Mark escalated tasks in TaskList. When all remaining tasks are blocked:
+
+```
+Implementation paused: N tasks escalated.
+
+TASK-005: [description]
+  Attempt 1: [failure]
+  Attempt 2: [failure]
+  Attempt 3: [failure]
+
+Options:
+1. Provide guidance
+2. Mark won't-fix
+3. Pause project
+```
+
+---
+
+## End-of-Command Sequence (always run)
 
 ```bash
 projctl integrate features --dir .
@@ -201,6 +259,4 @@ projctl trace repair --dir .
 projctl trace validate --dir .
 ```
 
-## Full Docs
-
-- **SKILL-full.md** - Phase details and resume map
+If validation fails, loop until pass or abort.
