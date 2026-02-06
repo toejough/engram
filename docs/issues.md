@@ -3578,3 +3578,43 @@ Track spawn attempts in PairState. On model mismatch:
 - [ ] Failed spawn increments spawn_attempts; step next retries up to 3x
 - [ ] After 3 failed spawns, step next emits escalate-user action
 - [ ] Orchestrator SKILL.md updated with model validation step
+
+---
+
+### ISSUE-99: tdd-producer composite skill does RED+GREEN+REFACTOR in one agent instead of orchestrating
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+When spawning teammates with /tdd-producer, the agent performs all three TDD phases (red, green, refactor) in a single pass instead of orchestrating separate sub-phases. The composite skill should orchestrate: spawn a red producer, then a green producer, then a refactor producer — matching the state machine phases. Currently the state machine tracks tdd-red/tdd-green/tdd-refactor as separate phases but the composite skill collapses them into one agent execution, making green and refactor phases redundant.
+
+---
+
+### ISSUE-100: Enforce commit-before-completion in worktree teammates
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-06
+
+Retro R1 from ISSUE-98: Teammates working in worktrees don't always commit before completion, causing data loss when worktrees are cleaned up. Add explicit prompt instructions and automated verification.
+
+---
+
+### ISSUE-101: Add worktree commit verification to projctl
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Retro R3 from ISSUE-98: Add a projctl worktree verify command or integrate into step complete to check for uncommitted changes in teammate worktrees before accepting task completion.
+
+---
+
+### ISSUE-102: Decision needed: scope of model validation enforcement
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Retro Q1 from ISSUE-98: Should model validation be enforced for all teammate spawns or only model-sensitive phases? Blanket enforcement adds handshake latency; opt-in reduces coverage.
