@@ -46,6 +46,7 @@ type TaskParams struct {
 	SubagentType string `json:"subagent_type"`
 	Name         string `json:"name"`
 	Model        string `json:"model"`
+	TeamName     string `json:"team_name,omitempty"`
 	Prompt       string `json:"prompt,omitempty"`
 }
 
@@ -131,9 +132,10 @@ func Next(dir string) (NextResult, error) {
 			Phase:     currentPhase,
 			Context:   ctx,
 			TaskParams: &TaskParams{
-				SubagentType: "code",
+				SubagentType: "general-purpose",
 				Name:         info.Producer,
 				Model:        info.ProducerModel,
+				TeamName:     s.Project.Name,
 				Prompt:       buildPrompt(info.Producer, ctx),
 			},
 			ExpectedModel: info.ProducerModel,
@@ -153,9 +155,10 @@ func Next(dir string) (NextResult, error) {
 			Phase:     currentPhase,
 			Context:   ctx,
 			TaskParams: &TaskParams{
-				SubagentType: "code",
+				SubagentType: "general-purpose",
 				Name:         info.QA,
 				Model:        info.QAModel,
+				TeamName:     s.Project.Name,
 				Prompt:       buildPrompt(info.QA, ctx),
 			},
 			ExpectedModel: info.QAModel,
@@ -176,9 +179,10 @@ func Next(dir string) (NextResult, error) {
 			Phase:     currentPhase,
 			Context:   ctx,
 			TaskParams: &TaskParams{
-				SubagentType: "code",
+				SubagentType: "general-purpose",
 				Name:         info.Producer,
 				Model:        info.ProducerModel,
+				TeamName:     s.Project.Name,
 				Prompt:       buildPrompt(info.Producer, ctx),
 			},
 			ExpectedModel: info.ProducerModel,
