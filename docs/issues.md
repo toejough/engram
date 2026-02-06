@@ -2765,3 +2765,404 @@ Decision needed: Should CHECK-012 be promoted to error severity after observing 
 Changes: breakdown-producer SKILL.md updated to consolidate simplicity assessment in SYNTHESIZE, add "simplicity rationale" to tasks.md header, remove per-task field and CHECK-012.
 
 **Traces to:** ISSUE-058
+
+---
+
+### ISSUE-069: Create team-mode project orchestrator
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 1)
+
+Phase 1 — Foundation + Proof of Concept
+
+Rewrite the project orchestrator (skills/project/SKILL.md and SKILL-full.md) to act as a Claude Code team lead in delegate mode.
+
+Key changes:
+- On start: `Teammate(operation: "spawnTeam", team_name: "<project>")`
+- Phase dispatch: `Task(subagent_type: "general-purpose", team_name: ...)` spawning teammates that invoke skills
+- Result handling: receive SendMessage from teammate, parse result
+- PAIR LOOP: spawn producer → receive result → spawn QA → receive verdict → iterate or advance (max 3 iterations)
+- Phase transitions: `projctl state transition` unchanged
+- End: shutdown teammates, `Teammate(operation: "cleanup")`
+- Lead never edits files, only coordinates (delegate mode)
+
+Context injection replaces TOML context files — spawn prompt includes project name, issue, phase, docs dir, artifact paths, territory map, memory, and issue description.
+
+Acceptance criteria:
+- `/project new` creates a team, spawns PM teammate
+- PM teammate produces requirements.md with REQ-NNN IDs and traces
+- Lead spawns QA teammate, QA validates against contract
+- On approval: lead advances state via `projctl state transition`
+- On improvement-request: lead spawns new PM teammate with feedback
+- `projctl trace validate` passes after PM phase
+
+Depends on: ISSUE-070, ISSUE-071, ISSUE-072
+
+---
+
+### ISSUE-070: Migrate pm-interview-producer to direct user interaction
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-070)
+
+Phase 1 — Foundation + Proof of Concept
+
+Modify skills/pm-interview-producer/SKILL.md to work as a teammate with direct user interaction.
+
+Changes:
+- Remove "write yield TOML to output.yield_path" instructions
+- Remove need-user-input yield for interview questions
+- Add: use AskUserQuestion directly during INTERVIEW phase
+- Add: use AskUserQuestion for CLASSIFY (inferred spec approval)
+- Add: on completion, send SendMessage to team lead with results (artifact paths, IDs created, files modified, key decisions)
+- Keep: GATHER→ASSESS→INTERVIEW→SYNTHESIZE→CLASSIFY→PRODUCE workflow
+- Keep: contract section (QA still reads it)
+- Keep: `**Traces to:**` in output artifacts
+
+Backward compat: Skill detects context source. If TOML context file exists at expected path, use legacy mode. If invoked with context in conversation, use team mode.
+
+Blocks: ISSUE-069
+
+---
+
+### ISSUE-071: Migrate QA skill to team mode
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-071)
+
+Phase 1 — Foundation + Proof of Concept
+
+Modify skills/qa/SKILL.md to work as a teammate.
+
+Changes:
+- Remove TOML context reading instructions
+- Add: receive context via spawn prompt (producer SKILL.md path, artifact paths, iteration count)
+- Remove yield TOML writing
+- Add: send verdict via SendMessage (approved | improvement-request with specific issues)
+- Keep: contract extraction from producer SKILL.md `## Contract` section
+- Keep: three-phase workflow (LOAD → VALIDATE → RETURN)
+
+Blocks: ISSUE-069
+
+---
+
+### ISSUE-072: Update shared templates for team mode
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-072)
+
+Phase 1 — Foundation + Proof of Concept
+
+Files to modify:
+- skills/shared/PRODUCER-TEMPLATE.md — Add "Team Mode" section for context reception and result reporting alongside existing TOML instructions
+- skills/shared/INTERVIEW-PATTERN.md — Add "Team Mode" section for direct AskUserQuestion usage (keep yield-resume docs for legacy reference)
+
+Files unchanged: CONTRACT.md, ownership-rules/
+
+The templates need to support both legacy TOML mode and new team mode until Phase 4 cleanup.
+
+Blocks: ISSUE-069
+
+---
+
+### ISSUE-073: Migrate interview producers (design + arch) to team mode
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-073)
+
+Phase 2 — All Skills Migrated
+
+Modify these skills to work as teammates with direct user interaction:
+- skills/design-interview-producer/SKILL.md
+- skills/arch-interview-producer/SKILL.md
+
+Same pattern as pm-interview-producer (ISSUE-070): direct AskUserQuestion for interviews, SendMessage results to lead on completion. Remove yield TOML writing, remove need-user-input yield relay.
+
+Depends on: ISSUE-070 (establishes the pattern), ISSUE-072 (shared templates updated)
+
+---
+
+### ISSUE-074: Migrate inference producers to team mode
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-074)
+
+Phase 2 — All Skills Migrated
+
+Modify these inference producers:
+- skills/pm-infer-producer/SKILL.md
+- skills/design-infer-producer/SKILL.md
+- skills/arch-infer-producer/SKILL.md
+
+These don't need AskUserQuestion (they analyze existing code, not interview users). Changes:
+- Remove TOML context reading
+- Receive context from spawn prompt
+- Send results via SendMessage to lead (artifact paths, IDs created, files modified)
+- Remove yield TOML writing
+
+Depends on: ISSUE-072 (shared templates updated)
+
+---
+
+### ISSUE-075: Migrate remaining producers to team mode
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-075)
+
+Phase 2 — All Skills Migrated
+
+Modify these producers:
+- skills/breakdown-producer/SKILL.md
+- skills/doc-producer/SKILL.md
+- skills/alignment-producer/SKILL.md
+- skills/retro-producer/SKILL.md
+- skills/summary-producer/SKILL.md
+
+Same pattern: context from spawn prompt, results via SendMessage. No user interaction needed for these producers.
+
+Depends on: ISSUE-072 (shared templates updated)
+
+---
+
+### ISSUE-076: Migrate TDD skills to team mode
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-076)
+
+Phase 2 — All Skills Migrated
+
+Modify TDD skills:
+- skills/tdd-producer/SKILL.md (composite orchestrator)
+- skills/tdd-red-producer/SKILL.md
+- skills/tdd-green-producer/SKILL.md
+- skills/tdd-refactor-producer/SKILL.md
+- skills/tdd-red-infer-producer/SKILL.md
+
+The TDD composite becomes: lead spawns red-teammate → QA → green-teammate → QA → refactor-teammate → QA, with commit skill invoked between each sub-phase.
+
+Each sub-producer follows the standard pattern: context from spawn prompt, results via SendMessage. The composite tdd-producer needs special attention since it coordinates the red/green/refactor cycle.
+
+Depends on: ISSUE-072 (shared templates), ISSUE-071 (QA migration for sub-phase QA)
+
+---
+
+### ISSUE-077: Wire all phases into team-mode orchestrator
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-077)
+
+Phase 2 — All Skills Migrated
+
+Complete the orchestrator (skills/project/SKILL.md, skills/project/SKILL-full.md) to handle all workflow types with team-mode dispatch:
+
+- new: PM→Design→Arch→Breakdown→Implementation(TDD)→Doc→Alignment→Retro→Summary
+- adopt: Explore→InferTests→InferArch→InferDesign→InferReqs→Escalations→Doc→...
+- align: Same as adopt
+- task: Implementation→Documentation
+
+Each phase spawns producer teammate → receives result → spawns QA teammate → receives verdict → iterates or advances.
+
+Depends on: ISSUE-069, ISSUE-073, ISSUE-074, ISSUE-075, ISSUE-076
+
+---
+
+### ISSUE-078: TaskList-based implementation coordination
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-078)
+
+Phase 3 — Runtime Task Coordination + Parallel Execution
+
+Replace custom task tracking with Claude Code's native TaskList during implementation phase.
+
+Changes in orchestrator:
+- After breakdown phase: parse tasks.md via `projctl tasks deps --format json`
+- Create TaskList entries with TaskCreate for each TASK-NNN
+- Map dependencies to addBlockedBy/addBlocks
+- As teammates complete tasks: TaskUpdate(status: "completed")
+- Use TaskList to find next available (unblocked) work
+- tasks.md remains the canonical traced artifact (TaskList is runtime coordination only)
+- TaskList entries carry TASK-NNN in metadata for cross-reference
+
+Acceptance criteria:
+- TaskList entries match tasks.md TASK-NNN IDs
+- Dependencies correctly reflected in TaskList blockedBy/blocks
+- `projctl trace validate` passes
+
+Depends on: ISSUE-077
+
+---
+
+### ISSUE-079: Native parallel task execution via teams
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 3, ISSUE-079)
+
+Phase 3 — Runtime Task Coordination + Parallel Execution
+
+Replace the parallel-looper skill with native Claude Code team parallelism.
+
+Changes in orchestrator:
+- Identify parallel tasks: `projctl tasks parallel` or TaskList entries with no blockers
+- Spawn one teammate per independent task (concurrently)
+- Each teammate creates worktree: `projctl worktree create --task TASK-NNN`
+- Merge-on-complete: `projctl worktree merge --task TASK-NNN` when teammate finishes
+- Keep consistency-checker for post-batch validation (optional)
+
+Acceptance criteria:
+- Parallel tasks run simultaneously as concurrent teammates
+- Git worktree isolation works (no file conflicts between teammates)
+- Merge-on-complete preserves work from earlier completions
+- `projctl trace validate` passes
+
+Depends on: ISSUE-078
+
+---
+
+### ISSUE-080: Remove legacy yield infrastructure
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-080)
+
+Phase 4 — Cleanup
+
+Remove yield TOML infrastructure after all skills are migrated to team mode.
+
+Go code to remove:
+- internal/yield/yield.go (~240 lines) — Yield type definitions and TOML validation
+- internal/yield/yield_test.go — Tests
+- cmd/projctl/yield.go — CLI commands (yield validate, yield types)
+
+State machine simplification:
+- Remove YieldState from internal/state/state.go (pending yield tracking)
+- Remove SetYield()/ClearYield() methods
+- Remove `state yield set/clear` CLI commands
+- Keep PairState (still tracks producer/QA iterations)
+
+Acceptance criteria:
+- `go test ./...` passes
+- `golangci-lint run` passes
+- No yield TOML files created during execution
+
+Depends on: ISSUE-077
+
+---
+
+### ISSUE-081: Remove legacy context TOML infrastructure
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-081)
+
+Phase 4 — Cleanup
+
+Remove TOML context file infrastructure after all skills receive context via spawn prompts.
+
+Go code to remove:
+- internal/context/context.go — Write/Read/WriteParallel functions (~440 lines)
+- internal/context/yieldpath.go — GenerateYieldPath (~170 lines)
+- cmd/projctl/context.go — CLI commands (context write, read, write-parallel)
+
+Keep:
+- internal/context/budget.go — Token budget checking (still useful for estimating spawn prompt sizes)
+
+Acceptance criteria:
+- `go test ./...` passes
+- `golangci-lint run` passes
+- No TOML context files created during execution
+
+Depends on: ISSUE-077
+
+---
+
+### ISSUE-082: Clean up shared templates (remove legacy sections)
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-082)
+
+Phase 4 — Cleanup
+
+Remove legacy TOML/yield documentation from shared templates now that all skills use team mode.
+
+Files to update:
+- skills/shared/PRODUCER-TEMPLATE.md — Remove legacy TOML sections (keep only Team Mode)
+- skills/shared/INTERVIEW-PATTERN.md — Remove yield-resume documentation (keep only AskUserQuestion)
+
+Files to delete:
+- skills/shared/YIELD.md — No longer used
+- skills/shared/CONTEXT.md — No longer used
+- skills/shared/QA-TEMPLATE.md — Already deprecated, delete
+
+Also remove backward-compat TOML detection from all migrated SKILL.md files.
+
+Depends on: ISSUE-080, ISSUE-081
+
+---
+
+### ISSUE-083: Deprecate parallel-looper and consistency-checker skills
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Phase 4, ISSUE-083)
+
+Phase 4 — Cleanup
+
+- skills/parallel-looper/ — Mark deprecated, replaced by native team parallelism (ISSUE-079)
+- skills/consistency-checker/ — Evaluate if still useful for batch QA; if not, deprecate
+
+If deprecating: add deprecation notice to SKILL.md files pointing to the team-based replacement. Do not delete yet in case rollback is needed.
+
+Depends on: ISSUE-079
+
+---
+
+### ISSUE-084: Explore enforcement and QA via Claude Code hooks
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Plan:** docs/team-migration-plan.md (Future Considerations)
+
+Future exploration — not part of the core migration phases.
+
+Investigate using Claude Code hooks for automated enforcement and QA:
+
+1. PostToolUse hook for `projctl trace validate` after Write/Edit — automatically validate traceability after any file modification, catching broken traces immediately rather than at phase boundaries
+2. Stop hook for QA verification — LLM-as-judge Stop hooks could replace some QA skill checks, running automatically before session ends
+3. Agent-based hooks for QA — LLM-as-judge hooks that evaluate output quality, supplementing or replacing some PAIR LOOP iterations
+
+Prerequisites: Complete the core team migration (Phases 1-3) first. Hooks add enforcement on top of the team-based architecture.
+
+Research questions:
+- What hook types are available and what events do they fire on?
+- Can hooks access the full conversation context or just the tool call?
+- What's the latency impact of LLM-as-judge hooks on every file edit?
+- Can hooks be scoped to specific file patterns (e.g., only docs/*.md)?
