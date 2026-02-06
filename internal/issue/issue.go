@@ -25,7 +25,7 @@ type Issue struct {
 	Body     string // Full markdown body after metadata
 }
 
-var issueHeaderRe = regexp.MustCompile(`^## (ISSUE-\d+): (.+)$`)
+var issueHeaderRe = regexp.MustCompile(`^### (ISSUE-\d+): (.+)$`)
 var priorityRe = regexp.MustCompile(`^\*\*Priority:\*\* (.+)$`)
 var statusRe = regexp.MustCompile(`^\*\*Status:\*\* (.+)$`)
 var createdRe = regexp.MustCompile(`^\*\*Created:\*\* (.+)$`)
@@ -186,7 +186,7 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 	}
 
 	// Write new issue
-	builder.WriteString(fmt.Sprintf("## %s: %s\n\n", issue.ID, issue.Title))
+	builder.WriteString(fmt.Sprintf("### %s: %s\n\n", issue.ID, issue.Title))
 	builder.WriteString(fmt.Sprintf("**Priority:** %s\n", issue.Priority))
 	builder.WriteString(fmt.Sprintf("**Status:** %s\n", issue.Status))
 	builder.WriteString(fmt.Sprintf("**Created:** %s\n", issue.Created))
@@ -236,7 +236,7 @@ func Update(dir string, id string, opts UpdateOpts) error {
 	var result []string
 	inIssue := false
 	foundIssue := false
-	issuePattern := fmt.Sprintf("## %s:", id)
+	issuePattern := fmt.Sprintf("### %s:", id)
 
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
@@ -250,7 +250,7 @@ func Update(dir string, id string, opts UpdateOpts) error {
 		}
 
 		// Check if leaving target issue (next issue or end)
-		if inIssue && strings.HasPrefix(line, "## ISSUE-") {
+		if inIssue && strings.HasPrefix(line, "### ISSUE-") {
 			// Add comment before leaving if specified
 			if opts.Comment != "" {
 				result = append(result, "")

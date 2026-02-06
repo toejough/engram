@@ -25,7 +25,7 @@ func TestParseContent(t *testing.T) {
 
 ---
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -49,7 +49,7 @@ This is a test issue.
 		g := NewWithT(t)
 		content := `# Issues
 
-## ISSUE-001: First
+### ISSUE-001: First
 
 **Priority:** High
 **Status:** Open
@@ -57,7 +57,7 @@ This is a test issue.
 
 ---
 
-## ISSUE-002: Second
+### ISSUE-002: Second
 
 **Priority:** Low
 **Status:** Closed
@@ -106,7 +106,7 @@ func TestCreate(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-005: Existing
+### ISSUE-005: Existing
 
 **Priority:** Medium
 **Status:** Open
@@ -145,7 +145,7 @@ func TestUpdate(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test
+### ISSUE-001: Test
 
 **Priority:** High
 **Status:** Open
@@ -190,19 +190,19 @@ func TestList(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Open One
+### ISSUE-001: Open One
 
 **Priority:** High
 **Status:** Open
 **Created:** 2026-01-01
 
-## ISSUE-002: Closed One
+### ISSUE-002: Closed One
 
 **Priority:** High
 **Status:** Closed
 **Created:** 2026-01-01
 
-## ISSUE-003: Open Two
+### ISSUE-003: Open Two
 
 **Priority:** High
 **Status:** Open
@@ -226,7 +226,7 @@ func TestParseAcceptanceCriteria(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -265,7 +265,7 @@ This is a test issue.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: All Done
+### ISSUE-001: All Done
 
 **Priority:** High
 **Status:** Open
@@ -292,7 +292,7 @@ This is a test issue.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: No AC Issue
+### ISSUE-001: No AC Issue
 
 **Priority:** High
 **Status:** Open
@@ -330,7 +330,7 @@ No acceptance criteria defined.
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -363,7 +363,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -389,7 +389,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -413,7 +413,7 @@ func TestValidateClose(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: No AC Issue
+### ISSUE-001: No AC Issue
 
 **Priority:** High
 **Status:** Open
@@ -438,7 +438,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -468,7 +468,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -498,7 +498,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
@@ -523,7 +523,7 @@ func TestUpdateWithValidation(t *testing.T) {
 		g.Expect(os.MkdirAll(docsDir, 0o755)).To(Succeed())
 		g.Expect(os.WriteFile(filepath.Join(docsDir, "issues.md"), []byte(`# Issues
 
-## ISSUE-001: Test Issue
+### ISSUE-001: Test Issue
 
 **Priority:** High
 **Status:** Open
