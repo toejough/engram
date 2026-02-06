@@ -3166,10 +3166,11 @@ Depends on: ISSUE-79
 
 ### ISSUE-84: Explore enforcement and QA via Claude Code hooks
 
-**Priority:** Medium
+**Priority:** Low
 **Status:** Open
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Future Considerations)
+**Note:** Partially superseded by ISSUE-89 (`projctl step next`). Within-phase enforcement is handled by step-driven orchestration. Hooks remain potentially useful for cross-cutting concerns (e.g., PostToolUse trace validation on file edit).
 
 Future exploration — not part of the core migration phases.
 
@@ -3208,6 +3209,7 @@ More checklist text won't help - the SKILL.md already describes the process. Nee
 **Priority:** Medium
 **Status:** Open
 **Created:** 2026-02-05
+**Note:** Superseded by ISSUE-89 (`projctl step next`). Phase registry includes model from skill frontmatter; `step next` output includes the model for the LLM to use when spawning.
 
 From retrospective (retro-phase2.md R2): QA teammates were spawned on opus instead of haiku because the orchestrator did not read the skill's SKILL.md frontmatter for the model field. When the orchestrator spawns a teammate for a skill, it should read the target skill's SKILL.md frontmatter and use the specified model field. Document this as a mandatory step in the orchestrator's teammate spawning procedure.
 
@@ -3230,3 +3232,194 @@ Unresolved question from retrospective (retro-phase2.md Q1). Context: Both Phase
 **Created:** 2026-02-05
 
 Unresolved question from retrospective (retro-phase2.md Q2). Context: ISSUE-80 removed the Go yield infrastructure, but there may be stale references to yield concepts in documentation, CLAUDE.md, skill docs, or other non-code files. A grep for yield across the repo would identify any cleanup needed.
+
+---
+
+### ISSUE-89: Implement `projctl step next` deterministic orchestration
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+
+Replace soft SKILL.md process instructions with hard deterministic orchestration via `projctl step next`. The LLM becomes an executor (do what projctl says), not a planner (decide what to do from SKILL.md).
+
+**Problem:**
+
+The orchestrator SKILL.md describes the PAIR LOOP (producer → QA → commit → transition) but the LLM can skip steps. The state machine only validates at phase boundaries (e.g., pm → pm-complete), not within phases. This caused Phase 2 failures: QA skipped, main flow ending skipped, wrong model used for spawned teammates.
+
+**Architecture:**
+
+1. **Phase Registry** — Define per-phase metadata in Go code or config:
+   - Producer skill name and path
+   - QA skill name and path
+   - Artifact path pattern
+   - ID format (REQ-N, DES-N, etc.)
+   - Model (from skill frontmatter)
+   - Preconditions (extend existing PreconditionChecker)
+
+2. **Sub-phase State Machine** — Track within-phase progress:
+   - `pending` → `producer` → `qa` → `commit` → `complete`
+   - Persisted in state.toml (extend existing Pairs or add new field)
+   - Cannot advance to `qa` without producer completion
+   - Cannot advance to `commit` without QA pass
+   - Cannot advance to `complete` without commit
+
+3. **`projctl step next --dir .`** — Returns structured JSON with exactly one action:
+   ```json
+   {
+     "action": "spawn-producer",
+     "skill": "pm-interview-producer",
+     "skill_path": "skills/pm-interview-producer/SKILL.md",
+     "model": "sonnet",
+     "artifact": ".claude/projects/<name>/requirements.md",
+     "context": {
+       "issue": "ISSUE-NNN",
+       "prior_artifacts": [],
+       "qa_feedback": null
+     }
+   }
+   ```
+
+4. **`projctl step complete --dir . --result <json>`** — LLM reports result back:
+   ```bash
+   # Producer completed
+   projctl step complete --dir . --result '{"type":"producer","artifact":"requirements.md"}'
+
+   # QA verdict
+   projctl step complete --dir . --result '{"type":"qa","verdict":"approved"}'
+
+   # Commit done
+   projctl step complete --dir . --result '{"type":"commit","hash":"abc123"}'
+   ```
+
+**Key behaviors:**
+- QA cannot be skipped — `step next` never returns "commit" until QA passes
+- Main flow ending is mandatory — `step next` never returns "complete" until retro/summary/next-steps are done
+- Model selection is automatic — `step next` reads skill frontmatter and includes model in output
+- Resume is automatic — `step next` reads state.toml and picks up where it left off
+
+**Supersedes:** ISSUE-1 (deterministic orchestrator — achieves same goal without external loop), ISSUE-86 (model from frontmatter — included in step output)
+
+**Partially supersedes:** ISSUE-84 (hooks for enforcement — step-driven handles within-phase enforcement; hooks may still be useful for cross-cutting concerns like trace validation on file edit)
+
+Acceptance criteria:
+- [ ] Phase registry defines all phases with skill, artifact, model, preconditions
+- [ ] Sub-phase tracking persists in state.toml
+- [ ] `projctl step next` returns structured JSON with exactly one action
+- [ ] `projctl step complete` records result and advances sub-phase
+- [ ] QA cannot be skipped — no commit action until QA passes
+- [ ] Main flow ending is mandatory — no "complete" until all ending phases done
+- [ ] `go test ./...` passes
+- [ ] Existing phase transitions and preconditions preserved
+
+---
+
+### ISSUE-90: Simplify orchestrator SKILL.md for step-driven execution
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+**Depends on:** ISSUE-89
+
+After ISSUE-89 implements `projctl step next`, rewrite the orchestrator SKILL.md to use it.
+
+**Current state:** SKILL.md is ~100 lines with phase dispatch tables, PAIR LOOP pattern, skill dispatch tables, critical rules. SKILL-full.md is ~560 lines with full phase reference, resume map, looper pattern.
+
+**Target state:** The orchestrator control loop becomes:
+
+```
+1. projctl step next --dir .
+2. Do what it says (spawn producer, spawn QA, commit, etc.)
+3. projctl step complete --dir . --result <outcome>
+4. Repeat until action is "stop"
+```
+
+SKILL.md no longer needs:
+- Phase dispatch tables (projctl knows the order)
+- PAIR LOOP pattern description (projctl enforces it)
+- Skill dispatch tables (projctl returns the skill name)
+- Model selection rules (projctl reads frontmatter)
+- Resume map (projctl tracks sub-phase state)
+
+What remains:
+- Team lifecycle (spawn team, shutdown)
+- Intake flow (classify request type)
+- Context-only contract (don't pass behavioral overrides)
+- Looper pattern for parallel task execution
+- Escalation handling
+
+Acceptance criteria:
+- [ ] SKILL.md reduced to team lifecycle + step-driven loop + intake flow
+- [ ] SKILL-full.md reduced or eliminated (process details live in projctl code)
+- [ ] Orchestrator follows `projctl step next` output without process skipping
+- [ ] No process steps can be skipped by the LLM
+
+---
+
+### ISSUE-91: Rename `task-audit` phase to `tdd-qa`
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-05
+
+Rename the `task-audit` state machine phase to `tdd-qa` for consistency with the TDD pair loop naming pattern.
+
+Current: `tdd-red → commit-red → tdd-green → commit-green → tdd-refactor → commit-refactor → task-audit`
+Target: `tdd-red → commit-red → tdd-green → commit-green → tdd-refactor → commit-refactor → tdd-qa`
+
+Files to update:
+- `internal/state/transitions.go` — LegalTransitions map
+- `internal/state/state.go` — Preconditions map if any
+- `internal/step/registry.go` — phase registry entry
+- `skills/project/SKILL-full.md` — references
+- Tests referencing `task-audit`
+
+Acceptance criteria:
+- [ ] `task-audit` renamed to `tdd-qa` in all state machine code
+- [ ] `go test ./...` passes
+- [ ] No references to `task-audit` remain in code or skill files
+
+---
+
+### ISSUE-92: Per-phase QA in TDD loop
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+**Depends on:** ISSUE-89, ISSUE-91
+
+Restructure the TDD loop so each sub-phase (red, green, refactor) has its own producer/QA pair instead of deferring all QA to the end.
+
+**Current structure:**
+```
+tdd-red-producer → commit → tdd-green-producer → commit → tdd-refactor-producer → commit → tdd-qa (QA for everything)
+```
+
+**Proposed structure:**
+```
+tdd-red-producer → tdd-red-qa → commit-producer → commit-qa →
+tdd-green-producer → tdd-green-qa → commit-producer → commit-qa →
+tdd-refactor-producer → tdd-refactor-qa → commit-producer → commit-qa →
+tdd-qa (meta-check: did the right steps happen?)
+```
+
+Every step is a pair loop: producer → QA. This includes commits — commit-producer does the commit, commit-qa verifies correctness (right files staged, message follows convention, no secrets, etc.).
+
+**Why:** QA at the end means issues compound. If tdd-red writes bad tests, you don't find out until after green and refactor are done. Per-phase QA catches problems immediately and keeps each QA scope small and focused. Commit QA catches staging errors before they're pushed.
+
+**Impact on `projctl step next`:** The phase registry (ISSUE-89) already models each phase with a producer and QA skill. Adding QA entries for tdd-red, tdd-green, tdd-refactor means `step next` drives per-phase QA automatically without any orchestrator SKILL.md changes.
+
+**Impact on tdd-producer:** The composite tdd-producer may become unnecessary — `step next` already knows the phase order. If retained, it becomes a lightweight coordinator. Its QA (tdd-qa) simplifies to: did red/green/refactor all complete with passing QA?
+
+**State machine changes:**
+- Add `tdd-red-qa`, `tdd-green-qa`, `tdd-refactor-qa` phases
+- Update transitions: `tdd-red → tdd-red-qa → commit-red → tdd-green → ...`
+- Update step registry with QA skills per TDD phase
+
+Acceptance criteria:
+- [ ] Each TDD sub-phase (red, green, refactor) has its own QA phase in state machine
+- [ ] Each commit is a pair loop (commit-producer → commit-qa)
+- [ ] `projctl step next` returns QA actions between producer and commit
+- [ ] tdd-qa (end) only checks that the right steps happened
+- [ ] `go test ./...` passes
+- [ ] State machine transitions updated
