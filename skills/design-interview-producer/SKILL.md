@@ -43,7 +43,7 @@ Design phase focuses on **user experience** and **interaction patterns**. Implem
 | Pattern | GATHER → SYNTHESIZE → PRODUCE |
 | Input | requirements.md (REQ-N IDs), user responses |
 | Output | design.md with DES-N IDs |
-| Yields | `need-user-input`, `need-context`, `complete` |
+| Yields | `need-user-input`, `need-context`, `complete`; `AskUserQuestion`, `SendMessage` (team mode) |
 
 ## Workflow
 
@@ -51,16 +51,15 @@ Design phase focuses on **user experience** and **interaction patterns**. Implem
 
 Collect user experience and interaction pattern decisions via interview. Focus on what users see and do, not how the system implements it.
 
-1. Read context from `[inputs]` section
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after need-context)
 3. If requirements not available:
    - Yield `need-context` requesting requirements.md
-4. Interview user about user experience and interaction patterns:
-   - Yield `need-user-input` with design questions
+4. Interview user about user experience and interaction patterns using `AskUserQuestion`:
    - Questions cover: user workflows, screen layouts, interaction patterns, accessibility needs
 5. Proceed to SYNTHESIZE when sufficient information gathered
 
-**Yield `need-user-input` for:**
+**Ask about (via `AskUserQuestion` or yield `need-user-input`):**
 - User workflows and task flows
 - Visual style preferences (colors, typography, spacing)
 - Layout approach (responsive, fixed, adaptive)
@@ -77,7 +76,7 @@ Process gathered design information:
 1. Map requirements to design elements
 2. Identify design patterns needed
 3. Resolve conflicts between requirements
-4. If blocked, yield `blocked` with details
+4. If blocked, send blocker to team lead via `SendMessage` or yield `blocked` with details
 5. Structure findings for design.md
 
 ### 2b. CLASSIFY Phase (Inference Detection)
@@ -85,9 +84,8 @@ Process gathered design information:
 Classify each planned design decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
 
 1. For each design decision from SYNTHESIZE, determine if it was directly requested by the user or inferred
-2. If any inferred design decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
-3. Wait for user accept/reject decisions
-4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+2. If any inferred design decisions exist, present them to the user via `AskUserQuestion` with `multiSelect: true` for accept/reject
+3. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
 ### 3. PRODUCE Phase
 
@@ -96,7 +94,11 @@ Create the design.md artifact:
 1. Generate DES-N IDs for each design element
 2. Include `**Traces to:**` links to REQ-N IDs
 3. Write to configured path from context
-4. Yield `complete` with artifact details
+4. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - DES IDs created
+   - Files modified
+   - Key decisions made
 
 ## DES Entry Format
 
@@ -152,6 +154,33 @@ alternatives = ["Desktop-first", "Adaptive layouts"]
 phase = "design"
 subphase = "complete"
 ```
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Interview questions | `AskUserQuestion` directly |
+| Inferred items approval | `AskUserQuestion` with `multiSelect: true` |
+| Conflict resolution | `AskUserQuestion` with options |
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `need-context` | Gather existing docs before interview |
+| `need-user-input` | Each interview question |
+| `need-user-input` (inferred) | Present inferred design decisions for user accept/reject |
+| `blocked` | Cannot proceed without resolution |
+| `complete` | design.md artifact produced |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
+
+---
 
 ## Rules
 

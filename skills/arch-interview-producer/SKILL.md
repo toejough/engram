@@ -41,7 +41,7 @@ Architecture phase focuses on **technology choices** and **system design**. Prob
 | Pattern | GATHER -> SYNTHESIZE -> PRODUCE |
 | Domain | Technology choices, system structure, data models, APIs |
 | Output | architecture.md with ARCH-N IDs |
-| Yield | `need-user-input`, `need-context`, `complete` |
+| Yield | `need-user-input`, `need-context`, `complete`; `AskUserQuestion`, `SendMessage` (team mode) |
 
 ## Workflow
 
@@ -54,7 +54,7 @@ Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) wi
 1. Execute `projctl territory map` to get file structure and artifact locations
 2. Execute `projctl memory query` with architecture domain queries (e.g., "technology stack decisions", "system design choices", "technical constraints")
 3. Parse territory and memory results into structured data for coverage assessment
-4. Read context file for requirements.md and design.md paths
+4. Read context (from spawn prompt in team mode, or context file for requirements.md and design.md paths in legacy mode)
 5. Yield `need-context` if critical files missing
 6. Extract technical implications from requirements
 7. Identify decision categories (language, framework, database, etc.)
@@ -63,7 +63,7 @@ Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) wi
 **Avoid asking about** problem discovery (what to build) or user experience design (how users interact). These are inputs from PM and Design phases.
 
 **Error Handling:**
-- Territory map failure → Yield `blocked` with diagnostic information (infrastructure problem, cannot proceed safely)
+- Territory map failure → Send blocker to team lead via `SendMessage` or yield `blocked` with diagnostic information (infrastructure problem, cannot proceed safely)
 - Memory query timeout → Continue with available context, note limitation in yield metadata (degraded mode)
 
 ### ASSESS Phase
@@ -101,7 +101,7 @@ Select and phrase questions based on gap size and gathered context.
 
 **Implementation:**
 1. Use SelectQuestions function from `internal/interview/interview.go` (TASK-6) with key questions, gap analysis, and gathered context
-2. Prioritize questions by importance: critical, then important, then optional
+2. Ask selected questions using `AskUserQuestion`, prioritizing by importance: critical, then important, then optional
 3. Skip fully answered topics - only ask where information is missing or ambiguous
 
 ### SYNTHESIZE Phase
@@ -116,15 +116,18 @@ Select and phrase questions based on gap size and gathered context.
 Classify each planned architecture decision as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
 
 1. For each architecture decision from SYNTHESIZE, determine if it was directly requested by the user or inferred
-2. If any inferred architecture decisions exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
-3. Wait for user accept/reject decisions
-4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+2. If any inferred architecture decisions exist, present them to the user via `AskUserQuestion` with `multiSelect: true` for accept/reject
+3. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
 ### PRODUCE Phase
 
 1. Generate architecture.md with ARCH-N IDs
 2. Include `**Traces to:**` for each decision
-3. Yield `complete` with artifact details
+3. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - ARCH IDs created
+   - Files modified
+   - Key decisions made
 
 ## Key Questions
 
@@ -253,6 +256,34 @@ Go selected for backend implementation.
 
 **Traces to:** REQ-1, REQ-3
 ```
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Interview questions | `AskUserQuestion` directly |
+| Inferred items approval | `AskUserQuestion` with `multiSelect: true` |
+| Conflict resolution | `AskUserQuestion` with options |
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `need-context` | Gather existing docs before interview |
+| `need-user-input` | Each interview question |
+| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
+| `need-decision` | Contradictory context requires user resolution |
+| `blocked` | Infrastructure failure prevents proceeding |
+| `complete` | architecture.md artifact produced |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
+
+---
 
 ## Rules
 
