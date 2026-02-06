@@ -113,7 +113,7 @@ Use heredoc for proper formatting:
 git commit -m "$(cat <<'EOF'
 test(issue-92): add failing tests for step registry
 
-Add tests for tdd-red-qa, tdd-green-qa, tdd-refactor-qa registry entries.
+Add tests for per-phase QA registry entries.
 
 AI-Used: [claude]
 EOF
