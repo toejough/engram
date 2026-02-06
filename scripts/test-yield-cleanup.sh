@@ -62,12 +62,12 @@ check_yield_in_docs() {
     done
 
     # Search for "yield" in markdown files (excluding archived projects and historical docs)
+    # Note: We exclude .claude/projects/* entirely (including issue-88) since that's where this issue's docs live
     local matches
     matches=$(grep -ri "yield" \
         --include="*.md" \
         docs/ \
         .claude/skills/ \
-        .claude/projects/issue-88/ \
         README.md \
         CONTRIBUTING.md \
         2>/dev/null \
@@ -197,6 +197,17 @@ check_mage() {
 
     if ! command -v mage &> /dev/null; then
         echo -e "${YELLOW}mage not found, skipping${NC}"
+        return 0
+    fi
+
+    # Check if magefile exists (mage will fail with cryptic error if not)
+    if [ ! -f "magefile.go" ] && [ ! -d "dev" ]; then
+        echo -e "${YELLOW}No magefile.go or dev/ directory found, skipping${NC}"
+        return 0
+    fi
+
+    if mage check 2>&1 | grep -q "No .go files marked with the mage build tag"; then
+        echo -e "${YELLOW}No mage build files found, skipping${NC}"
         return 0
     fi
 
