@@ -2892,7 +2892,7 @@ Completed: shared templates (PRODUCER-TEMPLATE.md, INTERVIEW-PATTERN.md) updated
 ### ISSUE-73: Migrate interview producers (design + arch) to team mode
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-73)
 
@@ -2911,7 +2911,7 @@ Depends on: ISSUE-70 (establishes the pattern), ISSUE-72 (shared templates updat
 ### ISSUE-74: Migrate inference producers to team mode
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-74)
 
@@ -2935,7 +2935,7 @@ Depends on: ISSUE-72 (shared templates updated)
 ### ISSUE-75: Migrate remaining producers to team mode
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-75)
 
@@ -2957,7 +2957,7 @@ Depends on: ISSUE-72 (shared templates updated)
 ### ISSUE-76: Migrate TDD skills to team mode
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-76)
 
