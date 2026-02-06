@@ -3423,3 +3423,43 @@ Acceptance criteria:
 - [ ] tdd-qa (end) only checks that the right steps happened
 - [ ] `go test ./...` passes
 - [ ] State machine transitions updated
+
+---
+
+### ISSUE-93: Guard against duplicate role assignments in team coordination
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+
+From ISSUE-89 retro R1: Before spawning a teammate for a role, verify no active teammate already holds that role. Two agents doing the same job wastes resources and produces unreliable results. Could be a check in the orchestrator spawning logic or a projctl command that lists active teammates per role. Measurable outcome: zero instances of duplicate teammates for the same role in a session.
+
+---
+
+### ISSUE-94: Enforce naming convention for teammates
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+From ISSUE-89 retro R2: Document and enforce the <phase>-<role> naming convention (e.g., tdd-qa, retro-producer) in the orchestrator SKILL.md. When projctl step next returns an action, include the expected teammate name in the output. Measurable outcome: all spawned teammates follow the <phase>-<role> naming pattern.
+
+---
+
+### ISSUE-95: Decision needed: Should the phase registry be runtime config instead of static code?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+From ISSUE-89 retro Q1: Currently the registry is a Go map literal in registry.go. Adding a new skill or changing a model requires recompiling. A TOML/YAML config file would allow changes without rebuilding, but adds parsing complexity and runtime failure modes. Tradeoff: Static (current) gives compile-time validation and simplicity. Dynamic gives easier updates but adds failure modes. Current recommendation: keep static.
+
+---
+
+### ISSUE-96: Decision needed: How should step complete handle failures?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does not do anything special with it. A failed producer or QA should probably trigger different behavior (retry? escalate? block?). The orchestrator currently handles failures ad-hoc. projctl step next should eventually encode failure recovery paths so the LLM does not have to decide how to handle failures.
