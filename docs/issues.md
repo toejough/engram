@@ -3179,7 +3179,7 @@ parallel-looper and consistency-checker deprecated with notices
 ### ISSUE-84: Explore enforcement and QA via Claude Code hooks
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed (wontdo)
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Future Considerations)
 **Note:** Partially superseded by ISSUE-89 (`projctl step next`). Within-phase enforcement is handled by step-driven orchestration. Hooks remain potentially useful for cross-cutting concerns (e.g., PostToolUse trace validation on file edit).
@@ -3202,6 +3202,10 @@ Research questions:
 
 ---
 
+
+### Comment
+
+Addressed by projctl step-driven orchestration instead of hooks
 ### ISSUE-85: Retro: Enforce process checklist in orchestrator
 
 **Priority:** High
