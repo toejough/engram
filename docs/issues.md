@@ -2981,7 +2981,7 @@ Depends on: ISSUE-72 (shared templates), ISSUE-71 (QA migration for sub-phase QA
 ### ISSUE-77: Wire all phases into team-mode orchestrator
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 2, ISSUE-77)
 
@@ -3000,6 +3000,10 @@ Depends on: ISSUE-69, ISSUE-73, ISSUE-74, ISSUE-75, ISSUE-76
 
 ---
 
+
+### Comment
+
+All skills migrated to team mode (ISSUE-73-76). Orchestrator already wired in ISSUE-69.
 ### ISSUE-78: TaskList-based implementation coordination
 
 **Priority:** Medium
