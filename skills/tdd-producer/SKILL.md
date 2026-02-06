@@ -60,7 +60,7 @@ Each pair loop allows iteration with improvement requests until QA approves.
 
 Collect information needed to orchestrate the TDD cycle:
 
-1. Read context from `[inputs]` section:
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode):
    - Task ID and acceptance criteria
    - Architecture notes and constraints
    - Test file locations and conventions
@@ -272,6 +272,39 @@ escalating = true
 | Green loop can't make tests pass | Check if tests are correct, escalate to red if needed |
 | Refactor breaks tests | Revert and try different approach |
 | Nested escalation received | Propagate immediately, pause cycle |
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+In team mode, the project lead spawns the tdd-producer as a teammate. The tdd-producer runs the full RED -> GREEN -> REFACTOR cycle internally (it does not spawn sub-teammates for each phase). It coordinates all three phases itself, using the sub-producer skill docs as guidance for each phase.
+
+| Action | Tool |
+|--------|------|
+| Read project docs | `Read`, `Glob`, `Grep` tools directly |
+| Run tests/linter | `Bash` |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+On completion, send a message to the team lead with:
+- Artifact paths (test files and implementation files)
+- Cycle summary (red/green/refactor results)
+- Files modified
+- Key decisions made
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | All three pair loops finished successfully |
+| `need-context` | Missing information before starting loops |
+| `blocked` | Cannot proceed (ambiguous requirements) |
+| `escalate-phase` | Nested loop discovered phase-level issue |
+| `escalate-user` | Nested loop needs user intervention |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

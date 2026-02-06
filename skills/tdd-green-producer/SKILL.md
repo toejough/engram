@@ -19,7 +19,7 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 
 ### GATHER Phase
 
-1. Read context from `[inputs]` section for:
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode):
    - Test file locations
    - Architecture notes
    - TASK-N being implemented
@@ -252,6 +252,37 @@ awaiting = "blocker-resolution"
 | Existing tests break | Fix them - never dismiss as "pre-existing" |
 | Stuck after 3 attempts | Yield `blocked` with detailed findings |
 | Architecture unclear | Yield `need-context` for semantic exploration |
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read project docs | `Read`, `Glob`, `Grep` tools directly |
+| Run tests | `Bash` |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+On completion, send a message to the team lead with:
+- Artifact paths (implementation files created/modified)
+- Test results summary (all passing)
+- Files modified
+- Visual evidence path (for `[visual]` tasks)
+- Key decisions made
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | All tests pass with minimal implementation |
+| `need-context` | Need test files, architecture context |
+| `blocked` | Cannot proceed (test expectations unclear) |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

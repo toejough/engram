@@ -26,7 +26,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 
 ### GATHER
 
-1. Read context from `[inputs]` section
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Load task description and acceptance criteria
 3. Load architecture notes relevant to the task
 4. Load project conventions (test tooling, patterns)
@@ -270,6 +270,36 @@ func TestAuthentication(t *testing.T) {
 ## Full Documentation
 
 `projctl skills docs --skillname tdd-red-producer` or see SKILL-full.md
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read project docs | `Read`, `Glob`, `Grep` tools directly |
+| Run tests | `Bash` |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+On completion, send a message to the team lead with:
+- Artifact paths (test files created)
+- Test results summary (total, passing, failing)
+- Files modified
+- Key decisions made
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Tests written and verified failing |
+| `need-context` | Need files, architecture, or conventions |
+| `blocked` | Cannot proceed (missing task details) |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

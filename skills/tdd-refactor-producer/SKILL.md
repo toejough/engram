@@ -28,7 +28,7 @@ Improve code quality while keeping all tests green. This is the "refactor" phase
 
 Collect information needed for refactoring:
 
-1. Read context from `[inputs]` section:
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode):
    - Task ID and implementation files from green phase
    - Architecture notes and conventions
    - Linter configuration
@@ -174,6 +174,37 @@ After doc tests pass, refactor for clarity and organization while keeping tests 
 ### Key Rule
 
 **Tests must still pass after refactoring.** Re-run your doc tests after every structural change. If a test breaks, you've lost essential content - revert and try again.
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read project docs | `Read`, `Glob`, `Grep` tools directly |
+| Run tests/linter | `Bash` |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+On completion, send a message to the team lead with:
+- Artifact paths (refactored files)
+- Lint results (before/after counts)
+- Test results (all still passing)
+- Files modified
+- Key decisions made
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Refactoring done, tests green, linter clean |
+| `need-context` | Need project conventions, linter config |
+| `blocked` | Spec mismatch found, cannot proceed |
+| `error` | Something failed |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 

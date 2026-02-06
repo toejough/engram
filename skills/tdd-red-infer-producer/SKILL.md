@@ -34,7 +34,7 @@ Deduce needed tests from existing code without explicit requirements. Used for:
 
 Collect information about existing implementation:
 
-1. Read context from `[inputs]` section
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after need-context)
 3. If missing implementation details, yield `need-context`:
 
@@ -183,6 +183,38 @@ When analyzing existing code, look for:
 | `switch type.(type)` | Type-specific behavior tests |
 | `// TODO:` comments | Missing behavior to document |
 | Panic guards | Boundary condition tests |
+
+---
+
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Read project docs | `Read`, `Glob`, `Grep` tools directly |
+| Run tests | `Bash` |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+On completion, send a message to the team lead with:
+- Artifact paths (test files created)
+- Test results summary (total, passing, failing)
+- Files modified
+- Inferred test rationale (why each test was created)
+- Key decisions made
+
+### Legacy Mode (yield protocol)
+
+| Yield Type | When Used |
+|------------|-----------|
+| `complete` | Test file created with failing tests |
+| `need-context` | Need source files, semantic exploration of code |
+| `need-decision` | Multiple valid test approaches |
+| `blocked` | Cannot proceed (missing source, unclear behavior) |
+| `error` | Something failed (retryable) |
+
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 
