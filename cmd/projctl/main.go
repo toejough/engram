@@ -125,5 +125,9 @@ func main() {
 		targ.Group("retro",
 			targ.Targ(retroExtract).Name("extract").Description("Extract recommendations and questions from retro.md and create issues"),
 		),
+		targ.Group("step",
+			targ.Targ(stepNext).Name("next").Description("Get the next orchestration action as structured JSON"),
+			targ.Targ(stepComplete).Name("complete").Description("Record step result and advance sub-phase"),
+		),
 	)
 }
