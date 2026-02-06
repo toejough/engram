@@ -30,30 +30,26 @@ GATHER → ASSESS → INTERVIEW → SYNTHESIZE → CLASSIFY → PRODUCE
 
 ---
 
-## Team Mode
+## User Interaction
 
-When invoked as a teammate, interview the user directly via `AskUserQuestion` instead of yielding `need-user-input` for relay.
-
-### Direct User Interaction
-
-In team mode, the skill has direct access to the user. Use `AskUserQuestion` for:
+The skill has direct access to the user. Use `AskUserQuestion` for:
 
 1. **INTERVIEW phase questions** — Ask adaptive-depth questions directly. Group related questions into a single `AskUserQuestion` call (up to 4 questions per call) to minimize round-trips.
 
 2. **CLASSIFY phase approval** — Present inferred items for accept/reject via `AskUserQuestion` with `multiSelect: true`.
 
-3. **Conflict resolution** — When contradictory context is found, present options via `AskUserQuestion` instead of yielding `need-decision`.
+3. **Conflict resolution** — When contradictory context is found, present options via `AskUserQuestion`.
 
-### What Changes
+### Communication Reference
 
-| Legacy (yield relay) | Team mode (direct) |
+| Action | How |
 |---|---|
-| Yield `need-user-input` with question | `AskUserQuestion` directly |
-| Yield `need-user-input` with `inferred=true` | `AskUserQuestion` with multiSelect |
-| Yield `need-decision` with options | `AskUserQuestion` with options |
-| Yield `need-context` for file reads | Read files directly (Glob, Grep, Read tools) |
-| Yield `blocked` for infrastructure failure | `SendMessage` to lead describing blocker |
-| Yield `complete` with artifact | `SendMessage` to lead with results |
+| Ask user a question | `AskUserQuestion` directly |
+| Present inferred items for accept/reject | `AskUserQuestion` with multiSelect |
+| Present decision options | `AskUserQuestion` with options |
+| Read files for context | Read files directly (Glob, Grep, Read tools) |
+| Report infrastructure failure | `SendMessage` to lead describing blocker |
+| Report completion | `SendMessage` to lead with results |
 
 ### What Stays the Same
 
@@ -83,7 +79,7 @@ final_coverage = base_coverage + weight_adjustments
 
 | Coverage | Gap Size | Question Count |
 |----------|----------|----------------|
-| ≥80% | Small gap | 1-2 confirmation questions |
+| >=80% | Small gap | 1-2 confirmation questions |
 | 50-79% | Medium gap | 3-5 clarification questions |
 | <50% | Large gap | 6+ questions, full interview |
 
@@ -102,7 +98,7 @@ Each phase has clear boundaries and responsibilities:
 **Process:**
 1. Execute `projctl territory map` to get file structure and artifact locations
 2. Execute `projctl memory query` with domain-specific queries (e.g., "architecture decisions", "technology stack")
-3. Use context-explorer for targeted file reads or web fetches
+3. Read targeted files directly using Glob, Grep, Read tools
 4. Parse results into structured data for assessment
 
 **Context Mechanisms:**
@@ -111,14 +107,14 @@ Each phase has clear boundaries and responsibilities:
 |-----------|------|---------|
 | Territory map | `projctl territory map` | Discover available artifacts, files, and project structure |
 | Memory query | `projctl memory query "<query>"` | Semantic search for domain knowledge stored in embeddings |
-| Context explorer | Existing skill | Read specific files, fetch web resources, explore semantically |
+| File reads | Glob, Grep, Read tools | Read specific files for detailed context |
 
 **Error Handling:**
-- Territory map failure → Yield `blocked` with diagnostic info (infrastructure problem)
-- Memory query timeout → Continue with available context, note limitation in yield metadata
-- Contradictory context → Yield `need-decision` with conflicts for user resolution
+- Territory map failure → Send message to lead describing blocker (infrastructure problem)
+- Memory query timeout → Continue with available context, note limitation in output metadata
+- Contradictory context → Present options via `AskUserQuestion` for user resolution
 
-**Exit Criteria:** Enough context gathered to proceed to ASSESS, or yield `blocked` if critical infrastructure fails.
+**Exit Criteria:** Enough context gathered to proceed to ASSESS, or send blocker message if critical infrastructure fails.
 
 ---
 
@@ -146,7 +142,7 @@ Each phase has clear boundaries and responsibilities:
 - Prioritize by question priority (critical > important > optional)
 - Match question count to gap size classification
 
-**Yield Type:** `need-user-input` with questions array sized according to gap assessment.
+**Method:** Use `AskUserQuestion` with questions sized according to gap assessment.
 
 **Exit Criteria:** User responses received, ready to proceed to SYNTHESIZE.
 
@@ -163,8 +159,8 @@ Each phase has clear boundaries and responsibilities:
 4. Structure findings for output format
 
 **Error Handling:**
-- Conflicts detected → Yield `need-decision` with options
-- Information still insufficient → Yield `blocked` with gap analysis
+- Conflicts detected → Present options via `AskUserQuestion`
+- Information still insufficient → Send message to lead with gap analysis
 
 **Exit Criteria:** Synthesized information is complete and consistent.
 
@@ -177,30 +173,17 @@ Each phase has clear boundaries and responsibilities:
 **Process:**
 1. Create artifact with domain-specific ID format (REQ-N, DES-N, ARCH-N, TASK-N)
 2. Include `**Traces to:**` links to upstream artifacts
-3. Enrich yield context with gap analysis metadata
+3. Enrich completion message with gap analysis metadata
 4. Write artifact to configured path
-5. Yield `complete` with artifact details
+5. Send completion message to lead with artifact details
 
-**Exit Criteria:** Artifact written, yield metadata includes gap analysis for observability.
+**Exit Criteria:** Artifact written, completion message includes gap analysis for observability.
 
 ---
 
-## Yield Context Enrichment
+## Gap Analysis Metadata
 
-All interview yields include gap analysis metadata for observability and debugging.
-
-**Example:**
-
-```toml
-[context.gap_analysis]
-total_key_questions = 10
-questions_answered = 7
-coverage_percent = 70
-gap_size = "medium"
-question_count = 4
-sources = ["territory", "memory", "context-files"]
-unanswered_critical = ["Technology Stack", "Scale Requirements"]
-```
+All completion messages include gap analysis metadata for observability and debugging.
 
 **Key Fields:**
 - `total_key_questions`, `questions_answered`, `coverage_percent` - Input/output of gap assessment formula
@@ -215,20 +198,20 @@ unanswered_critical = ["Technology Stack", "Scale Requirements"]
 
 ## Error Handling Patterns
 
-| Scenario | Yield Type | Reason |
-|----------|------------|--------|
-| Territory map fails | `blocked` | Infrastructure problem, cannot proceed safely |
+| Scenario | Action | Reason |
+|----------|--------|--------|
+| Territory map fails | Send blocker to lead | Infrastructure problem, cannot proceed safely |
 | Memory query times out | Continue with note | Degraded but functional, document limitation in metadata |
-| Contradictory context found | `need-decision` | User must resolve conflicts before proceeding |
-| Partial context available | Continue | Best-effort with available information, note limitation in yield |
-| Critical questions unanswered after INTERVIEW | `blocked` | Cannot produce quality artifact without critical info |
+| Contradictory context found | `AskUserQuestion` | User must resolve conflicts before proceeding |
+| Partial context available | Continue | Best-effort with available information, note limitation |
+| Critical questions unanswered after INTERVIEW | Send blocker to lead | Cannot produce quality artifact without critical info |
 
-**When to Yield `blocked`:**
+**When to report blocker to lead:**
 - Critical infrastructure failures (territory map, file system access)
 - Critical questions remain unanswered after user interview
 - Fundamental blockers preventing artifact generation
 
-**When to Yield `need-decision`:**
+**When to use `AskUserQuestion`:**
 - Multiple valid architectural approaches
 - Contradictory information from different sources
 - Ambiguous requirements that impact scope significantly
@@ -276,11 +259,10 @@ Each interview skill (pm-interview-producer, arch-interview-producer, design-int
 When adding adaptive interview to a skill:
 
 - [ ] Define key questions registry (8-12 questions with priorities)
-- [ ] Implement GATHER phase with territory map, memory query, context-explorer
+- [ ] Implement GATHER phase with territory map, memory query, direct file reads
 - [ ] Implement ASSESS phase with coverage calculation
 - [ ] Implement INTERVIEW phase with adaptive depth (1-2 / 3-5 / 6+ questions)
-- [ ] Enrich yield context with gap analysis metadata
+- [ ] Include gap analysis metadata in completion message
 - [ ] Add error handling for territory failures, memory timeouts, contradictory context
 - [ ] Document skill-specific adaptations if pattern is modified
 - [ ] Add integration tests with mocked sparse/medium/rich context scenarios
-
