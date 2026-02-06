@@ -21,9 +21,9 @@ Validates any producer's output against the contract defined in its SKILL.md fil
 | Aspect | Details |
 |--------|---------|
 | Pattern | LOAD → VALIDATE → RETURN |
-| Input | Producer SKILL.md path, producer yield, artifact paths |
-| Output | Yield with approval or issues |
-| Yields | `approved`, `improvement-request`, `escalate-phase`, `escalate-user`, `error` |
+| Input | Producer SKILL.md path, artifact paths, iteration count |
+| Output | Verdict: approved or improvement-request |
+| Verdicts | `approved`, `improvement-request`, `escalate-phase`, `escalate-user`, `error` |
 
 ---
 
@@ -31,26 +31,23 @@ Validates any producer's output against the contract defined in its SKILL.md fil
 
 ### 1. LOAD Phase
 
-Load and parse all inputs needed for validation:
+Load and parse all inputs needed for validation.
 
-1. **Read context file** containing:
-   ```toml
-   [inputs]
-   producer_skill_path = "skills/design-interview-producer/SKILL.md"
-   producer_yield_path = ".projctl/yields/design-producer-yield.toml"
-   artifact_paths = ["docs/design.md"]
+**Team mode:** Context arrives in spawn prompt from team lead. It includes:
+- Producer SKILL.md path
+- Artifact paths to validate
+- Iteration number and max iterations
 
-   [context]
-   iteration = 1
-   max_iterations = 3
-   ```
+**Legacy mode:** Read TOML context file with `[inputs]` section.
 
-2. **Extract contract from producer SKILL.md:**
+**Then for both modes:**
+
+1. **Extract contract from producer SKILL.md:**
    - Search for `## Contract` section
    - Extract YAML code block immediately following the heading
    - Parse YAML to get `outputs`, `traces_to`, `checks`
 
-3. **Handle missing contract (fallback to prose):**
+2. **Handle missing contract (fallback to prose):**
    - If no `## Contract` section found, scan entire SKILL.md
    - Extract implicit checks from prose patterns:
      - Checklists (`- [ ]` items)
@@ -58,17 +55,12 @@ Load and parse all inputs needed for validation:
      - Validation tables
    - Log warning: "No contract section found, using prose extraction"
 
-4. **Read producer yield:**
-   - Parse TOML yield file
-   - Extract artifact path(s) from `[payload]`
-   - Handle malformed yield → yield `improvement-request` with parse error
+3. **Read artifacts:**
+   - Load each file from artifact paths
+   - Handle missing artifacts → report as improvement-request
 
-5. **Read artifacts:**
-   - Load each file from `artifact_paths`
-   - Handle missing artifacts → yield `improvement-request` with file list
-
-6. **Handle unreadable producer SKILL.md:**
-   - If cannot read producer SKILL.md → yield `error` (cannot proceed)
+4. **Handle unreadable producer SKILL.md:**
+   - If cannot read producer SKILL.md → report error (cannot proceed)
 
 ---
 
@@ -106,38 +98,36 @@ Execute each check from the contract against the artifacts:
 
 ### 3. RETURN Phase
 
-Yield result based on validation findings:
+Report result based on validation findings.
 
 #### Decision Tree
 
 ```
 Has error-severity failures?
 ├─ YES → Can producer fix them?
-│        ├─ YES → yield `improvement-request`
+│        ├─ YES → report `improvement-request`
 │        └─ NO → Is issue in upstream artifact?
-│                ├─ YES → yield `escalate-phase`
-│                └─ NO → yield `escalate-user`
-└─ NO → yield `approved` (with warnings if any)
+│                ├─ YES → report `escalate-phase`
+│                └─ NO → report `escalate-user`
+└─ NO → report `approved` (with warnings if any)
 ```
 
 #### Iteration Tracking
 
-Check iteration count before yielding `improvement-request`:
+Check iteration count before reporting `improvement-request`:
 
 ```
 if iteration >= max_iterations (3):
-    yield `escalate-user` with:
+    report `escalate-user` with:
         reason = "Max iterations reached"
         context = "Issues remain after 3 attempts"
-        question = "How should we proceed?"
-        options = ["Approve with caveats", "Manual intervention", "Skip this producer"]
 ```
 
 ---
 
 ## Output Format
 
-Full checklist display per DES-003:
+Full checklist display:
 
 **Pass example:**
 ```
@@ -161,170 +151,56 @@ QA Results: FAILED
 
 ---
 
-## Yield Examples
+## Reporting Results
 
-### approved
+### Team Mode (preferred)
 
-All checks pass (or only warnings):
+Send verdict to team lead via `SendMessage`:
 
-```toml
-[yield]
-type = "approved"
-timestamp = 2026-02-02T12:00:00Z
+**Approved:**
+```
+Verdict: approved
 
-[payload]
-reviewed_artifact = "docs/design.md"
-checklist = [
-    { id = "CHECK-001", description = "Every entry has DES-N ID", passed = true },
-    { id = "CHECK-002", description = "Traces to REQ-N", passed = true },
-    { id = "CHECK-003", description = "No orphan references", passed = true, note = "1 unused ID" }
-]
+Reviewed: docs/design.md
+Iteration: 1/3
 
-[context]
-phase = "design"
-role = "qa"
-iteration = 1
-producer = "design-interview-producer"
+[x] CHECK-001: Every entry has DES-N ID
+[x] CHECK-002: Traces to REQ-N
+[x] CHECK-003: No orphan references (note: 1 unused ID)
 ```
 
-### improvement-request
+**Improvement request:**
+```
+Verdict: improvement-request
 
-Producer can fix the issues:
+Reviewed: docs/design.md
+Iteration: 2/3
 
-```toml
-[yield]
-type = "improvement-request"
-timestamp = 2026-02-02T12:05:00Z
-
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "CHECK-002: DES-003 has no traces",
-    "CHECK-002: DES-007 has no traces"
-]
-
-[context]
-phase = "design"
-role = "qa"
-iteration = 2
-max_iterations = 3
+Issues:
+- CHECK-002: DES-003 has no traces
+- CHECK-002: DES-007 has no traces
 ```
 
-### improvement-request (malformed yield)
+**Escalate to prior phase:**
+```
+Verdict: escalate-phase
+From: design → To: pm
 
-Producer yield has parse errors:
-
-```toml
-[yield]
-type = "improvement-request"
-timestamp = 2026-02-02T12:06:00Z
-
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "Yield parse error: missing required field 'artifact' in [payload]",
-    "Line 5: invalid TOML syntax"
-]
-
-[context]
-phase = "design"
-role = "qa"
-iteration = 1
+DES-005 describes error recovery but no REQ addresses error handling.
+Proposed: add REQ for error recovery.
 ```
 
-### improvement-request (missing artifacts)
+**Escalate to user (max iterations):**
+```
+Verdict: escalate-user
 
-Artifact file not found:
-
-```toml
-[yield]
-type = "improvement-request"
-timestamp = 2026-02-02T12:07:00Z
-
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "Missing artifact: docs/design.md (file not found)"
-]
-
-[context]
-phase = "design"
-role = "qa"
-iteration = 1
+Issues remain after 3 QA iterations. Unresolved:
+- CHECK-002: DES-003 has no traces
 ```
 
-### escalate-phase
+### Legacy Mode (yield protocol)
 
-Problem in upstream artifact:
-
-```toml
-[yield]
-type = "escalate-phase"
-timestamp = 2026-02-02T12:10:00Z
-
-[payload.escalation]
-from_phase = "design"
-to_phase = "pm"
-reason = "gap"
-
-[payload.issue]
-summary = "Design references capability not in requirements"
-context = "DES-005 describes error recovery but no REQ addresses error handling"
-
-[[payload.proposed_changes.requirements]]
-action = "add"
-id = "REQ-012"
-title = "Error Recovery"
-content = "System must provide clear error messages when validation fails"
-
-[context]
-phase = "design"
-role = "qa"
-escalating = true
-```
-
-### escalate-user
-
-Cannot resolve without user input (or max iterations reached):
-
-```toml
-[yield]
-type = "escalate-user"
-timestamp = 2026-02-02T12:15:00Z
-
-[payload]
-reason = "Max iterations reached"
-context = "Issues remain after 3 QA iterations"
-question = "How should we proceed with unresolved issues?"
-options = ["Approve with caveats noted", "Manual intervention required", "Skip this phase"]
-
-[context]
-phase = "design"
-role = "qa"
-iteration = 3
-max_iterations = 3
-```
-
-### error
-
-Cannot proceed (unreadable producer SKILL.md):
-
-```toml
-[yield]
-type = "error"
-timestamp = 2026-02-02T12:20:00Z
-
-[payload]
-error = "Cannot read producer SKILL.md"
-details = "File not found: skills/design-interview-producer/SKILL.md"
-recoverable = false
-
-[context]
-role = "qa"
-```
+See [YIELD.md](../shared/YIELD.md) for TOML yield format examples.
 
 ---
 

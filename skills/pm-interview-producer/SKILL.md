@@ -46,16 +46,18 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 
 Collect requirements through structured interview. Focus on what problems need solving and who they affect, not how to solve them.
 
-1. Read context from `[inputs]` section for project info
-2. Check `[query_results]` for previous responses (if resuming)
-3. Yield `need-context` for existing docs (README, prior requirements, etc.)
-4. Yield `need-user-input` with interview questions through phases:
+1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
+2. Read existing docs directly: README, prior requirements, issue description
+3. Run `projctl territory map` and `projctl memory query` for domain context
+4. Interview the user through phases using `AskUserQuestion`:
    - **PROBLEM**: What's broken? Who's affected? Impact?
    - **CURRENT STATE**: How does it work today? Pain points?
    - **FUTURE STATE**: What should happen instead?
    - **SUCCESS CRITERIA**: How will we know it's working?
    - **EDGE CASES**: What could go wrong?
 5. Accumulate responses until sufficient for synthesis
+
+Use adaptive interview depth per [INTERVIEW-PATTERN.md](../shared/INTERVIEW-PATTERN.md) — assess coverage first, then ask only what's needed.
 
 **Avoid asking about** implementation details like UI design, technology choices, or system architecture. These belong in Design and Architecture phases.
 
@@ -68,16 +70,15 @@ Process gathered interview responses:
 3. Resolve conflicts between stated needs
 4. Structure into user stories with acceptance criteria
 5. Assign priorities (P0/P1/P2)
-6. If blocked by contradictions, yield `blocked` with details
+6. If blocked by contradictions, present options via `AskUserQuestion`
 
 ### 2b. CLASSIFY Phase (Inference Detection)
 
 Classify each planned requirement as explicit or inferred per [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md) inference guidelines.
 
 1. For each requirement from SYNTHESIZE, determine if it was directly requested by the user or inferred
-2. If any inferred requirements exist, yield `need-user-input` with `payload.inferred = true` (see [YIELD.md](../shared/YIELD.md))
-3. Wait for user accept/reject decisions
-4. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
+2. If any inferred requirements exist, present them to the user via `AskUserQuestion` with `multiSelect: true` for accept/reject
+3. Drop rejected items, proceed to PRODUCE with only explicit + accepted items
 
 ### 3. PRODUCE Phase
 
@@ -98,11 +99,28 @@ Generate requirements.md artifact:
    **Traces to:** ISSUE-XXX
    ```
 2. Include `**Traces to:**` links to upstream artifacts
-3. Yield `complete` with artifact path and REQ IDs created
+3. Send results to team lead via `SendMessage`:
+   - Artifact path
+   - REQ IDs created
+   - Files modified
+   - Key decisions made
 
 ---
 
-## Yield Types Used
+## Communication
+
+### Team Mode (preferred)
+
+| Action | Tool |
+|--------|------|
+| Interview questions | `AskUserQuestion` directly |
+| Inferred items approval | `AskUserQuestion` with `multiSelect: true` |
+| Conflict resolution | `AskUserQuestion` with options |
+| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
+| Report completion | `SendMessage` to team lead |
+| Report blocker | `SendMessage` to team lead |
+
+### Legacy Mode (yield protocol)
 
 | Yield Type | When Used |
 |------------|-----------|
@@ -113,67 +131,7 @@ Generate requirements.md artifact:
 | `blocked` | Cannot proceed without resolution |
 | `complete` | requirements.md artifact produced |
 
-### need-user-input Example
-
-```toml
-[yield]
-type = "need-user-input"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-question = "What problem are you trying to solve?"
-context = "PROBLEM phase - identify core pain point"
-
-[context]
-phase = "pm"
-subphase = "GATHER"
-interview_phase = "PROBLEM"
-awaiting = "user-response"
-```
-
-### need-context Example
-
-```toml
-[yield]
-type = "need-context"
-timestamp = 2026-02-02T10:25:00Z
-
-[[payload.queries]]
-type = "file"
-path = "README.md"
-
-[[payload.queries]]
-type = "file"
-path = "docs/requirements.md"
-
-[context]
-phase = "pm"
-subphase = "GATHER"
-awaiting = "context-results"
-```
-
-### complete Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T11:30:00Z
-
-[payload]
-artifact = "docs/requirements.md"
-ids_created = ["REQ-1", "REQ-2", "REQ-3"]
-files_modified = ["docs/requirements.md"]
-
-[[payload.decisions]]
-context = "Scope definition"
-choice = "CLI only, no GUI"
-reason = "User's immediate need"
-alternatives = ["Include GUI", "API first"]
-
-[context]
-phase = "pm"
-subphase = "complete"
-```
+See [YIELD.md](../shared/YIELD.md) for yield format examples.
 
 ---
 
