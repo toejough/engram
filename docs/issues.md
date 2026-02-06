@@ -3192,13 +3192,17 @@ Research questions:
 ### ISSUE-85: Retro: Enforce process checklist in orchestrator
 
 **Priority:** High
-**Status:** Open
+**Status:** wontdo
 **Created:** 2026-02-05
 
 From retrospective (retro-phase2.md R1): The orchestrator skipped QA and end-of-project phases until user reminded. Add an explicit, non-optional process checklist to the project orchestrator SKILL.md that must be completed for every issue: (1) Execute producer, (2) Run QA on output, (3) Commit changes. The orchestrator should not advance to the next issue until all three steps are confirmed.
 
 ---
 
+
+### Comment
+
+More checklist text won't help - the SKILL.md already describes the process. Need mechanical enforcement instead (hooks or state machine preconditions).
 ### ISSUE-86: Retro: Auto-read skill model from frontmatter before spawning
 
 **Priority:** Medium
