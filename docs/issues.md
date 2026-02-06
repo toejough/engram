@@ -3327,7 +3327,7 @@ Implemented projctl step next/complete commands with phase registry, sub-phase t
 
 After ISSUE-89 implements `projctl step next`, rewrite the orchestrator SKILL.md to use it.
 
-**Current state:** SKILL.md is ~100 lines with phase dispatch tables, PAIR LOOP pattern, skill dispatch tables, critical rules. SKILL-full.md is ~560 lines with full phase reference, resume map, looper pattern.
+**Current state:** SKILL.md is ~100 lines with phase dispatch tables, PAIR LOOP pattern, skill dispatch tables, critical rules. SKILL-full.md is ~560 lines with full phase reference, resume map, looper pattern. Orchestrator runs on opus for the entire session even though most of what it does is mechanical coordination.
 
 **Target state:** The orchestrator control loop becomes:
 
@@ -3338,6 +3338,8 @@ After ISSUE-89 implements `projctl step next`, rewrite the orchestrator SKILL.md
 4. Repeat until action is "stop"
 ```
 
+**Target model: haiku.** With `projctl step next` doing the planning, the orchestrator becomes a mechanical loop: parse JSON, spawn teammate, receive result, report completion. No reasoning about phase order, no remembering QA, no deciding which skill. Every step is JSON parsing + tool calls + string templating — haiku work. Intelligence lives in projctl (deterministic) and individual producers (each on their own model per frontmatter). Opus is only used where reasoning is actually needed, not burned on coordination overhead.
+
 SKILL.md no longer needs:
 - Phase dispatch tables (projctl knows the order)
 - PAIR LOOP pattern description (projctl enforces it)
@@ -3347,7 +3349,7 @@ SKILL.md no longer needs:
 
 What remains:
 - Team lifecycle (spawn team, shutdown)
-- Intake flow (classify request type)
+- Intake flow (classify request type — may also move to projctl)
 - Context-only contract (don't pass behavioral overrides)
 - Looper pattern for parallel task execution
 - Escalation handling
@@ -3357,6 +3359,7 @@ Acceptance criteria:
 - [ ] SKILL-full.md reduced or eliminated (process details live in projctl code)
 - [ ] Orchestrator follows `projctl step next` output without process skipping
 - [ ] No process steps can be skipped by the LLM
+- [ ] Orchestrator SKILL.md frontmatter sets `model: haiku`
 
 ---
 
