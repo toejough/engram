@@ -3526,7 +3526,7 @@ From ISSUE-90 retro R1: When writing tests for skill documentation that referenc
 ### ISSUE-98: How do we launch teammates with the right models?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 Reading skill frontmatter to extract the model field was attempted during Phase 2 and ISSUE-89 but didn't work reliably in practice. The orchestrator still spawned teammates on wrong models. Need a mechanism that actually ensures teammates use the correct model. Options to explore: projctl step next already emits the model from the registry — is that sufficient? Does the spawning agent actually use it? Is there a way to enforce it rather than suggest it?
@@ -3581,6 +3581,10 @@ Track spawn attempts in PairState. On model mismatch:
 
 ---
 
+
+### Comment
+
+Implementation complete. 6 tasks delivered: TaskParams/ExpectedModel on NextResult, SpawnAttempts/FailedModels on PairState, prompt assembly with handshake, retry/escalation logic, CLI --reportedmodel flag, orchestrator SKILL.md validation instructions. Follow-up issues: ISSUE-99 (tdd-producer orchestration), ISSUE-100 (enforce commit-before-completion), ISSUE-101 (worktree commit verification), ISSUE-102 (model validation enforcement scope).
 ### ISSUE-99: tdd-producer composite skill does RED+GREEN+REFACTOR in one agent instead of orchestrating
 
 **Priority:** Medium
