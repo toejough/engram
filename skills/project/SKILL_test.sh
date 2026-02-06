@@ -164,6 +164,27 @@ else
   fail "Missing step next JSON output structure"
 fi
 
+echo "Test: QA approved uses --qa-verdict approved flag"
+if grep -q "\-\-qa-verdict approved" "$SKILL_FILE"; then
+  pass "QA approved uses correct --qa-verdict flag"
+else
+  fail "QA approved missing --qa-verdict approved flag (code requires it)"
+fi
+
+echo "Test: QA improvement-request uses --qa-verdict and --qa-feedback flags"
+if grep -q "\-\-qa-verdict improvement-request" "$SKILL_FILE" && grep -q "\-\-qa-feedback" "$SKILL_FILE"; then
+  pass "QA improvement-request uses correct flags"
+else
+  fail "QA improvement-request missing --qa-verdict/--qa-feedback flags"
+fi
+
+echo "Test: No --status retry (invalid status value)"
+if grep -q "\-\-status retry" "$SKILL_FILE"; then
+  fail "Contains --status retry which is not a valid status value"
+else
+  pass "No invalid --status retry"
+fi
+
 # --- Content that must be REMOVED ---
 
 echo ""
