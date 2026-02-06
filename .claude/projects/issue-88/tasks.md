@@ -20,11 +20,11 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - (no files modified - grep output only)
 
 **Acceptance Criteria:**
-- [ ] Case-insensitive grep for "yield" completed across all markdown files
-- [ ] Secondary pattern greps completed for `yield_path`, `producer_yield_path`, `yield.type`, `[yield]`
-- [ ] File lists generated for: SKILL.md files, docs/ files, .claude/projects/ files, source code files
-- [ ] Results filtered to exclude ISSUE-88 project files and historical retrospectives
-- [ ] Prioritized work list created showing file counts per category
+- [x] Case-insensitive grep for "yield" completed across all markdown files
+- [x] Secondary pattern greps completed for `yield_path`, `producer_yield_path`, `yield.type`, `[yield]`
+- [x] File lists generated for: SKILL.md files, docs/ files, .claude/projects/ files, source code files
+- [x] Results filtered to exclude ISSUE-88 project files and historical retrospectives
+- [x] Prioritized work list created showing file counts per category
 
 **Traces to:** ARCH-001, DES-001, REQ-001, REQ-002, REQ-003, ISSUE-88
 
@@ -38,12 +38,12 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `skills/*/SKILL.md` (files A-M based on TASK-1 results)
 
 **Acceptance Criteria:**
-- [ ] All "Yield Protocol" sections replaced with "Communication Protocol" sections
-- [ ] All yield TOML examples replaced with `SendMessage` tool examples
-- [ ] All `yield.type` references replaced with appropriate messaging patterns per DES-002
-- [ ] All workflow steps mentioning "write yield file" replaced with "send message to team-lead"
-- [ ] No broken internal links to removed yield sections
-- [ ] Changes follow DES-007 replacement mappings
+- [x] All "Yield Protocol" sections replaced with "Communication Protocol" sections
+- [x] All yield TOML examples replaced with `SendMessage` tool examples
+- [x] All `yield.type` references replaced with appropriate messaging patterns per DES-002
+- [x] All workflow steps mentioning "write yield file" replaced with "send message to team-lead"
+- [x] No broken internal links to removed yield sections
+- [x] Changes follow DES-007 replacement mappings
 
 **Depends on:** TASK-1
 
@@ -59,12 +59,12 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `skills/*/SKILL.md` (files N-Z based on TASK-1 results)
 
 **Acceptance Criteria:**
-- [ ] All "Yield Protocol" sections replaced with "Communication Protocol" sections
-- [ ] All yield TOML examples replaced with `SendMessage` tool examples
-- [ ] All `yield.type` references replaced with appropriate messaging patterns per DES-002
-- [ ] All workflow steps mentioning "write yield file" replaced with "send message to team-lead"
-- [ ] No broken internal links to removed yield sections
-- [ ] Changes follow DES-007 replacement mappings
+- [x] All "Yield Protocol" sections replaced with "Communication Protocol" sections
+- [x] All yield TOML examples replaced with `SendMessage` tool examples
+- [x] All `yield.type` references replaced with appropriate messaging patterns per DES-002
+- [x] All workflow steps mentioning "write yield file" replaced with "send message to team-lead"
+- [x] No broken internal links to removed yield sections
+- [x] Changes follow DES-007 replacement mappings
 
 **Depends on:** TASK-1
 
@@ -80,11 +80,11 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `skills/*/SKILL_test.sh` (based on TASK-1 results)
 
 **Acceptance Criteria:**
-- [ ] All yield file existence checks removed
-- [ ] All yield TOML parsing tests removed or updated to test message content
-- [ ] All `yield.type` assertions replaced with message content assertions
-- [ ] All test setup removing yield paths updated or removed
-- [ ] Tests still pass after updates (run `mage check` or equivalent)
+- [x] All yield file existence checks removed
+- [x] All yield TOML parsing tests removed or updated to test message content
+- [x] All `yield.type` assertions replaced with message content assertions
+- [x] All test setup removing yield paths updated or removed
+- [x] Tests still pass after updates (run `mage check` or equivalent)
 
 **Depends on:** TASK-1
 
@@ -103,12 +103,12 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - Any other architecture docs from TASK-1 results
 
 **Acceptance Criteria:**
-- [ ] All "yield schema" sections replaced with "message payload schema" sections
-- [ ] All flow diagrams updated to show `SendMessage` instead of file I/O
-- [ ] All state machine descriptions updated to remove yield file reading steps
-- [ ] All "orchestrator reads yield" references replaced with "team lead receives message"
-- [ ] All protocol specifications updated per DES-003
-- [ ] No broken internal links to removed yield sections
+- [x] All "yield schema" sections replaced with "message payload schema" sections
+- [x] All flow diagrams updated to show `SendMessage` instead of file I/O
+- [x] All state machine descriptions updated to remove yield file reading steps
+- [x] All "orchestrator reads yield" references replaced with "team lead receives message"
+- [x] All protocol specifications updated per DES-003
+- [x] No broken internal links to removed yield sections
 
 **Depends on:** TASK-1
 
@@ -127,10 +127,10 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - Exclude `.claude/projects/issue-88/` (this project)
 
 **Acceptance Criteria:**
-- [ ] All yield references replaced with messaging equivalents per DES-002/DES-003
-- [ ] Historical context preserved where appropriate per DES-005
-- [ ] No broken traceability links
-- [ ] No broken internal documentation links
+- [x] All yield references replaced with messaging equivalents per DES-002/DES-003
+- [x] Historical context preserved where appropriate per DES-005
+- [x] No broken traceability links
+- [x] No broken internal documentation links
 
 **Depends on:** TASK-1
 
@@ -148,10 +148,10 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `.claude/projects/*/README.md` (if exists and has yield references)
 
 **Acceptance Criteria:**
-- [ ] Historical yield references marked with deprecation notices per DES-004
-- [ ] Purely historical content preserved (retrospectives documenting yield migration)
-- [ ] Non-historical yield workflow references updated to messaging equivalents
-- [ ] README files updated with note about historical yield directories
+- [x] Historical yield references marked with deprecation notices per DES-004
+- [x] Purely historical content preserved (retrospectives documenting yield migration)
+- [x] Non-historical yield workflow references updated to messaging equivalents
+- [x] README files updated with note about historical yield directories
 
 **Depends on:** TASK-1
 
@@ -169,10 +169,10 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - Any other root-level .md files from TASK-1 results
 
 **Acceptance Criteria:**
-- [ ] All user-facing documentation updated to show current workflows
-- [ ] No references to `projctl yield` commands
-- [ ] Examples updated to show messaging-based patterns
-- [ ] Getting started guides reference current skill structure
+- [x] All user-facing documentation updated to show current workflows
+- [x] No references to `projctl yield` commands
+- [x] Examples updated to show messaging-based patterns
+- [x] Getting started guides reference current skill structure
 
 **Depends on:** TASK-1
 
@@ -188,10 +188,10 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `docs/**/*.md` (all remaining files with yield references from TASK-1, excluding those in TASK-5)
 
 **Acceptance Criteria:**
-- [ ] All yield workflow descriptions updated to messaging workflows
-- [ ] All code examples updated to show `SendMessage` usage
-- [ ] All references to yield files and directories removed or marked deprecated
-- [ ] User guides reflect current system state
+- [x] All yield workflow descriptions updated to messaging workflows
+- [x] All code examples updated to show `SendMessage` usage
+- [x] All references to yield files and directories removed or marked deprecated
+- [x] User guides reflect current system state
 
 **Depends on:** TASK-1
 
@@ -208,10 +208,10 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `cmd/**/*.go` (files with yield references from TASK-1)
 
 **Acceptance Criteria:**
-- [ ] All comments explaining yield protocol removed or updated
-- [ ] Historical decision comments kept if marked as "deprecated" per DES-005
-- [ ] No comments referencing yield file paths or yield.type values
-- [ ] Code builds successfully after comment updates
+- [x] All comments explaining yield protocol removed or updated
+- [x] Historical decision comments kept if marked as "deprecated" per DES-005
+- [x] No comments referencing yield file paths or yield.type values
+- [x] Code builds successfully after comment updates
 
 **Depends on:** TASK-1
 
@@ -228,11 +228,11 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - `.claude/yield.toml` (if exists)
 
 **Acceptance Criteria:**
-- [ ] Root-level yield.toml deleted if present
-- [ ] .claude/yield.toml deleted if present
-- [ ] Verification confirms files no longer exist
-- [ ] Historical yield directories in .claude/projects/ISSUE-*/ preserved
-- [ ] Git commit documents which files were deleted
+- [x] Root-level yield.toml deleted if present
+- [x] .claude/yield.toml deleted if present
+- [x] Verification confirms files no longer exist
+- [x] Historical yield directories in .claude/projects/ISSUE-*/ preserved
+- [x] Git commit documents which files were deleted
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9 (wait until docs updated before deleting files)
 
@@ -248,11 +248,11 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - Any `.toml` files in skills/, .claude/, or project root with `yield_path` fields (from TASK-1 grep)
 
 **Acceptance Criteria:**
-- [ ] All `output.yield_path` lines removed from context configurations
-- [ ] All `producer_yield_path` lines removed from QA context configurations
-- [ ] Empty `[output]` sections removed if no other fields remain
-- [ ] TOML syntax remains valid after edits (verify by parsing)
-- [ ] No broken references to removed configuration fields
+- [x] All `output.yield_path` lines removed from context configurations
+- [x] All `producer_yield_path` lines removed from QA context configurations
+- [x] Empty `[output]` sections removed if no other fields remain
+- [x] TOML syntax remains valid after edits (verify by parsing)
+- [x] No broken references to removed configuration fields
 
 **Depends on:** TASK-1
 
@@ -268,12 +268,12 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - (no files modified - verification only)
 
 **Acceptance Criteria:**
-- [ ] Case-insensitive grep for "yield" in *.md files returns only allowlisted matches
-- [ ] Allowlisted matches confirmed: ISSUE-88 requirements.md, design.md, architecture.md, historical retrospectives
-- [ ] Case-insensitive grep for "yield" in *.go files returns zero matches (or only test fixtures)
-- [ ] Grep for `yield_path`, `producer_yield_path`, `yield.type` returns zero matches outside ISSUE-88
-- [ ] Context review (-C 3) of any unexpected matches shows legitimate usage
-- [ ] File list generated showing all remaining yield references with justification
+- [x] Case-insensitive grep for "yield" in *.md files returns only allowlisted matches
+- [x] Allowlisted matches confirmed: ISSUE-88 requirements.md, design.md, architecture.md, historical retrospectives
+- [x] Case-insensitive grep for "yield" in *.go files returns zero matches (or only test fixtures)
+- [x] Grep for `yield_path`, `producer_yield_path`, `yield.type` returns zero matches outside ISSUE-88
+- [x] Context review (-C 3) of any unexpected matches shows legitimate usage
+- [x] File list generated showing all remaining yield references with justification
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10, TASK-11, TASK-12
 
@@ -289,13 +289,13 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - (no files modified - verification only)
 
 **Acceptance Criteria:**
-- [ ] `mage check` completes successfully (exit code 0)
-- [ ] All unit tests pass
-- [ ] All integration tests pass (if applicable)
-- [ ] All builds succeed for CLI and other binaries
-- [ ] No runtime errors about missing yield files or functions
-- [ ] No import errors for removed yield packages
-- [ ] Test output reviewed for any yield-related warnings
+- [x] `mage check` completes successfully (exit code 0)
+- [x] All unit tests pass
+- [x] All integration tests pass (if applicable)
+- [x] All builds succeed for CLI and other binaries
+- [x] No runtime errors about missing yield files or functions
+- [x] No import errors for removed yield packages
+- [x] Test output reviewed for any yield-related warnings
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10, TASK-11, TASK-12
 
@@ -311,11 +311,11 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - (no files modified - verification only)
 
 **Acceptance Criteria:**
-- [ ] Sample of SKILL.md files checked for broken links
-- [ ] Architecture documentation checked for broken links
-- [ ] Links to messaging documentation sections verified as valid
-- [ ] No references to removed yield protocol sections found
-- [ ] Cross-references between updated documentation files work correctly
+- [x] Sample of SKILL.md files checked for broken links
+- [x] Architecture documentation checked for broken links
+- [x] Links to messaging documentation sections verified as valid
+- [x] No references to removed yield protocol sections found
+- [x] Cross-references between updated documentation files work correctly
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9
 
