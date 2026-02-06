@@ -54,11 +54,11 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# Has completion message example
-if grep -qi 'complete' "$SKILL_FILE" && grep -qi 'SendMessage\|completion message' "$SKILL_FILE"; then
-    echo "PASS: Has completion message documentation"
+# Has messaging documentation
+if grep -qi 'SendMessage\|message' "$SKILL_FILE"; then
+    echo "PASS: Has messaging documentation"
 else
-    echo "FAIL: Missing completion message documentation"
+    echo "FAIL: Missing messaging documentation"
     exit 1
 fi
 

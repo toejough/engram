@@ -95,14 +95,14 @@ As a maintainer, I want one universal `/qa` skill that validates any producer ag
 **Acceptance Criteria:**
 - [ ] Single `skills/qa/SKILL.md` replaces all 13 phase-specific QA skills
 - [ ] QA skill receives producer's SKILL.md as context input
-- [ ] QA skill receives producer's yield (what it claims it did)
+- [ ] QA skill receives producer's output (what it claims it did)
 - [ ] QA skill receives the produced artifacts (what actually exists)
 - [ ] QA validates: does reality match the contract?
 - [ ] QA uses Haiku model (fast, cheap, capable enough)
-- [ ] QA supports all existing yield types: `approved`, `improvement-request`, `escalate-phase`, `escalate-user`
-- [ ] When yield is malformed (invalid TOML, missing required fields), QA yields `improvement-request` with parse error details
-- [ ] When artifacts are missing (file not found), QA yields `improvement-request` listing missing files
-- [ ] When producer SKILL.md is missing or unreadable, QA yields `error` (cannot validate without contract)
+- [ ] QA supports all existing message types: `approved`, `improvement-request`, `escalate-phase`, `escalate-user`
+- [ ] When output is malformed (invalid format, missing required fields), QA sends `improvement-request` with parse error details
+- [ ] When artifacts are missing (file not found), QA sends `improvement-request` listing missing files
+- [ ] When producer SKILL.md is missing or unreadable, QA sends `error` (cannot validate without contract)
 
 **Priority:** P0
 
@@ -197,10 +197,10 @@ As a maintainer, I want the orchestrator to dispatch the universal QA skill corr
 
 **Acceptance Criteria:**
 - [ ] Orchestrator passes producer's SKILL.md path to QA
-- [ ] Orchestrator passes producer's yield file to QA
+- [ ] Orchestrator passes producer's output to QA
 - [ ] Orchestrator passes artifact paths to QA
 - [ ] Orchestrator uses single `/qa` skill for all phases (no phase-specific dispatch)
-- [ ] QA context file format documented
+- [ ] QA context format documented
 
 **Priority:** P0
 
@@ -235,16 +235,16 @@ Requirements for adding explicit warnings when producer skills infer specificati
 
 ---
 
-### REQ-012: Inferred Specification Yield Type
+### REQ-012: Inferred Specification Message Type
 
-As a user, I want producer skills to yield a distinct `need-user-input` with an `inferred` flag when they add specifications not explicitly requested, so that the orchestrator pauses and I can accept or reject each inferred item before it becomes part of the artifact.
+As a user, I want producer skills to send a distinct message with an `inferred` flag when they add specifications not explicitly requested, so that the orchestrator pauses and I can accept or reject each inferred item before it becomes part of the artifact.
 
 **Acceptance Criteria:**
-- [ ] New yield subtype: `need-user-input` with `payload.inferred = true` field
-- [ ] Payload includes: the inferred specification text, the reasoning for inference (context, edge case, or best practice), and the source that triggered the inference
-- [ ] Orchestrator pauses on `inferred` yields and presents them to the user for accept/reject
+- [ ] New message type: inferred specification message with `inferred = true` field
+- [ ] Message includes: the inferred specification text, the reasoning for inference (context, edge case, or best practice), and the source that triggered the inference
+- [ ] Orchestrator pauses on `inferred` messages and presents them to the user for accept/reject
 - [ ] User response is recorded: accepted inferred items proceed into the artifact, rejected items are dropped
-- [ ] Yield format documented in `skills/shared/YIELD.md`
+- [ ] Message format documented in producer communication patterns
 
 **Priority:** P0
 
@@ -276,15 +276,15 @@ As a user, I want all producer skills (both interview and infer variants) to ide
 
 ---
 
-### REQ-014: Orchestrator Handles Inferred Specification Yields
+### REQ-014: Orchestrator Handles Inferred Specification Messages
 
 As a user, I want the orchestrator to present inferred specifications for my approval before they are included in artifacts, so that I have explicit control over scope.
 
 **Acceptance Criteria:**
-- [ ] Orchestrator detects `payload.inferred = true` on `need-user-input` yields
+- [ ] Orchestrator detects `inferred = true` messages from producers
 - [ ] Orchestrator presents inferred item to user with the reasoning and asks for accept/reject
-- [ ] Accepted items: orchestrator resumes producer with acceptance noted
-- [ ] Rejected items: orchestrator resumes producer with rejection, producer drops the item from the artifact
+- [ ] Accepted items: orchestrator sends acceptance to producer
+- [ ] Rejected items: orchestrator sends rejection to producer, producer drops the item from the artifact
 - [ ] Multiple inferred items can be batched into a single user prompt (not one-by-one)
 - [ ] User response is logged for traceability
 

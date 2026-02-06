@@ -95,7 +95,7 @@ func TestQASkill_ValidatePhase(t *testing.T) {
 }
 
 // TEST-002-005 traces: TASK-2
-// Test that RETURN phase is documented with all yield types
+// Test that RETURN phase is documented
 func TestQASkill_ReturnPhase(t *testing.T) {
 	g := NewWithT(t)
 
@@ -110,12 +110,12 @@ func TestQASkill_ReturnPhase(t *testing.T) {
 	// Should document RETURN phase
 	g.Expect(text).To(ContainSubstring("RETURN"), "should document RETURN phase")
 
-	// Should mention all yield types per acceptance criteria
-	g.Expect(text).To(ContainSubstring("approved"), "should mention approved yield")
-	g.Expect(text).To(ContainSubstring("improvement-request"), "should mention improvement-request yield")
-	g.Expect(text).To(ContainSubstring("escalate-phase"), "should mention escalate-phase yield")
-	g.Expect(text).To(ContainSubstring("escalate-user"), "should mention escalate-user yield")
-	g.Expect(text).To(ContainSubstring("error"), "should mention error yield")
+	// Should mention return outcomes per acceptance criteria
+	g.Expect(text).To(ContainSubstring("approved"), "should mention approved outcome")
+	g.Expect(text).To(ContainSubstring("improvement-request"), "should mention improvement-request outcome")
+	g.Expect(text).To(ContainSubstring("escalate-phase"), "should mention escalate-phase outcome")
+	g.Expect(text).To(ContainSubstring("escalate-user"), "should mention escalate-user outcome")
+	g.Expect(text).To(ContainSubstring("error"), "should mention error outcome")
 }
 
 // TEST-002-006 traces: TASK-2
@@ -185,10 +185,10 @@ func TestQASkill_EscalateOnMaxIterations(t *testing.T) {
 
 	text := string(content)
 
-	// Should yield escalate-user when max iterations reached
+	// Should escalate to user when max iterations reached
 	// Find sections that discuss max iterations and escalation together
 	lowerText := strings.ToLower(text)
-	g.Expect(lowerText).To(ContainSubstring("escalate-user"), "should mention escalate-user yield")
+	g.Expect(lowerText).To(ContainSubstring("escalate-user"), "should mention escalate-user outcome")
 
 	// Check that max iterations leads to escalation
 	hasMaxIterations := strings.Contains(lowerText, "max") && (strings.Contains(lowerText, "iteration") || strings.Contains(lowerText, "attempt"))
@@ -196,8 +196,8 @@ func TestQASkill_EscalateOnMaxIterations(t *testing.T) {
 }
 
 // TEST-002-010 traces: TASK-2
-// Test that malformed yield handling is documented
-func TestQASkill_MalformedYieldHandling(t *testing.T) {
+// Test that malformed output handling is documented
+func TestQASkill_MalformedOutputHandling(t *testing.T) {
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -209,8 +209,8 @@ func TestQASkill_MalformedYieldHandling(t *testing.T) {
 	text := string(content)
 
 	// Should document error handling per DES-006
-	g.Expect(text).To(ContainSubstring("DES-006"), "should reference DES-006 malformed yield handling")
-	g.Expect(text).To(MatchRegexp("(?i)malformed|invalid.*yield"), "should mention malformed yield handling")
+	g.Expect(text).To(ContainSubstring("DES-006"), "should reference DES-006 malformed output handling")
+	g.Expect(text).To(MatchRegexp("(?i)malformed|invalid"), "should mention malformed output handling")
 }
 
 // TEST-002-011 traces: TASK-2

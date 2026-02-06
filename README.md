@@ -120,26 +120,23 @@ projctl organizes work into phases, each with a dedicated producer and QA agent:
 | **Retrospective** | Capture learnings, file issues | `docs/retro.md` |
 | **Summary** | Summarize accomplishments | `docs/summary.md` |
 
-### Yield Protocol
+### Team Communication Protocol
 
 <!-- Traces: ARCH-018 -->
 
-Skills communicate with the orchestrator through structured TOML yield files. Producer yield types:
+Skills communicate with the team lead through the `SendMessage` and `AskUserQuestion` tools. Producer message types:
 
-- `complete` - Work finished successfully
-- `need-user-input` - Question for user
-- `need-context` - Need information from codebase/memory
-- `need-decision` - Ambiguous choice requires user decision
-- `need-agent` - Need another agent to perform sub-task
-- `blocked` - Cannot proceed without resolution
-- `error` - Something failed (retryable or fatal)
+- `complete` - Work finished successfully (send completion message with artifact paths)
+- `blocked` - Cannot proceed without resolution (send blocker message with details)
+- User input needed - Use `AskUserQuestion` tool directly
+- Context needed - Send message requesting information or use `AskUserQuestion`
 
-QA yield types:
+QA message types:
 
-- `approved` - Work passes quality checks
-- `improvement-request` - Producer needs to fix issues
-- `escalate-phase` - Problem in prior phase artifact
-- `escalate-user` - Cannot resolve without user input
+- `approved` - Work passes quality checks (send approval message)
+- `improvement-request` - Producer needs to fix issues (send message with findings)
+- `escalate-phase` - Problem in prior phase artifact (send escalation with proposed changes)
+- User input needed - Use `AskUserQuestion` tool directly
 
 ### Traceability Chain
 
@@ -232,7 +229,7 @@ projctl memory learn            # Store a learning
 projctl memory decide           # Log a decision with reasoning
 projctl memory query            # Find semantically similar memories
 projctl memory grep             # Search memory files by pattern
-projctl memory extract          # Extract from yield/result files
+projctl memory extract          # Extract from result files
 projctl memory session-end      # Generate session summary
 ```
 
@@ -356,7 +353,7 @@ Skills are located in `~/.claude/skills/` and define agent behaviors. Key skills
 - **retro-producer** - Generate retrospective
 - **summary-producer** - Generate summary
 
-Each skill follows the GATHER → SYNTHESIZE → PRODUCE pattern and communicates via yields.
+Each skill follows the GATHER → SYNTHESIZE → PRODUCE pattern and communicates via `SendMessage`.
 
 ## Model Routing
 
@@ -442,8 +439,8 @@ The orchestrator operates as a control loop:
 1. Read current state
 2. Determine next action
 3. Dispatch appropriate skill
-4. Read yield
-5. Update state based on yield type
+4. Receive message from teammate
+5. Update state based on message content
 6. Resume or advance as needed
 
 State machine preconditions prevent skipping workflow steps, ensuring deterministic behavior.

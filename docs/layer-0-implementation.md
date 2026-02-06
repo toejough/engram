@@ -8,8 +8,6 @@ High-level summary of Layer 0 (Foundation) commands for the projctl orchestratio
 
 Layer 0 provides the foundational infrastructure for the orchestration system without agent spawning. These commands enable state management, context serialization, ID generation, traceability validation, and semantic memory.
 
-For the complete specification, see [orchestration-system.md Section 12: Implementation Plan](orchestration-system.md#layer-0-foundation).
-
 ---
 
 ## Command Inventory
@@ -162,11 +160,4 @@ Parallel execution is supported through:
 |-------|----------|
 | Context commands | [commands/context.md](commands/context.md) |
 | Trace commands | [commands/trace.md](commands/trace.md) |
-| Full specification | [orchestration-system.md](orchestration-system.md) |
-
----
-
-## References
-
-- [orchestration-system.md Section 12: Implementation Plan - Layer 0](orchestration-system.md#layer-0-foundation)
-- [orchestration-system.md Section 6.2: Memory System](orchestration-system.md#62-memory-system)
+| Memory commands | [commands/memory.md](commands/memory.md) |

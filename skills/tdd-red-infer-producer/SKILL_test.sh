@@ -115,30 +115,22 @@ test_infer_from_implementation() {
     fi
 }
 
-# Test: Documents need-context yield for code exploration
-test_need_context_yield() {
+# Test: Documents messaging for code exploration context
+test_context_messaging() {
     if ! test_skill_exists; then
         return 1
-    fi
-
-    if ! grep -qi 'need-context' "$SKILL_FILE"; then
-        fail "Missing documentation of need-context yield"
     fi
 
     # Should mention code exploration context
     if ! grep -qiE 'code|implementation|source|semantic' "$SKILL_FILE"; then
-        fail "Missing code exploration context for need-context yield"
+        fail "Missing code exploration context documentation"
     fi
 }
 
-# Test: Documents complete yield
-test_complete_yield() {
+# Test: Documents test artifact delivery
+test_artifact_delivery() {
     if ! test_skill_exists; then
         return 1
-    fi
-
-    if ! grep -qi 'complete' "$SKILL_FILE"; then
-        fail "Missing documentation of complete yield"
     fi
 
     # Should reference test artifact
@@ -157,8 +149,8 @@ main() {
     test_producer_pattern
     test_no_yield_reference
     test_infer_from_implementation
-    test_need_context_yield
-    test_complete_yield
+    test_context_messaging
+    test_artifact_delivery
 
     echo
     if [[ ${#ERRORS[@]} -gt 0 ]]; then

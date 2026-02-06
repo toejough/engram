@@ -70,11 +70,11 @@ else
     exit 1
 fi
 
-# TASK-18 Requirement: Documents complete yield
-if grep -q 'complete' "$SKILL_FILE" && grep -qi 'yield' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
+# TASK-18 Requirement: Documents test artifact delivery
+if grep -qiE 'test.*file|_test\.go|\.test\.' "$SKILL_FILE"; then
+    echo "PASS: Documents test artifact delivery"
 else
-    echo "FAIL: Missing complete yield documentation"
+    echo "FAIL: Missing test artifact delivery documentation"
     exit 1
 fi
 

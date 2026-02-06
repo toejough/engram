@@ -506,8 +506,3 @@ relevant = [
 query = "build performance"
 ```
 
----
-
-## Reference
-
-See [orchestration-system.md Section 6.2](../orchestration-system.md) for the complete memory system specification within the orchestration architecture.

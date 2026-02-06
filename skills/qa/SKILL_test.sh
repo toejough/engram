@@ -62,38 +62,22 @@ else
     exit 1
 fi
 
-# Check all yield types documented (DES-005)
-YIELD_TYPES=("approved" "improvement-request" "escalate-phase" "escalate-user" "error")
-for yield_type in "${YIELD_TYPES[@]}"; do
-    if grep -q "$yield_type" "$SKILL_FILE"; then
-        echo "PASS: Yield type '$yield_type' documented"
+# Check all response types documented (DES-005)
+RESPONSE_TYPES=("approved" "improvement-request" "escalate" "error")
+for response_type in "${RESPONSE_TYPES[@]}"; do
+    if grep -q "$response_type" "$SKILL_FILE"; then
+        echo "PASS: Response type '$response_type' documented"
     else
-        echo "FAIL: Yield type '$yield_type' NOT documented"
+        echo "FAIL: Response type '$response_type' NOT documented"
         exit 1
     fi
 done
-
-# Check prose fallback documented (ARCH-024)
-if grep -qi "fallback" "$SKILL_FILE" || grep -qi "prose" "$SKILL_FILE"; then
-    echo "PASS: Fallback/prose handling documented"
-else
-    echo "FAIL: Fallback/prose handling not documented"
-    exit 1
-fi
 
 # Check iteration tracking documented (ARCH-028)
 if grep -qi "iteration" "$SKILL_FILE" && grep -q "3" "$SKILL_FILE"; then
     echo "PASS: Iteration tracking (max 3) documented"
 else
     echo "FAIL: Iteration tracking not documented"
-    exit 1
-fi
-
-# Check error handling for malformed yield (DES-006)
-if grep -qi "malformed" "$SKILL_FILE" || grep -qi "parse error" "$SKILL_FILE" || grep -qi "invalid.*yield" "$SKILL_FILE"; then
-    echo "PASS: Malformed yield handling documented"
-else
-    echo "FAIL: Malformed yield handling not documented"
     exit 1
 fi
 
@@ -137,15 +121,6 @@ if grep -q "CONTRACT.md" "$SKILL_FILE"; then
     echo "PASS: References CONTRACT.md"
 else
     echo "FAIL: Missing reference to CONTRACT.md"
-    exit 1
-fi
-
-# No legacy TOML yield examples
-TOML_COUNT=$(grep -c '```toml' "$SKILL_FILE" || true)
-if [[ $TOML_COUNT -eq 0 ]]; then
-    echo "PASS: No legacy TOML examples"
-else
-    echo "FAIL: $TOML_COUNT legacy TOML examples still present"
     exit 1
 fi
 

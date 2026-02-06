@@ -6,6 +6,8 @@
 **Branch:** project-skill-simplification
 **Workflow:** task
 
+> **Historical Note:** This document captures the Phase 2 migration from the legacy yield TOML protocol to Claude Code's native team mode, completed February 2026. References to "yield" in this document describe the historical system architecture that was replaced during this migration.
+
 ---
 
 ## Executive Overview

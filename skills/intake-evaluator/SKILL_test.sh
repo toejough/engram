@@ -57,27 +57,19 @@ else
     exit 1
 fi
 
-# TASK-26 Requirement: Documents complete yield with classification output
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'classification' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with classification output"
+# TASK-26 Requirement: Documents classification output delivery
+if grep -q 'classification' "$SKILL_FILE"; then
+    echo "PASS: Documents classification output delivery"
 else
-    echo "FAIL: Missing complete yield or classification documentation"
+    echo "FAIL: Missing classification documentation"
     exit 1
 fi
 
-# TASK-26 Requirement: Documents need-decision yield for uncertain classification (escalation)
-if grep -q 'need-decision' "$SKILL_FILE"; then
-    echo "PASS: Documents need-decision yield for escalation"
+# TASK-26 Requirement: Documents escalation for uncertain classification
+if grep -qiE 'escalat|AskUserQuestion|SendMessage' "$SKILL_FILE"; then
+    echo "PASS: Documents escalation for uncertain classification"
 else
-    echo "FAIL: Missing need-decision yield for uncertain classification"
-    exit 1
-fi
-
-# TASK-26 Requirement: Shows example TOML yield output with classification
-if grep -qE '\[yield\]' "$SKILL_FILE" && grep -qE 'type\s*=' "$SKILL_FILE"; then
-    echo "PASS: Shows TOML yield output format"
-else
-    echo "FAIL: Missing TOML yield output examples"
+    echo "FAIL: Missing escalation documentation for uncertain classification"
     exit 1
 fi
 

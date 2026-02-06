@@ -78,19 +78,11 @@ else
     exit 1
 fi
 
-# TASK-25a Requirement: Outputs yield protocol TOML
-if grep -q 'complete' "$SKILL_FILE" && grep -qi 'yield' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield output"
+# TASK-25a Requirement: Documents completion and results delivery
+if grep -qiE 'complete|results.*deliver|SendMessage' "$SKILL_FILE"; then
+    echo "PASS: Documents completion and results delivery"
 else
-    echo "FAIL: Missing complete yield documentation"
-    exit 1
-fi
-
-# TASK-25a Requirement: Documents TOML format for yield
-if grep -q '\[yield\]' "$SKILL_FILE" || grep -q '\[payload\]' "$SKILL_FILE"; then
-    echo "PASS: Documents TOML yield format"
-else
-    echo "FAIL: Missing TOML yield format documentation"
+    echo "FAIL: Missing completion and results delivery documentation"
     exit 1
 fi
 

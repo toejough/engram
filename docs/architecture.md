@@ -208,155 +208,111 @@ Remove stub code and consolidate implementations.
 
 ---
 
-### ARCH-018: Orchestrator-Skill Contract
+### ARCH-018: Orchestrator-Teammate Contract
 
 **Phase:** 0
 **Priority:** High
 **Timeline:** This Week
 
-Defines the bidirectional communication protocol between the `/project` orchestrator and skills. All skills must read context TOML and write yield TOML using this contract.
+Defines the communication protocol between the `/project` team lead and skill teammates. The lead spawns teammates with context in spawn prompts; teammates send results via SendMessage.
 
-#### Context Input Format
+#### Context Input via Spawn Prompt
 
-The orchestrator provides context to skills via TOML files at `.claude/context/<skill-name>-context.toml`:
+The team lead provides context to teammates via the Task tool spawn prompt:
 
-```toml
-[invocation]
-skill = "pm-infer"           # Skill being invoked
-mode = "infer"               # "interview", "infer", or "update"
-task = "PHASE"               # Current task ID or "PHASE" for phase-level work
-timestamp = 2024-01-15T10:30:00Z
+```
+Invoke the /pm-interview-producer skill for this project.
 
-[project]
-name = "my-project"
-dir = "/path/to/project"
-phase = "adopt-infer-pm"     # Current state machine phase
+Project: my-project
+Issue: ISSUE-NNN
+Phase: pm
+Docs dir: docs/
+Requirements path: docs/requirements.md
 
-[config]
-# Resolved artifact paths from project-config.toml
-docs_dir = "docs"
-requirements_path = "docs/requirements.md"
-design_path = "docs/design.md"
-architecture_path = "docs/architecture.md"
+Prior context:
+<territory map summary>
+<memory query results>
+<issue description>
 
-[inputs]
-# Curated summaries of relevant information
-
-[inputs.readme]
-exists = true
-summary = "CLI tool for managing project documentation..."
-
-[inputs.previous_phase]
-skill = "coverage-analyze"
-summary = "Coverage: 45%, recommendation: migrate"
-
-[state]
-tasks_complete = 0
-tasks_total = 0
-escalations_pending = 0
-
-[output]
-yield_path = ".claude/context/pm-infer-yield.toml"
-
-[query_results]
-# Injected when resuming after need-context yield
+When complete, send me a message with:
+- Artifact path
+- IDs created (REQ-NNN list)
+- Files modified
+- Key decisions made
 ```
 
-**Modes:**
-- `interview` - Interactive Q&A with user
-- `infer` - Analyze artifacts, generate content
-- `update` - Lightweight mode for `/project align`
+**Execution Modes:**
+- **Interview** - Teammate uses AskUserQuestion directly for user interaction
+- **Infer** - Teammate analyzes artifacts and generates content
+- **Update** - Lightweight mode for `/project align`
 
-#### Yield Output Format
+#### Result Communication via SendMessage
 
-Skills write yield TOML to the path specified in `output.yield_path`:
+Teammates send results to the team lead via SendMessage:
 
-```toml
-[yield]
-type = "<yield-type>"
-timestamp = 2026-02-02T10:30:00Z
+**Producer Message Types:**
 
-[payload]
-# Type-specific fields
+| Pattern | Meaning | Lead Action |
+|---------|---------|-------------|
+| `complete: <summary>` | Work finished | Spawn QA teammate |
+| AskUserQuestion | Question for user | User responds directly |
+| `need-context: <query>` | **ELIMINATED** - teammates read files directly | N/A |
+| `blocked: <reason>` | Cannot proceed | Present to user |
+| `error: <details>` | Something failed | Retry or escalate |
 
-[context]
-# State for resumption
-phase = "pm"
-iteration = 1
-```
+**QA Message Types:**
 
-**Producer Yield Types:**
-
-| Type | Meaning | Orchestrator Action |
-|------|---------|---------------------|
-| `complete` | Work finished | Advance to QA or next phase |
-| `need-user-input` | Question for user | Prompt user, resume with answer |
-| `need-context` | Need information | Run queries, resume with results |
-| `need-decision` | Ambiguous choice | Present options, resume with choice |
-| `need-agent` | Need another agent | Spawn agent, resume with result |
-| `blocked` | Cannot proceed | Present blocker, await resolution |
-| `error` | Something failed | Retry (max 3x) or escalate |
-
-**QA Yield Types:**
-
-| Type | Meaning | Orchestrator Action |
-|------|---------|---------------------|
+| Pattern | Meaning | Lead Action |
+|---------|---------|-------------|
 | `approved` | Work passes QA | Advance to next phase |
-| `improvement-request` | Needs fixes | Resume producer with feedback |
-| `escalate-phase` | Prior phase issue | Return to prior phase with proposed changes |
-| `escalate-user` | Cannot resolve | Present to user |
+| `improvement-request: <issues>` | Needs fixes | Spawn new producer with feedback |
+| `escalate-phase: <reason>` | Prior phase issue | Return to prior phase |
+| `escalate-user: <reason>` | Cannot resolve | Present to user |
 
-#### Resumption Protocol
+#### Team Coordination Protocol
 
-Each yield type triggers a specific orchestrator response:
+The team lead handles teammate messages as follows:
 
-1. **complete** - Orchestrator advances to QA skill or next phase. No skill resumption.
+1. **complete: <summary>** - Lead spawns QA teammate with producer's artifact paths and SKILL.md location.
 
-2. **need-user-input** - Orchestrator prompts user, captures response, writes to `[query_results]` section, re-invokes skill.
+2. **AskUserQuestion** - Teammate asks user directly; no lead relay needed.
 
-3. **need-context** - Orchestrator executes queries in parallel:
-   - `file` queries: Read file contents
-   - `memory` queries: ONNX semantic memory search
-   - `territory` queries: Codebase structure map
-   - `web` queries: URL fetch with prompt interpretation
-   - `semantic` queries: LLM exploration via context-explorer agent
+3. **blocked: <reason>** - Lead presents blocker to user, spawns replacement teammate after resolution.
 
-   Results injected into `[query_results.items]`, skill re-invoked.
+4. **error: <details>** - Lead retries by spawning new teammate with same context (max 3x) or escalates to user.
 
-4. **need-decision** - Orchestrator presents options to user, captures choice, writes to `[query_results]`, re-invokes skill.
+5. **approved** (QA) - Lead advances to next phase via `projctl state transition`.
 
-5. **need-agent** - Orchestrator spawns specified agent with input, captures result, writes to `[query_results]`, re-invokes skill.
+6. **improvement-request: <issues>** (QA) - Lead spawns new producer teammate with QA feedback in context.
 
-6. **blocked** - Orchestrator presents blocker to user, awaits resolution signal, re-invokes skill.
+7. **escalate-phase: <reason>** (QA) - Lead returns to prior phase, spawns that phase's producer with escalation context.
 
-7. **error** - Orchestrator retries up to 3 times. If recoverable=false or retries exhausted, escalates to user.
+8. **escalate-user: <reason>** (QA) - Lead presents to user, awaits resolution, spawns appropriate teammate.
 
-8. **approved** (QA) - Orchestrator advances to next phase. No resumption.
+#### Context Injection in Spawn Prompts
 
-9. **improvement-request** (QA) - Orchestrator re-invokes producer with feedback in `[inputs.qa_feedback]`.
+The team lead injects context upfront when spawning teammates:
 
-10. **escalate-phase** (QA) - Orchestrator returns to prior phase producer with proposed changes in `[inputs.escalation]`.
+```
+Invoke the /design-interview-producer skill for this project.
 
-11. **escalate-user** (QA) - Orchestrator presents to user, awaits resolution, resumes with decision.
+Project: my-project
+Phase: design
+Prior phase artifacts:
+- docs/requirements.md (REQ-001 to REQ-015)
 
-#### Query Result Injection
+Relevant memory:
+- Previous project: Material Design components worked well
+- Learned: Keep mobile-first for responsive design
 
-When resuming after `need-context`, the orchestrator injects results:
+Territory context:
+- Frontend: React with TypeScript
+- UI components in src/components/
 
-```toml
-[query_results]
-[[query_results.items]]
-query_type = "file"
-query_path = "docs/requirements.md"
-result = "... file contents ..."
-
-[[query_results.items]]
-query_type = "semantic"
-query_question = "How does authentication work?"
-result = "Authentication uses JWT tokens..."
+When complete, send me a message with artifact paths and IDs created.
 ```
 
-Skills check for `[query_results]` presence to detect resumption vs fresh invocation.
+Teammates read files directly using Read tool; no query-resume cycle needed.
 
 **Traces to:** REQ-001, ARCH-001, ARCH-013
 
@@ -364,7 +320,7 @@ Skills check for `[query_results]` presence to detect resumption vs fresh invoca
 
 ## ISSUE-53: Universal QA Skill Architecture
 
-Technical architecture for replacing 13 phase-specific QA skills with one universal QA skill.
+Technical architecture for replacing 13 phase-specific QA skills with one universal QA skill using team messaging.
 
 ---
 
@@ -416,7 +372,7 @@ The contract format standard is documented at `skills/shared/CONTRACT.md`.
 **Purpose:** Defines the YAML format that producers use in their Contract sections.
 
 **Location rationale:**
-- `skills/shared/` contains other cross-skill standards (YIELD.md, PRODUCER-TEMPLATE.md, QA-TEMPLATE.md)
+- `skills/shared/` contains other cross-skill standards (PRODUCER-TEMPLATE.md, INTERVIEW-PATTERN.md)
 - Single source of truth for contract format
 - Producers reference it; QA implements it
 
@@ -473,7 +429,7 @@ function extractContract(skillMdContent):
 **Error cases:**
 - No `## Contract` heading: Fall back to prose extraction (ARCH-024)
 - No YAML code block: Fall back to prose extraction (ARCH-024)
-- Invalid YAML: Yield `error` with parse details
+- Invalid YAML: Send `error: contract parse failed: <details>` message
 
 **Why not a YAML parser for the whole file?**
 - SKILL.md is markdown, not YAML
@@ -484,73 +440,56 @@ function extractContract(skillMdContent):
 
 ---
 
-### ARCH-022: Orchestrator Dispatch to Universal QA
+### ARCH-022: Team Lead Dispatch to Universal QA
 
-The orchestrator dispatches QA using a single invocation pattern regardless of phase.
+The team lead spawns the universal QA teammate for all phases.
 
-**Current dispatch table (to be replaced):**
+**Dispatch pattern:**
 
-```markdown
-| Phase         | QA             |
-| ------------- | -------------- |
-| PM            | `pm-qa`        |
-| Design        | `design-qa`    |
-| Architecture  | `arch-qa`      |
-| ...           | ...            |
-```
+| Phase         | QA Teammate |
+| ------------- | ----------- |
+| PM            | `qa`        |
+| Design        | `qa`        |
+| Architecture  | `qa`        |
+| Breakdown     | `qa`        |
+| TDD           | `qa`        |
+| Documentation | `qa`        |
+| Alignment     | `qa`        |
+| Retro         | `qa`        |
+| Summary       | `qa`        |
 
-**New dispatch pattern:**
-
-```markdown
-| Phase         | QA   |
-| ------------- | ---- |
-| PM            | `qa` |
-| Design        | `qa` |
-| Architecture  | `qa` |
-| Breakdown     | `qa` |
-| TDD           | `qa` |
-| Documentation | `qa` |
-| Alignment     | `qa` |
-| Retro         | `qa` |
-| Summary       | `qa` |
-```
-
-**Context file format (written by orchestrator):**
-
-```toml
-[inputs]
-producer_skill_path = "skills/design-interview-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/design-producer-yield.toml"
-artifact_paths = ["docs/design.md"]
-
-[inputs.producer]
-name = "design-interview-producer"
-phase = "design"
-
-[output]
-yield_path = ".projctl/yields/qa-yield.toml"
-```
-
-**Orchestrator workflow update:**
+**QA teammate spawn prompt format:**
 
 ```
-# In PAIR LOOP pattern (skills/project/SKILL.md)
+Invoke the /qa skill to validate the producer's output.
 
-1. Write context with producer info
-2. Dispatch PRODUCER skill
-3. Read yield
-4. If yield.type = "complete":
-   a. Write QA context with:
-      - producer_skill_path = skills/{producer-name}/SKILL.md
-      - producer_yield_path = from producer's yield
-      - artifact_paths = from producer's yield payload
-   b. Dispatch `qa` skill  # Changed from phase-specific
-5. Handle QA yield (unchanged)
+Producer SKILL.md: skills/design-interview-producer/SKILL.md
+Artifact paths: docs/design.md
+Iteration: 1
+
+Context:
+The design-interview-producer completed and reported:
+- Created DES-001 through DES-012
+- Modified: docs/design.md
+
+Extract the contract from the producer's SKILL.md and validate the artifacts.
+
+When complete, send me a message with:
+- Verdict: approved | improvement-request
+- If improvement-request: list of issues for the producer to fix
 ```
 
-**Files to modify:**
-- `skills/project/SKILL.md` - Update dispatch table
-- `skills/project/SKILL-full.md` - Update phase details
+**Team Lead PAIR LOOP workflow:**
+
+1. Spawn producer teammate with phase context
+2. Receive completion message from producer
+3. Spawn QA teammate with:
+   - Producer SKILL.md path
+   - Artifact paths from producer message
+   - Iteration count
+4. Receive verdict from QA teammate
+5. If improvement-request: spawn new producer with feedback (max 3 iterations)
+6. If approved: advance via `projctl state transition`
 
 **Traces to:** REQ-010, DES-004, DES-013, ARCH-012, ARCH-018, TASK-5
 
@@ -562,16 +501,14 @@ Universal QA follows a three-phase workflow: LOAD -> VALIDATE -> RETURN.
 
 **Phase 1: LOAD**
 
-1. Read context file for inputs
-2. Read producer SKILL.md from `producer_skill_path`
+1. Parse spawn prompt for producer SKILL.md path and artifact paths
+2. Read producer SKILL.md using Read tool
 3. Extract contract (ARCH-021) or fall back to prose (ARCH-024)
-4. Read producer yield from `producer_yield_path`
-5. Read artifacts from `artifact_paths`
+4. Read artifacts using Read tool
 
 **Error handling in LOAD:**
-- Producer SKILL.md not found: Yield `error` (cannot proceed)
-- Producer yield invalid TOML: Yield `improvement-request` with parse details
-- Artifacts missing: Yield `improvement-request` with file list
+- Producer SKILL.md not found: Send `error: cannot read producer SKILL.md` message
+- Artifacts missing: Send `improvement-request: missing artifacts <list>` message
 
 **Phase 2: VALIDATE**
 
@@ -588,15 +525,15 @@ Universal QA follows a three-phase workflow: LOAD -> VALIDATE -> RETURN.
 
 **Phase 3: RETURN**
 
-Based on validation results, yield one of:
+Based on validation results, send message to team lead:
 
-| Condition | Yield |
-|-----------|-------|
+| Condition | Message Pattern |
+|-----------|-----------------|
 | All checks pass | `approved` |
-| Producer-fixable issues | `improvement-request` |
-| Upstream phase problem | `escalate-phase` |
-| Cannot resolve | `escalate-user` |
-| Max iterations reached | `escalate-user` |
+| Producer-fixable issues | `improvement-request: <issues>` |
+| Upstream phase problem | `escalate-phase: <reason>` |
+| Cannot resolve | `escalate-user: <reason>` |
+| Max iterations reached | `escalate-user: max iterations reached` |
 
 **Traces to:** REQ-005, DES-003, DES-005, TASK-2
 
@@ -735,229 +672,36 @@ For each gap, choose:
 
 ---
 
-### ARCH-026: QA Context File Schema
-
-Formal schema for the context file passed to universal QA.
-
-**Schema:**
-
-```toml
-# Required fields
-[inputs]
-# Path to producer's SKILL.md for contract extraction
-producer_skill_path = "skills/<producer-name>/SKILL.md"
-
-# Path to producer's yield file
-producer_yield_path = ".projctl/yields/<producer>-yield.toml"
-
-# Paths to artifacts to validate
-artifact_paths = ["docs/<artifact>.md"]
-
-# Optional fields
-[inputs.producer]
-# Producer name (for logging/routing)
-name = "<producer-name>"
-
-# Phase this producer belongs to
-phase = "<pm|design|arch|breakdown|tdd|doc|alignment|retro|summary>"
-
-# Variant if applicable
-variant = "<interview|infer>"  # optional
-
-[inputs.iteration]
-# Current iteration in producer-QA loop
-current = 1
-max = 3
-
-# Previous QA feedback (if this is a retry)
-[inputs.previous_feedback]
-issues = ["issue 1", "issue 2"]
-
-# Output configuration
-[output]
-yield_path = ".projctl/yields/qa-yield.toml"
-```
-
-**Validation rules:**
-- `producer_skill_path`: Must exist and be readable
-- `producer_yield_path`: Must exist and be valid TOML
-- `artifact_paths`: At least one path required; all must exist
-- `inputs.iteration.current`: Must not exceed `max`
-
-**Traces to:** REQ-010, DES-004, TASK-5
-
----
-
-### ARCH-027: QA Yield Schema
-
-Formal schema for yields produced by universal QA.
-
-**approved:**
-
-```toml
-[yield]
-type = "approved"
-timestamp = <datetime>
-
-[payload]
-reviewed_artifact = "<primary artifact path>"
-contract_source = "<producer SKILL.md path>"
-
-[[payload.checklist]]
-id = "CHECK-001"
-description = "<check description>"
-passed = true
-
-[[payload.checklist]]
-id = "CHECK-002"
-description = "<check description>"
-passed = true
-note = "<optional note>"
-
-[context]
-phase = "<phase>"
-role = "qa"
-iteration = <n>
-```
-
-**improvement-request:**
-
-```toml
-[yield]
-type = "improvement-request"
-timestamp = <datetime>
-
-[payload]
-from_agent = "qa"
-to_agent = "<producer-name>"
-iteration = <n>
-
-# Specific issues to fix
-issues = [
-    "CHECK-001: <specific problem>",
-    "CHECK-002: <specific problem>"
-]
-
-# Full checklist for reference
-[[payload.checklist]]
-id = "CHECK-001"
-description = "<check description>"
-passed = false
-details = "<what's wrong>"
-
-[context]
-phase = "<phase>"
-role = "qa"
-iteration = <n>
-max_iterations = 3
-```
-
-**escalate-phase:**
-
-```toml
-[yield]
-type = "escalate-phase"
-timestamp = <datetime>
-
-[payload.escalation]
-from_phase = "<current phase>"
-to_phase = "<upstream phase>"
-reason = "<error|gap|conflict>"
-
-[payload.issue]
-summary = "<brief description>"
-context = "<detailed context>"
-
-[[payload.proposed_changes.<artifact>]]
-action = "<add|modify|remove>"
-id = "<ID>"
-title = "<title>"
-content = "<content>"
-
-[context]
-phase = "<phase>"
-role = "qa"
-escalating = true
-```
-
-**escalate-user:**
-
-```toml
-[yield]
-type = "escalate-user"
-timestamp = <datetime>
-
-[payload]
-reason = "<why escalating>"
-context = "<detailed context>"
-question = "<question for user>"
-options = ["option 1", "option 2"]
-
-[context]
-phase = "<phase>"
-role = "qa"
-escalating = true
-iteration = <n>
-max_iterations_reached = <true|false>
-```
-
-**error:**
-
-```toml
-[yield]
-type = "error"
-timestamp = <datetime>
-
-[payload]
-error = "<error message>"
-details = "<detailed description>"
-recoverable = <true|false>
-
-[context]
-phase = "<phase>"
-role = "qa"
-```
-
-**Traces to:** REQ-005, DES-005, DES-006, DES-007, DES-009, DES-010, DES-011, TASK-2
-
----
-
 ### ARCH-028: Iteration Tracking
 
 QA tracks iterations to prevent infinite producer-QA loops.
 
 **Mechanism:**
 
-1. Orchestrator increments iteration count before each QA dispatch
-2. QA receives iteration info in context
-3. QA includes iteration in yield
-4. After max iterations (3), QA yields `escalate-user` instead of `improvement-request`
+1. Team lead includes iteration count in QA spawn prompt
+2. QA teammate includes iteration in response message
+3. After max iterations (3), QA sends `escalate-user: max iterations reached` instead of `improvement-request`
 
-**Context flow:**
+**Message flow:**
 
 ```
 Iteration 1:
-  Orchestrator -> QA: inputs.iteration.current = 1
-  QA -> Orchestrator: context.iteration = 1, type = "improvement-request"
+  Lead -> QA: "Iteration: 1" in spawn prompt
+  QA -> Lead: "improvement-request: <issues>"
 
 Iteration 2:
-  Orchestrator -> QA: inputs.iteration.current = 2
-  QA -> Orchestrator: context.iteration = 2, type = "improvement-request"
+  Lead -> QA: "Iteration: 2" in spawn prompt
+  QA -> Lead: "improvement-request: <issues>"
 
 Iteration 3:
-  Orchestrator -> QA: inputs.iteration.current = 3
-  QA -> Orchestrator: context.iteration = 3, type = "escalate-user"
+  Lead -> QA: "Iteration: 3" in spawn prompt
+  QA -> Lead: "escalate-user: max iterations reached with remaining issues: <list>"
   (Regardless of whether issues remain)
 ```
 
-**Iteration state in yield:**
+**Iteration tracking in lead:**
 
-```toml
-[context]
-iteration = 3
-max_iterations = 3
-max_iterations_reached = true
-```
+The team lead maintains PairState to track iteration count between producer-QA cycles.
 
 **Traces to:** REQ-005, DES-012, ARCH-008, TASK-2
 
@@ -1073,86 +817,54 @@ Summary of all files requiring modification for this change.
 
 ## ISSUE-56: Inferred Specification Warning Architecture
 
-Technical architecture for how producers detect and yield inferred specifications, and how the orchestrator handles them.
+Technical architecture for how producers detect and send inferred specifications via AskUserQuestion, and how the team lead handles them.
 
 ---
 
-### ARCH-031: Inferred Yield Extension to YIELD.md
+### ARCH-031: Inferred Message Extension
 
-Extend the existing `need-user-input` yield type with an optional `inferred` flag rather than introducing a new yield type.
+Extend the existing user input message pattern with an optional `inferred` flag rather than introducing a new message type.
 
-**Extension to YIELD.md:**
+**Message pattern:**
 
-```toml
-[yield]
-type = "need-user-input"
-timestamp = 2026-02-05T12:00:00Z
-
-[payload]
-inferred = true
-question = "The following specifications were inferred and not explicitly requested. Accept or reject each."
-
-[[payload.items]]
-specification = "REQ-X: Input validation for empty strings"
-reasoning = "Edge case: empty input could cause downstream errors"
-source = "edge-case"
-
-[[payload.items]]
-specification = "REQ-Y: Rate limiting on API calls"
-reasoning = "Implicit need: without rate limiting, external API costs could spike"
-source = "implicit-need"
-
-[context]
-phase = "pm"
-subphase = "SYNTHESIZE"
-awaiting = "user-response"
-```
-
-**New payload fields when `inferred = true`:**
-- `payload.inferred` (bool): Distinguishes inference confirmations from regular questions
-- `payload.items` (array): Each item has `specification`, `reasoning`, and `source`
+Producer sends a message via SendMessage or AskUserQuestion with:
+- `inferred = true` flag
+- `items` array with each item containing `specification`, `reasoning`, and `source`
 - `source` enum: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
 
-**Backward compatibility:** Existing `need-user-input` yields without `inferred` field continue working unchanged. The orchestrator checks for `payload.inferred` to determine handling.
+**Example:**
+```
+Producer uses AskUserQuestion with:
+- question: "The following specifications were inferred. Accept or reject each."
+- answers: List of inferred items with reasoning
+```
 
-**File to modify:** `skills/shared/YIELD.md`
+**Backward compatibility:** Existing messages without `inferred` flag continue working unchanged. The orchestrator checks for `inferred` to determine handling.
 
 **Traces to:** REQ-012, DES-014, ARCH-018, TASK-11
 
 ---
 
-### ARCH-032: Orchestrator Inferred Yield Handling
+### ARCH-032: Orchestrator Inferred Message Handling
 
-The orchestrator adds a new branch in its `need-user-input` handler to detect and present inferred specifications.
+The orchestrator detects and presents inferred specifications from producer messages.
 
-**Modified resumption protocol (ARCH-018, step 2):**
+**Message handling:**
 
 ```
-2. **need-user-input** - Orchestrator checks payload:
-   a. If payload.inferred = true:
+When orchestrator receives message from producer:
+   a. If message contains inferred = true:
       - Format items as numbered accept/reject list
       - Present to user with reasoning for each
       - Capture per-item accept/reject decisions
-      - Write decisions to [query_results.inferred_decisions]
-      - Re-invoke skill
-   b. Else (regular question):
-      - Prompt user, capture response (existing behavior)
-      - Write to [query_results]
-      - Re-invoke skill
+      - Send decisions back to producer via SendMessage
+   b. Else (regular message):
+      - Handle normally (existing behavior)
 ```
 
-**Response format written back to producer:**
+**Response sent back to producer:**
 
-```toml
-[query_results]
-[[query_results.inferred_decisions]]
-specification = "REQ-X: Input validation for empty strings"
-accepted = true
-
-[[query_results.inferred_decisions]]
-specification = "REQ-Y: Rate limiting on API calls"
-accepted = false
-```
+Producer receives message with accepted/rejected decisions for each inferred item.
 
 **File to modify:** `skills/project/SKILL.md` (PAIR LOOP pattern), `skills/project/SKILL-full.md`
 
@@ -1167,7 +879,7 @@ Producers add an inference classification step between SYNTHESIZE and PRODUCE ph
 **Modified producer workflow:**
 
 ```
-GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
+GATHER -> SYNTHESIZE -> CLASSIFY -> [SEND INFERRED MESSAGE] -> PRODUCE
 ```
 
 **CLASSIFY step:**
@@ -1176,7 +888,7 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
 2. For each specification, determine if it is:
    - **Explicit**: Directly traceable to user input, issue description, interview response, or gathered context document
    - **Inferred**: Added by the producer based on best practices, edge cases, implicit needs, or professional judgment
-3. If any inferred items exist, yield `need-user-input` with `inferred = true` before proceeding to PRODUCE
+3. If any inferred items exist, send message to orchestrator with `inferred = true` before proceeding to PRODUCE
 4. After receiving user decisions, drop rejected items and proceed to PRODUCE with only explicit + accepted items
 
 **Classification heuristic:**
@@ -1203,12 +915,12 @@ GATHER -> SYNTHESIZE -> CLASSIFY -> [YIELD INFERRED] -> PRODUCE
 
 | Decision | Choice |
 |----------|--------|
-| Yield mechanism | `need-user-input` with `inferred = true` flag (not new type) |
-| Orchestrator handling | New branch in need-user-input handler |
+| Communication mechanism | AskUserQuestion with `inferred = true` flag |
+| Team lead handling | Format and present inferred items; relay user decisions to producer |
 | Producer workflow | New CLASSIFY step between SYNTHESIZE and PRODUCE |
 | Classification default | When in doubt, classify as inferred (conservative) |
 | Source categories | best-practice, edge-case, implicit-need, professional-judgment |
-| Affected files | YIELD.md, PRODUCER-TEMPLATE.md, project SKILL.md, 6 producer SKILL.md files |
+| Affected files | PRODUCER-TEMPLATE.md, project SKILL.md, 6 producer SKILL.md files |
 
 **Traceability Matrix:**
 

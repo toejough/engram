@@ -94,11 +94,11 @@ else
     exit 1
 fi
 
-# TASK-22b Requirement: Outputs yield protocol TOML after all nested loops complete
-if grep -q 'complete' "$SKILL_FILE" && grep -qi 'yield' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield after all nested loops"
+# TASK-22b Requirement: Documents completion after all nested loops
+if grep -qiE 'complete|finish.*all|all.*complete' "$SKILL_FILE"; then
+    echo "PASS: Documents completion after all nested loops"
 else
-    echo "FAIL: Missing complete yield documentation"
+    echo "FAIL: Missing completion documentation"
     exit 1
 fi
 

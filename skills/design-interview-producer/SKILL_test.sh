@@ -84,19 +84,19 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# Check documents need-user-input yield for design questions
-if grep -q 'need-user-input' "$SKILL_FILE"; then
-    echo "PASS: Documents need-user-input yield"
+# Check documents user interaction for design questions
+if grep -q 'AskUserQuestion' "$SKILL_FILE"; then
+    echo "PASS: Documents AskUserQuestion for design interview"
 else
-    echo "FAIL: Missing need-user-input yield documentation"
+    echo "FAIL: Missing AskUserQuestion documentation"
     exit 1
 fi
 
-# Check documents complete yield with design.md artifact
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'design.md' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with design.md artifact"
+# Check documents design.md artifact delivery
+if grep -q 'design.md' "$SKILL_FILE"; then
+    echo "PASS: Documents design.md artifact delivery"
 else
-    echo "FAIL: Missing complete yield or design.md artifact documentation"
+    echo "FAIL: Missing design.md artifact documentation"
     exit 1
 fi
 

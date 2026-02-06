@@ -62,19 +62,11 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-6 Requirement: Documents need-context yield for code exploration
-if grep -q 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents need-context yield"
+# TASK-6 Requirement: Documents requirements.md artifact delivery
+if grep -q 'requirements.md' "$SKILL_FILE"; then
+    echo "PASS: Documents requirements.md artifact delivery"
 else
-    echo "FAIL: Missing need-context yield documentation"
-    exit 1
-fi
-
-# TASK-6 Requirement: Documents complete yield with requirements.md artifact
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'requirements.md' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with requirements.md artifact"
-else
-    echo "FAIL: Missing complete yield or requirements.md artifact documentation"
+    echo "FAIL: Missing requirements.md artifact documentation"
     exit 1
 fi
 

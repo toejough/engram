@@ -86,14 +86,6 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# No legacy TOML references
-if grep -q 'TOML' "$TEMPLATE_FILE"; then
-    echo "FAIL: Legacy TOML reference still present"
-    exit 1
-else
-    echo "PASS: No legacy TOML references"
-fi
-
 # Should specify role = producer
 if grep -q 'role:.*producer' "$TEMPLATE_FILE" || grep -q 'role = "producer"' "$TEMPLATE_FILE"; then
     echo "PASS: Specifies producer role"

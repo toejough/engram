@@ -54,14 +54,6 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-24 Requirement: Documents complete yield with summary artifacts
-if grep -q 'complete' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
-else
-    echo "FAIL: Missing complete yield documentation"
-    exit 1
-fi
-
 # TASK-24 Requirement: Produces project summary with key decisions
 if grep -qi 'decision' "$SKILL_FILE"; then
     echo "PASS: Documents key decisions in summary"
@@ -78,11 +70,11 @@ else
     exit 1
 fi
 
-# TASK-24 Requirement: Outputs yield protocol TOML
-if grep -q '\[yield\]' "$SKILL_FILE" && grep -q 'type = "complete"' "$SKILL_FILE"; then
-    echo "PASS: Outputs yield protocol TOML"
+# TASK-24 Requirement: Documents summary artifact delivery
+if grep -qiE 'summary.*artifact|summary.*file|summary\.md' "$SKILL_FILE"; then
+    echo "PASS: Documents summary artifact delivery"
 else
-    echo "FAIL: Missing yield protocol TOML example"
+    echo "FAIL: Missing summary artifact delivery documentation"
     exit 1
 fi
 

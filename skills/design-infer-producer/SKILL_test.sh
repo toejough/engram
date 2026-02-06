@@ -98,30 +98,22 @@ test_no_yield_reference() {
     fi
 }
 
-# Test: Documents need-context yield for UI/UX analysis
-test_need_context_yield() {
+# Test: Documents UI/UX analysis context gathering
+test_context_gathering() {
     if ! test_skill_exists; then
         return 1
-    fi
-
-    if ! grep -qi 'need-context' "$SKILL_FILE"; then
-        fail "Missing documentation of need-context yield"
     fi
 
     # Should mention UI/UX analysis context
     if ! grep -qiE 'UI|UX|interface|visual' "$SKILL_FILE"; then
-        fail "Missing UI/UX analysis context for need-context yield"
+        fail "Missing UI/UX analysis context documentation"
     fi
 }
 
-# Test: Documents complete yield with design.md artifact
-test_complete_yield() {
+# Test: Documents design.md artifact delivery
+test_artifact_delivery() {
     if ! test_skill_exists; then
         return 1
-    fi
-
-    if ! grep -qi 'complete' "$SKILL_FILE"; then
-        fail "Missing documentation of complete yield"
     fi
 
     if ! grep -q 'design.md' "$SKILL_FILE"; then
@@ -155,8 +147,8 @@ main() {
     test_frontmatter
     test_producer_pattern
     test_no_yield_reference
-    test_need_context_yield
-    test_complete_yield
+    test_context_gathering
+    test_artifact_delivery
     test_infer_description
 
     echo

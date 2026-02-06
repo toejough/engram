@@ -54,14 +54,6 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-24 Requirement: Documents complete yield
-if grep -q 'complete' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
-else
-    echo "FAIL: Missing complete yield documentation"
-    exit 1
-fi
-
 # TASK-24 Requirement: Covers "what went well"
 if grep -qi 'went well\|successes\|worked well' "$SKILL_FILE"; then
     echo "PASS: Covers what went well / successes"
@@ -86,11 +78,11 @@ else
     exit 1
 fi
 
-# TASK-24 Requirement: Shows TOML yield example
-if grep -q '\[yield\]' "$SKILL_FILE" && grep -q 'type = "complete"' "$SKILL_FILE"; then
-    echo "PASS: Shows TOML yield example"
+# TASK-24 Requirement: Documents retrospective artifact delivery
+if grep -qiE 'retro.*artifact|retro.*file|retro\.md|retrospective\.md' "$SKILL_FILE"; then
+    echo "PASS: Documents retrospective artifact delivery"
 else
-    echo "FAIL: Missing TOML yield example with [yield] and type"
+    echo "FAIL: Missing retrospective artifact delivery documentation"
     exit 1
 fi
 

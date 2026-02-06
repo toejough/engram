@@ -56,16 +56,16 @@ TASK-1 (CONTRACT.md)
 **Acceptance Criteria:**
 - [ ] File exists at `skills/qa/SKILL.md`
 - [ ] Frontmatter has `name: qa`, `model: haiku`, `role: qa`
-- [ ] Implements LOAD phase: read context, extract contract from producer SKILL.md, read yield, read artifacts
+- [ ] Implements LOAD phase: read context, extract contract from producer SKILL.md, read producer output, read artifacts
 - [ ] Implements VALIDATE phase: execute checks against artifacts, record pass/fail
-- [ ] Implements RETURN phase: yield `approved`, `improvement-request`, `escalate-phase`, `escalate-user`, or `error`
+- [ ] Implements RETURN phase: sends message with `approved`, `improvement-request`, `escalate-phase`, `escalate-user`, or `error`
 - [ ] Contract extraction uses markdown parsing per ARCH-021 algorithm
 - [ ] Falls back to prose extraction when no contract section found per ARCH-024
 - [ ] Tracks iteration count per ARCH-028 (max 3 iterations)
-- [ ] Yields `escalate-user` when max iterations reached
-- [ ] Error handling: yields `improvement-request` for malformed yield per DES-006
-- [ ] Error handling: yields `improvement-request` for missing artifacts per DES-007
-- [ ] Error handling: yields `error` for unreadable producer SKILL.md per DES-009
+- [ ] Sends `escalate-user` when max iterations reached
+- [ ] Error handling: sends `improvement-request` for malformed output per DES-006
+- [ ] Error handling: sends `improvement-request` for missing artifacts per DES-007
+- [ ] Error handling: sends `error` for unreadable producer SKILL.md per DES-009
 - [ ] Output format shows full checklist per DES-003
 
 **Files:** `skills/qa/SKILL.md`
@@ -321,12 +321,12 @@ TASK-11 (YIELD.md extension)
 **Status:** Ready
 
 **Acceptance Criteria:**
-- [ ] `skills/shared/YIELD.md` documents `payload.inferred = true` field on `need-user-input`
-- [ ] Documents `payload.items` array with `specification`, `reasoning`, `source` fields
+- [ ] Producer communication documentation documents `inferred` message pattern
+- [ ] Documents `items` array with `specification`, `reasoning`, `source` fields
 - [ ] Documents `source` enum: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
-- [ ] Includes complete TOML example of an inferred yield
+- [ ] Includes complete example of an inferred specification message
 - [ ] Documents that `inferred` field is optional (backward compatible)
-- [ ] Documents the `query_results.inferred_decisions` response format
+- [ ] Documents the inferred decisions response format
 
 **Files:** `skills/shared/YIELD.md`
 
@@ -360,17 +360,17 @@ TASK-11 (YIELD.md extension)
 
 ### TASK-13: Update orchestrator to handle inferred specification yields
 
-**Description:** Update `skills/project/SKILL.md` and `skills/project/SKILL-full.md` to detect `payload.inferred = true` on `need-user-input` yields and present inferred items as a numbered accept/reject list.
+**Description:** Update `skills/project/SKILL.md` and `skills/project/SKILL-full.md` to detect `inferred = true` messages from producers and present inferred items as a numbered accept/reject list.
 
 **Status:** Ready
 
 **Acceptance Criteria:**
-- [ ] Orchestrator PAIR LOOP pattern handles `payload.inferred = true` on `need-user-input`
+- [ ] Orchestrator PAIR LOOP pattern handles `inferred = true` messages from producers
 - [ ] Inferred items presented as numbered list with reasoning
 - [ ] User can accept all, reject all, or selectively accept/reject
-- [ ] Accepted/rejected decisions written to `query_results.inferred_decisions`
-- [ ] Producer resumed with decisions after user responds
-- [ ] SKILL-full.md resume map updated for inferred yield handling
+- [ ] Accepted/rejected decisions sent back to producer
+- [ ] Producer continues with decisions after user responds
+- [ ] SKILL-full.md updated for inferred message handling
 
 **Files:**
 - `skills/project/SKILL.md`
@@ -396,7 +396,7 @@ TASK-11 (YIELD.md extension)
 - [ ] arch-interview-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
 - [ ] arch-infer-producer/SKILL.md references PRODUCER-TEMPLATE.md inference guidelines
 - [ ] Each skill's workflow section includes the CLASSIFY step between SYNTHESIZE and PRODUCE
-- [ ] Each skill's yield types table includes the inferred variant of `need-user-input`
+- [ ] Each skill's communication pattern includes the inferred message type
 
 **Files:**
 - `skills/pm-interview-producer/SKILL.md`

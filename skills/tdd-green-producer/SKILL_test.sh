@@ -70,11 +70,11 @@ else
     exit 1
 fi
 
-# TASK-20 Requirement: Documents complete yield
-if grep -q 'complete' "$SKILL_FILE" && grep -qi 'yield' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
+# TASK-20 Requirement: Documents implementation artifact delivery
+if grep -qiE 'implementation|code' "$SKILL_FILE"; then
+    echo "PASS: Documents implementation artifact delivery"
 else
-    echo "FAIL: Missing complete yield documentation"
+    echo "FAIL: Missing implementation artifact delivery documentation"
     exit 1
 fi
 

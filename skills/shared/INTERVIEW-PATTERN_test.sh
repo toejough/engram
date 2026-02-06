@@ -180,13 +180,5 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# No legacy TOML references
-if grep -q 'TOML\|\.toml' "$PATTERN_FILE"; then
-    echo "FAIL: Legacy TOML reference still present"
-    exit 1
-else
-    echo "PASS: No legacy TOML references"
-fi
-
 echo ""
 echo "=== All tests passed ==="

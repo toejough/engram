@@ -1,5 +1,7 @@
 # Migration Plan: projctl Orchestration to Claude Code Agent Teams
 
+> **Historical Note:** This migration plan was executed in two phases during January-February 2026. Phase 1 (ISSUE-69 through ISSUE-72) and Phase 2 (ISSUE-73 through ISSUE-80) successfully completed the migration from the yield protocol to Claude Code's native team mode. This document is preserved for historical reference.
+
 ## Summary
 
 Replace projctl's custom coordination layer (yield protocol, context TOML files,

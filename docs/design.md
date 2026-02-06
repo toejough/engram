@@ -1,6 +1,6 @@
 # ISSUE-53: Universal QA Skill Design
 
-Design decisions for replacing 13 phase-specific QA skills with one universal QA skill.
+Design decisions for replacing 13 phase-specific QA skills with one universal QA skill using team messaging.
 
 ---
 
@@ -107,76 +107,79 @@ QA Results: FAILED
 
 ### DES-004: QA Context Input
 
-Orchestrator provides QA skill with three inputs via context file:
+Team lead provides QA teammate with context via spawn prompt:
 
-```toml
-[inputs]
-producer_skill_path = "skills/design-interview-producer/SKILL.md"
-producer_yield_path = ".projctl/yields/design-producer-yield.toml"
-artifact_paths = ["docs/design.md"]
+```
+Invoke the /qa skill to validate the producer's output.
+
+Producer SKILL.md: skills/design-interview-producer/SKILL.md
+Artifact paths: docs/design.md
+Iteration: 1
+
+Context:
+The design-interview-producer completed and reported:
+- Created DES-001 through DES-012
+- Modified: docs/design.md
 ```
 
 **Design rationale:**
-- `producer_skill_path`: QA extracts contract from this file
-- `producer_yield_path`: QA reads what producer claims it did
-- `artifact_paths`: QA validates these files against contract
+- QA reads producer SKILL.md to extract contract
+- QA reads artifact files directly using Read tool
+- QA validates artifacts against contract checks
 
 **Traces to:** REQ-005, REQ-010
 
 ---
 
-### DES-005: QA Yield Types
+### DES-005: QA Message Types
 
-QA skill yields one of four types based on validation results:
+QA teammate sends one of four message patterns to team lead based on validation results:
 
-| Condition | Yield Type |
-|-----------|------------|
+| Condition | Message Pattern |
+|-----------|-----------------|
 | All checks pass | `approved` |
-| Check failures that producer can fix | `improvement-request` |
-| Problem in upstream phase artifact | `escalate-phase` |
-| Cannot resolve without user | `escalate-user` |
+| Check failures that producer can fix | `improvement-request: <issues>` |
+| Problem in upstream phase artifact | `escalate-phase: <reason>` |
+| Cannot resolve without user | `escalate-user: <reason>` |
 
-**approved payload:**
-```toml
-[payload]
-reviewed_artifact = "docs/design.md"
-checklist = [
-    { id = "CHECK-001", description = "Every entry has DES-N ID", passed = true },
-    { id = "CHECK-002", description = "Traces to REQ-N", passed = true }
-]
+**approved message:**
+```
+approved
+
+Reviewed artifact: docs/design.md
+Checklist:
+[x] CHECK-001: Every entry has DES-N ID
+[x] CHECK-002: Traces to REQ-N
 ```
 
-**improvement-request payload:**
-```toml
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "CHECK-002: DES-003 has no traces",
-    "CHECK-002: DES-007 has no traces"
-]
+**improvement-request message:**
+```
+improvement-request: missing traces
+
+Issues to fix:
+- CHECK-002: DES-003 has no traces
+- CHECK-002: DES-007 has no traces
 ```
 
 **Traces to:** REQ-005
 
 ---
 
-### DES-006: Error Handling - Malformed Yield
+### DES-006: Error Handling - Invalid Producer Output
 
-When producer yield is invalid (bad TOML, missing required fields):
+When producer's completion message is missing expected information:
 
-- QA yields `improvement-request`
-- Issues list contains parse error details
-- Producer receives feedback and can fix
+- QA sends `improvement-request: incomplete producer output`
+- Message includes what information is missing
+- Team lead spawns new producer with feedback
 
-```toml
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "Yield parse error: missing required field 'artifact' in [payload]",
-    "Line 5: invalid TOML syntax"
-]
+**Example message:**
+```
+improvement-request: incomplete producer output
+
+Missing information:
+- No artifact paths provided in completion message
+- No IDs reported for created items
 ```
 
 **Traces to:** REQ-005
@@ -187,17 +190,16 @@ issues = [
 
 When artifact files don't exist:
 
-- QA yields `improvement-request`
-- Issues list contains missing file paths
-- Producer can create the missing files
+- QA sends `improvement-request: missing artifacts`
+- Message includes missing file paths
+- Team lead spawns new producer to create the files
 
-```toml
-[payload]
-from_agent = "qa"
-to_agent = "design-interview-producer"
-issues = [
-    "Missing artifact: docs/design.md (file not found)"
-]
+**Example message:**
+```
+improvement-request: missing artifacts
+
+Missing files:
+- docs/design.md (file not found)
 ```
 
 **Traces to:** REQ-005
@@ -227,18 +229,16 @@ When producer SKILL.md has no Contract section:
 
 When producer SKILL.md cannot be read (file not found, permissions):
 
-- QA yields `error` type (not improvement-request)
+- QA sends `error: cannot read producer SKILL.md`
 - Cannot validate without contract
-- Orchestrator must resolve before QA can proceed
+- Team lead must resolve before QA can proceed
 
-```toml
-[yield]
-type = "error"
+**Example message:**
+```
+error: cannot read producer SKILL.md
 
-[payload]
-error = "Cannot read producer SKILL.md"
-details = "File not found: skills/design-interview-producer/SKILL.md"
-recoverable = false
+Details: File not found: skills/design-interview-producer/SKILL.md
+This is not recoverable - team lead must fix the path.
 ```
 
 **Traces to:** REQ-005
@@ -249,29 +249,25 @@ recoverable = false
 
 When QA discovers problem in upstream artifact (not current producer's fault):
 
-- QA yields `escalate-phase`
+- QA sends `escalate-phase: <reason>`
 - Includes proposed changes for upstream phase
-- Orchestrator routes back to correct phase
+- Team lead routes back to correct phase
 
 **Example: Design QA finds missing requirement**
-```toml
-[yield]
-type = "escalate-phase"
+```
+escalate-phase: gap in upstream requirements
 
-[payload.escalation]
-from_phase = "design"
-to_phase = "pm"
-reason = "gap"
+From phase: design
+To phase: pm
+Reason: gap
 
-[payload.issue]
-summary = "Design references capability not in requirements"
-context = "DES-005 describes error recovery but no REQ addresses error handling"
+Issue:
+Design references capability not in requirements.
+DES-005 describes error recovery but no REQ addresses error handling.
 
-[[payload.proposed_changes.requirements]]
-action = "add"
-id = "REQ-012"
-title = "Error Recovery"
-content = "System must provide clear error messages when validation fails"
+Proposed change:
+Add REQ-012: Error Recovery
+"System must provide clear error messages when validation fails"
 ```
 
 **Traces to:** REQ-005
@@ -282,20 +278,22 @@ content = "System must provide clear error messages when validation fails"
 
 When QA cannot resolve conflict or ambiguity:
 
-- QA yields `escalate-user`
+- QA sends `escalate-user: <reason>`
 - Presents question with options
-- Orchestrator prompts user, resumes with answer
+- Team lead prompts user, sends answer back to QA
 
 **Example: Conflicting requirements**
-```toml
-[yield]
-type = "escalate-user"
+```
+escalate-user: conflicting traces
 
-[payload]
-reason = "Conflicting traces"
-context = "DES-003 traces to both REQ-002 and REQ-005, which contradict each other"
-question = "Which requirement takes priority?"
-options = ["REQ-002 (offline-first)", "REQ-005 (real-time sync)", "Both with user toggle"]
+Reason: Conflicting traces
+Context: DES-003 traces to both REQ-002 and REQ-005, which contradict each other.
+
+Question: Which requirement takes priority?
+Options:
+1. REQ-002 (offline-first)
+2. REQ-005 (real-time sync)
+3. Both with user toggle
 ```
 
 **Traces to:** REQ-005
@@ -307,13 +305,18 @@ options = ["REQ-002 (offline-first)", "REQ-005 (real-time sync)", "Both with use
 QA tracks producer-QA iterations to prevent infinite loops:
 
 - Maximum 3 iterations per producer-QA pair
-- After max iterations with issues remaining: yield `escalate-user`
-- Iteration count tracked in yield context
+- After max iterations with issues remaining: send `escalate-user: max iterations reached`
+- Iteration count tracked in team lead's PairState
 
-```toml
-[context]
-iteration = 3
-max_iterations = 3
+**Example message on max iterations:**
+```
+escalate-user: max iterations reached
+
+Iteration 3 of 3 reached with remaining issues:
+- CHECK-002: DES-003 still has no traces
+- CHECK-005: Missing design rationale
+
+User decision needed: accept as-is, extend iterations, or modify requirements?
 ```
 
 **Traces to:** REQ-005
@@ -328,11 +331,10 @@ User invokes QA with producer name:
 /qa design-interview-producer
 ```
 
-Orchestrator resolves this to:
+Team lead resolves this to:
 1. Find producer SKILL.md at `skills/design-interview-producer/SKILL.md`
-2. Find producer's most recent yield
-3. Find artifact paths from yield
-4. Pass all three to universal QA skill
+2. Find producer's most recent completion message for artifact paths
+3. Spawn QA teammate with producer SKILL.md path and artifact paths
 
 **Traces to:** REQ-005, REQ-010
 
@@ -340,70 +342,60 @@ Orchestrator resolves this to:
 
 ## ISSUE-56: Inferred Specification Warning Design
 
-Design decisions for how producers flag inferred specifications and how the orchestrator presents them for user approval.
+Design decisions for how producers flag inferred specifications via AskUserQuestion and how the team lead presents them for user approval.
 
 ---
 
-### DES-014: Inferred Yield Format
+### DES-014: Inferred Message Format
 
-Inferred specifications use the existing `need-user-input` yield type with an added `inferred = true` flag in the payload. This avoids a new yield type while clearly distinguishing inferred items from regular interview questions.
+Inferred specifications use AskUserQuestion with an `inferred = true` flag in the options. This distinguishes inferred items from regular interview questions.
 
-```toml
-[yield]
-type = "need-user-input"
-timestamp = 2026-02-05T12:00:00Z
+**AskUserQuestion structure:**
 
-[payload]
-inferred = true
-question = "Accept this inferred specification?"
+The producer teammate uses AskUserQuestion to present inferred items:
 
-[[payload.items]]
-specification = "REQ-X: Input validation for empty strings"
-reasoning = "Edge case: empty input could cause downstream errors"
-source = "best-practice"
-
-[[payload.items]]
-specification = "REQ-Y: Rate limiting on API calls"
-reasoning = "Implicit need: without rate limiting, external API costs could spike"
-source = "edge-case"
-
-[context]
-phase = "pm"
-subphase = "SYNTHESIZE"
-awaiting = "user-response"
+```
+AskUserQuestion with multiSelect: true
+Question: "The following specifications were inferred. Accept or reject each:"
+Options:
+  1. REQ-X: Input validation for empty strings
+     (Reasoning: Edge case - empty input could cause downstream errors, Source: best-practice)
+  2. REQ-Y: Rate limiting on API calls
+     (Reasoning: Implicit need - without rate limiting, external API costs could spike, Source: edge-case)
 ```
 
-**Key fields:**
-- `payload.inferred = true`: Signals this is not a regular question but an inference confirmation
-- `payload.items`: Array of inferred specifications, each with specification text, reasoning, and source category
+**Metadata fields:**
+- `inferred = true`: Signals this is inference confirmation
+- Each option includes: specification text, reasoning, source category
 - `source` values: `best-practice`, `edge-case`, `implicit-need`, `professional-judgment`
 
 **Traces to:** REQ-012
 
 ---
 
-### DES-015: Orchestrator Presentation of Inferred Items
+### DES-015: Team Lead Relay of Inferred Items
 
-The orchestrator presents inferred items as a numbered list with reasoning. The user can accept all, reject all, or selectively accept/reject individual items.
+When a producer teammate sends inferred items via AskUserQuestion, the team lead may relay the question to the user or handle it directly based on context.
 
-**User prompt format:**
+**User presentation format (via team lead relay):**
 ```
 The producer inferred the following specifications that were not
 explicitly requested. Please accept or reject each:
 
-1. [ACCEPT/REJECT] REQ-X: Input validation for empty strings
+1. REQ-X: Input validation for empty strings
    Reasoning: Edge case - empty input could cause downstream errors
+   Source: best-practice
 
-2. [ACCEPT/REJECT] REQ-Y: Rate limiting on API calls
+2. REQ-Y: Rate limiting on API calls
    Reasoning: Implicit need - without rate limiting, external API costs could spike
+   Source: edge-case
 
-Accept all, reject all, or specify by number (e.g., "accept 1, reject 2"):
+Select which items to accept (e.g., "1, 2" for both, "1" for first only):
 ```
 
 **User response handling:**
-- "accept all" / "reject all" for batch decisions
-- Individual responses: "accept 1, reject 2"
-- Free-form responses interpreted by orchestrator
+- Selections captured via AskUserQuestion multiSelect
+- Teammate receives user decisions and proceeds with only accepted + explicit items
 
 **Traces to:** REQ-014
 
@@ -417,11 +409,11 @@ During the SYNTHESIZE phase, producers separate gathered information into two ca
 2. **Inferred**: Added by the producer based on professional judgment
 
 **Workflow:**
-1. Producer completes GATHER phase (interview or context analysis)
+1. Producer teammate completes GATHER phase (interview or context analysis)
 2. During SYNTHESIZE, producer classifies each specification as explicit or inferred
-3. If any inferred items exist, producer yields `need-user-input` with `inferred = true` BEFORE producing the artifact
-4. Orchestrator presents inferred items to user
-5. Producer receives accept/reject responses
+3. If any inferred items exist, producer uses AskUserQuestion with `inferred = true` BEFORE producing the artifact
+4. User responds with accepted items (via team lead relay or directly)
+5. Producer receives user decisions
 6. Producer produces artifact with only explicit + accepted items
 
 **Traces to:** REQ-013, REQ-015
@@ -435,13 +427,12 @@ During the SYNTHESIZE phase, producers separate gathered information into two ca
 | Contract format | Flat YAML, no versions |
 | Contract location | `## Contract` section in producer SKILL.md |
 | QA output | Full checklist always |
-| Malformed yield | `improvement-request` with parse errors |
-| Missing artifacts | `improvement-request` with file list |
+| Missing artifacts | `improvement-request: missing artifacts <list>` message |
 | Missing contract | Prose fallback with warning |
-| Unreadable SKILL.md | `error` (cannot proceed) |
-| Upstream issues | `escalate-phase` with proposed changes |
-| Unresolvable | `escalate-user` with options |
+| Unreadable SKILL.md | `error: cannot read producer SKILL.md` message |
+| Upstream issues | `escalate-phase: <reason>` message with proposed changes |
+| Unresolvable | `escalate-user: <reason>` message with options |
 | Max iterations | 3, then escalate to user |
-| Inferred spec format | `need-user-input` with `inferred = true` flag |
-| Inferred presentation | Numbered list with reasoning, accept/reject per item |
+| Inferred spec format | AskUserQuestion with `inferred = true` metadata |
+| Inferred presentation | Numbered list with reasoning, multiSelect for accept/reject |
 | Inference detection | SYNTHESIZE phase classifies explicit vs inferred before producing |

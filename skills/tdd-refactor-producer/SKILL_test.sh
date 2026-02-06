@@ -70,11 +70,11 @@ else
     exit 1
 fi
 
-# TASK-21 Requirement: Documents complete yield
-if grep -q 'complete' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
+# TASK-21 Requirement: Documents refactored artifact delivery
+if grep -qiE 'refactor|improve.*quality' "$SKILL_FILE"; then
+    echo "PASS: Documents refactored artifact delivery"
 else
-    echo "FAIL: Missing complete yield documentation"
+    echo "FAIL: Missing refactored artifact delivery documentation"
     exit 1
 fi
 

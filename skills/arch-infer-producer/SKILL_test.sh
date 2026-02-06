@@ -62,19 +62,11 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-10 Requirement: Documents need-context yield for code structure analysis
-if grep -q 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents need-context yield"
+# TASK-10 Requirement: Documents architecture.md artifact delivery
+if grep -q 'architecture.md' "$SKILL_FILE"; then
+    echo "PASS: Documents architecture.md artifact delivery"
 else
-    echo "FAIL: Missing need-context yield documentation"
-    exit 1
-fi
-
-# TASK-10 Requirement: Documents complete yield with architecture.md artifact
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'architecture.md' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with architecture.md artifact"
-else
-    echo "FAIL: Missing complete yield or architecture.md artifact documentation"
+    echo "FAIL: Missing architecture.md artifact documentation"
     exit 1
 fi
 

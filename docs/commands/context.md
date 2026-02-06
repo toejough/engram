@@ -42,13 +42,13 @@ Context written: <path-to-context-file>
 
 ---
 
-## The output.yield_path Field
+## The output.result_path Field
 
-When skills are invoked through the orchestration system, context files include an `output.yield_path` field. This field specifies an absolute path where the skill must write its result.
+When skills are invoked through the orchestration system, context files include an `output.result_path` field. This field specifies an absolute path where the skill must write its result.
 
 ### Purpose
 
-The yield_path pattern enables:
+The result_path pattern enables:
 
 1. **Parallel execution**: Multiple skill invocations can run simultaneously without file conflicts
 2. **Unique results**: Each invocation writes to a distinct location via UUID
@@ -56,7 +56,7 @@ The yield_path pattern enables:
 
 ### Context File Structure
 
-A context file with yield_path looks like:
+A context file with result_path looks like:
 
 ```toml
 [dispatch]
@@ -71,14 +71,14 @@ root = "/project"
 languages = ["go"]
 
 [output]
-yield_path = "/project/.claude/context/2026-02-04-myproject-abc123/2026-02-04.14-30-45-impl-TASK-004-def456.toml"
+result_path = "/project/.claude/context/2026-02-04-myproject-abc123/2026-02-04.14-30-45-impl-TASK-004-def456.toml"
 ```
 
-The `output.yield_path` field is always an absolute path.
+The `output.result_path` field is always an absolute path.
 
 ### Path Format
 
-Yield paths follow one of two patterns depending on execution mode:
+Result paths follow one of two patterns depending on execution mode:
 
 **Parallel execution (with task ID):**
 
@@ -128,14 +128,14 @@ This is critical for parallel execution where race conditions would otherwise ca
 
 ## Skill Usage Pattern
 
-Skills follow this pattern when using yield_path:
+Skills follow this pattern when using result_path:
 
-### 1. Read Context and Extract yield_path
+### 1. Read Context and Extract result_path
 
 ```go
 // Parse context file
 type OutputSection struct {
-    YieldPath string `toml:"yield_path"`
+    ResultPath string `toml:"result_path"`
 }
 type ContextFile struct {
     Dispatch DispatchSection `toml:"dispatch"`
@@ -149,14 +149,14 @@ if err != nil {
     return err
 }
 
-yieldPath := ctx.Output.YieldPath
+resultPath := ctx.Output.ResultPath
 ```
 
 ### 2. Perform Skill Work
 
 The skill does its work (writes tests, produces designs, etc.).
 
-### 3. Write Result to yield_path
+### 3. Write Result to result_path
 
 ```go
 result := `[result]
@@ -174,17 +174,17 @@ choice = "Table-driven tests"
 reason = "Cleaner test structure"
 `
 
-err := os.WriteFile(yieldPath, []byte(result), 0o644)
+err := os.WriteFile(resultPath, []byte(result), 0o644)
 ```
 
 ### 4. Orchestrator Reads Result
 
-The orchestrator reads from the known yield_path location:
+The orchestrator reads from the known result_path location:
 
 ```go
-resultData, err := os.ReadFile(yieldPath)
+resultData, err := os.ReadFile(resultPath)
 if err != nil {
-    return fmt.Errorf("skill did not produce result at %s: %w", yieldPath, err)
+    return fmt.Errorf("skill did not produce result at %s: %w", resultPath, err)
 }
 ```
 
@@ -194,7 +194,7 @@ if err != nil {
 
 ### Sequential Execution
 
-In sequential mode, phases run one after another. The yield_path omits taskID:
+In sequential mode, phases run one after another. The result_path omits taskID:
 
 ```
 .claude/context/2026-02-04-myproject-uuid/2026-02-04.10-00-00-pm-fileUUID.toml
@@ -204,7 +204,7 @@ In sequential mode, phases run one after another. The yield_path omits taskID:
 
 ### Parallel Execution
 
-In parallel mode, multiple tasks run simultaneously. The yield_path includes taskID:
+In parallel mode, multiple tasks run simultaneously. The result_path includes taskID:
 
 ```
 .claude/context/2026-02-04-myproject-uuid/2026-02-04.10-00-00-impl-TASK-001-uuid1.toml
@@ -225,7 +225,7 @@ Even with identical timestamps, the fileUUID ensures uniqueness.
 
 ## Result File Format
 
-Skills write results to yield_path as TOML files:
+Skills write results to result_path as TOML files:
 
 ```toml
 [result]

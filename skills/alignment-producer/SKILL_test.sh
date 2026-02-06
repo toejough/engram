@@ -86,27 +86,11 @@ else
     exit 1
 fi
 
-# TASK-24 Requirement: Documents complete yield
-if grep -q 'complete' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield"
+# TASK-24 Requirement: Documents alignment results delivery
+if grep -qiE 'alignment.*result|validation.*result|SendMessage' "$SKILL_FILE"; then
+    echo "PASS: Documents alignment results delivery"
 else
-    echo "FAIL: Missing complete yield documentation"
-    exit 1
-fi
-
-# TASK-24 Requirement: Documents need-context yield for gathering artifacts
-if grep -q 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents need-context yield"
-else
-    echo "FAIL: Missing need-context yield documentation"
-    exit 1
-fi
-
-# TASK-24 Requirement: Outputs yield protocol TOML
-if grep -q '\[yield\]' "$SKILL_FILE" || grep -q 'yield.toml' "$SKILL_FILE" || grep -q 'TOML' "$SKILL_FILE"; then
-    echo "PASS: Documents yield protocol TOML output"
-else
-    echo "FAIL: Missing yield protocol TOML documentation"
+    echo "FAIL: Missing alignment results delivery documentation"
     exit 1
 fi
 

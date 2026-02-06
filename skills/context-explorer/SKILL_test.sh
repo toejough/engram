@@ -94,25 +94,17 @@ else
     exit 1
 fi
 
-# TASK-25 Requirement: Outputs yield protocol TOML (complete with results)
-if grep -q 'complete' "$SKILL_FILE" && grep -q '\[yield\]' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with TOML format"
+# TASK-25 Requirement: Documents results delivery via messaging
+if grep -qiE 'SendMessage|results.*deliver' "$SKILL_FILE" && grep -qi 'results' "$SKILL_FILE"; then
+    echo "PASS: Documents results delivery via messaging"
 else
-    echo "FAIL: Missing complete yield documentation with TOML"
+    echo "FAIL: Missing results delivery documentation"
     exit 1
 fi
 
-# TASK-25 Requirement: Outputs results in payload
-if grep -q '\[payload\]' "$SKILL_FILE" && grep -qi 'results' "$SKILL_FILE"; then
-    echo "PASS: Documents results in yield payload"
-else
-    echo "FAIL: Missing results in yield payload documentation"
-    exit 1
-fi
-
-# TASK-25 Requirement: Documents input format (queries from need-context)
-if grep -q 'queries' "$SKILL_FILE" && grep -qi 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents input as queries from need-context"
+# TASK-25 Requirement: Documents input format (queries)
+if grep -q 'queries' "$SKILL_FILE"; then
+    echo "PASS: Documents input as queries"
 else
     echo "FAIL: Missing input format documentation"
     exit 1

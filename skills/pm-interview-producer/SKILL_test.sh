@@ -70,19 +70,11 @@ else
     exit 1
 fi
 
-# TASK-5 Requirement: Documents need-context yield for gathering existing docs
-if grep -q 'need-context' "$SKILL_FILE"; then
-    echo "PASS: Documents need-context yield"
+# Documents requirements.md artifact delivery
+if grep -q 'requirements.md' "$SKILL_FILE"; then
+    echo "PASS: Documents requirements.md artifact delivery"
 else
-    echo "FAIL: Missing need-context yield documentation"
-    exit 1
-fi
-
-# Documents completion reporting with requirements.md artifact
-if grep -qi 'completion\|complete' "$SKILL_FILE" && grep -q 'requirements.md' "$SKILL_FILE"; then
-    echo "PASS: Documents completion reporting with requirements.md artifact"
-else
-    echo "FAIL: Missing completion reporting or requirements.md artifact documentation"
+    echo "FAIL: Missing requirements.md artifact documentation"
     exit 1
 fi
 

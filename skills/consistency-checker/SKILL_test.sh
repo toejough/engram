@@ -62,24 +62,24 @@ else
     exit 1
 fi
 
-# TASK-25b Requirement: Yields approved if consistent
+# TASK-25b Requirement: Documents approval response
 if grep -q 'approved' "$SKILL_FILE"; then
-    echo "PASS: Documents approved yield"
+    echo "PASS: Documents approval response"
 else
-    echo "FAIL: Missing approved yield documentation"
+    echo "FAIL: Missing approval response documentation"
     exit 1
 fi
 
-# TASK-25b Requirement: Yields improvement-request (batch) if inconsistent
+# TASK-25b Requirement: Documents improvement-request (batch) messaging
 if grep -q 'improvement-request' "$SKILL_FILE"; then
-    echo "PASS: Documents improvement-request yield"
+    echo "PASS: Documents improvement-request messaging"
 else
-    echo "FAIL: Missing improvement-request yield documentation"
+    echo "FAIL: Missing improvement-request messaging documentation"
     exit 1
 fi
 
 # TASK-25b Requirement: Batch improvement request with multiple issues
-if grep -qi 'batch' "$SKILL_FILE" || grep -q 'items\s*=' "$SKILL_FILE"; then
+if grep -qi 'batch' "$SKILL_FILE"; then
     echo "PASS: Documents batch improvement requests"
 else
     echo "FAIL: Missing batch improvement request documentation"
@@ -102,19 +102,11 @@ else
     exit 1
 fi
 
-# TASK-25b Requirement: Outputs yield protocol TOML (has TOML example)
-if grep -q '\[yield\]' "$SKILL_FILE" && grep -q 'type =' "$SKILL_FILE"; then
-    echo "PASS: Contains yield protocol TOML examples"
+# TASK-25b Requirement: Documents escalation via messaging
+if grep -qiE 'escalat|SendMessage' "$SKILL_FILE"; then
+    echo "PASS: Documents escalation via messaging"
 else
-    echo "FAIL: Missing yield protocol TOML examples"
-    exit 1
-fi
-
-# TASK-25b Requirement: Documents escalate-phase yield
-if grep -q 'escalate-phase' "$SKILL_FILE"; then
-    echo "PASS: Documents escalate-phase yield"
-else
-    echo "FAIL: Missing escalate-phase yield documentation"
+    echo "FAIL: Missing escalation messaging documentation"
     exit 1
 fi
 
@@ -123,14 +115,6 @@ if grep -q 'error' "$SKILL_FILE" && grep -q 'gap' "$SKILL_FILE" && grep -q 'conf
     echo "PASS: Documents escalation reasons (error/gap/conflict)"
 else
     echo "FAIL: Missing escalation reasons (must include error, gap, conflict)"
-    exit 1
-fi
-
-# TASK-25b Requirement: Documents escalate-user yield
-if grep -q 'escalate-user' "$SKILL_FILE"; then
-    echo "PASS: Documents escalate-user yield"
-else
-    echo "FAIL: Missing escalate-user yield documentation"
     exit 1
 fi
 

@@ -42,7 +42,6 @@ fi
 
 # Test 4: No pseudocode or validation logic examples in the SKILL.md
 # The skill should not contain code examples showing implementation (pseudocode, validation, data structures)
-# TOML yield examples are fine - those are protocol, not implementation
 if grep -qE "(func |def |class |if.*err|switch.*case|for.*range)" "$SKILL_FILE" 2>/dev/null; then
     fail "SKILL.md contains implementation code patterns (pseudocode/validation logic)"
 else
