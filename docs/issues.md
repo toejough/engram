@@ -3762,3 +3762,148 @@ User → /project
 **Created:** 2026-02-06
 
 Skills were originally designed to spawn sub-agents internally (via Task tool) because they ran in the main conversation context. Now that the orchestrator spawns dedicated teammates for each skill invocation, the internal sub-agent spawn is redundant nesting. Each skill should be updated to execute directly in the current agent context rather than spawning another layer.
+
+---
+
+### ISSUE-106: Retro: Run verification check before committing implementation batches
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: Would have prevented the 'partial cleanup' commit by catching missed files before the first commit. The test script existed but wasn't executed until after implementation commits.
+
+Area: Implementation Phase
+Related challenges: Initial cleanup missed active documentation requiring second fix commit.
+
+---
+
+### ISSUE-107: Retro: Write test scripts against real data before TDD red
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: When creating test infrastructure, run the test against the actual repository (expect failure) before starting implementation. This validates that the test correctly identifies the problem and handles edge cases.
+
+Area: TDD Red Phase
+Related challenges: Test script required edge case refinement after implementation.
+
+---
+
+### ISSUE-108: Retro: Run traceability validation immediately after artifact creation
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: After each artifact (requirements, architecture, design, tasks) is created, run 'projctl trace validate' before proceeding to the next artifact. Fix violations immediately rather than batching corrections.
+
+Area: Planning Phases (REQ/ARCH/DES/TASK)
+Related challenges: Traceability chain violations required correction commit.
+
+---
+
+### ISSUE-109: Retro: Define 'complete' vs 'partial' commit scope explicitly
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: If implementation will be split across multiple commits, define the scope of each commit in the task breakdown (e.g., TASK-2a, TASK-2b) rather than deciding ad-hoc during implementation.
+
+Area: Task Planning Phase
+Related challenges: Partial commit strategy increased commit overhead and unclear scope.
+
+---
+
+### ISSUE-110: Decision needed: Should allowlists be version-controlled separately from test scripts?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from retrospective.
+
+Context: The test script (scripts/test-yield-cleanup.sh) embeds the allowlist directly in bash arrays. As the codebase accumulates more historical artifacts, the allowlist will grow. Should allowlists be extracted to separate configuration files (e.g., .allowed-yield-references) for easier maintenance?
+
+Tradeoff: Separate file = easier to update, but adds another file to track. Embedded = self-contained test script, but harder to read/modify.
+
+---
+
+### ISSUE-111: Decision needed: What is the retention policy for completed project directories?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from retrospective.
+
+Context: .claude/projects/issue-88/ and other closed issue directories are preserved indefinitely. These contain historical context but accumulate over time. Should there be a policy for archiving or pruning old project directories (e.g., older than 6 months)?
+
+Tradeoff: Keeping everything = full history, but repo size grows. Archiving = cleaner repo, but loses context for future debugging.
+
+---
+
+### ISSUE-112: Decision needed: Should grep-based cleanup tasks always use a discovery script?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from retrospective.
+
+Context: ISSUE-88 succeeded because of the multi-pattern grep discovery phase (ARCH-001). Should there be a standard pattern for 'find all X and replace with Y' tasks that always starts with a discovery script that outputs file lists?
+
+Tradeoff: Standard pattern = more consistent, but may be overkill for simple single-file changes. Ad-hoc grep = flexible, but risks missing files.
+
+---
+
+### ISSUE-113: Retro: Increase QA model or add hallucination guards
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: QA agents on haiku fabricated findings in 2 instances during ISSUE-88 (referencing nonexistent REQ-005, ARCH-006, ARCH-010). Either run QA on sonnet or add structural validation that QA findings reference IDs that actually exist in the artifact.
+
+Area: QA validation
+Related challenges: C-002 from ISSUE-88 retro
+
+---
+
+### ISSUE-114: Retro: Add task completion signal to state machine
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: During ISSUE-88, the state machine TDD loop kept cycling back to tdd-red after all 15 tasks were completed. No mechanism exists to signal 'all tasks done'. Required manual force-transition via projctl state transition --force.
+
+Area: State machine
+Related challenges: C-005 from ISSUE-88 retro
+
+---
+
+### ISSUE-115: Retro: Require verification test run before worker completion
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective: During ISSUE-88, worker-docs annotated yield content with 'Historical Notes' instead of removing it. The verification tests would have caught this but the worker didn't run them. Add to tdd-green-producer contract: workers must run verification tests and include results in completion message.
+
+Area: TDD workflow
+Related challenges: C-004 from ISSUE-88 retro
+
+---
+
+### ISSUE-116: Decision needed: What should happen to live yield code in internal/memory?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from ISSUE-88 retrospective.
+
+Context: The projctl memory extract --yield command still uses yield infrastructure at runtime. This was correctly excluded from ISSUE-88 (doc cleanup only), but the live code may need its own migration or deprecation plan. Files: internal/memory/types.go, internal/memory/parse.go, internal/memory/extract.go, cmd/projctl/memory_extract.go
