@@ -195,7 +195,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-002, DES-003, REQ-003, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
