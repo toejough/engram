@@ -65,7 +65,7 @@ After spawning a teammate, the orchestrator checks the teammate's first message 
 
 **Acceptance Criteria:**
 - [ ] Orchestrator compares teammate's first message to `expected_model`
-- [ ] Exact string match marks spawn as successful
+- [ ] Case-insensitive substring match marks spawn as successful (e.g., `expected_model` "sonnet" matches "Claude Sonnet 4.5")
 - [ ] Mismatch triggers `step complete --action <action> --status failed`
 - [ ] No teammate work proceeds until validation passes
 
