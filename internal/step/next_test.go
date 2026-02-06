@@ -418,6 +418,188 @@ func TestComplete(t *testing.T) {
 	})
 }
 
+func TestNextTaskParams(t *testing.T) {
+	t.Run("spawn-producer populates TaskParams with correct fields", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-89",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-producer"))
+		g.Expect(result.TaskParams).ToNot(BeNil())
+		g.Expect(result.TaskParams.SubagentType).To(Equal("code"))
+		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
+		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
+		g.Expect(result.TaskParams.Prompt).To(BeEmpty()) // TASK-3 handles prompt
+		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+	})
+
+	t.Run("spawn-qa populates TaskParams with QA fields", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-89",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-qa"))
+		g.Expect(result.TaskParams).ToNot(BeNil())
+		g.Expect(result.TaskParams.SubagentType).To(Equal("code"))
+		g.Expect(result.TaskParams.Name).To(Equal("qa"))
+		g.Expect(result.TaskParams.Model).To(Equal("haiku"))
+		g.Expect(result.ExpectedModel).To(Equal("haiku"))
+	})
+
+	t.Run("improvement-request re-spawn populates TaskParams", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-89",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:          1,
+			MaxIterations:      3,
+			ProducerComplete:   true,
+			QAVerdict:          "improvement-request",
+			ImprovementRequest: "needs work",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-producer"))
+		g.Expect(result.TaskParams).ToNot(BeNil())
+		g.Expect(result.TaskParams.SubagentType).To(Equal("code"))
+		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
+		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
+		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+	})
+
+	t.Run("non-spawn actions have nil TaskParams and empty ExpectedModel", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Test commit action
+		dir := t.TempDir()
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-89"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			QAVerdict:        "approved",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("commit"))
+		g.Expect(result.TaskParams).To(BeNil())
+		g.Expect(result.ExpectedModel).To(BeEmpty())
+	})
+
+	t.Run("transition action has nil TaskParams", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("transition"))
+		g.Expect(result.TaskParams).To(BeNil())
+		g.Expect(result.ExpectedModel).To(BeEmpty())
+	})
+
+	t.Run("all-complete action has nil TaskParams", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		phases := []string{
+			"pm", "pm-complete", "design", "design-complete",
+			"architect", "architect-complete", "breakdown", "breakdown-complete",
+			"implementation", "task-start", "tdd-red",
+			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
+			"commit-refactor", "task-audit", "task-complete",
+			"implementation-complete", "documentation", "documentation-complete",
+			"alignment", "alignment-complete", "retro", "retro-complete",
+			"summary", "summary-complete", "issue-update", "next-steps", "complete",
+		}
+		for _, phase := range phases {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("all-complete"))
+		g.Expect(result.TaskParams).To(BeNil())
+		g.Expect(result.ExpectedModel).To(BeEmpty())
+	})
+
+	t.Run("tdd-red spawn-producer has correct TaskParams", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "task",
+			Issue:    "ISSUE-42",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "task-start", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams).ToNot(BeNil())
+		g.Expect(result.TaskParams.SubagentType).To(Equal("code"))
+		g.Expect(result.TaskParams.Name).To(Equal("tdd-red-producer"))
+		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
+		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+	})
+}
+
 func TestNextResult_JSON(t *testing.T) {
 	t.Run("NextResult contains all required fields", func(t *testing.T) {
 		g := NewWithT(t)

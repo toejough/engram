@@ -14,15 +14,25 @@ type StepContext struct {
 	QAFeedback     string   `json:"qa_feedback,omitempty"`
 }
 
+// TaskParams holds the exact parameters for a Task tool call.
+type TaskParams struct {
+	SubagentType string `json:"subagent_type"`
+	Name         string `json:"name"`
+	Model        string `json:"model"`
+	Prompt       string `json:"prompt,omitempty"`
+}
+
 // NextResult holds the structured output of step next.
 type NextResult struct {
-	Action    string      `json:"action"`               // spawn-producer, spawn-qa, commit, transition, all-complete
-	Skill     string      `json:"skill,omitempty"`       // Skill name
-	SkillPath string      `json:"skill_path,omitempty"`  // Path to SKILL.md
-	Model     string      `json:"model,omitempty"`       // Model to use
-	Artifact  string      `json:"artifact,omitempty"`    // Artifact produced
-	Phase     string      `json:"phase,omitempty"`       // Current or target phase
-	Context   StepContext `json:"context"`               // Contextual information
+	Action        string      `json:"action"`                    // spawn-producer, spawn-qa, commit, transition, all-complete
+	Skill         string      `json:"skill,omitempty"`           // Skill name
+	SkillPath     string      `json:"skill_path,omitempty"`      // Path to SKILL.md
+	Model         string      `json:"model,omitempty"`           // Model to use
+	Artifact      string      `json:"artifact,omitempty"`        // Artifact produced
+	Phase         string      `json:"phase,omitempty"`           // Current or target phase
+	Context       StepContext `json:"context"`                   // Contextual information
+	TaskParams    *TaskParams `json:"task_params,omitempty"`     // Task tool call parameters (non-nil for spawn actions)
+	ExpectedModel string     `json:"expected_model,omitempty"`  // Expected model for handshake validation
 }
 
 // CompleteResult holds the input to step complete.
@@ -88,6 +98,12 @@ func Next(dir string) (NextResult, error) {
 			Artifact:  info.Artifact,
 			Phase:     currentPhase,
 			Context:   ctx,
+			TaskParams: &TaskParams{
+				SubagentType: "code",
+				Name:         info.Producer,
+				Model:        info.ProducerModel,
+			},
+			ExpectedModel: info.ProducerModel,
 		}, nil
 
 	case pair.ProducerComplete && pair.QAVerdict == "":
@@ -100,6 +116,12 @@ func Next(dir string) (NextResult, error) {
 			Artifact:  info.Artifact,
 			Phase:     currentPhase,
 			Context:   ctx,
+			TaskParams: &TaskParams{
+				SubagentType: "code",
+				Name:         info.QA,
+				Model:        info.QAModel,
+			},
+			ExpectedModel: info.QAModel,
 		}, nil
 
 	case pair.QAVerdict == "improvement-request":
@@ -113,6 +135,12 @@ func Next(dir string) (NextResult, error) {
 			Artifact:  info.Artifact,
 			Phase:     currentPhase,
 			Context:   ctx,
+			TaskParams: &TaskParams{
+				SubagentType: "code",
+				Name:         info.Producer,
+				Model:        info.ProducerModel,
+			},
+			ExpectedModel: info.ProducerModel,
 		}, nil
 
 	case pair.QAVerdict == "approved":
