@@ -3252,7 +3252,7 @@ Scan complete. Three lessons preserved in CLAUDE.md (duplicate role guards, patt
 ### ISSUE-88: Decision needed: Clean up remaining yield references in docs
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 
 Unresolved question from retrospective (retro-phase2.md Q2). Context: ISSUE-80 removed the Go yield infrastructure, but there may be stale references to yield concepts in documentation, CLAUDE.md, skill docs, or other non-code files. A grep for yield across the repo would identify any cleanup needed.
