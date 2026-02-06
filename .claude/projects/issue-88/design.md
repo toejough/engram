@@ -39,7 +39,7 @@ This design documents the approach for systematically finding and removing all r
 - Historical issue files that document the yield removal itself
 - Test fixtures that intentionally preserve old formats for migration testing
 
-**Traces to:** REQ-001, REQ-002, REQ-003, ISSUE-88
+**Traces to:** REQ-001, REQ-002, REQ-003
 
 ---
 
@@ -72,7 +72,7 @@ This design documents the approach for systematically finding and removing all r
 - Standardize on "send message to team-lead" language
 - Remove references to file paths for communication artifacts
 
-**Traces to:** REQ-002, REQ-004, ISSUE-88
+**Traces to:** REQ-002, REQ-004
 
 ---
 
@@ -99,7 +99,7 @@ This design documents the approach for systematically finding and removing all r
 - "Yield schema" → "Message payload schema"
 - "Context TOML with yield_path" → "No configuration needed; messaging is built-in"
 
-**Traces to:** REQ-003, REQ-004, ISSUE-88
+**Traces to:** REQ-003, REQ-004
 
 ---
 
@@ -122,7 +122,7 @@ This design documents the approach for systematically finding and removing all r
 - Add note to project READMEs explaining yield directories are historical
 - Document migration from yield to messaging in appropriate architecture sections
 
-**Traces to:** REQ-001, REQ-003, ISSUE-88
+**Traces to:** REQ-001, REQ-003
 
 ---
 
@@ -152,7 +152,7 @@ This design documents the approach for systematically finding and removing all r
 
 **Default Rule**: When uncertain whether a reference should be kept, err on the side of removal. The yield system is fully deprecated; lingering references cause confusion.
 
-**Traces to:** REQ-001, REQ-004, ISSUE-88
+**Traces to:** REQ-001, REQ-004
 
 ---
 
@@ -191,7 +191,7 @@ This design documents the approach for systematically finding and removing all r
 - All documentation links functional
 - All skills document messaging-based communication
 
-**Traces to:** REQ-001, REQ-005, ISSUE-88
+**Traces to:** REQ-001, REQ-005
 
 ---
 
@@ -247,7 +247,7 @@ SendMessage:
 - Team communication protocol documented in `skills/project/SKILL.md`
 - `SendMessage` tool usage in system prompts
 
-**Traces to:** REQ-004, ISSUE-88
+**Traces to:** REQ-004
 
 ---
 
@@ -272,5 +272,3 @@ SendMessage:
 - ~10-15 architecture/design documents
 - ~100+ project-specific files in .claude/projects/
 - Dozens of historical yield TOML files
-
-**Traces to:** ISSUE-88

@@ -34,7 +34,7 @@ This architecture documents the technical decisions for systematically finding a
 - Case-insensitive search prevents misses from capitalization variations
 - File type filters avoid binary files and irrelevant formats
 
-**Traces to:** DES-001, DES-005, REQ-001, REQ-002, REQ-003, ISSUE-88
+**Traces to:** DES-001, DES-005
 
 ---
 
@@ -66,7 +66,7 @@ This architecture documents the technical decisions for systematically finding a
 - Exact string matching avoids regex complexity and edge case bugs
 - Section rewrite for heavily yield-dependent content is cleaner than many small edits
 
-**Traces to:** DES-002, DES-003, DES-005, DES-007, REQ-004, ISSUE-88
+**Traces to:** DES-002, DES-003, DES-005, DES-007
 
 ---
 
@@ -104,7 +104,7 @@ grep -i "yield" --output_mode files_with_matches --glob "*.go"
 - Context mode (-C 3) allows quick review of any unexpected matches
 - Code grep catches orphaned imports/references that tests might not exercise
 
-**Traces to:** DES-001, DES-006, REQ-001, REQ-005, ISSUE-88
+**Traces to:** DES-001, DES-006
 
 ---
 
@@ -142,7 +142,7 @@ ls yield.toml .claude/yield.toml 2>&1 | grep "No such file"
 - Deleting active yields prevents confusion and re-introduction of deprecated patterns
 - Context file updates ensure no broken references to removed infrastructure
 
-**Traces to:** DES-004, REQ-001, REQ-003, ISSUE-88
+**Traces to:** DES-004
 
 ---
 
@@ -177,7 +177,7 @@ go build ./cmd/...
 - Success criteria is binary (pass/fail), not subjective
 - mage check is project standard per CLAUDE.md
 
-**Traces to:** DES-006, REQ-005, ISSUE-88
+**Traces to:** DES-006
 
 ---
 
@@ -200,5 +200,3 @@ go build ./cmd/...
 - Read: Context review before edits
 - Edit: Precise string replacements
 - Bash: File deletion and build/test execution
-
-**Traces to:** ISSUE-88

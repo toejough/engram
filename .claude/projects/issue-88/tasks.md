@@ -26,7 +26,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 - [x] Results filtered to exclude ISSUE-88 project files and historical retrospectives
 - [x] Prioritized work list created showing file counts per category
 
-**Traces to:** ARCH-001, DES-001, REQ-001, REQ-002, REQ-003, ISSUE-88
+**Traces to:** ARCH-001
 
 ---
 
@@ -47,7 +47,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-002, DES-007, REQ-002, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -68,7 +68,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-002, DES-007, REQ-002, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -88,7 +88,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-002, REQ-002, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -112,7 +112,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-003, REQ-003, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -134,7 +134,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-003, DES-005, REQ-003, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -155,7 +155,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-004, DES-005, REQ-003, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -176,7 +176,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-002, REQ-003, REQ-004, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -215,7 +215,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-002, DES-005, REQ-005, ISSUE-88
+**Traces to:** ARCH-002
 
 ---
 
@@ -236,7 +236,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9 (wait until docs updated before deleting files)
 
-**Traces to:** ARCH-004, DES-004, REQ-001, ISSUE-88
+**Traces to:** ARCH-004
 
 ---
 
@@ -256,7 +256,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-1
 
-**Traces to:** ARCH-004, DES-004, REQ-001, ISSUE-88
+**Traces to:** ARCH-004
 
 ---
 
@@ -277,7 +277,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10, TASK-11, TASK-12
 
-**Traces to:** ARCH-003, DES-006, REQ-001, ISSUE-88
+**Traces to:** ARCH-003
 
 ---
 
@@ -299,7 +299,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10, TASK-11, TASK-12
 
-**Traces to:** ARCH-005, DES-006, REQ-005, ISSUE-88
+**Traces to:** ARCH-005
 
 ---
 
@@ -319,7 +319,7 @@ This task breakdown decomposes the yield reference cleanup work into focused imp
 
 **Depends on:** TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9
 
-**Traces to:** ARCH-003, DES-006, REQ-001, ISSUE-88
+**Traces to:** ARCH-003
 
 ---
 
@@ -383,5 +383,3 @@ TASK-2, TASK-3, TASK-4, TASK-5, TASK-6, TASK-7, TASK-8, TASK-9, TASK-10, TASK-11
 - TASK-15: ~10-15 minutes (spot-checking links)
 
 **Total estimated effort:** ~3-4 hours with parallelization, ~5-6 hours sequential
-
-**Traces to:** ISSUE-88
