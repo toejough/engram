@@ -3693,3 +3693,62 @@ When `projctl step next` returns `task_params` for spawning teammates, it omits 
 - [ ] SubagentType uses a valid Task tool type (general-purpose)
 - [ ] SKILL.md startup/shutdown use real tool names (TeamCreate/TeamDelete)
 - [ ] Binary is rebuilt and installed
+
+---
+
+### ISSUE-104: Spin off orchestrator as haiku teammate, delegate spawn/shutdown to team lead
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+## Problem
+
+Currently `/project` loads the project SKILL.md into the main conversation (opus), which then acts as team lead. The SKILL.md specifies `model: haiku` but that metadata doesn't actually change the model running the skill — opus runs the whole orchestration loop. This wastes an expensive model on mechanical work (parsing JSON, calling `projctl step next/complete`, routing results).
+
+## Proposed Design
+
+Split the orchestrator into two roles:
+
+1. **Team lead (opus)** — owns the team, spawns/shuts down teammates, relays spawn requests from the orchestrator. Thin coordination layer.
+2. **Orchestrator teammate (haiku)** — runs the `projctl step next` → dispatch → `projctl step complete` loop. When it needs a teammate spawned, it sends a message back to the team lead with the task_params. When it needs a shutdown, same thing.
+
+### Flow
+
+```
+User → /project
+  Team lead (opus):
+    1. TeamCreate(...)
+    2. Spawn orchestrator teammate (haiku) with project SKILL.md
+    3. Wait for messages from orchestrator
+
+  Orchestrator (haiku):
+    1. projctl state init / set workflow
+    2. Loop: projctl step next
+       - spawn-producer/spawn-qa: SendMessage to team lead with task_params
+       - commit/transition/all-complete: handle directly
+    3. Receive spawn confirmations from team lead
+    4. projctl step complete
+    5. Repeat
+
+  Team lead (opus):
+    - Receives "please spawn" message → Task(task_params...) → confirms to orchestrator
+    - Receives "please shutdown" message → SendMessage shutdown_request
+    - Receives "all complete" → runs end-of-command sequence, TeamDelete
+```
+
+### Why
+
+- Haiku is sufficient for the mechanical step loop (it's just JSON parsing and routing)
+- Opus context is preserved for user interaction and high-level decisions
+- Team lead stays thin — only does what requires team ownership (spawn/shutdown)
+- Orchestrator can be resumed/replaced independently of the team lead session
+
+### Acceptance Criteria
+- [ ] Team lead spawns a haiku orchestrator teammate on `/project` invocation
+- [ ] Orchestrator runs the full `projctl step next/complete` loop
+- [ ] Orchestrator sends spawn requests to team lead via SendMessage (includes full task_params)
+- [ ] Team lead spawns teammates on behalf of orchestrator and confirms
+- [ ] Orchestrator sends shutdown requests to team lead
+- [ ] Team lead handles end-of-command sequence after orchestrator reports all-complete
+- [ ] SKILL.md updated to document the two-role split
