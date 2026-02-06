@@ -185,6 +185,46 @@ else
   pass "No invalid --status retry"
 fi
 
+# --- Model Validation (ISSUE-98, TASK-5) ---
+
+echo ""
+echo "--- Model Validation ---"
+
+echo "Test: References expected_model field"
+if grep -q "expected_model" "$SKILL_FILE"; then
+  pass "References expected_model field"
+else
+  fail "Missing expected_model reference"
+fi
+
+echo "Test: Contains --reported-model flag usage"
+if grep -q "\-\-reported-model" "$SKILL_FILE"; then
+  pass "Contains --reported-model flag usage"
+else
+  fail "Missing --reported-model flag usage"
+fi
+
+echo "Test: Contains escalate-user handling instructions"
+if grep -q "escalate-user" "$SKILL_FILE"; then
+  pass "Contains escalate-user handling instructions"
+else
+  fail "Missing escalate-user handling instructions"
+fi
+
+echo "Test: References task_params for spawn execution"
+if grep -qi "task_params" "$SKILL_FILE"; then
+  pass "References task_params for spawn execution"
+else
+  fail "Missing task_params reference for spawn execution"
+fi
+
+echo "Test: Contains model validation/handshake instructions"
+if grep -qi "model.*valid\|handshake\|verify.*model\|model.*verif" "$SKILL_FILE"; then
+  pass "Contains model validation/handshake instructions"
+else
+  fail "Missing model validation/handshake instructions"
+fi
+
 # --- Content that must be REMOVED ---
 
 echo ""

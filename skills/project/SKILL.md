@@ -95,7 +95,14 @@ loop:
     "issue": "ISSUE-90",
     "prior_artifacts": ["requirements.md"],
     "qa_feedback": ""
-  }
+  },
+  "task_params": {
+    "subagent_type": "code",
+    "name": "pm-interview-producer",
+    "model": "sonnet",
+    "prompt": "First, respond with your model name so I can verify you're running the correct model.\n\nThen invoke /pm-interview-producer.\n\nIssue: ISSUE-90"
+  },
+  "expected_model": "sonnet"
 }
 ```
 
@@ -103,43 +110,55 @@ loop:
 
 #### spawn-producer
 
-Spawn a teammate to run the producer skill indicated by `result.skill`:
+Spawn a teammate using `task_params` from the step next output:
 
 ```
-Task(subagent_type: "general-purpose",
+Task(subagent_type: result.task_params.subagent_type,
      team_name: "<project>",
-     name: "<phase>-producer",
-     model: result.model,
-     prompt: "Invoke /<skill>. Context: <result.context>
-              When complete, send me a message with: artifact path, IDs created,
-              files modified, key decisions.")
+     name: result.task_params.name,
+     model: result.task_params.model,
+     prompt: result.task_params.prompt)
 ```
 
-On completion, report:
-```
-projctl step complete --dir . --action spawn-producer --status done
-```
+**Model validation handshake:** After spawning, read the teammate's first message and verify the model:
+
+1. Perform case-insensitive substring match of `result.expected_model` against the teammate's first message
+2. **Match:** Proceed with the teammate's work. On completion, report:
+   ```
+   projctl step complete --dir . --action spawn-producer --status done
+   ```
+3. **Mismatch:** Report failure immediately (do not let the teammate continue):
+   ```
+   projctl step complete --dir . --action spawn-producer --status failed --reported-model "<model from first message>"
+   ```
 
 #### spawn-qa
 
-Spawn a QA teammate with the producer's SKILL.md and artifacts:
+Spawn a QA teammate using `task_params` from the step next output:
 
 ```
-Task(subagent_type: "general-purpose",
+Task(subagent_type: result.task_params.subagent_type,
      team_name: "<project>",
-     name: "<phase>-qa",
-     model: result.model,
-     prompt: "Invoke /qa. Context:
-              Producer SKILL.md: <result.skill_path>
-              Artifacts: <artifact paths>
-              Iteration: N/3
-              Send me your verdict.")
+     name: result.task_params.name,
+     model: result.task_params.model,
+     prompt: result.task_params.prompt)
 ```
 
-Handle the QA verdict:
-- "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
-- "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
-- "escalate-user": Present to user
+**Model validation handshake:** Same as spawn-producer — verify `expected_model` against the teammate's first message before proceeding.
+
+- **Match:** Let QA run. Handle the QA verdict:
+  - "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
+  - "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
+  - "escalate-user": Present to user
+- **Mismatch:** `projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model from first message>"`
+
+#### escalate-user
+
+When `step next` returns `action: "escalate-user"`, the spawn retry budget is exhausted. Present the escalation to the user:
+
+1. Display `result.details` (contains expected model, reported models, and failure count)
+2. Ask the user how to proceed (change model config, retry manually, or abort)
+3. Do NOT call `step complete` — wait for user guidance
 
 #### commit
 
