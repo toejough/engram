@@ -168,9 +168,15 @@ During the implementation phase (after breakdown), use Claude Code's native Task
 ### Execution Loop
 
 1. `TaskList` to find unblocked tasks (no blockedBy, status pending)
-2. `TaskUpdate(status: "in_progress")` on selected task
-3. Spawn TDD producer teammate for the task
-4. On completion: `TaskUpdate(status: "completed")`
+2. If single unblocked task:
+   - `TaskUpdate(status: "in_progress")` → spawn TDD producer teammate
+3. If multiple unblocked tasks with no file overlap:
+   - `TaskUpdate(status: "in_progress")` for each
+   - Spawn one TDD producer teammate per task (concurrent)
+   - Each teammate works in a git worktree: `projctl worktree create --task TASK-NNN`
+   - On completion: `projctl worktree merge --task TASK-NNN` then `TaskUpdate(status: "completed")`
+4. If multiple unblocked tasks with file overlap:
+   - Execute sequentially (single task at a time)
 5. Repeat until all tasks complete or all remaining are blocked/escalated
 
 ### Rules

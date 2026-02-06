@@ -108,9 +108,10 @@ Controls iteration within a phase or across tasks:
 ```
 1. Create/Recreate Queue (items by dependencies, impact, simplicity)
 2. Identify next batch:
-   - Find all items with no blocking dependencies
-   - Single item → PAIR LOOP
-   - N independent items → spawn one teammate per item (parallel)
+   - `TaskList` to find all unblocked tasks
+   - Check file overlap (via task AC or `projctl tasks overlap`)
+   - Single item or file overlap → sequential PAIR LOOP
+   - N independent items, no overlap → spawn N teammates (parallel)
 3. Execute batch
 4. Re-evaluate queue (dependencies may have resolved)
 5. Repeat until queue empty or entirely blocked
@@ -323,6 +324,18 @@ TaskUpdate(taskId: N, addBlockedBy: [<dependent task IDs>])
 ```
 
 Use `TaskList` between tasks to select the next unblocked item. Update status to `in_progress` before spawning the TDD teammate, and `completed` after QA passes.
+
+#### Parallel Task Execution
+
+When multiple tasks are unblocked and have no file overlap:
+
+1. Spawn one TDD producer teammate per task (using Task tool with team_name)
+2. Each teammate creates its own worktree: `projctl worktree create --task TASK-NNN`
+3. Teammates run the full Red→Green→Refactor cycle independently
+4. On each completion: merge immediately with `projctl worktree merge --task TASK-NNN`
+5. Update TaskList: `TaskUpdate(status: "completed")`
+
+This replaces the old `parallel-looper` skill with native Claude Code team parallelism.
 
 **Red → Commit → Green → Commit → Refactor → Commit** (atomic sequence)
 
