@@ -80,25 +80,25 @@ TASK-1 (CONTRACT.md)
 
 **Description:** Compare each existing QA skill's checklist against its corresponding producer's SKILL.md to identify validation logic that might be lost. This must be completed before any QA skill deletion.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] Gap analysis performed for pm-qa vs pm-interview-producer and pm-infer-producer
-- [ ] Gap analysis performed for design-qa vs design-interview-producer and design-infer-producer
-- [ ] Gap analysis performed for arch-qa vs arch-interview-producer and arch-infer-producer
-- [ ] Gap analysis performed for breakdown-qa vs breakdown-producer
-- [ ] Gap analysis performed for tdd-qa vs tdd-producer
-- [ ] Gap analysis performed for tdd-red-qa vs tdd-red-producer and tdd-red-infer-producer
-- [ ] Gap analysis performed for tdd-green-qa vs tdd-green-producer
-- [ ] Gap analysis performed for tdd-refactor-qa vs tdd-refactor-producer
-- [ ] Gap analysis performed for doc-qa vs doc-producer
-- [ ] Gap analysis performed for context-qa vs context-explorer
-- [ ] Gap analysis performed for alignment-qa vs alignment-producer
-- [ ] Gap analysis performed for retro-qa vs retro-producer
-- [ ] Gap analysis performed for summary-qa vs summary-producer
-- [ ] Each gap report documents: covered checks, gaps (QA checks not in producer), decision required
-- [ ] All gaps have explicit decision: add to producer contract OR drop with justification
-- [ ] Gap analysis results documented in `docs/gap-analysis.md`
+- [x] Gap analysis performed for pm-qa vs pm-interview-producer and pm-infer-producer
+- [x] Gap analysis performed for design-qa vs design-interview-producer and design-infer-producer
+- [x] Gap analysis performed for arch-qa vs arch-interview-producer and arch-infer-producer
+- [x] Gap analysis performed for breakdown-qa vs breakdown-producer
+- [x] Gap analysis performed for tdd-qa vs tdd-producer
+- [x] Gap analysis performed for tdd-red-qa vs tdd-red-producer and tdd-red-infer-producer
+- [x] Gap analysis performed for tdd-green-qa vs tdd-green-producer
+- [x] Gap analysis performed for tdd-refactor-qa vs tdd-refactor-producer
+- [x] Gap analysis performed for doc-qa vs doc-producer
+- [x] Gap analysis performed for context-qa vs context-explorer
+- [x] Gap analysis performed for alignment-qa vs alignment-producer
+- [x] Gap analysis performed for retro-qa vs retro-producer
+- [x] Gap analysis performed for summary-qa vs summary-producer
+- [x] Each gap report documents: covered checks, gaps (QA checks not in producer), decision required
+- [x] All gaps have explicit decision: add to producer contract OR drop with justification
+- [x] Gap analysis results documented in `docs/gap-analysis.md`
 
 **Files:** `docs/gap-analysis.md`
 
@@ -185,27 +185,27 @@ TASK-1 (CONTRACT.md)
 
 **Description:** Remove all 13 phase-specific QA skill directories after verifying universal QA is functional and all gap analysis decisions are implemented.
 
-**Status:** Ready
+**Status:** Complete
 
 **Acceptance Criteria:**
-- [ ] pm-qa directory deleted
-- [ ] design-qa directory deleted
-- [ ] arch-qa directory deleted
-- [ ] breakdown-qa directory deleted
-- [ ] tdd-qa directory deleted
-- [ ] tdd-red-qa directory deleted
-- [ ] tdd-green-qa directory deleted
-- [ ] tdd-refactor-qa directory deleted
-- [ ] doc-qa directory deleted
-- [ ] context-qa directory deleted
-- [ ] alignment-qa directory deleted
-- [ ] retro-qa directory deleted
-- [ ] summary-qa directory deleted
-- [ ] QA-TEMPLATE.md updated to reference universal QA or marked deprecated
-- [ ] No broken references to deleted skills in documentation
-- [ ] Universal QA skill (TASK-2) is verified functional
-- [ ] All producer contracts (TASK-4) are complete
-- [ ] Gap analysis (TASK-3) decisions are all implemented
+- [x] pm-qa directory deleted
+- [x] design-qa directory deleted
+- [x] arch-qa directory deleted
+- [x] breakdown-qa directory deleted
+- [x] tdd-qa directory deleted
+- [x] tdd-red-qa directory deleted
+- [x] tdd-green-qa directory deleted
+- [x] tdd-refactor-qa directory deleted
+- [x] doc-qa directory deleted
+- [x] context-qa directory deleted
+- [x] alignment-qa directory deleted
+- [x] retro-qa directory deleted
+- [x] summary-qa directory deleted
+- [x] QA-TEMPLATE.md updated to reference universal QA or marked deprecated
+- [x] No broken references to deleted skills in documentation
+- [x] Universal QA skill (TASK-2) is verified functional
+- [x] All producer contracts (TASK-4) are complete
+- [x] Gap analysis (TASK-3) decisions are all implemented
 
 **Files:**
 - `skills/pm-qa/` (delete)

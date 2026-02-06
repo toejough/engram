@@ -32,17 +32,17 @@ TASK-N
   |
   v
 +------------------+
-|  RED PAIR LOOP   |  tdd-red-producer <-> tdd-red-qa
+|  RED PAIR LOOP   |  tdd-red-producer <-> qa
 +------------------+
   |
   v (tests written, failing correctly)
 +------------------+
-| GREEN PAIR LOOP  |  tdd-green-producer <-> tdd-green-qa
+| GREEN PAIR LOOP  |  tdd-green-producer <-> qa
 +------------------+
   |
   v (tests passing, minimal implementation)
 +------------------+
-| REFACTOR PAIR LOOP | tdd-refactor-producer <-> tdd-refactor-qa
+| REFACTOR PAIR LOOP | tdd-refactor-producer <-> qa
 +------------------+
   |
   v
@@ -90,7 +90,7 @@ Run failing test creation with QA validation:
 tdd-red-producer -> creates failing tests
        |
        v
-tdd-red-qa -> reviews
+qa -> reviews
        |
        +-> approved: proceed to GREEN
        +-> improvement-request: loop back to red-producer (max 3 iterations)
@@ -108,7 +108,7 @@ Run minimal implementation with QA validation:
 tdd-green-producer -> writes minimal implementation
        |
        v
-tdd-green-qa -> reviews
+qa -> reviews
        |
        +-> approved: proceed to REFACTOR
        +-> improvement-request: loop back to green-producer (max 3 iterations)
@@ -126,7 +126,7 @@ Run code quality improvement with QA validation:
 tdd-refactor-producer -> improves code quality
        |
        v
-tdd-refactor-qa -> reviews
+qa -> reviews
        |
        +-> approved: TDD cycle complete
        +-> improvement-request: loop back to refactor-producer (max 3 iterations)
@@ -297,11 +297,9 @@ On completion, send a message to the team lead with:
 
 - Producer template: [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md)
 - RED producer: [tdd-red-producer](../tdd-red-producer/SKILL.md)
-- RED QA: [tdd-red-qa](../tdd-red-qa/SKILL.md)
 - GREEN producer: [tdd-green-producer](../tdd-green-producer/SKILL.md)
-- GREEN QA: [tdd-green-qa](../tdd-green-qa/SKILL.md)
 - REFACTOR producer: [tdd-refactor-producer](../tdd-refactor-producer/SKILL.md)
-- REFACTOR QA: [tdd-refactor-qa](../tdd-refactor-qa/SKILL.md)
+- Universal QA: [qa](../qa/SKILL.md)
 
 ---
 

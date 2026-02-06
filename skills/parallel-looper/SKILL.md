@@ -39,19 +39,19 @@ skill = "parallel-looper"
 id = "TASK-5"
 type = "task"
 producer = "tdd-producer"
-qa = "tdd-qa"
+qa = "qa"
 
 [[inputs.items]]
 id = "TASK-6"
 type = "task"
 producer = "tdd-producer"
-qa = "tdd-qa"
+qa = "qa"
 
 [[inputs.items]]
 id = "TASK-7"
 type = "task"
 producer = "tdd-producer"
-qa = "tdd-qa"
+qa = "qa"
 
 [inputs.consistency]
 domain = "tdd"
@@ -290,17 +290,17 @@ Spawn parallel PAIR LOOPs:
 
 Task 1: Execute PAIR LOOP for TASK-5
 - Producer: tdd-producer
-- QA: tdd-qa
+- QA: qa
 - Context: {task: TASK-5, acceptance_criteria: [...]}
 
 Task 2: Execute PAIR LOOP for TASK-6
 - Producer: tdd-producer
-- QA: tdd-qa
+- QA: qa
 - Context: {task: TASK-6, acceptance_criteria: [...]}
 
 Task 3: Execute PAIR LOOP for TASK-7
 - Producer: tdd-producer
-- QA: tdd-qa
+- QA: qa
 - Context: {task: TASK-7, acceptance_criteria: [...]}
 ```
 
