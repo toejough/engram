@@ -109,6 +109,7 @@ Spawn a teammate to run the producer skill indicated by `result.skill`:
 Task(subagent_type: "general-purpose",
      team_name: "<project>",
      name: "<phase>-producer",
+     model: result.model,
      prompt: "Invoke /<skill>. Context: <result.context>
               When complete, send me a message with: artifact path, IDs created,
               files modified, key decisions.")
@@ -127,6 +128,7 @@ Spawn a QA teammate with the producer's SKILL.md and artifacts:
 Task(subagent_type: "general-purpose",
      team_name: "<project>",
      name: "<phase>-qa",
+     model: result.model,
      prompt: "Invoke /qa. Context:
               Producer SKILL.md: <result.skill_path>
               Artifacts: <artifact paths>
