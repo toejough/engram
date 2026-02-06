@@ -3238,7 +3238,7 @@ Unresolved question from retrospective (retro-phase2.md Q2). Context: ISSUE-80 r
 ### ISSUE-89: Implement `projctl step next` deterministic orchestration
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 Replace soft SKILL.md process instructions with hard deterministic orchestration via `projctl step next`. The LLM becomes an executor (do what projctl says), not a planner (decide what to do from SKILL.md).
@@ -3314,6 +3314,10 @@ Acceptance criteria:
 
 ---
 
+
+### Comment
+
+Implemented projctl step next/complete commands with phase registry, sub-phase tracking, and QA enforcement. 22 phases across 4 workflows, 37 tests. Follow-up: ISSUE-90 through ISSUE-96.
 ### ISSUE-90: Simplify orchestrator SKILL.md for step-driven execution
 
 **Priority:** High
