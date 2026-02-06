@@ -3186,3 +3186,43 @@ Research questions:
 - Can hooks access the full conversation context or just the tool call?
 - What's the latency impact of LLM-as-judge hooks on every file edit?
 - Can hooks be scoped to specific file patterns (e.g., only docs/*.md)?
+
+---
+
+### ISSUE-85: Retro: Enforce process checklist in orchestrator
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-05
+
+From retrospective (retro-phase2.md R1): The orchestrator skipped QA and end-of-project phases until user reminded. Add an explicit, non-optional process checklist to the project orchestrator SKILL.md that must be completed for every issue: (1) Execute producer, (2) Run QA on output, (3) Commit changes. The orchestrator should not advance to the next issue until all three steps are confirmed.
+
+---
+
+### ISSUE-86: Retro: Auto-read skill model from frontmatter before spawning
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+From retrospective (retro-phase2.md R2): QA teammates were spawned on opus instead of haiku because the orchestrator did not read the skill's SKILL.md frontmatter for the model field. When the orchestrator spawns a teammate for a skill, it should read the target skill's SKILL.md frontmatter and use the specified model field. Document this as a mandatory step in the orchestrator's teammate spawning procedure.
+
+---
+
+### ISSUE-87: Decision needed: Consolidate Phase 1/2 migration memory notes
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+Unresolved question from retrospective (retro-phase2.md Q1). Context: Both Phase 1 and Phase 2 of the team migration added memory notes. These notes are scattered across the migration sessions. A consolidation pass would ensure all lessons are properly captured in MEMORY.md.
+
+---
+
+### ISSUE-88: Decision needed: Clean up remaining yield references in docs
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+Unresolved question from retrospective (retro-phase2.md Q2). Context: ISSUE-80 removed the Go yield infrastructure, but there may be stale references to yield concepts in documentation, CLAUDE.md, skill docs, or other non-code files. A grep for yield across the repo would identify any cleanup needed.
