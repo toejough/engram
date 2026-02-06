@@ -27,7 +27,7 @@ Every action is driven by `projctl step next`. If you catch yourself writing fil
 ## Startup
 
 ```
-1. Teammate(operation: "spawnTeam", team_name: "<project-name>")
+1. TeamCreate(team_name: "<project-name>", description: "Project orchestrator team")
 2. projctl state init --name "<project-name>" --issue ISSUE-NNN
 3. projctl state set --workflow <new|task|adopt|align>
 4. Enter the step-driven control loop
@@ -37,7 +37,7 @@ Every action is driven by `projctl step next`. If you catch yourself writing fil
 
 ```
 1. Send shutdown_request to all active teammates
-2. Teammate(operation: "cleanup")
+2. TeamDelete()
 ```
 
 ---
@@ -110,11 +110,10 @@ loop:
 
 #### spawn-producer
 
-Spawn a teammate using `task_params` from the step next output:
+Spawn a teammate using `task_params` from the step next output. Note that `team_name` is included in `task_params` and should not be manually injected:
 
 ```
 Task(subagent_type: result.task_params.subagent_type,
-     team_name: "<project>",
      name: result.task_params.name,
      model: result.task_params.model,
      prompt: result.task_params.prompt)
@@ -134,11 +133,10 @@ Task(subagent_type: result.task_params.subagent_type,
 
 #### spawn-qa
 
-Spawn a QA teammate using `task_params` from the step next output:
+Spawn a QA teammate using `task_params` from the step next output. Note that `team_name` is included in `task_params` and should not be manually injected:
 
 ```
 Task(subagent_type: result.task_params.subagent_type,
-     team_name: "<project>",
      name: result.task_params.name,
      model: result.task_params.model,
      prompt: result.task_params.prompt)

@@ -3259,6 +3259,10 @@ Unresolved question from retrospective (retro-phase2.md Q2). Context: ISSUE-80 r
 
 ---
 
+
+### Comment
+
+Decision: Yes, clean up remaining yield references across docs and skills.
 ### ISSUE-89: Implement `projctl step next` deterministic orchestration
 
 **Priority:** High
@@ -3513,6 +3517,10 @@ From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does 
 
 ---
 
+
+### Comment
+
+Decision: (1) Producer/QA crash/error: retry 3x at team-lead level, then escalate-user. (2) Commit/transition failure: escalate to prior agent 3x, then escalate-user.
 ### ISSUE-97: Retro: Add CLI flag validation to documentation TDD pattern
 
 **Priority:** Medium
@@ -3595,26 +3603,38 @@ When spawning teammates with /tdd-producer, the agent performs all three TDD pha
 
 ---
 
+
+### Comment
+
+Decision: Remove tdd-producer as a composite skill. The top-level orchestrator (haiku) should just step through what projctl tells it to do — spawning red/green/refactor producers individually as directed by the state machine. No separate composite skill needed.
 ### ISSUE-100: Enforce commit-before-completion in worktree teammates
 
 **Priority:** high
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Retro R1 from ISSUE-98: Teammates working in worktrees don't always commit before completion, causing data loss when worktrees are cleaned up. Add explicit prompt instructions and automated verification.
 
 ---
 
+
+### Comment
+
+Redundant — solved by ISSUE-99. Once the orchestrator drives the state machine (including commit as an explicit step action), teammates never commit. The orchestrator handles commits between producer/QA cycles. Closing.
 ### ISSUE-101: Add worktree commit verification to projctl
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Retro R3 from ISSUE-98: Add a projctl worktree verify command or integrate into step complete to check for uncommitted changes in teammate worktrees before accepting task completion.
 
 ---
 
+
+### Comment
+
+Redundant — solved by ISSUE-99. Teammates don't commit; the orchestrator does. No worktree commit verification needed. Closing.
 ### ISSUE-102: Decision needed: scope of model validation enforcement
 
 **Priority:** medium
@@ -3622,3 +3642,54 @@ Retro R3 from ISSUE-98: Add a projctl worktree verify command or integrate into 
 **Created:** 2026-02-06
 
 Retro Q1 from ISSUE-98: Should model validation be enforced for all teammate spawns or only model-sensitive phases? Blanket enforcement adds handshake latency; opt-in reduces coverage.
+
+
+### Comment
+
+Decision: Blanket enforcement. All phases must have models defined. Review and update desired models per phase as part of implementation.
+
+### Comment
+
+Model assignments decided: opus for producers on pm, design, architect, breakdown, tdd-red, and all infer phases (adopt-infer-pm, adopt-infer-arch, adopt-infer-design, adopt-infer-reqs, align-infer-pm, align-infer-arch, align-infer-design, align-infer-reqs). All other producers stay sonnet. All QA stays haiku.
+
+---
+
+### ISSUE-103: team_name missing from task_params and related team integration issues
+
+**Priority:** Medium
+**Status:** Closed
+**Created:** 2026-02-06
+
+## Problem
+
+When `projctl step next` returns `task_params` for spawning teammates, it omits `team_name`. The SKILL.md instructs the orchestrator to manually inject `team_name: "<project>"`, but this creates a gap where the orchestrator must remember the project name independently — fragile after context compaction.
+
+## Findings
+
+### 1. TaskParams missing team_name (primary)
+- `internal/step/next.go` TaskParams struct has no TeamName field
+- `projctl step next` output doesn't include team_name
+- SKILL.md expects orchestrator to inject it manually
+- After context compaction, orchestrator may lose track of the correct name
+
+### 2. subagent_type hardcoded as "code" (invalid)
+- `internal/step/next.go:134` hardcodes `SubagentType: "code"`
+- "code" is not a valid Task tool subagent_type
+- Valid types: general-purpose, Bash, Explore, Plan, etc.
+- `docs/team-migration-plan.md` line 121 correctly says "general-purpose"
+
+### 3. SKILL.md uses Teammate() pseudo-syntax
+- `Teammate(operation: "spawnTeam")` → should reference TeamCreate
+- `Teammate(operation: "cleanup")` → should reference TeamDelete
+- Implicit mapping relies on LLM knowing the translation
+
+### 4. Stale binary misses task_params
+- Installed projctl at ~/go/bin/projctl doesn't output task_params
+- Only a fresh `go build` includes the field
+- Side effect of not reinstalling after adding TaskParams
+
+## Acceptance Criteria
+- [ ] TaskParams includes TeamName field populated from state.Project.Name
+- [ ] SubagentType uses a valid Task tool type (general-purpose)
+- [ ] SKILL.md startup/shutdown use real tool names (TeamCreate/TeamDelete)
+- [ ] Binary is rebuilt and installed
