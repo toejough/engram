@@ -3940,3 +3940,62 @@ Context: The projctl memory extract --yield command still uses yield infrastruct
 ### Comment
 
 Decision: remove. No active workflow produces yield.toml files. The --yield flag on memory extract is dead code. Remove yield types, parsing, and the --yield flag from memory extract. Files: internal/memory/types.go, internal/memory/parse.go, internal/memory/extract.go, cmd/projctl/memory_extract.go.
+
+---
+
+### ISSUE-117: Retro: Track task completion with explicit verification step
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective ISSUE-92 (R2).
+
+Add an explicit verification step to task completion:
+1. Implementation commits made
+2. Tests pass
+3. Task status updated to "Complete" in tasks.md
+4. Verification comment added: "Verified: [test results / manual check / review]"
+
+Area: Project Management
+Related challenges: Task status tracking inconsistency (C3)
+
+Rationale: Would prevent ambiguity between "code committed" and "acceptance criteria verified". A task is only Complete when someone has explicitly verified all acceptance criteria are met.
+
+---
+
+### ISSUE-118: Retro: Formalize QA evidence in git history
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective ISSUE-92 (R4).
+
+When QA approval is given, record it as a git note or in a structured file (e.g., .projctl/qa-approvals.md) rather than only in conversation/messages.
+
+Area: Quality Assurance & Traceability
+Related challenges: No documented QA validation (C2)
+
+Rationale: Makes QA approval visible in project history. Currently there is no way to distinguish "QA not performed" from "QA performed and approved with no changes needed".
+
+---
+
+### ISSUE-119: Decision needed: Should commit-QA be automatic or explicit?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From retrospective ISSUE-92 (Q2).
+
+The per-phase QA design adds commit-red-qa, commit-green-qa, commit-refactor-qa phases. These validate that commits have correct files staged, follow conventions, and contain no secrets.
+
+Question: Should commit-QA be:
+1. Automatic: commit-producer creates the commit, then projctl step next automatically returns spawn-qa action for commit-qa
+2. Explicit: User must call projctl step complete after commit before QA runs
+3. Hybrid: Automatic for normal flow, but allow bypass with --skip-qa flag for iteration speed
+
+Tradeoff: Automatic is more foolproof but slower. Explicit is faster but easier to forget. Hybrid adds complexity but provides flexibility.
+
+Context: Part of ISSUE-92 per-phase QA implementation.
