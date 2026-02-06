@@ -29,21 +29,23 @@ func stepNext(args stepNextArgs) error {
 }
 
 type stepCompleteArgs struct {
-	Dir        string `targ:"flag,short=d,required,desc=Project directory"`
-	Action     string `targ:"flag,short=a,required,desc=Completed action (spawn-producer, spawn-qa, commit, transition)"`
-	Status     string `targ:"flag,short=s,required,desc=Result status (done, failed)"`
-	QAVerdict  string `targ:"flag,short=v,desc=QA verdict (approved, improvement-request, escalate-phase, escalate-user)"`
-	QAFeedback string `targ:"flag,short=f,desc=QA feedback text"`
-	Phase      string `targ:"flag,short=p,desc=Target phase (for transition action)"`
+	Dir           string `targ:"flag,short=d,required,desc=Project directory"`
+	Action        string `targ:"flag,short=a,required,desc=Completed action (spawn-producer, spawn-qa, commit, transition)"`
+	Status        string `targ:"flag,short=s,required,desc=Result status (done, failed)"`
+	QAVerdict     string `targ:"flag,short=v,desc=QA verdict (approved, improvement-request, escalate-phase, escalate-user)"`
+	QAFeedback    string `targ:"flag,short=f,desc=QA feedback text"`
+	Phase         string `targ:"flag,short=p,desc=Target phase (for transition action)"`
+	ReportedModel string `targ:"flag,desc=Model reported by teammate (for failed spawns)"`
 }
 
 func stepComplete(args stepCompleteArgs) error {
 	err := step.Complete(args.Dir, step.CompleteResult{
-		Action:     args.Action,
-		Status:     args.Status,
-		QAVerdict:  args.QAVerdict,
-		QAFeedback: args.QAFeedback,
-		Phase:      args.Phase,
+		Action:        args.Action,
+		Status:        args.Status,
+		QAVerdict:     args.QAVerdict,
+		QAFeedback:    args.QAFeedback,
+		Phase:         args.Phase,
+		ReportedModel: args.ReportedModel,
 	}, time.Now)
 	if err != nil {
 		return err
