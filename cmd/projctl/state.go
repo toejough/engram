@@ -263,45 +263,6 @@ func statePairClear(args statePairClearArgs) error {
 	return nil
 }
 
-type stateYieldSetArgs struct {
-	Dir         string `targ:"flag,short=d,required,desc=Project directory"`
-	Type        string `targ:"flag,short=t,required,desc=Yield type (need-user-input, need-context, need-decision, blocked, error)"`
-	Agent       string `targ:"flag,short=a,required,desc=Agent that yielded"`
-	ContextFile string `targ:"flag,short=c,desc=Path to context file for resumption"`
-}
-
-func stateYieldSet(args stateYieldSetArgs) error {
-	s, err := state.SetYield(args.Dir, &state.YieldState{
-		Pending:     true,
-		Type:        args.Type,
-		Agent:       args.Agent,
-		ContextFile: args.ContextFile,
-	})
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Yield set: pending=%v, type=%s, agent=%s, context_file=%s\n",
-		s.Yield.Pending, s.Yield.Type, s.Yield.Agent, s.Yield.ContextFile)
-
-	return nil
-}
-
-type stateYieldClearArgs struct {
-	Dir string `targ:"flag,short=d,required,desc=Project directory"`
-}
-
-func stateYieldClear(args stateYieldClearArgs) error {
-	_, err := state.ClearYield(args.Dir)
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("Cleared pending yield")
-
-	return nil
-}
-
 type stateCompleteArgs struct {
 	Dir  string `targ:"flag,short=d,required,desc=Project directory"`
 	Task string `targ:"flag,short=t,required,desc=Task ID to mark complete (e.g. TASK-001)"`

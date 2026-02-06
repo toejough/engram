@@ -71,14 +71,6 @@ type PairState struct {
 	ImprovementRequest string `toml:"improvement_request,omitempty"` // Feedback from QA if verdict is improvement-request
 }
 
-// YieldState tracks a pending yield from a skill.
-type YieldState struct {
-	Pending     bool   `toml:"pending"`
-	Type        string `toml:"type"`                   // need-user-input, need-context, need-decision, blocked, error
-	Agent       string `toml:"agent"`                  // Which agent yielded
-	ContextFile string `toml:"context_file,omitempty"` // Path to context file for resumption
-}
-
 // WorktreeState tracks the state of a git worktree for a task.
 type WorktreeState struct {
 	Path    string    `toml:"path"`
@@ -96,7 +88,6 @@ type State struct {
 	History   []PhaseTransition        `toml:"history"`
 	Error     *ErrorInfo               `toml:"error,omitempty"`
 	Pairs     map[string]PairState     `toml:"pairs,omitempty"`
-	Yield     *YieldState              `toml:"yield,omitempty"`
 	Worktrees map[string]WorktreeState `toml:"worktrees,omitempty"`
 }
 
@@ -524,27 +515,6 @@ func ClearPair(dir string, key string) (State, error) {
 	}
 
 	return s, nil
-}
-
-// SetYield updates the pending yield state.
-func SetYield(dir string, ys *YieldState) (State, error) {
-	s, err := Get(dir)
-	if err != nil {
-		return State{}, err
-	}
-
-	s.Yield = ys
-
-	if err := writeAtomic(dir, s); err != nil {
-		return State{}, err
-	}
-
-	return s, nil
-}
-
-// ClearYield clears the pending yield state.
-func ClearYield(dir string) (State, error) {
-	return SetYield(dir, nil)
 }
 
 // SetWorktree updates the worktree state for a task.
