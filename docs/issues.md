@@ -3433,13 +3433,17 @@ Acceptance criteria:
 ### ISSUE-93: Guard against duplicate role assignments in team coordination
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 From ISSUE-89 retro R1: Before spawning a teammate for a role, verify no active teammate already holds that role. Two agents doing the same job wastes resources and produces unreliable results. Could be a check in the orchestrator spawning logic or a projctl command that lists active teammates per role. Measurable outcome: zero instances of duplicate teammates for the same role in a session.
 
 ---
 
+
+### Comment
+
+Will be addressed by ISSUE-90 (step-driven execution). When the orchestrator follows projctl step next output one action at a time, there's no opportunity to spawn duplicate teammates.
 ### ISSUE-94: Enforce naming convention for teammates
 
 **Priority:** Medium
