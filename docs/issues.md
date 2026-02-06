@@ -2771,7 +2771,7 @@ Changes: breakdown-producer SKILL.md updated to consolidate simplicity assessmen
 ### ISSUE-69: Create team-mode project orchestrator
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 1)
 
@@ -2802,10 +2802,14 @@ Depends on: ISSUE-70, ISSUE-71, ISSUE-72
 
 ---
 
+
+### Comment
+
+Completed: project orchestrator rewritten as team lead using Teammate/Task/SendMessage
 ### ISSUE-70: Migrate pm-interview-producer to direct user interaction
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-70)
 
@@ -2829,10 +2833,14 @@ Blocks: ISSUE-69
 
 ---
 
+
+### Comment
+
+Completed: pm-interview-producer migrated to team mode (AskUserQuestion, SendMessage)
 ### ISSUE-71: Migrate QA skill to team mode
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-71)
 
@@ -2852,10 +2860,14 @@ Blocks: ISSUE-69
 
 ---
 
+
+### Comment
+
+Completed: QA skill migrated to team mode (spawn prompt context, SendMessage verdicts)
 ### ISSUE-72: Update shared templates for team mode
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 **Plan:** docs/team-migration-plan.md (Phase 1, ISSUE-72)
 
@@ -2873,6 +2885,10 @@ Blocks: ISSUE-69
 
 ---
 
+
+### Comment
+
+Completed: shared templates (PRODUCER-TEMPLATE.md, INTERVIEW-PATTERN.md) updated with team mode sections
 ### ISSUE-73: Migrate interview producers (design + arch) to team mode
 
 **Priority:** Medium
