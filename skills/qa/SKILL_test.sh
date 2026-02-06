@@ -140,12 +140,12 @@ else
     exit 1
 fi
 
-# Check at least 2 TOML examples (yield examples)
+# No legacy TOML yield examples
 TOML_COUNT=$(grep -c '```toml' "$SKILL_FILE" || true)
-if [[ $TOML_COUNT -ge 2 ]]; then
-    echo "PASS: $TOML_COUNT TOML examples found (>= 2 required)"
+if [[ $TOML_COUNT -eq 0 ]]; then
+    echo "PASS: No legacy TOML examples"
 else
-    echo "FAIL: Only $TOML_COUNT TOML examples (>= 2 required)"
+    echo "FAIL: $TOML_COUNT legacy TOML examples still present"
     exit 1
 fi
 

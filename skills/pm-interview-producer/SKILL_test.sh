@@ -62,11 +62,11 @@ else
     echo "PASS: No legacy YIELD.md references"
 fi
 
-# TASK-5 Requirement: Documents need-user-input yield for interview questions
-if grep -q 'need-user-input' "$SKILL_FILE"; then
-    echo "PASS: Documents need-user-input yield"
+# Documents user interaction for interview questions
+if grep -q 'AskUserQuestion' "$SKILL_FILE"; then
+    echo "PASS: Documents AskUserQuestion for interview"
 else
-    echo "FAIL: Missing need-user-input yield documentation"
+    echo "FAIL: Missing AskUserQuestion documentation for interview"
     exit 1
 fi
 
@@ -78,11 +78,11 @@ else
     exit 1
 fi
 
-# TASK-5 Requirement: Documents complete yield with requirements.md artifact
-if grep -q 'complete' "$SKILL_FILE" && grep -q 'requirements.md' "$SKILL_FILE"; then
-    echo "PASS: Documents complete yield with requirements.md artifact"
+# Documents completion reporting with requirements.md artifact
+if grep -qi 'completion\|complete' "$SKILL_FILE" && grep -q 'requirements.md' "$SKILL_FILE"; then
+    echo "PASS: Documents completion reporting with requirements.md artifact"
 else
-    echo "FAIL: Missing complete yield or requirements.md artifact documentation"
+    echo "FAIL: Missing completion reporting or requirements.md artifact documentation"
     exit 1
 fi
 
