@@ -28,8 +28,6 @@ Manage project state and workflow progression.
 | `projctl state complete` | EXISTING | Mark a task as complete |
 | `projctl state pair set` | EXISTING | Set pair loop state for a phase or task |
 | `projctl state pair clear` | EXISTING | Clear pair loop state |
-| `projctl state yield set` | EXISTING | Set pending yield state |
-| `projctl state yield clear` | EXISTING | Clear pending yield |
 
 ### Context Commands
 
@@ -37,12 +35,12 @@ Manage skill dispatch context files and result collection.
 
 | Command | Status | Description |
 |---------|--------|-------------|
-| `projctl context write` | ENHANCED | Write context file with `yield_path` for parallel execution |
+| `projctl context write` | ENHANCED | Write context file with `result_path` for parallel execution |
 | `projctl context read` | EXISTING | Read context or result file |
 | `projctl context write-parallel` | EXISTING | Create context files for multiple tasks |
 | `projctl context check` | EXISTING | Check context budget usage |
 
-The `context write` command now includes an `output.yield_path` field that provides a unique path for each skill invocation, enabling parallel execution without file conflicts. See [context.md](commands/context.md) for details.
+The `context write` command now includes an `output.result_path` field that provides a unique path for each skill invocation, enabling parallel execution without file conflicts. See [context.md](commands/context.md) for details.
 
 ### ID Commands
 
@@ -83,7 +81,7 @@ Semantic memory system with local embedding generation.
 | `projctl memory query` | NEW | Semantic search using ONNX embeddings |
 | `projctl memory learn` | NEW | Store arbitrary insights with embeddings |
 | `projctl memory grep` | EXISTING | Structural search (no ONNX, just grep) |
-| `projctl memory extract` | NEW | Extract decisions/learnings from yield/result files |
+| `projctl memory extract` | NEW | Extract decisions/learnings from legacy message/result files |
 | `projctl memory session-end` | EXISTING | Generate compressed session summary |
 | `projctl memory decide` | EXISTING | Log a decision with reasoning and alternatives |
 
@@ -121,9 +119,9 @@ The embedding system auto-downloads required components on first use:
 
 ## Key Patterns
 
-### Yield Path Generation
+### Result Path Generation
 
-The `context write` command generates unique yield paths for each skill invocation:
+The `context write` command generates unique result paths for each skill invocation:
 
 ```
 .claude/context/{date}-{project}-{projectUUID}/{datetime}-{phase}-{taskID}-{fileUUID}.toml
@@ -148,7 +146,7 @@ ONNX runtime and model files are downloaded automatically on first use:
 ### Parallel Safety via UUID
 
 Parallel execution is supported through:
-1. **Unique yield paths**: Each invocation writes to a distinct file
+1. **Unique result paths**: Each invocation writes to a distinct file
 2. **UUID components**: Both project and file UUIDs ensure no collisions
 3. **Atomic writes**: Temp file + rename pattern for safe file creation
 

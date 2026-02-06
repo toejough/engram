@@ -56,7 +56,7 @@ type = "complete"
 	g.Expect(err.Error()).To(ContainSubstring("parse"))
 }
 
-// TEST: ParseYieldFile returns SchemaValidationError on missing yield.type
+// TEST: ParseYieldFile returns SchemaValidationError on missing message type
 // Traces to: TASK-3 AC-6, AC-9, AC-10, AC-11
 func TestParseYieldFile_MissingYieldType(t *testing.T) {
 	g := NewWithT(t)
@@ -78,11 +78,11 @@ phase = "tdd-red"
 	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
 
 	schemaErr = err.(*memory.SchemaValidationError)
-	g.Expect(schemaErr.Field).To(Equal("yield.type"))
+	g.Expect(schemaErr.Field).To(Equal("message.type"))
 	g.Expect(schemaErr.Expected).To(ContainSubstring("non-empty string"))
 }
 
-// TEST: ParseYieldFile returns SchemaValidationError on missing yield.timestamp
+// TEST: ParseYieldFile returns SchemaValidationError on missing message timestamp
 // Traces to: TASK-3 AC-6, AC-9, AC-11
 func TestParseYieldFile_MissingYieldTimestamp(t *testing.T) {
 	g := NewWithT(t)
@@ -103,7 +103,7 @@ phase = "tdd-red"
 	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
 
 	schemaErr = err.(*memory.SchemaValidationError)
-	g.Expect(schemaErr.Field).To(Equal("yield.timestamp"))
+	g.Expect(schemaErr.Field).To(Equal("message.timestamp"))
 }
 
 // TEST: ParseYieldFile fails fast on first error
@@ -111,7 +111,7 @@ phase = "tdd-red"
 func TestParseYieldFile_FailsFastOnFirstError(t *testing.T) {
 	g := NewWithT(t)
 
-	// Multiple missing fields - should fail on first one (yield.type)
+	// Multiple missing fields - should fail on first one (message.type)
 	multipleErrors := `
 [context]
 phase = "tdd-red"
@@ -126,7 +126,7 @@ phase = "tdd-red"
 	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
 
 	schemaErr = err.(*memory.SchemaValidationError)
-	g.Expect(schemaErr.Field).To(Equal("yield.type"))
+	g.Expect(schemaErr.Field).To(Equal("message.type"))
 }
 
 // TEST: ParseResultFile parses valid TOML

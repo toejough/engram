@@ -22,7 +22,7 @@ The memory system provides two search paradigms:
 | `projctl memory query` | Semantic search across memories |
 | `projctl memory learn` | Store arbitrary insights |
 | `projctl memory decide` | Store decisions with context and reasoning |
-| `projctl memory extract` | Extract and embed insights from yield/result files |
+| `projctl memory extract` | Extract and embed insights from legacy message/result files |
 | `projctl memory grep` | Pattern-based search across memories |
 | `projctl memory session-end` | Generate end-of-session summary |
 
@@ -196,21 +196,21 @@ projctl memory decide \
 
 ## memory extract
 
-Extracts decisions and learnings from orchestration yield/result files and stores them in semantic memory.
+Extracts decisions and learnings from legacy orchestration message/result files and stores them in semantic memory.
 
 ### Usage
 
 ```bash
 projctl memory extract --result <path>
-projctl memory extract --yield <path>
+projctl memory extract --message <path>
 ```
 
 ### Flags
 
 | Flag | Description |
 |------|-------------|
-| `-r, --result` | Path to result.toml file (mutually exclusive with --yield) |
-| `-y, --yield` | Path to yield.toml file (mutually exclusive with --result) |
+| `-r, --result` | Path to result.toml file (mutually exclusive with --message) |
+| `-m, --message` | Path to legacy message.toml file (mutually exclusive with --result) |
 | `--memory-root` | Memory root directory (default: ~/.claude/memory) |
 | `--model-dir` | Model directory (default: ~/.claude/models) |
 
@@ -243,7 +243,7 @@ Stored in semantic memory (/Users/joe/.claude/memory/embeddings.db)
 
 ### Extracted Item Types
 
-From **yield files**, the command extracts:
+From **legacy message files**, the command extracts:
 - `summary` - Overview from payload.summary
 - `finding` - Items from payload.findings array
 - `learning` - Items from payload.learnings array
@@ -257,8 +257,8 @@ From **result files**, the command extracts:
 # Extract from a result file after PM phase completes
 projctl memory extract --result .claude/context/pm-result.toml
 
-# Extract from a yield file
-projctl memory extract --yield .claude/context/design-yield.toml
+# Extract from a legacy message file
+projctl memory extract --message .claude/context/design-message.toml
 ```
 
 ---

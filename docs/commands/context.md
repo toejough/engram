@@ -336,4 +336,4 @@ projctl context check -d <project-dir>
 
 ## Reference
 
-See [orchestration-system.md](../orchestration-system.md) for the complete orchestration specification, including the yield protocol design.
+See [orchestration-system.md](../orchestration-system.md) for the complete orchestration specification.

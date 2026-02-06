@@ -45,10 +45,14 @@ check_yield_in_docs() {
     echo "Searching for 'yield' references in documentation..."
 
     # Define allowlist patterns (files that are allowed to contain "yield")
+    # These are historical files documenting the migration itself
     local allowlist=(
-        ".claude/projects/issue-88/"
-        "retro.md"
+        ".claude/projects/"  # All archived project files (except issue-88 which is excluded separately)
+        "retro"   # retro.md, retro-phase2.md - retrospective documents
+        "summary-phase2.md"  # Historical Phase 2 summary document
         "scripts/test-yield-cleanup.sh"
+        "docs/tasks.md"   # Historical task definitions
+        "docs/issues.md"  # Historical issue tracking
     )
 
     # Build grep exclude arguments
@@ -57,19 +61,21 @@ check_yield_in_docs() {
         exclude_args="$exclude_args --exclude-dir='*${pattern}*'"
     done
 
-    # Search for "yield" in markdown files
+    # Search for "yield" in markdown files (excluding archived projects and historical docs)
     local matches
     matches=$(grep -ri "yield" \
         --include="*.md" \
         docs/ \
         .claude/skills/ \
-        .claude/projects/ \
+        .claude/projects/issue-88/ \
         README.md \
         CONTRIBUTING.md \
         2>/dev/null \
-        | grep -v ".claude/projects/issue-88/" \
-        | grep -v "retro.md" \
+        | grep -v "retro" \
+        | grep -v "summary-phase2.md" \
         | grep -v "scripts/test-yield-cleanup.sh" \
+        | grep -v "docs/tasks.md" \
+        | grep -v "docs/issues.md" \
         || true)
 
     if [ -z "$matches" ]; then
@@ -107,7 +113,9 @@ check_yield_in_toml() {
     matches=$(grep -r "yield_path\|producer_yield_path" \
         --include="*.toml" \
         . \
-        2>/dev/null || true)
+        2>/dev/null \
+        | grep -v ".claude/projects/" \
+        || true)
 
     if [ -z "$matches" ]; then
         echo "No yield_path or producer_yield_path references found in .toml files."
@@ -130,8 +138,10 @@ check_broken_yield_links() {
         docs/ \
         .claude/skills/ \
         2>/dev/null \
-        | grep -v ".claude/projects/issue-88/" \
-        | grep -v "retro.md" \
+        | grep -v "retro" \
+        | grep -v "summary-phase2.md" \
+        | grep -v "docs/tasks.md" \
+        | grep -v "docs/issues.md" \
         || true)
 
     # Also search for direct section references
@@ -141,7 +151,10 @@ check_broken_yield_links() {
         docs/ \
         .claude/skills/ \
         2>/dev/null \
-        | grep -v ".claude/projects/issue-88/" \
+        | grep -v "retro" \
+        | grep -v "summary-phase2.md" \
+        | grep -v "docs/tasks.md" \
+        | grep -v "docs/issues.md" \
         || true)
 
     if [ -z "$yield_section_refs" ] && [ -z "$yield_sections" ]; then
@@ -207,9 +220,12 @@ check_yield_type() {
         --include="*.go" \
         . \
         2>/dev/null \
-        | grep -v ".claude/projects/issue-88/" \
-        | grep -v "retro.md" \
+        | grep -v ".claude/projects/" \
+        | grep -v "retro" \
+        | grep -v "summary-phase2.md" \
         | grep -v "scripts/test-yield-cleanup.sh" \
+        | grep -v "docs/tasks.md" \
+        | grep -v "docs/issues.md" \
         || true)
 
     if [ -z "$matches" ]; then

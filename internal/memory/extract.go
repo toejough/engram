@@ -10,14 +10,14 @@ import (
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 )
 
-// Extract parses a yield or result TOML file, extracts decisions and learnings,
+// Extract parses a legacy message or result TOML file, extracts decisions and learnings,
 // generates embeddings via ONNX, and stores them in SQLite-vec.
 //
-// It automatically detects whether the file is a yield or result file based on content.
-// For yield files, it extracts summary, findings, and learnings from the payload.
+// It automatically detects whether the file is a legacy message or result file based on content.
+// For legacy message files, it extracts summary, findings, and learnings from the payload.
 // For result files, it extracts decisions from the decisions array.
 //
-// The source field is set to "yield:{filename}" or "result:{filename}" for traceability.
+// The source field is set to "message:{filename}" or "result:{filename}" for traceability.
 func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 	// Use injected ReadFile or default to os.ReadFile
 	readFile := opts.ReadFile
@@ -35,10 +35,10 @@ func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 	var items []ExtractedItem
 	var fileType string
 
-	// Try parsing as yield file first
+	// Try parsing as legacy message file first
 	yieldFile, yieldErr := ParseYieldFile(data)
 	if yieldErr == nil {
-		fileType = "yield"
+		fileType = "message"
 		items = extractFromYield(yieldFile)
 	} else {
 		// Try parsing as result file

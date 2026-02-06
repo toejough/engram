@@ -104,12 +104,12 @@ results = {
     learnings: []    # All learnings captured
 }
 
-FOR EACH yield IN collected_yields:
-    IF yield.type == "approved":
-        results.succeeded.append(yield)
-        results.artifacts.extend(yield.payload.files_modified)
+FOR EACH message IN collected_messages:
+    IF message.type == "approved":
+        results.succeeded.append(message)
+        results.artifacts.extend(message.payload.files_modified)
     ELSE:
-        results.failed.append(yield)
+        results.failed.append(message)
 ```
 
 ### 4. VALIDATE Phase
@@ -120,8 +120,8 @@ Dispatch to consistency-checker for batch QA:
 IF results.succeeded.length > 0:
     1. Build batch context with all successful results
     2. Invoke: consistency-checker with domain rules
-    3. Handle consistency-checker yield:
-       - approved: proceed to complete yield
+    3. Handle consistency-checker message:
+       - approved: proceed to complete message
        - improvement-request: return items for rework
 ```
 

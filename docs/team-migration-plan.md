@@ -1,20 +1,20 @@
 # Migration Plan: projctl Orchestration to Claude Code Agent Teams
 
-> **Historical Note:** This migration plan was executed in two phases during January-February 2026. Phase 1 (ISSUE-69 through ISSUE-72) and Phase 2 (ISSUE-73 through ISSUE-80) successfully completed the migration from the yield protocol to Claude Code's native team mode. This document is preserved for historical reference.
+> **Historical Note:** This migration plan was executed in two phases during January-February 2026. Phase 1 (ISSUE-69 through ISSUE-72) and Phase 2 (ISSUE-73 through ISSUE-80) successfully completed the migration from TOML-based messaging to Claude Code's native team mode. This document is preserved for historical reference.
 
 ## Summary
 
-Replace projctl's custom coordination layer (yield protocol, context TOML files,
+Replace projctl's custom coordination layer (TOML-based messaging, context TOML files,
 parallel looper) with Claude Code's built-in agent teams while preserving the
 phase state machine, traceability, QA contracts, memory, and territory systems.
 
 **Core changes:**
 1. `/project` becomes a team lead in delegate mode
 2. Skills dispatched as teammates (not Skill tool in main context)
-3. Yield TOML → SendMessage between teammates and lead
+3. TOML messages → SendMessage between teammates and lead
 4. Context TOML → spawn prompts + messages
 5. Task runtime coordination → built-in TaskList
-6. Interview skills use AskUserQuestion directly (no yield-resume relay)
+6. Interview skills use AskUserQuestion directly (no message-resume relay)
 
 **Unchanged:** Phase state machine, traceability, QA contracts, memory system,
 territory mapping, issue management, TDD discipline, git worktrees.
@@ -23,15 +23,15 @@ territory mapping, issue management, TDD discipline, git worktrees.
 
 ## Architecture: Before and After
 
-### Before (Current)
+### Before (Legacy)
 ```
 User → /project (Skill tool, main context)
          │
          ├── projctl context write → TOML file
          ├── Skill tool → skill runs in main context
-         ├── Skill writes yield TOML
-         ├── projctl context read → parse yield
-         ├── Handle yield type (need-user-input → prompt user → resume)
+         ├── Skill writes result TOML
+         ├── projctl context read → parse result
+         ├── Handle message type (need-user-input → prompt user → resume)
          └── projctl state transition
 ```
 
@@ -71,9 +71,9 @@ Lead (if approved):
 
 ---
 
-## Yield Type Mapping
+## Message Type Mapping
 
-| Current Yield | Teams Equivalent | Notes |
+| Legacy Message Type | Teams Equivalent | Notes |
 |---|---|---|
 | `complete` | SendMessage to lead | Include artifact paths, IDs, files modified |
 | `approved` | SendMessage to lead | QA approval |
@@ -89,7 +89,7 @@ Lead (if approved):
 | `escalate-user` | SendMessage→lead→user | Lead relays |
 
 **Key win:** `need-context` disappears entirely. `need-user-input` for interviews
-becomes direct. These two were the most complex yield-resume cycles.
+becomes direct. These two were the most complex message-resume cycles.
 
 ---
 
@@ -155,8 +155,8 @@ When complete, send me a message with:
 **File to modify:** `skills/pm-interview-producer/SKILL.md`
 
 **Changes:**
-- Remove "write yield TOML to output.yield_path" instructions
-- Remove need-user-input yield for interview questions
+- Remove "write message TOML to output.message_path" instructions
+- Remove need-user-input message for interview questions
 - Add: use AskUserQuestion directly during INTERVIEW phase
 - Add: use AskUserQuestion for CLASSIFY (inferred spec approval)
 - Add: on completion, send SendMessage to team lead with results
@@ -175,7 +175,7 @@ team mode. This is natural — Claude reads whatever context is available.
 **Changes:**
 - Remove TOML context reading instructions
 - Add: receive context via message (producer SKILL.md path, artifact paths, iteration)
-- Remove yield TOML writing
+- Remove message TOML writing
 - Add: send verdict via SendMessage (approved | improvement-request with issues)
 - Keep: contract extraction from producer SKILL.md `## Contract` section
 - Keep: three-phase workflow (LOAD → VALIDATE → RETURN)
@@ -186,7 +186,7 @@ team mode. This is natural — Claude reads whatever context is available.
 - `skills/shared/PRODUCER-TEMPLATE.md` — Add "Team Mode" section for context
   reception and result reporting alongside existing TOML instructions
 - `skills/shared/INTERVIEW-PATTERN.md` — Add "Team Mode" section for direct
-  AskUserQuestion usage (keep yield-resume docs for legacy reference)
+  AskUserQuestion usage (keep message-resume docs for legacy reference)
 
 **Files unchanged:** CONTRACT.md, ownership-rules/
 
@@ -309,24 +309,24 @@ Complete the orchestrator to handle all workflows:
 
 **Issues:** ISSUE-80, ISSUE-81, ISSUE-82, ISSUE-83
 
-### ISSUE-80: Remove legacy yield infrastructure
+### ISSUE-80: Remove legacy message infrastructure
 
 **Go code to remove:**
-- `internal/yield/yield.go` (~240 lines) — Yield type definitions and TOML validation
-- `internal/yield/yield_test.go` — Tests
-- `cmd/projctl/yield.go` — CLI commands (yield validate, yield types)
+- `internal/message/message.go` (~240 lines) — Message type definitions and TOML validation
+- `internal/message/message_test.go` — Tests
+- `cmd/projctl/message.go` — CLI commands (message validate, message types)
 
 **State machine simplification:**
-- Remove `YieldState` from `internal/state/state.go` (pending yield tracking)
-- Remove `SetYield()`/`ClearYield()` methods
-- Remove `state yield set/clear` CLI commands
+- Remove `MessageState` from `internal/state/state.go` (pending message tracking)
+- Remove `SetMessage()`/`ClearMessage()` methods
+- Remove `state message set/clear` CLI commands
 - Keep `PairState` (still tracks producer/QA iterations)
 
 ### ISSUE-81: Remove legacy context TOML infrastructure
 
 **Go code to remove:**
 - `internal/context/context.go` Write/Read/WriteParallel functions (~440 lines)
-- `internal/context/yieldpath.go` GenerateYieldPath (~170 lines)
+- `internal/context/messagepath.go` GenerateMessagePath (~170 lines)
 - `cmd/projctl/context.go` — CLI commands (context write, read, write-parallel)
 
 **Keep:**
@@ -336,10 +336,10 @@ Complete the orchestrator to handle all workflows:
 
 **Files to update:**
 - `skills/shared/PRODUCER-TEMPLATE.md` — Remove legacy TOML sections
-- `skills/shared/INTERVIEW-PATTERN.md` — Remove yield-resume documentation
+- `skills/shared/INTERVIEW-PATTERN.md` — Remove message-resume documentation
 
 **Files to remove:**
-- `skills/shared/YIELD.md` — No longer used
+- `skills/shared/MESSAGE.md` — No longer used
 - `skills/shared/CONTEXT.md` — No longer used
 - `skills/shared/QA-TEMPLATE.md` — Already deprecated, delete
 
@@ -353,7 +353,7 @@ Remove backward-compat TOML detection from all migrated SKILL.md files.
 ### Validation (Phase 4)
 - `go test ./...` passes
 - `golangci-lint run` passes
-- No TOML context or yield files created during execution
+- No TOML context or message files created during execution
 - `/project new` still works end-to-end
 - `projctl trace validate` passes
 - Removed ~850+ lines of Go code
@@ -380,4 +380,4 @@ Deferred until core migration (Phases 1-3) is complete.
 | Message size limits for large context | Write large context to temp files, send paths in messages; teammates read directly |
 | Teammate crashes mid-skill | Lead detects via idle notification + TaskList status; spawns replacement with same context |
 | Cost increase (multiple sessions) | Sequential phases reuse pattern (shutdown prev teammate before spawning next); parallel only where justified |
-| Interview UX change | AskUserQuestion is actually better UX than yield-relay; user sees questions directly |
+| Interview UX change | AskUserQuestion is actually better UX than message-relay; user sees questions directly |

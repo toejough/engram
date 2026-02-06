@@ -24,12 +24,12 @@ Build a dependable Claude Code agent orchestrator with:
 As a user, I want interview skills to understand existing context before asking questions, so that I'm not asked about information that's already available.
 
 **Acceptance Criteria:**
-- [ ] Interview skills (pm-interview-producer, architect-interview-producer, design-interview-producer) gather context BEFORE yielding `need-user-input`
+- [ ] Interview skills (pm-interview-producer, architect-interview-producer, design-interview-producer) gather context BEFORE asking user questions
 - [ ] Skills use existing infrastructure: territory map, memory query, context-explorer
 - [ ] Skills assess what's already answered by issue + gathered context
 - [ ] Skills only ask questions about genuinely missing information
-- [ ] When context gathering fails (territory map error, memory query timeout), skill yields `blocked` with diagnostic information
-- [ ] When gathered context contains contradictory information, skill yields `need-decision` with conflicting statements for user resolution
+- [ ] When context gathering fails (territory map error, memory query timeout), skill sends message to lead with diagnostic information
+- [ ] When gathered context contains contradictory information, skill sends message to lead with conflicting statements for user resolution
 
 **Priority:** P0
 
@@ -46,11 +46,11 @@ As a user, I want interview depth to adapt based on information gaps, so that si
 **Acceptance Criteria:**
 - [ ] Skills assess information gaps against their key responsibilities (as documented in each skill's SKILL.md)
 - [ ] Gap size determined by percentage of key questions answerable from context: ≥80% = small gap, 50-79% = medium gap, <50% = large gap
-- [ ] Small gaps: skill yields 1-2 confirmation questions maximum
-- [ ] Medium gaps: skill yields 3-5 clarification questions
-- [ ] Large gaps: skill yields full interview sequence (6+ questions covering all phases)
-- [ ] Depth decision is explicit and traceable in yield context (includes gap percentage and question count)
-- [ ] When both issue description AND gathered context are sparse (<20% coverage), skill yields full interview by default
+- [ ] Small gaps: skill asks 1-2 confirmation questions maximum
+- [ ] Medium gaps: skill asks 3-5 clarification questions
+- [ ] Large gaps: skill conducts full interview sequence (6+ questions covering all phases)
+- [ ] Depth decision is explicit and traceable in message context (includes gap percentage and question count)
+- [ ] When both issue description AND gathered context are sparse (<20% coverage), skill conducts full interview by default
 
 **Priority:** P1
 
@@ -259,13 +259,13 @@ As a user, I want producer skills to send a distinct message with an `inferred` 
 As a user, I want all producer skills (both interview and infer variants) to identify when they are adding specifications beyond what was explicitly requested, so that nothing is silently added to my project artifacts.
 
 **Acceptance Criteria:**
-- [ ] pm-interview-producer yields `inferred` for requirements not directly stated by the user or issue
-- [ ] pm-infer-producer yields `inferred` for requirements not directly present in analyzed code/docs
-- [ ] design-interview-producer yields `inferred` for design decisions not directly requested
-- [ ] design-infer-producer yields `inferred` for design decisions not directly present in analyzed code/docs
-- [ ] arch-interview-producer yields `inferred` for architecture decisions not directly requested
-- [ ] arch-infer-producer yields `inferred` for architecture decisions not directly present in analyzed code/docs
-- [ ] Each inferred yield includes reasoning: what triggered the inference (edge case, best practice, implicit need)
+- [ ] pm-interview-producer uses AskUserQuestion with `inferred` flag for requirements not directly stated by the user or issue
+- [ ] pm-infer-producer uses AskUserQuestion with `inferred` flag for requirements not directly present in analyzed code/docs
+- [ ] design-interview-producer uses AskUserQuestion with `inferred` flag for design decisions not directly requested
+- [ ] design-infer-producer uses AskUserQuestion with `inferred` flag for design decisions not directly present in analyzed code/docs
+- [ ] arch-interview-producer uses AskUserQuestion with `inferred` flag for architecture decisions not directly requested
+- [ ] arch-infer-producer uses AskUserQuestion with `inferred` flag for architecture decisions not directly present in analyzed code/docs
+- [ ] Each inferred question includes reasoning: what triggered the inference (edge case, best practice, implicit need)
 - [ ] Producers distinguish between "user said this" and "I think this is needed" for every specification item
 
 **Priority:** P0
