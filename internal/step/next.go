@@ -7,6 +7,32 @@ import (
 	"github.com/toejough/projctl/internal/state"
 )
 
+// HandshakeInstruction is prepended to every generated TaskParams.Prompt.
+// It instructs the teammate to respond with its model name before doing any work.
+const HandshakeInstruction = "First, respond with your model name so I can verify you're running the correct model."
+
+// buildPrompt assembles the full prompt for a spawn action.
+func buildPrompt(skillName string, ctx StepContext) string {
+	prompt := HandshakeInstruction + "\n\nThen invoke /" + skillName + "."
+
+	if ctx.Issue != "" {
+		prompt += "\n\nIssue: " + ctx.Issue
+	}
+
+	if ctx.QAFeedback != "" {
+		prompt += "\n\nQA feedback:\n" + ctx.QAFeedback
+	}
+
+	if len(ctx.PriorArtifacts) > 0 {
+		prompt += "\n\nPrior artifacts:"
+		for _, a := range ctx.PriorArtifacts {
+			prompt += "\n- " + a
+		}
+	}
+
+	return prompt
+}
+
 // StepContext provides contextual information for the action.
 type StepContext struct {
 	Issue          string   `json:"issue,omitempty"`
@@ -102,6 +128,7 @@ func Next(dir string) (NextResult, error) {
 				SubagentType: "code",
 				Name:         info.Producer,
 				Model:        info.ProducerModel,
+				Prompt:       buildPrompt(info.Producer, ctx),
 			},
 			ExpectedModel: info.ProducerModel,
 		}, nil
@@ -120,6 +147,7 @@ func Next(dir string) (NextResult, error) {
 				SubagentType: "code",
 				Name:         info.QA,
 				Model:        info.QAModel,
+				Prompt:       buildPrompt(info.QA, ctx),
 			},
 			ExpectedModel: info.QAModel,
 		}, nil
@@ -139,6 +167,7 @@ func Next(dir string) (NextResult, error) {
 				SubagentType: "code",
 				Name:         info.Producer,
 				Model:        info.ProducerModel,
+				Prompt:       buildPrompt(info.Producer, ctx),
 			},
 			ExpectedModel: info.ProducerModel,
 		}, nil

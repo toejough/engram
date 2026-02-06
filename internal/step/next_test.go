@@ -438,7 +438,7 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams.SubagentType).To(Equal("code"))
 		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
 		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
-		g.Expect(result.TaskParams.Prompt).To(BeEmpty()) // TASK-3 handles prompt
+		g.Expect(result.TaskParams.Prompt).To(HavePrefix(step.HandshakeInstruction))
 		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
 	})
 
@@ -597,6 +597,117 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams.Name).To(Equal("tdd-red-producer"))
 		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
 		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+	})
+}
+
+func TestPromptAssembly(t *testing.T) {
+	t.Run("prompt starts with HandshakeInstruction", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams).ToNot(BeNil())
+		g.Expect(result.TaskParams.Prompt).To(HavePrefix(step.HandshakeInstruction))
+	})
+
+	t.Run("prompt contains skill invocation instruction", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams.Prompt).To(ContainSubstring("Then invoke /pm-interview-producer"))
+	})
+
+	t.Run("prompt includes issue reference when present", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams.Prompt).To(ContainSubstring("ISSUE-98"))
+	})
+
+	t.Run("prompt includes QA feedback for improvement-request", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:          1,
+			MaxIterations:      3,
+			ProducerComplete:   true,
+			QAVerdict:          "improvement-request",
+			ImprovementRequest: "REQ-003 needs measurable criteria",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams.Prompt).To(ContainSubstring("REQ-003 needs measurable criteria"))
+	})
+
+	t.Run("prompt does NOT contain handshake for non-spawn actions", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+			QAVerdict:        "approved",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("commit"))
+		g.Expect(result.TaskParams).To(BeNil())
+	})
+
+	t.Run("spawn-qa prompt contains QA skill invocation", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        1,
+			MaxIterations:    3,
+			ProducerComplete: true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("spawn-qa"))
+		g.Expect(result.TaskParams.Prompt).To(HavePrefix(step.HandshakeInstruction))
+		g.Expect(result.TaskParams.Prompt).To(ContainSubstring("Then invoke /qa"))
 	})
 }
 
