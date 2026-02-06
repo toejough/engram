@@ -3478,3 +3478,13 @@ From ISSUE-89 retro Q1: Currently the registry is a Go map literal in registry.g
 **Created:** 2026-02-05
 
 From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does not do anything special with it. A failed producer or QA should probably trigger different behavior (retry? escalate? block?). The orchestrator currently handles failures ad-hoc. projctl step next should eventually encode failure recovery paths so the LLM does not have to decide how to handle failures.
+
+---
+
+### ISSUE-97: Retro: Add CLI flag validation to documentation TDD pattern
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-05
+
+From ISSUE-90 retro R1: When writing tests for skill documentation that references CLI commands, include tests that verify the exact flag names and values match the CLI implementation. Flag mismatches between SKILL.md examples and the actual CLI interface are integration bugs. QA caught two such bugs in ISSUE-90 (--status retry invalid, --qa-verdict approved missing). Measurable outcome: zero QA findings related to CLI flag mismatches in SKILL.md files.
