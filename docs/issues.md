@@ -3447,13 +3447,17 @@ Will be addressed by ISSUE-90 (step-driven execution). When the orchestrator fol
 ### ISSUE-94: Enforce naming convention for teammates
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-05
 
 From ISSUE-89 retro R2: Document and enforce the <phase>-<role> naming convention (e.g., tdd-qa, retro-producer) in the orchestrator SKILL.md. When projctl step next returns an action, include the expected teammate name in the output. Measurable outcome: all spawned teammates follow the <phase>-<role> naming pattern.
 
 ---
 
+
+### Comment
+
+Will be addressed by ISSUE-90 (step-driven execution). projctl step next output will include the teammate name, enforcing the naming convention automatically.
 ### ISSUE-95: Decision needed: Should the phase registry be runtime config instead of static code?
 
 **Priority:** Medium
