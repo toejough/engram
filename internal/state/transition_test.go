@@ -125,12 +125,18 @@ func TestIsLegalTransition(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(state.IsLegalTransition("implementation", "task-start")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-start", "tdd-red")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-red", "commit-red")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-red", "tdd-green")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-green", "commit-green")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-green", "tdd-refactor")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor", "commit-refactor")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-refactor", "task-audit")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-red", "tdd-red-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-red-qa", "commit-red")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-red", "commit-red-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-red-qa", "tdd-green")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-green", "tdd-green-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-green-qa", "commit-green")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-green", "commit-green-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-green-qa", "tdd-refactor")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-refactor-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "commit-refactor")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor", "commit-refactor-qa")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-audit")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-audit", "task-complete")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-audit", "task-retry")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-audit", "task-escalated")).To(BeTrue())
@@ -648,9 +654,9 @@ func walkToSummaryComplete(t *testing.T, dir string) {
 	phases := []string{
 		"pm", "pm-complete", "design", "design-complete",
 		"architect", "architect-complete", "breakdown", "breakdown-complete",
-		"implementation", "task-start", "tdd-red",
-		"commit-red", "tdd-green", "commit-green", "tdd-refactor",
-		"commit-refactor", "task-audit", "task-complete",
+		"implementation", "task-start", "tdd-red", "tdd-red-qa",
+		"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+		"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
 		"implementation-complete", "documentation", "documentation-complete",
 		"alignment", "alignment-complete", "retro", "retro-complete",
 		"summary", "summary-complete",
@@ -729,7 +735,7 @@ func TestNext_Continue(t *testing.T) {
 
 		result := state.Next(dir)
 		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("commit-red"))
+		g.Expect(result.NextPhase).To(Equal("tdd-red-qa"))
 	})
 
 	t.Run("continues across phases", func(t *testing.T) {
@@ -743,7 +749,7 @@ func TestNext_Continue(t *testing.T) {
 
 		result := state.Next(dir)
 		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("tdd-refactor"))
+		g.Expect(result.NextPhase).To(Equal("commit-green-qa"))
 	})
 }
 
@@ -1048,16 +1054,16 @@ func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
 		"task-audit": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
-			"commit-refactor", "task-audit",
+			"implementation", "task-start", "tdd-red", "tdd-red-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+			"commit-refactor", "commit-refactor-qa", "task-audit",
 		},
 		"task-complete": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
-			"commit-refactor", "task-audit", "task-complete",
+			"implementation", "task-start", "tdd-red", "tdd-red-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+			"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
 		},
 	}
 
@@ -1080,9 +1086,9 @@ func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
 
 	for _, phase := range phases {
 		opts := state.TransitionOpts{}
-		if phase == "task-start" || phase == "tdd-red" || phase == "commit-red" ||
-			phase == "tdd-green" || phase == "commit-green" || phase == "tdd-refactor" ||
-			phase == "commit-refactor" || phase == "task-audit" || phase == "task-complete" {
+		if phase == "task-start" || phase == "tdd-red" || phase == "tdd-red-qa" || phase == "commit-red" || phase == "commit-red-qa" ||
+			phase == "tdd-green" || phase == "tdd-green-qa" || phase == "commit-green" || phase == "commit-green-qa" || phase == "tdd-refactor" || phase == "tdd-refactor-qa" ||
+			phase == "commit-refactor" || phase == "commit-refactor-qa" || phase == "task-audit" || phase == "task-complete" {
 			opts.Task = taskID
 		}
 		_, err := state.TransitionWithChecker(dir, phase, opts, nowFunc(), passChecker)
@@ -1122,22 +1128,22 @@ func walkToPhase(t *testing.T, dir, target string) {
 		"commit-green": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-			"commit-red", "tdd-green", "commit-green",
+			"implementation", "task-start", "tdd-red", "tdd-red-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green",
 		},
 		"task-audit": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
-			"commit-refactor", "task-audit",
+			"implementation", "task-start", "tdd-red", "tdd-red-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+			"commit-refactor", "commit-refactor-qa", "task-audit",
 		},
 		"next-steps": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-			"commit-red", "tdd-green", "commit-green", "tdd-refactor",
-			"commit-refactor", "task-audit", "task-complete",
+			"implementation", "task-start", "tdd-red", "tdd-red-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
+			"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
 			"implementation-complete", "documentation", "documentation-complete",
 			"alignment", "alignment-complete", "retro", "retro-complete",
 			"summary", "summary-complete", "issue-update", "next-steps",

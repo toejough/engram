@@ -140,7 +140,7 @@ func TestTDDGreenToGreenQATransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green",
+			"commit-red", "commit-red-qa", "tdd-green",
 		}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
@@ -165,7 +165,7 @@ func TestTDDGreenToGreenQATransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green",
+			"commit-red", "commit-red-qa", "tdd-green",
 		}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
@@ -192,7 +192,7 @@ func TestTDDGreenQAToCommitGreenTransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green", "tdd-green-qa",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
 		}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
@@ -219,7 +219,7 @@ func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green", "tdd-green-qa", "commit-green",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
 			"tdd-refactor",
 		}
 		for _, phase := range phases {
@@ -245,7 +245,7 @@ func TestTDDRefactorToRefactorQATransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green", "tdd-green-qa", "commit-green",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
 			"tdd-refactor",
 		}
 		for _, phase := range phases {
@@ -273,7 +273,7 @@ func TestTDDRefactorQAToCommitRefactorTransition(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "tdd-green", "tdd-green-qa", "commit-green",
+			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
 			"tdd-refactor", "tdd-refactor-qa",
 		}
 		for _, phase := range phases {

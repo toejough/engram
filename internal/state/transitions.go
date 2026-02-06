@@ -26,15 +26,21 @@ var LegalTransitions = map[string][]string{
 	"breakdown":          {"breakdown-complete"},
 	"breakdown-complete": {"implementation"},
 
-	// Implementation phase (TDD loop)
+	// Implementation phase (TDD loop with per-phase QA)
 	"implementation":          {"task-start"},
 	"task-start":              {"tdd-red"},
-	"tdd-red":                 {"commit-red"},
-	"commit-red":              {"tdd-green"},
-	"tdd-green":               {"commit-green"},
-	"commit-green":            {"tdd-refactor"},
-	"tdd-refactor":            {"commit-refactor"},
-	"commit-refactor":         {"task-audit"},
+	"tdd-red":                 {"tdd-red-qa"},
+	"tdd-red-qa":              {"commit-red"},
+	"commit-red":              {"commit-red-qa"},
+	"commit-red-qa":           {"tdd-green"},
+	"tdd-green":               {"tdd-green-qa"},
+	"tdd-green-qa":            {"commit-green"},
+	"commit-green":            {"commit-green-qa"},
+	"commit-green-qa":         {"tdd-refactor"},
+	"tdd-refactor":            {"tdd-refactor-qa"},
+	"tdd-refactor-qa":         {"commit-refactor"},
+	"commit-refactor":         {"commit-refactor-qa"},
+	"commit-refactor-qa":      {"task-audit"},
 	"task-audit":              {"task-complete", "task-retry", "task-escalated"},
 	"task-complete":           {"task-start", "implementation-complete", "task-documentation"}, // task-documentation for single-task workflow
 	"task-retry":              {"tdd-red"},

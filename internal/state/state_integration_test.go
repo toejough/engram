@@ -107,11 +107,14 @@ func TestExample(t *testing.T) {
 	s, err = state.TransitionWithChecker(projectDir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// This is the critical transition - it should succeed because:
-	// 1. RepoDir is set in state
-	// 2. TestsExist checks repoDir (where example_test.go exists)
-	// 3. TestsFail returns true (our mock always says tests fail in red phase)
+	// Per-phase QA: tdd-red -> tdd-red-qa -> commit-red -> commit-red-qa -> tdd-green
+	s, err = state.TransitionWithChecker(projectDir, "tdd-red-qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
+	g.Expect(err).ToNot(HaveOccurred())
+
 	s, err = state.TransitionWithChecker(projectDir, "commit-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	s, err = state.TransitionWithChecker(projectDir, "commit-red-qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// tdd-green should also succeed
