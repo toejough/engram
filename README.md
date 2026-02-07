@@ -1,12 +1,12 @@
 # projctl
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 A dependable Claude Code agent orchestrator with maximum autonomy, minimum intervention, and confident traceability from idea to implementation.
 
 ## Overview
 
-<!-- Traces: REQ-001, DES-001, ARCH-018 -->
+<!-- Traces: REQ-1, DES-1, ARCH-18 -->
 
 projctl is a CLI tool that orchestrates Claude Code agents through structured workflows for software development projects. It provides:
 
@@ -20,7 +20,7 @@ projctl is a CLI tool that orchestrates Claude Code agents through structured wo
 
 ## Installation
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 ### Prerequisites
 
@@ -51,7 +51,7 @@ projctl --help
 
 ## Quick Start
 
-<!-- Traces: REQ-001, ARCH-001, ARCH-012, ARCH-013 -->
+<!-- Traces: REQ-1, ARCH-1, ARCH-12, ARCH-13 -->
 
 ### Initialize a Project
 
@@ -103,11 +103,11 @@ projctl usage check --dir .
 
 ## Core Concepts
 
-<!-- Traces: REQ-001, ARCH-018 -->
+<!-- Traces: REQ-1, ARCH-18 -->
 
 ### Phases and Workflows
 
-<!-- Traces: ARCH-034, ARCH-035, ARCH-036 -->
+<!-- Traces: ARCH-34, ARCH-35, ARCH-36 -->
 
 projctl organizes work into phases, each with a dedicated producer and QA agent:
 
@@ -124,7 +124,7 @@ projctl organizes work into phases, each with a dedicated producer and QA agent:
 
 #### TDD Loop Structure
 
-<!-- Traces: ARCH-034, ARCH-035, ARCH-036 -->
+<!-- Traces: ARCH-34, ARCH-35, ARCH-36 -->
 
 The implementation phase uses a structured TDD loop with per-phase QA and commits. Each TDD sub-phase (red, green, refactor) has its own producer/QA pair followed by commit validation:
 
@@ -147,7 +147,7 @@ task-audit
 
 **Commit Validation:**
 
-<!-- Traces: ARCH-039, ARCH-040 -->
+<!-- Traces: ARCH-39, ARCH-40 -->
 
 Each commit phase uses `commit-producer` skill to create phase-scoped commits, followed by `commit-qa` validation:
 
@@ -192,7 +192,7 @@ No pre-execution conflict detection. Git detects conflicts during merge and esca
 
 ### Team Communication Protocol
 
-<!-- Traces: ARCH-018 -->
+<!-- Traces: ARCH-18 -->
 
 Skills communicate with the team lead through the `SendMessage` and `AskUserQuestion` tools. Producer message types:
 
@@ -210,12 +210,12 @@ QA message types:
 
 ### Traceability Chain
 
-<!-- Traces: REQ-001, ARCH-018 -->
+<!-- Traces: REQ-1, ARCH-18 -->
 
 Every artifact traces to upstream work using inline `**Traces to:**` fields:
 
 ```markdown
-### REQ-003: User Authentication
+### REQ-3: User Authentication
 
 Users must be able to log in with email and password.
 
@@ -230,7 +230,7 @@ projctl trace validate --dir .
 
 ### State Management
 
-<!-- Traces: ARCH-012, ARCH-013 -->
+<!-- Traces: ARCH-12, ARCH-13 -->
 
 The orchestrator tracks project state to enable resumption and parallel work:
 
@@ -250,7 +250,7 @@ State includes:
 
 ## CLI Commands
 
-<!-- Traces: REQ-001, ARCH-002 -->
+<!-- Traces: REQ-1, ARCH-2 -->
 
 ### State Commands
 
@@ -292,7 +292,7 @@ projctl trace promote           # Promote TASK traces to artifact IDs
 
 ### Memory System
 
-<!-- Traces: ARCH-014 -->
+<!-- Traces: ARCH-14 -->
 
 ```bash
 projctl memory learn            # Store a learning
@@ -305,7 +305,7 @@ projctl memory session-end      # Generate session summary
 
 ### Context and Territory
 
-<!-- Traces: ARCH-007 -->
+<!-- Traces: ARCH-7 -->
 
 ```bash
 projctl context check           # Check context budget usage
@@ -324,7 +324,7 @@ projctl refactor extract-function  # Extract function using LSP
 
 ### Visual Verification
 
-<!-- Traces: ARCH-015 -->
+<!-- Traces: ARCH-15 -->
 
 ```bash
 projctl screenshot diff         # Compare screenshots for differences
@@ -332,7 +332,7 @@ projctl screenshot diff         # Compare screenshots for differences
 
 ### Usage Tracking
 
-<!-- Traces: ARCH-004 -->
+<!-- Traces: ARCH-4 -->
 
 ```bash
 projctl usage report            # Generate token usage report
@@ -341,7 +341,7 @@ projctl usage check             # Check against budget thresholds
 
 ### Skills Management
 
-<!-- Traces: ARCH-016 -->
+<!-- Traces: ARCH-16 -->
 
 ```bash
 projctl skills list             # List available skills
@@ -372,7 +372,7 @@ projctl step complete --reportedmodel <model>  # Record failed spawn with model 
 
 ### Step Orchestration
 
-<!-- Traces: ARCH-002, ISSUE-120 -->
+<!-- Traces: ARCH-2, ISSUE-120 -->
 
 The `projctl step next` command returns all currently unblocked tasks for immediate parallel execution:
 
@@ -422,7 +422,7 @@ Conflicts during merge are detected by git and escalated to the user for resolut
 
 ## Configuration
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 Project configuration lives in `project-config.toml`:
 
@@ -455,7 +455,7 @@ projctl config init
 
 ## Skills
 
-<!-- Traces: ARCH-016, ARCH-018 -->
+<!-- Traces: ARCH-16, ARCH-18 -->
 
 Skills are located in `~/.claude/skills/` and define agent behaviors. Key skills:
 
@@ -478,7 +478,7 @@ Each skill follows the GATHER → SYNTHESIZE → PRODUCE pattern and communicate
 
 ## Model Routing
 
-<!-- Traces: ARCH-003 -->
+<!-- Traces: ARCH-3 -->
 
 projctl automatically selects the most cost-effective model for each task:
 
@@ -546,7 +546,7 @@ projctl trace validate --dir .
 
 ## Architecture
 
-<!-- Traces: ARCH-001, ARCH-012, ARCH-013, ARCH-018 -->
+<!-- Traces: ARCH-1, ARCH-12, ARCH-13, ARCH-18 -->
 
 projctl uses a structured result format where all skills return TOML files with:
 
@@ -568,16 +568,16 @@ State machine preconditions prevent skipping workflow steps, ensuring determinis
 
 ## Traceability
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 All artifacts use inline traceability. Each section with an ID includes a `**Traces to:**` field:
 
 ```markdown
-### DES-005: Login Form Layout
+### DES-5: Login Form Layout
 
 The login form has email and password fields with a submit button.
 
-**Traces to:** REQ-003
+**Traces to:** REQ-3
 ```
 
 Validate the traceability chain:
@@ -593,7 +593,7 @@ This ensures:
 
 ## Learning System
 
-<!-- Traces: ARCH-005, ARCH-014 -->
+<!-- Traces: ARCH-5, ARCH-14 -->
 
 projctl learns from corrections to improve future behavior:
 
@@ -616,7 +616,7 @@ projctl memory query "test naming conventions"
 
 ## Token Budget
 
-<!-- Traces: ARCH-004 -->
+<!-- Traces: ARCH-4 -->
 
 Track and control token usage:
 
@@ -646,13 +646,13 @@ projctl issue create --title "..." --description "..."
 
 ## License
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 See LICENSE file for details.
 
 ## Documentation
 
-<!-- Traces: REQ-001 -->
+<!-- Traces: REQ-1 -->
 
 - [Requirements](docs/requirements.md) - Detailed requirements with traceability
 - [Design](docs/design.md) - Design decisions and user experience
