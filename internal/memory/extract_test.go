@@ -157,8 +157,8 @@ func TestExtract_ReturnsWrappedErrorOnParseFailure(t *testing.T) {
 	modelDir := filepath.Join(tempDir, "models")
 
 	invalidTOML := `
-[yield
-type = "complete"
+[status
+result = "success"
 `
 
 	opts := memory.ExtractOpts{
@@ -314,40 +314,6 @@ task = "TASK-10"
 	g.Expect(result.Items[0].Content).ToNot(BeEmpty())
 }
 
-// TEST: Extract handles empty payload gracefully
-// Traces to: TASK-4 AC-7
-func TestExtract_HandlesEmptyPayloadGracefully(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	modelDir := filepath.Join(tempDir, "models")
-
-	yieldContent := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[context]
-phase = "tdd-green"
-task = "TASK-4"
-`
-
-	opts := memory.ExtractOpts{
-		FilePath:   "/test/empty-payload.toml",
-		MemoryRoot: memoryDir,
-		ModelDir:   modelDir,
-		ReadFile: func(path string) ([]byte, error) {
-			return []byte(yieldContent), nil
-		},
-	}
-
-	result, err := opts.Extract()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Status).To(Equal("success"))
-	g.Expect(result.ItemsExtracted).To(Equal(0))
-	g.Expect(result.Items).To(BeEmpty())
-}
 
 // TEST: Extract handles empty decisions array gracefully
 // Traces to: TASK-4 AC-7

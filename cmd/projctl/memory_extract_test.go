@@ -52,78 +52,16 @@ task = "TASK-10"
 	g.Expect(string(output)).To(ContainSubstring("1 decision"))
 }
 
-// TEST: memory extract --yield flag works
-// Traces to: TASK-7 AC-4, AC-11, AC-13
-func TestMemoryExtractYieldFlag(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, ".claude", "memory")
-
-	// Create a valid yield file
-	yieldContent := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[payload]
-summary = "Implemented the Extract function"
-learnings = ["SQLite-vec works well", "Mean pooling recommended"]
-
-[context]
-phase = "tdd-green"
-task = "TASK-4"
-`
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
-		"--memoryroot", memoryDir)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("Extracted"))
-	g.Expect(string(output)).To(ContainSubstring("2 learning"))
-}
-
-// TEST: memory extract fails when both --result and --yield provided
+// TEST: memory extract fails when --result flag not provided
 // Traces to: TASK-7 AC-5, AC-15
-func TestMemoryExtractMutualExclusionBothFlags(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	resultPath := filepath.Join(tempDir, "result.toml")
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(resultPath, []byte("[status]\nresult = \"success\""), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(yieldPath, []byte("[yield]\ntype = \"complete\""), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	cmd := exec.Command("projctl", "memory", "extract",
-		"--result", resultPath,
-		"--yield", yieldPath)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Should fail with both flags: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("mutually exclusive"))
-}
-
-// TEST: memory extract fails when neither --result nor --yield provided
-// Traces to: TASK-7 AC-5, AC-15
-func TestMemoryExtractMutualExclusionNoFlags(t *testing.T) {
+func TestMemoryExtractMissingResultFlag(t *testing.T) {
 	g := NewWithT(t)
 
 	cmd := exec.Command("projctl", "memory", "extract")
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).To(HaveOccurred(), "Should fail with no flags: %s", string(output))
-	g.Expect(string(output)).To(SatisfyAny(
-		ContainSubstring("--result"),
-		ContainSubstring("--yield"),
-	))
+	g.Expect(string(output)).To(ContainSubstring("--result"))
 }
 
 // TEST: memory extract shows success message with item count
@@ -134,26 +72,27 @@ func TestMemoryExtractShowsSuccessMessage(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	yieldContent := `
-[yield]
-type = "complete"
+	resultContent := `
+[status]
+result = "success"
 timestamp = "2026-02-04T10:30:00Z"
 
-[payload]
-summary = "Test summary"
-findings = ["Finding 1", "Finding 2"]
-learnings = ["Learning 1"]
+[[decisions]]
+context = "Test decision"
+choice = "Test choice"
+reason = "Test reason"
+alternatives = []
 
 [context]
-phase = "tdd-green"
+phase = "design"
 task = "TASK-7"
 `
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
+	resultPath := filepath.Join(tempDir, "result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
+		"--result", resultPath,
 		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
@@ -213,24 +152,27 @@ func TestMemoryExtractShowsStorageLocation(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	yieldContent := `
-[yield]
-type = "complete"
+	resultContent := `
+[status]
+result = "success"
 timestamp = "2026-02-04T10:30:00Z"
 
-[payload]
-summary = "Test summary"
+[[decisions]]
+context = "Test decision"
+choice = "Test choice"
+reason = "Test reason"
+alternatives = []
 
 [context]
-phase = "tdd-green"
+phase = "design"
 task = "TASK-7"
 `
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
+	resultPath := filepath.Join(tempDir, "result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
+		"--result", resultPath,
 		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
@@ -273,25 +215,27 @@ func TestMemoryExtractOutputsTOML(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	yieldContent := `
-[yield]
-type = "complete"
+	resultContent := `
+[status]
+result = "success"
 timestamp = "2026-02-04T10:30:00Z"
 
-[payload]
-summary = "Test TOML output"
-learnings = ["Learning 1"]
+[[decisions]]
+context = "Test TOML output"
+choice = "Test choice"
+reason = "Test reason"
+alternatives = []
 
 [context]
-phase = "tdd-green"
+phase = "design"
 task = "TASK-7"
 `
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
+	resultPath := filepath.Join(tempDir, "result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
+		"--result", resultPath,
 		"--memoryroot", memoryDir)
 	output, err := cmd.CombinedOutput()
 
@@ -315,24 +259,27 @@ func TestMemoryExtractTOMLIsMachineReadable(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	yieldContent := `
-[yield]
-type = "complete"
+	resultContent := `
+[status]
+result = "success"
 timestamp = "2026-02-04T10:30:00Z"
 
-[payload]
-summary = "Test TOML parsing"
+[[decisions]]
+context = "Test TOML parsing"
+choice = "Test choice"
+reason = "Test reason"
+alternatives = []
 
 [context]
-phase = "tdd-green"
+phase = "design"
 task = "TASK-7"
 `
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
+	resultPath := filepath.Join(tempDir, "result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
+		"--result", resultPath,
 		"--memoryroot", memoryDir)
 	// Capture stdout only (TOML goes to stdout, human-readable goes to stderr)
 	stdout, err := cmd.Output()
@@ -393,43 +340,3 @@ task = "TASK-7"
 	g.Expect(string(output)).To(ContainSubstring("decision"))
 }
 
-// TEST: memory extract integration with yield file end-to-end
-// Traces to: TASK-7 AC-13
-func TestMemoryExtractIntegrationYieldFile(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, ".claude", "memory")
-
-	yieldContent := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[payload]
-summary = "Integration test for yield extraction"
-findings = ["Finding A", "Finding B"]
-learnings = ["Learning X", "Learning Y", "Learning Z"]
-
-[context]
-phase = "tdd-green"
-task = "TASK-7"
-`
-	yieldPath := filepath.Join(tempDir, "integration-yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	cmd := exec.Command("projctl", "memory", "extract",
-		"--yield", yieldPath,
-		"--memoryroot", memoryDir)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("Extracted"))
-	// Should show summary, findings, and learnings in some form
-	g.Expect(string(output)).To(SatisfyAny(
-		ContainSubstring("6 items"), // 1 summary + 2 findings + 3 learnings
-		ContainSubstring("3 learning"),
-		ContainSubstring("2 finding"),
-	))
-}

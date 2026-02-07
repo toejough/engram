@@ -107,7 +107,7 @@ func main() {
 			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
 			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
 			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
-			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from yield/result files"),
+			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),
 		),
 		targ.Group("id",
 			targ.Targ(idNext).Name("next").Description("Get next sequential ID for a type"),

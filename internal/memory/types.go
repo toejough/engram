@@ -95,7 +95,7 @@ type Decision struct {
 	Alternatives []string `toml:"alternatives"`
 }
 
-// ContextSection contains execution context information shared by yield and result files.
+// ContextSection contains execution context information for result files.
 type ContextSection struct {
 	// Phase indicates the current execution phase (e.g., "tdd-red", "design")
 	Phase string `toml:"phase"`
