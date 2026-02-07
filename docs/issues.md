@@ -4283,3 +4283,13 @@ Context: Technical debt cleanup discovered during ISSUE-120 alignment phase
 ### Comment
 
 task-audit was supposed to be renamed to tdd-qa in ISSUE-91 but never was. The phase is vestigial. Remove task-audit from transitions.go, tests, and trace.go. Replace with direct transition from commit-refactor-qa to task-complete/task-retry/task-escalated.
+
+---
+
+### ISSUE-137: Registry hardcodes model assignments instead of reading SKILL.md front matter
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-07
+
+The PhaseRegistry in internal/step/registry.go hardcodes ProducerModel/QAModel values. The comment says 'from frontmatter' but no code reads SKILL.md front matter. Multiple mismatches exist: pm, design, architect, breakdown, tdd-red all say model:sonnet in SKILL.md but registry says opus. Fix: make registry derive model from SKILL.md front matter, or at minimum keep them in sync.

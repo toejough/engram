@@ -312,3 +312,171 @@ As a maintainer, I want shared documentation that defines how producers distingu
 **Depends on:** REQ-012, REQ-013
 
 **Traces to:** ISSUE-56
+
+---
+
+## ISSUE-104: Orchestrator as Haiku Teammate
+
+Requirements for splitting the orchestrator into a team lead (opus) and orchestrator teammate (haiku) to reduce cost by using the cheapest model for mechanical step loop work.
+
+---
+
+### REQ-016: Split Orchestrator into Team Lead and Teammate Roles
+
+As a user, I want the orchestrator to run as a haiku teammate instead of in the main opus conversation, so that the expensive opus model is preserved for user interaction and high-level decisions.
+
+**Acceptance Criteria:**
+- [ ] Team lead (opus) owns team creation, teammate spawning, and shutdown coordination
+- [ ] Orchestrator teammate (haiku) runs the `projctl step next` → dispatch → `projctl step complete` loop
+- [ ] Team lead spawns orchestrator teammate on `/project` invocation
+- [ ] Team lead does NOT edit files or produce artifacts directly (delegates to teammates)
+- [ ] Orchestrator teammate does NOT spawn other teammates directly (sends spawn requests to team lead)
+- [ ] SKILL.md documents the two-role split with clear responsibilities
+
+**Priority:** P0
+
+**Depends on:** None
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-017: Orchestrator Spawn Request Protocol
+
+As a developer, I want the orchestrator teammate to send spawn requests to the team lead with complete task_params, so that the team lead can spawn teammates on the orchestrator's behalf.
+
+**Acceptance Criteria:**
+- [ ] When `projctl step next` returns `spawn-producer` or `spawn-qa`, orchestrator sends message to team lead
+- [ ] Message includes full `task_params` from step next output (subagent_type, name, model, prompt)
+- [ ] Message includes expected_model for handshake validation
+- [ ] Team lead receives spawn request and calls Task tool with provided task_params
+- [ ] Team lead performs model handshake validation after spawning
+- [ ] Team lead sends confirmation message to orchestrator after successful spawn and handshake
+- [ ] Team lead sends failure message to orchestrator if handshake fails
+
+**Priority:** P0
+
+**Depends on:** REQ-016
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-018: Orchestrator Shutdown Request Protocol
+
+As a developer, I want the orchestrator teammate to send shutdown requests to the team lead when work is complete, so that the team lead handles graceful teammate termination.
+
+**Acceptance Criteria:**
+- [ ] When `projctl step next` returns `all-complete`, orchestrator sends message to team lead
+- [ ] Message indicates project is complete and orchestrator is ready to shut down
+- [ ] Team lead receives completion message and initiates end-of-command sequence
+- [ ] Team lead sends shutdown_request to all active teammates (including orchestrator)
+- [ ] Team lead calls TeamDelete after all teammates confirm shutdown
+- [ ] Team lead reports completion status to user
+
+**Priority:** P0
+
+**Depends on:** REQ-016
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-019: Orchestrator Error Handling with Auto-Retry
+
+As a developer, I want the orchestrator to automatically retry failed operations with backoff before escalating, so that transient errors don't require manual intervention.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator detects errors from `projctl step next` or `projctl step complete`
+- [ ] Orchestrator retries failed operations up to 3 times with exponential backoff
+- [ ] Backoff delays: 1s, 2s, 4s between retries
+- [ ] After 3 failed attempts, orchestrator sends error message to team lead with details
+- [ ] Team lead escalates to user with error context and requests guidance
+- [ ] Orchestrator logs retry attempts for debugging
+
+**Priority:** P1
+
+**Depends on:** REQ-016
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-020: Orchestrator Resumption Support
+
+As a user, I want the orchestrator teammate to be resumable if it gets terminated mid-session, so that work can continue from the last saved state without restarting the entire project.
+
+**Acceptance Criteria:**
+- [ ] Project state is persisted via `projctl state set` commands during orchestrator execution
+- [ ] Team lead can respawn orchestrator teammate after termination
+- [ ] Respawned orchestrator calls `projctl step next` and resumes from saved state
+- [ ] State includes: current phase, sub-phase, pair loop iteration, active tasks
+- [ ] Orchestrator does not repeat completed work after resumption
+- [ ] SKILL.md documents resumption flow and state dependencies
+
+**Priority:** P1
+
+**Depends on:** REQ-016
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-021: Team Lead Spawn Confirmation Flow
+
+As a developer, I want the team lead to confirm successful spawns back to the orchestrator, so that the orchestrator knows when teammates are ready to receive work.
+
+**Acceptance Criteria:**
+- [ ] Team lead spawns teammate using task_params from orchestrator's spawn request
+- [ ] Team lead validates model handshake (expected_model matches teammate's first message)
+- [ ] On successful handshake, team lead sends confirmation message to orchestrator with teammate name
+- [ ] Orchestrator receives confirmation and proceeds with step completion
+- [ ] On handshake failure, team lead sends error message to orchestrator
+- [ ] Orchestrator handles spawn failures per REQ-019 (retry with backoff)
+
+**Priority:** P0
+
+**Depends on:** REQ-016, REQ-017
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-022: State Persistence for Resumption
+
+As a developer, I want project state to be saved after each significant step, so that resumption can pick up from the last completed action.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator calls `projctl state set` after each `projctl step complete`
+- [ ] State file persists: current phase, sub-phase, workflow type, active issue
+- [ ] State file persists: pair loop iteration counts and QA feedback
+- [ ] State file persists: task completion status and dependencies
+- [ ] State file is atomic (writes complete or fail, no partial states)
+- [ ] Respawned orchestrator reads state before first `projctl step next` call
+
+**Priority:** P1
+
+**Depends on:** REQ-016, REQ-020
+
+**Traces to:** ISSUE-104
+
+---
+
+### REQ-023: Retry Limit to Prevent Infinite Loops
+
+As a developer, I want retry attempts capped at a maximum limit, so that the orchestrator doesn't loop infinitely on persistent errors.
+
+**Acceptance Criteria:**
+- [ ] Maximum 3 retry attempts for any failed operation
+- [ ] Retry counter resets on successful operation
+- [ ] After reaching retry limit, orchestrator escalates to team lead
+- [ ] Team lead escalates to user with error details and retry history
+- [ ] Retry logic applies to: `projctl step next`, `projctl step complete`, spawn requests
+
+**Priority:** P1
+
+**Depends on:** REQ-016, REQ-019
+
+**Traces to:** ISSUE-104
+
+---
