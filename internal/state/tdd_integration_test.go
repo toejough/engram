@@ -9,10 +9,10 @@ import (
 )
 
 // TestFullTDDCycleWithPerPhaseQA verifies TASK-22 acceptance criteria:
-// Full TDD loop with per-phase QA executes correctly from tdd-red through task-audit.
+// Full TDD loop with per-phase QA executes correctly from tdd-red through task-complete.
 
 func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
-	t.Run("complete TDD cycle from tdd-red to task-audit with QA phases", func(t *testing.T) {
+	t.Run("complete TDD cycle from tdd-red to task-complete with QA phases", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -34,7 +34,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		// Full sequence: tdd-red → tdd-red-qa → commit-red → commit-red-qa →
 		// tdd-green → tdd-green-qa → commit-green → commit-green-qa →
 		// tdd-refactor → tdd-refactor-qa → commit-refactor → commit-refactor-qa →
-		// task-audit
+		// task-complete
 		fullSequence := []string{
 			"tdd-red-qa",
 			"commit-red",
@@ -47,7 +47,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		for _, phase := range fullSequence {
@@ -191,7 +191,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 
-		// 4. Cannot skip from commit-refactor to task-audit (must go through commit-refactor-qa)
+		// 4. Cannot skip from commit-refactor to task-complete (must go through commit-refactor-qa)
 		dir4 := t.TempDir()
 		_, err = state.Init(dir4, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
@@ -203,7 +203,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		_, err = state.Transition(dir4, "task-audit", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir4, "task-complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 	})
@@ -241,7 +241,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		for _, phase := range fullSequence {
@@ -264,7 +264,7 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		g.Expect(progression).To(Equal(expectedProgression))

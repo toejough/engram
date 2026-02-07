@@ -42,8 +42,7 @@ var LegalTransitions = map[string][]string{
 	"tdd-refactor":            {"tdd-refactor-qa"},
 	"tdd-refactor-qa":         {"commit-refactor"},
 	"commit-refactor":         {"commit-refactor-qa"},
-	"commit-refactor-qa":      {"task-audit", "tdd-refactor"}, // Forward or loop back for improvement
-	"task-audit":              {"task-complete", "task-retry", "task-escalated"},
+	"commit-refactor-qa":      {"task-complete", "task-retry", "task-escalated", "tdd-refactor"}, // Forward or loop back for improvement
 	"task-complete":           {"task-start", "implementation-complete", "task-documentation"}, // task-documentation for single-task workflow
 	"task-retry":              {"tdd-red"},
 	"task-escalated":          {"task-start", "implementation-complete"},

@@ -46,8 +46,10 @@ func TestTDDSubPhaseTransitions(t *testing.T) {
 		// QA improvement loop: commit-refactor-qa can loop back to tdd-refactor
 		g.Expect(state.IsLegalTransition("commit-refactor-qa", "tdd-refactor")).To(BeTrue())
 
-		// Forward to next phase
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-audit")).To(BeTrue())
+		// Forward to next phase (task completion paths)
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-complete")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-retry")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-escalated")).To(BeTrue())
 	})
 }
 
@@ -62,7 +64,7 @@ func TestTDDSubPhaseIllegalTransitions(t *testing.T) {
 		// Can't skip from commit directly to next producer phase
 		g.Expect(state.IsLegalTransition("commit-red", "tdd-green")).To(BeFalse())
 		g.Expect(state.IsLegalTransition("commit-green", "tdd-refactor")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("commit-refactor", "task-audit")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("commit-refactor", "task-complete")).To(BeFalse())
 	})
 
 	t.Run("cannot jump between TDD phases", func(t *testing.T) {
@@ -91,7 +93,7 @@ func TestTDDSubPhaseIllegalTransitions(t *testing.T) {
 }
 
 func TestTDDFullPhaseChain(t *testing.T) {
-	t.Run("complete TDD cycle from task-start to task-audit", func(t *testing.T) {
+	t.Run("complete TDD cycle from task-start to task-complete", func(t *testing.T) {
 		g := NewWithT(t)
 
 		phases := []string{
@@ -108,7 +110,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		// Verify each transition in the chain is legal
@@ -142,7 +144,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		for i := 0; i < len(phases)-1; i++ {
@@ -183,7 +185,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"tdd-refactor-qa",
 			"commit-refactor",
 			"commit-refactor-qa",
-			"task-audit",
+			"task-complete",
 		}
 
 		for i := 0; i < len(phases)-1; i++ {
@@ -212,9 +214,11 @@ func TestTDDTransitionSequentialOrdering(t *testing.T) {
 		g.Expect(targets[1]).To(Equal("tdd-green"))
 
 		targets = state.LegalTargets("commit-refactor-qa")
-		g.Expect(targets).To(HaveLen(2))
-		g.Expect(targets[0]).To(Equal("task-audit"))
-		g.Expect(targets[1]).To(Equal("tdd-refactor"))
+		g.Expect(targets).To(HaveLen(4))
+		g.Expect(targets).To(ContainElement("task-complete"))
+		g.Expect(targets).To(ContainElement("task-retry"))
+		g.Expect(targets).To(ContainElement("task-escalated"))
+		g.Expect(targets).To(ContainElement("tdd-refactor"))
 	})
 }
 
@@ -237,7 +241,7 @@ func TestLegalTargetsForTDDPhases(t *testing.T) {
 			{"tdd-refactor", []string{"tdd-refactor-qa"}},
 			{"tdd-refactor-qa", []string{"commit-refactor"}},
 			{"commit-refactor", []string{"commit-refactor-qa"}},
-			{"commit-refactor-qa", []string{"task-audit", "tdd-refactor"}},
+			{"commit-refactor-qa", []string{"task-complete", "task-retry", "task-escalated", "tdd-refactor"}},
 		}
 
 		for _, tt := range tests {

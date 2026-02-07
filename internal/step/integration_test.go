@@ -14,7 +14,7 @@ import (
 // Tests that the orchestrator loop (step next → spawn → step complete) drives the full TDD cycle:
 // tdd-red → tdd-red-qa → commit-red → commit-red-qa → tdd-green → tdd-green-qa →
 // commit-green → commit-green-qa → tdd-refactor → tdd-refactor-qa → commit-refactor →
-// commit-refactor-qa → task-audit
+// commit-refactor-qa → task-complete
 func TestFullTDDWorkflow(t *testing.T) {
 	t.Run("state machine drives full TDD cycle", func(t *testing.T) {
 		g := NewWithT(t)
@@ -354,11 +354,11 @@ func TestFullTDDWorkflow(t *testing.T) {
 		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Final: Next should transition to task-audit
+		// Final: Next should transition to task-complete
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("task-audit"))
+		g.Expect(result.Phase).To(Equal("task-complete"))
 
 		// Verify no composite skill (tdd-producer) was referenced anywhere
 		// This is verified implicitly - all spawned skills were atomic (tdd-red-producer, tdd-green-producer, tdd-refactor-producer, commit-producer, qa)

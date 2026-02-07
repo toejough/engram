@@ -24,7 +24,7 @@ func navigateToPhase(t *testing.T, dir string, targetPhase string) {
 		"implementation", "task-start", "tdd-red", "tdd-red-qa",
 		"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
 		"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		"commit-refactor", "commit-refactor-qa", "task-audit",
+		"commit-refactor", "commit-refactor-qa",
 	}
 
 	// Find the index of the target phase
@@ -277,7 +277,7 @@ func TestCommitPairLoops(t *testing.T) {
 		g.Expect(s.Project.Phase).To(Equal("commit-refactor-qa"))
 	})
 
-	t.Run("commit-refactor-qa can transition to task-audit", func(t *testing.T) {
+	t.Run("commit-refactor-qa can transition to task-complete", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -286,10 +286,10 @@ func TestCommitPairLoops(t *testing.T) {
 
 		navigateToPhase(t, dir, "commit-refactor-qa")
 
-		// Test: commit-refactor-qa → task-audit transition
-		s, err := state.Transition(dir, "task-audit", state.TransitionOpts{}, nowFunc())
+		// Test: commit-refactor-qa → task-complete transition
+		s, err := state.Transition(dir, "task-complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("task-audit"))
+		g.Expect(s.Project.Phase).To(Equal("task-complete"))
 	})
 }
 
@@ -375,13 +375,16 @@ func TestLegalTargetsWithPerPhaseQA(t *testing.T) {
 
 		targets := state.LegalTargets("commit-refactor")
 		g.Expect(targets).To(ContainElement("commit-refactor-qa"))
-		g.Expect(targets).ToNot(ContainElement("task-audit"))
+		g.Expect(targets).ToNot(ContainElement("task-complete"))
 	})
 
-	t.Run("commit-refactor-qa legal targets include task-audit", func(t *testing.T) {
+	t.Run("commit-refactor-qa legal targets include task-complete", func(t *testing.T) {
 		g := NewWithT(t)
 
 		targets := state.LegalTargets("commit-refactor-qa")
-		g.Expect(targets).To(ContainElement("task-audit"))
+		g.Expect(targets).To(ContainElement("task-complete"))
+		g.Expect(targets).To(ContainElement("task-retry"))
+		g.Expect(targets).To(ContainElement("task-escalated"))
+		g.Expect(targets).To(ContainElement("tdd-refactor"))
 	})
 }

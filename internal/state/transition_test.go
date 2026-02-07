@@ -136,10 +136,9 @@ func TestIsLegalTransition(t *testing.T) {
 		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-refactor-qa")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "commit-refactor")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("commit-refactor", "commit-refactor-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-audit")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-audit", "task-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-audit", "task-retry")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-audit", "task-escalated")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-complete")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-retry")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-escalated")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-complete", "task-start")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-complete", "implementation-complete")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("task-retry", "tdd-red")).To(BeTrue())
@@ -388,7 +387,7 @@ func TestTransitionPrecondition_TaskComplete(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "task-audit")
+		walkToPhase(t, dir, "commit-refactor-qa")
 
 		checker := &mockPreconditionChecker{
 			traceValidationPasses: false,
@@ -547,7 +546,7 @@ func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "task-audit")
+		walkToPhase(t, dir, "commit-refactor-qa")
 
 		checker := &mockPreconditionChecker{
 			traceValidationPasses:      true,
@@ -566,7 +565,7 @@ func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "task-audit")
+		walkToPhase(t, dir, "commit-refactor-qa")
 
 		checker := &mockPreconditionChecker{
 			traceValidationPasses:      true,
@@ -656,7 +655,7 @@ func walkToSummaryComplete(t *testing.T, dir string) {
 		"architect", "architect-complete", "breakdown", "breakdown-complete",
 		"implementation", "task-start", "tdd-red", "tdd-red-qa",
 		"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
+		"commit-refactor", "commit-refactor-qa", "task-complete",
 		"implementation-complete", "documentation", "documentation-complete",
 		"alignment", "alignment-complete", "retro", "retro-complete",
 		"summary", "summary-complete",
@@ -683,16 +682,16 @@ func walkToSummaryComplete(t *testing.T, dir string) {
 	}
 }
 
-// Test state next returns validation_failed when AC incomplete at task-audit
+// Test state next returns validation_failed when AC incomplete at commit-refactor-qa
 func TestNextWithChecker_ValidationFailed(t *testing.T) {
-	t.Run("returns validation_failed when AC incomplete at task-audit", func(t *testing.T) {
+	t.Run("returns validation_failed when AC incomplete at commit-refactor-qa", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhaseWithTask(t, dir, "task-audit", "TASK-001")
+		walkToPhaseWithTask(t, dir, "commit-refactor-qa", "TASK-001")
 
 		checker := &mockPreconditionChecker{
 			acceptanceCriteriaComplete:   false,
@@ -704,14 +703,14 @@ func TestNextWithChecker_ValidationFailed(t *testing.T) {
 		g.Expect(result.Details).To(ContainSubstring("acceptance criteria for TASK-001 are incomplete"))
 	})
 
-	t.Run("returns continue when AC complete at task-audit", func(t *testing.T) {
+	t.Run("returns continue when AC complete at commit-refactor-qa", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhaseWithTask(t, dir, "task-audit", "TASK-001")
+		walkToPhaseWithTask(t, dir, "commit-refactor-qa", "TASK-001")
 
 		checker := &mockPreconditionChecker{
 			acceptanceCriteriaComplete: true,
@@ -1051,19 +1050,19 @@ func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
 	g := NewWithT(t)
 
 	paths := map[string][]string{
-		"task-audit": {
+		"commit-refactor-qa": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
 			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-audit",
+			"commit-refactor", "commit-refactor-qa",
 		},
 		"task-complete": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
 			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
+			"commit-refactor", "commit-refactor-qa", "task-complete",
 		},
 	}
 
@@ -1088,7 +1087,7 @@ func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
 		opts := state.TransitionOpts{}
 		if phase == "task-start" || phase == "tdd-red" || phase == "tdd-red-qa" || phase == "commit-red" || phase == "commit-red-qa" ||
 			phase == "tdd-green" || phase == "tdd-green-qa" || phase == "commit-green" || phase == "commit-green-qa" || phase == "tdd-refactor" || phase == "tdd-refactor-qa" ||
-			phase == "commit-refactor" || phase == "commit-refactor-qa" || phase == "task-audit" || phase == "task-complete" {
+			phase == "commit-refactor" || phase == "commit-refactor-qa" || phase == "task-complete" {
 			opts.Task = taskID
 		}
 		_, err := state.TransitionWithChecker(dir, phase, opts, nowFunc(), passChecker)
@@ -1131,19 +1130,19 @@ func walkToPhase(t *testing.T, dir, target string) {
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
 			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green",
 		},
-		"task-audit": {
+		"commit-refactor-qa": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
 			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-audit",
+			"commit-refactor", "commit-refactor-qa",
 		},
 		"next-steps": {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
 			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-audit", "task-complete",
+			"commit-refactor", "commit-refactor-qa", "task-complete",
 			"implementation-complete", "documentation", "documentation-complete",
 			"alignment", "alignment-complete", "retro", "retro-complete",
 			"summary", "summary-complete", "issue-update", "next-steps",

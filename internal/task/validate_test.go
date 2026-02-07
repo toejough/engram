@@ -393,11 +393,11 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(tasksContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create state file in task-audit phase
+	// Create state file in commit-refactor-qa phase
 	stateContent := `[project]
   name = "test"
   created = 2026-01-31T12:00:00Z
-  phase = "task-audit"
+  phase = "commit-refactor-qa"
 
 [progress]
   current_task = "TASK-001"
@@ -408,7 +408,7 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 
 [[history]]
   timestamp = 2026-01-31T12:00:00Z
-  phase = "task-audit"
+  phase = "commit-refactor-qa"
 `
 	err = os.WriteFile(filepath.Join(dir, "state.toml"), []byte(stateContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())

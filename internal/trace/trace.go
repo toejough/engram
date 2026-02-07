@@ -709,7 +709,6 @@ var validPhases = map[string]bool{
 	"commit-green":           true,
 	"tdd-refactor":           true,
 	"commit-refactor":        true,
-	"task-audit":             true,
 	"task-complete":          true,
 	"task-retry":             true,
 	"task-escalated":         true,
