@@ -4025,3 +4025,24 @@ Scope:
 - Sequential fallback when tasks share files or have dependencies
 
 Motivation: ISSUE-105 implementation exposed that the orchestrator runs everything sequentially because projctl step next only returns one action at a time.
+
+---
+
+### ISSUE-121: Remove redundant commit-QA phases from state machine
+
+**Priority:** Medium
+**Status:** closed
+**Created:** 2026-02-06
+
+The TDD state machine currently runs QA twice per phase: once for the artifact (red-qa, green-qa, refactor-qa) and once for the commit (commit-red-qa, commit-green-qa, commit-refactor-qa). This doubles the QA agent spawns per task cycle (6 instead of 3).
+
+The commit-QA phase validates commit hygiene (correct files staged, message format, no secrets), but this can be folded into the artifact QA or handled by a lightweight pre-commit hook instead of spawning a full QA agent.
+
+Proposal:
+- Remove commit-*-qa phases from the state machine transition table
+- Fold commit validation checks into the artifact QA phase
+- Or use a pre-commit hook for commit hygiene checks
+
+Impact: Halves QA agent spawns per task cycle. Over 24 tasks, saves ~72 agent spawns.
+
+Discovered during: ISSUE-105 execution
