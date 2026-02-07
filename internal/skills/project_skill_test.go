@@ -247,3 +247,110 @@ func TestProjectSkill_TeamLeadSpawnConfirmation(t *testing.T) {
 	// Should document spawn confirmation
 	g.Expect(text).To(MatchRegexp("(?i)confirm.*spawn|spawn.*confirm"), "should document confirming spawns to orchestrator")
 }
+
+// TestProjectSkill_TeamLeadCallsTeamCreate verifies TASK-2 AC-1: Team lead calls TeamCreate with project name
+// Traces to: ARCH-048, ARCH-042, REQ-016
+func TestProjectSkill_TeamLeadCallsTeamCreate(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document calling TeamCreate on /project invocation
+	g.Expect(text).To(ContainSubstring("TeamCreate"), "should document TeamCreate call")
+	g.Expect(text).To(MatchRegexp("(?i)TeamCreate.*project.*name|project.*name.*TeamCreate"), "should document passing project name to TeamCreate")
+	g.Expect(text).To(MatchRegexp("(?i)/project.*invocation|invoke.*project"), "should document /project invocation trigger")
+}
+
+// TestProjectSkill_TeamLeadSpawnsOrchestratorHaiku verifies TASK-2 AC-2: Team lead spawns orchestrator with model=haiku
+// Traces to: ARCH-048, REQ-016, REQ-017
+func TestProjectSkill_TeamLeadSpawnsOrchestratorHaiku(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document using Task tool to spawn orchestrator
+	g.Expect(text).To(MatchRegexp("(?i)Task.*tool.*orchestrator|spawn.*orchestrator.*Task"), "should document spawning orchestrator via Task tool")
+
+	// Should document model=haiku for orchestrator
+	g.Expect(text).To(MatchRegexp("(?i)model.*haiku|haiku.*model"), "should document haiku model for orchestrator")
+
+	// Should document orchestrator teammate name
+	g.Expect(text).To(MatchRegexp("(?i)name.*orchestrator|orchestrator.*name"), "should document orchestrator as teammate name")
+}
+
+// TestProjectSkill_SpawnPromptContents verifies TASK-2 AC-3: Spawn prompt includes required context
+// Traces to: ARCH-048, REQ-017
+func TestProjectSkill_SpawnPromptContents(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document passing project name in spawn (via TeamCreate team_name or state init --name)
+	g.Expect(text).To(MatchRegexp("(?i)(team_name.*project|project.*name|--name)"), "should document passing project name in spawn context")
+
+	// Should document passing issue number/context (via state init --issue)
+	g.Expect(text).To(MatchRegexp("(?i)(--issue|issue.*ISSUE-)"), "should document passing issue context in spawn")
+
+	// Should document orchestrator runs step loop
+	g.Expect(text).To(MatchRegexp("(?i)(step loop|step.*driven.*loop)"), "should document orchestrator runs step loop")
+}
+
+// TestProjectSkill_TeamLeadIdleAfterSpawn verifies TASK-2 AC-4: Team lead enters idle state after spawn
+// Traces to: ARCH-048, REQ-016
+func TestProjectSkill_TeamLeadIdleAfterSpawn(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document team lead enters idle state
+	g.Expect(text).To(MatchRegexp("(?i)idle.*state|wait.*message|waiting.*orchestrator"), "should document team lead enters idle/waiting state after spawn")
+}
+
+// TestProjectSkill_OrchestratorInitAndLoop verifies TASK-2 AC-5: Orchestrator starts with state init and enters step loop
+// Traces to: ARCH-048, ARCH-045, REQ-016, REQ-020
+func TestProjectSkill_OrchestratorInitAndLoop(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator starts with projctl state init
+	g.Expect(text).To(ContainSubstring("projctl state init"), "should document orchestrator runs projctl state init on startup")
+
+	// Should document orchestrator enters step loop after init
+	g.Expect(text).To(MatchRegexp("(?i)init.*step.*loop|state.*init.*loop"), "should document orchestrator enters step loop after state init")
+}
