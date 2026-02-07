@@ -4392,3 +4392,150 @@ Two changes:
 1. Remove commit-red-qa, commit-green-qa, commit-refactor-qa phases from the state machine. Analysis of 6 runs showed 83% approval rate with only 1 legitimate catch (wrong files staged). The overhead of spawning QA agents for commits is not justified - the one catch case (wrong files staged) can be handled by the commit skill itself via pre-commit validation.
 
 2. Consolidate commit and commit-producer into a single skill. Currently there are two: commit (user-invocable) and commit-producer (spawned by orchestrator). They do the same thing. Keep one.
+
+---
+
+### ISSUE-142: Retro: Add explicit TaskList creation step to project control loop
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (R-1):
+
+Update project SKILL.md startup sequence to require TaskList creation:
+1. TeamCreate(team_name: "<project-name>")
+2. Load tasks.md and create TaskList entries for all defined tasks
+3. Spawn orchestrator
+4. Enter idle state
+
+Rationale: Team lead did not create TaskList entries during PM/design/architect/breakdown phases despite system reminders. User had no live dashboard until explicitly asking. Making TaskList creation explicit ensures consistent behavior.
+
+Measurable Impact:
+- User sees task dashboard from project start
+- No manual prompting needed
+- Better parallelization via task dependencies
+
+Related: ISSUE-104 challenge C-1, retro-notes O-1
+
+---
+
+### ISSUE-143: Retro: Investigate collapsing redundant commit QA phases
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (R-2):
+
+Audit whether commit-red and commit-red-qa phases provide value beyond commit already performed during tdd-red. If not, collapse them or skip when commit already exists.
+
+Problem: State machine has both commit action within tdd-red AND separate commit-red + commit-red-qa phases. This causes ~4 redundant agent spawns (2 producers, 2 QAs) for work already done.
+
+Measurable Impact:
+- Reduce haiku spawns by 2-4 per TDD cycle
+- Faster completion (fewer spawn cycles)
+- Clearer UX (no duplicate QA messages)
+
+Options:
+1. Remove commit-red/commit-red-qa phases entirely
+2. Skip if commit exists for current phase
+3. Merge commit and QA into single phase
+
+Related: ISSUE-104 challenge C-2, retro-notes O-2
+
+---
+
+### ISSUE-144: Retro: Propagate task context to TDD phase entry
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (R-3):
+
+Update state machine to include current_task field when entering tdd-red, tdd-green, tdd-refactor phases. TDD producers should validate task is specified and reject if empty.
+
+Problem: projctl step next returned tdd-red with current_task="". Producer chose TASK-1 arbitrarily - unclear contract about which task to work on.
+
+Measurable Impact:
+- TDD producers receive clear task assignment
+- No guessing about task scope
+- Better traceability from phase to task
+
+Implementation:
+- State machine sets current_task during transition
+- projctl step next includes current_task in JSON
+- TDD producers verify current_task!="" and fail if missing
+
+Related: ISSUE-104 challenge C-3, retro-notes O-3
+
+---
+
+### ISSUE-145: Retro: Establish definition of done checkpoint before retrospective
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (R-4):
+
+Add explicit completion check before entering retrospective:
+1. Read tasks.md
+2. Count completed vs total tasks
+3. If incomplete: report percentage, ask user to continue or proceed to retro
+
+Rationale: ISSUE-104 defined 10 tasks but only completed 7 (70%). Projects should not enter retrospective with significant incomplete work unless user explicitly approves.
+
+Measurable Impact:
+- Reduce scope creep (partial deliveries)
+- User awareness of completion status
+- Explicit continue vs defer decision
+
+Related: ISSUE-104 challenge C-4
+
+---
+
+### ISSUE-146: Decision needed: Clarify ISSUE-137 through ISSUE-141 created during ISSUE-104
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (Q-2):
+
+Spawn prompt mentions "Issues filed during this session: ISSUE-137, 138, 139, 140, 141" but details aren't in retro-notes or visible artifacts.
+
+Questions:
+- Are they blockers for TASK-8, TASK-9, TASK-10?
+- Are they follow-up improvements?
+- Should they be linked in retrospective recommendations?
+
+Action: Query team-lead or check issue tracker for these issue details and update retrospective if relevant.
+
+---
+
+### ISSUE-147: Decision needed: Complete or defer TASK-8, TASK-9, TASK-10 from ISSUE-104
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-07
+
+From ISSUE-104 retrospective (Q-3):
+
+ISSUE-104 defined 10 tasks but stopped after TASK-7. No explicit decision or blocker documented.
+
+Remaining tasks:
+- TASK-8: Resumption after orchestrator termination
+- TASK-9: Delegation-only enforcement for team lead
+- TASK-10: Integration test
+
+Possible reasons:
+1. Session ended before completion
+2. Blockers encountered (undocumented)
+3. Deliberate scope reduction (user decision)
+4. Integration test deferred pending TASK-8/TASK-9
+
+Impact: Uncertainty about two-role architecture readiness for production use.
+
+Action: Clarify with user whether remaining tasks should be completed or explicitly deferred.
