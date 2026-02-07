@@ -154,7 +154,7 @@ func integrateCleanup(args integrateCleanupArgs) error {
 		}
 	}
 
-	perProjectDir := filepath.Join(dir, "docs", "projects", args.Project)
+	perProjectDir := filepath.Join(dir, ".claude", "projects", args.Project)
 
 	fs := &realMergeFS{}
 	if !fs.FileExists(perProjectDir) {

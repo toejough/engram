@@ -1,6 +1,7 @@
 package step_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -20,8 +21,8 @@ func TestRegistryLookup(t *testing.T) {
 		g.Expect(info.QAPath).To(Equal("skills/qa/SKILL.md"))
 		g.Expect(info.Artifact).To(Equal("requirements.md"))
 		g.Expect(info.IDFormat).To(Equal("REQ"))
-		g.Expect(info.ProducerModel).To(Equal("opus"))
-		g.Expect(info.QAModel).To(Equal("haiku"))
+		g.Expect(info.ProducerModel).ToNot(BeEmpty())
+		g.Expect(info.QAModel).ToNot(BeEmpty())
 	})
 
 	t.Run("returns false for unknown phase", func(t *testing.T) {
@@ -262,8 +263,191 @@ func TestRegistryProperty(t *testing.T) {
 		g.Expect(info.QA).To(Equal("qa"), "phase %q must use the universal qa skill", phase)
 		g.Expect(info.QAPath).To(Equal("skills/qa/SKILL.md"), "phase %q QA path must be skills/qa/SKILL.md", phase)
 
-		// Every phase must have models
+		// Every phase must have non-empty models
 		g.Expect(info.ProducerModel).ToNot(BeEmpty(), "phase %q must have a producer model", phase)
-		g.Expect(info.QAModel).To(Equal("haiku"), "phase %q must use haiku for QA", phase)
+		g.Expect(info.QAModel).ToNot(BeEmpty(), "phase %q must have a QA model", phase)
+	})
+}
+
+// === ParseSkillModel tests ===
+
+func TestParseSkillModel(t *testing.T) {
+	t.Run("extracts model from valid frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("---\nname: test-skill\nmodel: opus\n---\n# Body")
+		g.Expect(step.ParseSkillModel(content)).To(Equal("opus"))
+	})
+
+	t.Run("returns empty for missing model field", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("---\nname: test-skill\ndescription: no model here\n---\n# Body")
+		g.Expect(step.ParseSkillModel(content)).To(BeEmpty())
+	})
+
+	t.Run("returns empty for no frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("# Just markdown, no frontmatter")
+		g.Expect(step.ParseSkillModel(content)).To(BeEmpty())
+	})
+
+	t.Run("returns empty for unclosed frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("---\nmodel: sonnet\n# Missing closing delimiter")
+		g.Expect(step.ParseSkillModel(content)).To(BeEmpty())
+	})
+
+	t.Run("returns empty for empty content", func(t *testing.T) {
+		g := NewWithT(t)
+
+		g.Expect(step.ParseSkillModel([]byte(""))).To(BeEmpty())
+	})
+
+	t.Run("handles model with extra whitespace", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("---\nmodel:   sonnet  \n---\n")
+		g.Expect(step.ParseSkillModel(content)).To(Equal("sonnet"))
+	})
+
+	t.Run("returns empty for model field with empty value", func(t *testing.T) {
+		g := NewWithT(t)
+
+		content := []byte("---\nmodel:\n---\n")
+		g.Expect(step.ParseSkillModel(content)).To(BeEmpty())
+	})
+
+	t.Run("does not match model-like keys", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// "model_name" starts with "model" but should not match "model:"
+		content := []byte("---\nmodel_name: opus\n---\n")
+		g.Expect(step.ParseSkillModel(content)).To(BeEmpty())
+	})
+}
+
+// === NewRegistry tests ===
+
+func TestNewRegistry(t *testing.T) {
+	t.Run("resolves model from SKILL.md frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		readFunc := func(path string) ([]byte, error) {
+			switch path {
+			case "skills/pm-interview-producer/SKILL.md":
+				return []byte("---\nname: pm-producer\nmodel: opus\n---\n"), nil
+			case "skills/qa/SKILL.md":
+				return []byte("---\nname: qa\nmodel: haiku\n---\n"), nil
+			default:
+				return nil, fmt.Errorf("not found: %s", path)
+			}
+		}
+
+		reg := step.NewRegistry(readFunc)
+		info, ok := reg.Lookup("pm")
+		g.Expect(ok).To(BeTrue())
+		g.Expect(info.ProducerModel).To(Equal("opus"))
+		g.Expect(info.QAModel).To(Equal("haiku"))
+	})
+
+	t.Run("falls back to default when file cannot be read", func(t *testing.T) {
+		g := NewWithT(t)
+
+		readFunc := func(path string) ([]byte, error) {
+			return nil, fmt.Errorf("file not found: %s", path)
+		}
+
+		reg := step.NewRegistry(readFunc)
+		info, ok := reg.Lookup("pm")
+		g.Expect(ok).To(BeTrue())
+		// Fallback values from phaseDefinitions
+		g.Expect(info.ProducerModel).To(Equal("opus"))
+		g.Expect(info.QAModel).To(Equal("haiku"))
+	})
+
+	t.Run("falls back to default when model field missing", func(t *testing.T) {
+		g := NewWithT(t)
+
+		readFunc := func(path string) ([]byte, error) {
+			return []byte("---\nname: some-skill\n---\n"), nil
+		}
+
+		reg := step.NewRegistry(readFunc)
+		info, ok := reg.Lookup("tdd-green")
+		g.Expect(ok).To(BeTrue())
+		// Fallback for tdd-green producer is "sonnet"
+		g.Expect(info.ProducerModel).To(Equal("sonnet"))
+	})
+
+	t.Run("frontmatter model overrides fallback", func(t *testing.T) {
+		g := NewWithT(t)
+
+		readFunc := func(path string) ([]byte, error) {
+			// Return a custom model that differs from fallback
+			return []byte("---\nname: skill\nmodel: custom-model\n---\n"), nil
+		}
+
+		reg := step.NewRegistry(readFunc)
+		info, ok := reg.Lookup("pm")
+		g.Expect(ok).To(BeTrue())
+		// Both producer and QA paths should resolve to custom-model
+		g.Expect(info.ProducerModel).To(Equal("custom-model"))
+		g.Expect(info.QAModel).To(Equal("custom-model"))
+	})
+}
+
+func TestNewRegistryProperty(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		// Generate a random model name
+		model := rapid.StringMatching(`[a-z]+-[0-9]+`).Draw(rt, "model")
+
+		readFunc := func(path string) ([]byte, error) {
+			return []byte("---\nmodel: " + model + "\n---\n"), nil
+		}
+
+		reg := step.NewRegistry(readFunc)
+		phases := reg.Phases()
+
+		// Property: all phases resolve to the model from frontmatter
+		for _, phase := range phases {
+			info, ok := reg.Lookup(phase)
+			g.Expect(ok).To(BeTrue())
+			g.Expect(info.ProducerModel).To(Equal(model),
+				"phase %q producer model should come from frontmatter", phase)
+			g.Expect(info.QAModel).To(Equal(model),
+				"phase %q QA model should come from frontmatter", phase)
+		}
+	})
+}
+
+func TestNewRegistryAllPhasesResolveNonEmptyModel(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		// Randomly decide if files are readable or not
+		readable := rapid.Bool().Draw(rt, "readable")
+
+		readFunc := func(path string) ([]byte, error) {
+			if readable {
+				return []byte("---\nmodel: sonnet\n---\n"), nil
+			}
+			return nil, fmt.Errorf("not found")
+		}
+
+		reg := step.NewRegistry(readFunc)
+		phases := reg.Phases()
+
+		phase := rapid.SampledFrom(phases).Draw(rt, "phase")
+		info, ok := reg.Lookup(phase)
+		g.Expect(ok).To(BeTrue())
+		g.Expect(info.ProducerModel).ToNot(BeEmpty(),
+			"phase %q must always have a non-empty producer model", phase)
+		g.Expect(info.QAModel).ToNot(BeEmpty(),
+			"phase %q must always have a non-empty QA model", phase)
 	})
 }

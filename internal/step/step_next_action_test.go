@@ -35,12 +35,12 @@ func TestStepNextTDDRedProducerAction(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
 		g.Expect(result.SkillPath).To(Equal("skills/tdd-red-producer/SKILL.md"))
-		g.Expect(result.Model).To(Equal("opus"))
+		g.Expect(result.Model).ToNot(BeEmpty())
 		g.Expect(result.Phase).To(Equal("tdd-red"))
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-105"))
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
-		g.Expect(result.TaskParams.Model).To(Equal("opus"))
+		g.Expect(result.TaskParams.Model).To(Equal(result.Model))
 	})
 }
 
@@ -77,7 +77,7 @@ func TestStepNextTDDRedQAAction(t *testing.T) {
 	})
 }
 
-func TestStepNextCommitRedAction(t *testing.T) {
+func TestStepNextTDDRedCommittedAction(t *testing.T) {
 	t.Run("returns transition to tdd-red-qa after tdd-red committed", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
@@ -106,39 +106,7 @@ func TestStepNextCommitRedAction(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		// Fixed: Use state graph targets[0] instead of registry CompletionPhase
 		g.Expect(result.Phase).To(Equal("tdd-red-qa"))
-	})
-}
-
-func TestStepNextCommitRedProducerAction(t *testing.T) {
-	t.Run("returns spawn-producer for commit-red phase", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "commit-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err := step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-producer"))
-		g.Expect(result.Skill).To(Equal("commit-producer"))
-		g.Expect(result.SkillPath).To(Equal("skills/commit-producer/SKILL.md"))
-		g.Expect(result.Model).To(Equal("haiku"))
-		g.Expect(result.Phase).To(Equal("commit-red"))
 	})
 }
 

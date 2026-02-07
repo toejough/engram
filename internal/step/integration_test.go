@@ -11,10 +11,8 @@ import (
 
 // TestFullTDDWorkflow verifies TASK-17 acceptance criteria:
 // Integration test for full TDD workflow driven by state machine.
-// Tests that the orchestrator loop (step next → spawn → step complete) drives the full TDD cycle:
-// tdd-red → tdd-red-qa → commit-red → commit-red-qa → tdd-green → tdd-green-qa →
-// commit-green → commit-green-qa → tdd-refactor → tdd-refactor-qa → commit-refactor →
-// commit-refactor-qa → task-complete
+// Tests that the orchestrator loop (step next -> spawn -> step complete) drives the full TDD cycle:
+// tdd-red -> tdd-red-qa -> tdd-green -> tdd-green-qa -> tdd-refactor -> tdd-refactor-qa -> task-complete
 func TestFullTDDWorkflow(t *testing.T) {
 	t.Run("state machine drives full TDD cycle", func(t *testing.T) {
 		g := NewWithT(t)
@@ -26,7 +24,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Transition to task-implementation → task-start → tdd-red
+		// Transition to task-implementation -> task-start -> tdd-red
 		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
@@ -34,14 +32,14 @@ func TestFullTDDWorkflow(t *testing.T) {
 		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// === Phase: tdd-red ===
+		// === Phase: tdd-red (producer + QA + commit + transition) ===
 
 		// Step 1: Next should spawn tdd-red-producer
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
-		g.Expect(result.Model).To(Equal("opus"))
+		g.Expect(result.Model).ToNot(BeEmpty())
 		g.Expect(result.Phase).To(Equal("tdd-red"))
 
 		// Step 2: Complete producer spawn
@@ -78,7 +76,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Step 7: Next should transition to tdd-red-qa (per state machine graph)
+		// Step 7: Next should transition to tdd-red-qa
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
@@ -93,13 +91,11 @@ func TestFullTDDWorkflow(t *testing.T) {
 
 		// === Phase: tdd-red-qa (QA-only phase) ===
 
-		// Step 9: Next should spawn QA (no producer in QA-only phase)
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 		g.Expect(result.Skill).To(Equal("qa"))
 
-		// Step 10: Complete QA
 		err = step.Complete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
@@ -107,59 +103,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Step 11: Next should transition to commit-red (per state machine graph)
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-red"))
-
-		err = step.Complete(dir, step.CompleteResult{
-			Action: "transition",
-			Phase:  "commit-red",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-red (producer + QA + commit) ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-producer"))
-		g.Expect(result.Skill).To(Equal("commit-producer"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("commit"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "commit", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-red-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "commit-red-qa"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-red-qa (QA-only) ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
+		// tdd-red-qa transitions directly to tdd-green (no commit-red intermediary)
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
@@ -168,8 +112,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd-green"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// === Phase: tdd-green ===
-		// Following same pattern: producer → qa → commit → transition
+		// === Phase: tdd-green (producer + QA + commit + transition) ===
 
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -210,54 +153,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-green"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "commit-green"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-green (producer + QA + commit) ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-producer"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("commit"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "commit", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-green-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "commit-green-qa"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-green-qa ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
+		// tdd-green-qa transitions directly to tdd-refactor (no commit-green intermediary)
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
@@ -266,7 +162,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd-refactor"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// === Phase: tdd-refactor (producer + QA + commit) ===
+		// === Phase: tdd-refactor (producer + QA + commit + transition) ===
 
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -306,62 +202,14 @@ func TestFullTDDWorkflow(t *testing.T) {
 		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-refactor"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "commit-refactor"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-refactor (producer + QA + commit) ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-producer"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("commit"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "commit", Status: "done"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-refactor-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "commit-refactor-qa"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// === Phase: commit-refactor-qa (QA-only) ===
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Final: Next should transition to task-complete
+		// tdd-refactor-qa transitions directly to task-complete (no commit-refactor intermediary)
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("task-complete"))
 
-		// Verify no composite skill (tdd-producer) was referenced anywhere
-		// This is verified implicitly - all spawned skills were atomic (tdd-red-producer, tdd-green-producer, tdd-refactor-producer, commit-producer, qa)
+		// Verify no composite skill (tdd-producer) or commit-producer was referenced anywhere
+		// This is verified implicitly - all spawned skills were atomic (tdd-red-producer, tdd-green-producer, tdd-refactor-producer, qa)
 	})
 }
 

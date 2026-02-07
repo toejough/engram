@@ -649,7 +649,7 @@ func Next(dir string) NextResult {
 }
 
 // NextWithChecker determines the next action, optionally checking preconditions.
-// If checker is provided and we're at commit-refactor-qa, validates AC before suggesting task-complete.
+// If checker is provided and we're at tdd-refactor-qa, validates AC before suggesting task-complete.
 func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 	s, err := Get(dir)
 	if err != nil {
@@ -694,8 +694,8 @@ func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
 		}
 	}
 
-	// If at commit-refactor-qa and checker provided, verify AC before suggesting task-complete
-	if currentPhase == "commit-refactor-qa" && checker != nil {
+	// If at tdd-refactor-qa and checker provided, verify AC before suggesting task-complete
+	if currentPhase == "tdd-refactor-qa" && checker != nil {
 		taskID := s.Progress.CurrentTask
 		if taskID != "" && !checker.AcceptanceCriteriaComplete(dir, taskID) {
 			incompleteItems := checker.IncompleteAcceptanceCriteria(dir, taskID)

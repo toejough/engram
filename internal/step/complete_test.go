@@ -200,18 +200,18 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Complete transition to commit-red
+		// Complete transition to tdd-green
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "transition",
 			Status: "done",
-			Phase:  "commit-red",
+			Phase:  "tdd-green",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred(), "transition should succeed")
 
 		// Verify phase changed
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("commit-red"), "phase should be updated to commit-red")
+		g.Expect(s.Project.Phase).To(Equal("tdd-green"), "phase should be updated to tdd-green")
 	})
 
 	t.Run("illegal transition is rejected", func(t *testing.T) {
@@ -229,7 +229,7 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		// Try to transition directly to tdd-green (skipping tdd-red-qa and commit-red)
+		// Try to transition directly to tdd-green (skipping tdd-red-qa)
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "transition",
 			Status: "done",

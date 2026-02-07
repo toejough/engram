@@ -21,9 +21,8 @@ func navigateToPhaseForStepNext(t *testing.T, dir string, targetPhase string) {
 		"pm", "pm-complete", "design", "design-complete",
 		"architect", "architect-complete", "breakdown", "breakdown-complete",
 		"implementation", "task-start", "tdd-red", "tdd-red-qa",
-		"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-		"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		"commit-refactor", "commit-refactor-qa",
+		"tdd-green", "tdd-green-qa",
+		"tdd-refactor", "tdd-refactor-qa",
 	}
 
 	targetIdx := -1
@@ -89,62 +88,6 @@ func TestStepNextTDDRefactorQA(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		navigateToPhaseForStepNext(t, dir, "tdd-refactor-qa")
-
-		result, err := step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-		g.Expect(result.Skill).To(Equal("qa"))
-		g.Expect(result.SkillPath).To(Equal("skills/qa/SKILL.md"))
-	})
-}
-
-func TestStepNextCommitRedQA(t *testing.T) {
-	t.Run("commit-red-qa returns spawn-qa action with qa skill", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		navigateToPhaseForStepNext(t, dir, "commit-red-qa")
-
-		result, err := step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-		g.Expect(result.Skill).To(Equal("qa"))
-		g.Expect(result.SkillPath).To(Equal("skills/qa/SKILL.md"))
-		// commit phases don't have producer skill paths - they use commit-producer
-		// which should be referenced in the QA context
-	})
-}
-
-func TestStepNextCommitGreenQA(t *testing.T) {
-	t.Run("commit-green-qa returns spawn-qa action with qa skill", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		navigateToPhaseForStepNext(t, dir, "commit-green-qa")
-
-		result, err := step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"))
-		g.Expect(result.Skill).To(Equal("qa"))
-		g.Expect(result.SkillPath).To(Equal("skills/qa/SKILL.md"))
-	})
-}
-
-func TestStepNextCommitRefactorQA(t *testing.T) {
-	t.Run("commit-refactor-qa returns spawn-qa action with qa skill", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		navigateToPhaseForStepNext(t, dir, "commit-refactor-qa")
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())

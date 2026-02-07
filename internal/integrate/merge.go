@@ -57,7 +57,7 @@ func Merge(projectDir string, projectName string, fs MergeFS) (*MergeResult, err
 	idMapping := make(map[string]string) // old ID -> new ID
 
 	docsDir := filepath.Join(projectDir, "docs")
-	perProjectDir := filepath.Join(docsDir, "projects", projectName)
+	perProjectDir := filepath.Join(projectDir, ".claude", "projects", projectName)
 
 	for _, df := range docFiles {
 		topLevelPath := filepath.Join(docsDir, df.Name+".md")
@@ -137,8 +137,8 @@ func mergeFile(topLevelPath, perProjectPath, prefix string, fs MergeFS, idMappin
 		if existingIDs[item.ID] {
 			// Renumber
 			maxID++
-			newID := fmt.Sprintf("%s-%03d", prefix, maxID)
-			newContent = strings.Replace(item.Content, item.ID, newID, 1)
+			newID := fmt.Sprintf("%s-%d", prefix, maxID)
+			newContent = strings.ReplaceAll(item.Content, item.ID, newID)
 			idMapping[item.ID] = newID
 			renumbered++
 		}
@@ -347,7 +347,7 @@ func mergeFeatureFile(topFile, featureFile, prefix string, fs MergeFS, idMapping
 		// Check for conflict
 		if existingIDs[item.ID] {
 			maxID++
-			newID = fmt.Sprintf("%s-%03d", prefix, maxID)
+			newID = fmt.Sprintf("%s-%d", prefix, maxID)
 			localMapping[item.ID] = newID
 			idMapping[item.ID] = newID
 			renumbered++
@@ -355,7 +355,7 @@ func mergeFeatureFile(topFile, featureFile, prefix string, fs MergeFS, idMapping
 
 		// Update content with new ID if renumbered
 		if newID != item.ID {
-			newContent = strings.Replace(newContent, item.ID, newID, 1)
+			newContent = strings.ReplaceAll(newContent, item.ID, newID)
 		}
 
 		// Update internal references using local mapping

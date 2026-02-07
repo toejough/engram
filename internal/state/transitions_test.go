@@ -12,59 +12,48 @@ func TestTDDSubPhaseTransitions(t *testing.T) {
 		g := NewWithT(t)
 		// Forward path
 		g.Expect(state.IsLegalTransition("tdd-red", "tdd-red-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "commit-red")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-red", "commit-red-qa")).To(BeTrue())
 
-		// QA improvement loop: commit-red-qa can loop back to tdd-red
-		g.Expect(state.IsLegalTransition("commit-red-qa", "tdd-red")).To(BeTrue())
+		// QA improvement loop: tdd-red-qa can loop back to tdd-red
+		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-red")).To(BeTrue())
 
 		// Forward to next phase
-		g.Expect(state.IsLegalTransition("commit-red-qa", "tdd-green")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-green")).To(BeTrue())
 	})
 
 	t.Run("TDD green sub-phase transitions", func(t *testing.T) {
 		g := NewWithT(t)
 		// Forward path
 		g.Expect(state.IsLegalTransition("tdd-green", "tdd-green-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "commit-green")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-green", "commit-green-qa")).To(BeTrue())
 
-		// QA improvement loop: commit-green-qa can loop back to tdd-green
-		g.Expect(state.IsLegalTransition("commit-green-qa", "tdd-green")).To(BeTrue())
+		// QA improvement loop: tdd-green-qa can loop back to tdd-green
+		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-green")).To(BeTrue())
 
 		// Forward to next phase
-		g.Expect(state.IsLegalTransition("commit-green-qa", "tdd-refactor")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-refactor")).To(BeTrue())
 	})
 
 	t.Run("TDD refactor sub-phase transitions", func(t *testing.T) {
 		g := NewWithT(t)
 		// Forward path
 		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-refactor-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "commit-refactor")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-refactor", "commit-refactor-qa")).To(BeTrue())
 
-		// QA improvement loop: commit-refactor-qa can loop back to tdd-refactor
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "tdd-refactor")).To(BeTrue())
+		// QA improvement loop: tdd-refactor-qa can loop back to tdd-refactor
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-refactor")).To(BeTrue())
 
 		// Forward to next phase (task completion paths)
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-retry")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "task-escalated")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-complete")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-retry")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-escalated")).To(BeTrue())
 	})
 }
 
 func TestTDDSubPhaseIllegalTransitions(t *testing.T) {
 	t.Run("cannot skip QA phases", func(t *testing.T) {
 		g := NewWithT(t)
-		// Can't skip from producer directly to commit
-		g.Expect(state.IsLegalTransition("tdd-red", "commit-red")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-green", "commit-green")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-refactor", "commit-refactor")).To(BeFalse())
-
-		// Can't skip from commit directly to next producer phase
-		g.Expect(state.IsLegalTransition("commit-red", "tdd-green")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("commit-green", "tdd-refactor")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("commit-refactor", "task-complete")).To(BeFalse())
+		// Can't skip from producer directly to next phase
+		g.Expect(state.IsLegalTransition("tdd-red", "tdd-green")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("tdd-green", "tdd-refactor")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("tdd-refactor", "task-complete")).To(BeFalse())
 	})
 
 	t.Run("cannot jump between TDD phases", func(t *testing.T) {
@@ -80,15 +69,15 @@ func TestTDDSubPhaseIllegalTransitions(t *testing.T) {
 
 	t.Run("QA phases cannot loop to wrong producer phase", func(t *testing.T) {
 		g := NewWithT(t)
-		// commit-red-qa can only loop to tdd-red, not tdd-green or tdd-refactor
-		g.Expect(state.IsLegalTransition("commit-red-qa", "tdd-refactor")).To(BeFalse())
+		// tdd-red-qa can only loop to tdd-red, not tdd-refactor
+		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-refactor")).To(BeFalse())
 
-		// commit-green-qa can only loop to tdd-green, not tdd-red or tdd-refactor
-		g.Expect(state.IsLegalTransition("commit-green-qa", "tdd-red")).To(BeFalse())
+		// tdd-green-qa can only loop to tdd-green, not tdd-red
+		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-red")).To(BeFalse())
 
-		// commit-refactor-qa can only loop to tdd-refactor, not tdd-red or tdd-green
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "tdd-red")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("commit-refactor-qa", "tdd-green")).To(BeFalse())
+		// tdd-refactor-qa can only loop to tdd-refactor, not tdd-red or tdd-green
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-red")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-green")).To(BeFalse())
 	})
 }
 
@@ -100,16 +89,10 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"task-start",
 			"tdd-red",
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
 			"tdd-green",
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 
@@ -118,7 +101,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			from := phases[i]
 			to := phases[i+1]
 			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s → %s should be legal", from, to)
+				"transition %s -> %s should be legal", from, to)
 		}
 	})
 
@@ -130,20 +113,12 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"task-start",
 			"tdd-red",
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
-			"tdd-red",           // Loop back for improvement
+			"tdd-red",     // Loop back for improvement
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
-			"tdd-green",         // Continue forward
+			"tdd-green",   // Continue forward
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 
@@ -151,7 +126,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			from := phases[i]
 			to := phases[i+1]
 			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s → %s should be legal", from, to)
+				"transition %s -> %s should be legal", from, to)
 		}
 	})
 
@@ -163,28 +138,16 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			"task-start",
 			"tdd-red",
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
-			"tdd-red",           // Red improvement loop
+			"tdd-red",         // Red improvement loop
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
 			"tdd-green",
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
-			"tdd-green",         // Green improvement loop
+			"tdd-green",       // Green improvement loop
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
-			"tdd-refactor",      // Refactor improvement loop
+			"tdd-refactor",    // Refactor improvement loop
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 
@@ -192,7 +155,7 @@ func TestTDDFullPhaseChain(t *testing.T) {
 			from := phases[i]
 			to := phases[i+1]
 			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s → %s should be legal", from, to)
+				"transition %s -> %s should be legal", from, to)
 		}
 	})
 }
@@ -202,18 +165,17 @@ func TestTDDTransitionSequentialOrdering(t *testing.T) {
 		g := NewWithT(t)
 
 		// The main forward path should always be the first target (index 0)
-		// This ensures consistency in automation
-		targets := state.LegalTargets("commit-red-qa")
-		g.Expect(targets).To(HaveLen(2)) // Should have forward and loop-back
+		targets := state.LegalTargets("tdd-red-qa")
+		g.Expect(targets).To(HaveLen(2))
 		g.Expect(targets[0]).To(Equal("tdd-green")) // Forward is first
 		g.Expect(targets[1]).To(Equal("tdd-red"))    // Loop-back is second
 
-		targets = state.LegalTargets("commit-green-qa")
+		targets = state.LegalTargets("tdd-green-qa")
 		g.Expect(targets).To(HaveLen(2))
 		g.Expect(targets[0]).To(Equal("tdd-refactor"))
 		g.Expect(targets[1]).To(Equal("tdd-green"))
 
-		targets = state.LegalTargets("commit-refactor-qa")
+		targets = state.LegalTargets("tdd-refactor-qa")
 		g.Expect(targets).To(HaveLen(4))
 		g.Expect(targets).To(ContainElement("task-complete"))
 		g.Expect(targets).To(ContainElement("task-retry"))
@@ -231,17 +193,11 @@ func TestLegalTargetsForTDDPhases(t *testing.T) {
 			targets []string
 		}{
 			{"tdd-red", []string{"tdd-red-qa"}},
-			{"tdd-red-qa", []string{"commit-red"}},
-			{"commit-red", []string{"commit-red-qa"}},
-			{"commit-red-qa", []string{"tdd-green", "tdd-red"}},
+			{"tdd-red-qa", []string{"tdd-green", "tdd-red"}},
 			{"tdd-green", []string{"tdd-green-qa"}},
-			{"tdd-green-qa", []string{"commit-green"}},
-			{"commit-green", []string{"commit-green-qa"}},
-			{"commit-green-qa", []string{"tdd-refactor", "tdd-green"}},
+			{"tdd-green-qa", []string{"tdd-refactor", "tdd-green"}},
 			{"tdd-refactor", []string{"tdd-refactor-qa"}},
-			{"tdd-refactor-qa", []string{"commit-refactor"}},
-			{"commit-refactor", []string{"commit-refactor-qa"}},
-			{"commit-refactor-qa", []string{"task-complete", "task-retry", "task-escalated", "tdd-refactor"}},
+			{"tdd-refactor-qa", []string{"task-complete", "task-retry", "task-escalated", "tdd-refactor"}},
 		}
 
 		for _, tt := range tests {

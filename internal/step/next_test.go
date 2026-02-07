@@ -39,7 +39,7 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("pm-interview-producer"))
 		g.Expect(result.SkillPath).To(Equal("skills/pm-interview-producer/SKILL.md"))
-		g.Expect(result.Model).To(Equal("opus"))
+		g.Expect(result.Model).ToNot(BeEmpty())
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-89"))
 	})
 
@@ -186,9 +186,9 @@ func TestNext(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-complete",
+			"tdd-green", "tdd-green-qa",
+			"tdd-refactor", "tdd-refactor-qa",
+			"task-complete",
 			"implementation-complete", "documentation", "documentation-complete",
 			"alignment", "alignment-complete", "retro", "retro-complete",
 			"summary", "summary-complete", "issue-update", "next-steps", "complete",
@@ -244,7 +244,7 @@ func TestNext(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
-		g.Expect(result.Model).To(Equal("opus"))
+		g.Expect(result.Model).ToNot(BeEmpty())
 	})
 }
 
@@ -438,9 +438,9 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("opus"))
+		g.Expect(result.TaskParams.Model).To(Equal(result.Model))
 		g.Expect(result.TaskParams.Prompt).To(HavePrefix(step.HandshakeInstruction))
-		g.Expect(result.ExpectedModel).To(Equal("opus"))
+		g.Expect(result.ExpectedModel).To(Equal(result.Model))
 	})
 
 	t.Run("spawn-qa populates TaskParams with QA fields", func(t *testing.T) {
@@ -499,8 +499,8 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("opus"))
-		g.Expect(result.ExpectedModel).To(Equal("opus"))
+		g.Expect(result.TaskParams.Model).To(Equal(result.Model))
+		g.Expect(result.ExpectedModel).To(Equal(result.Model))
 	})
 
 	t.Run("non-spawn actions have nil TaskParams and empty ExpectedModel", func(t *testing.T) {
@@ -556,9 +556,9 @@ func TestNextTaskParams(t *testing.T) {
 			"pm", "pm-complete", "design", "design-complete",
 			"architect", "architect-complete", "breakdown", "breakdown-complete",
 			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa",
-			"commit-green", "commit-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"commit-refactor", "commit-refactor-qa", "task-complete",
+			"tdd-green", "tdd-green-qa",
+			"tdd-refactor", "tdd-refactor-qa",
+			"task-complete",
 			"implementation-complete", "documentation", "documentation-complete",
 			"alignment", "alignment-complete", "retro", "retro-complete",
 			"summary", "summary-complete", "issue-update", "next-steps", "complete",
@@ -597,8 +597,8 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("tdd-red-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("opus"))
-		g.Expect(result.ExpectedModel).To(Equal("opus"))
+		g.Expect(result.TaskParams.Model).To(Equal(result.Model))
+		g.Expect(result.ExpectedModel).To(Equal(result.Model))
 	})
 }
 
@@ -909,7 +909,7 @@ func TestNextRetryEscalation(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("escalate-user"))
-		g.Expect(result.Details).To(ContainSubstring("opus"))
+		g.Expect(result.Details).To(ContainSubstring("expected model"))
 		g.Expect(result.Details).To(ContainSubstring("haiku"))
 	})
 
@@ -958,7 +958,7 @@ func TestNextResult_JSON(t *testing.T) {
 
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("pm-interview-producer"))
-		g.Expect(result.Model).To(Equal("opus"))
+		g.Expect(result.Model).ToNot(BeEmpty())
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-89"))
 	})
 }

@@ -117,7 +117,7 @@ func TestMerge_NoConflicts(t *testing.T) {
 
 Existing description.
 `,
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-002: New Requirement
 
@@ -154,7 +154,7 @@ First description.
 
 Second description.
 `,
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-001: Conflicting ID
 
@@ -168,11 +168,11 @@ This has same ID as existing.
 	g.Expect(result.RequirementsAdded).To(Equal(1))
 	g.Expect(result.IDsRenumbered).To(BeNumerically(">", 0))
 
-	// Check merged content - conflicting ID should be renumbered to REQ-003
+	// Check merged content - conflicting ID should be renumbered to REQ-3 (unpadded)
 	merged := fs.files["/project/docs/requirements.md"]
 	g.Expect(merged).To(ContainSubstring("REQ-001"))
 	g.Expect(merged).To(ContainSubstring("REQ-002"))
-	g.Expect(merged).To(ContainSubstring("REQ-003"))
+	g.Expect(merged).To(ContainSubstring("REQ-3"))
 	g.Expect(merged).To(ContainSubstring("Conflicting ID"))
 }
 
@@ -192,13 +192,13 @@ Existing.
 from = "REQ-001"
 to = ["DES-001"]
 `,
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-001: New Feature
 
 New feature requirement.
 `,
-		"/project/docs/projects/feature/traceability.toml": `[[links]]
+		"/project/.claude/projects/feature/traceability.toml": `[[links]]
 from = "REQ-001"
 to = ["DES-002"]
 `,
@@ -209,10 +209,10 @@ to = ["DES-002"]
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.LinksUpdated).To(BeNumerically(">", 0))
 
-	// Check traceability - REQ-001 from feature should be renumbered to REQ-002
+	// Check traceability - REQ-001 from feature should be renumbered to REQ-2 (unpadded)
 	traceability := fs.files["/project/docs/traceability.toml"]
 	g.Expect(traceability).To(ContainSubstring("REQ-001"))
-	g.Expect(traceability).To(ContainSubstring("REQ-002"))
+	g.Expect(traceability).To(ContainSubstring("REQ-2"))
 	g.Expect(traceability).To(ContainSubstring("DES-001"))
 	g.Expect(traceability).To(ContainSubstring("DES-002"))
 }
@@ -229,13 +229,13 @@ func TestMerge_ReturnsSummary(t *testing.T) {
 `,
 		"/project/docs/architecture.md": `# Architecture
 `,
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-001: New Req
 
 Desc.
 `,
-		"/project/docs/projects/feature/design.md": `# Design
+		"/project/.claude/projects/feature/design.md": `# Design
 
 ## DES-001: New Design
 
@@ -245,7 +245,7 @@ Desc.
 
 Desc.
 `,
-		"/project/docs/projects/feature/architecture.md": `# Architecture
+		"/project/.claude/projects/feature/architecture.md": `# Architecture
 
 ## ARCH-001: New Arch
 
@@ -271,7 +271,7 @@ func TestMerge_MissingPerProjectFiles(t *testing.T) {
 		"/project/docs/requirements.md": `# Requirements
 `,
 		// No per-project files - only requirements exists
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-001: Only Req
 
@@ -295,7 +295,7 @@ func TestMerge_EmptyTopLevel(t *testing.T) {
 	fs := &mockFS{files: map[string]string{
 		"/project/docs/requirements.md": `# Requirements
 `,
-		"/project/docs/projects/feature/requirements.md": `# Requirements
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
 
 ## REQ-001: First
 
@@ -351,7 +351,7 @@ Help format design.
 	// Check merged content
 	merged := fs.files["/project/docs/design.md"]
 	g.Expect(merged).To(ContainSubstring("DES-001"))
-	g.Expect(merged).To(ContainSubstring("DES-002")) // Renumbered
+	g.Expect(merged).To(ContainSubstring("DES-2")) // Renumbered (unpadded)
 	g.Expect(merged).To(ContainSubstring("Help Format"))
 
 	// Feature file should be deleted
@@ -395,10 +395,12 @@ References DES-001 internally.
 
 	// Check that internal references are updated
 	merged := fs.files["/project/docs/design.md"]
-	// DES-001 from feature should become DES-002
-	// DES-002 from feature should become DES-003
+	// DES-001 from feature should become DES-2 (unpadded, renumbered)
+	// DES-002 from feature stays DES-002 (no conflict)
+	// Internal reference to DES-001 in second item body should become DES-2
+	g.Expect(merged).To(ContainSubstring("DES-2"))
 	g.Expect(merged).To(ContainSubstring("DES-002"))
-	g.Expect(merged).To(ContainSubstring("DES-003"))
+	g.Expect(merged).To(ContainSubstring("References DES-2 internally"))
 }
 
 // TEST-228 traces: TASK-002
@@ -440,6 +442,151 @@ UI layout.
 	// Both feature files should be deleted
 	g.Expect(fs.FileExists("/project/docs/design-auth.md")).To(BeFalse())
 	g.Expect(fs.FileExists("/project/docs/design-ui.md")).To(BeFalse())
+}
+
+// TEST-230 traces: TASK-016, ISSUE-139
+// Test merge renumbers inline Traces to: references (Bug 1: strings.Replace limit=1)
+func TestMerge_RenumbersInlineTraceReferences(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
+
+## REQ-001: Feature Requirement
+
+Description.
+
+**Traces to:** DES-001
+`,
+		"/project/.claude/projects/feature/design.md": `# Design
+
+## DES-001: Feature Design
+
+Design description.
+
+**Traces to:** REQ-001
+`,
+		"/project/docs/requirements.md": `# Requirements
+
+## REQ-001: Existing Requirement
+
+Existing.
+`,
+		"/project/docs/design.md": `# Design
+
+## DES-001: Existing Design
+
+Existing design.
+`,
+	}}
+
+	result, err := integrate.Merge("/project", "feature", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.RequirementsAdded).To(Equal(1))
+	g.Expect(result.DesignAdded).To(Equal(1))
+	g.Expect(result.IDsRenumbered).To(Equal(2))
+
+	// The renumbered REQ item should have its body trace reference updated too
+	mergedReq := fs.files["/project/docs/requirements.md"]
+	// REQ-001 from feature was renumbered to REQ-2 (unpadded)
+	g.Expect(mergedReq).To(ContainSubstring("REQ-2"))
+	// The Traces to: line inside the renumbered item should NOT still say REQ-001
+	// (it references DES-001 which also gets renumbered, but that's in the traceability pass)
+
+	mergedDes := fs.files["/project/docs/design.md"]
+	// DES-001 from feature was renumbered to DES-2 (unpadded)
+	g.Expect(mergedDes).To(ContainSubstring("DES-2"))
+	// The Traces to: REQ-001 in the design item body should also be updated
+	// since REQ-001 was mapped to REQ-2
+}
+
+// TEST-231 traces: TASK-016, ISSUE-139
+// Test merge uses unpadded ID format (Bug 2: %s-%d not %s-%03d)
+func TestMerge_UnpaddedIDFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/requirements.md": `# Requirements
+
+## REQ-1: First
+
+First.
+`,
+		"/project/.claude/projects/feature/requirements.md": `# Requirements
+
+## REQ-1: Conflicting
+
+Conflicting.
+`,
+	}}
+
+	result, err := integrate.Merge("/project", "feature", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.IDsRenumbered).To(Equal(1))
+
+	merged := fs.files["/project/docs/requirements.md"]
+	// Should produce REQ-2, NOT REQ-002
+	g.Expect(merged).To(ContainSubstring("REQ-2"))
+	g.Expect(merged).ToNot(ContainSubstring("REQ-002"))
+}
+
+// TEST-232 traces: TASK-016, ISSUE-139
+// Test MergeFeatureFiles uses unpadded ID format (Bug 2)
+func TestMergeFeatureFiles_UnpaddedIDFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/design.md": `# Design
+
+### DES-1: Existing
+
+Existing.
+`,
+		"/project/docs/design-feature.md": `# Feature Design
+
+### DES-1: Feature
+
+Feature.
+`,
+	}}
+
+	result, err := integrate.MergeFeatureFiles("/project/docs", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.IDsRenumbered).To(Equal(1))
+
+	merged := fs.files["/project/docs/design.md"]
+	// Should produce DES-2, NOT DES-002
+	g.Expect(merged).To(ContainSubstring("DES-2"))
+	g.Expect(merged).ToNot(ContainSubstring("DES-002"))
+}
+
+// TEST-233 traces: TASK-016, ISSUE-139
+// Test Merge reads per-project files from .claude/projects/ (Bug 3: path mismatch)
+func TestMerge_UsesClaudeProjectsPath(t *testing.T) {
+	g := NewWithT(t)
+
+	fs := &mockFS{files: map[string]string{
+		"/project/docs/requirements.md": `# Requirements
+`,
+		// Per-project files live in .claude/projects/<name>/, NOT docs/projects/<name>/
+		"/project/.claude/projects/myfeature/requirements.md": `# Requirements
+
+## REQ-1: From Claude Projects Dir
+
+Description.
+`,
+	}}
+
+	result, err := integrate.Merge("/project", "myfeature", fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.RequirementsAdded).To(Equal(1))
+
+	merged := fs.files["/project/docs/requirements.md"]
+	g.Expect(merged).To(ContainSubstring("From Claude Projects Dir"))
 }
 
 // TEST-229 traces: TASK-002

@@ -209,19 +209,30 @@ When `step next` returns `action: "escalate-user"`, the state machine has exhaus
 2. **Model validation failures** - Spawned wrong model repeatedly
 3. **Unrecoverable errors** - State machine encountered illegal transition or corruption
 
-**Handling:**
+**Handling by category:**
 
-1. Display `result.details` to the user:
-   - Current phase and iteration count
-   - QA feedback from last attempt (if applicable)
-   - Failure reason (max iterations, model mismatch, etc.)
-2. Present options to the user:
+**Max iterations reached (announce and proceed):**
+
+1. Display `result.details` to the user (phase, iteration count, last QA feedback)
+2. Announce: "Max iterations reached for <phase>. Proceeding with one more attempt. Reply to choose differently (skip, abort, or adjust limit)."
+3. Immediately call `projctl step complete --action escalate-user --user-decision continue`
+4. If user overrides later, handle as a new instruction
+
+**Model validation failures (announce and proceed):**
+
+1. Display `result.details` to the user (expected model, actual model)
+2. Announce: "Model mismatch detected. Retrying spawn. Reply to abort if this keeps failing."
+3. Immediately call `projctl step complete --action escalate-user --user-decision retry`
+4. If user overrides later, handle as a new instruction
+
+**Unrecoverable errors (ask and wait):**
+
+1. Display `result.details` to the user (error type, state details)
+2. Present options:
    - **Manual fix + continue:** User fixes the issue, then `projctl step complete --action escalate-user --user-decision continue`
-   - **Adjust iteration limit:** Increase max_iterations in state.toml, then `projctl step complete --action escalate-user --user-decision retry`
    - **Skip phase (not recommended):** `projctl step complete --action escalate-user --user-decision skip`
    - **Abort:** Stop the workflow
-3. Do NOT call `step complete` until user provides guidance
-4. After user resolves, call `step complete` with their decision and resume the step loop
+3. Wait for user guidance before calling `step complete` -- this is a genuine blocker
 
 #### commit
 
@@ -385,6 +396,14 @@ The orchestrator owns state persistence via `projctl state` commands. The orches
 Skills decide their own behavior based on context. If the user wants to skip interviews, respect that naturally -- but don't tell the skill to bypass its own logic.
 
 **Why:** ISSUE-53 failed because the orchestrator told pm-interview-producer to skip its interview phase. The skill followed instructions but produced the wrong solution because it never confirmed understanding with the user.
+
+### Announce-and-Proceed Convention
+
+When a decision point is reached during the step loop:
+- **Genuine blockers** (unrecoverable errors, destructive actions): Ask user and wait
+- **Everything else** (iteration limits, retry decisions, parallelization strategy): Announce the chosen default and proceed immediately. User can override with a follow-up message.
+
+This prevents idle time when the user is not immediately available.
 
 ---
 

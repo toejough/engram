@@ -107,17 +107,11 @@ func TestExample(t *testing.T) {
 	s, err = state.TransitionWithChecker(projectDir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Per-phase QA: tdd-red -> tdd-red-qa -> commit-red -> commit-red-qa -> tdd-green
+	// Per-phase QA: tdd-red -> tdd-red-qa -> tdd-green
 	s, err = state.TransitionWithChecker(projectDir, "tdd-red-qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	s, err = state.TransitionWithChecker(projectDir, "commit-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	s, err = state.TransitionWithChecker(projectDir, "commit-red-qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// tdd-green should also succeed
+	// tdd-green should also succeed (tdd-red-qa transitions directly to tdd-green)
 	s, err = state.TransitionWithChecker(projectDir, "tdd-green", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
 	g.Expect(err).ToNot(HaveOccurred(), "tdd-green should succeed when tests exist in repo dir")
 

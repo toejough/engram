@@ -31,22 +31,14 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
 		}
 
-		// Full sequence: tdd-red → tdd-red-qa → commit-red → commit-red-qa →
-		// tdd-green → tdd-green-qa → commit-green → commit-green-qa →
-		// tdd-refactor → tdd-refactor-qa → commit-refactor → commit-refactor-qa →
-		// task-complete
+		// Full sequence: tdd-red -> tdd-red-qa -> tdd-green -> tdd-green-qa ->
+		// tdd-refactor -> tdd-refactor-qa -> task-complete
 		fullSequence := []string{
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
 			"tdd-green",
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 
@@ -84,16 +76,6 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-red-qa should spawn QA")
 		g.Expect(result.Skill).To(Equal("qa"))
 
-		// Test step next at commit-red-qa returns spawn-qa
-		_, err = state.Transition(dir, "commit-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "commit-red-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "commit-red-qa should spawn QA")
-
 		// Test step next at tdd-green-qa returns spawn-qa
 		_, err = state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
@@ -104,16 +86,6 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-green-qa should spawn QA")
 
-		// Test step next at commit-green-qa returns spawn-qa
-		_, err = state.Transition(dir, "commit-green", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "commit-green-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "commit-green-qa should spawn QA")
-
 		// Test step next at tdd-refactor-qa returns spawn-qa
 		_, err = state.Transition(dir, "tdd-refactor", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
@@ -123,16 +95,6 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-refactor-qa should spawn QA")
-
-		// Test step next at commit-refactor-qa returns spawn-qa
-		_, err = state.Transition(dir, "commit-refactor", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "commit-refactor-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "commit-refactor-qa should spawn QA")
 	})
 
 	t.Run("no shortcuts allowed in full TDD cycle", func(t *testing.T) {
@@ -155,55 +117,36 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 
 		// Verify illegal shortcuts are blocked:
 
-		// 1. Cannot skip from tdd-red-qa to tdd-green (must go through commit-red and commit-red-qa)
-		_, err = state.Transition(dir, "tdd-red-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
+		// 1. Cannot skip from tdd-red to tdd-green (must go through tdd-red-qa)
 		_, err = state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 
-		// 2. Cannot skip from commit-red to tdd-green (must go through commit-red-qa)
+		// 2. Cannot skip from tdd-green to tdd-refactor (must go through tdd-green-qa)
 		dir2 := t.TempDir()
 		_, err = state.Init(dir2, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		for _, phase := range append(phases, "tdd-red-qa", "commit-red") {
+		for _, phase := range append(phases, "tdd-red-qa", "tdd-green") {
 			_, err = state.Transition(dir2, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		_, err = state.Transition(dir2, "tdd-green", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir2, "tdd-refactor", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 
-		// 3. Cannot skip from tdd-green-qa to tdd-refactor (must go through commit-green and commit-green-qa)
+		// 3. Cannot skip from tdd-refactor to task-complete (must go through tdd-refactor-qa)
 		dir3 := t.TempDir()
 		_, err = state.Init(dir3, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		for _, phase := range append(phases, "tdd-red-qa", "commit-red", "commit-red-qa", "tdd-green", "tdd-green-qa") {
+		for _, phase := range append(phases, "tdd-red-qa", "tdd-green", "tdd-green-qa", "tdd-refactor") {
 			_, err = state.Transition(dir3, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		_, err = state.Transition(dir3, "tdd-refactor", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
-
-		// 4. Cannot skip from commit-refactor to task-complete (must go through commit-refactor-qa)
-		dir4 := t.TempDir()
-		_, err = state.Init(dir4, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		for _, phase := range append(phases, "tdd-red-qa", "commit-red", "commit-red-qa",
-			"tdd-green", "tdd-green-qa", "commit-green", "commit-green-qa",
-			"tdd-refactor", "tdd-refactor-qa", "commit-refactor") {
-			_, err = state.Transition(dir4, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		_, err = state.Transition(dir4, "task-complete", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir3, "task-complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 	})
@@ -231,16 +174,10 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 
 		fullSequence := []string{
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
 			"tdd-green",
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 
@@ -254,16 +191,10 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		expectedProgression := []string{
 			"tdd-red",
 			"tdd-red-qa",
-			"commit-red",
-			"commit-red-qa",
 			"tdd-green",
 			"tdd-green-qa",
-			"commit-green",
-			"commit-green-qa",
 			"tdd-refactor",
 			"tdd-refactor-qa",
-			"commit-refactor",
-			"commit-refactor-qa",
 			"task-complete",
 		}
 

@@ -3831,6 +3831,10 @@ Related challenges: Traceability chain violations required correction commit.
 
 ---
 
+
+### Comment
+
+Deferred — likely superseded by ISSUE-148 (consolidated evaluation phase redesign). Re-evaluate after ISSUE-148. See docs/open-issues-plan.md.
 ### ISSUE-109: Retro: Define 'complete' vs 'partial' commit scope explicitly
 
 **Priority:** Medium
@@ -4179,6 +4183,10 @@ Related challenges: TASK-6 visual test requirement not explicitly validated
 
 ---
 
+
+### Comment
+
+Deferred — independent but low urgency. No blockers, can proceed anytime. See docs/open-issues-plan.md.
 ### ISSUE-131: Retro: Include simplicity rationale in all task breakdowns
 
 **Priority:** Medium
@@ -4289,7 +4297,7 @@ task-audit was supposed to be renamed to tdd-qa in ISSUE-91 but never was. The p
 ### ISSUE-137: Registry hardcodes model assignments instead of reading SKILL.md front matter
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 The PhaseRegistry in internal/step/registry.go hardcodes ProducerModel/QAModel values. The comment says 'from frontmatter' but no code reads SKILL.md front matter. Multiple mismatches exist: pm, design, architect, breakdown, tdd-red all say model:sonnet in SKILL.md but registry says opus. Fix: make registry derive model from SKILL.md front matter, or at minimum keep them in sync.
@@ -4300,6 +4308,10 @@ The PhaseRegistry in internal/step/registry.go hardcodes ProducerModel/QAModel v
 ### Comment
 
 Clarification: fix is to remove model: from all SKILL.md front matter. Registry is and should remain the single source of truth. No code reads front matter model field.
+
+### Comment
+
+Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-plan.md.
 ### ISSUE-138: Add plan mode as front door to project orchestration
 
 **Priority:** High
@@ -4308,48 +4320,101 @@ Clarification: fix is to remove model: from all SKILL.md front matter. Registry 
 
 ## Problem
 
-The /project workflow currently runs PM, Design, and Architecture interview producers sequentially, each doing its own discovery from scratch. This is slow and repetitive. Meanwhile, Claude Code's plan mode capability goes unused entirely.
+The /project workflow currently runs PM, Design, and Architecture phases sequentially, each doing its own discovery and interviewing the user separately. This is slow, repetitive, and produces trace mismatches between artifacts that cause QA rework.
 
 ## Proposal
 
-Add a plan mode exploration phase as the first step in /project workflows. Plan mode would:
+Replace the sequential PM → Design → Arch pipeline with a two-step flow:
 
-1. **Load key questions from all three interview domains** (PM, Design, Arch) as its exploration framework
-2. **Explore the codebase** using Glob/Grep/Read, actively seeking answers to those questions
-3. **Produce a coverage matrix** showing what was found/partial/unknown for each domain's key questions
-4. **User approves the plan**
-5. **Spawn PM, Design, Arch producers in parallel** (not sequential), passing plan context and coverage scores
+### Step 1: Structured Plan (user-facing)
 
-Each interview producer would then use coverage scores to determine behavior:
-- High coverage → skip to CLASSIFY with pre-filled items from plan
-- Medium coverage → short targeted interview (only gap questions)
-- Low/no plan context → full interview (backward compatible)
+A single plan conversation with the user covering three dimensions:
+
+1. **Problem space** — What problem are we solving? Who is affected? What are the constraints?
+2. **User experience solution space** — How should this look/feel/behave? What's the interaction model?
+3. **Implementation solution space** — What technology choices? What architectural patterns? What are the trade-offs?
+
+This replaces three separate interviews with one structured conversation. The user approves the plan before any artifact production begins.
+
+### Step 2: Parallel Artifact Production (agent-to-agent)
+
+Spawn PM, Designer, and Architect as a collaborative team:
+
+- Each agent owns their artifact (requirements.md, design.md, architecture.md)
+- Agents communicate via SendMessage to align on shared concepts (e.g., "user" in requirements maps to specific component in design and data model in architecture)
+- Agents negotiate trace links together, eliminating the most common class of QA failures (cross-artifact ID mismatches)
+- One cross-cutting QA pass validates all three artifacts for consistency, replacing three separate QA cycles
+
+### Flow comparison
+
+**Current (~6 producer/QA cycles):**
+```
+PM interview → PM QA → Design interview → Design QA → Arch interview → Arch QA
+```
+
+**Proposed (~2 cycles):**
+```
+Plan conversation → Parallel PM+Design+Arch collaboration → Cross-cutting QA
+```
+
+## Design Considerations
+
+### Conflict resolution between agents
+
+When agents disagree (e.g., PM wants feature X, Architect says X is infeasible):
+- Start simple: each agent reads the others' in-progress work, posts messages about decisions affecting others
+- Conflicts escalate to user via AskUserQuestion as exception, not norm
+- The plan step should be thorough enough that most conflicts are preempted
+
+### User interview overlap
+
+The plan step must be thorough enough that the parallel phase is mostly agent-to-agent. Three agents each firing AskUserQuestion simultaneously would be chaotic. Agent-to-user questions during parallel phase should be rare escalations only.
+
+### Artifact ownership boundaries
+
+Each agent still writes their own file, but they need to agree on shared concepts. Alignment that currently happens implicitly through sequential reading needs explicit inter-agent negotiation.
+
+### State machine changes
+
+Current `projctl step next` returns one action at a time. Need a new action type (e.g., "parallel-phase" or "spawn-group") that launches a collaboration group instead of a single producer.
+
+### QA rethink
+
+Replace three separate QA passes with one cross-cutting QA that validates consistency across all three artifacts simultaneously. This is actually simpler than three separate cycles, but the QA contract needs redesigning.
 
 ## Changes Required
 
-1. **New plan mode explorer** — Loads questions from PM/Design/Arch skills, explores codebase, produces coverage matrix in plan.md
-2. **Modified project orchestrator state machine** — New initial `plan` phase; after approval, spawns PM/Design/Arch in parallel
-3. **Modified interview producers (PM, Design, Arch)** — Accept optional plan_context and coverage params; skip/reduce interviews based on coverage
+1. **New plan phase** — Structured conversation covering problem/UX/implementation spaces, produces plan.md for agent context
+2. **Parallel collaboration action** — State machine support for spawning multiple agents that communicate with each other
+3. **Agent communication protocol** — Convention for PM/Design/Arch agents to share decisions and negotiate traces
+4. **Cross-cutting QA skill** — Single QA pass validating all three artifacts for internal consistency and trace alignment
+5. **Remove sequential interview phases** — Replace pm→design→arch chain with single parallel-collaboration phase
+6. **Update interview producers** — Accept plan context instead of conducting full interviews
 
 ## What Stays the Same
 
 - Infer producers (pm-infer, arch-infer, design-infer) — serve different use case (adoption/documentation)
-- Breakdown, TDD, QA phases — unchanged
-- Artifacts produced (requirements.md, design.md, architecture.md) — same format and IDs
+- Breakdown, TDD, implementation phases — unchanged
+- Artifact formats (requirements.md, design.md, architecture.md) — same structure and IDs
+- Traceability requirements — same, just produced more reliably via collaboration
 
 ## Benefits
 
-- Parallel execution of 3 producers instead of sequential
-- Less repetitive questioning — context gathered once in plan mode
-- Universalizes the gap-assessment pattern (currently only in arch-interview)
-- Better use of Claude Code's native codebase exploration capability
+- Significant wall-clock time reduction (3 sequential phases → 1 plan + 1 parallel)
+- Single user-facing conversation instead of three overlapping interviews
+- Trace links negotiated together eliminates cross-artifact mismatch rework
+- One QA cycle instead of three
 
 ---
 
+
+### Comment
+
+Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Parallel phases need new action type easier to add with declarative config. Can run in parallel with ISSUE-148 after 150 completes. See docs/open-issues-plan.md.
 ### ISSUE-139: Fix integrate: trace link renumbering, ID format consistency, and project path mismatch
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 Three related gaps in projctl integrate:
@@ -4364,6 +4429,10 @@ ID numbering restarting from 1 per project is fine by design — renumbering on 
 
 ---
 
+
+### Comment
+
+Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-plan.md.
 ### ISSUE-140: State machine step next doesn't include current_task in context or prompt
 
 **Priority:** high
@@ -4381,10 +4450,14 @@ Fix:
 
 ---
 
+
+### Comment
+
+Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Context passing will be redesigned; becomes trivial config change after 150. Can run in parallel with ISSUE-142, ISSUE-145. See docs/open-issues-plan.md.
 ### ISSUE-141: Remove commit-producer QA phases and consolidate commit/commit-producer skills
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 Two changes:
@@ -4395,6 +4468,10 @@ Two changes:
 
 ---
 
+
+### Comment
+
+Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-plan.md.
 ### ISSUE-142: Retro: Add explicit TaskList creation step to project control loop
 
 **Priority:** High
@@ -4420,6 +4497,10 @@ Related: ISSUE-104 challenge C-1, retro-notes O-1
 
 ---
 
+
+### Comment
+
+Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Adding a step becomes trivial TOML addition after 150. Can run in parallel with ISSUE-140, ISSUE-145. See docs/open-issues-plan.md.
 ### ISSUE-143: Retro: Investigate collapsing redundant commit QA phases
 
 **Priority:** High
@@ -4504,6 +4585,10 @@ Related: ISSUE-104 challenge C-4
 
 ---
 
+
+### Comment
+
+Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Adding a checkpoint becomes trivial TOML addition after 150. Can run in parallel with ISSUE-140, ISSUE-142. See docs/open-issues-plan.md.
 ### ISSUE-146: Decision needed: Clarify ISSUE-137 through ISSUE-141 created during ISSUE-104
 
 **Priority:** Medium
@@ -4556,3 +4641,309 @@ Action: Clarify with user whether remaining tasks should be completed or explici
 ### Comment
 
 Invalid: All 10 tasks were completed during the session. TASK-8, 9, 10 were fast-tracked as already implemented.
+
+---
+
+### ISSUE-148: Consolidate retro and summary into comprehensive project evaluation with interview
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+## Problem
+
+The retro and summary phases overlap heavily (both gather the same artifacts, both synthesize lessons learned). The retro auto-creates issues for recommendations, producing noise — many "Retro:" and "Decision needed:" issues get immediately closed as won't-do. And the evaluation scope is too narrow: it only covers "what went wrong" instead of evaluating the full system.
+
+## Proposal
+
+Merge retro-producer and summary-producer into a single comprehensive evaluation phase. Broaden the evaluation scope from just problems to a full system optimization review. Present all findings to the user via interview before creating any issues.
+
+### Evaluation Dimensions
+
+The consolidated skill evaluates across these categories:
+
+1. **Project summary** — Key decisions, outcomes, deliverables (from summary-producer)
+2. **Problems** — What went wrong, blockers, rework cycles (current retro)
+3. **Improvement opportunities** — Things working fine that could be better, faster, or more reliable
+4. **Model assignment review** — Was opus used for simple tasks? Haiku for something too complex? Recommend frontmatter changes
+5. **Phase value assessment** — Did every phase earn its keep? (e.g., "design phase added nothing for this pure refactor")
+6. **Tool/command errors** — Common mistakes calling tools or commands during the session (e.g., wrong subcommand names, missing flags)
+7. **Tool limitations** — Workarounds needed due to tool gaps
+8. **Determinism opportunities** — What's currently LLM-powered that could be a `projctl` command or deterministic check instead?
+9. **Local model offloading candidates** — Tasks that could run on ONNX or a local LLM instead of a frontier model
+10. **Cross-session pattern analysis (opt-in)** — Scan prior project retros (`.claude/projects/*/retro.md`) for recurring themes that haven't been resolved or don't have issues yet
+
+### Interview Structure
+
+Findings presented to user in three tiers:
+
+1. **Quick wins** (model changes, tool fixes, command aliases) — easy to approve/reject
+2. **Process changes** (phase value, reliability improvements) — presented as a group
+3. **Strategic opportunities** (determinism, offloading, cross-session patterns) — more discussion-oriented
+
+Each category gets a brief summary. User can drill into any they care about. User approves which findings become issues.
+
+## Scope
+
+1. Create consolidated skill (retro-producer absorbs summary-producer)
+2. Single output file instead of separate retro.md + project-summary.md
+3. Deduplicate QA contract checks (~20 combined, significant overlap)
+4. Remove summary-producer and summary-qa skills
+5. Update state machine phase registry in Go code (remove summary phase)
+6. Add broad evaluation dimensions (model review, phase value, tool errors, determinism, offloading)
+7. Add AskUserQuestion interview: present findings by tier, user chooses which become issues
+8. Add opt-in cross-session analysis (scan prior retros for unresolved patterns)
+9. Update project/SKILL.md workflow references
+
+## Acceptance Criteria
+
+- [ ] Single phase replaces both retro and summary
+- [ ] Output doc covers: project summary, key decisions, outcomes, all evaluation dimensions
+- [ ] All evaluation dimensions implemented (problems, improvements, model review, phase value, tool errors, tool limitations, determinism opportunities, offloading candidates)
+- [ ] Cross-session analysis is opt-in and scans prior project retros
+- [ ] Findings presented to user via tiered interview (quick wins → process → strategic)
+- [ ] User approves which findings become issues; no auto-creation
+- [ ] State machine no longer references separate summary phase
+- [ ] summary-producer and summary-qa skills removed
+
+---
+
+
+### Comment
+
+Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Merging/removing phases easier with declarative config. Can run in parallel with ISSUE-138 after 150 completes. See docs/open-issues-plan.md.
+### ISSUE-149: Investigate idle-wait prevention when agent blocks on user decisions
+
+**Priority:** High
+**Status:** closed
+**Created:** 2026-02-07
+
+## Problem
+
+Agents sometimes stop and wait for a user decision (proceed/stop, parallelize/serialize, etc.) and then sit idle doing no productive work until the user responds. This violates the CLAUDE.md principle "never sit idle waiting for a response when there's work to be done" but enforcement is inconsistent. The problem recurs across projects.
+
+The core challenge: Claude Code's conversation model is request-response. There's no built-in mechanism for an external process to nudge an idle agent after a timeout.
+
+## Investigation Areas
+
+### 1. Behavioral restructuring (skill/CLAUDE.md enforcement)
+
+Instead of "Should I do X or Y?" followed by idle, enforce "I'm doing X. Say stop if you want Y instead" and immediately proceed.
+
+- Audit existing skills for decision-point patterns that cause idle waits
+- Distinguish "genuinely needs user input" (e.g., destructive action confirmation) from "unnecessarily cautious" (e.g., parallelization strategy)
+- Update skill contracts to require "proceed with best option" pattern by default
+- Add CLAUDE.md enforcement language with specific anti-patterns to avoid
+
+### 2. Concurrent work pattern
+
+Ask the question AND start working on the most likely path in parallel. If the user redirects, some work gets discarded, but idle time drops to zero.
+
+- Identify which decision points can safely proceed speculatively
+- Define rollback strategy for when the user picks the non-default option
+- May need convention for "speculative work" that's cheap to discard (e.g., exploration/planning vs. file writes)
+
+### 3. Watchdog teammate in team mode
+
+In team mode, a lightweight background agent monitors for idle teammates and sends them a "proceed with default" message after a timeout.
+
+- Fits existing SendMessage protocol — no new infrastructure needed
+- Team lead spawns a watchdog agent alongside the orchestrator
+- Watchdog periodically checks teammate idle status (how? read team config timestamps? poll TaskList for stale in_progress items?)
+- After N seconds of no progress, sends "proceed with your best judgment" message to the idle agent
+- Needs investigation into: how to detect idle state, what timeout is appropriate, how to avoid interrupting legitimate thinking time
+
+## Acceptance Criteria
+
+- [ ] Root causes documented: catalog the specific decision patterns that cause idle waits
+- [ ] Behavioral pattern defined: clear rules for when to ask-and-wait vs. announce-and-proceed
+- [ ] At least one mechanism implemented to prevent or break idle waits
+- [ ] Validated across a real project session
+
+---
+
+
+### Comment
+
+Phase 1 quick win — no dependencies, can proceed now. Investigate behavioral patterns (options 2, 3, 4 from issue description). See docs/open-issues-plan.md.
+
+### Comment
+
+Fixed idle-wait anti-patterns:
+
+- The escalate-user handler in project/SKILL.md was the primary anti-pattern. It unconditionally blocked on user input for all escalation types. Now uses announce-and-proceed for max iterations (default: continue) and model validation failures (default: retry). Only unrecoverable errors genuinely block on user input.
+- Interview skills (pm, design, arch) use direct AskUserQuestion correctly -- no change needed.
+- Intake-evaluator's 50% confidence threshold is acceptable for now (it escalates genuinely uncertain classifications).
+- The CLAUDE.md principle 'never sit idle' already existed but was contradicted by project/SKILL.md's 'Do NOT call step complete until user provides guidance' instruction. That contradiction is now resolved.
+- Added Announce-and-Proceed Convention section to Architectural Rules in project/SKILL.md to codify the pattern.
+### ISSUE-150: Simplify state machine: declarative TOML workflow config, streamlined API
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+## Problem
+
+The projctl state machine and CLI API have grown organically through 100+ issues. The result is:
+
+- Phase registry hardcoded in Go — adding/removing/reordering phases requires code changes
+- Phase transitions implicit in code paths, not easily visible or documented
+- Large command surface (state, step, issue, trace, worktree, integrate, memory, territory, etc.)
+- Overlapping concepts and commands accumulated through iterative development
+- Difficult to produce clean diagrams or concise documentation — the system is too complex to explain simply
+- The orchestrator SKILL.md is already long and will grow further with ISSUE-138 (parallel phases) and ISSUE-148 (consolidated retro)
+
+## Goals
+
+1. **Declarative workflow definition** — Phases, transitions, producer/QA pairs, and model assignments defined in TOML config, not Go code
+2. **Streamlined API** — Fewer commands with consistent patterns; consolidate or remove redundant commands
+3. **Transparent execution** — Easy to see current state, available transitions, and why a specific action was chosen
+4. **Diagrammable** — The workflow should be simple enough to render as a clean state diagram in the README
+5. **Concise documentation** — README can explain the full system without walls of text
+
+## Investigation Areas
+
+### Declarative workflow config
+
+Define workflows in TOML that the state machine interprets:
+
+```toml
+# Example: what a declarative workflow might look like
+[workflow.new]
+phases = ["plan", "artifacts", "breakdown", "implement", "evaluate"]
+
+[phase.plan]
+type = "interview"
+model = "sonnet"
+artifact = "plan.md"
+
+[phase.artifacts]
+type = "parallel-group"
+members = ["pm", "design", "arch"]
+
+[phase.artifacts.pm]
+skill = "pm-interview-producer"
+model = "sonnet"
+artifact = "requirements.md"
+
+# ... etc
+```
+
+Benefits: phases become data, not code. Adding a phase = adding TOML, not writing Go. Workflows are self-documenting.
+
+### API consolidation
+
+Audit the full command surface. Identify:
+- Commands that could be merged (e.g., state + step?)
+- Commands that are rarely used and could be removed
+- Inconsistent patterns (some commands use --dir, some use --project-dir, some use positional args)
+- Whether the step next / step complete handshake could be simplified
+
+### State transparency
+
+- `projctl status` (or equivalent) should show a clear, human-readable view of: current phase, iteration, what's next, what's blocked
+- Consider a `projctl diagram` command that renders the current workflow as ASCII or mermaid
+
+### Scope of deep dive
+
+This needs a dedicated session to:
+1. Map the full current API surface and identify redundancy
+2. Map the current phase graph and transition rules
+3. Design the declarative TOML schema
+4. Identify which Go code becomes config vs. stays as code
+5. Plan migration path (existing projects must still work or be convertible)
+
+## Acceptance Criteria
+
+- [ ] Full audit of current command surface completed
+- [ ] Current phase graph documented as a diagram
+- [ ] Declarative TOML workflow schema designed
+- [ ] Phase registry migrated from Go code to TOML config
+- [ ] API surface reduced (target: measurable reduction in top-level commands or flags)
+- [ ] README updated with clean workflow diagram and concise API reference
+- [ ] Existing project state files remain compatible or have migration path
+
+
+### Comment
+
+Phase 2 — big restructure. Blocks ISSUE-138, ISSUE-148, ISSUE-140, ISSUE-142, ISSUE-145. Do after Phase 1 quick wins. See docs/open-issues-plan.md.
+
+---
+
+
+### Comment
+
+ISSUE-151 (workflow tiers) defines the tier model that becomes TOML workflow definitions in this issue. 151 is a Phase 1 quick win that should complete before this work begins.
+### ISSUE-151: Define workflow tiers: full project vs task vs quick-fix execution modes
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+## Problem
+
+CLAUDE.md mandates `/project` for ALL artifact production, but the full orchestration flow (PM → design → arch → breakdown → TDD → retro) is excessive for well-scoped issues with clear AC. This leads to either:
+- Skipping the process entirely (violating the rule, losing guardrails)
+- Running full orchestration for trivial changes (wasting time and tokens)
+
+There's no principled middle ground. The `task` workflow exists but still involves breakdown → TDD producer/QA cycles with agent spawns, which is heavy for issues like "fix 3 known bugs at specific file/line locations."
+
+## Proposal
+
+Define explicit workflow tiers with clear criteria for when each applies:
+
+### Tier 1: Full Project (`/project new`)
+- New features, unclear scope, multiple stakeholders
+- Runs: plan → parallel artifacts → breakdown → TDD → evaluate
+- When: scope is undefined, requirements need discovery
+
+### Tier 2: Scoped Task (`/project task`)  
+- Well-defined issue with clear AC, multi-file changes
+- Runs: breakdown → TDD → commit
+- When: issue exists with AC, skip planning phases
+
+### Tier 3: Quick Fix (direct execution with TDD)
+- Fully specified fix with exact files/lines known
+- Runs: write test → implement → mage check → commit
+- When: issue has specific bug descriptions, file paths, and fix approach documented
+- Still requires: tests before implementation (TDD discipline), `mage check` passes
+
+### Selection Criteria
+
+| Signal | Tier |
+|--------|------|
+| No issue exists yet | Tier 1 |
+| Issue exists, AC unclear or broad | Tier 1 |
+| Issue exists with clear AC, multiple files | Tier 2 |
+| Issue exists with exact file/line/fix specified | Tier 3 |
+| One-line typo fix | Just do it (no ceremony) |
+
+## Changes Required
+
+1. Update CLAUDE.md to replace absolute "/project for everything" with tier-based guidance
+2. Either add Tier 3 workflow to projctl state machine, or document it as a convention that doesn't need state machine tracking
+3. Update project/SKILL.md intake flow to recognize tier selection
+4. Consider: should intake-evaluator auto-classify tier, or is this a user/lead decision?
+
+## Relationship to Other Issues
+
+- ISSUE-150 (declarative TOML state machine): Tiers become workflow definitions in TOML config
+- ISSUE-138 (plan mode): Plan mode is the Tier 1 entry point
+- ISSUE-149 (idle-wait prevention): Lighter tiers reduce decision points that cause idle waits
+
+## Acceptance Criteria
+
+- [ ] Workflow tiers defined with clear selection criteria
+- [ ] CLAUDE.md updated with tier-based guidance (not absolute /project rule)
+- [ ] Each tier has documented entry conditions and phase sequence
+- [ ] Tier 3 (quick fix) preserves TDD discipline without full orchestration overhead
+- [ ] Intake flow updated to support tier selection
+
+
+### Comment
+
+Phase 1 quick win — no dependencies on ISSUE-150, but informs its design (tiers become TOML workflow definitions). See docs/open-issues-plan.md.
+
+### Comment
+
+Deferred to ISSUE-150 session — tier definitions will be designed alongside the declarative TOML workflow schema.

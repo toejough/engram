@@ -18,8 +18,7 @@ const HandshakeInstruction = "First, respond with your model name so I can verif
 // isQAOnlyPhase returns true for phases that only run QA (no producer).
 func isQAOnlyPhase(phase string) bool {
 	switch phase {
-	case "tdd-red-qa", "tdd-green-qa", "tdd-refactor-qa",
-		"commit-red-qa", "commit-green-qa", "commit-refactor-qa":
+	case "tdd-red-qa", "tdd-green-qa", "tdd-refactor-qa":
 		return true
 	default:
 		return false

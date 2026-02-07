@@ -277,10 +277,10 @@ timestamp = "2026-02-06T10:15:00Z"
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred(), "should be able to transition from migrated tdd-red phase")
 
-		// Verify full TDD cycle can complete
-		s, err = state.Transition(dir, "commit-red", state.TransitionOpts{}, nowFunc())
+		// Verify full TDD cycle can continue (tdd-red-qa goes directly to tdd-green)
+		s, err = state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("commit-red"))
+		g.Expect(s.Project.Phase).To(Equal("tdd-green"))
 	})
 
 	t.Run("migration preserves task context", func(t *testing.T) {
