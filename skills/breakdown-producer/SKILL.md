@@ -1,7 +1,7 @@
 ---
 name: breakdown-producer
 description: Decompose architecture into implementation tasks with dependency graph
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

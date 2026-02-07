@@ -1,7 +1,7 @@
 ---
 name: pm-interview-producer
 description: Gathers requirements via user interview, produces requirements.md with REQ-N IDs
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

@@ -1,7 +1,7 @@
 ---
 name: arch-infer-producer
 description: Infer architecture decisions from existing code structure
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

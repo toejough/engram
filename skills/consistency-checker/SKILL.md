@@ -1,7 +1,7 @@
 ---
 name: consistency-checker
 description: "[DEPRECATED] Reviews parallel producer outputs for consistency across batch results"
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

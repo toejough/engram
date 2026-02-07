@@ -1,7 +1,7 @@
 ---
 name: intake-evaluator
 description: Classifies user requests into workflow types (new, adopt, align, single-task)
-context: fork
+context: inherit
 model: haiku
 user-invocable: true
 role: evaluator

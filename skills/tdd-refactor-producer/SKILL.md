@@ -1,7 +1,7 @@
 ---
 name: tdd-refactor-producer
 description: Refactor implementation while keeping tests green (TDD refactor phase)
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

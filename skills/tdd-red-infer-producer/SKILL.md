@@ -1,7 +1,7 @@
 ---
 name: tdd-red-infer-producer
 description: Infer needed tests from existing implementation code
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

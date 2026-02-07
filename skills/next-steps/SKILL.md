@@ -1,7 +1,7 @@
 ---
 name: next-steps
 description: Suggest follow-up work based on completed project
-context: fork
+context: inherit
 model: haiku
 skills: ownership-rules
 user-invocable: true

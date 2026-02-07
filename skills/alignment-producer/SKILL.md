@@ -1,7 +1,7 @@
 ---
 name: alignment-producer
 description: Validates traceability chain across project artifacts
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

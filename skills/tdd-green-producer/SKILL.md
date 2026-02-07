@@ -1,7 +1,7 @@
 ---
 name: tdd-green-producer
 description: Write minimal implementation to make tests pass (TDD green phase)
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

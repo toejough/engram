@@ -1,7 +1,7 @@
 ---
 name: doc-producer
 description: Produce and update project documentation
-context: fork
+context: inherit
 model: sonnet
 user-invocable: false
 role: producer

@@ -1,7 +1,7 @@
 ---
 name: commit
 description: Create a well-formatted git commit following project conventions
-context: fork
+context: inherit
 model: haiku
 skills: ownership-rules
 user-invocable: true

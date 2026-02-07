@@ -1,7 +1,7 @@
 ---
 name: context-explorer
 description: Gathers context from multiple query sources, returns aggregated results
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: false

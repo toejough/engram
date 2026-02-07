@@ -1,7 +1,7 @@
 ---
 name: design-infer-producer
 description: Infer design decisions from existing UI/UX analysis
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

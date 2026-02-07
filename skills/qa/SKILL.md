@@ -1,7 +1,7 @@
 ---
 name: qa
 description: Universal QA skill that validates any producer against its SKILL.md contract
-context: fork
+context: inherit
 model: haiku
 skills: ownership-rules
 user-invocable: true

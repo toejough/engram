@@ -1,7 +1,7 @@
 ---
 name: arch-interview-producer
 description: Architecture interview producer gathering technology decisions via user interview
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

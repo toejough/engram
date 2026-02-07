@@ -1,7 +1,7 @@
 ---
 name: commit-producer
 description: Create phase-scoped git commit (commit-red/green/refactor phases)
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: false

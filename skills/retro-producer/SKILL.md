@@ -1,7 +1,7 @@
 ---
 name: retro-producer
 description: Produce project retrospective with process improvement recommendations
-context: fork
+context: inherit
 model: sonnet
 user-invocable: true
 role: producer

@@ -1,7 +1,7 @@
 ---
 name: summary-producer
 description: Produce project summary with key decisions and outcomes
-context: fork
+context: inherit
 model: sonnet
 user-invocable: false
 role: producer

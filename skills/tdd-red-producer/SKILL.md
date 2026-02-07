@@ -1,7 +1,7 @@
 ---
 name: tdd-red-producer
 description: Write failing tests for a task's acceptance criteria (TDD red phase)
-context: fork
+context: inherit
 model: sonnet
 user-invocable: false
 role: producer

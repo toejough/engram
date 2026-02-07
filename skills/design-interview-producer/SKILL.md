@@ -1,7 +1,7 @@
 ---
 name: design-interview-producer
 description: Gathers design decisions via user interview and produces design.md with DES-N IDs
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true

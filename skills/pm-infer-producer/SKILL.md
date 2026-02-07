@@ -1,7 +1,7 @@
 ---
 name: pm-infer-producer
 description: Infer requirements from existing codebase analysis
-context: fork
+context: inherit
 model: sonnet
 skills: ownership-rules
 user-invocable: true
