@@ -397,6 +397,7 @@ func writeAtomic(dir string, s State) error {
 }
 
 // Get reads the state file from the given directory.
+// Automatically migrates legacy phase="tdd" to phase="tdd-red".
 func Get(dir string) (State, error) {
 	statePath := filepath.Join(dir, StateFile)
 
@@ -404,6 +405,28 @@ func Get(dir string) (State, error) {
 
 	if _, err := toml.DecodeFile(statePath, &s); err != nil {
 		return State{}, fmt.Errorf("failed to read state file: %w", err)
+	}
+
+	// Migrate legacy TDD phase to TDD-red sub-phase
+	if s.Project.Phase == "tdd" {
+		s.Project.Phase = "tdd-red"
+
+		// Initialize pair state for tdd-red with iteration 0
+		if s.Pairs == nil {
+			s.Pairs = make(map[string]PairState)
+		}
+		// Only initialize if not already set (idempotent)
+		if _, exists := s.Pairs["tdd-red"]; !exists {
+			s.Pairs["tdd-red"] = PairState{
+				Iteration:     0,
+				MaxIterations: 3, // Default max iterations
+			}
+		}
+
+		// Persist migration to disk
+		if err := writeAtomic(dir, s); err != nil {
+			return State{}, fmt.Errorf("failed to persist migration: %w", err)
+		}
 	}
 
 	return s, nil
