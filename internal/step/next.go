@@ -2,6 +2,7 @@ package step
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -44,14 +45,19 @@ func buildPrompt(skillName string, ctx StepContext) string {
 		}
 	}
 
+	if ctx.ProducerTranscript != "" {
+		prompt += "\n\nProducer transcript:\n" + ctx.ProducerTranscript
+	}
+
 	return prompt
 }
 
 // StepContext provides contextual information for the action.
 type StepContext struct {
-	Issue          string   `json:"issue,omitempty"`
-	PriorArtifacts []string `json:"prior_artifacts,omitempty"`
-	QAFeedback     string   `json:"qa_feedback,omitempty"`
+	Issue             string   `json:"issue,omitempty"`
+	PriorArtifacts    []string `json:"prior_artifacts,omitempty"`
+	QAFeedback        string   `json:"qa_feedback,omitempty"`
+	ProducerTranscript string   `json:"producer_transcript,omitempty"`
 }
 
 // TaskParams holds the exact parameters for a Task tool call.
@@ -88,12 +94,13 @@ type NextResult struct {
 
 // CompleteResult holds the input to step complete.
 type CompleteResult struct {
-	Action        string `json:"action"`                   // What was completed
-	Status        string `json:"status"`                   // done, failed
-	QAVerdict     string `json:"qa_verdict,omitempty"`     // approved, improvement-request, escalate-phase, escalate-user
-	QAFeedback    string `json:"qa_feedback,omitempty"`    // Feedback text from QA
-	Phase         string `json:"phase,omitempty"`          // Target phase for transition actions
-	ReportedModel string `json:"reported_model,omitempty"` // Model reported by teammate (for failed spawns)
+	Action             string `json:"action"`                       // What was completed
+	Status             string `json:"status"`                       // done, failed
+	ProducerTranscript string `json:"producer_transcript,omitempty"` // Path to saved producer transcript (for spawn-producer)
+	QAVerdict          string `json:"qa_verdict,omitempty"`         // approved, improvement-request, escalate-phase, escalate-user
+	QAFeedback         string `json:"qa_feedback,omitempty"`        // Feedback text from QA
+	Phase              string `json:"phase,omitempty"`              // Target phase for transition actions
+	ReportedModel      string `json:"reported_model,omitempty"`     // Model reported by teammate (for failed spawns)
 }
 
 // buildSpawnResult constructs a spawn action result with common fields populated.
@@ -138,6 +145,16 @@ func handleQAPhase(result NextResult, pair state.PairState, info PhaseInfo, phas
 		escalated.Tasks = result.Tasks
 		return escalated, nil
 	}
+
+	// Load producer transcript if available
+	if pair.ProducerTranscript != "" {
+		transcriptData, err := os.ReadFile(pair.ProducerTranscript)
+		if err == nil {
+			ctx.ProducerTranscript = string(transcriptData)
+		}
+		// If file read fails, continue without transcript (QA will fall back to direct validation)
+	}
+
 	return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
 }
 
@@ -273,6 +290,7 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 		}
 		// done (or empty for backward compat)
 		pair.ProducerComplete = true
+		pair.ProducerTranscript = result.ProducerTranscript
 		pair.SpawnAttempts = 0
 		pair.FailedModels = nil
 		if pair.Iteration == 0 {

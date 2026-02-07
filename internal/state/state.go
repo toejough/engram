@@ -64,13 +64,14 @@ type ErrorInfo struct {
 
 // PairState tracks the state of a PAIR LOOP for a phase or task.
 type PairState struct {
-	Iteration          int      `toml:"iteration"`
-	MaxIterations      int      `toml:"max_iterations"`
-	ProducerComplete   bool     `toml:"producer_complete"`
-	QAVerdict          string   `toml:"qa_verdict,omitempty"`          // approved, improvement-request, escalate-phase, escalate-user
-	ImprovementRequest string   `toml:"improvement_request,omitempty"` // Feedback from QA if verdict is improvement-request
-	SpawnAttempts      int      `toml:"spawn_attempts"`
-	FailedModels       []string `toml:"failed_models,omitempty"`
+	Iteration           int      `toml:"iteration"`
+	MaxIterations       int      `toml:"max_iterations"`
+	ProducerComplete    bool     `toml:"producer_complete"`
+	ProducerTranscript  string   `toml:"producer_transcript,omitempty"`  // Path to saved producer transcript for QA review
+	QAVerdict           string   `toml:"qa_verdict,omitempty"`           // approved, improvement-request, escalate-phase, escalate-user
+	ImprovementRequest  string   `toml:"improvement_request,omitempty"`  // Feedback from QA if verdict is improvement-request
+	SpawnAttempts       int      `toml:"spawn_attempts"`
+	FailedModels        []string `toml:"failed_models,omitempty"`
 }
 
 // WorktreeState tracks the state of a git worktree for a task.
