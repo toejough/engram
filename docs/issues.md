@@ -4012,7 +4012,7 @@ Context: Part of ISSUE-92 per-phase QA implementation.
 ### ISSUE-120: Make task parallelization part of projctl step next
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Currently the orchestrator must manually implement the Looper Pattern (check unblocked tasks, spawn parallel agents with worktrees). This should be built into projctl step next so it can return batch actions for parallel execution instead of only single sequential steps.
