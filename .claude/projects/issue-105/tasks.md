@@ -4,7 +4,7 @@
 **Created:** 2026-02-06
 **Issue:** ISSUE-105
 
-**Traces to:** ISSUE-105, REQ-105-001, REQ-105-002, REQ-105-003, REQ-105-004, REQ-105-005, REQ-105-006
+**Traces to:** ISSUE-105, REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006
 
 ---
 
@@ -46,7 +46,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** None
 
-**Traces to:** REQ-105-001, DES-105-007, DES-105-014, ARCH-105-013, ISSUE-105
+**Traces to:** REQ-001, DES-007, DES-014, ARCH-013, ISSUE-105
 
 ---
 
@@ -68,7 +68,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-1
 
-**Traces to:** REQ-105-002, DES-105-008, ARCH-105-006, ARCH-105-008, ISSUE-105
+**Traces to:** REQ-002, DES-008, ARCH-006, ARCH-008, ISSUE-105
 
 ---
 
@@ -89,7 +89,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-2
 
-**Traces to:** REQ-105-002, DES-105-008, ARCH-105-005, ISSUE-105
+**Traces to:** REQ-002, DES-008, ARCH-005, ISSUE-105
 
 ---
 
@@ -110,7 +110,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-3
 
-**Traces to:** REQ-105-003, DES-105-006, ARCH-105-004, ARCH-105-018, ISSUE-105
+**Traces to:** REQ-003, DES-006, ARCH-004, ARCH-018, ISSUE-105
 
 ---
 
@@ -132,7 +132,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-4
 
-**Traces to:** REQ-105-003, DES-105-006, DES-105-010, ARCH-105-007, ARCH-105-009, ISSUE-105
+**Traces to:** REQ-003, DES-006, DES-010, ARCH-007, ARCH-009, ISSUE-105
 
 ---
 
@@ -155,7 +155,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-5
 
-**Traces to:** REQ-105-003, DES-105-009, ARCH-105-003, ISSUE-105
+**Traces to:** REQ-003, DES-009, ARCH-003, ISSUE-105
 
 ---
 
@@ -178,7 +178,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-6
 
-**Traces to:** REQ-105-003, ARCH-105-003, ARCH-105-004, ISSUE-105
+**Traces to:** REQ-003, ARCH-003, ARCH-004, ISSUE-105
 
 ---
 
@@ -200,7 +200,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-7
 
-**Traces to:** REQ-105-004, DES-105-008, ARCH-105-012, ISSUE-105
+**Traces to:** REQ-004, DES-008, ARCH-012, ISSUE-105
 
 ---
 
@@ -221,7 +221,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-2
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -242,7 +242,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-3
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -264,7 +264,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-4
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -286,7 +286,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-5
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -308,7 +308,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-6
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -330,7 +330,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-7
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -351,7 +351,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-8
 
-**Traces to:** REQ-105-004, DES-105-008, ARCH-105-012, ISSUE-105
+**Traces to:** REQ-004, DES-008, ARCH-012, ISSUE-105
 
 ---
 
@@ -372,7 +372,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-13
 
-**Traces to:** REQ-105-003, DES-105-015, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-015, ARCH-014, ISSUE-105
 
 ---
 
@@ -395,7 +395,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-14
 
-**Traces to:** REQ-105-003, REQ-105-004, DES-105-016, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, REQ-004, DES-016, ARCH-014, ISSUE-105
 
 ---
 
@@ -416,7 +416,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-17
 
-**Traces to:** REQ-105-003, DES-105-016, ARCH-105-014, ISSUE-105
+**Traces to:** REQ-003, DES-016, ARCH-014, ISSUE-105
 
 ---
 
@@ -437,7 +437,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-18
 
-**Traces to:** REQ-105-004, DES-105-008, ARCH-105-012, ISSUE-105
+**Traces to:** REQ-004, DES-008, ARCH-012, ISSUE-105
 
 ---
 
@@ -460,7 +460,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-19
 
-**Traces to:** REQ-105-004, DES-105-011, ARCH-105-013, ISSUE-105
+**Traces to:** REQ-004, DES-011, ARCH-013, ISSUE-105
 
 ---
 
@@ -482,7 +482,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-20
 
-**Traces to:** REQ-105-005, DES-105-012, ISSUE-105
+**Traces to:** REQ-005, DES-012, ISSUE-105
 
 ---
 
@@ -502,7 +502,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-21
 
-**Traces to:** REQ-105-005, DES-105-012, ISSUE-105
+**Traces to:** REQ-005, DES-012, ISSUE-105
 
 ---
 
@@ -519,13 +519,13 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 - [ ] Example of prohibited composite skill pattern provided
 - [ ] Example of allowed leaf skill pattern provided
 - [ ] Enforcement mechanisms documented (manual audit, grep check, future linter)
-- [ ] Traces to ISSUE-105, REQ-105-004, REQ-105-005
+- [ ] Traces to ISSUE-105, REQ-004, REQ-005
 
 **Files:** `docs/skill-conventions.md`
 
 **Dependencies:** TASK-22
 
-**Traces to:** REQ-105-006, DES-105-013, ISSUE-105
+**Traces to:** REQ-006, DES-013, ISSUE-105
 
 ---
 
@@ -546,7 +546,7 @@ The current approach achieves the goal (eliminate redundant nesting) with minima
 
 **Dependencies:** TASK-23
 
-**Traces to:** REQ-105-006, DES-105-013, ISSUE-105
+**Traces to:** REQ-006, DES-013, ISSUE-105
 
 ---
 
@@ -649,11 +649,11 @@ Documentation tasks (TASK-21 to TASK-24) are sequenced after deletion to ensure 
 **Traces to:** ISSUE-105
 
 **Satisfies Requirements:**
-- REQ-105-001: TASK-1
-- REQ-105-002: TASK-2, TASK-3
-- REQ-105-003: TASK-4, TASK-5, TASK-6, TASK-7, TASK-9, TASK-10, TASK-11, TASK-12, TASK-13, TASK-14, TASK-16, TASK-17, TASK-18
-- REQ-105-004: TASK-8, TASK-15, TASK-19, TASK-20
-- REQ-105-005: TASK-21, TASK-22
-- REQ-105-006: TASK-23, TASK-24
+- REQ-001: TASK-1
+- REQ-002: TASK-2, TASK-3
+- REQ-003: TASK-4, TASK-5, TASK-6, TASK-7, TASK-9, TASK-10, TASK-11, TASK-12, TASK-13, TASK-14, TASK-16, TASK-17, TASK-18
+- REQ-004: TASK-8, TASK-15, TASK-19, TASK-20
+- REQ-005: TASK-21, TASK-22
+- REQ-006: TASK-23, TASK-24
 
 **Referenced by:** TBD (TDD artifacts, test results)

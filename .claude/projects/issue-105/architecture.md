@@ -4,7 +4,7 @@
 **Created:** 2026-02-06
 **Issue:** ISSUE-105
 
-**Traces to:** ISSUE-105, REQ-105-002, REQ-105-003, DES-105-005, DES-105-006, DES-105-008
+**Traces to:** ISSUE-105, REQ-002, REQ-003, DES-005, DES-006, DES-008
 
 ---
 
@@ -18,7 +18,7 @@ This architecture eliminates composite skills (tdd-producer, parallel-looper) by
 
 ## Architecture Overview
 
-### ARCH-105-001: System Layering
+### ARCH-001: System Layering
 
 **Description:** Three-layer architecture separating user interface, orchestration control, and state persistence.
 
@@ -57,11 +57,11 @@ This architecture eliminates composite skills (tdd-producer, parallel-looper) by
 **Eliminated Layer:**
 - ~~Composite skill layer~~ (tdd-producer, parallel-looper) - redundant orchestration removed
 
-**Traces to:** REQ-105-002, REQ-105-003, DES-105-005, ISSUE-105
+**Traces to:** REQ-002, REQ-003, DES-005, ISSUE-105
 
 ---
 
-### ARCH-105-002: Stateless Orchestrator Pattern
+### ARCH-002: Stateless Orchestrator Pattern
 
 **Description:** The `/project` orchestrator skill maintains NO internal state. All workflow state lives in `state.toml` and is accessed via `projctl step next` / `projctl step complete`.
 
@@ -102,11 +102,11 @@ loop until workflow complete:
 - Centralizes workflow logic in state machine (single source of truth)
 - Enables replay and debugging from state snapshots
 
-**Traces to:** REQ-105-003, DES-105-005, DES-105-006, ISSUE-105
+**Traces to:** REQ-003, DES-005, DES-006, ISSUE-105
 
 ---
 
-### ARCH-105-003: State Machine Contract
+### ARCH-003: State Machine Contract
 
 **Description:** `projctl step next` is the single source of truth for workflow transitions. It reads `state.toml`, applies transition logic, and returns the next action for the orchestrator to execute.
 
@@ -198,13 +198,13 @@ func (sm *StateMachine) Next() (*Action, error) {
 }
 ```
 
-**Traces to:** REQ-105-003, DES-105-006, DES-105-009, DES-105-010, ISSUE-105
+**Traces to:** REQ-003, DES-006, DES-009, DES-010, ISSUE-105
 
 ---
 
 ## Component Architecture
 
-### ARCH-105-004: State Storage Schema
+### ARCH-004: State Storage Schema
 
 **Description:** `state.toml` format for workflow state persistence.
 
@@ -260,11 +260,11 @@ projctl step complete --action spawn-qa --qa-verdict improvement-request \
 projctl step complete --action escalate-user --user-decision continue
 ```
 
-**Traces to:** REQ-105-003, DES-105-006, ARCH-105-003, ISSUE-105
+**Traces to:** REQ-003, DES-006, ARCH-003, ISSUE-105
 
 ---
 
-### ARCH-105-005: Phase Registry
+### ARCH-005: Phase Registry
 
 **Description:** Phase definitions mapping phase identifiers to producer/QA skills, models, and file paths.
 
@@ -360,11 +360,11 @@ var phaseRegistry = map[string]PhaseDefinition{
 - `commit-<stage>` - Commit phase (e.g., commit-red, commit-green)
 - `tdd-<stage>` - TDD producer phase (e.g., tdd-red, tdd-green, tdd-refactor)
 
-**Traces to:** REQ-105-002, DES-105-008, ISSUE-105
+**Traces to:** REQ-002, DES-008, ISSUE-105
 
 ---
 
-### ARCH-105-006: Transition Table
+### ARCH-006: Transition Table
 
 **Description:** Legal state transitions enforced by the state machine.
 
@@ -444,11 +444,11 @@ func (sm *StateMachine) isLegalTransition(from, to string) bool {
 - `tdd-red` → `tdd-green` (must complete commit-red cycle)
 - `req-qa` → `arch-interview` (must go through design phases)
 
-**Traces to:** REQ-105-002, REQ-105-003, DES-105-008, ARCH-105-003, ISSUE-105
+**Traces to:** REQ-002, REQ-003, DES-008, ARCH-003, ISSUE-105
 
 ---
 
-### ARCH-105-007: Iteration Enforcement
+### ARCH-007: Iteration Enforcement
 
 **Description:** Max iteration limits prevent infinite producer/QA retry loops.
 
@@ -520,13 +520,13 @@ Iteration counter resets to 0 on:
 - Phase transition (approved QA verdict)
 - User manual fix + continue
 
-**Traces to:** REQ-105-003, DES-105-006, DES-105-010, ARCH-105-003, ISSUE-105
+**Traces to:** REQ-003, DES-006, DES-010, ARCH-003, ISSUE-105
 
 ---
 
 ## Workflow Architecture
 
-### ARCH-105-008: TDD Workflow State Machine
+### ARCH-008: TDD Workflow State Machine
 
 **Description:** Complete TDD workflow with RED, GREEN, REFACTOR sub-phases replacing composite `tdd-producer` skill.
 
@@ -596,11 +596,11 @@ phase=task-audit
 - Allows independent commit after each TDD stage
 - Enables fine-grained progress tracking
 
-**Traces to:** REQ-105-002, REQ-105-003, DES-105-005, DES-105-008, ARCH-105-005, ARCH-105-006, ISSUE-105
+**Traces to:** REQ-002, REQ-003, DES-005, DES-008, ARCH-005, ARCH-006, ISSUE-105
 
 ---
 
-### ARCH-105-009: Producer/QA Iteration Pattern
+### ARCH-009: Producer/QA Iteration Pattern
 
 **Description:** Standard producer/QA feedback loop driven by state machine.
 
@@ -668,13 +668,13 @@ phase=task-audit
 | improvement-request | < max | Increment iteration, re-spawn producer with feedback |
 | improvement-request | >= max | Return escalate-user action |
 
-**Traces to:** REQ-105-003, DES-105-006, DES-105-010, ARCH-105-003, ARCH-105-007, ISSUE-105
+**Traces to:** REQ-003, DES-006, DES-010, ARCH-003, ARCH-007, ISSUE-105
 
 ---
 
 ## Implementation Architecture
 
-### ARCH-105-010: File Organization
+### ARCH-010: File Organization
 
 **Description:** File structure for state machine implementation.
 
@@ -708,11 +708,11 @@ internal/
 - `internal/step/` - Step command implementation (uses state package)
 - `internal/cmd/projctl/` - CLI interface (thin wrapper over step package)
 
-**Traces to:** REQ-105-003, ISSUE-105
+**Traces to:** REQ-003, ISSUE-105
 
 ---
 
-### ARCH-105-011: Module Dependencies
+### ARCH-011: Module Dependencies
 
 **Description:** Dependency graph for state machine components.
 
@@ -741,13 +741,13 @@ internal/step/next.go
 - `github.com/onsi/gomega` - Test matchers
 - `pgregory.net/rapid` - Property-based testing
 
-**Traces to:** REQ-105-003, ISSUE-105
+**Traces to:** REQ-003, ISSUE-105
 
 ---
 
 ## Migration Architecture
 
-### ARCH-105-012: Backward Compatibility Strategy
+### ARCH-012: Backward Compatibility Strategy
 
 **Description:** Handling in-flight projects currently in `tdd` phase when `tdd-producer` is deleted.
 
@@ -791,11 +791,11 @@ func (sm *StateMachine) loadState() (*State, error) {
 
 **Future:** If more composite phases are discovered, add migrations here.
 
-**Traces to:** REQ-105-004, DES-105-008, ISSUE-105
+**Traces to:** REQ-004, DES-008, ISSUE-105
 
 ---
 
-### ARCH-105-013: Composite Skill Deletion Sequence
+### ARCH-013: Composite Skill Deletion Sequence
 
 **Description:** Safe deletion order for composite skills and supporting code.
 
@@ -839,13 +839,13 @@ func (sm *StateMachine) loadState() (*State, error) {
 3. Manual end-to-end test
 4. Commit with traceability
 
-**Traces to:** REQ-105-004, DES-105-011, ISSUE-105
+**Traces to:** REQ-004, DES-011, ISSUE-105
 
 ---
 
 ## Quality Architecture
 
-### ARCH-105-014: Test Strategy
+### ARCH-014: Test Strategy
 
 **Description:** Comprehensive test coverage for state machine implementation.
 
@@ -892,11 +892,11 @@ Using `pgregory.net/rapid`:
 
 **Test Coverage Target:** ≥ 90% for state machine code
 
-**Traces to:** REQ-105-003, DES-105-015, DES-105-016, ISSUE-105
+**Traces to:** REQ-003, DES-015, DES-016, ISSUE-105
 
 ---
 
-### ARCH-105-015: Error Handling Architecture
+### ARCH-015: Error Handling Architecture
 
 **Description:** Comprehensive error handling for state machine operations.
 
@@ -955,13 +955,13 @@ if state.Iteration >= state.MaxIterations {
 - State machine layer returns structured errors with context
 - Logs include full error chain for debugging
 
-**Traces to:** REQ-105-003, DES-105-002, ISSUE-105
+**Traces to:** REQ-003, DES-002, ISSUE-105
 
 ---
 
 ## Performance Architecture
 
-### ARCH-105-016: Latency Optimization
+### ARCH-016: Latency Optimization
 
 **Description:** Performance improvements from eliminating composite skill layer.
 
@@ -1005,11 +1005,11 @@ Total: 1400ms overhead (7 spawns × 200ms)
 
 **Total Estimated Savings:** ~700ms per composite skill invocation
 
-**Traces to:** DES-105-005, ISSUE-105
+**Traces to:** DES-005, ISSUE-105
 
 ---
 
-### ARCH-105-017: Token Cost Optimization
+### ARCH-017: Token Cost Optimization
 
 **Description:** API cost reduction from eliminating redundant context loading.
 
@@ -1042,13 +1042,13 @@ Total: ~11,000 tokens per leaf skill (no composite layer)
 
 **For tdd-producer:** ~11,000 tokens saved per TDD workflow
 
-**Traces to:** DES-105-005, ISSUE-105
+**Traces to:** DES-005, ISSUE-105
 
 ---
 
 ## Security & Validation Architecture
 
-### ARCH-105-018: State Validation
+### ARCH-018: State Validation
 
 **Description:** Validation rules for state.toml integrity.
 
@@ -1094,7 +1094,7 @@ func (s *State) Validate() error {
 - On save: Before writing to file
 - On transition: Before applying state change
 
-**Traces to:** REQ-105-003, ISSUE-105
+**Traces to:** REQ-003, ISSUE-105
 
 ---
 
@@ -1103,24 +1103,24 @@ func (s *State) Validate() error {
 **Traces to:** ISSUE-105
 
 **Satisfies Requirements:**
-- REQ-105-002: Define State Machine Transitions
-  - ARCH-105-003, ARCH-105-005, ARCH-105-006, ARCH-105-008
-- REQ-105-003: Update State Machine Implementation
-  - ARCH-105-002, ARCH-105-003, ARCH-105-004, ARCH-105-007, ARCH-105-009, ARCH-105-010, ARCH-105-011, ARCH-105-014, ARCH-105-015, ARCH-105-018
-- REQ-105-004: Remove Composite Skill Files
-  - ARCH-105-012, ARCH-105-013
+- REQ-002: Define State Machine Transitions
+  - ARCH-003, ARCH-005, ARCH-006, ARCH-008
+- REQ-003: Update State Machine Implementation
+  - ARCH-002, ARCH-003, ARCH-004, ARCH-007, ARCH-009, ARCH-010, ARCH-011, ARCH-014, ARCH-015, ARCH-018
+- REQ-004: Remove Composite Skill Files
+  - ARCH-012, ARCH-013
 
 **Implements Design:**
-- DES-105-005: State Machine Orchestration Pattern
-  - ARCH-105-001, ARCH-105-002, ARCH-105-003
-- DES-105-006: Producer-QA Iteration via State Machine
-  - ARCH-105-007, ARCH-105-009
-- DES-105-008: TDD Phase State Transitions
-  - ARCH-105-005, ARCH-105-006, ARCH-105-008
-- DES-105-009: Step Next Action JSON Schema
-  - ARCH-105-003
-- DES-105-010: Iteration Limit Enforcement
-  - ARCH-105-007
+- DES-005: State Machine Orchestration Pattern
+  - ARCH-001, ARCH-002, ARCH-003
+- DES-006: Producer-QA Iteration via State Machine
+  - ARCH-007, ARCH-009
+- DES-008: TDD Phase State Transitions
+  - ARCH-005, ARCH-006, ARCH-008
+- DES-009: Step Next Action JSON Schema
+  - ARCH-003
+- DES-010: Iteration Limit Enforcement
+  - ARCH-007
 
 ---
 
@@ -1151,7 +1151,7 @@ func (s *State) Validate() error {
 - Option 2: Stateful orchestrator (rejected - duplicates state)
 - Option 3: Hybrid (rejected - split responsibility)
 
-**Traces to:** ARCH-105-002, ARCH-105-003, DES-105-006, ISSUE-105
+**Traces to:** ARCH-002, ARCH-003, DES-006, ISSUE-105
 
 ---
 
@@ -1161,7 +1161,7 @@ func (s *State) Validate() error {
 
 **Question:** How do we handle parallel execution of independent tasks after deleting `parallel-looper`?
 
-**Context:** DES-105-011 lists `parallel-looper` for deletion. ISSUE-83 deprecated it in favor of "native Claude Code team parallelism (ISSUE-79)".
+**Context:** DES-011 lists `parallel-looper` for deletion. ISSUE-83 deprecated it in favor of "native Claude Code team parallelism (ISSUE-79)".
 
 **Options:**
 1. Parallel execution already implemented via worktrees + concurrent teammates
@@ -1172,7 +1172,7 @@ func (s *State) Validate() error {
 
 **Impact:** Low (parallel-looper already deprecated)
 
-**Traces to:** REQ-105-004, DES-105-011, ISSUE-105
+**Traces to:** REQ-004, DES-011, ISSUE-105
 
 ---
 
@@ -1180,20 +1180,20 @@ func (s *State) Validate() error {
 
 **Question:** Should commit creation use dedicated `commit-producer` skill, existing `/commit` skill, or direct orchestrator calls?
 
-**Context:** ARCH-105-008 shows `commit-red`, `commit-green`, `commit-refactor` phases. Each needs staging, message generation, and commit creation.
+**Context:** ARCH-008 shows `commit-red`, `commit-green`, `commit-refactor` phases. Each needs staging, message generation, and commit creation.
 
 **Options:**
 1. Dedicated `commit-producer` skill (reusable, testable, follows producer/QA pattern)
 2. Extend `/commit` skill (use existing skill with phase-aware staging)
 3. Orchestrator direct (no skill spawn, orchestrator calls git directly)
 
-**Current State:** ARCH-105-005 registry assumes `commit-producer` skill exists
+**Current State:** ARCH-005 registry assumes `commit-producer` skill exists
 
 **Resolution Needed:** Before TDD implementation (ISSUE-105 or follow-up)
 
 **Impact:** Medium (affects ARCH-039, ARCH-040 from ISSUE-92)
 
-**Traces to:** ARCH-105-005, ARCH-105-008, DES-105-008, ISSUE-105
+**Traces to:** ARCH-005, ARCH-008, DES-008, ISSUE-105
 
 ---
 
@@ -1201,31 +1201,31 @@ func (s *State) Validate() error {
 
 | Architecture ID | Description | Traces to |
 |-----------------|-------------|-----------|
-| ARCH-105-001 | System Layering (UI, Engine, State) | REQ-105-002, REQ-105-003 |
-| ARCH-105-002 | Stateless Orchestrator Pattern | REQ-105-003, DES-105-005, DES-105-006 |
-| ARCH-105-003 | State Machine Contract | REQ-105-003, DES-105-006, DES-105-009, DES-105-010 |
-| ARCH-105-004 | State Storage Schema | REQ-105-003, DES-105-006 |
-| ARCH-105-005 | Phase Registry | REQ-105-002, DES-105-008 |
-| ARCH-105-006 | Transition Table | REQ-105-002, REQ-105-003, DES-105-008 |
-| ARCH-105-007 | Iteration Enforcement | REQ-105-003, DES-105-006, DES-105-010 |
-| ARCH-105-008 | TDD Workflow State Machine | REQ-105-002, REQ-105-003, DES-105-005, DES-105-008 |
-| ARCH-105-009 | Producer/QA Iteration Pattern | REQ-105-003, DES-105-006, DES-105-010 |
-| ARCH-105-010 | File Organization | REQ-105-003 |
-| ARCH-105-011 | Module Dependencies | REQ-105-003 |
-| ARCH-105-012 | Backward Compatibility Strategy | REQ-105-004, DES-105-008 |
-| ARCH-105-013 | Composite Skill Deletion Sequence | REQ-105-004, DES-105-011 |
-| ARCH-105-014 | Test Strategy | REQ-105-003, DES-105-015, DES-105-016 |
-| ARCH-105-015 | Error Handling Architecture | REQ-105-003, DES-105-002 |
-| ARCH-105-016 | Latency Optimization | DES-105-005 |
-| ARCH-105-017 | Token Cost Optimization | DES-105-005 |
-| ARCH-105-018 | State Validation | REQ-105-003 |
+| ARCH-001 | System Layering (UI, Engine, State) | REQ-002, REQ-003 |
+| ARCH-002 | Stateless Orchestrator Pattern | REQ-003, DES-005, DES-006 |
+| ARCH-003 | State Machine Contract | REQ-003, DES-006, DES-009, DES-010 |
+| ARCH-004 | State Storage Schema | REQ-003, DES-006 |
+| ARCH-005 | Phase Registry | REQ-002, DES-008 |
+| ARCH-006 | Transition Table | REQ-002, REQ-003, DES-008 |
+| ARCH-007 | Iteration Enforcement | REQ-003, DES-006, DES-010 |
+| ARCH-008 | TDD Workflow State Machine | REQ-002, REQ-003, DES-005, DES-008 |
+| ARCH-009 | Producer/QA Iteration Pattern | REQ-003, DES-006, DES-010 |
+| ARCH-010 | File Organization | REQ-003 |
+| ARCH-011 | Module Dependencies | REQ-003 |
+| ARCH-012 | Backward Compatibility Strategy | REQ-004, DES-008 |
+| ARCH-013 | Composite Skill Deletion Sequence | REQ-004, DES-011 |
+| ARCH-014 | Test Strategy | REQ-003, DES-015, DES-016 |
+| ARCH-015 | Error Handling Architecture | REQ-003, DES-002 |
+| ARCH-016 | Latency Optimization | DES-005 |
+| ARCH-017 | Token Cost Optimization | DES-005 |
+| ARCH-018 | State Validation | REQ-003 |
 
 ---
 
 ## Next Steps
 
-1. **TDD Implementation** - Write tests for state machine components per ARCH-105-014
+1. **TDD Implementation** - Write tests for state machine components per ARCH-014
 2. **State Machine Coding** - Implement registry, transitions, next/complete commands
-3. **Integration Testing** - Validate full workflow per DES-105-016
-4. **Skill Deletion** - Execute deletion sequence per ARCH-105-013
-5. **Documentation Update** - Update orchestrator and convention docs per DES-105-012, DES-105-013
+3. **Integration Testing** - Validate full workflow per DES-016
+4. **Skill Deletion** - Execute deletion sequence per ARCH-013
+5. **Documentation Update** - Update orchestrator and convention docs per DES-012, DES-013

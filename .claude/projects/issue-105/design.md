@@ -12,7 +12,7 @@
 
 Based on user design interview (2026-02-06):
 
-### DES-105-001: Invisible Architecture Changes
+### DES-001: Invisible Architecture Changes
 
 **Description:** All composite skill elimination changes are internal architecture only. Users experience no change in workflow commands or usage patterns.
 
@@ -20,11 +20,11 @@ Based on user design interview (2026-02-06):
 
 **Rationale:** User selected option A ("Completely unchanged") for user workflow experience. The refactoring eliminates redundant agent nesting without altering the user-facing interface.
 
-**Traces to:** REQ-105-001, REQ-105-002, ISSUE-105
+**Traces to:** REQ-001, REQ-002, ISSUE-105
 
 ---
 
-### DES-105-002: Error Message Continuity
+### DES-002: Error Message Continuity
 
 **Description:** Error messages and recovery paths maintain existing format and behavior.
 
@@ -32,11 +32,11 @@ Based on user design interview (2026-02-06):
 
 **Rationale:** User selected option A ("Same as current") for error messages. Consistency reduces cognitive load and preserves existing runbooks.
 
-**Traces to:** REQ-105-001, ISSUE-105
+**Traces to:** REQ-001, ISSUE-105
 
 ---
 
-### DES-105-003: Step-by-Step Progress Visibility
+### DES-003: Step-by-Step Progress Visibility
 
 **Description:** Progress tracking exposes every state transition as it happens, providing full visibility into the workflow execution.
 
@@ -56,11 +56,11 @@ Transitioning to tdd-green...
 
 **Rationale:** User selected option C ("Step-by-step updates") for progress tracking. This maximizes transparency and helps users understand where time is being spent in complex workflows.
 
-**Traces to:** REQ-105-002, REQ-105-003, ISSUE-105
+**Traces to:** REQ-002, REQ-003, ISSUE-105
 
 ---
 
-### DES-105-004: Full QA Feedback Display
+### DES-004: Full QA Feedback Display
 
 **Description:** When QA iterations occur (improvement requested), users see complete QA feedback including what was flagged and why.
 
@@ -79,13 +79,13 @@ Spawning design-interview-producer again with QA feedback...
 
 **Rationale:** User selected option C ("Full feedback") for QA iteration visibility. This helps users understand what's being corrected and builds confidence in the QA process.
 
-**Traces to:** REQ-105-002, REQ-105-003, ISSUE-105
+**Traces to:** REQ-002, REQ-003, ISSUE-105
 
 ---
 
 ## Architectural Patterns
 
-### DES-105-005: State Machine Orchestration Pattern
+### DES-005: State Machine Orchestration Pattern
 
 **Description:** The `/project` orchestrator drives all workflow coordination via `projctl step next` state machine queries, eliminating composite skills that spawn sub-agents internally.
 
@@ -123,11 +123,11 @@ User -> /project orchestrator
 - **Lower latency:** Eliminate redundant agent spawn overhead
 - **Lower API costs:** One fewer context load per composite skill
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-012, ARCH-105-013, ARCH-105-018, ISSUE-105
+**Traces to:** REQ-002, REQ-003, ARCH-012, ARCH-013, ARCH-018, ISSUE-105
 
 ---
 
-### DES-105-006: Producer-QA Iteration via State Machine
+### DES-006: Producer-QA Iteration via State Machine
 
 **Description:** QA iteration loops (improvement-request cycles) are driven by state machine transitions, not by composite skill logic.
 
@@ -165,11 +165,11 @@ phase=tdd-red-qa (approved)
 - **Before:** `tdd-producer` composite skill contained nested loop logic to spawn `tdd-red-producer`, check QA verdict, re-spawn if needed
 - **After:** State machine in `internal/state/` tracks iteration count and returns appropriate next action based on QA verdict
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-009, ISSUE-105
+**Traces to:** REQ-002, REQ-003, ARCH-009, ISSUE-105
 
 ---
 
-### DES-105-007: Composite Skill Identification Criteria
+### DES-007: Composite Skill Identification Criteria
 
 **Description:** Skills are classified as composite orchestrators if they spawn sub-agents via Task tool for sequential workflow coordination.
 
@@ -212,13 +212,13 @@ Writes failing tests for acceptance criteria.
 - **Composite orchestrators:** `tdd-producer`, `parallel-looper` (deprecated)
 - **Leaf skills:** All other producers, qa, commit, context-explorer, etc.
 
-**Traces to:** REQ-105-001, ISSUE-105
+**Traces to:** REQ-001, ISSUE-105
 
 ---
 
 ## State Machine Design
 
-### DES-105-008: TDD Phase State Transitions
+### DES-008: TDD Phase State Transitions
 
 **Description:** State machine transitions for the TDD workflow replace `tdd-producer` composite skill orchestration logic.
 
@@ -300,11 +300,11 @@ Legal transitions in `internal/state/transitions.go`:
 - `tdd-red` → `tdd-green` (must complete commit-red cycle)
 - Any phase skipping (state machine enforces sequential progression)
 
-**Traces to:** REQ-105-002, ARCH-105-003, ARCH-105-005, ARCH-105-006, ARCH-105-007, ARCH-105-008, ISSUE-105
+**Traces to:** REQ-002, ARCH-003, ARCH-005, ARCH-006, ARCH-007, ARCH-008, ISSUE-105
 
 ---
 
-### DES-105-009: Step Next Action JSON Schema
+### DES-009: Step Next Action JSON Schema
 
 **Description:** `projctl step next` returns structured JSON describing the next action for the orchestrator to execute. Schema remains unchanged from current implementation; state machine internal logic changes to return correct actions for new TDD sub-phases.
 
@@ -409,11 +409,11 @@ Legal transitions in `internal/state/transitions.go`:
 }
 ```
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-007, ISSUE-105
+**Traces to:** REQ-002, REQ-003, ARCH-007, ISSUE-105
 
 ---
 
-### DES-105-010: Iteration Limit Enforcement
+### DES-010: Iteration Limit Enforcement
 
 **Description:** The state machine enforces maximum iteration limits for producer-QA loops to prevent infinite retry cycles.
 
@@ -482,13 +482,13 @@ When `step next` returns `action: "escalate-user"`:
 2. Orchestrator waits for user decision
 3. Does NOT call `projctl step complete` until user provides guidance
 
-**Traces to:** REQ-105-003, ARCH-105-009, DES-105-006, ISSUE-105
+**Traces to:** REQ-003, ARCH-009, DES-006, ISSUE-105
 
 ---
 
 ## Implementation Changes
 
-### DES-105-011: Files to Delete
+### DES-011: Files to Delete
 
 **Description:** Composite skill directories and their contents are deleted after state machine transitions are verified working.
 
@@ -536,14 +536,14 @@ Deleted:
 - skills/tdd-producer/
 - skills/parallel-looper/
 
-Traces to: REQ-105-004, DES-105-011, ISSUE-105
+Traces to: REQ-004, DES-011, ISSUE-105
 ```
 
-**Traces to:** REQ-105-004, ISSUE-105
+**Traces to:** REQ-004, ISSUE-105
 
 ---
 
-### DES-105-012: Orchestrator Documentation Updates
+### DES-012: Orchestrator Documentation Updates
 
 **Description:** Update `/project` orchestrator skill documentation to reflect removal of composite skills and clarify state-machine-driven orchestration pattern.
 
@@ -604,11 +604,11 @@ Traces to: REQ-105-004, DES-105-011, ISSUE-105
    - Add resume instructions for new TDD sub-phases
    - Document iteration state recovery
 
-**Traces to:** REQ-105-005, ISSUE-105
+**Traces to:** REQ-005, ISSUE-105
 
 ---
 
-### DES-105-013: Skill Convention Documentation
+### DES-013: Skill Convention Documentation
 
 **Description:** Document architectural rule prohibiting internal Task tool usage for orchestration in skills.
 
@@ -664,16 +664,16 @@ Performs work directly:
 - Grep check: `grep -r "Task(" skills/*/SKILL.md`
 - Future: Linter rule to flag Task tool usage in SKILL.md files
 
-**Traces to:** ISSUE-105, REQ-105-004, REQ-105-005
+**Traces to:** ISSUE-105, REQ-004, REQ-005
 ```
 
-**Traces to:** REQ-105-006, ISSUE-105
+**Traces to:** REQ-006, ISSUE-105
 
 ---
 
 ## Validation Strategy
 
-### DES-105-014: Composite Skill Audit Process
+### DES-014: Composite Skill Audit Process
 
 **Description:** Systematic audit process to identify all composite skills and verify safe deletion.
 
@@ -712,7 +712,7 @@ Performs work directly:
      - Line 12: "Orchestrates the complete TDD cycle"
      - Lines 27-49: Nested pair loop diagram (RED/GREEN/REFACTOR)
      - Spawns tdd-red-producer, qa, tdd-green-producer, qa, tdd-refactor-producer, qa
-   - **State replacement:** DES-105-008 (TDD sub-phase transitions)
+   - **State replacement:** DES-008 (TDD sub-phase transitions)
 
    #### parallel-looper
    - **File:** skills/parallel-looper/SKILL.md
@@ -741,13 +741,13 @@ Performs work directly:
 
 6. **Verify state machine coverage:**
    - For each composite skill, confirm state transitions exist to replace its orchestration logic
-   - Document in design (DES-105-008)
+   - Document in design (DES-008)
 
-**Traces to:** REQ-105-001, DES-105-007, ISSUE-105
+**Traces to:** REQ-001, DES-007, ISSUE-105
 
 ---
 
-### DES-105-015: State Transition Test Coverage
+### DES-015: State Transition Test Coverage
 
 **Description:** Comprehensive test coverage for new TDD sub-phase state transitions and iteration logic.
 
@@ -785,11 +785,11 @@ Performs work directly:
 2. Test coverage for state machine ≥ 90%
 3. Integration test validates end-to-end `/project new` workflow
 
-**Traces to:** REQ-105-003, REQ-105-004, ISSUE-105
+**Traces to:** REQ-003, REQ-004, ISSUE-105
 
 ---
 
-### DES-105-016: Integration Test Strategy
+### DES-016: Integration Test Strategy
 
 **Description:** End-to-end integration test validating state-driven TDD workflow without composite skills.
 
@@ -846,7 +846,7 @@ mage test:integration
 
 Include in manual pre-release checklist.
 
-**Traces to:** REQ-105-003, REQ-105-004, ISSUE-105
+**Traces to:** REQ-003, REQ-004, ISSUE-105
 
 ---
 
@@ -855,12 +855,12 @@ Include in manual pre-release checklist.
 **Traces to:** ISSUE-105
 
 **Satisfies requirements:**
-- REQ-105-001: Identify All Composite Skills (DES-105-007, DES-105-014)
-- REQ-105-002: Define State Machine Transitions (DES-105-008, DES-105-009)
-- REQ-105-003: Update State Machine Implementation (DES-105-006, DES-105-010)
-- REQ-105-004: Remove Composite Skill Files (DES-105-011)
-- REQ-105-005: Update Orchestrator Skill Documentation (DES-105-012)
-- REQ-105-006: Validate No Internal Task Tool Usage (DES-105-013)
+- REQ-001: Identify All Composite Skills (DES-007, DES-014)
+- REQ-002: Define State Machine Transitions (DES-008, DES-009)
+- REQ-003: Update State Machine Implementation (DES-006, DES-010)
+- REQ-004: Remove Composite Skill Files (DES-011)
+- REQ-005: Update Orchestrator Skill Documentation (DES-012)
+- REQ-006: Validate No Internal Task Tool Usage (DES-013)
 
 **Referenced by:** TBD (architecture, test artifacts)
 
@@ -898,7 +898,7 @@ Include in manual pre-release checklist.
 
 **Question:** Should commit creation be handled by a dedicated `commit-producer` skill, or by the existing `/commit` skill, or directly by the orchestrator?
 
-**Context:** DES-105-008 shows `commit-red`, `commit-green`, `commit-refactor` phases. Each needs to:
+**Context:** DES-008 shows `commit-red`, `commit-green`, `commit-refactor` phases. Each needs to:
 - Stage appropriate files
 - Generate commit message
 - Create commit
@@ -938,19 +938,19 @@ Include in manual pre-release checklist.
 
 | Design ID | Description | Traces to |
 |-----------|-------------|-----------|
-| DES-105-001 | Invisible architecture changes (user workflow unchanged) | REQ-105-001, REQ-105-002 |
-| DES-105-002 | Error message continuity (same format as current) | REQ-105-001 |
-| DES-105-003 | Step-by-step progress visibility | REQ-105-002, REQ-105-003 |
-| DES-105-004 | Full QA feedback display | REQ-105-002, REQ-105-003 |
-| DES-105-005 | State machine orchestration pattern | REQ-105-002, REQ-105-003 |
-| DES-105-006 | Producer-QA iteration via state machine | REQ-105-002, REQ-105-003 |
-| DES-105-007 | Composite skill identification criteria | REQ-105-001 |
-| DES-105-008 | TDD phase state transitions | REQ-105-002 |
-| DES-105-009 | Step next action JSON schema | REQ-105-002, REQ-105-003 |
-| DES-105-010 | Iteration limit enforcement | REQ-105-003 |
-| DES-105-011 | Files to delete | REQ-105-004 |
-| DES-105-012 | Orchestrator documentation updates | REQ-105-005 |
-| DES-105-013 | Skill convention documentation | REQ-105-006 |
-| DES-105-014 | Composite skill audit process | REQ-105-001 |
-| DES-105-015 | State transition test coverage | REQ-105-003, REQ-105-004 |
-| DES-105-016 | Integration test strategy | REQ-105-003, REQ-105-004 |
+| DES-001 | Invisible architecture changes (user workflow unchanged) | REQ-001, REQ-002 |
+| DES-002 | Error message continuity (same format as current) | REQ-001 |
+| DES-003 | Step-by-step progress visibility | REQ-002, REQ-003 |
+| DES-004 | Full QA feedback display | REQ-002, REQ-003 |
+| DES-005 | State machine orchestration pattern | REQ-002, REQ-003 |
+| DES-006 | Producer-QA iteration via state machine | REQ-002, REQ-003 |
+| DES-007 | Composite skill identification criteria | REQ-001 |
+| DES-008 | TDD phase state transitions | REQ-002 |
+| DES-009 | Step next action JSON schema | REQ-002, REQ-003 |
+| DES-010 | Iteration limit enforcement | REQ-003 |
+| DES-011 | Files to delete | REQ-004 |
+| DES-012 | Orchestrator documentation updates | REQ-005 |
+| DES-013 | Skill convention documentation | REQ-006 |
+| DES-014 | Composite skill audit process | REQ-001 |
+| DES-015 | State transition test coverage | REQ-003, REQ-004 |
+| DES-016 | Integration test strategy | REQ-003, REQ-004 |

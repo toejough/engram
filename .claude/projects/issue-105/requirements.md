@@ -54,7 +54,7 @@ User -> /project orchestrator
 
 ## Requirements
 
-### REQ-105-001: Identify All Composite Skills
+### REQ-001: Identify All Composite Skills
 
 **Priority:** High
 **Description:** Audit all skills in `skills/` directory to identify which spawn sub-agents internally via Task tool calls.
@@ -71,13 +71,13 @@ User -> /project orchestrator
 
 ---
 
-### REQ-105-002: Define State Machine Transitions
+### REQ-002: Define State Machine Transitions
 
 **Priority:** High
 **Description:** For each composite skill, define the equivalent state machine transitions that the `/project` orchestrator should drive via `projctl step next`.
 
 **Acceptance Criteria:**
-1. For each composite skill identified in REQ-105-001:
+1. For each composite skill identified in REQ-001:
    - Document current spawning pattern (which sub-skills, in what order)
    - Define equivalent state transitions
    - Specify `projctl step next` JSON output format for each transition
@@ -99,17 +99,17 @@ New: State transitions:
   - phase=tdd, sub_phase=refactor-qa -> spawn qa
 ```
 
-**Traces to:** ISSUE-105, REQ-105-001
+**Traces to:** ISSUE-105, REQ-001
 
 ---
 
-### REQ-105-003: Update State Machine Implementation
+### REQ-003: Update State Machine Implementation
 
 **Priority:** High
 **Description:** Implement state transitions in `projctl step next` command to replace composite skill orchestration.
 
 **Acceptance Criteria:**
-1. `projctl step next` returns correct next action for all transitions defined in REQ-105-002
+1. `projctl step next` returns correct next action for all transitions defined in REQ-002
 2. State machine preserves QA iteration loops:
    - On `qa-verdict=improvement-request`, next action returns same producer skill
    - On `qa-verdict=approved`, advances to next phase/sub-phase
@@ -117,11 +117,11 @@ New: State transitions:
 4. All state transitions have unit tests verifying correct next action
 5. `projctl step complete` updates state correctly for new sub-phases
 
-**Traces to:** ISSUE-105, REQ-105-002
+**Traces to:** ISSUE-105, REQ-002
 
 ---
 
-### REQ-105-004: Remove Composite Skill Files
+### REQ-004: Remove Composite Skill Files
 
 **Priority:** High
 **Description:** Delete composite skill directories and update references.
@@ -136,11 +136,11 @@ New: State transitions:
 4. Verify no remaining references to deleted skills via grep
 5. All deletions traced to this requirement in commit message
 
-**Traces to:** ISSUE-105, REQ-105-002
+**Traces to:** ISSUE-105, REQ-002
 
 ---
 
-### REQ-105-005: Update Orchestrator Skill Documentation
+### REQ-005: Update Orchestrator Skill Documentation
 
 **Priority:** Medium
 **Description:** Update `/project` (orchestrator) skill to reflect removal of composite skills.
@@ -152,11 +152,11 @@ New: State transitions:
 4. Clarify that skills should NEVER spawn sub-agents via Task tool
 5. Update error recovery section to handle state transition failures
 
-**Traces to:** ISSUE-105, REQ-105-004
+**Traces to:** ISSUE-105, REQ-004
 
 ---
 
-### REQ-105-006: Validate No Internal Task Tool Usage
+### REQ-006: Validate No Internal Task Tool Usage
 
 **Priority:** High
 **Description:** Ensure remaining skills do NOT spawn sub-agents internally.
@@ -203,7 +203,7 @@ New: State transitions:
 
 ## Dependencies
 
-- ARCH-105-012 (Backward Compatibility Strategy) - state machine preconditions
+- ARCH-012 (Backward Compatibility Strategy) - state machine preconditions
 - `projctl step next` command implementation (already exists)
 - `projctl step complete` command implementation (already exists)
 
