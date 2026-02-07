@@ -4104,3 +4104,157 @@ README.md still contains zero-padded trace IDs (ARCH-002, REQ-001, etc.) from be
 **Created:** 2026-02-06
 
 The doc-producer skill has no explicit guidance about current ID format conventions (single-segment, non-zero-padded). When updating README.md, the skill should ensure the entire document follows modern conventions, not just the new sections. Add a step to the doc-producer workflow that checks and aligns existing README content with current project conventions (ID format, trace syntax, etc.).
+
+---
+
+### ISSUE-128: Retro: Add convention validation step to design phase
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+From ISSUE-120 retrospective (R1):
+
+Before producing design.md, run a convention validation check:
+1. Scan all existing documentation for ID formats
+2. Verify consistency with current conventions
+3. Create issues for mismatches BEFORE proceeding to implementation
+
+Rationale: Would have caught ISSUE-126 and ISSUE-127 before implementation, allowing parallel remediation.
+
+Measurable Impact: Zero convention-related issues discovered in alignment phase.
+
+Area: Planning Process
+Related challenges: Convention mismatches discovered in alignment phase rather than front-loaded
+
+---
+
+### ISSUE-129: Retro: Extend doc-producer skill contract with convention enforcement
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+From ISSUE-120 retrospective (R2):
+
+Update doc-producer SKILL.md to include:
+1. Section: "Convention Validation"
+2. Required checks: ID format (single-segment), trace syntax, terminology consistency
+3. Pre-produce step: Scan existing document for convention violations
+4. Output: Report violations and fix as part of documentation update
+
+Rationale: Prevents perpetuation of stale conventions. Makes documentation updates convention-aware by default.
+
+Measurable Impact: Doc updates consistently apply current conventions without manual review.
+
+Area: Skill Contracts
+Related challenges: doc-producer skill missing guidance on ID format conventions
+
+---
+
+### ISSUE-130: Retro: Create visual testing workflow for CLI commands
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From ISSUE-120 retrospective (R3):
+
+Establish pattern for visual verification of CLI command output:
+1. Use `projctl screenshot` tooling (if available) or manual screenshot capture
+2. Store screenshots in `.claude/projects/<issue>/screenshots/` directory
+3. Include screenshot verification in acceptance criteria validation
+4. Document expected visual formatting alongside functional requirements
+
+Rationale: CLI output formatting is part of user experience. Visual verification catches formatting issues that unit tests miss.
+
+Measurable Impact: CLI commands have verified visual formatting at completion.
+
+Area: Testing Coverage
+Related challenges: TASK-6 visual test requirement not explicitly validated
+
+---
+
+### ISSUE-131: Retro: Include simplicity rationale in all task breakdowns
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+From ISSUE-120 retrospective (R4):
+
+Make "Simplicity Rationale" section mandatory in tasks.md:
+1. Document alternatives considered
+2. Explain why minimal approach was chosen
+3. List explicitly deferred complexity
+
+Rationale: ISSUE-120 tasks.md included excellent simplicity rationale. This should be standard practice to justify design choices and prevent over-engineering.
+
+Measurable Impact: Task breakdowns include explicit justification for approach taken.
+
+Area: Design & Architecture
+
+---
+
+### ISSUE-132: Decision needed: Should status command include active worktree git status?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from ISSUE-120 retrospective (Q1):
+
+Current `projctl step status` shows active/completed/blocked tasks but doesn't include git status of active worktrees (dirty files, uncommitted changes, etc.).
+
+Trade-offs:
+- Pro: Provides more complete picture of task state
+- Pro: Helps debug stuck tasks (e.g., uncommitted changes blocking merge)
+- Con: Adds complexity to status command
+- Con: Increases output verbosity
+
+Decision needed: Enhance status command with git state, or keep it focused on task lifecycle only?
+
+Context: Feature gap discovered during ISSUE-120 retrospective analysis
+
+---
+
+### ISSUE-133: Decision needed: Should task parallelization support resource limits?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from ISSUE-120 retrospective (Q2):
+
+Current implementation returns ALL unblocked tasks for immediate execution. No limits on parallel task count.
+
+Trade-offs:
+- Pro: Maximum parallelism achieves fastest completion
+- Con: Could overwhelm system resources (CPU, memory, file handles)
+- Con: Orchestrator has no control over concurrency level
+
+Decision needed: Add max-parallel-tasks configuration, or leave unbounded and let orchestrator manage limits externally?
+
+Context: Design decision deferred during ISSUE-120 implementation
+
+---
+
+### ISSUE-134: Decision needed: Should zero-padded ID migration be automated?
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Unresolved question from ISSUE-120 retrospective (Q3):
+
+ISSUE-126 tracks manual cleanup of zero-padded IDs in README.md. This is a mechanical transformation (REQ-001 → REQ-1).
+
+Trade-offs:
+- Pro: Automation ensures consistency and completeness
+- Pro: Can be applied to entire codebase in one pass
+- Con: Requires tool development effort
+- Con: Risk of false positives (e.g., external references that should stay zero-padded)
+
+Decision needed: Build automated migration tool, or handle via manual cleanup with doc-producer improvements?
+
+Context: Technical debt cleanup discovered during ISSUE-120 alignment phase
