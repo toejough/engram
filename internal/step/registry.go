@@ -294,6 +294,44 @@ var Registry = &PhaseRegistry{
 			CompletionPhase: "alignment",
 		},
 
+		// === COMMIT PHASES ===
+		// Per-phase commit for TDD red/green/refactor sub-phases
+		// Traces: ARCH-034, ARCH-035
+
+		"commit-red": {
+			Producer:        "commit-producer",
+			ProducerPath:    "skills/commit-producer/SKILL.md",
+			QA:              "qa",
+			QAPath:          "skills/qa/SKILL.md",
+			Artifact:        "",
+			IDFormat:        "",
+			ProducerModel:   "haiku",
+			QAModel:         "haiku",
+			CompletionPhase: "commit-red-qa",
+		},
+		"commit-green": {
+			Producer:        "commit-producer",
+			ProducerPath:    "skills/commit-producer/SKILL.md",
+			QA:              "qa",
+			QAPath:          "skills/qa/SKILL.md",
+			Artifact:        "",
+			IDFormat:        "",
+			ProducerModel:   "haiku",
+			QAModel:         "haiku",
+			CompletionPhase: "commit-green-qa",
+		},
+		"commit-refactor": {
+			Producer:        "commit-producer",
+			ProducerPath:    "skills/commit-producer/SKILL.md",
+			QA:              "qa",
+			QAPath:          "skills/qa/SKILL.md",
+			Artifact:        "",
+			IDFormat:        "",
+			ProducerModel:   "haiku",
+			QAModel:         "haiku",
+			CompletionPhase: "commit-refactor-qa",
+		},
+
 		// === TDD QA PHASES ===
 		// Per-phase QA for TDD red/green/refactor sub-phases
 		// Traces: ARCH-034, ARCH-037
