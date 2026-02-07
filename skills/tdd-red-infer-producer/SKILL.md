@@ -108,28 +108,7 @@ func TestParseConfig_ValidInput(t *testing.T) {
    - Documented invariants
 
 3. Write to configured path from context
-4. Yield `complete`:
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T11:00:00Z
-
-[payload]
-artifact = "internal/parser/parser_test.go"
-test_count = 5
-files_modified = ["internal/parser/parser_test.go"]
-
-[[payload.decisions]]
-context = "Test structure inference"
-choice = "Table-driven tests for ParseConfig"
-reason = "Multiple input variants observed in code comments"
-alternatives = ["Individual test functions", "Subtest hierarchy"]
-
-[context]
-phase = "tdd-red"
-subphase = "complete"
-```
+4. Send a message to team-lead with results
 
 ---
 

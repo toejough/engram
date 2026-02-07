@@ -54,7 +54,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - **Open Questions**: Unresolved decisions or ambiguities
 2. Include metrics where available (iteration counts, blockers)
 3. Create issues for actionable items (see Issue Creation below)
-4. Send results to team lead via `SendMessage`:
+4. Send a message to team-lead with:
    - Artifact path
    - Issue IDs created
    - Files modified

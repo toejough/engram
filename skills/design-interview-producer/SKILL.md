@@ -92,7 +92,7 @@ Create the design.md artifact:
 1. Generate DES-N IDs for each design element
 2. Include `**Traces to:**` links to REQ-N IDs
 3. Write to configured path from context
-4. Send results to team lead via `SendMessage`:
+4. Send a message to team-lead with:
    - Artifact path
    - DES IDs created
    - Files modified

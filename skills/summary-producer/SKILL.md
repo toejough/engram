@@ -58,7 +58,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - Outcomes and deliverables
    - Lessons learned
 2. Include traceability to REQ-N, DES-N, ARCH-N, TASK-N
-3. Send results to team lead via `SendMessage`:
+3. Send a message to team-lead with:
    - Artifact path
    - Files modified
    - Key decisions documented

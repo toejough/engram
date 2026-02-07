@@ -98,7 +98,7 @@ Execute refactoring while maintaining tests green:
 3. If tests break, REVERT immediately (refactoring doesn't change behavior)
 4. Improve naming, extract functions, reduce duplication
 5. Run linter again to verify clean
-6. Yield `complete` with results
+6. Send a message to team-lead with results
 
 ### Rules
 

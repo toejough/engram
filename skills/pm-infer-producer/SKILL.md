@@ -100,12 +100,11 @@ Create requirements artifact:
 1. Generate requirements.md with REQ-N format
 2. Include `**Traces to:**` links (ISSUE if available)
 3. Write to path from `[config]`
-4. Send results to team lead via `SendMessage`:
+4. Send a message to team-lead with:
    - Artifact path
    - REQ IDs created
    - Files modified
    - Key decisions made
-5. In legacy mode, yield `complete` with artifact details
 
 ## REQ Format
 

@@ -97,7 +97,7 @@ Generate requirements.md artifact:
    **Traces to:** ISSUE-XXX
    ```
 2. Include `**Traces to:**` links to upstream artifacts
-3. Send results to team lead via `SendMessage`:
+3. Send a message to team-lead with:
    - Artifact path
    - REQ IDs created
    - Files modified

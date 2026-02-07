@@ -41,7 +41,7 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 1. Write minimal implementation to pass tests
 2. **All targeted tests must pass** - no exceptions
 3. Run full test suite to verify no regressions
-4. Yield `complete` with files modified
+4. Send a message to team-lead with files modified
 
 ## Visual Verification
 

@@ -30,7 +30,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 2. Load task description and acceptance criteria
 3. Load architecture notes relevant to the task
 4. Load project conventions (test tooling, patterns)
-5. If missing information, yield `need-context` with queries
+5. If missing information, request context from team lead
 
 ### SYNTHESIZE
 
@@ -38,14 +38,14 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 2. Identify test file locations following project conventions
 3. Determine test categories (example-based vs property-based)
 4. Plan test structure (subtests, table-driven, etc.)
-5. If blocked, yield `blocked` with details
+5. If blocked, report blocker to team lead
 
 ### PRODUCE
 
 1. Write test files following project conventions
 2. Run tests to verify they FAIL (tests must fail - this is required)
 3. Verify failures are correct (tests fail because feature doesn't exist, not because tests are broken)
-4. Yield `complete` with test file paths and coverage summary
+4. Send a message to team-lead with test file paths and coverage summary
 
 ## Test Philosophy
 
@@ -212,43 +212,6 @@ When a task's acceptance criteria include documentation deliverables:
 ```
 
 Write tests that verify these exist and convey the right meaning, just as you would for code features.
-
-## Yield Protocol
-
-### Yield Types
-
-| Type | When |
-|------|------|
-| `complete` | Tests written and verified failing |
-| `need-context` | Need files, architecture, or conventions |
-| `blocked` | Cannot proceed (missing task details) |
-| `error` | Something failed |
-
-### Complete Yield Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-artifact = "internal/foo/foo_test.go"
-files_modified = ["internal/foo/foo_test.go"]
-test_summary = { total = 5, passing = 0, failing = 5 }
-
-[[payload.test_coverage]]
-criterion = "AC-1: User can authenticate"
-tests = ["TestAuthentication_ValidCredentials", "TestAuthentication_InvalidCredentials"]
-
-[[payload.test_coverage]]
-criterion = "AC-2: Session persists across restarts"
-tests = ["TestSessionPersistence"]
-
-[context]
-phase = "tdd-red"
-subphase = "complete"
-task = "TASK-5"
-```
 
 ## Traceability
 
