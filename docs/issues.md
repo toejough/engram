@@ -4046,3 +4046,13 @@ Proposal:
 Impact: Halves QA agent spawns per task cycle. Over 24 tasks, saves ~72 agent spawns.
 
 Discovered during: ISSUE-105 execution
+
+---
+
+### ISSUE-122: Update skill frontmatter: context: fork is stale after ISSUE-105
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+ISSUE-105 eliminated composite skills and stopped skills from spawning sub-agents, but never updated the frontmatter across all 22 SKILL.md files. They all still say context: fork which is the old pattern. Should be updated to reflect the post-105 convention (likely context: inherit or removed entirely if fork is no longer meaningful).
