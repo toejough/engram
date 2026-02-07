@@ -1,0 +1,249 @@
+package skills_test
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	. "github.com/onsi/gomega"
+)
+
+// TestProjectSkill_TwoRoleArchitecture verifies TASK-1 AC-7: SKILL.md documents two-role split
+// Traces to: ARCH-042, REQ-016
+func TestProjectSkill_TwoRoleArchitecture(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document two-role architecture
+	g.Expect(text).To(ContainSubstring("Two-Role"), "should document two-role architecture")
+	g.Expect(text).To(ContainSubstring("Team Lead"), "should document team lead role")
+	g.Expect(text).To(ContainSubstring("Orchestrator"), "should document orchestrator role")
+}
+
+// TestProjectSkill_TeamLeadDelegationMode verifies TASK-1 AC-7: SKILL.md documents delegation-only mode
+// Traces to: ARCH-050, REQ-016
+func TestProjectSkill_TeamLeadDelegationMode(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document delegation-only mode
+	g.Expect(text).To(ContainSubstring("delegate"), "should mention delegation mode")
+	g.Expect(text).To(ContainSubstring("never edits files"), "should document team lead never edits files directly")
+
+	// Should document prohibited actions
+	g.Expect(text).To(MatchRegexp("(?i)(do not|prohibited).*(write|edit)"), "should prohibit direct file editing")
+}
+
+// TestProjectSkill_OrchestratorSpawnSequence verifies TASK-1 AC-1: Team lead spawns haiku orchestrator
+// Traces to: ARCH-048, REQ-016, REQ-017
+func TestProjectSkill_OrchestratorSpawnSequence(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator spawn
+	g.Expect(text).To(ContainSubstring("spawn orchestrator"), "should document spawning orchestrator teammate")
+	g.Expect(text).To(ContainSubstring("haiku"), "should specify haiku model for orchestrator")
+
+	// Should document spawn sequence
+	g.Expect(text).To(ContainSubstring("TeamCreate"), "should document TeamCreate call")
+	g.Expect(text).To(MatchRegexp("(?i)task.*orchestrator"), "should document spawning orchestrator via Task tool")
+}
+
+// TestProjectSkill_SpawnRequestProtocol verifies TASK-1 AC-3: Orchestrator sends spawn requests via SendMessage
+// Traces to: ARCH-043, REQ-017, REQ-021
+func TestProjectSkill_SpawnRequestProtocol(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document spawn request protocol
+	g.Expect(text).To(ContainSubstring("spawn request"), "should document spawn request protocol")
+	g.Expect(text).To(ContainSubstring("SendMessage"), "should document using SendMessage for spawn requests")
+	g.Expect(text).To(ContainSubstring("task_params"), "should document task_params in spawn requests")
+}
+
+// TestProjectSkill_ModelHandshakeValidation verifies TASK-1 AC-1: Team lead validates model handshake
+// Traces to: ARCH-047, ARCH-048, REQ-017
+func TestProjectSkill_ModelHandshakeValidation(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document model handshake
+	g.Expect(text).To(ContainSubstring("handshake"), "should document model handshake validation")
+	g.Expect(text).To(MatchRegexp("(?i)validate.*model|model.*validat"), "should document validating model after spawn")
+}
+
+// TestProjectSkill_ShutdownProtocol verifies TASK-1 AC-5,6: Shutdown request and end-of-command sequence
+// Traces to: ARCH-044, REQ-018
+func TestProjectSkill_ShutdownProtocol(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document shutdown protocol
+	g.Expect(text).To(ContainSubstring("shutdown"), "should document shutdown protocol")
+	g.Expect(text).To(ContainSubstring("all-complete"), "should document all-complete message")
+	g.Expect(text).To(ContainSubstring("TeamDelete"), "should document TeamDelete call")
+
+	// Should document end-of-command sequence
+	g.Expect(text).To(MatchRegexp("(?i)end.of.command|completion sequence"), "should document end-of-command sequence")
+}
+
+// TestProjectSkill_StatePersistenceOwnership verifies TASK-1 AC-2: Orchestrator owns state persistence
+// Traces to: ARCH-045, REQ-020, REQ-022
+func TestProjectSkill_StatePersistenceOwnership(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator owns state
+	g.Expect(text).To(MatchRegexp("(?i)orchestrator.*(owns|manages).*state|state.*(owned|managed).*orchestrator"), "should document orchestrator owns state persistence")
+	g.Expect(text).To(ContainSubstring("projctl state"), "should reference projctl state commands")
+}
+
+// TestProjectSkill_OrchestratorStepLoop verifies TASK-1 AC-2: Orchestrator runs step loop
+// Traces to: ARCH-042, REQ-016
+func TestProjectSkill_OrchestratorStepLoop(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator runs step loop
+	g.Expect(text).To(ContainSubstring("step loop"), "should document orchestrator runs step loop")
+	g.Expect(text).To(ContainSubstring("projctl step next"), "should reference projctl step next")
+	g.Expect(text).To(ContainSubstring("projctl step complete"), "should reference projctl step complete")
+}
+
+// TestProjectSkillFull_DetailedArchitecture verifies SKILL-full.md has detailed two-role documentation
+// Traces to: ARCH-051, REQ-016
+func TestProjectSkillFull_DetailedArchitecture(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should have detailed orchestrator behavior section
+	g.Expect(text).To(ContainSubstring("orchestrator"), "should document orchestrator behavior")
+
+	// Should document state persistence ownership
+	g.Expect(text).To(MatchRegexp("(?i)state.*persistence|persist.*state"), "should document state persistence")
+
+	// Should document resumption flow
+	g.Expect(text).To(MatchRegexp("(?i)resumption|resume"), "should document resumption flow")
+
+	// Should document error handling
+	g.Expect(text).To(MatchRegexp("(?i)error.*handling|retry|backoff"), "should document error handling and retry-backoff")
+}
+
+// TestProjectSkill_NoOldOrchestratorPattern verifies old single-role pattern is removed
+// Traces to: ARCH-042, REQ-016
+func TestProjectSkill_NoOldOrchestratorPattern(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// The old pattern had team lead running the step loop directly
+	// New pattern has team lead spawn orchestrator who runs the loop
+	// We shouldn't see both patterns mixed together - either it's documented
+	// that team lead delegates to orchestrator, or team lead is running loop
+
+	// Check for the key indicator: if "step loop" is mentioned,
+	// it should be in the context of orchestrator, not team lead
+	if strings.Contains(text, "step loop") {
+		// Find the section containing "step loop"
+		// It should mention orchestrator/teammate, not "you run" or "team lead runs"
+		g.Expect(text).ToNot(MatchRegexp("(?i)(you run|team lead runs).*step loop"), "team lead should not run step loop directly")
+	}
+}
+
+// TestProjectSkill_TeamLeadSpawnConfirmation verifies TASK-1 AC-4: Team lead confirms spawns
+// Traces to: ARCH-043, REQ-017
+func TestProjectSkill_TeamLeadSpawnConfirmation(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document spawn confirmation
+	g.Expect(text).To(MatchRegexp("(?i)confirm.*spawn|spawn.*confirm"), "should document confirming spawns to orchestrator")
+}
