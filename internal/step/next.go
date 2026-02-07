@@ -211,7 +211,8 @@ func Next(dir string) (NextResult, error) {
 
 	case pair.QAVerdict == "improvement-request":
 		// QA requested improvements: check iteration limit first
-		if pair.Iteration >= pair.MaxIterations {
+		// Escalate only AFTER exceeding max (e.g., max=3 means iterations 1,2,3 work, 4+ escalates)
+		if pair.Iteration > pair.MaxIterations {
 			return escalateIterationResult(currentPhase, pair.Iteration), nil
 		}
 		// Check spawn attempts
@@ -246,10 +247,10 @@ func Next(dir string) (NextResult, error) {
 		}, nil
 
 	case pair.QAVerdict == "committed":
-		// Committed: transition to completion phase
+		// Committed: transition to next phase per state machine graph
 		return NextResult{
 			Action: "transition",
-			Phase:  info.CompletionPhase,
+			Phase:  targets[0],
 		}, nil
 
 	default:

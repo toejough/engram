@@ -78,7 +78,7 @@ func TestStepNextTDDRedQAAction(t *testing.T) {
 }
 
 func TestStepNextCommitRedAction(t *testing.T) {
-	t.Run("returns transition to commit-red after tdd-red committed", func(t *testing.T) {
+	t.Run("returns transition to tdd-red-qa after tdd-red committed", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -106,7 +106,8 @@ func TestStepNextCommitRedAction(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("commit-red"))
+		// Fixed: Use state graph targets[0] instead of registry CompletionPhase
+		g.Expect(result.Phase).To(Equal("tdd-red-qa"))
 	})
 }
 
