@@ -4293,3 +4293,49 @@ task-audit was supposed to be renamed to tdd-qa in ISSUE-91 but never was. The p
 **Created:** 2026-02-07
 
 The PhaseRegistry in internal/step/registry.go hardcodes ProducerModel/QAModel values. The comment says 'from frontmatter' but no code reads SKILL.md front matter. Multiple mismatches exist: pm, design, architect, breakdown, tdd-red all say model:sonnet in SKILL.md but registry says opus. Fix: make registry derive model from SKILL.md front matter, or at minimum keep them in sync.
+
+---
+
+### ISSUE-138: Add plan mode as front door to project orchestration
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-07
+
+## Problem
+
+The /project workflow currently runs PM, Design, and Architecture interview producers sequentially, each doing its own discovery from scratch. This is slow and repetitive. Meanwhile, Claude Code's plan mode capability goes unused entirely.
+
+## Proposal
+
+Add a plan mode exploration phase as the first step in /project workflows. Plan mode would:
+
+1. **Load key questions from all three interview domains** (PM, Design, Arch) as its exploration framework
+2. **Explore the codebase** using Glob/Grep/Read, actively seeking answers to those questions
+3. **Produce a coverage matrix** showing what was found/partial/unknown for each domain's key questions
+4. **User approves the plan**
+5. **Spawn PM, Design, Arch producers in parallel** (not sequential), passing plan context and coverage scores
+
+Each interview producer would then use coverage scores to determine behavior:
+- High coverage → skip to CLASSIFY with pre-filled items from plan
+- Medium coverage → short targeted interview (only gap questions)
+- Low/no plan context → full interview (backward compatible)
+
+## Changes Required
+
+1. **New plan mode explorer** — Loads questions from PM/Design/Arch skills, explores codebase, produces coverage matrix in plan.md
+2. **Modified project orchestrator state machine** — New initial `plan` phase; after approval, spawns PM/Design/Arch in parallel
+3. **Modified interview producers (PM, Design, Arch)** — Accept optional plan_context and coverage params; skip/reduce interviews based on coverage
+
+## What Stays the Same
+
+- Infer producers (pm-infer, arch-infer, design-infer) — serve different use case (adoption/documentation)
+- Breakdown, TDD, QA phases — unchanged
+- Artifacts produced (requirements.md, design.md, architecture.md) — same format and IDs
+
+## Benefits
+
+- Parallel execution of 3 producers instead of sequential
+- Less repetitive questioning — context gathered once in plan mode
+- Universalizes the gap-assessment pattern (currently only in arch-interview)
+- Better use of Claude Code's native codebase exploration capability
