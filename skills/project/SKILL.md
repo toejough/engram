@@ -152,11 +152,25 @@ Task(subagent_type: result.task_params.subagent_type,
 
 #### escalate-user
 
-When `step next` returns `action: "escalate-user"`, the spawn retry budget is exhausted. Present the escalation to the user:
+When `step next` returns `action: "escalate-user"`, the state machine has exhausted retry limits. This happens when:
 
-1. Display `result.details` (contains expected model, reported models, and failure count)
-2. Ask the user how to proceed (change model config, retry manually, or abort)
-3. Do NOT call `step complete` — wait for user guidance
+1. **Max iterations reached** - Producer/QA loop failed after N attempts (default: 3)
+2. **Model validation failures** - Spawned wrong model repeatedly
+3. **Unrecoverable errors** - State machine encountered illegal transition or corruption
+
+**Handling:**
+
+1. Display `result.details` to the user:
+   - Current phase and iteration count
+   - QA feedback from last attempt (if applicable)
+   - Failure reason (max iterations, model mismatch, etc.)
+2. Present options to the user:
+   - **Manual fix + continue:** User fixes the issue, then `projctl step complete --action escalate-user --user-decision continue`
+   - **Adjust iteration limit:** Increase max_iterations in state.toml, then `projctl step complete --action escalate-user --user-decision retry`
+   - **Skip phase (not recommended):** `projctl step complete --action escalate-user --user-decision skip`
+   - **Abort:** Stop the workflow
+3. Do NOT call `step complete` until user provides guidance
+4. After user resolves, call `step complete` with their decision and resume the step loop
 
 #### commit
 
@@ -178,7 +192,134 @@ All phases are done. Stop the loop and run the end-of-command sequence.
 
 ---
 
-## Context-Only Contract
+## Producer/QA Iteration Pattern
+
+The state machine orchestrates producer/QA pairs with automatic iteration on improvement requests.
+
+### State Machine Loop
+
+For each phase (e.g., tdd-red, design, architecture):
+
+```
+┌─────────────────────────────────────────┐
+│ 1. projctl step next                    │
+│    → action: spawn-producer             │
+│    → iteration: 0, qa_feedback: ""      │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 2. Spawn producer teammate              │
+│    (receives prior QA feedback if iter>0)│
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 3. projctl step complete --action       │
+│    spawn-producer --status done         │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 4. projctl step next                    │
+│    → action: spawn-qa                   │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 5. Spawn QA teammate                    │
+│    (validates producer output)          │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 6. QA returns verdict                   │
+└─────────────────────────────────────────┘
+        ↓                       ↓
+     approved          improvement-request
+        ↓                       ↓
+┌───────────────┐    ┌──────────────────────┐
+│ Advance to    │    │ Increment iteration  │
+│ next phase    │    │ (if < max_iterations)│
+│ iteration=0   │    │ Loop back to step 1  │
+└───────────────┘    │ with QA feedback     │
+                     │                      │
+                     │ OR if iter >= max:   │
+                     │ action: escalate-user│
+                     └──────────────────────┘
+```
+
+### Example: TDD Red Phase with Iteration
+
+**Iteration 0 (initial attempt):**
+```bash
+# State machine: phase=tdd-red, iteration=0
+step next → spawn tdd-red-producer (no feedback)
+step complete → producer done
+step next → spawn qa
+step complete → qa verdict: improvement-request, feedback: "Missing test for edge case X"
+```
+
+**Iteration 1 (retry with feedback):**
+```bash
+# State machine: phase=tdd-red, iteration=1
+step next → spawn tdd-red-producer (feedback: "Missing test for edge case X")
+step complete → producer done
+step next → spawn qa
+step complete → qa verdict: approved
+```
+
+**Transition:**
+```bash
+# State machine advances: phase=commit-red, iteration=0
+step next → spawn commit-producer
+# ... continue workflow
+```
+
+### Max Iterations
+
+Default: 3 iterations (allows 4 total producer runs: iteration 0, 1, 2, 3)
+
+When `iteration >= max_iterations` and QA returns `improvement-request`:
+- State machine returns `action: "escalate-user"`
+- Orchestrator presents escalation to user
+- User decides: manual fix, increase limit, skip, or abort
+
+### State Tracking
+
+All iteration state lives in `.claude/projects/<issue>/state.toml`:
+
+```toml
+[phase]
+current = "tdd-red"
+iteration = 1
+max_iterations = 3
+
+[qa]
+verdict = "improvement-request"
+feedback = "Missing test for edge case X"
+```
+
+The orchestrator reads this via `step next` and writes updates via `step complete`. The orchestrator itself stores NO iteration state internally.
+
+---
+
+## Architectural Rules
+
+### Orchestration Prohibition for Skills
+
+**CRITICAL:** Skills MUST NOT spawn sub-agents via Task tool for orchestration purposes.
+
+- **Orchestration is the orchestrator's job** - Only the project orchestrator (this skill) is authorized to spawn teammates
+- **State machine controls workflow** - All phase sequencing and iteration logic lives in `projctl step next`, not in skills
+- **Skills do work, not orchestration** - Producer and QA skills perform direct work (read files, write code, validate outputs) without spawning sub-agents
+
+**Why this rule exists:**
+- Prevents redundant nesting (composite skills wrapping other skills)
+- Centralizes workflow logic in the state machine (single source of truth)
+- Reduces token cost and spawn overhead
+- Makes iteration tracking explicit in state.toml
+
+**Allowed exceptions:**
+1. This orchestrator (spawns teammates per state machine instructions)
+2. Utility skills using Task tool for parallelization (e.g., context-explorer spawning explore agents)
+
+### Context-Only Contract
 
 **When spawning teammates, pass ONLY context:**
 - Issue ID and description
