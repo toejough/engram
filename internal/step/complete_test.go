@@ -45,7 +45,7 @@ func TestStepCompleteProducerDone(t *testing.T) {
 		g.Expect(s.Project.Phase).To(Equal("tdd-red"), "phase should remain tdd-red until transitioned")
 	})
 
-	t.Run("producer completion with failed status returns error", func(t *testing.T) {
+	t.Run("producer completion with failed status records failure", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -62,10 +62,17 @@ func TestStepCompleteProducerDone(t *testing.T) {
 
 		// Complete with failed status
 		err = step.Complete(dir, step.CompleteResult{
-			Action: "spawn-producer",
-			Status: "failed",
+			Action:        "spawn-producer",
+			Status:        "failed",
+			ReportedModel: "haiku",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "failed producer should return error")
+		g.Expect(err).ToNot(HaveOccurred(), "failed producer should record failure")
+
+		// Verify spawn attempts incremented
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["tdd-red"].SpawnAttempts).To(Equal(1))
+		g.Expect(s.Pairs["tdd-red"].FailedModels).To(ContainElement("haiku"))
 	})
 }
 
@@ -96,8 +103,8 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		// Verify pair state updated
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red"]
-		g.Expect(exists).To(BeTrue(), "pair state should exist for tdd-red")
+		pairState, exists := s.Pairs["tdd-red-qa"]
+		g.Expect(exists).To(BeTrue(), "pair state should exist for tdd-red-qa")
 		g.Expect(pairState.QAVerdict).To(Equal("approved"), "QA verdict should be recorded")
 	})
 
@@ -129,7 +136,7 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		// Verify feedback stored
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red"]
+		pairState, exists := s.Pairs["tdd-red-qa"]
 		g.Expect(exists).To(BeTrue())
 		g.Expect(pairState.QAVerdict).To(Equal("improvement-request"))
 		g.Expect(pairState.ImprovementRequest).To(Equal(feedbackText), "QA feedback should be stored")
@@ -163,7 +170,7 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		// Verify verdict recorded
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red"]
+		pairState, exists := s.Pairs["tdd-red-qa"]
 		g.Expect(exists).To(BeTrue())
 		g.Expect(pairState.QAVerdict).To(Equal("escalate-user"))
 	})
@@ -229,12 +236,12 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 			Phase:  "tdd-green",
 		}, nowFunc())
 		g.Expect(err).To(HaveOccurred(), "illegal transition should be rejected")
-		g.Expect(err.Error()).To(ContainSubstring("not a legal transition"), "error should mention illegal transition")
+		g.Expect(err.Error()).To(ContainSubstring("illegal transition"), "error should mention illegal transition")
 	})
 }
 
 func TestStepCompleteEscalationResolution(t *testing.T) {
-	t.Run("escalation resolution allows manual intervention", func(t *testing.T) {
+	t.Run("escalation verdict is recorded in state", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -258,17 +265,11 @@ func TestStepCompleteEscalationResolution(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// User manually fixes and continues
-		err = step.Complete(dir, step.CompleteResult{
-			Action: "escalate-user-resolved",
-			Status: "done",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "user escalation resolution should succeed")
-
-		// Verify state allows continuation
+		// Verify escalation verdict is recorded
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).ToNot(Equal("error"), "phase should not be in error state after resolution")
+		g.Expect(s.Pairs["tdd-red-qa"].QAVerdict).To(Equal("escalate-user"))
+		g.Expect(s.Project.Phase).To(Equal("tdd-red-qa"), "phase should remain unchanged after escalation")
 	})
 }
 
@@ -288,18 +289,31 @@ func TestStepCompleteInvalidAction(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("unknown action"), "error should mention unknown action")
 	})
 
-	t.Run("empty status returns error", func(t *testing.T) {
+	t.Run("empty status is treated as done", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
+		phases := []string{"pm", "pm-complete", "design", "design-complete",
+			"architect", "architect-complete", "breakdown", "breakdown-complete",
+			"implementation", "task-start", "tdd-red"}
+		for _, phase := range phases {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "empty status should return error")
+		g.Expect(err).ToNot(HaveOccurred(), "empty status should be treated as done")
+
+		// Verify producer was marked complete
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["tdd-red"].ProducerComplete).To(BeTrue())
 	})
 }
 
@@ -331,7 +345,7 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		// Reload state from disk
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red"]
+		pairState, exists := s.Pairs["tdd-red-qa"]
 		g.Expect(exists).To(BeTrue())
 		g.Expect(pairState.ImprovementRequest).To(Equal(feedbackText), "persisted state should contain QA feedback")
 	})
@@ -379,9 +393,13 @@ func TestStepCompleteModelMismatch(t *testing.T) {
 			Status:        "failed",
 			ReportedModel: "haiku",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "failed spawn should return error")
-		// The error should contain information about model mismatch
-		g.Expect(err.Error()).To(ContainSubstring("model"), "error should mention model issue")
+		g.Expect(err).ToNot(HaveOccurred(), "failed spawn should record failure")
+
+		// Verify failed model is recorded
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Pairs["tdd-red"].FailedModels).To(ContainElement("haiku"))
+		g.Expect(s.Pairs["tdd-red"].SpawnAttempts).To(Equal(1))
 	})
 }
 

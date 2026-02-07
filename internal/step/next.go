@@ -211,7 +211,7 @@ func Next(dir string) (NextResult, error) {
 
 	case pair.QAVerdict == "improvement-request":
 		// QA requested improvements: check iteration limit first
-		// Escalate only AFTER exceeding max (e.g., max=3 means iterations 1,2,3 work, 4+ escalates)
+		// Escalate only AFTER exceeding max (e.g., max=3 allows iterations 1,2,3; escalate at iteration 4+)
 		if pair.Iteration > pair.MaxIterations {
 			return escalateIterationResult(currentPhase, pair.Iteration), nil
 		}

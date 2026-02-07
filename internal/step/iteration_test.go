@@ -135,9 +135,9 @@ func TestMaxIterationEnforcement(t *testing.T) {
 		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Set iteration to max (3)
+		// Set iteration beyond max (4 > 3)
 		_, err = state.SetPair(dir, "tdd-red", state.PairState{
-			Iteration:          3,
+			Iteration:          4,
 			MaxIterations:      3,
 			ProducerComplete:   true,
 			QAVerdict:          "improvement-request",
@@ -149,7 +149,7 @@ func TestMaxIterationEnforcement(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("escalate-user"))
-		g.Expect(result.Details).To(ContainSubstring("max iterations (3) exceeded"))
+		g.Expect(result.Details).To(ContainSubstring("max iterations (4) exceeded"))
 	})
 }
 

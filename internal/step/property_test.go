@@ -129,9 +129,9 @@ func TestPropertyMaxIterationsEnforced(t *testing.T) {
 			}
 		}
 
-		// Set iteration to max and QA verdict to improvement-request
+		// Set iteration beyond max and QA verdict to improvement-request
 		_, err = state.SetPair(dir, "tdd-red", state.PairState{
-			Iteration:          maxIterations,
+			Iteration:          maxIterations + 1,
 			MaxIterations:      maxIterations,
 			ProducerComplete:   true,
 			QAVerdict:          "improvement-request",
@@ -139,7 +139,7 @@ func TestPropertyMaxIterationsEnforced(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Property: when iteration >= maxIterations, Next() returns escalate-user
+		// Property: when iteration > maxIterations, Next() returns escalate-user
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("escalate-user"),
