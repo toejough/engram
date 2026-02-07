@@ -33,12 +33,35 @@ When `projctl step next` returns `spawn-producer` or `spawn-qa`:
 
 ### Error Handling and Retry-Backoff
 
-The orchestrator implements retry logic with exponential backoff:
+The orchestrator implements retry logic with exponential backoff to handle transient failures.
 
-- Retry delays: 1s, 2s, 4s (after attempts 1, 2, 3)
-- Wraps `projctl step next` and `projctl step complete` calls
-- After 3 failed attempts, escalates to team lead
-- Team lead presents error to user via AskUserQuestion
+#### Retry-Wrapped Operations
+
+The orchestrator wraps the following operations with retry logic:
+
+1. **Wraps `projctl step next` calls with retry** - If `projctl step next` fails, retry with exponential backoff
+2. **Wraps `projctl step complete` calls with retry** - If `projctl step complete` fails, retry with exponential backoff
+3. **Wraps spawn confirmation waits with timeout retry** - If waiting for spawn confirmation times out, retry with backoff
+
+#### Backoff Pattern
+
+- **Backoff delays**: 1s, 2s, 4s (exponential backoff after attempts 1, 2, 3)
+- After 3 failed attempts, escalate to team lead
+
+#### Error Escalation Flow
+
+When all retry attempts are exhausted (after 3 failed attempts):
+
+1. **Orchestrator sends error message to team lead** via SendMessage. The error message includes error output, retry history, action, and phase fields.
+2. Error message field details:
+   - `action`: The operation that failed (e.g., "step-next", "step-complete", "spawn-confirmation")
+   - `phase`: Current project phase when failure occurred
+   - `error_output`: The error output from the failed command
+   - `retry_history`: Array of timestamps and errors from all retry attempts
+3. **Team lead escalates errors to user** via AskUserQuestion, presenting the error details and asking how to proceed
+4. **Orchestrator logs retry attempts** for debugging purposes
+
+This ensures transient failures don't halt projects while persistent issues get user attention.
 
 ## State Persistence
 
