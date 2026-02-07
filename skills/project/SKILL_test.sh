@@ -225,6 +225,89 @@ else
   fail "Missing model validation/handshake instructions"
 fi
 
+# --- ISSUE-104 TASK-4: Model Handshake Validation ---
+
+echo ""
+echo "--- ISSUE-104 TASK-4: Model Handshake Validation ---"
+
+echo "Test: spawn-producer requires model handshake validation"
+if grep -A 20 "#### spawn-producer" "$SKILL_FILE" | grep -qi "handshake\|validate.*model\|verify.*model"; then
+  pass "spawn-producer requires model handshake validation"
+else
+  fail "spawn-producer missing model handshake validation requirement"
+fi
+
+echo "Test: spawn-qa requires model handshake validation"
+if grep -A 20 "#### spawn-qa" "$SKILL_FILE" | grep -qi "handshake\|validate.*model\|verify.*model"; then
+  pass "spawn-qa requires model handshake validation"
+else
+  fail "spawn-qa missing model handshake validation requirement"
+fi
+
+echo "Test: Handshake validation is case-insensitive"
+if grep -qi "case-insensitive.*match\|case.*insensitive.*substring" "$SKILL_FILE"; then
+  pass "Handshake validation specified as case-insensitive"
+else
+  fail "Missing case-insensitive requirement for handshake validation"
+fi
+
+echo "Test: Handshake success path documented"
+if grep -qi "match.*send.*confirmation\|success.*confirmation\|handshake.*success" "$SKILL_FILE"; then
+  pass "Handshake success path documented"
+else
+  fail "Missing handshake success path documentation"
+fi
+
+echo "Test: Handshake failure path uses --status failed"
+if grep -q "\-\-status failed" "$SKILL_FILE"; then
+  pass "Handshake failure path uses --status failed"
+else
+  fail "Missing --status failed for handshake failure"
+fi
+
+echo "Test: Handshake failure reports model with --reported-model flag"
+# Already tested above, but verify it's in context of handshake failure
+if grep -B 5 -A 5 "\-\-reported-model" "$SKILL_FILE" | grep -qi "mismatch\|fail\|handshake"; then
+  pass "Handshake failure includes --reported-model flag"
+else
+  fail "Missing --reported-model in handshake failure context"
+fi
+
+echo "Test: Team lead validates first message from teammate"
+if grep -qi "first message\|teammate.*first\|after spawning.*read" "$SKILL_FILE"; then
+  pass "Team lead validates first message from teammate"
+else
+  fail "Missing instruction to read/validate first message from teammate"
+fi
+
+echo "Test: Handshake failure prevents teammate from continuing work"
+if grep -B 2 -A 2 "Mismatch\|handshake fail" "$SKILL_FILE" | grep -qi "do not.*continue\|immediately\|not.*let.*continue"; then
+  pass "Handshake failure prevents teammate from continuing work"
+else
+  fail "Missing instruction to prevent work on handshake failure"
+fi
+
+echo "Test: Handshake success sends confirmation message to orchestrator"
+if grep -qi "sendmessage.*orchestrator\|send.*message.*to.*orchestrator.*confirmation" "$SKILL_FILE"; then
+  pass "Handshake success sends confirmation via SendMessage"
+else
+  fail "Missing SendMessage instruction for handshake success confirmation"
+fi
+
+echo "Test: Confirmation message includes spawn-confirmed format"
+if grep -q "spawn-confirmed" "$SKILL_FILE"; then
+  pass "Confirmation message uses spawn-confirmed format"
+else
+  fail "Missing spawn-confirmed message format specification"
+fi
+
+echo "Test: Handshake failure sends failure message to orchestrator"
+if grep -B 5 -A 5 "Mismatch\|handshake.*fail" "$SKILL_FILE" | grep -qi "send.*failure.*message\|send.*error.*message.*orchestrator"; then
+  pass "Handshake failure sends error message to orchestrator"
+else
+  fail "Missing instruction to send failure message to orchestrator on handshake failure"
+fi
+
 # --- Content that must be REMOVED ---
 
 echo ""
