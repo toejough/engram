@@ -47,11 +47,17 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - API docs: Types, functions, interfaces
    - User guides: Tutorials, recipes, FAQs
 2. Add traceability comments linking to REQ-N, DES-N, ARCH-N
-3. **Re-point test traces**: Replace `// traces: TASK-NNN` with permanent artifact IDs
+3. **Enforce ID format conventions**: Convert zero-padded IDs to non-zero-padded format
+   - Search for zero-padded IDs: `REQ-001`, `DES-002`, `ARCH-003`, etc.
+   - Convert to non-zero-padded: `REQ-1`, `DES-2`, `ARCH-3`, etc.
+   - Ensure trace syntax follows current format: `**Traces to:** ID-N` (not `<!-- Traces: ... -->`)
+   - Validate all section IDs use format `### ID-N: Title` (not `### ID-NNN: Title`)
+   - Apply to README.md and all documentation files being updated
+4. **Re-point test traces**: Replace `// traces: TASK-NNN` with permanent artifact IDs
    - Look up each task's `**Traces to:**` field in tasks.md
    - Replace with the lowest-level permanent artifact (prefer ARCH-N, then DES-N, then REQ-N)
    - Run `projctl trace validate` to verify no orphan TASK references remain
-4. Send results to team lead via `SendMessage`:
+5. Send results to team lead via `SendMessage`:
    - Artifact paths
    - Files modified
    - Key decisions made
