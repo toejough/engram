@@ -4007,3 +4007,21 @@ Question: Should commit-QA be:
 Tradeoff: Automatic is more foolproof but slower. Explicit is faster but easier to forget. Hybrid adds complexity but provides flexibility.
 
 Context: Part of ISSUE-92 per-phase QA implementation.
+
+---
+
+### ISSUE-120: Make task parallelization part of projctl step next
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+Currently the orchestrator must manually implement the Looper Pattern (check unblocked tasks, file overlap, spawn parallel agents with worktrees). This should be built into projctl step next so it can return batch actions for parallel execution instead of only single sequential steps.
+
+Scope:
+- projctl step next returns parallel batch when independent tasks exist
+- File overlap detection built into projctl (projctl tasks overlap exists but isn't integrated)
+- Worktree create/merge lifecycle managed by step loop
+- Sequential fallback when tasks share files or have dependencies
+
+Motivation: ISSUE-105 implementation exposed that the orchestrator runs everything sequentially because projctl step next only returns one action at a time.
