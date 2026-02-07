@@ -130,7 +130,7 @@ This audit identifies all skills in the `skills/` directory that use the Task to
 
 **Orchestration Logic:**
 1. SPAWN: Launch all PAIR LOOPs in parallel via Task tool
-2. WAIT: Collect yields from all spawned tasks
+2. WAIT: Collect messages from all spawned tasks
 3. AGGREGATE: Combine results (succeeded/failed)
 4. VALIDATE: Dispatch to consistency-checker
 
@@ -211,7 +211,7 @@ This audit identifies all skills in the `skills/` directory that use the Task to
 **Pattern:** Executes semantic queries by spawning exploration agents (subagent_type=explore).
 
 **Usage Context:**
-- Receives list of queries from a producer's `need-context` yield
+- Receives list of queries from a producer's context request message
 - Executes queries in parallel (file reads, memory search, semantic exploration)
 - Spawns explore agents ONLY for `semantic` query type
 - Aggregates results and returns to producer

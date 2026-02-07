@@ -562,7 +562,7 @@ Producers should NOT validate their own output via spawned QA.
 
 ### Q4: What about skills that need to "gather context" by spawning exploration agents?
 
-**A:** Use the `context-explorer` utility skill. Producers yield `need-context` with queries, the orchestrator dispatches `context-explorer`, and results are returned to the producer. Producers should NOT spawn explorers directly.
+**A:** Use the `context-explorer` utility skill. Producers send context request messages with queries to the team-lead, the orchestrator dispatches `context-explorer`, and results are returned to the producer. Producers should NOT spawn explorers directly.
 
 ### Q5: I have a complex workflow that needs custom orchestration. Should I create a composite skill?
 
