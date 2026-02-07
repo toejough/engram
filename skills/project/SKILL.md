@@ -32,12 +32,13 @@ If you catch yourself writing files directly, STOP and spawn a teammate instead.
 
 ### Spawn Request Protocol
 
-When the orchestrator sends a spawn request via SendMessage:
+When the orchestrator detects spawn-producer or spawn-qa action from projctl step next, it composes a SendMessage with spawn request containing the full task_params JSON payload:
 
-1. Orchestrator sends message with `task_params` JSON (subagent_type, name, model, prompt, team_name)
-2. Team lead extracts task_params and spawns teammate via Task tool
-3. Team lead validates model handshake (see spawn-producer/spawn-qa handlers)
-4. Team lead sends spawn confirmation back to orchestrator
+1. Orchestrator composes SendMessage with spawn request message including `task_params` JSON (subagent_type, name, model, prompt, team_name) and includes `expected_model`, `action`, and `phase` fields
+2. Team lead receives the spawn request message and extracts task_params
+3. Team lead spawns teammate via Task tool
+4. Team lead validates model handshake (see spawn-producer/spawn-qa handlers)
+5. Team lead sends spawn confirmation back to orchestrator
 
 ---
 
