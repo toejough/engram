@@ -28,20 +28,21 @@ var LegalTransitions = map[string][]string{
 
 	// Implementation phase (TDD loop with per-phase QA)
 	// Traces: ARCH-034, ARCH-035, ARCH-036
+	// QA iteration loops: improvement-request returns to same producer phase
 	"implementation":          {"task-start"},
 	"task-start":              {"tdd-red"},
 	"tdd-red":                 {"tdd-red-qa"},
 	"tdd-red-qa":              {"commit-red"},
 	"commit-red":              {"commit-red-qa"},
-	"commit-red-qa":           {"tdd-green"},
+	"commit-red-qa":           {"tdd-green", "tdd-red"}, // Forward or loop back for improvement
 	"tdd-green":               {"tdd-green-qa"},
 	"tdd-green-qa":            {"commit-green"},
 	"commit-green":            {"commit-green-qa"},
-	"commit-green-qa":         {"tdd-refactor"},
+	"commit-green-qa":         {"tdd-refactor", "tdd-green"}, // Forward or loop back for improvement
 	"tdd-refactor":            {"tdd-refactor-qa"},
 	"tdd-refactor-qa":         {"commit-refactor"},
 	"commit-refactor":         {"commit-refactor-qa"},
-	"commit-refactor-qa":      {"task-audit"},
+	"commit-refactor-qa":      {"task-audit", "tdd-refactor"}, // Forward or loop back for improvement
 	"task-audit":              {"task-complete", "task-retry", "task-escalated"},
 	"task-complete":           {"task-start", "implementation-complete", "task-documentation"}, // task-documentation for single-task workflow
 	"task-retry":              {"tdd-red"},
