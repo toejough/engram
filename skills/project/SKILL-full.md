@@ -7,13 +7,13 @@ This document provides detailed orchestrator behavior, state persistence, resump
 The project orchestrator uses a two-role split:
 
 1. **Team Lead (Opus)** - Spawns teammates, coordinates high-level flow, delegates all work
-2. **Orchestrator Teammate (Haiku)** - Runs the mechanical step loop, manages state persistence
+2. **Orchestrator (Haiku)** - Runs the mechanical step loop, manages state persistence
 
 This split achieves 30x cost savings by moving mechanical orchestration work from opus to haiku.
 
 ## Orchestrator Behavior
 
-The orchestrator teammate is a mechanical step loop agent that:
+The orchestrator is a mechanical step loop agent that:
 
 1. Reads next action from `projctl step next`
 2. Executes the action (spawn producer/QA, commit, transition)

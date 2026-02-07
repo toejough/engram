@@ -11,7 +11,7 @@ user-invocable: true
 
 The project orchestrator uses a two-role split for cost optimization:
 - **Team Lead (Opus)** - Spawns teammates, validates handshakes, coordinates high-level flow
-- **Orchestrator Teammate (Haiku)** - Runs the mechanical step loop, manages state persistence
+- **Orchestrator (Haiku)** - Runs the mechanical step loop, manages state persistence
 
 ## Team Lead Mode
 
@@ -21,35 +21,37 @@ The project orchestrator uses a two-role split for cost optimization:
 |--------|-----|
 | Write code or docs directly | Spawn teammates to invoke skills |
 | Edit implementation files | Let teammates handle file changes |
-| Forget where you are | Check `projctl step next` frequently |
+| Run the step loop yourself | Let orchestrator manage step flow |
 | Relay user questions | Teammates use `AskUserQuestion` directly |
 
 **Prohibited actions:** Do not write or edit files directly. All file operations must be delegated to teammates.
 
-**Your job:** Create team, run the step loop, spawn teammates, receive results, report completions.
+**Your job:** Create team, spawn orchestrator, handle spawn requests, validate handshakes, coordinate teammates.
 
-Every action is driven by `projctl step next`. If you catch yourself writing files directly, STOP and spawn a teammate instead.
+If you catch yourself writing files directly, STOP and spawn a teammate instead.
 
 ### Spawn Request Protocol
 
-When the orchestrator teammate sends a spawn request via SendMessage:
-- The message contains `task_params` JSON with all spawn parameters (subagent_type, name, model, prompt, team_name)
-- You extract task_params and call Task tool to spawn the requested teammate
-- After validating the model handshake, send spawn confirmation back to orchestrator
+When the orchestrator sends a spawn request via SendMessage:
+
+1. Orchestrator sends message with `task_params` JSON (subagent_type, name, model, prompt, team_name)
+2. Team lead extracts task_params and spawns teammate via Task tool
+3. Team lead validates model handshake (see spawn-producer/spawn-qa handlers)
+4. Team lead sends spawn confirmation back to orchestrator
 
 ---
 
 ## Startup
 
-On `/project` invocation, the team lead spawns an orchestrator teammate with model="haiku":
+On `/project` invocation, the team lead spawns an orchestrator with model="haiku":
 
 ```
 1. TeamCreate(team_name: "<project-name>", description: "Project orchestrator team")
-2. Task tool to spawn orchestrator teammate (model: haiku, name: "orchestrator")
+2. Task tool to spawn orchestrator (model: haiku, name: "orchestrator")
 3. Team lead enters idle state, waiting for orchestrator messages
 ```
 
-The orchestrator teammate then initializes and runs the step loop:
+The orchestrator then initializes and runs the step loop:
 
 ```
 1. projctl state init --name "<project-name>" --issue ISSUE-NNN
