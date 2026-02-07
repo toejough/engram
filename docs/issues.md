@@ -3782,7 +3782,7 @@ User → /project
 ### ISSUE-105: Skills should run in current agent instead of spawning sub-agents
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Skills were originally designed to spawn sub-agents internally (via Task tool) because they ran in the main conversation context. Now that the orchestrator spawns dedicated teammates for each skill invocation, the internal sub-agent spawn is redundant nesting. Each skill should be updated to execute directly in the current agent context rather than spawning another layer.
