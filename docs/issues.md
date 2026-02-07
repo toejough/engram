@@ -4339,3 +4339,21 @@ Each interview producer would then use coverage scores to determine behavior:
 - Less repetitive questioning — context gathered once in plan mode
 - Universalizes the gap-assessment pattern (currently only in arch-interview)
 - Better use of Claude Code's native codebase exploration capability
+
+---
+
+### ISSUE-139: Fix integrate: trace link renumbering, ID format consistency, and project path mismatch
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-07
+
+Three related gaps in projctl integrate:
+
+1. **Trace link renumbering**: When IDs get renumbered during integration, inline `**Traces to:**` references in markdown are NOT updated. Only traceability.toml is. Since we use inline traces (per CLAUDE.md), this leaves broken references after renumbering.
+
+2. **ID format inconsistency**: `id.Next()` generates unpadded IDs (REQ-24) but `integrate.mergeFile()` uses zero-padded `fmt.Sprintf("%s-%03d")` for renumbered IDs (REQ-024). Standardize on unpadded (XXX-N) everywhere — both generation and renumbering.
+
+3. **Merge() path mismatch**: `Merge()` expects `docs/projects/<name>/` but actual project artifacts live in `.claude/projects/issue-NNN/`. Either fix the path or document the expected artifact copy step.
+
+ID numbering restarting from 1 per project is fine by design — renumbering on conflict at integration time is the intended behavior.
