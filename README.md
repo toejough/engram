@@ -74,7 +74,24 @@ projctl issue create --title "Add user authentication" \
 
 ### Run the Orchestrator
 
-The orchestrator (via `/project` skill in Claude Code) automatically:
+<!-- Traces: REQ-016, ARCH-042, ARCH-048 -->
+
+The `/project` orchestrator uses a **two-role architecture** for cost optimization:
+
+**Team Lead (Opus)**
+- Spawns and coordinates teammates
+- Validates model handshakes
+- Handles user interaction
+- Manages team lifecycle (TeamCreate/TeamDelete)
+- **Delegates all file operations** to teammates
+
+**Orchestrator Teammate (Haiku)**
+- Runs the mechanical `projctl step next` → dispatch → `step complete` loop
+- Manages state persistence
+- Sends spawn requests to team lead
+- Coordinates producer/QA pairs
+
+The orchestrator automatically:
 
 1. Analyzes requirements and gathers context
 2. Produces design and architecture artifacts
@@ -84,6 +101,8 @@ The orchestrator (via `/project` skill in Claude Code) automatically:
 6. Generates retrospective and summary
 
 Each phase uses a producer-QA pair loop for quality assurance before advancing.
+
+**Why two roles?** Separating team ownership (opus) from mechanical execution (haiku) reduces costs by ~80% while preserving opus context for high-value user interaction.
 
 ### Check Progress
 
@@ -192,7 +211,15 @@ No pre-execution conflict detection. Git detects conflicts during merge and esca
 
 ### Team Communication Protocol
 
-<!-- Traces: ARCH-18 -->
+<!-- Traces: ARCH-18, ARCH-043 -->
+
+**Orchestrator ↔ Team Lead Communication:**
+- Orchestrator sends spawn requests via SendMessage with full task_params JSON
+- Team lead spawns teammates via Task tool and validates model handshakes
+- Team lead confirms successful spawns back to orchestrator
+- On project completion, orchestrator sends shutdown requests to team lead
+
+**Producer/QA ↔ Team Lead Communication:**
 
 Skills communicate with the team lead through the `SendMessage` and `AskUserQuestion` tools. Producer message types:
 
@@ -459,7 +486,7 @@ projctl config init
 
 Skills are located in `~/.claude/skills/` and define agent behaviors. Key skills:
 
-- **project** - Main orchestrator skill (invoked via `/project`)
+- **project** - Main orchestrator skill (invoked via `/project`). Uses two-role architecture: team lead (opus) coordinates, orchestrator teammate (haiku) runs step loop.
 - **qa** - Universal QA skill that validates producers against contracts
 - **pm-interview-producer** / **pm-infer-producer** - Requirements gathering
 - **design-interview-producer** / **design-infer-producer** - Design specification
@@ -488,18 +515,52 @@ projctl automatically selects the most cost-effective model for each task:
 
 Skills declare their model in frontmatter. The orchestrator respects these declarations for optimal cost/quality balance.
 
+### Spawn Request Protocol
+
+<!-- Traces: REQ-017, REQ-021, ARCH-043, DES-003, DES-004, DES-005 -->
+
+The orchestrator teammate cannot spawn other agents directly (only team owners can spawn). Instead, it sends spawn requests to the team lead:
+
+1. **Orchestrator** detects `spawn-producer` or `spawn-qa` action from `projctl step next`
+2. **Orchestrator** composes SendMessage with spawn request containing full `task_params` JSON:
+   ```json
+   {
+     "subagent_type": "general-purpose",
+     "name": "tdd-red-producer",
+     "model": "sonnet",
+     "prompt": "First, respond with your model name...",
+     "team_name": "issue-104"
+   }
+   ```
+3. **Team lead** extracts task_params and calls Task tool to spawn teammate
+4. **Team lead** validates model handshake (see below)
+5. **Team lead** sends spawn confirmation back to orchestrator
+
+This delegation pattern keeps the team lead (opus) thin while enabling the orchestrator (haiku) to run the full workflow autonomously.
+
 ### Model Handshake Enforcement
 
-When spawning a teammate, `step next` includes an `expected_model` field and prepends a handshake instruction to the task prompt. The teammate must report its model name as its first message. The orchestrator then verifies the reported model matches the expected model.
+<!-- Traces: REQ-021, ARCH-043 -->
 
-If the model does not match:
+When spawning a teammate, the team lead validates that the spawned agent is running the correct model:
 
-1. The orchestrator calls `step complete` with `--status failed --reportedmodel <model>` to record the mismatch.
-2. The failed model is appended to the `FailedModels` list and `SpawnAttempts` is incremented in the pair state.
-3. The orchestrator retries the spawn (up to 3 attempts).
-4. After 3 failed attempts, `step next` returns an `escalate-user` action with details listing the expected model and all models that were received.
+1. `step next` includes an `expected_model` field and prepends handshake instruction to task prompt
+2. Teammate must report its model name as its first message
+3. **Team lead** performs case-insensitive substring match against `expected_model`
 
-On a successful spawn (model matches), `SpawnAttempts` resets to 0 and `FailedModels` is cleared.
+**On handshake success:**
+- Team lead sends "spawn-confirmed" message to orchestrator
+- Teammate proceeds with work
+- Team lead calls `step complete --action spawn-producer --status done`
+
+**On handshake failure:**
+- Team lead sends "spawn-failed: wrong model" message to orchestrator with details
+- Team lead calls `step complete --status failed --reportedmodel <model>` immediately
+- Failed model appended to `FailedModels` list, `SpawnAttempts` incremented
+- Orchestrator retries spawn (up to 3 attempts)
+- After 3 failures, `step next` returns `escalate-user` action with full details
+
+On successful spawn, `SpawnAttempts` resets to 0 and `FailedModels` is cleared.
 
 ### Task Parameters
 
@@ -546,7 +607,7 @@ projctl trace validate --dir .
 
 ## Architecture
 
-<!-- Traces: ARCH-1, ARCH-12, ARCH-13, ARCH-18 -->
+<!-- Traces: ARCH-1, ARCH-12, ARCH-13, ARCH-18, ARCH-042 -->
 
 projctl uses a structured result format where all skills return TOML files with:
 
@@ -555,16 +616,27 @@ projctl uses a structured result format where all skills return TOML files with:
 - **Decisions** - Key choices made with reasoning
 - **Learnings** - Patterns discovered for future use
 
-The orchestrator operates as a control loop:
+### Two-Role Orchestration
 
-1. Read current state
-2. Determine next action
-3. Dispatch appropriate skill
-4. Receive message from teammate
-5. Update state based on message content
+The orchestrator operates as a control loop split between two roles:
+
+**Team Lead (Opus) - High-Level Coordinator:**
+1. Owns team lifecycle (TeamCreate, TeamDelete)
+2. Receives spawn requests from orchestrator teammate
+3. Spawns teammates via Task tool
+4. Validates model handshakes
+5. Relays spawn confirmations
+6. Handles user interaction and escalations
+
+**Orchestrator Teammate (Haiku) - Mechanical Execution:**
+1. Read current state via `projctl step next`
+2. Determine next action from JSON output
+3. Send spawn requests to team lead (or handle directly for non-spawn actions)
+4. Receive spawn confirmations from team lead
+5. Update state via `projctl step complete`
 6. Resume or advance as needed
 
-State machine preconditions prevent skipping workflow steps, ensuring deterministic behavior.
+State machine preconditions prevent skipping workflow steps, ensuring deterministic behavior. State persistence enables resumption if the orchestrator teammate terminates mid-session.
 
 ## Traceability
 
