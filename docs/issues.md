@@ -4074,3 +4074,13 @@ The team lead treats idle notifications as 'stuck' and respawns teammates that a
 **Created:** 2026-02-06
 
 When spawning teammates, the orchestrator prompt doesn't explicitly tell them to send a message back to the team lead when they finish their work. This causes teammates to complete work and go idle without reporting results, requiring the orchestrator to nudge them repeatedly. The spawn prompt (task_params.prompt) should include an explicit instruction like 'When you finish, send a message to team-lead with your results and verdict.'
+
+---
+
+### ISSUE-125: QA agents should read producer logs instead of re-running tools
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+QA agents currently re-read files, re-run tests, and re-discover everything independently. This is redundant since the producer already ran the tests. QA should receive the producer's TaskOutput transcript as context and validate process/contract compliance against the logs instead of re-running tools. Faster, cheaper, more targeted.

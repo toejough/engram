@@ -158,6 +158,38 @@ Each commit phase uses `commit-producer` skill to create phase-scoped commits, f
 
 State machine enforcement prevents shortcuts (e.g., cannot skip from tdd-red directly to commit-red without tdd-red-qa).
 
+### Parallel Task Execution
+
+<!-- Traces: ISSUE-120, REQ-1, REQ-2, REQ-5, DES-1, DES-6, ARCH-2 -->
+
+During the implementation phase, `projctl step next` detects all unblocked tasks and enables parallel execution through git worktrees:
+
+**Immediate Execution Model:**
+
+- After any task completes, orchestrator calls `projctl step next`
+- All currently unblocked tasks are returned immediately (no batching)
+- Orchestrator spawns parallel work as soon as tasks become unblocked
+- Dynamic work discovery: completing task A may unblock tasks B and C for parallel execution
+
+**Response Format:**
+
+```json
+{
+  "tasks": [
+    {"id": "TASK-1", "command": "projctl run TASK-1", "worktree": "/path/worktrees/TASK-1"},
+    {"id": "TASK-2", "command": "projctl run TASK-2", "worktree": "/path/worktrees/TASK-2"}
+  ]
+}
+```
+
+- **Empty array**: No tasks unblocked, wait for running tasks to complete
+- **Single task with `worktree: null`**: Sequential execution on main branch
+- **Multiple tasks with worktree paths**: Parallel execution in isolated worktrees
+
+**Conflict Resolution:**
+
+No pre-execution conflict detection. Git detects conflicts during merge and escalates to user for standard git conflict resolution workflow.
+
 ### Team Communication Protocol
 
 <!-- Traces: ARCH-018 -->
@@ -333,10 +365,60 @@ projctl escalation resolve      # Resolve escalation by ID
 projctl worktree create         # Create worktree for task
 projctl worktree merge          # Merge task worktree
 projctl retro extract           # Extract retro recommendations
-projctl step next               # Get next orchestration action (JSON)
+projctl step next               # Get next orchestration action (JSON with parallel tasks)
 projctl step complete           # Record step result
 projctl step complete --reportedmodel <model>  # Record failed spawn with model mismatch
 ```
+
+### Step Orchestration
+
+<!-- Traces: ARCH-002, ISSUE-120 -->
+
+The `projctl step next` command returns all currently unblocked tasks for immediate parallel execution:
+
+```bash
+# Get next action(s) to execute
+projctl step next
+```
+
+**Response Format:**
+
+```json
+{
+  "action": "spawn-producer",
+  "tasks": [
+    {
+      "id": "TASK-1",
+      "command": "projctl run TASK-1",
+      "worktree": "/repo/.git/worktrees/TASK-1"
+    },
+    {
+      "id": "TASK-2",
+      "command": "projctl run TASK-2",
+      "worktree": "/repo/.git/worktrees/TASK-2"
+    }
+  ]
+}
+```
+
+**Parallel Execution:**
+
+- **Empty array** (`[]`) - No tasks unblocked, orchestrator waits
+- **Single task** (`worktree: null`) - Sequential execution on main branch
+- **Multiple tasks** (`worktree: path`) - Parallel execution in worktrees
+
+The orchestrator calls `projctl step next` after each task completion to discover newly unblocked work, enabling immediate parallel execution without batching delays.
+
+**Worktree Lifecycle:**
+
+For parallel tasks, the orchestrator:
+
+1. Creates worktrees using paths from response
+2. Executes task commands in worktree directories
+3. Merges worktree branches back to main
+4. Cleans up worktrees after merge
+
+Conflicts during merge are detected by git and escalated to the user for resolution.
 
 ## Configuration
 
