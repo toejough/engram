@@ -4084,3 +4084,23 @@ When spawning teammates, the orchestrator prompt doesn't explicitly tell them to
 **Created:** 2026-02-06
 
 QA agents currently re-read files, re-run tests, and re-discover everything independently. This is redundant since the producer already ran the tests. QA should receive the producer's TaskOutput transcript as context and validate process/contract compliance against the logs instead of re-running tools. Faster, cheaper, more targeted.
+
+---
+
+### ISSUE-126: Clean up zero-padded IDs in README.md
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+README.md still contains zero-padded trace IDs (ARCH-002, REQ-001, etc.) from before ISSUE-105 standardized to single-segment format (ARCH-2, REQ-1). These stale references confuse QA agents into thinking zero-padded is the convention. Update all trace IDs in README.md to match the current single-segment format.
+
+---
+
+### ISSUE-127: Update doc-producer skill to re-align README with modern conventions
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-06
+
+The doc-producer skill has no explicit guidance about current ID format conventions (single-segment, non-zero-padded). When updating README.md, the skill should ensure the entire document follows modern conventions, not just the new sections. Add a step to the doc-producer workflow that checks and aligns existing README content with current project conventions (ID format, trace syntax, etc.).
