@@ -21,6 +21,7 @@ Producer skill that gathers requirements through structured user interview and p
 PM phase focuses on **problem discovery** and **user needs**. Implementation details, UI/UX design, and technology choices belong in downstream phases.
 
 **Do not** ask about or include:
+
 - UI/UX design patterns or visual elements
 - Technology choices (languages, frameworks, databases)
 - Implementation strategies or algorithms
@@ -28,6 +29,7 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 - File formats or data structures
 
 **Do** focus on:
+
 - Problem identification and pain points
 - User personas and affected parties
 - Current state assessment
@@ -83,12 +85,14 @@ Classify each planned requirement as explicit or inferred per [PRODUCER-TEMPLATE
 Generate requirements.md artifact:
 
 1. Write requirements with REQ-N format:
+
    ```markdown
    ### REQ-1: Feature Name
 
    As a [persona], I want [capability], so that [benefit].
 
    **Acceptance Criteria:**
+
    - [ ] Criterion 1
    - [ ] Criterion 2
 
@@ -96,6 +100,7 @@ Generate requirements.md artifact:
 
    **Traces to:** ISSUE-XXX
    ```
+
 2. Include `**Traces to:**` links to upstream artifacts
 3. Send a message to team-lead with:
    - Artifact path
@@ -109,14 +114,14 @@ Generate requirements.md artifact:
 
 ### Team Mode (preferred)
 
-| Action | Tool |
-|--------|------|
-| Interview questions | `AskUserQuestion` directly |
+| Action                  | Tool                                       |
+| ----------------------- | ------------------------------------------ |
+| Interview questions     | `AskUserQuestion` directly                 |
 | Inferred items approval | `AskUserQuestion` with `multiSelect: true` |
-| Conflict resolution | `AskUserQuestion` with options |
-| Read existing docs | `Read`, `Glob`, `Grep` tools directly |
-| Report completion | `SendMessage` to team lead |
-| Report blocker | `SendMessage` to team lead |
+| Conflict resolution     | `AskUserQuestion` with options             |
+| Read existing docs      | `Read`, `Glob`, `Grep` tools directly      |
+| Report completion       | `SendMessage` to team lead                 |
+| Report blocker          | `SendMessage` to team lead                 |
 
 ---
 
@@ -127,6 +132,7 @@ Generate requirements.md artifact:
 **ID Format:** REQ-N (REQ-1, REQ-2, etc.)
 
 Each requirement includes:
+
 - User story format
 - Acceptance criteria (checkboxes)
 - Priority (P0/P1/P2)
@@ -136,38 +142,38 @@ Each requirement includes:
 
 ## Interview Phases
 
-| Phase | Goal | Key Questions |
-|-------|------|---------------|
-| PROBLEM | Identify the pain | What's broken? Who's affected? Impact? |
-| CURRENT STATE | Map the present | How does it work today? Pain points? |
-| FUTURE STATE | Define success | What should happen instead? |
-| SUCCESS CRITERIA | Make measurable | How will we know it's working? |
-| EDGE CASES | Handle exceptions | What could go wrong? |
+| Phase            | Goal              | Key Questions                          |
+| ---------------- | ----------------- | -------------------------------------- |
+| PROBLEM          | Identify the pain | What's broken? Who's affected? Impact? |
+| CURRENT STATE    | Map the present   | How does it work today? Pain points?   |
+| FUTURE STATE     | Define success    | What should happen instead?            |
+| SUCCESS CRITERIA | Make measurable   | How will we know it's working?         |
+| EDGE CASES       | Handle exceptions | What could go wrong?                   |
 
 ---
 
 ## Rules
 
-| Rule | Action |
-|------|--------|
-| Problem discovery first | PM focuses on problem space and user needs, not solution implementation |
-| Implementation details → Architecture | Do not ask about technology choices, algorithms, or system design |
-| UI/UX details → Design | Do not ask about visual design, layouts, or interaction patterns |
-| Missing context | Yield `need-context` to request existing docs |
-| Conflicting needs | Yield `need-decision` with clarifying question |
-| Every REQ-N | Must have acceptance criteria and trace to issue |
-| Measurable criteria | Acceptance criteria must be testable and unambiguous |
+| Rule                                  | Action                                                                  |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| Problem discovery first               | PM focuses on problem space and user needs, not solution implementation |
+| Implementation details → Architecture | Do not ask about technology choices, algorithms, or system design       |
+| UI/UX details → Design                | Do not ask about visual design, layouts, or interaction patterns        |
+| Missing context                       | Yield `need-context` to request existing docs                           |
+| Conflicting needs                     | Yield `need-decision` with clarifying question                          |
+| Every REQ-N                           | Must have acceptance criteria and trace to issue                        |
+| Measurable criteria                   | Acceptance criteria must be testable and unambiguous                    |
 
 ## Boundaries
 
-| In Scope | Out of Scope |
-|----------|--------------|
-| Problem discovery | UI/UX design patterns |
-| User needs | Technology choices |
-| Success criteria | Implementation details |
-| Edge cases | Architecture decisions |
-| Pain points | Visual design elements |
-| Constraints | File formats or data structures |
+| In Scope          | Out of Scope                    |
+| ----------------- | ------------------------------- |
+| Problem discovery | UI/UX design patterns           |
+| User needs        | Technology choices              |
+| Success criteria  | Implementation details          |
+| Edge cases        | Architecture decisions          |
+| Pain points       | Visual design elements          |
+| Constraints       | File formats or data structures |
 
 Out-of-scope topics are noted for downstream phases (Design, Architecture) and conversation redirects to problem discovery.
 

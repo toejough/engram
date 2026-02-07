@@ -3517,7 +3517,7 @@ Decision: keep static. Compile-time validation and simplicity outweigh the conve
 ### ISSUE-96: Implement failure recovery paths in step complete
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 
 From ISSUE-89 retro Q2: Currently step complete accepts status: failed but does not do anything special with it. A failed producer or QA should probably trigger different behavior (retry? escalate? block?). The orchestrator currently handles failures ad-hoc. projctl step next should eventually encode failure recovery paths so the LLM does not have to decide how to handle failures.
@@ -3539,7 +3539,7 @@ Reopened - decision made but needs implementation.
 ### ISSUE-97: Retro: Add CLI flag validation to documentation TDD pattern
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-05
 
 From ISSUE-90 retro R1: When writing tests for skill documentation that references CLI commands, include tests that verify the exact flag names and values match the CLI implementation. Flag mismatches between SKILL.md examples and the actual CLI interface are integration bugs. QA caught two such bugs in ISSUE-90 (--status retry invalid, --qa-verdict approved missing). Measurable outcome: zero QA findings related to CLI flag mismatches in SKILL.md files.
@@ -3611,7 +3611,7 @@ Implementation complete. 6 tasks delivered: TaskParams/ExpectedModel on NextResu
 ### ISSUE-99: tdd-producer composite skill does RED+GREEN+REFACTOR in one agent instead of orchestrating
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (fixed)
 **Created:** 2026-02-06
 
 When spawning teammates with /tdd-producer, the agent performs all three TDD phases (red, green, refactor) in a single pass instead of orchestrating separate sub-phases. The composite skill should orchestrate: spawn a red producer, then a green producer, then a refactor producer — matching the state machine phases. Currently the state machine tracks tdd-red/tdd-green/tdd-refactor as separate phases but the composite skill collapses them into one agent execution, making green and refactor phases redundant.
@@ -3622,6 +3622,10 @@ When spawning teammates with /tdd-producer, the agent performs all three TDD pha
 ### Comment
 
 Decision: Remove tdd-producer as a composite skill. The top-level orchestrator (haiku) should just step through what projctl tells it to do — spawning red/green/refactor producers individually as directed by the state machine. No separate composite skill needed.
+
+### Comment
+
+Also delete task-audit phase from state machine (ISSUE-91 rename was never implemented). Remove task-audit from transitions.go, registry, tests, and trace.go.
 ### ISSUE-100: Enforce commit-before-completion in worktree teammates
 
 **Priority:** high
@@ -3653,7 +3657,7 @@ Redundant — solved by ISSUE-99. Teammates don't commit; the orchestrator does.
 ### ISSUE-102: Implement blanket model validation and update QA to sonnet
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Retro Q1 from ISSUE-98: Should model validation be enforced for all teammate spawns or only model-sensitive phases? Blanket enforcement adds handshake latency; opt-in reduces coverage.
@@ -3791,7 +3795,7 @@ Skills were originally designed to spawn sub-agents internally (via Task tool) b
 ### ISSUE-106: Retro: Run verification check before committing implementation batches
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 From retrospective: Would have prevented the 'partial cleanup' commit by catching missed files before the first commit. The test script existed but wasn't executed until after implementation commits.
@@ -3804,7 +3808,7 @@ Related challenges: Initial cleanup missed active documentation requiring second
 ### ISSUE-107: Retro: Write test scripts against real data before TDD red
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 From retrospective: When creating test infrastructure, run the test against the actual repository (expect failure) before starting implementation. This validates that the test correctly identifies the problem and handles edge cases.
@@ -3830,7 +3834,7 @@ Related challenges: Traceability chain violations required correction commit.
 ### ISSUE-109: Retro: Define 'complete' vs 'partial' commit scope explicitly
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From retrospective: If implementation will be split across multiple commits, define the scope of each commit in the task breakdown (e.g., TASK-2a, TASK-2b) rather than deciding ad-hoc during implementation.
@@ -3897,7 +3901,7 @@ Closed as moot - good practice but not worth a ticket. Use judgment per task.
 ### ISSUE-113: Retro: Increase QA model or add hallucination guards
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 From retrospective: QA agents on haiku fabricated findings in 2 instances during ISSUE-88 (referencing nonexistent REQ-005, ARCH-006, ARCH-010). Either run QA on sonnet or add structural validation that QA findings reference IDs that actually exist in the artifact.
@@ -3910,7 +3914,7 @@ Related challenges: C-002 from ISSUE-88 retro
 ### ISSUE-114: Retro: Add task completion signal to state machine
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (fixed)
 **Created:** 2026-02-06
 
 From retrospective: During ISSUE-88, the state machine TDD loop kept cycling back to tdd-red after all 15 tasks were completed. No mechanism exists to signal 'all tasks done'. Required manual force-transition via projctl state transition --force.
@@ -3923,7 +3927,7 @@ Related challenges: C-005 from ISSUE-88 retro
 ### ISSUE-115: Retro: Require verification test run before worker completion
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From retrospective: During ISSUE-88, worker-docs annotated yield content with 'Historical Notes' instead of removing it. The verification tests would have caught this but the worker didn't run them. Add to tdd-green-producer contract: workers must run verification tests and include results in completion message.
@@ -3936,7 +3940,7 @@ Related challenges: C-004 from ISSUE-88 retro
 ### ISSUE-116: Remove yield infrastructure from internal/memory
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 Unresolved question from ISSUE-88 retrospective.
@@ -3953,7 +3957,7 @@ Decision: remove. No active workflow produces yield.toml files. The --yield flag
 ### ISSUE-117: Retro: Track task completion with explicit verification step
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From retrospective ISSUE-92 (R2).
@@ -3974,7 +3978,7 @@ Rationale: Would prevent ambiguity between "code committed" and "acceptance crit
 ### ISSUE-118: Retro: Formalize QA evidence in git history
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From retrospective ISSUE-92 (R4).
@@ -3991,7 +3995,7 @@ Rationale: Makes QA approval visible in project history. Currently there is no w
 ### ISSUE-119: Decision needed: Should commit-QA be automatic or explicit?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From retrospective ISSUE-92 (Q2).
@@ -4050,7 +4054,7 @@ Discovered during: ISSUE-105 execution
 ### ISSUE-122: Update skill frontmatter: context: fork is stale after ISSUE-105
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 ISSUE-105 eliminated composite skills and stopped skills from spawning sub-agents, but never updated the frontmatter across all 22 SKILL.md files. They all still say context: fork which is the old pattern. Should be updated to reflect the post-105 convention (likely context: inherit or removed entirely if fork is no longer meaningful).
@@ -4060,7 +4064,7 @@ ISSUE-105 eliminated composite skills and stopped skills from spawning sub-agent
 ### ISSUE-123: Orchestrator unnecessarily respawns idle teammates
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 The team lead treats idle notifications as 'stuck' and respawns teammates that are actually working normally. Idle between turns is expected behavior - teammates process messages, go idle, receive next message, process it, go idle again. The orchestrator should wait patiently for teammate messages instead of sending repeated nudges and respawning. This wastes tokens and time. Root cause: orchestrator conflates 'idle notification' with 'unresponsive'.
@@ -4070,7 +4074,7 @@ The team lead treats idle notifications as 'stuck' and respawns teammates that a
 ### ISSUE-124: Orchestrator must instruct teammates to send completion message
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 When spawning teammates, the orchestrator prompt doesn't explicitly tell them to send a message back to the team lead when they finish their work. This causes teammates to complete work and go idle without reporting results, requiring the orchestrator to nudge them repeatedly. The spawn prompt (task_params.prompt) should include an explicit instruction like 'When you finish, send a message to team-lead with your results and verdict.'
@@ -4080,7 +4084,7 @@ When spawning teammates, the orchestrator prompt doesn't explicitly tell them to
 ### ISSUE-125: QA agents should read producer logs instead of re-running tools
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 QA agents currently re-read files, re-run tests, and re-discover everything independently. This is redundant since the producer already ran the tests. QA should receive the producer's TaskOutput transcript as context and validate process/contract compliance against the logs instead of re-running tools. Faster, cheaper, more targeted.
@@ -4090,7 +4094,7 @@ QA agents currently re-read files, re-run tests, and re-discover everything inde
 ### ISSUE-126: Clean up zero-padded IDs in README.md
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 README.md still contains zero-padded trace IDs (ARCH-002, REQ-001, etc.) from before ISSUE-105 standardized to single-segment format (ARCH-2, REQ-1). These stale references confuse QA agents into thinking zero-padded is the convention. Update all trace IDs in README.md to match the current single-segment format.
@@ -4100,7 +4104,7 @@ README.md still contains zero-padded trace IDs (ARCH-002, REQ-001, etc.) from be
 ### ISSUE-127: Update doc-producer skill to re-align README with modern conventions
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 The doc-producer skill has no explicit guidance about current ID format conventions (single-segment, non-zero-padded). When updating README.md, the skill should ensure the entire document follows modern conventions, not just the new sections. Add a step to the doc-producer workflow that checks and aligns existing README content with current project conventions (ID format, trace syntax, etc.).
@@ -4110,7 +4114,7 @@ The doc-producer skill has no explicit guidance about current ID format conventi
 ### ISSUE-128: Retro: Add convention validation step to design phase
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 From ISSUE-120 retrospective (R1):
@@ -4132,7 +4136,7 @@ Related challenges: Convention mismatches discovered in alignment phase rather t
 ### ISSUE-129: Retro: Extend doc-producer skill contract with convention enforcement
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-06
 
 From ISSUE-120 retrospective (R2):
@@ -4178,7 +4182,7 @@ Related challenges: TASK-6 visual test requirement not explicitly validated
 ### ISSUE-131: Retro: Include simplicity rationale in all task breakdowns
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 From ISSUE-120 retrospective (R4):
@@ -4199,7 +4203,7 @@ Area: Design & Architecture
 ### ISSUE-132: Decision needed: Should status command include active worktree git status?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 Unresolved question from ISSUE-120 retrospective (Q1):
@@ -4221,7 +4225,7 @@ Context: Feature gap discovered during ISSUE-120 retrospective analysis
 ### ISSUE-133: Decision needed: Should task parallelization support resource limits?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 Unresolved question from ISSUE-120 retrospective (Q2):
@@ -4242,7 +4246,7 @@ Context: Design decision deferred during ISSUE-120 implementation
 ### ISSUE-134: Decision needed: Should zero-padded ID migration be automated?
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed (won't do)
 **Created:** 2026-02-06
 
 Unresolved question from ISSUE-120 retrospective (Q3):
@@ -4258,3 +4262,24 @@ Trade-offs:
 Decision needed: Build automated migration tool, or handle via manual cleanup with doc-producer improvements?
 
 Context: Technical debt cleanup discovered during ISSUE-120 alignment phase
+
+---
+
+### ISSUE-135: Remove all remaining yield references from skills and Go code
+
+**Priority:** medium
+**Status:** closed
+**Created:** 2026-02-06
+
+---
+
+### ISSUE-136: Remove task-audit phase from state machine (never renamed per ISSUE-91)
+
+**Priority:** medium
+**Status:** closed
+**Created:** 2026-02-07
+
+
+### Comment
+
+task-audit was supposed to be renamed to tdd-qa in ISSUE-91 but never was. The phase is vestigial. Remove task-audit from transitions.go, tests, and trace.go. Replace with direct transition from commit-refactor-qa to task-complete/task-retry/task-escalated.
