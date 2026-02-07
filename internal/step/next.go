@@ -73,27 +73,88 @@ type TaskInfo struct {
 
 // NextResult holds the structured output of step next.
 type NextResult struct {
-	Action        string      `json:"action"`                    // spawn-producer, spawn-qa, commit, transition, all-complete
-	Skill         string      `json:"skill,omitempty"`           // Skill name
-	SkillPath     string      `json:"skill_path,omitempty"`      // Path to SKILL.md
-	Model         string      `json:"model,omitempty"`           // Model to use
-	Artifact      string      `json:"artifact,omitempty"`        // Artifact produced
-	Phase         string      `json:"phase,omitempty"`           // Current or target phase
-	Context       StepContext `json:"context"`                   // Contextual information
-	TaskParams    *TaskParams `json:"task_params,omitempty"`     // Task tool call parameters (non-nil for spawn actions)
-	ExpectedModel string     `json:"expected_model,omitempty"`  // Expected model for handshake validation
-	Details       string     `json:"details,omitempty"`         // Details for escalation actions
-	Tasks         []TaskInfo `json:"tasks"`                     // Array of unblocked tasks for parallel execution (TASK-1)
+	Action        string      `json:"action"`                   // spawn-producer, spawn-qa, commit, transition, all-complete
+	Skill         string      `json:"skill,omitempty"`          // Skill name
+	SkillPath     string      `json:"skill_path,omitempty"`     // Path to SKILL.md
+	Model         string      `json:"model,omitempty"`          // Model to use
+	Artifact      string      `json:"artifact,omitempty"`       // Artifact produced
+	Phase         string      `json:"phase,omitempty"`          // Current or target phase
+	Context       StepContext `json:"context"`                  // Contextual information
+	TaskParams    *TaskParams `json:"task_params,omitempty"`    // Task tool call parameters (non-nil for spawn actions)
+	ExpectedModel string      `json:"expected_model,omitempty"` // Expected model for handshake validation
+	Details       string      `json:"details,omitempty"`        // Details for escalation actions
+	Tasks         []TaskInfo  `json:"tasks"`                    // Array of unblocked tasks for parallel execution (TASK-1)
 }
 
 // CompleteResult holds the input to step complete.
 type CompleteResult struct {
-	Action        string `json:"action"`                  // What was completed
-	Status        string `json:"status"`                  // done, failed
+	Action        string `json:"action"`                   // What was completed
+	Status        string `json:"status"`                   // done, failed
 	QAVerdict     string `json:"qa_verdict,omitempty"`     // approved, improvement-request, escalate-phase, escalate-user
 	QAFeedback    string `json:"qa_feedback,omitempty"`    // Feedback text from QA
 	Phase         string `json:"phase,omitempty"`          // Target phase for transition actions
 	ReportedModel string `json:"reported_model,omitempty"` // Model reported by teammate (for failed spawns)
+}
+
+// buildSpawnResult constructs a spawn action result with common fields populated.
+func buildSpawnResult(action, skill, skillPath, model, artifact, phase string, ctx StepContext, teamName string, tasks []TaskInfo) NextResult {
+	return NextResult{
+		Action:    action,
+		Skill:     skill,
+		SkillPath: skillPath,
+		Model:     model,
+		Artifact:  artifact,
+		Phase:     phase,
+		Context:   ctx,
+		TaskParams: &TaskParams{
+			SubagentType: "general-purpose",
+			Name:         skill,
+			Model:        model,
+			TeamName:     teamName,
+			Prompt:       buildPrompt(skill, ctx),
+		},
+		ExpectedModel: model,
+		Tasks:         tasks,
+	}
+}
+
+// handleProducerPhase handles the producer spawn phase logic.
+func handleProducerPhase(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
+	if pair.SpawnAttempts >= 3 {
+		escalated := escalateResult(phase, "producer", info.ProducerModel, pair.FailedModels)
+		escalated.Tasks = result.Tasks
+		return escalated, nil
+	}
+	if pair.ImprovementRequest != "" {
+		ctx.QAFeedback = pair.ImprovementRequest
+	}
+	return buildSpawnResult("spawn-producer", info.Producer, info.ProducerPath, info.ProducerModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
+}
+
+// handleQAPhase handles the QA spawn phase logic.
+func handleQAPhase(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
+	if pair.SpawnAttempts >= 3 {
+		escalated := escalateResult(phase, "qa", info.QAModel, pair.FailedModels)
+		escalated.Tasks = result.Tasks
+		return escalated, nil
+	}
+	return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
+}
+
+// handleImprovementRequest handles the improvement request phase logic.
+func handleImprovementRequest(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
+	if pair.Iteration > pair.MaxIterations {
+		escalated := escalateIterationResult(phase, pair.Iteration)
+		escalated.Tasks = result.Tasks
+		return escalated, nil
+	}
+	if pair.SpawnAttempts >= 3 {
+		escalated := escalateResult(phase, "producer", info.ProducerModel, pair.FailedModels)
+		escalated.Tasks = result.Tasks
+		return escalated, nil
+	}
+	ctx.QAFeedback = pair.ImprovementRequest
+	return buildSpawnResult("spawn-producer", info.Producer, info.ProducerPath, info.ProducerModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
 }
 
 // Next determines the next action based on the current project state.
@@ -152,21 +213,7 @@ func Next(dir string) (NextResult, error) {
 				escalated.Tasks = result.Tasks
 				return escalated, nil
 			}
-			result.Action = "spawn-qa"
-			result.Skill = info.QA
-			result.SkillPath = info.QAPath
-			result.Model = info.QAModel
-			result.Phase = currentPhase
-			result.Context = ctx
-			result.TaskParams = &TaskParams{
-				SubagentType: "general-purpose",
-				Name:         info.QA,
-				Model:        info.QAModel,
-				TeamName:     s.Project.Name,
-				Prompt:       buildPrompt(info.QA, ctx),
-			}
-			result.ExpectedModel = info.QAModel
-			return result, nil
+			return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, "", currentPhase, ctx, s.Project.Name, result.Tasks), nil
 		}
 		// QA complete: transition to next phase
 		result.Action = "transition"
@@ -180,97 +227,21 @@ func Next(dir string) (NextResult, error) {
 	// Sub-phase logic based on pair state
 	switch {
 	case !hasPair || (!pair.ProducerComplete && pair.QAVerdict == ""):
-		// No pair state or producer not done yet: spawn producer
-		if pair.SpawnAttempts >= 3 {
-			escalated := escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels)
-			escalated.Tasks = result.Tasks
-			return escalated, nil
-		}
-		if pair.ImprovementRequest != "" {
-			ctx.QAFeedback = pair.ImprovementRequest
-		}
-		result.Action = "spawn-producer"
-		result.Skill = info.Producer
-		result.SkillPath = info.ProducerPath
-		result.Model = info.ProducerModel
-		result.Artifact = info.Artifact
-		result.Phase = currentPhase
-		result.Context = ctx
-		result.TaskParams = &TaskParams{
-			SubagentType: "general-purpose",
-			Name:         info.Producer,
-			Model:        info.ProducerModel,
-			TeamName:     s.Project.Name,
-			Prompt:       buildPrompt(info.Producer, ctx),
-		}
-		result.ExpectedModel = info.ProducerModel
-		return result, nil
+		return handleProducerPhase(result, pair, info, currentPhase, ctx, s.Project.Name)
 
 	case pair.ProducerComplete && pair.QAVerdict == "":
-		// Producer done, no QA yet: spawn QA
-		if pair.SpawnAttempts >= 3 {
-			escalated := escalateResult(currentPhase, "qa", info.QAModel, pair.FailedModels)
-			escalated.Tasks = result.Tasks
-			return escalated, nil
-		}
-		result.Action = "spawn-qa"
-		result.Skill = info.QA
-		result.SkillPath = info.QAPath
-		result.Model = info.QAModel
-		result.Artifact = info.Artifact
-		result.Phase = currentPhase
-		result.Context = ctx
-		result.TaskParams = &TaskParams{
-			SubagentType: "general-purpose",
-			Name:         info.QA,
-			Model:        info.QAModel,
-			TeamName:     s.Project.Name,
-			Prompt:       buildPrompt(info.QA, ctx),
-		}
-		result.ExpectedModel = info.QAModel
-		return result, nil
+		return handleQAPhase(result, pair, info, currentPhase, ctx, s.Project.Name)
 
 	case pair.QAVerdict == "improvement-request":
-		// QA requested improvements: check iteration limit first
-		// Escalate only AFTER exceeding max (e.g., max=3 allows iterations 1,2,3; escalate at iteration 4+)
-		if pair.Iteration > pair.MaxIterations {
-			escalated := escalateIterationResult(currentPhase, pair.Iteration)
-			escalated.Tasks = result.Tasks
-			return escalated, nil
-		}
-		// Check spawn attempts
-		if pair.SpawnAttempts >= 3 {
-			escalated := escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels)
-			escalated.Tasks = result.Tasks
-			return escalated, nil
-		}
-		ctx.QAFeedback = pair.ImprovementRequest
-		result.Action = "spawn-producer"
-		result.Skill = info.Producer
-		result.SkillPath = info.ProducerPath
-		result.Model = info.ProducerModel
-		result.Artifact = info.Artifact
-		result.Phase = currentPhase
-		result.Context = ctx
-		result.TaskParams = &TaskParams{
-			SubagentType: "general-purpose",
-			Name:         info.Producer,
-			Model:        info.ProducerModel,
-			TeamName:     s.Project.Name,
-			Prompt:       buildPrompt(info.Producer, ctx),
-		}
-		result.ExpectedModel = info.ProducerModel
-		return result, nil
+		return handleImprovementRequest(result, pair, info, currentPhase, ctx, s.Project.Name)
 
 	case pair.QAVerdict == "approved":
-		// QA approved: commit
 		result.Action = "commit"
 		result.Phase = currentPhase
 		result.Context = ctx
 		return result, nil
 
 	case pair.QAVerdict == "committed":
-		// Committed: transition to next phase per state machine graph
 		result.Action = "transition"
 		result.Phase = targets[0]
 		return result, nil
