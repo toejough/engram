@@ -3726,7 +3726,7 @@ When `projctl step next` returns `task_params` for spawning teammates, it omits 
 ### ISSUE-104: Spin off orchestrator as haiku teammate, delegate spawn/shutdown to team lead
 
 **Priority:** Medium
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-06
 
 ## Problem
@@ -4423,7 +4423,7 @@ Related: ISSUE-104 challenge C-1, retro-notes O-1
 ### ISSUE-143: Retro: Investigate collapsing redundant commit QA phases
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (R-2):
@@ -4446,10 +4446,14 @@ Related: ISSUE-104 challenge C-2, retro-notes O-2
 
 ---
 
+
+### Comment
+
+Duplicate of ISSUE-141 (remove commit-producer QA phases).
 ### ISSUE-144: Retro: Propagate task context to TDD phase entry
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (R-3):
@@ -4472,6 +4476,10 @@ Related: ISSUE-104 challenge C-3, retro-notes O-3
 
 ---
 
+
+### Comment
+
+Duplicate of ISSUE-140 (state machine step next doesn't include current_task).
 ### ISSUE-145: Retro: Establish definition of done checkpoint before retrospective
 
 **Priority:** Medium
@@ -4499,7 +4507,7 @@ Related: ISSUE-104 challenge C-4
 ### ISSUE-146: Decision needed: Clarify ISSUE-137 through ISSUE-141 created during ISSUE-104
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (Q-2):
@@ -4515,10 +4523,14 @@ Action: Query team-lead or check issue tracker for these issue details and updat
 
 ---
 
+
+### Comment
+
+Already clarified during ISSUE-104 session. ISSUE-137: remove model from front matter. ISSUE-138: plan mode front door. ISSUE-139: trace link gaps. ISSUE-140: task scoping in state machine. ISSUE-141: remove commit QA phases.
 ### ISSUE-147: Decision needed: Complete or defer TASK-8, TASK-9, TASK-10 from ISSUE-104
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (Q-3):
@@ -4539,3 +4551,8 @@ Possible reasons:
 Impact: Uncertainty about two-role architecture readiness for production use.
 
 Action: Clarify with user whether remaining tasks should be completed or explicitly deferred.
+
+
+### Comment
+
+Invalid: All 10 tasks were completed during the session. TASK-8, 9, 10 were fast-tracked as already implemented.
