@@ -42,7 +42,7 @@ type ExtractResult struct {
 	Items []ExtractedItem
 }
 
-// ExtractedItem represents a single extracted item from a yield or result file.
+// ExtractedItem represents a single extracted item from a result file.
 // Each item has a type, situational context, content, and source information.
 type ExtractedItem struct {
 	// Type indicates the kind of item. Common values: "decision", "learning", "finding", "summary"
@@ -54,30 +54,8 @@ type ExtractedItem struct {
 	// Content is the actual content of the extracted item
 	Content string `json:"content"`
 
-	// Source identifies where the item was extracted from. Format: "yield:{filename}" or "result:{filename}"
+	// Source identifies where the item was extracted from. Format: "result:{filename}"
 	Source string `json:"source"`
-}
-
-// YieldFile represents the structure of a yield protocol TOML file.
-// It matches the yield protocol schema with sections for yield, payload, and context.
-type YieldFile struct {
-	// Yield contains the yield-specific metadata
-	Yield YieldSection `toml:"yield"`
-
-	// Payload contains the yield-specific data as a flexible map
-	Payload map[string]interface{} `toml:"payload"`
-
-	// Context contains the execution context information
-	Context ContextSection `toml:"context"`
-}
-
-// YieldSection contains metadata about a yield operation.
-type YieldSection struct {
-	// Type indicates the yield type. Valid values: "complete", "need-context", "blocked", "error"
-	Type string `toml:"type"`
-
-	// Timestamp indicates when the yield was created (RFC3339 format)
-	Timestamp string `toml:"timestamp"`
 }
 
 // ResultFile represents the structure of a result protocol TOML file.

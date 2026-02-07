@@ -11,8 +11,7 @@ import (
 )
 
 type memoryExtractArgs struct {
-	Result     string `targ:"flag,short=r,desc=Path to result.toml file (mutually exclusive with --yield)"`
-	Yield      string `targ:"flag,short=y,desc=Path to yield.toml file (mutually exclusive with --result)"`
+	Result     string `targ:"flag,short=r,desc=Path to result.toml file"`
 	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
 	ModelDir   string `targ:"flag,desc=Model directory (defaults to ~/.claude/models)"`
 }
@@ -28,24 +27,13 @@ type ExtractOutput struct {
 }
 
 func memoryExtract(args memoryExtractArgs) error {
-	// Validate mutual exclusion
-	if args.Result != "" && args.Yield != "" {
-		fmt.Fprintln(os.Stderr, "Error: --result and --yield are mutually exclusive")
+	// Validate that result file is provided
+	if args.Result == "" {
+		fmt.Fprintln(os.Stderr, "Error: --result must be provided")
 		os.Exit(1)
 	}
 
-	if args.Result == "" && args.Yield == "" {
-		fmt.Fprintln(os.Stderr, "Error: either --result or --yield must be provided")
-		os.Exit(1)
-	}
-
-	// Determine which file to process
-	var filePath string
-	if args.Result != "" {
-		filePath = args.Result
-	} else {
-		filePath = args.Yield
-	}
+	filePath := args.Result
 
 	// Set up memory root
 	memoryRoot := args.MemoryRoot

@@ -20,37 +20,6 @@ func validateRequired(field, value, expectedDesc string) *SchemaValidationError 
 	return nil
 }
 
-// ParseYieldFile parses a legacy message protocol TOML file from raw bytes.
-// It uses BurntSushi/toml for unmarshaling and performs strict schema
-// validation that fails fast on the first error.
-//
-// Required fields:
-//   - message.type: The message type (e.g., "complete", "need-context", "blocked", "error")
-//   - message.timestamp: RFC3339 timestamp when message was created
-//
-// Returns SchemaValidationError when required fields are missing or empty.
-// Returns a wrapped parse error when TOML syntax is invalid.
-//
-// NOTE: This is for backward compatibility with legacy TOML files only.
-func ParseYieldFile(data []byte) (*YieldFile, error) {
-	var yieldFile YieldFile
-
-	if err := toml.Unmarshal(data, &yieldFile); err != nil {
-		return nil, fmt.Errorf("parse error: %w", err)
-	}
-
-	// Validate required fields - fail fast on first error
-	if err := validateRequired("message.type", yieldFile.Yield.Type, "non-empty string"); err != nil {
-		return nil, err
-	}
-
-	if err := validateRequired("message.timestamp", yieldFile.Yield.Timestamp, "non-empty string (RFC3339 format)"); err != nil {
-		return nil, err
-	}
-
-	return &yieldFile, nil
-}
-
 // ParseResultFile parses a result protocol TOML file from raw bytes.
 // It uses BurntSushi/toml for unmarshaling and performs strict schema
 // validation that fails fast on the first error.

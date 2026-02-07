@@ -3,7 +3,6 @@ package memory_test
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/BurntSushi/toml"
@@ -82,35 +81,6 @@ func TestExtractResultStructure(t *testing.T) {
 	g.Expect(result.Items[1].Type).To(Equal("learning"))
 }
 
-// TEST: YieldFile struct matches yield protocol schema
-// Traces to: TASK-1 AC-6
-func TestYieldFileStructure(t *testing.T) {
-	g := NewWithT(t)
-
-	yieldData := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[payload]
-artifact = "internal/foo/foo.go"
-
-[context]
-phase = "tdd-red"
-subphase = "complete"
-task = "TASK-5"
-`
-
-	var yieldFile memory.YieldFile
-	err := toml.Unmarshal([]byte(yieldData), &yieldFile)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	g.Expect(yieldFile.Yield.Type).To(Equal("complete"))
-	g.Expect(yieldFile.Yield.Timestamp).ToNot(BeEmpty())
-	g.Expect(yieldFile.Context.Phase).To(Equal("tdd-red"))
-	g.Expect(yieldFile.Context.Task).To(Equal("TASK-5"))
-}
-
 // TEST: ResultFile struct matches result protocol schema
 // Traces to: TASK-1 AC-6
 func TestResultFileStructure(t *testing.T) {
@@ -141,49 +111,6 @@ task = "TASK-10"
 	g.Expect(resultFile.Decisions[0].Context).To(Equal("Error handling strategy"))
 	g.Expect(resultFile.Decisions[0].Alternatives).To(ContainElement("Sentinel errors"))
 	g.Expect(resultFile.Context.Phase).To(Equal("design"))
-}
-
-// TEST: Structs use TOML struct tags for validation
-// Traces to: TASK-1 AC-7
-func TestTOMLStructTagsPresent(t *testing.T) {
-	g := NewWithT(t)
-
-	// Test that TOML unmarshaling works with struct tags
-	yieldData := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[context]
-phase = "implementation"
-`
-
-	var yieldFile memory.YieldFile
-	err := toml.Unmarshal([]byte(yieldData), &yieldFile)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify fields mapped correctly via struct tags
-	g.Expect(yieldFile.Yield.Type).To(Equal("complete"))
-	g.Expect(yieldFile.Context.Phase).To(Equal("implementation"))
-}
-
-// TEST: Structs reject invalid TOML due to struct tags
-// Traces to: TASK-1 AC-7
-func TestTOMLStructTagsValidation(t *testing.T) {
-	g := NewWithT(t)
-
-	// Invalid TOML with wrong field type
-	invalidData := `
-[yield]
-type = 123
-timestamp = "2026-02-04T10:30:00Z"
-`
-
-	var yieldFile memory.YieldFile
-	err := toml.Unmarshal([]byte(invalidData), &yieldFile)
-
-	// Should fail because type should be string, not int
-	g.Expect(err).To(HaveOccurred())
 }
 
 // TEST: SchemaValidationError struct includes required fields
@@ -228,82 +155,6 @@ func TestSchemaValidationErrorImplementsError(t *testing.T) {
 // TEST: All types have godoc comments
 // This is a documentation test - verified by reviewing types.go source
 // Traces to: TASK-1 AC-10
-
-// TEST: Unit tests verify struct tags map to TOML fields correctly
-// Traces to: TASK-1 AC-11
-func TestStructTagsMappingToTOML(t *testing.T) {
-	g := NewWithT(t)
-
-	// Create a YieldFile programmatically
-	yieldFile := memory.YieldFile{
-		Yield: memory.YieldSection{
-			Type:      "complete",
-			Timestamp: "2026-02-04T10:30:00Z",
-		},
-		Payload: map[string]interface{}{
-			"artifact": "internal/foo/foo.go",
-		},
-		Context: memory.ContextSection{
-			Phase:    "tdd-red",
-			Subphase: "complete",
-			Task:     "TASK-5",
-		},
-	}
-
-	// Marshal to TOML
-	var buf strings.Builder
-	encoder := toml.NewEncoder(&buf)
-	err := encoder.Encode(yieldFile)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	tomlOutput := buf.String()
-
-	// Verify expected TOML field names appear
-	g.Expect(tomlOutput).To(ContainSubstring("[yield]"))
-	g.Expect(tomlOutput).To(ContainSubstring("type = \"complete\""))
-	g.Expect(tomlOutput).To(ContainSubstring("[context]"))
-	g.Expect(tomlOutput).To(ContainSubstring("phase = \"tdd-red\""))
-
-	// Unmarshal back and verify round-trip
-	var decoded memory.YieldFile
-	err = toml.Unmarshal([]byte(tomlOutput), &decoded)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(decoded.Yield.Type).To(Equal("complete"))
-	g.Expect(decoded.Context.Phase).To(Equal("tdd-red"))
-}
-
-// Property test: YieldFile struct tags handle arbitrary valid TOML
-// Traces to: TASK-1 AC-11
-func TestYieldFileStructTagsProperty(t *testing.T) {
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(t)
-
-		// Generate random valid yield types
-		yieldType := rapid.SampledFrom([]string{
-			"complete", "need-context", "blocked", "error",
-		}).Draw(rt, "yieldType")
-
-		phase := rapid.SampledFrom([]string{
-			"tdd-red", "tdd-green", "design", "implementation",
-		}).Draw(rt, "phase")
-
-		// Create TOML with random valid values
-		tomlData := fmt.Sprintf(`
-[yield]
-type = "%s"
-timestamp = "2026-02-04T10:30:00Z"
-
-[context]
-phase = "%s"
-`, yieldType, phase)
-
-		var yieldFile memory.YieldFile
-		err := toml.Unmarshal([]byte(tomlData), &yieldFile)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(yieldFile.Yield.Type).To(Equal(yieldType))
-		g.Expect(yieldFile.Context.Phase).To(Equal(phase))
-	})
-}
 
 // Property test: ResultFile struct tags handle arbitrary decisions
 // Traces to: TASK-1 AC-11

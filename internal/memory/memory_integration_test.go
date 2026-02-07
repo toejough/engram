@@ -141,73 +141,8 @@ func TestIntegration_DecideThenQueryReturnsDecisionWithAlternatives(t *testing.T
 	g.Expect(found).To(BeTrue(), "query should return content related to error handling decision")
 }
 
-// ============================================================================
-// Extract from yield -> Query integration tests
-// ============================================================================
-
-// TestIntegration_ExtractFromYieldThenQueryReturnsInsights verifies extract yield -> query flow.
-// Traces to: TASK-8 AC "Test: memory extract from yield -> query returns insights"
-func TestIntegration_ExtractFromYieldThenQueryReturnsInsights(t *testing.T) {
-	skipIfShort(t)
-	skipIfWindows(t)
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	modelDir := filepath.Join(tempDir, "models")
-
-	// Step 1: Create a yield file with learnings
-	yieldContent := `
-[yield]
-type = "complete"
-timestamp = "2026-02-04T10:30:00Z"
-
-[payload]
-summary = "Implemented ONNX embedding generation for semantic search"
-findings = ["Model downloads automatically on first use", "384 dimensions work well for semantic similarity"]
-learnings = ["SQLite-vec requires vec0 extension for vector storage", "Mean pooling produces good sentence embeddings"]
-
-[context]
-phase = "tdd-green"
-subphase = "implementation"
-task = "TASK-52"
-`
-	yieldPath := filepath.Join(tempDir, "yield.toml")
-	err := os.WriteFile(yieldPath, []byte(yieldContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Step 2: Extract from yield file
-	extractOpts := memory.ExtractOpts{
-		FilePath:   yieldPath,
-		MemoryRoot: memoryDir,
-		ModelDir:   modelDir,
-	}
-	extractResult, err := extractOpts.Extract()
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(extractResult.ItemsExtracted).To(BeNumerically(">", 0))
-
-	// Step 3: Query for related content
-	queryOpts := memory.QueryOpts{
-		Text:       "vector embeddings semantic search",
-		MemoryRoot: memoryDir,
-		ModelDir:   modelDir,
-	}
-	queryResults, err := memory.Query(queryOpts)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(queryResults.Results).ToNot(BeEmpty())
-
-	// Verify extracted insights appear
-	found := false
-	for _, r := range queryResults.Results {
-		if containsSubstring(r.Content, "embedding") ||
-			containsSubstring(r.Content, "semantic") ||
-			containsSubstring(r.Content, "SQLite-vec") {
-			found = true
-			break
-		}
-	}
-	g.Expect(found).To(BeTrue(), "query should return extracted insights about embeddings")
-}
+// NOTE: Extract from yield functionality removed in ISSUE-116.
+// Extract now only supports result files.
 
 // ============================================================================
 // Extract from result -> Query integration tests

@@ -10,14 +10,12 @@ import (
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 )
 
-// Extract parses a legacy message or result TOML file, extracts decisions and learnings,
+// Extract parses a result TOML file, extracts decisions and learnings,
 // generates embeddings via ONNX, and stores them in SQLite-vec.
 //
-// It automatically detects whether the file is a legacy message or result file based on content.
-// For legacy message files, it extracts summary, findings, and learnings from the payload.
 // For result files, it extracts decisions from the decisions array.
 //
-// The source field is set to "message:{filename}" or "result:{filename}" for traceability.
+// The source field is set to "result:{filename}" for traceability.
 func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 	// Use injected ReadFile or default to os.ReadFile
 	readFile := opts.ReadFile
@@ -31,26 +29,15 @@ func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 		return nil, fmt.Errorf("failed to read file %s: %w", opts.FilePath, err)
 	}
 
-	// Determine file type and parse accordingly
-	var items []ExtractedItem
-	var fileType string
-
-	// Try parsing as legacy message file first
-	yieldFile, yieldErr := ParseYieldFile(data)
-	if yieldErr == nil {
-		fileType = "message"
-		items = extractFromYield(yieldFile)
-	} else {
-		// Try parsing as result file
-		resultFile, resultErr := ParseResultFile(data)
-		if resultErr == nil {
-			fileType = "result"
-			items = extractFromResult(resultFile)
-		} else {
-			// Both failed, return the first error with context
-			return nil, fmt.Errorf("failed to parse file %s: %w", opts.FilePath, yieldErr)
-		}
+	// Parse as result file
+	resultFile, err := ParseResultFile(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse file %s: %w", opts.FilePath, err)
 	}
+
+	// Extract items from result file
+	items := extractFromResult(resultFile)
+	fileType := "result"
 
 	// Set source field for all items
 	filename := filepath.Base(opts.FilePath)
@@ -82,52 +69,6 @@ func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 	}, nil
 }
 
-// extractFromYield extracts items from a yield file's payload.
-// It looks for summary, findings, and learnings fields.
-func extractFromYield(yf *YieldFile) []ExtractedItem {
-	var items []ExtractedItem
-
-	// Build context string from the context section
-	contextStr := buildContextString(yf.Context)
-
-	// Extract summary
-	if summary, ok := yf.Payload["summary"].(string); ok && summary != "" {
-		items = append(items, ExtractedItem{
-			Type:    "summary",
-			Context: contextStr,
-			Content: summary,
-		})
-	}
-
-	// Extract findings (array of strings)
-	if findings, ok := yf.Payload["findings"].([]interface{}); ok {
-		for _, f := range findings {
-			if finding, ok := f.(string); ok && finding != "" {
-				items = append(items, ExtractedItem{
-					Type:    "finding",
-					Context: contextStr,
-					Content: finding,
-				})
-			}
-		}
-	}
-
-	// Extract learnings (array of strings)
-	if learnings, ok := yf.Payload["learnings"].([]interface{}); ok {
-		for _, l := range learnings {
-			if learning, ok := l.(string); ok && learning != "" {
-				items = append(items, ExtractedItem{
-					Type:    "learning",
-					Context: contextStr,
-					Content: learning,
-				})
-			}
-		}
-	}
-
-	return items
-}
-
 // extractFromResult extracts decisions from a result file.
 func extractFromResult(rf *ResultFile) []ExtractedItem {
 	var items []ExtractedItem
@@ -149,21 +90,6 @@ func extractFromResult(rf *ResultFile) []ExtractedItem {
 	}
 
 	return items
-}
-
-// buildContextString creates a readable context string from the context section.
-func buildContextString(ctx ContextSection) string {
-	var parts []string
-	if ctx.Phase != "" {
-		parts = append(parts, ctx.Phase)
-	}
-	if ctx.Subphase != "" {
-		parts = append(parts, ctx.Subphase)
-	}
-	if ctx.Task != "" {
-		parts = append(parts, ctx.Task)
-	}
-	return strings.Join(parts, "/")
 }
 
 // storeExtractedItems stores extracted items in the SQLite-vec database using embeddings.
