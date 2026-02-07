@@ -4296,6 +4296,10 @@ The PhaseRegistry in internal/step/registry.go hardcodes ProducerModel/QAModel v
 
 ---
 
+
+### Comment
+
+Clarification: fix is to remove model: from all SKILL.md front matter. Registry is and should remain the single source of truth. No code reads front matter model field.
 ### ISSUE-138: Add plan mode as front door to project orchestration
 
 **Priority:** High
@@ -4357,3 +4361,34 @@ Three related gaps in projctl integrate:
 3. **Merge() path mismatch**: `Merge()` expects `docs/projects/<name>/` but actual project artifacts live in `.claude/projects/issue-NNN/`. Either fix the path or document the expected artifact copy step.
 
 ID numbering restarting from 1 per project is fine by design — renumbering on conflict at integration time is the intended behavior.
+
+---
+
+### ISSUE-140: State machine step next doesn't include current_task in context or prompt
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-07
+
+step.Next() reads s.Project.Phase but never reads s.Progress.CurrentTask. The StepContext struct has Issue, PriorArtifacts, QAFeedback, ProducerTranscript but no task field. buildPrompt() also doesn't include task context.
+
+Result: TDD producers get spawned without knowing which specific task (TASK-1 through TASK-N) they should work on. They guess.
+
+Fix:
+1. Add Task string field to StepContext (next.go:59)
+2. In Next(), populate ctx.Task = s.Progress.CurrentTask
+3. In buildPrompt(), add "Task: " + ctx.Task section when non-empty
+
+---
+
+### ISSUE-141: Remove commit-producer QA phases and consolidate commit/commit-producer skills
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-07
+
+Two changes:
+
+1. Remove commit-red-qa, commit-green-qa, commit-refactor-qa phases from the state machine. Analysis of 6 runs showed 83% approval rate with only 1 legitimate catch (wrong files staged). The overhead of spawning QA agents for commits is not justified - the one catch case (wrong files staged) can be handled by the commit skill itself via pre-commit validation.
+
+2. Consolidate commit and commit-producer into a single skill. Currently there are two: commit (user-invocable) and commit-producer (spawned by orchestrator). They do the same thing. Keep one.

@@ -7,9 +7,15 @@ user-invocable: true
 
 # Project Orchestrator
 
+## Two-Role Architecture
+
+The project orchestrator uses a two-role split for cost optimization:
+- **Team Lead (Opus)** - Spawns teammates, validates handshakes, coordinates high-level flow
+- **Orchestrator Teammate (Haiku)** - Runs the mechanical step loop, manages state persistence
+
 ## Team Lead Mode
 
-**You are a TEAM LEAD in delegate mode.** You coordinate teammates but never edit files directly.
+**You are a TEAM LEAD in delegate mode.** You coordinate teammates but the team lead never edits files directly.
 
 | DO NOT | DO |
 |--------|-----|
@@ -18,19 +24,37 @@ user-invocable: true
 | Forget where you are | Check `projctl step next` frequently |
 | Relay user questions | Teammates use `AskUserQuestion` directly |
 
+**Prohibited actions:** Do not write or edit files directly. All file operations must be delegated to teammates.
+
 **Your job:** Create team, run the step loop, spawn teammates, receive results, report completions.
 
 Every action is driven by `projctl step next`. If you catch yourself writing files directly, STOP and spawn a teammate instead.
+
+### Spawn Request Protocol
+
+When the orchestrator teammate sends a spawn request via SendMessage:
+- The message contains `task_params` JSON with all spawn parameters (subagent_type, name, model, prompt, team_name)
+- You extract task_params and call Task tool to spawn the requested teammate
+- After validating the model handshake, send spawn confirmation back to orchestrator
 
 ---
 
 ## Startup
 
+On `/project` invocation, the team lead spawns an orchestrator teammate with model="haiku":
+
 ```
 1. TeamCreate(team_name: "<project-name>", description: "Project orchestrator team")
-2. projctl state init --name "<project-name>" --issue ISSUE-NNN
-3. projctl state set --workflow <new|task|adopt|align>
-4. Enter the step-driven control loop
+2. Task tool to spawn orchestrator teammate (model: haiku, name: "orchestrator")
+3. Team lead enters idle state, waiting for orchestrator messages
+```
+
+The orchestrator teammate then initializes and runs the step loop:
+
+```
+1. projctl state init --name "<project-name>" --issue ISSUE-NNN
+2. projctl state set --workflow <new|task|adopt|align>
+3. Enter the step-driven control loop
 ```
 
 ## Shutdown
@@ -122,7 +146,7 @@ Task(subagent_type: result.task_params.subagent_type,
 **Model validation handshake:** After spawning, read the teammate's first message and verify the model:
 
 1. Perform case-insensitive substring match of `result.expected_model` against the teammate's first message
-2. **Match:** Proceed with the teammate's work. On completion, report:
+2. **Match:** Send spawn confirmation message to orchestrator, then proceed with the teammate's work. On completion, report:
    ```
    projctl step complete --dir . --action spawn-producer --status done
    ```
@@ -144,7 +168,7 @@ Task(subagent_type: result.task_params.subagent_type,
 
 **Model validation handshake:** Same as spawn-producer — verify `expected_model` against the teammate's first message before proceeding.
 
-- **Match:** Let QA run. Handle the QA verdict:
+- **Match:** Send spawn confirmation message to orchestrator, then let QA run. Handle the QA verdict:
   - "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
   - "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
   - "escalate-user": Present to user
@@ -295,7 +319,7 @@ verdict = "improvement-request"
 feedback = "Missing test for edge case X"
 ```
 
-The orchestrator reads this via `step next` and writes updates via `step complete`. The orchestrator itself stores NO iteration state internally.
+The orchestrator owns state persistence via `projctl state` commands. The orchestrator reads state via `step next` and writes updates via `step complete`. The orchestrator itself stores NO iteration state internally.
 
 ---
 
