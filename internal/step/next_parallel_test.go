@@ -3,13 +3,16 @@ package step_test
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/projctl/internal/state"
 	"github.com/toejough/projctl/internal/step"
 	"github.com/toejough/projctl/internal/task"
+	"github.com/toejough/projctl/internal/worktree"
 	"pgregory.net/rapid"
 )
 
@@ -397,13 +400,14 @@ func TestStatus_TASK4(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		// Create mock worktree
+		// Initialize git repo and create worktree
+		initGitRepo(t, dir)
 		createProjectWithTasks(t, dir, []taskSpec{
 			{id: "TASK-1", status: "pending", deps: nil},
 		})
 
-		// TODO: Create actual worktree for TASK-1
-		// This test will fail until worktree is created
+		// Create actual worktree for TASK-1
+		createWorktreeForTask(t, dir, "TASK-1")
 
 		result, err := step.Status(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -733,13 +737,61 @@ func updateTaskStatus(t *testing.T, dir string, taskID string, newStatus string)
 		t.Fatalf("failed to read tasks.md: %v", err)
 	}
 
-	// Update status (simple string replacement)
-	// This is a simplified helper - real implementation would parse and update properly
-	updated := string(content)
-	// For now, just mark this as a TODO for the implementation phase
+	// Find and update the status line for the specific task
+	// Pattern: **Status:** pending -> **Status:** complete
+	lines := strings.Split(string(content), "\n")
+	inTask := false
+	for i, line := range lines {
+		// Check if we're in the target task section
+		if strings.HasPrefix(line, "### "+taskID+":") {
+			inTask = true
+			continue
+		}
+		// Check if we've moved to a new task section
+		if inTask && strings.HasPrefix(line, "### ") && !strings.HasPrefix(line, "### "+taskID+":") {
+			inTask = false
+			continue
+		}
+		// Update the status line if we're in the target task
+		if inTask && strings.HasPrefix(line, "**Status:**") {
+			lines[i] = "**Status:** " + newStatus
+			break
+		}
+	}
 
+	updated := strings.Join(lines, "\n")
 	err = os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(updated), 0644)
 	if err != nil {
 		t.Fatalf("failed to update tasks.md: %v", err)
 	}
+}
+
+func initGitRepo(t *testing.T, dir string) {
+	t.Helper()
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to init git repo: %v", err)
+	}
+
+	// Create initial commit (required for worktrees)
+	cmd = exec.Command("git", "commit", "--allow-empty", "-m", "Initial commit")
+	cmd.Dir = dir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("failed to create initial commit: %v", err)
+	}
+}
+
+func createWorktreeForTask(t *testing.T, dir string, taskID string) string {
+	t.Helper()
+
+	mgr := worktree.NewManager(dir)
+	wtPath, err := mgr.Create(taskID)
+	if err != nil {
+		t.Fatalf("failed to create worktree for %s: %v", taskID, err)
+	}
+
+	return wtPath
 }

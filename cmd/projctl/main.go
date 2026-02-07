@@ -125,6 +125,7 @@ func main() {
 		targ.Group("step",
 			targ.Targ(stepNext).Name("next").Description("Get the next orchestration action as structured JSON"),
 			targ.Targ(stepComplete).Name("complete").Description("Record step result and advance sub-phase"),
+			targ.Targ(stepStatus).Name("status").Description("Show status of all tasks (active, completed, blocked)"),
 		),
 	)
 }

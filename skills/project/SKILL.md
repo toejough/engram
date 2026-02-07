@@ -345,9 +345,8 @@ Controls parallel task execution within the implementation phase:
 1. Create/Recreate Queue (items by dependencies, impact, simplicity)
 2. Identify next batch:
    - `TaskList` to find all unblocked tasks
-   - Check file overlap (via task AC or `projctl tasks overlap`)
-   - Single item or file overlap: sequential execution
-   - N independent items, no overlap: spawn N teammates (parallel)
+   - Single item: sequential execution
+   - N independent items: spawn N teammates (parallel)
 3. Execute batch
 4. Re-evaluate queue (dependencies may have resolved)
 5. Repeat until queue empty or entirely blocked

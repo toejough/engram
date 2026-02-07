@@ -55,3 +55,23 @@ func stepComplete(args stepCompleteArgs) error {
 
 	return nil
 }
+
+type stepStatusArgs struct {
+	Dir string `targ:"flag,short=d,required,desc=Project directory"`
+}
+
+func stepStatus(args stepStatusArgs) error {
+	result, err := step.Status(args.Dir)
+	if err != nil {
+		return err
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode result: %w", err)
+	}
+
+	fmt.Println(string(data))
+
+	return nil
+}

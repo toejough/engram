@@ -20,7 +20,12 @@ func NewManager(repoDir string) *Manager {
 	if err != nil {
 		absPath = repoDir
 	}
-	return &Manager{repoDir: absPath}
+	// Resolve symlinks to get canonical path (important on macOS where /var -> /private/var)
+	canonicalPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		canonicalPath = absPath
+	}
+	return &Manager{repoDir: canonicalPath}
 }
 
 // RepoDir returns the repository directory.

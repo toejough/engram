@@ -184,3 +184,20 @@ func (g *DependencyGraph) dfs(task string, visited, inStack map[string]bool, pat
 	inStack[task] = false
 	return false
 }
+
+// DetectOverlap is a stub function for TASK-5 tests.
+// File overlap detection has been removed per ARCH-5.
+// This function always returns an error indicating it's not implemented.
+// Traces to: TASK-5, ARCH-5, DES-7, REQ-4
+func DetectOverlap(dir string) error {
+	return &NotImplementedError{Message: "file overlap detection not implemented - conflicts handled by git rebase/merge"}
+}
+
+// NotImplementedError indicates a feature is not implemented.
+type NotImplementedError struct {
+	Message string
+}
+
+func (e *NotImplementedError) Error() string {
+	return e.Message
+}

@@ -1950,13 +1950,12 @@ Won't do - rejected premise. Parallel work in branches handles file overlap via 
 
 **Problem:** parallel-worktree-strategy project proved the worktree-based parallel execution works, but learned several lessons that should be documented:
 - Merge-on-complete pattern (not batch merge at end)
-- File overlap detection before parallelizing
 - Agents need base branch awareness
 - Task assignment considerations
 
 **Solution:** Add documentation covering:
 1. When to use parallel execution vs sequential
-2. How to identify parallelizable tasks (independent, no file overlap)
+2. How to identify parallelizable tasks (independent tasks)
 3. The worktree workflow (create → work → merge → cleanup)
 4. Merge-on-complete pattern and rationale
 5. Handling merge conflicts from parallel work
@@ -4016,13 +4015,12 @@ Context: Part of ISSUE-92 per-phase QA implementation.
 **Status:** Open
 **Created:** 2026-02-06
 
-Currently the orchestrator must manually implement the Looper Pattern (check unblocked tasks, file overlap, spawn parallel agents with worktrees). This should be built into projctl step next so it can return batch actions for parallel execution instead of only single sequential steps.
+Currently the orchestrator must manually implement the Looper Pattern (check unblocked tasks, spawn parallel agents with worktrees). This should be built into projctl step next so it can return batch actions for parallel execution instead of only single sequential steps.
 
 Scope:
 - projctl step next returns parallel batch when independent tasks exist
-- File overlap detection built into projctl (projctl tasks overlap exists but isn't integrated)
 - Worktree create/merge lifecycle managed by step loop
-- Sequential fallback when tasks share files or have dependencies
+- Sequential fallback when tasks have dependencies
 
 Motivation: ISSUE-105 implementation exposed that the orchestrator runs everything sequentially because projctl step next only returns one action at a time.
 
