@@ -210,7 +210,11 @@ func Next(dir string) (NextResult, error) {
 		}, nil
 
 	case pair.QAVerdict == "improvement-request":
-		// QA requested improvements: re-run producer with feedback
+		// QA requested improvements: check iteration limit first
+		if pair.Iteration >= pair.MaxIterations {
+			return escalateIterationResult(currentPhase, pair.Iteration), nil
+		}
+		// Check spawn attempts
 		if pair.SpawnAttempts >= 3 {
 			return escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels), nil
 		}
@@ -338,6 +342,19 @@ func escalateResult(phase, subPhase, expectedModel string, failedModels []string
 	details := fmt.Sprintf(
 		"spawn failed 3 times for %s %s: expected model '%s', got models: ['%s']",
 		phase, subPhase, expectedModel, strings.Join(failedModels, "', '"),
+	)
+	return NextResult{
+		Action:  "escalate-user",
+		Phase:   phase,
+		Details: details,
+	}
+}
+
+// escalateIterationResult builds a NextResult for max iteration escalation.
+func escalateIterationResult(phase string, iterations int) NextResult {
+	details := fmt.Sprintf(
+		"max iterations (%d) exceeded for phase %s",
+		iterations, phase,
 	)
 	return NextResult{
 		Action:  "escalate-user",
