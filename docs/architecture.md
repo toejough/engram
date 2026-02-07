@@ -1282,3 +1282,603 @@ NEW: tdd-red → tdd-red-qa → commit-red → commit-red-qa →
 | ARCH-040 | ISSUE-92 |
 | ARCH-041 | ISSUE-92 |
 
+---
+
+## ISSUE-104: Orchestrator as Haiku Teammate Architecture
+
+Technical architecture for splitting the orchestrator into a team lead (opus) and orchestrator teammate (haiku) to reduce cost by using the cheapest model for mechanical step loop work.
+
+---
+
+### ARCH-042: Two-Role Split
+
+Split the orchestrator into two distinct roles with clear separation of responsibilities.
+
+**Role 1: Team Lead (Opus)**
+- Owns the team via TeamCreate/TeamDelete
+- Spawns teammates using Task tool
+- Receives and relays messages between orchestrator and user
+- Performs model handshake validation after spawning
+- Runs end-of-command sequence after project completion
+- **Never edits files or produces artifacts directly**
+
+**Role 2: Orchestrator Teammate (Haiku)**
+- Runs the `projctl step next` → dispatch → `projctl step complete` loop
+- Manages project state via `projctl state` commands
+- Sends spawn requests to team lead (cannot spawn directly)
+- Sends shutdown requests to team lead when complete
+- Tracks iteration counts and pair loop state
+- Handles error recovery with retry-backoff logic
+
+**Handoff protocol:**
+```
+User invokes /project
+→ Team lead: TeamCreate, spawn orchestrator teammate with project name/issue
+→ Orchestrator: Takes over, runs step loop until completion
+→ Orchestrator: Sends "all-complete" message to team lead
+→ Team lead: Runs end-of-command sequence, TeamDelete
+```
+
+**Rationale:**
+- Haiku ($0.001/1K tokens input) is 30x cheaper than Opus ($0.03/1K tokens input) for mechanical work
+- Step loop is deterministic JSON parsing and routing - doesn't require Opus reasoning
+- Opus context preserved for user interaction and high-level decisions
+- Clear responsibility boundaries prevent role confusion
+
+**Alternatives considered:**
+- Keep orchestrator in main conversation: Wastes Opus on mechanical work, current state
+- Use Sonnet for orchestrator: Still 10x more expensive than Haiku for no added value
+- Non-LLM orchestrator (ISSUE-1): Long-term goal, but requires external API integration
+
+**Traces to:** REQ-016, ISSUE-104
+
+---
+
+### ARCH-043: Spawn Request Protocol
+
+Orchestrator sends structured spawn requests to team lead when `projctl step next` returns `spawn-producer` or `spawn-qa`.
+
+**Message format (via SendMessage):**
+
+```json
+{
+  "type": "message",
+  "recipient": "team-lead",
+  "content": "spawn-request: pm-interview-producer",
+  "summary": "Spawn teammate",
+  "spawn_request": {
+    "task_params": {
+      "subagent_type": "code",
+      "name": "pm-interview-producer",
+      "model": "sonnet",
+      "prompt": "First, respond with your model name...\n\nThen invoke /pm-interview-producer.\n\nIssue: ISSUE-104"
+    },
+    "expected_model": "sonnet",
+    "action": "spawn-producer",
+    "phase": "pm"
+  }
+}
+```
+
+**Team lead processing:**
+
+1. Receives spawn request message
+2. Extracts `task_params` from message
+3. Calls `Task(subagent_type, name, model, prompt)` with extracted params
+4. Validates model handshake (first teammate message contains expected_model substring, case-insensitive)
+5. On handshake success: Sends confirmation to orchestrator
+6. On handshake failure: Calls `projctl step complete --status failed --reported-model "<model>"`, sends failure message to orchestrator
+
+**Confirmation message format:**
+
+```
+spawn-confirmed: pm-interview-producer
+
+Teammate spawned successfully with correct model (sonnet).
+Ready to receive work.
+```
+
+**Rationale:**
+- Orchestrator cannot call Task tool directly (doesn't own the team)
+- Team lead already has Task tool and team ownership
+- Structured message format ensures all params are transmitted correctly
+- Model handshake catches spawn failures early (before work begins)
+
+**Alternatives considered:**
+- Orchestrator spawns directly: Violates team ownership model
+- Plain text spawn requests: Requires parsing, error-prone
+- Team lead reads state file for spawn params: Couples implementation to filesystem
+
+**Traces to:** REQ-017, REQ-021, ISSUE-104
+
+---
+
+### ARCH-044: Shutdown Request Protocol
+
+Orchestrator sends shutdown request when `projctl step next` returns `all-complete`.
+
+**Message format (via SendMessage):**
+
+```
+all-complete
+
+Project completed successfully. Ready to shut down.
+
+Summary:
+- Requirements: REQ-001 through REQ-008 created
+- Architecture: ARCH-001 through ARCH-004 created
+- Design: DES-001 through DES-012 created
+- Tasks: TASK-001 through TASK-015 completed
+- All commits pushed
+```
+
+**Team lead processing:**
+
+1. Receives all-complete message
+2. Runs end-of-command sequence:
+   - Display summary to user
+   - Offer next steps (retro, summary, issue updates)
+3. Sends `shutdown_request` to all active teammates (including orchestrator)
+4. Waits for shutdown confirmations
+5. Calls `TeamDelete()`
+6. Reports completion to user
+
+**Graceful shutdown flow:**
+```
+Orchestrator: "all-complete" →
+Team lead: shutdown_request to all teammates →
+Teammates: shutdown_response(approve=true) →
+Team lead: TeamDelete() →
+User sees: "Project complete"
+```
+
+**Rationale:**
+- Team lead owns team lifecycle, must trigger TeamDelete
+- Orchestrator reports completion but doesn't shut down unilaterally
+- End-of-command sequence (retro prompt, summary offer) requires user interaction, belongs in team lead
+- Graceful shutdown ensures no orphaned teammates
+
+**Alternatives considered:**
+- Orchestrator calls TeamDelete directly: Violates ownership (orchestrator doesn't own team)
+- Auto-shutdown without confirmation: Could terminate active work
+- No end-of-command sequence: Misses opportunity for retro/summary
+
+**Traces to:** REQ-018, ISSUE-104
+
+---
+
+### ARCH-045: State Persistence Ownership
+
+Orchestrator teammate owns state persistence; team lead never touches state files.
+
+**Orchestrator responsibilities:**
+- Call `projctl state init` on first run
+- Call `projctl state set --workflow <type>` after workflow classification
+- Call `projctl state set` after each `projctl step complete` to persist progress
+- State includes: current phase, sub-phase, workflow type, active issue, pair loop iteration
+
+**Team lead responsibilities:**
+- None - team lead does not read or write state files
+- Team lead receives state updates implicitly through orchestrator messages
+
+**State file location:** `.claude/projects/<project-name>/state.toml`
+
+**Resumption support:**
+- If orchestrator crashes/terminates mid-session, team lead can respawn orchestrator
+- Respawned orchestrator reads state via `projctl state get` and resumes from last saved phase
+- No state is lost as long as `projctl step complete` was called before termination
+
+**Rationale:**
+- Orchestrator runs the step loop, so it owns state transitions
+- Keeping state management in one place (orchestrator) eliminates sync issues
+- Team lead doesn't need state file access - it coordinates via messages
+- Aligns with REQ-022 (state persisted after each step)
+
+**Alternatives considered:**
+- Team lead manages state: Adds coordination overhead, orchestrator must send updates
+- Shared state management: Risk of conflicting writes
+- No state persistence: Cannot resume after crashes
+
+**Traces to:** REQ-016, REQ-020, REQ-022, ISSUE-104
+
+---
+
+### ARCH-046: Error Handling with Retry-Backoff
+
+Orchestrator implements automatic retry with exponential backoff before escalating errors to team lead.
+
+**Retry logic:**
+
+```
+max_retries = 3
+backoff_delays = [1s, 2s, 4s]
+
+function executeStepWithRetry(action):
+  for attempt in 1..max_retries:
+    result = executeStep(action)
+    if result.success:
+      return result
+    else:
+      log("Attempt {attempt} failed: {result.error}")
+      if attempt < max_retries:
+        sleep(backoff_delays[attempt - 1])
+      else:
+        escalateToTeamLead(result.error)
+```
+
+**Errors that trigger retry:**
+- `projctl step next` command fails (exit code != 0)
+- `projctl step complete` command fails
+- Spawn confirmation timeout (teammate doesn't respond within reasonable time)
+- JSON parse errors from step next output
+
+**Errors that skip retry (immediate escalation):**
+- User cancellation signals
+- State file corruption (invalid TOML)
+- Team lead shutdown request
+
+**Escalation message format:**
+
+```
+error: step execution failed after 3 attempts
+
+Action: spawn-producer
+Phase: pm
+Error: projctl step next exited with code 1
+
+Output:
+<command output>
+
+Please investigate and provide guidance.
+```
+
+**Rationale:**
+- Transient errors (network hiccups, filesystem delays) often resolve on retry
+- Exponential backoff prevents hammering failing resources
+- Max 3 retries balances recovery chance vs. time wasted
+- Escalation to team lead (and thus user) for persistent errors
+
+**Alternatives considered:**
+- No retry: Fails immediately on transient errors, requires manual restart
+- Infinite retry: Could loop forever on persistent errors
+- Team lead retries: Pushes retry logic to wrong layer
+
+**Traces to:** REQ-019, REQ-023, ISSUE-104
+
+---
+
+### ARCH-047: Orchestrator Model Selection
+
+Orchestrator teammate always uses Haiku model for step loop execution.
+
+**Frontmatter in project SKILL.md:**
+
+```yaml
+---
+name: project
+description: State-machine-driven project orchestrator (team lead)
+model: haiku
+user-invocable: true
+---
+```
+
+**Note:** The `model: haiku` metadata in SKILL.md frontmatter does NOT change the model when the skill is loaded in the main conversation. This metadata is advisory only. To actually run haiku, the orchestrator must be spawned as a teammate via Task tool.
+
+**Team lead spawn call:**
+
+```
+Task(
+  subagent_type: "code",
+  name: "orchestrator",
+  model: "haiku",
+  prompt: "You are the orchestrator teammate...",
+  team_name: "<project-name>"
+)
+```
+
+**Model handshake validation:**
+After spawning orchestrator, team lead reads first message and verifies it contains "haiku" (case-insensitive substring match).
+
+**Cost comparison per 10K tokens:**
+- Opus: $0.30 input
+- Sonnet: $0.10 input
+- Haiku: $0.01 input
+
+**Orchestrator workload estimate:**
+- Typical project: 50-100 step loop iterations
+- Each iteration: ~500 tokens (read JSON, parse, route, call tools)
+- Total: 25K-50K tokens per project
+
+**Cost savings:**
+- Opus: $0.75-$1.50 per project
+- Haiku: $0.025-$0.05 per project
+- **Savings: 30x reduction (96.7% cheaper)**
+
+**Rationale:**
+- Step loop is mechanical: JSON parsing, routing, tool calls - no complex reasoning needed
+- Haiku is sufficient for deterministic workflows
+- Opus reserved for user-facing decisions and complex problem solving
+- Cost optimization aligns with REQ-001 ("cheapest agents + smallest context possible")
+
+**Alternatives considered:**
+- Sonnet for orchestrator: Still 10x more expensive, no added value
+- Opus for orchestrator: Current wasteful state, 30x too expensive
+
+**Traces to:** REQ-016, ARCH-003, ISSUE-104
+
+---
+
+### ARCH-048: Team Lead Spawn Orchestrator on /project
+
+Team lead spawns orchestrator teammate immediately after TeamCreate on `/project` invocation.
+
+**Startup sequence:**
+
+```
+User: /project <project-name> ISSUE-NNN
+
+Team lead (opus):
+  1. TeamCreate(team_name: "<project-name>", description: "...")
+  2. Task(
+       subagent_type: "code",
+       name: "orchestrator",
+       model: "haiku",
+       prompt: "You are the orchestrator teammate for project <project-name>.\n\n
+                Run the step-driven control loop as documented in project SKILL.md.\n\n
+                Project: <project-name>\n
+                Issue: ISSUE-NNN\n\n
+                Start by calling `projctl state init` and entering the step loop.",
+       team_name: "<project-name>"
+     )
+  3. Validate model handshake (orchestrator's first message contains "haiku")
+  4. Wait for messages from orchestrator (spawn requests, completion, errors)
+```
+
+**Orchestrator startup actions:**
+
+```
+Orchestrator (haiku):
+  1. projctl state init --name "<project-name>" --issue ISSUE-NNN
+  2. projctl state set --workflow <new|task|adopt|align>
+  3. Enter step loop:
+     loop:
+       result = projctl step next
+       handle(result.action)
+       projctl step complete
+```
+
+**Team lead idle state:**
+After spawning orchestrator, team lead enters idle state waiting for messages. Team lead does NOT poll or check in - orchestrator drives all work.
+
+**Rationale:**
+- Clean separation: team lead spawns, orchestrator executes
+- Orchestrator takes over immediately after spawn confirmation
+- Team lead remains responsive to user questions while orchestrator works
+- Aligns with REQ-016 (split roles from startup)
+
+**Alternatives considered:**
+- Team lead runs first few steps: Blurs role boundaries
+- Orchestrator waits for explicit "start" signal: Adds unnecessary coordination round-trip
+- No model handshake: Risk of wrong model running orchestrator
+
+**Traces to:** REQ-016, REQ-017, ISSUE-104
+
+---
+
+### ARCH-049: Resumption After Orchestrator Termination
+
+Team lead can respawn orchestrator teammate after unexpected termination without losing progress.
+
+**Resumption trigger scenarios:**
+- Orchestrator crashed (unhandled exception, OOM)
+- User manually terminated orchestrator agent
+- Network/API timeout killed orchestrator session
+- Context limit hit (unlikely with haiku + short step loop)
+
+**Resumption flow:**
+
+```
+Team lead detects orchestrator gone:
+  1. Check if project state exists (.claude/projects/<name>/state.toml)
+  2. If state exists:
+     - Respawn orchestrator with same spawn params
+     - Orchestrator reads state via `projctl state get`
+     - Orchestrator resumes from last saved phase
+  3. If state missing:
+     - Report to user: "Cannot resume - no state file"
+     - Offer to start new project
+```
+
+**Orchestrator resumption logic:**
+
+```
+On startup:
+  state = projctl state get --format json
+  if state.phase != "":
+    log("Resuming from phase: {state.phase}")
+    # Skip init, go straight to step loop
+    enterStepLoop()
+  else:
+    log("No prior state, starting fresh")
+    projctl state init
+    projctl state set --workflow <type>
+    enterStepLoop()
+```
+
+**State persistence guarantees:**
+- State saved after every `projctl step complete` call
+- Atomic write (temp file + rename)
+- No partial state (write succeeds or fails completely)
+
+**Work not lost:**
+- Completed phases and their artifacts (docs/requirements.md, etc.)
+- Completed commits (git history persists)
+- Pair loop iteration counts and QA feedback
+
+**Work that may repeat:**
+- Current in-progress phase (if orchestrator crashed mid-step)
+- Latest step loop iteration (since last `step complete`)
+
+**Rationale:**
+- State file is single source of truth for progress
+- Orchestrator crash doesn't require restarting entire project
+- User doesn't lose multi-hour project work due to transient failure
+- Aligns with REQ-020 (resumption support) and REQ-022 (state persistence)
+
+**Alternatives considered:**
+- No resumption: User must restart project from scratch
+- Team lead tracks state: Duplicates state management, sync issues
+- Checkpoint files: Overcomplicates state management
+
+**Traces to:** REQ-020, REQ-022, ARCH-045, ISSUE-104
+
+---
+
+### ARCH-050: Team Lead Delegation-Only Mode
+
+Team lead never edits files or produces artifacts directly; always delegates to spawned teammates.
+
+**Team lead allowed actions:**
+- TeamCreate / TeamDelete
+- Task (spawn teammates)
+- SendMessage (communicate with teammates)
+- AskUserQuestion (user interaction)
+- Read (read files for context to pass to teammates)
+
+**Team lead prohibited actions:**
+- Write (create files)
+- Edit (modify files)
+- NotebookEdit (modify notebooks)
+- Bash (run git commit, build commands, tests)
+
+**Enforcement:**
+- SKILL.md documents prohibition prominently in "DO NOT" column
+- Team lead self-monitors during execution
+- If team lead catches itself about to Write/Edit, stops and spawns appropriate teammate instead
+
+**Example violation prevention:**
+
+```
+User: "Update requirements.md with REQ-009"
+
+Team lead thinks: "I should edit requirements.md"
+Team lead catches: "Wait, I'm in delegate mode"
+Team lead instead: Spawn pm-interview-producer with context "Add REQ-009 to requirements.md"
+```
+
+**Rationale:**
+- Clear separation of concerns: team lead coordinates, teammates do work
+- Prevents context pollution in team lead (opus) from file content
+- Maintains team lead's availability for user interaction
+- Enforces delegation discipline consistently
+
+**Alternatives considered:**
+- Allow team lead to edit in emergencies: Slippery slope, breaks discipline
+- Soft guideline instead of prohibition: Easy to violate, inconsistent
+
+**Traces to:** REQ-016, ARCH-042, ISSUE-104
+
+---
+
+### ARCH-051: SKILL.md Documentation Updates
+
+Update project SKILL.md to document the two-role split and orchestrator spawn pattern.
+
+**Files to modify:**
+
+1. **skills/project/SKILL.md**
+   - Add "Team Lead Mode" section documenting delegation-only behavior
+   - Add orchestrator spawn sequence to "Startup" section
+   - Update step loop description to clarify team lead receives messages, doesn't run loop
+   - Add spawn request/confirmation protocol documentation
+
+2. **skills/project/SKILL-full.md**
+   - Add detailed orchestrator teammate behavior section
+   - Document state persistence ownership (orchestrator)
+   - Add resumption flow documentation
+   - Add error handling and retry-backoff details
+
+**New sections to add:**
+
+```markdown
+## Two-Role Architecture
+
+The `/project` skill operates in a two-role architecture:
+
+1. **Team Lead (Opus)** - You are here
+   - Owns the team (TeamCreate, TeamDelete)
+   - Spawns teammates including orchestrator
+   - Receives messages from orchestrator
+   - Relays spawn/shutdown requests
+   - Never edits files directly
+
+2. **Orchestrator Teammate (Haiku)** - Spawned by you
+   - Runs the `projctl step next` loop
+   - Manages project state
+   - Sends spawn/shutdown requests to you
+   - Handles retries and error recovery
+
+## Orchestrator Spawn
+
+On `/project` invocation:
+
+1. TeamCreate(...)
+2. Spawn orchestrator teammate:
+   ```
+   Task(subagent_type: "code",
+        name: "orchestrator",
+        model: "haiku",
+        prompt: "Run the step loop for project <name>...",
+        team_name: "<project-name>")
+   ```
+3. Validate model handshake (first message contains "haiku")
+4. Enter idle state, wait for orchestrator messages
+```
+
+**Rationale:**
+- Documentation in SKILL.md serves as prompt for both team lead and orchestrator
+- Clear role boundaries prevent confusion
+- Spawn pattern documented for consistency
+- Aligns with REQ-016 (document two-role split)
+
+**Traces to:** REQ-016, ARCH-042, ARCH-048, ISSUE-104
+
+---
+
+## ISSUE-104 Architecture Summary
+
+| Decision | Choice |
+|----------|--------|
+| Role split | Team lead (opus) + orchestrator teammate (haiku) |
+| Orchestrator model | Haiku (30x cheaper for mechanical work) |
+| Spawn protocol | SendMessage with structured spawn_request JSON |
+| Shutdown protocol | Orchestrator sends "all-complete", team lead handles TeamDelete |
+| State persistence | Orchestrator owns state via projctl commands |
+| Error handling | Retry with exponential backoff (1s, 2s, 4s) before escalation |
+| Resumption | State-file-based, orchestrator reads state on respawn |
+| Team lead mode | Delegation-only, never edits files directly |
+| Spawn timing | Immediate after TeamCreate on /project invocation |
+| Model handshake | Team lead validates first message contains expected model |
+
+**Cost savings:**
+- Current: Opus for entire orchestration loop (~$0.75-$1.50 per project)
+- New: Haiku for step loop (~$0.025-$0.05 per project)
+- **Reduction: 30x (96.7% cost savings)**
+
+**Traceability Matrix:**
+
+| ARCH ID | Traces to |
+|---------|-----------|
+| ARCH-042 | REQ-016, ISSUE-104 |
+| ARCH-043 | REQ-017, REQ-021, ISSUE-104 |
+| ARCH-044 | REQ-018, ISSUE-104 |
+| ARCH-045 | REQ-016, REQ-020, REQ-022, ISSUE-104 |
+| ARCH-046 | REQ-019, REQ-023, ISSUE-104 |
+| ARCH-047 | REQ-016, ARCH-003, ISSUE-104 |
+| ARCH-048 | REQ-016, REQ-017, ISSUE-104 |
+| ARCH-049 | REQ-020, REQ-022, ARCH-045, ISSUE-104 |
+| ARCH-050 | REQ-016, ARCH-042, ISSUE-104 |
+| ARCH-051 | REQ-016, ARCH-042, ARCH-048, ISSUE-104 |
+
+---
+
