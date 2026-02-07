@@ -30,15 +30,7 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
    - design.md (DES-N IDs)
    - architecture.md (ARCH-N IDs)
 
-2. If artifacts missing, yield `need-context`:
-   ```toml
-   [yield]
-   type = "need-context"
-
-   [[payload.queries]]
-   type = "file"
-   path = "docs/architecture.md"
-   ```
+2. If artifacts missing, send context request to team-lead with needed file queries
 
 3. Check for `[query_results]` if resuming
 
@@ -68,7 +60,7 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
    - No cycles (DAG requirement)
    - No prose like "All previous"
 
-5. If blocked, yield `blocked` with details
+5. If blocked, send blocker message to team-lead with details
 
 ---
 
@@ -177,18 +169,18 @@ Task affects `components/Button.tsx` and AC says "button displays loading spinne
 
 ---
 
-## Yield Types Used
+## Communication
 
-| Type | When |
-|------|------|
-| `complete` | tasks.md created with all TASK-N IDs |
-| `need-context` | Need architecture/requirements files |
-| `blocked` | Cannot decompose (missing info, conflicts) |
-| `error` | Parse failure, invalid input |
+When to use different communication methods:
+
+| Scenario | Tool |
+|----------|------|
+| tasks.md created with all TASK-N IDs | Send completion message to team-lead |
+| Need architecture/requirements files | Send context request to team-lead |
+| Cannot decompose (missing info, conflicts) | Send blocker message to team-lead |
+| Parse failure, invalid input | Send error message to team-lead |
 
 ---
-
-## Communication
 
 ### Team Mode (preferred)
 

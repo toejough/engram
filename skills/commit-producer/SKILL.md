@@ -35,7 +35,7 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 1. Determine which files to stage based on phase
 2. Validate no secrets in staged files
 3. Draft commit message following conventional commits format
-4. If blocked (e.g., no changes to commit), yield `blocked`
+4. If blocked (e.g., no changes to commit), send blocker message to team-lead
 5. Prepare git commands
 
 ### PRODUCE Phase
@@ -43,7 +43,7 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
 1. Stage appropriate files with `git add <files>`
 2. Create commit with message and AI trailer
 3. Verify commit created successfully with `git log -1`
-4. Yield `complete` with commit hash and files staged
+4. Send completion message to team-lead with commit hash and files staged
 
 ## Staging Rules by Phase
 
@@ -63,7 +63,7 @@ Before staging, check for:
 - Files containing `API_KEY=`, `SECRET=`, `PASSWORD=`
 - Private key patterns (`-----BEGIN PRIVATE KEY-----`)
 
-If secrets detected, yield `blocked` with details.
+If secrets detected, send blocker message to team-lead with details.
 
 ## Commit Message Format
 
@@ -138,60 +138,30 @@ git show --stat HEAD
 | NO `--no-verify` flag | Respect pre-commit hooks |
 | NO force commands | Never `--amend` or `--force` |
 
-## Yield Protocol
+## Results Communication
 
-### Complete Yield
+### Completion
 
-When commit succeeds:
+When commit succeeds, send message to team-lead with:
+- Commit hash
+- Files staged
+- Commit message
+- Phase completed
 
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-06T10:30:00Z
+### Blocker
 
-[payload]
-commit_hash = "abc1234"
-files_staged = ["internal/step/registry_test.go", "internal/step/next_test.go"]
-commit_message = "test(issue-92): add failing tests for step registry"
-
-[[payload.decisions]]
-context = "File selection"
-choice = "Staged only test files for commit-red phase"
-reason = "Phase scope enforcement"
-
-[context]
-phase = "commit-red"
-task = "TASK-18"
-subphase = "complete"
-```
-
-### Blocked Yield
-
-When cannot proceed:
-
-```toml
-[yield]
-type = "blocked"
-timestamp = 2026-02-06T10:35:00Z
-
-[payload]
-blocker = "Secrets detected in staged files"
-details = ".env file contains API keys"
-suggested_resolution = "Remove .env from staging, add to .gitignore"
-
-[context]
-phase = "commit-red"
-task = "TASK-18"
-awaiting = "blocker-resolution"
-```
+When cannot proceed, send blocker message with:
+- Blocker description
+- Details
+- Suggested resolution
 
 ## Failure Recovery
 
 | Symptom | Action |
 |---------|--------|
-| No changes to commit | Yield `blocked` - verify phase completed |
-| Secrets detected | Yield `blocked` with file list |
-| Commit fails | Check git status, yield `blocked` with error details |
+| No changes to commit | Send blocker message - verify phase completed |
+| Secrets detected | Send blocker message with file list |
+| Commit fails | Check git status, send blocker message with error details |
 | Pre-commit hook fails | Read hook output, fix issues, retry commit |
 
 ---

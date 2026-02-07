@@ -55,7 +55,7 @@ Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) wi
 2. Execute `projctl memory query` with architecture domain queries (e.g., "technology stack decisions", "system design choices", "technical constraints")
 3. Parse territory and memory results into structured data for coverage assessment
 4. Read context (from spawn prompt in team mode, or context file for requirements.md and design.md paths in legacy mode)
-5. Yield `need-context` if critical files missing
+5. Send context request to team-lead if critical files missing
 6. Extract technical implications from requirements
 7. Identify decision categories (language, framework, database, etc.)
 8. Log context sources used (territory, memory, files) in yield metadata
@@ -63,8 +63,8 @@ Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) wi
 **Avoid asking about** problem discovery (what to build) or user experience design (how users interact). These are inputs from PM and Design phases.
 
 **Error Handling:**
-- Territory map failure → Send blocker to team lead via `SendMessage` or yield `blocked` with diagnostic information (infrastructure problem, cannot proceed safely)
-- Memory query timeout → Continue with available context, note limitation in yield metadata (degraded mode)
+- Territory map failure → Send blocker to team lead via `SendMessage` with diagnostic information (infrastructure problem, cannot proceed safely)
+- Memory query timeout → Continue with available context, note limitation in completion message (degraded mode)
 
 ### ASSESS Phase
 
@@ -74,11 +74,11 @@ After gathering context, assess which key questions are answerable before interv
 
 2. **Execute coverage calculation** - calculate coverage using the CalculateGap function from `internal/interview/gap.go` (TASK-3) with the list of key questions and answered question IDs. The weighted formula applies priority penalties: critical unanswered = -15%, important unanswered = -10%, optional unanswered = -5%. Result includes coverage percentage (0-100), gap size classification (small/medium/large), and list of unanswered questions.
 
-3. **Determine interview depth from gap classification** - classify gap size based on coverage calculation results: ≥80% = small gap (1-2 confirmation questions), 50-79% = medium gap (3-5 questions), <50% = large gap (6+ questions). Edge case: <20% coverage always yields large gap.
+3. **Determine interview depth from gap classification** - classify gap size based on coverage calculation results: ≥80% = small gap (1-2 confirmation questions), 50-79% = medium gap (3-5 questions), <50% = large gap (6+ questions). Edge case: <20% coverage always requires large gap.
 
-4. **Check for contradictory context** - If gathered context contains conflicting information (e.g., territory shows SQLite but memory references PostgreSQL), yield `need-decision` with conflict details for user resolution. Include what conflicts and which sources disagree.
+4. **Check for contradictory context** - If gathered context contains conflicting information (e.g., territory shows SQLite but memory references PostgreSQL), use `AskUserQuestion` with conflict details for user resolution. Include what conflicts and which sources disagree.
 
-5. **Record the assessment metrics** - log assessment results in yield metadata with `[context.gap_analysis]` section including: total key questions (10), answered count, coverage percentage, gap size classification, question count, and unanswered critical items. This provides traceability and observability for debugging interview depth decisions.
+5. **Record the assessment metrics** - log assessment results in completion message with gap analysis section including: total key questions (10), answered count, coverage percentage, gap size classification, question count, and unanswered critical items. This provides traceability and observability for debugging interview depth decisions.
 
 **Proceed to INTERVIEW Phase** with question count determined by gap size.
 
@@ -159,89 +159,20 @@ Each question typically influences 1-3 architecture entries:
 - **Scale Requirements** → ARCH-5 (database choice for volume), ARCH-8 (caching strategy)
 - **Security Model** → ARCH-6 (auth mechanism), ARCH-7 (data encryption)
 
-## Yield Types
+## Communication
 
-| Type | When |
-|------|------|
-| `need-context` | Need requirements.md, design.md, or codebase info |
-| `need-decision` | Contradictory context requires user resolution |
-| `need-user-input` | Interview question for technology decision |
-| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject |
-| `blocked` | Infrastructure failure prevents proceeding |
-| `complete` | architecture.md written |
+When to use different communication methods:
 
-### need-user-input Example
+| Scenario | Tool |
+|----------|------|
+| Need requirements.md, design.md, or codebase info | Send context request to team-lead |
+| Contradictory context requires user resolution | Use `AskUserQuestion` with options |
+| Interview question for technology decision | Use `AskUserQuestion` with options |
+| Present inferred architecture decisions for user accept/reject | Use `AskUserQuestion` with multiSelect |
+| Infrastructure failure prevents proceeding | Send blocker message to team-lead |
+| architecture.md written | Send completion message to team-lead |
 
-```toml
-[yield]
-type = "need-user-input"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-question = "Which language do you prefer for the backend?"
-context = "Based on your requirements for high concurrency and CLI focus"
-options = [
-    { label = "Go", description = "Fast compilation, great stdlib, excellent for CLI" },
-    { label = "Rust", description = "Maximum performance, strict safety guarantees" },
-    { label = "TypeScript/Node", description = "Unified language with frontend, large ecosystem" }
-]
-recommendation = "Go"
-recommendation_reason = "Matches CLI focus, fast builds, stdlib covers most needs"
-
-[context]
-phase = "arch"
-subphase = "GATHER"
-awaiting = "user-response"
-topic = "backend-language"
-sources = ["territory", "memory", "requirements.md"]
-
-[context.gap_analysis]
-total_key_questions = 10
-questions_answered = 7
-coverage_percent = 75.0
-gap_size = "medium"
-question_count = 3
-sources = ["territory", "memory", "requirements.md"]
-unanswered_critical = ["scale-requirements"]
-```
-
-### complete Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T11:30:00Z
-
-[payload]
-artifact = "docs/architecture.md"
-ids_created = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4"]
-files_modified = ["docs/architecture.md"]
-
-[[payload.decisions]]
-context = "Backend language"
-choice = "Go"
-reason = "CLI focus, fast builds, excellent stdlib"
-alternatives = ["Rust", "TypeScript"]
-
-[[payload.decisions]]
-context = "Data storage"
-choice = "SQLite"
-reason = "Embedded, no server needed, sufficient for local data"
-alternatives = ["PostgreSQL", "JSON files"]
-
-[context]
-phase = "arch"
-subphase = "complete"
-sources = ["territory", "memory", "requirements.md", "design.md", "user-interview"]
-
-[context.gap_analysis]
-total_key_questions = 10
-questions_answered = 10
-coverage_percent = 100.0
-gap_size = "small"
-question_count = 0
-sources = ["territory", "memory", "requirements.md", "design.md", "user-interview"]
-```
+---
 
 ## ARCH Entry Format
 
@@ -279,8 +210,8 @@ Go selected for backend implementation.
 | Technical decisions first | Architecture focuses on technology and system design, not problem space |
 | Problem discovery → PM | Do not ask what features are needed or what problems exist |
 | User experience → Design | Do not ask about UI patterns, workflows, or visual elements |
-| Missing requirements/design | Yield `need-context` to request upstream artifacts |
-| Contradictory context | Yield `need-decision` with conflict details |
+| Missing requirements/design | Send context request to team-lead to request upstream artifacts |
+| Contradictory context | Use `AskUserQuestion` with conflict details |
 | Every ARCH-N | Must trace to at least one REQ-N or DES-N |
 | Include rationale | Document why decisions were made and alternatives considered |
 

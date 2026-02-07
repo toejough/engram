@@ -45,32 +45,12 @@ This skill examines code structure, dependencies, and patterns to reverse-engine
 Collect information about code structure:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
-2. Check for `[query_results]` (resuming after need-context, legacy mode)
-3. If code analysis needed, yield `need-context` with queries:
+2. Check for `[query_results]` (resuming after context request, legacy mode)
+3. If code analysis needed, send context request to team-lead with queries:
    - `territory` queries for directory structure
    - `file` queries for go.mod, package.json, Makefile, etc.
    - `semantic` queries for pattern understanding
 4. Proceed to SYNTHESIZE when sufficient information gathered
-
-**Typical need-context queries:**
-
-```toml
-[[payload.queries]]
-type = "territory"
-scope = "all"
-
-[[payload.queries]]
-type = "file"
-path = "go.mod"
-
-[[payload.queries]]
-type = "file"
-path = "package.json"
-
-[[payload.queries]]
-type = "semantic"
-question = "How is dependency injection handled in this codebase?"
-```
 
 ### 2. SYNTHESIZE
 
@@ -103,7 +83,6 @@ Create architecture.md artifact:
    - ARCH IDs created
    - Files modified
    - Key decisions made
-5. In legacy mode, yield `complete` with artifact details
 
 ## Input
 
@@ -138,16 +117,18 @@ Uses Mage for build automation with targets defined in dev/.
 **Traces to:** DES-003
 ```
 
-## Yield Types
+## Communication
 
-| Yield | When | Payload |
-|-------|------|---------|
-| `need-context` | Need code structure analysis | `queries[]` with territory/file/semantic |
-| `need-user-input` (inferred) | Present inferred architecture decisions for user accept/reject | `inferred = true`, `items[]` |
-| `need-decision` | Ambiguous architecture choice | Options with recommendation |
-| `complete` | architecture.md created | `artifact`, `ids_created[]` |
-| `blocked` | Cannot analyze (e.g., binary-only) | Blocker details |
-| `error` | Parse/access failure | Error details, recoverable flag |
+When to use different communication methods:
+
+| Scenario | Tool |
+|----------|------|
+| Need code structure analysis | Send context request to team-lead |
+| Present inferred architecture decisions for user accept/reject | Use `AskUserQuestion` with multiSelect |
+| Ambiguous architecture choice | Use `AskUserQuestion` with options |
+| architecture.md created | Send completion message to team-lead |
+| Cannot analyze (e.g., binary-only) | Send blocker message to team-lead |
+| Parse/access failure | Send error message to team-lead |
 
 ## ARCH ID Format
 
@@ -178,28 +159,6 @@ Description of the architecture decision with rationale.
 | `update` | Add new decisions, preserve existing ARCH IDs |
 | `augment` | Add ARCH-N IDs to existing content |
 | `normalize` | Fix format, header levels, traceability |
-
-## Complete Yield Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-artifact = "docs/architecture.md"
-ids_created = ["ARCH-001", "ARCH-002", "ARCH-003"]
-files_modified = ["docs/architecture.md"]
-
-[[payload.decisions]]
-context = "Module organization"
-choice = "internal/ for private packages"
-reason = "Go standard layout for encapsulation"
-
-[context]
-phase = "arch"
-subphase = "complete"
-```
 
 ---
 

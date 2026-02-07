@@ -13,8 +13,6 @@ phase: alignment
 
 Validates the traceability chain (REQ -> DES -> ARCH -> TASK) across all project artifacts.
 
-## Yield Protocol
-
 ## Workflow: GATHER -> SYNTHESIZE -> PRODUCE
 
 This skill follows the PRODUCER-TEMPLATE pattern.
@@ -24,41 +22,12 @@ This skill follows the PRODUCER-TEMPLATE pattern.
 Collect all artifact files for validation:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode) for project directory
-2. If missing artifacts, yield `need-context` with queries for:
+2. If missing artifacts, send context request to team-lead with queries for:
    - `docs/requirements.md` (REQ-NNN IDs)
    - `docs/design.md` (DES-NNN IDs with `**Traces to:**`)
    - `docs/architecture.md` (ARCH-NNN IDs with `**Traces to:**`)
    - `docs/tasks.md` (TASK-NNN IDs with `**Traceability:**`)
 3. Proceed to SYNTHESIZE when all artifacts gathered
-
-#### need-context Yield
-
-```toml
-[yield]
-type = "need-context"
-timestamp = 2026-02-02T10:00:00Z
-
-[[payload.queries]]
-type = "file"
-path = "docs/requirements.md"
-
-[[payload.queries]]
-type = "file"
-path = "docs/design.md"
-
-[[payload.queries]]
-type = "file"
-path = "docs/architecture.md"
-
-[[payload.queries]]
-type = "file"
-path = "docs/tasks.md"
-
-[context]
-phase = "alignment"
-subphase = "GATHER"
-awaiting = "context-results"
-```
 
 ### 2. SYNTHESIZE Phase
 
@@ -99,47 +68,6 @@ The report includes:
 - Chain coverage analysis (which chains are complete)
 - Specific issues with file locations and suggested fixes
 - Recommendations for repair
-
-#### complete Yield
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T11:00:00Z
-
-[payload]
-artifact = ".claude/context/alignment-report.toml"
-files_modified = [".claude/context/alignment-report.toml"]
-
-[payload.summary]
-total_ids = 45
-linked_ids = 38
-orphan_ids = 2
-unlinked_ids = 5
-chain_coverage = 0.84
-
-[[payload.issues]]
-type = "orphan"
-id = "REQ-99"
-location = "docs/design.md:42"
-context = "Referenced in DES-005 traces but not defined"
-
-[[payload.issues]]
-type = "unlinked"
-id = "ARCH-012"
-location = "docs/architecture.md:156"
-context = "No TASK traces to this architecture decision"
-
-[[payload.issues]]
-type = "broken"
-id = "DES-003"
-location = "docs/design.md:78"
-context = "Traces to ARCH-001 (wrong direction - should trace to REQ)"
-
-[context]
-phase = "alignment"
-subphase = "complete"
-```
 
 ## Traceability Chain
 

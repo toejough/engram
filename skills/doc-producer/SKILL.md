@@ -31,7 +31,7 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 3. Load DES-N from design.md
 4. Load ARCH-N from architecture.md
 5. Scan codebase for public API
-6. If missing information, yield `need-context` with queries
+6. If missing information, send a message to team-lead requesting context
 
 ### SYNTHESIZE
 
@@ -61,33 +61,6 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - Artifact paths
    - Files modified
    - Key decisions made
-
-## Yield Protocol
-
-### Yield Types
-
-| Type | When |
-|------|------|
-| `complete` | Documentation generated successfully |
-| `need-context` | Need files, code, or examples |
-| `blocked` | Cannot proceed (missing artifacts) |
-| `error` | Something failed |
-
-### Complete Yield Example
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:30:00Z
-
-[payload]
-artifact = "README.md"
-files_modified = ["README.md", "docs/api.md", "docs/user-guide.md"]
-
-[context]
-phase = "doc"
-subphase = "complete"
-```
 
 ## Traceability
 

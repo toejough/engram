@@ -51,31 +51,11 @@ Deduce design decisions from existing user interfaces without user interview. Us
 Collect information about existing UI/UX:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
-2. Check for `[query_results]` (resuming after need-context, legacy mode)
-3. If missing interface information, yield `need-context`:
-
-```toml
-[yield]
-type = "need-context"
-timestamp = 2026-02-02T10:30:00Z
-
-[[payload.queries]]
-type = "file"
-path = "cmd/app/main.go"  # CLI entry point
-
-[[payload.queries]]
-type = "semantic"
-question = "What are the user-facing interfaces in this project?"
-
-[[payload.queries]]
-type = "territory"
-scope = "ui"  # UI-related files
-
-[context]
-phase = "design"
-subphase = "GATHER"
-awaiting = "context-results"
-```
+2. Check for `[query_results]` (resuming after context request, legacy mode)
+3. If missing interface information, send context request to team-lead with needed queries:
+   - File queries for entry points
+   - Semantic queries for user-facing interfaces
+   - Territory queries for UI-related files
 
 **Sources to analyze:**
 | Source | Extract |
@@ -95,7 +75,7 @@ Process gathered UI/UX information:
 2. Categorize decisions (layout, interaction, feedback, etc.)
 3. Map decisions to requirements (REQ-N)
 4. Check for conflicts with existing design.md
-5. If blocked, yield `blocked` with details
+5. If blocked, send blocker message to team-lead
 
 ### 2b. CLASSIFY (Inference Detection)
 
@@ -129,28 +109,6 @@ Description of the inferred design decision.
    - DES IDs created
    - Files modified
    - Key decisions made
-5. In legacy mode, yield `complete`:
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T11:00:00Z
-
-[payload]
-artifact = "docs/design.md"
-ids_created = ["DES-1", "DES-2", "DES-3"]
-files_modified = ["docs/design.md"]
-
-[[payload.decisions]]
-context = "Output format inference"
-choice = "Table-based CLI output"
-reason = "Observed consistent table formatting in existing --help output"
-alternatives = ["JSON output", "Plain text"]
-
-[context]
-phase = "design"
-subphase = "complete"
-```
 
 ---
 
@@ -177,16 +135,18 @@ output_path = "docs/design.md"
 
 ---
 
-## Yield Types
+## Communication
 
-| Type | When to Use |
-|------|-------------|
-| `complete` | Design artifact created successfully |
-| `need-context` | Need UI/UX files, screenshots, or semantic exploration |
-| `need-user-input` (inferred) | Present inferred design decisions for user accept/reject |
-| `need-decision` | Multiple valid design interpretations |
-| `blocked` | Cannot proceed (missing visual assets, unclear patterns) |
-| `error` | Something failed (retryable) |
+When to use different communication methods:
+
+| Scenario | Tool |
+|----------|------|
+| Design artifact created successfully | Send completion message to team-lead |
+| Need UI/UX files, screenshots, or semantic exploration | Send context request to team-lead |
+| Present inferred design decisions for user accept/reject | Use `AskUserQuestion` with multiSelect |
+| Multiple valid design interpretations | Use `AskUserQuestion` with options |
+| Cannot proceed (missing visual assets, unclear patterns) | Send blocker message to team-lead |
+| Something failed (retryable) | Send error message to team-lead |
 
 ---
 

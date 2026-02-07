@@ -51,71 +51,20 @@ Per-item validation:
 
 ### 2. RETURN Phase
 
-Based on REVIEW findings, yield one of:
+Based on REVIEW findings, send message to team-lead with one of:
 
-#### `approved`
+#### Approved
 
 All parallel results are consistent. Batch is ready to proceed.
 
-```toml
-[yield]
-type = "approved"
-timestamp = 2026-02-02T12:00:00Z
+#### Improvement Request
 
-[payload]
-reviewed_items = 5
-checklist = [
-    { item = "No duplicate IDs", passed = true },
-    { item = "Consistent terminology", passed = true },
-    { item = "Valid cross-references", passed = true },
-    { item = "Domain rules satisfied", passed = true }
-]
+Inconsistencies found that producers can fix. Message should include:
+- List of items with issues
+- Specific problems for each item
+- Suggested resolutions
 
-[context]
-role = "qa"
-iteration = 1
-batch_size = 5
-```
-
-#### `improvement-request`
-
-Inconsistencies found that producers can fix. Uses batch format to address multiple items.
-
-```toml
-[yield]
-type = "improvement-request"
-timestamp = 2026-02-02T12:05:00Z
-
-[payload]
-from_agent = "consistency-checker"
-to_agent = "parallel-looper"
-iteration = 2
-
-[[payload.items]]
-item_id = "TASK-3"
-producer = "breakdown-producer-1"
-issues = [
-    "Uses 'user' but TASK-1 uses 'customer' - standardize terminology",
-    "References TASK-2 but TASK-2 outputs don't exist"
-]
-suggested_resolution = "Align terminology with TASK-1, verify TASK-2 reference"
-
-[[payload.items]]
-item_id = "TASK-5"
-producer = "breakdown-producer-2"
-issues = [
-    "Duplicate ID - TASK-5 already produced by breakdown-producer-1"
-]
-suggested_resolution = "Renumber to TASK-6"
-
-[context]
-role = "qa"
-iteration = 2
-max_iterations = 3
-batch_size = 5
-```
-
-#### `escalate-phase`
+#### Escalate Phase
 
 Problem discovered that requires changes to upstream artifacts. Used when:
 
@@ -123,50 +72,9 @@ Problem discovered that requires changes to upstream artifacts. Used when:
 - **gap**: Missing content that should exist based on upstream context
 - **conflict**: Contradictory statements across artifacts that cannot be resolved by individual fixes
 
-```toml
-[yield]
-type = "escalate-phase"
-timestamp = 2026-02-02T12:10:00Z
+#### Escalate User
 
-[payload.escalation]
-from_phase = "breakdown"
-to_phase = "arch"
-reason = "conflict"  # error | gap | conflict
-
-[payload.issue]
-summary = "Parallel breakdown revealed architectural ambiguity"
-context = "Multiple producers interpreted API boundary differently"
-
-[[payload.proposed_changes.architecture]]
-action = "clarify"
-id = "ARCH-3"
-title = "API Boundary Definition"
-change = "Explicitly define which components own user authentication"
-
-[context]
-role = "qa"
-escalating = true
-```
-
-#### `escalate-user`
-
-Cannot resolve inconsistency without user input.
-
-```toml
-[yield]
-type = "escalate-user"
-timestamp = 2026-02-02T12:15:00Z
-
-[payload]
-reason = "Irreconcilable approach differences"
-context = "Producer-1 used event sourcing, Producer-2 used CRUD - both valid per requirements"
-question = "Which architectural approach should we standardize on?"
-options = ["Event sourcing", "CRUD", "Hybrid by domain"]
-
-[context]
-role = "qa"
-escalating = true
-```
+Cannot resolve inconsistency without user input. Use `AskUserQuestion` with options.
 
 ## Domain-Specific Consistency Rules
 
@@ -212,8 +120,8 @@ pattern = "^[A-Z]+-\\d+$"
 
 | Severity | Meaning | Action |
 |----------|---------|--------|
-| `error` | Must fix before proceeding | Yields improvement-request |
-| `warning` | Should fix, but can proceed with caveats | Notes in approved yield |
+| `error` | Must fix before proceeding | Send improvement-request message |
+| `warning` | Should fix, but can proceed with caveats | Notes in approved message |
 
 ## Inconsistency Documentation
 
@@ -242,17 +150,9 @@ When documenting inconsistencies, include:
 
 ## Iteration Limits
 
-Consistency checker tracks iterations to prevent infinite loops:
-
-```toml
-[context]
-iteration = 2
-max_iterations = 3
-```
-
-After max iterations:
-1. Yield `escalate-user` if critical inconsistencies remain
-2. Or yield `approved` with warnings noted in payload
+Consistency checker tracks iterations to prevent infinite loops. After max iterations:
+1. Escalate to user via `AskUserQuestion` if critical inconsistencies remain
+2. Or send approved message with warnings noted
 
 ## Partial Failure Handling
 
@@ -260,14 +160,7 @@ When some parallel producers failed:
 
 1. Mark failed items in report
 2. Validate only successful outputs
-3. Note failed items in yield payload
-
-```toml
-[payload]
-successful_items = 4
-failed_items = ["TASK-7"]
-failed_reason = "Producer timeout"
-```
+3. Note failed items in message to team-lead
 
 ## Integration with Parallel Looper
 
@@ -284,7 +177,7 @@ parallel-looper invokes consistency-checker
     ↓
 consistency-checker reviews batch
     ↓
-If approved: parallel-looper yields complete
-If improvement-request: parallel-looper re-runs affected items
-If escalate: parallel-looper forwards escalation
+If approved: send approved message to team-lead
+If improvement-request: send improvement request to team-lead
+If escalate: send escalation to team-lead or use AskUserQuestion
 ```

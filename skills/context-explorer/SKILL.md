@@ -10,42 +10,24 @@ role: standalone
 
 # Context Explorer
 
-Standalone skill that executes queries from need-context yields and returns aggregated context to the requesting producer.
+Standalone skill that executes queries from context requests and returns aggregated context to the requesting producer.
 
 ---
 
 ## Purpose
 
-When a producer yields `need-context` with a list of queries, the orchestrator dispatches this skill to gather the requested information. Results are returned via `complete` yield with aggregated context.
+When a producer requests context with a list of queries, the orchestrator dispatches this skill to gather the requested information. Results are returned via message to team-lead with aggregated context.
 
 ---
 
 ## Input
 
-Receives queries from a producer's need-context yield:
-
-```toml
-[[payload.queries]]
-type = "file"
-path = "docs/requirements.md"
-
-[[payload.queries]]
-type = "memory"
-query = "caching patterns"
-
-[[payload.queries]]
-type = "territory"
-scope = "tests"
-
-[[payload.queries]]
-type = "web"
-url = "https://example.com/docs"
-prompt = "Extract the API format"
-
-[[payload.queries]]
-type = "semantic"
-question = "How does authentication work in this codebase?"
-```
+Receives queries from a producer's context request. Query types:
+- `file`: Read file contents directly
+- `memory`: Semantic memory search via ONNX embeddings
+- `territory`: Codebase structure map
+- `web`: Fetch and interpret URL content
+- `semantic`: LLM-based code exploration
 
 ---
 
@@ -87,100 +69,26 @@ For queries that can run in parallel:
 
 ### 3. Aggregate Results
 
-Combine all query results into unified structure:
+Combine all query results into unified structure with:
+- Query index
+- Query type
+- Success status
+- Result content/matches/answer
 
-```toml
-[[results]]
-query_index = 0
-type = "file"
-path = "docs/requirements.md"
-success = true
-content = "... file contents ..."
+### 4. Send Results
 
-[[results]]
-query_index = 1
-type = "memory"
-query = "caching patterns"
-success = true
-matches = [
-    { file = "internal/cache/lru.go", relevance = 0.89, snippet = "..." },
-    { file = "internal/cache/ttl.go", relevance = 0.76, snippet = "..." }
-]
-
-[[results]]
-query_index = 2
-type = "semantic"
-question = "How does authentication work?"
-success = true
-answer = "Authentication uses JWT tokens stored in..."
-files_referenced = ["internal/auth/jwt.go", "internal/auth/middleware.go"]
-```
-
-### 4. Yield Complete
-
-Return aggregated results to orchestrator:
-
-```toml
-[yield]
-type = "complete"
-timestamp = 2026-02-02T10:45:00Z
-
-[payload]
-query_count = 5
-success_count = 5
-failure_count = 0
-
-[[payload.results]]
-query_index = 0
-type = "file"
-path = "docs/requirements.md"
-success = true
-content = "..."
-
-[[payload.results]]
-query_index = 1
-type = "memory"
-query = "caching patterns"
-success = true
-matches = [...]
-
-# ... additional results
-
-[context]
-role = "context-explorer"
-```
+Return aggregated results to team-lead via `SendMessage`:
+- Query count
+- Success/failure counts
+- Full results for each query
 
 ---
 
 ## Error Handling
 
-Individual query failures do not block other queries:
+Individual query failures do not block other queries. Include failure details in results.
 
-```toml
-[[payload.results]]
-query_index = 3
-type = "web"
-url = "https://example.com/broken"
-success = false
-error = "HTTP 404: Not Found"
-```
-
-Only yield `error` if all queries fail or critical infrastructure is unavailable:
-
-```toml
-[yield]
-type = "error"
-timestamp = 2026-02-02T10:50:00Z
-
-[payload]
-error = "All queries failed"
-details = "Network unavailable"
-recoverable = true
-retry_count = 1
-
-[context]
-role = "context-explorer"
-```
+Only send error message if all queries fail or critical infrastructure is unavailable.
 
 ---
 
