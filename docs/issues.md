@@ -4056,3 +4056,23 @@ Discovered during: ISSUE-105 execution
 **Created:** 2026-02-06
 
 ISSUE-105 eliminated composite skills and stopped skills from spawning sub-agents, but never updated the frontmatter across all 22 SKILL.md files. They all still say context: fork which is the old pattern. Should be updated to reflect the post-105 convention (likely context: inherit or removed entirely if fork is no longer meaningful).
+
+---
+
+### ISSUE-123: Orchestrator unnecessarily respawns idle teammates
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+The team lead treats idle notifications as 'stuck' and respawns teammates that are actually working normally. Idle between turns is expected behavior - teammates process messages, go idle, receive next message, process it, go idle again. The orchestrator should wait patiently for teammate messages instead of sending repeated nudges and respawning. This wastes tokens and time. Root cause: orchestrator conflates 'idle notification' with 'unresponsive'.
+
+---
+
+### ISSUE-124: Orchestrator must instruct teammates to send completion message
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-06
+
+When spawning teammates, the orchestrator prompt doesn't explicitly tell them to send a message back to the team lead when they finish their work. This causes teammates to complete work and go idle without reporting results, requiring the orchestrator to nudge them repeatedly. The spawn prompt (task_params.prompt) should include an explicit instruction like 'When you finish, send a message to team-lead with your results and verdict.'

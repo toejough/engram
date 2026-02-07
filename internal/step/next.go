@@ -61,6 +61,9 @@ type TaskParams struct {
 	Prompt       string `json:"prompt,omitempty"`
 }
 
+// TODO: TASK-1 - TaskInfo struct needs implementation
+// Will hold ID, Command, and Worktree fields for parallel task execution
+
 // NextResult holds the structured output of step next.
 type NextResult struct {
 	Action        string      `json:"action"`                    // spawn-producer, spawn-qa, commit, transition, all-complete
@@ -73,6 +76,7 @@ type NextResult struct {
 	TaskParams    *TaskParams `json:"task_params,omitempty"`     // Task tool call parameters (non-nil for spawn actions)
 	ExpectedModel string     `json:"expected_model,omitempty"`  // Expected model for handshake validation
 	Details       string     `json:"details,omitempty"`         // Details for escalation actions
+	// TODO: TASK-1 - Tasks field needs implementation as []TaskInfo array for parallel execution
 }
 
 // CompleteResult holds the input to step complete.
