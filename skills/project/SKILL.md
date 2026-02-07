@@ -149,11 +149,23 @@ Task(subagent_type: result.task_params.subagent_type,
 **Model validation handshake:** After spawning, read the teammate's first message and verify the model:
 
 1. Perform case-insensitive substring match of `result.expected_model` against the teammate's first message
-2. **Match:** Send spawn confirmation message to orchestrator, then proceed with the teammate's work. On completion, report:
+2. **Match:** Send spawn confirmation message to orchestrator using SendMessage:
+   ```
+   SendMessage(type: "message", recipient: "orchestrator",
+               content: "spawn-confirmed: <teammate-name>",
+               summary: "Spawn confirmed for <teammate-name>")
+   ```
+   Then proceed with the teammate's work. On completion, report:
    ```
    projctl step complete --dir . --action spawn-producer --status done
    ```
-3. **Mismatch:** Report failure immediately (do not let the teammate continue):
+3. **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator using SendMessage:
+   ```
+   SendMessage(type: "message", recipient: "orchestrator",
+               content: "spawn-failed: Model mismatch for <teammate-name>. Expected <expected>, got <actual>",
+               summary: "Spawn failed for <teammate-name>")
+   ```
+   Report failure immediately:
    ```
    projctl step complete --dir . --action spawn-producer --status failed --reported-model "<model from first message>"
    ```
@@ -171,11 +183,23 @@ Task(subagent_type: result.task_params.subagent_type,
 
 **Model validation handshake:** Same as spawn-producer — verify `expected_model` against the teammate's first message before proceeding.
 
-- **Match:** Send spawn confirmation message to orchestrator, then let QA run. Handle the QA verdict:
+- **Match:** Send spawn confirmation message to orchestrator using SendMessage:
+  ```
+  SendMessage(type: "message", recipient: "orchestrator",
+              content: "spawn-confirmed: <teammate-name>",
+              summary: "Spawn confirmed for <teammate-name>")
+  ```
+  Then let QA run. Handle the QA verdict:
   - "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
   - "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
   - "escalate-user": Present to user
-- **Mismatch:** `projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model from first message>"`
+- **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator using SendMessage:
+  ```
+  SendMessage(type: "message", recipient: "orchestrator",
+              content: "spawn-failed: Model mismatch for <teammate-name>. Expected <expected>, got <actual>",
+              summary: "Spawn failed for <teammate-name>")
+  ```
+  Report failure immediately: `projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model from first message>"`
 
 #### escalate-user
 
