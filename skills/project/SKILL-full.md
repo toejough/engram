@@ -82,6 +82,10 @@ State includes:
 
 The team lead never touches state files - this is the orchestrator's exclusive responsibility.
 
+### Atomic State Writes
+
+State updates use atomic writes (temp file + rename) to ensure no partial states on disk. The orchestrator writes to a temporary file first, then renames it to `state.toml`. This prevents corruption if the orchestrator terminates mid-write.
+
 ## Resumption Flow
 
 When the orchestrator terminates unexpectedly:

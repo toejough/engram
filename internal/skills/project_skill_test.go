@@ -649,3 +649,26 @@ func TestProjectSkillFull_RetryLogging(t *testing.T) {
 	// Should document logging retry attempts
 	g.Expect(text).To(MatchRegexp("(?i)(log|logs|logging).*(retry.*attempt|attempt.*retry)|orchestrator.*log.*retry"), "should document orchestrator logs retry attempts")
 }
+
+// --- ISSUE-104 TASK-7: State Persistence Ownership - Atomic Writes ---
+
+// TestProjectSkillFull_AtomicStateWrites verifies TASK-7 AC-7: Atomic state writes (temp file + rename)
+// Traces to: ARCH-045, REQ-020, REQ-022
+func TestProjectSkillFull_AtomicStateWrites(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document atomic state writes
+	g.Expect(text).To(MatchRegexp("(?i)atomic.*(write|state)|state.*atomic"), "should document atomic state writes")
+
+	// Should document temp file + rename mechanism
+	g.Expect(text).To(MatchRegexp("(?i)temp.*file.*rename|temporary.*file.*rename"), "should document temp file + rename mechanism")
+}
