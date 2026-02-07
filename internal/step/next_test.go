@@ -39,7 +39,7 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("pm-interview-producer"))
 		g.Expect(result.SkillPath).To(Equal("skills/pm-interview-producer/SKILL.md"))
-		g.Expect(result.Model).To(Equal("sonnet"))
+		g.Expect(result.Model).To(Equal("opus"))
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-89"))
 	})
 
@@ -244,7 +244,7 @@ func TestNext(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
-		g.Expect(result.Model).To(Equal("sonnet"))
+		g.Expect(result.Model).To(Equal("opus"))
 	})
 }
 
@@ -438,9 +438,9 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
+		g.Expect(result.TaskParams.Model).To(Equal("opus"))
 		g.Expect(result.TaskParams.Prompt).To(HavePrefix(step.HandshakeInstruction))
-		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+		g.Expect(result.ExpectedModel).To(Equal("opus"))
 	})
 
 	t.Run("spawn-qa populates TaskParams with QA fields", func(t *testing.T) {
@@ -499,8 +499,8 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("pm-interview-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
-		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+		g.Expect(result.TaskParams.Model).To(Equal("opus"))
+		g.Expect(result.ExpectedModel).To(Equal("opus"))
 	})
 
 	t.Run("non-spawn actions have nil TaskParams and empty ExpectedModel", func(t *testing.T) {
@@ -597,8 +597,8 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
 		g.Expect(result.TaskParams.Name).To(Equal("tdd-red-producer"))
-		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
-		g.Expect(result.ExpectedModel).To(Equal("sonnet"))
+		g.Expect(result.TaskParams.Model).To(Equal("opus"))
+		g.Expect(result.ExpectedModel).To(Equal("opus"))
 	})
 }
 
@@ -909,7 +909,7 @@ func TestNextRetryEscalation(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("escalate-user"))
-		g.Expect(result.Details).To(ContainSubstring("sonnet"))
+		g.Expect(result.Details).To(ContainSubstring("opus"))
 		g.Expect(result.Details).To(ContainSubstring("haiku"))
 	})
 
@@ -946,7 +946,7 @@ func TestNextResult_JSON(t *testing.T) {
 			Action:    "spawn-producer",
 			Skill:     "pm-interview-producer",
 			SkillPath: "skills/pm-interview-producer/SKILL.md",
-			Model:     "sonnet",
+			Model:     "opus",
 			Artifact:  "requirements.md",
 			Phase:     "pm",
 			Context: step.StepContext{
@@ -958,7 +958,7 @@ func TestNextResult_JSON(t *testing.T) {
 
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("pm-interview-producer"))
-		g.Expect(result.Model).To(Equal("sonnet"))
+		g.Expect(result.Model).To(Equal("opus"))
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-89"))
 	})
 }

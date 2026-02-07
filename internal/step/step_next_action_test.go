@@ -35,12 +35,12 @@ func TestStepNextTDDRedProducerAction(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
 		g.Expect(result.SkillPath).To(Equal("skills/tdd-red-producer/SKILL.md"))
-		g.Expect(result.Model).To(Equal("sonnet"))
+		g.Expect(result.Model).To(Equal("opus"))
 		g.Expect(result.Phase).To(Equal("tdd-red"))
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-105"))
 		g.Expect(result.TaskParams).ToNot(BeNil())
 		g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"))
-		g.Expect(result.TaskParams.Model).To(Equal("sonnet"))
+		g.Expect(result.TaskParams.Model).To(Equal("opus"))
 	})
 }
 

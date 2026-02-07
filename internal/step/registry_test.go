@@ -20,7 +20,7 @@ func TestRegistryLookup(t *testing.T) {
 		g.Expect(info.QAPath).To(Equal("skills/qa/SKILL.md"))
 		g.Expect(info.Artifact).To(Equal("requirements.md"))
 		g.Expect(info.IDFormat).To(Equal("REQ"))
-		g.Expect(info.ProducerModel).To(Equal("sonnet"))
+		g.Expect(info.ProducerModel).To(Equal("opus"))
 		g.Expect(info.QAModel).To(Equal("haiku"))
 	})
 

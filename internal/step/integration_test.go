@@ -41,7 +41,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
-		g.Expect(result.Model).To(Equal("sonnet"))
+		g.Expect(result.Model).To(Equal("opus"))
 		g.Expect(result.Phase).To(Equal("tdd-red"))
 
 		// Step 2: Complete producer spawn
