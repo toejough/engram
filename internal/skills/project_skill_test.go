@@ -498,3 +498,154 @@ func TestProjectSkill_TeamLeadSendsConfirmation(t *testing.T) {
 	// Should document confirmation sent to orchestrator
 	g.Expect(text).To(MatchRegexp("(?i)confirmation.*(to|back to).*orchestrator|orchestrator.*confirmation"), "should document confirmation sent back to orchestrator")
 }
+
+// --- ISSUE-104 TASK-6: Error Handling with Retry-Backoff ---
+
+// TestProjectSkillFull_ErrorHandlingRetryLogic verifies TASK-6 AC-1,2: Orchestrator wraps step commands with retry
+// Traces to: ARCH-046, REQ-019, REQ-023
+func TestProjectSkillFull_ErrorHandlingRetryLogic(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document retry logic for step next
+	g.Expect(text).To(MatchRegexp("(?i)(wrap|wraps).*(step next|projctl step next).*retry|retry.*(wrap|wraps).*(step next|projctl step next)"), "should document wrapping projctl step next with retry")
+
+	// Should document retry logic for step complete
+	g.Expect(text).To(MatchRegexp("(?i)(wrap|wraps).*(step complete|projctl step complete).*retry|retry.*(wrap|wraps).*(step complete|projctl step complete)"), "should document wrapping projctl step complete with retry")
+}
+
+// TestProjectSkillFull_SpawnConfirmationRetry verifies TASK-6 AC-3: Spawn confirmation waits have timeout retry
+// Traces to: ARCH-046, REQ-019
+func TestProjectSkillFull_SpawnConfirmationRetry(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document timeout/retry for spawn confirmation waits
+	g.Expect(text).To(MatchRegexp("(?i)(timeout|wait).*spawn.*confirmation.*(retry|backoff)|spawn.*confirmation.*(timeout|wait).*(retry|backoff)"), "should document timeout/retry for spawn confirmation waits")
+}
+
+// TestProjectSkillFull_BackoffDelayPattern verifies TASK-6 AC-4: Backoff delays follow 1s, 2s, 4s pattern
+// Traces to: ARCH-046, REQ-019, DES-006
+func TestProjectSkillFull_BackoffDelayPattern(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document exponential backoff pattern
+	g.Expect(text).To(MatchRegexp("(?i)(backoff|exponential.*backoff)"), "should document backoff/exponential backoff")
+
+	// Should document specific delays: 1s, 2s, 4s
+	g.Expect(text).To(MatchRegexp("(?i)1s.*2s.*4s|delays.*1.*2.*4"), "should document backoff delays: 1s, 2s, 4s")
+}
+
+// TestProjectSkillFull_ErrorEscalationAfterRetries verifies TASK-6 AC-5: Escalate after 3 failed attempts
+// Traces to: ARCH-046, REQ-019, REQ-023
+func TestProjectSkillFull_ErrorEscalationAfterRetries(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document escalation after 3 attempts
+	g.Expect(text).To(MatchRegexp("(?i)(after|max).*3.*(attempt|tr|fail)"), "should document escalation after 3 failed attempts")
+
+	// Should document sending error message to team lead
+	g.Expect(text).To(MatchRegexp("(?i)(send|escalate).*error.*(team lead|team-lead)|orchestrator.*send.*message.*error"), "should document orchestrator sends error message to team lead")
+}
+
+// TestProjectSkillFull_ErrorMessageFormat verifies TASK-6 AC-6: Error message includes required fields
+// Traces to: ARCH-046, REQ-019, DES-006
+func TestProjectSkillFull_ErrorMessageFormat(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document error message includes action
+	g.Expect(text).To(MatchRegexp("(?i)error.*(message|field).*(action.*phase|phase.*action)|(includes|contains).*(action.*phase|phase.*action)"), "should document error message includes action and phase")
+
+	// Should document error message includes error output
+	g.Expect(text).To(MatchRegexp("(?i)error.*(message|field).*(error.*output|output.*error)|(includes|contains).*(error.*output|output.*error)"), "should document error message includes error output")
+
+	// Should document error message includes retry history
+	g.Expect(text).To(MatchRegexp("(?i)error.*(message|field).*(retry.*history|history.*retry|attempt.*history)|(includes|contains).*(retry.*history|history.*retry|attempt.*history)"), "should document error message includes retry history")
+}
+
+// TestProjectSkillFull_TeamLeadEscalationToUser verifies TASK-6 AC-7: Team lead escalates to user
+// Traces to: ARCH-046, REQ-019, REQ-023
+func TestProjectSkillFull_TeamLeadEscalationToUser(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Check both SKILL.md and SKILL-full.md
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillFullPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	contentFull, err := os.ReadFile(skillFullPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content) + string(contentFull)
+
+	// Should document team lead escalates errors to user
+	g.Expect(text).To(MatchRegexp("(?i)(team lead|team-lead).*(escalate|present).*user|escalate.*error.*user"), "should document team lead escalates errors to user")
+
+	// Should mention AskUserQuestion for escalation
+	g.Expect(text).To(MatchRegexp("(?i)AskUserQuestion.*error|error.*AskUserQuestion|escalate.*AskUserQuestion"), "should document using AskUserQuestion for error escalation")
+}
+
+// TestProjectSkillFull_RetryLogging verifies TASK-6 AC-8: Orchestrator logs retry attempts
+// Traces to: ARCH-046, REQ-019
+func TestProjectSkillFull_RetryLogging(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL-full.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document logging retry attempts
+	g.Expect(text).To(MatchRegexp("(?i)(log|logs|logging).*(retry.*attempt|attempt.*retry)|orchestrator.*log.*retry"), "should document orchestrator logs retry attempts")
+}

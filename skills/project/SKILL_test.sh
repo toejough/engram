@@ -308,6 +308,102 @@ else
   fail "Missing instruction to send failure message to orchestrator on handshake failure"
 fi
 
+# --- ISSUE-104 TASK-6: Error Handling with Retry-Backoff ---
+
+echo ""
+echo "--- ISSUE-104 TASK-6: Error Handling with Retry-Backoff ---"
+
+echo "Test: SKILL-full.md documents wrapping projctl step next with retry"
+if grep -qi "wrap.*step next.*retry\|retry.*wrap.*step next" "$SKILL_FULL_FILE"; then
+  pass "Documents wrapping projctl step next with retry"
+else
+  fail "Missing documentation for wrapping projctl step next with retry"
+fi
+
+echo "Test: SKILL-full.md documents wrapping projctl step complete with retry"
+if grep -qi "wrap.*step complete.*retry\|retry.*wrap.*step complete" "$SKILL_FULL_FILE"; then
+  pass "Documents wrapping projctl step complete with retry"
+else
+  fail "Missing documentation for wrapping projctl step complete with retry"
+fi
+
+echo "Test: SKILL-full.md documents spawn confirmation timeout/retry"
+if grep -qi "timeout.*spawn.*confirmation.*retry\|spawn.*confirmation.*timeout.*retry\|spawn.*confirmation.*wait.*retry" "$SKILL_FULL_FILE"; then
+  pass "Documents spawn confirmation timeout/retry"
+else
+  fail "Missing spawn confirmation timeout/retry documentation"
+fi
+
+echo "Test: SKILL-full.md documents backoff pattern"
+if grep -qi "backoff\|exponential.*backoff" "$SKILL_FULL_FILE"; then
+  pass "Documents backoff pattern"
+else
+  fail "Missing backoff pattern documentation"
+fi
+
+echo "Test: SKILL-full.md documents specific backoff delays (1s, 2s, 4s)"
+if grep -qi "1s.*2s.*4s\|delays.*1.*2.*4" "$SKILL_FULL_FILE"; then
+  pass "Documents backoff delays: 1s, 2s, 4s"
+else
+  fail "Missing specific backoff delay pattern (1s, 2s, 4s)"
+fi
+
+echo "Test: SKILL-full.md documents escalation after 3 failed attempts"
+if grep -qi "after.*3.*attempt\|max.*3.*attempt\|3.*fail.*attempt" "$SKILL_FULL_FILE"; then
+  pass "Documents escalation after 3 failed attempts"
+else
+  fail "Missing escalation after 3 attempts documentation"
+fi
+
+echo "Test: SKILL-full.md documents orchestrator sends error message to team lead"
+if grep -qi "send.*error.*team.lead\|escalate.*error.*team.lead\|orchestrator.*send.*message.*error" "$SKILL_FULL_FILE"; then
+  pass "Documents orchestrator sends error message to team lead"
+else
+  fail "Missing orchestrator error message to team lead documentation"
+fi
+
+echo "Test: Error message includes action and phase fields"
+if grep -qi "error.*message.*action.*phase\|error.*field.*action.*phase\|message.*includes.*action.*phase" "$SKILL_FULL_FILE"; then
+  pass "Error message includes action and phase fields"
+else
+  fail "Missing documentation for error message including action and phase fields"
+fi
+
+echo "Test: Error message includes error output field"
+if grep -qi "error.*message.*error.*output\|error.*field.*error.*output\|message.*includes.*error.*output" "$SKILL_FULL_FILE"; then
+  pass "Error message includes error output field"
+else
+  fail "Missing documentation for error message including error output field"
+fi
+
+echo "Test: Error message includes retry history field"
+if grep -qi "error.*message.*retry.*history\|error.*field.*retry.*history\|message.*includes.*retry.*history\|message.*includes.*attempt.*history" "$SKILL_FULL_FILE"; then
+  pass "Error message includes retry history field"
+else
+  fail "Missing documentation for error message including retry history field"
+fi
+
+echo "Test: Team lead escalates errors to user"
+if grep -qi "team.lead.*escalate.*user\|escalate.*error.*user" "$SKILL_FILE" "$SKILL_FULL_FILE"; then
+  pass "Team lead escalates errors to user"
+else
+  fail "Missing team lead escalation to user documentation"
+fi
+
+echo "Test: Uses AskUserQuestion for error escalation"
+if grep -qi "AskUserQuestion.*error\|error.*AskUserQuestion\|escalate.*AskUserQuestion" "$SKILL_FILE" "$SKILL_FULL_FILE"; then
+  pass "Uses AskUserQuestion for error escalation"
+else
+  fail "Missing AskUserQuestion usage for error escalation"
+fi
+
+echo "Test: Orchestrator logs retry attempts"
+if grep -qi "log.*retry.*attempt\|logging.*retry\|orchestrator.*log.*retry" "$SKILL_FULL_FILE"; then
+  pass "Orchestrator logs retry attempts"
+else
+  fail "Missing orchestrator retry logging documentation"
+fi
+
 # --- Content that must be REMOVED ---
 
 echo ""
