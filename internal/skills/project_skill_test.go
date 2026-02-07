@@ -354,3 +354,147 @@ func TestProjectSkill_OrchestratorInitAndLoop(t *testing.T) {
 	// Should document orchestrator enters step loop after init
 	g.Expect(text).To(MatchRegexp("(?i)init.*step.*loop|state.*init.*loop"), "should document orchestrator enters step loop after state init")
 }
+
+// TestProjectSkill_OrchestratorDetectsSpawnProducer verifies TASK-3 AC-1: Orchestrator detects spawn-producer action
+// Traces to: ARCH-043, REQ-017, DES-003
+func TestProjectSkill_OrchestratorDetectsSpawnProducer(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator detects spawn-producer action from projctl step next
+	g.Expect(text).To(MatchRegexp("(?i)spawn-producer.*action|detect.*spawn-producer"), "should document orchestrator detects spawn-producer action")
+	g.Expect(text).To(MatchRegexp("(?i)projctl step next.*spawn-producer|spawn-producer.*projctl step next"), "should document spawn-producer comes from projctl step next")
+}
+
+// TestProjectSkill_OrchestratorDetectsSpawnQA verifies TASK-3 AC-2: Orchestrator detects spawn-qa action
+// Traces to: ARCH-043, REQ-017, DES-003
+func TestProjectSkill_OrchestratorDetectsSpawnQA(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator detects spawn-qa action from projctl step next
+	g.Expect(text).To(MatchRegexp("(?i)spawn-qa.*action|detect.*spawn-qa"), "should document orchestrator detects spawn-qa action")
+	g.Expect(text).To(MatchRegexp("(?i)projctl step next.*spawn-qa|spawn-qa.*projctl step next"), "should document spawn-qa comes from projctl step next")
+}
+
+// TestProjectSkill_OrchestratorComposesSpawnRequest verifies TASK-3 AC-3: Orchestrator composes SendMessage with spawn_request and task_params
+// Traces to: ARCH-043, REQ-017, DES-004
+func TestProjectSkill_OrchestratorComposesSpawnRequest(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document orchestrator composes SendMessage with spawn_request field
+	g.Expect(text).To(MatchRegexp("(?i)SendMessage.*spawn.*request|compose.*SendMessage.*spawn"), "should document orchestrator uses SendMessage for spawn requests")
+	g.Expect(text).To(ContainSubstring("task_params"), "should document spawn request includes task_params JSON")
+	g.Expect(text).To(MatchRegexp("(?i)full.*task_params|task_params.*JSON"), "should document including full task_params JSON payload")
+}
+
+// TestProjectSkill_SpawnRequestMessageFields verifies TASK-3 AC-4: Message includes expected_model, action, phase fields
+// Traces to: ARCH-043, REQ-017, DES-004
+func TestProjectSkill_SpawnRequestMessageFields(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document message fields
+	g.Expect(text).To(ContainSubstring("expected_model"), "should document expected_model field in spawn request")
+	g.Expect(text).To(MatchRegexp("(?i)(action|phase).*field|field.*(action|phase)"), "should document action or phase fields in spawn request")
+}
+
+// TestProjectSkill_TeamLeadExtractsTaskParams verifies TASK-3 AC-5: Team lead receives and extracts task_params
+// Traces to: ARCH-043, REQ-017, DES-003
+func TestProjectSkill_TeamLeadExtractsTaskParams(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document team lead receives spawn request message
+	g.Expect(text).To(MatchRegexp("(?i)team lead.*receive.*spawn.*request|receive.*spawn.*request.*message"), "should document team lead receives spawn request message")
+
+	// Should document extracting task_params from message
+	g.Expect(text).To(MatchRegexp("(?i)extract.*task_params|task_params.*extract"), "should document extracting task_params from spawn request")
+}
+
+// TestProjectSkill_TeamLeadCallsTaskTool verifies TASK-3 AC-6: Team lead calls Task tool with extracted parameters
+// Traces to: ARCH-043, REQ-017, DES-003
+func TestProjectSkill_TeamLeadCallsTaskTool(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document team lead calls Task tool
+	g.Expect(text).To(MatchRegexp("(?i)team lead.*Task.*tool|Task.*tool.*spawn"), "should document team lead calls Task tool")
+
+	// Should document passing extracted task_params to Task tool
+	// Looking for patterns like: "Task(subagent_type: ..., name: ..., model: ..., prompt: ...)"
+	g.Expect(text).To(MatchRegexp("(?i)(subagent_type|name.*model.*prompt|task_params.*Task)"), "should document passing task_params fields to Task tool")
+
+	// Should specifically mention team_name parameter
+	g.Expect(text).To(ContainSubstring("team_name"), "should document team_name parameter in Task tool call")
+}
+
+// TestProjectSkill_TeamLeadSendsConfirmation verifies TASK-3 AC-7: Team lead sends confirmation after successful spawn
+// Traces to: ARCH-043, REQ-017, DES-005
+func TestProjectSkill_TeamLeadSendsConfirmation(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "project", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	// Should document team lead sends confirmation message
+	g.Expect(text).To(MatchRegexp("(?i)(send|sends).*confirmation.*spawn|spawn.*confirmation.*message"), "should document team lead sends spawn confirmation")
+
+	// Should document confirmation sent to orchestrator
+	g.Expect(text).To(MatchRegexp("(?i)confirmation.*(to|back to).*orchestrator|orchestrator.*confirmation"), "should document confirmation sent back to orchestrator")
+}
