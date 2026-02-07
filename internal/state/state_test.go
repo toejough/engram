@@ -300,10 +300,10 @@ func TestPairLoopTracking(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, err := state.SetPair(dir, "pm", state.PairState{
-			Iteration:        2,
-			MaxIterations:    3,
-			ProducerComplete: true,
-			QAVerdict:        "improvement-request",
+			Iteration:          2,
+			MaxIterations:      3,
+			ProducerComplete:   true,
+			QAVerdict:          "improvement-request",
 			ImprovementRequest: "REQ-003 acceptance criteria are not measurable",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
@@ -633,21 +633,21 @@ type mockArtifactChecker struct {
 	summaryExists bool
 }
 
-func (m *mockArtifactChecker) RequirementsExist(dir string) bool              { return true }
-func (m *mockArtifactChecker) RequirementsHaveIDs(dir string) bool            { return true }
-func (m *mockArtifactChecker) DesignExists(dir string) bool                   { return true }
-func (m *mockArtifactChecker) DesignHasIDs(dir string) bool                   { return true }
-func (m *mockArtifactChecker) TraceValidationPasses(dir string, phase string) bool { return true }
-func (m *mockArtifactChecker) TestsExist(dir string) bool                     { return true }
-func (m *mockArtifactChecker) TestsFail(dir string) bool                      { return true }
-func (m *mockArtifactChecker) TestsPass(dir string) bool                      { return true }
-func (m *mockArtifactChecker) AcceptanceCriteriaComplete(dir, taskID string) bool { return true }
+func (m *mockArtifactChecker) RequirementsExist(dir string) bool                        { return true }
+func (m *mockArtifactChecker) RequirementsHaveIDs(dir string) bool                      { return true }
+func (m *mockArtifactChecker) DesignExists(dir string) bool                             { return true }
+func (m *mockArtifactChecker) DesignHasIDs(dir string) bool                             { return true }
+func (m *mockArtifactChecker) TraceValidationPasses(dir string, phase string) bool      { return true }
+func (m *mockArtifactChecker) TestsExist(dir string) bool                               { return true }
+func (m *mockArtifactChecker) TestsFail(dir string) bool                                { return true }
+func (m *mockArtifactChecker) TestsPass(dir string) bool                                { return true }
+func (m *mockArtifactChecker) AcceptanceCriteriaComplete(dir, taskID string) bool       { return true }
 func (m *mockArtifactChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string { return nil }
-func (m *mockArtifactChecker) UnblockedTasks(dir string, failedTask string) []string { return nil }
-func (m *mockArtifactChecker) RetroExists(dir string) bool                    { return m.retroExists }
-func (m *mockArtifactChecker) SummaryExists(dir string) bool                  { return m.summaryExists }
-func (m *mockArtifactChecker) IssueACComplete(repoDir, issueID string) bool   { return true }
-func (m *mockArtifactChecker) IncompleteIssueAC(repoDir, issueID string) []string { return nil }
+func (m *mockArtifactChecker) UnblockedTasks(dir string, failedTask string) []string    { return nil }
+func (m *mockArtifactChecker) RetroExists(dir string) bool                              { return m.retroExists }
+func (m *mockArtifactChecker) SummaryExists(dir string) bool                            { return m.summaryExists }
+func (m *mockArtifactChecker) IssueACComplete(repoDir, issueID string) bool             { return true }
+func (m *mockArtifactChecker) IncompleteIssueAC(repoDir, issueID string) []string       { return nil }
 
 func TestWorktreeTracking(t *testing.T) {
 	t.Run("State has Worktrees map", func(t *testing.T) {
@@ -825,8 +825,8 @@ func TestWorktreeTrackingProperty(t *testing.T) {
 
 		// Generate random worktree data
 		taskID := rapid.StringMatching(`TASK-[0-9]{3}`).Draw(rt, "taskID")
-		path := rapid.StringMatching(`/[a-z]+/[a-z]+/` + taskID).Draw(rt, "path")
-		branch := rapid.StringMatching(`task/` + taskID).Draw(rt, "branch")
+		path := rapid.StringMatching(`/[a-z]+/[a-z]+/`+taskID).Draw(rt, "path")
+		branch := rapid.StringMatching(`task/`+taskID).Draw(rt, "branch")
 		status := rapid.SampledFrom([]string{"active", "merged", "failed"}).Draw(rt, "status")
 
 		// Set worktree

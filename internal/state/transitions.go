@@ -89,8 +89,8 @@ var LegalTransitions = map[string][]string{
 	// === TASK WORKFLOW (Section 7.5 - single task) ===
 	// Implementation → Documentation (optional) → (main flow ending)
 
-	"task-implementation": {"task-start"},       // Enters TDD loop
-	"task-documentation":  {"alignment"},        // After single task, joins main flow ending
+	"task-implementation": {"task-start"}, // Enters TDD loop
+	"task-documentation":  {"alignment"},  // After single task, joins main flow ending
 }
 
 // IsLegalTransition checks whether transitioning from one phase to another is allowed.

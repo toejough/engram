@@ -67,7 +67,7 @@ type PairState struct {
 	Iteration          int      `toml:"iteration"`
 	MaxIterations      int      `toml:"max_iterations"`
 	ProducerComplete   bool     `toml:"producer_complete"`
-	QAVerdict          string   `toml:"qa_verdict,omitempty"`           // approved, improvement-request, escalate-phase, escalate-user
+	QAVerdict          string   `toml:"qa_verdict,omitempty"`          // approved, improvement-request, escalate-phase, escalate-user
 	ImprovementRequest string   `toml:"improvement_request,omitempty"` // Feedback from QA if verdict is improvement-request
 	SpawnAttempts      int      `toml:"spawn_attempts"`
 	FailedModels       []string `toml:"failed_models,omitempty"`
@@ -434,12 +434,12 @@ func Get(dir string) (State, error) {
 
 // NextResult holds the result of Next().
 type NextResult struct {
-	Action     string `json:"action"`                // "continue" or "stop"
-	NextPhase  string `json:"next_phase,omitempty"`  // Next phase when action is continue
-	NextTask   string `json:"next_task,omitempty"`   // Next task when action is continue
-	Reason     string `json:"reason,omitempty"`      // Reason when action is stop
-	Escalation string `json:"escalation,omitempty"`  // Escalation ID if reason is escalation_pending
-	Details    string `json:"details,omitempty"`     // Details if reason is validation_failed
+	Action     string `json:"action"`               // "continue" or "stop"
+	NextPhase  string `json:"next_phase,omitempty"` // Next phase when action is continue
+	NextTask   string `json:"next_task,omitempty"`  // Next task when action is continue
+	Reason     string `json:"reason,omitempty"`     // Reason when action is stop
+	Escalation string `json:"escalation,omitempty"` // Escalation ID if reason is escalation_pending
+	Details    string `json:"details,omitempty"`    // Details if reason is validation_failed
 }
 
 // RecoveryInfo holds information about recovery options after a failure.
