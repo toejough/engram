@@ -123,7 +123,7 @@ User -> /project orchestrator
 - **Lower latency:** Eliminate redundant agent spawn overhead
 - **Lower API costs:** One fewer context load per composite skill
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-012, ARCH-013, ARCH-018, ISSUE-105
+**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-012, ARCH-105-013, ARCH-105-018, ISSUE-105
 
 ---
 
@@ -165,7 +165,7 @@ phase=tdd-red-qa (approved)
 - **Before:** `tdd-producer` composite skill contained nested loop logic to spawn `tdd-red-producer`, check QA verdict, re-spawn if needed
 - **After:** State machine in `internal/state/` tracks iteration count and returns appropriate next action based on QA verdict
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-028, ISSUE-105
+**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-009, ISSUE-105
 
 ---
 
@@ -300,7 +300,7 @@ Legal transitions in `internal/state/transitions.go`:
 - `tdd-red` → `tdd-green` (must complete commit-red cycle)
 - Any phase skipping (state machine enforces sequential progression)
 
-**Traces to:** REQ-105-002, ARCH-034, ARCH-035, ARCH-036, ARCH-037, ARCH-092, ISSUE-105
+**Traces to:** REQ-105-002, ARCH-105-003, ARCH-105-005, ARCH-105-006, ARCH-105-007, ARCH-105-008, ISSUE-105
 
 ---
 
@@ -409,7 +409,7 @@ Legal transitions in `internal/state/transitions.go`:
 }
 ```
 
-**Traces to:** REQ-105-002, REQ-105-003, ARCH-037, ISSUE-105
+**Traces to:** REQ-105-002, REQ-105-003, ARCH-105-007, ISSUE-105
 
 ---
 
@@ -482,7 +482,7 @@ When `step next` returns `action: "escalate-user"`:
 2. Orchestrator waits for user decision
 3. Does NOT call `projctl step complete` until user provides guidance
 
-**Traces to:** REQ-105-003, ARCH-028, DES-105-006, ISSUE-105
+**Traces to:** REQ-105-003, ARCH-105-009, DES-105-006, ISSUE-105
 
 ---
 

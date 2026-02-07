@@ -203,7 +203,7 @@ New: State transitions:
 
 ## Dependencies
 
-- ARCH-012 (Deterministic Workflow Enforcement) - state machine preconditions
+- ARCH-105-012 (Backward Compatibility Strategy) - state machine preconditions
 - `projctl step next` command implementation (already exists)
 - `projctl step complete` command implementation (already exists)
 
