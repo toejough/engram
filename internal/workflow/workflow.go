@@ -39,12 +39,12 @@ const (
 
 // StateDef defines a single state in the workflow.
 type StateDef struct {
-	Type          StateType `toml:"type"`
-	Skill         string    `toml:"skill,omitempty"`
-	SkillPath     string    `toml:"skill_path,omitempty"`
-	FallbackModel string    `toml:"fallback_model,omitempty"`
-	Artifact      string    `toml:"artifact,omitempty"`
-	IDFormat      string    `toml:"id_format,omitempty"`
+	Type         StateType `toml:"type"`
+	Skill        string    `toml:"skill,omitempty"`
+	SkillPath    string    `toml:"skill_path,omitempty"`
+	DefaultModel string    `toml:"default_model,omitempty"`
+	Artifact     string    `toml:"artifact,omitempty"`
+	IDFormat     string    `toml:"id_format,omitempty"`
 }
 
 // StateGroup defines a reusable group of states and transitions.

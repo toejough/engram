@@ -79,15 +79,16 @@ func ParseSkillModel(content []byte) string {
 }
 
 // resolveModel reads a SKILL.md file and returns its model field,
-// falling back to the provided fallback if the file can't be read or has no model.
-func resolveModel(readFunc ReadFunc, skillPath string, fallback string) string {
+// falling back to the provided default if the file can't be read or has no model.
+// Precedence: SKILL.md frontmatter model > TOML default_model
+func resolveModel(readFunc ReadFunc, skillPath string, defaultModel string) string {
 	content, err := readFunc(skillPath)
 	if err != nil {
-		return fallback
+		return defaultModel
 	}
 	model := ParseSkillModel(content)
 	if model == "" {
-		return fallback
+		return defaultModel
 	}
 	return model
 }
@@ -112,7 +113,7 @@ func newDefaultReadFunc() ReadFunc {
 
 // NewRegistry creates a PhaseRegistry derived from the TOML workflow config.
 // It resolves model assignments from SKILL.md frontmatter using the provided
-// ReadFunc, falling back to the TOML-defined fallback_model if the file can't
+// ReadFunc, falling back to the TOML-defined default_model if the file can't
 // be read or the model field is missing.
 func NewRegistry(readFunc ReadFunc) *PhaseRegistry {
 	cfg := workflow.DefaultConfig
@@ -129,11 +130,11 @@ func NewRegistry(readFunc ReadFunc) *PhaseRegistry {
 		case workflow.StateTypeProduce:
 			info.Producer = def.Skill
 			info.ProducerPath = def.SkillPath
-			info.ProducerModel = resolveModel(readFunc, def.SkillPath, def.FallbackModel)
+			info.ProducerModel = resolveModel(readFunc, def.SkillPath, def.DefaultModel)
 		case workflow.StateTypeQA:
 			info.QA = def.Skill
 			info.QAPath = def.SkillPath
-			info.QAModel = resolveModel(readFunc, def.SkillPath, def.FallbackModel)
+			info.QAModel = resolveModel(readFunc, def.SkillPath, def.DefaultModel)
 		}
 
 		phases[name] = info

@@ -281,7 +281,7 @@ func TestNewRegistry(t *testing.T) {
 		g.Expect(info.ProducerModel).To(Equal("opus"))
 	})
 
-	t.Run("falls back to TOML fallback_model when file cannot be read", func(t *testing.T) {
+	t.Run("falls back to TOML default_model when file cannot be read", func(t *testing.T) {
 		g := NewWithT(t)
 
 		readFunc := func(path string) ([]byte, error) {
@@ -291,7 +291,7 @@ func TestNewRegistry(t *testing.T) {
 		reg := step.NewRegistry(readFunc)
 		info, ok := reg.Lookup("pm_produce")
 		g.Expect(ok).To(BeTrue())
-		// Fallback value from TOML: fallback_model = "opus"
+		// Default value from TOML: default_model = "opus"
 		g.Expect(info.ProducerModel).To(Equal("opus"))
 	})
 
@@ -305,11 +305,11 @@ func TestNewRegistry(t *testing.T) {
 		reg := step.NewRegistry(readFunc)
 		info, ok := reg.Lookup("tdd_green_produce")
 		g.Expect(ok).To(BeTrue())
-		// Fallback for tdd_green_produce is "sonnet"
+		// Default for tdd_green_produce is "sonnet"
 		g.Expect(info.ProducerModel).To(Equal("sonnet"))
 	})
 
-	t.Run("frontmatter model overrides fallback", func(t *testing.T) {
+	t.Run("frontmatter model overrides default", func(t *testing.T) {
 		g := NewWithT(t)
 
 		readFunc := func(path string) ([]byte, error) {

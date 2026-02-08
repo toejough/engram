@@ -185,7 +185,7 @@ func TestLookupState(t *testing.T) {
 		g.Expect(s.Type).To(Equal(workflow.StateTypeProduce))
 		g.Expect(s.Skill).To(Equal("pm-interview-producer"))
 		g.Expect(s.SkillPath).To(Equal("skills/pm-interview-producer/SKILL.md"))
-		g.Expect(s.FallbackModel).To(Equal("opus"))
+		g.Expect(s.DefaultModel).To(Equal("opus"))
 		g.Expect(s.Artifact).To(Equal("requirements.md"))
 		g.Expect(s.IDFormat).To(Equal("REQ"))
 	})
@@ -198,7 +198,7 @@ func TestLookupState(t *testing.T) {
 		g.Expect(ok).To(BeTrue())
 		g.Expect(s.Type).To(Equal(workflow.StateTypeQA))
 		g.Expect(s.Skill).To(Equal("qa"))
-		g.Expect(s.FallbackModel).To(Equal("haiku"))
+		g.Expect(s.DefaultModel).To(Equal("haiku"))
 	})
 
 	t.Run("finds decide state", func(t *testing.T) {
@@ -363,8 +363,8 @@ func TestPropertyProduceStatesHaveSkills(t *testing.T) {
 			"produce state %q must have a skill", state)
 		g.Expect(def.SkillPath).ToNot(BeEmpty(),
 			"produce state %q must have a skill_path", state)
-		g.Expect(def.FallbackModel).ToNot(BeEmpty(),
-			"produce state %q must have a fallback_model", state)
+		g.Expect(def.DefaultModel).ToNot(BeEmpty(),
+			"produce state %q must have a default_model", state)
 	})
 }
 

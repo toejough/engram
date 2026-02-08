@@ -20,7 +20,7 @@ type = "tasklist"
 type = "produce"
 skill = "plan-producer"
 skill_path = "skills/plan-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 
 [states.plan_approve]
 type = "approve"
@@ -30,7 +30,7 @@ type = "approve"
 type = "produce"
 skill = "pm-interview-producer"
 skill_path = "skills/pm-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "requirements.md"
 id_format = "REQ"
 
@@ -38,7 +38,7 @@ id_format = "REQ"
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.pm_decide]
 type = "decide"
@@ -51,7 +51,7 @@ type = "commit"
 type = "produce"
 skill = "design-interview-producer"
 skill_path = "skills/design-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "design.md"
 id_format = "DES"
 
@@ -59,7 +59,7 @@ id_format = "DES"
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.design_decide]
 type = "decide"
@@ -72,7 +72,7 @@ type = "commit"
 type = "produce"
 skill = "arch-interview-producer"
 skill_path = "skills/arch-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "architecture.md"
 id_format = "ARCH"
 
@@ -80,7 +80,7 @@ id_format = "ARCH"
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.arch_decide]
 type = "decide"
@@ -93,7 +93,7 @@ type = "commit"
 type = "produce"
 skill = "breakdown-producer"
 skill_path = "skills/breakdown-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "tasks.md"
 id_format = "TASK"
 
@@ -101,7 +101,7 @@ id_format = "TASK"
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.breakdown_decide]
 type = "decide"
@@ -124,13 +124,13 @@ type = "worktree"
 type = "produce"
 skill = "tdd-red-producer"
 skill_path = "skills/tdd-red-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 
 [states.tdd_red_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.tdd_red_decide]
 type = "decide"
@@ -140,13 +140,13 @@ type = "decide"
 type = "produce"
 skill = "tdd-green-producer"
 skill_path = "skills/tdd-green-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 
 [states.tdd_green_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.tdd_green_decide]
 type = "decide"
@@ -156,13 +156,13 @@ type = "decide"
 type = "produce"
 skill = "tdd-refactor-producer"
 skill_path = "skills/tdd-refactor-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 
 [states.tdd_refactor_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.tdd_refactor_decide]
 type = "decide"
@@ -203,13 +203,13 @@ type = "action"
 type = "produce"
 skill = "doc-producer"
 skill_path = "skills/doc-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 
 [states.documentation_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.documentation_decide]
 type = "decide"
@@ -222,13 +222,13 @@ type = "commit"
 type = "produce"
 skill = "alignment-producer"
 skill_path = "skills/alignment-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 
 [states.alignment_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.alignment_decide]
 type = "decide"
@@ -241,14 +241,14 @@ type = "commit"
 type = "produce"
 skill = "retro-producer"
 skill_path = "skills/retro-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 artifact = "retro.md"
 
 [states.retro_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.retro_decide]
 type = "decide"
@@ -260,14 +260,14 @@ type = "commit"
 type = "produce"
 skill = "summary-producer"
 skill_path = "skills/summary-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 artifact = "summary.md"
 
 [states.summary_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.summary_decide]
 type = "decide"
@@ -282,7 +282,7 @@ type = "action"
 type = "produce"
 skill = "next-steps"
 skill_path = "skills/next-steps/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.complete]
 type = "action"
@@ -292,7 +292,7 @@ type = "action"
 type = "produce"
 skill = "plan-producer"
 skill_path = "skills/plan-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 
 [states.align_plan_approve]
 type = "approve"
@@ -307,7 +307,7 @@ type = "join"
 type = "produce"
 skill = "pm-infer-producer"
 skill_path = "skills/pm-infer-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "requirements.md"
 id_format = "REQ"
 
@@ -315,7 +315,7 @@ id_format = "REQ"
 type = "produce"
 skill = "design-infer-producer"
 skill_path = "skills/design-infer-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "design.md"
 id_format = "DES"
 
@@ -323,7 +323,7 @@ id_format = "DES"
 type = "produce"
 skill = "arch-infer-producer"
 skill_path = "skills/arch-infer-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "architecture.md"
 id_format = "ARCH"
 
@@ -331,13 +331,13 @@ id_format = "ARCH"
 type = "produce"
 skill = "tdd-red-infer-producer"
 skill_path = "skills/tdd-red-infer-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 
 [states.align_crosscut_qa]
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.align_crosscut_decide]
 type = "decide"
@@ -353,7 +353,7 @@ type = "fork"
 type = "produce"
 skill = "pm-interview-producer"
 skill_path = "skills/pm-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "requirements.md"
 id_format = "REQ"
 
@@ -361,7 +361,7 @@ id_format = "REQ"
 type = "produce"
 skill = "design-interview-producer"
 skill_path = "skills/design-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "design.md"
 id_format = "DES"
 
@@ -369,7 +369,7 @@ id_format = "DES"
 type = "produce"
 skill = "arch-interview-producer"
 skill_path = "skills/arch-interview-producer/SKILL.md"
-fallback_model = "opus"
+default_model = "opus"
 artifact = "architecture.md"
 id_format = "ARCH"
 
@@ -380,7 +380,7 @@ type = "join"
 type = "qa"
 skill = "qa"
 skill_path = "skills/qa/SKILL.md"
-fallback_model = "haiku"
+default_model = "haiku"
 
 [states.crosscut_decide]
 type = "decide"
@@ -393,7 +393,7 @@ type = "commit"
 type = "produce"
 skill = "evaluation-producer"
 skill_path = "skills/evaluation-producer/SKILL.md"
-fallback_model = "sonnet"
+default_model = "sonnet"
 artifact = "evaluation.md"
 
 [states.evaluation_interview]
