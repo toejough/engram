@@ -20,6 +20,17 @@ Write failing tests that specify expected behavior before implementation. This i
 | Output | Test files that fail (red state verified) |
 | Traces | TASK-N acceptance criteria |
 
+## Workflow Context
+
+- **Phase**: `tdd_red_produce` (states.tdd_red_produce)
+- **Upstream**: Work item selection (`worktree_create`), or retry from red QA (`tdd_red_decide`)
+- **Downstream**: `tdd_red_qa` → `tdd_red_decide` → retry, escalate, or advance to green phase
+- **Model**: opus (default_model in workflows.toml)
+
+This skill writes failing tests (red) for a single work item in the TDD loop.
+
+---
+
 ## Workflow
 
 Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.

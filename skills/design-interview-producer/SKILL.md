@@ -16,6 +16,17 @@ Gather design decisions through structured user interview and produce design.md 
 
 **Pattern:** GATHER → SYNTHESIZE → PRODUCE (see [PRODUCER-TEMPLATE.md](../shared/PRODUCER-TEMPLATE.md))
 
+## Workflow Context
+
+- **Phase**: `design_produce` (states.design_produce), `artifact_design_produce` (states.artifact_design_produce)
+- **Upstream**: PM commit (`pm_commit`), or parallel artifact fork (`artifact_fork`)
+- **Downstream**: `design_qa` → `design_decide` → retry or `design_commit`, or `artifact_join` → `crosscut_qa` in parallel mode
+- **Model**: opus (default_model in workflows.toml)
+
+This skill runs in the design phase to produce design.md with DES-N IDs via user interview.
+
+---
+
 ## User Experience First
 
 Design phase focuses on **user experience** and **interaction patterns**. Implementation details (file formats, validation logic, data structures, algorithms) belong in the Architecture phase.

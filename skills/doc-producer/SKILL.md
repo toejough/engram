@@ -20,6 +20,17 @@ Produce and update README, API docs, and user guides based on project artifacts.
 | Analysis | Requirements, design, architecture, code |
 | Output | README.md, API docs, user guides |
 
+## Workflow Context
+
+- **Phase**: `documentation_produce` (states.documentation_produce)
+- **Upstream**: All work items complete (`items_done`)
+- **Downstream**: `documentation_qa` → `documentation_decide` → retry or `documentation_commit` → alignment phase
+- **Model**: sonnet (default_model in workflows.toml)
+
+This skill produces documentation after all implementation work is complete.
+
+---
+
 ## Workflow
 
 Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.

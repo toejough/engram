@@ -19,6 +19,17 @@ Analyze completed work and suggest follow-up actions based on open issues and pr
 | Analysis | Recent commits, open issues.md, remaining tasks, learnings |
 | Output | Prioritized next steps via `SendMessage` to lead |
 
+## Workflow Context
+
+- **Phase**: `next_steps` (states.next_steps)
+- **Upstream**: Issue update complete (`issue_update`)
+- **Downstream**: `complete` (final workflow state)
+- **Model**: haiku (default_model in workflows.toml)
+
+This skill runs at the end of the workflow to suggest follow-up work after project completion.
+
+---
+
 ## Workflow
 
 ### 1. Gather Context

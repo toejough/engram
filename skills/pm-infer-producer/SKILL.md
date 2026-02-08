@@ -41,6 +41,17 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 | Primary Yield | `need-context` for code exploration |
 | Terminal Yield | `complete` with artifact path |
 
+## Workflow Context
+
+- **Phase**: `align_infer_reqs_produce` (states.align_infer_reqs_produce)
+- **Upstream**: Align plan approval (`align_plan_approve`), parallel infer fork (`align_infer_fork`)
+- **Downstream**: `align_infer_join` → `align_crosscut_qa` → decide → retry or commit
+- **Model**: opus (default_model in workflows.toml)
+
+This skill infers requirements from existing code in the align workflow for codebase adoption.
+
+---
+
 ## Workflow
 
 ### 1. GATHER Phase

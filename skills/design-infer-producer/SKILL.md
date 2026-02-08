@@ -35,6 +35,17 @@ Design phase focuses on **user experience** and **interaction patterns**. Implem
 
 ---
 
+## Workflow Context
+
+- **Phase**: `align_infer_design_produce` (states.align_infer_design_produce)
+- **Upstream**: Align plan approval (`align_plan_approve`), parallel infer fork (`align_infer_fork`)
+- **Downstream**: `align_infer_join` → `align_crosscut_qa` → decide → retry or commit
+- **Model**: opus (default_model in workflows.toml)
+
+This skill infers design decisions from existing UI/UX in the align workflow for codebase adoption.
+
+---
+
 ## Purpose
 
 Deduce design decisions from existing user interfaces without user interview. Used for:

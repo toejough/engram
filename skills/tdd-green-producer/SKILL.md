@@ -13,6 +13,17 @@ phase: tdd-green
 
 Write minimal implementation code to make failing tests pass.
 
+## Workflow Context
+
+- **Phase**: `tdd_green_produce` (states.tdd_green_produce)
+- **Upstream**: Red QA approval (`tdd_red_decide`), or retry from green QA (`tdd_green_decide`)
+- **Downstream**: `tdd_green_qa` → `tdd_green_decide` → retry, escalate, or advance to refactor phase
+- **Model**: sonnet (default_model in workflows.toml)
+
+This skill writes minimal implementation to make failing tests pass (green) in the TDD loop.
+
+---
+
 ## Workflow: GATHER -> SYNTHESIZE -> PRODUCE
 
 This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md).

@@ -13,6 +13,17 @@ phase: alignment
 
 Validates the traceability chain (REQ -> DES -> ARCH -> TASK) across all project artifacts.
 
+## Workflow Context
+
+- **Phase**: `alignment_produce` (states.alignment_produce)
+- **Upstream**: Documentation commit (`documentation_commit`)
+- **Downstream**: `alignment_qa` → `alignment_decide` → retry or `alignment_commit` → evaluation phase
+- **Model**: sonnet (default_model in workflows.toml)
+
+This skill validates traceability after documentation is complete, before final evaluation.
+
+---
+
 ## Workflow: GATHER -> SYNTHESIZE -> PRODUCE
 
 This skill follows the PRODUCER-TEMPLATE pattern.

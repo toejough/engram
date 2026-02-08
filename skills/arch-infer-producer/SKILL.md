@@ -31,6 +31,17 @@ Architecture phase focuses on **technology choices** and **system design**. Prob
 - UI/UX patterns or visual design (belongs in Design)
 - Interaction flows or user workflows (belongs in Design)
 
+## Workflow Context
+
+- **Phase**: `align_infer_arch_produce` (states.align_infer_arch_produce)
+- **Upstream**: Align plan approval (`align_plan_approve`), parallel infer fork (`align_infer_fork`)
+- **Downstream**: `align_infer_join` → `align_crosscut_qa` → decide → retry or commit
+- **Model**: opus (default_model in workflows.toml)
+
+This skill infers architecture from existing code structure in the align workflow for codebase adoption.
+
+---
+
 ## Purpose
 
 This skill examines code structure, dependencies, and patterns to reverse-engineer architecture decisions. Used for:

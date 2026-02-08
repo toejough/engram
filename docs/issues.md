@@ -5058,7 +5058,7 @@ In `projctl step next`, when the current phase has no more actions but is not th
 ### ISSUE-156: Orchestrator should set task owner and status on spawn/complete
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5088,10 +5088,14 @@ ISSUE-152: Team lead had to manually call TaskUpdate to show plan-producer was w
 
 ---
 
+
+### Comment
+
+Added TaskUpdate for owner/status on spawn/complete in SKILL.md control loop
 ### ISSUE-157: Show orchestration as a top-level task and prefix tasks with project name
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5127,10 +5131,14 @@ Always prefix with the issue ID for consistency — it's short and removes ambig
 
 ---
 
+
+### Comment
+
+Added top-level orchestration task and issue ID prefix in SKILL.md
 ### ISSUE-158: Audit state diagram skills: missing plan-producer and evaluation-producer
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5168,10 +5176,14 @@ ISSUE-152: plan-producer reported "/plan-producer does not exist as a registered
 
 ---
 
+
+### Comment
+
+Created plan-producer and evaluation-producer SKILL.md files with tests
 ### ISSUE-159: Plan producer should use plan mode for interactive user review
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5204,6 +5216,10 @@ ISSUE-152: User could not evaluate the plan from the team lead's summary alone.
 
 ---
 
+
+### Comment
+
+Added plan mode (EnterPlanMode) to plan-producer SKILL.md for interactive user review
 ### ISSUE-160: Ambient Learning System — Continuous knowledge capture outside formal projects
 
 **Priority:** medium
@@ -5279,7 +5295,7 @@ Depends on: ISSUE-152 (memory infrastructure, tokenizer fix, hygiene commands mu
 ### ISSUE-161: Model precedence between SKILL.md frontmatter and workflow TOML is confusing
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5315,7 +5331,7 @@ During ISSUE-152, orchestrator (haiku) spawned interview producers with Sonnet p
 ### ISSUE-162: Interview producers unaware of approved plan — redundant interviews in new workflow
 
 **Priority:** high
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5435,7 +5451,7 @@ During ISSUE-152 orchestration. Multiple skill-level misunderstandings caused re
 ### ISSUE-164: Orchestrator advances state machine before producer completion
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5482,10 +5498,14 @@ ISSUE-152 session, phases: breakdown_produce, tdd_red_produce
 
 ---
 
+
+### Comment
+
+Fixed in 7dde262: teammate prompt messages orchestrator directly, SKILL.md control loop requires WAIT before step complete
 ### ISSUE-165: Orchestrator fails to properly complete state machine steps
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5531,6 +5551,10 @@ ISSUE-152 session, phase: tdd_green_qa → tdd_green_decide
 
 ---
 
+
+### Comment
+
+Fixed in 7dde262: control loop specifies per-action flags (--producer-transcript, --qa-verdict, --qa-feedback)
 ### ISSUE-166: Orchestrator skill doesn't implement parallel item spawning from Tasks array
 
 **Priority:** High
@@ -5544,7 +5568,7 @@ The Go infrastructure for parallel task execution is complete (task.Parallel(), 
 ### ISSUE-167: State machine should select task before spawning TDD producers
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 Currently step next returns spawn-producer without specifying which task. The producer self-selects by reading tasks.md. This prevents parallel dispatch — can't send N producers to N tasks simultaneously. The item_select phase should populate current_task in state.toml and pass it via task_params context to the producer.
@@ -5564,7 +5588,12 @@ The state machine references an evaluation-producer skill that doesn't exist. Cu
 ### ISSUE-169: Fix dangling REQ-018 through REQ-023 trace references from ISSUE-104
 
 **Priority:** low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 REQ-018 through REQ-023 are referenced in Traces-to fields in docs/architecture.md and test files but were never defined in docs/requirements.md. These were introduced by ISSUE-104 but not integrated into the top-level requirements doc. Also 43 TASK/DES/ARCH IDs in project-local .claude/projects/ files show as unlinked.
+
+
+### Comment
+
+Added REQ-018 through REQ-023 definitions to requirements.md

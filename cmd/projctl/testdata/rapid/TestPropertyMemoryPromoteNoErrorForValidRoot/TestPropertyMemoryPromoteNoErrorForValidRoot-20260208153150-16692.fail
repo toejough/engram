@@ -1,0 +1,164 @@
+# 2026/02/08 15:31:50.776455 [TestPropertyMemoryPromoteNoErrorForValidRoot] [rapid] draw suffix: "0OzEC04z"
+# 2026/02/08 15:31:50.776576 [TestPropertyMemoryPromoteNoErrorForValidRoot] [rapid] draw content: "N JAYAPJbzHNeGoAZG AN"
+# 2026/02/08 15:31:50.785748 [TestPropertyMemoryPromoteNoErrorForValidRoot] 
+# Unexpected error:
+#     <*exec.ExitError | 0x14000202200>: 
+#     exit status 1
+#     {
+#         ProcessState: {
+#             pid: 16743,
+#             status: 256,
+#             rusage: {
+#                 Utime: {
+#                     Sec: 0,
+#                     Usec: 4000,
+#                     Pad_cgo_0: [0, 0, 0, 0],
+#                 },
+#                 Stime: {
+#                     Sec: 0,
+#                     Usec: 3678,
+#                     Pad_cgo_0: [0, 0, 0, 0],
+#                 },
+#                 Maxrss: 14106624,
+#                 Ixrss: 0,
+#                 Idrss: 0,
+#                 Isrss: 0,
+#                 Minflt: 1014,
+#                 Majflt: 68,
+#                 Nswap: 0,
+#                 Inblock: 0,
+#                 Oublock: 0,
+#                 Msgsnd: 0,
+#                 Msgrcv: 0,
+#                 Nsignals: 0,
+#                 Nvcsw: 1,
+#                 Nivcsw: 121,
+#             },
+#         },
+#         Stderr: nil,
+#     }
+# occurred
+# 
+v0.4.8#7541090640464577780
+0x1b8e9e75b03186
+0x0
+0x18839afe82382d
+0x0
+0x23eb0dd11316b
+0x0
+0x1102eb5ea4115d
+0x18
+0xbb5343f2b2fa2
+0x0
+0x19dd1d1a11dd38
+0x3d
+0xfdec1c77e3f1a
+0x0
+0x9c44c2e6b2178
+0xe
+0x8a9744a8e4715
+0x0
+0xb073d3b750117
+0xc
+0x15dc5b7ee8e38b
+0x0
+0x4f2117491780c
+0x0
+0x138e900e5c96ec
+0x0
+0xb05cb3b992cd7
+0x4
+0xa01669e42624
+0x0
+0x1fdd8aca56e8c9
+0xffffffffffffffff
+0x64844fd015ed4
+0x86ca2474871c
+0x0
+0x11b0dc04a2d851
+0xe
+0x196f1b58cb99b4
+0x0
+0x3b051e7afb991
+0x0
+0x1df82788f91b11
+0x0
+0xb17d038d2b9ac
+0xa
+0x1efbb3d53f37ff
+0x0
+0x18ce487e011ba3
+0x1
+0x16e54d95c94734
+0x0
+0x194ea75e854907
+0x19
+0x1dfa27e3fc3e70
+0x0
+0x2840406e683c2
+0x1
+0x1ef052a7378aec
+0x0
+0x1218e7b6b1b6f1
+0x10
+0x16b9e03611c9dc
+0x0
+0x9df4a679f3f32
+0xa
+0x22990144c58e
+0x0
+0x18627368dd3cb1
+0x3b
+0x3e
+0x1c
+0xa96e64f068bb1
+0x0
+0x1ff5001b6eef27
+0xffffffffffffffff
+0x7948bf8ac0ff7
+0x0
+0xdb837cd0a0dc3
+0x8
+0x15e45e1ee55bcc
+0x0
+0xfdcbec1f7470a
+0x3e
+0xe
+0x16824d6346b107
+0x0
+0x16a14bbd4a5717
+0x1f
+0x1168f84ed8c7b5
+0x0
+0x7590e288a8978
+0x7
+0x13e61f8a2f49f1
+0x0
+0x1441df6e43b6ea
+0x29
+0xc15f6cecbb929
+0x0
+0x1d296a972eee14
+0x1
+0x1a4cf2afe6becd
+0x0
+0x1102175b9753bb
+0x3f
+0x1a
+0x1d46d867533e9c
+0x0
+0x7c9ab1cd2eacb
+0x7
+0x121da1d6320c3f
+0x0
+0x711ca04a991a
+0x0
+0x1874f22ce07e94
+0x0
+0x9c586e96829c
+0x1
+0xfdd47feee7770
+0x0
+0x1b37edd82b301c
+0xe
+0xd2f68f9b6982

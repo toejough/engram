@@ -20,6 +20,17 @@ Produce a project retrospective analyzing what went well, what could improve, an
 | Analysis | Requirements, design, implementation, decisions, blockers |
 | Output | Retrospective with successes, challenges, action items, and issue creation |
 
+## Workflow Context
+
+- **Phase**: `retro_produce` (states.retro_produce) - DEPRECATED in favor of evaluation-producer
+- **Upstream**: Documentation commit (`documentation_commit`) in old sequential flow
+- **Downstream**: `retro_qa` → `retro_decide` → retry or `retro_commit` → summary phase
+- **Model**: sonnet (default_model in workflows.toml)
+
+**NOTE**: This skill is deprecated. Use evaluation-producer instead for combined retrospective and summary.
+
+---
+
 ## Workflow
 
 Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.

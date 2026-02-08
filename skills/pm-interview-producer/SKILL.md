@@ -16,6 +16,17 @@ Producer skill that gathers requirements through structured user interview and p
 
 **Pattern:** GATHER -> SYNTHESIZE -> PRODUCE (see [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md))
 
+## Workflow Context
+
+- **Phase**: `pm_produce` (states.pm_produce), `artifact_pm_produce` (states.artifact_pm_produce)
+- **Upstream**: Plan approval (`plan_approve`), or parallel artifact fork (`artifact_fork`)
+- **Downstream**: `pm_qa` → `pm_decide` → retry or `pm_commit`, or `artifact_join` → `crosscut_qa` in parallel mode
+- **Model**: opus (default_model in workflows.toml)
+
+This skill runs in the PM phase to produce requirements.md with REQ-N IDs via user interview.
+
+---
+
 ## Problem Discovery First
 
 PM phase focuses on **problem discovery** and **user needs**. Implementation details, UI/UX design, and technology choices belong in downstream phases.

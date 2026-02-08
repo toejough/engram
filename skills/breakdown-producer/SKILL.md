@@ -23,6 +23,17 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 
 ---
 
+## Workflow Context
+
+- **Phase**: `breakdown_produce` (states.breakdown_produce)
+- **Upstream**: Architecture commit in sequential mode (`arch_commit`), or crosscut QA approval in parallel mode (`artifact_commit`)
+- **Downstream**: `breakdown_qa` → `breakdown_decide` → retry or `breakdown_commit` → item selection begins
+- **Model**: opus (default_model in workflows.toml)
+
+This skill decomposes architecture into implementation tasks after all three artifacts (requirements, design, architecture) are complete.
+
+---
+
 ## GATHER Phase
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode):

@@ -23,6 +23,17 @@ Improve code quality while keeping all tests green. This is the "refactor" phase
 
 ---
 
+## Workflow Context
+
+- **Phase**: `tdd_refactor_produce` (states.tdd_refactor_produce)
+- **Upstream**: Green QA approval (`tdd_green_decide`), or retry from refactor QA (`tdd_refactor_decide`)
+- **Downstream**: `tdd_refactor_qa` → `tdd_refactor_decide` → retry, escalate, or commit (`tdd_commit`)
+- **Model**: sonnet (default_model in workflows.toml)
+
+This skill refactors implementation while keeping tests green (refactor) in the TDD loop.
+
+---
+
 ## GATHER Phase
 
 Collect information needed for refactoring:

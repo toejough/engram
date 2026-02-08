@@ -25,6 +25,23 @@ Validates any producer's output against the contract defined in its SKILL.md fil
 
 ---
 
+## Workflow Context
+
+- **Phase**: Multiple QA states across the workflow
+  - `pm_qa`, `design_qa`, `arch_qa` (artifact phase QA)
+  - `breakdown_qa` (breakdown validation)
+  - `tdd_red_qa`, `tdd_green_qa`, `tdd_refactor_qa` (TDD loop QA)
+  - `documentation_qa`, `alignment_qa` (ending phase QA)
+  - `crosscut_qa`, `align_crosscut_qa` (parallel artifact validation)
+  - `retro_qa`, `summary_qa`, `evaluation_qa` (evaluation QA - deprecated states)
+- **Upstream**: Producer output (varies by phase)
+- **Downstream**: Decide state → retry producer, escalate, or commit
+- **Model**: haiku (default_model in workflows.toml)
+
+This is the universal QA skill used across all workflow phases to validate producer output against SKILL.md contracts.
+
+---
+
 ## Workflow
 
 ### 1. LOAD Phase

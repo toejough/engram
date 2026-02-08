@@ -14,6 +14,17 @@ variant: interview
 
 Gather architecture decisions via user interview, produce architecture.md with ARCH-N IDs.
 
+## Workflow Context
+
+- **Phase**: `arch_produce` (states.arch_produce), `artifact_arch_produce` (states.artifact_arch_produce)
+- **Upstream**: Design commit (`design_commit`), or parallel artifact fork (`artifact_fork`)
+- **Downstream**: `arch_qa` → `arch_decide` → retry or `arch_commit`, or `artifact_join` → `crosscut_qa` in parallel mode
+- **Model**: opus (default_model in workflows.toml)
+
+This skill runs in the architecture phase to produce architecture.md with ARCH-N IDs via user interview.
+
+---
+
 ## Technical Decisions Only
 
 Architecture phase focuses on **technology choices** and **system design**. Problem discovery belongs in PM, user experience belongs in Design.

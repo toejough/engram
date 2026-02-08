@@ -20,6 +20,17 @@ Produce a comprehensive project summary capturing key decisions, outcomes, and l
 | Analysis | Requirements, design, architecture, tasks, implementation |
 | Output | Project summary with decisions and outcomes |
 
+## Workflow Context
+
+- **Phase**: `summary_produce` (states.summary_produce) - DEPRECATED in favor of evaluation-producer
+- **Upstream**: Retro commit (`retro_commit`) in old sequential flow
+- **Downstream**: `summary_qa` → `summary_decide` → retry or `summary_commit` → issue update
+- **Model**: sonnet (default_model in workflows.toml)
+
+**NOTE**: This skill is deprecated. Use evaluation-producer instead for combined retrospective and summary.
+
+---
+
 ## Workflow
 
 Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.

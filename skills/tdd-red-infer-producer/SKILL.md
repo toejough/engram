@@ -18,6 +18,17 @@ Analyze existing implementation to infer what tests are needed. Produces test fi
 
 ---
 
+## Workflow Context
+
+- **Phase**: `align_infer_tests_produce` (states.align_infer_tests_produce)
+- **Upstream**: Align plan approval (`align_plan_approve`), parallel infer fork (`align_infer_fork`)
+- **Downstream**: `align_infer_join` → `align_crosscut_qa` → decide → retry or commit
+- **Model**: opus (default_model in workflows.toml)
+
+This skill infers needed tests from existing implementation in the align workflow for codebase adoption.
+
+---
+
 ## Purpose
 
 Deduce needed tests from existing code without explicit requirements. Used for:
