@@ -77,6 +77,26 @@ func TestPlanProducer_Contract(t *testing.T) {
 	g.Expect(text).To(ContainSubstring("plan.md"), "should reference plan.md as output")
 }
 
+// TestPlanProducer_PlanMode verifies plan-producer uses plan mode for interactive review
+func TestPlanProducer_PlanMode(t *testing.T) {
+	g := NewWithT(t)
+
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	content, err := os.ReadFile(skillPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	text := string(content)
+
+	g.Expect(text).To(Or(
+		ContainSubstring("EnterPlanMode"),
+		ContainSubstring("plan mode"),
+	), "should mention plan mode or EnterPlanMode")
+	g.Expect(text).To(ContainSubstring("interactive"), "should document interactive user review")
+}
+
 // --- evaluation-producer SKILL.md ---
 
 // TestEvaluationProducer_SkillExists verifies evaluation-producer SKILL.md exists
