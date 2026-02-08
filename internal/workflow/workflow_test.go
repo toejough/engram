@@ -314,12 +314,9 @@ func TestPropertyNoOrphanStates(t *testing.T) {
 			transitions, err := cfg.TransitionsFor(wfName)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			initState, err := cfg.InitState(wfName)
-			g.Expect(err).ToNot(HaveOccurred())
-
-			// BFS from init
+			// BFS from "init" — the bootstrap phase injected by TransitionsFor
 			visited := map[string]bool{}
-			queue := []string{initState}
+			queue := []string{"init"}
 			for len(queue) > 0 {
 				current := queue[0]
 				queue = queue[1:]
@@ -337,8 +334,8 @@ func TestPropertyNoOrphanStates(t *testing.T) {
 			// Every state that appears as a source in transitions must be reachable
 			for state := range transitions {
 				g.Expect(visited).To(HaveKey(state),
-					"workflow %q: state %q appears in transitions but is not reachable from %q",
-					wfName, state, initState)
+					"workflow %q: state %q appears in transitions but is not reachable from init",
+					wfName, state)
 			}
 		}
 	})

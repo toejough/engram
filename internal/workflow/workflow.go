@@ -93,6 +93,11 @@ func (c *Config) TransitionsFor(workflow string) (map[string][]string, error) {
 		merged[state] = targets
 	}
 
+	// Inject init → init_state so callers don't need special-case logic.
+	if wf.InitState != "" {
+		merged["init"] = []string{wf.InitState}
+	}
+
 	return merged, nil
 }
 

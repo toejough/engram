@@ -289,26 +289,10 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	t := now()
 
 	// Check transition legality.
-	// Special case: "init" is the bootstrap phase before the workflow begins.
-	// The only legal transition from "init" is to the workflow's init_state.
-	legal := false
-	if from == "init" {
-		initState, initErr := WorkflowInitState(s.Project.Workflow)
-		legal = initErr == nil && to == initState
-	} else {
-		legal = IsLegalTransition(from, to, s.Project.Workflow)
-	}
+	legal := IsLegalTransition(from, to, s.Project.Workflow)
 
 	if !legal {
-		var targets []string
-		if from == "init" {
-			initState, initErr := WorkflowInitState(s.Project.Workflow)
-			if initErr == nil {
-				targets = []string{initState}
-			}
-		} else {
-			targets = LegalTargets(from, s.Project.Workflow)
-		}
+		targets := LegalTargets(from, s.Project.Workflow)
 		transitionErr := fmt.Errorf(
 			"illegal transition: %s → %s (legal targets: %v)",
 			from, to, targets,

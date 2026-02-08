@@ -275,6 +275,29 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
 		g.Expect(result.Model).ToNot(BeEmpty())
 	})
+
+	t.Run("init phase returns transition to workflow init_state (ISSUE-155)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// State starts in "init" phase
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("init"))
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// The init phase should transition to the workflow's init_state (tasklist_create)
+		// not return all-complete (ISSUE-155: fix)
+		g.Expect(result.Action).To(Equal("transition"))
+		g.Expect(result.Phase).To(Equal("tasklist_create"))
+	})
 }
 
 func TestComplete(t *testing.T) {
@@ -1262,6 +1285,7 @@ func TestMainFlowEndingMandatory(t *testing.T) {
 			}
 		}
 	})
+
 }
 
 // producerTranscriptFile creates a temporary transcript file for testing.

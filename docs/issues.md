@@ -4977,7 +4977,7 @@ Deferred to ISSUE-150 session — tier definitions will be designed alongside th
 ### ISSUE-152: Integrate semantic memory into orchestration workflow
 
 **Priority:** Medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 The projctl memory package (learn, decide, query, grep, session-end, extract) provides ONNX-based semantic similarity search for expanding LLM capabilities beyond context windows, inspired by oh-my-opencode and gastown patterns.
@@ -5025,7 +5025,7 @@ Implemented: project-level worktree create/merge/cleanup
 ### ISSUE-155: projctl step next returns all-complete for non-terminal phases, should return transition
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5548,3 +5548,23 @@ The Go infrastructure for parallel task execution is complete (task.Parallel(), 
 **Created:** 2026-02-08
 
 Currently step next returns spawn-producer without specifying which task. The producer self-selects by reading tasks.md. This prevents parallel dispatch — can't send N producers to N tasks simultaneously. The item_select phase should populate current_task in state.toml and pass it via task_params context to the producer.
+
+---
+
+### ISSUE-168: Create evaluation-producer skill (combined retro+summary)
+
+**Priority:** medium
+**Status:** closed
+**Created:** 2026-02-08
+
+The state machine references an evaluation-producer skill that doesn't exist. Currently the evaluation phase requires manual workaround by spawning retro-producer and summary-producer separately. Create a single evaluation-producer skill that produces a consolidated retrospective and project summary.
+
+---
+
+### ISSUE-169: Fix dangling REQ-018 through REQ-023 trace references from ISSUE-104
+
+**Priority:** low
+**Status:** Open
+**Created:** 2026-02-08
+
+REQ-018 through REQ-023 are referenced in Traces-to fields in docs/architecture.md and test files but were never defined in docs/requirements.md. These were introduced by ISSUE-104 but not integrated into the top-level requirements doc. Also 43 TASK/DES/ARCH IDs in project-local .claude/projects/ files show as unlinked.

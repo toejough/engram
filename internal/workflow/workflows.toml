@@ -7,6 +7,10 @@
 # =============================================================================
 # Each state defines its type (what the Go interpreter does) and metadata.
 
+# --- Bootstrap ---
+[states.init]
+type = "action"
+
 # --- TaskList Creation ---
 [states.tasklist_create]
 type = "tasklist"
