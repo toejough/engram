@@ -51,6 +51,18 @@ Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern.
 
 Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) with architecture-specific queries. Focus on technical decisions needed to implement the requirements and design.
 
+#### Plan Check (GATHER Step 0)
+
+Before conducting interviews, check for an approved plan:
+
+1. Look for `.claude/projects/<issue>/plan.md`
+2. If found: read plan, extract architecture-relevant content (technology choices, patterns, constraints)
+3. Draft architecture decisions from plan content
+4. Only interview the user for gaps not covered by the plan
+5. If no plan found: proceed with full interview (existing behavior)
+
+#### Context Gathering
+
 1. Execute `projctl territory map` to get file structure and artifact locations
 2. Execute `projctl memory query "prior architecture decisions for <project-domain>"` to load past technology choices
 3. Execute `projctl memory query "technology patterns for <feature-area>"` to find established patterns

@@ -49,6 +49,18 @@ Design phase focuses on **user experience** and **interaction patterns**. Implem
 
 Collect user experience and interaction pattern decisions via interview. Focus on what users see and do, not how the system implements it.
 
+#### Plan Check (GATHER Step 0)
+
+Before conducting interviews, check for an approved plan:
+
+1. Look for `.claude/projects/<issue>/plan.md`
+2. If found: read plan, extract design-relevant content (UX decisions, workflows, layouts)
+3. Draft design decisions from plan content
+4. Only interview the user for gaps not covered by the plan
+5. If no plan found: proceed with full interview (existing behavior)
+
+#### Context Gathering
+
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after need-context)
 3. If requirements not available:

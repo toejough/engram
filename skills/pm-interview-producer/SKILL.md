@@ -46,6 +46,18 @@ PM phase focuses on **problem discovery** and **user needs**. Implementation det
 
 Collect requirements through structured interview. Focus on what problems need solving and who they affect, not how to solve them.
 
+#### Plan Check (GATHER Step 0)
+
+Before conducting interviews, check for an approved plan:
+
+1. Look for `.claude/projects/<issue>/plan.md`
+2. If found: read plan, extract requirements-relevant content (problem statement, user needs, acceptance criteria)
+3. Draft requirements from plan content
+4. Only interview the user for gaps not covered by the plan
+5. If no plan found: proceed with full interview (existing behavior)
+
+#### Context Gathering
+
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Read existing docs directly: README, prior requirements, issue description
 3. Run `projctl territory map` and `projctl memory query` for domain context:
