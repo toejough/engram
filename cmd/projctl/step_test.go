@@ -33,8 +33,8 @@ func TestStepComplete_ReportedModelFlag(t *testing.T) {
 	// Verify the reported model was persisted via FailedModels
 	s, err := state.Get(dir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(s.Pairs["pm"].SpawnAttempts).To(Equal(1))
-	g.Expect(s.Pairs["pm"].FailedModels).To(ContainElement("haiku"))
+	g.Expect(s.Pairs["plan"].SpawnAttempts).To(Equal(1))
+	g.Expect(s.Pairs["plan"].FailedModels).To(ContainElement("haiku"))
 }
 
 // traces: TASK-6
@@ -59,7 +59,7 @@ func TestStepComplete_ReportedModelOptional(t *testing.T) {
 	// Verify it worked (producer marked complete)
 	s, err := state.Get(dir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(s.Pairs["pm"].ProducerComplete).To(BeTrue())
+	g.Expect(s.Pairs["plan"].ProducerComplete).To(BeTrue())
 }
 
 // buildProjctl builds the projctl binary and returns the path.
@@ -86,12 +86,15 @@ func setupStepTestProject(t *testing.T, dir string) {
 	t.Helper()
 	g := NewWithT(t)
 
-	// Init state and transition to pm
+	// Init state and transition to plan_produce (new workflow: init → tasklist_create → plan_produce)
 	_, err := state.Init(dir, "test-project", func() time.Time { return time.Now() }, state.InitOpts{
 		Issue: "ISSUE-98",
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, func() time.Time { return time.Now() })
+	now := func() time.Time { return time.Now() }
+	_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, now)
+	g.Expect(err).ToNot(HaveOccurred())
+	_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, now)
 	g.Expect(err).ToNot(HaveOccurred())
 }
