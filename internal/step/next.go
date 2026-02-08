@@ -432,6 +432,7 @@ var phaseGroupDescriptions = map[string]struct {
 	"evaluation":    {"Evaluate project", "Consolidated retrospective and summary with tiered findings", "Evaluating project"},
 	"retro":         {"Write retrospective", "Produce project retrospective with process improvement recommendations", "Writing retrospective"},
 	"summary":       {"Write summary", "Produce project summary with key decisions and outcomes", "Writing summary"},
+	"align_plan":    {"Plan alignment", "Explore codebase, compare against docs, identify gaps and drift, plan updates", "Planning alignment"},
 	"align_infer":   {"Infer artifacts", "Infer requirements, design, architecture, and tests from existing code", "Inferring artifacts"},
 }
 
@@ -475,8 +476,8 @@ func buildTaskListEntries(workflowName string) []TaskListEntry {
 	for _, phase := range ordered {
 		group := phaseGroup(phase)
 		if seenGroups[group] || group == "tasklist" || group == "complete" ||
-			group == "phase" || group == "crosscut" || group == "merge" ||
-			group == "rebase" || group == "worktree" {
+			group == "phase" || group == "crosscut" || group == "align_crosscut" ||
+			group == "merge" || group == "rebase" || group == "worktree" {
 			continue
 		}
 		seenGroups[group] = true
@@ -499,7 +500,7 @@ func buildTaskListEntries(workflowName string) []TaskListEntry {
 // e.g., "pm_produce" -> "pm", "tdd_red_produce" -> "tdd", "item_select" -> "item"
 func phaseGroup(phase string) string {
 	// Special cases for multi-word prefixes
-	for _, prefix := range []string{"align_infer", "tdd_red", "tdd_green", "tdd_refactor"} {
+	for _, prefix := range []string{"align_plan", "align_infer", "align_crosscut", "tdd_red", "tdd_green", "tdd_refactor"} {
 		if len(phase) >= len(prefix) && phase[:len(prefix)] == prefix {
 			if prefix == "tdd_red" || prefix == "tdd_green" || prefix == "tdd_refactor" {
 				return "tdd"

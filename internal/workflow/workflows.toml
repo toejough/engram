@@ -284,6 +284,21 @@ fallback_model = "haiku"
 type = "action"
 
 # --- Align Workflow States ---
+[states.align_plan_produce]
+type = "produce"
+skill = "plan-producer"
+skill_path = "skills/plan-producer/SKILL.md"
+fallback_model = "opus"
+
+[states.align_plan_approve]
+type = "approve"
+
+[states.align_infer_fork]
+type = "fork"
+
+[states.align_infer_join]
+type = "join"
+
 [states.align_infer_reqs_produce]
 type = "produce"
 skill = "pm-infer-producer"
@@ -513,11 +528,15 @@ init_state = "tasklist_create"
 include_groups = ["main-ending"]
 
 [workflows.align.transitions]
-tasklist_create = ["align_infer_tests_produce"]
-align_infer_tests_produce = ["align_infer_arch_produce"]
-align_infer_arch_produce = ["align_infer_design_produce"]
-align_infer_design_produce = ["align_infer_reqs_produce"]
-align_infer_reqs_produce = ["align_crosscut_qa"]
+tasklist_create = ["align_plan_produce"]
+align_plan_produce = ["align_plan_approve"]
+align_plan_approve = ["align_infer_fork", "align_plan_produce"]
+align_infer_fork = ["align_infer_reqs_produce", "align_infer_design_produce", "align_infer_arch_produce", "align_infer_tests_produce"]
+align_infer_reqs_produce = ["align_infer_join"]
+align_infer_design_produce = ["align_infer_join"]
+align_infer_arch_produce = ["align_infer_join"]
+align_infer_tests_produce = ["align_infer_join"]
+align_infer_join = ["align_crosscut_qa"]
 align_crosscut_qa = ["align_crosscut_decide"]
-align_crosscut_decide = ["align_infer_tests_produce", "align_artifact_commit", "phase_blocked"]
+align_crosscut_decide = ["align_infer_fork", "align_artifact_commit", "phase_blocked"]
 align_artifact_commit = ["alignment_produce"]

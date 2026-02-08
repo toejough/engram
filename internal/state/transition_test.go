@@ -141,10 +141,17 @@ func TestIsLegalTransition(t *testing.T) {
 
 	t.Run("align workflow transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("align_infer_tests_produce", "align_infer_arch_produce", "align")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align_infer_arch_produce", "align_infer_design_produce", "align")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align_infer_design_produce", "align_infer_reqs_produce", "align")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align_infer_reqs_produce", "align_crosscut_qa", "align")).To(BeTrue())
+		// Plan phase
+		g.Expect(state.IsLegalTransition("tasklist_create", "align_plan_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_plan_produce", "align_plan_approve", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_plan_approve", "align_infer_fork", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_plan_approve", "align_plan_produce", "align")).To(BeTrue())
+		// Parallel inference
+		g.Expect(state.IsLegalTransition("align_infer_fork", "align_infer_reqs_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_fork", "align_infer_tests_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_reqs_produce", "align_infer_join", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_join", "align_crosscut_qa", "align")).To(BeTrue())
+		// Cross-cut QA and commit
 		g.Expect(state.IsLegalTransition("align_crosscut_decide", "align_artifact_commit", "align")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("align_artifact_commit", "alignment_produce", "align")).To(BeTrue())
 	})

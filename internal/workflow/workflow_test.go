@@ -150,10 +150,20 @@ func TestInitState(t *testing.T) {
 		g.Expect(cfg.IsLegalTransition("tasklist_create", "item_select", "scoped")).To(BeTrue())
 	})
 
-	t.Run("align workflow transitions from tasklist_create to align_infer_tests_produce", func(t *testing.T) {
+	t.Run("align workflow transitions from tasklist_create to align_plan_produce", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
-		g.Expect(cfg.IsLegalTransition("tasklist_create", "align_infer_tests_produce", "align")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("tasklist_create", "align_plan_produce", "align")).To(BeTrue())
+	})
+
+	t.Run("align workflow has parallel inference via fork/join", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+		g.Expect(cfg.IsLegalTransition("align_plan_approve", "align_infer_fork", "align")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("align_infer_fork", "align_infer_reqs_produce", "align")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("align_infer_fork", "align_infer_tests_produce", "align")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("align_infer_reqs_produce", "align_infer_join", "align")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("align_infer_join", "align_crosscut_qa", "align")).To(BeTrue())
 	})
 
 	t.Run("unknown workflow returns error", func(t *testing.T) {

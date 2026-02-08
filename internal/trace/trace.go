@@ -735,6 +735,8 @@ var validPhases = map[string]bool{
 	// Ending phases
 	"issue_update": true, "next_steps": true, "complete": true,
 	// Align workflow phases
+	"align_plan_produce": true, "align_plan_approve": true,
+	"align_infer_fork": true, "align_infer_join": true,
 	"align_infer_reqs_produce": true, "align_infer_design_produce": true,
 	"align_infer_arch_produce": true, "align_infer_tests_produce": true,
 	"align_crosscut_qa": true, "align_crosscut_decide": true, "align_artifact_commit": true,
