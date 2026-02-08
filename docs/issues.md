@@ -4947,3 +4947,22 @@ Phase 1 quick win — no dependencies on ISSUE-150, but informs its design (tier
 ### Comment
 
 Deferred to ISSUE-150 session — tier definitions will be designed alongside the declarative TOML workflow schema.
+
+---
+
+### ISSUE-152: Integrate semantic memory into orchestration workflow
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+The projctl memory package (learn, decide, query, grep, session-end, extract) provides ONNX-based semantic similarity search for expanding LLM capabilities beyond context windows, inspired by oh-my-opencode and gastown patterns.
+
+Currently the memory CLI commands exist but are not integrated into the orchestration workflow or referenced by any skills.
+
+**Goals:**
+- Capture session-end summaries automatically at project completion
+- Query prior learnings/decisions during relevant phases (e.g., PM interview surfaces past decisions on similar topics)
+- QA queries memory for known patterns and past failures
+- context-explorer uses memory query alongside file search
+- Fix failing TestIntegration_SemanticSimilarityExampleErrorAndException (semantic ranking assertion too strict)
