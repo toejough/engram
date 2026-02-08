@@ -149,3 +149,76 @@ func TestMemorySessionEndCommand(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
 	g.Expect(string(output)).To(ContainSubstring("Session summary saved"))
 }
+
+// ============================================================================
+// TASK-42: External knowledge capture - CLI --source flag
+// ============================================================================
+
+// TestMemoryLearnWithSourceInternal tests --source internal flag
+func TestMemoryLearnWithSourceInternal(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	cmd := exec.Command("projctl", "memory", "learn",
+		"--message", "Internal source learning",
+		"--source", "internal",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Learned"))
+}
+
+// TestMemoryLearnWithSourceExternal tests --source external flag
+func TestMemoryLearnWithSourceExternal(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	cmd := exec.Command("projctl", "memory", "learn",
+		"--message", "External source learning from web",
+		"--source", "external",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Learned"))
+}
+
+// TestMemoryLearnSourceDefaultsToInternal tests that omitting --source defaults to internal
+func TestMemoryLearnSourceDefaultsToInternal(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	// Run without --source flag
+	cmd := exec.Command("projctl", "memory", "learn",
+		"--message", "No source specified",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Learned"))
+}
+
+// TestMemoryLearnSourceWithProject tests --source combined with --project
+func TestMemoryLearnSourceWithProject(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	cmd := exec.Command("projctl", "memory", "learn",
+		"--message", "External learning with project",
+		"--source", "external",
+		"--project", "my-project",
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Learned"))
+}
