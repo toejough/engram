@@ -63,61 +63,27 @@ func TestExample(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(s.Project.RepoDir).To(Equal(repoDir))
 
-	// Create a mock checker that uses the actual file system for test detection
-	checker := &integrationChecker{repoDir: repoDir}
+	// Navigate to tdd_red_produce using the BFS helper
+	navigateToState(t, projectDir, "tdd_red_produce", "new")
 
-	// Transition through init -> pm -> pm-complete
-	s, err = state.TransitionWithChecker(projectDir, "pm", state.TransitionOpts{}, nowFunc, checker)
+	// Verify we're at tdd_red_produce
+	s, err = state.Get(projectDir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Project.Phase).To(Equal("tdd_red_produce"))
+
+	// tdd_red_produce → tdd_red_qa
+	s, err = state.Transition(projectDir, "tdd_red_qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Project.Phase).To(Equal("tdd_red_qa"))
+
+	// tdd_red_qa → tdd_red_decide
+	s, err = state.Transition(projectDir, "tdd_red_decide", state.TransitionOpts{}, nowFunc)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// For pm-complete, we need requirements.md
-	reqContent := "# Requirements\n\n### REQ-001: Test requirement\n"
-	g.Expect(os.WriteFile(filepath.Join(projectDir, "requirements.md"), []byte(reqContent), 0o644)).To(Succeed())
-
-	s, err = state.TransitionWithChecker(projectDir, "pm-complete", state.TransitionOpts{}, nowFunc, checker)
+	// tdd_red_decide → tdd_green_produce
+	s, err = state.Transition(projectDir, "tdd_green_produce", state.TransitionOpts{}, nowFunc)
 	g.Expect(err).ToNot(HaveOccurred())
-
-	// Continue through design -> design-complete
-	s, err = state.TransitionWithChecker(projectDir, "design", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	designContent := "# Design\n\n### DES-001: Test design\n\n**Traces to:** REQ-001\n"
-	g.Expect(os.WriteFile(filepath.Join(projectDir, "design.md"), []byte(designContent), 0o644)).To(Succeed())
-
-	s, err = state.TransitionWithChecker(projectDir, "design-complete", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Continue through architect -> architect-complete -> breakdown -> breakdown-complete -> implementation
-	s, err = state.TransitionWithChecker(projectDir, "architect", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-	s, err = state.TransitionWithChecker(projectDir, "architect-complete", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-	s, err = state.TransitionWithChecker(projectDir, "breakdown", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-	s, err = state.TransitionWithChecker(projectDir, "breakdown-complete", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-	s, err = state.TransitionWithChecker(projectDir, "implementation", state.TransitionOpts{}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Now the key test: task-start -> tdd-red -> tdd-green
-	// tdd-green should find tests in repoDir, not projectDir
-	s, err = state.TransitionWithChecker(projectDir, "task-start", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	s, err = state.TransitionWithChecker(projectDir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Per-phase QA: tdd-red -> tdd-red-qa -> tdd-green
-	s, err = state.TransitionWithChecker(projectDir, "tdd-red-qa", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// tdd-green should also succeed (tdd-red-qa transitions directly to tdd-green)
-	s, err = state.TransitionWithChecker(projectDir, "tdd-green", state.TransitionOpts{Task: "TASK-001"}, nowFunc, checker)
-	g.Expect(err).ToNot(HaveOccurred(), "tdd-green should succeed when tests exist in repo dir")
-
-	// Verify state is correct
-	g.Expect(s.Project.Phase).To(Equal("tdd-green"))
-	g.Expect(s.Progress.CurrentTask).To(Equal("TASK-001"))
+	g.Expect(s.Project.Phase).To(Equal("tdd_green_produce"))
 }
 
 // integrationChecker implements PreconditionChecker for integration tests.
@@ -131,7 +97,7 @@ func (c *integrationChecker) RequirementsExist(dir string) bool {
 }
 
 func (c *integrationChecker) RequirementsHaveIDs(dir string) bool {
-	return true // Simplified for integration test
+	return true
 }
 
 func (c *integrationChecker) DesignExists(dir string) bool {
@@ -140,34 +106,32 @@ func (c *integrationChecker) DesignExists(dir string) bool {
 }
 
 func (c *integrationChecker) DesignHasIDs(dir string) bool {
-	return true // Simplified
+	return true
 }
 
 func (c *integrationChecker) TraceValidationPasses(dir string, phase string) bool {
-	return true // Simplified
+	return true
 }
 
 func (c *integrationChecker) TestsExist(dir string) bool {
-	// Check if *_test.go files exist in the given directory
 	matches, _ := filepath.Glob(filepath.Join(dir, "*_test.go"))
 	if len(matches) > 0 {
 		return true
 	}
-	// Also check subdirectories
 	matches, _ = filepath.Glob(filepath.Join(dir, "**", "*_test.go"))
 	return len(matches) > 0
 }
 
 func (c *integrationChecker) TestsFail(dir string) bool {
-	return true // For tdd-red phase
+	return true
 }
 
 func (c *integrationChecker) TestsPass(dir string) bool {
-	return true // For tdd-green phase
+	return true
 }
 
 func (c *integrationChecker) AcceptanceCriteriaComplete(dir, taskID string) bool {
-	return true // Simplified
+	return true
 }
 
 func (c *integrationChecker) IncompleteAcceptanceCriteria(dir, taskID string) []string {
@@ -189,7 +153,7 @@ func (c *integrationChecker) SummaryExists(dir string) bool {
 }
 
 func (c *integrationChecker) IssueACComplete(repoDir, issueID string) bool {
-	return true // Simplified for integration test
+	return true
 }
 
 func (c *integrationChecker) IncompleteIssueAC(repoDir, issueID string) []string {

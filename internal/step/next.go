@@ -8,6 +8,7 @@ import (
 
 	"github.com/toejough/projctl/internal/state"
 	"github.com/toejough/projctl/internal/task"
+	"github.com/toejough/projctl/internal/workflow"
 	"github.com/toejough/projctl/internal/worktree"
 )
 
@@ -15,14 +16,17 @@ import (
 // It instructs the teammate to respond with its model name before doing any work.
 const HandshakeInstruction = "First, respond with your model name so I can verify you're running the correct model."
 
-// isQAOnlyPhase returns true for phases that only run QA (no producer).
-func isQAOnlyPhase(phase string) bool {
-	switch phase {
-	case "tdd-red-qa", "tdd-green-qa", "tdd-refactor-qa":
-		return true
-	default:
-		return false
+// pairKey derives the shared pair state key from a state name by stripping
+// the state type suffix (_produce, _qa, _decide, _commit).
+// States in the same phase group share pair state (e.g., pm_produce, pm_qa,
+// pm_decide, pm_commit all use key "pm").
+func pairKey(stateName string) string {
+	for _, suffix := range []string{"_produce", "_qa", "_decide", "_commit"} {
+		if strings.HasSuffix(stateName, suffix) {
+			return strings.TrimSuffix(stateName, suffix)
+		}
 	}
+	return stateName
 }
 
 // buildPrompt assembles the full prompt for a spawn action.
@@ -127,58 +131,10 @@ func buildSpawnResult(action, skill, skillPath, model, artifact, phase string, c
 	}
 }
 
-// handleProducerPhase handles the producer spawn phase logic.
-func handleProducerPhase(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
-	if pair.SpawnAttempts >= 3 {
-		escalated := escalateResult(phase, "producer", info.ProducerModel, pair.FailedModels)
-		escalated.Tasks = result.Tasks
-		return escalated, nil
-	}
-	if pair.ImprovementRequest != "" {
-		ctx.QAFeedback = pair.ImprovementRequest
-	}
-	return buildSpawnResult("spawn-producer", info.Producer, info.ProducerPath, info.ProducerModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
-}
-
-// handleQAPhase handles the QA spawn phase logic.
-func handleQAPhase(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
-	if pair.SpawnAttempts >= 3 {
-		escalated := escalateResult(phase, "qa", info.QAModel, pair.FailedModels)
-		escalated.Tasks = result.Tasks
-		return escalated, nil
-	}
-
-	// Load producer transcript if available
-	if pair.ProducerTranscript != "" {
-		transcriptData, err := os.ReadFile(pair.ProducerTranscript)
-		if err == nil {
-			ctx.ProducerTranscript = string(transcriptData)
-		}
-		// If file read fails, continue without transcript (QA will fall back to direct validation)
-	}
-
-	return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
-}
-
-// handleImprovementRequest handles the improvement request phase logic.
-func handleImprovementRequest(result NextResult, pair state.PairState, info PhaseInfo, phase string, ctx StepContext, teamName string) (NextResult, error) {
-	if pair.Iteration > pair.MaxIterations {
-		escalated := escalateIterationResult(phase, pair.Iteration)
-		escalated.Tasks = result.Tasks
-		return escalated, nil
-	}
-	if pair.SpawnAttempts >= 3 {
-		escalated := escalateResult(phase, "producer", info.ProducerModel, pair.FailedModels)
-		escalated.Tasks = result.Tasks
-		return escalated, nil
-	}
-	ctx.QAFeedback = pair.ImprovementRequest
-	return buildSpawnResult("spawn-producer", info.Producer, info.ProducerPath, info.ProducerModel, info.Artifact, phase, ctx, teamName, result.Tasks), nil
-}
 
 // Next determines the next action based on the current project state.
-// It reads the state file, checks the phase registry, and returns structured JSON
-// telling the LLM exactly what to do.
+// It reads the state file, looks up the current state type from the registry,
+// and returns structured JSON telling the LLM exactly what to do.
 // Traces to: TASK-2, ARCH-2, DES-1, DES-6, REQ-1, REQ-5
 func Next(dir string) (NextResult, error) {
 	s, err := state.Get(dir)
@@ -189,16 +145,14 @@ func Next(dir string) (NextResult, error) {
 	currentPhase := s.Project.Phase
 
 	// Populate parallel tasks array (TASK-2)
-	// This detects all unblocked tasks for parallel execution
 	result := NextResult{}
 	result.Tasks, err = populateTasks(dir)
 	if err != nil {
-		// If task detection fails, continue with empty array (non-blocking)
 		result.Tasks = []TaskInfo{}
 	}
 
 	// Check for terminal state
-	targets := state.LegalTargets(currentPhase)
+	targets := state.LegalTargets(currentPhase, s.Project.Workflow)
 	if len(targets) == 0 {
 		result.Action = "all-complete"
 		result.Phase = currentPhase
@@ -208,61 +162,80 @@ func Next(dir string) (NextResult, error) {
 	// Look up phase in registry
 	info, registered := Registry.Lookup(currentPhase)
 	if !registered {
-		// Non-registered phases are transitions (like pm-complete, design-complete, etc.)
-		// Just suggest the next transition
+		// Non-registered phases are pass-through transitions
 		result.Action = "transition"
 		result.Phase = targets[0]
 		return result, nil
 	}
 
-	// Initialize context early for all registered phases
 	ctx := StepContext{
 		Issue:          s.Project.Issue,
 		PriorArtifacts: []string{},
 	}
 
-	// Special handling for QA-only phases (tdd-red-qa, tdd-green-qa, etc.)
-	// These phases only run QA, no producer
-	if isQAOnlyPhase(currentPhase) {
-		pair, hasPair := s.Pairs[currentPhase]
-		if !hasPair || pair.QAVerdict == "" {
-			// No QA verdict yet: spawn QA
-			if pair.SpawnAttempts >= 3 {
-				escalated := escalateResult(currentPhase, "qa", info.QAModel, pair.FailedModels)
-				escalated.Tasks = result.Tasks
-				return escalated, nil
-			}
-			return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, "", currentPhase, ctx, s.Project.Name, result.Tasks), nil
+	key := pairKey(currentPhase)
+	pair := getPair(s, key)
+
+	switch info.StateType {
+	case workflow.StateTypeProduce:
+		if pair.ProducerComplete {
+			result.Action = "transition"
+			result.Phase = targets[0]
+			return result, nil
 		}
-		// QA complete: transition to next phase
-		result.Action = "transition"
-		result.Phase = targets[0]
+		if pair.Iteration > pair.MaxIterations && pair.MaxIterations > 0 {
+			escalated := escalateIterationResult(currentPhase, pair.Iteration)
+			escalated.Tasks = result.Tasks
+			return escalated, nil
+		}
+		if pair.SpawnAttempts >= 3 {
+			escalated := escalateResult(currentPhase, "producer", info.ProducerModel, pair.FailedModels)
+			escalated.Tasks = result.Tasks
+			return escalated, nil
+		}
+		if pair.ImprovementRequest != "" {
+			ctx.QAFeedback = pair.ImprovementRequest
+		}
+		return buildSpawnResult("spawn-producer", info.Producer, info.ProducerPath, info.ProducerModel, info.Artifact, currentPhase, ctx, s.Project.Name, result.Tasks), nil
+
+	case workflow.StateTypeQA:
+		if pair.QAVerdict != "" {
+			result.Action = "transition"
+			result.Phase = targets[0]
+			return result, nil
+		}
+		if pair.SpawnAttempts >= 3 {
+			escalated := escalateResult(currentPhase, "qa", info.QAModel, pair.FailedModels)
+			escalated.Tasks = result.Tasks
+			return escalated, nil
+		}
+		if pair.ProducerTranscript != "" {
+			transcriptData, err := os.ReadFile(pair.ProducerTranscript)
+			if err == nil {
+				ctx.ProducerTranscript = string(transcriptData)
+			}
+		}
+		return buildSpawnResult("spawn-qa", info.QA, info.QAPath, info.QAModel, info.Artifact, currentPhase, ctx, s.Project.Name, result.Tasks), nil
+
+	case workflow.StateTypeDecide:
+		if pair.QAVerdict == "approved" && len(targets) > 1 {
+			result.Action = "transition"
+			result.Phase = targets[1]
+		} else {
+			result.Action = "transition"
+			result.Phase = targets[0]
+		}
 		return result, nil
-	}
 
-	// Determine sub-phase from pair state
-	pair, hasPair := s.Pairs[currentPhase]
-
-	// Sub-phase logic based on pair state
-	switch {
-	case !hasPair || (!pair.ProducerComplete && pair.QAVerdict == ""):
-		return handleProducerPhase(result, pair, info, currentPhase, ctx, s.Project.Name)
-
-	case pair.ProducerComplete && pair.QAVerdict == "":
-		return handleQAPhase(result, pair, info, currentPhase, ctx, s.Project.Name)
-
-	case pair.QAVerdict == "improvement-request":
-		return handleImprovementRequest(result, pair, info, currentPhase, ctx, s.Project.Name)
-
-	case pair.QAVerdict == "approved":
+	case workflow.StateTypeCommit:
+		if pair.QAVerdict == "committed" {
+			result.Action = "transition"
+			result.Phase = targets[0]
+			return result, nil
+		}
 		result.Action = "commit"
 		result.Phase = currentPhase
 		result.Context = ctx
-		return result, nil
-
-	case pair.QAVerdict == "committed":
-		result.Action = "transition"
-		result.Phase = targets[0]
 		return result, nil
 
 	default:
@@ -280,17 +253,17 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 	}
 
 	currentPhase := s.Project.Phase
+	key := pairKey(currentPhase)
 
 	switch result.Action {
 	case "spawn-producer":
-		pair := getPair(s, currentPhase)
+		pair := getPair(s, key)
 		if result.Status == "failed" {
 			pair.SpawnAttempts++
 			pair.FailedModels = append(pair.FailedModels, result.ReportedModel)
-			_, err = state.SetPair(dir, currentPhase, pair)
+			_, err = state.SetPair(dir, key, pair)
 			return err
 		}
-		// done (or empty for backward compat)
 		pair.ProducerComplete = true
 		pair.ProducerTranscript = result.ProducerTranscript
 		pair.SpawnAttempts = 0
@@ -301,18 +274,17 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 		}
 		pair.QAVerdict = ""
 		pair.ImprovementRequest = ""
-		_, err = state.SetPair(dir, currentPhase, pair)
+		_, err = state.SetPair(dir, key, pair)
 		return err
 
 	case "spawn-qa":
-		pair := getPair(s, currentPhase)
+		pair := getPair(s, key)
 		if result.Status == "failed" {
 			pair.SpawnAttempts++
 			pair.FailedModels = append(pair.FailedModels, result.ReportedModel)
-			_, err = state.SetPair(dir, currentPhase, pair)
+			_, err = state.SetPair(dir, key, pair)
 			return err
 		}
-		// done (or empty for backward compat)
 		pair.SpawnAttempts = 0
 		pair.FailedModels = nil
 		pair.QAVerdict = result.QAVerdict
@@ -321,27 +293,29 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 			pair.ProducerComplete = false
 			pair.Iteration++
 		}
-		_, err = state.SetPair(dir, currentPhase, pair)
+		_, err = state.SetPair(dir, key, pair)
 		return err
 
 	case "commit":
-		// Commit: verify QA was approved first
-		pair := getPair(s, currentPhase)
-		if pair.QAVerdict != "approved" {
+		pair := getPair(s, key)
+		// Safety: reject only if QA explicitly requested improvement
+		if pair.QAVerdict == "improvement-request" {
 			return fmt.Errorf("cannot commit: QA has not approved (verdict: %q)", pair.QAVerdict)
 		}
 		pair.QAVerdict = "committed"
-		_, err = state.SetPair(dir, currentPhase, pair)
+		_, err = state.SetPair(dir, key, pair)
 		return err
 
 	case "transition":
-		// Transition: advance the state machine
 		targetPhase := result.Phase
 		if targetPhase == "" {
 			return fmt.Errorf("transition requires a target phase")
 		}
-		// Clear pair state for current phase
-		_, _ = state.ClearPair(dir, currentPhase)
+		// Clear pair state only when crossing phase group boundaries
+		targetKey := pairKey(targetPhase)
+		if targetKey != key {
+			_, _ = state.ClearPair(dir, key)
+		}
 		_, err = state.Transition(dir, targetPhase, state.TransitionOpts{}, now)
 		return err
 

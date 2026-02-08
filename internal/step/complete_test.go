@@ -15,64 +15,57 @@ import (
 //
 // Traces to: REQ-105-003, ARCH-105-003, ARCH-105-004, TASK-7, TASK-14, ISSUE-105
 
+// navigateToTDDRedProduceViaScoped initializes a scoped workflow and transitions
+// to tdd_red_produce via the flat state machine path:
+// init -> item_select -> item_fork -> worktree_create -> tdd_red_produce
+func navigateToTDDRedProduceViaScoped(g Gomega, dir string) {
+	_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+		Workflow: "scoped",
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+	}
+}
+
 func TestStepCompleteProducerDone(t *testing.T) {
 	t.Run("producer completion updates state correctly", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		// Initialize and navigate to tdd-red
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Complete producer action
-		err = step.Complete(dir, step.CompleteResult{
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "producer completion should succeed")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify state reflects completion
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("tdd-red"), "phase should remain tdd-red until transitioned")
+		g.Expect(s.Project.Phase).To(Equal("tdd_red_produce"))
+		g.Expect(s.Pairs["tdd_red"].ProducerComplete).To(BeTrue())
 	})
 
 	t.Run("producer completion with failed status records failure", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Complete with failed status
-		err = step.Complete(dir, step.CompleteResult{
+		err := step.Complete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "failed producer should record failure")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify spawn attempts incremented
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Pairs["tdd-red"].SpawnAttempts).To(Equal(1))
-		g.Expect(s.Pairs["tdd-red"].FailedModels).To(ContainElement("haiku"))
+		g.Expect(s.Pairs["tdd_red"].SpawnAttempts).To(Equal(1))
+		g.Expect(s.Pairs["tdd_red"].FailedModels).To(ContainElement("haiku"))
 	})
 }
 
@@ -81,49 +74,31 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		navigateToTDDRedProduceViaScoped(g, dir)
+		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// QA approves
 		err = step.Complete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
 			QAVerdict: "approved",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "QA approved should succeed")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify pair state updated
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red-qa"]
-		g.Expect(exists).To(BeTrue(), "pair state should exist for tdd-red-qa")
-		g.Expect(pairState.QAVerdict).To(Equal("approved"), "QA verdict should be recorded")
+		// pairKey("tdd_red_qa") = "tdd_red"
+		g.Expect(s.Pairs["tdd_red"].QAVerdict).To(Equal("approved"))
 	})
 
 	t.Run("QA improvement-request verdict records feedback", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		navigateToTDDRedProduceViaScoped(g, dir)
+		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// QA requests improvement
 		feedbackText := "Missing trace to REQ-042"
 		err = step.Complete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
@@ -131,48 +106,36 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 			QAVerdict:  "improvement-request",
 			QAFeedback: feedbackText,
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "QA improvement-request should succeed")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify feedback stored
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red-qa"]
-		g.Expect(exists).To(BeTrue())
-		g.Expect(pairState.QAVerdict).To(Equal("improvement-request"))
-		g.Expect(pairState.ImprovementRequest).To(Equal(feedbackText), "QA feedback should be stored")
-		g.Expect(pairState.Iteration).To(Equal(1), "iteration should increment on improvement-request")
+		g.Expect(s.Pairs["tdd_red"].QAVerdict).To(Equal("improvement-request"))
+		g.Expect(s.Pairs["tdd_red"].ImprovementRequest).To(Equal(feedbackText))
+		g.Expect(s.Pairs["tdd_red"].ProducerComplete).To(BeFalse())
+		g.Expect(s.Pairs["tdd_red"].Iteration).To(Equal(1))
 	})
 
 	t.Run("QA escalate-user verdict is recorded", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		navigateToTDDRedProduceViaScoped(g, dir)
+		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// QA escalates to user
 		err = step.Complete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "escalate-user",
 			QAFeedback: "Max iterations reached",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "QA escalate-user should succeed")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify verdict recorded
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red-qa"]
-		g.Expect(exists).To(BeTrue())
-		g.Expect(pairState.QAVerdict).To(Equal("escalate-user"))
+		g.Expect(s.Pairs["tdd_red"].QAVerdict).To(Equal("escalate-user"))
+		g.Expect(s.Project.Phase).To(Equal("tdd_red_qa"))
 	})
 }
 
@@ -181,62 +144,33 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Set approved verdict first
-		err = step.Complete(dir, step.CompleteResult{
-			Action:    "spawn-qa",
-			Status:    "done",
-			QAVerdict: "approved",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Complete transition to tdd-green
-		err = step.Complete(dir, step.CompleteResult{
+		// Transition from tdd_red_produce to tdd_red_qa (same group)
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "transition",
-			Status: "done",
-			Phase:  "tdd-green",
+			Phase:  "tdd_red_qa",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "transition should succeed")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify phase changed
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("tdd-green"), "phase should be updated to tdd-green")
+		g.Expect(s.Project.Phase).To(Equal("tdd_red_qa"))
 	})
 
 	t.Run("illegal transition is rejected", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Try to transition directly to tdd-green (skipping tdd-red-qa)
-		err = step.Complete(dir, step.CompleteResult{
+		// Try to transition directly to tdd_green_produce (skipping tdd_red_qa, tdd_red_decide)
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "transition",
-			Status: "done",
-			Phase:  "tdd-green",
+			Phase:  "tdd_green_produce",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "illegal transition should be rejected")
-		g.Expect(err.Error()).To(ContainSubstring("illegal transition"), "error should mention illegal transition")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 	})
 }
 
@@ -245,18 +179,10 @@ func TestStepCompleteEscalationResolution(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		navigateToTDDRedProduceViaScoped(g, dir)
+		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Escalate to user
 		err = step.Complete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
@@ -265,11 +191,10 @@ func TestStepCompleteEscalationResolution(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify escalation verdict is recorded
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Pairs["tdd-red-qa"].QAVerdict).To(Equal("escalate-user"))
-		g.Expect(s.Project.Phase).To(Equal("tdd-red-qa"), "phase should remain unchanged after escalation")
+		g.Expect(s.Pairs["tdd_red"].QAVerdict).To(Equal("escalate-user"))
+		g.Expect(s.Project.Phase).To(Equal("tdd_red_qa"))
 	})
 }
 
@@ -285,35 +210,25 @@ func TestStepCompleteInvalidAction(t *testing.T) {
 			Action: "invalid-action-type",
 			Status: "done",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "invalid action type should return error")
-		g.Expect(err.Error()).To(ContainSubstring("unknown action"), "error should mention unknown action")
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("unknown action"))
 	})
 
 	t.Run("empty status is treated as done", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		err = step.Complete(dir, step.CompleteResult{
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "empty status should be treated as done")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify producer was marked complete
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Pairs["tdd-red"].ProducerComplete).To(BeTrue())
+		g.Expect(s.Pairs["tdd_red"].ProducerComplete).To(BeTrue())
 	})
 }
 
@@ -322,16 +237,9 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		navigateToTDDRedProduceViaScoped(g, dir)
+		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
 
 		feedbackText := "Test feedback"
 		err = step.Complete(dir, step.CompleteResult{
@@ -345,9 +253,7 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		// Reload state from disk
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		pairState, exists := s.Pairs["tdd-red-qa"]
-		g.Expect(exists).To(BeTrue())
-		g.Expect(pairState.ImprovementRequest).To(Equal(feedbackText), "persisted state should contain QA feedback")
+		g.Expect(s.Pairs["tdd_red"].ImprovementRequest).To(Equal(feedbackText))
 	})
 
 	t.Run("state file corruption is detected", func(t *testing.T) {
@@ -362,12 +268,11 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		err = os.WriteFile(statePath, []byte("corrupted invalid toml {{{"), 0644)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Attempt completion should fail gracefully
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
-		g.Expect(err).To(HaveOccurred(), "corrupted state should return error")
+		g.Expect(err).To(HaveOccurred())
 	})
 }
 
@@ -376,31 +281,18 @@ func TestStepCompleteModelMismatch(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduceViaScoped(g, dir)
 
-		phases := []string{"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red"}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Report spawn failure due to model mismatch
-		err = step.Complete(dir, step.CompleteResult{
+		err := step.Complete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",
 		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred(), "failed spawn should record failure")
+		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify failed model is recorded
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Pairs["tdd-red"].FailedModels).To(ContainElement("haiku"))
-		g.Expect(s.Pairs["tdd-red"].SpawnAttempts).To(Equal(1))
+		g.Expect(s.Pairs["tdd_red"].FailedModels).To(ContainElement("haiku"))
+		g.Expect(s.Pairs["tdd_red"].SpawnAttempts).To(Equal(1))
 	})
 }
-
-// Note: nowFunc() helper is already defined in next_test.go

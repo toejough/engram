@@ -185,7 +185,7 @@ type PreconditionChecker interface {
 // Preconditions maps phases to their required preconditions.
 // The function takes dir, opts, and checker so preconditions can access task ID.
 var Preconditions = map[string]func(dir string, opts TransitionOpts, checker PreconditionChecker) error{
-	"pm-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"pm_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.RequirementsExist(dir) {
 			return fmt.Errorf("precondition failed: requirements.md must exist")
 		}
@@ -194,7 +194,7 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		}
 		return nil
 	},
-	"design-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"design_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.DesignExists(dir) {
 			return fmt.Errorf("precondition failed: design.md must exist")
 		}
@@ -203,14 +203,14 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		}
 		return nil
 	},
-	"architect-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.TraceValidationPasses(dir, "architect-complete") {
+	"arch_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+		if !c.TraceValidationPasses(dir, "arch_commit") {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
 		return nil
 	},
-	"task-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.TraceValidationPasses(dir, "task-complete") {
+	"tdd_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+		if !c.TraceValidationPasses(dir, "tdd_commit") {
 			return fmt.Errorf("precondition failed: trace validation must pass")
 		}
 		if opts.Task != "" && !c.AcceptanceCriteriaComplete(dir, opts.Task) {
@@ -218,7 +218,7 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		}
 		return nil
 	},
-	"tdd-green": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"tdd_green_produce": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		// Use repo dir for code-related checks, fallback to project dir
 		codeDir := opts.RepoDir
 		if codeDir == "" {
@@ -232,25 +232,13 @@ var Preconditions = map[string]func(dir string, opts TransitionOpts, checker Pre
 		}
 		return nil
 	},
-	"tdd-refactor": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"tdd_refactor_produce": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.TestsPass(dir) {
 			return fmt.Errorf("precondition failed: all tests must pass")
 		}
 		return nil
 	},
-	"retro-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.RetroExists(dir) {
-			return fmt.Errorf("precondition failed: retro.md must exist")
-		}
-		return nil
-	},
-	"summary-complete": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
-		if !c.SummaryExists(dir) {
-			return fmt.Errorf("precondition failed: summary.md must exist")
-		}
-		return nil
-	},
-	"issue-update": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"issue_update": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		// Read state to get linked issue
 		s, err := Get(dir)
 		if err != nil {
@@ -300,8 +288,27 @@ func TransitionWithChecker(dir string, to string, opts TransitionOpts, now func(
 	from := s.Project.Phase
 	t := now()
 
-	if !IsLegalTransition(from, to) {
-		targets := LegalTargets(from)
+	// Check transition legality.
+	// Special case: "init" is the bootstrap phase before the workflow begins.
+	// The only legal transition from "init" is to the workflow's init_state.
+	legal := false
+	if from == "init" {
+		initState, initErr := WorkflowInitState(s.Project.Workflow)
+		legal = initErr == nil && to == initState
+	} else {
+		legal = IsLegalTransition(from, to, s.Project.Workflow)
+	}
+
+	if !legal {
+		var targets []string
+		if from == "init" {
+			initState, initErr := WorkflowInitState(s.Project.Workflow)
+			if initErr == nil {
+				targets = []string{initState}
+			}
+		} else {
+			targets = LegalTargets(from, s.Project.Workflow)
+		}
 		transitionErr := fmt.Errorf(
 			"illegal transition: %s → %s (legal targets: %v)",
 			from, to, targets,
@@ -408,21 +415,9 @@ func Get(dir string) (State, error) {
 		return State{}, fmt.Errorf("failed to read state file: %w", err)
 	}
 
-	// Migrate legacy TDD phase to TDD-red sub-phase
+	// Migrate legacy TDD phase to flat state machine equivalent
 	if s.Project.Phase == "tdd" {
-		s.Project.Phase = "tdd-red"
-
-		// Initialize pair state for tdd-red with iteration 0
-		if s.Pairs == nil {
-			s.Pairs = make(map[string]PairState)
-		}
-		// Only initialize if not already set (idempotent)
-		if _, exists := s.Pairs["tdd-red"]; !exists {
-			s.Pairs["tdd-red"] = PairState{
-				Iteration:     0,
-				MaxIterations: 3, // Default max iterations
-			}
-		}
+		s.Project.Phase = "tdd_red_produce"
 
 		// Persist migration to disk
 		if err := writeAtomic(dir, s); err != nil {
@@ -431,41 +426,6 @@ func Get(dir string) (State, error) {
 	}
 
 	return s, nil
-}
-
-// NextResult holds the result of Next().
-type NextResult struct {
-	Action     string `json:"action"`               // "continue" or "stop"
-	NextPhase  string `json:"next_phase,omitempty"` // Next phase when action is continue
-	NextTask   string `json:"next_task,omitempty"`  // Next task when action is continue
-	Reason     string `json:"reason,omitempty"`     // Reason when action is stop
-	Escalation string `json:"escalation,omitempty"` // Escalation ID if reason is escalation_pending
-	Details    string `json:"details,omitempty"`    // Details if reason is validation_failed
-}
-
-// RecoveryInfo holds information about recovery options after a failure.
-type RecoveryInfo struct {
-	HasError         bool     `json:"has_error"`
-	AvailableActions []string `json:"available_actions,omitempty"`
-	LastError        string   `json:"last_error,omitempty"`
-}
-
-// GetRecovery returns recovery information for the current state.
-func GetRecovery(dir string) RecoveryInfo {
-	s, err := Get(dir)
-	if err != nil {
-		return RecoveryInfo{}
-	}
-
-	if s.Error == nil {
-		return RecoveryInfo{HasError: false}
-	}
-
-	return RecoveryInfo{
-		HasError:         true,
-		AvailableActions: []string{"retry", "skip", "escalate"},
-		LastError:        s.Error.Message,
-	}
 }
 
 // LastFailedTransition holds info about the last failed transition for retry.
@@ -642,114 +602,3 @@ func Retry(dir string, now func() time.Time, checker PreconditionChecker) (State
 	return TransitionWithChecker(dir, s.Error.TargetPhase, TransitionOpts{}, now, checker)
 }
 
-// Next determines the next action based on current state.
-// Returns "continue" with next phase/task, or "stop" with reason.
-func Next(dir string) NextResult {
-	return NextWithChecker(dir, nil)
-}
-
-// NextWithChecker determines the next action, optionally checking preconditions.
-// If checker is provided and we're at tdd-refactor-qa, validates AC before suggesting task-complete.
-func NextWithChecker(dir string, checker PreconditionChecker) NextResult {
-	s, err := Get(dir)
-	if err != nil {
-		return NextResult{
-			Action:  "stop",
-			Reason:  "state_error",
-			Details: err.Error(),
-		}
-	}
-
-	// Check for error state - but see if there are unblocked tasks
-	if s.Error != nil {
-		failedTask := s.Error.LastTask
-		if checker != nil && failedTask != "" {
-			unblockedTasks := checker.UnblockedTasks(dir, failedTask)
-			if len(unblockedTasks) > 0 {
-				// Continue with unblocked work
-				return NextResult{
-					Action:    "continue",
-					NextPhase: "task-start",
-					NextTask:  unblockedTasks[0],
-					Details:   "continuing with unblocked work despite failure in " + failedTask,
-				}
-			}
-		}
-		return NextResult{
-			Action:  "stop",
-			Reason:  "error_pending",
-			Details: s.Error.Message,
-		}
-	}
-
-	currentPhase := s.Project.Phase
-
-	// Check for legal targets
-	targets := LegalTargets(currentPhase)
-	if len(targets) == 0 {
-		// Terminal state
-		return NextResult{
-			Action: "stop",
-			Reason: "all_complete",
-		}
-	}
-
-	// If at tdd-refactor-qa and checker provided, verify AC before suggesting task-complete
-	if currentPhase == "tdd-refactor-qa" && checker != nil {
-		taskID := s.Progress.CurrentTask
-		if taskID != "" && !checker.AcceptanceCriteriaComplete(dir, taskID) {
-			incompleteItems := checker.IncompleteAcceptanceCriteria(dir, taskID)
-			details := "acceptance criteria for " + taskID + " are incomplete:"
-			for _, item := range incompleteItems {
-				details += "\n- " + item
-			}
-			return NextResult{
-				Action:  "stop",
-				Reason:  "validation_failed",
-				Details: details,
-			}
-		}
-	}
-
-	// If at task-complete, check for remaining incomplete tasks
-	if currentPhase == "task-complete" && checker != nil {
-		// Get unblocked tasks from checker, filter out completed ones
-		unblockedTasks := checker.UnblockedTasks(dir, "")
-		nextTask := filterFirstIncompleteTask(unblockedTasks, s.Progress.CompletedTasks)
-		if nextTask != "" {
-			return NextResult{
-				Action:    "continue",
-				NextPhase: "task-start",
-				NextTask:  nextTask,
-			}
-		}
-		// All tasks complete, suggest implementation-complete
-		return NextResult{
-			Action:    "continue",
-			NextPhase: "implementation-complete",
-		}
-	}
-
-	// Default: continue with first legal target
-	return NextResult{
-		Action:    "continue",
-		NextPhase: targets[0],
-		NextTask:  s.Progress.CurrentTask,
-	}
-}
-
-// filterFirstIncompleteTask returns the first task from candidates that is not in completed.
-func filterFirstIncompleteTask(candidates []string, completed []string) string {
-	completedSet := make(map[string]bool, len(completed))
-	for _, c := range completed {
-		completedSet[c] = true
-	}
-
-	for _, candidate := range candidates {
-		if !completedSet[candidate] {
-			return candidate
-		}
-	}
-
-	return ""
-}

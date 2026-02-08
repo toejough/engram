@@ -26,12 +26,12 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// Should accept phase parameter (even if validation rules don't change yet)
-	result, err := trace.ValidateV2Artifacts(tempDir, "architect-complete")
+	result, err := trace.ValidateV2Artifacts(tempDir, "arch_commit")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result).ToNot(BeNil())
 }
 
-// TEST-202: At architect-complete, ARCH IDs can be unlinked
+// TEST-202: At arch_commit, ARCH IDs can be unlinked
 // traces: TASK-1
 func TestValidateV2Artifacts_ArchitectComplete_AllowsUnlinkedARCH(t *testing.T) {
 	g := NewWithT(t)
@@ -56,10 +56,10 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// At architect-complete, ARCH-001 should be allowed to be unlinked (no TASK traces to it yet)
-	result, err := trace.ValidateV2Artifacts(tempDir, "architect-complete")
+	result, err := trace.ValidateV2Artifacts(tempDir, "arch_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Pass).To(BeTrue(), "ARCH should be allowed to be unlinked at architect-complete")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("ARCH-001"), "ARCH-001 should not be reported as unlinked at architect-complete")
+	g.Expect(result.Pass).To(BeTrue(), "ARCH should be allowed to be unlinked at arch_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("ARCH-001"), "ARCH-001 should not be reported as unlinked at arch_commit")
 }
 
 // TEST-203: At breakdown-complete, TASK IDs can be unlinked
@@ -94,10 +94,10 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// At breakdown-complete, TASK-001 should be allowed to be unlinked (no TEST traces to it yet)
-	result, err := trace.ValidateV2Artifacts(tempDir, "breakdown-complete")
+	result, err := trace.ValidateV2Artifacts(tempDir, "breakdown_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Pass).To(BeTrue(), "TASK should be allowed to be unlinked at breakdown-complete")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TASK-001"), "TASK-001 should not be reported as unlinked at breakdown-complete")
+	g.Expect(result.Pass).To(BeTrue(), "TASK should be allowed to be unlinked at breakdown_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TASK-001"), "TASK-001 should not be reported as unlinked at breakdown_commit")
 }
 
 // TEST-204: At task-complete and later, full chain is required
@@ -132,10 +132,10 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// At task-complete, TASK-001 MUST have TEST tracing to it
-	result, err := trace.ValidateV2Artifacts(tempDir, "task-complete")
+	result, err := trace.ValidateV2Artifacts(tempDir, "tdd_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Pass).To(BeFalse(), "Validation should fail when TASK has no TEST at task-complete")
-	g.Expect(result.UnlinkedIDs).To(ContainElement("TASK-001"), "TASK-001 should be reported as unlinked at task-complete")
+	g.Expect(result.Pass).To(BeFalse(), "Validation should fail when TASK has no TEST at tdd_commit")
+	g.Expect(result.UnlinkedIDs).To(ContainElement("TASK-001"), "TASK-001 should be reported as unlinked at tdd_commit")
 }
 
 // TEST-205: Without phase parameter, strictest validation applies
@@ -189,13 +189,13 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// Test with different phases to ensure parameter is actually used
-	resultArchitect, err := trace.ValidateV2Artifacts(tempDir, "architect-complete")
+	resultArchitect, err := trace.ValidateV2Artifacts(tempDir, "arch_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(resultArchitect.Pass).To(BeTrue(), "Should pass at architect-complete")
+	g.Expect(resultArchitect.Pass).To(BeTrue(), "Should pass at arch_commit")
 
-	resultTask, err := trace.ValidateV2Artifacts(tempDir, "task-complete")
+	resultTask, err := trace.ValidateV2Artifacts(tempDir, "tdd_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(resultTask.Pass).To(BeFalse(), "Should fail at task-complete")
+	g.Expect(resultTask.Pass).To(BeFalse(), "Should fail at tdd_commit")
 }
 
 // TEST-207: Early phases allow upstream unlinked IDs
@@ -221,10 +221,10 @@ Description.
 `), 0o644)).To(Succeed())
 
 	// At design-complete, DES-001 should be allowed to be unlinked
-	result, err := trace.ValidateV2Artifacts(tempDir, "design-complete")
+	result, err := trace.ValidateV2Artifacts(tempDir, "design_commit")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Pass).To(BeTrue(), "DES should be allowed to be unlinked at design-complete")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-001"), "DES-001 should not be reported as unlinked at design-complete")
+	g.Expect(result.Pass).To(BeTrue(), "DES should be allowed to be unlinked at design_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-001"), "DES-001 should not be reported as unlinked at design_commit")
 }
 
 // TEST-209: ISSUE IDs referenced in Traces to are not reported as orphan when defined in issues.md

@@ -18,18 +18,7 @@ func TestPropertyNeverStuck(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Navigate to tdd-red
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduce(g, dir)
 
 		// Property: Next() should always return a valid action (never stuck)
 		result, err := step.Next(dir)
@@ -46,17 +35,7 @@ func TestPropertyIterationNeverDecreases(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduce(g, dir)
 
 		// Run a random sequence of producer -> qa -> improvement-request cycles
 		numCycles := rapid.IntRange(1, 3).Draw(rt, "numCycles")
@@ -64,13 +43,17 @@ func TestPropertyIterationNeverDecreases(t *testing.T) {
 
 		for i := 0; i < numCycles; i++ {
 			// Complete producer
-			err = step.Complete(dir, step.CompleteResult{
+			err := step.Complete(dir, step.CompleteResult{
 				Action: "spawn-producer",
 				Status: "done",
 			}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 
 			// Complete QA with improvement-request
+			// First transition to tdd_red_qa so Complete("spawn-qa") uses the right pair key
+			_, err = state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+
 			err = step.Complete(dir, step.CompleteResult{
 				Action:     "spawn-qa",
 				Status:     "done",
@@ -79,8 +62,14 @@ func TestPropertyIterationNeverDecreases(t *testing.T) {
 			}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 
+			// Transition through decide back to produce for next cycle
+			_, err = state.Transition(dir, "tdd_red_decide", state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+			_, err = state.Transition(dir, "tdd_red_produce", state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+
 			s, _ := state.Get(dir)
-			currentIteration := s.Pairs["tdd-red"].Iteration
+			currentIteration := s.Pairs["tdd_red"].Iteration
 
 			// Property: iteration never decreases
 			g.Expect(currentIteration).To(BeNumerically(">=", lastIteration),
@@ -95,47 +84,17 @@ func TestPropertyMaxIterationsEnforced(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduce(g, dir)
 
 		// Set a random max iterations (1-5)
 		maxIterations := rapid.IntRange(1, 5).Draw(rt, "maxIterations")
 
-		// Run cycles until we hit max
-		for i := 1; i <= maxIterations; i++ {
-			err = step.Complete(dir, step.CompleteResult{
-				Action: "spawn-producer",
-				Status: "done",
-			}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-
-			if i < maxIterations {
-				err = step.Complete(dir, step.CompleteResult{
-					Action:     "spawn-qa",
-					Status:     "done",
-					QAVerdict:  "improvement-request",
-					QAFeedback: "Improve",
-				}, nowFunc())
-				g.Expect(err).ToNot(HaveOccurred())
-			}
-		}
-
-		// Set iteration beyond max and QA verdict to improvement-request
-		_, err = state.SetPair(dir, "tdd-red", state.PairState{
-			Iteration:          maxIterations + 1,
-			MaxIterations:      maxIterations,
-			ProducerComplete:   true,
-			QAVerdict:          "improvement-request",
-			ImprovementRequest: "Try again",
+		// Set iteration beyond max with ProducerComplete=false
+		// (QA sets ProducerComplete false on improvement-request, putting us back in produce)
+		_, err := state.SetPair(dir, "tdd_red", state.PairState{
+			Iteration:        maxIterations + 1,
+			MaxIterations:    maxIterations,
+			ProducerComplete: false,
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
@@ -152,39 +111,16 @@ func TestPropertyTerminalPhasesReachable(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduce(g, dir)
 
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Simulate successful completion sequence
-		err = step.Complete(dir, step.CompleteResult{
+		// Simulate successful producer completion
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
-			Action:    "spawn-qa",
-			Status:    "done",
-			QAVerdict: "approved",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		err = step.Complete(dir, step.CompleteResult{
-			Action: "commit",
-			Status: "done",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Property: successful sequences should reach transition or completion
+		// Property: successful producer completion should lead to transition (to tdd_red_qa)
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"),
@@ -197,29 +133,19 @@ func TestPropertyPairStateConsistency(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		navigateToTDDRedProduce(g, dir)
 
 		// Property: ProducerComplete=true implies QAVerdict is either empty or set
-		err = step.Complete(dir, step.CompleteResult{
+		err := step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, _ := state.Get(dir)
-		if s.Pairs["tdd-red"].ProducerComplete {
+		if s.Pairs["tdd_red"].ProducerComplete {
 			// When producer is complete, QA verdict should initially be empty
-			g.Expect(s.Pairs["tdd-red"].QAVerdict).To(BeEmpty(),
+			g.Expect(s.Pairs["tdd_red"].QAVerdict).To(BeEmpty(),
 				"QA verdict should be empty after producer completes")
 		}
 	})

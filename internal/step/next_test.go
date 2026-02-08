@@ -21,7 +21,7 @@ func nowFunc() func() time.Time {
 }
 
 func TestNext(t *testing.T) {
-	t.Run("returns spawn-producer for pm phase with pending sub-phase", func(t *testing.T) {
+	t.Run("returns spawn-producer for pm_produce phase", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -30,8 +30,7 @@ func TestNext(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Transition to pm
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -43,7 +42,7 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Context.Issue).To(Equal("ISSUE-89"))
 	})
 
-	t.Run("returns spawn-qa after producer sub-phase", func(t *testing.T) {
+	t.Run("returns transition to pm_qa when producer complete at pm_produce", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -52,15 +51,34 @@ func TestNext(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Set sub-phase to producer (meaning producer is done)
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
 			ProducerComplete: true,
 		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Action).To(Equal("transition"))
+		g.Expect(result.Phase).To(Equal("pm_qa"))
+	})
+
+	t.Run("returns spawn-qa at pm_qa state", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-89",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -71,7 +89,7 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Model).To(Equal("haiku"))
 	})
 
-	t.Run("returns commit after qa approved", func(t *testing.T) {
+	t.Run("returns commit at pm_commit when not yet committed", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -80,10 +98,12 @@ func TestNext(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
-		// Set sub-phase to qa approved
+		// Set approved verdict (decide routed here because of approved)
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -106,14 +126,14 @@ func TestNext(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Set sub-phase to qa improvement-request
+		// After improvement-request: ProducerComplete=false, ImprovementRequest set
 		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:          1,
+			Iteration:          2,
 			MaxIterations:      3,
-			ProducerComplete:   true,
+			ProducerComplete:   false,
 			QAVerdict:          "improvement-request",
 			ImprovementRequest: "REQ-003 needs measurable criteria",
 		})
@@ -125,33 +145,20 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Context.QAFeedback).To(Equal("REQ-003 needs measurable criteria"))
 	})
 
-	t.Run("returns transition after commit sub-phase", func(t *testing.T) {
+	t.Run("returns transition after pm_commit committed", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
-
-		// Create a skills directory structure for artifact path resolution
-		skillsDir := filepath.Join(dir, "skills", "pm-interview-producer")
-		g.Expect(os.MkdirAll(skillsDir, 0o755)).To(Succeed())
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
 			Issue: "ISSUE-89",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
-		// Simulate: producer done, qa approved, commit needed
-		// After commit, step next should say "transition" to advance phase
-		_, err = state.SetPair(dir, "pm:committed", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-			QAVerdict:        "approved",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Actually use a dedicated state field: set the pair to show committed
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -163,7 +170,7 @@ func TestNext(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("pm-complete"))
+		g.Expect(result.Phase).To(Equal("design_produce"))
 	})
 
 	t.Run("errors when no state file", func(t *testing.T) {
@@ -181,17 +188,23 @@ func TestNext(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Walk to complete
+		// Walk to complete via the new workflow flat state machine
 		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa",
-			"tdd-refactor", "tdd-refactor-qa",
-			"task-complete",
-			"implementation-complete", "documentation", "documentation-complete",
-			"alignment", "alignment-complete", "retro", "retro-complete",
-			"summary", "summary-complete", "issue-update", "next-steps", "complete",
+			"pm_produce", "pm_qa", "pm_decide", "pm_commit",
+			"design_produce", "design_qa", "design_decide", "design_commit",
+			"arch_produce", "arch_qa", "arch_decide", "arch_commit",
+			"breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit",
+			"item_select", "item_fork", "worktree_create",
+			"tdd_red_produce", "tdd_red_qa", "tdd_red_decide", "tdd_green_produce",
+			"tdd_green_qa", "tdd_green_decide", "tdd_refactor_produce",
+			"tdd_refactor_qa", "tdd_refactor_decide", "tdd_commit",
+			"merge_acquire", "rebase", "merge", "worktree_cleanup", "item_join",
+			"item_assess", "items_done",
+			"documentation_produce", "documentation_qa", "documentation_decide", "documentation_commit",
+			"alignment_produce", "alignment_qa", "alignment_decide", "alignment_commit",
+			"retro_produce", "retro_qa", "retro_decide", "retro_commit",
+			"summary_produce", "summary_qa", "summary_decide", "summary_commit",
+			"issue_update", "next_steps", "complete",
 		}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
@@ -203,42 +216,39 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Action).To(Equal("all-complete"))
 	})
 
-	t.Run("returns transition for non-registered phase", func(t *testing.T) {
+	t.Run("returns transition for non-registered default state type", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// pm-complete is not registered (it's a transition marker)
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
+		// item_select is a "select" type state — default handler returns transition
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("design"))
+		g.Expect(result.Phase).To(Equal("item_fork"))
 	})
 
-	t.Run("task workflow returns spawn-producer for tdd-red", func(t *testing.T) {
+	t.Run("scoped workflow returns spawn-producer for tdd_red_produce", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 			Issue:    "ISSUE-42",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Walk to tdd-red phase via task workflow
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -249,7 +259,7 @@ func TestNext(t *testing.T) {
 }
 
 func TestComplete(t *testing.T) {
-	t.Run("advances sub-phase from pending to producer started", func(t *testing.T) {
+	t.Run("producer completion updates pair state", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -258,17 +268,15 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Complete the producer step
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify pair state updated
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Pairs).To(HaveKey("pm"))
@@ -284,18 +292,11 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Set producer as complete
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Complete QA with approval
 		err = step.Complete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
@@ -303,13 +304,12 @@ func TestComplete(t *testing.T) {
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify pair state updated
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Pairs["pm"].QAVerdict).To(Equal("approved"))
 	})
 
-	t.Run("records commit and transitions phase", func(t *testing.T) {
+	t.Run("records commit and marks committed", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -318,10 +318,11 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
-		// Set pair to approved state
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -330,20 +331,18 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Complete commit step
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify pair state shows committed
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Pairs["pm"].QAVerdict).To(Equal("committed"))
 	})
 
-	t.Run("transition complete advances the state machine phase", func(t *testing.T) {
+	t.Run("transition clears pair on cross-group boundary", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -352,10 +351,11 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
-		// Set pair as committed
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -364,21 +364,50 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Complete the transition
+		// Transition from pm_commit to design_produce (cross-group: "pm" -> "design")
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "transition",
-			Phase:  "pm-complete",
-			Status: "done",
+			Phase:  "design_produce",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify phase transitioned
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
-
-		// Verify pair cleared
+		g.Expect(s.Project.Phase).To(Equal("design_produce"))
 		g.Expect(s.Pairs).ToNot(HaveKey("pm"))
+	})
+
+	t.Run("transition preserves pair within same group", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Issue: "ISSUE-89",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:        2,
+			MaxIterations:    3,
+			ProducerComplete: true,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Transition from pm_produce to pm_qa (same group: "pm" -> "pm")
+		err = step.Complete(dir, step.CompleteResult{
+			Action: "transition",
+			Phase:  "pm_qa",
+		}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Project.Phase).To(Equal("pm_qa"))
+		g.Expect(s.Pairs).To(HaveKey("pm"))
+		g.Expect(s.Pairs["pm"].Iteration).To(Equal(2))
 	})
 
 	t.Run("errors on invalid action", func(t *testing.T) {
@@ -388,7 +417,7 @@ func TestComplete(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		err = step.Complete(dir, step.CompleteResult{
@@ -399,17 +428,27 @@ func TestComplete(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("unknown action"))
 	})
 
-	t.Run("qa cannot be skipped - no commit without qa pass", func(t *testing.T) {
+	t.Run("commit rejects improvement-request verdict", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
+
+		_, err = state.SetPair(dir, "pm", state.PairState{
+			Iteration:          1,
+			MaxIterations:      3,
+			ProducerComplete:   true,
+			QAVerdict:          "improvement-request",
+			ImprovementRequest: "Needs more tests",
+		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Try to complete commit without producer or qa
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
@@ -429,7 +468,7 @@ func TestNextTaskParams(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -452,14 +491,9 @@ func TestNextTaskParams(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -481,13 +515,13 @@ func TestNextTaskParams(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:          1,
+			Iteration:          2,
 			MaxIterations:      3,
-			ProducerComplete:   true,
+			ProducerComplete:   false,
 			QAVerdict:          "improvement-request",
 			ImprovementRequest: "needs work",
 		})
@@ -510,8 +544,11 @@ func TestNextTaskParams(t *testing.T) {
 		dir := t.TempDir()
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-89"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -531,11 +568,13 @@ func TestNextTaskParams(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+		})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
+
+		// item_select is a default-type state that returns transition
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -553,15 +592,21 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa",
-			"tdd-refactor", "tdd-refactor-qa",
-			"task-complete",
-			"implementation-complete", "documentation", "documentation-complete",
-			"alignment", "alignment-complete", "retro", "retro-complete",
-			"summary", "summary-complete", "issue-update", "next-steps", "complete",
+			"pm_produce", "pm_qa", "pm_decide", "pm_commit",
+			"design_produce", "design_qa", "design_decide", "design_commit",
+			"arch_produce", "arch_qa", "arch_decide", "arch_commit",
+			"breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit",
+			"item_select", "item_fork", "worktree_create",
+			"tdd_red_produce", "tdd_red_qa", "tdd_red_decide", "tdd_green_produce",
+			"tdd_green_qa", "tdd_green_decide", "tdd_refactor_produce",
+			"tdd_refactor_qa", "tdd_refactor_decide", "tdd_commit",
+			"merge_acquire", "rebase", "merge", "worktree_cleanup", "item_join",
+			"item_assess", "items_done",
+			"documentation_produce", "documentation_qa", "documentation_decide", "documentation_commit",
+			"alignment_produce", "alignment_qa", "alignment_decide", "alignment_commit",
+			"retro_produce", "retro_qa", "retro_decide", "retro_commit",
+			"summary_produce", "summary_qa", "summary_decide", "summary_commit",
+			"issue_update", "next_steps", "complete",
 		}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
@@ -575,22 +620,20 @@ func TestNextTaskParams(t *testing.T) {
 		g.Expect(result.ExpectedModel).To(BeEmpty())
 	})
 
-	t.Run("tdd-red spawn-producer has correct TaskParams", func(t *testing.T) {
+	t.Run("tdd_red_produce spawn-producer has correct TaskParams", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 			Issue:    "ISSUE-42",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{Task: "TASK-001"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -609,7 +652,7 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -624,7 +667,7 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -638,7 +681,7 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -652,12 +695,12 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:          1,
+			Iteration:          2,
 			MaxIterations:      3,
-			ProducerComplete:   true,
+			ProducerComplete:   false,
 			QAVerdict:          "improvement-request",
 			ImprovementRequest: "REQ-003 needs measurable criteria",
 		})
@@ -674,8 +717,11 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+
+		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
@@ -696,13 +742,9 @@ func TestPromptAssembly(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -720,7 +762,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		err = step.Complete(dir, step.CompleteResult{
@@ -742,7 +784,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		err = step.Complete(dir, step.CompleteResult{
@@ -763,13 +805,9 @@ func TestCompleteFailedSpawn(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		err = step.Complete(dir, step.CompleteResult{
@@ -792,10 +830,9 @@ func TestCompleteFailedSpawn(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Set some prior failed attempts
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			SpawnAttempts: 2,
 			FailedModels:  []string{"haiku", "opus"},
@@ -815,13 +852,13 @@ func TestCompleteFailedSpawn(t *testing.T) {
 		g.Expect(s.Pairs["pm"].ProducerComplete).To(BeTrue())
 	})
 
-	t.Run("empty status works as done path (backward compat)", func(t *testing.T) {
+	t.Run("empty status works as done path", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		err = step.Complete(dir, step.CompleteResult{
@@ -844,7 +881,7 @@ func TestNextRetryEscalation(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -859,7 +896,7 @@ func TestNextRetryEscalation(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			SpawnAttempts: 1,
@@ -879,7 +916,7 @@ func TestNextRetryEscalation(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			SpawnAttempts: 2,
@@ -898,7 +935,7 @@ func TestNextRetryEscalation(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			SpawnAttempts: 3,
@@ -919,7 +956,9 @@ func TestNextRetryEscalation(t *testing.T) {
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Issue: "ISSUE-98"})
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:        1,
@@ -948,7 +987,7 @@ func TestNextResult_JSON(t *testing.T) {
 			SkillPath: "skills/pm-interview-producer/SKILL.md",
 			Model:     "opus",
 			Artifact:  "requirements.md",
-			Phase:     "pm",
+			Phase:     "pm_produce",
 			Context: step.StepContext{
 				Issue:          "ISSUE-89",
 				PriorArtifacts: []string{},
@@ -964,8 +1003,8 @@ func TestNextResult_JSON(t *testing.T) {
 }
 
 // reachable returns the set of all phases reachable from the given starting phase
-// via the LegalTransitions graph.
-func reachable(from string) map[string]bool {
+// via the workflow transition graph.
+func reachable(from string, transitions map[string][]string) map[string]bool {
 	visited := map[string]bool{}
 	queue := []string{from}
 
@@ -978,7 +1017,7 @@ func reachable(from string) map[string]bool {
 		}
 		visited[current] = true
 
-		for _, target := range state.LegalTransitions[current] {
+		for _, target := range transitions[current] {
 			if !visited[target] {
 				queue = append(queue, target)
 			}
@@ -991,7 +1030,7 @@ func reachable(from string) map[string]bool {
 // onAllPathsTo returns true if every path from `from` to `target` must pass through `required`.
 // Uses the property: `required` is on all paths from `from` to `target` iff
 // `target` is not reachable from `from` when `required` is removed from the graph.
-func onAllPathsTo(from, target, required string) bool {
+func onAllPathsTo(from, target, required string, transitions map[string][]string) bool {
 	if from == required || from == target {
 		return true
 	}
@@ -1013,7 +1052,7 @@ func onAllPathsTo(from, target, required string) bool {
 			return false // Reached target without going through required
 		}
 
-		for _, next := range state.LegalTransitions[current] {
+		for _, next := range transitions[current] {
 			if next != required && !visited[next] {
 				queue = append(queue, next)
 			}
@@ -1024,27 +1063,34 @@ func onAllPathsTo(from, target, required string) bool {
 }
 
 func TestMainFlowEndingMandatory(t *testing.T) {
+	transitions := state.TransitionsForWorkflow("new")
+
 	// Main flow ending phases in order. Every workflow must pass through all of
 	// these before reaching "complete".
 	mainFlowEnding := []string{
-		"alignment", "retro", "summary", "issue-update", "next-steps",
+		"alignment_produce", "alignment_commit",
+		"retro_produce", "retro_commit",
+		"summary_produce", "summary_commit",
+		"issue_update", "next_steps",
 	}
 
 	// Phases that are part of (or after) the main flow ending sequence.
-	// These naturally skip earlier ending phases they've already passed.
 	mainFlowEndingSet := map[string]bool{}
 	for _, p := range mainFlowEnding {
 		mainFlowEndingSet[p] = true
 	}
-	// Also include the completion markers between ending phases
-	for _, suffix := range []string{"alignment-complete", "retro-complete", "summary-complete"} {
-		mainFlowEndingSet[suffix] = true
+	// Also include the intermediate QA/decide states
+	for _, p := range []string{
+		"alignment_qa", "alignment_decide",
+		"retro_qa", "retro_decide",
+		"summary_qa", "summary_decide",
+	} {
+		mainFlowEndingSet[p] = true
 	}
 
 	// Collect all phases that feed into the main flow ending but are not part of it.
-	// These are the phases we want to verify the property on.
 	var preEndingPhases []string
-	for phase, targets := range state.LegalTransitions {
+	for phase, targets := range transitions {
 		if len(targets) > 0 && phase != "complete" && !mainFlowEndingSet[phase] {
 			preEndingPhases = append(preEndingPhases, phase)
 		}
@@ -1056,13 +1102,13 @@ func TestMainFlowEndingMandatory(t *testing.T) {
 		rapid.Check(t, func(rt *rapid.T) {
 			phase := rapid.SampledFrom(preEndingPhases).Draw(rt, "phase")
 
-			reached := reachable(phase)
+			reached := reachable(phase, transitions)
 			if !reached["complete"] {
 				return
 			}
 
 			for _, required := range mainFlowEnding {
-				g.Expect(onAllPathsTo(phase, "complete", required)).To(BeTrue(),
+				g.Expect(onAllPathsTo(phase, "complete", required, transitions)).To(BeTrue(),
 					"phase %q can reach 'complete' without passing through %q", phase, required)
 			}
 		})
@@ -1076,10 +1122,20 @@ func TestMainFlowEndingMandatory(t *testing.T) {
 		for i, phase := range mainFlowEnding {
 			for j := i + 1; j < len(mainFlowEnding); j++ {
 				later := mainFlowEnding[j]
-				g.Expect(onAllPathsTo(phase, "complete", later)).To(BeTrue(),
+				g.Expect(onAllPathsTo(phase, "complete", later, transitions)).To(BeTrue(),
 					"phase %q can reach 'complete' without passing through later ending phase %q",
 					phase, later)
 			}
 		}
 	})
+}
+
+// producerTranscriptFile creates a temporary transcript file for testing.
+func producerTranscriptFile(t *testing.T, content string) string {
+	t.Helper()
+	f := filepath.Join(t.TempDir(), "transcript.txt")
+	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return f
 }

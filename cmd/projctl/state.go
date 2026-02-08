@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,7 +15,7 @@ import (
 type stateInitArgs struct {
 	Name    string `targ:"flag,short=n,required,desc=Project name"`
 	Dir     string `targ:"flag,short=d,desc=Project directory (defaults to .claude/projects/<name>/)"`
-	Mode    string `targ:"flag,short=m,desc=Workflow mode: new (default), adopt, align, task"`
+	Mode    string `targ:"flag,short=m,desc=Workflow mode: new (default), scoped, align"`
 	Issue   string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-42)"`
 	RepoDir string `targ:"flag,short=r,desc=Repository root (auto-detected if not provided)"`
 }
@@ -29,9 +28,9 @@ func stateInit(args stateInitArgs) error {
 	}
 
 	// Validate mode
-	validModes := map[string]bool{"new": true, "adopt": true, "align": true, "task": true}
+	validModes := map[string]bool{"new": true, "scoped": true, "align": true}
 	if !validModes[mode] {
-		return fmt.Errorf("unknown mode: %s (valid: new, adopt, align, task)", mode)
+		return fmt.Errorf("unknown mode: %s (valid: new, scoped, align)", mode)
 	}
 
 	// Default dir to .claude/projects/<name>/
@@ -62,24 +61,6 @@ func stateInit(args stateInitArgs) error {
 	})
 	if err != nil {
 		return err
-	}
-
-	// Auto-transition to the first state for the workflow (if not "new")
-	if mode != "new" {
-		var firstState string
-		switch mode {
-		case "adopt":
-			firstState = "adopt-explore"
-		case "align":
-			firstState = "align-explore"
-		case "task":
-			firstState = "task-implementation"
-		}
-
-		s, err = state.Transition(dir, firstState, state.TransitionOpts{}, time.Now)
-		if err != nil {
-			return fmt.Errorf("failed to transition to %s: %w", firstState, err)
-		}
 	}
 
 	fmt.Printf("Initialized project %q in %s (workflow: %s, phase: %s)\n",
@@ -129,28 +110,6 @@ func stateTransition(args stateTransitionArgs) error {
 	return nil
 }
 
-type stateNextArgs struct {
-	Dir string `targ:"flag,short=d,required,desc=Project directory"`
-}
-
-func stateNext(args stateNextArgs) error {
-	result := state.Next(args.Dir)
-
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to encode result: %w", err)
-	}
-
-	fmt.Println(string(data))
-
-	// Return exit code based on action
-	if result.Action == "stop" && result.Reason != "all_complete" {
-		return fmt.Errorf("stop: %s", result.Reason)
-	}
-
-	return nil
-}
-
 type stateRetryArgs struct {
 	Dir string `targ:"flag,short=d,required,desc=Project directory"`
 }
@@ -166,28 +125,11 @@ func stateRetry(args stateRetryArgs) error {
 	return nil
 }
 
-type stateRecoveryArgs struct {
-	Dir string `targ:"flag,short=d,required,desc=Project directory"`
-}
-
-func stateRecovery(args stateRecoveryArgs) error {
-	recovery := state.GetRecovery(args.Dir)
-
-	data, err := json.MarshalIndent(recovery, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to encode recovery info: %w", err)
-	}
-
-	fmt.Println(string(data))
-
-	return nil
-}
-
 type stateSetArgs struct {
 	Dir      string `targ:"flag,short=d,required,desc=Project directory"`
 	Issue    string `targ:"flag,short=i,desc=Issue ID to link (e.g. ISSUE-42)"`
 	Task     string `targ:"flag,short=t,desc=Current task ID (e.g. TASK-007)"`
-	Workflow string `targ:"flag,short=w,desc=Workflow type (new, adopt, align, task)"`
+	Workflow string `targ:"flag,short=w,desc=Workflow type (new, scoped, align)"`
 }
 
 func stateSet(args stateSetArgs) error {
@@ -206,59 +148,6 @@ func stateSet(args stateSetArgs) error {
 
 	fmt.Printf("State updated: workflow=%s, issue=%s, task=%s\n",
 		s.Project.Workflow, s.Project.Issue, s.Progress.CurrentTask)
-
-	return nil
-}
-
-type statePairSetArgs struct {
-	Dir                string `targ:"flag,short=d,required,desc=Project directory"`
-	Key                string `targ:"flag,short=k,required,desc=Phase or task ID (e.g. pm, TASK-007)"`
-	Iteration          int    `targ:"flag,short=i,desc=Current iteration (default: 1)"`
-	MaxIterations      int    `targ:"flag,short=m,desc=Maximum iterations (default: 3)"`
-	ProducerComplete   bool   `targ:"flag,short=p,desc=Producer has completed this iteration"`
-	QAVerdict          string `targ:"flag,short=v,desc=QA verdict (approved, improvement-request, escalate-phase, escalate-user)"`
-	ImprovementRequest string `targ:"flag,short=r,desc=Feedback if verdict is improvement-request"`
-}
-
-func statePairSet(args statePairSetArgs) error {
-	// Defaults
-	if args.Iteration == 0 {
-		args.Iteration = 1
-	}
-	if args.MaxIterations == 0 {
-		args.MaxIterations = 3
-	}
-
-	s, err := state.SetPair(args.Dir, args.Key, state.PairState{
-		Iteration:          args.Iteration,
-		MaxIterations:      args.MaxIterations,
-		ProducerComplete:   args.ProducerComplete,
-		QAVerdict:          args.QAVerdict,
-		ImprovementRequest: args.ImprovementRequest,
-	})
-	if err != nil {
-		return err
-	}
-
-	ps := s.Pairs[args.Key]
-	fmt.Printf("Pair %q: iteration=%d/%d, producer_complete=%v, qa_verdict=%s\n",
-		args.Key, ps.Iteration, ps.MaxIterations, ps.ProducerComplete, ps.QAVerdict)
-
-	return nil
-}
-
-type statePairClearArgs struct {
-	Dir string `targ:"flag,short=d,required,desc=Project directory"`
-	Key string `targ:"flag,short=k,required,desc=Phase or task ID to clear"`
-}
-
-func statePairClear(args statePairClearArgs) error {
-	_, err := state.ClearPair(args.Dir, args.Key)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Cleared pair loop state for %q\n", args.Key)
 
 	return nil
 }

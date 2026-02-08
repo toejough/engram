@@ -7,203 +7,77 @@ import (
 	"github.com/toejough/projctl/internal/state"
 )
 
-func TestTDDSubPhaseTransitions(t *testing.T) {
-	t.Run("TDD red sub-phase transitions", func(t *testing.T) {
+func TestIsLegalTransitionDelegatesToWorkflowConfig(t *testing.T) {
+	t.Run("valid transition in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		// Forward path
-		g.Expect(state.IsLegalTransition("tdd-red", "tdd-red-qa")).To(BeTrue())
-
-		// QA improvement loop: tdd-red-qa can loop back to tdd-red
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-red")).To(BeTrue())
-
-		// Forward to next phase
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-green")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "new")).To(BeTrue())
 	})
 
-	t.Run("TDD green sub-phase transitions", func(t *testing.T) {
+	t.Run("invalid transition in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		// Forward path
-		g.Expect(state.IsLegalTransition("tdd-green", "tdd-green-qa")).To(BeTrue())
-
-		// QA improvement loop: tdd-green-qa can loop back to tdd-green
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-green")).To(BeTrue())
-
-		// Forward to next phase
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-refactor")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_produce", "design_produce", "new")).To(BeFalse())
 	})
 
-	t.Run("TDD refactor sub-phase transitions", func(t *testing.T) {
+	t.Run("TDD transitions in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		// Forward path
-		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-refactor-qa")).To(BeTrue())
-
-		// QA improvement loop: tdd-refactor-qa can loop back to tdd-refactor
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-refactor")).To(BeTrue())
-
-		// Forward to next phase (task completion paths)
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-retry")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-escalated")).To(BeTrue())
-	})
-}
-
-func TestTDDSubPhaseIllegalTransitions(t *testing.T) {
-	t.Run("cannot skip QA phases", func(t *testing.T) {
-		g := NewWithT(t)
-		// Can't skip from producer directly to next phase
-		g.Expect(state.IsLegalTransition("tdd-red", "tdd-green")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-green", "tdd-refactor")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-refactor", "task-complete")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("tdd_red_produce", "tdd_red_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_qa", "tdd_red_decide", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_decide", "tdd_red_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_decide", "tdd_green_produce", "new")).To(BeTrue())
 	})
 
-	t.Run("cannot jump between TDD phases", func(t *testing.T) {
+	t.Run("TDD transitions in scoped workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		// Can't jump from red to refactor
-		g.Expect(state.IsLegalTransition("tdd-red", "tdd-refactor")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-refactor-qa")).To(BeFalse())
-
-		// Can't go backwards through the main flow
-		g.Expect(state.IsLegalTransition("tdd-green", "tdd-red")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-green")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("tdd_red_produce", "tdd_red_qa", "scoped")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_green_decide", "tdd_refactor_produce", "scoped")).To(BeTrue())
 	})
 
-	t.Run("QA phases cannot loop to wrong producer phase", func(t *testing.T) {
+	t.Run("PM transitions not in scoped workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		// tdd-red-qa can only loop to tdd-red, not tdd-refactor
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-refactor")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "scoped")).To(BeFalse())
+	})
 
-		// tdd-green-qa can only loop to tdd-green, not tdd-red
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-red")).To(BeFalse())
+	t.Run("unknown workflow returns false", func(t *testing.T) {
+		g := NewWithT(t)
+		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "nonexistent")).To(BeFalse())
+	})
 
-		// tdd-refactor-qa can only loop to tdd-refactor, not tdd-red or tdd-green
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-red")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-green")).To(BeFalse())
+	t.Run("unknown state returns false", func(t *testing.T) {
+		g := NewWithT(t)
+		g.Expect(state.IsLegalTransition("nonexistent", "pm_qa", "new")).To(BeFalse())
 	})
 }
 
-func TestTDDFullPhaseChain(t *testing.T) {
-	t.Run("complete TDD cycle from task-start to task-complete", func(t *testing.T) {
+func TestLegalTargetsDelegatesToWorkflowConfig(t *testing.T) {
+	t.Run("returns targets for pm_produce in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-
-		phases := []string{
-			"task-start",
-			"tdd-red",
-			"tdd-red-qa",
-			"tdd-green",
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"task-complete",
-		}
-
-		// Verify each transition in the chain is legal
-		for i := 0; i < len(phases)-1; i++ {
-			from := phases[i]
-			to := phases[i+1]
-			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s -> %s should be legal", from, to)
-		}
+		targets := state.LegalTargets("pm_produce", "new")
+		g.Expect(targets).To(Equal([]string{"pm_qa"}))
 	})
 
-	t.Run("TDD cycle with improvement iteration in red phase", func(t *testing.T) {
+	t.Run("returns nil for unknown state", func(t *testing.T) {
 		g := NewWithT(t)
-
-		// Red phase with one improvement loop
-		phases := []string{
-			"task-start",
-			"tdd-red",
-			"tdd-red-qa",
-			"tdd-red",     // Loop back for improvement
-			"tdd-red-qa",
-			"tdd-green",   // Continue forward
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"task-complete",
-		}
-
-		for i := 0; i < len(phases)-1; i++ {
-			from := phases[i]
-			to := phases[i+1]
-			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s -> %s should be legal", from, to)
-		}
+		targets := state.LegalTargets("nonexistent", "new")
+		g.Expect(targets).To(BeNil())
 	})
 
-	t.Run("TDD cycle with improvement iterations in all phases", func(t *testing.T) {
+	t.Run("returns nil for unknown workflow", func(t *testing.T) {
 		g := NewWithT(t)
-
-		// Each phase with one improvement loop
-		phases := []string{
-			"task-start",
-			"tdd-red",
-			"tdd-red-qa",
-			"tdd-red",         // Red improvement loop
-			"tdd-red-qa",
-			"tdd-green",
-			"tdd-green-qa",
-			"tdd-green",       // Green improvement loop
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"tdd-refactor",    // Refactor improvement loop
-			"tdd-refactor-qa",
-			"task-complete",
-		}
-
-		for i := 0; i < len(phases)-1; i++ {
-			from := phases[i]
-			to := phases[i+1]
-			g.Expect(state.IsLegalTransition(from, to)).To(BeTrue(),
-				"transition %s -> %s should be legal", from, to)
-		}
+		targets := state.LegalTargets("pm_produce", "nonexistent")
+		g.Expect(targets).To(BeNil())
 	})
-}
 
-func TestTDDTransitionSequentialOrdering(t *testing.T) {
-	t.Run("phases maintain sequential ordering", func(t *testing.T) {
+	t.Run("decide states have multiple targets", func(t *testing.T) {
 		g := NewWithT(t)
-
-		// The main forward path should always be the first target (index 0)
-		targets := state.LegalTargets("tdd-red-qa")
-		g.Expect(targets).To(HaveLen(2))
-		g.Expect(targets[0]).To(Equal("tdd-green")) // Forward is first
-		g.Expect(targets[1]).To(Equal("tdd-red"))    // Loop-back is second
-
-		targets = state.LegalTargets("tdd-green-qa")
-		g.Expect(targets).To(HaveLen(2))
-		g.Expect(targets[0]).To(Equal("tdd-refactor"))
-		g.Expect(targets[1]).To(Equal("tdd-green"))
-
-		targets = state.LegalTargets("tdd-refactor-qa")
-		g.Expect(targets).To(HaveLen(4))
-		g.Expect(targets).To(ContainElement("task-complete"))
-		g.Expect(targets).To(ContainElement("task-retry"))
-		g.Expect(targets).To(ContainElement("task-escalated"))
-		g.Expect(targets).To(ContainElement("tdd-refactor"))
+		targets := state.LegalTargets("tdd_red_decide", "new")
+		g.Expect(len(targets)).To(BeNumerically(">=", 2))
+		g.Expect(targets).To(ContainElement("tdd_red_produce"))
+		g.Expect(targets).To(ContainElement("tdd_green_produce"))
 	})
-}
 
-func TestLegalTargetsForTDDPhases(t *testing.T) {
-	t.Run("returns correct targets for each TDD phase", func(t *testing.T) {
+	t.Run("complete state has no targets", func(t *testing.T) {
 		g := NewWithT(t)
-
-		tests := []struct {
-			phase   string
-			targets []string
-		}{
-			{"tdd-red", []string{"tdd-red-qa"}},
-			{"tdd-red-qa", []string{"tdd-green", "tdd-red"}},
-			{"tdd-green", []string{"tdd-green-qa"}},
-			{"tdd-green-qa", []string{"tdd-refactor", "tdd-green"}},
-			{"tdd-refactor", []string{"tdd-refactor-qa"}},
-			{"tdd-refactor-qa", []string{"task-complete", "task-retry", "task-escalated", "tdd-refactor"}},
-		}
-
-		for _, tt := range tests {
-			targets := state.LegalTargets(tt.phase)
-			g.Expect(targets).To(Equal(tt.targets),
-				"LegalTargets(%s) should return %v", tt.phase, tt.targets)
-		}
+		targets := state.LegalTargets("complete", "new")
+		g.Expect(targets).To(BeEmpty())
 	})
 }

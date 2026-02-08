@@ -660,29 +660,29 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 //   - At design-complete: DES exists but ARCH doesn't trace to it yet
 //   - At architect-complete: ARCH exists but TASK doesn't trace to it yet
 //   - At breakdown-complete: TASK exists but TEST doesn't trace to it yet
-//   - At task-complete and later: full chain required
+//   - At tdd_commit and later: full chain required
 func phaseAllowsUnlinked(phase string) map[string]bool {
 	allowed := make(map[string]bool)
 
 	switch phase {
-	case "pm", "pm-complete":
+	case "pm_produce", "pm_qa", "pm_decide", "pm_commit":
 		// Only REQ exists, nothing traces to it - REQ is always allowed as root
 		// No special exemptions needed
-	case "design", "design-complete":
+	case "design_produce", "design_qa", "design_decide", "design_commit":
 		// DES exists, but ARCH doesn't exist yet to trace to it
 		allowed["DES-"] = true
-	case "architect", "architect-complete":
+	case "arch_produce", "arch_qa", "arch_decide", "arch_commit":
 		// ARCH exists, but TASK doesn't exist yet to trace to it
 		// DES should have ARCH tracing to it now
 		allowed["ARCH-"] = true
-	case "breakdown", "breakdown-complete":
+	case "breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit":
 		// TASK exists, but TEST doesn't exist yet to trace to it
 		// ARCH should have TASK tracing to it now
 		allowed["TASK-"] = true
 	case "":
 		// No phase specified = strictest validation (default behavior)
 	default:
-		// All other phases (implementation, task-*, documentation, etc.)
+		// All other phases (tdd_*, documentation_*, etc.)
 		// require full chain - no exemptions
 	}
 
@@ -690,56 +690,46 @@ func phaseAllowsUnlinked(phase string) map[string]bool {
 }
 
 // validPhases lists all valid phase names for validation.
+// Generated from the flat state machine defined in workflows.toml.
 var validPhases = map[string]bool{
-	"":                       true, // empty = strictest
-	"init":                   true,
-	"pm":                     true,
-	"pm-complete":            true,
-	"design":                 true,
-	"design-complete":        true,
-	"architect":              true,
-	"architect-complete":     true,
-	"breakdown":              true,
-	"breakdown-complete":     true,
-	"implementation":         true,
-	"task-start":             true,
-	"tdd-red":                true,
-	"tdd-red-qa":             true,
-	"tdd-green":              true,
-	"tdd-green-qa":           true,
-	"tdd-refactor":           true,
-	"tdd-refactor-qa":        true,
-	"task-complete":          true,
-	"task-retry":             true,
-	"task-escalated":         true,
-	"implementation-complete": true,
-	"documentation":          true,
-	"documentation-complete": true,
-	"alignment":              true,
-	"alignment-complete":     true,
-	"retro":                  true,
-	"retro-complete":         true,
-	"summary":                true,
-	"summary-complete":       true,
-	"issue-update":           true,
-	"next-steps":             true,
-	"complete":               true,
-	"task-implementation":    true,
-	"task-documentation":     true,
-	"adopt-explore":          true,
-	"adopt-infer-tests":      true,
-	"adopt-infer-arch":       true,
-	"adopt-infer-design":     true,
-	"adopt-infer-reqs":       true,
-	"adopt-escalations":      true,
-	"adopt-documentation":    true,
-	"align-explore":          true,
-	"align-infer-tests":      true,
-	"align-infer-arch":       true,
-	"align-infer-design":     true,
-	"align-infer-reqs":       true,
-	"align-escalations":      true,
-	"align-documentation":    true,
+	"":     true, // empty = strictest
+	"init": true,
+	// PM phases
+	"pm_produce": true, "pm_qa": true, "pm_decide": true, "pm_commit": true,
+	// Design phases
+	"design_produce": true, "design_qa": true, "design_decide": true, "design_commit": true,
+	// Architecture phases
+	"arch_produce": true, "arch_qa": true, "arch_decide": true, "arch_commit": true,
+	// Breakdown phases
+	"breakdown_produce": true, "breakdown_qa": true, "breakdown_decide": true, "breakdown_commit": true,
+	// Item execution
+	"item_select": true, "item_fork": true, "worktree_create": true,
+	// TDD red
+	"tdd_red_produce": true, "tdd_red_qa": true, "tdd_red_decide": true,
+	// TDD green
+	"tdd_green_produce": true, "tdd_green_qa": true, "tdd_green_decide": true,
+	// TDD refactor
+	"tdd_refactor_produce": true, "tdd_refactor_qa": true, "tdd_refactor_decide": true,
+	// TDD commit and item lifecycle
+	"tdd_commit": true, "item_escalated": true, "item_parked": true,
+	"merge_acquire": true, "rebase": true, "merge": true,
+	"worktree_cleanup": true, "item_join": true, "item_assess": true, "items_done": true,
+	// Documentation phases
+	"documentation_produce": true, "documentation_qa": true, "documentation_decide": true, "documentation_commit": true,
+	// Alignment phases
+	"alignment_produce": true, "alignment_qa": true, "alignment_decide": true, "alignment_commit": true,
+	// Retro phases
+	"retro_produce": true, "retro_qa": true, "retro_decide": true, "retro_commit": true,
+	// Summary phases
+	"summary_produce": true, "summary_qa": true, "summary_decide": true, "summary_commit": true,
+	// Ending phases
+	"issue_update": true, "next_steps": true, "complete": true,
+	// Align workflow phases
+	"align_infer_reqs_produce": true, "align_infer_design_produce": true,
+	"align_infer_arch_produce": true, "align_infer_tests_produce": true,
+	"align_crosscut_qa": true, "align_crosscut_decide": true, "align_artifact_commit": true,
+	// Error handling
+	"phase_blocked": true,
 }
 
 // ValidateV2Artifacts validates traceability by scanning artifact files directly.
@@ -752,7 +742,7 @@ var validPhases = map[string]bool{
 // The optional phase parameter enables phase-aware validation:
 //   - At design-complete: DES allowed to be unlinked (ARCH doesn't exist yet)
 //   - At architect-complete: ARCH allowed to be unlinked (TASK doesn't exist yet)
-//   - At breakdown-complete: TASK allowed to be unlinked (TEST doesn't exist yet)
+//   - At breakdown_commit: TASK allowed to be unlinked (TEST doesn't exist yet)
 //   - Without phase or at later phases: full chain required (strictest)
 func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult, error) {
 	// Validate and extract phase parameter

@@ -1,0 +1,461 @@
+# Declarative workflow state machine for projctl.
+# Every state is explicit — no hidden sub-states.
+# The pair loop is expressed as flat transitions: produce → qa → decide → produce|commit.
+
+# =============================================================================
+# STATES
+# =============================================================================
+# Each state defines its type (what the Go interpreter does) and metadata.
+
+# --- PM Phase ---
+[states.pm_produce]
+type = "produce"
+skill = "pm-interview-producer"
+skill_path = "skills/pm-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "requirements.md"
+id_format = "REQ"
+
+[states.pm_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.pm_decide]
+type = "decide"
+
+[states.pm_commit]
+type = "commit"
+
+# --- Design Phase ---
+[states.design_produce]
+type = "produce"
+skill = "design-interview-producer"
+skill_path = "skills/design-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "design.md"
+id_format = "DES"
+
+[states.design_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.design_decide]
+type = "decide"
+
+[states.design_commit]
+type = "commit"
+
+# --- Architecture Phase ---
+[states.arch_produce]
+type = "produce"
+skill = "arch-interview-producer"
+skill_path = "skills/arch-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "architecture.md"
+id_format = "ARCH"
+
+[states.arch_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.arch_decide]
+type = "decide"
+
+[states.arch_commit]
+type = "commit"
+
+# --- Breakdown Phase ---
+[states.breakdown_produce]
+type = "produce"
+skill = "breakdown-producer"
+skill_path = "skills/breakdown-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "tasks.md"
+id_format = "TASK"
+
+[states.breakdown_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.breakdown_decide]
+type = "decide"
+
+[states.breakdown_commit]
+type = "commit"
+
+# --- Work Item Execution ---
+[states.item_select]
+type = "select"
+
+[states.item_fork]
+type = "fork"
+
+[states.worktree_create]
+type = "worktree"
+
+# --- TDD Red ---
+[states.tdd_red_produce]
+type = "produce"
+skill = "tdd-red-producer"
+skill_path = "skills/tdd-red-producer/SKILL.md"
+fallback_model = "opus"
+
+[states.tdd_red_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.tdd_red_decide]
+type = "decide"
+
+# --- TDD Green ---
+[states.tdd_green_produce]
+type = "produce"
+skill = "tdd-green-producer"
+skill_path = "skills/tdd-green-producer/SKILL.md"
+fallback_model = "sonnet"
+
+[states.tdd_green_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.tdd_green_decide]
+type = "decide"
+
+# --- TDD Refactor ---
+[states.tdd_refactor_produce]
+type = "produce"
+skill = "tdd-refactor-producer"
+skill_path = "skills/tdd-refactor-producer/SKILL.md"
+fallback_model = "sonnet"
+
+[states.tdd_refactor_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.tdd_refactor_decide]
+type = "decide"
+
+# --- TDD Commit & Item Lifecycle ---
+[states.tdd_commit]
+type = "commit"
+
+[states.item_escalated]
+type = "escalate-item"
+
+[states.item_parked]
+type = "action"
+
+[states.merge_acquire]
+type = "lock"
+
+[states.rebase]
+type = "rebase"
+
+[states.merge]
+type = "merge"
+
+[states.worktree_cleanup]
+type = "cleanup"
+
+[states.item_join]
+type = "join"
+
+[states.item_assess]
+type = "assess"
+
+[states.items_done]
+type = "action"
+
+# --- Documentation Phase ---
+[states.documentation_produce]
+type = "produce"
+skill = "doc-producer"
+skill_path = "skills/doc-producer/SKILL.md"
+fallback_model = "sonnet"
+
+[states.documentation_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.documentation_decide]
+type = "decide"
+
+[states.documentation_commit]
+type = "commit"
+
+# --- Alignment Phase ---
+[states.alignment_produce]
+type = "produce"
+skill = "alignment-producer"
+skill_path = "skills/alignment-producer/SKILL.md"
+fallback_model = "sonnet"
+
+[states.alignment_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.alignment_decide]
+type = "decide"
+
+[states.alignment_commit]
+type = "commit"
+
+# --- Main Flow Ending ---
+[states.retro_produce]
+type = "produce"
+skill = "retro-producer"
+skill_path = "skills/retro-producer/SKILL.md"
+fallback_model = "sonnet"
+artifact = "retro.md"
+
+[states.retro_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.retro_decide]
+type = "decide"
+
+[states.retro_commit]
+type = "commit"
+
+[states.summary_produce]
+type = "produce"
+skill = "summary-producer"
+skill_path = "skills/summary-producer/SKILL.md"
+fallback_model = "sonnet"
+artifact = "summary.md"
+
+[states.summary_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.summary_decide]
+type = "decide"
+
+[states.summary_commit]
+type = "commit"
+
+[states.issue_update]
+type = "action"
+
+[states.next_steps]
+type = "produce"
+skill = "next-steps"
+skill_path = "skills/next-steps/SKILL.md"
+fallback_model = "haiku"
+
+[states.complete]
+type = "action"
+
+# --- Align Workflow States ---
+[states.align_infer_reqs_produce]
+type = "produce"
+skill = "pm-infer-producer"
+skill_path = "skills/pm-infer-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "requirements.md"
+id_format = "REQ"
+
+[states.align_infer_design_produce]
+type = "produce"
+skill = "design-infer-producer"
+skill_path = "skills/design-infer-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "design.md"
+id_format = "DES"
+
+[states.align_infer_arch_produce]
+type = "produce"
+skill = "arch-infer-producer"
+skill_path = "skills/arch-infer-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "architecture.md"
+id_format = "ARCH"
+
+[states.align_infer_tests_produce]
+type = "produce"
+skill = "tdd-red-infer-producer"
+skill_path = "skills/tdd-red-infer-producer/SKILL.md"
+fallback_model = "opus"
+
+[states.align_crosscut_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.align_crosscut_decide]
+type = "decide"
+
+[states.align_artifact_commit]
+type = "commit"
+
+# --- Phase-level escalation ---
+[states.phase_blocked]
+type = "escalate-phase"
+
+# =============================================================================
+# STATE GROUPS (reusable transition sets)
+# =============================================================================
+
+[state-groups.tdd-loop.states]
+tdd_red_produce = true
+tdd_red_qa = true
+tdd_red_decide = true
+tdd_green_produce = true
+tdd_green_qa = true
+tdd_green_decide = true
+tdd_refactor_produce = true
+tdd_refactor_qa = true
+tdd_refactor_decide = true
+tdd_commit = true
+item_escalated = true
+item_parked = true
+merge_acquire = true
+rebase = true
+merge = true
+worktree_cleanup = true
+
+[state-groups.tdd-loop.transitions]
+tdd_red_produce = ["tdd_red_qa"]
+tdd_red_qa = ["tdd_red_decide"]
+tdd_red_decide = ["tdd_red_produce", "tdd_green_produce", "item_escalated"]
+tdd_green_produce = ["tdd_green_qa"]
+tdd_green_qa = ["tdd_green_decide"]
+tdd_green_decide = ["tdd_green_produce", "tdd_refactor_produce", "item_escalated"]
+tdd_refactor_produce = ["tdd_refactor_qa"]
+tdd_refactor_qa = ["tdd_refactor_decide"]
+tdd_refactor_decide = ["tdd_refactor_produce", "tdd_commit", "item_escalated"]
+tdd_commit = ["merge_acquire"]
+item_escalated = ["item_parked"]
+item_parked = ["item_join"]
+merge_acquire = ["rebase"]
+rebase = ["merge"]
+merge = ["worktree_cleanup"]
+worktree_cleanup = ["item_join"]
+
+[state-groups.item-execution.states]
+item_select = true
+item_fork = true
+worktree_create = true
+item_join = true
+item_assess = true
+items_done = true
+
+[state-groups.item-execution.transitions]
+item_select = ["item_fork"]
+item_fork = ["worktree_create"]
+worktree_create = ["tdd_red_produce"]
+item_join = ["item_assess"]
+item_assess = ["item_select", "items_done", "tdd_red_produce"]
+
+[state-groups.main-ending.states]
+alignment_produce = true
+alignment_qa = true
+alignment_decide = true
+alignment_commit = true
+retro_produce = true
+retro_qa = true
+retro_decide = true
+retro_commit = true
+summary_produce = true
+summary_qa = true
+summary_decide = true
+summary_commit = true
+issue_update = true
+next_steps = true
+complete = true
+
+[state-groups.main-ending.transitions]
+alignment_produce = ["alignment_qa"]
+alignment_qa = ["alignment_decide"]
+alignment_decide = ["alignment_produce", "alignment_commit", "phase_blocked"]
+alignment_commit = ["retro_produce"]
+retro_produce = ["retro_qa"]
+retro_qa = ["retro_decide"]
+retro_decide = ["retro_produce", "retro_commit", "phase_blocked"]
+retro_commit = ["summary_produce"]
+summary_produce = ["summary_qa"]
+summary_qa = ["summary_decide"]
+summary_decide = ["summary_produce", "summary_commit", "phase_blocked"]
+summary_commit = ["issue_update"]
+issue_update = ["next_steps"]
+next_steps = ["complete"]
+complete = []
+
+# =============================================================================
+# WORKFLOWS
+# =============================================================================
+
+[workflows.new]
+init_state = "pm_produce"
+include_groups = ["tdd-loop", "item-execution", "main-ending"]
+
+[workflows.new.transitions]
+pm_produce = ["pm_qa"]
+pm_qa = ["pm_decide"]
+pm_decide = ["pm_produce", "pm_commit", "phase_blocked"]
+pm_commit = ["design_produce"]
+design_produce = ["design_qa"]
+design_qa = ["design_decide"]
+design_decide = ["design_produce", "design_commit", "phase_blocked"]
+design_commit = ["arch_produce"]
+arch_produce = ["arch_qa"]
+arch_qa = ["arch_decide"]
+arch_decide = ["arch_produce", "arch_commit", "phase_blocked"]
+arch_commit = ["breakdown_produce"]
+breakdown_produce = ["breakdown_qa"]
+breakdown_qa = ["breakdown_decide"]
+breakdown_decide = ["breakdown_produce", "breakdown_commit", "phase_blocked"]
+breakdown_commit = ["item_select"]
+items_done = ["documentation_produce"]
+documentation_produce = ["documentation_qa"]
+documentation_qa = ["documentation_decide"]
+documentation_decide = ["documentation_produce", "documentation_commit", "phase_blocked"]
+documentation_commit = ["alignment_produce"]
+
+[workflows.scoped]
+init_state = "item_select"
+include_groups = ["tdd-loop", "item-execution", "main-ending"]
+
+[workflows.scoped.transitions]
+items_done = ["documentation_produce"]
+documentation_produce = ["documentation_qa"]
+documentation_qa = ["documentation_decide"]
+documentation_decide = ["documentation_produce", "documentation_commit", "phase_blocked"]
+documentation_commit = ["alignment_produce"]
+
+[workflows.align]
+init_state = "align_infer_tests_produce"
+include_groups = ["main-ending"]
+
+[workflows.align.transitions]
+align_infer_tests_produce = ["align_infer_arch_produce"]
+align_infer_arch_produce = ["align_infer_design_produce"]
+align_infer_design_produce = ["align_infer_reqs_produce"]
+align_infer_reqs_produce = ["align_crosscut_qa"]
+align_crosscut_qa = ["align_crosscut_decide"]
+align_crosscut_decide = ["align_infer_tests_produce", "align_artifact_commit", "phase_blocked"]
+align_artifact_commit = ["alignment_produce"]

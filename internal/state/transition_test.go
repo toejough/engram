@@ -13,21 +13,21 @@ func TestTransition(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm"))
+		g.Expect(s.Project.Phase).To(Equal("pm_produce"))
 		g.Expect(s.History).To(HaveLen(2))
-		g.Expect(s.History[1].Phase).To(Equal("pm"))
+		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
 	})
 
 	t.Run("illegal transition returns error with legal targets", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
@@ -35,17 +35,17 @@ func TestTransition(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 		g.Expect(err.Error()).To(ContainSubstring("init"))
 		g.Expect(err.Error()).To(ContainSubstring("complete"))
-		g.Expect(err.Error()).To(ContainSubstring("pm"))
+		g.Expect(err.Error()).To(ContainSubstring("pm_produce"))
 	})
 
 	t.Run("transition with task and subphase opts", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm", state.TransitionOpts{
+		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{
 			Task:     "TASK-001",
 			Subphase: "interview",
 		}, nowFunc())
@@ -58,16 +58,16 @@ func TestTransition(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Read back from disk
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm"))
+		g.Expect(s.Project.Phase).To(Equal("pm_produce"))
 		g.Expect(s.History).To(HaveLen(2))
 	})
 
@@ -75,25 +75,25 @@ func TestTransition(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm-complete", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.History).To(HaveLen(3))
 		g.Expect(s.History[0].Phase).To(Equal("init"))
-		g.Expect(s.History[1].Phase).To(Equal("pm"))
-		g.Expect(s.History[2].Phase).To(Equal("pm-complete"))
+		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
+		g.Expect(s.History[2].Phase).To(Equal("pm_qa"))
 	})
 
 	t.Run("errors on nonexistent state file", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 	})
 }
@@ -101,107 +101,83 @@ func TestTransition(t *testing.T) {
 func TestIsLegalTransition(t *testing.T) {
 	t.Run("new project workflow transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		// Init to PM
-		g.Expect(state.IsLegalTransition("init", "pm")).To(BeTrue())
 		// PM phase
-		g.Expect(state.IsLegalTransition("pm", "pm-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("pm-complete", "design")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_qa", "pm_decide", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_decide", "pm_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_decide", "pm_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("pm_commit", "design_produce", "new")).To(BeTrue())
 		// Design phase
-		g.Expect(state.IsLegalTransition("design", "design-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("design-complete", "architect")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("design_produce", "design_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("design_decide", "design_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("design_commit", "arch_produce", "new")).To(BeTrue())
 		// Architecture phase
-		g.Expect(state.IsLegalTransition("architect", "architect-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("architect-complete", "breakdown")).To(BeTrue())
-		// Breakdown phase
-		g.Expect(state.IsLegalTransition("breakdown", "breakdown-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("breakdown-complete", "implementation")).To(BeTrue())
-		// Implementation to Documentation
-		g.Expect(state.IsLegalTransition("implementation-complete", "documentation")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("documentation", "documentation-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("documentation-complete", "alignment")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("arch_produce", "arch_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("arch_decide", "arch_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("arch_commit", "breakdown_produce", "new")).To(BeTrue())
+		// Breakdown
+		g.Expect(state.IsLegalTransition("breakdown_decide", "breakdown_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("breakdown_commit", "item_select", "new")).To(BeTrue())
 	})
 
 	t.Run("TDD loop transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("implementation", "task-start")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-start", "tdd-red")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-red", "tdd-red-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-green")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-red-qa", "tdd-red")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-green", "tdd-green-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-refactor")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-green-qa", "tdd-green")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor", "tdd-refactor-qa")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-retry")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "task-escalated")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("tdd-refactor-qa", "tdd-refactor")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-complete", "task-start")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-complete", "implementation-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-retry", "tdd-red")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_produce", "tdd_red_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_qa", "tdd_red_decide", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_decide", "tdd_red_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_red_decide", "tdd_green_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_green_produce", "tdd_green_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_green_decide", "tdd_refactor_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_refactor_decide", "tdd_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("tdd_commit", "merge_acquire", "new")).To(BeTrue())
 	})
 
 	t.Run("main flow ending transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("alignment", "alignment-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("alignment-complete", "retro")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("retro", "retro-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("retro-complete", "summary")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("summary", "summary-complete")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("summary-complete", "issue-update")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("issue-update", "next-steps")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("next-steps", "complete")).To(BeTrue())
-	})
-
-	t.Run("adopt workflow transitions (bottom-up)", func(t *testing.T) {
-		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("init", "adopt-explore")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-explore", "adopt-infer-tests")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-infer-tests", "adopt-infer-arch")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-infer-arch", "adopt-infer-design")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-infer-design", "adopt-infer-reqs")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-infer-reqs", "adopt-escalations")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-escalations", "adopt-documentation")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("adopt-documentation", "alignment")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("alignment_produce", "alignment_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("alignment_decide", "alignment_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("alignment_commit", "retro_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("retro_decide", "retro_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("retro_commit", "summary_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("summary_decide", "summary_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("summary_commit", "issue_update", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("issue_update", "next_steps", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("next_steps", "complete", "new")).To(BeTrue())
 	})
 
 	t.Run("align workflow transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("init", "align-explore")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-explore", "align-infer-tests")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-infer-tests", "align-infer-arch")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-infer-arch", "align-infer-design")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-infer-design", "align-infer-reqs")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-infer-reqs", "align-escalations")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-escalations", "align-documentation")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("align-documentation", "alignment")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_tests_produce", "align_infer_arch_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_arch_produce", "align_infer_design_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_design_produce", "align_infer_reqs_produce", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_infer_reqs_produce", "align_crosscut_qa", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_crosscut_decide", "align_artifact_commit", "align")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("align_artifact_commit", "alignment_produce", "align")).To(BeTrue())
 	})
 
-	t.Run("task workflow transitions", func(t *testing.T) {
+	t.Run("scoped workflow transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("init", "task-implementation")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-implementation", "task-start")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-complete", "task-documentation")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("task-documentation", "alignment")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("item_select", "item_fork", "scoped")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("items_done", "documentation_produce", "scoped")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("documentation_commit", "alignment_produce", "scoped")).To(BeTrue())
 	})
 
 	t.Run("known illegal transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("init", "complete")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("init", "tdd-red")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("pm", "design")).To(BeFalse()) // Must go through pm-complete
-		g.Expect(state.IsLegalTransition("complete", "init")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("pm_produce", "design_produce", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("complete", "pm_produce", "new")).To(BeFalse())
 	})
 
-	t.Run("unknown phase returns false", func(t *testing.T) {
+	t.Run("unknown state returns false", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("nonexistent", "init")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("nonexistent", "pm_produce", "new")).To(BeFalse())
 	})
 }
 
 func TestIsLegalTransitionProperty(t *testing.T) {
-	phases := make([]string, 0, len(state.LegalTransitions))
-	for k := range state.LegalTransitions {
+	cfg := state.TransitionsForWorkflow("new")
+	phases := make([]string, 0, len(cfg))
+	for k := range cfg {
 		phases = append(phases, k)
 	}
 
@@ -210,8 +186,8 @@ func TestIsLegalTransitionProperty(t *testing.T) {
 		from := rapid.SampledFrom(phases).Draw(rt, "from")
 		to := rapid.SampledFrom(phases).Draw(rt, "to")
 
-		result := state.IsLegalTransition(from, to)
-		targets := state.LegalTargets(from)
+		result := state.IsLegalTransition(from, to, "new")
+		targets := state.LegalTargets(from, "new")
 
 		// Result should be true iff `to` is in targets
 		found := false
@@ -231,168 +207,122 @@ func TestIsLegalTransitionProperty(t *testing.T) {
 func TestTransitionMapCompleteness(t *testing.T) {
 	g := NewWithT(t)
 
-	// Every target phase should also be a key in the map (no dangling references)
-	for from, targets := range state.LegalTransitions {
+	transitions := state.TransitionsForWorkflow("new")
+
+	// Every target phase should also be either a source or a known terminal state
+	terminalStates := map[string]bool{
+		"complete":      true,
+		"phase_blocked": true,
+	}
+
+	for from, targets := range transitions {
 		for _, to := range targets {
-			_, exists := state.LegalTransitions[to]
-			g.Expect(exists).To(BeTrue(),
-				"phase %q (target of %q) is not a key in LegalTransitions", to, from)
+			// Target should either be a source in transitions OR a terminal state
+			_, isSource := transitions[to]
+			if !isSource {
+				g.Expect(terminalStates).To(HaveKey(to),
+					"state %q (target of %q) is not a source in transitions and not a known terminal state", to, from)
+			}
 		}
 	}
 }
 
-// Test precondition: pm-complete requires requirements.md with REQ-NNN IDs
-func TestTransitionPrecondition_PMComplete(t *testing.T) {
-	t.Run("fails without requirements.md", func(t *testing.T) {
+// Test that illegal transitions provide helpful error messages
+func TestTransition_HelpfulErrorMessages(t *testing.T) {
+	t.Run("explains what phases must complete first", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		checker := &mockPreconditionChecker{
-			requirementsExists: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
+		// Try to jump directly to design_produce from init
+		_, err = state.Transition(dir, "design_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("requirements.md"))
-	})
-
-	t.Run("fails without REQ-NNN IDs in requirements.md", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		checker := &mockPreconditionChecker{
-			requirementsExists: true,
-			requirementsHasIDs: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("REQ-"))
-	})
-
-	t.Run("succeeds with valid requirements.md", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		checker := &mockPreconditionChecker{
-			requirementsExists: true,
-			requirementsHasIDs: true,
-		}
-		s, err := state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
+		// Should list legal target (pm_produce for "new" workflow)
+		g.Expect(err.Error()).To(ContainSubstring("pm_produce"))
 	})
 }
 
-// Test precondition: design-complete requires design.md with DES-NNN IDs
-func TestTransitionPrecondition_DesignComplete(t *testing.T) {
-	t.Run("fails without design.md", func(t *testing.T) {
+// Test that --force flag allows override of preconditions (but not transition graph)
+func TestTransitionWithChecker_ForceFlag(t *testing.T) {
+	t.Run("force cannot bypass illegal transitions", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "design")
-
-		checker := &mockPreconditionChecker{
-			designExists: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "design-complete", state.TransitionOpts{}, nowFunc(), checker)
+		// Even with force, can't skip directly to design_produce
+		opts := state.TransitionOpts{Force: true}
+		_, err = state.TransitionWithChecker(dir, "design_produce", opts, nowFunc(), nil)
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("design.md"))
-	})
-
-	t.Run("succeeds with valid design.md", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "design")
-
-		checker := &mockPreconditionChecker{
-			designExists: true,
-			designHasIDs: true,
-		}
-		s, err := state.TransitionWithChecker(dir, "design-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("design-complete"))
+		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 	})
 }
 
-// Test precondition: architect-complete requires trace validate to pass
-func TestTransitionPrecondition_ArchitectComplete(t *testing.T) {
-	t.Run("fails when trace validation fails", func(t *testing.T) {
+// Test failed transition captures error details in state.toml.
+func TestTransition_CapturesError(t *testing.T) {
+	t.Run("captures error on illegal transition", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "architect")
-
-		checker := &mockPreconditionChecker{
-			traceValidationPasses: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "architect-complete", state.TransitionOpts{}, nowFunc(), checker)
+		// Attempt illegal transition
+		_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("trace"))
-	})
 
-	t.Run("succeeds when trace validation passes", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
+		// Read state and verify error section exists
+		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "architect")
-
-		checker := &mockPreconditionChecker{
-			traceValidationPasses: true,
-		}
-		s, err := state.TransitionWithChecker(dir, "architect-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("architect-complete"))
+		g.Expect(s.Error).ToNot(BeNil())
+		g.Expect(s.Error.ErrorType).To(Equal("illegal_transition"))
 	})
 }
 
-// Test precondition: task-complete requires trace validation to pass
-func TestTransitionPrecondition_TaskComplete(t *testing.T) {
-	t.Run("fails when trace validation fails", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
+// Test retry count increments on repeated failures.
+func TestTransition_RetryCountIncrements(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+	_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
+	g.Expect(err).ToNot(HaveOccurred())
 
-		walkToPhase(t, dir, "tdd-refactor-qa")
+	// Attempt same illegal transition twice
+	_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).To(HaveOccurred())
 
-		checker := &mockPreconditionChecker{
-			traceValidationPasses: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "task-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("trace"))
-	})
+	s, _ := state.Get(dir)
+	g.Expect(s.Error.RetryCount).To(Equal(1))
+
+	_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).To(HaveOccurred())
+
+	s, _ = state.Get(dir)
+	g.Expect(s.Error.RetryCount).To(Equal(2))
+}
+
+// Test error cleared on successful transition.
+func TestTransition_ClearsErrorOnSuccess(t *testing.T) {
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Cause a failure first
+	_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).To(HaveOccurred())
+
+	s, _ := state.Get(dir)
+	g.Expect(s.Error).ToNot(BeNil())
+
+	// Now succeed with valid transition
+	s, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(s.Error).To(BeNil())
 }
 
 // mockPreconditionChecker implements state.PreconditionChecker for testing.
@@ -474,698 +404,4 @@ func (m *mockPreconditionChecker) IssueACComplete(repoDir, issueID string) bool 
 
 func (m *mockPreconditionChecker) IncompleteIssueAC(repoDir, issueID string) []string {
 	return m.incompleteIssueAC
-}
-
-// Test that illegal transitions provide helpful error messages
-func TestTransition_HelpfulErrorMessages(t *testing.T) {
-	t.Run("explains what phases must complete first", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Try to jump directly to implementation from init
-		_, err = state.Transition(dir, "implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).To(HaveOccurred())
-		// Should list legal targets
-		g.Expect(err.Error()).To(ContainSubstring("pm"))
-	})
-}
-
-// Test that --force flag allows override of transitions
-func TestTransitionWithChecker_ForceFlag(t *testing.T) {
-	t.Run("force bypasses preconditions", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Without force, precondition fails
-		checker := &mockPreconditionChecker{
-			requirementsExists: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-
-		// With force, precondition is bypassed
-		opts := state.TransitionOpts{Force: true}
-		s, err := state.TransitionWithChecker(dir, "pm-complete", opts, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
-	})
-
-	t.Run("force cannot bypass illegal transitions", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Even with force, can't skip directly to implementation
-		opts := state.TransitionOpts{Force: true}
-		_, err = state.TransitionWithChecker(dir, "implementation", opts, nowFunc(), nil)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
-	})
-}
-
-// Test task-complete transition checks acceptance criteria
-func TestTransitionWithChecker_TaskCompleteChecksAC(t *testing.T) {
-	t.Run("blocks when AC incomplete", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "tdd-refactor-qa")
-
-		checker := &mockPreconditionChecker{
-			traceValidationPasses:      true,
-			acceptanceCriteriaComplete: false,
-		}
-		opts := state.TransitionOpts{Task: "TASK-001"}
-		_, err = state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("acceptance criteria"))
-	})
-
-	t.Run("succeeds when AC complete", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "tdd-refactor-qa")
-
-		checker := &mockPreconditionChecker{
-			traceValidationPasses:      true,
-			acceptanceCriteriaComplete: true,
-		}
-		opts := state.TransitionOpts{Task: "TASK-001"}
-		s, err := state.TransitionWithChecker(dir, "task-complete", opts, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("task-complete"))
-	})
-}
-
-// Test precondition: issue-update requires linked issue's AC to be complete
-func TestTransitionPrecondition_IssueUpdate(t *testing.T) {
-	t.Run("fails when linked issue has incomplete AC", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Set up state with linked issue
-		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-42"})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToSummaryComplete(t, dir)
-
-		checker := &mockPreconditionChecker{
-			issueACComplete:   false,
-			incompleteIssueAC: []string{"First incomplete AC", "Second incomplete AC"},
-		}
-
-		_, err = state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("ISSUE-42"))
-		g.Expect(err.Error()).To(ContainSubstring("acceptance criteria"))
-	})
-
-	t.Run("succeeds when linked issue AC complete", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-42"})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToSummaryComplete(t, dir)
-
-		checker := &mockPreconditionChecker{
-			issueACComplete: true,
-		}
-
-		s, err := state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("issue-update"))
-	})
-
-	t.Run("succeeds when no linked issue", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToSummaryComplete(t, dir)
-
-		// No linked issue, should skip AC check
-		checker := &mockPreconditionChecker{
-			issueACComplete: false, // Doesn't matter - no issue linked
-		}
-
-		s, err := state.TransitionWithChecker(dir, "issue-update", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("issue-update"))
-	})
-}
-
-// walkToSummaryComplete gets to summary-complete phase
-func walkToSummaryComplete(t *testing.T, dir string) {
-	t.Helper()
-	g := NewWithT(t)
-
-	phases := []string{
-		"pm", "pm-complete", "design", "design-complete",
-		"architect", "architect-complete", "breakdown", "breakdown-complete",
-		"implementation", "task-start", "tdd-red", "tdd-red-qa",
-		"tdd-green", "tdd-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		"task-complete",
-		"implementation-complete", "documentation", "documentation-complete",
-		"alignment", "alignment-complete", "retro", "retro-complete",
-		"summary", "summary-complete",
-	}
-
-	passChecker := &mockPreconditionChecker{
-		requirementsExists:         true,
-		requirementsHasIDs:         true,
-		designExists:               true,
-		designHasIDs:               true,
-		traceValidationPasses:      true,
-		testsExist:                 true,
-		testsFail:                  true,
-		testsPass:                  true,
-		acceptanceCriteriaComplete: true,
-		retroExists:                true,
-		summaryExists:              true,
-		issueACComplete:            true, // Default to passing
-	}
-
-	for _, phase := range phases {
-		_, err := state.TransitionWithChecker(dir, phase, state.TransitionOpts{}, nowFunc(), passChecker)
-		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
-	}
-}
-
-// Test state next returns validation_failed when AC incomplete at tdd-refactor-qa
-func TestNextWithChecker_ValidationFailed(t *testing.T) {
-	t.Run("returns validation_failed when AC incomplete at tdd-refactor-qa", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhaseWithTask(t, dir, "tdd-refactor-qa", "TASK-001")
-
-		checker := &mockPreconditionChecker{
-			acceptanceCriteriaComplete:   false,
-			incompleteAcceptanceCriteria: []string{"First AC item", "Second AC item"},
-		}
-		result := state.NextWithChecker(dir, checker)
-		g.Expect(result.Action).To(Equal("stop"))
-		g.Expect(result.Reason).To(Equal("validation_failed"))
-		g.Expect(result.Details).To(ContainSubstring("acceptance criteria for TASK-001 are incomplete"))
-	})
-
-	t.Run("returns continue when AC complete at tdd-refactor-qa", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhaseWithTask(t, dir, "tdd-refactor-qa", "TASK-001")
-
-		checker := &mockPreconditionChecker{
-			acceptanceCriteriaComplete: true,
-		}
-		result := state.NextWithChecker(dir, checker)
-		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("task-complete"))
-	})
-}
-
-// Test state next returns action: continue when unblocked work exists
-func TestNext_Continue(t *testing.T) {
-	t.Run("returns continue when in tdd-red", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "tdd-red")
-
-		result := state.Next(dir)
-		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("tdd-red-qa"))
-	})
-
-	t.Run("continues across phases", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "tdd-green-qa")
-
-		result := state.Next(dir)
-		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("tdd-refactor"))
-	})
-}
-
-// Test state next returns action: stop when all complete
-func TestNext_Stop(t *testing.T) {
-	t.Run("returns stop at terminal states", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		walkToPhase(t, dir, "next-steps")
-		_, err = state.TransitionWithChecker(dir, "complete", state.TransitionOpts{}, nowFunc(), nil)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result := state.Next(dir)
-		g.Expect(result.Action).To(Equal("stop"))
-		g.Expect(result.Reason).To(Equal("all_complete"))
-	})
-}
-
-// Test NextResult contains required fields
-func TestNextResult_Fields(t *testing.T) {
-	g := NewWithT(t)
-
-	result := state.NextResult{
-		Action:    "continue",
-		NextPhase: "tdd-green",
-		NextTask:  "TASK-001",
-		Reason:    "",
-	}
-
-	g.Expect(result.Action).To(Equal("continue"))
-	g.Expect(result.NextPhase).To(Equal("tdd-green"))
-	g.Expect(result.NextTask).To(Equal("TASK-001"))
-}
-
-// Test failed transition captures error details in state.toml.
-func TestTransition_CapturesError(t *testing.T) {
-	t.Run("captures error on precondition failure", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{
-			Task: "TASK-001",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Attempt transition that fails precondition
-		checker := &mockPreconditionChecker{
-			requirementsExists: false,
-		}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-
-		// Read state and verify error section exists
-		s, err := state.Get(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Error).ToNot(BeNil())
-		g.Expect(s.Error.LastPhase).To(Equal("pm"))
-		g.Expect(s.Error.LastTask).To(Equal("TASK-001"))
-		g.Expect(s.Error.ErrorType).To(Equal("precondition_failed"))
-		g.Expect(s.Error.Message).To(ContainSubstring("requirements.md"))
-	})
-
-	t.Run("captures error on illegal transition", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Attempt illegal transition
-		_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).To(HaveOccurred())
-
-		// Read state and verify error section exists
-		s, err := state.Get(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Error).ToNot(BeNil())
-		g.Expect(s.Error.ErrorType).To(Equal("illegal_transition"))
-	})
-}
-
-// Test retry count increments on repeated failures.
-func TestTransition_RetryCountIncrements(t *testing.T) {
-	g := NewWithT(t)
-	dir := t.TempDir()
-
-	_, err := state.Init(dir, "test-project", nowFunc())
-	g.Expect(err).ToNot(HaveOccurred())
-
-	_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-	g.Expect(err).ToNot(HaveOccurred())
-
-	checker := &mockPreconditionChecker{requirementsExists: false}
-
-	// First failure
-	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-	g.Expect(err).To(HaveOccurred())
-
-	s, _ := state.Get(dir)
-	g.Expect(s.Error.RetryCount).To(Equal(1))
-
-	// Second failure
-	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-	g.Expect(err).To(HaveOccurred())
-
-	s, _ = state.Get(dir)
-	g.Expect(s.Error.RetryCount).To(Equal(2))
-}
-
-// Test error cleared on successful transition.
-func TestTransition_ClearsErrorOnSuccess(t *testing.T) {
-	g := NewWithT(t)
-	dir := t.TempDir()
-
-	_, err := state.Init(dir, "test-project", nowFunc())
-	g.Expect(err).ToNot(HaveOccurred())
-
-	_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Cause a failure first
-	checker := &mockPreconditionChecker{requirementsExists: false}
-	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-	g.Expect(err).To(HaveOccurred())
-
-	s, _ := state.Get(dir)
-	g.Expect(s.Error).ToNot(BeNil())
-
-	// Now succeed with force
-	_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{Force: true}, nowFunc(), checker)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	s, _ = state.Get(dir)
-	g.Expect(s.Error).To(BeNil())
-}
-
-// Test GetRecovery returns recovery info after failure.
-func TestGetRecovery_AfterFailure(t *testing.T) {
-	t.Run("shows available actions after failure", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Cause a failure
-		checker := &mockPreconditionChecker{requirementsExists: false}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-
-		recovery := state.GetRecovery(dir)
-		g.Expect(recovery.HasError).To(BeTrue())
-		g.Expect(recovery.AvailableActions).To(ContainElements("retry", "skip", "escalate"))
-	})
-
-	t.Run("no recovery info when no error", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		recovery := state.GetRecovery(dir)
-		g.Expect(recovery.HasError).To(BeFalse())
-		g.Expect(recovery.AvailableActions).To(BeEmpty())
-	})
-}
-
-// Test Retry re-attempts the last failed transition.
-func TestRetry(t *testing.T) {
-	t.Run("retry succeeds when precondition fixed", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Fail first
-		failChecker := &mockPreconditionChecker{requirementsExists: false}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), failChecker)
-		g.Expect(err).To(HaveOccurred())
-
-		// Retry with fixed precondition
-		successChecker := &mockPreconditionChecker{requirementsExists: true, requirementsHasIDs: true}
-		s, err := state.Retry(dir, nowFunc(), successChecker)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm-complete"))
-		g.Expect(s.Error).To(BeNil())
-	})
-
-	t.Run("retry errors when no previous failure", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Retry(dir, nowFunc(), nil)
-		g.Expect(err).To(HaveOccurred())
-		g.Expect(err.Error()).To(ContainSubstring("no previous failure"))
-	})
-}
-
-// Test Next considers error state.
-func TestNext_ConsidersError(t *testing.T) {
-	t.Run("reports error when transition failed", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Cause a failure
-		checker := &mockPreconditionChecker{requirementsExists: false}
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), checker)
-		g.Expect(err).To(HaveOccurred())
-
-		result := state.Next(dir)
-		g.Expect(result.Action).To(Equal("stop"))
-		g.Expect(result.Reason).To(Equal("error_pending"))
-	})
-}
-
-// Test Next() filters completed tasks from suggestions
-func TestNextFiltersCompletedTasks(t *testing.T) {
-	t.Run("Next excludes completed tasks from task suggestions", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Walk to task-complete, simulating finishing TASK-001
-		walkToPhaseWithTask(t, dir, "task-complete", "TASK-001")
-
-		// Mark TASK-001 as complete
-		_, err = state.MarkTaskComplete(dir, "TASK-001")
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Checker reports TASK-001 and TASK-002 as unblocked
-		checker := &mockPreconditionChecker{
-			unblockedTasks: []string{"TASK-001", "TASK-002"},
-		}
-
-		// Next() should filter out TASK-001 since it's complete
-		result := state.NextWithChecker(dir, checker)
-		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextTask).To(Equal("TASK-002"))
-	})
-
-	t.Run("Next returns all_complete when all unblocked tasks are completed", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Walk to task-complete
-		walkToPhaseWithTask(t, dir, "task-complete", "TASK-001")
-
-		// Mark both tasks as complete
-		_, err = state.MarkTaskComplete(dir, "TASK-001")
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.MarkTaskComplete(dir, "TASK-002")
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Checker reports only completed tasks as unblocked
-		checker := &mockPreconditionChecker{
-			unblockedTasks: []string{"TASK-001", "TASK-002"},
-		}
-
-		// Since both suggested tasks are complete, should suggest implementation-complete
-		result := state.NextWithChecker(dir, checker)
-		// At task-complete, if no remaining tasks, should suggest implementation-complete
-		g.Expect(result.Action).To(Equal("continue"))
-		g.Expect(result.NextPhase).To(Equal("implementation-complete"))
-	})
-}
-
-// walkToPhaseWithTask transitions through phases to reach the target phase with a task ID.
-func walkToPhaseWithTask(t *testing.T, dir, target, taskID string) {
-	t.Helper()
-	g := NewWithT(t)
-
-	paths := map[string][]string{
-		"tdd-refactor-qa": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		},
-		"task-complete": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"task-complete",
-		},
-	}
-
-	phases, ok := paths[target]
-	if !ok {
-		t.Fatalf("unknown target phase: %s", target)
-	}
-
-	passChecker := &mockPreconditionChecker{
-		requirementsExists:         true,
-		requirementsHasIDs:         true,
-		designExists:               true,
-		designHasIDs:               true,
-		traceValidationPasses:      true,
-		testsExist:                 true,
-		testsFail:                  true,
-		testsPass:                  true,
-		acceptanceCriteriaComplete: true,
-	}
-
-	for _, phase := range phases {
-		opts := state.TransitionOpts{}
-		if phase == "task-start" || phase == "tdd-red" || phase == "tdd-red-qa" ||
-			phase == "tdd-green" || phase == "tdd-green-qa" || phase == "tdd-refactor" || phase == "tdd-refactor-qa" ||
-			phase == "task-complete" {
-			opts.Task = taskID
-		}
-		_, err := state.TransitionWithChecker(dir, phase, opts, nowFunc(), passChecker)
-		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
-	}
-}
-
-func walkToPhase(t *testing.T, dir, target string) {
-	t.Helper()
-	g := NewWithT(t)
-
-	paths := map[string][]string{
-		"pm":          {"pm"},
-		"pm-complete": {"pm", "pm-complete"},
-		"design": {
-			"pm", "pm-complete", "design",
-		},
-		"design-complete": {
-			"pm", "pm-complete", "design", "design-complete",
-		},
-		"architect": {
-			"pm", "pm-complete", "design", "design-complete", "architect",
-		},
-		"architect-complete": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete",
-		},
-		"breakdown": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown",
-		},
-		"tdd-red": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-		},
-		"tdd-green-qa": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa",
-		},
-		"tdd-refactor-qa": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa", "tdd-refactor", "tdd-refactor-qa",
-		},
-		"next-steps": {
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red", "tdd-red-qa",
-			"tdd-green", "tdd-green-qa", "tdd-refactor", "tdd-refactor-qa",
-			"task-complete",
-			"implementation-complete", "documentation", "documentation-complete",
-			"alignment", "alignment-complete", "retro", "retro-complete",
-			"summary", "summary-complete", "issue-update", "next-steps",
-		},
-	}
-
-	phases, ok := paths[target]
-	if !ok {
-		t.Fatalf("unknown target phase: %s", target)
-	}
-
-	passChecker := &mockPreconditionChecker{
-		requirementsExists:         true,
-		requirementsHasIDs:         true,
-		designExists:               true,
-		designHasIDs:               true,
-		traceValidationPasses:      true,
-		testsExist:                 true,
-		testsFail:                  true,
-		testsPass:                  true,
-		acceptanceCriteriaComplete: true,
-		retroExists:                true,
-		summaryExists:              true,
-		issueACComplete:            true,
-	}
-
-	for _, phase := range phases {
-		_, err := state.TransitionWithChecker(dir, phase, state.TransitionOpts{}, nowFunc(), passChecker)
-		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
-	}
 }

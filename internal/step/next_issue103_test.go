@@ -21,7 +21,7 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -42,14 +42,10 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -70,13 +66,13 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_, err = state.SetPair(dir, "pm", state.PairState{
 			Iteration:          1,
 			MaxIterations:      3,
-			ProducerComplete:   true,
+			ProducerComplete:   false,
 			QAVerdict:          "improvement-request",
 			ImprovementRequest: "needs work",
 		})
@@ -101,7 +97,7 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -124,7 +120,7 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -143,14 +139,10 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.SetPair(dir, "pm", state.PairState{
-			Iteration:        1,
-			MaxIterations:    3,
-			ProducerComplete: true,
-		})
+		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -164,32 +156,24 @@ func TestISSUE103_SubagentType(t *testing.T) {
 	t.Run("all spawn actions use general-purpose not code", func(t *testing.T) {
 		// Test across multiple phases that produce spawn actions
 		testCases := []struct {
-			phase         string
-			setupPair     *state.PairState
+			name           string
+			transitions    []string
 			expectedAction string
 		}{
 			{
-				phase:          "pm",
-				setupPair:      nil,
+				name:           "pm_produce",
+				transitions:    []string{"pm_produce"},
 				expectedAction: "spawn-producer",
 			},
 			{
-				phase: "pm",
-				setupPair: &state.PairState{
-					Iteration:        1,
-					MaxIterations:    3,
-					ProducerComplete: true,
-				},
+				name:           "pm_qa (QA spawn)",
+				transitions:    []string{"pm_produce", "pm_qa"},
 				expectedAction: "spawn-qa",
 			},
 		}
 
 		for _, tc := range testCases {
-			testName := tc.phase
-			if tc.setupPair != nil {
-				testName += " (QA spawn)"
-			}
-			t.Run(testName, func(t *testing.T) {
+			t.Run(tc.name, func(t *testing.T) {
 				g := NewWithT(t)
 				dir := t.TempDir()
 
@@ -198,11 +182,8 @@ func TestISSUE103_SubagentType(t *testing.T) {
 				})
 				g.Expect(err).ToNot(HaveOccurred())
 
-				_, err = state.Transition(dir, tc.phase, state.TransitionOpts{}, nowFunc())
-				g.Expect(err).ToNot(HaveOccurred())
-
-				if tc.setupPair != nil {
-					_, err = state.SetPair(dir, tc.phase, *tc.setupPair)
+				for _, phase := range tc.transitions {
+					_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 					g.Expect(err).ToNot(HaveOccurred())
 				}
 
@@ -211,7 +192,7 @@ func TestISSUE103_SubagentType(t *testing.T) {
 				g.Expect(result.Action).To(Equal(tc.expectedAction))
 				g.Expect(result.TaskParams).ToNot(BeNil())
 				g.Expect(result.TaskParams.SubagentType).To(Equal("general-purpose"),
-					"SubagentType must be 'general-purpose' in phase %s", tc.phase)
+					"SubagentType must be 'general-purpose' in phase %s", tc.name)
 			})
 		}
 	})
@@ -225,7 +206,7 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)

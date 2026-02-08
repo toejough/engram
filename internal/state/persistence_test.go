@@ -74,14 +74,14 @@ func TestTOMLRoundtrip(t *testing.T) {
 
 		// Create a state with all fields populated
 		_, err := state.Init(dir, "roundtrip-test", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 			Issue:    "ISSUE-99",
 			RepoDir:  "/some/repo",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Add some transitions
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{
+		// Transition to init_state for scoped workflow
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{
 			Task:     "TASK-001",
 			Subphase: "red",
 		}, nowFunc())
@@ -118,7 +118,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 
 		// Verify all fields match
 		g.Expect(loaded.Project.Name).To(Equal("roundtrip-test"))
-		g.Expect(loaded.Project.Workflow).To(Equal("task"))
+		g.Expect(loaded.Project.Workflow).To(Equal("scoped"))
 		g.Expect(loaded.Project.Issue).To(Equal("ISSUE-99"))
 		g.Expect(loaded.Project.RepoDir).To(Equal("/some/repo"))
 		g.Expect(loaded.Progress.CurrentTask).To(Equal("TASK-001"))
@@ -204,11 +204,11 @@ func TestAtomicWrites(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "atomic-test", nowFunc())
+		_, err := state.Init(dir, "atomic-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Perform transition
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify no .tmp files left behind
@@ -230,7 +230,7 @@ func TestAtomicWrites(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "atomic-test", nowFunc())
+		_, err := state.Init(dir, "atomic-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_, err = state.Set(dir, state.SetOpts{Issue: "ISSUE-123"})
@@ -249,7 +249,7 @@ func TestAtomicWrites(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "atomic-test", nowFunc())
+		_, err := state.Init(dir, "atomic-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		_, err = state.SetPair(dir, "pm", state.PairState{Iteration: 1})
@@ -270,13 +270,13 @@ func TestErrorStateHandling(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "error-test", nowFunc())
+		_, err := state.Init(dir, "error-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Cause an error
+		// Cause an error — try illegal transition from pm_produce
 		_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 
@@ -285,7 +285,7 @@ func TestErrorStateHandling(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Error).ToNot(BeNil())
 		g.Expect(s.Error.ErrorType).To(Equal("illegal_transition"))
-		g.Expect(s.Error.LastPhase).To(Equal("pm"))
+		g.Expect(s.Error.LastPhase).To(Equal("pm_produce"))
 		g.Expect(s.Error.TargetPhase).To(Equal("complete"))
 	})
 
@@ -293,14 +293,13 @@ func TestErrorStateHandling(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "error-test", nowFunc())
+		_, err := state.Init(dir, "error-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		// Navigate to pm_decide, then try pm_commit with precondition failure
+		navigateToState(t, dir, "pm_decide", "new")
 
-		// Cause an error with known target
-		_, err = state.TransitionWithChecker(dir, "pm-complete", state.TransitionOpts{}, nowFunc(), &mockPreconditionChecker{
+		_, err = state.TransitionWithChecker(dir, "pm_commit", state.TransitionOpts{}, nowFunc(), &mockPreconditionChecker{
 			requirementsExists: false,
 		})
 		g.Expect(err).To(HaveOccurred())
@@ -309,7 +308,7 @@ func TestErrorStateHandling(t *testing.T) {
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Error).ToNot(BeNil())
-		g.Expect(s.Error.TargetPhase).To(Equal("pm-complete"))
+		g.Expect(s.Error.TargetPhase).To(Equal("pm_commit"))
 		g.Expect(s.Error.ErrorType).To(Equal("precondition_failed"))
 	})
 }
@@ -319,10 +318,10 @@ func TestHistoryTracking(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "history-test", nowFunc())
+		_, err := state.Init(dir, "history-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm", "pm-complete"}
+		phases := []string{"pm_produce", "pm_qa"}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
@@ -330,20 +329,20 @@ func TestHistoryTracking(t *testing.T) {
 
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.History).To(HaveLen(3)) // init + pm + pm-complete
+		g.Expect(s.History).To(HaveLen(3)) // init + pm_produce + pm_qa
 		g.Expect(s.History[0].Phase).To(Equal("init"))
-		g.Expect(s.History[1].Phase).To(Equal("pm"))
-		g.Expect(s.History[2].Phase).To(Equal("pm-complete"))
+		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
+		g.Expect(s.History[2].Phase).To(Equal("pm_qa"))
 	})
 
 	t.Run("History timestamps persist correctly", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "history-test", nowFunc())
+		_, err := state.Init(dir, "history-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, err := state.Get(dir)
@@ -423,7 +422,7 @@ func TestStateRoundtripProperty(t *testing.T) {
 
 		// Generate random valid state data
 		name := rapid.StringMatching(`[a-z][a-z0-9-]{1,20}`).Draw(rt, "name")
-		workflow := rapid.SampledFrom([]string{"new", "adopt", "align", "task"}).Draw(rt, "workflow")
+		workflow := rapid.SampledFrom([]string{"new", "scoped", "align"}).Draw(rt, "workflow")
 		issue := rapid.StringMatching(`ISSUE-[0-9]{1,3}`).Draw(rt, "issue")
 
 		// Initialize state
@@ -448,11 +447,11 @@ func TestTransitionOptsPersistence(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "opts-test", nowFunc())
+		_, err := state.Init(dir, "opts-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition with opts
-		_, err = state.Transition(dir, "pm", state.TransitionOpts{
+		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{
 			Task:     "TASK-042",
 			Subphase: "interview",
 		}, nowFunc())
@@ -470,12 +469,13 @@ func TestTransitionOptsPersistence(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "repo-test", nowFunc(), state.InitOpts{
-			RepoDir: "/my/repo",
+			Workflow: "new",
+			RepoDir:  "/my/repo",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition without explicit RepoDir
-		s, err := state.Transition(dir, "pm", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify RepoDir still accessible

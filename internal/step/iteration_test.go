@@ -12,25 +12,52 @@ import (
 // Iteration counter increments on improvement-request, resets on phase transition,
 // and returns escalate-user when max iterations exceeded.
 
+// navigateToPhaseForIteration walks the scoped workflow state machine
+// to reach a target state via direct state.Transition calls.
+//
+// Scoped workflow path:
+//
+//	init -> item_select -> item_fork -> worktree_create ->
+//	  tdd_red_produce -> tdd_red_qa -> tdd_red_decide
+func navigateToPhaseForIteration(t *testing.T, dir string, targetPhase string) {
+	t.Helper()
+	g := NewWithT(t)
+
+	allPhases := []string{
+		"item_select", "item_fork", "worktree_create",
+		"tdd_red_produce", "tdd_red_qa", "tdd_red_decide",
+	}
+
+	targetIdx := -1
+	for i, phase := range allPhases {
+		if phase == targetPhase {
+			targetIdx = i
+			break
+		}
+	}
+
+	if targetIdx == -1 {
+		t.Fatalf("target phase %s not found in iteration test sequence", targetPhase)
+	}
+
+	for i := 0; i <= targetIdx; i++ {
+		_, err := state.Transition(dir, allPhases[i], state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", allPhases[i])
+	}
+}
+
 func TestIterationIncrementsOnImprovementRequest(t *testing.T) {
 	t.Run("iteration increments when QA requests improvements", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Use valid state machine path: init -> task-implementation -> task-start -> tdd-red
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		// Navigate: init -> item_select -> item_fork -> worktree_create -> tdd_red_produce
+		navigateToPhaseForIteration(t, dir, "tdd_red_produce")
 
 		// Complete producer
 		err = step.Complete(dir, step.CompleteResult{
@@ -51,32 +78,25 @@ func TestIterationIncrementsOnImprovementRequest(t *testing.T) {
 		// Check iteration incremented
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Pairs["tdd-red"].Iteration).To(Equal(2))
+		g.Expect(s.Pairs["tdd_red"].Iteration).To(Equal(2))
 	})
 }
 
 func TestIterationResetsOnPhaseTransition(t *testing.T) {
-	t.Run("iteration resets when transitioning to next phase", func(t *testing.T) {
+	t.Run("iteration resets when transitioning across pair groups", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Use valid state machine path: init -> task-implementation -> task-start -> tdd-red
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		// Navigate to tdd_red_decide (through produce -> qa -> decide)
+		navigateToPhaseForIteration(t, dir, "tdd_red_decide")
 
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Set iteration to 2
-		_, err = state.SetPair(dir, "tdd-red", state.PairState{
+		// Set pair state with iteration=2 and approved verdict
+		_, err = state.SetPair(dir, "tdd_red", state.PairState{
 			Iteration:        2,
 			MaxIterations:    3,
 			ProducerComplete: true,
@@ -84,34 +104,20 @@ func TestIterationResetsOnPhaseTransition(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Mark QA as approved (required before commit can happen)
-		_, err = state.SetPair(dir, "tdd-red", state.PairState{
-			Iteration:        2,
-			MaxIterations:    3,
-			ProducerComplete: true,
-			QAVerdict:        "approved",
-		})
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Complete commit
-		err = step.Complete(dir, step.CompleteResult{
-			Action: "commit",
-			Status: "done",
-		}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Transition to next phase (tdd-red-qa, following the state machine)
+		// Transition from tdd_red_decide to tdd_green_produce (targets[1] for approved).
+		// This crosses pair group boundary: pairKey("tdd_green_produce") = "tdd_green" != "tdd_red",
+		// so the "tdd_red" pair state should be cleared.
 		err = step.Complete(dir, step.CompleteResult{
 			Action: "transition",
-			Phase:  "tdd-red-qa",
+			Phase:  "tdd_green_produce",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Check tdd-red pair state is cleared
+		// Check tdd_red pair state is cleared
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, exists := s.Pairs["tdd-red"]
-		g.Expect(exists).To(BeFalse(), "tdd-red pair state should be cleared on transition")
+		_, exists := s.Pairs["tdd_red"]
+		g.Expect(exists).To(BeFalse(), "tdd_red pair state should be cleared on cross-group transition")
 	})
 }
 
@@ -121,26 +127,19 @@ func TestMaxIterationEnforcement(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Use valid state machine path: init -> task-implementation -> task-start -> tdd-red
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		// Navigate to tdd_red_produce
+		navigateToPhaseForIteration(t, dir, "tdd_red_produce")
 
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Set iteration beyond max (4 > 3)
-		_, err = state.SetPair(dir, "tdd-red", state.PairState{
+		// Set iteration beyond max (4 > 3) with ProducerComplete=false
+		// and ImprovementRequest set (QA has sent back for rework)
+		_, err = state.SetPair(dir, "tdd_red", state.PairState{
 			Iteration:          4,
 			MaxIterations:      3,
-			ProducerComplete:   true,
-			QAVerdict:          "improvement-request",
+			ProducerComplete:   false,
 			ImprovementRequest: "Try again",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
@@ -159,19 +158,12 @@ func TestIterationNeverDecreases(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
-			Workflow: "task",
+			Workflow: "scoped",
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Use valid state machine path: init -> task-implementation -> task-start -> tdd-red
-		_, err = state.Transition(dir, "task-implementation", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "task-start", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "tdd-red", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		// Navigate to tdd_red_produce
+		navigateToPhaseForIteration(t, dir, "tdd_red_produce")
 
 		// First iteration: producer -> qa -> improvement-request
 		err = step.Complete(dir, step.CompleteResult{
@@ -189,7 +181,7 @@ func TestIterationNeverDecreases(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, _ := state.Get(dir)
-		iteration1 := s.Pairs["tdd-red"].Iteration
+		iteration1 := s.Pairs["tdd_red"].Iteration
 		g.Expect(iteration1).To(Equal(2))
 
 		// Second iteration: producer -> qa -> improvement-request
@@ -208,7 +200,7 @@ func TestIterationNeverDecreases(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, _ = state.Get(dir)
-		iteration2 := s.Pairs["tdd-red"].Iteration
+		iteration2 := s.Pairs["tdd_red"].Iteration
 		g.Expect(iteration2).To(Equal(3))
 		g.Expect(iteration2).To(BeNumerically(">", iteration1))
 	})

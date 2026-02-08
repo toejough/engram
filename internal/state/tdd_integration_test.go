@@ -5,41 +5,33 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/projctl/internal/state"
-	"github.com/toejough/projctl/internal/step"
 )
 
-// TestFullTDDCycleWithPerPhaseQA verifies TASK-22 acceptance criteria:
-// Full TDD loop with per-phase QA executes correctly from tdd-red through task-complete.
+// TestFullTDDCycleWithPerPhaseQA verifies the full TDD loop with per-phase QA
+// executes correctly using the flat state machine.
 
 func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
-	t.Run("complete TDD cycle from tdd-red to task-complete with QA phases", func(t *testing.T) {
+	t.Run("complete TDD cycle through all QA phases", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		// Initialize and navigate to tdd-red
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red phase
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred(), "failed to transition to %s", phase)
-		}
+		// Navigate to tdd_red_produce via BFS
+		navigateToState(t, dir, "tdd_red_produce", "new")
 
-		// Full sequence: tdd-red -> tdd-red-qa -> tdd-green -> tdd-green-qa ->
-		// tdd-refactor -> tdd-refactor-qa -> task-complete
+		// Full TDD cycle: red → green → refactor → commit
 		fullSequence := []string{
-			"tdd-red-qa",
-			"tdd-green",
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"task-complete",
+			"tdd_red_qa",
+			"tdd_red_decide",
+			"tdd_green_produce",
+			"tdd_green_qa",
+			"tdd_green_decide",
+			"tdd_refactor_produce",
+			"tdd_refactor_qa",
+			"tdd_refactor_decide",
+			"tdd_commit",
 		}
 
 		for _, phase := range fullSequence {
@@ -49,104 +41,38 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		}
 	})
 
-	t.Run("step next returns correct actions at each phase", func(t *testing.T) {
-		g := NewWithT(t)
-		dir := t.TempDir()
-
-		_, err := state.Init(dir, "test-project", nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Navigate to tdd-red
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		// Test step next at tdd-red-qa returns spawn-qa
-		_, err = state.Transition(dir, "tdd-red-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err := step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-red-qa should spawn QA")
-		g.Expect(result.Skill).To(Equal("qa"))
-
-		// Test step next at tdd-green-qa returns spawn-qa
-		_, err = state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-green-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-green-qa should spawn QA")
-
-		// Test step next at tdd-refactor-qa returns spawn-qa
-		_, err = state.Transition(dir, "tdd-refactor", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-		_, err = state.Transition(dir, "tdd-refactor-qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.Action).To(Equal("spawn-qa"), "tdd-refactor-qa should spawn QA")
-	})
-
 	t.Run("no shortcuts allowed in full TDD cycle", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		// Navigate to tdd_red_produce
+		navigateToState(t, dir, "tdd_red_produce", "new")
 
-		// Verify illegal shortcuts are blocked:
-
-		// 1. Cannot skip from tdd-red to tdd-green (must go through tdd-red-qa)
-		_, err = state.Transition(dir, "tdd-green", state.TransitionOpts{}, nowFunc())
+		// 1. Cannot skip from tdd_red_produce to tdd_green_produce (must go through qa/decide)
+		_, err = state.Transition(dir, "tdd_green_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 
-		// 2. Cannot skip from tdd-green to tdd-refactor (must go through tdd-green-qa)
+		// 2. Cannot skip from tdd_green_produce to tdd_refactor_produce
 		dir2 := t.TempDir()
-		_, err = state.Init(dir2, "test-project", nowFunc())
+		_, err = state.Init(dir2, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
+		navigateToState(t, dir2, "tdd_green_produce", "new")
 
-		for _, phase := range append(phases, "tdd-red-qa", "tdd-green") {
-			_, err = state.Transition(dir2, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		_, err = state.Transition(dir2, "tdd-refactor", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir2, "tdd_refactor_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 
-		// 3. Cannot skip from tdd-refactor to task-complete (must go through tdd-refactor-qa)
+		// 3. Cannot skip from tdd_refactor_produce to tdd_commit
 		dir3 := t.TempDir()
-		_, err = state.Init(dir3, "test-project", nowFunc())
+		_, err = state.Init(dir3, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
+		navigateToState(t, dir3, "tdd_refactor_produce", "new")
 
-		for _, phase := range append(phases, "tdd-red-qa", "tdd-green", "tdd-green-qa", "tdd-refactor") {
-			_, err = state.Transition(dir3, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
-
-		_, err = state.Transition(dir3, "task-complete", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir3, "tdd_commit", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 	})
@@ -155,30 +81,23 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Init(dir, "test-project", nowFunc())
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to tdd-red
-		phases := []string{
-			"pm", "pm-complete", "design", "design-complete",
-			"architect", "architect-complete", "breakdown", "breakdown-complete",
-			"implementation", "task-start", "tdd-red",
-		}
-		for _, phase := range phases {
-			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
-			g.Expect(err).ToNot(HaveOccurred())
-		}
+		navigateToState(t, dir, "tdd_red_produce", "new")
 
-		// Track phase progression
-		progression := []string{"tdd-red"}
+		progression := []string{"tdd_red_produce"}
 
 		fullSequence := []string{
-			"tdd-red-qa",
-			"tdd-green",
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"task-complete",
+			"tdd_red_qa",
+			"tdd_red_decide",
+			"tdd_green_produce",
+			"tdd_green_qa",
+			"tdd_green_decide",
+			"tdd_refactor_produce",
+			"tdd_refactor_qa",
+			"tdd_refactor_decide",
+			"tdd_commit",
 		}
 
 		for _, phase := range fullSequence {
@@ -187,15 +106,17 @@ func TestFullTDDCycleWithPerPhaseQA(t *testing.T) {
 			progression = append(progression, s.Project.Phase)
 		}
 
-		// Verify progression includes all expected phases in order
 		expectedProgression := []string{
-			"tdd-red",
-			"tdd-red-qa",
-			"tdd-green",
-			"tdd-green-qa",
-			"tdd-refactor",
-			"tdd-refactor-qa",
-			"task-complete",
+			"tdd_red_produce",
+			"tdd_red_qa",
+			"tdd_red_decide",
+			"tdd_green_produce",
+			"tdd_green_qa",
+			"tdd_green_decide",
+			"tdd_refactor_produce",
+			"tdd_refactor_qa",
+			"tdd_refactor_decide",
+			"tdd_commit",
 		}
 
 		g.Expect(progression).To(Equal(expectedProgression))

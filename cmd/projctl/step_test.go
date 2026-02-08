@@ -92,6 +92,6 @@ func setupStepTestProject(t *testing.T, dir string) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	_, err = state.Transition(dir, "pm", state.TransitionOpts{}, func() time.Time { return time.Now() })
+	_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, func() time.Time { return time.Now() })
 	g.Expect(err).ToNot(HaveOccurred())
 }
