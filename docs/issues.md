@@ -3821,7 +3821,7 @@ Related challenges: Test script required edge case refinement after implementati
 ### ISSUE-108: Retro: Run traceability validation immediately after artifact creation
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 From retrospective: After each artifact (requirements, architecture, design, tasks) is created, run 'projctl trace validate' before proceeding to the next artifact. Fix violations immediately rather than batching corrections.
@@ -3835,6 +3835,10 @@ Related challenges: Traceability chain violations required correction commit.
 ### Comment
 
 Deferred — likely superseded by ISSUE-148 (consolidated evaluation phase redesign). Re-evaluate after ISSUE-148. See docs/open-issues-plan.md.
+
+### Comment
+
+Won't do: trace validation should not be mixed into the commit handler — keep concerns separate
 ### ISSUE-109: Retro: Define 'complete' vs 'partial' commit scope explicitly
 
 **Priority:** Medium
@@ -4315,7 +4319,7 @@ Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-pla
 ### ISSUE-138: Add plan mode as front door to project orchestration
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-07
 
 ## Problem
@@ -4411,6 +4415,10 @@ Replace three separate QA passes with one cross-cutting QA that validates consis
 ### Comment
 
 Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Parallel phases need new action type easier to add with declarative config. Can run in parallel with ISSUE-148 after 150 completes. See docs/open-issues-plan.md.
+
+### Comment
+
+Implemented: plan mode + parallel artifacts
 ### ISSUE-139: Fix integrate: trace link renumbering, ID format consistency, and project path mismatch
 
 **Priority:** medium
@@ -4436,7 +4444,7 @@ Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-pla
 ### ISSUE-140: State machine step next doesn't include current_task in context or prompt
 
 **Priority:** high
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-07
 
 step.Next() reads s.Project.Phase but never reads s.Progress.CurrentTask. The StepContext struct has Issue, PriorArtifacts, QAFeedback, ProducerTranscript but no task field. buildPrompt() also doesn't include task context.
@@ -4454,6 +4462,10 @@ Fix:
 ### Comment
 
 Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Context passing will be redesigned; becomes trivial config change after 150. Can run in parallel with ISSUE-142, ISSUE-145. See docs/open-issues-plan.md.
+
+### Comment
+
+Implemented: task context in step next
 ### ISSUE-141: Remove commit-producer QA phases and consolidate commit/commit-producer skills
 
 **Priority:** medium
@@ -4475,7 +4487,7 @@ Phase 1 quick win — no dependencies, can proceed now. See docs/open-issues-pla
 ### ISSUE-142: Retro: Add explicit TaskList creation step to project control loop
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (R-1):
@@ -4501,6 +4513,10 @@ Related: ISSUE-104 challenge C-1, retro-notes O-1
 ### Comment
 
 Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Adding a step becomes trivial TOML addition after 150. Can run in parallel with ISSUE-140, ISSUE-145. See docs/open-issues-plan.md.
+
+### Comment
+
+Implemented: TaskList creation step
 ### ISSUE-143: Retro: Investigate collapsing redundant commit QA phases
 
 **Priority:** High
@@ -4564,7 +4580,7 @@ Duplicate of ISSUE-140 (state machine step next doesn't include current_task).
 ### ISSUE-145: Retro: Establish definition of done checkpoint before retrospective
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-07
 
 From ISSUE-104 retrospective (R-4):
@@ -4589,6 +4605,10 @@ Related: ISSUE-104 challenge C-4
 ### Comment
 
 Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Adding a checkpoint becomes trivial TOML addition after 150. Can run in parallel with ISSUE-140, ISSUE-142. See docs/open-issues-plan.md.
+
+### Comment
+
+Won't do: explicitly do not want extra points for stopping — always continue
 ### ISSUE-146: Decision needed: Clarify ISSUE-137 through ISSUE-141 created during ISSUE-104
 
 **Priority:** Medium
@@ -4647,7 +4667,7 @@ Invalid: All 10 tasks were completed during the session. TASK-8, 9, 10 were fast
 ### ISSUE-148: Consolidate retro and summary into comprehensive project evaluation with interview
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-07
 
 ## Problem
@@ -4712,6 +4732,10 @@ Each category gets a brief summary. User can drill into any they care about. Use
 ### Comment
 
 Phase 3 — blocked by ISSUE-150 (declarative TOML state machine). Merging/removing phases easier with declarative config. Can run in parallel with ISSUE-138 after 150 completes. See docs/open-issues-plan.md.
+
+### Comment
+
+Implemented: consolidated evaluation
 ### ISSUE-149: Investigate idle-wait prevention when agent blocks on user decisions
 
 **Priority:** High
@@ -4966,3 +4990,27 @@ Currently the memory CLI commands exist but are not integrated into the orchestr
 - QA queries memory for known patterns and past failures
 - context-explorer uses memory query alongside file search
 - Fix failing TestIntegration_SemanticSimilarityExampleErrorAndException (semantic ranking assertion too strict)
+
+---
+
+### ISSUE-153: Worktree lifecycle hardcodes main as base branch
+
+**Priority:** High
+**Status:** Closed
+**Created:** 2026-02-08
+
+Create and Merge in internal/worktree assume main as the base branch. Create (worktree.go:75) runs git worktree add -b branch path with no start point, so it forks from whatever HEAD is checked out. Merge CLI (cmd/projctl/worktree.go:76) defaults onto to main. Both break when the default branch is master, develop, or any other name. Fix: auto-detect base branch (e.g. git symbolic-ref refs/remotes/origin/HEAD or store at state init) and pass it explicitly to Create and Merge.
+
+---
+
+
+### Comment
+
+Implemented: worktree base branch detection
+### ISSUE-154: Project orchestration should run in its own worktree/branch
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-08
+
+When /project spawns a haiku orchestrator, the entire project should run in a new worktree and branch rather than working directly on the current branch. This isolates project work from the user's working tree, prevents conflicts with in-progress changes, and makes it easy to review or discard project output. The orchestrator should create the worktree at startup and merge back on successful completion.
