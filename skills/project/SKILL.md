@@ -61,12 +61,21 @@ The orchestrator then initializes and runs the step loop:
 ```
 1. projctl state init --name "<project-name>" --issue ISSUE-NNN
 2. projctl state set --workflow <new|scoped|align>
-3. Query memory for past learnings:
+3. Create top-level orchestration task:
+   TaskCreate(subject: "ISSUE-NNN: <project-description>",
+              description: "Project orchestration for ISSUE-NNN",
+              activeForm: "Orchestrating ISSUE-NNN")
+4. Query memory for past learnings:
    - projctl memory query "lessons from past projects"
    - projctl memory query "common challenges in <workflow-type> projects"
    Results surface session summaries, retro learnings, and QA failure patterns
    If memory is unavailable, proceed gracefully without blocking
-4. Enter the step-driven control loop
+5. Enter the step-driven control loop
+```
+
+**Note:** When creating phase tasks via TaskCreate, always prefix subjects with the issue ID:
+```
+TaskCreate(subject: "ISSUE-NNN: Create project plan", ...)
 ```
 
 ## Shutdown
@@ -112,28 +121,40 @@ loop:
      "spawn-producer":
        a. SendMessage to team lead: spawn request with task_params + expected_model
        b. WAIT for team lead's message: "spawn-confirmed: <name>" or "spawn-failed: ..."
-       c. On spawn-failed:
+       c. On spawn-confirmed:
+          TaskUpdate(taskId: <matching-task>, status: "in_progress", owner: "<teammate-name>")
+          (Match task using phase group name from result.phase to find TaskList entry)
+       d. On spawn-failed:
           projctl step complete --dir . --action spawn-producer --status failed --reported-model "<model>"
           goto loop
-       d. WAIT for teammate's completion message (teammate messages orchestrator directly)
-       e. Extract yield to memory (non-blocking):
+       e. WAIT for teammate's completion message (teammate messages orchestrator directly)
+       f. Extract yield to memory (non-blocking):
           projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id> || echo "Warning: memory extract failed"
-       f. projctl step complete --dir . --action spawn-producer --status done --producer-transcript "<path-if-available>"
-       g. goto loop
+       g. projctl step complete --dir . --action spawn-producer --status done --producer-transcript "<path-if-available>"
+       h. TaskUpdate(taskId: <matching-task>, status: "completed")
+       i. goto loop
 
      "spawn-qa":
        a. SendMessage to team lead: spawn request with task_params + expected_model
        b. WAIT for team lead's message: "spawn-confirmed: <name>" or "spawn-failed: ..."
-       c. On spawn-failed:
+       c. On spawn-confirmed:
+          TaskUpdate(taskId: <matching-task>, status: "in_progress", owner: "<teammate-name>")
+          (Match task using phase group name from result.phase to find TaskList entry)
+       d. On spawn-failed:
           projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model>"
+          TaskUpdate(taskId: <matching-task>, owner: "")
           goto loop
-       d. WAIT for QA teammate's completion message (contains verdict + feedback)
-       e. Extract verdict from message
-       f. Report per-verdict:
-          - "approved": projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved
-          - "improvement-request": projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<feedback>"
+       e. WAIT for QA teammate's completion message (contains verdict + feedback)
+       f. Extract verdict from message
+       g. Report per-verdict:
+          - "approved":
+            projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved
+            TaskUpdate(taskId: <matching-task>, status: "completed")
+          - "improvement-request":
+            projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<feedback>"
+            TaskUpdate(taskId: <matching-task>, owner: "")
           - "escalate-user": Present to user
-       g. goto loop
+       h. goto loop
 
      "commit": Run /commit, then:
        projctl step complete --dir . --action commit --status done
@@ -501,6 +522,9 @@ Options:
 ## End-of-Command Sequence (always run)
 
 ```bash
+# Mark top-level orchestration task as completed
+TaskUpdate(taskId: <top-level-task-id>, status: "completed")
+
 projctl integrate features --dir .
 projctl trace repair --dir .
 projctl trace validate --dir .

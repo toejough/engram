@@ -404,6 +404,59 @@ else
   fail "Missing orchestrator retry logging documentation"
 fi
 
+# --- ISSUE-156: Task owner and status on spawn/complete ---
+
+echo ""
+echo "--- ISSUE-156: Task Owner and Status ---"
+
+echo "Test: Control loop includes TaskUpdate on spawn"
+if grep -qi "TaskUpdate.*in_progress\|TaskUpdate.*owner" "$SKILL_FILE"; then
+  pass "Control loop includes TaskUpdate for owner/status on spawn"
+else
+  fail "Missing TaskUpdate for owner/status on spawn in control loop"
+fi
+
+echo "Test: Control loop includes TaskUpdate on complete"
+if grep -qi "TaskUpdate.*completed\|status.*completed" "$SKILL_FILE"; then
+  pass "Control loop includes TaskUpdate for completed status"
+else
+  fail "Missing TaskUpdate for completed status in control loop"
+fi
+
+echo "Test: Control loop clears owner on failed status"
+if grep -B 5 -A 5 "\-\-status failed" "$SKILL_FILE" | grep -qi 'owner.*""\|owner:.*""'; then
+  pass "Control loop clears owner on failed status"
+else
+  fail "Missing owner clear on failed status"
+fi
+
+# --- ISSUE-157: Top-level orchestration task ---
+
+echo ""
+echo "--- ISSUE-157: Top-level Orchestration Task ---"
+
+echo "Test: Startup creates top-level TaskCreate"
+if grep -qi "TaskCreate.*ISSUE\|top-level.*task\|orchestration.*task" "$SKILL_FILE"; then
+  pass "Startup creates top-level orchestration task"
+else
+  fail "Missing top-level TaskCreate in Startup section"
+fi
+
+echo "Test: Startup prefixes phase tasks with issue ID"
+if grep -qi "ISSUE-NNN.*Create project plan\|prefix.*phase.*ISSUE" "$SKILL_FILE"; then
+  pass "Startup prefixes phase tasks with issue ID"
+else
+  fail "Missing issue ID prefix for phase tasks"
+fi
+
+echo "Test: End-of-command marks top-level task completed"
+END_OF_COMMAND_SECTION=$(sed -n '/^## End-of-Command Sequence/,/^##[^#]/p' "$SKILL_FILE")
+if echo "$END_OF_COMMAND_SECTION" | grep -qi "TaskUpdate.*completed\|mark.*top-level.*completed"; then
+  pass "End-of-command marks top-level task completed"
+else
+  fail "Missing TaskUpdate for top-level task in end-of-command"
+fi
+
 # --- ISSUE-164/165: Orchestrator owns full spawn lifecycle ---
 
 echo ""
