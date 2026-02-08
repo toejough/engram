@@ -753,3 +753,653 @@ TASK-20 (commit-producer skill)
 
 **Testing strategy:** Progressive - unit tests for transitions (TASK-17), step logic tests (TASK-19), integration test for full cycle (TASK-22)
 
+---
+
+## ISSUE-152: Integrate Semantic Memory into Orchestration Workflow
+
+Implementation tasks for integrating ONNX-based semantic similarity search into the orchestration workflow and skills.
+
+---
+
+### Simplicity Rationale
+
+The universal yield capture (TASK-37) is the key simplification: instead of adding `projctl memory decide` to 18 producer SKILL.md files (18 integration points), we add ONE integration point in the orchestrator that covers all producers automatically. This is N→1 reduction.
+
+**Alternatives considered:**
+- Per-producer memory writes: Would require 18×2 changes (read+write in each SKILL.md), fragile, easy to forget in new producers
+- No memory integration: Learnings lost, agents repeat mistakes
+- Manual capture: Users forget, incomplete
+
+**Why current approach is appropriate:**
+- Single orchestrator integration covers ALL producers universally
+- New producers get memory capture for free (no SKILL.md changes needed)
+- Clear separation: producers read (proactive), orchestrator writes (automatic)
+- Graceful degradation: memory failures are non-blocking
+
+---
+
+### Dependency Graph (ISSUE-152)
+
+```
+TASK-23 (BLOCKING: fix tokenizer + e5 switch)
+    |
+    ├─────> TASK-24 (Session-end in orchestrator)
+    ├─────> TASK-25 (PM interview memory reads)
+    ├─────> TASK-26 (Design interview memory reads)
+    ├─────> TASK-27 (Arch interview memory reads)
+    ├─────> TASK-28 (QA memory reads + writes)
+    ├─────> TASK-29 (Context explorer auto-memory)
+    ├─────> TASK-30 (Retro memory reads + writes)
+    ├─────> TASK-31 (Orchestrator startup reads)
+    ├─────> TASK-32 (Breakdown producer memory reads)
+    ├─────> TASK-33 (TDD green producer memory reads)
+    ├─────> TASK-34 (TDD refactor producer memory reads)
+    ├─────> TASK-35 (Alignment producer memory reads)
+    ├─────> TASK-36 (TDD red producers memory reads)
+    ├─────> TASK-37 (Universal yield capture - orchestrator)
+    ├─────> TASK-38 (Infer producers memory reads)
+    ├─────> TASK-39 (Doc + summary producers memory reads)
+    ├─────> TASK-40 (Next-steps memory reads)
+    ├─────> TASK-41 (Promotion pipeline - Go code)
+    ├─────> TASK-42 (External knowledge capture - Go code + SKILL.md)
+    └─────> TASK-43 (Memory hygiene - Go code + SKILL.md)
+```
+
+**TASK-23 is BLOCKING** - all memory queries depend on accurate embeddings.
+
+**TASKs 24-40 are SKILL.md-only edits** - all parallel after TASK-23 completes.
+
+**TASKs 41-43 are Go code tasks** - parallel with each other and with SKILL.md edits after TASK-23 completes. TASK-42 and TASK-43 coordinate on schema changes (both modify `CREATE TABLE` statement).
+
+---
+
+### TASK-23: [BLOCKING] Fix tokenizer and complete e5-small-v2 switch
+
+**Description:** Replace hash-based tokenization with proper BERT WordPiece tokenization and complete the switch from all-MiniLM-L6-v2 to e5-small-v2 model. This is the foundation for accurate semantic similarity search - all other memory tasks depend on this.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] New file `internal/memory/tokenizer.go` implements WordPiece tokenizer (~80 lines)
+- [ ] Tokenizer loads vocab from `intfloat/e5-small-v2/resolve/main/vocab.txt` (232KB)
+- [ ] Tokenizer returns token IDs wrapped with `[CLS]` ... `[SEP]` special tokens
+- [ ] New file `internal/memory/tokenizer_test.go` with unit tests (known tokens, subword splitting, property-based tests via rapid)
+- [ ] `embeddings.go` updated: replace hash tokenization block (lines 388-407) with WordPiece call
+- [ ] `embeddings.go` updated: `e5SmallModelURL` constant changed to `intfloat/e5-small-v2/resolve/main/model.onnx`
+- [ ] `embeddings.go` updated: `e5SmallVocabURL` constant added
+- [ ] `embeddings.go` updated: `generateEmbeddingONNX` adds `isQuery bool` parameter
+- [ ] `embeddings.go` updated: text prefixed with `"query: "` when `isQuery=true`, `"passage: "` when `isQuery=false`
+- [ ] `memory.go` updated: `Query()` passes `isQuery=true`, `createEmbeddings()` passes `isQuery=false`
+- [ ] `hashString` function removed from `embeddings.go`
+- [ ] Vocab download and caching implemented (same pattern as model download)
+- [ ] `ClearSessionCache` updated to reset vocab cache for test isolation
+- [ ] Model ID marker file created: stores `model_id.txt` alongside embeddings.db, deletes DB on model change
+- [ ] `TestIntegration_SemanticSimilarityExampleErrorAndException` passes
+- [ ] `TestIntegration_SemanticSimilarityRanksRelatedHigher` passes
+- [ ] `go test ./internal/memory/...` passes
+- [ ] `mage check` passes
+
+**Files:**
+- `internal/memory/tokenizer.go` (new)
+- `internal/memory/tokenizer_test.go` (new)
+- `internal/memory/embeddings.go` (modify)
+- `internal/memory/memory.go` (modify)
+- `internal/memory/extract.go` (modify)
+
+**Dependencies:** None
+
+**Traces to:** ARCH-052, ARCH-053, REQ-006
+
+---
+
+### TASK-24: Session-end capture in orchestrator
+
+**Description:** Add `projctl memory session-end` to orchestrator's end-of-command sequence, running FIRST before integrate/trace commands.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `skills/project/SKILL.md` end-of-command block includes `projctl memory session-end -p "<issue-id>"`
+- [ ] Session-end runs BEFORE `projctl integrate features`
+- [ ] Session-end receives issue ID from orchestrator context
+- [ ] `grep -c "memory session-end" ~/.claude/skills/project/SKILL.md` returns 1
+
+**Files:** `skills/project/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-054, REQ-007
+
+---
+
+### TASK-25: PM interview producer memory reads
+
+**Description:** Add memory queries to pm-interview-producer GATHER phase for past requirements and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase includes `projctl memory query "prior requirements for <project-domain>"`
+- [ ] GATHER phase includes `projctl memory query "decisions about <feature-area>"`
+- [ ] GATHER phase includes `projctl memory query "known failures in requirements validation"`
+- [ ] Memory queries run BEFORE interview questions
+- [ ] Graceful degradation: "If memory is unavailable, continue without it"
+- [ ] `grep -c "projctl memory query" pm-interview-producer/SKILL.md` returns >= 3
+
+**Files:** `skills/pm-interview-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-26: Design interview producer memory reads
+
+**Description:** Add memory queries to design-interview-producer GATHER phase for past design decisions and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase includes `projctl memory query "design patterns for <project-domain>"`
+- [ ] GATHER phase includes `projctl memory query "user experience decisions for <project-domain>"`
+- [ ] GATHER phase includes `projctl memory query "known failures in design validation"`
+- [ ] Memory queries run BEFORE interview questions
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" design-interview-producer/SKILL.md` returns >= 3
+
+**Files:** `skills/design-interview-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-27: Architecture interview producer memory reads
+
+**Description:** Add memory query to arch-interview-producer GATHER phase for known validation failures (domain queries already exist).
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase includes `projctl memory query "known failures in architecture validation"`
+- [ ] Query added alongside existing domain queries
+- [ ] Graceful degradation documented
+- [ ] `grep -c "known failures" arch-interview-producer/SKILL.md` returns >= 1
+
+**Files:** `skills/arch-interview-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-28: QA memory reads and writes
+
+**Description:** Add memory queries to QA LOAD phase (verification backstop) and memory writes to RETURN phase (failure persistence).
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] LOAD phase (after line 60) includes `projctl memory query "known failures in <artifact-type> validation"`
+- [ ] LOAD phase documents cross-reference with artifact: did producer address known patterns?
+- [ ] RETURN phase documents: when reporting `improvement-request` or `escalate-phase`, persist via `projctl memory learn`
+- [ ] Learn message format: `"QA failure in <artifact-type>: <check-id> - <failure description>"`
+- [ ] Only persist on failure verdicts (not `approved`)
+- [ ] `grep -c "projctl memory query" qa/SKILL.md` returns >= 1
+- [ ] `grep -c "projctl memory learn" qa/SKILL.md` returns >= 1
+
+**Files:** `skills/qa/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-056, REQ-010
+
+---
+
+### TASK-29: Context explorer auto-memory enrichment
+
+**Description:** Add auto-memory enrichment policy to context-explorer for automatic memory queries when missing.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] "Auto-memory enrichment" section added after "Execute Queries" section (after line 68)
+- [ ] Policy: when query list lacks explicit memory query, auto-add one from first semantic/file query's topic
+- [ ] Skip if: request has memory queries, or topic text < 3 words
+- [ ] Memory failures are non-blocking
+- [ ] `grep -c "Auto-memory" context-explorer/SKILL.md` returns 1
+
+**Files:** `skills/context-explorer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-063, REQ-008
+
+---
+
+### TASK-30: Retro producer memory reads and writes
+
+**Description:** Add memory queries to retro-producer GATHER phase and memory writes to PRODUCE phase for learnings persistence.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase includes `projctl memory query "retrospective challenges"`
+- [ ] GATHER phase includes `projctl memory query "process improvement recommendations"`
+- [ ] PRODUCE phase (after line 61) includes `projctl memory learn` for each success
+- [ ] PRODUCE phase includes `projctl memory learn` for each challenge
+- [ ] PRODUCE phase includes `projctl memory learn` for each High/Medium recommendation
+- [ ] Learn message format documented for each type
+- [ ] `grep -c "projctl memory query" retro-producer/SKILL.md` returns >= 2
+- [ ] `grep -c "projctl memory learn" retro-producer/SKILL.md` returns >= 1
+
+**Files:** `skills/retro-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-057, REQ-011
+
+---
+
+### TASK-31: Orchestrator startup memory reads
+
+**Description:** Add memory queries to orchestrator startup sequence (after workflow set, before step loop) for past learnings.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Startup section (after line 61) includes `projctl memory query "lessons from past projects"`
+- [ ] Startup section includes `projctl memory query "common challenges in <workflow-type> projects"`
+- [ ] Query results included in orchestrator's working context
+- [ ] Queries surface: session summaries, retro learnings, QA failure patterns
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" project/SKILL.md` returns >= 2
+
+**Files:** `skills/project/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-059, REQ-012
+
+---
+
+### TASK-32: Breakdown producer memory reads
+
+**Description:** Add memory queries to breakdown-producer GATHER phase for decomposition patterns and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase (after step 3, line 35) includes `projctl memory query "task decomposition for <project-domain>"`
+- [ ] GATHER phase includes `projctl memory query "known failures in task decomposition"`
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" breakdown-producer/SKILL.md` returns >= 2
+
+**Files:** `skills/breakdown-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-33: TDD green producer memory reads
+
+**Description:** Add memory queries to tdd-green-producer GATHER phase for implementation patterns and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase (after step 3, line 28) includes `projctl memory query "implementation patterns for <package-domain>"`
+- [ ] GATHER phase includes `projctl memory query "QA corrections for <artifact-type>"`
+- [ ] GATHER phase includes `projctl memory query "known failures in implementation validation"`
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" tdd-green-producer/SKILL.md` returns >= 3
+
+**Files:** `skills/tdd-green-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-34: TDD refactor producer memory reads
+
+**Description:** Add memory queries to tdd-refactor-producer GATHER phase for refactoring patterns and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase (after step 3, line 35) includes `projctl memory query "refactoring patterns for <language>"`
+- [ ] GATHER phase includes `projctl memory query "code organization preferences"`
+- [ ] GATHER phase includes `projctl memory query "known failures in refactor validation"`
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" tdd-refactor-producer/SKILL.md` returns >= 3
+
+**Files:** `skills/tdd-refactor-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-35: Alignment producer memory reads
+
+**Description:** Add memory queries to alignment-producer GATHER phase for alignment errors and domain boundary violations.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] GATHER phase (after step 2, line 29) includes `projctl memory query "common alignment errors"`
+- [ ] GATHER phase includes `projctl memory query "domain boundary violations"`
+- [ ] GATHER phase includes `projctl memory query "known failures in alignment validation"`
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" alignment-producer/SKILL.md` returns >= 3
+
+**Files:** `skills/alignment-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-36: TDD red producers memory reads
+
+**Description:** Add memory queries to tdd-red-producer and tdd-red-infer-producer GATHER phases for test patterns and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `tdd-red-producer/SKILL.md` GATHER phase (after step 4, line 33) includes `projctl memory query "test patterns for <package-domain>"`
+- [ ] `tdd-red-producer/SKILL.md` includes `projctl memory query "edge case patterns for <artifact-type>"`
+- [ ] `tdd-red-producer/SKILL.md` includes `projctl memory query "known failures in test validation"`
+- [ ] `tdd-red-infer-producer/SKILL.md` GATHER phase (after step 2, line 37) includes same 3 queries
+- [ ] Both files document graceful degradation
+- [ ] `grep -c "projctl memory query" tdd-red-producer/SKILL.md` returns >= 3
+- [ ] `grep -c "projctl memory query" tdd-red-infer-producer/SKILL.md` returns >= 3
+
+**Files:**
+- `skills/tdd-red-producer/SKILL.md`
+- `skills/tdd-red-infer-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-37: Universal yield capture in orchestrator
+
+**Description:** Add `projctl memory extract` to orchestrator's spawn-producer handler to capture decisions and learnings from ALL producers automatically.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] spawn-producer handler (after line 158-161) includes `projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id>`
+- [ ] Extract runs BEFORE `projctl step complete`
+- [ ] Extract is best-effort (log warning and continue on failure)
+- [ ] Extract applies to ALL producers universally (single integration point)
+- [ ] `grep -c "projctl memory extract" project/SKILL.md` returns >= 1
+
+**Files:** `skills/project/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-058, REQ-009
+
+---
+
+### TASK-38: Infer producers memory reads
+
+**Description:** Add memory queries to pm-infer-producer, design-infer-producer, and arch-infer-producer GATHER phases (same patterns as interview producers).
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `pm-infer-producer/SKILL.md` GATHER phase (after step 3, line 52) includes requirements queries + known failures
+- [ ] `design-infer-producer/SKILL.md` GATHER phase (after step 2, line 54) includes design queries + known failures
+- [ ] `arch-infer-producer/SKILL.md` GATHER phase (after step 3, line 49) includes arch queries + known failures
+- [ ] All three files document graceful degradation
+- [ ] `grep -c "projctl memory query" pm-infer-producer/SKILL.md` returns >= 3
+- [ ] `grep -c "projctl memory query" design-infer-producer/SKILL.md` returns >= 3
+- [ ] `grep -c "projctl memory query" arch-infer-producer/SKILL.md` returns >= 3
+
+**Files:**
+- `skills/pm-infer-producer/SKILL.md`
+- `skills/design-infer-producer/SKILL.md`
+- `skills/arch-infer-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-39: Doc and summary producers memory reads
+
+**Description:** Add memory queries to doc-producer and summary-producer GATHER phases for documentation conventions and known validation failures.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `doc-producer/SKILL.md` GATHER phase (after step 5, line 33) includes `projctl memory query "documentation conventions for <project-domain>"`
+- [ ] `doc-producer/SKILL.md` includes `projctl memory query "known failures in documentation validation"`
+- [ ] `summary-producer/SKILL.md` GATHER phase (after step 6, line 34) includes `projctl memory query "project summary patterns"`
+- [ ] `summary-producer/SKILL.md` includes `projctl memory query "known failures in summary validation"`
+- [ ] Both files document graceful degradation
+- [ ] `grep -c "projctl memory query" doc-producer/SKILL.md` returns >= 2
+- [ ] `grep -c "projctl memory query" summary-producer/SKILL.md` returns >= 2
+
+**Files:**
+- `skills/doc-producer/SKILL.md`
+- `skills/summary-producer/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-40: Next-steps memory reads
+
+**Description:** Add memory queries to next-steps GATHER phase for past recommendations and follow-up patterns.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] Gather Context phase (after step 4, line 29) includes `projctl memory query "past project recommendations"`
+- [ ] Gather Context phase includes `projctl memory query "follow-up patterns for <project-domain>"`
+- [ ] Graceful degradation documented
+- [ ] `grep -c "projctl memory query" next-steps/SKILL.md` returns >= 2
+
+**Files:** `skills/next-steps/SKILL.md`
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-055, REQ-008
+
+---
+
+### TASK-41: [visual] Memory promotion pipeline (Go code)
+
+**Description:** Implement retrieval tracking and promotion candidate query for high-value memories that should graduate to CLAUDE.md.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `embeddings.go` schema updated: add `retrieval_count`, `last_retrieved`, `projects_retrieved` columns to `CREATE TABLE`
+- [ ] `embeddings.go` `searchSimilar` updated: increment counters after returning results
+- [ ] `memory.go` `QueryOpts` updated: add `Project` field, pass through to search
+- [ ] `memory.go` new function: `Promote(opts PromoteOpts) (*PromoteResult, error)`
+- [ ] `Promote` queries: `retrieval_count >= MinRetrievals (default 3)` AND `unique projects >= MinProjects (default 2)`
+- [ ] `cmd/projctl/memory.go` new subcommand: `memory promote` with args for thresholds
+- [ ] Unit tests in `memory_test.go`: promotion query, retrieval counting, project deduplication
+- [ ] CLI tests in `cmd/projctl/memory_test.go`: promote command
+- [ ] `retro-producer/SKILL.md` GATHER phase includes `projctl memory promote` check
+- [ ] Retro recommendations include: "Consider promoting to CLAUDE.md: <content>"
+- [ ] `grep -c "projctl memory promote" retro-producer/SKILL.md` returns >= 1
+- [ ] `go test ./internal/memory/...` passes
+- [ ] `go test ./cmd/projctl/...` passes
+- [ ] `mage check` passes
+
+**Files:**
+- `internal/memory/embeddings.go` (modify)
+- `internal/memory/memory.go` (modify)
+- `internal/memory/memory_test.go` (modify)
+- `cmd/projctl/memory.go` (modify)
+- `cmd/projctl/memory_test.go` (modify)
+- `skills/retro-producer/SKILL.md` (modify)
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-060, REQ-013
+
+---
+
+### TASK-42: [visual] External knowledge capture (Go code + SKILL.md)
+
+**Description:** Implement source attribution for external memories and add optional WebSearch to high-value GATHER phases.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `embeddings.go` schema updated: add `source_type` (default `"internal"`) and `confidence` (default 1.0) columns
+- [ ] `memory.go` `LearnOpts` updated: add `Source` field (`"internal"` or `"external"`)
+- [ ] `memory.go` `Learn` updated: external memories get initial confidence 0.7
+- [ ] `cmd/projctl/memory.go` `memoryLearnArgs` updated: add `--source` flag
+- [ ] Unit tests in `memory_test.go`: source_type storage and retrieval, confidence values
+- [ ] CLI tests in `cmd/projctl/memory_test.go`: `--source` flag
+- [ ] `arch-interview-producer/SKILL.md` GATHER phase: optional WebSearch + `projctl memory learn --source external`
+- [ ] `design-interview-producer/SKILL.md` GATHER phase: optional WebSearch + `projctl memory learn --source external`
+- [ ] `tdd-green-producer/SKILL.md` GATHER phase: optional WebSearch + `projctl memory learn --source external`
+- [ ] All three SKILL.md files document: skip if domain well-covered or web unavailable
+- [ ] `grep -c "WebSearch" arch-interview-producer/SKILL.md` returns >= 1
+- [ ] `grep -c "WebSearch" design-interview-producer/SKILL.md` returns >= 1
+- [ ] `grep -c "WebSearch" tdd-green-producer/SKILL.md` returns >= 1
+- [ ] `grep -c "\-\-source external" arch-interview-producer/SKILL.md` returns >= 1
+- [ ] `go test ./internal/memory/...` passes
+- [ ] `go test ./cmd/projctl/...` passes
+- [ ] `mage check` passes
+
+**Files:**
+- `internal/memory/embeddings.go` (modify - coordinates with TASK-43 on schema)
+- `internal/memory/memory.go` (modify)
+- `internal/memory/memory_test.go` (modify)
+- `cmd/projctl/memory.go` (modify)
+- `cmd/projctl/memory_test.go` (modify)
+- `skills/arch-interview-producer/SKILL.md` (modify)
+- `skills/design-interview-producer/SKILL.md` (modify)
+- `skills/tdd-green-producer/SKILL.md` (modify)
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-061, REQ-014
+
+---
+
+### TASK-43: [visual] Memory hygiene (Go code + SKILL.md)
+
+**Description:** Implement confidence decay, pruning, and conflict detection for memory quality maintenance.
+
+**Status:** Ready
+
+**Acceptance Criteria:**
+- [ ] `embeddings.go` schema updated: `confidence` column included (coordinates with TASK-42)
+- [ ] `embeddings.go` `searchSimilar` updated: rank by `(cosine_similarity * confidence)` instead of raw similarity
+- [ ] `memory.go` new function: `Decay(opts DecayOpts) (*DecayResult, error)` - multiplies confidence by factor (default 0.9)
+- [ ] `memory.go` new function: `Prune(opts PruneOpts) (*PruneResult, error)` - removes entries below threshold (default 0.1)
+- [ ] `memory.go` `Learn` updated: check for high-similarity existing entries (>0.85), return conflict info
+- [ ] `cmd/projctl/memory.go` new subcommands: `memory decay`, `memory prune`
+- [ ] Unit tests in `memory_test.go`: decay reduces confidence, prune removes low-confidence, conflict detection, confidence-weighted search
+- [ ] CLI tests in `cmd/projctl/memory_test.go`: decay and prune commands
+- [ ] `project/SKILL.md` end-of-command sequence: add `projctl memory decay` and `projctl memory prune` after session-end
+- [ ] Decay and prune run BEFORE integrate/trace commands
+- [ ] `grep -c "memory decay" project/SKILL.md` returns >= 1
+- [ ] `grep -c "memory prune" project/SKILL.md` returns >= 1
+- [ ] `go test ./internal/memory/...` passes
+- [ ] `go test ./cmd/projctl/...` passes
+- [ ] `mage check` passes
+
+**Files:**
+- `internal/memory/embeddings.go` (modify - coordinates with TASK-42 on schema)
+- `internal/memory/memory.go` (modify)
+- `internal/memory/memory_test.go` (modify)
+- `cmd/projctl/memory.go` (modify)
+- `cmd/projctl/memory_test.go` (modify)
+- `skills/project/SKILL.md` (modify)
+
+**Dependencies:** TASK-23
+
+**Traces to:** ARCH-062, REQ-015, REQ-016
+
+---
+
+### ISSUE-152 Task Summary
+
+| Task | Title | Dependencies | Type | Key Traces |
+|------|-------|--------------|------|------------|
+| TASK-23 | [BLOCKING] Fix tokenizer and complete e5-small-v2 switch | None | Go code | ARCH-052, ARCH-053, REQ-006 |
+| TASK-24 | Session-end capture in orchestrator | TASK-23 | SKILL.md | ARCH-054, REQ-007 |
+| TASK-25 | PM interview producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-26 | Design interview producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-27 | Architecture interview producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-28 | QA memory reads and writes | TASK-23 | SKILL.md | ARCH-056, REQ-010 |
+| TASK-29 | Context explorer auto-memory enrichment | TASK-23 | SKILL.md | ARCH-063, REQ-008 |
+| TASK-30 | Retro producer memory reads and writes | TASK-23 | SKILL.md | ARCH-057, REQ-011 |
+| TASK-31 | Orchestrator startup memory reads | TASK-23 | SKILL.md | ARCH-059, REQ-012 |
+| TASK-32 | Breakdown producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-33 | TDD green producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-34 | TDD refactor producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-35 | Alignment producer memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-36 | TDD red producers memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-37 | Universal yield capture in orchestrator | TASK-23 | SKILL.md | ARCH-058, REQ-009 |
+| TASK-38 | Infer producers memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-39 | Doc and summary producers memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-40 | Next-steps memory reads | TASK-23 | SKILL.md | ARCH-055, REQ-008 |
+| TASK-41 | Memory promotion pipeline | TASK-23 | Go code + SKILL.md | ARCH-060, REQ-013 |
+| TASK-42 | External knowledge capture | TASK-23 | Go code + SKILL.md | ARCH-061, REQ-014 |
+| TASK-43 | Memory hygiene | TASK-23 | Go code + SKILL.md | ARCH-062, REQ-015, REQ-016 |
+
+---
+
+### Summary Metrics (ISSUE-152)
+
+| Metric | Count |
+|--------|-------|
+| Total tasks | 21 |
+| BLOCKING tasks | 1 (TASK-23) |
+| SKILL.md-only tasks | 17 (TASK-24 through TASK-40) |
+| Go code tasks | 3 (TASK-41, TASK-42, TASK-43) |
+| New Go files | 2 (tokenizer.go, tokenizer_test.go) |
+| Modified Go files | 8 (embeddings.go, memory.go, extract.go, memory_test.go, cmd/memory.go, cmd/memory_test.go) |
+| Modified SKILL.md files | 18 (all LLM-driven skills + orchestrator) |
+| Architecture items covered | 12 (ARCH-052 through ARCH-063) |
+| Requirements covered | 12 (REQ-006 through REQ-017) |
+
+**Critical path:** TASK-23 (foundation) → all other tasks parallel
+
+**Parallel opportunities:**
+- TASKs 24-40 (SKILL.md edits) are fully independent
+- TASKs 41-43 (Go code) are independent of SKILL.md edits
+- TASK-42 and TASK-43 coordinate on schema changes but implement different logic
+
+**Testing strategy:**
+- Unit tests for tokenizer (TASK-23)
+- Property-based tests for tokenizer (rapid)
+- Integration tests for semantic similarity (TASK-23)
+- Unit tests for promotion/decay/prune (TASKs 41, 43)
+- CLI tests for new commands (TASKs 41, 42, 43)
+- Grep-based verification for SKILL.md changes (TASKs 24-40)
+
+**Schema coordination:** TASK-42 and TASK-43 both modify the `CREATE TABLE embeddings` statement:
+- TASK-42 adds: `source_type`, `confidence`
+- TASK-43 uses: `confidence` (coordinates with TASK-42)
+- Both add to existing columns from TASK-41: `retrieval_count`, `last_retrieved`, `projects_retrieved`
+- Final schema has all columns from TASKs 41, 42, and 43
+
