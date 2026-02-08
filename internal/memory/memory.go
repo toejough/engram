@@ -14,6 +14,7 @@ import (
 type LearnOpts struct {
 	Message    string
 	Project    string
+	Source     string // "internal" or "external" (defaults to "internal")
 	MemoryRoot string
 }
 
@@ -48,6 +49,11 @@ func Learn(opts LearnOpts) error {
 
 	if _, err := f.WriteString(entry); err != nil {
 		return fmt.Errorf("failed to write entry: %w", err)
+	}
+
+	// Also create embedding in DB
+	if err := learnToEmbeddings(opts); err != nil {
+		return fmt.Errorf("failed to create embedding: %w", err)
 	}
 
 	return nil
@@ -350,15 +356,18 @@ func searchDirectory(dir, pattern, projectFilter string) []GrepMatch {
 type QueryOpts struct {
 	Text       string
 	Limit      int
+	Project    string // Project name for tracking retrievals
 	MemoryRoot string
 	ModelDir   string // Directory for ONNX models (default: ~/.claude/models)
 }
 
 // QueryResult represents a single query result.
 type QueryResult struct {
-	Content string
-	Score   float64
-	Source  string
+	Content    string
+	Score      float64
+	Source     string  // File source ("memory")
+	SourceType string  // "internal" or "external"
+	Confidence float64 // Confidence score (0.0-1.0)
 }
 
 // QueryResults contains the results of a query.
@@ -502,6 +511,12 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		return nil, fmt.Errorf("failed to search: %w", err)
 	}
 
+	// Update retrieval tracking for TASK-41
+	if err := updateRetrievalTracking(db, results, opts.Project); err != nil {
+		// Log error but don't fail the query
+		fmt.Fprintf(os.Stderr, "Warning: failed to update retrieval tracking: %v\n", err)
+	}
+
 	duration := time.Since(startTime)
 
 	return &QueryResults{
@@ -522,6 +537,329 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		SessionCreatedNew:    sessionCreated,
 		SessionReused:        sessionReused,
 		QueryDuration:        duration,
+	}, nil
+}
+
+// PromoteOpts holds options for memory promotion.
+type PromoteOpts struct {
+	MemoryRoot    string
+	MinRetrievals int // Minimum retrieval count (default: 3)
+	MinProjects   int // Minimum unique projects (default: 2)
+}
+
+// PromoteCandidate represents a candidate for promotion.
+type PromoteCandidate struct {
+	Content        string
+	RetrievalCount int
+	UniqueProjects int
+}
+
+// PromoteResult contains the result of memory promotion.
+type PromoteResult struct {
+	Candidates []PromoteCandidate
+}
+
+// DecayOpts holds options for memory decay.
+type DecayOpts struct {
+	MemoryRoot string
+	Factor     float64 // Decay factor (default: 0.9)
+}
+
+// DecayResult contains the result of memory decay.
+type DecayResult struct {
+	EntriesAffected int
+	Factor          float64
+	MinConfidence   float64
+	MaxConfidence   float64
+}
+
+// PruneOpts holds options for memory pruning.
+type PruneOpts struct {
+	MemoryRoot string
+	Threshold  float64 // Confidence threshold (default: 0.1)
+}
+
+// PruneResult contains the result of memory pruning.
+type PruneResult struct {
+	EntriesRemoved  int
+	EntriesRetained int
+	Threshold       float64
+}
+
+// LearnConflictResult contains the result of learning with conflict check.
+type LearnConflictResult struct {
+	HasConflict   bool
+	ConflictEntry string
+	Similarity    float64
+	Stored        bool
+}
+
+// Promote identifies memory entries that meet retrieval thresholds for promotion to global memory.
+func Promote(opts PromoteOpts) (*PromoteResult, error) {
+	if opts.MemoryRoot == "" {
+		return nil, fmt.Errorf("memory root is required")
+	}
+
+	// Set defaults
+	minRetrievals := opts.MinRetrievals
+	if minRetrievals == 0 {
+		minRetrievals = 3
+	}
+	minProjects := opts.MinProjects
+	if minProjects == 0 {
+		minProjects = 2
+	}
+
+	// Open DB
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Query for candidates
+	query := `
+		SELECT content, retrieval_count, projects_retrieved
+		FROM embeddings
+		WHERE retrieval_count >= ?
+	`
+
+	rows, err := db.Query(query, minRetrievals)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query candidates: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var candidates []PromoteCandidate
+	for rows.Next() {
+		var content string
+		var retrievalCount int
+		var projectsRetrieved string
+
+		if err := rows.Scan(&content, &retrievalCount, &projectsRetrieved); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+
+		// Count unique projects
+		uniqueProjects := 0
+		if projectsRetrieved != "" {
+			projectMap := make(map[string]bool)
+			projects := strings.Split(projectsRetrieved, ",")
+			for _, p := range projects {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					projectMap[p] = true
+				}
+			}
+			uniqueProjects = len(projectMap)
+		}
+
+		// Check if meets minimum projects threshold
+		if uniqueProjects >= minProjects {
+			candidates = append(candidates, PromoteCandidate{
+				Content:        content,
+				RetrievalCount: retrievalCount,
+				UniqueProjects: uniqueProjects,
+			})
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return &PromoteResult{
+		Candidates: candidates,
+	}, nil
+}
+
+// Decay reduces confidence of all memory entries by a factor.
+func Decay(opts DecayOpts) (*DecayResult, error) {
+	// Set default factor
+	factor := opts.Factor
+	if factor == 0 {
+		factor = 0.9
+	}
+
+	// Open DB
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Get min/max confidence before decay
+	var minBefore, maxBefore float64
+	err = db.QueryRow("SELECT MIN(confidence), MAX(confidence) FROM embeddings").Scan(&minBefore, &maxBefore)
+	if err != nil {
+		minBefore = 0
+		maxBefore = 1
+	}
+
+	// Apply decay
+	updateStmt := `UPDATE embeddings SET confidence = confidence * ?`
+	result, err := db.Exec(updateStmt, factor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decay confidence: %w", err)
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+
+	// Get min/max confidence after decay
+	var minAfter, maxAfter float64
+	err = db.QueryRow("SELECT MIN(confidence), MAX(confidence) FROM embeddings").Scan(&minAfter, &maxAfter)
+	if err != nil {
+		minAfter = 0
+		maxAfter = 1
+	}
+
+	return &DecayResult{
+		EntriesAffected: int(rowsAffected),
+		Factor:          factor,
+		MinConfidence:   minAfter,
+		MaxConfidence:   maxAfter,
+	}, nil
+}
+
+// Prune removes memory entries below a confidence threshold.
+func Prune(opts PruneOpts) (*PruneResult, error) {
+	// Set default threshold
+	threshold := opts.Threshold
+	if threshold == 0 {
+		threshold = 0.1
+	}
+
+	// Open DB
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Count total before pruning
+	var totalBefore int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&totalBefore)
+	if err != nil {
+		totalBefore = 0
+	}
+
+	// Get embedding_ids to delete from vec_embeddings
+	rows, err := db.Query("SELECT embedding_id FROM embeddings WHERE confidence < ?", threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query for pruning: %w", err)
+	}
+
+	var embeddingIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("failed to scan embedding_id: %w", err)
+		}
+		embeddingIDs = append(embeddingIDs, id)
+	}
+	_ = rows.Close()
+
+	// Delete from embeddings table
+	deleteMetaStmt := `DELETE FROM embeddings WHERE confidence < ?`
+	result, err := db.Exec(deleteMetaStmt, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prune entries: %w", err)
+	}
+
+	rowsDeleted, _ := result.RowsAffected()
+
+	// Delete from vec_embeddings table
+	for _, embID := range embeddingIDs {
+		_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", embID)
+	}
+
+	// Count total after pruning
+	var totalAfter int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&totalAfter)
+	if err != nil {
+		totalAfter = 0
+	}
+
+	return &PruneResult{
+		EntriesRemoved:  int(rowsDeleted),
+		EntriesRetained: totalAfter,
+		Threshold:       threshold,
+	}, nil
+}
+
+// LearnWithConflictCheck stores a learning but first checks for similar existing entries.
+func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
+	if opts.Message == "" {
+		return nil, fmt.Errorf("message is required")
+	}
+
+	// First check for conflicts using Query
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get home directory: %w", err)
+	}
+	modelDir := filepath.Join(homeDir, ".claude", "models")
+
+	// Initialize ONNX Runtime and download model if needed
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create model directory: %w", err)
+	}
+	if err := initializeONNXRuntime(modelDir); err != nil {
+		return nil, fmt.Errorf("failed to initialize ONNX Runtime: %w", err)
+	}
+	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		if err := downloadModel(modelPath); err != nil {
+			return nil, fmt.Errorf("failed to download model: %w", err)
+		}
+	}
+
+	// Open DB to check for similar entries
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Generate embedding for the new message
+	embedding, _, _, err := generateEmbeddingONNX(opts.Message, modelPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate embedding: %w", err)
+	}
+
+	// Search for similar entries
+	results, err := searchSimilar(db, embedding, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search: %w", err)
+	}
+
+	hasConflict := false
+	conflictEntry := ""
+	similarity := 0.0
+
+	if len(results) > 0 {
+		similarity = results[0].Score
+		if similarity > 0.85 {
+			hasConflict = true
+			conflictEntry = results[0].Content
+		}
+	}
+
+	// Store the learning regardless
+	if err := Learn(opts); err != nil {
+		return nil, fmt.Errorf("failed to store learning: %w", err)
+	}
+
+	return &LearnConflictResult{
+		HasConflict:   hasConflict,
+		ConflictEntry: conflictEntry,
+		Similarity:    similarity,
+		Stored:        true,
 	}, nil
 }
 

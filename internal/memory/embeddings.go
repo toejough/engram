@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
 	_ "github.com/mattn/go-sqlite3"
@@ -103,6 +104,18 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 	if _, err := db.Exec(createTable); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to create tables: %w", err)
+	}
+
+	// Add new columns via ALTER TABLE (ignore "duplicate column" errors)
+	alterStatements := []string{
+		"ALTER TABLE embeddings ADD COLUMN retrieval_count INTEGER NOT NULL DEFAULT 0",
+		"ALTER TABLE embeddings ADD COLUMN last_retrieved TEXT",
+		"ALTER TABLE embeddings ADD COLUMN projects_retrieved TEXT NOT NULL DEFAULT ''",
+		"ALTER TABLE embeddings ADD COLUMN source_type TEXT NOT NULL DEFAULT 'internal'",
+		"ALTER TABLE embeddings ADD COLUMN confidence REAL NOT NULL DEFAULT 1.0",
+	}
+	for _, stmt := range alterStatements {
+		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors
 	}
 
 	return db, nil
@@ -523,9 +536,9 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, boo
 
 		embeddingID, _ := result.LastInsertId()
 
-		// Insert into metadata table
-		metaStmt := `INSERT INTO embeddings(content, source, embedding_id) VALUES (?, ?, ?)`
-		if _, err := db.Exec(metaStmt, content, "memory", embeddingID); err != nil {
+		// Insert into metadata table with defaults for source_type and confidence
+		metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, embedding_id) VALUES (?, ?, ?, ?, ?)`
+		if _, err := db.Exec(metaStmt, content, "memory", "internal", 1.0, embeddingID); err != nil {
 			return newCount, sessionCreated, sessionReused, err
 		}
 
@@ -538,9 +551,10 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, boo
 // searchSimilar finds the most similar embeddings using cosine similarity.
 func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResult, error) {
 	// Use sqlite-vec's distance function for similarity search
+	// Weight by confidence for TASK-43
 	query := `
-		SELECT e.content, e.source,
-		       (1 - vec_distance_cosine(v.embedding, ?)) as score
+		SELECT e.content, e.source, e.source_type, e.confidence,
+		       (1 - vec_distance_cosine(v.embedding, ?)) * e.confidence as score
 		FROM vec_embeddings v
 		JOIN embeddings e ON e.embedding_id = v.rowid
 		ORDER BY score DESC
@@ -561,7 +575,7 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	var results []QueryResult
 	for rows.Next() {
 		var r QueryResult
-		if err := rows.Scan(&r.Content, &r.Source, &r.Score); err != nil {
+		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.Score); err != nil {
 			return nil, err
 		}
 		// Clamp score to [0, 1] due to floating point precision
@@ -575,5 +589,146 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	}
 
 	return results, rows.Err()
+}
+
+// learnToEmbeddings creates an embedding for a learning entry in the DB.
+func learnToEmbeddings(opts LearnOpts) error {
+	// Determine model directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+	modelDir := filepath.Join(homeDir, ".claude", "models")
+
+	// Ensure model directory exists
+	if err := os.MkdirAll(modelDir, 0755); err != nil {
+		return fmt.Errorf("failed to create model directory: %w", err)
+	}
+
+	// Initialize ONNX Runtime
+	if err := initializeONNXRuntime(modelDir); err != nil {
+		return fmt.Errorf("failed to initialize ONNX Runtime: %w", err)
+	}
+
+	// Model path
+	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+
+	// Download model if needed
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		if err := downloadModel(modelPath); err != nil {
+			return fmt.Errorf("failed to download model: %w", err)
+		}
+	}
+
+	// Initialize embeddings database
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to initialize embeddings database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Determine source_type and confidence
+	sourceType := opts.Source
+	if sourceType == "" {
+		sourceType = "internal"
+	}
+	confidence := 1.0
+	if sourceType == "external" {
+		confidence = 0.7
+	}
+
+	// Build the same formatted entry that was written to index.md
+	// This ensures the content key matches what Query will find when reading index.md
+	timestamp := time.Now().Format("2006-01-02 15:04")
+	var content string
+	if opts.Project != "" {
+		content = fmt.Sprintf("- %s: [%s] %s", timestamp, opts.Project, opts.Message)
+	} else {
+		content = fmt.Sprintf("- %s: %s", timestamp, opts.Message)
+	}
+
+	// Generate embedding for the raw message (not the formatted content)
+	// This ensures conflict detection and queries compare semantic content
+	// without timestamp/project prefixes diluting similarity
+	embedding, _, _, err := generateEmbeddingONNX(opts.Message, modelPath)
+	if err != nil {
+		return fmt.Errorf("failed to generate embedding: %w", err)
+	}
+
+	// Insert into vec table
+	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
+	embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
+	if err != nil {
+		return err
+	}
+	result, err := db.Exec(vecStmt, embeddingBlob)
+	if err != nil {
+		return err
+	}
+
+	embeddingID, _ := result.LastInsertId()
+
+	// Insert into metadata table with the full formatted content
+	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, embedding_id) VALUES (?, ?, ?, ?, ?)`
+	if _, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, embeddingID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// updateRetrievalTracking updates retrieval statistics for query results.
+func updateRetrievalTracking(db *sql.DB, results []QueryResult, project string) error {
+	timestamp := time.Now().Format(time.RFC3339)
+
+	for _, result := range results {
+		// Get current projects_retrieved
+		var currentProjects string
+		err := db.QueryRow("SELECT projects_retrieved FROM embeddings WHERE content = ?", result.Content).Scan(&currentProjects)
+		if err != nil {
+			continue // Skip if not found
+		}
+
+		// Parse and deduplicate projects
+		projectMap := make(map[string]bool)
+		if currentProjects != "" {
+			for _, p := range strings.Split(currentProjects, ",") {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					projectMap[p] = true
+				}
+			}
+		}
+
+		// Track the project context (use "(unspecified)" for queries without a project)
+		if project != "" {
+			projectMap[project] = true
+		} else {
+			projectMap["(unspecified)"] = true
+		}
+
+		// Rebuild comma-separated list
+		var projects []string
+		for p := range projectMap {
+			projects = append(projects, p)
+		}
+		newProjects := strings.Join(projects, ",")
+
+		// Update the row (always increment retrieval_count and update timestamp)
+		updateStmt := `
+			UPDATE embeddings
+			SET retrieval_count = retrieval_count + 1,
+			    last_retrieved = ?,
+			    projects_retrieved = ?
+			WHERE content = ?
+		`
+		_, err = db.Exec(updateStmt, timestamp, newProjects, result.Content)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
