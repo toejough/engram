@@ -52,7 +52,10 @@ Collect information about existing UI/UX:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after context request, legacy mode)
-3. If missing interface information, send context request to team-lead with needed queries:
+3. Execute `projctl memory query "prior design decisions for <project-domain>"` to load past UI/UX choices
+4. Execute `projctl memory query "design patterns for <feature-area>"` to find established patterns
+   If memory is unavailable, proceed gracefully without blocking
+5. If missing interface information, send context request to team-lead with needed queries:
    - File queries for entry points
    - Semantic queries for user-facing interfaces
    - Territory queries for UI-related files

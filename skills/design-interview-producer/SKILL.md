@@ -53,9 +53,14 @@ Collect user experience and interaction pattern decisions via interview. Focus o
 2. Check for `[query_results]` (resuming after need-context)
 3. If requirements not available:
    - Yield `need-context` requesting requirements.md
-4. Interview user about user experience and interaction patterns using `AskUserQuestion`:
+4. Query project memory for design context (run BEFORE interview):
+   - `projctl memory query "prior design decisions for <project-domain>"`
+   - `projctl memory query "UX patterns for <feature-area>"`
+   - `projctl memory query "known failures in design validation"`
+   If memory is unavailable, proceed gracefully without blocking
+5. Interview user about user experience and interaction patterns using `AskUserQuestion`:
    - Questions cover: user workflows, screen layouts, interaction patterns, accessibility needs
-5. Proceed to SYNTHESIZE when sufficient information gathered
+6. Proceed to SYNTHESIZE when sufficient information gathered
 
 **Ask about (via `AskUserQuestion` or yield `need-user-input`):**
 - User workflows and task flows

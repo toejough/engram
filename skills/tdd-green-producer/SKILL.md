@@ -23,10 +23,14 @@ This skill follows the producer pattern from [PRODUCER-TEMPLATE](../shared/PRODU
    - Test file locations
    - Architecture notes
    - TASK-N being implemented
-2. Check for `[query_results]` (resuming after need-context)
-3. If missing test files or architecture context:
+2. Query memory for relevant context:
+   - `projctl memory query "implementation patterns for <domain>"`
+   - `projctl memory query "known test failures for <feature-area>"`
+   If memory is unavailable, proceed gracefully without blocking
+3. Check for `[query_results]` (resuming after need-context)
+4. If missing test files or architecture context:
    - Yield `need-context` with file queries
-4. Proceed to SYNTHESIZE when test expectations are clear
+5. Proceed to SYNTHESIZE when test expectations are clear
 
 ### SYNTHESIZE Phase
 

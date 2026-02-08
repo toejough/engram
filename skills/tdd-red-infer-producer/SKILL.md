@@ -35,7 +35,9 @@ Collect information about existing implementation:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after need-context)
-3. If missing implementation details, yield `need-context`:
+3. Query memory for test inference patterns: `projctl memory query "test inference patterns"`
+   If memory is unavailable, proceed gracefully without blocking
+4. If missing implementation details, yield `need-context`:
 
 ```toml
 [yield]

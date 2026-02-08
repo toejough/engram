@@ -27,6 +27,11 @@ Analyze completed work and suggest follow-up actions based on open issues and pr
 2. Scan `docs/issues.md` for open ISSUE-NNN entries
 3. Check `docs/tasks.md` for remaining TASK-NNN items
 4. Review recent decisions and learnings
+5. Query memory for relevant context:
+   - `projctl memory query "past project recommendations"`
+   - `projctl memory query "follow-up patterns"`
+
+   Memory queries are optional - graceful degradation if memory is unavailable
 
 ### 2. Analyze
 

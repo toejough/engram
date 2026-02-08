@@ -48,7 +48,11 @@ Collect requirements through structured interview. Focus on what problems need s
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Read existing docs directly: README, prior requirements, issue description
-3. Run `projctl territory map` and `projctl memory query` for domain context
+3. Run `projctl territory map` and `projctl memory query` for domain context:
+   - `projctl memory query "prior requirements for <project-domain>"`
+   - `projctl memory query "decisions about <feature-area>"`
+   - `projctl memory query "known failures in requirements validation"`
+   If memory is unavailable, proceed gracefully without blocking
 4. Interview the user through phases using `AskUserQuestion`:
    - **PROBLEM**: What's broken? Who's affected? Impact?
    - **CURRENT STATE**: How does it work today? Pain points?

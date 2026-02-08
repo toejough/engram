@@ -66,5 +66,43 @@ if ! grep -A 10 "Assess simplicity" "$SKILL_FILE" | grep -q "alternatives consid
 fi
 echo "PASS: SYNTHESIZE simplicity step documents alternatives"
 
+# TASK-32: Memory query integration tests
+
+echo ""
+echo "Testing TASK-32: Memory query integration..."
+
+# AC-1: GATHER phase includes memory query for task decomposition patterns
+if ! grep -q 'projctl memory query.*task decomposition' "$SKILL_FILE"; then
+  echo "FAIL: GATHER phase missing: projctl memory query for task decomposition patterns"
+  exit 1
+fi
+echo "PASS: GATHER phase includes decomposition pattern query"
+
+# AC-2: GATHER phase includes memory query for known failures
+if ! grep -q 'projctl memory query.*known failures.*task decomposition' "$SKILL_FILE" && \
+   ! grep -q 'projctl memory query.*known failures.*breakdown' "$SKILL_FILE"; then
+  echo "FAIL: GATHER phase missing: projctl memory query for known failures in task decomposition"
+  exit 1
+fi
+echo "PASS: GATHER phase includes known failures query"
+
+# AC-3: Graceful degradation documented
+if ! grep -iq 'graceful.*degradation' "$SKILL_FILE" && \
+   ! grep -iq 'non-blocking' "$SKILL_FILE" && \
+   ! grep -iq 'memory unavailable' "$SKILL_FILE" && \
+   ! grep -iq 'continue without.*memory' "$SKILL_FILE"; then
+  echo "FAIL: Missing graceful degradation documentation for memory queries"
+  exit 1
+fi
+echo "PASS: Graceful degradation documented"
+
+# AC-4: At least 2 memory query occurrences
+QUERY_COUNT=$(grep -c 'projctl memory query' "$SKILL_FILE" || true)
+if [ "$QUERY_COUNT" -lt 2 ]; then
+  echo "FAIL: Found only $QUERY_COUNT memory query occurrences, expected >= 2"
+  exit 1
+fi
+echo "PASS: Found $QUERY_COUNT memory query occurrences (>= 2)"
+
 echo ""
 echo "All tests passed!"

@@ -30,7 +30,13 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 2. Load project artifacts (requirements, design, architecture, tasks)
 3. Review decision log and blockers encountered
 4. Analyze iteration history and QA feedback loops
-5. If missing information, yield `need-context` with queries
+5. Query memory for historical context:
+   ```bash
+   projctl memory query "retrospective challenges"
+   projctl memory query "process improvement recommendations"
+   ```
+   If memory is unavailable, proceed gracefully without blocking
+6. If missing information, yield `need-context` with queries
 
 ### SYNTHESIZE
 
@@ -53,8 +59,14 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
    - **Recommendations**: Action items for future projects
    - **Open Questions**: Unresolved decisions or ambiguities
 2. Include metrics where available (iteration counts, blockers)
-3. Create issues for actionable items (see Issue Creation below)
-4. Send a message to team-lead with:
+3. Persist learnings to memory:
+   ```bash
+   projctl memory learn "Success: <what went well>"
+   projctl memory learn "Challenge: <what could improve>"
+   projctl memory learn "Retro recommendation: <actionable improvement>"
+   ```
+4. Create issues for actionable items (see Issue Creation below)
+5. Send a message to team-lead with:
    - Artifact path
    - Issue IDs created
    - Files modified

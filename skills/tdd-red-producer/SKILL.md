@@ -30,7 +30,10 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 2. Load task description and acceptance criteria
 3. Load architecture notes relevant to the task
 4. Load project conventions (test tooling, patterns)
-5. If missing information, request context from team lead
+5. Query memory for test patterns: `projctl memory query "test patterns for <domain>"`
+6. Query memory for known failures: `projctl memory query "known test failures for <feature-area>"`
+   If memory is unavailable, proceed gracefully without blocking
+7. If missing information, request context from team lead
 
 ### SYNTHESIZE
 

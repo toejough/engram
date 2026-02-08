@@ -31,7 +31,11 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 3. Load DES-N from design.md
 4. Load ARCH-N from architecture.md
 5. Scan codebase for public API
-6. If missing information, send a message to team-lead requesting context
+6. Query memory for past learnings:
+   - `projctl memory query "documentation patterns for <project-domain>"`
+   - `projctl memory query "known failures in documentation validation"`
+   - Memory queries are non-blocking - if unavailable, continue without them
+7. If missing information, send a message to team-lead requesting context
 
 ### SYNTHESIZE
 

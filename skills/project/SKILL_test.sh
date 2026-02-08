@@ -461,6 +461,48 @@ else
   pass "SKILL-full.md eliminated"
 fi
 
+# --- ISSUE-152 TASK-24: Session-End Memory Capture ---
+
+echo ""
+echo "--- ISSUE-152 TASK-24: Session-End Memory Capture ---"
+
+echo "Test: AC-1: memory session-end in end-of-command block"
+# Extract the "End-of-Command Sequence" section
+END_OF_COMMAND_SECTION=$(sed -n '/^## End-of-Command Sequence/,/^##[^#]/p' "$SKILL_FILE")
+if echo "$END_OF_COMMAND_SECTION" | grep -q 'projctl memory session-end -p "<issue-id>"'; then
+  pass "memory session-end in End-of-Command Sequence block"
+else
+  fail "Expected 'projctl memory session-end -p \"<issue-id>\"' in End-of-Command Sequence section"
+fi
+
+echo "Test: AC-2: session-end runs BEFORE integrate"
+SESSION_END_LINE=$(echo "$END_OF_COMMAND_SECTION" | grep -n "projctl memory session-end" | cut -d: -f1 | head -1)
+INTEGRATE_LINE=$(echo "$END_OF_COMMAND_SECTION" | grep -n "projctl integrate features" | cut -d: -f1 | head -1)
+if [[ -z "$SESSION_END_LINE" ]]; then
+  fail "projctl memory session-end not found in End-of-Command Sequence"
+elif [[ -z "$INTEGRATE_LINE" ]]; then
+  fail "projctl integrate features not found in End-of-Command Sequence"
+elif [[ $SESSION_END_LINE -lt $INTEGRATE_LINE ]]; then
+  pass "session-end (line $SESSION_END_LINE) runs before integrate (line $INTEGRATE_LINE)"
+else
+  fail "session-end (line $SESSION_END_LINE) should appear before integrate (line $INTEGRATE_LINE)"
+fi
+
+echo "Test: AC-3: session-end receives issue ID parameter"
+if grep -q 'projctl memory session-end.*-p.*"<[^>]*>"' "$SKILL_FILE"; then
+  pass "session-end command includes -p flag with issue ID placeholder"
+else
+  fail "Expected session-end command to include -p flag with issue ID placeholder"
+fi
+
+echo "Test: AC-4: exactly one memory session-end occurrence"
+SESSION_END_COUNT=$(grep -c "memory session-end" "$SKILL_FILE" || true)
+if [[ $SESSION_END_COUNT -eq 1 ]]; then
+  pass "Exactly 1 occurrence of 'memory session-end' found"
+else
+  fail "Expected exactly 1 occurrence of 'memory session-end', found $SESSION_END_COUNT"
+fi
+
 # --- Summary ---
 
 echo ""

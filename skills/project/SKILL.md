@@ -57,14 +57,21 @@ The orchestrator then initializes and runs the step loop:
 ```
 1. projctl state init --name "<project-name>" --issue ISSUE-NNN
 2. projctl state set --workflow <new|scoped|align>
-3. Enter the step-driven control loop
+3. Query memory for past learnings:
+   - projctl memory query "lessons from past projects"
+   - projctl memory query "common challenges in <workflow-type> projects"
+   Results surface session summaries, retro learnings, and QA failure patterns
+   If memory is unavailable, proceed gracefully without blocking
+4. Enter the step-driven control loop
 ```
 
 ## Shutdown
 
 ```
-1. Send shutdown_request to all active teammates
-2. TeamDelete()
+1. Capture session learnings to memory:
+   projctl memory session-end -p "<issue-id>"
+2. Send shutdown_request to all active teammates
+3. TeamDelete()
 ```
 
 ---
@@ -155,8 +162,12 @@ Task(subagent_type: result.task_params.subagent_type,
                content: "spawn-confirmed: <teammate-name>",
                summary: "Spawn confirmed for <teammate-name>")
    ```
-   Then proceed with the teammate's work. On completion, report:
-   ```
+   Then proceed with the teammate's work. On spawn-producer completion, capture yield to memory:
+   ```bash
+   # Extract yield results to memory (failures are non-blocking — logged but don't stop workflow)
+   projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id> || echo "Warning: memory extract failed (non-blocking)"
+
+   # Report completion
    projctl step complete --dir . --action spawn-producer --status done
    ```
 3. **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator using SendMessage:

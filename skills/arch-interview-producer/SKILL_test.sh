@@ -418,7 +418,102 @@ test_rich_context_small_gap || echo ""
 test_contradictory_context_need_decision || echo ""
 test_territory_map_failure_yields_blocked || echo ""
 
+# ============================================================================
+# TASK-27: Test memory query integration in GATHER phase
+# Traces to: ARCH-055, REQ-008
+# ============================================================================
+test_memory_query_prior_architecture_decisions() {
+    echo "TEST: GATHER phase queries prior architecture decisions"
+
+    local skill_file="$SCRIPT_DIR/SKILL.md"
+
+    if grep -q 'projctl memory query.*prior architecture decisions' "$skill_file"; then
+        pass "Prior architecture decisions query documented in SKILL.md"
+    else
+        fail "Missing: projctl memory query for prior architecture decisions in GATHER phase"
+    fi
+}
+
+test_memory_query_technology_patterns() {
+    echo "TEST: GATHER phase queries technology patterns"
+
+    local skill_file="$SCRIPT_DIR/SKILL.md"
+
+    if grep -q 'projctl memory query.*technology patterns' "$skill_file"; then
+        pass "Technology patterns query documented in SKILL.md"
+    else
+        fail "Missing: projctl memory query for technology patterns in GATHER phase"
+    fi
+}
+
+test_memory_query_known_failures() {
+    echo "TEST: GATHER phase queries known failures in architecture validation"
+
+    local skill_file="$SCRIPT_DIR/SKILL.md"
+
+    if grep -q 'projctl memory query.*known failures in architecture validation' "$skill_file"; then
+        pass "Known failures query documented in SKILL.md"
+    else
+        fail "Missing: projctl memory query for known failures in architecture validation"
+    fi
+}
+
+test_memory_queries_before_interview() {
+    echo "TEST: Memory queries appear in GATHER phase (before INTERVIEW phase)"
+
+    local skill_file="$SCRIPT_DIR/SKILL.md"
+
+    # Extract line numbers for GATHER and INTERVIEW sections
+    gather_line=$(grep -n '^### GATHER' "$skill_file" | head -1 | cut -d: -f1 || echo "0")
+    interview_line=$(grep -n '^### INTERVIEW' "$skill_file" | head -1 | cut -d: -f1 || echo "0")
+
+    if [ "$gather_line" = "0" ]; then
+        fail "GATHER section not found in SKILL.md"
+    fi
+
+    if [ "$interview_line" = "0" ]; then
+        fail "INTERVIEW section not found in SKILL.md"
+    fi
+
+    # Check that at least one memory query appears between GATHER and INTERVIEW
+    memory_query_count=$(sed -n "${gather_line},${interview_line}p" "$skill_file" | grep -c 'projctl memory query' || echo 0)
+
+    if [ "$memory_query_count" -ge 1 ]; then
+        pass "Memory queries appear in GATHER phase (before INTERVIEW) - found $memory_query_count queries"
+    else
+        fail "No memory queries found in GATHER phase (between GATHER and INTERVIEW sections)"
+    fi
+}
+
+test_memory_query_count() {
+    echo "TEST: At least 3 memory query references in SKILL.md"
+
+    local skill_file="$SCRIPT_DIR/SKILL.md"
+    count=$(grep -c "memory query" "$skill_file" || echo 0)
+
+    if [ "$count" -ge 3 ]; then
+        pass "Found $count memory query references (>= 3 required)"
+    else
+        fail "Only found $count memory query references, need at least 3"
+    fi
+}
+
+echo ""
+test_sparse_context_large_gap || echo ""
+test_medium_context_medium_gap || echo ""
+test_rich_context_small_gap || echo ""
+test_contradictory_context_need_decision || echo ""
+test_territory_map_failure_yields_blocked || echo ""
+
+echo ""
+echo "=== TASK-27: Memory Query Integration Tests ==="
+test_memory_query_prior_architecture_decisions || echo ""
+test_memory_query_technology_patterns || echo ""
+test_memory_query_known_failures || echo ""
+test_memory_queries_before_interview || echo ""
+test_memory_query_count || echo ""
+
 echo ""
 echo -e "${RED}=== Expected result: All tests FAILED (TDD RED phase) ===${NC}"
-echo "These tests specify the expected behavior for adaptive interview flow."
+echo "These tests specify the expected behavior for adaptive interview flow and memory integration."
 echo "Implementation should make these tests pass (TDD GREEN phase)."

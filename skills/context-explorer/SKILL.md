@@ -67,6 +67,24 @@ For queries that can run in parallel:
 - Execute groups in parallel where possible
 - Collect results as they complete
 
+### 2.5. Auto-memory Enrichment
+
+When the query list does NOT include an explicit memory query, automatically add a memory query derived from the first semantic or file query's topic.
+
+**Policy:**
+- Auto-add memory query when no explicit memory query exists
+- Derive query text from first semantic/file query topic
+- Skip if: request already has memory queries, or topic text < 3 words
+- Tag results as "(auto-enriched)" for transparency
+
+**Failure handling:**
+- Memory failures are non-blocking
+- Continue aggregation even if auto-memory query fails
+
+**Example:**
+Query files about "authentication" → also run `projctl memory query "authentication"`
+Result labeled: `✓ Memory query: "authentication" (auto-enriched, 4 matches)`
+
 ### 3. Aggregate Results
 
 Combine all query results into unified structure with:

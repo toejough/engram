@@ -46,11 +46,14 @@ Collect information about code structure:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check for `[query_results]` (resuming after context request, legacy mode)
-3. If code analysis needed, send context request to team-lead with queries:
+3. Execute `projctl memory query "prior architecture decisions for <project-domain>"` to load past technology choices
+4. Execute `projctl memory query "technology patterns for <feature-area>"` to find established patterns
+   If memory is unavailable, proceed gracefully without blocking
+5. If code analysis needed, send context request to team-lead with queries:
    - `territory` queries for directory structure
    - `file` queries for go.mod, package.json, Makefile, etc.
    - `semantic` queries for pattern understanding
-4. Proceed to SYNTHESIZE when sufficient information gathered
+6. Proceed to SYNTHESIZE when sufficient information gathered
 
 ### 2. SYNTHESIZE
 

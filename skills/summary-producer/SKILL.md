@@ -32,7 +32,11 @@ Follows GATHER -> SYNTHESIZE -> PRODUCE pattern.
 4. Load ARCH-N from architecture.md
 5. Load TASK-N from tasks.md
 6. Review implementation commits and changes
-7. If missing information, yield `need-context` with queries
+7. Query memory for past learnings:
+   - `projctl memory query "project summary patterns"`
+   - `projctl memory query "known failures in summary validation"`
+   - Memory queries are non-blocking - if unavailable, continue without them
+8. If missing information, yield `need-context` with queries
 
 ### SYNTHESIZE
 

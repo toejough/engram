@@ -31,7 +31,11 @@ Collect information needed for refactoring:
    - Task ID and implementation files from green phase
    - Architecture notes and conventions
    - Linter configuration
-2. Run tests to establish baseline (must be green)
+2. Query memory for relevant patterns:
+   - `projctl memory query "refactoring patterns for <domain>"`
+   - `projctl memory query "code quality learnings for <feature-area>"`
+   If memory is unavailable, proceed gracefully without blocking
+3. Run tests to establish baseline (must be green)
 3. Run linter to identify issues
 4. If missing context (e.g., project conventions), yield `need-context`
 

@@ -52,13 +52,16 @@ Follows [PRODUCER-TEMPLATE](../shared/PRODUCER-TEMPLATE.md) pattern.
 Context gathering follows [INTERVIEW-PATTERN](../shared/INTERVIEW-PATTERN.md) with architecture-specific queries. Focus on technical decisions needed to implement the requirements and design.
 
 1. Execute `projctl territory map` to get file structure and artifact locations
-2. Execute `projctl memory query` with architecture domain queries (e.g., "technology stack decisions", "system design choices", "technical constraints")
-3. Parse territory and memory results into structured data for coverage assessment
-4. Read context (from spawn prompt in team mode, or context file for requirements.md and design.md paths in legacy mode)
-5. Send context request to team-lead if critical files missing
-6. Extract technical implications from requirements
-7. Identify decision categories (language, framework, database, etc.)
-8. Log context sources used (territory, memory, files) in yield metadata
+2. Execute `projctl memory query "prior architecture decisions for <project-domain>"` to load past technology choices
+3. Execute `projctl memory query "technology patterns for <feature-area>"` to find established patterns
+4. Execute `projctl memory query "known failures in architecture validation"` to avoid repeated mistakes
+   If memory is unavailable, proceed gracefully without blocking
+5. Parse territory and memory results into structured data for coverage assessment
+6. Read context (from spawn prompt in team mode, or context file for requirements.md and design.md paths in legacy mode)
+7. Send context request to team-lead if critical files missing
+8. Extract technical implications from requirements
+9. Identify decision categories (language, framework, database, etc.)
+10. Log context sources used (territory, memory, files) in yield metadata
 
 **Avoid asking about** problem discovery (what to build) or user experience design (how users interact). These are inputs from PM and Design phases.
 

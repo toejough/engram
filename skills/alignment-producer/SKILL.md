@@ -22,7 +22,11 @@ This skill follows the PRODUCER-TEMPLATE pattern.
 Collect all artifact files for validation:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode) for project directory
-2. If missing artifacts, send context request to team-lead with queries for:
+2. Query memory for relevant patterns:
+   - `projctl memory query "traceability patterns for <domain>"`
+   - `projctl memory query "known failures in alignment validation"`
+   If memory is unavailable, proceed gracefully without blocking
+3. If missing artifacts, send context request to team-lead with queries for:
    - `docs/requirements.md` (REQ-NNN IDs)
    - `docs/design.md` (DES-NNN IDs with `**Traces to:**`)
    - `docs/architecture.md` (ARCH-NNN IDs with `**Traces to:**`)

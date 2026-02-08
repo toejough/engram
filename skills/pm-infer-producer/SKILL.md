@@ -49,11 +49,14 @@ Collect information by exploring existing codebase:
 
 1. Read project context (from spawn prompt in team mode, or `[inputs]` in legacy mode)
 2. Check `[query_results]` for resumed context (legacy mode)
-3. If code exploration needed, yield `need-context`:
+3. Execute `projctl memory query "prior requirements for <project-domain>"` to load past requirements decisions
+4. Execute `projctl memory query "known failures in requirements validation"` to avoid repeated mistakes
+   If memory is unavailable, proceed gracefully without blocking
+5. If code exploration needed, yield `need-context`:
    - `semantic` queries for understanding code behavior
    - `file` queries for specific source files
    - `territory` queries for codebase structure
-4. Proceed to SYNTHESIZE when sufficient information gathered
+6. Proceed to SYNTHESIZE when sufficient information gathered
 
 **Analysis Sources:**
 

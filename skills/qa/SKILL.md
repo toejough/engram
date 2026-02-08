@@ -38,12 +38,20 @@ Load and parse all inputs needed for validation.
 
 **Then for both modes:**
 
-1. **Extract contract from producer SKILL.md:**
+1. **Query memory for known failures:**
+   ```bash
+   projctl memory query "known failures in <artifact-type> validation"
+   ```
+   If memory is unavailable, proceed gracefully without blocking
+   - Use to verify producer addressed known pitfalls (verification backstop)
+   - Replace `<artifact-type>` with the artifact being validated (e.g., "requirements", "design", "architecture")
+
+2. **Extract contract from producer SKILL.md:**
    - Search for `## Contract` section
    - Extract YAML code block immediately following the heading
    - Parse YAML to get `outputs`, `traces_to`, `checks`
 
-2. **Handle missing contract (fallback to prose):**
+3. **Handle missing contract (fallback to prose):**
    - If no `## Contract` section found, scan entire SKILL.md
    - Extract implicit checks from prose patterns:
      - Checklists (`- [ ]` items)
@@ -51,11 +59,11 @@ Load and parse all inputs needed for validation.
      - Validation tables
    - Log warning: "No contract section found, using prose extraction"
 
-3. **Read artifacts:**
+4. **Read artifacts:**
    - Load each file from artifact paths
    - Handle missing artifacts → report as improvement-request
 
-4. **Handle unreadable producer SKILL.md:**
+5. **Handle unreadable producer SKILL.md:**
    - If cannot read producer SKILL.md → report error (cannot proceed)
 
 ---
@@ -118,6 +126,20 @@ if iteration >= max_iterations (3):
         reason = "Max iterations reached"
         context = "Issues remain after 3 attempts"
 ```
+
+#### Memory Persistence
+
+When returning `improvement-request` or `escalate-phase` verdicts with **error-severity** findings, persist to memory:
+
+```bash
+projctl memory learn -m "QA failure in <artifact-type>: <check-id> - <description>" -p <issue-id>
+```
+
+- Only persist error-severity findings (not warnings or approvals)
+- Replace `<artifact-type>` with artifact type (e.g., "requirements", "design")
+- Replace `<check-id>` with the failing check ID (e.g., "CHECK-002")
+- Replace `<description>` with brief failure description
+- Replace `<issue-id>` with current project/issue ID for traceability
 
 ---
 

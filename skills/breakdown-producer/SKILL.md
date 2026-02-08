@@ -34,6 +34,11 @@ Transform architecture specs into executable TDD tasks with TASK-N IDs.
 
 3. Check for `[query_results]` if resuming
 
+4. Query semantic memory for relevant patterns (best-effort, non-blocking):
+   - `projctl memory query "task decomposition patterns for <domain>"`
+   - `projctl memory query "known failures in breakdown validation"`
+   - If memory is unavailable or queries fail, continue without them (graceful degradation)
+
 ---
 
 ## SYNTHESIZE Phase
