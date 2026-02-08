@@ -361,6 +361,126 @@ As a user, I want to be warned about contradictory memories, so that I can resol
 
 ### REQ-017: Future Skill Memory Requirements
 
+(Placeholder for future requirements)
+
+---
+
+### REQ-018: Graceful Shutdown Protocol
+
+Team lead coordinates graceful project shutdown with end-of-command sequence and teammate notifications.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator sends all-complete message when projctl step next returns all-complete
+- [ ] Team lead receives all-complete and offers end-of-command options (retro, summary, issue updates)
+- [ ] Team lead sends shutdown_request to all active teammates
+- [ ] Team lead waits for shutdown confirmations before calling TeamDelete
+- [ ] TeamDelete is called only after all teammates shut down
+
+**Priority:** P1
+
+**Traces to:** ARCH-044, ISSUE-104
+
+**Source:** ISSUE-104
+
+---
+
+### REQ-019: Automatic Retry with Exponential Backoff
+
+Orchestrator implements automatic retry with exponential backoff for transient errors before escalating to team lead.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator retries failed step operations (step next, step complete, spawn confirmation)
+- [ ] Backoff delays: 1s, 2s, 4s (max 3 attempts)
+- [ ] Errors triggering retry: command failures, JSON parse errors, spawn confirmation timeout
+- [ ] Errors skipped for retry: user cancellation, state file corruption, team lead shutdown
+- [ ] After max retries, error escalates to team lead with action/phase/output details
+- [ ] Escalation message format includes error output for user investigation
+
+**Priority:** P1
+
+**Traces to:** ARCH-046, ISSUE-104
+
+**Source:** ISSUE-104
+
+---
+
+### REQ-020: Project Resumption After Orchestrator Termination
+
+Team lead can respawn orchestrator after unexpected termination without losing progress.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator reads project state via projctl state get on startup
+- [ ] If state exists (phase != empty), orchestrator resumes from saved phase
+- [ ] If state missing, orchestrator starts new project
+- [ ] State persists after every projctl step complete call
+- [ ] Completed phases/artifacts/commits preserved across respawn
+- [ ] Team lead can respawn orchestrator with same spawn params
+
+**Priority:** P1
+
+**Traces to:** ARCH-045, ARCH-049, ISSUE-104
+
+**Source:** ISSUE-104
+
+---
+
+### REQ-021: Team Lead Spawn Request Protocol
+
+Orchestrator and team lead coordinate teammate spawning via structured message protocol with model validation.
+
+**Acceptance Criteria:**
+- [ ] Orchestrator sends spawn request with task_params JSON, expected_model, action, phase
+- [ ] Team lead spawns teammate via Task tool using task_params
+- [ ] Team lead validates model by substring matching against teammate's first message (case-insensitive)
+- [ ] On model match: Team lead sends spawn-confirmed message to orchestrator
+- [ ] On model mismatch: Team lead sends spawn-failed message to orchestrator (doesn't let teammate continue)
+- [ ] Teammate messages orchestrator directly after completion
+
+**Priority:** P1
+
+**Traces to:** ARCH-043, ISSUE-104
+
+**Source:** ISSUE-104
+
+---
+
+### REQ-022: State Persistence and Resumption
+
+Orchestrator persists state after each step for crash recovery and resumption.
+
+**Acceptance Criteria:**
+- [ ] State file format: .claude/projects/<issue>/state.toml
+- [ ] State includes: current phase, sub-phase, workflow type, active issue, pair loop iteration count
+- [ ] State persisted after every projctl step complete call (atomic write, no partial state)
+- [ ] Orchestrator reads state via projctl state get on startup
+- [ ] If state exists (phase != empty), orchestrator skips init and resumes from saved phase
+- [ ] If state missing, orchestrator calls projctl state init and continues normally
+
+**Priority:** P1
+
+**Traces to:** ARCH-045, ARCH-049, ISSUE-104
+
+**Source:** ISSUE-104
+
+---
+
+### REQ-023: Transient Error Recovery
+
+Orchestrator detects transient vs persistent errors and escalates persistent errors to team lead.
+
+**Acceptance Criteria:**
+- [ ] Transient errors (marked for retry): network timeouts, filesystem delays, spawn confirmation timeout
+- [ ] Persistent errors (escalate immediately): user cancellation, state file corruption, team lead shutdown
+- [ ] Error classification documented in escalation message to team lead
+- [ ] Error output includes action, phase, and diagnostic details for user investigation
+- [ ] Escalation to team lead allows user to provide guidance or manually fix issue
+
+**Priority:** P1
+
+**Traces to:** ARCH-046, ISSUE-104
+
+**Source:** ISSUE-104
+
 As a maintainer, I want memory integration requirements defined for future skills, so that they're built in from day one.
 
 **Acceptance Criteria:**
