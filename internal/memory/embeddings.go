@@ -129,17 +129,6 @@ func getExistingEmbeddings(db *sql.DB) (map[string]int64, error) {
 	return existing, rows.Err()
 }
 
-// hashString provides a simple hash for word->token mapping.
-func hashString(s string) int {
-	h := 0
-	for _, c := range s {
-		h = h*31 + int(c)
-	}
-	if h < 0 {
-		h = -h
-	}
-	return h
-}
 
 // downloadONNXRuntime downloads and extracts the ONNX Runtime library.
 func downloadONNXRuntime(modelDir string) (string, error) {
@@ -385,25 +374,23 @@ func getOrCreateSession(modelPath string) (*ort.DynamicAdvancedSession, bool, er
 // generateEmbeddingONNX generates an embedding using the e5-small-v2 ONNX model.
 // Returns the embedding, whether a new session was created, and whether a session was reused.
 func generateEmbeddingONNX(text string, modelPath string) ([]float32, bool, bool, error) {
-	// Simple tokenization (this is a placeholder - real implementation would use proper tokenizer)
-	// For now, we'll use a basic word-based approach
-	words := strings.Fields(strings.ToLower(text))
+	// Use WordPiece tokenizer
+	tokenizer := NewTokenizer()
+	tokens := tokenizer.Tokenize(text)
 
-	// Create a simple input representation (this is simplified)
-	// Real e5-small uses BERT tokenization, but for testing we'll use a simpler approach
+	// Prepare input tensors with padding/truncation
 	inputSize := 128 // Max sequence length
 	inputIDs := make([]int64, inputSize)
 	attentionMask := make([]int64, inputSize)
 	tokenTypeIDs := make([]int64, inputSize) // All zeros for single-sequence input
 
-	// Fill input IDs with word hashes (simplified tokenization)
-	for i, word := range words {
-		if i >= inputSize {
-			break
+	// Fill input arrays with token IDs (truncate or pad as needed)
+	for i := 0; i < inputSize; i++ {
+		if i < len(tokens) {
+			inputIDs[i] = tokens[i]
+			attentionMask[i] = 1 // Mark as valid token
 		}
-		inputIDs[i] = int64(hashString(word) % 30000) // Vocab size approximation
-		attentionMask[i] = 1                          // Mark as valid token
-		tokenTypeIDs[i] = 0                           // All zeros for single sequence
+		// tokenTypeIDs remains 0 (already initialized)
 	}
 
 	// Get or create cached session

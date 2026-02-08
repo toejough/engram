@@ -5429,3 +5429,102 @@ Each skill's SKILL.md should include:
 ## Discovery
 
 During ISSUE-152 orchestration. Multiple skill-level misunderstandings caused rework and manual intervention.
+
+---
+
+### ISSUE-164: Orchestrator advances state machine before producer completion
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The orchestrator agent repeatedly advances the state machine (calls `projctl step complete` + `projctl step next`) before producers have actually finished their work. This has caused:
+
+1. **Breakdown phase**: Orchestrator requested QA spawn immediately after spawning the breakdown producer, before it had written any tasks to docs/tasks.md. Team lead had to tell orchestrator to hold and respawn the producer.
+
+2. **TDD red phase**: Same pattern — orchestrator requested QA spawn before tdd-red-producer had written any test files (git status showed no changes).
+
+3. **Artifact phase** (earlier): Similar premature advancement during fork/join.
+
+## Root Cause
+
+The orchestrator's step loop calls `projctl step complete` as soon as it sends the spawn request to the team lead, rather than waiting for:
+1. The team lead to confirm spawn
+2. The producer to report completion
+3. The team lead to verify output artifacts exist
+
+## Expected Behavior
+
+The orchestrator should follow this sequence:
+1. Request spawn from team lead
+2. Wait for team lead's spawn confirmation
+3. Wait for team lead's explicit "producer complete, output verified" message
+4. Only THEN call `projctl step complete` and `projctl step next`
+
+## Impact
+
+- Wasted agent spawns (QA spawned before artifacts exist)
+- Duplicate producers (team lead respawns thinking original failed)
+- Token waste from unnecessary agents
+- Team lead forced to repeatedly tell orchestrator to "HOLD"
+
+## Observed In
+
+ISSUE-152 session, phases: breakdown_produce, tdd_red_produce
+
+## Related
+
+- ISSUE-161 (model precedence mismatch)
+- ISSUE-162 (producers unaware of approved plan)
+- ISSUE-163 (full skill review)
+
+---
+
+### ISSUE-165: Orchestrator fails to properly complete state machine steps
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The orchestrator agent doesn't properly use `projctl step complete` with the correct flags, causing the state machine to get stuck. Observed during ISSUE-152:
+
+1. **Missing `--qaverdict` flag**: When completing QA steps, the orchestrator needs `--qaverdict approved` (or `improvement-request`) but wasn't using it
+2. **Producer completion not recorded**: `producer_complete` stayed `false` in state.toml because `step complete --action spawn-producer --status done` was never called
+3. **Transition targets not specified**: At decide states, the orchestrator needs to specify `--phase <target>` to choose the right transition (e.g., refactor vs loop back)
+
+## Root Cause
+
+The orchestrator's prompt/training doesn't include the full `projctl step complete` command syntax. It knows to call `step next` but doesn't properly complete each step with the required flags before advancing.
+
+## Expected Behavior
+
+The orchestrator should follow this sequence for each phase:
+1. `projctl step next` → get action
+2. Execute the action (spawn producer/QA, commit, etc.)
+3. `projctl step complete --action <action> --status <status> [--qaverdict <verdict>] [--phase <target>]`
+4. `projctl step next` → get next action
+
+## Specific Flags
+
+- `spawn-producer` actions: `--action spawn-producer --status done`
+- `spawn-qa` actions: `--action spawn-qa --status done --qaverdict approved|improvement-request`
+- `transition` actions: `--action transition --status done --phase <target-phase>`
+
+## Impact
+
+- State machine gets stuck at QA phases
+- Team lead has to manually run step complete commands
+- Orchestrator reports "illegal transition" errors
+
+## Observed In
+
+ISSUE-152 session, phase: tdd_green_qa → tdd_green_decide
+
+## Related
+
+- ISSUE-164 (orchestrator premature advancement)
+- ISSUE-163 (full skill review)
