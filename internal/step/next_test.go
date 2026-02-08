@@ -298,6 +298,59 @@ func TestNext(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tasklist_create"))
 	})
+
+	t.Run("item_select sets current_task from first unblocked task (ISSUE-167)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Initialize with scoped workflow
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+			Issue:    "ISSUE-42",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Create tasks.md with unblocked tasks
+		tasksContent := `# Tasks
+
+### TASK-1: First task
+
+**Status:** pending
+**Dependencies:** None
+
+### TASK-2: Second task
+
+**Status:** pending
+**Dependencies:** TASK-1
+
+### TASK-3: Third task
+
+**Status:** pending
+**Dependencies:** None
+`
+		tasksPath := filepath.Join(dir, "tasks.md")
+		err = os.WriteFile(tasksPath, []byte(tasksContent), 0644)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Navigate to item_select
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Call step.Next
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify transition to item_fork
+		g.Expect(result.Action).To(Equal("transition"))
+		g.Expect(result.Phase).To(Equal("item_fork"))
+
+		// Verify current_task is set to first unblocked task
+		s, err := state.Get(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(s.Progress.CurrentTask).To(Equal("TASK-1"))
+	})
 }
 
 func TestComplete(t *testing.T) {

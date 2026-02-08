@@ -271,6 +271,19 @@ func Next(dir string) (NextResult, error) {
 		result.Entries = entries
 		return result, nil
 
+	case workflow.StateTypeSelect:
+		// For select-type states (e.g., item_select), populate current_task from first unblocked task
+		unblocked, err := task.Parallel(dir)
+		if err == nil && len(unblocked) > 0 {
+			_, err = state.Set(dir, state.SetOpts{Task: unblocked[0]})
+			if err != nil {
+				return result, fmt.Errorf("failed to set current task: %w", err)
+			}
+		}
+		result.Action = "transition"
+		result.Phase = targets[0]
+		return result, nil
+
 	default:
 		result.Action = "transition"
 		result.Phase = targets[0]
