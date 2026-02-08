@@ -4779,7 +4779,7 @@ Fixed idle-wait anti-patterns:
 ### ISSUE-150: Simplify state machine: declarative TOML workflow config, streamlined API
 
 **Priority:** High
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-07
 
 ## Problem
@@ -4877,7 +4877,7 @@ ISSUE-151 (workflow tiers) defines the tier model that becomes TOML workflow def
 ### ISSUE-151: Define workflow tiers: full project vs task vs quick-fix execution modes
 
 **Priority:** High
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-07
 
 ## Problem
