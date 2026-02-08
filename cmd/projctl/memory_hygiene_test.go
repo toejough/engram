@@ -14,7 +14,7 @@ import (
 // ============================================================================
 
 // TEST-990: memory decay command runs successfully with defaults
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryDecayCommand(t *testing.T) {
 	g := NewWithT(t)
 
@@ -40,7 +40,7 @@ func TestMemoryDecayCommand(t *testing.T) {
 }
 
 // TEST-991: memory decay command accepts --factor flag
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryDecayWithFactorFlag(t *testing.T) {
 	g := NewWithT(t)
 
@@ -67,7 +67,7 @@ func TestMemoryDecayWithFactorFlag(t *testing.T) {
 }
 
 // TEST-992: memory decay command shows affected entry count
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryDecayShowsAffectedCount(t *testing.T) {
 	g := NewWithT(t)
 
@@ -99,7 +99,7 @@ func TestMemoryDecayShowsAffectedCount(t *testing.T) {
 // ============================================================================
 
 // TEST-993: memory prune command runs successfully with defaults
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryPruneCommand(t *testing.T) {
 	g := NewWithT(t)
 
@@ -132,7 +132,7 @@ func TestMemoryPruneCommand(t *testing.T) {
 }
 
 // TEST-994: memory prune command accepts --threshold flag
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryPruneWithThresholdFlag(t *testing.T) {
 	g := NewWithT(t)
 
@@ -165,7 +165,7 @@ func TestMemoryPruneWithThresholdFlag(t *testing.T) {
 }
 
 // TEST-995: memory prune command shows removed and retained counts
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryPruneShowsCounts(t *testing.T) {
 	g := NewWithT(t)
 
@@ -205,7 +205,7 @@ func TestMemoryPruneShowsCounts(t *testing.T) {
 }
 
 // TEST-996: memory prune with nothing to prune reports zero
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestMemoryPruneNothingToPrune(t *testing.T) {
 	g := NewWithT(t)
 

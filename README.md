@@ -319,7 +319,9 @@ projctl trace promote           # Promote TASK traces to artifact IDs
 
 ### Memory System
 
-<!-- Traces: ARCH-14 -->
+<!-- Traces: ARCH-14, REQ-8, REQ-12, REQ-13, REQ-14, REQ-15, REQ-16, ARCH-54, ARCH-55, ARCH-59, ARCH-60, ARCH-61, ARCH-62 -->
+
+The memory system provides semantic search across project learnings and automatically integrates memory into the orchestration workflow. All producers query relevant past learnings during their GATHER phase, and the orchestrator captures session summaries automatically.
 
 ```bash
 projctl memory learn            # Store a learning
@@ -328,7 +330,29 @@ projctl memory query            # Find semantically similar memories
 projctl memory grep             # Search memory files by pattern
 projctl memory extract          # Extract from result files
 projctl memory session-end      # Generate session summary
+projctl memory promote          # List promotion candidates for CLAUDE.md
+projctl memory decay            # Apply confidence decay to unretrieved memories
+projctl memory prune            # Remove low-confidence memories
 ```
+
+**Orchestration Integration:**
+
+- **Startup Context** - Orchestrator queries past learnings before entering step loop
+- **Producer Reads** - All 18 LLM-driven skills query memory during GATHER phase
+- **Universal Capture** - Orchestrator extracts decisions from producer result files automatically
+- **Session Summaries** - End-of-project summaries generated and indexed automatically
+- **QA Memory** - QA skills read known failure patterns and persist new failures
+- **Retro Memory** - Retrospectives surface high-value learnings and promotion candidates
+
+**Memory Hygiene:**
+
+- **Confidence Tracking** - Internal memories (1.0), external memories (0.7)
+- **Decay** - Unretrieved memories decay by 0.9x per session, retrieved memories maintain confidence
+- **Pruning** - Entries below confidence threshold (0.1) are removed
+- **Conflict Detection** - High-similarity entries (>0.85) flagged as potential conflicts
+- **Promotion Pipeline** - Memories retrieved 3+ times across 2+ projects recommended for CLAUDE.md
+
+See [Memory Commands](docs/commands/memory.md) for detailed command reference.
 
 ### Context and Territory
 

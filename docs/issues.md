@@ -5538,3 +5538,13 @@ ISSUE-152 session, phase: tdd_green_qa → tdd_green_decide
 **Created:** 2026-02-08
 
 The Go infrastructure for parallel task execution is complete (task.Parallel(), NextResult.Tasks array, worktree create/merge/cleanup, fork/join states in workflows.toml) but the orchestrator skill step loop in skills/project/SKILL.md only spawns one producer per iteration. It never checks result.Tasks length or spawns multiple teammates. The Looper Pattern is documented (lines 421-470) but not implemented in the step loop (lines 98-114). This forces team leads to manually spawn parallel agents.
+
+---
+
+### ISSUE-167: State machine should select task before spawning TDD producers
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+Currently step next returns spawn-producer without specifying which task. The producer self-selects by reading tasks.md. This prevents parallel dispatch — can't send N producers to N tasks simultaneously. The item_select phase should populate current_task in state.toml and pass it via task_params context to the producer.

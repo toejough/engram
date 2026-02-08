@@ -13,11 +13,11 @@ import (
 
 // ============================================================================
 // CLI tests for `projctl memory promote` subcommand
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 // ============================================================================
 
 // TEST-930: memory promote subcommand exists and runs
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteCommandExists(t *testing.T) {
 	g := NewWithT(t)
 
@@ -38,7 +38,7 @@ func TestMemoryPromoteCommandExists(t *testing.T) {
 }
 
 // TEST-931: memory promote outputs "no candidates" when none qualify
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteNoCandidatesOutput(t *testing.T) {
 	g := NewWithT(t)
 
@@ -69,7 +69,7 @@ func TestMemoryPromoteNoCandidatesOutput(t *testing.T) {
 }
 
 // TEST-932: memory promote accepts --min-retrievals flag
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteMinRetrievalsFlag(t *testing.T) {
 	g := NewWithT(t)
 
@@ -91,7 +91,7 @@ func TestMemoryPromoteMinRetrievalsFlag(t *testing.T) {
 }
 
 // TEST-933: memory promote accepts --min-projects flag
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteMinProjectsFlag(t *testing.T) {
 	g := NewWithT(t)
 
@@ -113,7 +113,7 @@ func TestMemoryPromoteMinProjectsFlag(t *testing.T) {
 }
 
 // TEST-934: memory promote displays candidates with content
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteDisplaysCandidates(t *testing.T) {
 	g := NewWithT(t)
 
@@ -149,7 +149,7 @@ func TestMemoryPromoteDisplaysCandidates(t *testing.T) {
 }
 
 // TEST-935: memory promote uses default memoryroot when not specified
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestMemoryPromoteDefaultMemoryRoot(t *testing.T) {
 	g := NewWithT(t)
 
@@ -166,7 +166,7 @@ func TestMemoryPromoteDefaultMemoryRoot(t *testing.T) {
 }
 
 // TEST-936: Property: memory promote never returns error for valid memoryroot
-// traces: TASK-41
+// traces: ARCH-060, REQ-013
 func TestPropertyMemoryPromoteNoErrorForValidRoot(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)

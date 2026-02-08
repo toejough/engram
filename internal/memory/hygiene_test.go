@@ -16,7 +16,7 @@ import (
 // ============================================================================
 
 // TEST-980: Decay reduces confidence of all entries by default factor 0.9
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayReducesConfidenceByDefaultFactor(t *testing.T) {
 	g := NewWithT(t)
 
@@ -45,7 +45,7 @@ func TestDecayReducesConfidenceByDefaultFactor(t *testing.T) {
 }
 
 // TEST-981: Decay uses custom factor when provided
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayUsesCustomFactor(t *testing.T) {
 	g := NewWithT(t)
 
@@ -71,7 +71,7 @@ func TestDecayUsesCustomFactor(t *testing.T) {
 }
 
 // TEST-982: Decay applied twice compounds (confidence *= factor each time)
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayCompoundsOverMultipleApplications(t *testing.T) {
 	g := NewWithT(t)
 
@@ -107,7 +107,7 @@ func TestDecayCompoundsOverMultipleApplications(t *testing.T) {
 }
 
 // TEST-983: Decay returns count of entries affected
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayReturnsEntriesAffectedCount(t *testing.T) {
 	g := NewWithT(t)
 
@@ -134,7 +134,7 @@ func TestDecayReturnsEntriesAffectedCount(t *testing.T) {
 }
 
 // TEST-984: Property-based: decay always reduces confidence (never increases)
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayPropertyAlwaysReduces(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -176,7 +176,7 @@ func TestDecayPropertyAlwaysReduces(t *testing.T) {
 // ============================================================================
 
 // TEST-985: Prune removes entries below default threshold (0.1)
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestPruneRemovesBelowDefaultThreshold(t *testing.T) {
 	g := NewWithT(t)
 
@@ -210,7 +210,7 @@ func TestPruneRemovesBelowDefaultThreshold(t *testing.T) {
 }
 
 // TEST-986: Prune uses custom threshold when provided
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestPruneUsesCustomThreshold(t *testing.T) {
 	g := NewWithT(t)
 
@@ -244,7 +244,7 @@ func TestPruneUsesCustomThreshold(t *testing.T) {
 }
 
 // TEST-987: Prune does not remove entries above threshold
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestPruneKeepsEntriesAboveThreshold(t *testing.T) {
 	g := NewWithT(t)
 
@@ -271,7 +271,7 @@ func TestPruneKeepsEntriesAboveThreshold(t *testing.T) {
 }
 
 // TEST-988: Prune returns count of removed and retained entries
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestPruneReturnsCounts(t *testing.T) {
 	g := NewWithT(t)
 
@@ -311,7 +311,7 @@ func TestPruneReturnsCounts(t *testing.T) {
 }
 
 // TEST-989: Property-based: prune never removes entries above threshold
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestPrunePropertyNeverRemovesAboveThreshold(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -349,7 +349,7 @@ func TestPrunePropertyNeverRemovesAboveThreshold(t *testing.T) {
 // ============================================================================
 
 // TEST-1000: Learn detects high-similarity existing entry (>0.85) and returns conflict
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestLearnDetectsConflictWithHighSimilarity(t *testing.T) {
 	g := NewWithT(t)
 
@@ -378,7 +378,7 @@ func TestLearnDetectsConflictWithHighSimilarity(t *testing.T) {
 }
 
 // TEST-1001: Learn does not flag conflict when entries are dissimilar
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestLearnNoConflictWhenDissimilar(t *testing.T) {
 	g := NewWithT(t)
 
@@ -405,7 +405,7 @@ func TestLearnNoConflictWhenDissimilar(t *testing.T) {
 }
 
 // TEST-1002: Conflict detection returns the conflicting entry content
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestConflictDetectionReturnsConflictingContent(t *testing.T) {
 	g := NewWithT(t)
 
@@ -431,7 +431,7 @@ func TestConflictDetectionReturnsConflictingContent(t *testing.T) {
 }
 
 // TEST-1003: Learn still stores entry even when conflict is detected
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestLearnStoresEntryEvenWithConflict(t *testing.T) {
 	g := NewWithT(t)
 
@@ -466,7 +466,7 @@ func TestLearnStoresEntryEvenWithConflict(t *testing.T) {
 // ============================================================================
 
 // TEST-1004: searchSimilar ranks by (cosine_similarity * confidence)
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestConfidenceWeightedSearchRanking(t *testing.T) {
 	g := NewWithT(t)
 
@@ -520,7 +520,7 @@ func TestConfidenceWeightedSearchRanking(t *testing.T) {
 }
 
 // TEST-1005: QueryResult includes confidence score
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestQueryResultIncludesConfidence(t *testing.T) {
 	g := NewWithT(t)
 
@@ -552,7 +552,7 @@ func TestQueryResultIncludesConfidence(t *testing.T) {
 }
 
 // TEST-1006: Decayed entries have lower effective score than fresh ones
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestDecayedEntriesHaveLowerEffectiveScore(t *testing.T) {
 	g := NewWithT(t)
 
@@ -597,7 +597,7 @@ func TestDecayedEntriesHaveLowerEffectiveScore(t *testing.T) {
 }
 
 // TEST-1007: Property-based: score is always in [0, 1] for confidence-weighted search
-// traces: TASK-43
+// traces: ARCH-062, REQ-015, REQ-016
 func TestConfidenceWeightedScorePropertyBounded(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)

@@ -11,7 +11,7 @@ import (
 	"github.com/toejough/projctl/internal/corrections"
 )
 
-// TEST-711 traces: TASK-040
+// TEST-711 traces: ARCH-055, REQ-008
 // Test correctionsLog command with all flags creates entry
 func TestCorrectionsLog_WithAllFlags(t *testing.T) {
 	g := NewWithT(t)
@@ -40,7 +40,7 @@ func TestCorrectionsLog_WithAllFlags(t *testing.T) {
 	g.Expect(entry.SessionID).To(Equal("test-session-001"))
 }
 
-// TEST-712 traces: TASK-040
+// TEST-712 traces: ARCH-055, REQ-008
 // Test correctionsLog command without session flag (optional)
 func TestCorrectionsLog_WithoutSession(t *testing.T) {
 	g := NewWithT(t)
@@ -56,7 +56,7 @@ func TestCorrectionsLog_WithoutSession(t *testing.T) {
 	g.Expect(line).ToNot(ContainSubstring(`"session_id"`))
 }
 
-// TEST-713 traces: TASK-040
+// TEST-713 traces: ARCH-055, REQ-008
 // Test corrections file location convention
 func TestCorrectionsLog_FileLocation(t *testing.T) {
 	g := NewWithT(t)
@@ -71,7 +71,7 @@ func TestCorrectionsLog_FileLocation(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-// TEST-714 traces: TASK-040
+// TEST-714 traces: ARCH-055, REQ-008
 // Test global corrections file location
 func TestCorrectionsLog_GlobalFileLocation(t *testing.T) {
 	g := NewWithT(t)
@@ -86,7 +86,7 @@ func TestCorrectionsLog_GlobalFileLocation(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-// TEST-730 traces: TASK-042
+// TEST-730 traces: ARCH-061, REQ-014
 // Test correctionsAnalyze command identifies patterns
 func TestCorrectionsAnalyze_IdentifiesPatterns(t *testing.T) {
 	g := NewWithT(t)
@@ -112,7 +112,7 @@ func TestCorrectionsAnalyze_IdentifiesPatterns(t *testing.T) {
 	g.Expect(patterns[0].Proposal).ToNot(BeEmpty())
 }
 
-// TEST-731 traces: TASK-042
+// TEST-731 traces: ARCH-061, REQ-014
 // Test correctionsAnalyze respects min-occurrences flag
 func TestCorrectionsAnalyze_MinOccurrencesFlag(t *testing.T) {
 	g := NewWithT(t)
@@ -136,7 +136,7 @@ func TestCorrectionsAnalyze_MinOccurrencesFlag(t *testing.T) {
 	g.Expect(patterns[0].Count).To(Equal(3))
 }
 
-// TEST-732 traces: TASK-042
+// TEST-732 traces: ARCH-061, REQ-014
 // Test correctionsAnalyze with global corrections
 func TestCorrectionsAnalyze_GlobalCorrections(t *testing.T) {
 	g := NewWithT(t)

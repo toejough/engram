@@ -17,7 +17,7 @@ import (
 // ============================================================================
 
 // TEST-900: LearnOpts accepts Source field "internal"
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnOptsAcceptsSourceInternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -35,7 +35,7 @@ func TestLearnOptsAcceptsSourceInternal(t *testing.T) {
 }
 
 // TEST-901: LearnOpts accepts Source field "external"
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnOptsAcceptsSourceExternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -53,7 +53,7 @@ func TestLearnOptsAcceptsSourceExternal(t *testing.T) {
 }
 
 // TEST-902: LearnOpts defaults Source to "internal" when empty
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnOptsDefaultsSourceToInternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -86,7 +86,7 @@ func TestLearnOptsDefaultsSourceToInternal(t *testing.T) {
 // ============================================================================
 
 // TEST-903: Internal memories get default confidence 1.0
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnInternalConfidenceIsOne(t *testing.T) {
 	g := NewWithT(t)
 
@@ -115,7 +115,7 @@ func TestLearnInternalConfidenceIsOne(t *testing.T) {
 }
 
 // TEST-904: External memories get initial confidence 0.7
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnExternalConfidenceIsPointSeven(t *testing.T) {
 	g := NewWithT(t)
 
@@ -144,7 +144,7 @@ func TestLearnExternalConfidenceIsPointSeven(t *testing.T) {
 }
 
 // TEST-905: Default (empty source) memories get confidence 1.0
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestLearnDefaultSourceConfidenceIsOne(t *testing.T) {
 	g := NewWithT(t)
 
@@ -176,7 +176,7 @@ func TestLearnDefaultSourceConfidenceIsOne(t *testing.T) {
 // ============================================================================
 
 // TEST-906: Embeddings table has source_type column
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestEmbeddingsSchemaHasSourceTypeColumn(t *testing.T) {
 	g := NewWithT(t)
 
@@ -207,7 +207,7 @@ func TestEmbeddingsSchemaHasSourceTypeColumn(t *testing.T) {
 }
 
 // TEST-907: Embeddings table has confidence column
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestEmbeddingsSchemaHasConfidenceColumn(t *testing.T) {
 	g := NewWithT(t)
 
@@ -237,7 +237,7 @@ func TestEmbeddingsSchemaHasConfidenceColumn(t *testing.T) {
 }
 
 // TEST-908: source_type defaults to "internal" in schema
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestEmbeddingsSchemaSourceTypeDefaultsToInternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -265,7 +265,7 @@ func TestEmbeddingsSchemaSourceTypeDefaultsToInternal(t *testing.T) {
 }
 
 // TEST-909: confidence defaults to 1.0 in schema
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestEmbeddingsSchemaConfidenceDefaultsToOne(t *testing.T) {
 	g := NewWithT(t)
 
@@ -297,7 +297,7 @@ func TestEmbeddingsSchemaConfidenceDefaultsToOne(t *testing.T) {
 // ============================================================================
 
 // TEST-910: Source type is stored and retrievable for internal memories
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestSourceTypeStoredAndRetrievableInternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -331,7 +331,7 @@ func TestSourceTypeStoredAndRetrievableInternal(t *testing.T) {
 }
 
 // TEST-911: Source type is stored and retrievable for external memories
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestSourceTypeStoredAndRetrievableExternal(t *testing.T) {
 	g := NewWithT(t)
 
@@ -363,7 +363,7 @@ func TestSourceTypeStoredAndRetrievableExternal(t *testing.T) {
 }
 
 // TEST-912: Confidence is stored and retrievable
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestConfidenceStoredAndRetrievable(t *testing.T) {
 	g := NewWithT(t)
 
@@ -396,7 +396,7 @@ func TestConfidenceStoredAndRetrievable(t *testing.T) {
 }
 
 // TEST-913: Internal and external memories can coexist
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestInternalAndExternalMemoriesCoexist(t *testing.T) {
 	g := NewWithT(t)
 
@@ -444,7 +444,7 @@ func TestInternalAndExternalMemoriesCoexist(t *testing.T) {
 // ============================================================================
 
 // TEST-914: Property: source type is always "internal" or "external" in stored data
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestPropertySourceTypeAlwaysValid(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -487,7 +487,7 @@ func TestPropertySourceTypeAlwaysValid(t *testing.T) {
 }
 
 // TEST-915: Property: confidence is always between 0 and 1
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestPropertyConfidenceAlwaysInRange(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
@@ -530,7 +530,7 @@ func TestPropertyConfidenceAlwaysInRange(t *testing.T) {
 }
 
 // TEST-916: Property: external source always gets confidence 0.7, internal always gets 1.0
-// traces: TASK-42
+// traces: ARCH-061, REQ-014
 func TestPropertyConfidenceMatchesSource(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
