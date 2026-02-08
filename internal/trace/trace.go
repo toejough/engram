@@ -694,12 +694,20 @@ func phaseAllowsUnlinked(phase string) map[string]bool {
 var validPhases = map[string]bool{
 	"":     true, // empty = strictest
 	"init": true,
-	// PM phases
+	// TaskList creation
+	"tasklist_create": true,
+	// Plan phases
+	"plan_produce": true, "plan_approve": true,
+	// PM phases (kept for align workflow and legacy)
 	"pm_produce": true, "pm_qa": true, "pm_decide": true, "pm_commit": true,
-	// Design phases
+	// Design phases (kept for align workflow and legacy)
 	"design_produce": true, "design_qa": true, "design_decide": true, "design_commit": true,
-	// Architecture phases
+	// Architecture phases (kept for align workflow and legacy)
 	"arch_produce": true, "arch_qa": true, "arch_decide": true, "arch_commit": true,
+	// Parallel artifact production
+	"artifact_fork": true, "artifact_pm_produce": true,
+	"artifact_design_produce": true, "artifact_arch_produce": true,
+	"artifact_join": true, "crosscut_qa": true, "crosscut_decide": true, "artifact_commit": true,
 	// Breakdown phases
 	"breakdown_produce": true, "breakdown_qa": true, "breakdown_decide": true, "breakdown_commit": true,
 	// Item execution
@@ -718,9 +726,11 @@ var validPhases = map[string]bool{
 	"documentation_produce": true, "documentation_qa": true, "documentation_decide": true, "documentation_commit": true,
 	// Alignment phases
 	"alignment_produce": true, "alignment_qa": true, "alignment_decide": true, "alignment_commit": true,
-	// Retro phases
+	// Evaluation phases (consolidated retro + summary)
+	"evaluation_produce": true, "evaluation_interview": true, "evaluation_commit": true,
+	// Retro phases (kept for legacy validation)
 	"retro_produce": true, "retro_qa": true, "retro_decide": true, "retro_commit": true,
-	// Summary phases
+	// Summary phases (kept for legacy validation)
 	"summary_produce": true, "summary_qa": true, "summary_decide": true, "summary_commit": true,
 	// Ending phases
 	"issue_update": true, "next_steps": true, "complete": true,

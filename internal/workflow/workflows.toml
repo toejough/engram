@@ -7,6 +7,20 @@
 # =============================================================================
 # Each state defines its type (what the Go interpreter does) and metadata.
 
+# --- TaskList Creation ---
+[states.tasklist_create]
+type = "tasklist"
+
+# --- Plan Phase ---
+[states.plan_produce]
+type = "produce"
+skill = "plan-producer"
+skill_path = "skills/plan-producer/SKILL.md"
+fallback_model = "opus"
+
+[states.plan_approve]
+type = "approve"
+
 # --- PM Phase ---
 [states.pm_produce]
 type = "produce"
@@ -312,6 +326,63 @@ type = "decide"
 [states.align_artifact_commit]
 type = "commit"
 
+# --- Parallel Artifact Production ---
+[states.artifact_fork]
+type = "fork"
+
+[states.artifact_pm_produce]
+type = "produce"
+skill = "pm-interview-producer"
+skill_path = "skills/pm-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "requirements.md"
+id_format = "REQ"
+
+[states.artifact_design_produce]
+type = "produce"
+skill = "design-interview-producer"
+skill_path = "skills/design-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "design.md"
+id_format = "DES"
+
+[states.artifact_arch_produce]
+type = "produce"
+skill = "arch-interview-producer"
+skill_path = "skills/arch-interview-producer/SKILL.md"
+fallback_model = "opus"
+artifact = "architecture.md"
+id_format = "ARCH"
+
+[states.artifact_join]
+type = "join"
+
+[states.crosscut_qa]
+type = "qa"
+skill = "qa"
+skill_path = "skills/qa/SKILL.md"
+fallback_model = "haiku"
+
+[states.crosscut_decide]
+type = "decide"
+
+[states.artifact_commit]
+type = "commit"
+
+# --- Evaluation Phase ---
+[states.evaluation_produce]
+type = "produce"
+skill = "evaluation-producer"
+skill_path = "skills/evaluation-producer/SKILL.md"
+fallback_model = "sonnet"
+artifact = "evaluation.md"
+
+[states.evaluation_interview]
+type = "interview"
+
+[states.evaluation_commit]
+type = "commit"
+
 # --- Phase-level escalation ---
 [states.phase_blocked]
 type = "escalate-phase"
@@ -376,14 +447,9 @@ alignment_produce = true
 alignment_qa = true
 alignment_decide = true
 alignment_commit = true
-retro_produce = true
-retro_qa = true
-retro_decide = true
-retro_commit = true
-summary_produce = true
-summary_qa = true
-summary_decide = true
-summary_commit = true
+evaluation_produce = true
+evaluation_interview = true
+evaluation_commit = true
 issue_update = true
 next_steps = true
 complete = true
@@ -392,15 +458,10 @@ complete = true
 alignment_produce = ["alignment_qa"]
 alignment_qa = ["alignment_decide"]
 alignment_decide = ["alignment_produce", "alignment_commit", "phase_blocked"]
-alignment_commit = ["retro_produce"]
-retro_produce = ["retro_qa"]
-retro_qa = ["retro_decide"]
-retro_decide = ["retro_produce", "retro_commit", "phase_blocked"]
-retro_commit = ["summary_produce"]
-summary_produce = ["summary_qa"]
-summary_qa = ["summary_decide"]
-summary_decide = ["summary_produce", "summary_commit", "phase_blocked"]
-summary_commit = ["issue_update"]
+alignment_commit = ["evaluation_produce"]
+evaluation_produce = ["evaluation_interview"]
+evaluation_interview = ["evaluation_produce", "evaluation_commit"]
+evaluation_commit = ["issue_update"]
 issue_update = ["next_steps"]
 next_steps = ["complete"]
 complete = []
@@ -410,22 +471,21 @@ complete = []
 # =============================================================================
 
 [workflows.new]
-init_state = "pm_produce"
+init_state = "tasklist_create"
 include_groups = ["tdd-loop", "item-execution", "main-ending"]
 
 [workflows.new.transitions]
-pm_produce = ["pm_qa"]
-pm_qa = ["pm_decide"]
-pm_decide = ["pm_produce", "pm_commit", "phase_blocked"]
-pm_commit = ["design_produce"]
-design_produce = ["design_qa"]
-design_qa = ["design_decide"]
-design_decide = ["design_produce", "design_commit", "phase_blocked"]
-design_commit = ["arch_produce"]
-arch_produce = ["arch_qa"]
-arch_qa = ["arch_decide"]
-arch_decide = ["arch_produce", "arch_commit", "phase_blocked"]
-arch_commit = ["breakdown_produce"]
+tasklist_create = ["plan_produce"]
+plan_produce = ["plan_approve"]
+plan_approve = ["artifact_fork", "plan_produce"]
+artifact_fork = ["artifact_pm_produce", "artifact_design_produce", "artifact_arch_produce"]
+artifact_pm_produce = ["artifact_join"]
+artifact_design_produce = ["artifact_join"]
+artifact_arch_produce = ["artifact_join"]
+artifact_join = ["crosscut_qa"]
+crosscut_qa = ["crosscut_decide"]
+crosscut_decide = ["artifact_fork", "artifact_commit", "phase_blocked"]
+artifact_commit = ["breakdown_produce"]
 breakdown_produce = ["breakdown_qa"]
 breakdown_qa = ["breakdown_decide"]
 breakdown_decide = ["breakdown_produce", "breakdown_commit", "phase_blocked"]
@@ -437,10 +497,11 @@ documentation_decide = ["documentation_produce", "documentation_commit", "phase_
 documentation_commit = ["alignment_produce"]
 
 [workflows.scoped]
-init_state = "item_select"
+init_state = "tasklist_create"
 include_groups = ["tdd-loop", "item-execution", "main-ending"]
 
 [workflows.scoped.transitions]
+tasklist_create = ["item_select"]
 items_done = ["documentation_produce"]
 documentation_produce = ["documentation_qa"]
 documentation_qa = ["documentation_decide"]
@@ -448,10 +509,11 @@ documentation_decide = ["documentation_produce", "documentation_commit", "phase_
 documentation_commit = ["alignment_produce"]
 
 [workflows.align]
-init_state = "align_infer_tests_produce"
+init_state = "tasklist_create"
 include_groups = ["main-ending"]
 
 [workflows.align.transitions]
+tasklist_create = ["align_infer_tests_produce"]
 align_infer_tests_produce = ["align_infer_arch_produce"]
 align_infer_arch_produce = ["align_infer_design_produce"]
 align_infer_design_produce = ["align_infer_reqs_produce"]

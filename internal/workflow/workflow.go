@@ -32,6 +32,9 @@ const (
 	StateTypeEscalateItem  StateType = "escalate-item"
 	StateTypeEscalatePhase StateType = "escalate-phase"
 	StateTypeAction        StateType = "action"
+	StateTypeApprove       StateType = "approve"
+	StateTypeTaskList      StateType = "tasklist"
+	StateTypeInterview     StateType = "interview"
 )
 
 // StateDef defines a single state in the workflow.

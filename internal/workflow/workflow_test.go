@@ -76,9 +76,10 @@ func TestTransitionsFor(t *testing.T) {
 		g.Expect(transitions).To(HaveKey("tdd_green_produce"))
 		g.Expect(transitions).To(HaveKey("tdd_refactor_produce"))
 
-		// PM states should be present (workflow-specific)
-		g.Expect(transitions).To(HaveKey("pm_produce"))
-		g.Expect(transitions).To(HaveKey("pm_qa"))
+		// Plan and parallel artifact states should be present
+		g.Expect(transitions).To(HaveKey("plan_produce"))
+		g.Expect(transitions).To(HaveKey("plan_approve"))
+		g.Expect(transitions).To(HaveKey("artifact_fork"))
 	})
 
 	t.Run("scoped workflow includes TDD loop transitions", func(t *testing.T) {
@@ -111,7 +112,7 @@ func TestTransitionsFor(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		g.Expect(transitions).To(HaveKey("alignment_produce"))
-		g.Expect(transitions).To(HaveKey("summary_commit"))
+		g.Expect(transitions).To(HaveKey("evaluation_commit"))
 	})
 
 	t.Run("unknown workflow returns error", func(t *testing.T) {
@@ -125,31 +126,34 @@ func TestTransitionsFor(t *testing.T) {
 }
 
 func TestInitState(t *testing.T) {
-	t.Run("new workflow starts at pm_produce", func(t *testing.T) {
+	t.Run("all workflows start at tasklist_create", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
 
-		init, err := cfg.InitState("new")
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(init).To(Equal("pm_produce"))
+		for _, wfName := range cfg.WorkflowNames() {
+			init, err := cfg.InitState(wfName)
+			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(init).To(Equal("tasklist_create"),
+				"workflow %q should start at tasklist_create", wfName)
+		}
 	})
 
-	t.Run("scoped workflow starts at item_select", func(t *testing.T) {
+	t.Run("new workflow transitions from tasklist_create to plan_produce", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
-
-		init, err := cfg.InitState("scoped")
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(init).To(Equal("item_select"))
+		g.Expect(cfg.IsLegalTransition("tasklist_create", "plan_produce", "new")).To(BeTrue())
 	})
 
-	t.Run("align workflow starts at align_infer_tests_produce", func(t *testing.T) {
+	t.Run("scoped workflow transitions from tasklist_create to item_select", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
+		g.Expect(cfg.IsLegalTransition("tasklist_create", "item_select", "scoped")).To(BeTrue())
+	})
 
-		init, err := cfg.InitState("align")
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(init).To(Equal("align_infer_tests_produce"))
+	t.Run("align workflow transitions from tasklist_create to align_infer_tests_produce", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+		g.Expect(cfg.IsLegalTransition("tasklist_create", "align_infer_tests_produce", "align")).To(BeTrue())
 	})
 
 	t.Run("unknown workflow returns error", func(t *testing.T) {
@@ -215,16 +219,18 @@ func TestLookupState(t *testing.T) {
 }
 
 func TestIsLegalTransition(t *testing.T) {
-	t.Run("pm_produce to pm_qa is legal in new workflow", func(t *testing.T) {
+	t.Run("plan_produce to plan_approve is legal in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
-		g.Expect(cfg.IsLegalTransition("pm_produce", "pm_qa", "new")).To(BeTrue())
+		g.Expect(cfg.IsLegalTransition("plan_produce", "plan_approve", "new")).To(BeTrue())
 	})
 
-	t.Run("pm_produce to pm_qa is NOT legal in scoped workflow", func(t *testing.T) {
+	t.Run("plan_approve routes to artifact_fork or plan_produce", func(t *testing.T) {
 		g := NewWithT(t)
 		cfg := workflow.MustLoad()
-		g.Expect(cfg.IsLegalTransition("pm_produce", "pm_qa", "scoped")).To(BeFalse())
+		targets := cfg.LegalTargets("plan_approve", "new")
+		g.Expect(targets).To(ContainElement("artifact_fork"))
+		g.Expect(targets).To(ContainElement("plan_produce"))
 	})
 
 	t.Run("tdd_red_produce to tdd_red_qa is legal in new workflow", func(t *testing.T) {
@@ -404,7 +410,7 @@ func TestPropertyMainEndingInAllWorkflows(t *testing.T) {
 		cfg := workflow.MustLoad()
 
 		mainEndingStates := []string{
-			"alignment_produce", "retro_produce", "summary_produce",
+			"alignment_produce", "evaluation_produce",
 			"issue_update", "next_steps", "complete",
 		}
 
@@ -432,6 +438,82 @@ func TestPropertyMainEndingInAllWorkflows(t *testing.T) {
 					"workflow %q: main-ending state %q should be accessible", wfName, state)
 			}
 		}
+	})
+}
+
+func TestNewWorkflowPlanMode(t *testing.T) {
+	t.Run("new workflow reaches complete through plan mode", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		transitions, err := cfg.TransitionsFor("new")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify plan mode path exists
+		g.Expect(transitions).To(HaveKey("tasklist_create"))
+		g.Expect(transitions).To(HaveKey("plan_produce"))
+		g.Expect(transitions).To(HaveKey("plan_approve"))
+		g.Expect(transitions).To(HaveKey("artifact_fork"))
+		g.Expect(transitions).To(HaveKey("artifact_join"))
+		g.Expect(transitions).To(HaveKey("crosscut_qa"))
+		g.Expect(transitions).To(HaveKey("crosscut_decide"))
+		g.Expect(transitions).To(HaveKey("artifact_commit"))
+	})
+
+	t.Run("new workflow uses evaluation instead of retro+summary", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		transitions, err := cfg.TransitionsFor("new")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Evaluation states should be present
+		g.Expect(transitions).To(HaveKey("evaluation_produce"))
+		g.Expect(transitions).To(HaveKey("evaluation_interview"))
+		g.Expect(transitions).To(HaveKey("evaluation_commit"))
+
+		// Old retro/summary states should NOT be in the workflow transitions
+		g.Expect(transitions).ToNot(HaveKey("retro_produce"))
+		g.Expect(transitions).ToNot(HaveKey("summary_produce"))
+	})
+}
+
+func TestEvaluationStateTypes(t *testing.T) {
+	t.Run("evaluation_produce is a produce state", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		s, ok := cfg.LookupState("evaluation_produce")
+		g.Expect(ok).To(BeTrue())
+		g.Expect(s.Type).To(Equal(workflow.StateTypeProduce))
+		g.Expect(s.Skill).To(Equal("evaluation-producer"))
+	})
+
+	t.Run("evaluation_interview is an interview state", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		s, ok := cfg.LookupState("evaluation_interview")
+		g.Expect(ok).To(BeTrue())
+		g.Expect(s.Type).To(Equal(workflow.StateTypeInterview))
+	})
+
+	t.Run("plan_approve is an approve state", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		s, ok := cfg.LookupState("plan_approve")
+		g.Expect(ok).To(BeTrue())
+		g.Expect(s.Type).To(Equal(workflow.StateTypeApprove))
+	})
+
+	t.Run("tasklist_create is a tasklist state", func(t *testing.T) {
+		g := NewWithT(t)
+		cfg := workflow.MustLoad()
+
+		s, ok := cfg.LookupState("tasklist_create")
+		g.Expect(ok).To(BeTrue())
+		g.Expect(s.Type).To(Equal(workflow.StateTypeTaskList))
 	})
 }
 

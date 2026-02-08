@@ -21,7 +21,9 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -42,11 +44,14 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{
+			"tasklist_create", "plan_produce", "plan_approve",
+			"artifact_fork", "artifact_pm_produce", "artifact_join",
+			"crosscut_qa",
+		} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -66,10 +71,12 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.SetPair(dir, "pm", state.PairState{
+		_, err = state.SetPair(dir, "plan", state.PairState{
 			Iteration:          1,
 			MaxIterations:      3,
 			ProducerComplete:   false,
@@ -97,7 +104,9 @@ func TestISSUE103_TaskParamsTeamName(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -120,7 +129,9 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
@@ -139,11 +150,14 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		_, err = state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
+		for _, phase := range []string{
+			"tasklist_create", "plan_produce", "plan_approve",
+			"artifact_fork", "artifact_pm_produce", "artifact_join",
+			"crosscut_qa",
+		} {
+			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
+			g.Expect(err).ToNot(HaveOccurred())
+		}
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -161,13 +175,13 @@ func TestISSUE103_SubagentType(t *testing.T) {
 			expectedAction string
 		}{
 			{
-				name:           "pm_produce",
-				transitions:    []string{"pm_produce"},
+				name:           "plan_produce",
+				transitions:    []string{"tasklist_create", "plan_produce"},
 				expectedAction: "spawn-producer",
 			},
 			{
-				name:           "pm_qa (QA spawn)",
-				transitions:    []string{"pm_produce", "pm_qa"},
+				name:           "crosscut_qa (QA spawn)",
+				transitions:    []string{"tasklist_create", "plan_produce", "plan_approve", "artifact_fork", "artifact_pm_produce", "artifact_join", "crosscut_qa"},
 				expectedAction: "spawn-qa",
 			},
 		}
@@ -206,7 +220,9 @@ func TestISSUE103_SubagentType(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)

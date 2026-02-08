@@ -24,7 +24,7 @@ func navigateToPhaseForIteration(t *testing.T, dir string, targetPhase string) {
 	g := NewWithT(t)
 
 	allPhases := []string{
-		"item_select", "item_fork", "worktree_create",
+		"tasklist_create", "item_select", "item_fork", "worktree_create",
 		"tdd_red_produce", "tdd_red_qa", "tdd_red_decide",
 	}
 

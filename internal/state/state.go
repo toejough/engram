@@ -185,7 +185,7 @@ type PreconditionChecker interface {
 // Preconditions maps phases to their required preconditions.
 // The function takes dir, opts, and checker so preconditions can access task ID.
 var Preconditions = map[string]func(dir string, opts TransitionOpts, checker PreconditionChecker) error{
-	"pm_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
+	"artifact_commit": func(dir string, opts TransitionOpts, c PreconditionChecker) error {
 		if !c.RequirementsExist(dir) {
 			return fmt.Errorf("precondition failed: requirements.md must exist")
 		}

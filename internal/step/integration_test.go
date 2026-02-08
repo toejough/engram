@@ -27,7 +27,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Navigate to tdd_red_produce
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -201,7 +201,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -359,7 +359,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}

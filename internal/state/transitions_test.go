@@ -10,12 +10,12 @@ import (
 func TestIsLegalTransitionDelegatesToWorkflowConfig(t *testing.T) {
 	t.Run("valid transition in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("plan_produce", "plan_approve", "new")).To(BeTrue())
 	})
 
 	t.Run("invalid transition in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("pm_produce", "design_produce", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("plan_produce", "artifact_commit", "new")).To(BeFalse())
 	})
 
 	t.Run("TDD transitions in new workflow", func(t *testing.T) {
@@ -32,27 +32,27 @@ func TestIsLegalTransitionDelegatesToWorkflowConfig(t *testing.T) {
 		g.Expect(state.IsLegalTransition("tdd_green_decide", "tdd_refactor_produce", "scoped")).To(BeTrue())
 	})
 
-	t.Run("PM transitions not in scoped workflow", func(t *testing.T) {
+	t.Run("plan transitions not in scoped workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "scoped")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("plan_produce", "plan_approve", "scoped")).To(BeFalse())
 	})
 
 	t.Run("unknown workflow returns false", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "nonexistent")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("plan_produce", "plan_approve", "nonexistent")).To(BeFalse())
 	})
 
 	t.Run("unknown state returns false", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("nonexistent", "pm_qa", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("nonexistent", "plan_approve", "new")).To(BeFalse())
 	})
 }
 
 func TestLegalTargetsDelegatesToWorkflowConfig(t *testing.T) {
-	t.Run("returns targets for pm_produce in new workflow", func(t *testing.T) {
+	t.Run("returns targets for plan_produce in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		targets := state.LegalTargets("pm_produce", "new")
-		g.Expect(targets).To(Equal([]string{"pm_qa"}))
+		targets := state.LegalTargets("plan_produce", "new")
+		g.Expect(targets).To(Equal([]string{"plan_approve"}))
 	})
 
 	t.Run("returns nil for unknown state", func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestLegalTargetsDelegatesToWorkflowConfig(t *testing.T) {
 
 	t.Run("returns nil for unknown workflow", func(t *testing.T) {
 		g := NewWithT(t)
-		targets := state.LegalTargets("pm_produce", "nonexistent")
+		targets := state.LegalTargets("plan_produce", "nonexistent")
 		g.Expect(targets).To(BeNil())
 	})
 

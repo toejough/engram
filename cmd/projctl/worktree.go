@@ -9,8 +9,9 @@ import (
 )
 
 type worktreeCreateArgs struct {
-	TaskID  string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-001)"`
-	RepoDir string `targ:"flag,short=r,desc=Repository root (defaults to current directory)"`
+	TaskID     string `targ:"flag,short=t,required,desc=Task ID (e.g. TASK-001)"`
+	BaseBranch string `targ:"flag,short=b,desc=Base branch (auto-detected if not provided)"`
+	RepoDir    string `targ:"flag,short=r,desc=Repository root (defaults to current directory)"`
 }
 
 func worktreeCreate(args worktreeCreateArgs) error {
@@ -20,12 +21,22 @@ func worktreeCreate(args worktreeCreateArgs) error {
 	}
 
 	mgr := worktree.NewManager(repoDir)
-	path, err := mgr.Create(args.TaskID)
+
+	baseBranch := args.BaseBranch
+	if baseBranch == "" {
+		var err error
+		baseBranch, err = mgr.DetectBaseBranch()
+		if err != nil {
+			return fmt.Errorf("failed to detect base branch: %w", err)
+		}
+	}
+
+	path, err := mgr.Create(args.TaskID, baseBranch)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Created worktree for %s at %s\n", args.TaskID, path)
+	fmt.Printf("Created worktree for %s at %s (base: %s)\n", args.TaskID, path, baseBranch)
 	return nil
 }
 
@@ -72,12 +83,16 @@ func worktreeMerge(args worktreeMergeArgs) error {
 		repoDir = "."
 	}
 
+	mgr := worktree.NewManager(repoDir)
+
 	onto := args.Onto
 	if onto == "" {
-		onto = "main"
+		var err error
+		onto, err = mgr.DetectBaseBranch()
+		if err != nil {
+			return fmt.Errorf("failed to detect base branch: %w", err)
+		}
 	}
-
-	mgr := worktree.NewManager(repoDir)
 	if err := mgr.Merge(args.TaskID, onto); err != nil {
 		return err
 	}

@@ -81,7 +81,7 @@ func TestTOMLRoundtrip(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition to init_state for scoped workflow
-		_, err = state.Transition(dir, "item_select", state.TransitionOpts{
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{
 			Task:     "TASK-001",
 			Subphase: "red",
 		}, nowFunc())
@@ -208,7 +208,7 @@ func TestAtomicWrites(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Perform transition
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify no .tmp files left behind
@@ -273,10 +273,10 @@ func TestErrorStateHandling(t *testing.T) {
 		_, err := state.Init(dir, "error-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Cause an error — try illegal transition from pm_produce
+		// Cause an error — try illegal transition from tasklist_create
 		_, err = state.Transition(dir, "complete", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 
@@ -285,7 +285,7 @@ func TestErrorStateHandling(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Error).ToNot(BeNil())
 		g.Expect(s.Error.ErrorType).To(Equal("illegal_transition"))
-		g.Expect(s.Error.LastPhase).To(Equal("pm_produce"))
+		g.Expect(s.Error.LastPhase).To(Equal("tasklist_create"))
 		g.Expect(s.Error.TargetPhase).To(Equal("complete"))
 	})
 
@@ -296,10 +296,10 @@ func TestErrorStateHandling(t *testing.T) {
 		_, err := state.Init(dir, "error-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to pm_decide, then try pm_commit with precondition failure
-		navigateToState(t, dir, "pm_decide", "new")
+		// Navigate to crosscut_decide, then try artifact_commit with precondition failure
+		navigateToState(t, dir, "crosscut_decide", "new")
 
-		_, err = state.TransitionWithChecker(dir, "pm_commit", state.TransitionOpts{}, nowFunc(), &mockPreconditionChecker{
+		_, err = state.TransitionWithChecker(dir, "artifact_commit", state.TransitionOpts{}, nowFunc(), &mockPreconditionChecker{
 			requirementsExists: false,
 		})
 		g.Expect(err).To(HaveOccurred())
@@ -308,7 +308,7 @@ func TestErrorStateHandling(t *testing.T) {
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.Error).ToNot(BeNil())
-		g.Expect(s.Error.TargetPhase).To(Equal("pm_commit"))
+		g.Expect(s.Error.TargetPhase).To(Equal("artifact_commit"))
 		g.Expect(s.Error.ErrorType).To(Equal("precondition_failed"))
 	})
 }
@@ -321,7 +321,7 @@ func TestHistoryTracking(t *testing.T) {
 		_, err := state.Init(dir, "history-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		phases := []string{"pm_produce", "pm_qa"}
+		phases := []string{"tasklist_create", "plan_produce"}
 		for _, phase := range phases {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
@@ -329,10 +329,10 @@ func TestHistoryTracking(t *testing.T) {
 
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.History).To(HaveLen(3)) // init + pm_produce + pm_qa
+		g.Expect(s.History).To(HaveLen(3)) // init + tasklist_create + plan_produce
 		g.Expect(s.History[0].Phase).To(Equal("init"))
-		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
-		g.Expect(s.History[2].Phase).To(Equal("pm_qa"))
+		g.Expect(s.History[1].Phase).To(Equal("tasklist_create"))
+		g.Expect(s.History[2].Phase).To(Equal("plan_produce"))
 	})
 
 	t.Run("History timestamps persist correctly", func(t *testing.T) {
@@ -342,7 +342,7 @@ func TestHistoryTracking(t *testing.T) {
 		_, err := state.Init(dir, "history-test", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		s, err := state.Get(dir)
@@ -451,7 +451,7 @@ func TestTransitionOptsPersistence(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition with opts
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{
 			Task:     "TASK-042",
 			Subphase: "interview",
 		}, nowFunc())
@@ -475,7 +475,7 @@ func TestTransitionOptsPersistence(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition without explicit RepoDir
-		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify RepoDir still accessible

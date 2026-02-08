@@ -16,11 +16,11 @@ func TestTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm_produce"))
+		g.Expect(s.Project.Phase).To(Equal("tasklist_create"))
 		g.Expect(s.History).To(HaveLen(2))
-		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
+		g.Expect(s.History[1].Phase).To(Equal("tasklist_create"))
 	})
 
 	t.Run("illegal transition returns error with legal targets", func(t *testing.T) {
@@ -35,7 +35,7 @@ func TestTransition(t *testing.T) {
 		g.Expect(err.Error()).To(ContainSubstring("illegal transition"))
 		g.Expect(err.Error()).To(ContainSubstring("init"))
 		g.Expect(err.Error()).To(ContainSubstring("complete"))
-		g.Expect(err.Error()).To(ContainSubstring("pm_produce"))
+		g.Expect(err.Error()).To(ContainSubstring("tasklist_create"))
 	})
 
 	t.Run("transition with task and subphase opts", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm_produce", state.TransitionOpts{
+		s, err := state.Transition(dir, "tasklist_create", state.TransitionOpts{
 			Task:     "TASK-001",
 			Subphase: "interview",
 		}, nowFunc())
@@ -61,13 +61,13 @@ func TestTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Read back from disk
 		s, err := state.Get(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(s.Project.Phase).To(Equal("pm_produce"))
+		g.Expect(s.Project.Phase).To(Equal("tasklist_create"))
 		g.Expect(s.History).To(HaveLen(2))
 	})
 
@@ -78,22 +78,22 @@ func TestTransition(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{Workflow: "new"})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		_, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		s, err := state.Transition(dir, "pm_qa", state.TransitionOpts{}, nowFunc())
+		s, err := state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(s.History).To(HaveLen(3))
 		g.Expect(s.History[0].Phase).To(Equal("init"))
-		g.Expect(s.History[1].Phase).To(Equal("pm_produce"))
-		g.Expect(s.History[2].Phase).To(Equal("pm_qa"))
+		g.Expect(s.History[1].Phase).To(Equal("tasklist_create"))
+		g.Expect(s.History[2].Phase).To(Equal("plan_produce"))
 	})
 
 	t.Run("errors on nonexistent state file", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
-		_, err := state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+		_, err := state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
 	})
 }
@@ -101,22 +101,17 @@ func TestTransition(t *testing.T) {
 func TestIsLegalTransition(t *testing.T) {
 	t.Run("new project workflow transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		// PM phase
-		g.Expect(state.IsLegalTransition("pm_produce", "pm_qa", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("pm_qa", "pm_decide", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("pm_decide", "pm_produce", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("pm_decide", "pm_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("pm_commit", "design_produce", "new")).To(BeTrue())
-		// Design phase
-		g.Expect(state.IsLegalTransition("design_produce", "design_qa", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("design_decide", "design_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("design_commit", "arch_produce", "new")).To(BeTrue())
-		// Architecture phase
-		g.Expect(state.IsLegalTransition("arch_produce", "arch_qa", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("arch_decide", "arch_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("arch_commit", "breakdown_produce", "new")).To(BeTrue())
+		// Plan phase
+		g.Expect(state.IsLegalTransition("tasklist_create", "plan_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("plan_produce", "plan_approve", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("plan_approve", "artifact_fork", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("plan_approve", "plan_produce", "new")).To(BeTrue())
+		// Artifact phase
+		g.Expect(state.IsLegalTransition("artifact_fork", "artifact_pm_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("artifact_join", "crosscut_qa", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("crosscut_decide", "artifact_commit", "new")).To(BeTrue())
 		// Breakdown
-		g.Expect(state.IsLegalTransition("breakdown_decide", "breakdown_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("artifact_commit", "breakdown_produce", "new")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("breakdown_commit", "item_select", "new")).To(BeTrue())
 	})
 
@@ -136,11 +131,10 @@ func TestIsLegalTransition(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(state.IsLegalTransition("alignment_produce", "alignment_qa", "new")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("alignment_decide", "alignment_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("alignment_commit", "retro_produce", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("retro_decide", "retro_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("retro_commit", "summary_produce", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("summary_decide", "summary_commit", "new")).To(BeTrue())
-		g.Expect(state.IsLegalTransition("summary_commit", "issue_update", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("alignment_commit", "evaluation_produce", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("evaluation_produce", "evaluation_interview", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("evaluation_interview", "evaluation_commit", "new")).To(BeTrue())
+		g.Expect(state.IsLegalTransition("evaluation_commit", "issue_update", "new")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("issue_update", "next_steps", "new")).To(BeTrue())
 		g.Expect(state.IsLegalTransition("next_steps", "complete", "new")).To(BeTrue())
 	})
@@ -164,13 +158,13 @@ func TestIsLegalTransition(t *testing.T) {
 
 	t.Run("known illegal transitions", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("pm_produce", "design_produce", "new")).To(BeFalse())
-		g.Expect(state.IsLegalTransition("complete", "pm_produce", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("plan_produce", "artifact_commit", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("complete", "plan_produce", "new")).To(BeFalse())
 	})
 
 	t.Run("unknown state returns false", func(t *testing.T) {
 		g := NewWithT(t)
-		g.Expect(state.IsLegalTransition("nonexistent", "pm_produce", "new")).To(BeFalse())
+		g.Expect(state.IsLegalTransition("nonexistent", "plan_produce", "new")).To(BeFalse())
 	})
 }
 
@@ -239,8 +233,8 @@ func TestTransition_HelpfulErrorMessages(t *testing.T) {
 		// Try to jump directly to design_produce from init
 		_, err = state.Transition(dir, "design_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).To(HaveOccurred())
-		// Should list legal target (pm_produce for "new" workflow)
-		g.Expect(err.Error()).To(ContainSubstring("pm_produce"))
+		// Should list legal target (tasklist_create for "new" workflow)
+		g.Expect(err.Error()).To(ContainSubstring("tasklist_create"))
 	})
 }
 
@@ -320,7 +314,7 @@ func TestTransition_ClearsErrorOnSuccess(t *testing.T) {
 	g.Expect(s.Error).ToNot(BeNil())
 
 	// Now succeed with valid transition
-	s, err = state.Transition(dir, "pm_produce", state.TransitionOpts{}, nowFunc())
+	s, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(s.Error).To(BeNil())
 }

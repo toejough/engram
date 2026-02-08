@@ -87,7 +87,8 @@ func TestNewManager(t *testing.T) {
 }
 
 // setupTestRepo creates a temporary git repo for testing.
-func setupTestRepo(t *testing.T) string {
+// Returns the repo directory and the name of the default branch.
+func setupTestRepo(t *testing.T) (string, string) {
 	t.Helper()
 	g := NewWithT(t)
 
@@ -118,16 +119,45 @@ func setupTestRepo(t *testing.T) string {
 	cmd.Dir = dir
 	g.Expect(cmd.Run()).To(Succeed())
 
-	return dir
+	// Get the default branch name
+	cmd = exec.Command("git", "branch", "--show-current")
+	cmd.Dir = dir
+	output, err := cmd.Output()
+	g.Expect(err).ToNot(HaveOccurred())
+	branchName := strings.TrimSpace(string(output))
+
+	return dir, branchName
+}
+
+func TestManager_DetectBaseBranch(t *testing.T) {
+	t.Run("detects current branch as base", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, _ := setupTestRepo(t)
+		m := worktree.NewManager(repoDir)
+
+		branch, err := m.DetectBaseBranch()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(branch).ToNot(BeEmpty())
+	})
+
+	t.Run("returns the default branch name", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, expectedBranch := setupTestRepo(t)
+		m := worktree.NewManager(repoDir)
+
+		branch, err := m.DetectBaseBranch()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(branch).To(Equal(expectedBranch))
+	})
 }
 
 func TestManager_Create(t *testing.T) {
 	t.Run("creates worktree and branch", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
-		path, err := m.Create("TASK-001")
+		path, err := m.Create("TASK-001", branchName)
 
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(path).To(Equal(m.Path("TASK-001")))
@@ -150,7 +180,7 @@ func TestManager_Create(t *testing.T) {
 
 	t.Run("creates parent directory if needed", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
@@ -159,7 +189,7 @@ func TestManager_Create(t *testing.T) {
 		g.Expect(os.IsNotExist(err)).To(BeTrue())
 
 		// Create should make it
-		path, err := m.Create("TASK-002")
+		path, err := m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(path).ToNot(BeEmpty())
 
@@ -174,16 +204,16 @@ func TestManager_Create(t *testing.T) {
 
 	t.Run("returns error if worktree already exists", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create first time
-		_, err := m.Create("TASK-003")
+		_, err := m.Create("TASK-003", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Create second time should fail
-		_, err = m.Create("TASK-003")
+		_, err = m.Create("TASK-003", branchName)
 		g.Expect(err).To(HaveOccurred())
 
 		// Cleanup
@@ -194,25 +224,18 @@ func TestManager_Create(t *testing.T) {
 func TestManager_Merge(t *testing.T) {
 	t.Run("rebases and fast-forward merges task branch", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, targetBranch := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
-		// Get current branch name
-		cmd := exec.Command("git", "branch", "--show-current")
-		cmd.Dir = repoDir
-		output, err := cmd.Output()
-		g.Expect(err).ToNot(HaveOccurred())
-		targetBranch := strings.TrimSpace(string(output))
-
 		// Create worktree
-		wtPath, err := m.Create("TASK-001")
+		wtPath, err := m.Create("TASK-001", targetBranch)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Make a commit in the worktree
 		testFile := filepath.Join(wtPath, "task-001.txt")
 		g.Expect(os.WriteFile(testFile, []byte("task work"), 0o644)).To(Succeed())
-		cmd = exec.Command("git", "add", ".")
+		cmd := exec.Command("git", "add", ".")
 		cmd.Dir = wtPath
 		g.Expect(cmd.Run()).To(Succeed())
 		cmd = exec.Command("git", "commit", "-m", "TASK-001 work")
@@ -226,7 +249,7 @@ func TestManager_Merge(t *testing.T) {
 		// Verify commit is now on target branch
 		cmd = exec.Command("git", "log", "--oneline", "-1")
 		cmd.Dir = repoDir
-		output, err = cmd.Output()
+		output, err := cmd.Output()
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(string(output)).To(ContainSubstring("TASK-001 work"))
 
@@ -237,23 +260,17 @@ func TestManager_Merge(t *testing.T) {
 
 	t.Run("handles merge with diverged history", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, targetBranch := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
-		cmd := exec.Command("git", "branch", "--show-current")
-		cmd.Dir = repoDir
-		output, err := cmd.Output()
-		g.Expect(err).ToNot(HaveOccurred())
-		targetBranch := strings.TrimSpace(string(output))
-
 		// Create worktree
-		wtPath, err := m.Create("TASK-001")
+		wtPath, err := m.Create("TASK-001", targetBranch)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Make commit in worktree
 		g.Expect(os.WriteFile(filepath.Join(wtPath, "task.txt"), []byte("task"), 0o644)).To(Succeed())
-		cmd = exec.Command("git", "add", ".")
+		cmd := exec.Command("git", "add", ".")
 		cmd.Dir = wtPath
 		g.Expect(cmd.Run()).To(Succeed())
 		cmd = exec.Command("git", "commit", "-m", "task commit")
@@ -282,23 +299,17 @@ func TestManager_Merge(t *testing.T) {
 
 	t.Run("returns error on conflict", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, targetBranch := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
-		cmd := exec.Command("git", "branch", "--show-current")
-		cmd.Dir = repoDir
-		output, err := cmd.Output()
-		g.Expect(err).ToNot(HaveOccurred())
-		targetBranch := strings.TrimSpace(string(output))
-
 		// Create worktree
-		wtPath, err := m.Create("TASK-001")
+		wtPath, err := m.Create("TASK-001", targetBranch)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Modify same file in worktree
 		g.Expect(os.WriteFile(filepath.Join(wtPath, "README.md"), []byte("task version"), 0o644)).To(Succeed())
-		cmd = exec.Command("git", "add", ".")
+		cmd := exec.Command("git", "add", ".")
 		cmd.Dir = wtPath
 		g.Expect(cmd.Run()).To(Succeed())
 		cmd = exec.Command("git", "commit", "-m", "task modifies readme")
@@ -328,7 +339,7 @@ func TestManager_Merge(t *testing.T) {
 func TestManager_List(t *testing.T) {
 	t.Run("returns empty slice when no task worktrees exist", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, _ := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 		worktrees, err := m.List()
@@ -339,12 +350,12 @@ func TestManager_List(t *testing.T) {
 
 	t.Run("returns worktree after create", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create a worktree
-		wtPath, err := m.Create("TASK-001")
+		wtPath, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// List should return it
@@ -363,14 +374,14 @@ func TestManager_List(t *testing.T) {
 
 	t.Run("returns multiple worktrees", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create multiple worktrees
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = m.Create("TASK-002")
+		_, err = m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// List should return both
@@ -392,12 +403,12 @@ func TestManager_List(t *testing.T) {
 
 	t.Run("filters out non-task branches", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create a task worktree
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Create a non-task worktree manually (feature branch)
@@ -422,12 +433,12 @@ func TestManager_List(t *testing.T) {
 func TestManager_Cleanup(t *testing.T) {
 	t.Run("removes worktree directory", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create worktree
-		wtPath, err := m.Create("TASK-001")
+		wtPath, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(wtPath).To(BeADirectory())
 
@@ -441,12 +452,12 @@ func TestManager_Cleanup(t *testing.T) {
 
 	t.Run("deletes the task branch", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create worktree
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify branch exists
@@ -470,12 +481,12 @@ func TestManager_Cleanup(t *testing.T) {
 
 	t.Run("removes parent dir if empty", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create worktree
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Parent dir should exist
@@ -491,14 +502,14 @@ func TestManager_Cleanup(t *testing.T) {
 
 	t.Run("leaves parent dir if other worktrees exist", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create two worktrees
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = m.Create("TASK-002")
+		_, err = m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Cleanup only one
@@ -514,7 +525,7 @@ func TestManager_Cleanup(t *testing.T) {
 
 	t.Run("succeeds even if worktree does not exist", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, _ := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
@@ -527,16 +538,16 @@ func TestManager_Cleanup(t *testing.T) {
 func TestManager_CleanupAll(t *testing.T) {
 	t.Run("removes all task worktrees", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create multiple worktrees
-		path1, err := m.Create("TASK-001")
+		path1, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		path2, err := m.Create("TASK-002")
+		path2, err := m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		path3, err := m.Create("TASK-003")
+		path3, err := m.Create("TASK-003", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// All should exist
@@ -556,14 +567,14 @@ func TestManager_CleanupAll(t *testing.T) {
 
 	t.Run("deletes all task branches", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create multiple worktrees
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = m.Create("TASK-002")
+		_, err = m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Cleanup all
@@ -580,14 +591,14 @@ func TestManager_CleanupAll(t *testing.T) {
 
 	t.Run("removes parent dir when all cleaned", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create worktrees
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = m.Create("TASK-002")
+		_, err = m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Parent dir should exist
@@ -603,7 +614,7 @@ func TestManager_CleanupAll(t *testing.T) {
 
 	t.Run("succeeds when no worktrees exist", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, _ := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
@@ -614,14 +625,14 @@ func TestManager_CleanupAll(t *testing.T) {
 
 	t.Run("leaves no artifacts", func(t *testing.T) {
 		g := NewWithT(t)
-		repoDir := setupTestRepo(t)
+		repoDir, branchName := setupTestRepo(t)
 
 		m := worktree.NewManager(repoDir)
 
 		// Create worktrees
-		_, err := m.Create("TASK-001")
+		_, err := m.Create("TASK-001", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
-		_, err = m.Create("TASK-002")
+		_, err = m.Create("TASK-002", branchName)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Cleanup all

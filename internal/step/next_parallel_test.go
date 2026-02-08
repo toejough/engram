@@ -788,7 +788,11 @@ func createWorktreeForTask(t *testing.T, dir string, taskID string) string {
 	t.Helper()
 
 	mgr := worktree.NewManager(dir)
-	wtPath, err := mgr.Create(taskID)
+	baseBranch, err := mgr.DetectBaseBranch()
+	if err != nil {
+		t.Fatalf("failed to detect base branch: %v", err)
+	}
+	wtPath, err := mgr.Create(taskID, baseBranch)
 	if err != nil {
 		t.Fatalf("failed to create worktree for %s: %v", taskID, err)
 	}

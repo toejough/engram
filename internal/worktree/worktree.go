@@ -55,9 +55,34 @@ func (m *Manager) BranchName(taskID string) string {
 	return "task/" + taskID
 }
 
+// DetectBaseBranch returns the default branch name for the repository.
+// It tries git symbolic-ref refs/remotes/origin/HEAD first, then falls back
+// to the current branch in the main worktree.
+func (m *Manager) DetectBaseBranch() (string, error) {
+	// Try: git symbolic-ref refs/remotes/origin/HEAD
+	output, err := m.git("symbolic-ref", "refs/remotes/origin/HEAD")
+	if err == nil {
+		branch := strings.TrimSpace(output)
+		branch = strings.TrimPrefix(branch, "refs/remotes/origin/")
+		if branch != "" {
+			return branch, nil
+		}
+	}
+	// Fallback: git rev-parse --abbrev-ref HEAD
+	output, err = m.git("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("failed to detect base branch: %w", err)
+	}
+	branch := strings.TrimSpace(output)
+	if branch == "" || branch == "HEAD" {
+		return "", fmt.Errorf("failed to detect base branch: detached HEAD")
+	}
+	return branch, nil
+}
+
 // Create creates a new worktree for the given task.
-// Creates the branch and worktree directory.
-func (m *Manager) Create(taskID string) (string, error) {
+// Creates the branch and worktree directory, branching from baseBranch.
+func (m *Manager) Create(taskID, baseBranch string) (string, error) {
 	wtPath := m.Path(taskID)
 	branch := m.BranchName(taskID)
 
@@ -72,7 +97,7 @@ func (m *Manager) Create(taskID string) (string, error) {
 	}
 
 	// Create branch and worktree in one command
-	output, err := m.git("worktree", "add", "-b", branch, wtPath)
+	output, err := m.git("worktree", "add", "-b", branch, wtPath, baseBranch)
 	if err != nil {
 		return "", fmt.Errorf("failed to create worktree: %s: %w", output, err)
 	}

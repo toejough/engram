@@ -37,6 +37,10 @@ func buildPrompt(skillName string, ctx StepContext) string {
 		prompt += "\n\nIssue: " + ctx.Issue
 	}
 
+	if ctx.CurrentTask != "" {
+		prompt += "\n\nTask: " + ctx.CurrentTask
+	}
+
 	if ctx.QAFeedback != "" {
 		prompt += "\n\nQA feedback:\n" + ctx.QAFeedback
 	}
@@ -60,9 +64,10 @@ func buildPrompt(skillName string, ctx StepContext) string {
 
 // StepContext provides contextual information for the action.
 type StepContext struct {
-	Issue             string   `json:"issue,omitempty"`
-	PriorArtifacts    []string `json:"prior_artifacts,omitempty"`
-	QAFeedback        string   `json:"qa_feedback,omitempty"`
+	Issue              string   `json:"issue,omitempty"`
+	CurrentTask        string   `json:"current_task,omitempty"`
+	PriorArtifacts     []string `json:"prior_artifacts,omitempty"`
+	QAFeedback         string   `json:"qa_feedback,omitempty"`
 	ProducerTranscript string   `json:"producer_transcript,omitempty"`
 }
 
@@ -83,19 +88,27 @@ type TaskInfo struct {
 	Worktree *string `json:"worktree"` // Worktree path (null for sequential, path for parallel)
 }
 
+// TaskListEntry holds information for creating a TaskList entry.
+type TaskListEntry struct {
+	Subject     string `json:"subject"`
+	Description string `json:"description"`
+	ActiveForm  string `json:"active_form"`
+}
+
 // NextResult holds the structured output of step next.
 type NextResult struct {
-	Action        string      `json:"action"`                   // spawn-producer, spawn-qa, commit, transition, all-complete
-	Skill         string      `json:"skill,omitempty"`          // Skill name
-	SkillPath     string      `json:"skill_path,omitempty"`     // Path to SKILL.md
-	Model         string      `json:"model,omitempty"`          // Model to use
-	Artifact      string      `json:"artifact,omitempty"`       // Artifact produced
-	Phase         string      `json:"phase,omitempty"`          // Current or target phase
-	Context       StepContext `json:"context"`                  // Contextual information
-	TaskParams    *TaskParams `json:"task_params,omitempty"`    // Task tool call parameters (non-nil for spawn actions)
-	ExpectedModel string      `json:"expected_model,omitempty"` // Expected model for handshake validation
-	Details       string      `json:"details,omitempty"`        // Details for escalation actions
-	Tasks         []TaskInfo  `json:"tasks"`                    // Array of unblocked tasks for parallel execution (TASK-1)
+	Action        string          `json:"action"`                   // spawn-producer, spawn-qa, commit, transition, gate, tasklist-create, all-complete
+	Skill         string          `json:"skill,omitempty"`          // Skill name
+	SkillPath     string          `json:"skill_path,omitempty"`     // Path to SKILL.md
+	Model         string          `json:"model,omitempty"`          // Model to use
+	Artifact      string          `json:"artifact,omitempty"`       // Artifact produced
+	Phase         string          `json:"phase,omitempty"`          // Current or target phase
+	Context       StepContext     `json:"context"`                  // Contextual information
+	TaskParams    *TaskParams     `json:"task_params,omitempty"`    // Task tool call parameters (non-nil for spawn actions)
+	ExpectedModel string          `json:"expected_model,omitempty"` // Expected model for handshake validation
+	Details       string          `json:"details,omitempty"`        // Details for escalation actions
+	Tasks         []TaskInfo      `json:"tasks"`                    // Array of unblocked tasks for parallel execution (TASK-1)
+	Entries       []TaskListEntry `json:"entries,omitempty"`        // TaskList entries for tasklist-create action
 }
 
 // CompleteResult holds the input to step complete.
@@ -170,6 +183,7 @@ func Next(dir string) (NextResult, error) {
 
 	ctx := StepContext{
 		Issue:          s.Project.Issue,
+		CurrentTask:    s.Progress.CurrentTask,
 		PriorArtifacts: []string{},
 	}
 
@@ -236,6 +250,25 @@ func Next(dir string) (NextResult, error) {
 		result.Action = "commit"
 		result.Phase = currentPhase
 		result.Context = ctx
+		return result, nil
+
+	case workflow.StateTypeApprove:
+		result.Action = "gate"
+		result.Phase = currentPhase
+		result.Details = fmt.Sprintf("Approval required at %s", currentPhase)
+		return result, nil
+
+	case workflow.StateTypeInterview:
+		result.Action = "gate"
+		result.Phase = currentPhase
+		result.Details = fmt.Sprintf("Interview/review required at %s", currentPhase)
+		return result, nil
+
+	case workflow.StateTypeTaskList:
+		entries := buildTaskListEntries(s.Project.Workflow)
+		result.Action = "tasklist-create"
+		result.Phase = currentPhase
+		result.Entries = entries
 		return result, nil
 
 	default:
@@ -306,6 +339,24 @@ func Complete(dir string, result CompleteResult, now func() time.Time) error {
 		_, err = state.SetPair(dir, key, pair)
 		return err
 
+	case "gate":
+		// Gate completed (approve/interview done) — transition to next phase
+		targetPhase := result.Phase
+		if targetPhase == "" {
+			return fmt.Errorf("gate completion requires a target phase")
+		}
+		_, err = state.Transition(dir, targetPhase, state.TransitionOpts{}, now)
+		return err
+
+	case "tasklist-create":
+		// TaskList creation completed — transition to next phase
+		targetPhase := result.Phase
+		if targetPhase == "" {
+			return fmt.Errorf("tasklist-create completion requires a target phase")
+		}
+		_, err = state.Transition(dir, targetPhase, state.TransitionOpts{}, now)
+		return err
+
 	case "transition":
 		targetPhase := result.Phase
 		if targetPhase == "" {
@@ -360,6 +411,109 @@ func getPair(s state.State, phase string) state.PairState {
 		return state.PairState{}
 	}
 	return pair
+}
+
+// phaseGroupDescriptions maps state type prefixes to human-readable descriptions.
+var phaseGroupDescriptions = map[string]struct {
+	Subject     string
+	Description string
+	ActiveForm  string
+}{
+	"plan":          {"Create project plan", "Structured plan conversation covering problem space, UX, and implementation", "Creating project plan"},
+	"pm":            {"Gather requirements", "Interview user and produce requirements.md with REQ-N IDs", "Gathering requirements"},
+	"design":        {"Design user experience", "Interview user and produce design.md with DES-N IDs", "Designing user experience"},
+	"arch":          {"Define architecture", "Interview user and produce architecture.md with ARCH-N IDs", "Defining architecture"},
+	"artifact":      {"Produce artifacts in parallel", "Parallel production of requirements, design, and architecture artifacts", "Producing artifacts"},
+	"breakdown":     {"Break down into tasks", "Decompose architecture into implementation tasks with dependency graph", "Breaking down tasks"},
+	"item":          {"Execute work items", "Select, fork, and execute TDD loops for each task", "Executing work items"},
+	"tdd":           {"TDD implementation", "Red-green-refactor cycle for current task", "Running TDD cycle"},
+	"documentation": {"Update documentation", "Produce and update project documentation", "Updating documentation"},
+	"alignment":     {"Validate traceability", "Validate traceability chain across project artifacts", "Validating traceability"},
+	"evaluation":    {"Evaluate project", "Consolidated retrospective and summary with tiered findings", "Evaluating project"},
+	"retro":         {"Write retrospective", "Produce project retrospective with process improvement recommendations", "Writing retrospective"},
+	"summary":       {"Write summary", "Produce project summary with key decisions and outcomes", "Writing summary"},
+	"align_infer":   {"Infer artifacts", "Infer requirements, design, architecture, and tests from existing code", "Inferring artifacts"},
+}
+
+// buildTaskListEntries inspects the workflow definition and returns entries
+// for each major phase group. This is fully deterministic — the orchestrator
+// just loops over entries and calls TaskCreate for each.
+func buildTaskListEntries(workflowName string) []TaskListEntry {
+	cfg := workflow.DefaultConfig
+	transitions, err := cfg.TransitionsFor(workflowName)
+	if err != nil {
+		return nil
+	}
+
+	initState, err := cfg.InitState(workflowName)
+	if err != nil {
+		return nil
+	}
+
+	// BFS to get ordered phases
+	visited := map[string]bool{}
+	var ordered []string
+	queue := []string{initState}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if visited[current] {
+			continue
+		}
+		visited[current] = true
+		ordered = append(ordered, current)
+		for _, target := range transitions[current] {
+			if !visited[target] {
+				queue = append(queue, target)
+			}
+		}
+	}
+
+	// Group by prefix and emit one entry per group
+	var entries []TaskListEntry
+	seenGroups := map[string]bool{}
+	for _, phase := range ordered {
+		group := phaseGroup(phase)
+		if seenGroups[group] || group == "tasklist" || group == "complete" ||
+			group == "phase" || group == "crosscut" || group == "merge" ||
+			group == "rebase" || group == "worktree" {
+			continue
+		}
+		seenGroups[group] = true
+
+		desc, ok := phaseGroupDescriptions[group]
+		if !ok {
+			continue
+		}
+		entries = append(entries, TaskListEntry{
+			Subject:     desc.Subject,
+			Description: desc.Description,
+			ActiveForm:  desc.ActiveForm,
+		})
+	}
+
+	return entries
+}
+
+// phaseGroup extracts the group prefix from a phase name.
+// e.g., "pm_produce" -> "pm", "tdd_red_produce" -> "tdd", "item_select" -> "item"
+func phaseGroup(phase string) string {
+	// Special cases for multi-word prefixes
+	for _, prefix := range []string{"align_infer", "tdd_red", "tdd_green", "tdd_refactor"} {
+		if len(phase) >= len(prefix) && phase[:len(prefix)] == prefix {
+			if prefix == "tdd_red" || prefix == "tdd_green" || prefix == "tdd_refactor" {
+				return "tdd"
+			}
+			return prefix
+		}
+	}
+	// Default: split on first underscore
+	for i, c := range phase {
+		if c == '_' {
+			return phase[:i]
+		}
+	}
+	return phase
 }
 
 // populateTasks detects all unblocked tasks and creates TaskInfo entries.

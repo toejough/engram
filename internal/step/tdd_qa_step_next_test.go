@@ -29,7 +29,7 @@ func navigateToPhaseForStepNext(t *testing.T, dir string, targetPhase string) {
 	// For decide states, the "approved" transition is targets[1] which goes
 	// to the next produce state (e.g., tdd_red_decide -> tdd_green_produce).
 	allPhases := []string{
-		"item_select", "item_fork", "worktree_create",
+		"tasklist_create", "item_select", "item_fork", "worktree_create",
 		"tdd_red_produce", "tdd_red_qa", "tdd_red_decide", "tdd_green_produce",
 		"tdd_green_qa", "tdd_green_decide", "tdd_refactor_produce",
 		"tdd_refactor_qa",

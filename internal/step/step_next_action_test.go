@@ -23,7 +23,7 @@ func TestStepNextTDDRedProducerAction(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Navigate to tdd_red_produce via scoped workflow
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -53,7 +53,7 @@ func TestStepNextTDDRedQAAction(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Navigate to tdd_red_qa via scoped workflow
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce", "tdd_red_qa"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce", "tdd_red_qa"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -77,7 +77,7 @@ func TestStepNextTDDRedProduceCompleteTransitions(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Navigate to tdd_red_produce
-		for _, phase := range []string{"item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
+		for _, phase := range []string{"tasklist_create", "item_select", "item_fork", "worktree_create", "tdd_red_produce"} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -98,7 +98,7 @@ func TestStepNextTDDRedProduceCompleteTransitions(t *testing.T) {
 }
 
 func TestStepNextCommittedAction(t *testing.T) {
-	t.Run("returns transition to design_produce after pm_commit committed", func(t *testing.T) {
+	t.Run("returns transition to item_select after breakdown_commit committed in new workflow", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
 
@@ -107,14 +107,19 @@ func TestStepNextCommittedAction(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Navigate to pm_commit via new workflow
-		for _, phase := range []string{"pm_produce", "pm_qa", "pm_decide", "pm_commit"} {
+		// Navigate to breakdown_commit via new workflow
+		for _, phase := range []string{
+			"tasklist_create", "plan_produce", "plan_approve",
+			"artifact_fork", "artifact_pm_produce", "artifact_join",
+			"crosscut_qa", "crosscut_decide", "artifact_commit",
+			"breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit",
+		} {
 			_, err = state.Transition(dir, phase, state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
 		// Mark as committed
-		_, err = state.SetPair(dir, "pm", state.PairState{
+		_, err = state.SetPair(dir, "breakdown", state.PairState{
 			Iteration:        1,
 			MaxIterations:    3,
 			ProducerComplete: true,
@@ -125,6 +130,6 @@ func TestStepNextCommittedAction(t *testing.T) {
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		g.Expect(result.Phase).To(Equal("design_produce"))
+		g.Expect(result.Phase).To(Equal("item_select"))
 	})
 }
