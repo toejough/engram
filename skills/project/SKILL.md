@@ -32,13 +32,17 @@ If you catch yourself writing files directly, STOP and spawn a teammate instead.
 
 ### Spawn Request Protocol
 
+The orchestrator owns the full spawn lifecycle. The team lead is a **spawn service** — it spawns and validates the handshake, nothing more.
+
 When the orchestrator detects spawn-producer or spawn-qa action from projctl step next, it composes a SendMessage with spawn request containing the full task_params JSON payload:
 
-1. Orchestrator composes SendMessage with spawn request message including `task_params` JSON (subagent_type, name, model, prompt, team_name) and includes `expected_model`, `action`, and `phase` fields
+1. Orchestrator sends spawn request to team lead — includes `task_params` JSON, `expected_model`, `action`, and `phase` fields
 2. Team lead receives the spawn request message and extracts task_params
-3. Team lead spawns teammate via Task tool
-4. Team lead validates model handshake (see spawn-producer/spawn-qa handlers)
-5. Team lead sends spawn confirmation back to orchestrator
+3. Team lead spawns teammate via Task tool, validates model handshake
+4. Team lead messages orchestrator: "spawn-confirmed: \<name\>" or "spawn-failed: \<details\>"
+5. **Teammate messages orchestrator directly when done** (teammate's prompt says "send a message to orchestrator")
+6. Orchestrator extracts result details from teammate's message
+7. Orchestrator calls `projctl step complete` with proper per-action flags
 
 ---
 
@@ -104,13 +108,40 @@ loop:
   1. result = projctl step next --dir <project-dir>
   2. Parse result JSON
   3. Switch on result.action:
-     - "spawn-producer": Spawn teammate to invoke /<skill> with context
-     - "spawn-qa": Spawn QA teammate with producer SKILL.md + artifacts
-     - "commit": Run /commit
-     - "transition": projctl step complete --dir . --action transition --status done --phase <phase>
-     - "all-complete": Stop looping, run end-of-command sequence
-  4. Report result: projctl step complete --dir . --action <action> --status done [flags]
-  5. goto loop
+
+     "spawn-producer":
+       a. SendMessage to team lead: spawn request with task_params + expected_model
+       b. WAIT for team lead's message: "spawn-confirmed: <name>" or "spawn-failed: ..."
+       c. On spawn-failed:
+          projctl step complete --dir . --action spawn-producer --status failed --reported-model "<model>"
+          goto loop
+       d. WAIT for teammate's completion message (teammate messages orchestrator directly)
+       e. Extract yield to memory (non-blocking):
+          projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id> || echo "Warning: memory extract failed"
+       f. projctl step complete --dir . --action spawn-producer --status done --producer-transcript "<path-if-available>"
+       g. goto loop
+
+     "spawn-qa":
+       a. SendMessage to team lead: spawn request with task_params + expected_model
+       b. WAIT for team lead's message: "spawn-confirmed: <name>" or "spawn-failed: ..."
+       c. On spawn-failed:
+          projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model>"
+          goto loop
+       d. WAIT for QA teammate's completion message (contains verdict + feedback)
+       e. Extract verdict from message
+       f. Report per-verdict:
+          - "approved": projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved
+          - "improvement-request": projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<feedback>"
+          - "escalate-user": Present to user
+       g. goto loop
+
+     "commit": Run /commit, then:
+       projctl step complete --dir . --action commit --status done
+
+     "transition":
+       projctl step complete --dir . --action transition --status done --phase <phase>
+
+     "all-complete": Stop looping, run end-of-command sequence
 ```
 
 ### Step Next JSON Output
@@ -142,75 +173,36 @@ loop:
 
 ### Action Handlers
 
-#### spawn-producer
+#### spawn-producer / spawn-qa (Team Lead Handlers)
 
-Spawn a teammate using `task_params` from the step next output. Note that `team_name` is included in `task_params` and should not be manually injected:
+These describe the **team lead's** job when it receives a spawn request from the orchestrator. The team lead does NOT call `projctl step complete` — the orchestrator handles that after receiving the teammate's completion message.
 
-```
-Task(subagent_type: result.task_params.subagent_type,
-     name: result.task_params.name,
-     model: result.task_params.model,
-     prompt: result.task_params.prompt)
-```
+1. Spawn teammate using `task_params` from the spawn request:
+   ```
+   Task(subagent_type: result.task_params.subagent_type,
+        name: result.task_params.name,
+        model: result.task_params.model,
+        prompt: result.task_params.prompt)
+   ```
 
-**Model validation handshake:** After spawning, read the teammate's first message and verify the model:
+2. **Model validation handshake:** After spawning, read the teammate's first message and verify the model:
+   - Perform case-insensitive substring match of `expected_model` against the teammate's first message
 
-1. Perform case-insensitive substring match of `result.expected_model` against the teammate's first message
-2. **Match:** Send spawn confirmation message to orchestrator using SendMessage:
+3. **Match:** Send spawn confirmation message to orchestrator:
    ```
    SendMessage(type: "message", recipient: "orchestrator",
                content: "spawn-confirmed: <teammate-name>",
                summary: "Spawn confirmed for <teammate-name>")
    ```
-   Then proceed with the teammate's work. On spawn-producer completion, capture yield to memory:
-   ```bash
-   # Extract yield results to memory (failures are non-blocking — logged but don't stop workflow)
-   projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id> || echo "Warning: memory extract failed (non-blocking)"
+   Team lead's job is **done** — teammate will message orchestrator directly when finished.
 
-   # Report completion
-   projctl step complete --dir . --action spawn-producer --status done
-   ```
-3. **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator using SendMessage:
+4. **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator:
    ```
    SendMessage(type: "message", recipient: "orchestrator",
                content: "spawn-failed: Model mismatch for <teammate-name>. Expected <expected>, got <actual>",
                summary: "Spawn failed for <teammate-name>")
    ```
-   Report failure immediately:
-   ```
-   projctl step complete --dir . --action spawn-producer --status failed --reported-model "<model from first message>"
-   ```
-
-#### spawn-qa
-
-Spawn a QA teammate using `task_params` from the step next output. Note that `team_name` is included in `task_params` and should not be manually injected:
-
-```
-Task(subagent_type: result.task_params.subagent_type,
-     name: result.task_params.name,
-     model: result.task_params.model,
-     prompt: result.task_params.prompt)
-```
-
-**Model validation handshake:** Same as spawn-producer — verify `expected_model` against the teammate's first message before proceeding.
-
-- **Match:** Send spawn confirmation message to orchestrator using SendMessage:
-  ```
-  SendMessage(type: "message", recipient: "orchestrator",
-              content: "spawn-confirmed: <teammate-name>",
-              summary: "Spawn confirmed for <teammate-name>")
-  ```
-  Then let QA run. Handle the QA verdict:
-  - "approved": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict approved`
-  - "improvement-request": `projctl step complete --dir . --action spawn-qa --status done --qa-verdict improvement-request --qa-feedback "<qa feedback>"`
-  - "escalate-user": Present to user
-- **Mismatch:** Do not let the teammate continue. Send failure message to orchestrator using SendMessage:
-  ```
-  SendMessage(type: "message", recipient: "orchestrator",
-              content: "spawn-failed: Model mismatch for <teammate-name>. Expected <expected>, got <actual>",
-              summary: "Spawn failed for <teammate-name>")
-  ```
-  Report failure immediately: `projctl step complete --dir . --action spawn-qa --status failed --reported-model "<model from first message>"`
+   Team lead's job is **done** — orchestrator handles `step complete --status failed`.
 
 #### escalate-user
 
@@ -281,27 +273,42 @@ For each phase (e.g., tdd_red, design, architecture):
 └─────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────┐
-│ 2. Spawn producer teammate              │
-│    (receives prior QA feedback if iter>0)│
+│ 2. Orchestrator asks team lead to spawn │
+│    Team lead validates handshake        │
+│    Team lead → "spawn-confirmed"        │
 └─────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────┐
-│ 3. projctl step complete --action       │
+│ 3. WAIT for teammate's completion msg   │
+│    (teammate messages orchestrator)     │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 4. projctl step complete --action       │
 │    spawn-producer --status done         │
+│    --producer-transcript "<path>"       │
 └─────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────┐
-│ 4. projctl step next                    │
+│ 5. projctl step next                    │
 │    → action: spawn-qa                   │
 └─────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────┐
-│ 5. Spawn QA teammate                    │
-│    (validates producer output)          │
+│ 6. Orchestrator asks team lead to spawn │
+│    Team lead validates handshake        │
+│    Team lead → "spawn-confirmed"        │
 └─────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────┐
-│ 6. QA returns verdict                   │
+│ 7. WAIT for QA teammate's completion    │
+│    (verdict + feedback in message)      │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│ 8. projctl step complete --action       │
+│    spawn-qa --status done               │
+│    --qa-verdict <v> [--qa-feedback "f"] │
 └─────────────────────────────────────────┘
         ↓                       ↓
      approved          improvement-request

@@ -816,6 +816,17 @@ func TestPromptAssembly(t *testing.T) {
 		g.Expect(result.TaskParams).To(BeNil())
 	})
 
+	t.Run("prompt instructs teammate to message orchestrator (ISSUE-164)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		navigateToPlanProduce(g, dir)
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.TaskParams.Prompt).To(ContainSubstring("send a message to orchestrator"))
+		g.Expect(result.TaskParams.Prompt).ToNot(ContainSubstring("send a message to team-lead"))
+	})
+
 	t.Run("spawn-qa prompt contains QA skill invocation", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()

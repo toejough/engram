@@ -56,7 +56,7 @@ func buildPrompt(skillName string, ctx StepContext) string {
 		prompt += "\n\nProducer transcript:\n" + ctx.ProducerTranscript
 	}
 
-	prompt += "\n\nWhen you finish, send a message to team-lead with your results."
+	prompt += "\n\nWhen you finish, send a message to orchestrator with your results."
 
 
 	return prompt

@@ -238,7 +238,7 @@ else
 fi
 
 echo "Test: spawn-qa requires model handshake validation"
-if grep -A 20 "#### spawn-qa" "$SKILL_FILE" | grep -qi "handshake\|validate.*model\|verify.*model"; then
+if grep -A 20 "#### spawn-producer.*spawn-qa\|#### spawn-qa" "$SKILL_FILE" | grep -qi "handshake\|validate.*model\|verify.*model"; then
   pass "spawn-qa requires model handshake validation"
 else
   fail "spawn-qa missing model handshake validation requirement"
@@ -402,6 +402,49 @@ if grep -qi "log.*retry.*attempt\|logging.*retry\|orchestrator.*log.*retry" "$SK
   pass "Orchestrator logs retry attempts"
 else
   fail "Missing orchestrator retry logging documentation"
+fi
+
+# --- ISSUE-164/165: Orchestrator owns full spawn lifecycle ---
+
+echo ""
+echo "--- ISSUE-164/165: Orchestrator Spawn Lifecycle ---"
+
+echo "Test: ISSUE-164: Control loop requires WAIT for teammate message before step complete"
+if grep -qi "WAIT.*teammate.*message\|WAIT.*completion.*message\|WAIT.*QA.*teammate" "$SKILL_FILE"; then
+  pass "Control loop requires WAIT for teammate message"
+else
+  fail "Missing WAIT for teammate message in control loop"
+fi
+
+echo "Test: ISSUE-165: spawn-producer step complete includes --producer-transcript"
+if grep -q "\-\-producer-transcript" "$SKILL_FILE"; then
+  pass "spawn-producer step complete includes --producer-transcript flag"
+else
+  fail "Missing --producer-transcript flag in spawn-producer step complete"
+fi
+
+echo "Test: Action handlers don't call step complete (orchestrator does)"
+# Extract the Team Lead Handlers section up to the next #### heading
+# Exclude lines that describe what NOT to do (contains "NOT" before "step complete")
+HANDLER_SECTION=$(awk '/#### spawn-producer.*spawn-qa.*Team Lead/{found=1;next} /^#### /{found=0} found' "$SKILL_FILE")
+if echo "$HANDLER_SECTION" | grep -v "NOT.*step complete\|does not.*step complete" | grep -q "projctl step complete --"; then
+  fail "Action handlers still call projctl step complete (orchestrator should own this)"
+else
+  pass "Action handlers don't call step complete"
+fi
+
+echo "Test: Team lead is described as spawn service"
+if grep -qi "spawn service\|spawn.*service" "$SKILL_FILE"; then
+  pass "Team lead described as spawn service"
+else
+  fail "Missing spawn service description for team lead"
+fi
+
+echo "Test: Teammate messages orchestrator directly"
+if grep -qi "teammate.*messages.*orchestrator.*directly\|teammate messages orchestrator" "$SKILL_FILE"; then
+  pass "Teammate messages orchestrator directly"
+else
+  fail "Missing documentation that teammate messages orchestrator directly"
 fi
 
 # --- Content that must be REMOVED ---
