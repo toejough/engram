@@ -55,6 +55,19 @@ func (m *Manager) BranchName(taskID string) string {
 	return "task/" + taskID
 }
 
+// ProjectPath returns the canonical worktree path for a project.
+// Pattern: <repo>/../<repo-name>-worktrees/project-<name>/
+func (m *Manager) ProjectPath(projectName string) string {
+	sanitized := strings.ReplaceAll(projectName, ".", "-")
+	return filepath.Join(m.ParentDir(), "project-"+sanitized)
+}
+
+// ProjectBranchName returns the branch name for a project.
+// Pattern: project/<name>
+func (m *Manager) ProjectBranchName(projectName string) string {
+	return "project/" + projectName
+}
+
 // DetectBaseBranch returns the default branch name for the repository.
 // It tries git symbolic-ref refs/remotes/origin/HEAD first, then falls back
 // to the current branch in the main worktree.
@@ -105,11 +118,100 @@ func (m *Manager) Create(taskID, baseBranch string) (string, error) {
 	return wtPath, nil
 }
 
+// CreateProject creates a new worktree for a project.
+// Creates the branch and worktree directory, branching from baseBranch.
+func (m *Manager) CreateProject(projectName, baseBranch string) (string, error) {
+	wtPath := m.ProjectPath(projectName)
+	branch := m.ProjectBranchName(projectName)
+
+	if err := os.MkdirAll(m.ParentDir(), 0o755); err != nil {
+		return "", fmt.Errorf("failed to create worktree parent dir: %w", err)
+	}
+
+	if _, err := os.Stat(wtPath); err == nil {
+		return "", fmt.Errorf("project worktree already exists at %s", wtPath)
+	}
+
+	output, err := m.git("worktree", "add", "-b", branch, wtPath, baseBranch)
+	if err != nil {
+		return "", fmt.Errorf("failed to create project worktree: %s: %w", output, err)
+	}
+
+	return wtPath, nil
+}
+
+// MergeProject rebases a project branch onto the target and fast-forward merges.
+func (m *Manager) MergeProject(projectName, onto string) error {
+	branch := m.ProjectBranchName(projectName)
+	wtPath := m.ProjectPath(projectName)
+
+	// Remove worktree first (can't rebase a checked-out branch)
+	if _, err := os.Stat(wtPath); err == nil {
+		if _, err := m.git("worktree", "remove", "--force", wtPath); err != nil {
+			if rmErr := os.RemoveAll(wtPath); rmErr != nil {
+				return fmt.Errorf("failed to remove project worktree before merge: %w", rmErr)
+			}
+			_, _ = m.git("worktree", "prune")
+		}
+	}
+
+	// Rebase project branch onto target
+	output, err := m.git("rebase", onto, branch)
+	if err != nil {
+		if strings.Contains(output, "CONFLICT") || strings.Contains(output, "could not apply") {
+			_, _ = m.git("rebase", "--abort")
+			return &MergeConflictError{
+				TaskID:  projectName,
+				Message: output,
+			}
+		}
+		return fmt.Errorf("rebase failed: %s: %w", output, err)
+	}
+
+	// Fast-forward merge
+	output, err = m.git("checkout", onto)
+	if err != nil {
+		return fmt.Errorf("checkout failed: %s: %w", output, err)
+	}
+
+	output, err = m.git("merge", "--ff-only", branch)
+	if err != nil {
+		return fmt.Errorf("merge failed: %s: %w", output, err)
+	}
+
+	// Delete the branch
+	_, _ = m.git("branch", "-D", branch)
+
+	// Try to remove parent dir if empty
+	_ = os.Remove(m.ParentDir())
+
+	return nil
+}
+
+// CleanupProject removes a project worktree and its branch.
+func (m *Manager) CleanupProject(projectName string) error {
+	wtPath := m.ProjectPath(projectName)
+	branch := m.ProjectBranchName(projectName)
+
+	if _, err := m.git("worktree", "remove", "--force", wtPath); err != nil {
+		if rmErr := os.RemoveAll(wtPath); rmErr != nil {
+			return fmt.Errorf("failed to remove project worktree directory: %w", rmErr)
+		}
+		_, _ = m.git("worktree", "prune")
+	}
+
+	_, _ = m.git("branch", "-D", branch)
+	_ = os.Remove(m.ParentDir())
+
+	return nil
+}
+
 // WorktreeInfo contains information about a worktree.
 type WorktreeInfo struct {
 	TaskID string
 	Path   string
 	Branch string
+	Type   string // "task" or "project"
 }
 
 // List returns all worktrees managed by this manager.
@@ -132,13 +234,24 @@ func (m *Manager) List() ([]WorktreeInfo, error) {
 			currentBranch = strings.TrimPrefix(line, "branch refs/heads/")
 		} else if line == "" && currentPath != "" {
 			// Only include worktrees in our managed directory
-			if strings.HasPrefix(currentPath, parentDir) && strings.HasPrefix(currentBranch, "task/") {
-				taskID := strings.TrimPrefix(currentBranch, "task/")
-				worktrees = append(worktrees, WorktreeInfo{
-					TaskID: taskID,
-					Path:   currentPath,
-					Branch: currentBranch,
-				})
+			if strings.HasPrefix(currentPath, parentDir) {
+				if strings.HasPrefix(currentBranch, "task/") {
+					taskID := strings.TrimPrefix(currentBranch, "task/")
+					worktrees = append(worktrees, WorktreeInfo{
+						TaskID: taskID,
+						Path:   currentPath,
+						Branch: currentBranch,
+						Type:   "task",
+					})
+				} else if strings.HasPrefix(currentBranch, "project/") {
+					projectName := strings.TrimPrefix(currentBranch, "project/")
+					worktrees = append(worktrees, WorktreeInfo{
+						TaskID: projectName,
+						Path:   currentPath,
+						Branch: currentBranch,
+						Type:   "project",
+					})
+				}
 			}
 			currentPath = ""
 			currentBranch = ""

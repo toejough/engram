@@ -430,6 +430,225 @@ func TestManager_List(t *testing.T) {
 		_ = cmd.Run()
 	})
 }
+func TestManager_ProjectPath(t *testing.T) {
+	t.Run("returns canonical project worktree path", func(t *testing.T) {
+		g := NewWithT(t)
+
+		m := worktree.NewManager("/Users/joe/repos/personal/projctl")
+		path := m.ProjectPath("my-feature")
+
+		g.Expect(path).To(Equal("/Users/joe/repos/personal/projctl-worktrees/project-my-feature"))
+	})
+
+	t.Run("sanitizes project name with dots", func(t *testing.T) {
+		g := NewWithT(t)
+
+		m := worktree.NewManager("/repos/myproject")
+		path := m.ProjectPath("v2.0.release")
+
+		g.Expect(path).To(Equal("/repos/myproject-worktrees/project-v2-0-release"))
+	})
+}
+
+func TestManager_ProjectBranchName(t *testing.T) {
+	t.Run("returns project branch name", func(t *testing.T) {
+		g := NewWithT(t)
+
+		m := worktree.NewManager("/repos/myproject")
+		branch := m.ProjectBranchName("my-feature")
+
+		g.Expect(branch).To(Equal("project/my-feature"))
+	})
+}
+
+func TestManager_CreateProject(t *testing.T) {
+	t.Run("creates project worktree and branch", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, branchName := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+		path, err := m.CreateProject("my-feature", branchName)
+
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(path).To(Equal(m.ProjectPath("my-feature")))
+
+		// Verify worktree directory exists
+		info, err := os.Stat(path)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(info.IsDir()).To(BeTrue())
+
+		// Verify branch was created
+		cmd := exec.Command("git", "branch", "--list", "project/my-feature")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(output)).To(ContainSubstring("project/my-feature"))
+
+		// Cleanup
+		_ = m.CleanupProject("my-feature")
+	})
+
+	t.Run("returns error if project worktree already exists", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, branchName := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		_, err := m.CreateProject("my-feature", branchName)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = m.CreateProject("my-feature", branchName)
+		g.Expect(err).To(HaveOccurred())
+
+		_ = m.CleanupProject("my-feature")
+	})
+}
+
+func TestManager_MergeProject(t *testing.T) {
+	t.Run("rebases and fast-forward merges project branch", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, targetBranch := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		wtPath, err := m.CreateProject("my-feature", targetBranch)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Make a commit in the project worktree
+		testFile := filepath.Join(wtPath, "feature.txt")
+		g.Expect(os.WriteFile(testFile, []byte("feature work"), 0o644)).To(Succeed())
+		cmd := exec.Command("git", "add", ".")
+		cmd.Dir = wtPath
+		g.Expect(cmd.Run()).To(Succeed())
+		cmd = exec.Command("git", "commit", "-m", "feature work")
+		cmd.Dir = wtPath
+		g.Expect(cmd.Run()).To(Succeed())
+
+		// Merge back
+		err = m.MergeProject("my-feature", targetBranch)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify commit is on target branch
+		cmd = exec.Command("git", "log", "--oneline", "-1")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(output)).To(ContainSubstring("feature work"))
+
+		// Verify file exists in main repo
+		_, err = os.Stat(filepath.Join(repoDir, "feature.txt"))
+		g.Expect(err).ToNot(HaveOccurred())
+	})
+
+	t.Run("returns error on conflict", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, targetBranch := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		wtPath, err := m.CreateProject("my-feature", targetBranch)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Modify same file in project worktree
+		g.Expect(os.WriteFile(filepath.Join(wtPath, "README.md"), []byte("project version"), 0o644)).To(Succeed())
+		cmd := exec.Command("git", "add", ".")
+		cmd.Dir = wtPath
+		g.Expect(cmd.Run()).To(Succeed())
+		cmd = exec.Command("git", "commit", "-m", "project modifies readme")
+		cmd.Dir = wtPath
+		g.Expect(cmd.Run()).To(Succeed())
+
+		// Modify same file in main repo
+		g.Expect(os.WriteFile(filepath.Join(repoDir, "README.md"), []byte("main version"), 0o644)).To(Succeed())
+		cmd = exec.Command("git", "add", ".")
+		cmd.Dir = repoDir
+		g.Expect(cmd.Run()).To(Succeed())
+		cmd = exec.Command("git", "commit", "-m", "main modifies readme")
+		cmd.Dir = repoDir
+		g.Expect(cmd.Run()).To(Succeed())
+
+		// Merge should fail with conflict
+		err = m.MergeProject("my-feature", targetBranch)
+		g.Expect(err).To(HaveOccurred())
+
+		var conflictErr *worktree.MergeConflictError
+		g.Expect(errors.As(err, &conflictErr)).To(BeTrue())
+	})
+}
+
+func TestManager_CleanupProject(t *testing.T) {
+	t.Run("removes project worktree and branch", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, branchName := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		wtPath, err := m.CreateProject("my-feature", branchName)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(wtPath).To(BeADirectory())
+
+		err = m.CleanupProject("my-feature")
+		g.Expect(err).ToNot(HaveOccurred())
+
+		g.Expect(wtPath).ToNot(BeADirectory())
+
+		// Branch should be gone
+		cmd := exec.Command("git", "branch", "--list", "project/my-feature")
+		cmd.Dir = repoDir
+		output, err := cmd.Output()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(strings.TrimSpace(string(output))).To(BeEmpty())
+	})
+}
+
+func TestManager_ListIncludesProjects(t *testing.T) {
+	t.Run("lists both task and project worktrees", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, branchName := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		_, err := m.Create("TASK-001", branchName)
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = m.CreateProject("my-feature", branchName)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		worktrees, err := m.List()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(HaveLen(2))
+
+		// Extract types
+		types := make(map[string]bool)
+		for _, wt := range worktrees {
+			types[wt.Type] = true
+		}
+		g.Expect(types).To(HaveKey("task"))
+		g.Expect(types).To(HaveKey("project"))
+
+		_ = m.Cleanup("TASK-001")
+		_ = m.CleanupProject("my-feature")
+	})
+
+	t.Run("project worktree has correct type field", func(t *testing.T) {
+		g := NewWithT(t)
+		repoDir, branchName := setupTestRepo(t)
+
+		m := worktree.NewManager(repoDir)
+
+		_, err := m.CreateProject("my-project", branchName)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		worktrees, err := m.List()
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(worktrees).To(HaveLen(1))
+		g.Expect(worktrees[0].Type).To(Equal("project"))
+		g.Expect(worktrees[0].TaskID).To(Equal("my-project"))
+		g.Expect(worktrees[0].Branch).To(Equal("project/my-project"))
+
+		_ = m.CleanupProject("my-project")
+	})
+}
+
 func TestManager_Cleanup(t *testing.T) {
 	t.Run("removes worktree directory", func(t *testing.T) {
 		g := NewWithT(t)

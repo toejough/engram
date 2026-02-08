@@ -40,6 +40,69 @@ func worktreeCreate(args worktreeCreateArgs) error {
 	return nil
 }
 
+type worktreeCreateProjectArgs struct {
+	ProjectName string `targ:"flag,short=p,required,desc=Project name"`
+	BaseBranch  string `targ:"flag,short=b,desc=Base branch (auto-detected if not provided)"`
+	RepoDir     string `targ:"flag,short=r,desc=Repository root (defaults to current directory)"`
+}
+
+func worktreeCreateProject(args worktreeCreateProjectArgs) error {
+	repoDir := args.RepoDir
+	if repoDir == "" {
+		repoDir = "."
+	}
+
+	mgr := worktree.NewManager(repoDir)
+
+	baseBranch := args.BaseBranch
+	if baseBranch == "" {
+		var err error
+		baseBranch, err = mgr.DetectBaseBranch()
+		if err != nil {
+			return fmt.Errorf("failed to detect base branch: %w", err)
+		}
+	}
+
+	path, err := mgr.CreateProject(args.ProjectName, baseBranch)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Created project worktree for %s at %s (base: %s)\n", args.ProjectName, path, baseBranch)
+	return nil
+}
+
+type worktreeMergeProjectArgs struct {
+	ProjectName string `targ:"flag,short=p,required,desc=Project name to merge"`
+	Onto        string `targ:"flag,short=o,desc=Target branch (defaults to base branch)"`
+	RepoDir     string `targ:"flag,short=r,desc=Repository root (defaults to current directory)"`
+}
+
+func worktreeMergeProject(args worktreeMergeProjectArgs) error {
+	repoDir := args.RepoDir
+	if repoDir == "" {
+		repoDir = "."
+	}
+
+	mgr := worktree.NewManager(repoDir)
+
+	onto := args.Onto
+	if onto == "" {
+		var err error
+		onto, err = mgr.DetectBaseBranch()
+		if err != nil {
+			return fmt.Errorf("failed to detect base branch: %w", err)
+		}
+	}
+
+	if err := mgr.MergeProject(args.ProjectName, onto); err != nil {
+		return err
+	}
+
+	fmt.Printf("Merged project %s onto %s\n", args.ProjectName, onto)
+	return nil
+}
+
 type worktreeListArgs struct {
 	RepoDir string `targ:"flag,short=r,desc=Repository root (defaults to current directory)"`
 }
@@ -62,9 +125,9 @@ func worktreeList(args worktreeListArgs) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "TASK\tBRANCH\tPATH")
+	fmt.Fprintln(w, "TYPE\tNAME\tBRANCH\tPATH")
 	for _, wt := range worktrees {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", wt.TaskID, wt.Branch, wt.Path)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", wt.Type, wt.TaskID, wt.Branch, wt.Path)
 	}
 	w.Flush()
 
