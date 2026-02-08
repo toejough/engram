@@ -5010,7 +5010,12 @@ Implemented: worktree base branch detection
 ### ISSUE-154: Project orchestration should run in its own worktree/branch
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 When /project spawns a haiku orchestrator, the entire project should run in a new worktree and branch rather than working directly on the current branch. This isolates project work from the user's working tree, prevents conflicts with in-progress changes, and makes it easy to review or discard project output. The orchestrator should create the worktree at startup and merge back on successful completion.
+
+
+### Comment
+
+Implemented: project-level worktree create/merge/cleanup
