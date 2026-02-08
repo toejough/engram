@@ -1,6 +1,6 @@
 ---
 name: intake-evaluator
-description: Classifies user requests into workflow types (new, adopt, align, single-task)
+description: Classifies user requests into workflow types (new, align, scoped, quick-fix)
 context: inherit
 model: haiku
 user-invocable: true
@@ -13,14 +13,44 @@ Standalone skill that evaluates incoming user requests and classifies them into 
 
 ---
 
+## Workflow Tiers
+
+| Tier | Workflow | Description | When to use |
+|------|----------|-------------|-------------|
+| Full Project | `new` | New feature from scratch | "build X", no existing code, needs PM/design/arch |
+| Full Project | `align` | Adopt existing code or check alignment | "adopt", "verify", "drift", "align", code exists but lacks artifacts |
+| Scoped | `scoped` | Well-defined multi-file change | Clear acceptance criteria, needs task breakdown, existing project context |
+| Quick Fix | `quick-fix` | Exact files/lines known | Specific file/line, known root cause, single commit |
+
+### Selection Guide
+
+```
+Is the request about existing code that needs adoption or alignment checking?
+  → YES: align (Full Project)
+
+Does the request need PM interview, design, architecture from scratch?
+  → YES: new (Full Project)
+
+Are the exact files/lines and fix already known?
+  → YES: quick-fix (Quick Fix — no state machine, just do it)
+
+Is it a well-defined change spanning multiple files/tasks?
+  → YES: scoped (Scoped — TDD loop with task breakdown)
+
+Uncertain?
+  → Escalate to user with options
+```
+
+---
+
 ## Classification Types
 
-| Type | Description | Signals |
-|------|-------------|---------|
-| `new` | New feature or project from scratch | "build X", "create Y", "new feature", no existing code mentioned |
-| `adopt` | Take ownership of existing code | "adopt", "take over", "existing code", references to files that exist |
-| `align` | Check alignment with existing artifacts | "align", "verify", "check if", "drift", references to requirements/design |
-| `single-task` | One-off task, not a full project workflow | "fix this bug", "update this file", "refactor X", scoped to single change |
+| Type | Tier | Description | Signals |
+|------|------|-------------|---------|
+| `new` | Full Project | New feature from scratch | "build X", "create Y", "new feature", no existing code mentioned |
+| `align` | Full Project | Adopt existing code or check alignment | "adopt", "take over", "verify", "check if", "drift", "align", references existing code/artifacts |
+| `scoped` | Scoped | Well-defined multi-file change | Clear AC, references existing project, needs breakdown but not full PM/design |
+| `quick-fix` | Quick Fix | Exact files/lines known | "fix this bug", "update this line", specific file/line, known root cause, single commit scope |
 
 ---
 
@@ -33,25 +63,30 @@ Evaluate the request against these indicators:
 - No references to existing implementation
 - Describes a problem that needs a solution designed
 - Uses words like "create", "build", "implement", "new"
+- Needs requirements gathering, design, and architecture
 
-### Adopt Project Signals
+### Align Project Signals
 - References existing code or codebase
-- Mentions "take over", "adopt", "inherit"
+- Mentions "take over", "adopt", "inherit", "verify", "align"
 - Wants to add project management to existing work
 - Code exists but lacks requirements/design artifacts
-
-### Alignment Check Signals
-- Mentions verifying or checking something
-- References drift between code and documentation
 - Asks if implementation matches requirements
-- Uses words like "verify", "check", "align", "validate"
+- References drift between code and documentation
 
-### Single-Task Signals
+### Scoped Signals
+- Well-defined change with clear acceptance criteria
+- Spans multiple files or requires task breakdown
+- Doesn't need full PM interview or architecture design
+- Existing project context is sufficient
+- "Add feature X to existing system Y"
+
+### Quick Fix Signals
 - Scoped to a specific file or function
-- Bug fix without broader context
-- Small refactoring request
-- "Just do X" without project framing
-- Doesn't need full PM/design/arch workflow
+- Bug fix with known root cause
+- Exact file path and line number mentioned or obvious
+- Single commit scope
+- "Fix the typo in X", "Update this config value"
+- No task breakdown needed — just do it
 
 ---
 

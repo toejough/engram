@@ -56,7 +56,7 @@ The orchestrator then initializes and runs the step loop:
 
 ```
 1. projctl state init --name "<project-name>" --issue ISSUE-NNN
-2. projctl state set --workflow <new|task|adopt|align>
+2. projctl state set --workflow <new|scoped|align>
 3. Enter the step-driven control loop
 ```
 
@@ -81,10 +81,10 @@ When user provides a request (not an explicit command):
 
 | Classification | Workflow |
 |----------------|----------|
-| Multi-task new work | `/project new` |
-| Single task | `/project task` |
-| Existing code needs docs | `/project adopt` |
-| Drift between code/docs | `/project align` |
+| Full project from scratch | `/project new` |
+| Scoped multi-file change | `/project scoped` |
+| Adopt existing code or check alignment | `/project align` |
+| Quick fix (exact files/lines known) | Skip orchestrator — just do it |
 
 ---
 
@@ -117,7 +117,7 @@ loop:
   "skill_path": "skills/pm-interview-producer/SKILL.md",
   "model": "sonnet",
   "artifact": "requirements.md",
-  "phase": "pm",
+  "phase": "pm_produce",
   "context": {
     "issue": "ISSUE-90",
     "prior_artifacts": ["requirements.md"],
@@ -260,7 +260,7 @@ The state machine orchestrates producer/QA pairs with automatic iteration on imp
 
 ### State Machine Loop
 
-For each phase (e.g., tdd-red, design, architecture):
+For each phase (e.g., tdd_red, design, architecture):
 
 ```
 ┌─────────────────────────────────────────┐
@@ -310,7 +310,7 @@ For each phase (e.g., tdd-red, design, architecture):
 
 **Iteration 0 (initial attempt):**
 ```bash
-# State machine: phase=tdd-red, iteration=0
+# State machine: phase=tdd_red_produce, iteration=0
 step next → spawn tdd-red-producer (no feedback)
 step complete → producer done
 step next → spawn qa
@@ -319,7 +319,7 @@ step complete → qa verdict: improvement-request, feedback: "Missing test for e
 
 **Iteration 1 (retry with feedback):**
 ```bash
-# State machine: phase=tdd-red, iteration=1
+# State machine: phase=tdd_red_produce, iteration=1
 step next → spawn tdd-red-producer (feedback: "Missing test for edge case X")
 step complete → producer done
 step next → spawn qa
@@ -328,7 +328,7 @@ step complete → qa verdict: approved
 
 **Transition:**
 ```bash
-# State machine advances: phase=commit-red, iteration=0
+# State machine advances: phase=tdd_commit, iteration=0
 step next → spawn commit-producer
 # ... continue workflow
 ```
@@ -348,7 +348,7 @@ All iteration state lives in `.claude/projects/<issue>/state.toml`:
 
 ```toml
 [phase]
-current = "tdd-red"
+current = "tdd_red_produce"
 iteration = 1
 max_iterations = 3
 
