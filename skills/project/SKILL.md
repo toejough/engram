@@ -160,7 +160,22 @@ loop:
        projctl step complete --dir . --action commit --status done
 
      "transition":
-       projctl step complete --dir . --action transition --status done --phase <phase>
+       a. Check if result.tasks.length > 1 (parallel task execution):
+          i. For each task in result.tasks:
+             - git worktree add <result.tasks[i].worktree> HEAD
+             - Spawn teammate:
+               Task(subagent_type: "general-purpose",
+                    name: "item-worker-<task.id>",
+                    model: "sonnet",
+                    team_name: <team-name>,
+                    prompt: "Execute <task.command> in directory <task.worktree>. When done, message orchestrator with results.")
+          ii. WAIT for ALL teammates to complete their work
+          iii. For each completed task:
+             - Merge worktree changes to main
+             - git worktree remove <worktree-path>
+             - projctl step complete --task <task.id> --status done
+       b. Otherwise (no parallel tasks):
+          projctl step complete --dir . --action transition --status done --phase <phase>
 
      "all-complete": Stop looping, run end-of-command sequence
 ```

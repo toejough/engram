@@ -1361,3 +1361,106 @@ func producerTranscriptFile(t *testing.T, content string) string {
 	}
 	return f
 }
+
+func TestForkStateWithMultipleTasks(t *testing.T) {
+	t.Run("fork state with multiple tasks returns parallel spawn info (ISSUE-166)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Initialize with scoped workflow
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+			Issue:    "ISSUE-166",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Create tasks.md with multiple unblocked tasks
+		tasksContent := `# Tasks
+
+### TASK-1: First parallel task
+
+**Status:** pending
+**Dependencies:** None
+
+### TASK-2: Second parallel task
+
+**Status:** pending
+**Dependencies:** None
+
+### TASK-3: Third parallel task
+
+**Status:** pending
+**Dependencies:** TASK-1
+`
+		tasksPath := filepath.Join(dir, "tasks.md")
+		err = os.WriteFile(tasksPath, []byte(tasksContent), 0644)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Navigate to item_fork state
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "item_fork", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Call step.Next at item_fork state
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify result contains parallel task information
+		g.Expect(result.Tasks).To(HaveLen(2), "should have 2 unblocked tasks (TASK-1 and TASK-2)")
+		g.Expect(result.Tasks[0].ID).To(Equal("TASK-1"))
+		g.Expect(result.Tasks[1].ID).To(Equal("TASK-2"))
+
+		// Verify worktree paths are assigned for parallel execution
+		g.Expect(result.Tasks[0].Worktree).ToNot(BeNil())
+		g.Expect(result.Tasks[1].Worktree).ToNot(BeNil())
+		g.Expect(*result.Tasks[0].Worktree).To(ContainSubstring("TASK-1"))
+		g.Expect(*result.Tasks[1].Worktree).To(ContainSubstring("TASK-2"))
+	})
+
+	t.Run("fork state with single task has null worktree (sequential)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		_, err := state.Init(dir, "test-project", nowFunc(), state.InitOpts{
+			Workflow: "scoped",
+			Issue:    "ISSUE-166",
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Create tasks.md with only one unblocked task
+		tasksContent := `# Tasks
+
+### TASK-1: Single task
+
+**Status:** pending
+**Dependencies:** None
+
+### TASK-2: Blocked task
+
+**Status:** pending
+**Dependencies:** TASK-1
+`
+		tasksPath := filepath.Join(dir, "tasks.md")
+		err = os.WriteFile(tasksPath, []byte(tasksContent), 0644)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Navigate to item_fork state
+		_, err = state.Transition(dir, "tasklist_create", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "item_select", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+		_, err = state.Transition(dir, "item_fork", state.TransitionOpts{}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		result, err := step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify single task with null worktree (sequential execution)
+		g.Expect(result.Tasks).To(HaveLen(1))
+		g.Expect(result.Tasks[0].ID).To(Equal("TASK-1"))
+		g.Expect(result.Tasks[0].Worktree).To(BeNil(), "single task should have null worktree for sequential execution")
+	})
+}

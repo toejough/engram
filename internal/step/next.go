@@ -284,6 +284,13 @@ func Next(dir string) (NextResult, error) {
 		result.Phase = targets[0]
 		return result, nil
 
+	case workflow.StateTypeFork:
+		// For fork states (e.g., item_fork), transition to next phase
+		// The Tasks array is already populated by populateTasks() at the beginning of Next()
+		result.Action = "transition"
+		result.Phase = targets[0]
+		return result, nil
+
 	default:
 		result.Action = "transition"
 		result.Phase = targets[0]
