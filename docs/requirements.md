@@ -98,385 +98,286 @@ As a maintainer, I want one universal `/qa` skill that validates any producer ag
 - [ ] QA skill receives producer's output (what it claims it did)
 - [ ] QA skill receives the produced artifacts (what actually exists)
 - [ ] QA validates: does reality match the contract?
-- [ ] QA uses Haiku model (fast, cheap, capable enough)
-- [ ] QA supports all existing message types: `approved`, `improvement-request`, `escalate-phase`, `escalate-user`
-- [ ] When output is malformed (invalid format, missing required fields), QA sends `improvement-request` with parse error details
-- [ ] When artifacts are missing (file not found), QA sends `improvement-request` listing missing files
-- [ ] When producer SKILL.md is missing or unreadable, QA sends `error` (cannot validate without contract)
+- [ ] QA validates every CHECK-N in the producer's contract YAML
+- [ ] QA reports findings with severity (error/warning)
+- [ ] QA yields: approved, improvement-request, or escalate-phase
+- [ ] QA never duplicates contract checks — contract is single source of truth
+- [ ] QA handles missing/corrupted artifacts gracefully
+- [ ] Each QA finding references the specific CHECK-N from the producer contract
 
 **Priority:** P0
 
-**Depends on:** REQ-006
-
-**Traces to:** ISSUE-53
+**Source:** ISSUE-53
 
 ---
 
-### REQ-006: Contract Standard Definition
+## ISSUE-152: Integrate Semantic Memory into Orchestration Workflow
 
-As a maintainer, I want a standard contract format for producer SKILL.md files, so that QA can programmatically extract validation criteria.
-
-**Acceptance Criteria:**
-- [ ] Standard documented in `skills/shared/CONTRACT.md`
-- [ ] Format uses YAML code blocks within a "Contract" markdown section
-- [ ] Contract includes: requirements table with ID, description, severity (error/warning)
-- [ ] Contract includes: expected outputs (artifact paths, ID formats)
-- [ ] Contract includes: required traces (what upstream artifacts must be referenced)
-- [ ] Contract format is extensible for future needs
-- [ ] When prose requirements don't fit the format, update CONTRACT.md to accommodate (format evolves with needs)
-- [ ] CONTRACT.md includes version field; QA logs warning if producer uses older version but continues validation
-
-**Priority:** P0
-
-**Depends on:** None
-
-**Traces to:** ISSUE-53
+Requirements for integrating the existing `projctl memory` package (ONNX-based semantic similarity search) into the orchestration workflow and skills.
 
 ---
 
-### REQ-007: Producer Skill Contract Sections
+### REQ-006: Accurate Semantic Embeddings
 
-As a maintainer, I want all producer skills to have contract sections in their SKILL.md, so that QA can validate them consistently.
+As a user, I want semantic similarity search to return relevant results, so that memory queries surface related learnings from past projects.
 
 **Acceptance Criteria:**
-- [ ] All producer skills updated to include Contract section per REQ-006 format
-- [ ] Contract sections capture everything the producer is responsible for
-- [ ] Existing prose requirements converted to structured contract format
-- [ ] Producer skills affected: pm-interview-producer, pm-infer-producer, design-interview-producer, design-infer-producer, arch-interview-producer, arch-infer-producer, breakdown-producer, tdd-red-producer, tdd-green-producer, tdd-refactor-producer, doc-producer, alignment-producer, retro-producer, summary-producer
+- [ ] Embeddings use proper BERT WordPiece tokenization (not hash-based)
+- [ ] Model uses actual e5-small-v2 (not all-MiniLM-L6-v2)
+- [ ] Query text prefixed with "query: " before tokenization
+- [ ] Indexed content (learnings, decisions, sessions) prefixed with "passage: " before tokenization
+- [ ] Vocabulary loaded from e5-small-v2/vocab.txt (30522 tokens)
+- [ ] Token IDs wrapped with [CLS] ... [SEP] special tokens
+- [ ] TestIntegration_SemanticSimilarityExampleErrorAndException passes
+- [ ] TestIntegration_SemanticSimilarityRanksRelatedHigher passes
+- [ ] Custom tokenizer is tested with property-based tests (rapid)
 
-**Priority:** P0
+**Priority:** P0 (BLOCKING — all other memory tasks depend on this)
 
-**Depends on:** REQ-006
+**Traces to:** ISSUE-152, TASK-1
 
-**Traces to:** ISSUE-53
+**Source:** ISSUE-152 plan, TASK-1
 
 ---
 
-### REQ-008: Gap Analysis Before QA Deletion
+### REQ-007: Automatic Session-End Capture
 
-As a maintainer, I want gap analysis performed before deleting QA skills, so that no validation logic is lost.
-
-**Acceptance Criteria:**
-- [ ] For each QA skill, compare its checklist against corresponding producer's contract
-- [ ] If QA checks something the producer doesn't document, flag as gap
-- [ ] Gaps require user decision: add to producer contract OR explicitly drop
-- [ ] Do NOT port QA checks blindly - each gap requires explicit confirmation
-- [ ] Gap analysis documented before any QA skill deletion
-- [ ] QA skills (13 total): pm-qa, design-qa, arch-qa, breakdown-qa, tdd-qa, tdd-red-qa, tdd-green-qa, tdd-refactor-qa, doc-qa, context-qa, alignment-qa, retro-qa, summary-qa
-
-**Priority:** P0
-
-**Depends on:** REQ-007
-
-**Traces to:** ISSUE-53
-
----
-
-### REQ-009: QA Skill Deletion
-
-As a maintainer, I want the 13 phase-specific QA skills deleted after migration, so that there's a single source of truth for QA.
+As a user, I want project learnings captured automatically at completion, so that future projects benefit from past experience.
 
 **Acceptance Criteria:**
-- [ ] All 13 QA skills deleted from `skills/` directory
-- [ ] Deletion only after: (1) gap analysis complete (REQ-008), (2) producer contracts complete (REQ-007), (3) universal QA skill functional (REQ-005)
-- [ ] Hard cutover - no parallel operation period
-- [ ] QA-TEMPLATE.md updated or removed as appropriate
-- [ ] Any references to deleted skills updated (orchestrator, documentation)
+- [ ] Orchestrator runs `projctl memory session-end` at project completion
+- [ ] Session-end runs BEFORE integrate/trace commands
+- [ ] Session-end reads today's decisions from `~/.claude/memory/decisions/{DATE}-{PROJECT}.jsonl`
+- [ ] Session-end generates markdown summary (max 2000 chars)
+- [ ] Session-end writes to `~/.claude/memory/sessions/{DATE}-{PROJECT}.md`
+- [ ] Session summary is auto-indexed on next memory query
+- [ ] Session-end receives project/issue ID from orchestrator context
 
 **Priority:** P1
 
-**Depends on:** REQ-005, REQ-007, REQ-008
+**Traces to:** ISSUE-152, TASK-2
 
-**Traces to:** ISSUE-53
-
----
-
-### REQ-010: Orchestrator Updates for Universal QA
-
-As a maintainer, I want the orchestrator to dispatch the universal QA skill correctly, so that it receives the right context.
-
-**Acceptance Criteria:**
-- [ ] Orchestrator passes producer's SKILL.md path to QA
-- [ ] Orchestrator passes producer's output to QA
-- [ ] Orchestrator passes artifact paths to QA
-- [ ] Orchestrator uses single `/qa` skill for all phases (no phase-specific dispatch)
-- [ ] QA context format documented
-
-**Priority:** P0
-
-**Depends on:** REQ-005
-
-**Traces to:** ISSUE-53
+**Source:** ISSUE-152 plan, TASK-2
 
 ---
 
-### REQ-011: Contract-Based Fallback Heuristics
+### REQ-008: Producer Memory Reads in GATHER Phase
 
-As a maintainer, I want QA to fall back to heuristics when a producer lacks a formal contract, so that validation still works during migration.
+As a producer, I want to query past learnings during GATHER, so that I avoid repeating decisions and mistakes from prior projects.
 
 **Acceptance Criteria:**
-- [ ] If producer SKILL.md has no Contract section, QA reads entire SKILL.md
-- [ ] QA extracts implicit requirements from prose (best effort)
-- [ ] QA logs warning that producer should add contract section
-- [ ] Fallback is transitional - all producers should eventually have contracts
-- [ ] Contract format is the norm; prose fallback is the exception
+- [ ] ALL 18 LLM-driven skills query memory during GATHER phase
+- [ ] Interview producers (PM, Design, Arch) query past requirements/design/architecture decisions
+- [ ] Infer producers (PM, Design, Arch) query past requirements/design/architecture decisions
+- [ ] TDD producers (red, green, refactor) query test patterns, implementation patterns, refactoring patterns
+- [ ] Breakdown producer queries task decomposition patterns
+- [ ] Alignment producer queries common alignment errors and domain boundary violations
+- [ ] Doc/Summary/Next-Steps producers query documentation conventions and summary patterns
+- [ ] QA queries known failure patterns as verification backstop
+- [ ] Retro queries past retrospective patterns and recurring challenges
+- [ ] Context-explorer auto-enriches queries with memory when no explicit memory query provided
+- [ ] All memory queries are non-blocking (graceful degradation if memory unavailable)
+- [ ] Each skill queries for "known failures in <artifact-type> validation" to proactively avoid past QA failures
 
 **Priority:** P1
 
-**Depends on:** REQ-005, REQ-006
+**Traces to:** ISSUE-152, TASK-3, TASK-4, TASK-5, TASK-7, TASK-8, TASK-9, TASK-11, TASK-12, TASK-13, TASK-15, TASK-16, TASK-17, TASK-18
 
-**Traces to:** ISSUE-53
-
----
-
-## ISSUE-56: Warn When Specs Exceed User Requests
-
-Requirements for adding explicit warnings when producer skills infer specifications beyond what the user explicitly requested.
+**Source:** ISSUE-152 plan, TASKs 3-9, 11-18
 
 ---
 
-### REQ-012: Inferred Specification Message Type
+### REQ-009: Universal Yield Capture
 
-As a user, I want producer skills to send a distinct message with an `inferred` flag when they add specifications not explicitly requested, so that the orchestrator pauses and I can accept or reject each inferred item before it becomes part of the artifact.
+As a maintainer, I want producer decisions captured automatically, so that all producers contribute to memory without per-producer wiring.
 
 **Acceptance Criteria:**
-- [ ] New message type: inferred specification message with `inferred = true` field
-- [ ] Message includes: the inferred specification text, the reasoning for inference (context, edge case, or best practice), and the source that triggered the inference
-- [ ] Orchestrator pauses on `inferred` messages and presents them to the user for accept/reject
-- [ ] User response is recorded: accepted inferred items proceed into the artifact, rejected items are dropped
-- [ ] Message format documented in producer communication patterns
-
-**Priority:** P0
-
-**Depends on:** None
-
-**Traces to:** ISSUE-56
-
----
-
-### REQ-013: Producer Skills Flag Inferred Specifications
-
-As a user, I want all producer skills (both interview and infer variants) to identify when they are adding specifications beyond what was explicitly requested, so that nothing is silently added to my project artifacts.
-
-**Acceptance Criteria:**
-- [ ] pm-interview-producer uses AskUserQuestion with `inferred` flag for requirements not directly stated by the user or issue
-- [ ] pm-infer-producer uses AskUserQuestion with `inferred` flag for requirements not directly present in analyzed code/docs
-- [ ] design-interview-producer uses AskUserQuestion with `inferred` flag for design decisions not directly requested
-- [ ] design-infer-producer uses AskUserQuestion with `inferred` flag for design decisions not directly present in analyzed code/docs
-- [ ] arch-interview-producer uses AskUserQuestion with `inferred` flag for architecture decisions not directly requested
-- [ ] arch-infer-producer uses AskUserQuestion with `inferred` flag for architecture decisions not directly present in analyzed code/docs
-- [ ] Each inferred question includes reasoning: what triggered the inference (edge case, best practice, implicit need)
-- [ ] Producers distinguish between "user said this" and "I think this is needed" for every specification item
-
-**Priority:** P0
-
-**Depends on:** REQ-012
-
-**Traces to:** ISSUE-56
-
----
-
-### REQ-014: Orchestrator Handles Inferred Specification Messages
-
-As a user, I want the orchestrator to present inferred specifications for my approval before they are included in artifacts, so that I have explicit control over scope.
-
-**Acceptance Criteria:**
-- [ ] Orchestrator detects `inferred = true` messages from producers
-- [ ] Orchestrator presents inferred item to user with the reasoning and asks for accept/reject
-- [ ] Accepted items: orchestrator sends acceptance to producer
-- [ ] Rejected items: orchestrator sends rejection to producer, producer drops the item from the artifact
-- [ ] Multiple inferred items can be batched into a single user prompt (not one-by-one)
-- [ ] User response is logged for traceability
-
-**Priority:** P0
-
-**Depends on:** REQ-012
-
-**Traces to:** ISSUE-56
-
----
-
-### REQ-015: Shared Producer Guidelines for Inference Detection
-
-As a maintainer, I want shared documentation that defines how producers distinguish explicit from inferred specifications, so that the behavior is consistent across all producer skills.
-
-**Acceptance Criteria:**
-- [ ] Guidelines documented in shared producer template or dedicated shared doc
-- [ ] Guidelines define "explicit": directly stated in user input, issue description, or gathered context
-- [ ] Guidelines define "inferred": added by the producer based on best practices, edge cases, implicit needs, or professional judgment
-- [ ] Guidelines provide examples of each category
-- [ ] All 6 affected producer skills reference the shared guidelines
+- [ ] Orchestrator runs `projctl memory extract` after every spawn-producer completion
+- [ ] Extract reads result.toml from producer yield
+- [ ] Extract captures [[decisions]] and [[learnings]] from yield TOML
+- [ ] Extracted decisions include context, choice, reason, alternatives
+- [ ] Extract is best-effort (log warning and continue on failure)
+- [ ] Extract applies to ALL producers universally (single integration point)
+- [ ] New producers get memory capture for free (no per-producer SKILL.md changes needed)
 
 **Priority:** P1
 
-**Depends on:** REQ-012, REQ-013
+**Traces to:** ISSUE-152, TASK-14
 
-**Traces to:** ISSUE-56
-
----
-
-## ISSUE-104: Orchestrator as Haiku Teammate
-
-Requirements for splitting the orchestrator into a team lead (opus) and orchestrator teammate (haiku) to reduce cost by using the cheapest model for mechanical step loop work.
+**Source:** ISSUE-152 plan, TASK-14
 
 ---
 
-### REQ-016: Split Orchestrator into Team Lead and Teammate Roles
+### REQ-010: QA Failure Persistence
 
-As a user, I want the orchestrator to run as a haiku teammate instead of in the main opus conversation, so that the expensive opus model is preserved for user interaction and high-level decisions.
+As a QA skill, I want to persist failure findings to memory, so that future projects can avoid known pitfalls.
 
 **Acceptance Criteria:**
-- [ ] Team lead (opus) owns team creation, teammate spawning, and shutdown coordination
-- [ ] Orchestrator teammate (haiku) runs the `projctl step next` → dispatch → `projctl step complete` loop
-- [ ] Team lead spawns orchestrator teammate on `/project` invocation
-- [ ] Team lead does NOT edit files or produce artifacts directly (delegates to teammates)
-- [ ] Orchestrator teammate does NOT spawn other teammates directly (sends spawn requests to team lead)
-- [ ] SKILL.md documents the two-role split with clear responsibilities
-
-**Priority:** P0
-
-**Depends on:** None
-
-**Traces to:** ISSUE-104
-
----
-
-### REQ-017: Orchestrator Spawn Request Protocol
-
-As a developer, I want the orchestrator teammate to send spawn requests to the team lead with complete task_params, so that the team lead can spawn teammates on the orchestrator's behalf.
-
-**Acceptance Criteria:**
-- [ ] When `projctl step next` returns `spawn-producer` or `spawn-qa`, orchestrator sends message to team lead
-- [ ] Message includes full `task_params` from step next output (subagent_type, name, model, prompt)
-- [ ] Message includes expected_model for handshake validation
-- [ ] Team lead receives spawn request and calls Task tool with provided task_params
-- [ ] Team lead performs model handshake validation after spawning
-- [ ] Team lead sends confirmation message to orchestrator after successful spawn and handshake
-- [ ] Team lead sends failure message to orchestrator if handshake fails
-
-**Priority:** P0
-
-**Depends on:** REQ-016
-
-**Traces to:** ISSUE-104
-
----
-
-### REQ-018: Orchestrator Shutdown Request Protocol
-
-As a developer, I want the orchestrator teammate to send shutdown requests to the team lead when work is complete, so that the team lead handles graceful teammate termination.
-
-**Acceptance Criteria:**
-- [ ] When `projctl step next` returns `all-complete`, orchestrator sends message to team lead
-- [ ] Message indicates project is complete and orchestrator is ready to shut down
-- [ ] Team lead receives completion message and initiates end-of-command sequence
-- [ ] Team lead sends shutdown_request to all active teammates (including orchestrator)
-- [ ] Team lead calls TeamDelete after all teammates confirm shutdown
-- [ ] Team lead reports completion status to user
-
-**Priority:** P0
-
-**Depends on:** REQ-016
-
-**Traces to:** ISSUE-104
-
----
-
-### REQ-019: Orchestrator Error Handling with Auto-Retry
-
-As a developer, I want the orchestrator to automatically retry failed operations with backoff before escalating, so that transient errors don't require manual intervention.
-
-**Acceptance Criteria:**
-- [ ] Orchestrator detects errors from `projctl step next` or `projctl step complete`
-- [ ] Orchestrator retries failed operations up to 3 times with exponential backoff
-- [ ] Backoff delays: 1s, 2s, 4s between retries
-- [ ] After 3 failed attempts, orchestrator sends error message to team lead with details
-- [ ] Team lead escalates to user with error context and requests guidance
-- [ ] Orchestrator logs retry attempts for debugging
+- [ ] QA runs `projctl memory learn` when reporting improvement-request or escalate-phase
+- [ ] Each error-severity finding is persisted separately
+- [ ] Persisted message format: "QA failure in <artifact-type>: <check-id> - <failure description>"
+- [ ] Persistence includes project/issue ID tagging
+- [ ] Approved verdicts do NOT persist (only failures are worth learning from)
+- [ ] Future QA reads can surface these failure patterns during LOAD phase
 
 **Priority:** P1
 
-**Depends on:** REQ-016
+**Traces to:** ISSUE-152, TASK-6
 
-**Traces to:** ISSUE-104
+**Source:** ISSUE-152 plan, TASK-6
 
 ---
 
-### REQ-020: Orchestrator Resumption Support
+### REQ-011: Retrospective Learning Capture
 
-As a user, I want the orchestrator teammate to be resumable if it gets terminated mid-session, so that work can continue from the last saved state without restarting the entire project.
+As a retro-producer, I want to persist key learnings to memory, so that future retrospectives can identify recurring patterns.
 
 **Acceptance Criteria:**
-- [ ] Project state is persisted via `projctl state set` commands during orchestrator execution
-- [ ] Team lead can respawn orchestrator teammate after termination
-- [ ] Respawned orchestrator calls `projctl step next` and resumes from saved state
-- [ ] State includes: current phase, sub-phase, pair loop iteration, active tasks
-- [ ] Orchestrator does not repeat completed work after resumption
-- [ ] SKILL.md documents resumption flow and state dependencies
+- [ ] Retro-producer reads past retrospective patterns during GATHER
+- [ ] Retro-producer queries "retrospective challenges" and "process improvement recommendations"
+- [ ] Retro-producer persists successes via `projctl memory learn`
+- [ ] Retro-producer persists challenges via `projctl memory learn`
+- [ ] Retro-producer persists High/Medium recommendations via `projctl memory learn`
+- [ ] All persisted learnings include project/issue ID tagging
+- [ ] Learnings are queryable by future project phases
 
 **Priority:** P1
 
-**Depends on:** REQ-016
+**Traces to:** ISSUE-152, TASK-7
 
-**Traces to:** ISSUE-104
-
----
-
-### REQ-021: Team Lead Spawn Confirmation Flow
-
-As a developer, I want the team lead to confirm successful spawns back to the orchestrator, so that the orchestrator knows when teammates are ready to receive work.
-
-**Acceptance Criteria:**
-- [ ] Team lead spawns teammate using task_params from orchestrator's spawn request
-- [ ] Team lead validates model handshake (expected_model matches teammate's first message)
-- [ ] On successful handshake, team lead sends confirmation message to orchestrator with teammate name
-- [ ] Orchestrator receives confirmation and proceeds with step completion
-- [ ] On handshake failure, team lead sends error message to orchestrator
-- [ ] Orchestrator handles spawn failures per REQ-019 (retry with backoff)
-
-**Priority:** P0
-
-**Depends on:** REQ-016, REQ-017
-
-**Traces to:** ISSUE-104
+**Source:** ISSUE-152 plan, TASK-7
 
 ---
 
-### REQ-022: State Persistence for Resumption
+### REQ-012: Orchestrator Startup Memory Context
 
-As a developer, I want project state to be saved after each significant step, so that resumption can pick up from the last completed action.
+As an orchestrator, I want to query past learnings at startup, so that every spawned producer has awareness of past experience.
 
 **Acceptance Criteria:**
-- [ ] Orchestrator calls `projctl state set` after each `projctl step complete`
-- [ ] State file persists: current phase, sub-phase, workflow type, active issue
-- [ ] State file persists: pair loop iteration counts and QA feedback
-- [ ] State file persists: task completion status and dependencies
-- [ ] State file is atomic (writes complete or fail, no partial states)
-- [ ] Respawned orchestrator reads state before first `projctl step next` call
+- [ ] Orchestrator queries memory during startup (before entering step loop)
+- [ ] Orchestrator queries "lessons from past projects"
+- [ ] Orchestrator queries "common challenges in <workflow-type> projects"
+- [ ] Query results are included in orchestrator's working context
+- [ ] Queries surface session summaries (REQ-007 writes)
+- [ ] Queries surface retro learnings (REQ-011 writes)
+- [ ] Queries surface QA failure patterns (REQ-010 writes)
+- [ ] Graceful degradation if memory unavailable
 
 **Priority:** P1
 
-**Depends on:** REQ-016, REQ-020
+**Traces to:** ISSUE-152, TASK-8
 
-**Traces to:** ISSUE-104
+**Source:** ISSUE-152 plan, TASK-8
 
 ---
 
-### REQ-023: Retry Limit to Prevent Infinite Loops
+### REQ-013: Memory Promotion Pipeline
 
-As a developer, I want retry attempts capped at a maximum limit, so that the orchestrator doesn't loop infinitely on persistent errors.
+As a user, I want high-value memories promoted to permanent knowledge, so that consistently useful patterns become part of CLAUDE.md.
 
 **Acceptance Criteria:**
-- [ ] Maximum 3 retry attempts for any failed operation
-- [ ] Retry counter resets on successful operation
-- [ ] After reaching retry limit, orchestrator escalates to team lead
-- [ ] Team lead escalates to user with error details and retry history
-- [ ] Retry logic applies to: `projctl step next`, `projctl step complete`, spawn requests
+- [ ] Embeddings DB tracks retrieval_count per entry (incremented on query result)
+- [ ] Embeddings DB tracks last_retrieved timestamp
+- [ ] Embeddings DB tracks projects_retrieved (deduplicated list)
+- [ ] `projctl memory promote` command lists promotion candidates
+- [ ] Candidates: retrieval_count >= 3 AND unique projects >= 2
+- [ ] Promotion query returns content, retrieval count, project count, last retrieved timestamp
+- [ ] Retro-producer checks for promotion candidates during GATHER
+- [ ] Retro includes promotion recommendations: "Consider promoting to CLAUDE.md: <content>"
+- [ ] Promotion is recommendation only (human approves before CLAUDE.md edit)
 
-**Priority:** P1
+**Priority:** P2
 
-**Depends on:** REQ-016, REQ-019
+**Traces to:** ISSUE-152, TASK-10
 
-**Traces to:** ISSUE-104
+**Source:** ISSUE-152 plan, TASK-10
 
 ---
+
+### REQ-014: External Knowledge Capture
+
+As a skill, I want to capture relevant external best practices, so that projects benefit from current community knowledge.
+
+**Acceptance Criteria:**
+- [ ] Embeddings DB has source_type column: "internal" (default) or "external"
+- [ ] `projctl memory learn` accepts --source flag
+- [ ] External memories get lower initial confidence (0.7 vs 1.0 for internal)
+- [ ] Arch-interview-producer searches for "<technology> architecture patterns 2026"
+- [ ] Design-interview-producer searches for "<domain> UX best practices 2026"
+- [ ] TDD-green-producer searches for "<technology> best practices 2026"
+- [ ] High-value web findings stored via `projctl memory learn --source external`
+- [ ] External knowledge capture is optional (skip if domain well-covered or web unavailable)
+- [ ] Web search results include source attribution in stored message
+
+**Priority:** P2
+
+**Traces to:** ISSUE-152, TASK-19
+
+**Source:** ISSUE-152 plan, TASK-19
+
+---
+
+### REQ-015: Memory Hygiene and Confidence Decay
+
+As a maintainer, I want stale memories to decay and be pruned, so that memory quality doesn't degrade over time.
+
+**Acceptance Criteria:**
+- [ ] Embeddings DB has confidence column (default 1.0 for internal, 0.7 for external)
+- [ ] Search ranking uses (cosine_similarity * confidence) instead of raw similarity
+- [ ] `projctl memory decay` command multiplies confidence by factor (default 0.9)
+- [ ] Decay only affects entries NOT retrieved since last decay
+- [ ] Retrieved entries keep their confidence (retrieval = validation of usefulness)
+- [ ] `projctl memory prune` command removes entries below confidence threshold (default 0.1)
+- [ ] Orchestrator runs decay + prune at project end (after session-end, before integrate)
+- [ ] Pruning is explicit (not automatic) — requires command invocation
+
+**Priority:** P2
+
+**Traces to:** ISSUE-152, TASK-20
+
+**Source:** ISSUE-152 plan, TASK-20
+
+---
+
+### REQ-016: Memory Conflict Detection
+
+As a user, I want to be warned about contradictory memories, so that I can resolve conflicts before they cause confusion.
+
+**Acceptance Criteria:**
+- [ ] `projctl memory learn` checks for high-similarity existing entries (cosine > 0.85)
+- [ ] When high-similarity entries exist, return conflict info (existing content, source, similarity)
+- [ ] Learning still persists (conflicts are warnings, not blockers)
+- [ ] CLI outputs conflict warnings: "⚠ Potential conflict with existing memory: ..."
+- [ ] Universal yield capture logs conflicts but continues (automated flow shouldn't block)
+- [ ] External knowledge capture flags conflicts for review
+
+**Priority:** P2
+
+**Traces to:** ISSUE-152, TASK-20
+
+**Source:** ISSUE-152 plan, TASK-20
+
+---
+
+### REQ-017: Future Skill Memory Requirements
+
+As a maintainer, I want memory integration requirements defined for future skills, so that they're built in from day one.
+
+**Acceptance Criteria:**
+- [ ] plan-producer (ISSUE-158) requirements documented
+- [ ] plan-producer reads "past project plans for <project-domain>" and "known planning failures"
+- [ ] plan-producer writes via universal yield capture (REQ-009)
+- [ ] evaluation-producer (ISSUE-158) requirements documented
+- [ ] evaluation-producer reads "past evaluation patterns" and "known evaluation failures"
+- [ ] evaluation-producer writes via universal yield capture (REQ-009)
+
+**Priority:** P2
+
+**Traces to:** ISSUE-152, TASK-20 (Future Skills section)
+
+**Source:** ISSUE-152 plan, "Future Skills: Memory Integration Requirements"
+
+**Note:** Architecture deferred to ISSUE-158 when plan-producer and evaluation-producer are implemented. These requirements establish the memory integration contract for future work.
+
+---
+

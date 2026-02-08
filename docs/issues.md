@@ -5019,3 +5019,413 @@ When /project spawns a haiku orchestrator, the entire project should run in a ne
 ### Comment
 
 Implemented: project-level worktree create/merge/cleanup
+
+---
+
+### ISSUE-155: projctl step next returns all-complete for non-terminal phases, should return transition
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+When `projctl step next` is called during a non-terminal phase (e.g., `init`), it returns `action: "all-complete"` when that phase has no more steps. The orchestrator interprets this as "the entire project is done" and stops looping.
+
+## Root Cause
+
+The state machine uses `all-complete` for two different meanings:
+1. "This phase has no more steps" (non-terminal)
+2. "The entire workflow is finished" (terminal)
+
+The orchestrator cannot distinguish between these without knowing the full phase graph.
+
+## Expected Behavior
+
+- Non-terminal phases with no remaining steps should return `action: "transition"` (with the target phase), signaling the orchestrator to advance and keep looping.
+- `all-complete` should be reserved exclusively for the final phase of the workflow, signaling the orchestrator to stop.
+
+## Impact
+
+The orchestrator stalls after completing non-terminal phases, requiring manual intervention from the team lead to nudge it forward. Observed during ISSUE-152 when the `init` phase returned `all-complete` and the orchestrator went idle.
+
+## Fix
+
+In `projctl step next`, when the current phase has no more actions but is not the terminal phase of the workflow, return `{"action": "transition", "phase": "<current_phase>"}` instead of `{"action": "all-complete"}`.
+
+---
+
+### ISSUE-156: Orchestrator should set task owner and status on spawn/complete
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+When the orchestrator spawns a producer or QA teammate, the corresponding TaskList entry is not updated with the teammate's name or marked as in_progress. The user has no visibility into which teammate is executing which task.
+
+## Expected Behavior
+
+When the orchestrator handles a spawn action:
+1. **On spawn:** `TaskUpdate(taskId, status: "in_progress", owner: "<teammate-name>")`
+2. **On step complete (done):** `TaskUpdate(taskId, status: "completed")`
+3. **On step complete (failed):** Keep in_progress, clear owner (ready for retry)
+
+This requires a mapping from phase to task ID. The orchestrator already knows the current phase from `projctl step next`, and the task list entries are created in phase order, so the mapping is deterministic.
+
+## Implementation Options
+
+1. **Phase-to-task mapping in orchestrator prompt** — Document which phases correspond to which task entries
+2. **`projctl step next` includes task_id** — The state machine returns the TaskList task ID alongside the action, so the orchestrator can update it directly
+3. **Metadata on TaskCreate** — Store phase name in task metadata during tasklist-create, then match on spawn
+
+Option 2 is cleanest — the state machine already tracks phases, so it can also track the associated task ID.
+
+## Observed In
+
+ISSUE-152: Team lead had to manually call TaskUpdate to show plan-producer was working on the plan task.
+
+---
+
+### ISSUE-157: Show orchestration as a top-level task and prefix tasks with project name
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+1. **No orchestration visibility:** The orchestrator itself has no TaskList entry, so there's no indication that a project is being actively orchestrated. The user sees individual phase tasks but not the overarching orchestration.
+
+2. **No project scoping:** When multiple projects run concurrently, task subjects like "Create project plan" are ambiguous — which project's plan?
+
+## Expected Behavior
+
+### Top-level orchestration task
+
+When the orchestrator starts, create a top-level task:
+```
+TaskCreate(subject: "ISSUE-152: Integrate semantic memory", 
+           status: "in_progress", owner: "orchestrator",
+           activeForm: "Orchestrating ISSUE-152")
+```
+
+All phase tasks are children/dependents of this top-level task. When the project completes, mark it completed.
+
+### Project prefix on tasks
+
+When multiple projects are in flight (multiple active teams), prepend the project identifier to task subjects:
+- Single project: "Create project plan"
+- Multiple projects: "ISSUE-152: Create project plan"
+
+Detection: Check if more than one team exists at tasklist-create time. Or always prefix for consistency.
+
+## Recommendation
+
+Always prefix with the issue ID for consistency — it's short and removes ambiguity regardless of whether other projects exist.
+
+---
+
+### ISSUE-158: Audit state diagram skills: missing plan-producer and evaluation-producer
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The state machine in `internal/workflow/workflows.toml` references skills that don't exist in `~/.claude/skills/`. This causes spawned teammates to improvise rather than follow a defined skill contract.
+
+## Missing Skills
+
+| Skill | Phase | Workflows | Impact |
+|-------|-------|-----------|--------|
+| `plan-producer` | `plan_produce` | new | Plan-producer teammate had to improvise — no SKILL.md contract |
+| `evaluation-producer` | `evaluation_produce` | new, scoped, align (via main-ending group) | Will fail in every workflow's ending sequence |
+
+## Dormant Skills (Not Referenced)
+
+These skills exist but are not called by the state machine. They may be deprecated or need cleanup:
+
+- `alignment-qa`, `arch-qa`, `breakdown-qa`, `design-qa`, `doc-qa`, `pm-qa`, `retro-qa`, `summary-qa`, `tdd-green-qa`, `tdd-qa`, `tdd-red-qa`, `tdd-refactor-qa` — All QA phases use generic `qa` skill instead
+- `commit`, `commit-producer` — Not referenced
+- `consistency-checker` — Deprecated per its own description
+- `context-explorer`, `context-qa` — Not referenced by state machine (used directly by other skills)
+- `intake-evaluator` — Used by team lead directly, not state machine
+- `project` — The orchestrator skill itself
+
+## Acceptance Criteria
+
+- [ ] `plan-producer` SKILL.md exists with clear contract (inputs, outputs, behavior)
+- [ ] `evaluation-producer` SKILL.md exists with clear contract
+- [ ] Dormant skills are either: (a) wired into the state machine, or (b) documented as intentionally unused, or (c) removed
+- [ ] Every skill referenced in `workflows.toml` has a corresponding `~/.claude/skills/<name>/SKILL.md`
+
+## Discovered In
+
+ISSUE-152: plan-producer reported "/plan-producer does not exist as a registered skill"
+
+---
+
+### ISSUE-159: Plan producer should use plan mode for interactive user review
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The plan_produce phase spawns a plan-producer that writes a plan.md file and sends a summary back to the team lead. The user only sees a condensed summary, which is insufficient to make an informed approval decision.
+
+## Expected Behavior
+
+The plan-producer should enter plan mode (EnterPlanMode) so the user can:
+1. See the full detailed plan directly
+2. Ask clarifying questions
+3. Approve or reject interactively via the plan mode UI
+
+This replaces the current flow where the plan-producer writes a file, sends a summary to the team lead, and the team lead relays a lossy summary to the user.
+
+## Implementation
+
+1. The plan-producer SKILL.md (to be created per ISSUE-158) should specify plan mode as part of its contract
+2. The spawn task_params should include `mode: "plan"` so the teammate enters plan mode automatically
+3. The plan file is still written to `.claude/projects/<issue>/plan.md` for persistence, but the user reviews it interactively before approval
+
+## Relationship
+
+- Depends on ISSUE-158 (plan-producer SKILL.md must exist first)
+- Affects the plan_approve gate — user approval happens during plan mode, not as a separate step
+
+## Discovered In
+
+ISSUE-152: User could not evaluate the plan from the team lead's summary alone.
+
+---
+
+### ISSUE-160: Ambient Learning System — Continuous knowledge capture outside formal projects
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+Build a lightweight, always-on learning layer that captures corrections, patterns, and preferences from all Claude interactions — not just /project workflows.
+
+## Background
+
+Research (conducted during ISSUE-152 planning) identified that the majority of high-value interactions (quick fixes, debugging, code review, corrections) produce no persistent memory. The orchestration-heavy /project workflow captures learnings, but everything else is lost unless the user explicitly says "remember this."
+
+Depends on: ISSUE-152 (memory infrastructure, tokenizer fix, hygiene commands must be integrated first)
+
+## Goals
+
+- Session-end extraction via Claude Code hooks (Stop, PreCompact)
+- Session-start context injection via SessionStart hook
+- Confidence scoring with temporal decay (ACT-R activation model)
+- Contradiction detection on memory write
+- Promotion pipeline (memory → CLAUDE.md) with user review gate
+- Consolidation command for periodic memory maintenance
+
+## Architecture (from research)
+
+### Signal-Triggered Capture (Three Tiers)
+
+- **Tier A (Immediate):** User says "remember this", explicit corrections, CLAUDE.md edits → persist immediately with high confidence
+- **Tier B (Session-End):** Stop/PreCompact hooks → LLM-based extraction of corrections/patterns/preferences from transcript
+- **Tier C (Periodic Consolidation):** Weekly/manual `projctl memory consolidate` → merge duplicates, apply decay, surface promotion candidates
+
+### New CLI Commands
+
+1. `projctl memory extract-session --transcript <path>` — LLM-based extraction from conversation transcript
+2. `projctl memory consolidate` — Merge, decay, dedup across accumulated memories
+3. `projctl memory promote --review` — Interactive review of high-confidence memories for CLAUDE.md promotion
+
+### Claude Code Hooks
+
+- `Stop` → `projctl memory extract-session` (async)
+- `PreCompact` → `projctl memory extract-session` (async, saves before context compression)
+- `SessionStart` → `projctl memory context-inject` (sync, injects relevant memories)
+
+### Degradation Prevention
+
+- Confidence gating (only memories > 0.3 appear in results)
+- Type-based retention policies (corrections = indefinite, reflections = 30-day sliding window)
+- Bounded episodic memory (last N=10 sessions)
+- User remains sole gatekeeper for CLAUDE.md promotion
+
+## Non-Goals
+
+- Community/shared knowledge (separate initiative)
+- Automatic CLAUDE.md updates without user approval
+- MCP server (use hooks + CLI commands instead)
+
+## Implementation Phases
+
+1. Extract & Store (extract-session command, memories table schema, Stop hook)
+2. Inject & Retrieve (context-inject command, SessionStart hook, PreCompact hook)
+3. Maintain & Promote (consolidate command, promote --review command, contradiction detection)
+
+## References
+
+- MemGPT/Letta: OS-inspired tiered memory
+- Reflexion: Verbal self-reflection with bounded episodic memory
+- CoALA: Cognitive architecture for language agents (three-store model)
+- SimpleMem: Triple-indexed retrieval (semantic + lexical + symbolic)
+- Cursor learned-memories.mdc, Windsurf Cascade memories
+
+---
+
+### ISSUE-161: Model precedence between SKILL.md frontmatter and workflow TOML is confusing
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The workflow TOML (`internal/workflow/workflows.toml`) specifies `fallback_model = "opus"` for interview producers (artifact_pm_produce, artifact_design_produce, artifact_arch_produce), but they actually run on Sonnet because the SKILL.md files declare `model: sonnet` in their frontmatter.
+
+The `resolveModel()` function in `internal/step/registry.go:83-93` implements this precedence:
+1. SKILL.md frontmatter `model:` field (highest)
+2. TOML `fallback_model` (only if SKILL.md unreadable or has no model field)
+
+This is working as coded but confusing because:
+- Reading the workflow TOML gives the wrong impression of which model runs
+- The word "fallback" doesn't clearly communicate lowest-precedence
+- There's no single source of truth — you have to check both files to know the actual model
+
+## Options
+
+1. **Rename `fallback_model` to `default_model`** and document the precedence clearly
+2. **Make TOML authoritative** — TOML `model` overrides SKILL.md, with SKILL.md as the fallback (inverted precedence)
+3. **Remove duplication** — only specify model in one place (either TOML or SKILL.md, not both)
+4. **Add a `--show-resolved` flag** to `projctl step next` that shows which source determined the model
+
+## Affected States
+
+All `type = "produce"` and `type = "qa"` states in workflows.toml define `fallback_model` which may disagree with their SKILL.md frontmatter.
+
+## Discovery
+
+During ISSUE-152, orchestrator (haiku) spawned interview producers with Sonnet per `projctl step next` output. The workflow TOML said `fallback_model = "opus"`, causing confusion about whether the wrong model was being used.
+
+---
+
+### ISSUE-162: Interview producers unaware of approved plan — redundant interviews in new workflow
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+In the `new` workflow, the plan phase (plan_produce → plan_approve) produces a comprehensive, user-approved plan with detailed task breakdowns, architecture decisions, and design choices. Then artifact_fork spawns PM, Design, and Arch interview producers — which immediately try to conduct fresh interviews, ignoring the approved plan entirely.
+
+This was observed during ISSUE-152: the PM producer asked the user interview questions that were already fully answered in the 20-task approved plan. The team lead had to manually redirect it with "read the plan, don't re-interview."
+
+## Root Cause
+
+The interview producer skills (pm-interview-producer, design-interview-producer, arch-interview-producer) were written before the plan phase existed. They have no awareness of:
+- Whether an approved plan exists
+- Where to find it (`.claude/projects/<issue>/plan.md` or `.claude/plans/<name>.md`)
+- How to extract requirements/design/architecture from it
+
+## Expected Behavior
+
+When an approved plan exists, interview producers should:
+1. Check for the plan artifact in the project directory
+2. Extract relevant content from the plan (requirements for PM, design decisions for Design, architecture for Arch)
+3. Produce their artifact based on plan content
+4. Only fall back to user interviews for gaps not covered by the plan
+
+## Affected Skills
+
+- `~/.claude/skills/pm-interview-producer/SKILL.md`
+- `~/.claude/skills/design-interview-producer/SKILL.md`
+- `~/.claude/skills/arch-interview-producer/SKILL.md`
+
+## Proposed Fix
+
+Add a GATHER step to each skill that checks for an approved plan:
+```
+1. Check for approved plan at .claude/projects/<issue>/plan.md
+2. If plan exists, read it and extract relevant section
+3. Produce artifact from plan content, interviewing only for gaps
+4. If no plan exists, proceed with full interview (current behavior)
+```
+
+The `projctl step next` output could also include a `plan_path` field when a plan has been approved, making it easy for producers to find it.
+
+## Discovery
+
+During ISSUE-152 artifact production phase. All three producers attempted fresh interviews despite a 20-task approved plan being available.
+
+
+### Comment
+
+Updated scope: producers also need fork/join/crosscut awareness. They should:
+1. Know they're running in parallel with sibling producers
+2. Check for sibling artifacts (if already produced) for cross-consistency
+3. Be aware that crosscut_qa will check all three artifacts together
+4. Use consistent terminology and scope boundaries aligned with the approved plan
+
+The `projctl step next` output should also include `plan_path` and `sibling_artifacts` for fork/join context.
+
+---
+
+### ISSUE-163: Full skill review: do skills understand the new workflow state machine?
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+Multiple issues discovered during ISSUE-152 suggest that existing skills were written in isolation and don't understand their place in the current workflow state machine. Skills don't know about:
+
+1. **Plan phase precedence** (ISSUE-162): Interview producers don't check for an approved plan before starting fresh interviews
+2. **Fork/join patterns**: Producers in artifact_fork don't know they're running in parallel or that crosscut_qa follows
+3. **Model selection** (ISSUE-161): SKILL.md frontmatter and workflow TOML can disagree on model
+4. **Missing skills** (ISSUE-158): plan-producer and evaluation-producer are referenced in the state machine but have no SKILL.md
+5. **Workflow context**: Skills don't receive workflow position context (what phase am I in? what came before? what comes after?)
+
+## Scope
+
+Audit ALL skills referenced in internal/workflow/workflows.toml against their SKILL.md definitions:
+
+### Questions to answer per skill:
+- Does the skill know which workflow phases it participates in?
+- Does the skill know what artifacts exist before it runs (upstream dependencies)?
+- Does the skill know what comes after it (downstream expectations)?
+- Does the skill handle the plan-first flow (check for approved plan)?
+- Does the skill handle the fork/join pattern (aware of sibling producers)?
+- Does the skill's model declaration match the workflow TOML intent?
+- Does the skill handle being respawned (idempotent artifact production)?
+
+### Skills to audit (18 LLM-driven + QA):
+- pm-interview-producer, design-interview-producer, arch-interview-producer
+- pm-infer-producer, design-infer-producer, arch-infer-producer
+- tdd-red-producer, tdd-red-infer-producer, tdd-green-producer, tdd-refactor-producer
+- breakdown-producer, alignment-producer, doc-producer, summary-producer
+- retro-producer, next-steps, context-explorer
+- qa (universal)
+- plan-producer (ISSUE-158 - doesn't exist yet)
+- evaluation-producer (ISSUE-158 - doesn't exist yet)
+
+## Expected Outcome
+
+Each skill's SKILL.md should include:
+1. Workflow context section: which phases invoke this skill, what precedes it, what follows
+2. Input awareness: check for plan artifacts, sibling artifacts, upstream outputs
+3. Output contract: what the downstream consumer (QA, crosscut, join) expects
+
+## Related Issues
+
+- ISSUE-158: Missing plan-producer and evaluation-producer skills
+- ISSUE-161: Model precedence between SKILL.md and workflow TOML
+- ISSUE-162: Interview producers unaware of approved plan
+
+## Discovery
+
+During ISSUE-152 orchestration. Multiple skill-level misunderstandings caused rework and manual intervention.

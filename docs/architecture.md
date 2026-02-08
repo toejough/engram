@@ -1845,6 +1845,377 @@ On `/project` invocation:
 
 ---
 
+## ISSUE-152: Semantic Memory Integration Architecture
+
+Technical architecture for integrating ONNX-based semantic memory into the orchestration workflow.
+
+---
+
+### ARCH-052: BERT WordPiece Tokenization
+
+Replace hash-based tokenization with proper BERT WordPiece tokenization for accurate semantic embeddings.
+
+**Current problem:** `embeddings.go` uses `hashString(word) % 30000` which maps words to arbitrary token IDs, destroying semantic similarity. The ONNX model receives meaningless indices.
+
+**Solution:** Implement minimal BERT WordPiece tokenizer (~80 lines, zero new deps):
+
+1. Download `vocab.txt` from HuggingFace (232KB, `intfloat/e5-small-v2`)
+2. Load vocab into `map[string]int` (token → ID)
+3. Tokenize: lowercase → split on whitespace/punctuation → greedily match longest vocab prefix → continue with `##`-prefixed subwords
+4. Wrap with `[CLS]` ... `[SEP]` special tokens
+
+**Implementation:**
+- New file: `internal/memory/tokenizer.go` (~80 lines)
+- New file: `internal/memory/tokenizer_test.go` (unit tests with property-based testing via rapid)
+- Update `embeddings.go`: replace hash tokenization block with WordPiece call
+- Remove `hashString` function
+
+**Rationale:** Proper tokenization is foundational for accurate semantic similarity. Custom tokenizer avoids external dependencies while providing correct BERT token IDs.
+
+**Alternatives considered:**
+- External tokenizer library: Adds dependency for simple mapping task
+- Keep hash tokenization: Fundamentally broken, cannot produce meaningful embeddings
+
+**Traces to:** REQ-006, ISSUE-152
+
+---
+
+### ARCH-053: Complete e5-small-v2 Model Switch
+
+Switch from all-MiniLM-L6-v2 to e5-small-v2 to match codebase naming and improve retrieval quality.
+
+**Current state:** Code names everything `e5-small-v2` but downloads `all-MiniLM-L6-v2`. These are different models with different architectures (e5: 12 layers/384-dim, MiniLM: 6 layers/384-dim).
+
+**Solution:**
+1. Update download URL from `sentence-transformers/all-MiniLM-L6-v2` to `intfloat/e5-small-v2`
+2. Add vocab URL constant: `https://huggingface.co/intfloat/e5-small-v2/resolve/main/vocab.txt`
+3. Add e5 query/passage prefixes for correct similarity scores
+
+**e5 prefix requirements:**
+- Query text (user searches): prefix with `"query: "`
+- Indexed content (learnings, decisions): prefix with `"passage: "`
+
+**Implementation:**
+- Update `e5SmallModelURL` constant in `embeddings.go`
+- Add `e5SmallVocabURL` constant
+- Add `isQuery bool` parameter to `generateEmbeddingONNX`
+- Callers: `Query()` passes `isQuery=true`, `createEmbeddings()` passes `isQuery=false`
+
+**Model ID marker:** Store `model_id.txt` alongside embeddings.db. If model changes, delete DB for clean rebuild (embeddings are cache).
+
+**Rationale:** e5-small-v2 was originally chosen for better retrieval quality. Complete the switch for consistency and improved semantic search performance.
+
+**Alternatives considered:**
+- Keep MiniLM: Mismatch between naming and reality, lower quality
+- Version embeddings DB: Overcomplicates migration, clean rebuild is simpler
+
+**Traces to:** REQ-006, ISSUE-152
+
+---
+
+### ARCH-054: Session-End Memory Capture
+
+Automatically capture project learnings at completion via orchestrator.
+
+**Integration point:** Add `projctl memory session-end` to orchestrator's end-of-command sequence, running FIRST before integrate/trace validation.
+
+**What gets captured:**
+- Reads decisions from `~/.claude/memory/decisions/{DATE}-{PROJECT}.jsonl`
+- Generates markdown summary (max 2000 chars)
+- Writes to `~/.claude/memory/sessions/{DATE}-{PROJECT}.md`
+- Auto-indexed on next query
+
+**Location:** `~/.claude/skills/project/SKILL.md` end-of-command block
+
+**Rationale:** Session summaries close the learning loop. Projects automatically contribute to organizational memory without manual intervention.
+
+**Alternatives considered:**
+- Manual session capture: Users forget, learnings lost
+- Per-phase capture: Too granular, noisy
+
+**Traces to:** REQ-007, ISSUE-152
+
+---
+
+### ARCH-055: Producer Memory Read Pattern
+
+All producer skills query semantic memory during GATHER phase for relevant context.
+
+**Query categories by producer type:**
+
+| Producer Type | Queries |
+|--------------|---------|
+| PM/Design/Arch Interview | Past decisions in domain, known validation failures |
+| Infer Producers | Same as interview counterparts |
+| Breakdown | Decomposition patterns, task validation failures |
+| TDD Red | Test patterns, edge cases, test validation failures |
+| TDD Green | Implementation patterns, QA corrections, validation failures |
+| TDD Refactor | Refactoring patterns, code org preferences, validation failures |
+| Alignment | Alignment errors, domain boundary violations, validation failures |
+| Doc/Summary | Conventions, structure preferences, validation failures |
+| Next-Steps | Past recommendations, follow-up patterns |
+
+**Graceful degradation:** All memory queries wrapped in "if memory unavailable, continue without it" — failures are non-blocking.
+
+**Rationale:** Proactive memory reads prevent rediscovering the same issues each project. Producers learn from past QA failures and decisions.
+
+**Alternatives considered:**
+- Reactive memory (only on request): Requires manual intervention, inconsistent
+- Orchestrator-level memory injection: Loses phase-specific context
+
+**Traces to:** REQ-008, ISSUE-152
+
+---
+
+### ARCH-056: QA Memory Dual Role
+
+QA uses memory for both verification backstop (reads) and failure persistence (writes).
+
+**Read role (LOAD phase):** Query `"known failures in <artifact-type> validation"` to verify producer addressed known pitfalls. This complements producer GATHER reads — producers avoid mistakes, QA verifies avoidance.
+
+**Write role (RETURN phase):** When reporting `improvement-request` or `escalate-phase`, persist error-severity findings via:
+```bash
+projctl memory learn -m "QA failure in <artifact-type>: <check-id> - <failure description>" -p <issue-id>
+```
+
+**Rationale:** QA reads and writes close the failure pattern loop. Future projects benefit from past QA findings immediately.
+
+**Alternatives considered:**
+- QA reads only: Failure well never fills, same issues repeat
+- Producer writes failures: Wrong responsibility, QA owns validation
+
+**Traces to:** REQ-010, ISSUE-152
+
+---
+
+### ARCH-057: Retro Memory Dual Role
+
+Retro-producer reads past retrospective patterns and writes high-signal learnings.
+
+**Read role (GATHER phase):**
+- `projctl memory query "retrospective challenges"` for recurring issues
+- `projctl memory query "process improvement recommendations"` to check if past recommendations addressed
+
+**Write role (PRODUCE phase):**
+- Successes: `projctl memory learn -m "Success: <description>" -p <issue-id>`
+- Challenges: `projctl memory learn -m "Challenge: <description>" -p <issue-id>`
+- High/Medium recommendations: `projctl memory learn -m "Retro recommendation: <action> — <rationale>" -p <issue-id>`
+
+**Rationale:** Retrospective learnings are highest-signal memories (human-curated insights). Semantic indexing makes them queryable by future phases.
+
+**Alternatives considered:**
+- Retro only in docs/retrospective.md: Not searchable, siloed
+- Session-end captures retro: Too late, loses structured categorization
+
+**Traces to:** REQ-011, ISSUE-152
+
+---
+
+### ARCH-058: Universal Yield Capture
+
+Orchestrator extracts decisions and learnings from ALL producer yield TOMLs automatically.
+
+**Integration point:** After every successful spawn-producer completion, orchestrator calls:
+```bash
+projctl memory extract -f .claude/projects/<issue>/result.toml -p <issue-id>
+```
+
+**What gets captured:**
+- `[[decisions]]` arrays from yield TOML
+- `Choice`, `Reason`, `Alternatives` from each decision
+- Generates embeddings and stores in SQLite-vec
+
+**Why universal vs per-producer:**
+
+| Per-Producer | Universal |
+|-------------|-----------|
+| Each producer must remember to call | Single integration point |
+| Easy to forget in new producers | New producers get it for free |
+| N producers × 1 integration | 1 integration × all producers |
+
+**Rationale:** Single orchestrator integration covers ALL producers consistently. No per-skill wiring needed.
+
+**Alternatives considered:**
+- `projctl memory decide` in each SKILL.md: Fragile, inconsistent
+- Manual decision capture: Unreliable, incomplete
+
+**Traces to:** REQ-009, ISSUE-152
+
+---
+
+### ARCH-059: Orchestrator Startup Memory Read
+
+Orchestrator queries memory at project startup for past learnings before entering step loop.
+
+**Queries:**
+- `projctl memory query "lessons from past projects"`
+- `projctl memory query "common challenges in <workflow-type> projects"`
+
+**What surfaces:**
+- Session summaries from ARCH-054
+- Retro learnings from ARCH-057
+- QA failure patterns from ARCH-056
+
+**Timing:** After `projctl state set --workflow`, before step loop entry.
+
+**Rationale:** Orchestrator and all spawned producers start with awareness of past learnings. Prevents cold-start blindness.
+
+**Alternatives considered:**
+- Producer-only reads: Orchestrator operates blind to history
+- Manual memory injection: Requires user intervention
+
+**Traces to:** REQ-012, ISSUE-152
+
+---
+
+### ARCH-060: Memory Promotion Pipeline (T3→T1)
+
+Track retrieval counts and promote frequently-surfaced memories to CLAUDE.md for permanent knowledge.
+
+**Tracking mechanism:**
+- Add columns to embeddings table: `retrieval_count`, `last_retrieved`, `projects_retrieved`
+- Increment counters when memory appears in search results
+- Track unique projects that retrieved each memory
+
+**Promotion criteria:**
+- Min retrievals: 3+
+- Min projects: 2+
+
+**CLI command:** `projctl memory promote` queries for candidates and returns list with stats.
+
+**Retro integration:** Retro-producer checks for promotion candidates during GATHER and includes in recommendations as "Consider promoting to CLAUDE.md: <content>".
+
+**Rationale:** High-value memories (repeatedly useful across projects) graduate to tier-1 permanent knowledge. Human reviews and approves promotion.
+
+**Alternatives considered:**
+- Automatic promotion: Risky, no human judgment
+- Manual-only promotion: Misses systematically valuable patterns
+- No promotion: T3 memories can't become T1 knowledge
+
+**Traces to:** REQ-013, ISSUE-152
+
+---
+
+### ARCH-061: External Knowledge Capture
+
+Capture web-researched best practices with source attribution for high-value phases.
+
+**Schema addition:** Add `source_type` column (values: `"internal"` or `"external"`) and `confidence` column to embeddings table.
+
+**Initial confidence:**
+- Internal: 1.0
+- External: 0.7 (lower confidence for external sources)
+
+**Web search integration:** Add optional WebSearch steps to:
+- arch-interview-producer GATHER (technology best practices)
+- design-interview-producer GATHER (UX best practices)
+- tdd-green-producer GATHER (implementation best practices)
+
+**Storage:** `projctl memory learn --source external -m "<finding with attribution>" -p <issue-id>`
+
+**Rationale:** External knowledge enriches memory without dominating (lower confidence). High-value phases where community best practices materially improve quality.
+
+**Alternatives considered:**
+- No external knowledge: Misses current best practices
+- All phases get web search: Over-fetch, most phases benefit more from internal memory
+- Equal confidence: External sources could crowd out proven internal knowledge
+
+**Traces to:** REQ-014, ISSUE-152
+
+---
+
+### ARCH-062: Memory Hygiene System
+
+Automatic confidence decay, pruning, and conflict detection to maintain memory quality.
+
+**Confidence decay:**
+- Multiply confidence by 0.9 for unretrieved memories each session
+- Retrieved memories maintain confidence (retrieval = validation)
+- Command: `projctl memory decay`
+
+**Pruning:**
+- Remove entries below confidence threshold (default 0.1)
+- Command: `projctl memory prune --threshold 0.1`
+
+**Conflict detection:**
+- On `Learn()`, check for high-similarity existing entries (>0.85)
+- Flag conflicts in result with similarity score
+- Warnings, not blockers
+
+**Confidence-weighted search:**
+- Rank by `(cosine_similarity × confidence)` instead of raw similarity
+- Internal high-confidence memories outrank external low-confidence even with slightly lower similarity
+
+**Orchestrator integration:** Run `decay` and `prune` in end-of-command sequence after session-end, before integrate.
+
+**Rationale:** Prevents memory degradation over time. Stale/contradictory memories naturally decay. High-value memories persist through retrieval.
+
+**Alternatives considered:**
+- No decay: Low-value memories accumulate forever
+- Manual pruning only: Users forget, DB bloats
+- No conflict detection: Contradictions coexist silently
+
+**Traces to:** REQ-015, REQ-016, ISSUE-152
+
+---
+
+### ARCH-063: Context Explorer Auto-Memory
+
+Automatically add memory query when context-explorer request lacks explicit memory queries.
+
+**Policy:** When query list does NOT include explicit memory query, auto-add one derived from first semantic/file query's topic. Skip if: request already has memory queries, or topic text <3 words.
+
+**Example:** Query files about "authentication" → also run `projctl memory query "authentication"`.
+
+**Failure handling:** Memory failures are non-blocking.
+
+**Rationale:** Context-explorer already aggregates multiple query types. Auto-memory enrichment makes memory a first-class context source without requiring explicit requests.
+
+**Alternatives considered:**
+- Always require explicit memory queries: User burden, inconsistent
+- No auto-enrichment: Context-explorer misses relevant learnings
+
+**Traces to:** REQ-008, ISSUE-152
+
+---
+
+## ISSUE-152 Architecture Summary
+
+| Decision | Choice |
+|----------|--------|
+| Tokenization | BERT WordPiece (~80 lines in-package) |
+| Embedding model | e5-small-v2 (12 layers, 384-dim) |
+| Model prefixes | `"query: "` for searches, `"passage: "` for content |
+| Session capture | Automatic at project completion via orchestrator |
+| Producer reads | All 18 LLM-driven skills query memory in GATHER |
+| Producer writes | Universal yield capture (orchestrator extracts result.toml) |
+| QA role | Read known failures (backstop), write new failures |
+| Retro role | Read past patterns, write successes/challenges/recommendations |
+| Orchestrator startup | Query past learnings before step loop |
+| Promotion pipeline | Track retrievals, flag 3+/2+ for CLAUDE.md |
+| External knowledge | Web search in 3 high-value phases, `source_type` attribution |
+| Hygiene | Decay (0.9x per session), prune (<0.1), conflict detection (>0.85) |
+| Context explorer | Auto-add memory query if missing |
+
+**Traceability Matrix:**
+
+| ARCH ID | Traces to |
+|---------|-----------|
+| ARCH-052 | REQ-006, ISSUE-152 |
+| ARCH-053 | REQ-006, ISSUE-152 |
+| ARCH-054 | REQ-007, ISSUE-152 |
+| ARCH-055 | REQ-008, ISSUE-152 |
+| ARCH-056 | REQ-010, ISSUE-152 |
+| ARCH-057 | REQ-011, ISSUE-152 |
+| ARCH-058 | REQ-009, ISSUE-152 |
+| ARCH-059 | REQ-012, ISSUE-152 |
+| ARCH-060 | REQ-013, ISSUE-152 |
+| ARCH-061 | REQ-014, ISSUE-152 |
+| ARCH-062 | REQ-015, REQ-016, ISSUE-152 |
+| ARCH-063 | REQ-008, ISSUE-152 |
+
+---
+
 ## ISSUE-104 Architecture Summary
 
 | Decision | Choice |

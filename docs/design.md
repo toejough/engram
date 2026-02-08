@@ -436,3 +436,376 @@ During the SYNTHESIZE phase, producers separate gathered information into two ca
 | Inferred spec format | AskUserQuestion with `inferred = true` metadata |
 | Inferred presentation | Numbered list with reasoning, multiSelect for accept/reject |
 | Inference detection | SYNTHESIZE phase classifies explicit vs inferred before producing |
+
+---
+
+## ISSUE-152: Semantic Memory Integration Design
+
+Design decisions for user-facing aspects of semantic memory integration into the orchestration workflow. Architecture decisions (BERT tokenization, ONNX models, database schema) are in docs/architecture.md (ARCH-052 through ARCH-063).
+
+---
+
+### DES-017: Memory Query Visibility in Producer Output
+
+Producers surface memory query results to users during interview/gather phases for transparency.
+
+**User experience:**
+When a producer queries memory, results appear in the conversation:
+
+```
+Gathering context for design decisions...
+
+Memory query: "design patterns for authentication"
+Found 3 relevant learnings:
+- Success: Two-factor auth improved security posture (project: auth-v2)
+- Challenge: SMS codes had delivery delays (project: mobile-login)
+- Recommendation: Use TOTP over SMS for reliability (project: secure-app)
+```
+
+**Design rationale:**
+- User sees what past learnings influence current decisions
+- Transparency builds trust in memory-informed recommendations
+- User can correct if retrieved context is irrelevant
+
+**Traces to:** REQ-008, ARCH-055
+
+---
+
+### DES-018: Memory Query Failure Graceful Degradation
+
+When memory queries fail (service unavailable, timeout), producers continue without blocking with visible notification.
+
+**User experience:**
+```
+Gathering context for requirements...
+
+Memory query: "prior requirements for payment processing"
+⚠️ Memory service unavailable - continuing without historical context
+
+Proceeding with interview...
+```
+
+**Design rationale:**
+- Memory is enhancement, not dependency
+- Failed queries don't block project progress
+- User awareness prevents confusion about missing context
+
+**Traces to:** REQ-008, ARCH-055
+
+---
+
+### DES-019: Session-End Summary Visibility
+
+Session-end capture happens automatically but surfaces a summary for user awareness.
+
+**User experience:**
+At project completion, orchestrator shows:
+
+```
+Capturing session learnings...
+
+Session summary created:
+- 5 decisions indexed (technology choices, API design)
+- 3 key challenges logged (integration complexity, test flakiness)
+- 2 successes recorded (zero QA failures, ahead of schedule)
+
+Summary saved to: ~/.claude/memory/sessions/2026-02-08-issue-152.md
+```
+
+**Design rationale:**
+- User sees what gets remembered from this session
+- Summary file path provided for manual review if needed
+- Automatic capture without user action required
+
+**Traces to:** REQ-007, ARCH-054
+
+---
+
+### DES-020: Promotion Candidate Notification
+
+Retro-producer presents memory promotion candidates as recommendations, not automatic promotions.
+
+**User experience:**
+In retrospective report:
+
+```
+## Memory Promotion Candidates
+
+The following memories have been retrieved 3+ times across 2+ projects
+and may warrant promotion to CLAUDE.md for permanent knowledge:
+
+1. "Always inject side-effectful dependencies for testability"
+   - Retrieved: 5 times across 3 projects
+   - Last used: 2026-02-05
+
+2. "Use property-based testing (rapid) for tokenization/parsing logic"
+   - Retrieved: 4 times across 2 projects
+   - Last used: 2026-02-08
+
+Would you like to promote any of these to CLAUDE.md?
+```
+
+**Design rationale:**
+- Human judgment required for tier-1 knowledge promotion
+- Statistics help user assess value
+- Opt-in, not automatic (prevents noise in CLAUDE.md)
+
+**Traces to:** REQ-013, ARCH-060
+
+---
+
+### DES-021: External Knowledge Source Attribution
+
+When producers capture external best practices, source attribution is visible in memory content.
+
+**User experience:**
+Memory query result:
+
+```
+Memory query: "architecture patterns for API rate limiting"
+Found 2 relevant learnings:
+
+1. [Internal] Token bucket algorithm scales better than fixed window
+   - Project: api-gateway, 2026-01-15
+
+2. [External] Redis-backed rate limiting with sliding window (source: nginx.com/blog/rate-limiting)
+   - Captured: 2026-02-01, Confidence: 0.7
+```
+
+**Design rationale:**
+- User distinguishes internal experience from external research
+- Source attribution enables follow-up (link to original article)
+- Confidence score visible for transparency
+
+**Traces to:** REQ-014, ARCH-061
+
+---
+
+### DES-022: Memory Conflict Warning Display
+
+When learning new information that conflicts with existing memories, user sees warning with comparison.
+
+**User experience:**
+During `projctl memory learn`:
+
+```
+Learning stored: "Use pattern B for authentication"
+
+⚠️  Potential conflict detected:
+Existing memory (similarity 0.91): "Use pattern A for authentication"
+  - Project: auth-v2, 2026-01-10
+
+Both entries kept. Review ~/.claude/memory/ to resolve conflict.
+```
+
+**Design rationale:**
+- User aware of contradictory guidance
+- Both preserved (may be context-dependent)
+- Manual resolution prevents automatic overwrites
+
+**Traces to:** REQ-016, ARCH-062
+
+---
+
+### DES-023: Orchestrator Memory Read Timing
+
+Orchestrator memory queries happen at startup before any phase begins, with results included in initial context message.
+
+**User experience:**
+When `/project` starts:
+
+```
+Initializing project for ISSUE-152...
+
+Querying past learnings...
+- "lessons from past projects": 4 results
+- "common challenges in scoped projects": 2 results
+
+Starting workflow with historical context.
+
+[Orchestrator proceeds to first phase]
+```
+
+**Design rationale:**
+- User sees memory retrieval happen once upfront
+- No repeated memory queries each phase (efficiency)
+- Context available to all spawned producers from start
+
+**Traces to:** REQ-012, ARCH-059
+
+---
+
+### DES-024: QA Failure Pattern Feedback Loop Visibility
+
+When QA finds known failure patterns that producer missed, this is surfaced as an escalated finding.
+
+**User experience:**
+QA message to team lead:
+
+```
+improvement-request: missed known failure pattern
+
+Issues:
+- CHECK-002: DES-003 has no traces (KNOWN PATTERN)
+  Memory shows this failed QA in 2 prior projects:
+  * project-alpha (2026-01-20): "design entries without traces"
+  * dashboard-v2 (2026-01-28): "missing REQ traces in DES-005"
+
+Producer GATHER should have surfaced and avoided this pattern.
+```
+
+**Design rationale:**
+- Escalated when known patterns are missed (not just generic failures)
+- Shows memory query happened but producer didn't act on it
+- Helps refine producer memory usage over time
+
+**Traces to:** REQ-010, ARCH-056
+
+---
+
+### DES-025: Memory Decay and Pruning User Notification
+
+Decay and pruning operations surface summary statistics but don't require user interaction.
+
+**User experience:**
+At end of project:
+
+```
+Running memory hygiene...
+
+Decay applied:
+- 127 entries aged (confidence reduced 10%)
+- 89 entries maintained (recently retrieved)
+
+Prune applied:
+- 3 entries removed (confidence < 0.1)
+- 213 entries remaining
+
+Memory database cleaned.
+```
+
+**Design rationale:**
+- User aware memory quality is actively maintained
+- Statistics show system is working (not silent)
+- No action required (automatic maintenance)
+
+**Traces to:** REQ-015, ARCH-062
+
+---
+
+### DES-026: Context Explorer Auto-Memory Enrichment Transparency
+
+When context-explorer automatically adds memory queries, this is visible in query execution log.
+
+**User experience:**
+Context-explorer output:
+
+```
+Executing queries:
+✓ File search: "authentication" (3 matches)
+✓ Semantic search: "auth patterns" (2 matches)
+✓ Memory query: "authentication" (auto-enriched, 4 matches)
+
+Aggregating results...
+```
+
+**Design rationale:**
+- User sees memory was consulted automatically
+- "(auto-enriched)" tag distinguishes from explicit requests
+- Transparency into context sources used
+
+**Traces to:** REQ-008, ARCH-063
+
+---
+
+### DES-027: Producer Memory Read Phase Placement
+
+All producer memory queries happen in GATHER phase before user interview/inference, preventing double-work.
+
+**User workflow:**
+1. Producer spawned by orchestrator
+2. Producer reads memory for domain context (user sees query results)
+3. Producer presents interview questions OR begins inference (informed by memory)
+4. User responds / producer produces artifact
+
+**Design rationale:**
+- Memory informs questions (prevents asking about known decisions)
+- User doesn't see redundant "researching" after answering questions
+- Consistent placement across all 18 LLM-driven skills
+
+**Traces to:** REQ-008, ARCH-055
+
+---
+
+### DES-028: Universal Yield Capture Invisibility
+
+Decision extraction from producer yield TOMLs happens automatically without user-visible operations.
+
+**User experience:**
+User sees:
+```
+Producer completed: design-interview-producer
+Spawning QA teammate...
+```
+
+User does NOT see:
+```
+Extracting decisions from result.toml...
+Indexing 3 decisions to memory...
+```
+
+**Design rationale:**
+- Yield capture is implementation detail
+- No user action required or possible
+- Reduces notification noise
+- Failures logged but not surfaced (best-effort)
+
+**Traces to:** REQ-009, ARCH-058
+
+---
+
+### DES-029: Retro Learning Persistence Visibility
+
+Retro-producer shows which learnings are being captured to memory during produce phase.
+
+**User experience:**
+Retro output:
+
+```
+Producing retrospective.md...
+
+Persisting learnings to semantic memory:
+✓ Success: Zero QA failures across 12 tasks
+✓ Challenge: Context compaction caused mid-session rework
+✓ Recommendation: Add schema migration tests for DB changes
+
+Retrospective complete.
+```
+
+**Design rationale:**
+- User sees high-value learnings being indexed
+- Transparency into what future projects will retrieve
+- Confirmation that retro insights aren't siloed in one document
+
+**Traces to:** REQ-011, ARCH-057
+
+---
+
+## ISSUE-152 Design Summary
+
+| Decision | Choice |
+|----------|--------|
+| Memory query visibility | Show results during GATHER with source attribution |
+| Query failure | Graceful degradation with warning, continue without blocking |
+| Session-end | Automatic capture with visible summary statistics |
+| Promotion | Human-approved based on retrieval stats in retro |
+| External knowledge | Source attribution and confidence score visible |
+| Conflicts | Warning with comparison, both entries kept |
+| Orchestrator timing | Startup query before phases, results in initial context |
+| QA failure loop | Escalate when known patterns missed |
+| Decay/prune | Automatic with summary statistics, no user action |
+| Auto-enrichment | Visible "(auto-enriched)" tag in query log |
+| Producer read phase | GATHER phase before interview/inference |
+| Yield capture | Invisible to user (automatic, best-effort) |
+| Retro persistence | Visible confirmation of indexed learnings |
+
