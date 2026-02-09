@@ -5597,3 +5597,135 @@ REQ-018 through REQ-023 are referenced in Traces-to fields in docs/architecture.
 ### Comment
 
 Added REQ-018 through REQ-023 definitions to requirements.md
+
+---
+
+### ISSUE-170: Enforce plan mode via tool call hooks and projctl state validation
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+Plan-producer skill has instructions to enter plan mode (EnterPlanMode/ExitPlanMode) for user approval, but agents can skip it. ISSUE-159 added the instructions to SKILL.md but the spawned agent ignored them during ISSUE-160, advancing without user approval.
+
+Prompt-based enforcement is unreliable. Self-reporting flags (projctl state set --plan-approved) are just self-reporting with extra steps.
+
+## Solution
+
+Two-part enforcement:
+
+### 1. Tool call hook (PostToolUse)
+A Claude Code hook that fires on tool calls and logs them to projctl state:
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": { "toolName": "EnterPlanMode|ExitPlanMode" },
+      "command": "projctl state log-tool --tool $TOOL_NAME"
+    }]
+  }
+}
+```
+
+### 2. Step complete validation
+`projctl step complete` for plan_produce phase checks its own tool call records:
+- EnterPlanMode was called
+- ExitPlanMode was called (user approved)
+- If either missing, step complete fails with clear error
+
+### Generalizable
+Same pattern extends to enforce any tool-call requirement in any phase:
+- tdd_red: must call Bash with test runner
+- commit: must call Skill with commit
+- Any phase can declare required tool calls
+
+## Acceptance Criteria
+- [ ] `projctl state log-tool --tool <name>` command exists and persists to state
+- [ ] PostToolUse hook config for EnterPlanMode/ExitPlanMode
+- [ ] `projctl step complete` for plan_produce validates tool calls happened
+- [ ] Step complete fails with actionable error when plan mode was skipped
+- [ ] Hook installation docs or `projctl hooks install` support
+
+## Discovery
+ISSUE-160 plan phase: plan-producer wrote plan.md but skipped EnterPlanMode entirely. Orchestrator advanced without user approval.
+
+---
+
+### ISSUE-171: Skill SKILL.md communication tables say 'team lead' instead of 'orchestrator'
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+Skill SKILL.md files have communication tables that say:
+
+```
+| Report completion | SendMessage to team lead |
+```
+
+But the orchestrator architecture expects teammates to message the orchestrator directly. The team lead is just a spawn service — it doesn't process completion results.
+
+During ISSUE-160, pm-interview-producer followed its SKILL.md and messaged team-lead instead of orchestrator. The orchestrator was left waiting indefinitely until team-lead manually forwarded the message.
+
+## Root Cause
+
+ISSUE-163 (full skill audit) updated skills for the new workflow but missed updating the communication target in the Team Mode tables.
+
+## Fix
+
+Update all skill SKILL.md files: change `SendMessage to team lead` to `SendMessage to orchestrator` in the communication/team mode tables.
+
+## Acceptance Criteria
+- [ ] All producer skill SKILL.md files say 'orchestrator' not 'team lead' for completion messages
+- [ ] All QA skill SKILL.md files say 'orchestrator' not 'team lead' for verdict messages
+- [ ] Grep confirms zero instances of 'SendMessage to team lead' in skill docs
+
+## Discovery
+ISSUE-160: pm-interview-producer messaged team-lead instead of orchestrator, causing orchestrator to hang.
+
+---
+
+### ISSUE-172: Orchestrator startup must create project worktree before state init
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+During ISSUE-160, the orchestrator initialized state in the main repo directory (`projctl state init --dir .`). When ISSUE-170 was started in parallel with its own worktree, QA agents for ISSUE-160 read state from the shared main repo, causing potential cross-project contamination.
+
+ISSUE-154 established that projects should run in their own worktrees, but the orchestrator startup sequence doesn't enforce this.
+
+## Fix
+
+The orchestrator startup sequence in project/SKILL.md must:
+1. Run `projctl worktree create-project --projectname <issue-id>` BEFORE `projctl state init`
+2. Use the worktree path as `--dir` for ALL subsequent `projctl` commands
+3. Pass the worktree path to all spawned teammates
+
+## Current startup (broken):
+```
+projctl state init --name "issue-160" --issue ISSUE-160
+projctl step next --dir .
+```
+
+## Correct startup:
+```
+projctl worktree create-project --projectname issue-160
+projctl state init --name "issue-160" --issue ISSUE-160 --dir <worktree-path>
+projctl step next --dir <worktree-path>
+```
+
+## Acceptance Criteria
+- [ ] project/SKILL.md startup sequence includes worktree creation as first step
+- [ ] Orchestrator passes worktree --dir to all projctl commands
+- [ ] Spawned teammates receive worktree path in their prompts
+- [ ] No project runs in the main repo directory
+
+## Discovery
+ISSUE-160 + ISSUE-170 parallel execution: qa-160-crosscut used main repo state instead of project-isolated state.
