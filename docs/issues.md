@@ -5729,3 +5729,103 @@ projctl step next --dir <worktree-path>
 
 ## Discovery
 ISSUE-160 + ISSUE-170 parallel execution: qa-160-crosscut used main repo state instead of project-isolated state.
+
+---
+
+### ISSUE-173: Trace validator uses padded IDs (REQ-013) but project convention is non-padded (REQ-13)
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+`projctl trace validate` reports orphan IDs using zero-padded format (REQ-013, ARCH-060) but project artifacts correctly use non-padded format (REQ-13, ARCH-60) per established conventions.
+
+This causes false positives in trace validation — every project hits this as a blocker in the end-of-command sequence.
+
+## Evidence
+
+ISSUE-170 end-of-command: 28 orphan IDs reported, all due to format mismatch between validator expectations and actual artifact format.
+
+ISSUE-43 established that IDs should be simple incrementing numbers, not zero-padded. The trace validator was never updated to match.
+
+## Fix
+
+Update `projctl trace validate` to normalize ID format before comparison — treat REQ-013 and REQ-13 as equivalent.
+
+## Acceptance Criteria
+- [ ] Trace validator normalizes IDs (strips leading zeros) before matching
+- [ ] `projctl trace validate` passes on projects using non-padded IDs
+- [ ] No false orphan reports from format mismatch
+
+---
+
+### ISSUE-174: phase_blocked skips evaluation phase — should still run retro/summary
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+When a workflow phase hits max iterations and enters `phase_blocked`, `projctl step next` returns `all-complete`. This skips any remaining workflow phases, including the evaluation phase (combined retro/summary).
+
+During ISSUE-170, the documentation phase hit max iterations → phase_blocked → all-complete. The evaluation-producer never ran. The project completed without a retrospective or summary.
+
+## Expected Behavior
+
+Even when a phase is blocked, the state machine should continue to subsequent phases. The evaluation phase should always run — it captures learnings from the project including what went wrong (like why docs hit max iterations).
+
+## Current State Graph Gap
+
+```
+documentation_decide → phase_blocked → all-complete (WRONG)
+documentation_decide → phase_blocked → evaluation_produce → evaluation_qa → all-complete (CORRECT)
+```
+
+## Acceptance Criteria
+- [ ] phase_blocked transitions to evaluation_produce instead of all-complete
+- [ ] Evaluation phase runs even when upstream phases were blocked
+- [ ] Blocked phase details are available to the evaluation-producer for retrospective analysis
+- [ ] `projctl step next` from phase_blocked returns spawn-producer for evaluation
+
+## Discovery
+ISSUE-170: documentation phase hit max iterations, state went to phase_blocked, step next returned all-complete, evaluation never ran.
+
+
+### Comment
+
+Corrected diagnosis: The state diagram correctly shows phase_blocked → escalate-user → user decision → continue. The bug is that either projctl step next returns all-complete from phase_blocked instead of escalate-user, or the orchestrator failed to handle it. The evaluation phase should always run after user decides on the block.
+
+---
+
+### ISSUE-175: Document hook installation for plan mode enforcement
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+From ISSUE-170 evaluation: AC-2 mentions hook installation docs or 'projctl hooks install' support, but this was not completed. The state infrastructure for tool call tracking is ready, but users need guidance on configuring PostToolUse hooks.
+
+Add a 'Hook Configuration' section to the plan-producer SKILL.md with example hook configuration for EnterPlanMode/ExitPlanMode logging.
+
+Context: ISSUE-170 implemented the state-layer infrastructure (LogToolCall, step.Complete validation) but did not document how to install the PostToolUse hook that triggers the logging.
+
+---
+
+### ISSUE-176: Codify scoped workflow decision criteria in intake-evaluator
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+From ISSUE-170 evaluation: The intake-evaluator should have clear criteria for when to use scoped workflow vs full workflow. ISSUE-170 was a good candidate for scoped (clear problem, clear solution), but the decision was implicit.
+
+Add decision tree to intake-evaluator SKILL.md:
+- Use scoped workflow when:
+  1. Problem and solution are both clearly defined in issue
+  2. No exploratory work needed
+  3. No design trade-offs to evaluate
+
+Context: ISSUE-170 used scoped workflow successfully, completing in single session with high quality by skipping PM/design/arch phases and going directly to TDD.
