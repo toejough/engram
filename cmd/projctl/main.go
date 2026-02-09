@@ -102,6 +102,7 @@ func main() {
 			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
 			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
 			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),
+			targ.Targ(memoryExtractSession).Name("extract-session").Description("Extract learnings from session transcripts"),
 			targ.Targ(memoryPromote).Name("promote").Description("Identify memories for promotion to global memory"),
 			targ.Targ(memoryDecay).Name("decay").Description("Decay confidence of all memories"),
 			targ.Targ(memoryPrune).Name("prune").Description("Remove low-confidence memories"),
