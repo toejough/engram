@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -83,6 +84,9 @@ func ContextInject(opts ContextInjectOpts) (string, error) {
 		filtered = filtered[:maxEntries]
 	}
 
+	// Apply primacy ordering: corrections first, then by score (ISSUE-178)
+	filtered = SortByPrimacy(filtered)
+
 	// Format as compact markdown
 	output := formatAsMarkdown(filtered, maxTokens)
 
@@ -132,6 +136,33 @@ func formatAsMarkdown(results []QueryResult, maxTokens int) string {
 // formatEmptyResult returns markdown for empty results.
 func formatEmptyResult() string {
 	return "## Recent Context from Memory\n\n_(No relevant memories found)_\n"
+}
+
+// SortByPrimacy reorders results so corrections appear first (primacy position),
+// then by score descending within each group. Uses stable sort for deterministic ordering.
+func SortByPrimacy(results []QueryResult) []QueryResult {
+	if len(results) == 0 {
+		return results
+	}
+
+	// Make a copy to avoid mutating the input
+	sorted := make([]QueryResult, len(results))
+	copy(sorted, results)
+
+	sort.SliceStable(sorted, func(i, j int) bool {
+		iIsCorrection := sorted[i].MemoryType == "correction"
+		jIsCorrection := sorted[j].MemoryType == "correction"
+
+		// Corrections come first
+		if iIsCorrection != jIsCorrection {
+			return iIsCorrection
+		}
+
+		// Within same group, higher score first
+		return sorted[i].Score > sorted[j].Score
+	})
+
+	return sorted
 }
 
 // truncateLine truncates a line to a maximum length, preserving word boundaries.

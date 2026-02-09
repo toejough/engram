@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -370,6 +371,7 @@ type QueryResult struct {
 	Source     string  // File source ("memory")
 	SourceType string  // "internal" or "external"
 	Confidence float64 // Confidence score (0.0-1.0)
+	MemoryType string  // "correction", "reflection", or "" (ISSUE-178)
 }
 
 // QueryResults contains the results of a query.
@@ -393,6 +395,9 @@ type QueryResults struct {
 	SessionCreatedNew bool
 	SessionReused     bool
 	QueryDuration     time.Duration
+	// Hybrid search fields (ISSUE-181)
+	UsedHybridSearch bool
+	BM25Enabled      bool
 }
 
 // Query searches memory for semantically similar content using embeddings.
@@ -507,8 +512,9 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		sessionReused = true
 	}
 
-	// Search for similar embeddings
-	results, err := searchSimilar(db, queryEmbedding, limit)
+	// Search using hybrid search (BM25 + vector + RRF)
+	bm25Available := hasFTS5(db)
+	results, err := hybridSearch(db, queryEmbedding, opts.Text, limit, 60)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search: %w", err)
 	}
@@ -539,6 +545,8 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		SessionCreatedNew:    sessionCreated,
 		SessionReused:        sessionReused,
 		QueryDuration:        duration,
+		UsedHybridSearch:     true,
+		BM25Enabled:          bm25Available,
 	}, nil
 }
 
@@ -750,20 +758,24 @@ func Prune(opts PruneOpts) (*PruneResult, error) {
 		totalBefore = 0
 	}
 
-	// Get embedding_ids to delete from vec_embeddings
-	rows, err := db.Query("SELECT embedding_id FROM embeddings WHERE confidence < ?", threshold)
+	// Get ids and embedding_ids to delete from vec_embeddings and FTS5
+	rows, err := db.Query("SELECT id, embedding_id FROM embeddings WHERE confidence < ?", threshold)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query for pruning: %w", err)
 	}
 
-	var embeddingIDs []int64
+	type pruneEntry struct {
+		id          int64
+		embeddingID int64
+	}
+	var toDelete []pruneEntry
 	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
+		var e pruneEntry
+		if err := rows.Scan(&e.id, &e.embeddingID); err != nil {
 			_ = rows.Close()
-			return nil, fmt.Errorf("failed to scan embedding_id: %w", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
-		embeddingIDs = append(embeddingIDs, id)
+		toDelete = append(toDelete, e)
 	}
 	_ = rows.Close()
 
@@ -776,9 +788,10 @@ func Prune(opts PruneOpts) (*PruneResult, error) {
 
 	rowsDeleted, _ := result.RowsAffected()
 
-	// Delete from vec_embeddings table
-	for _, embID := range embeddingIDs {
-		_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", embID)
+	// Delete from vec_embeddings and FTS5 tables
+	for _, e := range toDelete {
+		_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", e.embeddingID)
+		deleteFTS5(db, e.id)
 	}
 
 	// Count total after pruning
@@ -888,28 +901,60 @@ func PromoteInteractive(opts PromoteInteractiveOpts) (*PromoteInteractiveResult,
 }
 
 // appendToClaudeMD appends approved learnings to CLAUDE.md.
+// If a "## Promoted Learnings" section already exists, new learnings are
+// appended into it. Otherwise a new section is created at the end.
 func appendToClaudeMD(claudeMDPath string, learnings []string) error {
-	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(claudeMDPath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	// Open file for appending (create if doesn't exist)
-	f, err := os.OpenFile(claudeMDPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open CLAUDE.md: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	// Write a section header if file is new or append to existing
-	_, _ = f.WriteString("\n## Promoted Learnings\n\n")
-
-	// Write each learning
+	// Build the new learning lines
+	var newLines strings.Builder
 	for _, learning := range learnings {
-		_, err := f.WriteString("- " + learning + "\n")
-		if err != nil {
-			return fmt.Errorf("failed to write learning: %w", err)
+		newLines.WriteString("- " + learning + "\n")
+	}
+
+	// Read existing content (empty if file doesn't exist)
+	existing, err := os.ReadFile(claudeMDPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read CLAUDE.md: %w", err)
+	}
+
+	content := string(existing)
+	const sectionHeader = "## Promoted Learnings"
+
+	idx := strings.Index(content, sectionHeader)
+	if idx >= 0 {
+		// Section exists — find the end of it (next ## header or EOF)
+		afterHeader := idx + len(sectionHeader)
+		rest := content[afterHeader:]
+
+		// Find the next ## header after the Promoted Learnings section
+		nextSection := strings.Index(rest, "\n## ")
+		var insertPos int
+		if nextSection >= 0 {
+			insertPos = afterHeader + nextSection
+		} else {
+			insertPos = len(content)
 		}
+
+		// Ensure there's a newline before the new learnings
+		prefix := content[:insertPos]
+		if !strings.HasSuffix(prefix, "\n") {
+			prefix += "\n"
+		}
+
+		content = prefix + newLines.String() + content[insertPos:]
+	} else {
+		// No existing section — append one at the end
+		if len(content) > 0 && !strings.HasSuffix(content, "\n") {
+			content += "\n"
+		}
+		content += "\n" + sectionHeader + "\n\n" + newLines.String()
+	}
+
+	if err := os.WriteFile(claudeMDPath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write CLAUDE.md: %w", err)
 	}
 
 	return nil
@@ -1094,6 +1139,51 @@ type ActivationStats struct {
 	TimestampCount   int // Total timestamps recorded
 	ActiveTimestamps int // Timestamps within retention window
 	DecayParameter   float64
+	SessionCount     int     // Number of distinct retrieval sessions
+	SessionBonus     float64 // Multiplier bonus from cross-session retrievals
+}
+
+// ClusterIntoSessions groups RFC3339 timestamps into sessions separated by gaps
+// exceeding the given threshold. Timestamps are sorted before clustering.
+// A gap exactly equal to the threshold does NOT start a new session (must exceed it).
+func ClusterIntoSessions(timestamps []string, gap time.Duration) [][]string {
+	if len(timestamps) == 0 {
+		return nil
+	}
+
+	// Parse and sort timestamps
+	type parsedTS struct {
+		raw    string
+		parsed time.Time
+	}
+	var parsed []parsedTS
+	for _, ts := range timestamps {
+		t, err := time.Parse(time.RFC3339, ts)
+		if err != nil {
+			continue
+		}
+		parsed = append(parsed, parsedTS{raw: ts, parsed: t})
+	}
+
+	if len(parsed) == 0 {
+		return nil
+	}
+
+	sort.Slice(parsed, func(i, j int) bool {
+		return parsed[i].parsed.Before(parsed[j].parsed)
+	})
+
+	// Cluster by gap
+	sessions := [][]string{{parsed[0].raw}}
+	for i := 1; i < len(parsed); i++ {
+		if parsed[i].parsed.Sub(parsed[i-1].parsed) > gap {
+			sessions = append(sessions, []string{parsed[i].raw})
+		} else {
+			sessions[len(sessions)-1] = append(sessions[len(sessions)-1], parsed[i].raw)
+		}
+	}
+
+	return sessions
 }
 
 // GetActivationStats retrieves ACT-R activation statistics for a memory entry.
@@ -1161,6 +1251,20 @@ func GetActivationStats(opts ActivationStatsOpts) (*ActivationStats, error) {
 		sumPowerTerms += math.Pow(age, -d)
 	}
 
+	// Detect sessions from timestamps (30min gap heuristic)
+	sessions := ClusterIntoSessions(timestamps, 30*time.Minute)
+	sessionCount := len(sessions)
+	if sessionCount == 0 {
+		sessionCount = 1
+	}
+
+	// Apply session multiplier when retrievals span multiple sessions
+	var sessionBonus float64
+	if sessionCount > 1 {
+		sessionBonus = 0.5 // 1.5x multiplier = base + 0.5 bonus
+		sumPowerTerms *= 1.5
+	}
+
 	// Calculate activation
 	var activation float64
 	if sumPowerTerms > 0 {
@@ -1175,6 +1279,8 @@ func GetActivationStats(opts ActivationStatsOpts) (*ActivationStats, error) {
 		TimestampCount:   len(timestamps),
 		ActiveTimestamps: activeTimestamps,
 		DecayParameter:   d,
+		SessionCount:     sessionCount,
+		SessionBonus:     sessionBonus,
 	}, nil
 }
 

@@ -107,6 +107,17 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create tables: %w", err)
 	}
 
+	// Create FTS5 virtual table for full-text search (ISSUE-181)
+	// FTS5 availability depends on SQLite compilation flags; degrade gracefully
+	_, ftsErr := db.Exec(`CREATE VIRTUAL TABLE IF NOT EXISTS embeddings_fts USING fts5(content)`)
+	if ftsErr == nil {
+		// Migrate existing embeddings into FTS5 (idempotent)
+		if err := migrateFTS5(db); err != nil {
+			_ = db.Close()
+			return nil, fmt.Errorf("failed to migrate FTS5: %w", err)
+		}
+	}
+
 	// Add new columns via ALTER TABLE (ignore "duplicate column" errors)
 	alterStatements := []string{
 		"ALTER TABLE embeddings ADD COLUMN retrieval_count INTEGER NOT NULL DEFAULT 0",
@@ -122,6 +133,183 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// hasFTS5 checks whether the embeddings_fts table exists in the database.
+func hasFTS5(db *sql.DB) bool {
+	var name string
+	err := db.QueryRow("SELECT name FROM sqlite_master WHERE type='table' AND name='embeddings_fts'").Scan(&name)
+	return err == nil && name == "embeddings_fts"
+}
+
+// insertFTS5 inserts a row into the FTS5 table if it exists. Errors are silently ignored.
+func insertFTS5(db *sql.DB, rowID int64, content string) {
+	if !hasFTS5(db) {
+		return
+	}
+	_, _ = db.Exec(`INSERT INTO embeddings_fts(rowid, content) VALUES (?, ?)`, rowID, content)
+}
+
+// deleteFTS5 deletes a row from the FTS5 table if it exists. Errors are silently ignored.
+func deleteFTS5(db *sql.DB, rowID int64) {
+	if !hasFTS5(db) {
+		return
+	}
+	_, _ = db.Exec(`DELETE FROM embeddings_fts WHERE rowid = ?`, rowID)
+}
+
+// migrateFTS5 populates the FTS5 table from existing embeddings on first access.
+// Idempotent: uses INSERT OR IGNORE pattern by checking for existing rowids.
+func migrateFTS5(db *sql.DB) error {
+	// Only insert rows that aren't already in FTS5.
+	// FTS5 rowid matches embeddings.id.
+	_, err := db.Exec(`
+		INSERT INTO embeddings_fts(rowid, content)
+		SELECT e.id, e.content FROM embeddings e
+		WHERE e.id NOT IN (SELECT rowid FROM embeddings_fts)
+	`)
+	return err
+}
+
+// searchBM25 performs full-text search using FTS5 BM25 ranking.
+func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) {
+	// Sanitize query: strip FTS5 operators and special chars, keep only words
+	sanitized := sanitizeFTS5Query(queryText)
+	if sanitized == "" {
+		return nil, nil
+	}
+
+	rows, err := db.Query(
+		`SELECT f.content, f.rank, COALESCE(e.memory_type, '') FROM embeddings_fts f
+		 LEFT JOIN embeddings e ON e.id = f.rowid
+		 WHERE embeddings_fts MATCH ? ORDER BY f.rank LIMIT ?`,
+		sanitized, limit,
+	)
+	if err != nil {
+		// FTS5 syntax errors → return empty results gracefully
+		return nil, nil
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []QueryResult
+	for rows.Next() {
+		var content string
+		var rank float64
+		var memoryType string
+		if err := rows.Scan(&content, &rank, &memoryType); err != nil {
+			continue
+		}
+		// FTS5 rank is negative (lower = better match). Normalize to positive score.
+		score := -rank
+		if score < 0 {
+			score = 0
+		}
+		results = append(results, QueryResult{
+			Content:    content,
+			Score:      score,
+			Source:     "memory",
+			MemoryType: memoryType,
+		})
+	}
+
+	return results, rows.Err()
+}
+
+// sanitizeFTS5Query strips FTS5 operators and special characters, keeping only words.
+func sanitizeFTS5Query(query string) string {
+	var words []string
+	for _, word := range strings.Fields(query) {
+		// Strip non-alphanumeric characters
+		cleaned := strings.Map(func(r rune) rune {
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+				return r
+			}
+			return -1
+		}, word)
+		// Skip FTS5 operators and empty strings
+		upper := strings.ToUpper(cleaned)
+		if cleaned != "" && upper != "AND" && upper != "OR" && upper != "NOT" && upper != "NEAR" {
+			words = append(words, cleaned)
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+// hybridSearch combines vector similarity and BM25 full-text search using Reciprocal Rank Fusion.
+func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit int, k int) ([]QueryResult, error) {
+	// Fetch 2*limit from each source
+	fetchLimit := 2 * limit
+
+	vectorResults, err := searchSimilar(db, queryEmbedding, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	bm25Results, _ := searchBM25(db, queryText, fetchLimit) // Ignore BM25 errors, fall back to vector-only
+
+	// If no BM25 results, just return vector results (truncated to limit)
+	if len(bm25Results) == 0 {
+		if len(vectorResults) > limit {
+			return vectorResults[:limit], nil
+		}
+		return vectorResults, nil
+	}
+
+	// Apply RRF: score(d) = sum over each ranking r of 1/(k + rank_in_r(d))
+	// rank is 1-indexed position in the result list
+	type rrfEntry struct {
+		result   QueryResult
+		rrfScore float64
+	}
+
+	scoreMap := make(map[string]*rrfEntry)
+
+	// Add vector results (already sorted by score DESC, rank = position)
+	for i, r := range vectorResults {
+		rank := i + 1 // 1-indexed
+		entry, exists := scoreMap[r.Content]
+		if !exists {
+			entry = &rrfEntry{result: r}
+			scoreMap[r.Content] = entry
+		}
+		entry.rrfScore += 1.0 / float64(k+rank)
+	}
+
+	// Add BM25 results
+	for i, r := range bm25Results {
+		rank := i + 1
+		entry, exists := scoreMap[r.Content]
+		if !exists {
+			entry = &rrfEntry{result: r}
+			scoreMap[r.Content] = entry
+		}
+		entry.rrfScore += 1.0 / float64(k+rank)
+	}
+
+	// Collect and sort by RRF score DESC
+	entries := make([]rrfEntry, 0, len(scoreMap))
+	for _, e := range scoreMap {
+		entries = append(entries, *e)
+	}
+
+	// Sort by RRF score descending
+	for i := 0; i < len(entries); i++ {
+		for j := i + 1; j < len(entries); j++ {
+			if entries[j].rrfScore > entries[i].rrfScore {
+				entries[i], entries[j] = entries[j], entries[i]
+			}
+		}
+	}
+
+	// Return top limit results with RRF score
+	results := make([]QueryResult, 0, limit)
+	for i := 0; i < len(entries) && i < limit; i++ {
+		r := entries[i].result
+		r.Score = entries[i].rrfScore
+		results = append(results, r)
+	}
+
+	return results, nil
 }
 
 // getExistingEmbeddings returns a map of content -> embedding_id for already embedded content.
@@ -541,9 +729,14 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, boo
 
 		// Insert into metadata table with defaults for source_type and confidence
 		metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, embedding_id) VALUES (?, ?, ?, ?, ?)`
-		if _, err := db.Exec(metaStmt, content, "memory", "internal", 1.0, embeddingID); err != nil {
+		metaResult, err := db.Exec(metaStmt, content, "memory", "internal", 1.0, embeddingID)
+		if err != nil {
 			return newCount, sessionCreated, sessionReused, err
 		}
+
+		// Insert into FTS5 table if available (rowid matches embeddings.id)
+		metaID, _ := metaResult.LastInsertId()
+		insertFTS5(db, metaID, content)
 
 		newCount++
 	}
@@ -556,7 +749,7 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	// Use sqlite-vec's distance function for similarity search
 	// Weight by confidence for TASK-43
 	query := `
-		SELECT e.content, e.source, e.source_type, e.confidence,
+		SELECT e.content, e.source, e.source_type, e.confidence, e.memory_type,
 		       (1 - vec_distance_cosine(v.embedding, ?)) * e.confidence as score
 		FROM vec_embeddings v
 		JOIN embeddings e ON e.embedding_id = v.rowid
@@ -578,7 +771,7 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	var results []QueryResult
 	for rows.Next() {
 		var r QueryResult
-		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.Score); err != nil {
+		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.MemoryType, &r.Score); err != nil {
 			return nil, err
 		}
 		// Clamp score to [0, 1] due to floating point precision
@@ -680,9 +873,14 @@ func learnToEmbeddings(opts LearnOpts) error {
 
 	// Insert into metadata table with the full formatted content
 	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, memory_type, embedding_id) VALUES (?, ?, ?, ?, ?, ?)`
-	if _, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID); err != nil {
+	metaResult, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID)
+	if err != nil {
 		return err
 	}
+
+	// Insert into FTS5 table if available (rowid matches embeddings.id)
+	metaID, _ := metaResult.LastInsertId()
+	insertFTS5(db, metaID, content)
 
 	return nil
 }
