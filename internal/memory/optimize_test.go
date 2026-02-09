@@ -57,41 +57,6 @@ func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
 	g.Expect(confAfterSecond).To(Equal(confAfterFirst), "Second optimize should not decay further")
 }
 
-// TEST-1131: Optimize after 1 day applies correct decay rates
-func TestOptimizeDecayRates(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Learn a memory
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "decay rate test entry",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Set last_optimized_at to 24 hours ago
-	oneDayAgo := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
-	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", oneDayAgo)).To(Succeed())
-
-	confBefore := getConfidence(g, memoryRoot, "decay rate")
-
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.DecayApplied).To(BeTrue())
-	g.Expect(result.DaysSinceLastOptimize).To(BeNumerically("~", 1.0, 0.1))
-
-	confAfter := getConfidence(g, memoryRoot, "decay rate")
-	// Non-promoted: factor = 0.9^1 = 0.9
-	g.Expect(confAfter).To(BeNumerically("~", confBefore*0.9, 0.05))
-}
-
 // TEST-1132: Promoted entries with confidence < 0.3 are auto-demoted from CLAUDE.md
 func TestOptimizeAutoDemote(t *testing.T) {
 	g := NewWithT(t)

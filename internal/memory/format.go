@@ -2,19 +2,17 @@ package memory
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 )
 
-// ContextInjectOpts holds options for context injection.
-type ContextInjectOpts struct {
-	// MemoryRoot is the root directory for memory storage
-	MemoryRoot string
+// FormatMarkdownOpts holds options for formatting query results as markdown.
+type FormatMarkdownOpts struct {
+	// Results are pre-fetched query results to format
+	Results []QueryResult
 
-	// QueryText is the text to search for (defaults to "recent important learnings")
-	QueryText string
+	// MinConfidence is the minimum confidence score to include
+	MinConfidence float64
 
 	// MaxEntries is the maximum number of entries to include
 	MaxEntries int
@@ -22,22 +20,13 @@ type ContextInjectOpts struct {
 	// MaxTokens is the approximate maximum token count
 	MaxTokens int
 
-	// MinConfidence is the minimum confidence score to include (default: 0.3)
-	MinConfidence float64
-
-	// Project is the project name for project-aware retrieval boosting
-	Project string
+	// Primacy enables primacy ordering (corrections first)
+	Primacy bool
 }
 
-// ContextInject queries high-confidence recent memories and formats them as compact markdown
-// suitable for Claude's system prompt.
-func ContextInject(opts ContextInjectOpts) (string, error) {
-	// Set defaults
-	queryText := opts.QueryText
-	if queryText == "" {
-		queryText = "recent important learnings"
-	}
-
+// FormatMarkdown takes pre-fetched query results and applies confidence filtering,
+// entry cap, optional primacy sort, and markdown formatting with token budget.
+func FormatMarkdown(opts FormatMarkdownOpts) string {
 	maxEntries := opts.MaxEntries
 	if maxEntries == 0 {
 		maxEntries = 10
@@ -48,43 +37,11 @@ func ContextInject(opts ContextInjectOpts) (string, error) {
 		maxTokens = 2000
 	}
 
-	minConfidence := opts.MinConfidence
-	if minConfidence == 0 {
-		minConfidence = 0.3
-	}
-
-	// Determine model directory
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-	modelDir := filepath.Join(homeDir, ".claude", "models")
-
-	// If project is set, prepend it to the query for retrieval boosting
-	if opts.Project != "" {
-		queryText = "[" + opts.Project + "] " + queryText
-	}
-
-	// Query memories using existing infrastructure
-	queryOpts := QueryOpts{
-		Text:       queryText,
-		Limit:      maxEntries * 2, // Query more than needed for filtering
-		MemoryRoot: opts.MemoryRoot,
-		ModelDir:   modelDir,
-		Project:    opts.Project,
-	}
-
-	results, err := Query(queryOpts)
-	if err != nil {
-		// If query fails, return empty markdown (graceful degradation)
-		return formatEmptyResult(), nil
-	}
-
 	// Filter by confidence threshold
 	var filtered []QueryResult
-	for _, result := range results.Results {
-		if result.Confidence >= minConfidence {
-			filtered = append(filtered, result)
+	for _, r := range opts.Results {
+		if r.Confidence >= opts.MinConfidence {
+			filtered = append(filtered, r)
 		}
 	}
 
@@ -93,13 +50,12 @@ func ContextInject(opts ContextInjectOpts) (string, error) {
 		filtered = filtered[:maxEntries]
 	}
 
-	// Apply primacy ordering: corrections first, then by score (ISSUE-178)
-	filtered = SortByPrimacy(filtered)
+	// Apply primacy ordering if requested
+	if opts.Primacy {
+		filtered = SortByPrimacy(filtered)
+	}
 
-	// Format as compact markdown
-	output := formatAsMarkdown(filtered, maxTokens)
-
-	return output, nil
+	return formatAsMarkdown(filtered, maxTokens)
 }
 
 // formatAsMarkdown formats query results as compact markdown suitable for system prompts.

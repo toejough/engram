@@ -162,14 +162,35 @@ func memoryGrep(args memoryGrepArgs) error {
 }
 
 type memoryQueryArgs struct {
-	Text       string `targ:"positional,required,desc=Text to search for"`
-	Limit      int    `targ:"flag,short=n,desc=Maximum number of results (default 5)"`
-	Project    string `targ:"flag,short=p,desc=Project name for retrieval tracking"`
-	Verbose    bool   `targ:"flag,short=v,desc=Show detailed scoring info (method and memory type)"`
-	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	Text          string  `targ:"positional,desc=Text to search for"`
+	Limit         int     `targ:"flag,short=n,desc=Maximum number of results (default 10)"`
+	Project       string  `targ:"flag,short=p,desc=Project name for retrieval tracking"`
+	Verbose       bool    `targ:"flag,short=v,desc=Show detailed scoring info"`
+	MemoryRoot    string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	MinConfidence float64 `targ:"flag,name=min-confidence,desc=Minimum confidence threshold (default: 0)"`
+	MaxTokens     int     `targ:"flag,name=max-tokens,desc=Max token count for output (default: 2000)"`
+	Primacy       bool    `targ:"flag,desc=Sort corrections first (primacy ordering)"`
+	StdinProject  bool    `targ:"flag,name=stdin-project,desc=Derive project from stdin hook JSON cwd"`
+	StdinPrompt   bool    `targ:"flag,name=stdin-prompt,desc=Read query text and project from stdin hook JSON prompt field"`
+	StdinTool     bool    `targ:"flag,name=stdin-tool,desc=Read query from stdin hook JSON tool_name + tool_input fields"`
 }
 
 func memoryQuery(args memoryQueryArgs) error {
+	// Mutual exclusivity check for stdin modes
+	stdinCount := 0
+	if args.StdinProject {
+		stdinCount++
+	}
+	if args.StdinPrompt {
+		stdinCount++
+	}
+	if args.StdinTool {
+		stdinCount++
+	}
+	if stdinCount > 1 {
+		return fmt.Errorf("only one of --stdin-project, --stdin-prompt, --stdin-tool may be set")
+	}
+
 	memoryRoot := args.MemoryRoot
 	if memoryRoot == "" {
 		home, err := os.UserHomeDir()
@@ -181,24 +202,54 @@ func memoryQuery(args memoryQueryArgs) error {
 
 	limit := args.Limit
 	if limit == 0 {
-		limit = 5
+		limit = 10
+	}
+
+	queryText := args.Text
+	project := args.Project
+
+	// Parse stdin for hook-based modes
+	var hookInput *memory.HookInput
+	if args.StdinProject || args.StdinPrompt || args.StdinTool {
+		hookInput, _ = memory.ParseHookInput(os.Stdin)
+	}
+
+	if hookInput != nil {
+		// Derive project from cwd if not set explicitly
+		if project == "" {
+			project = memory.DeriveProjectName(hookInput.Cwd)
+		}
+
+		if args.StdinPrompt {
+			if hookInput.Prompt != "" {
+				queryText = hookInput.Prompt
+			}
+		} else if args.StdinTool {
+			queryText = hookInput.ExtractToolQuery()
+		}
+	}
+
+	// Graceful degradation: if no query text, exit silently
+	if queryText == "" {
+		return nil
+	}
+
+	// If project is set, prepend it to the query for retrieval boosting
+	searchText := queryText
+	if project != "" {
+		searchText = "[" + project + "] " + queryText
 	}
 
 	opts := memory.QueryOpts{
-		Text:       args.Text,
-		Limit:      limit,
-		Project:    args.Project,
+		Text:       searchText,
+		Limit:      limit * 2, // Query more than needed for confidence filtering
+		Project:    project,
 		MemoryRoot: memoryRoot,
 	}
 
 	result, err := memory.Query(opts)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	if len(result.Results) == 0 {
-		fmt.Println("No similar memories found")
+		// Graceful degradation for hook usage
 		return nil
 	}
 
@@ -207,18 +258,28 @@ func memoryQuery(args memoryQueryArgs) error {
 		if result.UsedHybridSearch {
 			method = "hybrid (vector+BM25)"
 		}
-		fmt.Printf("Search method: %s\n", method)
-		fmt.Printf("BM25 available: %v\n\n", result.BM25Enabled)
-	}
-
-	for i, r := range result.Results {
-		if args.Verbose && r.MemoryType != "" {
-			fmt.Printf("%d. (%.2f) [%s] %s\n", i+1, r.Score, r.MemoryType, r.Content)
-		} else {
-			fmt.Printf("%d. (%.2f) %s\n", i+1, r.Score, r.Content)
+		fmt.Fprintf(os.Stderr, "Search method: %s\n", method)
+		fmt.Fprintf(os.Stderr, "BM25 available: %v\n", result.BM25Enabled)
+		if args.StdinPrompt {
+			fmt.Fprintf(os.Stderr, "Query source: stdin-prompt\n")
+		} else if args.StdinTool {
+			fmt.Fprintf(os.Stderr, "Query source: stdin-tool\n")
+		} else if args.StdinProject {
+			fmt.Fprintf(os.Stderr, "Query source: stdin-project\n")
 		}
+		fmt.Fprintln(os.Stderr)
 	}
 
+	// Always markdown output
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:       result.Results,
+		MinConfidence: args.MinConfidence,
+		MaxEntries:    limit,
+		MaxTokens:     args.MaxTokens,
+		Primacy:       args.Primacy,
+	})
+
+	fmt.Print(output)
 	return nil
 }
 

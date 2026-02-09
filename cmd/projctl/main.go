@@ -103,7 +103,6 @@ func main() {
 			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
 			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),
 			targ.Targ(memoryExtractSession).Name("extract-session").Description("Extract learnings from session transcripts"),
-			targ.Targ(memoryContextInject).Name("context-inject").Description("Query high-confidence memories for system prompt injection"),
 			targ.Targ(memoryOptimize).Name("optimize").Description("Run unified memory optimization (decay, prune, dedup, promote)"),
 			targ.Group("hooks",
 				targ.Targ(memoryHooksInstall).Name("install").Description("Install Claude Code hooks"),

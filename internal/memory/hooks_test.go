@@ -92,8 +92,47 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 	sessionStartHook, ok := sessionStartHooksList[0].(map[string]any)
 	g.Expect(ok).To(BeTrue())
 	g.Expect(sessionStartHook["type"]).To(Equal("command"))
-	g.Expect(sessionStartHook["command"]).To(Equal("projctl memory context-inject"))
+	g.Expect(sessionStartHook["command"]).To(ContainSubstring("projctl memory query"))
+	g.Expect(sessionStartHook["command"]).To(ContainSubstring("--primacy"))
+	g.Expect(sessionStartHook["command"]).To(ContainSubstring("--stdin-project"))
 	g.Expect(sessionStartHook["command"]).ToNot(ContainSubstring("&")) // sync
+
+	// Verify UserPromptSubmit hook structure
+	g.Expect(hooks).To(HaveKey("UserPromptSubmit"))
+	userPromptEntries, ok := hooks["UserPromptSubmit"].([]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(userPromptEntries).To(HaveLen(1))
+
+	userPromptEntry, ok := userPromptEntries[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	userPromptHooksList, ok := userPromptEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "UserPromptSubmit entry should have 'hooks' array")
+	g.Expect(userPromptHooksList).To(HaveLen(1))
+
+	userPromptHook, ok := userPromptHooksList[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(userPromptHook["type"]).To(Equal("command"))
+	g.Expect(userPromptHook["command"]).To(ContainSubstring("projctl memory query"))
+	g.Expect(userPromptHook["command"]).To(ContainSubstring("--stdin-prompt"))
+
+	// Verify PreToolUse hook structure
+	g.Expect(hooks).To(HaveKey("PreToolUse"))
+	preToolUseEntries, ok := hooks["PreToolUse"].([]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(preToolUseEntries).To(HaveLen(1))
+
+	preToolUseEntry, ok := preToolUseEntries[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	preToolUseHooksList, ok := preToolUseEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "PreToolUse entry should have 'hooks' array")
+	g.Expect(preToolUseHooksList).To(HaveLen(1))
+
+	preToolUseHookCmd, ok := preToolUseHooksList[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	g.Expect(preToolUseHookCmd["type"]).To(Equal("command"))
+	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("projctl memory query"))
+	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("--stdin-tool"))
+	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("--min-confidence=0.5"))
 }
 
 // TestHooksInstall_MergesWithExistingHooks tests that install preserves existing hooks.
@@ -147,6 +186,8 @@ func TestHooksInstall_MergesWithExistingHooks(t *testing.T) {
 	g.Expect(hooks).To(HaveKey("Stop"))
 	g.Expect(hooks).To(HaveKey("PreCompact"))
 	g.Expect(hooks).To(HaveKey("SessionStart"))
+	g.Expect(hooks).To(HaveKey("UserPromptSubmit"))
+	g.Expect(hooks).To(HaveKey("PreToolUse"))
 
 	// Verify permissions preserved
 	g.Expect(settings).To(HaveKey("permissions"))
@@ -236,7 +277,19 @@ func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
 			"SessionStart": []map[string]any{
 				{
 					"type":    "command",
-					"command": "projctl memory context-inject",
+					"command": "projctl memory query --primacy --stdin-project --min-confidence=0.3 --max-tokens=1000 -n 10 \"recent important learnings\"",
+				},
+			},
+			"UserPromptSubmit": []map[string]any{
+				{
+					"type":    "command",
+					"command": "projctl memory query --primacy --stdin-prompt --min-confidence=0.3 --max-tokens=2000 -n 10",
+				},
+			},
+			"PreToolUse": []map[string]any{
+				{
+					"type":    "command",
+					"command": "projctl memory query --stdin-tool --min-confidence=0.5 --max-tokens=1000 -n 5",
 				},
 			},
 		},
@@ -265,6 +318,8 @@ func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
 	g.Expect(output).To(HaveKey("Stop"))
 	g.Expect(output).To(HaveKey("PreCompact"))
 	g.Expect(output).To(HaveKey("SessionStart"))
+	g.Expect(output).To(HaveKey("UserPromptSubmit"))
+	g.Expect(output).To(HaveKey("PreToolUse"))
 }
 
 // TestHooksShow_ReturnsEmptyWhenNoHooks tests that show handles missing hooks gracefully.

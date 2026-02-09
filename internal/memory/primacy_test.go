@@ -13,7 +13,7 @@ import (
 )
 
 // ============================================================================
-// ISSUE-178: Primacy ordering in context-inject
+// ISSUE-178: Primacy ordering in FormatMarkdown
 // ============================================================================
 
 // TEST-178001: Corrections appear before non-corrections in sorted results
@@ -187,8 +187,8 @@ func TestSortByPrimacyPropertyStableOrdering(t *testing.T) {
 	})
 }
 
-// TEST-178008: Integration - corrections appear first in ContextInject output
-func TestContextInjectPrimacyOrdering(t *testing.T) {
+// TEST-178008: Integration - corrections appear first in FormatMarkdown output with primacy
+func TestFormatMarkdownPrimacyOrdering(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -209,16 +209,27 @@ func TestContextInjectPrimacyOrdering(t *testing.T) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	opts := memory.ContextInjectOpts{
-		MemoryRoot:    memoryRoot,
-		QueryText:     "git checkout testing patterns",
+	// Query first
+	homeDir, err := os.UserHomeDir()
+	g.Expect(err).ToNot(HaveOccurred())
+	modelDir := filepath.Join(homeDir, ".claude", "models")
+
+	queryResults, err := memory.Query(memory.QueryOpts{
+		Text:       "git checkout testing patterns",
+		Limit:      20,
+		MemoryRoot: memoryRoot,
+		ModelDir:   modelDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Then format with primacy
+	result := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:       queryResults.Results,
+		MinConfidence: 0.0,
 		MaxEntries:    10,
 		MaxTokens:     2000,
-		MinConfidence: 0.0,
-	}
-
-	result, err := memory.ContextInject(opts)
-	g.Expect(err).ToNot(HaveOccurred())
+		Primacy:       true,
+	})
 
 	// If both entries appear, the correction should come first
 	lines := strings.Split(result, "\n")
@@ -231,7 +242,6 @@ func TestContextInjectPrimacyOrdering(t *testing.T) {
 
 	// If we got at least 2 results, verify ordering
 	if len(contentLines) >= 2 {
-		// The correction entry should be in the first position
 		correctionFound := false
 		for _, line := range contentLines {
 			if strings.Contains(line, "git checkout") {

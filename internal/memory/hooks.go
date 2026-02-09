@@ -26,7 +26,8 @@ type hookCommand struct {
 
 // hookEntry represents a hook entry in the new format with matcher and hooks array.
 type hookEntry struct {
-	Hooks []hookCommand `json:"hooks"`
+	Matcher string        `json:"matcher,omitempty"`
+	Hooks   []hookCommand `json:"hooks"`
 }
 
 // InstallHooks installs projctl memory hooks into Claude Code settings.json.
@@ -51,7 +52,21 @@ func InstallHooks(opts InstallHooksOpts) error {
 	sessionStartHook := hookEntry{
 		Hooks: []hookCommand{{
 			Type:    "command",
-			Command: "projctl memory context-inject",
+			Command: "projctl memory query --primacy --stdin-project --min-confidence=0.3 --max-tokens=1000 -n 10 \"recent important learnings\"",
+		}},
+	}
+
+	userPromptSubmitHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory query --primacy --stdin-prompt --min-confidence=0.3 --max-tokens=2000 -n 10",
+		}},
+	}
+
+	preToolUseHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory query --stdin-tool --min-confidence=0.5 --max-tokens=1000 -n 5",
 		}},
 	}
 
@@ -83,6 +98,8 @@ func InstallHooks(opts InstallHooksOpts) error {
 	hooks["Stop"] = []hookEntry{stopHook}
 	hooks["PreCompact"] = []hookEntry{preCompactHook}
 	hooks["SessionStart"] = []hookEntry{sessionStartHook}
+	hooks["UserPromptSubmit"] = []hookEntry{userPromptSubmitHook}
+	hooks["PreToolUse"] = []hookEntry{preToolUseHook}
 
 	// Write updated settings
 	data, err = json.MarshalIndent(settings, "", "  ")

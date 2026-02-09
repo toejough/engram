@@ -41,6 +41,8 @@ func TestMemoryHooksInstall_CreatesNewFile(t *testing.T) {
 	g.Expect(hooks).To(HaveKey("Stop"))
 	g.Expect(hooks).To(HaveKey("PreCompact"))
 	g.Expect(hooks).To(HaveKey("SessionStart"))
+	g.Expect(hooks).To(HaveKey("UserPromptSubmit"))
+	g.Expect(hooks).To(HaveKey("PreToolUse"))
 }
 
 // TestMemoryHooksInstall_DefaultsToHomeDir tests that CLI defaults to ~/.claude/settings.json.
