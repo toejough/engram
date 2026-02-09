@@ -626,7 +626,7 @@ func TestPropertyRetrievalCountMonotonic(t *testing.T) {
 
 			var retrievalCount int
 			err = db.QueryRow(`SELECT COALESCE(MAX(retrieval_count), 0) FROM embeddings`).Scan(&retrievalCount)
-			_ = db.Close()
+			_ = db.Close() // Close immediately, not deferred
 			g.Expect(err).ToNot(HaveOccurred())
 
 			// Property: retrieval_count >= previous

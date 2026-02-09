@@ -54,6 +54,10 @@ task = "TASK-10"
 		ReadFile: func(path string) ([]byte, error) {
 			return []byte(resultContent), nil
 		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
+		},
 	}
 
 	result, err := opts.Extract()
@@ -138,6 +142,10 @@ func TestExtract_ReturnsWrappedErrorOnReadFailure(t *testing.T) {
 		ReadFile: func(path string) ([]byte, error) {
 			return nil, errors.New("file not found")
 		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
+		},
 	}
 
 	result, err := opts.Extract()
@@ -167,6 +175,10 @@ result = "success"
 		ModelDir:   modelDir,
 		ReadFile: func(path string) ([]byte, error) {
 			return []byte(invalidTOML), nil
+		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
 		},
 	}
 
@@ -213,6 +225,10 @@ task = "TASK-10"
 			requestedPath = path
 			return []byte(resultContent), nil
 		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
+		},
 	}
 
 	_, err := opts.Extract()
@@ -255,6 +271,10 @@ task = "TASK-10"
 		MemoryRoot: memoryDir,
 		ModelDir:   modelDir,
 		// ReadFile is nil, should use os.ReadFile
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
+		},
 	}
 
 	result, err := opts.Extract()
@@ -301,6 +321,10 @@ task = "TASK-10"
 		ReadFile: func(path string) ([]byte, error) {
 			return []byte(resultContent), nil
 		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
+		},
 	}
 
 	result, err := opts.Extract()
@@ -340,6 +364,10 @@ task = "TASK-10"
 		ModelDir:   modelDir,
 		ReadFile: func(path string) ([]byte, error) {
 			return []byte(resultContent), nil
+		},
+		WriteDB: func(items []memory.ExtractedItem) error {
+			// Mock WriteDB to avoid network I/O for model download
+			return nil
 		},
 	}
 

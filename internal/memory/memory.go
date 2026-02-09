@@ -960,6 +960,55 @@ func appendToClaudeMD(claudeMDPath string, learnings []string) error {
 	return nil
 }
 
+// RemoveFromClaudeMD removes entries from the "## Promoted Learnings" section of CLAUDE.md.
+// Each entry in entries is matched as a substring against the lines in the section.
+// Lines containing any of the entries are removed. Other sections are untouched.
+// Returns nil if the file doesn't exist or is empty.
+func RemoveFromClaudeMD(claudeMDPath string, entries []string) error {
+	content, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read CLAUDE.md: %w", err)
+	}
+
+	if len(content) == 0 {
+		return nil
+	}
+
+	lines := strings.Split(string(content), "\n")
+	const sectionHeader = "## Promoted Learnings"
+
+	inPromotedSection := false
+	var result []string
+
+	for _, line := range lines {
+		// Detect section boundaries
+		if strings.HasPrefix(line, "## ") {
+			inPromotedSection = strings.TrimSpace(line) == sectionHeader
+		}
+
+		if inPromotedSection && strings.HasPrefix(strings.TrimSpace(line), "- ") {
+			// Check if this line matches any entry to remove
+			shouldRemove := false
+			for _, entry := range entries {
+				if strings.Contains(line, entry) {
+					shouldRemove = true
+					break
+				}
+			}
+			if shouldRemove {
+				continue // Skip this line
+			}
+		}
+
+		result = append(result, line)
+	}
+
+	return os.WriteFile(claudeMDPath, []byte(strings.Join(result, "\n")), 0644)
+}
+
 // LearnWithConflictCheck stores a learning but first checks for similar existing entries.
 func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 	if opts.Message == "" {

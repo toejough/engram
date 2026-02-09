@@ -563,7 +563,7 @@ func TestDecayedEntriesHaveLowerEffectiveScore(t *testing.T) {
 
 	// Store an entry and decay it
 	err = memory.Learn(memory.LearnOpts{
-		Message:    "Decayed database entry about SQL optimization",
+		Message:    "Use indexes on frequently queried columns to speed up SQL database performance",
 		MemoryRoot: memoryDir,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
@@ -574,9 +574,9 @@ func TestDecayedEntriesHaveLowerEffectiveScore(t *testing.T) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Add fresh entry on same topic
+	// Add fresh entry on same topic but different enough to avoid learn-time dedup
 	err = memory.Learn(memory.LearnOpts{
-		Message:    "Fresh database entry about SQL optimization",
+		Message:    "The EXPLAIN ANALYZE command helps identify slow SQL queries that need optimization",
 		MemoryRoot: memoryDir,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
@@ -593,7 +593,7 @@ func TestDecayedEntriesHaveLowerEffectiveScore(t *testing.T) {
 
 	// The score incorporates confidence, so fresh entry should score higher
 	g.Expect(results.Results[0].Score).To(BeNumerically(">", results.Results[1].Score))
-	g.Expect(results.Results[0].Content).To(ContainSubstring("Fresh"))
+	g.Expect(results.Results[0].Content).To(ContainSubstring("EXPLAIN"))
 }
 
 // TEST-1007: Property-based: score is always in [0, 1] for confidence-weighted search

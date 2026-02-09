@@ -127,12 +127,64 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN confidence REAL NOT NULL DEFAULT 1.0",
 		"ALTER TABLE embeddings ADD COLUMN memory_type TEXT NOT NULL DEFAULT ''", // TASK-9: correction, reflection, or empty
 		"ALTER TABLE embeddings ADD COLUMN retrieval_timestamps TEXT NOT NULL DEFAULT ''", // TASK-9: JSON array of RFC3339 timestamps
+		"ALTER TABLE embeddings ADD COLUMN promoted INTEGER NOT NULL DEFAULT 0",  // ISSUE-184: 1 if in CLAUDE.md
+		"ALTER TABLE embeddings ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''", // ISSUE-184: RFC3339 timestamp of promotion
 	}
 	for _, stmt := range alterStatements {
 		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors
 	}
 
+	// ISSUE-184: Create metadata table for key-value storage (e.g., last_optimized_at)
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)`)
+
 	return db, nil
+}
+
+// getMetadata retrieves a value from the metadata table. Returns empty string if key not found.
+func getMetadata(db *sql.DB, key string) (string, error) {
+	var value string
+	err := db.QueryRow("SELECT value FROM metadata WHERE key = ?", key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get metadata %q: %w", key, err)
+	}
+	return value, nil
+}
+
+// setMetadata sets a value in the metadata table (upsert).
+func setMetadata(db *sql.DB, key, value string) error {
+	_, err := db.Exec(
+		"INSERT INTO metadata (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+		key, value,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to set metadata %q: %w", key, err)
+	}
+	return nil
+}
+
+// GetMetadataForTest is a test-accessible wrapper around getMetadata.
+func GetMetadataForTest(memoryRoot, key string) (string, error) {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = db.Close() }()
+	return getMetadata(db, key)
+}
+
+// SetMetadataForTest is a test-accessible wrapper around setMetadata.
+func SetMetadataForTest(memoryRoot, key, value string) error {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = db.Close() }()
+	return setMetadata(db, key, value)
 }
 
 // hasFTS5 checks whether the embeddings_fts table exists in the database.
@@ -787,6 +839,49 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	return results, rows.Err()
 }
 
+// rawSimilarResult holds a raw (non-confidence-weighted) similarity result.
+type rawSimilarResult struct {
+	id         int64
+	content    string
+	similarity float64
+}
+
+// searchRawSimilar finds the most similar embeddings using raw cosine similarity
+// (NOT weighted by confidence). Used for dedup checks where we want to compare
+// semantic content regardless of confidence level.
+func searchRawSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]rawSimilarResult, error) {
+	query := `
+		SELECT e.id, e.content,
+		       (1 - vec_distance_cosine(v.embedding, ?)) as similarity
+		FROM vec_embeddings v
+		JOIN embeddings e ON e.embedding_id = v.rowid
+		ORDER BY similarity DESC
+		LIMIT ?
+	`
+
+	queryBlob, err := sqlite_vec.SerializeFloat32(queryEmbedding)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.Query(query, queryBlob, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var results []rawSimilarResult
+	for rows.Next() {
+		var r rawSimilarResult
+		if err := rows.Scan(&r.id, &r.content, &r.similarity); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+
+	return results, rows.Err()
+}
+
 // learnToEmbeddings creates an embedding for a learning entry in the DB.
 func learnToEmbeddings(opts LearnOpts) error {
 	// Determine model directory
@@ -852,12 +947,29 @@ func learnToEmbeddings(opts LearnOpts) error {
 		return fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
-	// Insert into vec table
-	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
 	embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
 	if err != nil {
 		return err
 	}
+
+	// ISSUE-184: Learn-time dedup boost — check if a very similar memory exists (>0.9).
+	// If so, boost existing memory's confidence instead of creating a duplicate.
+	// Exception: corrections are always stored (they're used for contradiction detection).
+	// Use raw cosine similarity (not confidence-weighted) for dedup comparison.
+	if opts.Type != "correction" {
+		dupResult, err := searchRawSimilar(db, embedding, 1)
+		if err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.9 {
+			// Boost existing entry's confidence by +0.05 (capped at 1.0)
+			_, _ = db.Exec(
+				"UPDATE embeddings SET confidence = MIN(1.0, confidence + 0.05) WHERE id = ?",
+				dupResult[0].id,
+			)
+			return nil // Skip insert — existing memory was reinforced
+		}
+	}
+
+	// Insert into vec table
+	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
 	result, err := db.Exec(vecStmt, embeddingBlob)
 	if err != nil {
 		return err
@@ -939,13 +1051,15 @@ func updateRetrievalTracking(db *sql.DB, results []QueryResult, project string) 
 			return err
 		}
 
-		// Update the row (always increment retrieval_count and update timestamp)
+		// Update the row (always increment retrieval_count, update timestamp, boost confidence)
+		// ISSUE-184: Retrieval boost — +0.05 per retrieval, capped at 1.0
 		updateStmt := `
 			UPDATE embeddings
 			SET retrieval_count = retrieval_count + 1,
 			    last_retrieved = ?,
 			    projects_retrieved = ?,
-			    retrieval_timestamps = ?
+			    retrieval_timestamps = ?,
+			    confidence = MIN(1.0, confidence + 0.05)
 			WHERE content = ?
 		`
 		_, err = db.Exec(updateStmt, timestamp, newProjects, string(timestampsJSON), result.Content)

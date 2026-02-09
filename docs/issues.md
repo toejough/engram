@@ -5843,53 +5843,73 @@ Context: ISSUE-170 used scoped workflow successfully, completing in single sessi
 ### ISSUE-177: ISSUE-177: consolidate should also maintain CLAUDE.md
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 consolidate currently only operates on SQLite memory. CLAUDE.md should get the same treatment: prune stale instructions, merge related ones, remove anything linters/hooks already enforce. Research shows ~150 instruction effectiveness ceiling for Sonnet-class models. Current CLAUDE.md is well above that. Add a --claude-md flag to consolidate that analyzes and proposes changes (with user approval before writing).
 
 ---
 
+
+### Comment
+
+Fully implemented in optimize.go pipeline - auto-demote, interactive promote, and CLAUDE.md dedup all working
 ### ISSUE-178: ISSUE-178: context-inject should order memories by primacy position importance
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 LLMs exhibit a U-shaped recall curve: better recall at beginning (primacy) and end (recency) of context, degraded recall in the middle. context-inject should place the highest-value memories first in output, not sorted by recency or arbitrary order. Critical corrections and constraints should lead; nice-to-know patterns should trail.
 
 ---
 
+
+### Comment
+
+Implemented via memory_type='correction' sorting in context-inject - corrections surface first in output
 ### ISSUE-179: ISSUE-179: consolidate should synthesize general patterns from repeated episodes
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 Cognitive science: specific episodes should consolidate into general patterns over time. 'Error in X on Tuesday' + 'Error in X on Thursday' should become 'X is fragile, always check Y first.' Current consolidate does dedup but doesn't synthesize. Add a synthesis step that identifies recurring themes across similar memories and proposes generalized learnings. Could use the existing e5-small ONNX model for clustering + an LLM call for synthesis.
 
 ---
 
+
+### Comment
+
+Pattern synthesis implemented in optimize.go - clusters similar memories (>0.8 similarity, min 3 items) with interactive approval
 ### ISSUE-180: ISSUE-180: ACT-R scoring should weight cross-session retrieval higher than single-session frequency
 
 **Priority:** low
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 Research on the spacing effect shows memories accessed across multiple sessions (spaced retrieval) produce stronger retention than memories accessed many times in one session. Current ACT-R implementation tracks timestamps but doesn't distinguish session boundaries. Add session ID to retrieval timestamps so the activation formula can weight spaced retrieval higher. B_i should factor in number of distinct sessions, not just raw timestamp count.
 
 ---
 
+
+### Comment
+
+Session-aware ACT-R scoring implemented - cross-session retrievals weighted 1.5x higher automatically
 ### ISSUE-181: ISSUE-181: Add hybrid search (BM25 + vector) to memory retrieval
 
 **Priority:** medium
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 Memory system uses vector search only. Research consistently shows hybrid search (BM25 keyword + vector semantic) outperforms either alone. Vector search is good for conceptual queries but misses exact identifiers (function names, error codes, config keys). Add BM25/FTS5 index alongside existing vector embeddings. Use Reciprocal Rank Fusion (RRF) to combine results. SQLite FTS5 is available and would complement sqlite-vec.
 
 ---
 
+
+### Comment
+
+Hybrid search (BM25 + vector) implemented using FTS5 with Reciprocal Rank Fusion - verbose flag shows method used
 ### ISSUE-182: ISSUE-182: Define explicit memory tiering policy in CLAUDE.md
 
 **Priority:** low
@@ -5897,3 +5917,157 @@ Memory system uses vector search only. Research consistently shows hybrid search
 **Created:** 2026-02-08
 
 Research converges on three tiers that should be documented as policy: (1) Always loaded (CLAUDE.md): <100 lines, only things preventing concrete mistakes, RFC 2119 language. (2) Retrieved on demand (semantic memory via context-inject): episodic learnings, bounded to ~2000 tokens. (3) Dynamic lookup (grep/glob/web): code, docs, references — never preloaded. Document this tiering policy so consolidate and promote --review can enforce it. Memory that belongs in a lower tier should not be promoted to a higher one.
+
+---
+
+
+### Comment
+
+Duplicate header fix is implemented in appendToClaudeMD. Missing: explicit 3-tier policy documentation in CLAUDE.md itself (tier 1: always loaded <100 lines, tier 2: retrieved on demand ~2000 tokens, tier 3: dynamic lookup)
+### ISSUE-183: Replace LLM orchestrator with deterministic Go loop
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-08
+
+## Problem
+
+The LLM-driven orchestrator (project SKILL.md) is fundamentally unreliable. 82 commits over 48 hours (Feb 7-8) produced a cascade of failures that each fix only shifts to an adjacent failure mode:
+
+- ISSUE-155: `all-complete` ambiguity (phase done vs project done)
+- ISSUE-164/165: Orchestrator advances state before producers finish
+- ISSUE-166: Ignores parallel dispatch from `step next`
+- ISSUE-167: Doesn't select tasks before TDD phases
+- ISSUE-170: Agents bypass plan mode enforcement
+- ISSUE-172: No worktree isolation on startup
+- ISSUE-174: Blocked phases skip evaluation
+
+Root cause: LLMs don't reliably follow complex multi-step control loop protocols. Attention degrades over a 548-line SKILL.md. Each band-aid fix reveals the next failure mode. This is not a bug list — it's an emergent property of the approach.
+
+Meanwhile, work that doesn't depend on LLM orchestration reliability (ISSUE-152 memory integration, ISSUE-160 ambient learning) completed cleanly with zero escalations.
+
+## Proposed Solution
+
+Implement ISSUE-1's deterministic outer loop as a Go command: `projctl orchestrate`. The deterministic infrastructure already exists:
+
+- `projctl step next` → JSON (what to do next)
+- `projctl step complete` → state transition
+- `projctl state` → current state
+- `workflows.toml` → phase definitions
+- Worktree support for parallel execution
+
+What's missing is a thin Go loop that calls these in sequence and spawns Claude only for skill execution:
+
+```
+while next := step.Next(); next.Action != "stop" {
+    ctx := context.Write(next.Task, next.Skill)
+    result := claude.Spawn(next.Skill, ctx)   // ONLY LLM invocation
+    step.Complete(next, result)
+}
+```
+
+Deterministic code can't forget instructions, won't skip steps, and doesn't suffer attention degradation.
+
+## Scope
+
+### Keep (working well, no changes needed)
+- State machine and step commands (`step next`, `step complete`, `state`)
+- Workflow TOML definitions
+- Worktree support for parallel execution
+- All 18 producer/QA skills
+- Entire memory system (ISSUE-152, 160, 177-182)
+- TDD discipline within skills
+
+### Build
+- `projctl orchestrate` command — deterministic Go loop that:
+  - Reads `step next` output
+  - Writes context for the current skill
+  - Spawns Claude with the skill and context (only LLM invocation)
+  - Reads result and calls `step complete`
+  - Handles parallel dispatch (multiple unblocked tasks → multiple spawns)
+  - Manages worktree lifecycle for parallel tasks
+
+### Scrap
+- LLM orchestrator role (project SKILL.md as a control loop driver)
+- Two-role architecture (team lead + orchestrator teammate) — replaced by Go code
+- Spawn request protocol and model handshake validation — unnecessary when Go controls spawning
+- All SKILL.md control loop instructions (the 548 lines that agents can't follow reliably)
+
+## Supersedes
+
+This issue supersedes and closes the following open orchestrator reliability issues, since the deterministic loop eliminates the failure modes they address:
+
+- ISSUE-164: Orchestrator advances state before producer completion
+- ISSUE-165: Orchestrator doesn't complete steps properly
+- ISSUE-166: Orchestrator doesn't spawn parallel items
+- ISSUE-167: State machine doesn't select task before TDD
+- ISSUE-172: Orchestrator doesn't create project worktree
+- ISSUE-174: phase_blocked skips evaluation phase
+
+## Evidence
+
+From retrospectives and session analysis (Feb 7-8, 2026):
+
+- ISSUE-104 (two-role split): 1 full day, only 70% complete, 3 tasks never finished
+- ISSUE-152 (memory, no orchestrator dependency): 4.5 hours, 100% complete, zero escalations
+- ISSUE-160 (ambient learning, no orchestrator dependency): 10/10 tasks complete
+- Pattern: every orchestrator fix generates 1-2 new issues in adjacent failure modes
+- The project SKILL.md grew to 548 lines trying to cover all edge cases — well past the point where LLM instruction-following is reliable
+
+---
+
+### ISSUE-184: CLAUDE.md maintenance: interactive consolidation, synthesis output, and prune/decay support
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-09
+
+## Problem
+
+ISSUE-177 and ISSUE-179 were implemented as report-only — they print proposals but don't apply changes. The user explicitly wanted CLAUDE.md maintenance, not just embeddings DB maintenance.
+
+## Gaps
+
+### 1. `consolidate --claude-md` lacks interactive apply mode
+- Currently prints redundancy proposals and promotion candidates, then exits
+- Plan specified interactive mode (same pattern as `promote --review`) that applies approved changes directly to CLAUDE.md
+- Should: present each proposal, let user approve/reject, then remove redundant entries and add promotions
+
+### 2. `consolidate --synthesize` doesn't produce actionable output
+- Currently clusters similar memories and reports count ("Patterns identified: 0")
+- Plan specified `generatePattern()` should produce synthesized entries from clusters
+- Should: show synthesized pattern, offer to store it (replace cluster members with generalization, or add to CLAUDE.md)
+
+### 3. No CLAUDE.md maintenance in prune/decay
+- `decay` and `prune` only work on the embeddings DB
+- No way to clean up stale/outdated entries in CLAUDE.md Promoted Learnings section
+- Need either new commands or extend existing ones to handle CLAUDE.md entries
+
+## Existing code to build on
+
+- `promote --review` already has the interactive review pattern (reviewFunc callback in memory.PromoteInteractive)
+- `ConsolidateClaudeMD()` already detects redundancy and identifies candidates — just needs the apply step
+- `SynthesizePatterns()` already clusters — needs output generation and storage
+- `ParseCLAUDEMD()` already parses CLAUDE.md sections
+- `appendToClaudeMD()` already writes to CLAUDE.md (and now handles duplicate headers correctly per ISSUE-182)
+
+## Acceptance criteria
+
+- `consolidate --claude-md --review`: interactive mode that removes approved redundant entries and adds approved promotions to CLAUDE.md
+- `consolidate --synthesize --review`: interactive mode that shows synthesized patterns and offers to store them
+- `prune` with `--claude-md` flag (or separate command): removes stale entries from Promoted Learnings section
+- All changes use the same interactive review pattern as `promote --review`
+
+---
+
+
+### Comment
+
+LARGELY SUPERSEDED by optimize.go implementation. Gap 1 (interactive consolidate): DONE via optimizePromote() with ReviewFunc. Gap 2 (synthesis output): DONE via optimizeSynthesize() with generatePattern(). Gap 3 (CLAUDE.md in prune/decay): DONE via optimizeAutoDemote() and optimizeClaudeMDDedup(). The unified 'projctl memory optimize' command implements all requested functionality. Only gap: no standalone prune/decay commands for CLAUDE.md (but optimize pipeline includes it).
+### ISSUE-185: Implicit signal detection in extract-session and project-aware context-inject
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-09
+
+extract-session only captures explicit signals (corrections, 'remember this', error→fix sequences, repeated verbatim phrases). It misses implicit signals: (1) tool/command usage patterns that succeeded, (2) behavioral consistency (used X throughout without correction = implicit confirmation), (3) positive reinforcement (did X, tests passed). context-inject also uses a hardcoded generic query ('recent important learnings') instead of project-aware retrieval, so session-start retrieval doesn't target relevant memories. Together this means passively using a tool like targ throughout a session doesn't reinforce the 'use targ' memory unless the user explicitly says something about it.

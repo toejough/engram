@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/toejough/projctl/internal/memory"
@@ -13,6 +12,7 @@ type memoryLearnArgs struct {
 	Message    string `targ:"flag,short=m,required,desc=Learning message to store"`
 	Project    string `targ:"flag,short=p,desc=Project to tag the learning with"`
 	Source     string `targ:"flag,short=s,desc=Source type: internal or external (default: internal)"`
+	Type       string `targ:"flag,short=t,desc=Memory type: correction or reflection (default: empty)"`
 	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
 }
 
@@ -30,6 +30,7 @@ func memoryLearn(args memoryLearnArgs) error {
 		Message:    args.Message,
 		Project:    args.Project,
 		Source:     args.Source,
+		Type:       args.Type,
 		MemoryRoot: memoryRoot,
 	}
 
@@ -164,6 +165,7 @@ type memoryQueryArgs struct {
 	Text       string `targ:"positional,required,desc=Text to search for"`
 	Limit      int    `targ:"flag,short=n,desc=Maximum number of results (default 5)"`
 	Project    string `targ:"flag,short=p,desc=Project name for retrieval tracking"`
+	Verbose    bool   `targ:"flag,short=v,desc=Show detailed scoring info (method and memory type)"`
 	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
 }
 
@@ -200,174 +202,23 @@ func memoryQuery(args memoryQueryArgs) error {
 		return nil
 	}
 
+	if args.Verbose {
+		method := "vector"
+		if result.UsedHybridSearch {
+			method = "hybrid (vector+BM25)"
+		}
+		fmt.Printf("Search method: %s\n", method)
+		fmt.Printf("BM25 available: %v\n\n", result.BM25Enabled)
+	}
+
 	for i, r := range result.Results {
-		fmt.Printf("%d. (%.2f) %s\n", i+1, r.Score, r.Content)
+		if args.Verbose && r.MemoryType != "" {
+			fmt.Printf("%d. (%.2f) [%s] %s\n", i+1, r.Score, r.MemoryType, r.Content)
+		} else {
+			fmt.Printf("%d. (%.2f) %s\n", i+1, r.Score, r.Content)
+		}
 	}
 
 	return nil
 }
 
-type memoryPromoteArgs struct {
-	MinRetrievals int    `targ:"flag,name=min-retrievals,desc=Minimum retrieval count (default 3)"`
-	MinProjects   int    `targ:"flag,name=min-projects,desc=Minimum unique projects (default 2)"`
-	Review        bool   `targ:"flag,name=review,desc=Enable interactive review mode"`
-	ClaudeMDPath  string `targ:"flag,name=claude-md,desc=Path to CLAUDE.md (defaults to ~/.claude/CLAUDE.md)"`
-	MemoryRoot    string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-}
-
-func memoryPromote(args memoryPromoteArgs) error {
-	memoryRoot := args.MemoryRoot
-	if memoryRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		memoryRoot = home + "/.claude/memory"
-	}
-
-	// If review mode is enabled, use interactive promote
-	if args.Review {
-		reviewFunc := func(candidate memory.PromoteCandidate) (bool, error) {
-			// Display candidate
-			fmt.Printf("\n[%d retrievals, %d projects]\n", candidate.RetrievalCount, candidate.UniqueProjects)
-			fmt.Printf("Content: %s\n", candidate.Content)
-			fmt.Print("Approve for promotion to CLAUDE.md? (y/n): ")
-
-			// Read user input
-			var response string
-			_, err := fmt.Scanln(&response)
-			if err != nil {
-				return false, fmt.Errorf("failed to read input: %w", err)
-			}
-
-			approved := strings.ToLower(response) == "y" || strings.ToLower(response) == "yes"
-			return approved, nil
-		}
-
-		opts := memory.PromoteInteractiveOpts{
-			MemoryRoot:    memoryRoot,
-			MinRetrievals: args.MinRetrievals,
-			MinProjects:   args.MinProjects,
-			Review:        true,
-			ReviewFunc:    reviewFunc,
-			ClaudeMDPath:  args.ClaudeMDPath,
-		}
-
-		result, err := memory.PromoteInteractive(opts)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
-		}
-
-		// Print summary
-		fmt.Printf("\nReview complete\n")
-		fmt.Printf("Candidates reviewed: %d\n", result.CandidatesReviewed)
-		fmt.Printf("Approved: %d\n", result.CandidatesApproved)
-		fmt.Printf("Rejected: %d\n", result.CandidatesRejected)
-
-		return nil
-	}
-
-	// Non-review mode: just list candidates
-	opts := memory.PromoteOpts{
-		MemoryRoot:    memoryRoot,
-		MinRetrievals: args.MinRetrievals,
-		MinProjects:   args.MinProjects,
-	}
-
-	result, err := memory.Promote(opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	if len(result.Candidates) == 0 {
-		fmt.Println("No candidates for promotion")
-		return nil
-	}
-
-	fmt.Printf("Found %d candidates for promotion:\n", len(result.Candidates))
-	for i, c := range result.Candidates {
-		fmt.Printf("%d. [%d retrievals, %d projects] %s\n", i+1, c.RetrievalCount, c.UniqueProjects, c.Content)
-	}
-
-	return nil
-}
-
-type memoryDecayArgs struct {
-	Factor     string `targ:"flag,desc=Decay factor (default 0.9)"`
-	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-}
-
-func memoryDecay(args memoryDecayArgs) error {
-	memoryRoot := args.MemoryRoot
-	if memoryRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		memoryRoot = home + "/.claude/memory"
-	}
-
-	var factor float64
-	if args.Factor != "" {
-		var err error
-		factor, err = strconv.ParseFloat(args.Factor, 64)
-		if err != nil {
-			return fmt.Errorf("invalid factor: %w", err)
-		}
-	}
-
-	opts := memory.DecayOpts{
-		MemoryRoot: memoryRoot,
-		Factor:     factor,
-	}
-
-	result, err := memory.Decay(opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Decayed %d entries (factor: %.2f)\n", result.EntriesAffected, result.Factor)
-	return nil
-}
-
-type memoryPruneArgs struct {
-	Threshold  string `targ:"flag,desc=Confidence threshold (default 0.1)"`
-	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-}
-
-func memoryPrune(args memoryPruneArgs) error {
-	memoryRoot := args.MemoryRoot
-	if memoryRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		memoryRoot = home + "/.claude/memory"
-	}
-
-	var threshold float64
-	if args.Threshold != "" {
-		var err error
-		threshold, err = strconv.ParseFloat(args.Threshold, 64)
-		if err != nil {
-			return fmt.Errorf("invalid threshold: %w", err)
-		}
-	}
-
-	opts := memory.PruneOpts{
-		MemoryRoot: memoryRoot,
-		Threshold:  threshold,
-	}
-
-	result, err := memory.Prune(opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Pruned: removed %d, retained %d (threshold: %.2f)\n", result.EntriesRemoved, result.EntriesRetained, result.Threshold)
-	return nil
-}

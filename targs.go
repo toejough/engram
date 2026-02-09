@@ -11,8 +11,8 @@ func init() {
 // InstallSkills runs: projctl skills install
 var InstallSkills = targ.Targ("projctl skills install").Name("install-skills")
 
-// InstallProjctl runs: go install ./cmd/projctl
-var InstallProjctl = targ.Targ("go install ./cmd/projctl").Name("install-projctl")
+// InstallProjctl runs: go install -tags sqlite_fts5 ./cmd/projctl
+var InstallProjctl = targ.Targ("go install -tags sqlite_fts5 ./cmd/projctl").Name("install-projctl")
 
 // InstallHooks runs: projctl memory hooks install
 var InstallHooks = targ.Targ("projctl memory hooks install").Name("install-hooks")
