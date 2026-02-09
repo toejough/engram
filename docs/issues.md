@@ -6071,3 +6071,164 @@ LARGELY SUPERSEDED by optimize.go implementation. Gap 1 (interactive consolidate
 **Created:** 2026-02-09
 
 extract-session only captures explicit signals (corrections, 'remember this', error→fix sequences, repeated verbatim phrases). It misses implicit signals: (1) tool/command usage patterns that succeeded, (2) behavioral consistency (used X throughout without correction = implicit confirmation), (3) positive reinforcement (did X, tests passed). context-inject also uses a hardcoded generic query ('recent important learnings') instead of project-aware retrieval, so session-start retrieval doesn't target relevant memories. Together this means passively using a tool like targ throughout a session doesn't reinforce the 'use targ' memory unless the user explicitly says something about it.
+
+---
+
+### ISSUE-186: Dynamic skill generation from memory clusters (knowledge compilation)
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-09
+
+## Problem
+
+The memory system has three knowledge tiers with no automated lifecycle between them:
+
+1. **CLAUDE.md** — Universal, always-loaded (Tier 1, <100 lines)
+2. **Skills** — Static hand-authored procedures in `~/.claude/skills/*/SKILL.md`
+3. **Memories** — Episodic/semantic entries in embeddings.db (Tier 2/3, retrieved by similarity)
+
+The optimize pipeline (ISSUE-177-182) handles memory→CLAUDE.md promotion and CLAUDE.md→memory demotion. But there's no connection between memories and skills:
+
+- **Memories don't become skills.** When 5+ related memories form a coherent procedure (e.g., "always run mage check before committing", "use gomega matchers", "inject dependencies for testing"), they stay as individual memories instead of crystallizing into a reusable skill.
+- **Skills don't adapt.** Hand-authored skills become stale as learnings accumulate. New patterns discovered through memory don't flow back into skill instructions.
+- **No intermediate tier.** Knowledge that's too specific for CLAUDE.md but too procedural for individual memories has nowhere to live as a coherent unit.
+
+## Research Foundation
+
+This problem maps directly to established research:
+
+### ACT-R Knowledge Compilation (Anderson, CMU)
+projctl already uses ACT-R activation scoring (base-level activation with power-law decay). The missing mechanism is **knowledge compilation** — ACT-R's process where repeated declarative retrievals compile into procedural productions. All knowledge starts declarative; repeated use in similar contexts compiles it into procedures. This is literally memory→skill promotion.
+
+### MACLA: Hierarchical Procedural Memory (Forouzandeh et al., Dec 2025, arXiv:2512.18950)
+Most directly applicable. MACLA:
+- Extracts reusable procedures from agent trajectories
+- Tracks reliability via Bayesian posteriors (not just retrieval count)
+- Compresses 2,851 trajectories into 187 procedures
+- Prunes/merges procedures below confidence threshold
+- Answers the "1-memory skill" question: below Bayesian confidence → demote or merge by similarity
+
+### A-MEM: Agentic Memory (Xu et al., NeurIPS 2025, arXiv:2502.12110)
+Self-organizing memory using Zettelkasten principles:
+- Structured notes with tags/keywords
+- Dynamic linking into knowledge networks
+- Provides the "nearest related skill" grouping mechanism
+
+### VOYAGER: Skill Library (Wang et al., 2023, arXiv:2305.16291)
+Foundational precedent for skills as crystallized experience:
+- Skill library indexed by description embeddings
+- Skills retrieved by similarity to current task
+- Skills are executable (not just descriptive)
+
+## Proposed Solution
+
+### Three-Tier Lifecycle with Automated Promotion/Demotion
+
+```
+CLAUDE.md (universal, always loaded, <100 lines)
+    ↕ auto promote/demote based on cross-context retrieval frequency
+Dynamic Skills (emergent procedures, loaded by context similarity)
+    ↕ auto promote/demote based on cluster coherence + Bayesian confidence
+Memories (episodic, loaded by similarity query)
+```
+
+### Promotion: Memories → Skills
+
+Extend the optimize pipeline's existing clustering (step 6: synthesis, >0.8 similarity, min 3 items) to produce skills instead of just synthesized pattern memories:
+
+1. **Cluster detection** — Already exists in optimize.go. Clusters of ≥3 memories with >0.8 pairwise similarity.
+2. **Procedural detection** — New. Classify clusters as procedural (how-to patterns, workflow steps, tool usage) vs declarative (facts, preferences). Procedural clusters → skill candidates.
+3. **Bayesian confidence** — Adopt MACLA's approach: track success/failure of cluster members across sessions. Clusters need confidence above threshold (e.g., 0.7) to compile into skills.
+4. **Skill generation** — Generate SKILL.md from cluster:
+   - Name: derived from common keywords/tags
+   - Description: synthesized from member memories
+   - Content: procedural steps extracted from memory content
+   - Metadata: source memory IDs, cluster centroid embedding, confidence score
+5. **Storage** — Write to `~/.claude/skills/memory/<skill-name>/SKILL.md` (distinct subdirectory for generated vs hand-authored skills)
+
+### Promotion: Skills → CLAUDE.md
+
+When a dynamic skill is retrieved across many contexts (≥5 distinct projects, high cross-session retrieval), promote its core insight to CLAUDE.md. The skill may still exist for detailed procedural content, but the key principle lives in always-loaded context.
+
+### Demotion: CLAUDE.md → Skills
+
+When a CLAUDE.md entry has low cross-context utility (only relevant in specific project types), demote to a dynamic skill that loads contextually. This keeps CLAUDE.md lean.
+
+### Demotion: Skills → Memories
+
+When a skill's member memories are promoted to CLAUDE.md or demoted back to standalone memories, the skill may shrink below viability:
+
+- **Minimum viable skill**: 3 coherent memories (matches cluster threshold)
+- **Below threshold**: Merge remaining memories into nearest skill by centroid embedding similarity, OR demote back to standalone memories if no related skill within similarity threshold (e.g., 0.6)
+
+### Skill Merging
+
+When two dynamic skills' centroids drift within similarity threshold (>0.8):
+- Merge into single skill
+- Regenerate content from combined member set
+- Update embeddings index
+
+### Skill Loading (Context-Inject Integration)
+
+Dynamic skills load via the existing context-inject mechanism, not by explicit `/skillname` invocation:
+
+1. Extend `context-inject` to search both memories AND dynamic skill descriptions
+2. When a dynamic skill matches current context (embedding similarity > threshold), inject its content alongside memories
+3. Weight skill injection higher than individual memories (skills are compiled knowledge, more reliable)
+4. Respect token budget: skills get priority over individual memories from the same cluster
+
+### Skill Decay
+
+Dynamic skills decay like memories, but slower:
+- Skill confidence = max(member confidences) × coherence_factor
+- If no member retrieved for N sessions (e.g., 30), begin decay
+- Below minimum confidence (0.3): dissolve skill, return members to memory pool
+
+## Implementation Approach
+
+### Phase 1: Skill Generation from Clusters
+- Extend optimize pipeline step 6 (synthesis) to optionally generate SKILL.md files
+- Add `--generate-skills` flag to `projctl memory optimize`
+- Interactive review: present skill candidates for approval before writing
+- Store skill metadata (source memories, centroid, confidence) in embeddings.db metadata table
+
+### Phase 2: Context-Inject Skill Loading
+- Extend context-inject to search `~/.claude/skills/memory/*/SKILL.md` descriptions
+- Add skill content injection alongside memory injection
+- Respect token budget with skill-first priority
+
+### Phase 3: Full Lifecycle
+- Automated promotion/demotion thresholds
+- Skill merging and splitting
+- CLAUDE.md ↔ skill ↔ memory bidirectional flow
+- Bayesian confidence tracking (MACLA-inspired)
+
+### Phase 4: Skill Reorganization
+- Periodic reorganization pass: re-cluster, merge/split skills
+- `projctl memory optimize` includes skill maintenance
+- Detect stale skills, merge fragments, split overgrown skills
+
+## Key Design Decisions Needed
+
+1. **Skill naming**: Auto-generate from keywords, or require user naming during interactive review?
+2. **Skill format**: Full SKILL.md with frontmatter (matching existing skill infrastructure), or lighter-weight format?
+3. **Loading mechanism**: Extend context-inject (transparent), or register as invocable skills (explicit)?
+4. **Bayesian tracking**: Full MACLA-style posteriors, or simpler confidence heuristic based on existing ACT-R activation?
+5. **Minimum cluster size for skill**: 3 (current synthesis threshold) or higher?
+
+## Relationship to Existing Issues
+
+- **Extends ISSUE-179** (pattern synthesis): Current synthesis creates one-line patterns. This creates full skills from the same clusters.
+- **Extends ISSUE-182** (tiering policy): Adds the skill tier between memory and CLAUDE.md.
+- **Extends ISSUE-184** (CLAUDE.md maintenance): Bidirectional flow with skills as intermediate storage.
+- **Informs ISSUE-183** (deterministic orchestrator): If skills are dynamic, the orchestrator's skill loading needs to account for generated skills.
+
+## References
+
+- MACLA: arXiv:2512.18950 (Dec 2025) — Hierarchical procedural memory with Bayesian selection
+- A-MEM: arXiv:2502.12110 (NeurIPS 2025) — Agentic self-organizing memory
+- VOYAGER: arXiv:2305.16291 (2023) — Skill library from experience
+- ACT-R: act-r.psy.cmu.edu — Knowledge compilation theory
+- Agent Skills as Procedural Memory: techrxiv.org/articles/1376445 — Survey
+- MemAgents Workshop: ICLR 2026 — Memory for LLM-based agentic systems
