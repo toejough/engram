@@ -4,6 +4,7 @@ package memory
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +16,7 @@ type LearnOpts struct {
 	Message    string
 	Project    string
 	Source     string // "internal" or "external" (defaults to "internal")
+	Type       string // "correction", "reflection", or empty for default
 	MemoryRoot string
 }
 
@@ -562,7 +564,8 @@ type PromoteResult struct {
 // DecayOpts holds options for memory decay.
 type DecayOpts struct {
 	MemoryRoot string
-	Factor     float64 // Decay factor (default: 0.9)
+	Factor     float64 // Decay factor (default: 0.9, only used in legacy mode)
+	UseLegacy  bool    // If true, use old flat decay; if false, use ACT-R (TASK-9)
 }
 
 // DecayResult contains the result of memory decay.
@@ -591,6 +594,7 @@ type LearnConflictResult struct {
 	HasConflict   bool
 	ConflictEntry string
 	Similarity    float64
+	ConflictType  string // "duplicate" or "contradiction"
 	Stored        bool
 }
 
@@ -791,6 +795,126 @@ func Prune(opts PruneOpts) (*PruneResult, error) {
 	}, nil
 }
 
+// PromoteInteractiveOpts holds options for interactive memory promotion.
+type PromoteInteractiveOpts struct {
+	MemoryRoot    string
+	MinRetrievals int    // Minimum retrieval count (default: 3)
+	MinProjects   int    // Minimum unique projects (default: 2)
+	Review        bool   // Enable interactive review mode
+	ReviewFunc    func(PromoteCandidate) (bool, error) // Function to review each candidate
+	ClaudeMDPath  string // Path to CLAUDE.md (default: ~/.claude/CLAUDE.md)
+}
+
+// PromoteInteractiveResult contains the result of interactive memory promotion.
+type PromoteInteractiveResult struct {
+	CandidatesReviewed int
+	CandidatesApproved int
+	CandidatesRejected int
+}
+
+// PromoteInteractive identifies memory entries for promotion and optionally reviews them interactively.
+func PromoteInteractive(opts PromoteInteractiveOpts) (*PromoteInteractiveResult, error) {
+	if opts.MemoryRoot == "" {
+		return nil, fmt.Errorf("memory root is required")
+	}
+
+	// If review mode is enabled, ReviewFunc is required
+	if opts.Review && opts.ReviewFunc == nil {
+		return nil, fmt.Errorf("review function is required when review mode is enabled")
+	}
+
+	// Set defaults
+	minRetrievals := opts.MinRetrievals
+	if minRetrievals == 0 {
+		minRetrievals = 3
+	}
+	minProjects := opts.MinProjects
+	if minProjects == 0 {
+		minProjects = 2
+	}
+
+	claudeMDPath := opts.ClaudeMDPath
+	if claudeMDPath == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
+		}
+		claudeMDPath = filepath.Join(homeDir, ".claude", "CLAUDE.md")
+	}
+
+	// Get promotion candidates
+	promoteResult, err := Promote(PromoteOpts{
+		MemoryRoot:    opts.MemoryRoot,
+		MinRetrievals: minRetrievals,
+		MinProjects:   minProjects,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get promotion candidates: %w", err)
+	}
+
+	result := &PromoteInteractiveResult{}
+
+	// If review mode is disabled, just return empty result
+	if !opts.Review {
+		return result, nil
+	}
+
+	// Review each candidate
+	var approvedLearnings []string
+	for _, candidate := range promoteResult.Candidates {
+		result.CandidatesReviewed++
+
+		isApproved, err := opts.ReviewFunc(candidate)
+		if err != nil {
+			return nil, fmt.Errorf("review failed: %w", err)
+		}
+
+		if isApproved {
+			result.CandidatesApproved++
+			approvedLearnings = append(approvedLearnings, candidate.Content)
+		} else {
+			result.CandidatesRejected++
+		}
+	}
+
+	// Append approved candidates to CLAUDE.md
+	if len(approvedLearnings) > 0 {
+		if err := appendToClaudeMD(claudeMDPath, approvedLearnings); err != nil {
+			return nil, fmt.Errorf("failed to append to CLAUDE.md: %w", err)
+		}
+	}
+
+	return result, nil
+}
+
+// appendToClaudeMD appends approved learnings to CLAUDE.md.
+func appendToClaudeMD(claudeMDPath string, learnings []string) error {
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(claudeMDPath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Open file for appending (create if doesn't exist)
+	f, err := os.OpenFile(claudeMDPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open CLAUDE.md: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	// Write a section header if file is new or append to existing
+	_, _ = f.WriteString("\n## Promoted Learnings\n\n")
+
+	// Write each learning
+	for _, learning := range learnings {
+		_, err := f.WriteString("- " + learning + "\n")
+		if err != nil {
+			return fmt.Errorf("failed to write learning: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // LearnWithConflictCheck stores a learning but first checks for similar existing entries.
 func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 	if opts.Message == "" {
@@ -841,12 +965,16 @@ func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 	hasConflict := false
 	conflictEntry := ""
 	similarity := 0.0
+	conflictType := ""
 
 	if len(results) > 0 {
 		similarity = results[0].Score
 		if similarity > 0.85 {
 			hasConflict = true
 			conflictEntry = results[0].Content
+
+			// Determine if it's a contradiction or duplicate
+			conflictType = detectConflictType(opts.Message, results[0].Content)
 		}
 	}
 
@@ -859,7 +987,346 @@ func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 		HasConflict:   hasConflict,
 		ConflictEntry: conflictEntry,
 		Similarity:    similarity,
+		ConflictType:  conflictType,
 		Stored:        true,
 	}, nil
 }
 
+// detectConflictType determines whether a conflict is a contradiction or duplicate.
+// Returns "contradiction" if negation patterns or opposing advice detected, otherwise "duplicate".
+func detectConflictType(newMessage, existingContent string) string {
+	newLower := strings.ToLower(newMessage)
+	existingLower := strings.ToLower(existingContent)
+
+	// Extract message content (remove timestamp/project prefix from existing)
+	existingMsg := extractMessageContent(existingLower)
+
+	// Negation patterns that indicate contradiction
+	negationPatterns := []string{
+		"never", "don't", "do not", "avoid", "shouldn't",
+		"should not", "can't", "cannot", "won't", "will not",
+		"mustn't", "must not",
+	}
+
+	// Opposing action pairs
+	opposingPairs := [][2]string{
+		{"use", "avoid"},
+		{"always", "never"},
+		{"do", "don't"},
+		{"should", "shouldn't"},
+		{"must", "mustn't"},
+		{"can", "can't"},
+		{"will", "won't"},
+		{"include", "exclude"},
+		{"enable", "disable"},
+		{"allow", "prevent"},
+		{"prefer", "avoid"},
+	}
+
+	// Check for negation patterns in new message combined with similarity
+	hasNegationInNew := false
+	for _, pattern := range negationPatterns {
+		if strings.Contains(newLower, pattern) {
+			hasNegationInNew = true
+			break
+		}
+	}
+
+	hasNegationInExisting := false
+	for _, pattern := range negationPatterns {
+		if strings.Contains(existingMsg, pattern) {
+			hasNegationInExisting = true
+			break
+		}
+	}
+
+	// If one has negation and the other doesn't, likely contradiction
+	if hasNegationInNew != hasNegationInExisting {
+		return "contradiction"
+	}
+
+	// Check for opposing action pairs
+	for _, pair := range opposingPairs {
+		// Check if new has first action and existing has second
+		if (strings.Contains(newLower, pair[0]) && strings.Contains(existingMsg, pair[1])) ||
+			(strings.Contains(newLower, pair[1]) && strings.Contains(existingMsg, pair[0])) {
+			return "contradiction"
+		}
+	}
+
+	// No contradiction detected, must be duplicate
+	return "duplicate"
+}
+
+// extractMessageContent removes timestamp and project prefix from memory content.
+func extractMessageContent(content string) string {
+	// Format: - YYYY-MM-DD HH:MM: [project] message
+	// Remove leading "- "
+	content = strings.TrimPrefix(content, "- ")
+
+	// Remove timestamp (YYYY-MM-DD HH:MM:)
+	if idx := strings.Index(content, ": "); idx > 0 {
+		content = content[idx+2:]
+	}
+
+	// Remove project tag [project]
+	if idx := strings.Index(content, "] "); idx > 0 {
+		content = content[idx+2:]
+	}
+
+	return strings.TrimSpace(content)
+}
+
+// ============================================================================
+// TASK-9: ACT-R activation scoring
+// ============================================================================
+
+// ActivationStatsOpts holds options for getting activation statistics.
+type ActivationStatsOpts struct {
+	MemoryRoot string
+	Content    string // Substring to match in content
+}
+
+// ActivationStats contains activation statistics for a memory entry.
+type ActivationStats struct {
+	Activation       float64 // ACT-R base-level activation B_i
+	RetrievalCount   int
+	TimestampCount   int // Total timestamps recorded
+	ActiveTimestamps int // Timestamps within retention window
+	DecayParameter   float64
+}
+
+// GetActivationStats retrieves ACT-R activation statistics for a memory entry.
+func GetActivationStats(opts ActivationStatsOpts) (*ActivationStats, error) {
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Find entry by content substring
+	var retrievalTimestamps, memoryType string
+	var retrievalCount int
+	query := "SELECT retrieval_timestamps, retrieval_count, memory_type FROM embeddings WHERE content LIKE ? LIMIT 1"
+	err = db.QueryRow(query, "%"+opts.Content+"%").Scan(&retrievalTimestamps, &retrievalCount, &memoryType)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find entry: %w", err)
+	}
+
+	// Parse timestamps
+	var timestamps []string
+	if retrievalTimestamps != "" {
+		if err := json.Unmarshal([]byte(retrievalTimestamps), &timestamps); err != nil {
+			return nil, fmt.Errorf("failed to parse timestamps: %w", err)
+		}
+	}
+
+	// Calculate ACT-R activation: B_i = ln(Σ t_j^(-d))
+	// Default decay parameter d = 0.5 (ACT-R standard)
+	d := 0.5
+
+	// For corrections, use minimal decay (close to 0) for indefinite retention
+	if memoryType == "correction" {
+		d = 0.1
+	}
+
+	now := time.Now()
+	var sumPowerTerms float64
+	activeTimestamps := 0
+
+	for _, ts := range timestamps {
+		parsedTime, err := time.Parse(time.RFC3339, ts)
+		if err != nil {
+			continue
+		}
+
+		// For reflections, apply 30-day sliding window
+		if memoryType == "reflection" {
+			age := now.Sub(parsedTime)
+			if age > 30*24*time.Hour {
+				continue // Skip timestamps older than 30 days
+			}
+		}
+
+		activeTimestamps++
+
+		// Calculate time since retrieval in seconds
+		age := now.Sub(parsedTime).Seconds()
+		if age == 0 {
+			age = 1 // Avoid division by zero
+		}
+
+		// Add power term: t_j^(-d)
+		sumPowerTerms += math.Pow(age, -d)
+	}
+
+	// Calculate activation
+	var activation float64
+	if sumPowerTerms > 0 {
+		activation = math.Log(sumPowerTerms)
+	} else {
+		activation = 0
+	}
+
+	return &ActivationStats{
+		Activation:       activation,
+		RetrievalCount:   retrievalCount,
+		TimestampCount:   len(timestamps),
+		ActiveTimestamps: activeTimestamps,
+		DecayParameter:   d,
+	}, nil
+}
+
+// SimulateTimeOpts holds options for simulating time passage (test-only).
+type SimulateTimeOpts struct {
+	MemoryRoot string
+	Content    string
+	DaysToAge  int
+}
+
+// SimulateTimePassage ages retrieval timestamps by moving them back in time.
+// This is a test-only function for verifying ACT-R decay behavior.
+func SimulateTimePassage(opts SimulateTimeOpts) error {
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Find entry
+	var retrievalTimestamps string
+	query := "SELECT retrieval_timestamps FROM embeddings WHERE content LIKE ? LIMIT 1"
+	err = db.QueryRow(query, "%"+opts.Content+"%").Scan(&retrievalTimestamps)
+	if err != nil {
+		return fmt.Errorf("failed to find entry: %w", err)
+	}
+
+	// Parse timestamps
+	var timestamps []string
+	if retrievalTimestamps != "" {
+		if err := json.Unmarshal([]byte(retrievalTimestamps), &timestamps); err != nil {
+			return fmt.Errorf("failed to parse timestamps: %w", err)
+		}
+	}
+
+	// Age timestamps by subtracting days
+	var agedTimestamps []string
+	for _, ts := range timestamps {
+		parsedTime, err := time.Parse(time.RFC3339, ts)
+		if err != nil {
+			continue
+		}
+		aged := parsedTime.Add(-time.Duration(opts.DaysToAge) * 24 * time.Hour)
+		agedTimestamps = append(agedTimestamps, aged.Format(time.RFC3339))
+	}
+
+	// Update database
+	agedJSON, err := json.Marshal(agedTimestamps)
+	if err != nil {
+		return err
+	}
+
+	updateStmt := "UPDATE embeddings SET retrieval_timestamps = ? WHERE content LIKE ?"
+	_, err = db.Exec(updateStmt, string(agedJSON), "%"+opts.Content+"%")
+	return err
+}
+
+// MigrateToACTROpts holds options for migrating to ACT-R.
+type MigrateToACTROpts struct {
+	MemoryRoot string
+}
+
+// MigrateToACTR migrates existing entries from flat decay to ACT-R activation.
+// For entries without retrieval_timestamps, initializes with current time.
+func MigrateToACTR(opts MigrateToACTROpts) error {
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	// Find entries with empty retrieval_timestamps
+	query := "SELECT id, retrieval_count FROM embeddings WHERE retrieval_timestamps = '' OR retrieval_timestamps IS NULL"
+	rows, err := db.Query(query)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	timestamp := time.Now().Format(time.RFC3339)
+	updated := 0
+	for rows.Next() {
+		var id int64
+		var retrievalCount int
+		if err := rows.Scan(&id, &retrievalCount); err != nil {
+			continue
+		}
+
+		// Initialize timestamps based on retrieval count
+		// If retrieval_count > 0, create that many timestamps spread over past 30 days
+		var timestamps []string
+		if retrievalCount > 0 {
+			for i := 0; i < retrievalCount; i++ {
+				// Spread timestamps evenly over past 30 days
+				daysAgo := (30 * i) / retrievalCount
+				ts := time.Now().Add(-time.Duration(daysAgo) * 24 * time.Hour)
+				timestamps = append(timestamps, ts.Format(time.RFC3339))
+			}
+		} else {
+			// No retrievals yet, set single initial timestamp
+			timestamps = []string{timestamp}
+		}
+
+		timestampsJSON, err := json.Marshal(timestamps)
+		if err != nil {
+			continue
+		}
+
+		updateStmt := "UPDATE embeddings SET retrieval_timestamps = ? WHERE id = ?"
+		result, err := db.Exec(updateStmt, string(timestampsJSON), id)
+		if err == nil {
+			affected, _ := result.RowsAffected()
+			updated += int(affected)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// Note: It's OK if updated == 0, that just means all entries already have timestamps
+	return nil
+}
+
+// ClearTimestampsOpts holds options for clearing timestamps (test-only).
+type ClearTimestampsOpts struct {
+	MemoryRoot string
+	Content    string
+}
+
+// ClearTimestampsForTest clears retrieval_timestamps for testing migration.
+// This is a test-only function.
+func ClearTimestampsForTest(opts ClearTimestampsOpts) error {
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+
+	updateStmt := "UPDATE embeddings SET retrieval_timestamps = '' WHERE content LIKE ?"
+	result, err := db.Exec(updateStmt, "%"+opts.Content+"%")
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("no rows matched pattern %q", opts.Content)
+	}
+
+	return nil
+}

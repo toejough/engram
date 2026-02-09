@@ -208,6 +208,8 @@ func memoryQuery(args memoryQueryArgs) error {
 type memoryPromoteArgs struct {
 	MinRetrievals int    `targ:"flag,name=min-retrievals,desc=Minimum retrieval count (default 3)"`
 	MinProjects   int    `targ:"flag,name=min-projects,desc=Minimum unique projects (default 2)"`
+	Review        bool   `targ:"flag,name=review,desc=Enable interactive review mode"`
+	ClaudeMDPath  string `targ:"flag,name=claude-md,desc=Path to CLAUDE.md (defaults to ~/.claude/CLAUDE.md)"`
 	MemoryRoot    string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
 }
 
@@ -221,6 +223,50 @@ func memoryPromote(args memoryPromoteArgs) error {
 		memoryRoot = home + "/.claude/memory"
 	}
 
+	// If review mode is enabled, use interactive promote
+	if args.Review {
+		reviewFunc := func(candidate memory.PromoteCandidate) (bool, error) {
+			// Display candidate
+			fmt.Printf("\n[%d retrievals, %d projects]\n", candidate.RetrievalCount, candidate.UniqueProjects)
+			fmt.Printf("Content: %s\n", candidate.Content)
+			fmt.Print("Approve for promotion to CLAUDE.md? (y/n): ")
+
+			// Read user input
+			var response string
+			_, err := fmt.Scanln(&response)
+			if err != nil {
+				return false, fmt.Errorf("failed to read input: %w", err)
+			}
+
+			approved := strings.ToLower(response) == "y" || strings.ToLower(response) == "yes"
+			return approved, nil
+		}
+
+		opts := memory.PromoteInteractiveOpts{
+			MemoryRoot:    memoryRoot,
+			MinRetrievals: args.MinRetrievals,
+			MinProjects:   args.MinProjects,
+			Review:        true,
+			ReviewFunc:    reviewFunc,
+			ClaudeMDPath:  args.ClaudeMDPath,
+		}
+
+		result, err := memory.PromoteInteractive(opts)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Print summary
+		fmt.Printf("\nReview complete\n")
+		fmt.Printf("Candidates reviewed: %d\n", result.CandidatesReviewed)
+		fmt.Printf("Approved: %d\n", result.CandidatesApproved)
+		fmt.Printf("Rejected: %d\n", result.CandidatesRejected)
+
+		return nil
+	}
+
+	// Non-review mode: just list candidates
 	opts := memory.PromoteOpts{
 		MemoryRoot:    memoryRoot,
 		MinRetrievals: args.MinRetrievals,

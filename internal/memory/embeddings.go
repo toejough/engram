@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math"
@@ -113,6 +114,8 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN projects_retrieved TEXT NOT NULL DEFAULT ''",
 		"ALTER TABLE embeddings ADD COLUMN source_type TEXT NOT NULL DEFAULT 'internal'",
 		"ALTER TABLE embeddings ADD COLUMN confidence REAL NOT NULL DEFAULT 1.0",
+		"ALTER TABLE embeddings ADD COLUMN memory_type TEXT NOT NULL DEFAULT ''", // TASK-9: correction, reflection, or empty
+		"ALTER TABLE embeddings ADD COLUMN retrieval_timestamps TEXT NOT NULL DEFAULT ''", // TASK-9: JSON array of RFC3339 timestamps
 	}
 	for _, stmt := range alterStatements {
 		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors
@@ -669,9 +672,15 @@ func learnToEmbeddings(opts LearnOpts) error {
 
 	embeddingID, _ := result.LastInsertId()
 
+	// Determine memory type (TASK-9)
+	memoryType := opts.Type
+	if memoryType == "" {
+		memoryType = ""
+	}
+
 	// Insert into metadata table with the full formatted content
-	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, embedding_id) VALUES (?, ?, ?, ?, ?)`
-	if _, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, embeddingID); err != nil {
+	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, memory_type, embedding_id) VALUES (?, ?, ?, ?, ?, ?)`
+	if _, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID); err != nil {
 		return err
 	}
 
@@ -683,9 +692,9 @@ func updateRetrievalTracking(db *sql.DB, results []QueryResult, project string) 
 	timestamp := time.Now().Format(time.RFC3339)
 
 	for _, result := range results {
-		// Get current projects_retrieved
-		var currentProjects string
-		err := db.QueryRow("SELECT projects_retrieved FROM embeddings WHERE content = ?", result.Content).Scan(&currentProjects)
+		// Get current projects_retrieved and retrieval_timestamps
+		var currentProjects, currentTimestamps string
+		err := db.QueryRow("SELECT projects_retrieved, retrieval_timestamps FROM embeddings WHERE content = ?", result.Content).Scan(&currentProjects, &currentTimestamps)
 		if err != nil {
 			continue // Skip if not found
 		}
@@ -715,15 +724,33 @@ func updateRetrievalTracking(db *sql.DB, results []QueryResult, project string) 
 		}
 		newProjects := strings.Join(projects, ",")
 
+		// TASK-9: Append timestamp to retrieval_timestamps JSON array
+		var timestamps []string
+		if currentTimestamps != "" {
+			if err := json.Unmarshal([]byte(currentTimestamps), &timestamps); err == nil {
+				timestamps = append(timestamps, timestamp)
+			} else {
+				// If parsing fails, start fresh
+				timestamps = []string{timestamp}
+			}
+		} else {
+			timestamps = []string{timestamp}
+		}
+		timestampsJSON, err := json.Marshal(timestamps)
+		if err != nil {
+			return err
+		}
+
 		// Update the row (always increment retrieval_count and update timestamp)
 		updateStmt := `
 			UPDATE embeddings
 			SET retrieval_count = retrieval_count + 1,
 			    last_retrieved = ?,
-			    projects_retrieved = ?
+			    projects_retrieved = ?,
+			    retrieval_timestamps = ?
 			WHERE content = ?
 		`
-		_, err = db.Exec(updateStmt, timestamp, newProjects, result.Content)
+		_, err = db.Exec(updateStmt, timestamp, newProjects, string(timestampsJSON), result.Content)
 		if err != nil {
 			return err
 		}
