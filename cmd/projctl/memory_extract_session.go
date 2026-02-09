@@ -10,19 +10,32 @@ import (
 
 // memoryExtractSessionArgs holds the command-line arguments for extract-session.
 type memoryExtractSessionArgs struct {
-	TranscriptPath string `targ:"--transcript" help:"Path to JSONL transcript file"`
-	MemoryRoot     string `targ:"--memory-root" help:"Memory root directory (default: ~/.claude/memory)"`
+	TranscriptPath string `targ:"flag,name=transcript,desc=Path to JSONL transcript file"`
+	MemoryRoot     string `targ:"flag,name=memory-root,desc=Memory root directory (default: ~/.claude/memory)"`
+	Project        string `targ:"flag,name=project,desc=Project name for tagging extracted learnings (default: derived from stdin cwd)"`
 }
 
 // memoryExtractSession extracts learnings from a Claude Code session transcript.
 func memoryExtractSession(args memoryExtractSessionArgs) error {
-	// Validate that transcript file is provided
-	if args.TranscriptPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: --transcript must be provided")
-		os.Exit(1)
+	// Read hook input from stdin for project and transcript derivation
+	project := args.Project
+	transcriptPath := args.TranscriptPath
+
+	hookInput, _ := memory.ParseHookInput(os.Stdin)
+	if hookInput != nil {
+		if project == "" {
+			project = memory.DeriveProjectName(hookInput.Cwd)
+		}
+		if transcriptPath == "" && hookInput.TranscriptPath != "" {
+			transcriptPath = hookInput.TranscriptPath
+		}
 	}
 
-	transcriptPath := args.TranscriptPath
+	// Validate that transcript file is provided
+	if transcriptPath == "" {
+		fmt.Fprintln(os.Stderr, "Error: --transcript must be provided (or pass transcript_path via stdin JSON)")
+		os.Exit(1)
+	}
 
 	// Set up memory root
 	memoryRoot := args.MemoryRoot
@@ -38,6 +51,7 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
+		Project:        project,
 	}
 
 	result, err := memory.ExtractSession(opts)
@@ -57,6 +71,9 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		}
 	}
 
+	if project != "" {
+		fmt.Printf("Project: %s\n", project)
+	}
 	fmt.Printf("Memory root: %s\n", memoryRoot)
 
 	return nil

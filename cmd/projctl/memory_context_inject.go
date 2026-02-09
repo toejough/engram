@@ -10,15 +10,25 @@ import (
 
 // memoryContextInjectArgs holds the command-line arguments for context-inject.
 type memoryContextInjectArgs struct {
-	MemoryRoot   string  `targ:"--memory-root" help:"Memory root directory (default: ~/.claude/memory)"`
-	QueryText    string  `targ:"--query" help:"Query text for finding relevant memories (default: 'recent important learnings')"`
-	MaxEntries   int     `targ:"--max-entries" help:"Maximum number of entries to include (default: 10)"`
-	MaxTokens    int     `targ:"--max-tokens" help:"Approximate maximum token count (default: 2000)"`
-	MinConfidence float64 `targ:"--min-confidence" help:"Minimum confidence threshold (default: 0.3)"`
+	MemoryRoot    string  `targ:"flag,name=memory-root,desc=Memory root directory (default: ~/.claude/memory)"`
+	QueryText     string  `targ:"flag,name=query,desc=Query text for finding relevant memories (default: 'recent important learnings')"`
+	MaxEntries    int     `targ:"flag,name=max-entries,desc=Maximum number of entries to include (default: 10)"`
+	MaxTokens     int     `targ:"flag,name=max-tokens,desc=Approximate maximum token count (default: 2000)"`
+	MinConfidence float64 `targ:"flag,name=min-confidence,desc=Minimum confidence threshold (default: 0.3)"`
+	Project       string  `targ:"flag,name=project,desc=Project name for project-aware retrieval (default: derived from stdin cwd)"`
 }
 
 // memoryContextInject queries memories and formats them as compact markdown for system prompts.
 func memoryContextInject(args memoryContextInjectArgs) error {
+	// Read hook input from stdin for project derivation
+	project := args.Project
+	if project == "" {
+		hookInput, _ := memory.ParseHookInput(os.Stdin)
+		if hookInput != nil {
+			project = memory.DeriveProjectName(hookInput.Cwd)
+		}
+	}
+
 	// Set up memory root
 	memoryRoot := args.MemoryRoot
 	if memoryRoot == "" {
@@ -52,11 +62,12 @@ func memoryContextInject(args memoryContextInjectArgs) error {
 
 	// Call internal ContextInject function
 	opts := memory.ContextInjectOpts{
-		MemoryRoot:   memoryRoot,
-		QueryText:    queryText,
-		MaxEntries:   maxEntries,
-		MaxTokens:    maxTokens,
+		MemoryRoot:    memoryRoot,
+		QueryText:     queryText,
+		MaxEntries:    maxEntries,
+		MaxTokens:     maxTokens,
 		MinConfidence: minConfidence,
+		Project:       project,
 	}
 
 	result, err := memory.ContextInject(opts)

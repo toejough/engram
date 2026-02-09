@@ -446,3 +446,75 @@ func TestContextInjectSortsByRelevance(t *testing.T) {
 	// More relevant items should appear first
 	// This is tested implicitly by the Query function which sorts by score
 }
+
+// ============================================================================
+// ISSUE-185: Project-aware context injection
+// ============================================================================
+
+// TestContextInjectProjectAwareQuery tests that project-tagged memories are boosted
+func TestContextInjectProjectAwareQuery(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, "memory")
+
+	// Create a project-tagged learning
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "projctl uses TDD for all changes",
+		Project:    "projctl",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create a generic learning
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "general testing advice",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Query with project set
+	opts := memory.ContextInjectOpts{
+		MemoryRoot:    memoryRoot,
+		QueryText:     "testing",
+		MaxEntries:    5,
+		MaxTokens:     500,
+		MinConfidence: 0.3,
+		Project:       "projctl",
+	}
+
+	result, err := memory.ContextInject(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeEmpty())
+	// The project-tagged memory should appear in results
+	g.Expect(result).To(ContainSubstring("projctl"))
+}
+
+// TestContextInjectFallbackGenericQuery tests that no project = existing behavior
+func TestContextInjectFallbackGenericQuery(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, "memory")
+
+	// Create a learning
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Always run tests before committing",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Query without project (should work as before)
+	opts := memory.ContextInjectOpts{
+		MemoryRoot:    memoryRoot,
+		QueryText:     "testing",
+		MaxEntries:    5,
+		MaxTokens:     500,
+		MinConfidence: 0.3,
+		// Project is empty - no project-aware boosting
+	}
+
+	result, err := memory.ContextInject(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeEmpty())
+}

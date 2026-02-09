@@ -24,6 +24,9 @@ type ContextInjectOpts struct {
 
 	// MinConfidence is the minimum confidence score to include (default: 0.3)
 	MinConfidence float64
+
+	// Project is the project name for project-aware retrieval boosting
+	Project string
 }
 
 // ContextInject queries high-confidence recent memories and formats them as compact markdown
@@ -57,12 +60,18 @@ func ContextInject(opts ContextInjectOpts) (string, error) {
 	}
 	modelDir := filepath.Join(homeDir, ".claude", "models")
 
+	// If project is set, prepend it to the query for retrieval boosting
+	if opts.Project != "" {
+		queryText = "[" + opts.Project + "] " + queryText
+	}
+
 	// Query memories using existing infrastructure
 	queryOpts := QueryOpts{
 		Text:       queryText,
 		Limit:      maxEntries * 2, // Query more than needed for filtering
 		MemoryRoot: opts.MemoryRoot,
 		ModelDir:   modelDir,
+		Project:    opts.Project,
 	}
 
 	results, err := Query(queryOpts)
