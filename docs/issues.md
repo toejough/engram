@@ -5223,7 +5223,7 @@ Added plan mode (EnterPlanMode) to plan-producer SKILL.md for interactive user r
 ### ISSUE-160: Ambient Learning System — Continuous knowledge capture outside formal projects
 
 **Priority:** medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 Build a lightweight, always-on learning layer that captures corrections, patterns, and preferences from all Claude interactions — not just /project workflows.
@@ -5292,6 +5292,10 @@ Depends on: ISSUE-152 (memory infrastructure, tokenizer fix, hygiene commands mu
 
 ---
 
+
+### Comment
+
+All 10 tasks implemented: extract-session, context-inject, consolidate, promote --review, contradiction detection, ACT-R scoring, hooks install/show, Stop/PreCompact/SessionStart hook configs. 4834 lines added across 24 files.
 ### ISSUE-161: Model precedence between SKILL.md frontmatter and workflow TOML is confusing
 
 **Priority:** medium
@@ -5603,7 +5607,7 @@ Added REQ-018 through REQ-023 definitions to requirements.md
 ### ISSUE-170: Enforce plan mode via tool call hooks and projctl state validation
 
 **Priority:** high
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5653,6 +5657,10 @@ ISSUE-160 plan phase: plan-producer wrote plan.md but skipped EnterPlanMode enti
 
 ---
 
+
+### Comment
+
+Tool call tracking and plan mode validation implemented and merged. 21 tests, 801 insertions. Evaluation complete.
 ### ISSUE-171: Skill SKILL.md communication tables say 'team lead' instead of 'orchestrator'
 
 **Priority:** medium
