@@ -42,12 +42,18 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 	g.Expect(hooks).To(HaveKey("PreCompact"))
 	g.Expect(hooks).To(HaveKey("SessionStart"))
 
-	// Verify Stop hook structure
-	stopHooks, ok := hooks["Stop"].([]any)
+	// Verify Stop hook structure (new format: { hooks: [...] })
+	stopEntries, ok := hooks["Stop"].([]any)
 	g.Expect(ok).To(BeTrue())
-	g.Expect(stopHooks).To(HaveLen(1))
+	g.Expect(stopEntries).To(HaveLen(1))
 
-	stopHook, ok := stopHooks[0].(map[string]any)
+	stopEntry, ok := stopEntries[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	stopHooksList, ok := stopEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "Stop entry should have 'hooks' array")
+	g.Expect(stopHooksList).To(HaveLen(1))
+
+	stopHook, ok := stopHooksList[0].(map[string]any)
 	g.Expect(ok).To(BeTrue())
 	g.Expect(stopHook["type"]).To(Equal("command"))
 	g.Expect(stopHook["command"]).To(ContainSubstring("projctl memory extract-session"))
@@ -55,11 +61,17 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 	g.Expect(stopHook["command"]).To(ContainSubstring("&")) // async
 
 	// Verify PreCompact hook structure
-	preCompactHooks, ok := hooks["PreCompact"].([]any)
+	preCompactEntries, ok := hooks["PreCompact"].([]any)
 	g.Expect(ok).To(BeTrue())
-	g.Expect(preCompactHooks).To(HaveLen(1))
+	g.Expect(preCompactEntries).To(HaveLen(1))
 
-	preCompactHook, ok := preCompactHooks[0].(map[string]any)
+	preCompactEntry, ok := preCompactEntries[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	preCompactHooksList, ok := preCompactEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "PreCompact entry should have 'hooks' array")
+	g.Expect(preCompactHooksList).To(HaveLen(1))
+
+	preCompactHook, ok := preCompactHooksList[0].(map[string]any)
 	g.Expect(ok).To(BeTrue())
 	g.Expect(preCompactHook["type"]).To(Equal("command"))
 	g.Expect(preCompactHook["command"]).To(ContainSubstring("projctl memory extract-session"))
@@ -67,11 +79,17 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 	g.Expect(preCompactHook["command"]).To(ContainSubstring("&")) // async
 
 	// Verify SessionStart hook structure
-	sessionStartHooks, ok := hooks["SessionStart"].([]any)
+	sessionStartEntries, ok := hooks["SessionStart"].([]any)
 	g.Expect(ok).To(BeTrue())
-	g.Expect(sessionStartHooks).To(HaveLen(1))
+	g.Expect(sessionStartEntries).To(HaveLen(1))
 
-	sessionStartHook, ok := sessionStartHooks[0].(map[string]any)
+	sessionStartEntry, ok := sessionStartEntries[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
+	sessionStartHooksList, ok := sessionStartEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "SessionStart entry should have 'hooks' array")
+	g.Expect(sessionStartHooksList).To(HaveLen(1))
+
+	sessionStartHook, ok := sessionStartHooksList[0].(map[string]any)
 	g.Expect(ok).To(BeTrue())
 	g.Expect(sessionStartHook["type"]).To(Equal("command"))
 	g.Expect(sessionStartHook["command"]).To(Equal("projctl memory context-inject"))
@@ -176,13 +194,18 @@ func TestHooksInstall_OverwritesExistingProjectHooks(t *testing.T) {
 	hooks, ok := settings["hooks"].(map[string]any)
 	g.Expect(ok).To(BeTrue())
 
-	stopHooks, ok := hooks["Stop"].([]any)
+	stopEntries, ok := hooks["Stop"].([]any)
 	g.Expect(ok).To(BeTrue())
-	g.Expect(stopHooks).To(HaveLen(1))
+	g.Expect(stopEntries).To(HaveLen(1))
 
-	stopHook, ok := stopHooks[0].(map[string]any)
+	stopEntry, ok := stopEntries[0].(map[string]any)
 	g.Expect(ok).To(BeTrue())
-	// Should have new format
+	stopHooksList, ok := stopEntry["hooks"].([]any)
+	g.Expect(ok).To(BeTrue(), "Should use new nested hooks format")
+	g.Expect(stopHooksList).To(HaveLen(1))
+
+	stopHook, ok := stopHooksList[0].(map[string]any)
+	g.Expect(ok).To(BeTrue())
 	g.Expect(stopHook["command"]).To(ContainSubstring("--transcript $TRANSCRIPT_PATH &"))
 	g.Expect(stopHook["command"]).ToNot(ContainSubstring("--old-format"))
 }

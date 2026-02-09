@@ -18,30 +18,41 @@ type ShowHooksOpts struct {
 	SettingsPath string
 }
 
-// hookConfig represents a single hook configuration.
-type hookConfig struct {
+// hookCommand represents a single hook command.
+type hookCommand struct {
 	Type    string `json:"type"`
 	Command string `json:"command"`
+}
+
+// hookEntry represents a hook entry in the new format with matcher and hooks array.
+type hookEntry struct {
+	Hooks []hookCommand `json:"hooks"`
 }
 
 // InstallHooks installs projctl memory hooks into Claude Code settings.json.
 // It creates the file if it doesn't exist, merges with existing settings,
 // and replaces any existing projctl memory hooks.
 func InstallHooks(opts InstallHooksOpts) error {
-	// Define the hooks to install
-	stopHook := hookConfig{
-		Type:    "command",
-		Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+	// Define the hooks to install (new format: { hooks: [...] })
+	stopHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+		}},
 	}
 
-	preCompactHook := hookConfig{
-		Type:    "command",
-		Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+	preCompactHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+		}},
 	}
 
-	sessionStartHook := hookConfig{
-		Type:    "command",
-		Command: "projctl memory context-inject",
+	sessionStartHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory context-inject",
+		}},
 	}
 
 	// Read existing settings or create new
@@ -69,9 +80,9 @@ func InstallHooks(opts InstallHooksOpts) error {
 	}
 
 	// Install/replace hooks
-	hooks["Stop"] = []hookConfig{stopHook}
-	hooks["PreCompact"] = []hookConfig{preCompactHook}
-	hooks["SessionStart"] = []hookConfig{sessionStartHook}
+	hooks["Stop"] = []hookEntry{stopHook}
+	hooks["PreCompact"] = []hookEntry{preCompactHook}
+	hooks["SessionStart"] = []hookEntry{sessionStartHook}
 
 	// Write updated settings
 	data, err = json.MarshalIndent(settings, "", "  ")
