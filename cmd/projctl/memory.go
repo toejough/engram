@@ -163,6 +163,7 @@ func memoryGrep(args memoryGrepArgs) error {
 type memoryQueryArgs struct {
 	Text       string `targ:"positional,required,desc=Text to search for"`
 	Limit      int    `targ:"flag,short=n,desc=Maximum number of results (default 5)"`
+	Project    string `targ:"flag,short=p,desc=Project name for retrieval tracking"`
 	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
 }
 
@@ -184,6 +185,7 @@ func memoryQuery(args memoryQueryArgs) error {
 	opts := memory.QueryOpts{
 		Text:       args.Text,
 		Limit:      limit,
+		Project:    args.Project,
 		MemoryRoot: memoryRoot,
 	}
 
