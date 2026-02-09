@@ -10,7 +10,13 @@ updates.jsonl
 
 # Test artifacts
 coverage.out
+*.fail
 internal/memory/testdata/
+internal/memory/embeddings.db
+
+# Claude local state
+.claude/projects/
+.claude/settings.local.json
 
 # Skill results
 result.toml

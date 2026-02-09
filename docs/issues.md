@@ -5393,7 +5393,7 @@ The `projctl step next` output should also include `plan_path` and `sibling_arti
 ### ISSUE-163: Full skill review: do skills understand the new workflow state machine?
 
 **Priority:** high
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 ## Problem
@@ -5558,7 +5558,7 @@ Fixed in 7dde262: control loop specifies per-action flags (--producer-transcript
 ### ISSUE-166: Orchestrator skill doesn't implement parallel item spawning from Tasks array
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-08
 
 The Go infrastructure for parallel task execution is complete (task.Parallel(), NextResult.Tasks array, worktree create/merge/cleanup, fork/join states in workflows.toml) but the orchestrator skill step loop in skills/project/SKILL.md only spawns one producer per iteration. It never checks result.Tasks length or spawns multiple teammates. The Looper Pattern is documented (lines 421-470) but not implemented in the step loop (lines 98-114). This forces team leads to manually spawn parallel agents.

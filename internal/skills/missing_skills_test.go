@@ -14,10 +14,10 @@ import (
 func TestPlanProducer_SkillExists(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "plan-producer", "SKILL.md")
 	_, err = os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred(), "plan-producer SKILL.md should exist")
 }
@@ -26,10 +26,10 @@ func TestPlanProducer_SkillExists(t *testing.T) {
 func TestPlanProducer_Frontmatter(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "plan-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -46,10 +46,10 @@ func TestPlanProducer_Frontmatter(t *testing.T) {
 func TestPlanProducer_GatherSynthesizeProduce(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "plan-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -64,10 +64,10 @@ func TestPlanProducer_GatherSynthesizeProduce(t *testing.T) {
 func TestPlanProducer_Contract(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "plan-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -81,10 +81,10 @@ func TestPlanProducer_Contract(t *testing.T) {
 func TestPlanProducer_PlanMode(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "plan-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "plan-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -103,10 +103,10 @@ func TestPlanProducer_PlanMode(t *testing.T) {
 func TestEvaluationProducer_SkillExists(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "evaluation-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "evaluation-producer", "SKILL.md")
 	_, err = os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred(), "evaluation-producer SKILL.md should exist")
 }
@@ -115,10 +115,10 @@ func TestEvaluationProducer_SkillExists(t *testing.T) {
 func TestEvaluationProducer_Frontmatter(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "evaluation-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "evaluation-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -135,10 +135,10 @@ func TestEvaluationProducer_Frontmatter(t *testing.T) {
 func TestEvaluationProducer_GatherSynthesizeProduce(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "evaluation-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "evaluation-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -153,10 +153,10 @@ func TestEvaluationProducer_GatherSynthesizeProduce(t *testing.T) {
 func TestEvaluationProducer_Contract(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "evaluation-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "evaluation-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -170,10 +170,10 @@ func TestEvaluationProducer_Contract(t *testing.T) {
 func TestEvaluationProducer_TracesToUpstream(t *testing.T) {
 	g := NewWithT(t)
 
-	homeDir, err := os.UserHomeDir()
+	root, err := findProjectRoot()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	skillPath := filepath.Join(homeDir, ".claude", "skills", "evaluation-producer", "SKILL.md")
+	skillPath := filepath.Join(root, "skills", "evaluation-producer", "SKILL.md")
 	content, err := os.ReadFile(skillPath)
 	g.Expect(err).ToNot(HaveOccurred())
 

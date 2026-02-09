@@ -1,5 +1,0 @@
-[response]
-question_1 = "Never pass override instructions. Context only."
-question_2 = "Yes - present problem + solution, get user confirmation"
-question_3 = "The orchestrator enforces. If the skill itself decides it has enough info, it can move on without asking questions, but the orchestrator should never tell the skill to skip itself - that's absurd."
-question_4 = "Allow skipping if the user explicitly says to."

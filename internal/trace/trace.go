@@ -728,10 +728,6 @@ var validPhases = map[string]bool{
 	"alignment_produce": true, "alignment_qa": true, "alignment_decide": true, "alignment_commit": true,
 	// Evaluation phases (consolidated retro + summary)
 	"evaluation_produce": true, "evaluation_interview": true, "evaluation_commit": true,
-	// Retro phases (kept for legacy validation)
-	"retro_produce": true, "retro_qa": true, "retro_decide": true, "retro_commit": true,
-	// Summary phases (kept for legacy validation)
-	"summary_produce": true, "summary_qa": true, "summary_decide": true, "summary_commit": true,
 	// Ending phases
 	"issue_update": true, "next_steps": true, "complete": true,
 	// Align workflow phases

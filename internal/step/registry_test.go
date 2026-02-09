@@ -97,13 +97,13 @@ func TestRegistryLookup(t *testing.T) {
 		g.Expect(info.Producer).To(Equal("tdd-refactor-producer"))
 	})
 
-	t.Run("retro produce state has correct info", func(t *testing.T) {
+	t.Run("evaluation produce state has correct info", func(t *testing.T) {
 		g := NewWithT(t)
 
-		info, ok := step.Registry.Lookup("retro_produce")
+		info, ok := step.Registry.Lookup("evaluation_produce")
 		g.Expect(ok).To(BeTrue())
-		g.Expect(info.Producer).To(Equal("retro-producer"))
-		g.Expect(info.Artifact).To(Equal("retro.md"))
+		g.Expect(info.Producer).To(Equal("evaluation-producer"))
+		g.Expect(info.Artifact).To(Equal("evaluation.md"))
 	})
 
 	t.Run("documentation produce state has correct info", func(t *testing.T) {

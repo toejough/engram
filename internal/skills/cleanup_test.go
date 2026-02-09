@@ -158,8 +158,8 @@ func TestAllProducerContractsExist(t *testing.T) {
 		"tdd-refactor-producer",
 		"doc-producer",
 		"alignment-producer",
-		"retro-producer",
-		"summary-producer",
+		"evaluation-producer",
+		"plan-producer",
 	}
 
 	for _, producer := range producersWithContracts {

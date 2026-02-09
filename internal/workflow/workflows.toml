@@ -236,45 +236,6 @@ type = "decide"
 [states.alignment_commit]
 type = "commit"
 
-# --- Main Flow Ending ---
-[states.retro_produce]
-type = "produce"
-skill = "retro-producer"
-skill_path = "skills/retro-producer/SKILL.md"
-default_model = "sonnet"
-artifact = "retro.md"
-
-[states.retro_qa]
-type = "qa"
-skill = "qa"
-skill_path = "skills/qa/SKILL.md"
-default_model = "haiku"
-
-[states.retro_decide]
-type = "decide"
-
-[states.retro_commit]
-type = "commit"
-
-[states.summary_produce]
-type = "produce"
-skill = "summary-producer"
-skill_path = "skills/summary-producer/SKILL.md"
-default_model = "sonnet"
-artifact = "summary.md"
-
-[states.summary_qa]
-type = "qa"
-skill = "qa"
-skill_path = "skills/qa/SKILL.md"
-default_model = "haiku"
-
-[states.summary_decide]
-type = "decide"
-
-[states.summary_commit]
-type = "commit"
-
 [states.issue_update]
 type = "action"
 

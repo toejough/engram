@@ -1,4 +1,0 @@
-[response]
-question = "Where should skip detection logic live?"
-choice = "C"
-choice_description = "Orchestrator detects and enriches context"
