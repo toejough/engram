@@ -5837,3 +5837,63 @@ Add decision tree to intake-evaluator SKILL.md:
   3. No design trade-offs to evaluate
 
 Context: ISSUE-170 used scoped workflow successfully, completing in single session with high quality by skipping PM/design/arch phases and going directly to TDD.
+
+---
+
+### ISSUE-177: ISSUE-177: consolidate should also maintain CLAUDE.md
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+consolidate currently only operates on SQLite memory. CLAUDE.md should get the same treatment: prune stale instructions, merge related ones, remove anything linters/hooks already enforce. Research shows ~150 instruction effectiveness ceiling for Sonnet-class models. Current CLAUDE.md is well above that. Add a --claude-md flag to consolidate that analyzes and proposes changes (with user approval before writing).
+
+---
+
+### ISSUE-178: ISSUE-178: context-inject should order memories by primacy position importance
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+LLMs exhibit a U-shaped recall curve: better recall at beginning (primacy) and end (recency) of context, degraded recall in the middle. context-inject should place the highest-value memories first in output, not sorted by recency or arbitrary order. Critical corrections and constraints should lead; nice-to-know patterns should trail.
+
+---
+
+### ISSUE-179: ISSUE-179: consolidate should synthesize general patterns from repeated episodes
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+Cognitive science: specific episodes should consolidate into general patterns over time. 'Error in X on Tuesday' + 'Error in X on Thursday' should become 'X is fragile, always check Y first.' Current consolidate does dedup but doesn't synthesize. Add a synthesis step that identifies recurring themes across similar memories and proposes generalized learnings. Could use the existing e5-small ONNX model for clustering + an LLM call for synthesis.
+
+---
+
+### ISSUE-180: ISSUE-180: ACT-R scoring should weight cross-session retrieval higher than single-session frequency
+
+**Priority:** low
+**Status:** Open
+**Created:** 2026-02-08
+
+Research on the spacing effect shows memories accessed across multiple sessions (spaced retrieval) produce stronger retention than memories accessed many times in one session. Current ACT-R implementation tracks timestamps but doesn't distinguish session boundaries. Add session ID to retrieval timestamps so the activation formula can weight spaced retrieval higher. B_i should factor in number of distinct sessions, not just raw timestamp count.
+
+---
+
+### ISSUE-181: ISSUE-181: Add hybrid search (BM25 + vector) to memory retrieval
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-08
+
+Memory system uses vector search only. Research consistently shows hybrid search (BM25 keyword + vector semantic) outperforms either alone. Vector search is good for conceptual queries but misses exact identifiers (function names, error codes, config keys). Add BM25/FTS5 index alongside existing vector embeddings. Use Reciprocal Rank Fusion (RRF) to combine results. SQLite FTS5 is available and would complement sqlite-vec.
+
+---
+
+### ISSUE-182: ISSUE-182: Define explicit memory tiering policy in CLAUDE.md
+
+**Priority:** low
+**Status:** Open
+**Created:** 2026-02-08
+
+Research converges on three tiers that should be documented as policy: (1) Always loaded (CLAUDE.md): <100 lines, only things preventing concrete mistakes, RFC 2119 language. (2) Retrieved on demand (semantic memory via context-inject): episodic learnings, bounded to ~2000 tokens. (3) Dynamic lookup (grep/glob/web): code, docs, references — never preloaded. Document this tiering policy so consolidate and promote --review can enforce it. Memory that belongs in a lower tier should not be promoted to a higher one.
