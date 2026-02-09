@@ -39,7 +39,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Skill).To(Equal("tdd-red-producer"))
 		g.Expect(result.Phase).To(Equal("tdd_red_produce"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// ProducerComplete=true -> transition to tdd_red_qa
@@ -48,7 +48,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_red_qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_red_qa: spawn QA ===
@@ -57,7 +57,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 		g.Expect(result.Skill).To(Equal("qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// QAVerdict set -> transition to tdd_red_decide
@@ -66,7 +66,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_red_decide"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_red_decide: approved -> targets[1] = tdd_green_produce ===
@@ -75,7 +75,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_green_produce"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify tdd_red pair state cleared (cross-group: tdd_red -> tdd_green)
@@ -90,7 +90,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-green-producer"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to tdd_green_qa
@@ -99,7 +99,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_green_qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_green_qa: spawn QA ===
@@ -107,7 +107,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to tdd_green_decide
@@ -116,7 +116,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_green_decide"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_green_decide: approved -> targets[1] = tdd_refactor_produce ===
@@ -125,7 +125,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_refactor_produce"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_refactor_produce: spawn producer ===
@@ -134,7 +134,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Skill).To(Equal("tdd-refactor-producer"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to tdd_refactor_qa
@@ -143,7 +143,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_refactor_qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_refactor_qa: spawn QA ===
@@ -151,7 +151,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to tdd_refactor_decide
@@ -160,7 +160,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_refactor_decide"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_refactor_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_refactor_decide: approved -> targets[1] = tdd_commit ===
@@ -169,7 +169,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_commit"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_commit"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_commit"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === tdd_commit: commit action ===
@@ -177,7 +177,7 @@ func TestFullTDDWorkflow(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("commit"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "commit", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "commit", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// tdd_commit committed -> transition to merge_acquire
@@ -211,14 +211,14 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition to tdd_red_qa
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// QA requests improvement
@@ -226,7 +226,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -246,7 +246,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_red_decide"))
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// tdd_red_decide: improvement-request (not "approved") -> targets[0] = tdd_red_produce
@@ -254,7 +254,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_red_produce"))
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === Iteration 2: Producer re-spawned with QA feedback ===
@@ -263,13 +263,13 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Context.QAFeedback).To(Equal("Add edge case tests for empty input"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to tdd_red_qa
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// QA requests another improvement
@@ -277,7 +277,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -293,11 +293,11 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		// Navigate back to tdd_red_produce via decide
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === Iteration 3: At max, one more attempt ===
@@ -306,13 +306,13 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-producer"))
 		g.Expect(result.Context.QAFeedback).To(Equal("Add boundary tests for max values"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to qa
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err = step.Next(dir)
@@ -320,7 +320,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
 		// QA requests yet another improvement (pushes iteration to 4)
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -335,11 +335,11 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		// Navigate back to produce via decide
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 		result, err = step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// === Escalation: iteration 4 > max 3 ===
@@ -365,19 +365,19 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		}
 
 		// Producer -> QA -> approved
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-producer", Status: "done"}, nowFunc())
+		g.Expect(err).ToNot(HaveOccurred())
+
+		_, err = step.Next(dir)
+		g.Expect(err).ToNot(HaveOccurred())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		result, err := step.Next(dir)
 		g.Expect(err).ToNot(HaveOccurred())
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_qa"}, nowFunc())
-		g.Expect(err).ToNot(HaveOccurred())
-
-		result, err = step.Next(dir)
-		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Action).To(Equal("spawn-qa"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "spawn-qa", Status: "done", QAVerdict: "approved"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// transition to decide
@@ -386,7 +386,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_red_decide"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_red_decide"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// decide: approved -> tdd_green_produce (targets[1])
@@ -395,7 +395,7 @@ func TestQAIterationWithFeedback(t *testing.T) {
 		g.Expect(result.Action).To(Equal("transition"))
 		g.Expect(result.Phase).To(Equal("tdd_green_produce"))
 
-		err = step.Complete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_produce"}, nowFunc())
+		err = step.RecordComplete(dir, step.CompleteResult{Action: "transition", Phase: "tdd_green_produce"}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify tdd_red pair state is cleared (cross-group boundary)

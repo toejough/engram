@@ -40,7 +40,7 @@ type stepCompleteArgs struct {
 }
 
 func stepComplete(args stepCompleteArgs) error {
-	err := step.Complete(args.Dir, step.CompleteResult{
+	err := step.RecordComplete(args.Dir, step.CompleteResult{
 		Action:             args.Action,
 		Status:             args.Status,
 		ProducerTranscript: args.ProducerTranscript,

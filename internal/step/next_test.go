@@ -368,7 +368,7 @@ func TestComplete(t *testing.T) {
 		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -398,7 +398,7 @@ func TestComplete(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
 			QAVerdict: "approved",
@@ -436,7 +436,7 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
 		}, nowFunc())
@@ -474,7 +474,7 @@ func TestComplete(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition from artifact_commit to breakdown_produce (cross-group: "artifact" -> "breakdown")
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "breakdown_produce",
 		}, nowFunc())
@@ -512,7 +512,7 @@ func TestComplete(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition from crosscut_qa to crosscut_decide (same group: "crosscut" -> "crosscut")
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "crosscut_decide",
 		}, nowFunc())
@@ -537,7 +537,7 @@ func TestComplete(t *testing.T) {
 		_, err = state.Transition(dir, "plan_produce", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "invalid-action",
 			Status: "done",
 		}, nowFunc())
@@ -570,7 +570,7 @@ func TestComplete(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
 		}, nowFunc())
@@ -992,7 +992,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 		dir := t.TempDir()
 		navigateToPlanProduce(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",
@@ -1010,7 +1010,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 		dir := t.TempDir()
 		navigateToPlanProduce(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",
@@ -1038,7 +1038,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 			g.Expect(err).ToNot(HaveOccurred())
 		}
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-qa",
 			Status:        "failed",
 			ReportedModel: "sonnet",
@@ -1063,7 +1063,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -1081,7 +1081,7 @@ func TestCompleteFailedSpawn(t *testing.T) {
 		dir := t.TempDir()
 		navigateToPlanProduce(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "",
 		}, nowFunc())
@@ -1350,16 +1350,6 @@ func TestMainFlowEndingMandatory(t *testing.T) {
 		}
 	})
 
-}
-
-// producerTranscriptFile creates a temporary transcript file for testing.
-func producerTranscriptFile(t *testing.T, content string) string {
-	t.Helper()
-	f := filepath.Join(t.TempDir(), "transcript.txt")
-	if err := os.WriteFile(f, []byte(content), 0644); err != nil {
-		t.Fatal(err)
-	}
-	return f
 }
 
 func TestForkStateWithMultipleTasks(t *testing.T) {

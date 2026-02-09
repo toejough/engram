@@ -298,8 +298,8 @@ func Next(dir string) (NextResult, error) {
 	}
 }
 
-// Complete records the result of a completed step and advances sub-phase state.
-func Complete(dir string, result CompleteResult, now func() time.Time) error {
+// RecordComplete records the result of a completed step and advances sub-phase state.
+func RecordComplete(dir string, result CompleteResult, now func() time.Time) error {
 	s, err := state.Get(dir)
 	if err != nil {
 		return fmt.Errorf("failed to read state: %w", err)

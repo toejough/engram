@@ -9,7 +9,7 @@ import (
 )
 
 // TestStepComplete verifies TASK-7/TASK-14 acceptance criteria:
-// step.Complete() updates state correctly based on completed actions.
+// step.RecordComplete() updates state correctly based on completed actions.
 
 // navigateToTDDRedProduce initializes a scoped workflow and transitions
 // to tdd_red_produce via the flat state machine path:
@@ -33,7 +33,7 @@ func TestCompleteSpawnProducer(t *testing.T) {
 
 		navigateToTDDRedProduce(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -52,7 +52,7 @@ func TestCompleteSpawnProducer(t *testing.T) {
 
 		navigateToTDDRedProduce(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "opus",
@@ -80,7 +80,7 @@ func TestCompleteSpawnQA(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
 			QAVerdict: "approved",
@@ -106,7 +106,7 @@ func TestCompleteSpawnQA(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -138,7 +138,7 @@ func TestCompleteCommit(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
 		}, nowFunc())
@@ -165,7 +165,7 @@ func TestCompleteCommit(t *testing.T) {
 		})
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "commit",
 			Status: "done",
 		}, nowFunc())
@@ -191,7 +191,7 @@ func TestCompleteTransition(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition from tdd_red_produce -> tdd_red_qa (same pairKey "tdd_red")
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "tdd_red_qa",
 		}, nowFunc())
@@ -228,7 +228,7 @@ func TestCompleteTransition(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Transition from tdd_red_decide -> tdd_green_produce (pairKey changes: "tdd_red" -> "tdd_green")
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "tdd_green_produce",
 		}, nowFunc())

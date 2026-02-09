@@ -125,11 +125,17 @@ func worktreeList(args worktreeListArgs) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "TYPE\tNAME\tBRANCH\tPATH")
-	for _, wt := range worktrees {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", wt.Type, wt.TaskID, wt.Branch, wt.Path)
+	if _, err := fmt.Fprintln(w, "TYPE\tNAME\tBRANCH\tPATH"); err != nil {
+		return err
 	}
-	w.Flush()
+	for _, wt := range worktrees {
+		if _, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", wt.Type, wt.TaskID, wt.Branch, wt.Path); err != nil {
+			return err
+		}
+	}
+	if err := w.Flush(); err != nil {
+		return err
+	}
 
 	return nil
 }

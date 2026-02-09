@@ -82,6 +82,12 @@ type WorktreeState struct {
 	Status  string    `toml:"status"` // active, merged, failed
 }
 
+// ToolCall records a tool call made during a phase.
+type ToolCall struct {
+	ToolName  string    `toml:"tool_name"`
+	Timestamp time.Time `toml:"timestamp"`
+}
+
 // State is the complete project state.
 type State struct {
 	Project   Project                  `toml:"project"`
@@ -92,6 +98,7 @@ type State struct {
 	Error     *ErrorInfo               `toml:"error,omitempty"`
 	Pairs     map[string]PairState     `toml:"pairs,omitempty"`
 	Worktrees map[string]WorktreeState `toml:"worktrees,omitempty"`
+	ToolCalls []ToolCall               `toml:"tool_calls,omitempty"`
 }
 
 // InitOpts holds optional parameters for Init.
@@ -584,5 +591,66 @@ func Retry(dir string, now func() time.Time, checker PreconditionChecker) (State
 	}
 
 	return TransitionWithChecker(dir, s.Error.TargetPhase, TransitionOpts{}, now, checker)
+}
+
+// LogToolCall logs a tool call to the state file.
+func LogToolCall(dir, toolName string, now func() time.Time) error {
+	s, err := Get(dir)
+	if err != nil {
+		return fmt.Errorf("failed to read state file: %w", err)
+	}
+
+	s.ToolCalls = append(s.ToolCalls, ToolCall{
+		ToolName:  toolName,
+		Timestamp: now(),
+	})
+
+	if err := writeAtomic(dir, s); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetToolCalls retrieves all tool calls from the state file.
+func GetToolCalls(dir string) ([]ToolCall, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.ToolCalls, nil
+}
+
+// HasToolCall checks if a specific tool call exists in the state.
+func HasToolCall(dir, toolName string) (bool, error) {
+	s, err := Get(dir)
+	if err != nil {
+		return false, err
+	}
+
+	for _, call := range s.ToolCalls {
+		if call.ToolName == toolName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// ClearToolCalls removes all tool calls from the state.
+func ClearToolCalls(dir string) error {
+	s, err := Get(dir)
+	if err != nil {
+		return err
+	}
+
+	s.ToolCalls = nil
+
+	if err := writeAtomic(dir, s); err != nil {
+		return err
+	}
+
+	return nil
 }
 

@@ -37,7 +37,7 @@ func TestStepCompleteProducerDone(t *testing.T) {
 
 		navigateToTDDRedProduceViaScoped(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -55,7 +55,7 @@ func TestStepCompleteProducerDone(t *testing.T) {
 
 		navigateToTDDRedProduceViaScoped(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",
@@ -78,7 +78,7 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:    "spawn-qa",
 			Status:    "done",
 			QAVerdict: "approved",
@@ -100,7 +100,7 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		feedbackText := "Missing trace to REQ-042"
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -124,7 +124,7 @@ func TestStepCompleteQAVerdict(t *testing.T) {
 		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "escalate-user",
@@ -147,7 +147,7 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 		navigateToTDDRedProduceViaScoped(g, dir)
 
 		// Transition from tdd_red_produce to tdd_red_qa (same group)
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "tdd_red_qa",
 		}, nowFunc())
@@ -165,7 +165,7 @@ func TestStepCompleteTransitionAction(t *testing.T) {
 		navigateToTDDRedProduceViaScoped(g, dir)
 
 		// Try to transition directly to tdd_green_produce (skipping tdd_red_qa, tdd_red_decide)
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "tdd_green_produce",
 		}, nowFunc())
@@ -183,7 +183,7 @@ func TestStepCompleteEscalationResolution(t *testing.T) {
 		_, err := state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "escalate-user",
@@ -206,7 +206,7 @@ func TestStepCompleteInvalidAction(t *testing.T) {
 		_, err := state.Init(dir, "test-project", nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "invalid-action-type",
 			Status: "done",
 		}, nowFunc())
@@ -220,7 +220,7 @@ func TestStepCompleteInvalidAction(t *testing.T) {
 
 		navigateToTDDRedProduceViaScoped(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "",
 		}, nowFunc())
@@ -242,7 +242,7 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		feedbackText := "Test feedback"
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -268,7 +268,7 @@ func TestStepCompleteStatePersistence(t *testing.T) {
 		err = os.WriteFile(statePath, []byte("corrupted invalid toml {{{"), 0644)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -283,7 +283,7 @@ func TestStepCompleteModelMismatch(t *testing.T) {
 
 		navigateToTDDRedProduceViaScoped(g, dir)
 
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action:        "spawn-producer",
 			Status:        "failed",
 			ReportedModel: "haiku",

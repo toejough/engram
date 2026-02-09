@@ -60,14 +60,14 @@ func TestIterationIncrementsOnImprovementRequest(t *testing.T) {
 		navigateToPhaseForIteration(t, dir, "tdd_red_produce")
 
 		// Complete producer
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// QA requests improvement
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -107,7 +107,7 @@ func TestIterationResetsOnPhaseTransition(t *testing.T) {
 		// Transition from tdd_red_decide to tdd_green_produce (targets[1] for approved).
 		// This crosses pair group boundary: pairKey("tdd_green_produce") = "tdd_green" != "tdd_red",
 		// so the "tdd_red" pair state should be cleared.
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "transition",
 			Phase:  "tdd_green_produce",
 		}, nowFunc())
@@ -166,13 +166,13 @@ func TestIterationNeverDecreases(t *testing.T) {
 		navigateToPhaseForIteration(t, dir, "tdd_red_produce")
 
 		// First iteration: producer -> qa -> improvement-request
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",
@@ -185,13 +185,13 @@ func TestIterationNeverDecreases(t *testing.T) {
 		g.Expect(iteration1).To(Equal(2))
 
 		// Second iteration: producer -> qa -> improvement-request
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = step.Complete(dir, step.CompleteResult{
+		err = step.RecordComplete(dir, step.CompleteResult{
 			Action:     "spawn-qa",
 			Status:     "done",
 			QAVerdict:  "improvement-request",

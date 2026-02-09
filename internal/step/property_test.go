@@ -43,7 +43,7 @@ func TestPropertyIterationNeverDecreases(t *testing.T) {
 
 		for i := 0; i < numCycles; i++ {
 			// Complete producer
-			err := step.Complete(dir, step.CompleteResult{
+			err := step.RecordComplete(dir, step.CompleteResult{
 				Action: "spawn-producer",
 				Status: "done",
 			}, nowFunc())
@@ -54,7 +54,7 @@ func TestPropertyIterationNeverDecreases(t *testing.T) {
 			_, err = state.Transition(dir, "tdd_red_qa", state.TransitionOpts{}, nowFunc())
 			g.Expect(err).ToNot(HaveOccurred())
 
-			err = step.Complete(dir, step.CompleteResult{
+			err = step.RecordComplete(dir, step.CompleteResult{
 				Action:     "spawn-qa",
 				Status:     "done",
 				QAVerdict:  "improvement-request",
@@ -114,7 +114,7 @@ func TestPropertyTerminalPhasesReachable(t *testing.T) {
 		navigateToTDDRedProduce(g, dir)
 
 		// Simulate successful producer completion
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
@@ -136,7 +136,7 @@ func TestPropertyPairStateConsistency(t *testing.T) {
 		navigateToTDDRedProduce(g, dir)
 
 		// Property: ProducerComplete=true implies QAVerdict is either empty or set
-		err := step.Complete(dir, step.CompleteResult{
+		err := step.RecordComplete(dir, step.CompleteResult{
 			Action: "spawn-producer",
 			Status: "done",
 		}, nowFunc())
