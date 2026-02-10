@@ -767,6 +767,39 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	return RemoveFromClaudeMD(opts.ClaudeMDPath, removeStrings)
 }
 
+// migrateMemoryGenSkills migrates skills from legacy memory-gen/ to mem-{slug}/ structure.
+func migrateMemoryGenSkills(skillsDir string) error {
+	memGenDir := filepath.Join(skillsDir, "memory-gen")
+	entries, err := os.ReadDir(memGenDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // No memory-gen dir, nothing to migrate
+		}
+		return fmt.Errorf("failed to read memory-gen directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		oldPath := filepath.Join(memGenDir, entry.Name())
+		newPath := filepath.Join(skillsDir, "mem-"+entry.Name())
+
+		// Skip if destination already exists
+		if _, err := os.Stat(newPath); err == nil {
+			continue
+		}
+
+		if err := os.Rename(oldPath, newPath); err != nil {
+			return fmt.Errorf("failed to migrate skill %s: %w", entry.Name(), err)
+		}
+	}
+
+	// Remove empty memory-gen directory
+	_ = os.Remove(memGenDir)
+	return nil
+}
+
 // optimizeCompileSkills clusters similar memories and compiles them into skills.
 func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
 	// Skip if no skills directory configured
@@ -777,6 +810,11 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	// Ensure skills directory exists
 	if err := os.MkdirAll(opts.SkillsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create skills directory: %w", err)
+	}
+
+	// Migrate legacy memory-gen/ skills to mem-{slug}/ structure
+	if err := migrateMemoryGenSkills(opts.SkillsDir); err != nil {
+		return fmt.Errorf("failed to migrate memory-gen skills: %w", err)
 	}
 
 	// TASK-11: Check if periodic reorganization should trigger
@@ -1101,7 +1139,7 @@ func pruneOrphanedSkills(db *sql.DB, skillsDir string, activeThemes map[string]b
 				continue
 			}
 			// Remove skill directory from disk
-			skillDir := filepath.Join(skillsDir, s.slug)
+			skillDir := filepath.Join(skillsDir, "mem-"+s.slug)
 			_ = os.RemoveAll(skillDir)
 			pruned++
 		}
@@ -1234,7 +1272,7 @@ func pruneStaleSkills(db *sql.DB, skillsDir string, autoDemoteUtility float64) i
 			continue
 		}
 		// Remove skill directory from disk
-		skillDir := filepath.Join(skillsDir, s.slug)
+		skillDir := filepath.Join(skillsDir, "mem-"+s.slug)
 		_ = os.RemoveAll(skillDir)
 		pruned++
 	}
@@ -1778,7 +1816,7 @@ func optimizeMergeSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 				_, _ = db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", deleteSkill.id)
 
 				// Remove deleted skill file
-				skillDir := filepath.Join(opts.SkillsDir, deleteSkill.slug)
+				skillDir := filepath.Join(opts.SkillsDir, "mem-"+deleteSkill.slug)
 				_ = os.RemoveAll(skillDir)
 
 				merged[deleteSkill.id] = true
@@ -1905,7 +1943,7 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 		_, _ = db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", skill.id)
 
 		// Remove original skill file
-		skillDir := filepath.Join(opts.SkillsDir, skill.slug)
+		skillDir := filepath.Join(opts.SkillsDir, "mem-"+skill.slug)
 		_ = os.RemoveAll(skillDir)
 
 		result.SkillsSplit++

@@ -45,7 +45,7 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	{
 		home, err := os.UserHomeDir()
 		if err == nil {
-			skillsDir = filepath.Join(home, ".claude", "skills", "memory-gen")
+			skillsDir = filepath.Join(home, ".claude", "skills")
 		}
 	}
 

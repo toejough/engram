@@ -43,9 +43,6 @@ type FormatMarkdownOpts struct {
 
 	// Extractor is an optional LLM extractor for TierCurated
 	Extractor LLMExtractor
-
-	// Skills are skill search results to include (TASK-4)
-	Skills []SkillSearchResult
 }
 
 // FormatMarkdown takes pre-fetched query results and applies confidence filtering,
@@ -84,9 +81,6 @@ func FormatMarkdown(opts FormatMarkdownOpts) string {
 		filtered = SortByPrimacy(filtered)
 	}
 
-	// Build skills section first (skills appear before memories)
-	skillsSection := FormatSkillContext(opts.Skills)
-
 	var memoriesSection string
 	switch tier {
 	case TierFull:
@@ -97,7 +91,7 @@ func FormatMarkdown(opts FormatMarkdownOpts) string {
 		memoriesSection = formatAsMarkdownCompact(filtered, maxTokens)
 	}
 
-	return skillsSection + memoriesSection
+	return memoriesSection
 }
 
 // formatAsMarkdownCompact formats results with type prefixes and no hard truncation.
@@ -261,24 +255,4 @@ func SortByPrimacy(results []QueryResult) []QueryResult {
 	})
 
 	return sorted
-}
-
-// truncateLine truncates a line to a maximum length, preserving word boundaries.
-func truncateLine(line string, maxLen int) string {
-	// Remove leading/trailing whitespace and collapse internal whitespace
-	line = strings.TrimSpace(line)
-	line = strings.Join(strings.Fields(line), " ")
-
-	if len(line) <= maxLen {
-		return line
-	}
-
-	// Truncate at word boundary
-	truncated := line[:maxLen]
-	lastSpace := strings.LastIndex(truncated, " ")
-	if lastSpace > maxLen/2 {
-		truncated = truncated[:lastSpace]
-	}
-
-	return truncated + "..."
 }

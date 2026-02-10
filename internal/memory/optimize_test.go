@@ -323,7 +323,7 @@ func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
 	// Create CLAUDE.md with a narrow learning
@@ -381,7 +381,7 @@ func TestOptimizeDemoteClaudeMDUniversalLearning(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
 	// Create CLAUDE.md with only universal learnings
@@ -423,7 +423,7 @@ func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
 	// Create CLAUDE.md with a narrow learning
@@ -470,7 +470,7 @@ func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
 	// Create CLAUDE.md with entries containing project names and file paths
@@ -1357,8 +1357,8 @@ func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
 		1.0, 1.0, 0.35, 5, now, now, now, 0)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create skill directory and file
-	skillDir := filepath.Join(skillsDir, "stale-skill")
+	// Create skill directory and file (mem- prefix matches prune path)
+	skillDir := filepath.Join(skillsDir, "mem-stale-skill")
 	g.Expect(os.MkdirAll(skillDir, 0755)).To(Succeed())
 	skillFilePath := filepath.Join(skillDir, "SKILL.md")
 	g.Expect(os.WriteFile(skillFilePath, []byte("# Stale Pattern\n\nTest"), 0644)).To(Succeed())

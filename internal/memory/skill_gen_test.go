@@ -907,7 +907,7 @@ func TestWriteSkillFileCreatesDirectory(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Verify directory was created
-	skillDir := filepath.Join(skillsDir, "test-skill")
+	skillDir := filepath.Join(skillsDir, "mem-test-skill")
 	info, err := os.Stat(skillDir)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(info.IsDir()).To(BeTrue())
@@ -943,7 +943,7 @@ func TestWriteSkillFileContainsFrontmatter(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Read the file
-	skillFile := filepath.Join(skillsDir, "test-skill", "SKILL.md")
+	skillFile := filepath.Join(skillsDir, "mem-test-skill", "SKILL.md")
 	content, err := os.ReadFile(skillFile)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -951,11 +951,11 @@ func TestWriteSkillFileContainsFrontmatter(t *testing.T) {
 
 	// Verify frontmatter structure
 	g.Expect(contentStr).To(HavePrefix("---\n"))
-	g.Expect(contentStr).To(ContainSubstring("name: memory-gen-test-skill"))
+	g.Expect(contentStr).To(ContainSubstring("name: mem:test-skill"))
 	g.Expect(contentStr).To(ContainSubstring("description: A test skill for validation"))
-	g.Expect(contentStr).To(ContainSubstring("context: inherit"))
+	g.Expect(contentStr).ToNot(ContainSubstring("context: inherit"))
 	g.Expect(contentStr).To(ContainSubstring("model: haiku"))
-	g.Expect(contentStr).To(ContainSubstring("user-invocable: false"))
+	g.Expect(contentStr).To(ContainSubstring("user-invocable: true"))
 	g.Expect(contentStr).To(ContainSubstring("generated: true"))
 	g.Expect(contentStr).To(ContainSubstring("confidence: 0.75")) // alpha/(alpha+beta) = 3/4 = 0.75
 	g.Expect(contentStr).To(ContainSubstring("source: memory-compilation"))
@@ -1000,7 +1000,7 @@ func TestWriteSkillFileOverwritesExisting(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Read and verify updated content
-	skillFile := filepath.Join(skillsDir, "test-skill", "SKILL.md")
+	skillFile := filepath.Join(skillsDir, "mem-test-skill", "SKILL.md")
 	content, err := os.ReadFile(skillFile)
 	g.Expect(err).ToNot(HaveOccurred())
 

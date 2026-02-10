@@ -1217,7 +1217,7 @@ func TestExtractSessionNilMatcherLogsFallback(t *testing.T) {
 	})
 
 	// Restore stderr and read captured output
-	w.Close()
+	_ = w.Close()
 	os.Stderr = oldStderr
 	captured, err := io.ReadAll(r)
 	g.Expect(err).ToNot(HaveOccurred())

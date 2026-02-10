@@ -1045,7 +1045,7 @@ func TestGrepFindsContentFromDBWithoutIndexMd(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Delete index.md if it exists (simulating post-removal state)
-	os.Remove(filepath.Join(memoryDir, "index.md"))
+	_ = os.Remove(filepath.Join(memoryDir, "index.md"))
 
 	// Grep should still find content from DB
 	result, err := memory.Grep(memory.GrepOpts{

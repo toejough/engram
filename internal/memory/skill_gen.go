@@ -412,7 +412,7 @@ func OpenSkillDB(memoryRoot string) (*sql.DB, error) {
 // writeSkillFile creates a SKILL.md file with YAML frontmatter.
 func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	// Create skill directory
-	skillDir := filepath.Join(skillsDir, skill.Slug)
+	skillDir := filepath.Join(skillsDir, "mem-"+skill.Slug)
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
@@ -423,11 +423,10 @@ func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	// Build frontmatter
 	var sb strings.Builder
 	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("name: memory-gen-%s\n", skill.Slug))
+	sb.WriteString(fmt.Sprintf("name: mem:%s\n", skill.Slug))
 	sb.WriteString(fmt.Sprintf("description: %s\n", skill.Description))
-	sb.WriteString("context: inherit\n")
 	sb.WriteString("model: haiku\n")
-	sb.WriteString("user-invocable: false\n")
+	sb.WriteString("user-invocable: true\n")
 	sb.WriteString("generated: true\n")
 	sb.WriteString(fmt.Sprintf("confidence: %.2f\n", confidence))
 	sb.WriteString("source: memory-compilation\n")

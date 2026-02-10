@@ -591,7 +591,8 @@ func TestIntegration_RunsOnMacOSAndLinux(t *testing.T) {
 	currentOS := runtime.GOOS
 
 	// Test should run on macOS and Linux
-	if currentOS == "darwin" || currentOS == "linux" {
+	switch currentOS {
+	case "darwin", "linux":
 		g.Expect(currentOS).To(Or(Equal("darwin"), Equal("linux")),
 			"integration tests are supported on macOS and Linux")
 		// Run a quick validation
@@ -609,9 +610,9 @@ func TestIntegration_RunsOnMacOSAndLinux(t *testing.T) {
 		}
 		_, err = memory.Query(queryOpts)
 		g.Expect(err).ToNot(HaveOccurred(), "memory system should work on %s", currentOS)
-	} else if currentOS == "windows" {
+	case "windows":
 		t.Skip("Windows support is documented as future work")
-	} else {
+	default:
 		t.Skipf("Unsupported platform: %s", currentOS)
 	}
 }

@@ -28,7 +28,7 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, ".claude", "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
 	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
@@ -111,45 +111,9 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 	content, err := os.ReadFile(skillFile)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("---"))
-	g.Expect(string(content)).To(ContainSubstring("memory-gen-"))
+	g.Expect(string(content)).To(ContainSubstring("mem:"))
 	g.Expect(string(content)).To(ContainSubstring("confidence:"))
 	g.Expect(string(content)).To(ContainSubstring("generated: true"))
-
-	// Step 4: Verify FormatMarkdown includes skill section when skills provided
-	skills := []memory.SkillSearchResult{
-		{
-			Slug:        "tdd-workflow",
-			Theme:       "TDD Workflow",
-			Description: "Test-driven development workflow patterns",
-			Confidence:  0.80,
-			Utility:     0.85,
-			Similarity:  0.90,
-		},
-	}
-
-	memResults := []memory.QueryResult{
-		{
-			Content:    "Always write tests first",
-			Confidence: 0.9,
-			Score:      0.8,
-			Source:     "memory",
-			SourceType: "internal",
-		},
-	}
-
-	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
-		Skills:        skills,
-		Results:       memResults,
-		MinConfidence: 0.0,
-		MaxEntries:    10,
-		MaxTokens:     2000,
-		Tier:          memory.TierCompact,
-	})
-
-	g.Expect(output).To(ContainSubstring("## Relevant Skills"))
-	g.Expect(output).To(ContainSubstring("TDD Workflow"))
-	g.Expect(output).To(ContainSubstring("80%"))
-	g.Expect(output).To(ContainSubstring("## Recent Context from Memory"))
 }
 
 // TestE2EPrunedSkillFileRemoval verifies that pruning removes skill files.
@@ -158,7 +122,7 @@ func TestE2EPrunedSkillFileRemoval(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, ".claude", "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
 	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
@@ -189,8 +153,8 @@ func TestE2EPrunedSkillFileRemoval(t *testing.T) {
 	_, err = memory.InsertSkillForTest(db, skill)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create skill file on disk
-	skillDir := filepath.Join(skillsDir, "prune-me")
+	// Create skill file on disk (mem- prefix matches prune path)
+	skillDir := filepath.Join(skillsDir, "mem-prune-me")
 	g.Expect(os.MkdirAll(skillDir, 0755)).To(Succeed())
 	g.Expect(os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("pruned content"), 0644)).To(Succeed())
 

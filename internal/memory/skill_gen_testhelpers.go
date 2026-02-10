@@ -67,3 +67,8 @@ func RecordSkillFeedbackForTest(db *sql.DB, slug string, success bool) error {
 func RecordSkillUsageForTest(db *sql.DB, slug string, success bool) error {
 	return RecordSkillUsage(db, slug, success)
 }
+
+// MigrateMemoryGenSkillsForTest wraps migrateMemoryGenSkills for blackbox testing.
+func MigrateMemoryGenSkillsForTest(skillsDir string) error {
+	return migrateMemoryGenSkills(skillsDir)
+}

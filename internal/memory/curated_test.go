@@ -264,10 +264,6 @@ func TestPropertyCuratedOutputCountLEInputCount(t *testing.T) {
 
 		// Count bullet entries in output
 		bulletCount := strings.Count(output, "\n- ")
-		// Also count if the first line starts with "- "
-		if strings.HasPrefix(output, "- ") || strings.Contains(output, "\n\n- ") {
-			// Already counted via \n-
-		}
 
 		g.Expect(bulletCount).To(BeNumerically("<=", numCandidates),
 			"Curated output entries must not exceed input candidates")

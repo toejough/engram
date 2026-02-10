@@ -56,7 +56,7 @@ func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, ".claude", "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
 	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
@@ -137,7 +137,7 @@ func TestOptimizeCompileSkillsSkipsExistingSkillMembers(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, ".claude", "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
 	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
@@ -226,7 +226,7 @@ func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, ".claude", "skills", "memory-gen")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
 	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
@@ -261,8 +261,8 @@ func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Create skill file on disk
-	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "stale-skill"), 0755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(skillsDir, "stale-skill", "SKILL.md"), []byte("stale"), 0644)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "mem-stale-skill"), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(skillsDir, "mem-stale-skill", "SKILL.md"), []byte("stale"), 0644)).To(Succeed())
 
 	// Create a healthy skill for contrast
 	healthySkill := &memory.GeneratedSkill{
@@ -298,7 +298,7 @@ func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
 	g.Expect(stale.Pruned).To(BeTrue())
 
 	// Verify stale skill file was removed
-	_, err = os.Stat(filepath.Join(skillsDir, "stale-skill", "SKILL.md"))
+	_, err = os.Stat(filepath.Join(skillsDir, "mem-stale-skill", "SKILL.md"))
 	g.Expect(os.IsNotExist(err)).To(BeTrue())
 
 	// Verify healthy skill is untouched
@@ -333,4 +333,73 @@ func TestOptimizeCompileSkillsNoCompiler(t *testing.T) {
 	g.Expect(result.SkillsCompiled).To(Equal(0))
 	g.Expect(result.SkillsMerged).To(Equal(0))
 	g.Expect(result.SkillsPruned).To(Equal(0))
+}
+
+// TestPruneSafetyOnlyDeletesMemPrefixDirs verifies that prune only removes
+// directories with the mem- prefix, leaving hand-crafted skills untouched.
+func TestPruneSafetyOnlyDeletesMemPrefixDirs(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	skillsDir := filepath.Join(tempDir, ".claude", "skills")
+	claudeMDPath := filepath.Join(tempDir, ".claude", "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(filepath.Dir(claudeMDPath), 0755)).To(Succeed())
+	g.Expect(os.WriteFile(claudeMDPath, []byte("# CLAUDE.md\n\n## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Seed metadata so Optimize takes the normal compile path (not the reorg path)
+	now := time.Now().UTC().Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", now)).To(Succeed())
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", now)).To(Succeed())
+
+	// Create a stale skill in DB (slug "foo")
+	staleSkill := &memory.GeneratedSkill{
+		Slug:            "foo",
+		Theme:           "Stale Topic",
+		Description:     "This skill is stale",
+		Content:         "# Stale\n\nContent",
+		SourceMemoryIDs: "[1,2,3]",
+		Alpha:           1.0,
+		Beta:            4.0,
+		Utility:         0.3,
+		RetrievalCount:  10,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+		Pruned:          false,
+	}
+	_, err = memory.InsertSkillForTest(db, staleSkill)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create mem-foo/ directory (generated skill - should be pruned)
+	memFooDir := filepath.Join(skillsDir, "mem-foo")
+	g.Expect(os.MkdirAll(memFooDir, 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(memFooDir, "SKILL.md"), []byte("generated"), 0644)).To(Succeed())
+
+	// Create hand-crafted/ directory (hand-written skill - must survive)
+	handCraftedDir := filepath.Join(skillsDir, "hand-crafted")
+	g.Expect(os.MkdirAll(handCraftedDir, 0755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(handCraftedDir, "SKILL.md"), []byte("hand-written"), 0644)).To(Succeed())
+
+	// Run Optimize which triggers prune
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		SkillsDir:    skillsDir,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsPruned).To(Equal(1))
+
+	// Verify mem-foo/ was removed (pruned)
+	_, err = os.Stat(filepath.Join(skillsDir, "mem-foo", "SKILL.md"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue(), "mem-foo should be pruned")
+
+	// Verify hand-crafted/ still exists (safety)
+	_, err = os.Stat(filepath.Join(skillsDir, "hand-crafted", "SKILL.md"))
+	g.Expect(err).ToNot(HaveOccurred(), "hand-crafted should survive prune")
 }
