@@ -1715,3 +1715,77 @@ func TestQueryReusesDownloadedModel(t *testing.T) {
 	// Both should use same model path
 	g.Expect(results1.ModelPath).To(Equal(results2.ModelPath))
 }
+
+// TEST-201-01: LearnWithConflictCheck actually stores the entry
+// traces: ISSUE-201 AC-1
+func TestLearnWithConflictCheckStoresEntry(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
+
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    "always use dependency injection for testability",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Stored).To(BeTrue())
+
+	// Verify the entry is actually queryable via Grep
+	grepResult, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "always use dependency injection for testability",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(grepResult.Matches).ToNot(BeEmpty(), "entry should be stored and queryable after LearnWithConflictCheck")
+}
+
+// TEST-201-02: LearnWithConflictCheck detects conflict for similar entries
+// traces: ISSUE-201 AC-2
+func TestLearnWithConflictCheckDetectsConflict(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Store an entry first via Learn
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "always use TDD for all code changes",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Now call LearnWithConflictCheck with a very similar message
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    "always use TDD for all code changes",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.HasConflict).To(BeTrue(), "identical message should be detected as conflict")
+	g.Expect(result.ConflictEntry).ToNot(BeEmpty(), "conflict entry should reference the existing entry")
+}
+
+// TEST-201-03: LearnWithConflictCheck reports no conflict for different entries
+// traces: ISSUE-201 AC-3
+func TestLearnWithConflictCheckNoConflictForDifferentMessages(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Store an entry first
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "always use TDD for all code changes",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// LearnWithConflictCheck with a completely different message
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    "prefer dark mode for IDE theme settings",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.HasConflict).To(BeFalse(), "semantically different message should not be detected as conflict")
+}

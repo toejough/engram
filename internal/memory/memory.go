@@ -1042,17 +1042,17 @@ func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	defer func() { _ = db.Close() }()
-
 	// Generate embedding for the new message
 	embedding, _, _, err := generateEmbeddingONNX(opts.Message, modelPath)
 	if err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
 	// Search for similar entries
 	results, err := searchSimilar(db, embedding, 1)
 	if err != nil {
+		_ = db.Close()
 		return nil, fmt.Errorf("failed to search: %w", err)
 	}
 
@@ -1071,6 +1071,10 @@ func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 			conflictType = detectConflictType(opts.Message, results[0].Content)
 		}
 	}
+
+	// Close DB before Learn() to release SQLite write lock — Learn calls
+	// learnToEmbeddings which opens its own connection.
+	_ = db.Close()
 
 	// Store the learning regardless
 	if err := Learn(opts); err != nil {
