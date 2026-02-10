@@ -132,7 +132,7 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 	g.Expect(preToolUseHookCmd["type"]).To(Equal("command"))
 	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("projctl memory query"))
 	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("--stdin-tool"))
-	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("--min-confidence=0.5"))
+	g.Expect(preToolUseHookCmd["command"]).To(ContainSubstring("--min-confidence=50"))
 }
 
 // TestHooksInstall_MergesWithExistingHooks tests that install preserves existing hooks.
@@ -277,19 +277,19 @@ func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
 			"SessionStart": []map[string]any{
 				{
 					"type":    "command",
-					"command": "projctl memory query --primacy --stdin-project --min-confidence=0.3 --max-tokens=1000 -n 10 \"recent important learnings\"",
+					"command": "projctl memory query --primacy --stdin-project --min-confidence=30 --max-tokens=1000 -n 10 \"recent important learnings\"",
 				},
 			},
 			"UserPromptSubmit": []map[string]any{
 				{
 					"type":    "command",
-					"command": "projctl memory query --primacy --stdin-prompt --min-confidence=0.3 --max-tokens=2000 -n 10",
+					"command": "projctl memory query --primacy --stdin-prompt --min-confidence=30 --max-tokens=2000 -n 10",
 				},
 			},
 			"PreToolUse": []map[string]any{
 				{
 					"type":    "command",
-					"command": "projctl memory query --stdin-tool --min-confidence=0.5 --max-tokens=1000 -n 5",
+					"command": "projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5",
 				},
 			},
 		},

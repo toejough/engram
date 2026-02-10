@@ -167,7 +167,7 @@ type memoryQueryArgs struct {
 	Project       string  `targ:"flag,short=p,desc=Project name for retrieval tracking"`
 	Verbose       bool    `targ:"flag,short=v,desc=Show detailed scoring info"`
 	MemoryRoot    string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-	MinConfidence float64 `targ:"flag,name=min-confidence,desc=Minimum confidence threshold (default: 0)"`
+	MinConfidence int `targ:"flag,name=min-confidence,desc=Minimum confidence threshold 0-100 (default: 0)"`
 	MaxTokens     int     `targ:"flag,name=max-tokens,desc=Max token count for output (default: 2000)"`
 	Primacy       bool    `targ:"flag,desc=Sort corrections first (primacy ordering)"`
 	Rich          bool    `targ:"flag,desc=Show full metadata (confidence/retrieval count/match type/projects)"`
@@ -297,7 +297,7 @@ func memoryQuery(args memoryQueryArgs) error {
 	// Always markdown output
 	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
 		Results:       result.Results,
-		MinConfidence: args.MinConfidence,
+		MinConfidence: float64(args.MinConfidence) / 100.0,
 		MaxEntries:    limit,
 		MaxTokens:     args.MaxTokens,
 		Primacy:       args.Primacy,

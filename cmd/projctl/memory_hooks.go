@@ -50,9 +50,9 @@ func memoryHooksInstall(args memoryHooksInstallArgs) error {
 	fmt.Println("\nInstalled hooks:")
 	fmt.Println("  - Stop: projctl memory extract-session --transcript $TRANSCRIPT_PATH &")
 	fmt.Println("  - PreCompact: projctl memory extract-session --transcript $TRANSCRIPT_PATH &")
-	fmt.Println("  - SessionStart: projctl memory query --primacy --stdin-project --min-confidence=0.3 --max-tokens=1000 -n 10 \"recent important learnings\"")
-	fmt.Println("  - UserPromptSubmit: projctl memory query --primacy --stdin-prompt --min-confidence=0.3 --max-tokens=2000 -n 10")
-	fmt.Println("  - PreToolUse: projctl memory query --stdin-tool --min-confidence=0.5 --max-tokens=1000 -n 5")
+	fmt.Println("  - SessionStart: projctl memory query --primacy --stdin-project --min-confidence=30 --max-tokens=1000 -n 10 \"recent important learnings\"")
+	fmt.Println("  - UserPromptSubmit: projctl memory query --primacy --stdin-prompt --min-confidence=30 --max-tokens=2000 -n 10")
+	fmt.Println("  - PreToolUse: projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5")
 
 	return nil
 }

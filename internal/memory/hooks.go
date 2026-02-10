@@ -52,21 +52,21 @@ func InstallHooks(opts InstallHooksOpts) error {
 	sessionStartHook := hookEntry{
 		Hooks: []hookCommand{{
 			Type:    "command",
-			Command: "projctl memory query --primacy --stdin-project --min-confidence=0.3 --max-tokens=1000 -n 10 \"recent important learnings\"",
+			Command: "projctl memory query --primacy --stdin-project --min-confidence=30 --max-tokens=1000 -n 10 \"recent important learnings\"",
 		}},
 	}
 
 	userPromptSubmitHook := hookEntry{
 		Hooks: []hookCommand{{
 			Type:    "command",
-			Command: "projctl memory query --primacy --stdin-prompt --min-confidence=0.3 --max-tokens=2000 -n 10",
+			Command: "projctl memory query --primacy --stdin-prompt --min-confidence=30 --max-tokens=2000 -n 10",
 		}},
 	}
 
 	preToolUseHook := hookEntry{
 		Hooks: []hookCommand{{
 			Type:    "command",
-			Command: "projctl memory query --stdin-tool --min-confidence=0.5 --max-tokens=1000 -n 5",
+			Command: "projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5",
 		}},
 	}
 
