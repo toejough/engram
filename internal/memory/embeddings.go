@@ -153,6 +153,11 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN anti_pattern TEXT NOT NULL DEFAULT ''",      // ISSUE-188: what to avoid
 		"ALTER TABLE embeddings ADD COLUMN rationale TEXT NOT NULL DEFAULT ''",         // ISSUE-188: why the principle matters
 		"ALTER TABLE embeddings ADD COLUMN enriched_content TEXT NOT NULL DEFAULT ''",  // ISSUE-188: LLM-enriched content for embedding
+		"ALTER TABLE generated_skills ADD COLUMN demoted_from_claude_md TEXT NOT NULL DEFAULT ''", // TASK-2: RFC3339 timestamp if demoted from CLAUDE.md
+		"ALTER TABLE generated_skills ADD COLUMN claude_md_promoted INTEGER NOT NULL DEFAULT 0",   // TASK-3: 1 if promoted to CLAUDE.md
+		"ALTER TABLE generated_skills ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''",             // TASK-3: RFC3339 timestamp of promotion
+		"ALTER TABLE generated_skills ADD COLUMN merge_source_ids TEXT NOT NULL DEFAULT ''",        // TASK-10: JSON array of skill IDs that were merged into this one
+		"ALTER TABLE generated_skills ADD COLUMN split_from_id INTEGER NOT NULL DEFAULT 0",         // TASK-10: Parent skill ID if this skill was created from a split
 	}
 	for _, stmt := range alterStatements {
 		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors

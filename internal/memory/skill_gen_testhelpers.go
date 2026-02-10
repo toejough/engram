@@ -62,3 +62,8 @@ func WriteSkillFileForTest(skillsDir string, skill *GeneratedSkill) error {
 func RecordSkillFeedbackForTest(db *sql.DB, slug string, success bool) error {
 	return RecordSkillFeedback(db, slug, success)
 }
+
+// RecordSkillUsageForTest wraps RecordSkillUsage for blackbox testing (TASK-9).
+func RecordSkillUsageForTest(db *sql.DB, slug string, success bool) error {
+	return RecordSkillUsage(db, slug, success)
+}

@@ -2,7 +2,7 @@
 name: arch-interview-producer
 description: Architecture interview producer gathering technology decisions via user interview
 context: inherit
-model: sonnet
+model: opus
 skills: ownership-rules
 user-invocable: true
 role: producer

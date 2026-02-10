@@ -2,7 +2,7 @@
 name: pm-interview-producer
 description: Gathers requirements via user interview, produces requirements.md with REQ-N IDs
 context: inherit
-model: sonnet
+model: opus
 skills: ownership-rules
 user-invocable: true
 role: producer

@@ -13,21 +13,23 @@ import (
 
 // GeneratedSkill represents a dynamically generated skill from memory clusters.
 type GeneratedSkill struct {
-	ID              int64
-	Slug            string
-	Theme           string
-	Description     string
-	Content         string
-	SourceMemoryIDs string // JSON array of embedding IDs
-	Alpha           float64
-	Beta            float64
-	Utility         float64
-	RetrievalCount  int
-	LastRetrieved   string
-	CreatedAt       string
-	UpdatedAt       string
-	Pruned          bool
-	EmbeddingID     int64
+	ID                  int64
+	Slug                string
+	Theme               string
+	Description         string
+	Content             string
+	SourceMemoryIDs     string // JSON array of embedding IDs
+	Alpha               float64
+	Beta                float64
+	Utility             float64
+	RetrievalCount      int
+	LastRetrieved       string
+	CreatedAt           string
+	UpdatedAt           string
+	Pruned              bool
+	EmbeddingID         int64
+	DemotedFromClaudeMD string // TASK-2: RFC3339 timestamp if demoted from CLAUDE.md
+	SplitFromID         int64  // TASK-10: Parent skill ID if this skill was created from a split
 }
 
 // SkillConfidence represents Beta distribution parameters for skill confidence.
@@ -101,13 +103,13 @@ func insertSkill(db *sql.DB, skill *GeneratedSkill) (int64, error) {
 	stmt := `INSERT INTO generated_skills (
 		slug, theme, description, content, source_memory_ids,
 		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		created_at, updated_at, pruned, embedding_id, demoted_from_claude_md, split_from_id
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	result, err := db.Exec(stmt,
 		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
 		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
-		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID))
+		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD, skill.SplitFromID)
 
 	if err != nil {
 		return 0, err
@@ -122,7 +124,7 @@ func getSkillBySlug(db *sql.DB, slug string) (*GeneratedSkill, error) {
 	stmt := `SELECT
 		id, slug, theme, description, content, source_memory_ids,
 		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id
+		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
 	FROM generated_skills WHERE slug = ?`
 
 	skill := &GeneratedSkill{}
@@ -133,7 +135,7 @@ func getSkillBySlug(db *sql.DB, slug string) (*GeneratedSkill, error) {
 	err := db.QueryRow(stmt, slug).Scan(
 		&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
 		&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
-		&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID)
+		&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
 
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -158,7 +160,7 @@ func listSkills(db *sql.DB) ([]GeneratedSkill, error) {
 	stmt := `SELECT
 		id, slug, theme, description, content, source_memory_ids,
 		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id
+		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
 	FROM generated_skills WHERE pruned = 0`
 
 	rows, err := db.Query(stmt)
@@ -178,7 +180,7 @@ func listSkills(db *sql.DB) ([]GeneratedSkill, error) {
 		err := rows.Scan(
 			&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
 			&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
-			&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID)
+			&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
 
 		if err != nil {
 			return nil, err
@@ -208,13 +210,13 @@ func updateSkill(db *sql.DB, skill *GeneratedSkill) error {
 	stmt := `UPDATE generated_skills SET
 		slug = ?, theme = ?, description = ?, content = ?, source_memory_ids = ?,
 		alpha = ?, beta = ?, utility = ?, retrieval_count = ?, last_retrieved = ?,
-		created_at = ?, updated_at = ?, pruned = ?, embedding_id = ?
+		created_at = ?, updated_at = ?, pruned = ?, embedding_id = ?, demoted_from_claude_md = ?
 	WHERE id = ?`
 
 	_, err := db.Exec(stmt,
 		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
 		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
-		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID),
+		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD,
 		skill.ID)
 
 	return err
@@ -357,6 +359,39 @@ func RecordSkillFeedback(db *sql.DB, slug string, success bool) error {
 	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
 	return updateSkill(db, skill)
+}
+
+// RecordSkillUsage updates retrieval tracking and optionally records positive feedback.
+// Increments retrieval_count, updates last_retrieved timestamp.
+// If success is true, also calls RecordSkillFeedback to update alpha.
+func RecordSkillUsage(db *sql.DB, slug string, success bool) error {
+	skill, err := getSkillBySlug(db, slug)
+	if err != nil {
+		return fmt.Errorf("failed to find skill %q: %w", slug, err)
+	}
+	if skill == nil {
+		return fmt.Errorf("skill %q not found", slug)
+	}
+
+	// Update retrieval tracking
+	skill.RetrievalCount += 1
+	skill.LastRetrieved = time.Now().UTC().Format(time.RFC3339)
+	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	// Recompute utility with updated retrieval stats
+	skill.Utility = computeUtility(skill.Alpha, skill.Beta, skill.RetrievalCount, skill.LastRetrieved)
+
+	// Persist the retrieval tracking update
+	if err := updateSkill(db, skill); err != nil {
+		return err
+	}
+
+	// If successful usage, also record positive feedback (increments alpha)
+	if success {
+		return RecordSkillFeedback(db, slug, true)
+	}
+
+	return nil
 }
 
 // ListSkillsPublic returns all non-pruned skills. Exported for CLI usage.

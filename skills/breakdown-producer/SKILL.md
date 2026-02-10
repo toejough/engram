@@ -2,7 +2,7 @@
 name: breakdown-producer
 description: Decompose architecture into implementation tasks with dependency graph
 context: inherit
-model: sonnet
+model: opus
 skills: ownership-rules
 user-invocable: true
 role: producer

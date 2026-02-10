@@ -2,7 +2,7 @@
 name: design-interview-producer
 description: Gathers design decisions via user interview and produces design.md with DES-N IDs
 context: inherit
-model: sonnet
+model: opus
 skills: ownership-rules
 user-invocable: true
 role: producer

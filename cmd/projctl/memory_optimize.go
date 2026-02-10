@@ -10,9 +10,14 @@ import (
 )
 
 type memoryOptimizeArgs struct {
-	Yes        bool   `targ:"flag,short=y,desc=Auto-approve all interactive prompts"`
-	ClaudeMD   string `targ:"flag,name=claude-md,desc=Path to CLAUDE.md (defaults to ~/.claude/CLAUDE.md)"`
-	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	Yes                      bool    `targ:"flag,short=y,desc=Auto-approve all interactive prompts"`
+	ClaudeMD                 string  `targ:"flag,name=claude-md,desc=Path to CLAUDE.md (defaults to ~/.claude/CLAUDE.md)"`
+	MemoryRoot               string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	SkillPromotionThreshold  float64 `targ:"flag,desc=Minimum utility threshold for skill promotion to CLAUDE.md (default 0.8)"`
+	SkillDemotionThreshold   float64 `targ:"flag,desc=Utility threshold for skill demotion/pruning (default 0.4)"`
+	MinSkillProjects         int     `targ:"flag,desc=Minimum number of projects for skill promotion (default 3)"`
+	MinSkillConfidenceThresh float64 `targ:"flag,name=min-skill-confidence,desc=Minimum confidence for skill promotion (default 0.8)"`
+	ForceReorg               bool    `targ:"flag,desc=Force full skill reorganization regardless of last run time (normally runs every 30 days)"`
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
@@ -49,6 +54,21 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 		AutoApprove:   args.Yes,
 		SkillsDir:     skillsDir,
 		SkillCompiler: memory.NewClaudeCLIExtractor(),
+		ForceReorg:    args.ForceReorg,
+	}
+
+	// Apply threshold overrides from CLI flags
+	if args.SkillPromotionThreshold > 0 {
+		opts.MinSkillUtility = args.SkillPromotionThreshold
+	}
+	if args.SkillDemotionThreshold > 0 {
+		opts.AutoDemoteUtility = args.SkillDemotionThreshold
+	}
+	if args.MinSkillProjects > 0 {
+		opts.MinSkillProjects = args.MinSkillProjects
+	}
+	if args.MinSkillConfidenceThresh > 0 {
+		opts.MinSkillConfidence = args.MinSkillConfidenceThresh
 	}
 
 	// If not auto-approving, set up interactive review
@@ -109,6 +129,9 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	}
 	if result.SkillsPruned > 0 {
 		fmt.Printf("Skills pruned: %d\n", result.SkillsPruned)
+	}
+	if result.SkillsReorganized > 0 {
+		fmt.Printf("Skills reorganized: %d\n", result.SkillsReorganized)
 	}
 	if result.ClaudeMDDeduped > 0 {
 		fmt.Printf("CLAUDE.md entries deduped: %d\n", result.ClaudeMDDeduped)

@@ -128,6 +128,36 @@ Only send error message if all queries fail or critical infrastructure is unavai
 3. Include file paths, relevance scores, snippets
 ```
 
+#### Skill Context Integration
+
+When executing memory queries, `projctl memory query` retrieves both memories and skills matched via embeddings. Skills appear inline in results when confidence > 0.3 (Bayesian confidence threshold), ordered by embedding similarity.
+
+**Format:**
+- Each skill includes confidence score (alpha/(alpha+beta))
+- Skills are presented as complete SKILL.md content
+- Retrieved skills are semantically relevant to the query
+
+**Example Query:**
+
+```bash
+projctl memory query "authentication patterns"
+```
+
+**Example Response:**
+
+```json
+{
+  "memories": [...],
+  "skills": [
+    {
+      "name": "auth-handler",
+      "confidence": 0.85,
+      "content": "---\nname: auth-handler\n..."
+    }
+  ]
+}
+```
+
 ### territory
 
 ```markdown

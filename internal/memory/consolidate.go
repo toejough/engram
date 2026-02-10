@@ -423,6 +423,10 @@ func SynthesizePatterns(memoryRoot string, threshold float64, minClusterSize int
 
 // clusterBySimilarity performs single-linkage clustering using union-find.
 func clusterBySimilarity(db *sql.DB, entries []ClusterEntry, threshold float64) [][]ClusterEntry {
+	return clusterBySimilarityWithFunc(db, entries, threshold, calculateSimilarity)
+}
+
+func clusterBySimilarityWithFunc(db *sql.DB, entries []ClusterEntry, threshold float64, simFunc func(*sql.DB, int64, int64) (float64, error)) [][]ClusterEntry {
 	n := len(entries)
 	// Union-find parent array
 	parent := make([]int, n)
@@ -447,7 +451,7 @@ func clusterBySimilarity(db *sql.DB, entries []ClusterEntry, threshold float64) 
 	// Compare all pairs
 	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
-			sim, err := calculateSimilarity(db, entries[i].EmbeddingID, entries[j].EmbeddingID)
+			sim, err := simFunc(db, entries[i].EmbeddingID, entries[j].EmbeddingID)
 			if err != nil {
 				continue
 			}

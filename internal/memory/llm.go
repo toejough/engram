@@ -69,6 +69,12 @@ type LLMExtractor interface {
 // SkillCompiler defines the interface for compiling memory clusters into skill content.
 type SkillCompiler interface {
 	CompileSkill(theme string, memories []string) (string, error)
+	Synthesize(memories []string) (string, error) // TASK-3: Synthesize principle from memories
+}
+
+// SpecificityDetector defines the interface for detecting narrow/context-specific learnings.
+type SpecificityDetector interface {
+	IsNarrowLearning(learning string) (isNarrow bool, reason string, err error)
 }
 
 // ClaudeCLIExtractor implements LLMExtractor using the claude CLI tool.

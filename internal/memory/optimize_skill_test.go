@@ -95,7 +95,7 @@ func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		CompileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(theme string, memories []string) (string, error) {
 			return "# " + theme + "\n\nGenerated skill content.", nil
 		},
 	}
@@ -193,7 +193,7 @@ func TestOptimizeCompileSkillsSkipsExistingSkillMembers(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	compiler := &mockSkillCompiler{
-		CompileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(theme string, memories []string) (string, error) {
 			return "# " + theme + "\n\nGenerated skill content.", nil
 		},
 	}

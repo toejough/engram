@@ -2,7 +2,7 @@
 name: doc-producer
 description: Produce and update project documentation
 context: inherit
-model: sonnet
+model: opus
 user-invocable: false
 role: producer
 phase: doc

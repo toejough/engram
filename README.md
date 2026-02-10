@@ -352,6 +352,18 @@ projctl memory prune            # Remove low-confidence memories
 - **Conflict Detection** - High-similarity entries (>0.85) flagged as potential conflicts
 - **Promotion Pipeline** - Memories retrieved 3+ times across 2+ projects recommended for CLAUDE.md
 
+**Memory Skills:**
+
+Skills can be dynamically generated from memory clusters:
+
+- **Generation** - Cluster size >= 3 members triggers skill compilation
+- **Lifecycle** - Compilation → confidence tracking → soft deletion when utility <0.4 after 5+ retrievals
+- **Loading** - Retrieved via embeddings when semantically relevant to current task (context-inject similarity)
+- **Promotion to CLAUDE.md** - Utility >= 0.7, confidence >= 0.7, retrieval across 3+ projects
+- **Location** - `~/.claude/skills/memory/` (generated skills from memory clusters)
+
+See [`internal/memory/skill_gen.go`](internal/memory/skill_gen.go) and [`internal/memory/skill_retrieve.go`](internal/memory/skill_retrieve.go) for implementation.
+
 See [Memory Commands](docs/commands/memory.md) for detailed command reference.
 
 ### Context and Territory
