@@ -6538,27 +6538,60 @@ Untracked test file `internal/memory/task9_standalone_test.go` found in reposito
 ### ISSUE-194: Memory: Wire SemanticMatcher in extract-session CLI
 
 **Priority:** medium
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-10
 
 From SpecificDetector-Wiring evaluation: Tier C.3e behavioral convention detection is dead code — SemanticMatcher interface is defined but never wired in cmd/projctl/memory_extract_session.go. Another instance of 'interface + fallback = silently incomplete' pattern.
 
 ---
 
+
+### Comment
+
+MemoryStoreSemanticMatcher implemented and wired in CLI
 ### ISSUE-195: Process: Add interface wiring verification to breakdown-producer
 
 **Priority:** high
-**Status:** Open
+**Status:** done
 **Created:** 2026-02-10
 
 From SpecificDetector-Wiring evaluation: ISSUE-182 breakdown missed CLI wiring tasks for SpecificDetector and Extractor interfaces, causing features to be implemented but unusable. Enhance breakdown-producer skill to grep cmd/ files for current wiring state and add explicit CLI wiring tasks when interfaces are unwired.
 
 ---
 
+
+### Comment
+
+breakdown-producer SKILL.md enhanced with CHECK-012, CHECK-013, GATHER step 5 for interface wiring verification
 ### ISSUE-196: Memory: Audit all optional interfaces for fallback visibility
+
+**Priority:** low
+**Status:** done
+**Created:** 2026-02-10
+
+From SpecificDetector-Wiring evaluation: Optional interfaces with fallback behavior should log visible warnings when fallback activates. Audit all interfaces in memory package and add stderr messages. SpecificDetector and Extractor already done. SemanticMatcher pending ISSUE-194.
+
+
+### Comment
+
+Added fallback stderr logging when SemanticMatcher is nil
+
+---
+
+### ISSUE-197: ONNX embedding threshold calibration for test reliability
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-10
+
+From ISSUE-194/195/196 retro R1: TEST-194-01 initially failed because ONNX embedding scores for timestamp-prefixed memory entries are very low (~0.03), requiring threshold of 0.01 instead of 0.1. When writing tests against ONNX embeddings, establish calibration baselines for different input patterns (timestamp-prefixed, short text, long text) to prevent brittle thresholds. Consider: (1) document known score ranges by input pattern, (2) add a test helper that validates threshold reasonableness before use.
+
+---
+
+### ISSUE-198: Address 4 pre-existing LLM-dependent test failures
 
 **Priority:** low
 **Status:** Open
 **Created:** 2026-02-10
 
-From SpecificDetector-Wiring evaluation: Optional interfaces with fallback behavior should log visible warnings when fallback activates. Audit all interfaces in memory package and add stderr messages. SpecificDetector and Extractor already done. SemanticMatcher pending ISSUE-194.
+From ISSUE-194/195/196 retro R2: tdd-refactor found 4 pre-existing test failures in the memory package that depend on LLM availability. These are not caused by our changes but reduce confidence in the test suite. Options: (1) skip with clear annotation when LLM unavailable, (2) mock the LLM responses, (3) restructure to separate LLM-dependent tests into integration suite.

@@ -385,6 +385,8 @@ func extractTierC(blocks []parsedBlock, matcher SemanticMatcher) []SessionExtrac
 	items = append(items, extractSelfCorrectedFailures(blocks)...)
 	if matcher != nil {
 		items = append(items, extractBehavioralConventions(blocks, matcher)...)
+	} else {
+		fmt.Fprintf(os.Stderr, "SemanticMatcher not configured, skipping behavioral convention detection\n")
 	}
 
 	return items

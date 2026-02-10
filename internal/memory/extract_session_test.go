@@ -3,6 +3,7 @@ package memory_test
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1180,4 +1181,49 @@ func TestTierCPropertyEmptyTranscriptNoFalsePositives(t *testing.T) {
 				fmt.Sprintf("Single random message should not trigger Tier C item: %s", item.Type))
 		}
 	})
+}
+
+// ============================================================================
+// ISSUE-196: Fallback logging when SemanticMatcher is nil
+// ============================================================================
+
+// TEST-196-01: ExtractSession logs fallback message when Matcher is nil
+// traces: ISSUE-196 AC-1
+func TestExtractSessionNilMatcherLogsFallback(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
+
+	// Create minimal valid transcript
+	message := map[string]any{
+		"type":    "user-message",
+		"content": "some session content",
+	}
+	line, _ := json.Marshal(message)
+	err := os.WriteFile(transcriptPath, append(line, '\n'), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Capture stderr
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	g.Expect(err).ToNot(HaveOccurred())
+	os.Stderr = w
+
+	_, extractErr := memory.ExtractSession(memory.ExtractSessionOpts{
+		TranscriptPath: transcriptPath,
+		MemoryRoot:     filepath.Join(tempDir, "memory"),
+		Matcher:        nil, // explicitly nil
+	})
+
+	// Restore stderr and read captured output
+	w.Close()
+	os.Stderr = oldStderr
+	captured, err := io.ReadAll(r)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	g.Expect(extractErr).ToNot(HaveOccurred())
+	g.Expect(string(captured)).To(ContainSubstring(
+		"SemanticMatcher not configured, skipping behavioral convention detection",
+	))
 }

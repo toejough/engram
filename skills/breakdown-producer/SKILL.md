@@ -50,6 +50,12 @@ This skill decomposes architecture into implementation tasks after all three art
    - `projctl memory query "known failures in breakdown validation"`
    - If memory is unavailable or queries fail, continue without them (graceful degradation)
 
+5. Verify interface wiring completeness:
+   - Grep `internal/` for optional interface definitions (`type X interface`)
+   - Grep `cmd/` for current wiring patterns (`opts.Field =`)
+   - Cross-reference: interface field with nil-check in implementation but no CLI assignment = unwired interface
+   - Add explicit TASK for each unwired interface (wiring code + fallback stderr message)
+
 ---
 
 ## SYNTHESIZE Phase
@@ -264,5 +270,13 @@ contract:
 
     - id: "CHECK-011"
       description: "Visual tasks marked with [visual] tag"
+      severity: warning
+
+    - id: "CHECK-012"
+      description: "Every optional interface in Opts structs has CLI wiring task or explicit skip justification"
+      severity: error
+
+    - id: "CHECK-013"
+      description: "Every optional interface nil-check has corresponding fallback stderr message"
       severity: warning
 ```

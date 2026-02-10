@@ -47,11 +47,15 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		memoryRoot = filepath.Join(home, ".claude", "memory")
 	}
 
+	// Wire SemanticMatcher (uses local ONNX, no LLM needed)
+	matcher := memory.NewMemoryStoreSemanticMatcher(memoryRoot)
+
 	// Call internal ExtractSession function
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
 		Project:        project,
+		Matcher:        matcher,
 	}
 
 	result, err := memory.ExtractSession(opts)
