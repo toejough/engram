@@ -66,6 +66,11 @@ type LLMExtractor interface {
 	Decide(newContent string, existing []ExistingMemory) (*IngestDecision, error)
 }
 
+// SkillCompiler defines the interface for compiling memory clusters into skill content.
+type SkillCompiler interface {
+	CompileSkill(theme string, memories []string) (string, error)
+}
+
 // ClaudeCLIExtractor implements LLMExtractor using the claude CLI tool.
 type ClaudeCLIExtractor struct {
 	Model         string
@@ -188,6 +193,33 @@ Rules:
 	}
 
 	return &decision, nil
+}
+
+// CompileSkill generates skill content from a theme and related memories.
+func (c *ClaudeCLIExtractor) CompileSkill(theme string, memories []string) (string, error) {
+	var sb strings.Builder
+	for i, mem := range memories {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, mem))
+	}
+
+	prompt := fmt.Sprintf(`Generate a Claude Code skill document for the theme "%s" based on these memory patterns:
+
+%s
+
+Create a comprehensive SKILL.md content that:
+- Explains the concept clearly
+- Provides actionable guidance
+- Includes specific examples or patterns from the memories
+- Uses markdown formatting
+
+Return ONLY the skill content (markdown), no JSON or wrappers.`, theme, sb.String())
+
+	output, err := c.runClaude(prompt)
+	if err != nil {
+		return "", err
+	}
+
+	return string(output), nil
 }
 
 // runClaude executes the claude CLI and returns the output.

@@ -381,6 +381,7 @@ type QueryResult struct {
 // QueryResults contains the results of a query.
 type QueryResults struct {
 	Results              []QueryResult
+	Skills               []SkillSearchResult // Generated skills matching query (ISSUE-186)
 	VectorStorage        string
 	EmbeddingModel       string
 	APICallsMade         bool
@@ -529,10 +530,18 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update retrieval tracking: %v\n", err)
 	}
 
+	// Search generated skills (ISSUE-186)
+	skills, skillErr := searchSkills(db, queryEmbedding, 3)
+	if skillErr != nil {
+		// Non-fatal: degrade gracefully if skills table doesn't exist yet
+		skills = nil
+	}
+
 	duration := time.Since(startTime)
 
 	return &QueryResults{
 		Results:              results,
+		Skills:               skills,
 		VectorStorage:        "sqlite-vec",
 		EmbeddingModel:       "e5-small-v2",
 		EmbeddingDimensions:  384,

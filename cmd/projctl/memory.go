@@ -297,6 +297,7 @@ func memoryQuery(args memoryQueryArgs) error {
 	// Always markdown output
 	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
 		Results:       result.Results,
+		Skills:        result.Skills,
 		MinConfidence: float64(args.MinConfidence) / 100.0,
 		MaxEntries:    limit,
 		MaxTokens:     args.MaxTokens,

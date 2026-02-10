@@ -34,10 +34,21 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 		claudeMDPath = filepath.Join(home, ".claude", "CLAUDE.md")
 	}
 
+	// Set up skills directory
+	skillsDir := ""
+	{
+		home, err := os.UserHomeDir()
+		if err == nil {
+			skillsDir = filepath.Join(home, ".claude", "skills", "memory-gen")
+		}
+	}
+
 	opts := memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  args.Yes,
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		AutoApprove:   args.Yes,
+		SkillsDir:     skillsDir,
+		SkillCompiler: memory.NewClaudeCLIExtractor(),
 	}
 
 	// If not auto-approving, set up interactive review
@@ -89,6 +100,15 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	}
 	if result.PromotionCandidates > 0 {
 		fmt.Printf("Promotion candidates: %d (approved: %d)\n", result.PromotionCandidates, result.PromotionsApproved)
+	}
+	if result.SkillsCompiled > 0 {
+		fmt.Printf("Skills compiled: %d\n", result.SkillsCompiled)
+	}
+	if result.SkillsMerged > 0 {
+		fmt.Printf("Skills merged: %d\n", result.SkillsMerged)
+	}
+	if result.SkillsPruned > 0 {
+		fmt.Printf("Skills pruned: %d\n", result.SkillsPruned)
 	}
 	if result.ClaudeMDDeduped > 0 {
 		fmt.Printf("CLAUDE.md entries deduped: %d\n", result.ClaudeMDDeduped)

@@ -100,6 +100,24 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		CREATE VIRTUAL TABLE IF NOT EXISTS vec_embeddings USING vec0(
 			embedding FLOAT[384]
 		);
+
+		CREATE TABLE IF NOT EXISTS generated_skills (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			slug TEXT NOT NULL UNIQUE,
+			theme TEXT NOT NULL,
+			description TEXT NOT NULL,
+			content TEXT NOT NULL,
+			source_memory_ids TEXT NOT NULL DEFAULT '',
+			alpha REAL NOT NULL DEFAULT 1.0,
+			beta REAL NOT NULL DEFAULT 1.0,
+			utility REAL NOT NULL DEFAULT 0.5,
+			retrieval_count INTEGER NOT NULL DEFAULT 0,
+			last_retrieved TEXT,
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			pruned INTEGER NOT NULL DEFAULT 0,
+			embedding_id INTEGER
+		);
 	`
 
 	if _, err := db.Exec(createTable); err != nil {

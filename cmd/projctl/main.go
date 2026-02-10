@@ -104,6 +104,8 @@ func main() {
 			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),
 			targ.Targ(memoryExtractSession).Name("extract-session").Description("Extract learnings from session transcripts"),
 			targ.Targ(memoryOptimize).Name("optimize").Description("Run unified memory optimization (decay, prune, dedup, promote)"),
+			targ.Targ(memorySkillList).Name("skill-list").Description("List generated skills with confidence and utility"),
+			targ.Targ(memorySkillFeedback).Name("skill-feedback").Description("Record positive/negative feedback for a skill"),
 			targ.Group("hooks",
 				targ.Targ(memoryHooksInstall).Name("install").Description("Install Claude Code hooks"),
 				targ.Targ(memoryHooksShow).Name("show").Description("Show current hook configuration"),

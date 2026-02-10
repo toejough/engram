@@ -6302,7 +6302,7 @@ If both SessionStart and UserMessage hooks fire, results may overlap. Consider:
 ### ISSUE-188: Memory retrieval produces flat episodes, not actionable knowledge
 
 **Priority:** High
-**Status:** In Progress
+**Status:** closed
 **Created:** 2026-02-09
 
 ## Problem
@@ -6426,3 +6426,31 @@ Two-phase approach: enrich at write time, consolidate at read time.
 ### Comment
 
 Phase 1 and Phase 2 implementation complete. All code compiles, all tests pass (149s). Changes: QueryResult enrichment (RetrievalCount/ProjectsRetrieved/MatchType), FormatMarkdown output tiers (compact/full/curated), CLI --rich and --curate flags, LLM extractor interface with ClaudeCLIExtractor, DB schema migration for observation columns, Learn() extraction with graceful fallback, LLM-driven synthesis via GeneratePatternLLM, curated hook injection with ResolveTier. Remaining: AC item 2.6 (ADD/UPDATE/DELETE/NOOP on ingest) deferred per plan. AC item 3a/3b (dual memory store) deferred as Phase 3.
+
+---
+
+### ISSUE-189: ISSUE-186 follow-up: missing plan deliverables
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-10
+
+During ISSUE-186 implementation, several plan deliverables were missed due to AC decomposition gaps. The architecture described end-to-end behavior but task ACs only covered internal library code, not CLI wiring or tier transition steps.
+
+## Missing Deliverables
+
+1. **optimizeDemoteClaudeMD()** - Plan step 8: scan CLAUDE.md promoted learnings for specificity, recommend demotion to skills for narrow entries. TASK-5 AC listed this but it was not implemented.
+
+2. **optimizePromoteSkills()** - Plan step 9: scan generated skills with utility >0.8, confidence >0.8, 3+ projects for promotion to CLAUDE.md. TASK-5 AC listed this but it was not implemented.
+
+3. **skills/context-explorer/SKILL.md update** - TASK-6 AC: document that memory queries may include skill context. Not done.
+
+4. **README.md update** - Key Files table listed adding Memory Skills section. Not done.
+
+## Root Cause
+
+The plan architecture section described full end-to-end wiring but the task AC decomposition did not trace each architectural requirement to a concrete, testable deliverable. The CLI wiring gap (SkillCompiler not passed in optimize CLI, Skills not passed in query CLI) was caught and fixed separately. These remaining items need their own tracked work.
+
+## Lesson
+
+Task AC decomposition must cover thin-wrapper/CLI layers and tier-transition logic, not just internal library contracts. E2E tests should test user-facing paths, not just library internals with mocks.

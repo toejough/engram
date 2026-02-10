@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -24,6 +25,8 @@ type OptimizeOpts struct {
 	AutoApprove    bool         // --yes flag
 	Extractor      LLMExtractor // Optional LLM extractor for synthesis (ISSUE-188)
 	ReviewFunc     func(action string, description string) (bool, error)
+	SkillsDir      string       // Directory for generated skill files
+	SkillCompiler  SkillCompiler // Optional compiler for skill content
 }
 
 // OptimizeResult contains the results of the optimization pipeline.
@@ -42,6 +45,9 @@ type OptimizeResult struct {
 	PromotionCandidates   int
 	PromotionsApproved    int
 	ClaudeMDDeduped       int
+	SkillsCompiled        int
+	SkillsMerged          int
+	SkillsPruned          int
 }
 
 // Optimize runs the unified memory optimization pipeline.
@@ -131,12 +137,17 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 		return nil, fmt.Errorf("synthesis failed: %w", err)
 	}
 
-	// Step 7: Promote (interactive)
+	// Step 7: Compile Skills (memories → skills)
+	if err := optimizeCompileSkills(db, opts, result); err != nil {
+		return nil, fmt.Errorf("skill compilation failed: %w", err)
+	}
+
+	// Step 8: Promote (interactive)
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
 
-	// Step 8: Deduplicate CLAUDE.md
+	// Step 9: Deduplicate CLAUDE.md
 	if err := optimizeClaudeMDDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md dedup failed: %w", err)
 	}
@@ -703,6 +714,276 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	}
 
 	return RemoveFromClaudeMD(opts.ClaudeMDPath, removeStrings)
+}
+
+// optimizeCompileSkills clusters similar memories and compiles them into skills.
+func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
+	// Skip if no skills directory configured
+	if opts.SkillsDir == "" {
+		return nil
+	}
+
+	// Ensure skills directory exists
+	if err := os.MkdirAll(opts.SkillsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create skills directory: %w", err)
+	}
+
+	// Get existing skill source memory IDs to skip already-compiled clusters
+	existingSourceIDs, err := getExistingSkillSourceIDs(db)
+	if err != nil {
+		return err
+	}
+
+	// Get all entries with embeddings
+	rows, err := db.Query(`
+		SELECT e.id, e.content, e.embedding_id
+		FROM embeddings e
+		WHERE e.embedding_id IS NOT NULL
+		ORDER BY e.id
+	`)
+	if err != nil {
+		return err
+	}
+
+	var entries []ClusterEntry
+	for rows.Next() {
+		var e ClusterEntry
+		if err := rows.Scan(&e.ID, &e.Content, &e.EmbeddingID); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		entries = append(entries, e)
+	}
+	_ = rows.Close()
+
+	minCluster := opts.MinClusterSize
+	if minCluster == 0 {
+		minCluster = 3
+	}
+
+	if len(entries) < minCluster {
+		// Still prune stale skills even if nothing to compile
+		result.SkillsPruned = pruneStaleSkills(db, opts.SkillsDir)
+		return nil
+	}
+
+	threshold := opts.SynthThreshold
+	if threshold == 0 {
+		threshold = 0.8
+	}
+
+	clusters := clusterBySimilarity(db, entries, threshold)
+
+	for _, cluster := range clusters {
+		if len(cluster) < minCluster {
+			continue
+		}
+
+		// Skip clusters whose members already belong to an existing skill
+		if clusterHasExistingSkill(cluster, existingSourceIDs) {
+			continue
+		}
+
+		// Score cluster
+		score, err := scoreCluster(db, cluster)
+		if err != nil {
+			continue
+		}
+
+		// Generate theme from cluster content
+		theme := generateThemeFromCluster(cluster)
+		slug := slugify(theme)
+
+		// Generate skill content
+		content, err := generateSkillContent(theme, cluster, opts.SkillCompiler)
+		if err != nil {
+			continue
+		}
+
+		// Build description (first 200 chars of content, single line)
+		description := extractSkillDescription(content, 200)
+
+		// Build source memory IDs
+		sourceIDs := formatClusterSourceIDs(cluster)
+
+		now := time.Now().UTC().Format(time.RFC3339)
+		skill := &GeneratedSkill{
+			Slug:            slug,
+			Theme:           theme,
+			Description:     description,
+			Content:         content,
+			SourceMemoryIDs: sourceIDs,
+			Alpha:           1.0,
+			Beta:            1.0,
+			Utility:         score,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+
+		// Check for merge candidate (existing skill with similar theme)
+		merged := false
+		existing, err := getSkillBySlug(db, slug)
+		if err == nil && existing != nil && !existing.Pruned {
+			// Merge: update existing skill
+			existing.Content = content
+			existing.SourceMemoryIDs = sourceIDs
+			existing.UpdatedAt = now
+			existing.Alpha += 1.0 // Positive reinforcement
+			existing.Utility = computeUtility(existing.Alpha, existing.Beta, existing.RetrievalCount, existing.LastRetrieved)
+			if err := updateSkill(db, existing); err == nil {
+				_ = writeSkillFile(opts.SkillsDir, existing)
+				result.SkillsMerged++
+				merged = true
+			}
+		}
+
+		if !merged {
+			_, err = insertSkill(db, skill)
+			if err != nil {
+				continue
+			}
+
+			_ = writeSkillFile(opts.SkillsDir, skill)
+			result.SkillsCompiled++
+		}
+	}
+
+	// Prune stale skills
+	result.SkillsPruned = pruneStaleSkills(db, opts.SkillsDir)
+
+	return nil
+}
+
+// getExistingSkillSourceIDs returns a set of embedding IDs that are already
+// referenced by non-pruned skills.
+func getExistingSkillSourceIDs(db *sql.DB) (map[int64]bool, error) {
+	ids := make(map[int64]bool)
+
+	rows, err := db.Query("SELECT source_memory_ids FROM generated_skills WHERE pruned = 0")
+	if err != nil {
+		return ids, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var sourceIDsStr string
+		if err := rows.Scan(&sourceIDsStr); err != nil {
+			continue
+		}
+		var memIDs []int64
+		if err := json.Unmarshal([]byte(sourceIDsStr), &memIDs); err != nil {
+			continue
+		}
+		for _, id := range memIDs {
+			ids[id] = true
+		}
+	}
+
+	return ids, rows.Err()
+}
+
+// clusterHasExistingSkill checks if any cluster member's ID is already
+// referenced by an existing non-pruned skill.
+func clusterHasExistingSkill(cluster []ClusterEntry, existingSourceIDs map[int64]bool) bool {
+	for _, entry := range cluster {
+		if existingSourceIDs[entry.ID] {
+			return true
+		}
+	}
+	return false
+}
+
+// generateThemeFromCluster produces a theme string from cluster content.
+func generateThemeFromCluster(cluster []ClusterEntry) string {
+	if len(cluster) == 0 {
+		return "Unknown"
+	}
+	// Use the first entry's content as the basis for the theme
+	// Extract the key words (first ~50 chars)
+	content := cluster[0].Content
+	content = extractMessageContent(content)
+	if content == "" {
+		content = cluster[0].Content
+	}
+	if len(content) > 50 {
+		content = content[:50]
+	}
+	// Clean up trailing partial words
+	if idx := strings.LastIndex(content, " "); idx > 20 {
+		content = content[:idx]
+	}
+	return strings.TrimSpace(content)
+}
+
+// extractSkillDescription creates a short description from skill content.
+func extractSkillDescription(content string, maxLen int) string {
+	// Take first non-empty, non-header line
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if len(trimmed) > maxLen {
+			return trimmed[:maxLen]
+		}
+		return trimmed
+	}
+	if len(content) > maxLen {
+		return content[:maxLen]
+	}
+	return content
+}
+
+// formatClusterSourceIDs returns a JSON array of cluster member IDs.
+func formatClusterSourceIDs(cluster []ClusterEntry) string {
+	ids := make([]int64, len(cluster))
+	for i, entry := range cluster {
+		ids[i] = entry.ID
+	}
+	data, _ := json.Marshal(ids)
+	return string(data)
+}
+
+// pruneStaleSkills soft-deletes skills with utility < 0.4 and retrieval_count >= 5,
+// and removes their files from disk.
+func pruneStaleSkills(db *sql.DB, skillsDir string) int {
+	rows, err := db.Query(`
+		SELECT id, slug FROM generated_skills
+		WHERE pruned = 0
+		  AND utility < 0.4
+		  AND retrieval_count >= 5
+	`)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = rows.Close() }()
+
+	type staleSkill struct {
+		id   int64
+		slug string
+	}
+	var stale []staleSkill
+	for rows.Next() {
+		var s staleSkill
+		if err := rows.Scan(&s.id, &s.slug); err != nil {
+			continue
+		}
+		stale = append(stale, s)
+	}
+
+	pruned := 0
+	for _, s := range stale {
+		if err := softDeleteSkill(db, s.id); err != nil {
+			continue
+		}
+		// Remove skill directory from disk
+		skillDir := filepath.Join(skillsDir, s.slug)
+		_ = os.RemoveAll(skillDir)
+		pruned++
+	}
+
+	return pruned
 }
 
 // cosineSimilarity calculates cosine similarity between two float32 vectors.

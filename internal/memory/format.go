@@ -43,6 +43,9 @@ type FormatMarkdownOpts struct {
 
 	// Extractor is an optional LLM extractor for TierCurated
 	Extractor LLMExtractor
+
+	// Skills are skill search results to include (TASK-4)
+	Skills []SkillSearchResult
 }
 
 // FormatMarkdown takes pre-fetched query results and applies confidence filtering,
@@ -81,14 +84,20 @@ func FormatMarkdown(opts FormatMarkdownOpts) string {
 		filtered = SortByPrimacy(filtered)
 	}
 
+	// Build skills section first (skills appear before memories)
+	skillsSection := FormatSkillContext(opts.Skills)
+
+	var memoriesSection string
 	switch tier {
 	case TierFull:
-		return formatAsMarkdownFull(filtered)
+		memoriesSection = formatAsMarkdownFull(filtered)
 	case TierCurated:
-		return formatAsMarkdownCurated(filtered, opts.Query, opts.Extractor)
+		memoriesSection = formatAsMarkdownCurated(filtered, opts.Query, opts.Extractor)
 	default:
-		return formatAsMarkdownCompact(filtered, maxTokens)
+		memoriesSection = formatAsMarkdownCompact(filtered, maxTokens)
 	}
+
+	return skillsSection + memoriesSection
 }
 
 // formatAsMarkdownCompact formats results with type prefixes and no hard truncation.
