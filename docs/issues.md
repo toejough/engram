@@ -6595,7 +6595,7 @@ Corrected understanding: The embedding vector is built from raw message text (no
 ### ISSUE-198: Address 4 pre-existing LLM-dependent test failures
 
 **Priority:** low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-10
 
 From ISSUE-194/195/196 retro R2: tdd-refactor found 4 pre-existing test failures in the memory package that depend on LLM availability. These are not caused by our changes but reduce confidence in the test suite. Options: (1) skip with clear annotation when LLM unavailable, (2) mock the LLM responses, (3) restructure to separate LLM-dependent tests into integration suite.
@@ -6607,6 +6607,10 @@ Direction: Tests should use dependency injection with mock LLM responses. The LL
 
 ---
 
+
+### Comment
+
+Fixed: Tests were hitting the reorg path (not LLM-related). Seeded last_skill_reorg_at metadata in test setup so the normal compile/prune path is exercised. All 4 tests pass.
 ### ISSUE-199: Remove index.md legacy storage — make embeddings.db sole source of truth
 
 **Priority:** medium
