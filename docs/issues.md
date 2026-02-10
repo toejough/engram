@@ -6454,3 +6454,111 @@ The plan architecture section described full end-to-end wiring but the task AC d
 ## Lesson
 
 Task AC decomposition must cover thin-wrapper/CLI layers and tier-transition logic, not just internal library contracts. E2E tests should test user-facing paths, not just library internals with mocks.
+
+---
+
+### ISSUE-190: Evaluation: Add mandatory quality gate before evaluation phase
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-10
+
+From Memory Tiering Lifecycle evaluation (ISSUE-182):
+
+Evaluation phase cannot fully assess quality without linting/coverage verification. Add mandatory step to evaluation-producer workflow: run `mage check` before producing retrospective, include results in evaluation summary.
+
+**Acceptance Criteria:**
+- evaluation-producer SKILL.md updated with 'run mage check' step before SYNTHESIZE phase
+- If mage check fails, include failure details in evaluation findings
+- Quality metrics section includes: test pass rate, coverage %, linting violations
+
+**Context:** Evaluation of ISSUE-182 project lacked quality gate verification.
+
+---
+
+### ISSUE-191: Process: Define teammate spawning pattern for batched work items
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-10
+
+From Memory Tiering Lifecycle evaluation (ISSUE-182):
+
+When work-items.md defines batches with independent parallelizable tasks, team-lead should spawn teammates for concurrent execution. CLAUDE.md states 'Always use parallel teammates' but pattern not established.
+
+**Acceptance Criteria:**
+- project skill updated with teammate spawning logic for batched tasks
+- Example: Batch 1 (7 tasks) -> spawn 7 teammates, coordinate via SendMessage
+- Include coordination pattern: task ownership, SendMessage for results, evaluation after batch complete
+
+**Context:** ISSUE-182 Batch 1 had 7 independent tasks executed sequentially, missed 40-60% time savings.
+
+---
+
+### ISSUE-192: Memory: Monitor and tune skill promotion thresholds
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-10
+
+From Memory Tiering Lifecycle evaluation (ISSUE-182):
+
+Default thresholds (utility >=0.8, confidence >=0.8, >=3 projects) chosen without production validation. Monitor promotion frequency and CLAUDE.md size over next 5-10 optimization runs.
+
+**Acceptance Criteria:**
+- Collect promotion statistics: rate per optimization run, CLAUDE.md size trend
+- If promotion rate <1/month: consider lowering thresholds
+- If CLAUDE.md >80 lines: consider raising thresholds
+- Document findings and recommendation in memory subsystem docs
+
+**Context:** Need empirical validation of promotion criteria.
+
+---
+
+### ISSUE-193: Memory: Remove or integrate task9_standalone_test.go
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-10
+
+From Memory Tiering Lifecycle evaluation (ISSUE-182):
+
+Untracked test file `internal/memory/task9_standalone_test.go` found in repository. Either integrate into skill_feedback_test.go if valuable, or delete if experimental.
+
+**Acceptance Criteria:**
+- Review task9_standalone_test.go purpose and content
+- If testing RecordSkillUsage(): move tests into skill_feedback_test.go
+- If experimental/obsolete: delete file
+- Verify `go test ./internal/memory/` still passes after cleanup
+
+**Context:** Clean repository hygiene, avoid orphaned files.
+
+---
+
+### ISSUE-194: Memory: Wire SemanticMatcher in extract-session CLI
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-10
+
+From SpecificDetector-Wiring evaluation: Tier C.3e behavioral convention detection is dead code — SemanticMatcher interface is defined but never wired in cmd/projctl/memory_extract_session.go. Another instance of 'interface + fallback = silently incomplete' pattern.
+
+---
+
+### ISSUE-195: Process: Add interface wiring verification to breakdown-producer
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-10
+
+From SpecificDetector-Wiring evaluation: ISSUE-182 breakdown missed CLI wiring tasks for SpecificDetector and Extractor interfaces, causing features to be implemented but unusable. Enhance breakdown-producer skill to grep cmd/ files for current wiring state and add explicit CLI wiring tasks when interfaces are unwired.
+
+---
+
+### ISSUE-196: Memory: Audit all optional interfaces for fallback visibility
+
+**Priority:** low
+**Status:** Open
+**Created:** 2026-02-10
+
+From SpecificDetector-Wiring evaluation: Optional interfaces with fallback behavior should log visible warnings when fallback activates. Audit all interfaces in memory package and add stderr messages. SpecificDetector and Extractor already done. SemanticMatcher pending ISSUE-194.

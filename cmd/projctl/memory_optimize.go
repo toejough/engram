@@ -18,6 +18,7 @@ type memoryOptimizeArgs struct {
 	MinSkillProjects         int     `targ:"flag,desc=Minimum number of projects for skill promotion (default 3)"`
 	MinSkillConfidenceThresh float64 `targ:"flag,name=min-skill-confidence,desc=Minimum confidence for skill promotion (default 0.8)"`
 	ForceReorg               bool    `targ:"flag,desc=Force full skill reorganization regardless of last run time (normally runs every 30 days)"`
+	NoLLM                    bool    `targ:"flag,desc=Disable all LLM-based features (extractor, specificity detector, skill compiler)"`
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
@@ -49,12 +50,19 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	}
 
 	opts := memory.OptimizeOpts{
-		MemoryRoot:    memoryRoot,
-		ClaudeMDPath:  claudeMDPath,
-		AutoApprove:   args.Yes,
-		SkillsDir:     skillsDir,
-		SkillCompiler: memory.NewClaudeCLIExtractor(),
-		ForceReorg:    args.ForceReorg,
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  args.Yes,
+		SkillsDir:    skillsDir,
+		ForceReorg:   args.ForceReorg,
+	}
+
+	// Wire LLM interfaces via shared instance (unless --no-llm is set)
+	if !args.NoLLM {
+		extractor := memory.NewClaudeCLIExtractor()
+		opts.SkillCompiler = extractor
+		opts.SpecificDetector = extractor
+		opts.Extractor = extractor
 	}
 
 	// Apply threshold overrides from CLI flags
@@ -135,6 +143,12 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	}
 	if result.ClaudeMDDeduped > 0 {
 		fmt.Printf("CLAUDE.md entries deduped: %d\n", result.ClaudeMDDeduped)
+	}
+	if result.ClaudeMDDemoted > 0 {
+		fmt.Printf("ClaudeMDDemoted: %d\n", result.ClaudeMDDemoted)
+	}
+	if result.SkillsPromoted > 0 {
+		fmt.Printf("SkillsPromoted: %d\n", result.SkillsPromoted)
 	}
 
 	return nil

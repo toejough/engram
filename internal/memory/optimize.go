@@ -3,6 +3,7 @@ package memory
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -1313,6 +1314,9 @@ func optimizeDemoteClaudeMD(db *sql.DB, opts OptimizeOpts, result *OptimizeResul
 		if opts.SpecificDetector != nil {
 			isNarrow, reason, err = opts.SpecificDetector.IsNarrowLearning(e.content)
 			if err != nil {
+				if errors.Is(err, ErrLLMUnavailable) {
+					fmt.Fprintf(os.Stderr, "LLM unavailable for specificity detection, using keyword fallback\n")
+				}
 				// Fall back to keyword heuristics
 				isNarrow, reason = isNarrowByKeywords(e.content)
 			}
@@ -1430,6 +1434,9 @@ func generateSkillFromLearning(db *sql.DB, opts OptimizeOpts, learning string) e
 		var err error
 		content, err = opts.SkillCompiler.CompileSkill(theme, []string{learning})
 		if err != nil {
+			if errors.Is(err, ErrLLMUnavailable) {
+				fmt.Fprintf(os.Stderr, "LLM unavailable for skill compilation, using template fallback\n")
+			}
 			// Fall back to template on error
 			content = generateSkillTemplate(theme, learning)
 		}
@@ -1625,6 +1632,9 @@ func optimizePromoteSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		// Synthesize principle via LLM
 		principle, err := opts.SkillCompiler.Synthesize(memories)
 		if err != nil {
+			if errors.Is(err, ErrLLMUnavailable) {
+				fmt.Fprintf(os.Stderr, "LLM unavailable for skill synthesis, skipping promotion candidate\n")
+			}
 			continue
 		}
 

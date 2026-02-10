@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -305,6 +306,9 @@ func generateSkillContent(theme string, cluster []ClusterEntry, compiler SkillCo
 			return content, nil
 		}
 		// On error (including ErrLLMUnavailable), fall through to template
+		if errors.Is(err, ErrLLMUnavailable) {
+			fmt.Fprintf(os.Stderr, "LLM unavailable for skill compilation, using template fallback\n")
+		}
 	}
 
 	// Fallback: use simple template

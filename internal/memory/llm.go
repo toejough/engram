@@ -228,6 +228,45 @@ Return ONLY the skill content (markdown), no JSON or wrappers.`, theme, sb.Strin
 	return string(output), nil
 }
 
+// IsNarrowLearning determines if a learning is narrow/context-specific or universal.
+// Returns true if the learning is narrow (e.g., references specific file paths, project names),
+// false if universal (e.g., general development principles).
+func (c *ClaudeCLIExtractor) IsNarrowLearning(learning string) (isNarrow bool, reason string, err error) {
+	prompt := fmt.Sprintf(`Analyze this learning and determine if it is narrow/context-specific or universal. Return ONLY valid JSON matching this schema:
+{"is_narrow": <bool>, "reason": "<explanation>", "confidence": <float>}
+
+A learning is NARROW if it:
+- References specific file paths (e.g., "src/config.yaml", "internal/foo.go")
+- Mentions specific project names or codebases
+- Contains environment-specific details (e.g., "production server at X")
+- Describes one-off fixes or project-specific workarounds
+
+A learning is UNIVERSAL if it:
+- Describes general development principles (e.g., "Always verify inputs")
+- Provides broadly applicable patterns (e.g., "Use TDD for all changes")
+- Contains best practices that work across contexts
+- Teaches transferable skills or techniques
+
+Learning to analyze:
+%s`, learning)
+
+	output, err := c.runClaude(prompt)
+	if err != nil {
+		return false, "", err
+	}
+
+	var response struct {
+		IsNarrow   bool    `json:"is_narrow"`
+		Reason     string  `json:"reason"`
+		Confidence float64 `json:"confidence"`
+	}
+	if err := json.Unmarshal(output, &response); err != nil {
+		return false, "", fmt.Errorf("%w: failed to parse IsNarrowLearning response: %v", ErrLLMUnavailable, err)
+	}
+
+	return response.IsNarrow, response.Reason, nil
+}
+
 // runClaude executes the claude CLI and returns the output.
 func (c *ClaudeCLIExtractor) runClaude(prompt string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)

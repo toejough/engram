@@ -388,6 +388,92 @@ func TestExtractUsesConfiguredModel(t *testing.T) {
 	g.Expect(foundModel).To(BeTrue(), "Expected --model sonnet in command args")
 }
 
+// --- IsNarrowLearning tests (TASK-1) ---
+
+func TestIsNarrowLearning_UniversalPattern(t *testing.T) {
+	g := NewWithT(t)
+
+	response := map[string]interface{}{
+		"is_narrow":  false,
+		"reason":     "Universal testing principle applicable across all contexts",
+		"confidence": 0.95,
+	}
+	jsonBytes, _ := json.Marshal(response)
+
+	extractor := &memory.ClaudeCLIExtractor{
+		Model:   "haiku",
+		Timeout: 30,
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return jsonBytes, nil
+		},
+	}
+
+	isNarrow, reason, err := extractor.IsNarrowLearning("Always run tests before committing code")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(isNarrow).To(BeFalse())
+	g.Expect(reason).To(Equal("Universal testing principle applicable across all contexts"))
+}
+
+func TestIsNarrowLearning_NarrowPattern(t *testing.T) {
+	g := NewWithT(t)
+
+	response := map[string]interface{}{
+		"is_narrow":  true,
+		"reason":     "References specific file path 'src/config.yaml' - project-specific",
+		"confidence": 0.92,
+	}
+	jsonBytes, _ := json.Marshal(response)
+
+	extractor := &memory.ClaudeCLIExtractor{
+		Model:   "haiku",
+		Timeout: 30,
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return jsonBytes, nil
+		},
+	}
+
+	isNarrow, reason, err := extractor.IsNarrowLearning("Fix the bug in src/config.yaml by updating the timeout value")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(isNarrow).To(BeTrue())
+	g.Expect(reason).To(Equal("References specific file path 'src/config.yaml' - project-specific"))
+}
+
+func TestIsNarrowLearning_LLMUnavailable(t *testing.T) {
+	g := NewWithT(t)
+
+	extractor := &memory.ClaudeCLIExtractor{
+		Model:   "haiku",
+		Timeout: 30,
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return nil, errors.New("executable file not found")
+		},
+	}
+
+	isNarrow, reason, err := extractor.IsNarrowLearning("some learning content")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
+	g.Expect(isNarrow).To(BeFalse())
+	g.Expect(reason).To(BeEmpty())
+}
+
+func TestIsNarrowLearning_MalformedJSON(t *testing.T) {
+	g := NewWithT(t)
+
+	extractor := &memory.ClaudeCLIExtractor{
+		Model:   "haiku",
+		Timeout: 30,
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return []byte("this is not json"), nil
+		},
+	}
+
+	isNarrow, reason, err := extractor.IsNarrowLearning("some learning content")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
+	g.Expect(isNarrow).To(BeFalse())
+	g.Expect(reason).To(BeEmpty())
+}
+
 // helper - use strings package instead of redeclaring containsSubstring
 func llmTestContains(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
