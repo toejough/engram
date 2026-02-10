@@ -66,7 +66,10 @@ func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	defer func() { _ = db.Close() }()
 
+	// Seed metadata so Optimize takes the normal compile path (not the reorg path)
 	now := time.Now().UTC().Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", now)).To(Succeed())
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", now)).To(Succeed())
 
 	// Insert 3+ similar memories with embeddings (to form a cluster)
 	baseEmb := make([]float32, 384)
@@ -233,7 +236,10 @@ func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	defer func() { _ = db.Close() }()
 
+	// Seed metadata so Optimize takes the normal compile path (not the reorg path)
 	now := time.Now().UTC().Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", now)).To(Succeed())
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", now)).To(Succeed())
 
 	// Create a stale skill: low utility, enough retrievals
 	staleSkill := &memory.GeneratedSkill{

@@ -37,7 +37,10 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 	db, err := memory.InitDBForTest(memoryRoot)
 	g.Expect(err).ToNot(HaveOccurred())
 
+	// Seed metadata so Optimize takes the normal compile path (not the reorg path)
 	now := time.Now().UTC().Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", now)).To(Succeed())
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", now)).To(Succeed())
 
 	// Insert 6 related memories about TDD with embeddings
 	memories := []string{
@@ -163,6 +166,11 @@ func TestE2EPrunedSkillFileRemoval(t *testing.T) {
 
 	db, err := memory.InitDBForTest(memoryRoot)
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Seed metadata so Optimize takes the normal compile path (not the reorg path)
+	now := time.Now().UTC().Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", now)).To(Succeed())
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", now)).To(Succeed())
 
 	// Create a skill that should be pruned (low utility, enough retrievals)
 	skill := &memory.GeneratedSkill{
