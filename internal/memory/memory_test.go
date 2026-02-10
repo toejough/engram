@@ -15,58 +15,68 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// TEST-780: Memory learn creates index.md if not exists
+// TEST-780: Memory learn creates embeddings.db if not exists
 // traces: TASK-048
 func TestLearnCreatesIndexIfNotExists(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	indexPath := filepath.Join(tempDir, "memory", "index.md")
+	memoryDir := filepath.Join(tempDir, "memory")
+	dbPath := filepath.Join(memoryDir, "embeddings.db")
 
-	// Verify index doesn't exist
-	_, err := os.Stat(indexPath)
+	// Verify embeddings.db doesn't exist
+	_, err := os.Stat(dbPath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue())
 
 	opts := memory.LearnOpts{
 		Message:    "Test learning",
-		MemoryRoot: filepath.Join(tempDir, "memory"),
-	}
-
-	err = memory.Learn(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify index was created
-	_, err = os.Stat(indexPath)
-	g.Expect(err).ToNot(HaveOccurred())
-}
-
-// TEST-781: Memory learn appends to existing index
-// traces: TASK-048
-func TestLearnAppendsToExistingIndex(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	indexPath := filepath.Join(memoryDir, "index.md")
-	existing := "# Memory Index\n\n- 2024-01-01: Existing learning\n"
-	err = os.WriteFile(indexPath, []byte(existing), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	opts := memory.LearnOpts{
-		Message:    "New learning",
 		MemoryRoot: memoryDir,
 	}
 
 	err = memory.Learn(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	content, err := os.ReadFile(indexPath)
+	// Verify embeddings.db was created
+	_, err = os.Stat(dbPath)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("Existing learning"))
-	g.Expect(string(content)).To(ContainSubstring("New learning"))
+}
+
+// TEST-781: Memory learn appends to existing entries in DB
+// traces: TASK-048
+func TestLearnAppendsToExistingIndex(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Learn first entry
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Existing learning",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Learn second entry
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "New learning",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify both entries exist in DB via Grep
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "Existing learning",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty())
+
+	result, err = memory.Grep(memory.GrepOpts{
+		Pattern:    "New learning",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty())
 }
 
 // TEST-782: Memory learn entry format has timestamp prefix
@@ -85,12 +95,17 @@ func TestLearnEntryFormat(t *testing.T) {
 	err := memory.Learn(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify entry format via Grep
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "Test message",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).To(HaveLen(1))
 
 	// Entry should be a markdown list item with timestamp
 	// Format: - YYYY-MM-DD HH:MM: message
-	g.Expect(string(content)).To(MatchRegexp(`- \d{4}-\d{2}-\d{2} \d{2}:\d{2}: Test message`))
+	g.Expect(result.Matches[0].Line).To(MatchRegexp(`- \d{4}-\d{2}-\d{2} \d{2}:\d{2}: Test message`))
 }
 
 // TEST-783: Memory learn includes project context when provided
@@ -110,12 +125,17 @@ func TestLearnWithProjectContext(t *testing.T) {
 	err := memory.Learn(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify via Grep
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "Project-specific learning",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty())
 
 	// Should include project tag
-	g.Expect(string(content)).To(ContainSubstring("[my-project]"))
-	g.Expect(string(content)).To(ContainSubstring("Project-specific learning"))
+	g.Expect(result.Matches[0].Line).To(ContainSubstring("[my-project]"))
+	g.Expect(result.Matches[0].Line).To(ContainSubstring("Project-specific learning"))
 }
 
 // TEST-784: Memory learn without project context
@@ -134,16 +154,16 @@ func TestLearnWithoutProjectContext(t *testing.T) {
 	err := memory.Learn(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify via Grep
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "Global learning",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty())
 
 	// Should not have project brackets when no project specified
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Global learning") {
-			g.Expect(line).ToNot(MatchRegexp(`\[.*\]`))
-		}
-	}
+	g.Expect(result.Matches[0].Line).ToNot(MatchRegexp(`\[.*\]`))
 }
 
 // TEST-785: Memory learn uses current timestamp
@@ -166,8 +186,13 @@ func TestLearnUsesCurrentTimestamp(t *testing.T) {
 
 	after := time.Now()
 
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify via Grep
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "Timestamp test",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty())
 
 	// Should contain today's date
 	dateStr := before.Format("2006-01-02")
@@ -175,7 +200,7 @@ func TestLearnUsesCurrentTimestamp(t *testing.T) {
 		// Handle edge case of test running at midnight
 		dateStr = after.Format("2006-01-02")
 	}
-	g.Expect(string(content)).To(ContainSubstring(dateStr))
+	g.Expect(result.Matches[0].Line).To(ContainSubstring(dateStr))
 }
 
 // TEST-786: Memory learn requires non-empty message
@@ -222,15 +247,18 @@ func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 		err := memory.Learn(opts)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+		// Property: message should be stored (verifiable via Grep)
+		result, err := memory.Grep(memory.GrepOpts{
+			Pattern:    message,
+			MemoryRoot: memoryDir,
+		})
 		g.Expect(err).ToNot(HaveOccurred())
-
-		// Property: message should be stored
-		g.Expect(string(content)).To(ContainSubstring(message))
+		g.Expect(result.Matches).ToNot(BeEmpty())
+		g.Expect(result.Matches[0].Line).To(ContainSubstring(message))
 	})
 }
 
-// TEST-788: Memory learn multiple entries preserve order
+// TEST-788: Memory learn multiple entries all stored
 // traces: TASK-048
 func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 	g := NewWithT(t)
@@ -249,18 +277,57 @@ func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 	}
 
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify all entries exist via Grep
+	for _, msg := range messages {
+		result, err := memory.Grep(memory.GrepOpts{
+			Pattern:    msg,
+			MemoryRoot: memoryDir,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Matches).ToNot(BeEmpty(), "Expected to find: "+msg)
+	}
+}
+
+// ============================================================================
+// ISSUE-199: Learn without index.md tests
+// ============================================================================
+
+// TEST-199-01: Learn does not create index.md
+// traces: ISSUE-199
+func TestLearnDoesNotCreateIndexMd(t *testing.T) {
+	g := NewWithT(t)
+	memoryDir := filepath.Join(t.TempDir(), "memory")
+
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "test learning",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Find positions of each message
-	contentStr := string(content)
-	pos1 := strings.Index(contentStr, "First learning")
-	pos2 := strings.Index(contentStr, "Second learning")
-	pos3 := strings.Index(contentStr, "Third learning")
+	// index.md should NOT exist
+	_, err = os.Stat(filepath.Join(memoryDir, "index.md"))
+	g.Expect(os.IsNotExist(err)).To(BeTrue(), "index.md should not be created by Learn()")
+}
 
-	// Verify order is preserved (appended, so later entries are after earlier ones)
-	g.Expect(pos1).To(BeNumerically("<", pos2))
-	g.Expect(pos2).To(BeNumerically("<", pos3))
+// TEST-199-02: Learn stores content accessible via DB
+// traces: ISSUE-199
+func TestLearnStoresContentInDB(t *testing.T) {
+	g := NewWithT(t)
+	memoryDir := filepath.Join(t.TempDir(), "memory")
+
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "always use TDD",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Content should be findable via Grep (which will search DB after TASK-5)
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "always use TDD",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty(), "Learn content should be findable via Grep")
 }
 
 // ============================================================================
@@ -744,7 +811,7 @@ func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
 // Memory grep tests (TASK-051)
 // ============================================================================
 
-// TEST-810: Grep searches index.md
+// TEST-810: Grep searches embeddings DB
 // traces: TASK-051
 func TestGrepSearchesIndexMd(t *testing.T) {
 	g := NewWithT(t)
@@ -752,15 +819,19 @@ func TestGrepSearchesIndexMd(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
 
-	// Create index.md with some content
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	indexContent := `- 2024-01-01 10:00: Learn about testing
-- 2024-01-01 11:00: Study Go patterns
-- 2024-01-01 12:00: Review TDD workflow`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
+	// Seed data via Learn (which stores in DB)
+	entries := []string{
+		"Learn about testing",
+		"Study Go patterns",
+		"Review TDD workflow",
+	}
+	for _, entry := range entries {
+		err := memory.Learn(memory.LearnOpts{
+			Message:    entry,
+			MemoryRoot: memoryDir,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+	}
 
 	opts := memory.GrepOpts{
 		Pattern:    "testing",
@@ -810,13 +881,12 @@ func TestGrepReturnsFileAndLineNumber(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `line one
-line two with pattern
-line three`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	// Seed via Learn
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "line with pattern",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.GrepOpts{
@@ -827,8 +897,8 @@ line three`
 	results, err := memory.Grep(opts)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(results.Matches).To(HaveLen(1))
-	g.Expect(results.Matches[0].File).To(ContainSubstring("index.md"))
-	g.Expect(results.Matches[0].LineNum).To(Equal(2))
+	g.Expect(results.Matches[0].File).To(Equal("memory"))
+	g.Expect(results.Matches[0].LineNum).To(BeNumerically(">", 0))
 }
 
 // TEST-813: Grep project filter limits search
@@ -896,10 +966,12 @@ func TestGrepNoMatches(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("some content"), 0644)
+	// Seed via Learn
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "some content",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.GrepOpts{
@@ -937,10 +1009,12 @@ func TestGrepCaseInsensitive(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("PostgreSQL database"), 0644)
+	// Seed via Learn
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "PostgreSQL database",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.GrepOpts{
@@ -954,6 +1028,57 @@ func TestGrepCaseInsensitive(t *testing.T) {
 }
 
 // ============================================================================
+// ISSUE-199: Grep via FTS5 (DB search) tests
+// ============================================================================
+
+// TEST-199-03: Grep finds content from DB when index.md doesn't exist
+// traces: ISSUE-199
+func TestGrepFindsContentFromDBWithoutIndexMd(t *testing.T) {
+	g := NewWithT(t)
+	memoryDir := filepath.Join(t.TempDir(), "memory")
+
+	// Seed via Learn (which writes to DB)
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "use dependency injection",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Delete index.md if it exists (simulating post-removal state)
+	os.Remove(filepath.Join(memoryDir, "index.md"))
+
+	// Grep should still find content from DB
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "dependency injection",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty(), "Grep should find DB content even without index.md")
+}
+
+// TEST-199-04: Grep still searches sessions directory
+// traces: ISSUE-199
+func TestGrepStillSearchesSessions(t *testing.T) {
+	g := NewWithT(t)
+	memoryDir := filepath.Join(t.TempDir(), "memory")
+
+	// Create a session summary file
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = os.WriteFile(filepath.Join(sessionsDir, "2026-02-10-test.md"), []byte("session content with TDD pattern"), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result, err := memory.Grep(memory.GrepOpts{
+		Pattern:    "TDD pattern",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Matches).ToNot(BeEmpty(), "Grep should still search sessions directory")
+}
+
+// ============================================================================
 // Memory query tests (TASK-052)
 // ============================================================================
 
@@ -964,7 +1089,8 @@ func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Verify embeddings.db doesn't exist
@@ -972,9 +1098,9 @@ func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 	_, err = os.Stat(embeddingsPath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue())
 
-	// Create some memory content
-	indexContent := `- 2024-01-01: Learned about PostgreSQL database design`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	// Create session summary content
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Learned about PostgreSQL database design"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -997,11 +1123,12 @@ func TestQueryUsesSQLiteVec(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Database indexing strategies`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Database indexing strategies"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1027,11 +1154,12 @@ func TestQueryUsesONNXModel(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Testing ONNX embedding generation`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Testing ONNX embedding generation"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1062,14 +1190,16 @@ func TestQueryUsesSemanticSimilarity(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create memories where semantic understanding is needed
-	indexContent := `- 2024-01-01: Database backup and recovery procedures
-- 2024-01-02: Web frontend styling with CSS
-- 2024-01-03: Data persistence and storage solutions`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	// Create session content where semantic understanding is needed
+	sessionContent := `Database backup and recovery procedures
+Web frontend styling with CSS
+Data persistence and storage solutions`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1099,15 +1229,17 @@ func TestQueryDefaultLimit(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create more than 5 memories
+	// Create more than 5 session lines
 	var lines []string
 	for i := 0; i < 10; i++ {
-		lines = append(lines, "- 2024-01-01: Memory about testing")
+		lines = append(lines, fmt.Sprintf("Memory about testing variant %d", i))
 	}
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(strings.Join(lines, "\n")), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(strings.Join(lines, "\n")), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1127,14 +1259,16 @@ func TestQueryCustomLimit(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	var lines []string
 	for i := 0; i < 10; i++ {
-		lines = append(lines, "- 2024-01-01: Memory about testing")
+		lines = append(lines, fmt.Sprintf("Memory about testing variant %d", i))
 	}
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(strings.Join(lines, "\n")), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(strings.Join(lines, "\n")), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1200,12 +1334,14 @@ func TestQueryResultsIncludeScores(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Testing database queries
-- 2024-01-02: Building web frontend`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	sessionContent := `Testing database queries
+Building web frontend`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1231,13 +1367,15 @@ func TestQueryResultsSortedByScore(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: web frontend development
-- 2024-01-02: database indexing and optimization
-- 2024-01-03: database schema design patterns`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	sessionContent := `web frontend development
+database indexing and optimization
+database schema design patterns`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1261,12 +1399,13 @@ func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// First query with initial content
-	indexContent1 := `- 2024-01-01: First memory entry`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent1), 0644)
+	// First query with initial session content
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("First memory entry"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1278,9 +1417,9 @@ func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	initialCount := results1.EmbeddingsCount
 
-	// Add new memory entry
-	indexContent2 := indexContent1 + "\n- 2024-01-02: Second memory entry"
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent2), 0644)
+	// Add new session content
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("First memory entry\nSecond memory entry"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Second query should only create embedding for new entry
@@ -1302,18 +1441,19 @@ func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 		memoryDir := filepath.Join(tempDir, "query-test-"+suffix)
 		defer func() { _ = os.RemoveAll(memoryDir) }()
 
-		err := os.MkdirAll(memoryDir, 0755)
+		sessionsDir := filepath.Join(memoryDir, "sessions")
+		err := os.MkdirAll(sessionsDir, 0755)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Generate random memory content
+		// Generate random session content
 		numEntries := rapid.IntRange(1, 10).Draw(t, "numEntries")
 		var lines []string
 		for i := 0; i < numEntries; i++ {
 			content := rapid.StringMatching(`[a-zA-Z0-9 ]{10,50}`).Draw(t, "content")
-			lines = append(lines, fmt.Sprintf("- 2024-01-01: %s", content))
+			lines = append(lines, content)
 		}
-		indexContent := strings.Join(lines, "\n")
-		err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+		err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+			[]byte(strings.Join(lines, "\n")), 0644)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		queryText := rapid.StringMatching(`[a-zA-Z0-9 ]{5,20}`).Draw(t, "query")
@@ -1362,7 +1502,8 @@ func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err = os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err = os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Use custom model directory to test download behavior
@@ -1370,8 +1511,8 @@ func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
 	err = os.MkdirAll(modelDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Test content for model download`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Test content for model download"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Model should not exist yet in temp directory
@@ -1412,11 +1553,12 @@ func TestQueryUsesDefaultModelDirectory(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Test content`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Test content"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1442,11 +1584,12 @@ func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Test embedding dimensions`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Test embedding dimensions"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Uses default ModelDir with pre-downloaded model
@@ -1472,11 +1615,12 @@ func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Model loading test`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Model loading test"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Uses default ModelDir with pre-downloaded model
@@ -1505,12 +1649,14 @@ func TestQueryPerformsActualInference(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Database design patterns
-- 2024-01-02: Frontend styling with CSS`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	sessionContent := `Database design patterns
+Frontend styling with CSS`
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Uses default ModelDir with pre-downloaded model
@@ -1542,11 +1688,12 @@ func TestQueryReusesDownloadedModel(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Model reuse test`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte("Model reuse test"), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Uses default ModelDir with pre-downloaded model

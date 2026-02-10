@@ -334,10 +334,10 @@ func TestExtractSessionStoresViMemoryFunctions(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.ItemsExtracted).To(BeNumerically(">", 0))
 
-	// Verify learning was stored (check index.md exists)
-	indexPath := filepath.Join(memoryRoot, "index.md")
-	_, err = os.Stat(indexPath)
-	g.Expect(err).ToNot(HaveOccurred(), "Expected index.md to be created")
+	// Verify learning was stored (check embeddings.db exists)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	_, err = os.Stat(dbPath)
+	g.Expect(err).ToNot(HaveOccurred(), "Expected embeddings.db to be created")
 }
 
 // TEST-1009: ExtractSession returns summary with items extracted count

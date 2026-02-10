@@ -272,8 +272,8 @@ func TestPropertyLearnWithExtractorPopulatesObservationType(t *testing.T) {
 	})
 }
 
-// TEST: Learn with extractor still writes to index.md (doesn't break existing behavior)
-func TestLearnWithExtractorStillWritesToIndex(t *testing.T) {
+// TEST: Learn with extractor stores to embeddings DB
+func TestLearnWithExtractorStoresToDB(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -294,10 +294,10 @@ func TestLearnWithExtractorStillWritesToIndex(t *testing.T) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Verify index.md still has the entry
-	content, err := os.ReadFile(filepath.Join(memoryDir, "index.md"))
+	// Verify entry is in embeddings DB via Grep
+	grepResult, err := memory.Grep(memory.GrepOpts{Pattern: "unique4567", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("unique4567"))
+	g.Expect(grepResult.Matches).ToNot(BeEmpty(), "entry should be stored in DB")
 }
 
 // TEST: Enriched content is used for embedding when extractor succeeds

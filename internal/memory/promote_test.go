@@ -26,9 +26,8 @@ func TestEmbeddingsSchemaHasRetrievalCount(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	// Write content so Query creates the DB
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: schema test entry"), 0644)).To(Succeed())
+	// Store content via Learn so Query has data
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "schema test entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	opts := memory.QueryOpts{
 		Text:       "schema test",
@@ -58,8 +57,7 @@ func TestEmbeddingsSchemaHasLastRetrieved(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: last retrieved test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "last retrieved test", MemoryRoot: memoryDir})).To(Succeed())
 
 	opts := memory.QueryOpts{
 		Text:       "test",
@@ -88,8 +86,7 @@ func TestEmbeddingsSchemaHasProjectsRetrieved(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: projects retrieved test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "projects retrieved test", MemoryRoot: memoryDir})).To(Succeed())
 
 	opts := memory.QueryOpts{
 		Text:       "test",
@@ -123,8 +120,7 @@ func TestSearchSimilarIncrementsRetrievalCount(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: retrieval counting test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "retrieval counting test", MemoryRoot: memoryDir})).To(Succeed())
 
 	opts := memory.QueryOpts{
 		Text:       "retrieval counting",
@@ -160,8 +156,7 @@ func TestSearchSimilarUpdatesLastRetrieved(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: timestamp update test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "timestamp update test", MemoryRoot: memoryDir})).To(Succeed())
 
 	opts := memory.QueryOpts{
 		Text:       "timestamp update",
@@ -192,8 +187,7 @@ func TestSearchSimilarTracksProject(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: project tracking test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "project tracking test", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query with project context
 	opts := memory.QueryOpts{
@@ -225,8 +219,7 @@ func TestSearchSimilarDeduplicatesProjects(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: dedup projects test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "dedup projects test", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query twice with same project
 	opts := memory.QueryOpts{
@@ -264,8 +257,7 @@ func TestSearchSimilarAccumulatesDistinctProjects(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: multi project test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "multi project test", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query from two different projects
 	opts1 := memory.QueryOpts{
@@ -310,8 +302,7 @@ func TestQueryOptsHasProjectField(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: project field test"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "project field test", MemoryRoot: memoryDir})).To(Succeed())
 
 	// This should compile and work with the Project field
 	opts := memory.QueryOpts{
@@ -338,8 +329,7 @@ func TestPromoteReturnsQualifyingCandidates(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: high value learning"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "high value learning", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Seed the database: query from multiple projects multiple times
 	// to build up retrieval_count and projects_retrieved
@@ -375,8 +365,7 @@ func TestPromoteDefaultMinRetrievals(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: below threshold entry"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "below threshold entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Only query twice (below default threshold of 3), from 2 projects
 	for _, proj := range []string{"proj-a", "proj-b"} {
@@ -408,8 +397,7 @@ func TestPromoteDefaultMinProjects(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: single project entry"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "single project entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query 5 times but always from the same project
 	for i := 0; i < 5; i++ {
@@ -441,8 +429,7 @@ func TestPromoteCustomMinRetrievals(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: custom threshold entry"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "custom threshold entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query twice from 2 different projects
 	for _, proj := range []string{"proj-x", "proj-y"} {
@@ -476,8 +463,7 @@ func TestPromoteCustomMinProjects(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: custom projects threshold"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "custom projects threshold", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query 3 times from 1 project
 	for i := 0; i < 3; i++ {
@@ -511,8 +497,7 @@ func TestPromoteResultIncludesMetadata(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: metadata candidate entry"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "metadata candidate entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Build up sufficient retrievals from multiple projects
 	for _, proj := range []string{"proj-m", "proj-n", "proj-o"} {
@@ -549,8 +534,7 @@ func TestPromoteEmptyWhenNoCandidates(t *testing.T) {
 	g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
 	// Create DB but don't query anything, so no retrieval counts
-	g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-		[]byte("- 2024-01-01: never queried entry"), 0644)).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{Message: "never queried entry", MemoryRoot: memoryDir})).To(Succeed())
 
 	// Query once from one project (below both thresholds)
 	opts := memory.QueryOpts{
@@ -603,8 +587,7 @@ func TestPropertyRetrievalCountMonotonic(t *testing.T) {
 		g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
 		content := rapid.StringMatching(`[a-zA-Z ]{10,30}`).Draw(t, "content")
-		g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-			[]byte("- 2024-01-01: "+content), 0644)).To(Succeed())
+		g.Expect(memory.Learn(memory.LearnOpts{Message: content, MemoryRoot: memoryDir})).To(Succeed())
 
 		numQueries := rapid.IntRange(1, 5).Draw(t, "numQueries")
 		project := rapid.StringMatching(`[a-z]{3,8}`).Draw(t, "project")
@@ -651,8 +634,7 @@ func TestPropertyPromoteCandidatesMeetThresholds(t *testing.T) {
 		g.Expect(os.MkdirAll(memoryDir, 0755)).To(Succeed())
 
 		content := rapid.StringMatching(`[a-zA-Z ]{10,30}`).Draw(t, "content")
-		g.Expect(os.WriteFile(filepath.Join(memoryDir, "index.md"),
-			[]byte("- 2024-01-01: "+content), 0644)).To(Succeed())
+		g.Expect(memory.Learn(memory.LearnOpts{Message: content, MemoryRoot: memoryDir})).To(Succeed())
 
 		minRetrievals := rapid.IntRange(1, 5).Draw(t, "minRetrievals")
 		minProjects := rapid.IntRange(1, 3).Draw(t, "minProjects")

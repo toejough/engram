@@ -2,6 +2,7 @@
 package memory
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -33,29 +34,6 @@ func Learn(opts LearnOpts) error {
 		return fmt.Errorf("failed to create memory directory: %w", err)
 	}
 
-	indexPath := filepath.Join(opts.MemoryRoot, "index.md")
-
-	// Open file for appending (create if doesn't exist)
-	f, err := os.OpenFile(indexPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to open index file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	// Format entry: - YYYY-MM-DD HH:MM: [project] message
-	timestamp := time.Now().Format("2006-01-02 15:04")
-	var entry string
-	if opts.Project != "" {
-		entry = fmt.Sprintf("- %s: [%s] %s\n", timestamp, opts.Project, opts.Message)
-	} else {
-		entry = fmt.Sprintf("- %s: %s\n", timestamp, opts.Message)
-	}
-
-	if _, err := f.WriteString(entry); err != nil {
-		return fmt.Errorf("failed to write entry: %w", err)
-	}
-
-	// Also create embedding in DB
 	if err := learnToEmbeddings(opts); err != nil {
 		return fmt.Errorf("failed to create embedding: %w", err)
 	}
@@ -284,9 +262,29 @@ func Grep(opts GrepOpts) (*GrepResult, error) {
 	var matches []GrepMatch
 	pattern := strings.ToLower(opts.Pattern)
 
-	// Search index.md
-	indexPath := filepath.Join(opts.MemoryRoot, "index.md")
-	matches = append(matches, searchFile(indexPath, pattern, "")...)
+	// Search embeddings DB for memory content
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+	if _, statErr := os.Stat(dbPath); statErr == nil {
+		db, openErr := sql.Open("sqlite3", dbPath)
+		if openErr == nil {
+			defer func() { _ = db.Close() }()
+			rows, queryErr := db.Query("SELECT id, content FROM embeddings WHERE LOWER(content) LIKE '%' || LOWER(?) || '%'", pattern)
+			if queryErr == nil {
+				defer func() { _ = rows.Close() }()
+				for rows.Next() {
+					var id int
+					var content string
+					if rows.Scan(&id, &content) == nil {
+						matches = append(matches, GrepMatch{
+							File:    "memory",
+							LineNum: id,
+							Line:    content,
+						})
+					}
+				}
+			}
+		}
+	}
 
 	// Search sessions directory
 	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
@@ -467,17 +465,6 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 
 	// Collect all memory content
 	var contents []string
-
-	// Read index.md
-	indexPath := filepath.Join(opts.MemoryRoot, "index.md")
-	if data, err := os.ReadFile(indexPath); err == nil {
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
-			if strings.TrimSpace(line) != "" {
-				contents = append(contents, line)
-			}
-		}
-	}
 
 	// Read session summaries
 	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")

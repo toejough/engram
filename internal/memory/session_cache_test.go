@@ -25,12 +25,14 @@ func TestONNXSessionCachedAcrossQueries(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create test content
-	indexContent := `- 2024-01-01: First memory entry
-- 2024-01-02: Second memory entry
-- 2024-01-03: Third memory entry`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
+	// Create test content via Learn
+	for _, msg := range []string{"First memory entry", "Second memory entry", "Third memory entry"} {
+		err = memory.Learn(memory.LearnOpts{Message: msg, MemoryRoot: memoryDir})
+		g.Expect(err).ToNot(HaveOccurred())
+	}
+
+	// Clear session cache after Learn (which also uses ONNX) to test Query caching
+	memory.ClearSessionCache()
 
 	// First query (uses default ModelDir with pre-downloaded model)
 	opts1 := memory.QueryOpts{
@@ -65,9 +67,11 @@ func TestONNXSessionInitializedOnce(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Memory content`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = memory.Learn(memory.LearnOpts{Message: "Memory content", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Clear session cache after Learn to isolate Query session counting
+	memory.ClearSessionCache()
 
 	// Get initial session init count
 	initialCount := memory.GetSessionInitCount()
@@ -100,9 +104,11 @@ func TestONNXSessionCachingThreadSafe(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Test content for concurrency`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = memory.Learn(memory.LearnOpts{Message: "Test content for concurrency", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Clear session cache after Learn to isolate Query session counting
+	memory.ClearSessionCache()
 
 	// Run queries concurrently (uses default ModelDir with pre-downloaded model)
 	const numGoroutines = 10
@@ -166,12 +172,14 @@ func TestONNXSessionCacheSurvivesAcrossMemoryRoots(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 	}
 
-	// Create content in both memory directories
+	// Create content in both memory directories via Learn
 	for _, memDir := range []string{memoryDir1, memoryDir2} {
-		content := `- 2024-01-01: Test memory`
-		err := os.WriteFile(filepath.Join(memDir, "index.md"), []byte(content), 0644)
+		err := memory.Learn(memory.LearnOpts{Message: "Test memory", MemoryRoot: memDir})
 		g.Expect(err).ToNot(HaveOccurred())
 	}
+
+	// Clear session cache after Learn to isolate Query session counting
+	memory.ClearSessionCache()
 
 	// Query first memory root (uses default ModelDir with pre-downloaded model)
 	opts1 := memory.QueryOpts{
@@ -205,9 +213,11 @@ func TestONNXSessionCacheCanBeCleared(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Cache test content`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = memory.Learn(memory.LearnOpts{Message: "Cache test content", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Clear session cache after Learn to isolate Query session counting
+	memory.ClearSessionCache()
 
 	// First query creates session (uses default ModelDir with pre-downloaded model)
 	opts := memory.QueryOpts{
@@ -244,9 +254,11 @@ func TestONNXSessionCacheReducesQueryTime(t *testing.T) {
 	err := os.MkdirAll(memoryDir, 0755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Timing test content`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = memory.Learn(memory.LearnOpts{Message: "Timing test content", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Clear session cache after Learn to isolate Query timing
+	memory.ClearSessionCache()
 
 	// Uses default ModelDir with pre-downloaded model
 	opts := memory.QueryOpts{
@@ -288,9 +300,11 @@ func TestONNXSessionReusePropertyBased(t *testing.T) {
 		err := os.MkdirAll(memoryDir, 0755)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		indexContent := `- 2024-01-01: Property test content`
-		err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+		err = memory.Learn(memory.LearnOpts{Message: "Property test content", MemoryRoot: memoryDir})
 		g.Expect(err).ToNot(HaveOccurred())
+
+		// Clear session cache after Learn to isolate Query session counting
+		memory.ClearSessionCache()
 
 		// Generate random number of queries (uses default ModelDir with pre-downloaded model)
 		numQueries := rapid.IntRange(2, 10).Draw(t, "numQueries")
@@ -351,9 +365,11 @@ func TestONNXSessionCacheHandlesModelPathChanges(t *testing.T) {
 	err = os.WriteFile(filepath.Join(modelDir2, "e5-small-v2.onnx"), modelData, 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	indexContent := `- 2024-01-01: Model path test`
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	err = memory.Learn(memory.LearnOpts{Message: "Model path test", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Clear session cache after Learn to isolate Query session counting
+	memory.ClearSessionCache()
 
 	// Query with first model directory
 	opts1 := memory.QueryOpts{

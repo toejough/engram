@@ -6588,6 +6588,10 @@ From ISSUE-194/195/196 retro R1: TEST-194-01 initially failed because ONNX embed
 
 ---
 
+
+### Comment
+
+Corrected understanding: The embedding vector is built from raw message text (not formatted). Low scores (~0.03) are expected behavior of e5-small-v2 for short texts. ISSUE-197 should focus on documenting score ranges and calibrating test thresholds. Separate concern: index.md vs embeddings.db dual-storage has a parity problem — two embedding paths produce different vectors for the same content. Consider making embeddings.db the sole source of truth.
 ### ISSUE-198: Address 4 pre-existing LLM-dependent test failures
 
 **Priority:** low
@@ -6595,3 +6599,36 @@ From ISSUE-194/195/196 retro R1: TEST-194-01 initially failed because ONNX embed
 **Created:** 2026-02-10
 
 From ISSUE-194/195/196 retro R2: tdd-refactor found 4 pre-existing test failures in the memory package that depend on LLM availability. These are not caused by our changes but reduce confidence in the test suite. Options: (1) skip with clear annotation when LLM unavailable, (2) mock the LLM responses, (3) restructure to separate LLM-dependent tests into integration suite.
+
+
+### Comment
+
+Direction: Tests should use dependency injection with mock LLM responses. The LLMExtractor interface already exists - inject mock implementations instead of hitting the real service.
+
+---
+
+### ISSUE-199: Remove index.md legacy storage — make embeddings.db sole source of truth
+
+**Priority:** medium
+**Status:** done
+**Created:** 2026-02-10
+
+index.md is a legacy flat-file store that predates embeddings.db. It creates a dual-storage problem: Learn() writes to both, Query() reads index.md to sync against embeddings.db, and the two embedding paths produce different vectors for the same content (learnToEmbeddings vectors raw message, createEmbeddings backfill vectors formatted line with timestamps). This causes inconsistent retrieval quality depending on which path ran. Remove index.md entirely: make embeddings.db the sole source of truth, move Grep to search the content column or FTS5 table (which already exists), drop the sync-on-query backfill path. Touches: Learn, Query, Grep, createEmbeddings, and ~60 test files that seed index.md directly.
+
+---
+
+### ISSUE-200: RETRO-199: Add teammate heartbeat/progress check to team lead
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-10
+
+---
+
+### ISSUE-201: LearnWithConflictCheck DB locking issue exposed by ISSUE-199
+
+**Priority:** medium
+**Status:** Open
+**Created:** 2026-02-10
+
+LearnWithConflictCheck opens a DB connection (deferred close), then calls Learn() which opens a second connection via learnToEmbeddings(). The second write can fail silently because SQLite cant acquire the write lock. Before ISSUE-199, this was masked because Learn also wrote to index.md as a fallback path. Now that index.md is removed, the DB is the sole storage and the locking issue becomes visible. Fix: either pass the existing DB connection through, or close it before calling Learn().

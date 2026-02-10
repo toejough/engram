@@ -1081,8 +1081,7 @@ func learnToEmbeddings(opts LearnOpts) error {
 		confidence = 0.7
 	}
 
-	// Build the same formatted entry that was written to index.md
-	// This ensures the content key matches what Query will find when reading index.md
+	// Build formatted entry for DB storage and display
 	timestamp := time.Now().Format("2006-01-02 15:04")
 	var content string
 	if opts.Project != "" {

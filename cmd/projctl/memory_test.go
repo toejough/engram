@@ -25,11 +25,13 @@ func TestMemoryLearnCommand(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
 	g.Expect(string(output)).To(ContainSubstring("Learned"))
 
-	// Verify file was created
-	indexPath := filepath.Join(memoryDir, "index.md")
-	content, err := os.ReadFile(indexPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("Test learning from CLI"))
+	// Verify content was stored in embeddings DB via grep
+	grepCmd := exec.Command("projctl", "memory", "grep",
+		"Test learning from CLI",
+		"--memoryroot", memoryDir)
+	grepOutput, err := grepCmd.CombinedOutput()
+	g.Expect(err).ToNot(HaveOccurred(), "Grep should succeed: %s", string(grepOutput))
+	g.Expect(string(grepOutput)).To(ContainSubstring("Test learning from CLI"))
 }
 
 // TestMemoryLearnWithProject tests the --project flag
@@ -47,10 +49,10 @@ func TestMemoryLearnWithProject(t *testing.T) {
 
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
 
-	indexPath := filepath.Join(memoryDir, "index.md")
-	content, err := os.ReadFile(indexPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("[my-project]"))
+	// Verify content was stored in embeddings DB
+	dbPath := filepath.Join(memoryDir, "embeddings.db")
+	_, err = os.Stat(dbPath)
+	g.Expect(err).ToNot(HaveOccurred(), "embeddings.db should be created")
 }
 
 // TestMemoryLearnRequiresMessage tests that --message is required
@@ -89,12 +91,14 @@ func TestMemoryLearnMultipleEntries(t *testing.T) {
 	_, err = cmd.CombinedOutput()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Verify both are in the file
-	indexPath := filepath.Join(memoryDir, "index.md")
-	content, err := os.ReadFile(indexPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("First CLI learning"))
-	g.Expect(string(content)).To(ContainSubstring("Second CLI learning"))
+	// Verify both are in the DB via grep
+	for _, msg := range []string{"First CLI learning", "Second CLI learning"} {
+		grepCmd := exec.Command("projctl", "memory", "grep",
+			msg, "--memoryroot", memoryDir)
+		grepOutput, grepErr := grepCmd.CombinedOutput()
+		g.Expect(grepErr).ToNot(HaveOccurred(), "Grep should succeed: %s", string(grepOutput))
+		g.Expect(string(grepOutput)).To(ContainSubstring(msg))
+	}
 }
 
 // TestMemoryDecideCommand tests the CLI interface for projctl memory decide

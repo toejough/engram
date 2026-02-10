@@ -298,11 +298,8 @@ func TestIntegration_ONNXModelDownloadsOnFirstUse(t *testing.T) {
 	_, err := os.Stat(modelPath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue(), "model should not exist before first query")
 
-	// Create some content to query
-	err = os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	indexContent := "- 2024-01-01: Test content for model download verification"
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
+	// Create some content via Learn
+	err = memory.Learn(memory.LearnOpts{Message: "Test content for model download verification", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Query triggers model download
@@ -341,10 +338,8 @@ func TestIntegration_SQLiteVecDatabaseCreatedAtExpectedLocation(t *testing.T) {
 	_, err := os.Stat(dbPath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue(), "database should not exist before first query")
 
-	// Create content and query
-	err = os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Test content"), 0644)
+	// Create content via Learn
+	err = memory.Learn(memory.LearnOpts{Message: "Test content", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	queryOpts := memory.QueryOpts{
@@ -372,10 +367,8 @@ func TestIntegration_EmbeddingGenerationProducesNonZeroVectors(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Create content
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Database design patterns"), 0644)
+	// Create content via Learn
+	err := memory.Learn(memory.LearnOpts{Message: "Database design patterns", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	queryOpts := memory.QueryOpts{
@@ -403,10 +396,8 @@ func TestIntegration_EmbeddingVectorsHaveCorrectDimensions(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Create content
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Test dimensions"), 0644)
+	// Create content via Learn
+	err := memory.Learn(memory.LearnOpts{Message: "Test dimensions", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	queryOpts := memory.QueryOpts{
@@ -438,18 +429,17 @@ func TestIntegration_SemanticSimilarityRanksRelatedHigher(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Create diverse content with semantically related and unrelated topics
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	indexContent := `- 2024-01-01: Exception management best practices for robust applications
-- 2024-01-02: User interface design principles and visual aesthetics
-- 2024-01-03: Handling failures gracefully with proper error messages
-- 2024-01-04: Color theory and typography in frontend development
-- 2024-01-05: Try-catch patterns for managing application errors`
-
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
+	// Create diverse content with semantically related and unrelated topics via Learn
+	for _, msg := range []string{
+		"Exception management best practices for robust applications",
+		"User interface design principles and visual aesthetics",
+		"Handling failures gracefully with proper error messages",
+		"Color theory and typography in frontend development",
+		"Try-catch patterns for managing application errors",
+	} {
+		err := memory.Learn(memory.LearnOpts{Message: msg, MemoryRoot: memoryDir})
+		g.Expect(err).ToNot(HaveOccurred())
+	}
 
 	// Query for error handling (should match exception management and error messages better than UI design)
 	queryOpts := memory.QueryOpts{
@@ -494,15 +484,14 @@ func TestIntegration_SemanticSimilarityExampleErrorAndException(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Create exactly the example content from acceptance criteria
-	indexContent := `- 2024-01-01: exception management strategies for production systems
-- 2024-01-02: ui design and user experience patterns`
-
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte(indexContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
+	// Create exactly the example content from acceptance criteria via Learn
+	for _, msg := range []string{
+		"exception management strategies for production systems",
+		"ui design and user experience patterns",
+	} {
+		err := memory.Learn(memory.LearnOpts{Message: msg, MemoryRoot: memoryDir})
+		g.Expect(err).ToNot(HaveOccurred())
+	}
 
 	queryOpts := memory.QueryOpts{
 		Text:       "error handling",
@@ -546,11 +535,9 @@ func TestIntegration_TestUsesIsolatedTempDir(t *testing.T) {
 	// Verify they are different
 	g.Expect(tempDir1).ToNot(Equal(tempDir2), "each test should get isolated temp directory")
 
-	// Create content in first environment
+	// Create content in first environment via Learn
 	memoryDir1 := filepath.Join(tempDir1, "memory")
-	err := os.MkdirAll(memoryDir1, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir1, "index.md"), []byte("- Content in env1"), 0644)
+	err := memory.Learn(memory.LearnOpts{Message: "Content in env1", MemoryRoot: memoryDir1})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Second environment should be completely empty
@@ -570,10 +557,8 @@ func TestIntegration_SkipsAutoDownloadIfModelPresent(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Create content
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Test content"), 0644)
+	// Create content via Learn
+	err := memory.Learn(memory.LearnOpts{Message: "Test content", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// First query downloads the model
@@ -614,9 +599,7 @@ func TestIntegration_RunsOnMacOSAndLinux(t *testing.T) {
 		memoryDir := filepath.Join(tempDir, "memory")
 		modelDir := filepath.Join(tempDir, "models")
 
-		err := os.MkdirAll(memoryDir, 0755)
-		g.Expect(err).ToNot(HaveOccurred())
-		err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Platform test"), 0644)
+		err := memory.Learn(memory.LearnOpts{Message: "Platform test", MemoryRoot: memoryDir})
 		g.Expect(err).ToNot(HaveOccurred())
 
 		queryOpts := memory.QueryOpts{
@@ -653,9 +636,7 @@ func TestIntegration_UsesSetenvForEnvironmentIsolation(t *testing.T) {
 
 	// Create a separate temp for actual test data (not affected by HOME change)
 	memoryDir := filepath.Join(t.TempDir(), "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(filepath.Join(memoryDir, "index.md"), []byte("- Environment test"), 0644)
+	err := memory.Learn(memory.LearnOpts{Message: "Environment test", MemoryRoot: memoryDir})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Query with explicit modelDir (don't rely on HOME)
