@@ -21,7 +21,8 @@ type OptimizeOpts struct {
 	MinClusterSize int     // default 3
 	MinRetrievals  int     // default 5
 	MinProjects    int     // default 3
-	AutoApprove    bool    // --yes flag
+	AutoApprove    bool         // --yes flag
+	Extractor      LLMExtractor // Optional LLM extractor for synthesis (ISSUE-188)
 	ReviewFunc     func(action string, description string) (bool, error)
 }
 
@@ -458,10 +459,10 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 		return err
 	}
 
-	var entries []clusterEntry
+	var entries []ClusterEntry
 	for rows.Next() {
-		var e clusterEntry
-		if err := rows.Scan(&e.id, &e.content, &e.embeddingID); err != nil {
+		var e ClusterEntry
+		if err := rows.Scan(&e.ID, &e.Content, &e.EmbeddingID); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -482,7 +483,12 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 			continue
 		}
 
-		pattern := generatePattern(cluster)
+		var pattern SynthesisPattern
+		if opts.Extractor != nil {
+			pattern = GeneratePatternLLM(cluster, opts.Extractor)
+		} else {
+			pattern = generatePattern(cluster)
+		}
 		result.PatternsFound++
 
 		// Ask for approval
@@ -505,12 +511,12 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 			// Delete cluster members
 			for _, e := range cluster {
 				var embeddingID int64
-				_ = db.QueryRow("SELECT embedding_id FROM embeddings WHERE id = ?", e.id).Scan(&embeddingID)
-				_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.id)
+				_ = db.QueryRow("SELECT embedding_id FROM embeddings WHERE id = ?", e.ID).Scan(&embeddingID)
+				_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.ID)
 				if embeddingID > 0 {
 					_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", embeddingID)
 				}
-				deleteFTS5(db, e.id)
+				deleteFTS5(db, e.ID)
 			}
 		}
 	}

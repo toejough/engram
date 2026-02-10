@@ -129,6 +129,12 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN retrieval_timestamps TEXT NOT NULL DEFAULT ''", // TASK-9: JSON array of RFC3339 timestamps
 		"ALTER TABLE embeddings ADD COLUMN promoted INTEGER NOT NULL DEFAULT 0",  // ISSUE-184: 1 if in CLAUDE.md
 		"ALTER TABLE embeddings ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''", // ISSUE-184: RFC3339 timestamp of promotion
+		"ALTER TABLE embeddings ADD COLUMN observation_type TEXT NOT NULL DEFAULT ''",  // ISSUE-188: pattern, correction, preference, etc.
+		"ALTER TABLE embeddings ADD COLUMN concepts TEXT NOT NULL DEFAULT ''",          // ISSUE-188: comma-separated concept tags
+		"ALTER TABLE embeddings ADD COLUMN principle TEXT NOT NULL DEFAULT ''",         // ISSUE-188: extracted principle/rule
+		"ALTER TABLE embeddings ADD COLUMN anti_pattern TEXT NOT NULL DEFAULT ''",      // ISSUE-188: what to avoid
+		"ALTER TABLE embeddings ADD COLUMN rationale TEXT NOT NULL DEFAULT ''",         // ISSUE-188: why the principle matters
+		"ALTER TABLE embeddings ADD COLUMN enriched_content TEXT NOT NULL DEFAULT ''",  // ISSUE-188: LLM-enriched content for embedding
 	}
 	for _, stmt := range alterStatements {
 		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors
@@ -163,6 +169,13 @@ func setMetadata(db *sql.DB, key, value string) error {
 		return fmt.Errorf("failed to set metadata %q: %w", key, err)
 	}
 	return nil
+}
+
+// InitDBForTest is a test-accessible wrapper that initializes and returns the embeddings DB.
+// The caller is responsible for closing the returned *sql.DB.
+func InitDBForTest(memoryRoot string) (*sql.DB, error) {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	return initEmbeddingsDB(dbPath)
 }
 
 // GetMetadataForTest is a test-accessible wrapper around getMetadata.
@@ -231,8 +244,11 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 		return nil, nil
 	}
 
+	// ISSUE-188: join back to embeddings to get retrieval_count and projects_retrieved
 	rows, err := db.Query(
-		`SELECT f.content, f.rank, COALESCE(e.memory_type, '') FROM embeddings_fts f
+		`SELECT f.content, f.rank, COALESCE(e.memory_type, ''),
+		        COALESCE(e.retrieval_count, 0), COALESCE(e.projects_retrieved, '')
+		 FROM embeddings_fts f
 		 LEFT JOIN embeddings e ON e.id = f.rowid
 		 WHERE embeddings_fts MATCH ? ORDER BY f.rank LIMIT ?`,
 		sanitized, limit,
@@ -248,7 +264,9 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 		var content string
 		var rank float64
 		var memoryType string
-		if err := rows.Scan(&content, &rank, &memoryType); err != nil {
+		var retrievalCount int
+		var projectsRaw string
+		if err := rows.Scan(&content, &rank, &memoryType, &retrievalCount, &projectsRaw); err != nil {
 			continue
 		}
 		// FTS5 rank is negative (lower = better match). Normalize to positive score.
@@ -257,10 +275,13 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 			score = 0
 		}
 		results = append(results, QueryResult{
-			Content:    content,
-			Score:      score,
-			Source:     "memory",
-			MemoryType: memoryType,
+			Content:           content,
+			Score:             score,
+			Source:            "memory",
+			MemoryType:        memoryType,
+			RetrievalCount:    retrievalCount,
+			ProjectsRetrieved: parseProjectsList(projectsRaw),
+			MatchType:         "bm25",
 		})
 	}
 
@@ -307,11 +328,12 @@ func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit 
 		return vectorResults, nil
 	}
 
-	// Apply RRF: score(d) = sum over each ranking r of 1/(k + rank_in_r(d))
-	// rank is 1-indexed position in the result list
+	// ISSUE-188: Track which source lists each result comes from
 	type rrfEntry struct {
 		result   QueryResult
 		rrfScore float64
+		inVector bool
+		inBM25   bool
 	}
 
 	scoreMap := make(map[string]*rrfEntry)
@@ -325,6 +347,7 @@ func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit 
 			scoreMap[r.Content] = entry
 		}
 		entry.rrfScore += 1.0 / float64(k+rank)
+		entry.inVector = true
 	}
 
 	// Add BM25 results
@@ -336,6 +359,7 @@ func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit 
 			scoreMap[r.Content] = entry
 		}
 		entry.rrfScore += 1.0 / float64(k+rank)
+		entry.inBM25 = true
 	}
 
 	// Collect and sort by RRF score DESC
@@ -353,11 +377,20 @@ func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit 
 		}
 	}
 
-	// Return top limit results with RRF score
+	// Return top limit results with RRF score and MatchType based on provenance
 	results := make([]QueryResult, 0, limit)
 	for i := 0; i < len(entries) && i < limit; i++ {
 		r := entries[i].result
 		r.Score = entries[i].rrfScore
+		// ISSUE-188: Set MatchType based on which source lists the result appeared in
+		switch {
+		case entries[i].inVector && entries[i].inBM25:
+			r.MatchType = "hybrid"
+		case entries[i].inVector:
+			r.MatchType = "vector"
+		case entries[i].inBM25:
+			r.MatchType = "bm25"
+		}
 		results = append(results, r)
 	}
 
@@ -800,8 +833,10 @@ func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, boo
 func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResult, error) {
 	// Use sqlite-vec's distance function for similarity search
 	// Weight by confidence for TASK-43
+	// ISSUE-188: also fetch retrieval_count and projects_retrieved
 	query := `
 		SELECT e.content, e.source, e.source_type, e.confidence, e.memory_type,
+		       e.retrieval_count, e.projects_retrieved,
 		       (1 - vec_distance_cosine(v.embedding, ?)) * e.confidence as score
 		FROM vec_embeddings v
 		JOIN embeddings e ON e.embedding_id = v.rowid
@@ -823,9 +858,14 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	var results []QueryResult
 	for rows.Next() {
 		var r QueryResult
-		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.MemoryType, &r.Score); err != nil {
+		var projectsRaw string
+		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.MemoryType,
+			&r.RetrievalCount, &projectsRaw, &r.Score); err != nil {
 			return nil, err
 		}
+		// Parse comma-separated projects into slice
+		r.ProjectsRetrieved = parseProjectsList(projectsRaw)
+		r.MatchType = "vector"
 		// Clamp score to [0, 1] due to floating point precision
 		if r.Score > 1.0 {
 			r.Score = 1.0
@@ -837,6 +877,22 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	}
 
 	return results, rows.Err()
+}
+
+// parseProjectsList splits a comma-separated projects string into a slice,
+// trimming whitespace and filtering empty entries.
+func parseProjectsList(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	var projects []string
+	for _, p := range strings.Split(raw, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			projects = append(projects, p)
+		}
+	}
+	return projects
 }
 
 // rawSimilarResult holds a raw (non-confidence-weighted) similarity result.
@@ -939,10 +995,29 @@ func learnToEmbeddings(opts LearnOpts) error {
 		content = fmt.Sprintf("- %s: %s", timestamp, opts.Message)
 	}
 
-	// Generate embedding for the raw message (not the formatted content)
-	// This ensures conflict detection and queries compare semantic content
-	// without timestamp/project prefixes diluting similarity
-	embedding, _, _, err := generateEmbeddingONNX(opts.Message, modelPath)
+	// ISSUE-188: Attempt LLM extraction if extractor is provided
+	var observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent string
+	if opts.Extractor != nil {
+		obs, extractErr := opts.Extractor.Extract(opts.Message)
+		if extractErr == nil && obs != nil {
+			observationType = obs.Type
+			conceptsCSV = strings.Join(obs.Concepts, ",")
+			principle = obs.Principle
+			antiPattern = obs.AntiPattern
+			rationale = obs.Rationale
+			enrichedContent = fmt.Sprintf("[%s] %s - Context: %s", obs.Type, obs.Principle, obs.Rationale)
+		}
+		// On failure (including ErrLLMUnavailable): fall through with empty strings
+	}
+
+	// Determine embedding text: use enriched content when available for better embeddings
+	embeddingText := opts.Message
+	if enrichedContent != "" {
+		embeddingText = enrichedContent
+	}
+
+	// Generate embedding
+	embedding, _, _, err := generateEmbeddingONNX(embeddingText, modelPath)
 	if err != nil {
 		return fmt.Errorf("failed to generate embedding: %w", err)
 	}
@@ -979,13 +1054,13 @@ func learnToEmbeddings(opts LearnOpts) error {
 
 	// Determine memory type (TASK-9)
 	memoryType := opts.Type
-	if memoryType == "" {
-		memoryType = ""
-	}
 
-	// Insert into metadata table with the full formatted content
-	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, memory_type, embedding_id) VALUES (?, ?, ?, ?, ?, ?)`
-	metaResult, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID)
+	// Insert into metadata table with the full formatted content and observation columns
+	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, memory_type, embedding_id,
+		observation_type, concepts, principle, anti_pattern, rationale, enriched_content)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	metaResult, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID,
+		observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent)
 	if err != nil {
 		return err
 	}

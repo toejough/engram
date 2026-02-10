@@ -6067,7 +6067,7 @@ LARGELY SUPERSEDED by optimize.go implementation. Gap 1 (interactive consolidate
 ### ISSUE-185: Implicit signal detection in extract-session and project-aware context-inject
 
 **Priority:** High
-**Status:** Open
+**Status:** closed
 **Created:** 2026-02-09
 
 extract-session only captures explicit signals (corrections, 'remember this', error→fix sequences, repeated verbatim phrases). It misses implicit signals: (1) tool/command usage patterns that succeeded, (2) behavioral consistency (used X throughout without correction = implicit confirmation), (3) positive reinforcement (did X, tests passed). context-inject also uses a hardcoded generic query ('recent important learnings') instead of project-aware retrieval, so session-start retrieval doesn't target relevant memories. Together this means passively using a tool like targ throughout a session doesn't reinforce the 'use targ' memory unless the user explicitly says something about it.
@@ -6232,3 +6232,197 @@ Dynamic skills decay like memories, but slower:
 - ACT-R: act-r.psy.cmu.edu — Knowledge compilation theory
 - Agent Skills as Procedural Memory: techrxiv.org/articles/1376445 — Survey
 - MemAgents Workshop: ICLR 2026 — Memory for LLM-based agentic systems
+
+---
+
+### ISSUE-187: Collapse context-inject into query, add intent-aware retrieval hooks
+
+**Priority:** High
+**Status:** closed
+**Created:** 2026-02-09
+
+## Problem
+
+`memory context-inject` and `memory query` share the same core retrieval path (`Query()` with ONNX embeddings + hybrid BM25/vector search). `context-inject` adds only thin post-processing: confidence filtering, primacy sorting, markdown formatting, and token budgeting. These are flags, not a separate command.
+
+Additionally, context-inject runs at SessionStart with the hardcoded query "recent important learnings" — before any user intent is known. This is low-value ambient context at best.
+
+## Proposed Changes
+
+### 1. Collapse context-inject into query
+
+Remove `context-inject` as a separate command. Add flags to `memory query`:
+
+- `--format=markdown` (vs default human-readable)
+- `--min-confidence=0.3`
+- `--max-tokens=2000`
+- `--primacy` (sort corrections first)
+- `--stdin-project` (derive project from hook stdin JSON, for hook compatibility)
+
+The SessionStart hook becomes: `projctl memory query --format=markdown --primacy --stdin-project "recent important learnings"`
+
+### 2. Add intent-aware retrieval hooks
+
+Add hooks at points where user intent is known:
+
+- **UserMessage hook**: Fires when the user sends a message. Query memories using the user's actual message text as the search query. This is the highest-value injection point — we know exactly what the user cares about.
+- **PreToolUse hook** (stretch): Fires before tool calls. Could surface relevant memories based on tool context (e.g., file being edited, command being run). Lower priority — evaluate whether the signal-to-noise ratio justifies the latency.
+
+### 3. Deduplicate across hook points
+
+If both SessionStart and UserMessage hooks fire, results may overlap. Consider:
+- SessionStart provides ambient project context (keep lightweight or remove entirely)
+- UserMessage provides targeted retrieval (primary value)
+- Dedup by content hash or skip SessionStart injection entirely
+
+## Acceptance Criteria
+
+- [ ] `memory context-inject` command removed
+- [ ] `memory query` gains `--format`, `--min-confidence`, `--max-tokens`, `--primacy`, `--stdin-project` flags
+- [ ] Existing SessionStart hook updated to use `memory query` with new flags
+- [ ] UserMessage hook installed that queries with actual user message text
+- [ ] Hook output formatted as markdown suitable for system prompt injection
+- [ ] Evaluate PreToolUse hook value (may defer to separate issue)
+- [ ] Tests updated: context-inject tests migrated to query flag tests
+- [ ] `projctl memory hooks install` updated to install new hook configuration
+
+## Files Affected
+
+- `cmd/projctl/memory_context_inject.go` (delete)
+- `cmd/projctl/memory_context_inject_test.go` (delete)
+- `cmd/projctl/memory.go` (add flags to query)
+- `cmd/projctl/main.go` (remove context-inject subcommand)
+- `internal/memory/context_inject.go` (merge formatting logic into query or shared util)
+- `internal/memory/context_inject_test.go` (migrate)
+- `internal/memory/hooks.go` (update hook definitions)
+- `internal/memory/hooks_test.go` (update)
+
+---
+
+### ISSUE-188: Memory retrieval produces flat episodes, not actionable knowledge
+
+**Priority:** High
+**Status:** In Progress
+**Created:** 2026-02-09
+
+## Problem
+
+Memory queries return truncated, flat, episodic one-liners that are not rich enough to be promoted into CLAUDE.md or skill files as actionable knowledge. The gap between what the memory system stores/returns and what constitutes useful persistent knowledge is fundamental, not incremental.
+
+### Current State
+
+**What gets stored** (index.md):
+```
+- 2026-02-08 16:56: [ISSUE-152] Challenge ISSUE-152: TDD red phase required rework when test planning
+- 2026-02-08 21:06: Success ISSUE-170: TDD cycle executed cleanly with zero rework
+```
+
+**What gets returned** (120-char truncated, no metadata):
+```
+- [ISSUE-152] Challenge ISSUE-152: TDD red phase required rework when test planning didn't align with AC covera...
+```
+
+**What CLAUDE.md actually needs** (rich, structured, actionable):
+```
+**Failing tests mean implementation bugs**: When a test fails, investigate
+the implementation first, not the test. Never adjust tests to match code
+without verifying whether the code has a bug. Tests encode expected behavior -
+if the test is reasonable, the code is wrong.
+```
+
+A typical CLAUDE.md entry has: named principle, decision rule, anti-pattern, rationale, scope qualifier, and sometimes code examples. A typical memory has: a timestamped sentence about what happened on one issue.
+
+### Three Distinct Failures
+
+**1. Storage is too thin.** `Learn()` stores `"- YYYY-MM-DD HH:MM: [project] message"`. No structure, no category, no context about why this matters. Compare to what structured systems capture: `{type, concepts[], narrative, facts[], file_refs[]}`.
+
+**2. Retrieval discards existing metadata.** The DB stores memory_type (correction/reflection), confidence, retrieval_count, projects_retrieved. But `FormatMarkdown()` in format.go throws all of it away -- outputs bare 120-char lines under a generic header. The consumer gets no signal about relevance, reliability, or type.
+
+**3. Consolidation synthesizes noise, not knowledge.** The optimize pipeline's synthesis step clusters by similarity >= 0.8 and extracts top-3 keywords. This produces labels like "important pattern for review" -- which appears 56 times in Promoted Learnings. Promotion threshold (5+ retrievals, 3+ projects) is mechanical; frequency doesn't mean content is rich enough to be a permanent rule.
+
+### The Core Architectural Problem
+
+The system has one memory type trying to serve two fundamentally different purposes:
+
+| | Episodic Memory | Semantic Memory |
+|--|--|--|
+| What | "What happened" | "What is true" |
+| Example | "ISSUE-152 TDD rework" | "Always verify AC coverage before writing tests" |
+| Retrieval | Recency + relevance | Conceptual similarity only |
+| Decay | Yes (natural forgetting) | No (validated knowledge persists) |
+| Format | Timestamped events | Named principles with rationale |
+
+Everything is episodic. The optimize pipeline tries to promote episodes to semantic knowledge, but without LLM-driven extraction, it promotes the same flat strings.
+
+## Research: How Others Solve This
+
+**Mem0 (Extract → Compare → Merge):** Every new memory goes through an LLM that decides ADD/UPDATE/DELETE/NOOP. Knowledge base stays compact and non-redundant. 26% higher accuracy than OpenAI memory on LOCOMO benchmark. Paper: arxiv.org/abs/2504.19413
+
+**Anthropic Contextual Retrieval:** Before embedding, prepend LLM-generated context explaining what the chunk means in broader context. Cuts retrieval failures by 67%. anthropic.com/news/contextual-retrieval
+
+**RAPTOR (Hierarchical Abstraction):** Raw memories are leaves. Cluster, LLM-summarize, re-cluster. Top levels contain abstract patterns, bottom levels have episodes. Retrieval naturally returns the right abstraction level. Paper: arxiv.org/abs/2401.18059
+
+**claude-mem (Typed Observations):** Each event compressed to ~500-token typed observation with concepts[], narrative, facts[], file_refs[]. Retrieval is three-tier: compact index → timeline → full detail. 10x token savings. github.com/thedotmack/claude-mem
+
+**Zep/Graphiti (Temporal Knowledge Graph):** Facts have validity windows. Superseded facts are time-bounded, not deleted. Graph traversal finds contextually related facts vector search misses. Paper: arxiv.org/abs/2501.13956
+
+**Cursor Memory Banks:** Predefined categories (projectbrief.md, techContext.md, systemPatterns.md, productContext.md, activeContext.md, progress.md) instead of one flat bucket.
+
+## Proposed Solution
+
+Two-phase approach: enrich at write time, consolidate at read time.
+
+### Phase 1: Rich Storage & Better Output (Low-Hanging Fruit)
+
+**1a. LLM extraction at store time.** When Learn() is called, run one cheap LLM call to extract structured observation: `{type: correction|pattern|decision|discovery, concepts: [...], principle: "...", anti_pattern: "...", rationale: "..."}`. Store structured fields alongside raw content.
+
+**1b. Contextual embedding prefixes.** Before embedding, prepend LLM-generated context: "This memory captures a TDD lesson from ISSUE-152 where incomplete AC coverage caused test rework. The principle is..." Embed the contextualized form, not the raw one-liner.
+
+**1c. Rich output format.** FormatMarkdown() should include: relevance score, memory type, confidence, project context. Show consumers why a result was returned and how reliable it is. Remove 120-char truncation or make it configurable.
+
+### Phase 2: Episodic → Semantic Consolidation
+
+**2a. LLM-driven synthesis.** Replace keyword extraction with LLM summarization of clusters. Input: 3+ similar episodic memories. Output: a named principle with rationale, anti-pattern, and scope -- matching CLAUDE.md entry format.
+
+**2b. ADD/UPDATE/DELETE/NOOP on ingest.** Before storing a new memory, compare against existing semantic memories. LLM decides whether to add new knowledge, update existing, mark old as superseded, or skip (already known).
+
+**2c. Progressive disclosure retrieval.** Three-tier query: (1) compact index with IDs and one-line summaries, (2) filtered set with context, (3) full structured details on demand. Different consumers (hooks vs CLI vs skills) request different tiers.
+
+### Phase 3: Dual Memory Store (Architectural)
+
+**3a. Separate episodic and semantic stores.** Episodes decay naturally. Semantic knowledge persists until contradicted. Different retrieval strategies for each.
+
+**3b. Consolidation pipeline.** Periodic job that reviews recent episodes, identifies recurring patterns, and promotes to semantic store via LLM extraction. Replaces the current mechanical promotion threshold.
+
+## Acceptance Criteria
+
+- [x] Memories stored via Learn() include structured metadata (type, concepts, rationale) extracted by LLM
+- [x] Embeddings use contextual prefixes, not raw one-liners
+- [x] FormatMarkdown() outputs relevance score, memory type, and confidence alongside content
+- [x] 120-char truncation is removed or configurable (default: no truncation for CLI, token-budgeted for hooks)
+- [x] Synthesis step produces CLAUDE.md-quality principles from episode clusters, not keyword labels
+- [ ] New memories compared against existing via ADD/UPDATE/DELETE/NOOP before storage (deferred: existing dedup at 0.9 similarity is a reasonable stopgap)
+- [x] Promoted Learnings section contains actual actionable knowledge, not placeholder labels
+- [x] Query results for "TDD" return both relevant episodes AND synthesized principles about TDD practices
+
+## Files Affected
+
+- `internal/memory/memory.go` - Learn() storage pipeline, QueryResult struct
+- `internal/memory/format.go` - FormatMarkdown() output formatting, 120-char truncation
+- `internal/memory/embeddings.go` - Embedding generation, hybrid search
+- `internal/memory/optimize.go` - Synthesis step, promotion logic
+- `cmd/projctl/memory.go` - CLI query output, verbose mode
+- New: `internal/memory/extract.go` - LLM-driven observation extraction
+- New: `internal/memory/consolidate.go` - Episodic → semantic consolidation
+
+## Relationship to Other Work
+
+- ISSUE-177: CLAUDE.md consolidation (this issue explains WHY consolidation produces poor results)
+- ISSUE-179: Pattern synthesis (current synthesis is the broken step this issue replaces)
+- ISSUE-181: Hybrid search (search is fine; the problem is what's being searched and how results are formatted)
+- ISSUE-187: Context-inject hooks (hooks consume FormatMarkdown output, so richer output directly improves hook quality)
+
+
+### Comment
+
+Phase 1 and Phase 2 implementation complete. All code compiles, all tests pass (149s). Changes: QueryResult enrichment (RetrievalCount/ProjectsRetrieved/MatchType), FormatMarkdown output tiers (compact/full/curated), CLI --rich and --curate flags, LLM extractor interface with ClaudeCLIExtractor, DB schema migration for observation columns, Learn() extraction with graceful fallback, LLM-driven synthesis via GeneratePatternLLM, curated hook injection with ResolveTier. Remaining: AC item 2.6 (ADD/UPDATE/DELETE/NOOP on ingest) deferred per plan. AC item 3a/3b (dual memory store) deferred as Phase 3.

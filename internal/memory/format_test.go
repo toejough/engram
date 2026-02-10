@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -375,4 +376,266 @@ func TestFormatMarkdownGenericContent(t *testing.T) {
 
 	g.Expect(output).ToNot(BeEmpty())
 	g.Expect(output).To(ContainSubstring("Always run tests"))
+}
+
+// ============================================================================
+// ISSUE-188: Output tiers (compact, full, curated)
+// ============================================================================
+
+// TestFormatMarkdownCompactNoTruncation verifies TierCompact removes the 120-char truncation.
+func TestFormatMarkdownCompactNoTruncation(t *testing.T) {
+	g := NewWithT(t)
+
+	longContent := strings.Repeat("word ", 30) // 150 chars
+	results := []memory.QueryResult{
+		{Content: longContent, Score: 0.8, Confidence: 0.9},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierCompact,
+	})
+
+	// Should contain full content, not truncated with "..."
+	g.Expect(output).ToNot(ContainSubstring("..."))
+	g.Expect(output).To(ContainSubstring(strings.TrimSpace(longContent)))
+}
+
+// TestFormatMarkdownCompactTypePrefixCorrection verifies [C] prefix for corrections.
+func TestFormatMarkdownCompactTypePrefixCorrection(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "never use force push", Score: 0.8, Confidence: 0.9, MemoryType: "correction"},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  500,
+		Tier:       memory.TierCompact,
+	})
+
+	g.Expect(output).To(ContainSubstring("[C]"))
+}
+
+// TestFormatMarkdownCompactTypePrefixReflection verifies [R] prefix for reflections.
+func TestFormatMarkdownCompactTypePrefixReflection(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "TDD is effective for reducing rework", Score: 0.8, Confidence: 0.9, MemoryType: "reflection"},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  500,
+		Tier:       memory.TierCompact,
+	})
+
+	g.Expect(output).To(ContainSubstring("[R]"))
+}
+
+// TestFormatMarkdownCompactStripsTimestamp verifies timestamp/project tags are stripped.
+func TestFormatMarkdownCompactStripsTimestamp(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "- 2026-02-09 13:00: [projctl] always use TDD", Score: 0.8, Confidence: 0.9},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  500,
+		Tier:       memory.TierCompact,
+	})
+
+	g.Expect(output).ToNot(ContainSubstring("2026-02-09"))
+	g.Expect(output).ToNot(ContainSubstring("[projctl]"))
+	g.Expect(output).To(ContainSubstring("always use TDD"))
+}
+
+// TestFormatMarkdownFullShowsConfidence verifies TierFull includes confidence percentage.
+func TestFormatMarkdownFullShowsConfidence(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "always use TDD", Score: 0.8, Confidence: 0.85, MemoryType: "correction"},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierFull,
+	})
+
+	g.Expect(output).To(ContainSubstring("85%"))
+}
+
+// TestFormatMarkdownFullShowsMatchType verifies TierFull includes match type.
+func TestFormatMarkdownFullShowsMatchType(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "always use TDD", Score: 0.8, Confidence: 0.85, MatchType: "hybrid"},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierFull,
+	})
+
+	g.Expect(output).To(ContainSubstring("hybrid"))
+}
+
+// TestFormatMarkdownFullShowsRetrievalCount verifies TierFull includes retrieval count.
+func TestFormatMarkdownFullShowsRetrievalCount(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "always use TDD", Score: 0.8, Confidence: 0.85, RetrievalCount: 7},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierFull,
+	})
+
+	g.Expect(output).To(ContainSubstring("7"))
+}
+
+// TestFormatMarkdownFullShowsMemoryType verifies TierFull includes memory type.
+func TestFormatMarkdownFullShowsMemoryType(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "always use TDD", Score: 0.8, Confidence: 0.85, MemoryType: "correction"},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierFull,
+	})
+
+	g.Expect(output).To(ContainSubstring("correction"))
+}
+
+// TestFormatMarkdownFullNoTruncation verifies TierFull does not truncate content.
+func TestFormatMarkdownFullNoTruncation(t *testing.T) {
+	g := NewWithT(t)
+
+	longContent := strings.Repeat("detailed memory content ", 20) // ~480 chars
+	results := []memory.QueryResult{
+		{Content: longContent, Score: 0.8, Confidence: 0.85},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  5000,
+		Tier:       memory.TierFull,
+	})
+
+	// Full tier should not truncate with "..."
+	g.Expect(output).ToNot(ContainSubstring("..."))
+	g.Expect(output).To(ContainSubstring(strings.TrimSpace(longContent)))
+}
+
+// TestFormatMarkdownFullShowsProjectBreadth verifies TierFull shows project breadth.
+func TestFormatMarkdownFullShowsProjectBreadth(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{
+			Content:           "always use TDD",
+			Score:             0.8,
+			Confidence:        0.85,
+			ProjectsRetrieved: []string{"projctl", "otherproject", "thirdproject"},
+		},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  2000,
+		Tier:       memory.TierFull,
+	})
+
+	g.Expect(output).To(ContainSubstring("3 projects"))
+}
+
+// TestFormatMarkdownDefaultTierIsCompact verifies that zero-value tier behaves as compact.
+func TestFormatMarkdownDefaultTierIsCompact(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "- 2026-02-09 13:00: [projctl] test content", Score: 0.8, Confidence: 0.9, MemoryType: "correction"},
+	}
+
+	// Zero-value tier (empty string) should behave as TierCompact
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  500,
+	})
+
+	// Should strip timestamp and add type prefix (compact behavior)
+	g.Expect(output).To(ContainSubstring("[C]"))
+	g.Expect(output).ToNot(ContainSubstring("2026-02-09"))
+}
+
+// TestPropertyFormatMarkdownTierFullContainsConfidence verifies that for any QueryResult
+// with confidence X, TierFull output contains X as a percentage.
+func TestPropertyFormatMarkdownTierFullContainsConfidence(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		conf := rapid.Float64Range(0.01, 0.99).Draw(rt, "confidence")
+		results := []memory.QueryResult{
+			{Content: "test memory content", Score: 0.8, Confidence: conf},
+		}
+
+		output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+			Results:    results,
+			MaxEntries: 5,
+			MaxTokens:  2000,
+			Tier:       memory.TierFull,
+		})
+
+		// Confidence should appear as percentage
+		pctStr := fmt.Sprintf("%d%%", int(conf*100))
+		g.Expect(output).To(ContainSubstring(pctStr),
+			"TierFull should contain confidence as percentage: "+pctStr)
+	})
+}
+
+// TestFormatMarkdownCompactBackwardCompatible verifies TierCompact still produces
+// the same header and bullet format.
+func TestFormatMarkdownCompactBackwardCompatible(t *testing.T) {
+	g := NewWithT(t)
+
+	results := []memory.QueryResult{
+		{Content: "simple learning", Score: 0.8, Confidence: 0.9},
+	}
+
+	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
+		Results:    results,
+		MaxEntries: 5,
+		MaxTokens:  500,
+		Tier:       memory.TierCompact,
+	})
+
+	g.Expect(output).To(ContainSubstring("## Recent Context from Memory"))
+	g.Expect(output).To(ContainSubstring("- "))
 }

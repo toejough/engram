@@ -19,6 +19,7 @@ type LearnOpts struct {
 	Source     string // "internal" or "external" (defaults to "internal")
 	Type       string // "correction", "reflection", or empty for default
 	MemoryRoot string
+	Extractor  LLMExtractor // Optional LLM extractor for structured knowledge extraction (ISSUE-188)
 }
 
 // Learn stores a learning in the memory index.
@@ -366,12 +367,15 @@ type QueryOpts struct {
 
 // QueryResult represents a single query result.
 type QueryResult struct {
-	Content    string
-	Score      float64
-	Source     string  // File source ("memory")
-	SourceType string  // "internal" or "external"
-	Confidence float64 // Confidence score (0.0-1.0)
-	MemoryType string  // "correction", "reflection", or "" (ISSUE-178)
+	Content           string
+	Score             float64
+	Source            string   // File source ("memory")
+	SourceType        string   // "internal" or "external"
+	Confidence        float64  // Confidence score (0.0-1.0)
+	MemoryType        string   // "correction", "reflection", or "" (ISSUE-178)
+	RetrievalCount    int      // Number of times this entry has been retrieved (ISSUE-188)
+	ProjectsRetrieved []string // Projects that have retrieved this entry (ISSUE-188)
+	MatchType         string   // "vector", "bm25", or "hybrid" (ISSUE-188)
 }
 
 // QueryResults contains the results of a query.

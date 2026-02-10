@@ -116,6 +116,39 @@ func ParseHookInput(r io.Reader) (*HookInput, error) {
 	return &hi, nil
 }
 
+// IsPreToolUse returns true if this hook event is a PreToolUse event.
+func (h *HookInput) IsPreToolUse() bool {
+	if h == nil {
+		return false
+	}
+	return h.HookEventName == "PreToolUse"
+}
+
+// SupportsCuration returns true if this hook event type supports LLM curation.
+// Only UserPromptSubmit and SessionStart are eligible; PreToolUse must stay
+// ONNX-only for speed.
+func (h *HookInput) SupportsCuration() bool {
+	if h == nil {
+		return false
+	}
+	switch h.HookEventName {
+	case "UserPromptSubmit", "SessionStart":
+		return true
+	default:
+		return false
+	}
+}
+
+// ResolveTier downgrades TierCurated to TierCompact when the hook type
+// does not support LLM curation (e.g. PreToolUse). Other tiers pass through
+// unchanged. A nil hookInput (direct CLI usage) allows all tiers.
+func ResolveTier(tier OutputTier, hookInput *HookInput) OutputTier {
+	if tier == TierCurated && hookInput != nil && !hookInput.SupportsCuration() {
+		return TierCompact
+	}
+	return tier
+}
+
 // DeriveProjectName returns filepath.Base(cwd), or "" if cwd is empty.
 func DeriveProjectName(cwd string) string {
 	if cwd == "" {

@@ -363,11 +363,11 @@ type SynthesisResult struct {
 	Patterns []SynthesisPattern
 }
 
-// clusterEntry holds data for a single embedding entry during clustering.
-type clusterEntry struct {
-	id          int64
-	content     string
-	embeddingID int64
+// ClusterEntry holds data for a single embedding entry during clustering.
+type ClusterEntry struct {
+	ID          int64
+	Content     string
+	EmbeddingID int64
 }
 
 // SynthesizePatterns clusters similar memories and generates patterns.
@@ -391,10 +391,10 @@ func SynthesizePatterns(memoryRoot string, threshold float64, minClusterSize int
 	}
 	defer func() { _ = rows.Close() }()
 
-	var entries []clusterEntry
+	var entries []ClusterEntry
 	for rows.Next() {
-		var e clusterEntry
-		if err := rows.Scan(&e.id, &e.content, &e.embeddingID); err != nil {
+		var e ClusterEntry
+		if err := rows.Scan(&e.ID, &e.Content, &e.EmbeddingID); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		entries = append(entries, e)
@@ -422,7 +422,7 @@ func SynthesizePatterns(memoryRoot string, threshold float64, minClusterSize int
 }
 
 // clusterBySimilarity performs single-linkage clustering using union-find.
-func clusterBySimilarity(db *sql.DB, entries []clusterEntry, threshold float64) [][]clusterEntry {
+func clusterBySimilarity(db *sql.DB, entries []ClusterEntry, threshold float64) [][]ClusterEntry {
 	n := len(entries)
 	// Union-find parent array
 	parent := make([]int, n)
@@ -447,7 +447,7 @@ func clusterBySimilarity(db *sql.DB, entries []clusterEntry, threshold float64) 
 	// Compare all pairs
 	for i := 0; i < n; i++ {
 		for j := i + 1; j < n; j++ {
-			sim, err := calculateSimilarity(db, entries[i].embeddingID, entries[j].embeddingID)
+			sim, err := calculateSimilarity(db, entries[i].EmbeddingID, entries[j].EmbeddingID)
 			if err != nil {
 				continue
 			}
@@ -458,13 +458,13 @@ func clusterBySimilarity(db *sql.DB, entries []clusterEntry, threshold float64) 
 	}
 
 	// Collect clusters
-	clusterMap := make(map[int][]clusterEntry)
+	clusterMap := make(map[int][]ClusterEntry)
 	for i := 0; i < n; i++ {
 		root := find(i)
 		clusterMap[root] = append(clusterMap[root], entries[i])
 	}
 
-	clusters := make([][]clusterEntry, 0, len(clusterMap))
+	clusters := make([][]ClusterEntry, 0, len(clusterMap))
 	for _, c := range clusterMap {
 		clusters = append(clusters, c)
 	}
@@ -493,12 +493,12 @@ var synthesisStopWords = map[string]bool{
 }
 
 // generatePattern extracts common keywords and builds a pattern from a cluster.
-func generatePattern(cluster []clusterEntry) SynthesisPattern {
+func generatePattern(cluster []ClusterEntry) SynthesisPattern {
 	// Count word frequencies across all entries
 	wordCount := make(map[string]int)
 	for _, e := range cluster {
 		// Extract message content (strip timestamp/project prefix)
-		msg := extractMessageContent(strings.ToLower(e.content))
+		msg := extractMessageContent(strings.ToLower(e.Content))
 		seen := make(map[string]bool)
 		for _, word := range strings.Fields(msg) {
 			// Strip punctuation
@@ -543,7 +543,7 @@ func generatePattern(cluster []clusterEntry) SynthesisPattern {
 	// Build examples (first 2 entries, truncated)
 	var examples []string
 	for _, e := range cluster {
-		examples = append(examples, e.content)
+		examples = append(examples, e.Content)
 	}
 	var exampleSnippets []string
 	for i := 0; i < len(examples) && i < 2; i++ {
@@ -556,6 +556,45 @@ func generatePattern(cluster []clusterEntry) SynthesisPattern {
 		strings.Join(themeWords, ", "),
 		strings.Join(exampleSnippets, "; "),
 	)
+
+	return SynthesisPattern{
+		Theme:       theme,
+		Examples:    examples,
+		Synthesis:   synthesis,
+		Occurrences: len(cluster),
+	}
+}
+
+// GeneratePatternLLM uses an LLM extractor to synthesize a pattern from a cluster.
+// If extractor is nil or returns an error, falls back to keyword-based generatePattern.
+func GeneratePatternLLM(cluster []ClusterEntry, extractor LLMExtractor) SynthesisPattern {
+	if extractor == nil {
+		return generatePattern(cluster)
+	}
+
+	// Collect cluster memory content
+	var memories []string
+	for _, e := range cluster {
+		memories = append(memories, extractMessageContent(e.Content))
+	}
+
+	// Try LLM synthesis
+	synthesis, err := extractor.Synthesize(memories)
+	if err != nil {
+		return generatePattern(cluster)
+	}
+
+	// Build examples from cluster
+	var examples []string
+	for _, e := range cluster {
+		examples = append(examples, e.Content)
+	}
+
+	// Theme is first 50 chars of synthesis
+	theme := synthesis
+	if len(theme) > 50 {
+		theme = theme[:50]
+	}
 
 	return SynthesisPattern{
 		Theme:       theme,

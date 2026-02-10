@@ -170,6 +170,8 @@ type memoryQueryArgs struct {
 	MinConfidence float64 `targ:"flag,name=min-confidence,desc=Minimum confidence threshold (default: 0)"`
 	MaxTokens     int     `targ:"flag,name=max-tokens,desc=Max token count for output (default: 2000)"`
 	Primacy       bool    `targ:"flag,desc=Sort corrections first (primacy ordering)"`
+	Rich          bool    `targ:"flag,desc=Show full metadata (confidence/retrieval count/match type/projects)"`
+	Curate        bool    `targ:"flag,desc=Use LLM curation for result selection and relevance annotations"`
 	StdinProject  bool    `targ:"flag,name=stdin-project,desc=Derive project from stdin hook JSON cwd"`
 	StdinPrompt   bool    `targ:"flag,name=stdin-prompt,desc=Read query text and project from stdin hook JSON prompt field"`
 	StdinTool     bool    `targ:"flag,name=stdin-tool,desc=Read query from stdin hook JSON tool_name + tool_input fields"`
@@ -270,6 +272,28 @@ func memoryQuery(args memoryQueryArgs) error {
 		fmt.Fprintln(os.Stderr)
 	}
 
+	// Determine output tier
+	tier := memory.TierCompact
+	if args.Rich {
+		tier = memory.TierFull
+	} else if args.Curate {
+		tier = memory.TierCurated
+	}
+
+	// Auto-enable curation for stdin-prompt when not explicitly set
+	if args.StdinPrompt && !args.Curate && !args.Rich {
+		tier = memory.TierCurated
+	}
+
+	// Downgrade TierCurated for PreToolUse hooks (must stay ONNX-only for speed)
+	tier = memory.ResolveTier(tier, hookInput)
+
+	// Create LLM extractor for curated tier
+	var extractor memory.LLMExtractor
+	if tier == memory.TierCurated {
+		extractor = memory.NewClaudeCLIExtractor()
+	}
+
 	// Always markdown output
 	output := memory.FormatMarkdown(memory.FormatMarkdownOpts{
 		Results:       result.Results,
@@ -277,6 +301,9 @@ func memoryQuery(args memoryQueryArgs) error {
 		MaxEntries:    limit,
 		MaxTokens:     args.MaxTokens,
 		Primacy:       args.Primacy,
+		Tier:          tier,
+		Query:         queryText,
+		Extractor:     extractor,
 	})
 
 	fmt.Print(output)
