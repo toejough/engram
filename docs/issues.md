@@ -6628,7 +6628,12 @@ index.md is a legacy flat-file store that predates embeddings.db. It creates a d
 ### ISSUE-201: LearnWithConflictCheck DB locking issue exposed by ISSUE-199
 
 **Priority:** medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-10
 
 LearnWithConflictCheck opens a DB connection (deferred close), then calls Learn() which opens a second connection via learnToEmbeddings(). The second write can fail silently because SQLite cant acquire the write lock. Before ISSUE-199, this was masked because Learn also wrote to index.md as a fallback path. Now that index.md is removed, the DB is the sole storage and the locking issue becomes visible. Fix: either pass the existing DB connection through, or close it before calling Learn().
+
+
+### Comment
+
+Fixed: Replaced defer db.Close() with explicit close before Learn() call to release SQLite write lock. Added 3 tests verifying storage, conflict detection, and no-conflict scenarios.
