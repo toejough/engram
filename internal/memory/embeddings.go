@@ -938,6 +938,79 @@ func searchRawSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]rawSim
 	return results, rows.Err()
 }
 
+// rawResultsToExistingMemories converts raw similarity results to ExistingMemory structs
+// for passing to the LLM Decide method.
+func rawResultsToExistingMemories(results []rawSimilarResult) []ExistingMemory {
+	existing := make([]ExistingMemory, 0, len(results))
+	for _, r := range results {
+		existing = append(existing, ExistingMemory{
+			ID:         r.id,
+			Content:    r.content,
+			Similarity: r.similarity,
+		})
+	}
+	return existing
+}
+
+// updateEmbeddingContent replaces an existing embedding's content and re-embeds it.
+// Sequence: delete old vec row, insert new vec row, update metadata, refresh FTS5.
+func updateEmbeddingContent(db *sql.DB, id int64, newContent string, newEmbedding []byte,
+	observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent string) error {
+	// Get the current embedding_id for the old vec row
+	var oldEmbeddingID int64
+	err := db.QueryRow("SELECT embedding_id FROM embeddings WHERE id = ?", id).Scan(&oldEmbeddingID)
+	if err != nil {
+		return fmt.Errorf("updateEmbeddingContent: failed to get old embedding_id: %w", err)
+	}
+
+	// Delete old vec row
+	if _, err := db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", oldEmbeddingID); err != nil {
+		return fmt.Errorf("updateEmbeddingContent: failed to delete old vec row: %w", err)
+	}
+
+	// Insert new vec row
+	result, err := db.Exec("INSERT INTO vec_embeddings(embedding) VALUES (?)", newEmbedding)
+	if err != nil {
+		return fmt.Errorf("updateEmbeddingContent: failed to insert new vec row: %w", err)
+	}
+	newEmbeddingID, _ := result.LastInsertId()
+
+	// Update metadata
+	_, err = db.Exec(`UPDATE embeddings SET content = ?, embedding_id = ?,
+		observation_type = ?, concepts = ?, principle = ?, anti_pattern = ?,
+		rationale = ?, enriched_content = ?
+		WHERE id = ?`,
+		newContent, newEmbeddingID,
+		observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent,
+		id)
+	if err != nil {
+		return fmt.Errorf("updateEmbeddingContent: failed to update metadata: %w", err)
+	}
+
+	// Refresh FTS5
+	deleteFTS5(db, id)
+	insertFTS5(db, id, newContent)
+
+	return nil
+}
+
+// supersedeEmbedding soft-deletes a memory by setting confidence to 0.
+// The existing prune pipeline in optimize.go cleans up zero-confidence entries.
+func supersedeEmbedding(db *sql.DB, id int64) error {
+	_, err := db.Exec("UPDATE embeddings SET confidence = 0 WHERE id = ?", id)
+	if err != nil {
+		return fmt.Errorf("supersedeEmbedding: %w", err)
+	}
+	deleteFTS5(db, id)
+	return nil
+}
+
+// boostExistingConfidence increments an existing memory's confidence by 0.05 (capped at 1.0).
+func boostExistingConfidence(db *sql.DB, id int64) error {
+	_, err := db.Exec("UPDATE embeddings SET confidence = MIN(1.0, confidence + 0.05) WHERE id = ?", id)
+	return err
+}
+
 // learnToEmbeddings creates an embedding for a learning entry in the DB.
 func learnToEmbeddings(opts LearnOpts) error {
 	// Determine model directory
@@ -1027,22 +1100,60 @@ func learnToEmbeddings(opts LearnOpts) error {
 		return err
 	}
 
-	// ISSUE-184: Learn-time dedup boost — check if a very similar memory exists (>0.9).
-	// If so, boost existing memory's confidence instead of creating a duplicate.
+	// ISSUE-184/188: Learn-time dedup — LLM-driven ingest decisions when extractor available,
+	// with fallback to threshold-based boost for backward compatibility.
 	// Exception: corrections are always stored (they're used for contradiction detection).
-	// Use raw cosine similarity (not confidence-weighted) for dedup comparison.
 	if opts.Type != "correction" {
-		dupResult, err := searchRawSimilar(db, embedding, 1)
+		dupResult, err := searchRawSimilar(db, embedding, 3) // top-3 for LLM context
+
+		// LLM-driven decision if extractor available and similar results exist above threshold
+		if opts.Extractor != nil && err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.5 {
+			existing := rawResultsToExistingMemories(dupResult)
+			decision, decideErr := opts.Extractor.Decide(opts.Message, existing)
+			if decideErr == nil && decision != nil {
+				// Validate TargetID: must match one of the returned dupResult IDs
+				targetValid := decision.Action == IngestAdd
+				if !targetValid {
+					for _, r := range dupResult {
+						if r.id == decision.TargetID {
+							targetValid = true
+							break
+						}
+					}
+				}
+
+				if targetValid {
+					switch decision.Action {
+					case IngestUpdate:
+						if err := updateEmbeddingContent(db, decision.TargetID, content, embeddingBlob,
+							observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent); err == nil {
+							return nil
+						}
+						// On update failure, fall through to insert
+					case IngestDelete:
+						_ = supersedeEmbedding(db, decision.TargetID)
+						// Fall through to insert new memory below
+					case IngestNoop:
+						_ = boostExistingConfidence(db, decision.TargetID)
+						return nil
+					case IngestAdd:
+						// Fall through to insert
+					}
+					goto insert
+				}
+				// Invalid TargetID — fall through to threshold-based dedup
+			}
+			// LLM failed — fall through to threshold-based dedup
+		}
+
+		// Threshold fallback (original ISSUE-184 behavior)
 		if err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.9 {
-			// Boost existing entry's confidence by +0.05 (capped at 1.0)
-			_, _ = db.Exec(
-				"UPDATE embeddings SET confidence = MIN(1.0, confidence + 0.05) WHERE id = ?",
-				dupResult[0].id,
-			)
-			return nil // Skip insert — existing memory was reinforced
+			_ = boostExistingConfidence(db, dupResult[0].id)
+			return nil
 		}
 	}
 
+insert:
 	// Insert into vec table
 	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
 	result, err := db.Exec(vecStmt, embeddingBlob)

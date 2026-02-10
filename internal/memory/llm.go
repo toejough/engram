@@ -33,11 +33,37 @@ type CuratedResult struct {
 	MemoryType string `json:"memory_type"`
 }
 
+// IngestAction represents the action to take when ingesting a new memory.
+type IngestAction string
+
+const (
+	IngestAdd    IngestAction = "ADD"
+	IngestUpdate IngestAction = "UPDATE"
+	IngestDelete IngestAction = "DELETE"
+	IngestNoop   IngestAction = "NOOP"
+)
+
+// ExistingMemory represents a similar memory found during dedup checking.
+type ExistingMemory struct {
+	ID         int64   `json:"id"`
+	Content    string  `json:"content"`
+	Similarity float64 `json:"similarity"`
+}
+
+// IngestDecision is the LLM's recommendation for how to handle a new memory
+// relative to existing similar memories.
+type IngestDecision struct {
+	Action   IngestAction `json:"action"`
+	TargetID int64        `json:"target_id"`
+	Reason   string       `json:"reason"`
+}
+
 // LLMExtractor defines the interface for LLM-based memory processing.
 type LLMExtractor interface {
 	Extract(content string) (*Observation, error)
 	Synthesize(memories []string) (string, error)
 	Curate(query string, candidates []QueryResult) ([]CuratedResult, error)
+	Decide(newContent string, existing []ExistingMemory) (*IngestDecision, error)
 }
 
 // ClaudeCLIExtractor implements LLMExtractor using the claude CLI tool.
@@ -127,6 +153,41 @@ Select the 5-7 most relevant results for the user's request. Return ONLY a JSON 
 	}
 
 	return results, nil
+}
+
+// Decide asks the LLM whether a new memory should be added, should update/replace
+// an existing memory, makes an existing memory obsolete, or is a duplicate.
+func (c *ClaudeCLIExtractor) Decide(newContent string, existing []ExistingMemory) (*IngestDecision, error) {
+	var sb strings.Builder
+	for i, mem := range existing {
+		sb.WriteString(fmt.Sprintf("%d. [id=%d, similarity=%.2f] %q\n", i+1, mem.ID, mem.Similarity, mem.Content))
+	}
+
+	prompt := fmt.Sprintf(`A new memory is being stored:
+%q
+
+These similar memories already exist:
+%s
+Decide the best action. Return ONLY valid JSON:
+{"action":"ADD|UPDATE|DELETE|NOOP","target_id":<id or 0>,"reason":"<why>"}
+
+Rules:
+- ADD: genuinely new knowledge, no close match
+- UPDATE: new memory refines/corrects an existing one (target_id = which to update)
+- DELETE: new memory makes an existing one obsolete (target_id = which to remove)
+- NOOP: duplicate or less valuable than existing (target_id = which is better)`, newContent, sb.String())
+
+	output, err := c.runClaude(prompt)
+	if err != nil {
+		return nil, err
+	}
+
+	var decision IngestDecision
+	if err := json.Unmarshal(output, &decision); err != nil {
+		return nil, fmt.Errorf("failed to parse LLM response as IngestDecision: %w", err)
+	}
+
+	return &decision, nil
 }
 
 // runClaude executes the claude CLI and returns the output.
