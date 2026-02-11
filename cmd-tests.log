@@ -1,0 +1,138 @@
+# github.com/asg017/sqlite-vec-go-bindings/cgo
+cgo-gcc-prolog:55:11: warning: 'sqlite3_auto_extension' is deprecated: first deprecated in macOS 10.10 - Process-global auto extensions are not supported on Apple platforms [-Wdeprecated-declarations]
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sqlite3.h:7436:16: note: 'sqlite3_auto_extension' has been explicitly marked deprecated here
+cgo-gcc-prolog:74:11: warning: 'sqlite3_cancel_auto_extension' is deprecated: first deprecated in macOS 10.14 - Process-global auto extensions are not supported on Apple platforms [-Wdeprecated-declarations]
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sqlite3.h:7449:16: note: 'sqlite3_cancel_auto_extension' has been explicitly marked deprecated here
+Session extraction complete
+Status: success
+Items extracted: 1
+Confidence distribution:
+  1.0: 1 items
+Memory root: /var/folders/wt/d9l7ljqx0r5b8ffgjt6p9v800000gn/T/TestMemoryExtractSessionCommandExecutes3827031101/001/memory
+Session extraction complete
+Status: success
+Items extracted: 2
+Confidence distribution:
+  1.0: 2 items
+Memory root: /var/folders/wt/d9l7ljqx0r5b8ffgjt6p9v800000gn/T/TestMemoryExtractSessionPrintsSummary4161820586/001/memory
+Hooks installed successfully to /var/folders/wt/d9l7ljqx0r5b8ffgjt6p9v800000gn/T/TestMemoryHooksInstall_CreatesNewFile2267469597/001/settings.json
+
+Installed hooks:
+  - Stop: projctl memory extract-session --transcript $TRANSCRIPT_PATH &
+  - PreCompact: projctl memory extract-session --transcript $TRANSCRIPT_PATH &
+  - SessionStart: projctl memory query --primacy --stdin-project --min-confidence=30 --max-tokens=1000 -n 10 "recent important learnings"
+  - UserPromptSubmit: projctl memory query --primacy --stdin-prompt --min-confidence=30 --max-tokens=2000 -n 10
+  - PreToolUse: projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5
+Hooks installed successfully to /var/folders/wt/d9l7ljqx0r5b8ffgjt6p9v800000gn/T/TestMemoryHooksInstall_DefaultsToHomeDir2715498908/001/.claude/settings.json
+
+Installed hooks:
+  - Stop: projctl memory extract-session --transcript $TRANSCRIPT_PATH &
+  - PreCompact: projctl memory extract-session --transcript $TRANSCRIPT_PATH &
+  - SessionStart: projctl memory query --primacy --stdin-project --min-confidence=30 --max-tokens=1000 -n 10 "recent important learnings"
+  - UserPromptSubmit: projctl memory query --primacy --stdin-prompt --min-confidence=30 --max-tokens=2000 -n 10
+  - PreToolUse: projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5
+{
+  "Stop": [
+    {
+      "command": "projctl memory extract-session --transcript $TRANSCRIPT_PATH \u0026",
+      "type": "command"
+    }
+  ]
+}
+{
+  "Stop": [
+    {
+      "command": "test",
+      "type": "command"
+    }
+  ]
+}
+panic: test timed out after 30s
+	running tests:
+		TestExtractFunctionDetectsReturnValues (2s)
+
+goroutine 132 [running]:
+testing.(*M).startAlarm.func1()
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2682 +0x2b0
+created by time.goFunc
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/time/sleep.go:215 +0x38
+
+goroutine 1 [chan receive]:
+testing.(*T).Run(0x14000324540, {0x104e878e9?, 0x140000b5b38?}, 0x10507ffa0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2005 +0x378
+testing.runTests.func1(0x14000324540)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2477 +0x38
+testing.tRunner(0x14000324540, 0x140000b5c68)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0xc8
+testing.runTests(0x140003500d8, {0x1054d7b60, 0x58, 0x58}, {0x140001dfd00?, 0x7?, 0x1054e1e20?})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2475 +0x3b8
+testing.(*M).Run(0x14000332820)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:2337 +0x530
+main.main()
+	_testmain.go:221 +0x80
+
+goroutine 130 [syscall]:
+syscall.syscall6(0x1007a0140?, 0x1309bebd8?, 0x10555ca78?, 0x90?, 0x14000100008?, 0x140007c6120?, 0x14000606b98?)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/runtime/sys_darwin.go:60 +0x40
+syscall.wait4(0x14000606bc8?, 0x1049469ac?, 0x90?, 0x10506c340?)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/syscall/zsyscall_darwin_arm64.go:44 +0x4c
+syscall.Wait4(0x1400031a930?, 0x14000606c04, 0x140007a0140?, 0x1400031a7e0?)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/syscall/syscall_bsd.go:144 +0x28
+os.(*Process).pidWait.func1(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec_unix.go:64
+os.ignoringEINTR2[...](...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file_posix.go:266
+os.(*Process).pidWait(0x140001f0380)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec_unix.go:63 +0x9c
+os.(*Process).wait(0x10555ca78?)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec_unix.go:28 +0x24
+os.(*Process).Wait(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec.go:340
+os/exec.(*Cmd).Wait(0x140007ca180)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:922 +0x38
+os/exec.(*Cmd).Run(0x140007ca180)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:626 +0x38
+os/exec.(*Cmd).CombinedOutput(0x140007ca180)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:1039 +0x7c
+github.com/toejough/projctl/cmd/projctl_test.TestExtractFunctionDetectsReturnValues(0x140007c4000)
+	/Users/joe/repos/personal/projctl/cmd/projctl/refactor_extract_test.go:174 +0x2ac
+testing.tRunner(0x140007c4000, 0x10507ffa0)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1934 +0xc8
+created by testing.(*T).Run in goroutine 1
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/testing/testing.go:1997 +0x364
+
+goroutine 131 [IO wait]:
+internal/poll.runtime_pollWait(0x1309d7e00, 0x72)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/runtime/netpoll.go:351 +0xa0
+internal/poll.(*pollDesc).wait(0x1400020a360?, 0x140005f6200?, 0x1)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:84 +0x28
+internal/poll.(*pollDesc).waitRead(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x1400020a360, {0x140005f6200, 0x200, 0x200})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/internal/poll/fd_unix.go:165 +0x1e0
+os.(*File).read(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file_posix.go:29
+os.(*File).Read(0x1400012a0a8, {0x140005f6200?, 0x14000153d58?, 0x10493612c?})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:144 +0x68
+bytes.(*Buffer).ReadFrom(0x14000794420, {0x1050860b8, 0x140007808a8})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/bytes/buffer.go:217 +0x90
+io.copyBuffer({0x1050862a0, 0x14000794420}, {0x1050860b8, 0x140007808a8}, {0x0, 0x0, 0x0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:415 +0x14c
+io.Copy(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:388
+os.genericWriteTo(0x14000153f01?, {0x1050862a0, 0x14000794420})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:295 +0x58
+os.(*File).WriteTo(0x1054af820?, {0x1050862a0?, 0x14000794420?})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/file.go:273 +0x5c
+io.copyBuffer({0x1050862a0, 0x14000794420}, {0x1050861a0, 0x1400012a0a8}, {0x0, 0x0, 0x0})
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:411 +0x98
+io.Copy(...)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/io/io.go:388
+os/exec.(*Cmd).writerDescriptor.func1()
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:596 +0x40
+os/exec.(*Cmd).Start.func2(0x140007c4000?)
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:749 +0x30
+created by os/exec.(*Cmd).Start in goroutine 130
+	/opt/homebrew/Cellar/go/1.25.6/libexec/src/os/exec/exec.go:748 +0x6a4
+FAIL	github.com/toejough/projctl/cmd/projctl	30.416s
+FAIL

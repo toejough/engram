@@ -6877,3 +6877,25 @@ The full test suite for internal/memory takes too long to run, slowing down QA v
 **Created:** 2026-02-10
 
 optimizePromote() promotes entries based purely on retrieval count + project count thresholds, with no check for LLM enrichment. 35 unenriched entries exist - raw observations from Learn() where LLM extractor was unavailable. Raw observations like 'Success ISSUE-170: TDD cycle executed cleanly' get promoted instead of synthesized principles. Fix: (1) require principle \!= '' in promotion query or synthesize before promoting, (2) retroactively enrich or purge 35 existing unenriched entries.
+
+---
+
+### ISSUE-211: Use background daemon for LLM calls instead of spawning claude CLI per-call
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-11
+
+Currently `runClaude()` in `internal/memory/llm.go` spawns a new `claude --print` subprocess for every LLM operation (extract, synthesize, curate, decide, compile skill, detect specificity). Each call pays ~60s of CLI startup + API round-trip overhead.
+
+Explore a background daemon approach (similar to claude-mem) where a persistent Claude process stays running and accepts prompts on-demand via stdin/socket/pipe. This would eliminate repeated CLI startup overhead and could enable batching multiple operations.
+
+## Options to explore
+1. **Background daemon** — long-running `claude` process, communicate via stdin/stdout pipe
+2. **Direct API client** — bypass the CLI entirely, use Anthropic HTTP API from Go
+3. **Hybrid** — daemon for interactive sessions, direct API for batch operations
+
+## Acceptance Criteria
+- [ ] LLM calls during `projctl memory optimize` complete significantly faster than current ~60s per call
+- [ ] Ctrl-C still works (context cancellation propagates to daemon/API calls)
+- [ ] Fallback to current approach if daemon isn't running

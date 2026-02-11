@@ -4,14 +4,6 @@ import "github.com/toejough/targ"
 
 func main() {
 	targ.Main(
-		targ.Group("state",
-			targ.Targ(stateInit).Name("init").Description("Initialize project state file"),
-			targ.Targ(stateGet).Name("get").Description("Get current project state"),
-			targ.Targ(stateSet).Name("set").Description("Update state fields without transitioning"),
-			targ.Targ(stateTransition).Name("transition").Description("Transition to a new state"),
-			targ.Targ(stateRetry).Name("retry").Description("Re-attempt the last failed transition"),
-			targ.Targ(stateComplete).Name("complete").Description("Mark a task as complete"),
-		),
 		targ.Group("log",
 			targ.Targ(logWrite).Name("write").Description("Write an entry to the project log"),
 			targ.Targ(logRead).Name("read").Description("Read log entries with optional filtering"),
@@ -124,11 +116,6 @@ func main() {
 		),
 		targ.Group("retro",
 			targ.Targ(retroExtract).Name("extract").Description("Extract recommendations and questions from retro.md and create issues"),
-		),
-		targ.Group("step",
-			targ.Targ(stepNext).Name("next").Description("Get the next orchestration action as structured JSON"),
-			targ.Targ(stepComplete).Name("complete").Description("Record step result and advance sub-phase"),
-			targ.Targ(stepStatus).Name("status").Description("Show status of all tasks (active, completed, blocked)"),
 		),
 	)
 }

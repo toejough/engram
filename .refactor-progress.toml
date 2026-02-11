@@ -1,0 +1,103 @@
+# Test Refactoring Progress Tracker
+#
+# INSTRUCTIONS (for reference in case of interruption):
+# 1. Strip out orchestration logic and all associated tests
+# 2. Migrate issue-related logic to targs.go and remove those tests
+# 3. Assess all remaining tests for IO calls (process spawning, database interaction, etc)
+# 4. Identify structural and behavioral properties of projctl's business logic being tested
+# 5. Move pure integration tests (no business logic properties) to separate file with build flag
+# 6. Deduplicate properties: map properties to tests, rank tests (non-io > io, simple > complex)
+# 7. Delete tests with zero top-ranked properties
+# 8. Rewrite remaining IO tests with dependency injection (imptest, rapid, gomega)
+# 9. Parallelize all tests
+# 10. Measure performance after each step (baseline + after each change)
+#
+# MODEL SELECTION:
+# - Haiku: mechanical file operations, simple refactoring, test running
+# - Sonnet: complex refactoring, property analysis, dependency injection rewrites
+# - Opus: team coordination only (this file)
+
+[project]
+name = "test-refactor"
+start_time = "2026-02-11T00:00:00Z"
+baseline_test_time = "71.81 (internal partial)"
+
+[[steps]]
+id = 1
+name = "Baseline performance measurement"
+status = "completed"
+assigned_model = "haiku"
+test_time_seconds = "71.81"
+notes = "cmd/projctl: FAIL (timeout 30s on TestExtractFunctionDetectsReturnValues in refactor_extract_test.go). internal/memory: FAIL (timeout 60s). Other internal packages: PASS. Total 71.81s for partial internal suite."
+
+[[steps]]
+id = 2
+name = "Remove orchestration logic and tests"
+status = "completed"
+assigned_model = "sonnet"
+test_time_seconds = "66.14"
+notes = "Removed internal/state, internal/step, internal/workflow packages. Removed cmd/projctl/state.go, cmd/projctl/step.go and their tests. Removed skill_audit_test.go that depended on workflows.toml. cmd/projctl: PASS (58.325s). internal/memory: FAIL (timeout 60s, pre-existing). Other internal packages: PASS. Total 66.14s."
+
+[[steps]]
+id = 3
+name = "Migrate issue logic to targs.go, remove issue tests"
+status = "pending"
+assigned_model = "sonnet"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 4
+name = "Audit remaining tests: IO calls and business properties"
+status = "pending"
+assigned_model = "sonnet"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 5
+name = "Move pure integration tests to separate file with build flag"
+status = "pending"
+assigned_model = "haiku"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 6
+name = "Deduplicate properties and rank tests"
+status = "pending"
+assigned_model = "sonnet"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 7
+name = "Delete tests with zero top-ranked properties"
+status = "pending"
+assigned_model = "haiku"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 8
+name = "Rewrite IO tests with dependency injection"
+status = "pending"
+assigned_model = "sonnet"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 9
+name = "Parallelize all tests"
+status = "pending"
+assigned_model = "haiku"
+test_time_seconds = ""
+notes = ""
+
+[[steps]]
+id = 10
+name = "Final performance measurement"
+status = "pending"
+assigned_model = "haiku"
+test_time_seconds = ""
+notes = ""
