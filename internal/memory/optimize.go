@@ -67,6 +67,30 @@ type OptimizeResult struct {
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
 }
 
+// MaintenanceProposal represents a proposed maintenance action for ISSUE-212.
+// It describes what tier, what action, what target, why it's proposed, and what the result would look like.
+type MaintenanceProposal struct {
+	Tier    string // "embeddings", "skills", "claude-md"
+	Action  string // "prune", "decay", "consolidate", "split", "promote", "demote"
+	Target  string // ID, file path, or entry text
+	Reason  string // Why this is proposed
+	Preview string // What the result would look like
+}
+
+// MaintenanceReviewFunc is called to review a maintenance proposal.
+// It returns true if the proposal is approved, false if rejected.
+type MaintenanceReviewFunc func(MaintenanceProposal) bool
+
+// TierScanner scans a memory tier (embeddings, skills, or CLAUDE.md) and returns maintenance proposals.
+type TierScanner interface {
+	Scan() ([]MaintenanceProposal, error)
+}
+
+// ProposalApplier applies a maintenance proposal to the memory system.
+type ProposalApplier interface {
+	Apply(MaintenanceProposal) error
+}
+
 // checkContext checks if the context has been cancelled and returns an error if so.
 func checkContext(opts OptimizeOpts) error {
 	if opts.Context != nil {
