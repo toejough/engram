@@ -11,6 +11,7 @@ import (
 // TEST-139 traces: TASK-021
 // Test no cycle in acyclic graph
 func TestDetectCycle_Acyclic(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -26,6 +27,7 @@ func TestDetectCycle_Acyclic(t *testing.T) {
 // TEST-140 traces: TASK-021
 // Test detects simple cycle
 func TestDetectCycle_SimpleCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -42,6 +44,7 @@ func TestDetectCycle_SimpleCycle(t *testing.T) {
 // TEST-141 traces: TASK-021
 // Test detects self-loop
 func TestDetectCycle_SelfLoop(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -56,6 +59,7 @@ func TestDetectCycle_SelfLoop(t *testing.T) {
 // TEST-142 traces: TASK-021
 // Test diamond dependency is not a cycle
 func TestDetectCycle_Diamond(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -77,6 +81,7 @@ func TestDetectCycle_Diamond(t *testing.T) {
 // TEST-143 traces: TASK-021
 // Test empty graph has no cycle
 func TestDetectCycle_EmptyGraph(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -89,6 +94,7 @@ func TestDetectCycle_EmptyGraph(t *testing.T) {
 // TEST-144 traces: TASK-021
 // Test detects longer cycle
 func TestDetectCycle_LongerCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()

@@ -13,6 +13,7 @@ import (
 // TEST-171 traces: TASK-028
 // Test RealFS DirExists returns true for existing directory
 func TestRealFS_DirExists_True(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -23,6 +24,7 @@ func TestRealFS_DirExists_True(t *testing.T) {
 // TEST-172 traces: TASK-028
 // Test RealFS DirExists returns false for non-existent directory
 func TestRealFS_DirExists_False(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()
@@ -32,6 +34,7 @@ func TestRealFS_DirExists_False(t *testing.T) {
 // TEST-173 traces: TASK-028
 // Test RealFS FileExists returns true for existing file
 func TestRealFS_FileExists_True(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")
@@ -44,6 +47,7 @@ func TestRealFS_FileExists_True(t *testing.T) {
 // TEST-174 traces: TASK-028
 // Test RealFS FileExists returns false for non-existent file
 func TestRealFS_FileExists_False(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()
@@ -53,6 +57,7 @@ func TestRealFS_FileExists_False(t *testing.T) {
 // TEST-175 traces: TASK-028
 // Test RealFS ReadFile returns file content
 func TestRealFS_ReadFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.txt")
@@ -67,6 +72,7 @@ func TestRealFS_ReadFile(t *testing.T) {
 // TEST-176 traces: TASK-028
 // Test RealFS ReadFile returns error for non-existent file
 func TestRealFS_ReadFile_NotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()
@@ -77,6 +83,7 @@ func TestRealFS_ReadFile_NotFound(t *testing.T) {
 // TEST-177 traces: TASK-028
 // Test RealFS Walk traverses directory tree
 func TestRealFS_Walk(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -102,6 +109,7 @@ func TestRealFS_Walk(t *testing.T) {
 // TEST-178 traces: TASK-028
 // Test RealFS implements CollectableFS
 func TestRealFS_ImplementsCollectableFS(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()

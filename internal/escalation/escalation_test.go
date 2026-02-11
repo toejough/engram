@@ -37,6 +37,7 @@ func (e *fileNotFoundError) Error() string {
 // TEST-202 traces: TASK-006
 // Test Escalation struct has required fields
 func TestEscalation_Fields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	e := escalation.Escalation{
@@ -59,6 +60,7 @@ func TestEscalation_Fields(t *testing.T) {
 // TEST-203 traces: TASK-006
 // Test WriteEscalationFile creates markdown format
 func TestWriteEscalationFile_Format(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: make(map[string]string)}
@@ -89,6 +91,7 @@ func TestWriteEscalationFile_Format(t *testing.T) {
 // TEST-204 traces: TASK-006
 // Test round-trip: write then parse returns same escalations
 func TestEscalationRoundTrip(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: make(map[string]string)}
@@ -127,6 +130,7 @@ func TestEscalationRoundTrip(t *testing.T) {
 // TEST-205 traces: TASK-006
 // Test user edits to status and notes are captured
 func TestParseEscalationFile_UserEdits(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Simulate user-edited file content
@@ -156,6 +160,7 @@ func TestParseEscalationFile_UserEdits(t *testing.T) {
 // TEST-206 traces: TASK-006
 // Test invalid status values are rejected
 func TestParseEscalationFile_InvalidStatus(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	invalidContent := `# Escalations
@@ -182,6 +187,7 @@ func TestParseEscalationFile_InvalidStatus(t *testing.T) {
 // TEST-207 traces: TASK-006
 // Test valid status values are accepted
 func TestEscalation_ValidStatuses(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	validStatuses := []string{"pending", "resolved", "deferred", "issue"}
@@ -197,6 +203,7 @@ func TestEscalation_ValidStatuses(t *testing.T) {
 // TEST-208 traces: TASK-006
 // Test multiple escalations write/parse
 func TestEscalationFile_MultipleItems(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: make(map[string]string)}
@@ -218,6 +225,7 @@ func TestEscalationFile_MultipleItems(t *testing.T) {
 // TEST-209 traces: TASK-001
 // Test Resolve updates escalation status and notes by ID
 func TestResolve_UpdatesEscalation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	escalations := []escalation.Escalation{
@@ -238,6 +246,7 @@ func TestResolve_UpdatesEscalation(t *testing.T) {
 // TEST-210 traces: TASK-001
 // Test Resolve returns error for unknown ID
 func TestResolve_UnknownID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	escalations := []escalation.Escalation{
@@ -252,6 +261,7 @@ func TestResolve_UnknownID(t *testing.T) {
 // TEST-211 traces: TASK-001
 // Test Resolve returns error for invalid status
 func TestResolve_InvalidStatus(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	escalations := []escalation.Escalation{

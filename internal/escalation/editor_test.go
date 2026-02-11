@@ -35,6 +35,7 @@ func (m *MockExecutor) Run(name string, args ...string) error {
 // TEST-215 traces: TASK-008
 // Test editor selection uses $EDITOR first
 func TestSelectEditor_EnvVar(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	env := func(key string) string {
@@ -51,6 +52,7 @@ func TestSelectEditor_EnvVar(t *testing.T) {
 // TEST-216 traces: TASK-008
 // Test editor fallback to vim when $EDITOR not set
 func TestSelectEditor_Fallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	env := func(key string) string {
@@ -64,6 +66,7 @@ func TestSelectEditor_Fallback(t *testing.T) {
 // TEST-217 traces: TASK-008
 // Test OpenInEditor invokes editor command
 func TestOpenInEditor_InvokesCommand(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	exec := &MockExecutor{}
@@ -78,6 +81,7 @@ func TestOpenInEditor_InvokesCommand(t *testing.T) {
 // TEST-218 traces: TASK-008
 // Test ReviewEscalations full workflow
 func TestReviewEscalations_Workflow(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Mock FS that simulates user editing the file
@@ -139,6 +143,7 @@ Review each escalation and update the **Status** field:
 // TEST-219 traces: TASK-008
 // Test ReviewEscalations handles editor error
 func TestReviewEscalations_EditorError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: make(map[string]string)}

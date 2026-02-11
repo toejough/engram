@@ -32,6 +32,7 @@ func findProjectRoot() (string, error) {
 
 // TestProducerContracts verifies all producer SKILL.md files have valid Contract sections
 func TestProducerContracts(t *testing.T) {
+	t.Parallel()
 	producers := []string{
 		"pm-interview-producer",
 		"pm-infer-producer",
@@ -107,7 +108,10 @@ func TestProducerContracts(t *testing.T) {
 
 // TestGapAnalysisIncorporated verifies gap analysis decisions are included in contracts
 func TestGapAnalysisIncorporated(t *testing.T) {
+	t.Parallel(
 	// High priority gaps from gap-analysis.md that should be in contracts
+	)
+
 	testCases := []struct {
 		producer    string
 		description string
@@ -204,6 +208,7 @@ func TestGapAnalysisIncorporated(t *testing.T) {
 
 // TestContractFormat verifies contracts follow CONTRACT.md standard
 func TestContractFormat(t *testing.T) {
+	t.Parallel()
 	producers := []string{
 		"pm-interview-producer",
 		"pm-infer-producer",

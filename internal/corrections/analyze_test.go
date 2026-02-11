@@ -11,6 +11,7 @@ import (
 // TEST-715 traces: TASK-042
 // Test Analyze identifies repeated corrections (count >= 2)
 func TestAnalyze_IdentifiesRepeatedCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -31,6 +32,7 @@ func TestAnalyze_IdentifiesRepeatedCorrections(t *testing.T) {
 // TEST-716 traces: TASK-042
 // Test Analyze groups similar corrections with fuzzy matching
 func TestAnalyze_FuzzyMatchingSimilarCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -56,6 +58,7 @@ func TestAnalyze_FuzzyMatchingSimilarCorrections(t *testing.T) {
 // TEST-717 traces: TASK-042
 // Test Analyze respects MinOccurrences threshold
 func TestAnalyze_RespectsMinOccurrences(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -82,6 +85,7 @@ func TestAnalyze_RespectsMinOccurrences(t *testing.T) {
 // TEST-718 traces: TASK-042
 // Test Analyze default MinOccurrences is 2
 func TestAnalyze_DefaultMinOccurrencesIsTwo(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -105,6 +109,7 @@ func TestAnalyze_DefaultMinOccurrencesIsTwo(t *testing.T) {
 // TEST-719 traces: TASK-042
 // Test Pattern contains proposal for CLAUDE.md
 func TestAnalyze_PatternIncludesProposal(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -125,6 +130,7 @@ func TestAnalyze_PatternIncludesProposal(t *testing.T) {
 // TEST-720 traces: TASK-042
 // Test Pattern output includes all required fields
 func TestAnalyze_PatternFieldsComplete(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -139,14 +145,15 @@ func TestAnalyze_PatternFieldsComplete(t *testing.T) {
 
 	pattern := patterns[0]
 	// Required fields from acceptance criteria
-	g.Expect(pattern.Message).ToNot(BeEmpty())    // Pattern
-	g.Expect(pattern.Count).To(Equal(2))          // Count
-	g.Expect(pattern.Proposal).ToNot(BeEmpty())   // Proposed rule
+	g.Expect(pattern.Message).ToNot(BeEmpty())  // Pattern
+	g.Expect(pattern.Count).To(Equal(2))        // Count
+	g.Expect(pattern.Proposal).ToNot(BeEmpty()) // Proposed rule
 }
 
 // TEST-721 traces: TASK-042
 // Test Analyze with no corrections returns empty patterns
 func TestAnalyze_NoCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -158,6 +165,7 @@ func TestAnalyze_NoCorrections(t *testing.T) {
 // TEST-722 traces: TASK-042
 // Test Analyze groups by keywords not exact match
 func TestAnalyze_GroupsByKeywords(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -179,6 +187,7 @@ func TestAnalyze_GroupsByKeywords(t *testing.T) {
 // TEST-723 traces: TASK-042
 // Test Analyze property: patterns always sorted by count descending
 func TestAnalyze_Property_PatternsSortedByCount(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -208,6 +217,7 @@ func TestAnalyze_Property_PatternsSortedByCount(t *testing.T) {
 // TEST-724 traces: TASK-042
 // Test Analyze fuzzy matching uses keyword extraction
 func TestAnalyze_KeywordExtraction(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -233,6 +243,7 @@ func TestAnalyze_KeywordExtraction(t *testing.T) {
 // TEST-725 traces: TASK-042
 // Test Analyze ignores stop words in fuzzy matching
 func TestAnalyze_IgnoresStopWords(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -254,6 +265,7 @@ func TestAnalyze_IgnoresStopWords(t *testing.T) {
 // TEST-726 traces: TASK-042
 // Test Pattern proposal format is markdown-compatible
 func TestAnalyze_ProposalIsMarkdown(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -278,6 +290,7 @@ func TestAnalyze_ProposalIsMarkdown(t *testing.T) {
 // TEST-727 traces: TASK-042
 // Test Analyze with MinOccurrences of 1 returns all corrections
 func TestAnalyze_MinOccurrencesOne(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -298,6 +311,7 @@ func TestAnalyze_MinOccurrencesOne(t *testing.T) {
 // TEST-728 traces: TASK-042
 // Test Analyze property: MinOccurrences filters correctly
 func TestAnalyze_Property_MinOccurrencesFilters(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -327,6 +341,7 @@ func TestAnalyze_Property_MinOccurrencesFilters(t *testing.T) {
 // TEST-729 traces: TASK-042
 // Test Analyze includes example entries in pattern
 func TestAnalyze_PatternIncludesExamples(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 

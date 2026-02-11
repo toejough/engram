@@ -19,6 +19,7 @@ import (
 
 // TestRecordSkillFeedbackSuccess verifies that positive feedback increments alpha.
 func TestRecordSkillFeedbackSuccess(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -59,6 +60,7 @@ func TestRecordSkillFeedbackSuccess(t *testing.T) {
 
 // TestRecordSkillFeedbackFailure verifies that negative feedback increments beta.
 func TestRecordSkillFeedbackFailure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -99,6 +101,7 @@ func TestRecordSkillFeedbackFailure(t *testing.T) {
 
 // TestRecordSkillFeedbackNotFound verifies that feedback for non-existent skill errors.
 func TestRecordSkillFeedbackNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -116,6 +119,7 @@ func TestRecordSkillFeedbackNotFound(t *testing.T) {
 
 // TestListSkillsPublic verifies that ListSkillsPublic returns all non-pruned skills.
 func TestListSkillsPublic(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -156,6 +160,7 @@ func TestListSkillsPublic(t *testing.T) {
 
 // TestRecordSkillUsageIncrementsRetrievalCount verifies that RecordSkillUsage increments retrieval_count.
 func TestRecordSkillUsageIncrementsRetrievalCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -168,17 +173,17 @@ func TestRecordSkillUsageIncrementsRetrievalCount(t *testing.T) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &memory.GeneratedSkill{
-		Slug:           "usage-test",
-		Theme:          "Test",
-		Description:    "Test skill",
-		Content:        "Content",
+		Slug:            "usage-test",
+		Theme:           "Test",
+		Description:     "Test skill",
+		Content:         "Content",
 		SourceMemoryIDs: "[1]",
-		Alpha:          3.0,
-		Beta:           1.0,
-		Utility:        0.5,
-		RetrievalCount: 5,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		Alpha:           3.0,
+		Beta:            1.0,
+		Utility:         0.5,
+		RetrievalCount:  5,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	_, err = memory.InsertSkillForTest(db, skill)
@@ -196,6 +201,7 @@ func TestRecordSkillUsageIncrementsRetrievalCount(t *testing.T) {
 
 // TestRecordSkillUsageUpdatesLastRetrieved verifies that RecordSkillUsage updates last_retrieved timestamp.
 func TestRecordSkillUsageUpdatesLastRetrieved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -208,18 +214,18 @@ func TestRecordSkillUsageUpdatesLastRetrieved(t *testing.T) {
 
 	now := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
 	skill := &memory.GeneratedSkill{
-		Slug:           "timestamp-test",
-		Theme:          "Test",
-		Description:    "Test skill",
-		Content:        "Content",
+		Slug:            "timestamp-test",
+		Theme:           "Test",
+		Description:     "Test skill",
+		Content:         "Content",
 		SourceMemoryIDs: "[1]",
-		Alpha:          3.0,
-		Beta:           1.0,
-		Utility:        0.5,
-		RetrievalCount: 5,
-		LastRetrieved:  now,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		Alpha:           3.0,
+		Beta:            1.0,
+		Utility:         0.5,
+		RetrievalCount:  5,
+		LastRetrieved:   now,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	_, err = memory.InsertSkillForTest(db, skill)
@@ -243,6 +249,7 @@ func TestRecordSkillUsageUpdatesLastRetrieved(t *testing.T) {
 
 // TestRecordSkillUsageWithSuccessUpdatesAlpha verifies that success=true also updates alpha.
 func TestRecordSkillUsageWithSuccessUpdatesAlpha(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -255,17 +262,17 @@ func TestRecordSkillUsageWithSuccessUpdatesAlpha(t *testing.T) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &memory.GeneratedSkill{
-		Slug:           "success-test",
-		Theme:          "Test",
-		Description:    "Test skill",
-		Content:        "Content",
+		Slug:            "success-test",
+		Theme:           "Test",
+		Description:     "Test skill",
+		Content:         "Content",
 		SourceMemoryIDs: "[1]",
-		Alpha:          3.0,
-		Beta:           1.0,
-		Utility:        0.5,
-		RetrievalCount: 5,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		Alpha:           3.0,
+		Beta:            1.0,
+		Utility:         0.5,
+		RetrievalCount:  5,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	_, err = memory.InsertSkillForTest(db, skill)
@@ -285,6 +292,7 @@ func TestRecordSkillUsageWithSuccessUpdatesAlpha(t *testing.T) {
 
 // TestRecordSkillUsageWithoutSuccessDoesNotUpdateAlpha verifies that success=false does NOT update alpha.
 func TestRecordSkillUsageWithoutSuccessDoesNotUpdateAlpha(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -297,17 +305,17 @@ func TestRecordSkillUsageWithoutSuccessDoesNotUpdateAlpha(t *testing.T) {
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &memory.GeneratedSkill{
-		Slug:           "no-success-test",
-		Theme:          "Test",
-		Description:    "Test skill",
-		Content:        "Content",
+		Slug:            "no-success-test",
+		Theme:           "Test",
+		Description:     "Test skill",
+		Content:         "Content",
 		SourceMemoryIDs: "[1]",
-		Alpha:          3.0,
-		Beta:           1.0,
-		Utility:        0.5,
-		RetrievalCount: 5,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		Alpha:           3.0,
+		Beta:            1.0,
+		Utility:         0.5,
+		RetrievalCount:  5,
+		CreatedAt:       now,
+		UpdatedAt:       now,
 	}
 
 	_, err = memory.InsertSkillForTest(db, skill)
@@ -327,6 +335,7 @@ func TestRecordSkillUsageWithoutSuccessDoesNotUpdateAlpha(t *testing.T) {
 
 // TestRecordSkillUsageNotFound verifies that usage recording for non-existent skill errors.
 func TestRecordSkillUsageNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

@@ -60,6 +60,7 @@ func readObservationColumns(g Gomega, memoryRoot, contentSubstr string) (obsType
 
 // TEST: Learn with mock extractor populates observation columns
 func TestLearnWithExtractorPopulatesObservationColumns(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -93,6 +94,7 @@ func TestLearnWithExtractorPopulatesObservationColumns(t *testing.T) {
 
 // TEST: Learn with nil extractor behaves as before (backward compat)
 func TestLearnWithNilExtractorBackwardCompat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -118,6 +120,7 @@ func TestLearnWithNilExtractorBackwardCompat(t *testing.T) {
 
 // TEST: Learn with failing extractor falls back gracefully (no error returned)
 func TestLearnWithFailingExtractorFallsBack(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -143,6 +146,7 @@ func TestLearnWithFailingExtractorFallsBack(t *testing.T) {
 
 // TEST: Learn with ErrLLMUnavailable falls back gracefully
 func TestLearnWithErrLLMUnavailableFallsBack(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -163,6 +167,7 @@ func TestLearnWithErrLLMUnavailableFallsBack(t *testing.T) {
 
 // TEST: Enriched content format is "[type] principle - Context: rationale"
 func TestLearnEnrichedContentFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -190,6 +195,7 @@ func TestLearnEnrichedContentFormat(t *testing.T) {
 
 // TEST: Concepts are stored as comma-joined string
 func TestLearnConceptsCommaJoined(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -217,6 +223,7 @@ func TestLearnConceptsCommaJoined(t *testing.T) {
 
 // TEST: Property - Learn never fails due to extractor errors
 func TestPropertyLearnNeverFailsDueToExtractorErrors(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -239,6 +246,7 @@ func TestPropertyLearnNeverFailsDueToExtractorErrors(t *testing.T) {
 
 // TEST: Property - Learn with extractor always populates observation_type non-empty
 func TestPropertyLearnWithExtractorPopulatesObservationType(t *testing.T) {
+	t.Parallel()
 	validTypes := []string{"correction", "pattern", "decision", "discovery"}
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -274,6 +282,7 @@ func TestPropertyLearnWithExtractorPopulatesObservationType(t *testing.T) {
 
 // TEST: Learn with extractor stores to embeddings DB
 func TestLearnWithExtractorStoresToDB(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -302,6 +311,7 @@ func TestLearnWithExtractorStoresToDB(t *testing.T) {
 
 // TEST: Enriched content is used for embedding when extractor succeeds
 func TestLearnEnrichedContentUsedForEmbedding(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -333,6 +343,7 @@ func TestLearnEnrichedContentUsedForEmbedding(t *testing.T) {
 
 // TEST: Observation with empty concepts produces empty concepts column
 func TestLearnExtractorEmptyConcepts(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

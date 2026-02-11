@@ -15,6 +15,7 @@ import (
 // TEST-850: ONNX session is cached across multiple Query calls
 // traces: ISSUE-48
 func TestONNXSessionCachedAcrossQueries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation
@@ -57,6 +58,7 @@ func TestONNXSessionCachedAcrossQueries(t *testing.T) {
 // TEST-851: ONNX session initialization counter increments only once
 // traces: ISSUE-48
 func TestONNXSessionInitializedOnce(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation
@@ -88,12 +90,13 @@ func TestONNXSessionInitializedOnce(t *testing.T) {
 
 	// Session should have been initialized exactly once
 	finalCount := memory.GetSessionInitCount()
-	g.Expect(finalCount - initialCount).To(Equal(1), "session should be initialized exactly once")
+	g.Expect(finalCount-initialCount).To(Equal(1), "session should be initialized exactly once")
 }
 
 // TEST-852: ONNX session caching is thread-safe
 // traces: ISSUE-48
 func TestONNXSessionCachingThreadSafe(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation
@@ -158,6 +161,7 @@ func TestONNXSessionCachingThreadSafe(t *testing.T) {
 // TEST-853: Session cache survives across different memory roots
 // traces: ISSUE-48
 func TestONNXSessionCacheSurvivesAcrossMemoryRoots(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation
@@ -203,6 +207,7 @@ func TestONNXSessionCacheSurvivesAcrossMemoryRoots(t *testing.T) {
 // TEST-854: Session cache can be cleared for testing
 // traces: ISSUE-48
 func TestONNXSessionCacheCanBeCleared(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation
@@ -240,6 +245,7 @@ func TestONNXSessionCacheCanBeCleared(t *testing.T) {
 // TEST-855: Session cache reduces query time significantly
 // traces: ISSUE-48
 func TestONNXSessionCacheReducesQueryTime(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("skipping timing test in short mode")
 	}
@@ -284,6 +290,7 @@ func TestONNXSessionCacheReducesQueryTime(t *testing.T) {
 // TEST-856: Property-based test for session reuse consistency
 // traces: ISSUE-48
 func TestONNXSessionReusePropertyBased(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -332,6 +339,7 @@ func TestONNXSessionReusePropertyBased(t *testing.T) {
 // TEST-857: Session cache handles model path changes
 // traces: ISSUE-48
 func TestONNXSessionCacheHandlesModelPathChanges(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Clear session cache to ensure test isolation

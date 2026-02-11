@@ -14,6 +14,7 @@ import (
 // TestQueryResultsHasNoSkillsField verifies that QueryResults struct
 // does NOT have a Skills field (hook injection removed).
 func TestQueryResultsHasNoSkillsField(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	typ := reflect.TypeOf(memory.QueryResults{})
@@ -24,6 +25,7 @@ func TestQueryResultsHasNoSkillsField(t *testing.T) {
 // TestFormatMarkdownOptsHasNoSkillsField verifies that FormatMarkdownOpts
 // does NOT have a Skills field (hook injection removed).
 func TestFormatMarkdownOptsHasNoSkillsField(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	typ := reflect.TypeOf(memory.FormatMarkdownOpts{})
@@ -34,6 +36,7 @@ func TestFormatMarkdownOptsHasNoSkillsField(t *testing.T) {
 // TestFormatMarkdownNoSkillsSection verifies that FormatMarkdown output
 // never contains "## Relevant Skills" section regardless of input.
 func TestFormatMarkdownNoSkillsSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Test with memories only (no skills field exists to populate)

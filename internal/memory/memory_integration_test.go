@@ -46,6 +46,7 @@ func skipIfWindows(t *testing.T) {
 // TestIntegration_LearnThenQueryReturnsLearnedContent verifies learn -> query flow works end-to-end.
 // Traces to: TASK-8 AC "Test: memory learn -> query returns learned content"
 func TestIntegration_LearnThenQueryReturnsLearnedContent(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -91,6 +92,7 @@ func TestIntegration_LearnThenQueryReturnsLearnedContent(t *testing.T) {
 // TestIntegration_DecideThenQueryReturnsDecisionWithAlternatives verifies decide -> query flow.
 // Traces to: TASK-8 AC "Test: memory decide -> query returns decision with alternatives"
 func TestIntegration_DecideThenQueryReturnsDecisionWithAlternatives(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -138,6 +140,7 @@ func TestIntegration_DecideThenQueryReturnsDecisionWithAlternatives(t *testing.T
 // TestIntegration_ExtractFromResultThenQueryReturnsDecisions verifies extract result -> query flow.
 // Traces to: TASK-8 AC "Test: memory extract from result -> query returns decisions"
 func TestIntegration_ExtractFromResultThenQueryReturnsDecisions(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -211,6 +214,7 @@ task = "TASK-10"
 // TestIntegration_LearnThenQueryReturnsSummary verifies learn -> query flow with multiple learnings.
 // Traces to: TASK-8 AC "Test: memory learn -> query returns learned content"
 func TestIntegration_LearnThenQueryReturnsSummary(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -263,6 +267,7 @@ func TestIntegration_LearnThenQueryReturnsSummary(t *testing.T) {
 // TestIntegration_ONNXModelDownloadsOnFirstUse verifies model auto-download.
 // Traces to: TASK-8 AC "Test: ONNX model downloads on first use (check file created)"
 func TestIntegration_ONNXModelDownloadsOnFirstUse(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -303,6 +308,7 @@ func TestIntegration_ONNXModelDownloadsOnFirstUse(t *testing.T) {
 // TestIntegration_SQLiteVecDatabaseCreatedAtExpectedLocation verifies database creation.
 // Traces to: TASK-8 AC "Test: SQLite-vec database created at expected location"
 func TestIntegration_SQLiteVecDatabaseCreatedAtExpectedLocation(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -337,6 +343,7 @@ func TestIntegration_SQLiteVecDatabaseCreatedAtExpectedLocation(t *testing.T) {
 // TestIntegration_EmbeddingGenerationProducesNonZeroVectors verifies real embeddings.
 // Traces to: TASK-8 AC "Test: embedding generation produces non-zero vectors"
 func TestIntegration_EmbeddingGenerationProducesNonZeroVectors(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -365,6 +372,7 @@ func TestIntegration_EmbeddingGenerationProducesNonZeroVectors(t *testing.T) {
 // TestIntegration_EmbeddingVectorsHaveCorrectDimensions verifies 384 dimensions.
 // Traces to: TASK-8 AC "Test: embedding vectors have correct dimensions (384 for e5-small)"
 func TestIntegration_EmbeddingVectorsHaveCorrectDimensions(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -398,6 +406,7 @@ func TestIntegration_EmbeddingVectorsHaveCorrectDimensions(t *testing.T) {
 // Traces to: TASK-8 AC "Test: semantic similarity works (related queries rank higher than unrelated)"
 // Example: "error handling" matches "exception management" better than "ui design"
 func TestIntegration_SemanticSimilarityRanksRelatedHigher(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -453,6 +462,7 @@ func TestIntegration_SemanticSimilarityRanksRelatedHigher(t *testing.T) {
 // TestIntegration_SemanticSimilarityExampleErrorAndException tests the specific example.
 // Traces to: TASK-8 AC "Example similarity test: 'error handling' matches 'exception management' better than 'ui design'"
 func TestIntegration_SemanticSimilarityExampleErrorAndException(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -501,6 +511,7 @@ func TestIntegration_SemanticSimilarityExampleErrorAndException(t *testing.T) {
 // TestIntegration_TestUsesIsolatedTempDir verifies test isolation.
 // Traces to: TASK-8 AC "Tests use t.TempDir() for isolated test directories"
 func TestIntegration_TestUsesIsolatedTempDir(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -526,6 +537,7 @@ func TestIntegration_TestUsesIsolatedTempDir(t *testing.T) {
 // TestIntegration_SkipsAutoDownloadIfModelPresent verifies CI caching support.
 // Traces to: TASK-8 AC "Tests skip auto-download if model already present (CI caching)"
 func TestIntegration_SkipsAutoDownloadIfModelPresent(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -562,6 +574,7 @@ func TestIntegration_SkipsAutoDownloadIfModelPresent(t *testing.T) {
 // TestIntegration_RunsOnMacOSAndLinux documents platform support.
 // Traces to: TASK-8 AC "Tests run on macOS and Linux (document Windows as future work)"
 func TestIntegration_RunsOnMacOSAndLinux(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	g := NewWithT(t)
 
@@ -601,6 +614,7 @@ func TestIntegration_RunsOnMacOSAndLinux(t *testing.T) {
 // TestIntegration_UsesSetenvForEnvironmentIsolation verifies t.Setenv usage pattern.
 // Traces to: TASK-8 AC "Tests use t.Setenv() for environment isolation"
 func TestIntegration_UsesSetenvForEnvironmentIsolation(t *testing.T) {
+	t.Parallel()
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)

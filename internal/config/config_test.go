@@ -38,6 +38,7 @@ func (e *fileNotFoundError) Error() string {
 // TEST-185 traces: TASK-001
 // Test Load reads config from repo .claude/project-config.toml
 func TestLoad_RepoConfig(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockConfigFS{
@@ -69,6 +70,7 @@ requirement_prefix = "REQ"
 // TEST-186 traces: TASK-001
 // Test Load falls back to global config when repo config missing
 func TestLoad_GlobalFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockConfigFS{
@@ -93,6 +95,7 @@ preserve_threshold = 0.60
 // TEST-187 traces: TASK-001
 // Test Load returns defaults when no config exists
 func TestLoad_Defaults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockConfigFS{
@@ -129,6 +132,7 @@ func TestLoad_Defaults(t *testing.T) {
 // TEST-188 traces: TASK-001
 // Test Load repo config overrides global config
 func TestLoad_RepoOverridesGlobal(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockConfigFS{
@@ -158,6 +162,7 @@ docs_dir = "repo-docs"
 // TEST-189 traces: TASK-001
 // Test ResolvePath combines docs_dir with artifact path
 func TestResolvePath(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := &config.ProjectConfig{
@@ -190,6 +195,7 @@ func TestResolvePath(t *testing.T) {
 // TEST-190 traces: TASK-001
 // Test ResolvePath with custom docs_dir
 func TestResolvePath_CustomDocsDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := &config.ProjectConfig{
@@ -205,6 +211,7 @@ func TestResolvePath_CustomDocsDir(t *testing.T) {
 // TEST-191 traces: TASK-001
 // Test ResolvePath returns empty for unknown artifact
 func TestResolvePath_Unknown(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := config.Default()
@@ -214,6 +221,7 @@ func TestResolvePath_Unknown(t *testing.T) {
 // TEST-192 traces: TASK-001
 // Test Default returns valid config
 func TestDefault(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := config.Default()
@@ -225,6 +233,7 @@ func TestDefault(t *testing.T) {
 // TEST-400 traces: TASK-014
 // Test routing config has default values (all sonnet)
 func TestRouting_Defaults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := config.Default()
@@ -237,6 +246,7 @@ func TestRouting_Defaults(t *testing.T) {
 // TEST-401 traces: TASK-014
 // Test routing config loads from TOML
 func TestRouting_Load(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockConfigFS{
@@ -262,6 +272,7 @@ threshold_lines = 50
 // TEST-402 traces: TASK-014
 // Test routing config validates model names
 func TestRouting_ValidateModels(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Valid models
@@ -278,6 +289,7 @@ func TestRouting_ValidateModels(t *testing.T) {
 // TEST-403 traces: TASK-014
 // Test GetRouting returns routing config
 func TestGetRouting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cfg := config.Default()

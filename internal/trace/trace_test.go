@@ -162,6 +162,7 @@ func (m *MockFS) Glob(pattern string) ([]string, error) {
 }
 
 func TestValidID(t *testing.T) {
+	t.Parallel()
 	t.Run("accepts valid IDs", func(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(trace.ValidID("ISSUE-1")).To(BeTrue())
@@ -187,6 +188,7 @@ func TestValidID(t *testing.T) {
 }
 
 func TestValidIDProperty(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		prefix := rapid.SampledFrom([]string{"ISSUE", "REQ", "DES", "ARCH", "TASK"}).Draw(rt, "prefix")
@@ -202,6 +204,7 @@ func padNumber(n int) string {
 }
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	t.Run("adds link to empty matrix", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -300,6 +303,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+	t.Parallel()
 	t.Run("passes with complete coverage", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -438,6 +442,7 @@ func TestValidate(t *testing.T) {
 }
 
 func TestImpact(t *testing.T) {
+	t.Parallel()
 	t.Run("forward impact", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -546,6 +551,7 @@ func writeTestFile(t *testing.T, fs *MockFS, dir, pkg, name, content string) {
 
 // TEST-230 traces: TASK-003
 func TestRepair(t *testing.T) {
+	t.Parallel()
 	t.Run("detects dangling references", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -704,6 +710,7 @@ Design.
 // TEST-240: Validates orphan detection by scanning artifact Traces to: fields
 // traces: TASK-007
 func TestValidateOrphanDetection(t *testing.T) {
+	t.Parallel()
 	t.Run("orphan is ID in Traces to but not defined", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -896,6 +903,7 @@ func TestConfig(t *testing.T) {}
 // TEST-005: Show function returns ASCII tree representation
 // traces: TASK-005
 func TestShow(t *testing.T) {
+	t.Parallel()
 	t.Run("returns ASCII tree for simple chain", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}

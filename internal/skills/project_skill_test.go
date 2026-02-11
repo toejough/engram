@@ -12,6 +12,7 @@ import (
 // TestProjectSkill_TwoRoleArchitecture verifies TASK-1 AC-7: SKILL.md documents two-role split
 // Traces to: ARCH-042, REQ-016
 func TestProjectSkill_TwoRoleArchitecture(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -32,6 +33,7 @@ func TestProjectSkill_TwoRoleArchitecture(t *testing.T) {
 // TestProjectSkill_TeamLeadDelegationMode verifies TASK-1 AC-7: SKILL.md documents delegation-only mode
 // Traces to: ARCH-050, REQ-016
 func TestProjectSkill_TeamLeadDelegationMode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -54,6 +56,7 @@ func TestProjectSkill_TeamLeadDelegationMode(t *testing.T) {
 // TestProjectSkill_OrchestratorSpawnSequence verifies TASK-1 AC-1: Team lead spawns haiku orchestrator
 // Traces to: ARCH-048, REQ-016, REQ-017
 func TestProjectSkill_OrchestratorSpawnSequence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -77,6 +80,7 @@ func TestProjectSkill_OrchestratorSpawnSequence(t *testing.T) {
 // TestProjectSkill_SpawnRequestProtocol verifies TASK-1 AC-3: Orchestrator sends spawn requests via SendMessage
 // Traces to: ARCH-043, REQ-017, REQ-021
 func TestProjectSkill_SpawnRequestProtocol(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -97,6 +101,7 @@ func TestProjectSkill_SpawnRequestProtocol(t *testing.T) {
 // TestProjectSkill_ModelHandshakeValidation verifies TASK-1 AC-1: Team lead validates model handshake
 // Traces to: ARCH-047, ARCH-048, REQ-017
 func TestProjectSkill_ModelHandshakeValidation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -116,6 +121,7 @@ func TestProjectSkill_ModelHandshakeValidation(t *testing.T) {
 // TestProjectSkill_ShutdownProtocol verifies TASK-1 AC-5,6: Shutdown request and end-of-command sequence
 // Traces to: ARCH-044, REQ-018
 func TestProjectSkill_ShutdownProtocol(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -139,6 +145,7 @@ func TestProjectSkill_ShutdownProtocol(t *testing.T) {
 // TestProjectSkill_StatePersistenceOwnership verifies TASK-1 AC-2: Orchestrator owns state persistence
 // Traces to: ARCH-045, REQ-020, REQ-022
 func TestProjectSkill_StatePersistenceOwnership(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -158,6 +165,7 @@ func TestProjectSkill_StatePersistenceOwnership(t *testing.T) {
 // TestProjectSkill_OrchestratorStepLoop verifies TASK-1 AC-2: Orchestrator runs step loop
 // Traces to: ARCH-042, REQ-016
 func TestProjectSkill_OrchestratorStepLoop(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -178,6 +186,7 @@ func TestProjectSkill_OrchestratorStepLoop(t *testing.T) {
 // TestProjectSkillFull_DetailedArchitecture verifies SKILL-full.md has detailed two-role documentation
 // Traces to: ARCH-051, REQ-016
 func TestProjectSkillFull_DetailedArchitecture(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -205,6 +214,7 @@ func TestProjectSkillFull_DetailedArchitecture(t *testing.T) {
 // TestProjectSkill_NoOldOrchestratorPattern verifies old single-role pattern is removed
 // Traces to: ARCH-042, REQ-016
 func TestProjectSkill_NoOldOrchestratorPattern(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -233,6 +243,7 @@ func TestProjectSkill_NoOldOrchestratorPattern(t *testing.T) {
 // TestProjectSkill_TeamLeadSpawnConfirmation verifies TASK-1 AC-4: Team lead confirms spawns
 // Traces to: ARCH-043, REQ-017
 func TestProjectSkill_TeamLeadSpawnConfirmation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -251,6 +262,7 @@ func TestProjectSkill_TeamLeadSpawnConfirmation(t *testing.T) {
 // TestProjectSkill_TeamLeadCallsTeamCreate verifies TASK-2 AC-1: Team lead calls TeamCreate with project name
 // Traces to: ARCH-048, ARCH-042, REQ-016
 func TestProjectSkill_TeamLeadCallsTeamCreate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -271,6 +283,7 @@ func TestProjectSkill_TeamLeadCallsTeamCreate(t *testing.T) {
 // TestProjectSkill_TeamLeadSpawnsOrchestratorHaiku verifies TASK-2 AC-2: Team lead spawns orchestrator with model=haiku
 // Traces to: ARCH-048, REQ-016, REQ-017
 func TestProjectSkill_TeamLeadSpawnsOrchestratorHaiku(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -295,6 +308,7 @@ func TestProjectSkill_TeamLeadSpawnsOrchestratorHaiku(t *testing.T) {
 // TestProjectSkill_SpawnPromptContents verifies TASK-2 AC-3: Spawn prompt includes required context
 // Traces to: ARCH-048, REQ-017
 func TestProjectSkill_SpawnPromptContents(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -319,6 +333,7 @@ func TestProjectSkill_SpawnPromptContents(t *testing.T) {
 // TestProjectSkill_TeamLeadIdleAfterSpawn verifies TASK-2 AC-4: Team lead enters idle state after spawn
 // Traces to: ARCH-048, REQ-016
 func TestProjectSkill_TeamLeadIdleAfterSpawn(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -337,6 +352,7 @@ func TestProjectSkill_TeamLeadIdleAfterSpawn(t *testing.T) {
 // TestProjectSkill_OrchestratorInitAndLoop verifies TASK-2 AC-5: Orchestrator starts with state init and enters step loop
 // Traces to: ARCH-048, ARCH-045, REQ-016, REQ-020
 func TestProjectSkill_OrchestratorInitAndLoop(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -358,6 +374,7 @@ func TestProjectSkill_OrchestratorInitAndLoop(t *testing.T) {
 // TestProjectSkill_OrchestratorDetectsSpawnProducer verifies TASK-3 AC-1: Orchestrator detects spawn-producer action
 // Traces to: ARCH-043, REQ-017, DES-003
 func TestProjectSkill_OrchestratorDetectsSpawnProducer(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -377,6 +394,7 @@ func TestProjectSkill_OrchestratorDetectsSpawnProducer(t *testing.T) {
 // TestProjectSkill_OrchestratorDetectsSpawnQA verifies TASK-3 AC-2: Orchestrator detects spawn-qa action
 // Traces to: ARCH-043, REQ-017, DES-003
 func TestProjectSkill_OrchestratorDetectsSpawnQA(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -396,6 +414,7 @@ func TestProjectSkill_OrchestratorDetectsSpawnQA(t *testing.T) {
 // TestProjectSkill_OrchestratorComposesSpawnRequest verifies TASK-3 AC-3: Orchestrator composes SendMessage with spawn_request and task_params
 // Traces to: ARCH-043, REQ-017, DES-004
 func TestProjectSkill_OrchestratorComposesSpawnRequest(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -416,6 +435,7 @@ func TestProjectSkill_OrchestratorComposesSpawnRequest(t *testing.T) {
 // TestProjectSkill_SpawnRequestMessageFields verifies TASK-3 AC-4: Message includes expected_model, action, phase fields
 // Traces to: ARCH-043, REQ-017, DES-004
 func TestProjectSkill_SpawnRequestMessageFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -435,6 +455,7 @@ func TestProjectSkill_SpawnRequestMessageFields(t *testing.T) {
 // TestProjectSkill_TeamLeadExtractsTaskParams verifies TASK-3 AC-5: Team lead receives and extracts task_params
 // Traces to: ARCH-043, REQ-017, DES-003
 func TestProjectSkill_TeamLeadExtractsTaskParams(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -456,6 +477,7 @@ func TestProjectSkill_TeamLeadExtractsTaskParams(t *testing.T) {
 // TestProjectSkill_TeamLeadCallsTaskTool verifies TASK-3 AC-6: Team lead calls Task tool with extracted parameters
 // Traces to: ARCH-043, REQ-017, DES-003
 func TestProjectSkill_TeamLeadCallsTaskTool(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -481,6 +503,7 @@ func TestProjectSkill_TeamLeadCallsTaskTool(t *testing.T) {
 // TestProjectSkill_TeamLeadSendsConfirmation verifies TASK-3 AC-7: Team lead sends confirmation after successful spawn
 // Traces to: ARCH-043, REQ-017, DES-005
 func TestProjectSkill_TeamLeadSendsConfirmation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -504,6 +527,7 @@ func TestProjectSkill_TeamLeadSendsConfirmation(t *testing.T) {
 // TestProjectSkillFull_ErrorHandlingRetryLogic verifies TASK-6 AC-1,2: Orchestrator wraps step commands with retry
 // Traces to: ARCH-046, REQ-019, REQ-023
 func TestProjectSkillFull_ErrorHandlingRetryLogic(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -525,6 +549,7 @@ func TestProjectSkillFull_ErrorHandlingRetryLogic(t *testing.T) {
 // TestProjectSkillFull_SpawnConfirmationRetry verifies TASK-6 AC-3: Spawn confirmation waits have timeout retry
 // Traces to: ARCH-046, REQ-019
 func TestProjectSkillFull_SpawnConfirmationRetry(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -543,6 +568,7 @@ func TestProjectSkillFull_SpawnConfirmationRetry(t *testing.T) {
 // TestProjectSkillFull_BackoffDelayPattern verifies TASK-6 AC-4: Backoff delays follow 1s, 2s, 4s pattern
 // Traces to: ARCH-046, REQ-019, DES-006
 func TestProjectSkillFull_BackoffDelayPattern(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -564,6 +590,7 @@ func TestProjectSkillFull_BackoffDelayPattern(t *testing.T) {
 // TestProjectSkillFull_ErrorEscalationAfterRetries verifies TASK-6 AC-5: Escalate after 3 failed attempts
 // Traces to: ARCH-046, REQ-019, REQ-023
 func TestProjectSkillFull_ErrorEscalationAfterRetries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -585,6 +612,7 @@ func TestProjectSkillFull_ErrorEscalationAfterRetries(t *testing.T) {
 // TestProjectSkillFull_ErrorMessageFormat verifies TASK-6 AC-6: Error message includes required fields
 // Traces to: ARCH-046, REQ-019, DES-006
 func TestProjectSkillFull_ErrorMessageFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -609,6 +637,7 @@ func TestProjectSkillFull_ErrorMessageFormat(t *testing.T) {
 // TestProjectSkillFull_TeamLeadEscalationToUser verifies TASK-6 AC-7: Team lead escalates to user
 // Traces to: ARCH-046, REQ-019, REQ-023
 func TestProjectSkillFull_TeamLeadEscalationToUser(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -635,6 +664,7 @@ func TestProjectSkillFull_TeamLeadEscalationToUser(t *testing.T) {
 // TestProjectSkillFull_RetryLogging verifies TASK-6 AC-8: Orchestrator logs retry attempts
 // Traces to: ARCH-046, REQ-019
 func TestProjectSkillFull_RetryLogging(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -655,6 +685,7 @@ func TestProjectSkillFull_RetryLogging(t *testing.T) {
 // TestProjectSkillFull_AtomicStateWrites verifies TASK-7 AC-7: Atomic state writes (temp file + rename)
 // Traces to: ARCH-045, REQ-020, REQ-022
 func TestProjectSkillFull_AtomicStateWrites(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()

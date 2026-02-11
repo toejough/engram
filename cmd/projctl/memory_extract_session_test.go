@@ -16,6 +16,7 @@ import (
 // TEST-1100: memoryExtractSessionArgs structure accepts transcript flag
 // traces: TASK-1 AC-1
 func TestMemoryExtractSessionArgsStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	args := memoryExtractSessionArgs{
@@ -30,6 +31,7 @@ func TestMemoryExtractSessionArgsStructure(t *testing.T) {
 // TEST-1101: memoryExtractSession command executes successfully
 // traces: TASK-1 AC-1
 func TestMemoryExtractSessionCommandExecutes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -57,6 +59,7 @@ func TestMemoryExtractSessionCommandExecutes(t *testing.T) {
 // TEST-1102: memoryExtractSession command defaults MemoryRoot to ~/.claude/memory
 // traces: TASK-1 AC-1
 func TestMemoryExtractSessionDefaultsMemoryRoot(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -84,6 +87,7 @@ func TestMemoryExtractSessionDefaultsMemoryRoot(t *testing.T) {
 // TEST-1103: memoryExtractSession command prints summary to stdout
 // traces: TASK-1 AC-8
 func TestMemoryExtractSessionPrintsSummary(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -127,6 +131,7 @@ func TestMemoryExtractSessionPrintsSummary(t *testing.T) {
 // TEST-1104: memoryExtractSession command handles missing transcript file
 // traces: TASK-1 AC-7
 func TestMemoryExtractSessionHandlesMissingTranscript(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

@@ -15,6 +15,7 @@ import (
 
 // TEST: FTS5 table created on init (requires sqlite_fts5 build tag)
 func TestFTS5TableCreatedOnInit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -43,6 +44,7 @@ func TestFTS5TableCreatedOnInit(t *testing.T) {
 
 // TEST: learnToEmbeddings populates FTS5 (requires sqlite_fts5 build tag)
 func TestLearnPopulatesFTS5(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -71,6 +73,7 @@ func TestLearnPopulatesFTS5(t *testing.T) {
 
 // TEST: BM25Enabled is true when FTS5 is available
 func TestBM25EnabledWithFTS5(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

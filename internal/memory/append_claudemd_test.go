@@ -20,7 +20,10 @@ import (
 // TEST-4020: Property: appending N times produces exactly 1 Promoted Learnings header
 // traces: ISSUE-182
 func TestAppendClaudeMDPropertySingleHeader(t *testing.T) {
+	t.Parallel(
 	// Use a shared temp dir with t.TempDir() for reliable cleanup
+	)
+
 	baseDir := t.TempDir()
 	memoryRoot := filepath.Join(baseDir, "memory")
 	claudeDir := filepath.Join(baseDir, "claude")
@@ -85,6 +88,7 @@ func TestAppendClaudeMDPropertySingleHeader(t *testing.T) {
 // TEST-4021: Property: all learnings from all append calls appear in the output
 // traces: ISSUE-182
 func TestAppendClaudeMDPropertyAllLearningsPresent(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -155,6 +159,7 @@ func TestAppendClaudeMDPropertyAllLearningsPresent(t *testing.T) {
 // TEST-4022: Edge: appending to empty/new file creates section correctly
 // traces: ISSUE-182
 func TestAppendClaudeMDNewFileCreatesSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -210,6 +215,7 @@ func TestAppendClaudeMDNewFileCreatesSection(t *testing.T) {
 // TEST-4023: Edge: appending to file without existing Promoted Learnings section
 // traces: ISSUE-182
 func TestAppendClaudeMDFileWithoutSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -271,6 +277,7 @@ func TestAppendClaudeMDFileWithoutSection(t *testing.T) {
 // TEST-4024: Multiple appends to file WITH existing Promoted Learnings section reuses it
 // traces: ISSUE-182
 func TestAppendClaudeMDMultipleAppendsReusesSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

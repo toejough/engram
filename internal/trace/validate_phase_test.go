@@ -12,6 +12,7 @@ import (
 // TEST-201: ValidateV2Artifacts accepts phase parameter
 // traces: TASK-1
 func TestValidateV2Artifacts_AcceptsPhaseParameter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -34,6 +35,7 @@ Description.
 // TEST-202: At arch_commit, ARCH IDs can be unlinked
 // traces: TASK-1
 func TestValidateV2Artifacts_ArchitectComplete_AllowsUnlinkedARCH(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -66,6 +68,7 @@ Description.
 // TEST-203: At breakdown-complete, TASK IDs can be unlinked
 // traces: TASK-1
 func TestValidateV2Artifacts_BreakdownComplete_AllowsUnlinkedTASK(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -105,6 +108,7 @@ Description.
 // TEST-204: At task-complete and later, full chain is required
 // traces: TASK-1
 func TestValidateV2Artifacts_TaskComplete_RequiresFullChain(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -144,6 +148,7 @@ Description.
 // TEST-205: Without phase parameter, strictest validation applies
 // traces: TASK-1
 func TestValidateV2Artifacts_NoPhase_StrictestValidation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -174,6 +179,7 @@ Description.
 // TEST-206: Phase-aware validation propagates through CLI
 // traces: TASK-1
 func TestValidateV2Artifacts_PhaseParameterPropagation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -206,6 +212,7 @@ Description.
 // TEST-207: Early phases allow upstream unlinked IDs
 // traces: TASK-1
 func TestValidateV2Artifacts_EarlyPhases_AllowUpstreamUnlinked(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -237,6 +244,7 @@ Description.
 // traces: TASK-1
 // Reproduces ISSUE-57: projctl trace validate reported ISSUE-54 as orphan
 func TestValidateV2Artifacts_IssueIDNotOrphan(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -270,6 +278,7 @@ The PM skill must interview the user.
 // traces: TASK-1
 // Reproduces ISSUE-57 with docs_dir = "docs" (real project config)
 func TestValidateV2Artifacts_IssueIDNotOrphan_WithDocsDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -312,6 +321,7 @@ The PM skill must interview the user.
 // defined in repo-level docs/issues.md. Validation from subdirectory must not
 // report ISSUE IDs as orphans since issues are always defined at repo root.
 func TestValidateV2Artifacts_IssueIDNotOrphan_ProjectSubdir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
@@ -372,6 +382,7 @@ Description.
 // TEST-208: Invalid phase parameter returns error
 // traces: TASK-1
 func TestValidateV2Artifacts_InvalidPhase_ReturnsError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}

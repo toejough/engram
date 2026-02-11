@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	_ "github.com/mattn/go-sqlite3"
+	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
 	"github.com/toejough/projctl/internal/memory"
@@ -25,6 +25,7 @@ import (
 
 // TEST-1130: Calling optimize twice in <1hr doesn't double-decay
 func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -64,6 +65,7 @@ func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
 
 // TEST-1132: Promoted entries with confidence < 0.3 are auto-demoted from CLAUDE.md
 func TestOptimizeAutoDemote(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -119,6 +121,7 @@ func TestOptimizeAutoDemote(t *testing.T) {
 
 // TEST-1133: Contradiction detection reduces confidence by 0.5 per contradicting memory
 func TestOptimizeContradiction(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -192,6 +195,7 @@ func TestOptimizeContradiction(t *testing.T) {
 
 // TEST-1134: With AutoApprove true, synthesis and promote execute without prompts
 func TestOptimizeAutoApprove(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -209,6 +213,7 @@ func TestOptimizeAutoApprove(t *testing.T) {
 
 // TEST-1135: With ReviewFunc rejecting all, only automatic steps run
 func TestOptimizeReviewFuncRejectsAll(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -240,6 +245,7 @@ func TestOptimizeReviewFuncRejectsAll(t *testing.T) {
 
 // TEST-1136: Optimize on empty database runs without error
 func TestOptimizeEmptyDatabase(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -321,6 +327,7 @@ func (m *mockLLMSpecificDetector) IsNarrowLearning(ctx context.Context, learning
 
 // TEST-2001: Narrow learning is demoted to skill
 func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -355,12 +362,12 @@ func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
 	}
 
 	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:     memoryRoot,
-		ClaudeMDPath:   claudeMDPath,
-		SkillsDir:      skillsDir,
-		SkillCompiler:  compiler,
+		MemoryRoot:       memoryRoot,
+		ClaudeMDPath:     claudeMDPath,
+		SkillsDir:        skillsDir,
+		SkillCompiler:    compiler,
 		SpecificDetector: detector,
-		AutoApprove:    true,
+		AutoApprove:      true,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.ClaudeMDDemoted).To(BeNumerically(">=", 1))
@@ -379,6 +386,7 @@ func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
 
 // TEST-2002: Universal learning is NOT demoted
 func TestOptimizeDemoteClaudeMDUniversalLearning(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -421,6 +429,7 @@ func TestOptimizeDemoteClaudeMDUniversalLearning(t *testing.T) {
 
 // TEST-2003: Dry-run mode prints proposals without modification
 func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -468,6 +477,7 @@ func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
 
 // TEST-2004: Keyword fallback when LLM unavailable
 func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -517,6 +527,7 @@ func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
 
 // TEST-3001: High-utility skill with high confidence is promoted to CLAUDE.md
 func TestOptimizePromoteSkillsHighUtility(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -601,6 +612,7 @@ func TestOptimizePromoteSkillsHighUtility(t *testing.T) {
 
 // TEST-3002: Low-utility skill is not promoted
 func TestOptimizePromoteSkillsLowUtility(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -648,6 +660,7 @@ func TestOptimizePromoteSkillsLowUtility(t *testing.T) {
 
 // TEST-3003: Semantic deduplication skips when existing CLAUDE.md entry is similar
 func TestOptimizePromoteSkillsSemanticDedup(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -713,6 +726,7 @@ func TestOptimizePromoteSkillsSemanticDedup(t *testing.T) {
 
 // TEST-3004: ReviewFunc rejection prevents promotion
 func TestOptimizePromoteSkillsReviewReject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -781,6 +795,7 @@ func TestOptimizePromoteSkillsReviewReject(t *testing.T) {
 
 // TEST-3005: Dry-run mode (no SkillsDir) skips skill promotion
 func TestOptimizePromoteSkillsDryRun(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -826,6 +841,7 @@ func TestOptimizePromoteSkillsDryRun(t *testing.T) {
 
 // TEST-4001: Full pipeline executes: demotion + promotion with fixture data
 func TestOptimizePipelineEndToEnd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -955,6 +971,7 @@ func TestOptimizePipelineEndToEnd(t *testing.T) {
 
 // TEST-8001: MinSkillUtility threshold filters promotion candidates
 func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1016,6 +1033,7 @@ func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
 
 // TEST-8002: MinSkillConfidence threshold filters promotion candidates
 func TestOptimizeThresholdMinSkillConfidence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1076,6 +1094,7 @@ func TestOptimizeThresholdMinSkillConfidence(t *testing.T) {
 
 // TEST-8003: MinSkillProjects threshold filters promotion candidates
 func TestOptimizeThresholdMinSkillProjects(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1141,6 +1160,7 @@ func TestOptimizeThresholdMinSkillProjects(t *testing.T) {
 
 // TEST-10001: Two similar skills merge into one
 func TestSkillMerge(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1232,6 +1252,7 @@ func TestSkillMerge(t *testing.T) {
 
 // TEST-10002: Incoherent skill splits into multiple skills
 func TestSkillSplit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1291,10 +1312,10 @@ func TestSkillSplit(t *testing.T) {
 	// Mock similarity: IDs 1-3 cluster together (TDD), IDs 4-6 cluster together (Docs)
 	mockSimilarity := func(db *sql.DB, id1, id2 int64) (float64, error) {
 		// Same cluster: high similarity (>=0.6)
-		if (id1 >= 1 && id1 <= 3 && id2 >= 1 && id2 <= 3) {
+		if id1 >= 1 && id1 <= 3 && id2 >= 1 && id2 <= 3 {
 			return 0.8, nil
 		}
-		if (id1 >= 4 && id1 <= 6 && id2 >= 4 && id2 <= 6) {
+		if id1 >= 4 && id1 <= 6 && id2 >= 4 && id2 <= 6 {
 			return 0.8, nil
 		}
 		// Different clusters: low similarity
@@ -1335,6 +1356,7 @@ func TestSkillSplit(t *testing.T) {
 
 // TEST-8004: AutoDemoteUtility threshold controls skill pruning
 func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1401,6 +1423,7 @@ func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
 
 // TEST-207-5: Purge removes existing boilerplate
 func TestSessionBoilerplatePurgeRemovesExisting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1449,6 +1472,7 @@ func TestSessionBoilerplatePurgeRemovesExisting(t *testing.T) {
 
 // TEST-207-6: Purge skips promoted entries
 func TestSessionBoilerplatePurgeSkipsPromoted(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1489,6 +1513,7 @@ func TestSessionBoilerplatePurgeSkipsPromoted(t *testing.T) {
 
 // TEST-207-7: Purge on empty DB is no-op
 func TestSessionBoilerplatePurgeEmptyDB(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1508,8 +1533,11 @@ func TestSessionBoilerplatePurgeEmptyDB(t *testing.T) {
 
 // TEST-207-8: Property test - filter doesn't eat real content
 func TestSessionBoilerplatePropertyTest(t *testing.T) {
+	t.Parallel(
 	// Property: IsSessionBoilerplate returns false for random 20+ char alphanumeric strings
 	// that don't start with known boilerplate prefixes
+	)
+
 	rapid.Check(t, func(rt *rapid.T) {
 		// Generate a random alphabetic prefix (not #, *, -, .) followed by 20+ alphanumeric chars
 		prefix := rapid.StringMatching(`[a-zA-Z]`).Draw(rt, "prefix")
@@ -1528,6 +1556,7 @@ func TestSessionBoilerplatePropertyTest(t *testing.T) {
 
 // TEST-208-1: Purge removes legacy session embeddings (no timestamp prefix)
 func TestPurgeLegacySessionEmbeddings(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1584,6 +1613,7 @@ func TestPurgeLegacySessionEmbeddings(t *testing.T) {
 
 // TEST-208-2: Purge keeps Learn() entries with empty enrichment columns
 func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1631,8 +1661,9 @@ func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
 // Traces to: ISSUE-210
 // ============================================================================
 
-// TEST-210-1: Unenriched entry (principle = '') is not promoted to CLAUDE.md
+// TEST-210-1: Unenriched entry (principle = ”) is not promoted to CLAUDE.md
 func TestOptimizePromoteRejectsUnenriched(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1685,8 +1716,9 @@ func TestOptimizePromoteRejectsUnenriched(t *testing.T) {
 	g.Expect(string(claudeContent)).ToNot(ContainSubstring("Success ISSUE-170"))
 }
 
-// TEST-210-2: Enriched entry (principle != '') IS promoted to CLAUDE.md
+// TEST-210-2: Enriched entry (principle != ”) IS promoted to CLAUDE.md
 func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1750,6 +1782,7 @@ func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
 // TestOptimizeCancelledContext verifies that Optimize returns an error when
 // passed a cancelled context
 func TestOptimizeCancelledContext(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

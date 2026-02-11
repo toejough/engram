@@ -16,6 +16,7 @@ import (
 
 // TestRefactorExtractFunctionCommand tests the CLI interface for projctl refactor extract-function
 func TestRefactorExtractFunctionCommand(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -57,6 +58,7 @@ func DoSomething(x, y int) int {
 
 // TestExtractFunctionBasicExtraction tests extracting a simple code block
 func TestExtractFunctionBasicExtraction(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -98,6 +100,7 @@ func Process(a, b int) int {
 
 // TestExtractFunctionDetectsParameters tests that parameters are correctly detected
 func TestExtractFunctionDetectsParameters(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -141,6 +144,7 @@ func Calculate(x, y, z int) int {
 
 // TestExtractFunctionDetectsReturnValues tests that return values are correctly detected
 func TestExtractFunctionDetectsReturnValues(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -189,6 +193,7 @@ func Compute(x int) (int, error) {
 
 // TestExtractFunctionProducesCompilableCode tests that extracted code compiles
 func TestExtractFunctionProducesCompilableCode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -231,6 +236,7 @@ func Original(name string, count int) {
 
 // TestExtractFunctionAtomicOnFailure tests rollback on failure
 func TestExtractFunctionAtomicOnFailure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -270,6 +276,7 @@ func Simple() {
 
 // TestExtractFunctionInvalidLineRange tests error handling for invalid line ranges
 func TestExtractFunctionInvalidLineRange(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -332,6 +339,7 @@ func Foo() int {
 
 // TestExtractFunctionNonExistentFile tests error handling for non-existent files
 func TestExtractFunctionNonExistentFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cmd := exec.Command("projctl", "refactor", "extract-function",
@@ -346,6 +354,7 @@ func TestExtractFunctionNonExistentFile(t *testing.T) {
 
 // TestExtractFunctionInvalidFunctionName tests error handling for invalid names
 func TestExtractFunctionInvalidFunctionName(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -392,6 +401,7 @@ func Foo() {
 
 // TestExtractFunctionNameConflict tests error handling when function name already exists
 func TestExtractFunctionNameConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -430,6 +440,7 @@ func Process() {
 
 // TestExtractFunctionPreservesFormatting tests that code formatting is preserved
 func TestExtractFunctionPreservesFormatting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -474,6 +485,7 @@ func Verbose(name string) {
 
 // TestExtractFunctionPropertyBasedValidRanges tests property: valid line ranges produce valid extractions
 func TestExtractFunctionPropertyBasedValidRanges(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -549,6 +561,7 @@ func TestExtractFunctionPropertyBasedValidRanges(t *testing.T) {
 
 // TestExtractFunctionMultipleExtractions tests multiple extractions in same file
 func TestExtractFunctionMultipleExtractions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -598,6 +611,7 @@ func Complex(x, y int) int {
 
 // TestExtractFunctionWithComments tests that comments are handled correctly
 func TestExtractFunctionWithComments(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

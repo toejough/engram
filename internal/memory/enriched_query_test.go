@@ -20,6 +20,7 @@ import (
 
 // TEST: QueryResult has RetrievalCount field populated after query
 func TestQueryResultHasRetrievalCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -66,6 +67,7 @@ func TestQueryResultHasRetrievalCount(t *testing.T) {
 
 // TEST: QueryResult has ProjectsRetrieved field populated after query
 func TestQueryResultHasProjectsRetrieved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -112,6 +114,7 @@ func TestQueryResultHasProjectsRetrieved(t *testing.T) {
 
 // TEST: QueryResult MatchType is set to "vector" for vector-only results
 func TestQueryResultMatchTypeVector(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -140,6 +143,7 @@ func TestQueryResultMatchTypeVector(t *testing.T) {
 
 // TEST: hybridSearch sets MatchType="hybrid" when result appears in both vector and BM25
 func TestQueryResultMatchTypeHybrid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -209,6 +213,7 @@ func TestQueryResultMatchTypeHybrid(t *testing.T) {
 
 // TEST: searchBM25 populates RetrievalCount and ProjectsRetrieved
 func TestBM25ResultsHaveEnrichedFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -257,6 +262,7 @@ func TestBM25ResultsHaveEnrichedFields(t *testing.T) {
 
 // TEST: Property - MatchType is always one of {"vector", "bm25", "hybrid"} for non-empty results
 func TestPropertyMatchTypeValid(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -288,6 +294,7 @@ func TestPropertyMatchTypeValid(t *testing.T) {
 
 // TEST: Property - RetrievalCount is non-negative in QueryResult
 func TestPropertyRetrievalCountNonNegative(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -319,6 +326,7 @@ func TestPropertyRetrievalCountNonNegative(t *testing.T) {
 
 // TEST: Property - ProjectsRetrieved is nil or contains valid strings
 func TestPropertyProjectsRetrievedValid(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -364,12 +372,13 @@ func TestPropertyProjectsRetrievedValid(t *testing.T) {
 
 // TEST: extractMessageContent strips timestamp and project tags
 func TestExtractMessageContent(t *testing.T) {
+	t.Parallel()
 	_ = NewWithT(t)
 
 	tests := []struct {
-		name    string
-		input   string
-		want    string
+		name  string
+		input string
+		want  string
 	}{
 		{
 			name:  "full format with project",
@@ -408,6 +417,7 @@ func TestExtractMessageContent(t *testing.T) {
 
 // TEST: Verify DB columns are read into QueryResult (direct DB inspection)
 func TestQueryResultFieldsMatchDB(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

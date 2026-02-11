@@ -12,6 +12,7 @@ import (
 // These tests use real file operations to verify end-to-end behavior.
 
 func TestIntegrationRepairDuplicateIDSameFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -74,6 +75,7 @@ Description.
 }
 
 func TestIntegrationRepairDuplicateIDAcrossFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -135,6 +137,7 @@ Description.
 }
 
 func TestIntegrationRepairDanglingReferenceEscalation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -170,6 +173,7 @@ Design that references non-existent requirement.
 }
 
 func TestIntegrationRepairUsesNextAvailableID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -249,6 +253,7 @@ Description.
 }
 
 func TestIntegrationRepairNoDuplicateEscalations(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -294,6 +299,7 @@ Description.
 }
 
 func TestIntegrationRepairIsIdempotent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -357,6 +363,7 @@ Description.
 }
 
 func TestIntegrationRepairMultipleDuplicatesAndDangling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -434,6 +441,7 @@ Description.
 }
 
 func TestIntegrationRepairPreservesFileContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -498,6 +506,7 @@ Description.
 }
 
 func TestIntegrationRepairNoIssues(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -537,6 +546,7 @@ Description.
 }
 
 func TestIntegrationRepairReferencesUpdatedOnRenumber(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()

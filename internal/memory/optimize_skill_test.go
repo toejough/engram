@@ -23,6 +23,7 @@ import (
 // TestOptimizeOptsHasSkillFields verifies that OptimizeOpts has SkillsDir
 // and SkillCompiler fields.
 func TestOptimizeOptsHasSkillFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	opts := memory.OptimizeOpts{
@@ -37,6 +38,7 @@ func TestOptimizeOptsHasSkillFields(t *testing.T) {
 // TestOptimizeResultHasSkillFields verifies that OptimizeResult has
 // SkillsCompiled, SkillsMerged, and SkillsPruned fields.
 func TestOptimizeResultHasSkillFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	result := memory.OptimizeResult{
@@ -53,6 +55,7 @@ func TestOptimizeResultHasSkillFields(t *testing.T) {
 // TestOptimizeCompileSkillsCreatesSkill verifies that the compile step
 // creates a skill from a qualifying cluster.
 func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -134,6 +137,7 @@ func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
 // TestOptimizeCompileSkillsSkipsExistingSkillMembers verifies that clusters
 // whose members already belong to an existing non-pruned skill are skipped.
 func TestOptimizeCompileSkillsSkipsExistingSkillMembers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -223,6 +227,7 @@ func TestOptimizeCompileSkillsSkipsExistingSkillMembers(t *testing.T) {
 // TestPruneStaleSkillsSoftDeletes verifies that pruneStaleSkills soft-deletes
 // skills with utility < 0.4 and retrieval_count >= 5.
 func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -311,6 +316,7 @@ func TestPruneStaleSkillsSoftDeletes(t *testing.T) {
 // TestOptimizeCompileSkillsNoCompiler verifies that skill compilation
 // is skipped when no SkillsDir is provided.
 func TestOptimizeCompileSkillsNoCompiler(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -339,6 +345,7 @@ func TestOptimizeCompileSkillsNoCompiler(t *testing.T) {
 // TestPruneSafetyOnlyDeletesMemPrefixDirs verifies that prune only removes
 // directories with the mem- prefix, leaving hand-crafted skills untouched.
 func TestPruneSafetyOnlyDeletesMemPrefixDirs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

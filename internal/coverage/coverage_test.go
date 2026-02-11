@@ -56,6 +56,7 @@ func (e *fileNotFoundError) Error() string {
 // TEST-193 traces: TASK-003
 // Test empty repo returns 0% coverage and migrate recommendation
 func TestAnalyze_EmptyRepo(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{
@@ -76,6 +77,7 @@ func TestAnalyze_EmptyRepo(t *testing.T) {
 // TEST-194 traces: TASK-003
 // Test fully documented repo returns preserve recommendation
 func TestAnalyze_FullyDocumented(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{
@@ -125,6 +127,7 @@ Traces: ARCH-001
 // TEST-195 traces: TASK-003
 // Test partial coverage returns evaluate recommendation
 func TestAnalyze_PartialCoverage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{
@@ -161,7 +164,7 @@ func privateFunc() {}
 	result, err := coverage.Analyze("/project", cfg, fs)
 
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.DocumentedCount).To(Equal(1))          // REQ-001
+	g.Expect(result.DocumentedCount).To(Equal(1))            // REQ-001
 	g.Expect(result.InferredCount).To(BeNumerically(">", 0)) // Public exports
 	g.Expect(result.Recommendation).To(BeElementOf("migrate", "evaluate"))
 }
@@ -169,6 +172,7 @@ func privateFunc() {}
 // TEST-196 traces: TASK-003
 // Test custom thresholds from config are respected
 func TestAnalyze_CustomThresholds(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{
@@ -211,6 +215,7 @@ func Export2() {}
 // TEST-197 traces: TASK-003
 // Test coverage counts test files with traceability comments
 func TestAnalyze_TestsWithTraceability(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{
@@ -244,6 +249,7 @@ func TestFeature(t *testing.T) {}
 // TEST-198 traces: TASK-003
 // Test low coverage returns migrate recommendation
 func TestAnalyze_LowCoverage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{

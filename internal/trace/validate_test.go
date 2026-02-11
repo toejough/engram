@@ -11,6 +11,7 @@ import (
 // TEST-145 traces: TASK-022
 // Test all unique IDs passes validation
 func TestValidateTESTUniqueness_AllUnique(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -25,6 +26,7 @@ func TestValidateTESTUniqueness_AllUnique(t *testing.T) {
 // TEST-146 traces: TASK-022
 // Test duplicate TEST ID returns error
 func TestValidateTESTUniqueness_Duplicate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Can't add duplicate nodes directly, so we test the validation differently
@@ -42,6 +44,7 @@ func TestValidateTESTUniqueness_Duplicate(t *testing.T) {
 // TEST-147 traces: TASK-022
 // Test empty graph passes validation
 func TestValidateTESTUniqueness_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -53,6 +56,7 @@ func TestValidateTESTUniqueness_Empty(t *testing.T) {
 // TEST-148 traces: TASK-022
 // Test non-TEST nodes are ignored
 func TestValidateTESTUniqueness_IgnoresNonTEST(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -66,6 +70,7 @@ func TestValidateTESTUniqueness_IgnoresNonTEST(t *testing.T) {
 // TEST-149 traces: TASK-023
 // Test valid TEST ID format passes
 func TestValidateTESTIDFormat_Valid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	g.Expect(trace.ValidateTESTIDFormat("TEST-001")).To(BeTrue())
@@ -77,9 +82,10 @@ func TestValidateTESTIDFormat_Valid(t *testing.T) {
 // TEST-150 traces: TASK-023
 // Test invalid TEST ID format fails
 func TestValidateTESTIDFormat_Invalid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
-	g.Expect(trace.ValidateTESTIDFormat("test-1")).To(BeFalse())   // Lowercase
+	g.Expect(trace.ValidateTESTIDFormat("test-1")).To(BeFalse())  // Lowercase
 	g.Expect(trace.ValidateTESTIDFormat("TST-1")).To(BeFalse())   // Wrong prefix
 	g.Expect(trace.ValidateTESTIDFormat("TEST001")).To(BeFalse()) // No hyphen
 	g.Expect(trace.ValidateTESTIDFormat("TEST-")).To(BeFalse())   // Missing number
@@ -88,6 +94,7 @@ func TestValidateTESTIDFormat_Invalid(t *testing.T) {
 // TEST-151 traces: TASK-023
 // Test ValidateTESTIDFormats returns invalid IDs
 func TestValidateTESTIDFormats_ReturnsInvalid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Testing format validation function directly with ID strings
@@ -100,6 +107,7 @@ func TestValidateTESTIDFormats_ReturnsInvalid(t *testing.T) {
 // TEST-152 traces: TASK-023
 // Test all valid IDs returns empty
 func TestValidateTESTIDFormats_AllValid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	ids := []string{"TEST-001", "TEST-042", "TEST-100"}
@@ -111,6 +119,7 @@ func TestValidateTESTIDFormats_AllValid(t *testing.T) {
 // TEST-153 traces: TASK-024
 // Test all edges point to existing nodes
 func TestValidateDanglingRefs_NoDangling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -125,6 +134,7 @@ func TestValidateDanglingRefs_NoDangling(t *testing.T) {
 // TEST-154 traces: TASK-024
 // Test detects dangling reference
 func TestValidateDanglingRefs_Dangling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Build graph that allows dangling edges (via BuildGraph warnings)
@@ -148,6 +158,7 @@ func TestValidateDanglingRefs_Dangling(t *testing.T) {
 // TEST-155 traces: TASK-024
 // Test multiple dangling references all reported
 func TestValidateDanglingRefs_Multiple(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -169,6 +180,7 @@ func TestValidateDanglingRefs_Multiple(t *testing.T) {
 // TEST-156 traces: TASK-024
 // Test empty graph passes
 func TestValidateDanglingRefs_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -180,6 +192,7 @@ func TestValidateDanglingRefs_Empty(t *testing.T) {
 // TEST-157 traces: TASK-025
 // Test complete coverage passes
 func TestValidateCoverage_Complete(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -198,6 +211,7 @@ func TestValidateCoverage_Complete(t *testing.T) {
 // TEST-158 traces: TASK-025
 // Test REQ with no downstream ARCH/DES warns
 func TestValidateCoverage_REQNoDownstream(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -211,6 +225,7 @@ func TestValidateCoverage_REQNoDownstream(t *testing.T) {
 // TEST-159 traces: TASK-025
 // Test TASK with no TEST warns
 func TestValidateCoverage_TASKNoTEST(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -224,6 +239,7 @@ func TestValidateCoverage_TASKNoTEST(t *testing.T) {
 // TEST-160 traces: TASK-025
 // Test ARCH with no TASK warns
 func TestValidateCoverage_ARCHNoTASK(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()

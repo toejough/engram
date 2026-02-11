@@ -12,6 +12,7 @@ import (
 
 // TestOldQASkillsDeleted verifies all 13 phase-specific QA skill directories are deleted
 func TestOldQASkillsDeleted(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := filepath.Join("..", "..", "skills")
@@ -41,6 +42,7 @@ func TestOldQASkillsDeleted(t *testing.T) {
 
 // TestUniversalQASkillExists verifies the universal QA skill exists and is functional
 func TestUniversalQASkillExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillPath := filepath.Join("..", "..", "skills", "qa", "SKILL.md")
@@ -55,6 +57,7 @@ func TestUniversalQASkillExists(t *testing.T) {
 
 // TestNoOldQAReferencesInSkills verifies no broken references to old QA skills in skill files
 func TestNoOldQAReferencesInSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := filepath.Join("..", "..", "skills")
@@ -119,6 +122,7 @@ func TestNoOldQAReferencesInSkills(t *testing.T) {
 
 // TestQATemplateHandled verifies QA-TEMPLATE.md is properly updated or removed
 func TestQATemplateHandled(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	templatePath := filepath.Join("..", "..", "skills", "shared", "QA-TEMPLATE.md")
@@ -142,6 +146,7 @@ func TestQATemplateHandled(t *testing.T) {
 
 // TestAllProducerContractsExist verifies all producers have Contract sections (prerequisite)
 func TestAllProducerContractsExist(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	producersWithContracts := []string{
@@ -175,6 +180,7 @@ func TestAllProducerContractsExist(t *testing.T) {
 
 // TestGapAnalysisComplete verifies gap analysis was completed (prerequisite)
 func TestGapAnalysisComplete(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	gapAnalysisPath := filepath.Join("..", "..", "docs", "gap-analysis.md")
@@ -206,9 +212,9 @@ func TestGapAnalysisComplete(t *testing.T) {
 	}
 }
 
-
 // Property test: any skill file that mentions "qa" should use the universal "qa" skill
 func TestPropertyQAReferencesUseUniversalSkill(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 		skillsDir := filepath.Join("..", "..", "skills")
@@ -236,8 +242,8 @@ func TestPropertyQAReferencesUseUniversalSkill(t *testing.T) {
 
 		// If the file mentions QA in a dispatch/invocation context, it should use "qa" not "<phase>-qa"
 		if strings.Contains(contentStr, "qa = ") ||
-		   strings.Contains(contentStr, "QA:") ||
-		   strings.Contains(contentStr, "spawn-qa") {
+			strings.Contains(contentStr, "QA:") ||
+			strings.Contains(contentStr, "spawn-qa") {
 
 			// Verify it uses generic "qa" references, not phase-specific
 			oldQAPattern := []string{
@@ -250,7 +256,7 @@ func TestPropertyQAReferencesUseUniversalSkill(t *testing.T) {
 				if strings.Contains(contentStr, pattern) {
 					// Check if it's in a deprecated/historical context
 					if !strings.Contains(contentStr, "DEPRECATED") &&
-					   !strings.Contains(contentStr, "was:") {
+						!strings.Contains(contentStr, "was:") {
 						t.Fatalf("File %s uses old QA reference: %s", skillFile, pattern)
 					}
 				}

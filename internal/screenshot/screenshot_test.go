@@ -100,6 +100,7 @@ func savePNG(t *testing.T, fs *MockFS, dir, name string, img image.Image) string
 }
 
 func TestComputeSSIM(t *testing.T) {
+	t.Parallel()
 	t.Run("identical images score 1.0", func(t *testing.T) {
 		g := NewWithT(t)
 		img := solidImage(50, 50, color.RGBA{R: 128, G: 128, B: 128, A: 255})
@@ -143,6 +144,7 @@ func TestComputeSSIM(t *testing.T) {
 }
 
 func TestFindClusters(t *testing.T) {
+	t.Parallel()
 	t.Run("no clusters for identical images", func(t *testing.T) {
 		g := NewWithT(t)
 		img := solidImage(50, 50, color.RGBA{R: 128, G: 128, B: 128, A: 255})
@@ -178,6 +180,7 @@ func TestFindClusters(t *testing.T) {
 }
 
 func TestDiff(t *testing.T) {
+	t.Parallel()
 	t.Run("compares identical images", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte)}
@@ -271,12 +274,13 @@ func TestDiff(t *testing.T) {
 }
 
 func TestRenderHeatmap(t *testing.T) {
+	t.Parallel()
 	t.Run("produces image with correct dimensions", func(t *testing.T) {
 		g := NewWithT(t)
 
 		result := screenshot.SSIMResult{
-			Width:  10,
-			Height: 10,
+			Width:   10,
+			Height:  10,
 			Heatmap: make([][]float64, 10),
 		}
 		for y := range result.Heatmap {

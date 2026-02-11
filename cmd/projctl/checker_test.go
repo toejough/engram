@@ -15,6 +15,7 @@ import (
 // traces: TASK-001
 // Test that checker finds requirements.md at project root, not docs/.
 func TestChecker_RequirementsAtProjectRoot(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -31,6 +32,7 @@ func TestChecker_RequirementsAtProjectRoot(t *testing.T) {
 // traces: TASK-001
 // Test that checker finds design.md at project root, not docs/.
 func TestChecker_DesignAtProjectRoot(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -47,6 +49,7 @@ func TestChecker_DesignAtProjectRoot(t *testing.T) {
 // traces: TASK-001
 // Test that checker does NOT find files in docs/ subdirectory.
 func TestChecker_DoesNotCheckDocsSubdir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -96,6 +99,7 @@ func designHaveIDs(dir string) bool {
 // TEST-182 traces: TASK-001
 // Test checker validates simple number IDs (REQ-1, REQ-2, ...)
 func TestChecker_ValidatesSimpleNumberIDs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -111,6 +115,7 @@ func TestChecker_ValidatesSimpleNumberIDs(t *testing.T) {
 // TEST-183 traces: TASK-001
 // Test checker validates design with simple number IDs
 func TestChecker_ValidatesSimpleNumberDesignIDs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 

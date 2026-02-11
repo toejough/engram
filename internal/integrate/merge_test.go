@@ -108,6 +108,7 @@ func (e *fileNotFoundError) Error() string {
 // TEST-220 traces: TASK-016
 // Test merge with no ID conflicts appends items with same IDs
 func TestMerge_NoConflicts(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -141,6 +142,7 @@ New description.
 // TEST-221 traces: TASK-016
 // Test merge with ID conflicts renumbers items
 func TestMerge_WithConflicts(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -179,6 +181,7 @@ This has same ID as existing.
 // TEST-222 traces: TASK-016
 // Test merge updates traceability links after renumbering
 func TestMerge_UpdatesTraceability(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -220,6 +223,7 @@ to = ["DES-002"]
 // TEST-223 traces: TASK-016
 // Test merge returns summary with counts
 func TestMerge_ReturnsSummary(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -265,6 +269,7 @@ Desc.
 // TEST-224 traces: TASK-016
 // Test merge handles missing per-project files gracefully
 func TestMerge_MissingPerProjectFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -290,6 +295,7 @@ Desc.
 // TEST-225 traces: TASK-016
 // Test merge handles empty top-level files
 func TestMerge_EmptyTopLevel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -321,6 +327,7 @@ Second.
 // TEST-226 traces: TASK-002
 // Test MergeFeatureFiles consolidates design-*.md into design.md
 func TestMergeFeatureFiles_Design(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -361,6 +368,7 @@ Help format design.
 // TEST-227 traces: TASK-002
 // Test MergeFeatureFiles updates Traces to: references after renumbering
 func TestMergeFeatureFiles_UpdatesTracesTo(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -406,6 +414,7 @@ References DES-001 internally.
 // TEST-228 traces: TASK-002
 // Test MergeFeatureFiles handles multiple feature files
 func TestMergeFeatureFiles_MultipleFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -447,6 +456,7 @@ UI layout.
 // TEST-230 traces: TASK-016, ISSUE-139
 // Test merge renumbers inline Traces to: references (Bug 1: strings.Replace limit=1)
 func TestMerge_RenumbersInlineTraceReferences(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -504,6 +514,7 @@ Existing design.
 // TEST-231 traces: TASK-016, ISSUE-139
 // Test merge uses unpadded ID format (Bug 2: %s-%d not %s-%03d)
 func TestMerge_UnpaddedIDFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -535,6 +546,7 @@ Conflicting.
 // TEST-232 traces: TASK-016, ISSUE-139
 // Test MergeFeatureFiles uses unpadded ID format (Bug 2)
 func TestMergeFeatureFiles_UnpaddedIDFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -566,6 +578,7 @@ Feature.
 // TEST-233 traces: TASK-016, ISSUE-139
 // Test Merge reads per-project files from .claude/projects/ (Bug 3: path mismatch)
 func TestMerge_UsesClaudeProjectsPath(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{
@@ -592,6 +605,7 @@ Description.
 // TEST-229 traces: TASK-002
 // Test MergeFeatureFiles returns empty result when no feature files
 func TestMergeFeatureFiles_NoFeatureFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockFS{files: map[string]string{

@@ -18,6 +18,7 @@ import (
 // TestSynthesizePatternsClustersSimilarMemories verifies that 3+ related
 // messages about the same topic form a pattern cluster.
 func TestSynthesizePatternsClustersSimilarMemories(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -49,6 +50,7 @@ func TestSynthesizePatternsClustersSimilarMemories(t *testing.T) {
 // TestSynthesizePatternsSingletonsDontForm verifies that 3 completely different
 // messages do not form any patterns.
 func TestSynthesizePatternsSingletonsDontForm(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -78,6 +80,7 @@ func TestSynthesizePatternsSingletonsDontForm(t *testing.T) {
 // TestSynthesizePatternsMinClusterSize verifies that a pair of similar messages
 // does not form a pattern when minClusterSize=3.
 func TestSynthesizePatternsMinClusterSize(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -108,6 +111,7 @@ func TestSynthesizePatternsMinClusterSize(t *testing.T) {
 // TestSynthesizePatternsGeneratesTheme verifies that the Theme field is
 // non-empty for found patterns.
 func TestSynthesizePatternsGeneratesTheme(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -137,6 +141,7 @@ func TestSynthesizePatternsGeneratesTheme(t *testing.T) {
 // TestSynthesizePatternsGeneratesSynthesis verifies that the Synthesis field
 // describes the pattern.
 func TestSynthesizePatternsGeneratesSynthesis(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -167,6 +172,7 @@ func TestSynthesizePatternsGeneratesSynthesis(t *testing.T) {
 // TestPropertySynthesisClusterSizeAlwaysGteMinClusterSize verifies via property
 // test that every cluster in results has size >= minClusterSize.
 func TestPropertySynthesisClusterSizeAlwaysGteMinClusterSize(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -203,6 +209,7 @@ func TestPropertySynthesisClusterSizeAlwaysGteMinClusterSize(t *testing.T) {
 
 // TestSynthesizePatternsEmptyDatabase verifies no patterns from empty DB.
 func TestSynthesizePatternsEmptyDatabase(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -218,6 +225,7 @@ func TestSynthesizePatternsEmptyDatabase(t *testing.T) {
 // TestSynthesizePatternsAllRelated verifies that all related memories about
 // the same topic form one cluster.
 func TestSynthesizePatternsAllRelated(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -251,4 +259,3 @@ func TestSynthesizePatternsAllRelated(t *testing.T) {
 	g.Expect(result.Patterns).To(HaveLen(1))
 	g.Expect(result.Patterns[0].Occurrences).To(BeNumerically(">=", 3))
 }
-

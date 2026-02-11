@@ -12,6 +12,7 @@ import (
 )
 
 func TestParseHookInputRoundTrip(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	input := `{"session_id":"sess-123","transcript_path":"/tmp/transcript.jsonl","cwd":"/Users/joe/repos/projctl","permission_mode":"default","hook_event_name":"PostToolUse"}`
@@ -26,6 +27,7 @@ func TestParseHookInputRoundTrip(t *testing.T) {
 }
 
 func TestParseHookInputEmptyReader(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi, err := memory.ParseHookInput(strings.NewReader(""))
@@ -34,6 +36,7 @@ func TestParseHookInputEmptyReader(t *testing.T) {
 }
 
 func TestParseHookInputWhitespaceOnly(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi, err := memory.ParseHookInput(strings.NewReader("   \n  "))
@@ -42,6 +45,7 @@ func TestParseHookInputWhitespaceOnly(t *testing.T) {
 }
 
 func TestParseHookInputPartialJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	input := `{"session_id":"abc","cwd":"/tmp/project"}`
@@ -54,6 +58,7 @@ func TestParseHookInputPartialJSON(t *testing.T) {
 }
 
 func TestParseHookInputInvalidJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	_, err := memory.ParseHookInput(strings.NewReader("{invalid"))
@@ -61,6 +66,7 @@ func TestParseHookInputInvalidJSON(t *testing.T) {
 }
 
 func TestDeriveProjectNameFromCwd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	g.Expect(memory.DeriveProjectName("/Users/joe/repos/personal/projctl")).To(Equal("projctl"))
@@ -69,12 +75,14 @@ func TestDeriveProjectNameFromCwd(t *testing.T) {
 }
 
 func TestDeriveProjectNameEmptyCwd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	g.Expect(memory.DeriveProjectName("")).To(BeEmpty())
 }
 
 func TestDeriveProjectNameProperty(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		// Generate random directory-like paths
@@ -87,6 +95,7 @@ func TestDeriveProjectNameProperty(t *testing.T) {
 }
 
 func TestParseHookInputUserPromptSubmit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	input := `{"prompt":"implement auth","cwd":"/tmp/project","hook_event_name":"UserPromptSubmit","session_id":"s1"}`
@@ -99,6 +108,7 @@ func TestParseHookInputUserPromptSubmit(t *testing.T) {
 }
 
 func TestParseHookInputPreToolUse(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	input := `{"tool_name":"Bash","tool_input":{"command":"go test","description":"run tests"},"cwd":"/tmp","hook_event_name":"PreToolUse","session_id":"s1"}`
@@ -116,6 +126,7 @@ func TestParseHookInputPreToolUse(t *testing.T) {
 }
 
 func TestParseHookInputSessionStartStillWorks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	input := `{"session_id":"abc","cwd":"/tmp/project","hook_event_name":"SessionStart"}`
@@ -131,6 +142,7 @@ func TestParseHookInputSessionStartStillWorks(t *testing.T) {
 }
 
 func TestExtractToolQueryBash(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -141,6 +153,7 @@ func TestExtractToolQueryBash(t *testing.T) {
 }
 
 func TestExtractToolQueryBashNoDescription(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -151,6 +164,7 @@ func TestExtractToolQueryBashNoDescription(t *testing.T) {
 }
 
 func TestExtractToolQueryGrep(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -161,6 +175,7 @@ func TestExtractToolQueryGrep(t *testing.T) {
 }
 
 func TestExtractToolQueryRead(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -171,6 +186,7 @@ func TestExtractToolQueryRead(t *testing.T) {
 }
 
 func TestExtractToolQueryWrite(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -181,6 +197,7 @@ func TestExtractToolQueryWrite(t *testing.T) {
 }
 
 func TestExtractToolQueryEdit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -191,6 +208,7 @@ func TestExtractToolQueryEdit(t *testing.T) {
 }
 
 func TestExtractToolQueryGlob(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -201,6 +219,7 @@ func TestExtractToolQueryGlob(t *testing.T) {
 }
 
 func TestExtractToolQueryWebSearch(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -211,6 +230,7 @@ func TestExtractToolQueryWebSearch(t *testing.T) {
 }
 
 func TestExtractToolQueryWebFetch(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -221,6 +241,7 @@ func TestExtractToolQueryWebFetch(t *testing.T) {
 }
 
 func TestExtractToolQueryTask(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -231,6 +252,7 @@ func TestExtractToolQueryTask(t *testing.T) {
 }
 
 func TestExtractToolQueryUnknownTool(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{
@@ -241,6 +263,7 @@ func TestExtractToolQueryUnknownTool(t *testing.T) {
 }
 
 func TestExtractToolQueryEmptyToolInput(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{

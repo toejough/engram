@@ -19,6 +19,7 @@ var _ memory.SemanticMatcher = (*memory.MemoryStoreSemanticMatcher)(nil)
 // TEST-194-01: FindSimilarMemories returns results for seeded memories
 // traces: ISSUE-194 AC-1
 func TestMemoryStoreSemanticMatcherFindsMemories(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -50,6 +51,7 @@ func TestMemoryStoreSemanticMatcherFindsMemories(t *testing.T) {
 // TEST-194-02: FindSimilarMemories returns nil, nil when no memories match
 // traces: ISSUE-194 AC-2
 func TestMemoryStoreSemanticMatcherEmptyReturnsNilNil(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Empty memory root — no memories stored
@@ -64,6 +66,7 @@ func TestMemoryStoreSemanticMatcherEmptyReturnsNilNil(t *testing.T) {
 // TEST-194-03: FindSimilarMemories respects threshold filtering
 // traces: ISSUE-194 AC-3
 func TestMemoryStoreSemanticMatcherThresholdFiltering(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -83,6 +86,7 @@ func TestMemoryStoreSemanticMatcherThresholdFiltering(t *testing.T) {
 // TEST-194-04: Property test — FindSimilarMemories never returns more than limit results
 // traces: ISSUE-194 AC-4
 func TestMemoryStoreSemanticMatcherLimitCapping(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 

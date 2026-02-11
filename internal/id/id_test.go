@@ -14,6 +14,7 @@ import (
 // TEST-161 traces: TASK-003
 // Test Next returns TYPE-1 when no files exist
 func TestNext_NoFiles_ReturnsFirst(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -26,6 +27,7 @@ func TestNext_NoFiles_ReturnsFirst(t *testing.T) {
 // TEST-162 traces: TASK-003
 // Test Next returns TYPE-1 when files exist but have no IDs
 func TestNext_FilesWithoutIDs_ReturnsFirst(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -42,6 +44,7 @@ func TestNext_FilesWithoutIDs_ReturnsFirst(t *testing.T) {
 // TEST-163 traces: TASK-003
 // Test Next finds ID in root markdown file
 func TestNext_FindsIDInRoot(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -67,6 +70,7 @@ More content
 // TEST-164 traces: TASK-003
 // Test Next finds ID in docs/ subdirectory
 func TestNext_FindsIDInDocsSubdir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -91,6 +95,7 @@ Some content
 // TEST-165 traces: TASK-003
 // Test Next scans both root and docs/ to find max
 func TestNext_ScansRootAndDocs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -122,6 +127,7 @@ func TestNext_ScansRootAndDocs(t *testing.T) {
 // TEST-166 traces: TASK-003
 // Test Next handles DES prefix
 func TestNext_DESPrefix(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -141,6 +147,7 @@ func TestNext_DESPrefix(t *testing.T) {
 // TEST-167 traces: TASK-003
 // Test Next handles TASK prefix
 func TestNext_TASKPrefix(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -160,6 +167,7 @@ func TestNext_TASKPrefix(t *testing.T) {
 // TEST-168 traces: TASK-003
 // Test Next handles ISSUE prefix
 func TestNext_ISSUEPrefix(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -179,6 +187,7 @@ func TestNext_ISSUEPrefix(t *testing.T) {
 // TEST-169 traces: TASK-003
 // Test Next only counts IDs of the requested type
 func TestNext_OnlyCountsRequestedType(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -210,6 +219,7 @@ func TestNext_OnlyCountsRequestedType(t *testing.T) {
 // TEST-170 traces: TASK-003
 // Test Next finds IDs in various markdown patterns
 func TestNext_VariousMarkdownPatterns(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -240,6 +250,7 @@ REQ-002 mentioned inline
 // TEST-171 traces: TASK-003
 // Test Next ignores non-markdown files
 func TestNext_IgnoresNonMarkdown(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -260,6 +271,7 @@ func TestNext_IgnoresNonMarkdown(t *testing.T) {
 // TEST-172 traces: TASK-003
 // Test Next handles IDs with more than 3 digits
 func TestNext_HandlesLargeNumbers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -279,6 +291,7 @@ func TestNext_HandlesLargeNumbers(t *testing.T) {
 // TEST-173 traces: TASK-003
 // Test Next generates simple incrementing numbers
 func TestNext_GeneratesIncrementingNumbers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -310,6 +323,7 @@ func TestNext_GeneratesIncrementingNumbers(t *testing.T) {
 // TEST-174 traces: TASK-003
 // Property: Next always returns valid ID format
 func TestNext_PropertyValidFormat(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -339,6 +353,7 @@ func TestNext_PropertyValidFormat(t *testing.T) {
 // TEST-175 traces: TASK-003
 // Property: Next returns number one greater than max existing
 func TestNext_PropertyIncrements(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -363,6 +378,7 @@ func TestNext_PropertyIncrements(t *testing.T) {
 // TEST-176 traces: TASK-003
 // Test Next returns error for invalid prefix
 func TestNext_InvalidPrefix(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -375,6 +391,7 @@ func TestNext_InvalidPrefix(t *testing.T) {
 // TEST-177 traces: TASK-003
 // Test Next returns error for empty prefix
 func TestNext_EmptyPrefix(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -386,6 +403,7 @@ func TestNext_EmptyPrefix(t *testing.T) {
 // TEST-178 traces: TASK-001
 // Test Next generates simple numbers (REQ-1, REQ-2, ...) not zero-padded (REQ-001)
 func TestNext_GeneratesSimpleNumbers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -408,6 +426,7 @@ func TestNext_GeneratesSimpleNumbers(t *testing.T) {
 // TEST-179 traces: TASK-001
 // Test Next scans for \d+ pattern (any number of digits)
 func TestNext_ScansAnyNumberDigits(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -431,6 +450,7 @@ func TestNext_ScansAnyNumberDigits(t *testing.T) {
 // TEST-180 traces: TASK-001
 // Test Next is backward compatible with existing 3-digit zero-padded IDs
 func TestNext_BackwardCompatibleWithPaddedIDs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()
@@ -453,6 +473,7 @@ func TestNext_BackwardCompatibleWithPaddedIDs(t *testing.T) {
 // TEST-181 traces: TASK-001
 // Test Next handles mix of padded and unpadded IDs
 func TestNext_HandlesMixedFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	dir := t.TempDir()

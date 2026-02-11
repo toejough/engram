@@ -18,6 +18,7 @@ import (
 // TEST: Extract parses result file with decisions
 // Traces to: TASK-4 AC-1, AC-3, AC-7
 func TestExtract_ParsesResultFileWithDecisions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -76,6 +77,7 @@ task = "TASK-10"
 // TEST: Extract sets source field correctly for result files
 // Traces to: TASK-4 AC-8
 func TestExtract_SetsSourceFieldForResultFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -129,6 +131,7 @@ task = "TASK-10"
 // TEST: Extract returns wrapped error on read failure
 // Traces to: TASK-4 AC-10
 func TestExtract_ReturnsWrappedErrorOnReadFailure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -158,6 +161,7 @@ func TestExtract_ReturnsWrappedErrorOnReadFailure(t *testing.T) {
 // TEST: Extract returns wrapped error on parse failure
 // Traces to: TASK-4 AC-10
 func TestExtract_ReturnsWrappedErrorOnParseFailure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -191,6 +195,7 @@ result = "success"
 // TEST: Extract uses injected ReadFile for testing
 // Traces to: TASK-4 AC-9
 func TestExtract_UsesInjectedReadFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -240,6 +245,7 @@ task = "TASK-10"
 // TEST: Extract reads from file system when ReadFile is nil
 // Traces to: TASK-4 AC-9
 func TestExtract_ReadsFromFileSystemWhenReadFileNil(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -286,6 +292,7 @@ task = "TASK-10"
 // TEST: Extract returns ExtractResult with items list
 // Traces to: TASK-4 AC-7
 func TestExtract_ReturnsExtractResultWithItemsList(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -338,10 +345,10 @@ task = "TASK-10"
 	g.Expect(result.Items[0].Content).ToNot(BeEmpty())
 }
 
-
 // TEST: Extract handles empty decisions array gracefully
 // Traces to: TASK-4 AC-7
 func TestExtract_HandlesEmptyDecisionsGracefully(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

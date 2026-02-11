@@ -12,6 +12,7 @@ import (
 // TEST-133 traces: TASK-020
 // Test building graph from single item
 func TestBuildGraph_SingleItem(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -34,6 +35,7 @@ func TestBuildGraph_SingleItem(t *testing.T) {
 // TEST-134 traces: TASK-020
 // Test building graph with edges
 func TestBuildGraph_WithEdges(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -64,6 +66,7 @@ func TestBuildGraph_WithEdges(t *testing.T) {
 // TEST-135 traces: TASK-020
 // Test duplicate node ID returns error
 func TestBuildGraph_DuplicateID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -91,6 +94,7 @@ func TestBuildGraph_DuplicateID(t *testing.T) {
 // TEST-136 traces: TASK-020
 // Test dangling edge creates warning
 func TestBuildGraph_DanglingEdge(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -114,6 +118,7 @@ func TestBuildGraph_DanglingEdge(t *testing.T) {
 // TEST-137 traces: TASK-020
 // Test building empty graph
 func TestBuildGraph_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{}
@@ -127,6 +132,7 @@ func TestBuildGraph_Empty(t *testing.T) {
 // TEST-138 traces: TASK-020
 // Property test: N items creates N nodes
 func TestBuildGraph_PropertyNodeCount(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -174,6 +180,7 @@ func numStr(n int) string {
 // TEST-161 traces: TASK-026
 // Test ValidateGraph passes for valid graph
 func TestValidateGraph_Valid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -192,6 +199,7 @@ func TestValidateGraph_Valid(t *testing.T) {
 // TEST-162 traces: TASK-026
 // Test ValidateGraph fails with cycle
 func TestValidateGraph_WithCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -208,6 +216,7 @@ func TestValidateGraph_WithCycle(t *testing.T) {
 // TEST-163 traces: TASK-026
 // Test ValidateGraph reports warnings but still passes
 func TestValidateGraph_WithWarnings(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
@@ -223,6 +232,7 @@ func TestValidateGraph_WithWarnings(t *testing.T) {
 // TEST-164 traces: TASK-026
 // Test ValidateGraph reports dangling as error
 func TestValidateGraph_DanglingRef(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{

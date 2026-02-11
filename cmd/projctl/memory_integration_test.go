@@ -14,6 +14,7 @@ import (
 
 // TestMemoryLearnCommand tests the CLI interface for projctl memory learn
 func TestMemoryLearnCommand(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -39,6 +40,7 @@ func TestMemoryLearnCommand(t *testing.T) {
 
 // TestMemoryLearnWithProject tests the --project flag
 func TestMemoryLearnWithProject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -60,6 +62,7 @@ func TestMemoryLearnWithProject(t *testing.T) {
 
 // TestMemoryLearnRequiresMessage tests that --message is required
 func TestMemoryLearnRequiresMessage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -75,6 +78,7 @@ func TestMemoryLearnRequiresMessage(t *testing.T) {
 
 // TestMemoryLearnMultipleEntries tests appending multiple learnings
 func TestMemoryLearnMultipleEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -107,6 +111,7 @@ func TestMemoryLearnMultipleEntries(t *testing.T) {
 
 // TestMemoryDecideCommand tests the CLI interface for projctl memory decide
 func TestMemoryDecideCommand(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -127,6 +132,7 @@ func TestMemoryDecideCommand(t *testing.T) {
 
 // TestMemoryDecideRequiresFields tests that required fields are enforced
 func TestMemoryDecideRequiresFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -148,6 +154,7 @@ func TestMemoryDecideRequiresFields(t *testing.T) {
 
 // TestMemoryLearnWithSourceInternal tests --source internal flag
 func TestMemoryLearnWithSourceInternal(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -165,6 +172,7 @@ func TestMemoryLearnWithSourceInternal(t *testing.T) {
 
 // TestMemoryLearnWithSourceExternal tests --source external flag
 func TestMemoryLearnWithSourceExternal(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -182,6 +190,7 @@ func TestMemoryLearnWithSourceExternal(t *testing.T) {
 
 // TestMemoryLearnSourceDefaultsToInternal tests that omitting --source defaults to internal
 func TestMemoryLearnSourceDefaultsToInternal(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -199,6 +208,7 @@ func TestMemoryLearnSourceDefaultsToInternal(t *testing.T) {
 
 // TestMemoryLearnSourceWithProject tests --source combined with --project
 func TestMemoryLearnSourceWithProject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

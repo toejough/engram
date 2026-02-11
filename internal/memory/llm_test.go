@@ -20,6 +20,7 @@ import (
 // --- Extract tests ---
 
 func TestExtractReturnsObservationFromValidJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	obs := memory.Observation{
@@ -51,6 +52,7 @@ func TestExtractReturnsObservationFromValidJSON(t *testing.T) {
 }
 
 func TestExtractReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -68,6 +70,7 @@ func TestExtractReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 }
 
 func TestExtractReturnsErrorOnInvalidJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -84,6 +87,7 @@ func TestExtractReturnsErrorOnInvalidJSON(t *testing.T) {
 }
 
 func TestExtractPassesContentInPrompt(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var capturedArgs []string
@@ -116,6 +120,7 @@ func TestExtractPassesContentInPrompt(t *testing.T) {
 // --- Synthesize tests ---
 
 func TestSynthesizeReturnsPrincipleFromLLM(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -136,6 +141,7 @@ func TestSynthesizeReturnsPrincipleFromLLM(t *testing.T) {
 }
 
 func TestSynthesizeReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -153,6 +159,7 @@ func TestSynthesizeReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 }
 
 func TestSynthesizePassesMemoriesInPrompt(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var capturedArgs []string
@@ -180,6 +187,7 @@ func TestSynthesizePassesMemoriesInPrompt(t *testing.T) {
 // --- Curate tests ---
 
 func TestCurateReturnsFilteredResults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	curatedJSON := []memory.CuratedResult{
@@ -211,6 +219,7 @@ func TestCurateReturnsFilteredResults(t *testing.T) {
 }
 
 func TestCurateReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -228,6 +237,7 @@ func TestCurateReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 }
 
 func TestCurateReturnsErrorOnInvalidJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -244,6 +254,7 @@ func TestCurateReturnsErrorOnInvalidJSON(t *testing.T) {
 }
 
 func TestCuratePassesQueryAndCandidatesInPrompt(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var capturedArgs []string
@@ -283,6 +294,7 @@ func TestCuratePassesQueryAndCandidatesInPrompt(t *testing.T) {
 // --- Constructor tests ---
 
 func TestNewClaudeCLIExtractorSetsDefaults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := memory.NewClaudeCLIExtractor()
@@ -295,6 +307,7 @@ func TestNewClaudeCLIExtractorSetsDefaults(t *testing.T) {
 // --- Interface compliance ---
 
 func TestClaudeCLIExtractorImplementsLLMExtractor(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var _ memory.LLMExtractor = &memory.ClaudeCLIExtractor{}
@@ -304,6 +317,7 @@ func TestClaudeCLIExtractorImplementsLLMExtractor(t *testing.T) {
 // --- Property tests ---
 
 func TestPropertyExtractAlwaysReturnsValidTypeOrError(t *testing.T) {
+	t.Parallel()
 	validTypes := map[string]bool{
 		"correction": true,
 		"pattern":    true,
@@ -338,6 +352,7 @@ func TestPropertyExtractAlwaysReturnsValidTypeOrError(t *testing.T) {
 }
 
 func TestPropertyExtractCommandRunnerFailureAlwaysReturnsErrLLMUnavailable(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -360,6 +375,7 @@ func TestPropertyExtractCommandRunnerFailureAlwaysReturnsErrLLMUnavailable(t *te
 // --- Model and timeout are passed through ---
 
 func TestExtractUsesConfiguredModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var capturedArgs []string
@@ -391,6 +407,7 @@ func TestExtractUsesConfiguredModel(t *testing.T) {
 // --- IsNarrowLearning tests (TASK-1) ---
 
 func TestIsNarrowLearning_UniversalPattern(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	response := map[string]interface{}{
@@ -415,6 +432,7 @@ func TestIsNarrowLearning_UniversalPattern(t *testing.T) {
 }
 
 func TestIsNarrowLearning_NarrowPattern(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	response := map[string]interface{}{
@@ -439,6 +457,7 @@ func TestIsNarrowLearning_NarrowPattern(t *testing.T) {
 }
 
 func TestIsNarrowLearning_LLMUnavailable(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -457,6 +476,7 @@ func TestIsNarrowLearning_LLMUnavailable(t *testing.T) {
 }
 
 func TestIsNarrowLearning_MalformedJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{

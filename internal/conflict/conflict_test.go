@@ -61,6 +61,7 @@ func (m *MockFS) FileExists(path string) bool {
 }
 
 func TestCreate(t *testing.T) {
+	t.Parallel()
 	t.Run("creates first conflict", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -88,6 +89,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
+	t.Parallel()
 	t.Run("finds resolved conflicts", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -135,6 +137,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
+	t.Parallel()
 	t.Run("lists all conflicts", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}

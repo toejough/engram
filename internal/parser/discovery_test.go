@@ -11,8 +11,8 @@ import (
 
 // MockFS implements parser.FileSystem for testing
 type MockFS struct {
-	Dirs  map[string]bool   // path -> exists
-	Files map[string]bool   // path -> exists
+	Dirs  map[string]bool // path -> exists
+	Files map[string]bool // path -> exists
 }
 
 func (m *MockFS) DirExists(path string) bool {
@@ -26,6 +26,7 @@ func (m *MockFS) FileExists(path string) bool {
 // TEST-081 traces: TASK-011
 // Test discovery finds files in docs/ directory
 func TestDiscoverDocs_DocsDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -33,9 +34,9 @@ func TestDiscoverDocs_DocsDir(t *testing.T) {
 			"/project/docs": true,
 		},
 		Files: map[string]bool{
-			"/project/docs/requirements.md":  true,
-			"/project/docs/architecture.md":  true,
-			"/project/docs/tasks.md":         true,
+			"/project/docs/requirements.md": true,
+			"/project/docs/architecture.md": true,
+			"/project/docs/tasks.md":        true,
 		},
 	}
 
@@ -51,6 +52,7 @@ func TestDiscoverDocs_DocsDir(t *testing.T) {
 // TEST-082 traces: TASK-011
 // Test discovery falls back to root when docs/ missing
 func TestDiscoverDocs_RootFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -74,6 +76,7 @@ func TestDiscoverDocs_RootFallback(t *testing.T) {
 // TEST-083 traces: TASK-011
 // Test discovery returns empty when no files exist
 func TestDiscoverDocs_NoFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -89,6 +92,7 @@ func TestDiscoverDocs_NoFiles(t *testing.T) {
 // TEST-084 traces: TASK-011
 // Test discovery prefers docs/ even if root also has files
 func TestDiscoverDocs_PrefersDocsDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -109,6 +113,7 @@ func TestDiscoverDocs_PrefersDocsDir(t *testing.T) {
 // TEST-085 traces: TASK-011
 // Test discovery finds all known file types
 func TestDiscoverDocs_AllFileTypes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -116,10 +121,10 @@ func TestDiscoverDocs_AllFileTypes(t *testing.T) {
 			"/project/docs": true,
 		},
 		Files: map[string]bool{
-			"/project/docs/requirements.md":  true,
-			"/project/docs/design.md":        true,
-			"/project/docs/architecture.md":  true,
-			"/project/docs/tasks.md":         true,
+			"/project/docs/requirements.md": true,
+			"/project/docs/design.md":       true,
+			"/project/docs/architecture.md": true,
+			"/project/docs/tasks.md":        true,
 		},
 	}
 
@@ -134,6 +139,7 @@ func TestDiscoverDocs_AllFileTypes(t *testing.T) {
 // TEST-086 traces: TASK-011
 // Property test: docs/ takes priority over root
 func TestDiscoverDocs_PropertyDocsHasPriority(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -193,6 +199,7 @@ func (m *MockWalkFS) Walk(root string, fn func(path string, isDir bool) error) e
 // TEST-112 traces: TASK-016
 // Test discovering test files
 func TestDiscoverTestFiles_FindsTests(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockWalkFS{
@@ -214,6 +221,7 @@ func TestDiscoverTestFiles_FindsTests(t *testing.T) {
 // TEST-113 traces: TASK-016
 // Test excluding vendor directory
 func TestDiscoverTestFiles_ExcludesVendor(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockWalkFS{
@@ -230,6 +238,7 @@ func TestDiscoverTestFiles_ExcludesVendor(t *testing.T) {
 // TEST-114 traces: TASK-016
 // Test excluding .git directory
 func TestDiscoverTestFiles_ExcludesGit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockWalkFS{
@@ -246,6 +255,7 @@ func TestDiscoverTestFiles_ExcludesGit(t *testing.T) {
 // TEST-115 traces: TASK-016
 // Test ignoring non-test Go files
 func TestDiscoverTestFiles_IgnoresNonTest(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockWalkFS{
@@ -263,6 +273,7 @@ func TestDiscoverTestFiles_IgnoresNonTest(t *testing.T) {
 // TEST-199 traces: TASK-005
 // Test DiscoverDocsWithConfig uses custom docs_dir from config
 func TestDiscoverDocsWithConfig_CustomDocsDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -270,8 +281,8 @@ func TestDiscoverDocsWithConfig_CustomDocsDir(t *testing.T) {
 			"/project/documentation": true,
 		},
 		Files: map[string]bool{
-			"/project/documentation/requirements.md":  true,
-			"/project/documentation/design.md":        true,
+			"/project/documentation/requirements.md": true,
+			"/project/documentation/design.md":       true,
 		},
 	}
 
@@ -296,6 +307,7 @@ func TestDiscoverDocsWithConfig_CustomDocsDir(t *testing.T) {
 // TEST-200 traces: TASK-005
 // Test DiscoverDocsWithConfig discovers issues.md and glossary.md
 func TestDiscoverDocsWithConfig_AllArtifacts(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -303,12 +315,12 @@ func TestDiscoverDocsWithConfig_AllArtifacts(t *testing.T) {
 			"/project/docs": true,
 		},
 		Files: map[string]bool{
-			"/project/docs/requirements.md":  true,
-			"/project/docs/design.md":        true,
-			"/project/docs/architecture.md":  true,
-			"/project/docs/tasks.md":         true,
-			"/project/docs/issues.md":        true,
-			"/project/docs/glossary.md":      true,
+			"/project/docs/requirements.md": true,
+			"/project/docs/design.md":       true,
+			"/project/docs/architecture.md": true,
+			"/project/docs/tasks.md":        true,
+			"/project/docs/issues.md":       true,
+			"/project/docs/glossary.md":     true,
 		},
 	}
 
@@ -331,6 +343,7 @@ func TestDiscoverDocsWithConfig_AllArtifacts(t *testing.T) {
 // TEST-201 traces: TASK-005
 // Test DiscoverDocsWithConfig falls back to root with custom paths
 func TestDiscoverDocsWithConfig_RootFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{

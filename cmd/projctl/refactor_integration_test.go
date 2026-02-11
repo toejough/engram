@@ -14,6 +14,7 @@ import (
 
 // TestRefactorRenameCommand tests the CLI interface for projctl refactor rename
 func TestRefactorRenameCommand(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Create a temporary directory for testing
@@ -57,6 +58,7 @@ func NewOldName() *OldName {
 
 // TestRefactorRenameSuccess tests successful symbol rename
 func TestRefactorRenameSuccess(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -114,6 +116,7 @@ func NewWidget() *Widget {
 
 // TestRefactorRenameSymbolNotFound tests error handling when symbol doesn't exist
 func TestRefactorRenameSymbolNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -152,6 +155,7 @@ type Something struct {
 
 // TestRefactorRenameConflict tests error handling when rename would cause a conflict
 func TestRefactorRenameConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -195,6 +199,7 @@ type NewName struct {
 
 // TestRefactorRenameAtomic tests that rename is atomic (no partial changes on failure)
 func TestRefactorRenameAtomic(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -261,6 +266,7 @@ type NewSymbol struct {
 
 // TestRefactorRenamePropertyBasedValidIdentifiers tests property: valid Go identifiers
 func TestRefactorRenamePropertyBasedValidIdentifiers(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 

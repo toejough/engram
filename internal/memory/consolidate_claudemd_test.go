@@ -20,6 +20,7 @@ import (
 // TEST-4030: ParseCLAUDEMD parses sections correctly
 // traces: ISSUE-177
 func TestParseCLAUDEMD(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `# Top Level
@@ -55,6 +56,7 @@ Line C
 // TEST-4031: ParseCLAUDEMD returns empty map for empty content
 // traces: ISSUE-177
 func TestParseCLAUDEMDEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	sections := memory.ParseCLAUDEMD("")
@@ -64,6 +66,7 @@ func TestParseCLAUDEMDEmpty(t *testing.T) {
 // TEST-4032: ConsolidateClaudeMD finds redundancy between CLAUDE.md and memory DB
 // traces: ISSUE-177
 func TestConsolidateClaudeMDFindsRedundancy(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -118,6 +121,7 @@ func TestConsolidateClaudeMDFindsRedundancy(t *testing.T) {
 // TEST-4033: ConsolidateClaudeMD no redundancy when content differs
 // traces: ISSUE-177
 func TestConsolidateClaudeMDNoRedundancy(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -160,6 +164,7 @@ func TestConsolidateClaudeMDNoRedundancy(t *testing.T) {
 // TEST-4034: ConsolidateClaudeMD handles empty CLAUDE.md
 // traces: ISSUE-177
 func TestConsolidateClaudeMDEmptyFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -184,6 +189,7 @@ func TestConsolidateClaudeMDEmptyFile(t *testing.T) {
 // TEST-4035: Property: proposal counts match actual items found
 // traces: ISSUE-177
 func TestPropertyConsolidateClaudeMDProposalCounts(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -239,6 +245,7 @@ func TestPropertyConsolidateClaudeMDProposalCounts(t *testing.T) {
 // TEST-4036: ConsolidateClaudeMD interactive review applies approved changes
 // traces: ISSUE-177
 func TestConsolidateClaudeMDInteractiveApplies(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -290,6 +297,7 @@ func TestConsolidateClaudeMDInteractiveApplies(t *testing.T) {
 // TEST-4037: ConsolidateClaudeMD handles missing CLAUDE.md file
 // traces: ISSUE-177
 func TestConsolidateClaudeMDMissingFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

@@ -121,6 +121,7 @@ func (m *MigrateMockFS) MkdirAll(path string, perm os.FileMode) error {
 // TestMigrateMemoryGenSkills verifies that migrateMemoryGenSkills moves
 // skills from memory-gen/{slug}/ to mem-{slug}/ and removes memory-gen/.
 func TestMigrateMemoryGenSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MigrateMockFS{
@@ -150,6 +151,7 @@ func TestMigrateMemoryGenSkills(t *testing.T) {
 // TestMigrateMemoryGenSkillsIdempotent verifies that calling migration twice
 // is safe and doesn't cause errors.
 func TestMigrateMemoryGenSkillsIdempotent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MigrateMockFS{
@@ -176,6 +178,7 @@ func TestMigrateMemoryGenSkillsIdempotent(t *testing.T) {
 // TestMigrateMemoryGenSkillsNoOp verifies that migration is a no-op when
 // there is no memory-gen/ directory to migrate.
 func TestMigrateMemoryGenSkillsNoOp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MigrateMockFS{

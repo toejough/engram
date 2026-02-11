@@ -59,6 +59,7 @@ func nowFunc() func() time.Time {
 // TEST-700 traces: TASK-040
 // Test Log appends correction entry to project-specific corrections.jsonl
 func TestLog_AppendsToProjectFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -82,6 +83,7 @@ func TestLog_AppendsToProjectFile(t *testing.T) {
 // TEST-701 traces: TASK-040
 // Test Log creates corrections.jsonl if it doesn't exist
 func TestLog_CreatesFileIfMissing(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -94,6 +96,7 @@ func TestLog_CreatesFileIfMissing(t *testing.T) {
 // TEST-702 traces: TASK-040
 // Test Log appends multiple entries as separate lines
 func TestLog_AppendsMultipleEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -120,6 +123,7 @@ func TestLog_AppendsMultipleEntries(t *testing.T) {
 // TEST-703 traces: TASK-040
 // Test Log omits session_id when empty (backwards compatible)
 func TestLog_OmitsEmptySessionID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -136,6 +140,7 @@ func TestLog_OmitsEmptySessionID(t *testing.T) {
 // TEST-704 traces: TASK-040
 // Test Log property: valid entries are always parseable
 func TestLog_Property_ValidEntries(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -163,6 +168,7 @@ func TestLog_Property_ValidEntries(t *testing.T) {
 // TEST-705 traces: TASK-040
 // Test LogGlobal appends to ~/.claude/corrections.jsonl
 func TestLogGlobal_AppendsToGlobalFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	homeDir := "testhome"
 	fs := &MockFS{}
@@ -187,6 +193,7 @@ func TestLogGlobal_AppendsToGlobalFile(t *testing.T) {
 // TEST-706 traces: TASK-040
 // Test LogGlobal creates .claude directory if missing
 func TestLogGlobal_CreatesClaudeDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	homeDir := "testhome"
 	fs := &MockFS{}
@@ -201,6 +208,7 @@ func TestLogGlobal_CreatesClaudeDir(t *testing.T) {
 // TEST-707 traces: TASK-040
 // Test Read returns all entries from corrections file
 func TestRead_AllEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -218,6 +226,7 @@ func TestRead_AllEntries(t *testing.T) {
 // TEST-708 traces: TASK-040
 // Test Read returns empty slice when file missing
 func TestRead_NoFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -229,6 +238,7 @@ func TestRead_NoFile(t *testing.T) {
 // TEST-709 traces: TASK-040
 // Test ReadGlobal reads from ~/.claude/corrections.jsonl
 func TestReadGlobal_ReadsFromGlobalFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	homeDir := "testhome"
 	fs := &MockFS{}
@@ -246,6 +256,7 @@ func TestReadGlobal_ReadsFromGlobalFile(t *testing.T) {
 // TEST-710 traces: TASK-040
 // Test ReadGlobal returns empty slice when file missing
 func TestReadGlobal_NoFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	homeDir := "testhome"
 	fs := &MockFS{}

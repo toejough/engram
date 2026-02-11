@@ -11,6 +11,7 @@ import (
 // TEST-128 traces: TASK-019
 // Test parsing YAML format document
 func TestParseDoc_YAML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -37,6 +38,7 @@ Body content.
 // TEST-129 traces: TASK-019
 // Test parsing TOML format document (deprecated)
 func TestParseDoc_TOML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `id = "REQ-001"
@@ -59,6 +61,7 @@ updated = 2024-01-16T14:00:00Z
 // TEST-130 traces: TASK-019
 // Test parsing unknown format returns error
 func TestParseDoc_UnknownFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `Just plain text without format markers.`
@@ -70,6 +73,7 @@ func TestParseDoc_UnknownFormat(t *testing.T) {
 // TEST-131 traces: TASK-019
 // Test parsing empty content returns error
 func TestParseDoc_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	_, err := parser.ParseDoc("")
@@ -79,6 +83,7 @@ func TestParseDoc_Empty(t *testing.T) {
 // TEST-132 traces: TASK-019
 // Test parsing invalid YAML returns error
 func TestParseDoc_InvalidYAML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---

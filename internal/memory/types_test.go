@@ -15,6 +15,7 @@ import (
 // TEST: ExtractOpts struct exists with required fields
 // Traces to: TASK-1 AC-1, AC-2, AC-3
 func TestExtractOptsStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	opts := memory.ExtractOpts{
@@ -31,6 +32,7 @@ func TestExtractOptsStructure(t *testing.T) {
 // TEST: ExtractOpts includes optional injection fields for testing
 // Traces to: TASK-1 AC-3
 func TestExtractOptsInjectionFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	mockReadFile := func(path string) ([]byte, error) {
@@ -53,6 +55,7 @@ func TestExtractOptsInjectionFields(t *testing.T) {
 // TEST: ExtractResult struct includes required fields
 // Traces to: TASK-1 AC-4, AC-5
 func TestExtractResultStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	result := memory.ExtractResult{
@@ -84,6 +87,7 @@ func TestExtractResultStructure(t *testing.T) {
 // TEST: ResultFile struct matches result protocol schema
 // Traces to: TASK-1 AC-6
 func TestResultFileStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resultData := `
@@ -116,6 +120,7 @@ task = "TASK-10"
 // TEST: SchemaValidationError struct includes required fields
 // Traces to: TASK-1 AC-8
 func TestSchemaValidationErrorStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	schemaErr := memory.SchemaValidationError{
@@ -134,6 +139,7 @@ func TestSchemaValidationErrorStructure(t *testing.T) {
 // TEST: SchemaValidationError implements error interface
 // Traces to: TASK-1 AC-9
 func TestSchemaValidationErrorImplementsError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	schemaErr := memory.SchemaValidationError{
@@ -159,6 +165,7 @@ func TestSchemaValidationErrorImplementsError(t *testing.T) {
 // Property test: ResultFile struct tags handle arbitrary decisions
 // Traces to: TASK-1 AC-11
 func TestResultFileStructTagsProperty(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -190,6 +197,7 @@ alternatives = ["alt1", "alt2"]
 // TEST: ExtractedItem type structure
 // Traces to: TASK-1 AC-5
 func TestExtractedItemStructure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	item := memory.ExtractedItem{
@@ -206,6 +214,7 @@ func TestExtractedItemStructure(t *testing.T) {
 // TEST: ExtractedItem JSON serialization
 // Needed for potential JSON output
 func TestExtractedItemJSONSerialization(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	item := memory.ExtractedItem{

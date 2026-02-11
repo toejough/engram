@@ -13,6 +13,7 @@ import (
 // TEST-002-001 traces: TASK-2
 // Test that qa/SKILL.md file exists at expected location
 func TestQASkill_FileExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Skills are in user's home directory
@@ -27,6 +28,7 @@ func TestQASkill_FileExists(t *testing.T) {
 // TEST-002-002 traces: TASK-2
 // Test that qa/SKILL.md has correct frontmatter
 func TestQASkill_Frontmatter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -56,6 +58,7 @@ func TestQASkill_Frontmatter(t *testing.T) {
 // TEST-002-003 traces: TASK-2
 // Test that LOAD phase is documented
 func TestQASkill_LoadPhase(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -77,6 +80,7 @@ func TestQASkill_LoadPhase(t *testing.T) {
 // TEST-002-004 traces: TASK-2
 // Test that VALIDATE phase is documented
 func TestQASkill_ValidatePhase(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -97,6 +101,7 @@ func TestQASkill_ValidatePhase(t *testing.T) {
 // TEST-002-005 traces: TASK-2
 // Test that RETURN phase is documented
 func TestQASkill_ReturnPhase(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -121,6 +126,7 @@ func TestQASkill_ReturnPhase(t *testing.T) {
 // TEST-002-006 traces: TASK-2
 // Test that contract extraction algorithm is documented
 func TestQASkill_ContractExtraction(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -139,6 +145,7 @@ func TestQASkill_ContractExtraction(t *testing.T) {
 // TEST-002-007 traces: TASK-2
 // Test that prose fallback is documented
 func TestQASkill_ProseFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -157,6 +164,7 @@ func TestQASkill_ProseFallback(t *testing.T) {
 // TEST-002-008 traces: TASK-2
 // Test that iteration tracking is documented
 func TestQASkill_IterationTracking(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -175,6 +183,7 @@ func TestQASkill_IterationTracking(t *testing.T) {
 // TEST-002-009 traces: TASK-2
 // Test that escalate-user on max iterations is documented
 func TestQASkill_EscalateOnMaxIterations(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -198,6 +207,7 @@ func TestQASkill_EscalateOnMaxIterations(t *testing.T) {
 // TEST-002-010 traces: TASK-2
 // Test that malformed output handling is documented
 func TestQASkill_MalformedOutputHandling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -216,6 +226,7 @@ func TestQASkill_MalformedOutputHandling(t *testing.T) {
 // TEST-002-011 traces: TASK-2
 // Test that missing artifacts handling is documented
 func TestQASkill_MissingArtifactsHandling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -234,6 +245,7 @@ func TestQASkill_MissingArtifactsHandling(t *testing.T) {
 // TEST-002-012 traces: TASK-2
 // Test that unreadable producer SKILL.md handling is documented
 func TestQASkill_UnreadableSkillHandling(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()
@@ -252,6 +264,7 @@ func TestQASkill_UnreadableSkillHandling(t *testing.T) {
 // TEST-002-013 traces: TASK-2
 // Test that full checklist output format is documented
 func TestQASkill_ChecklistFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	homeDir, err := os.UserHomeDir()

@@ -19,6 +19,7 @@ import (
 // TEST: memory extract --result flag works
 // Traces to: TASK-7 AC-3, AC-11, AC-12
 func TestMemoryExtractResultFlag(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -57,6 +58,7 @@ task = "TASK-10"
 // TEST: memory extract fails when --result flag not provided
 // Traces to: TASK-7 AC-5, AC-15
 func TestMemoryExtractMissingResultFlag(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cmd := exec.Command("projctl", "memory", "extract")
@@ -69,6 +71,7 @@ func TestMemoryExtractMissingResultFlag(t *testing.T) {
 // TEST: memory extract shows success message with item count
 // Traces to: TASK-7 AC-7
 func TestMemoryExtractShowsSuccessMessage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -106,6 +109,7 @@ task = "TASK-7"
 // TEST: memory extract shows item breakdown
 // Traces to: TASK-7 AC-8
 func TestMemoryExtractShowsItemBreakdown(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -149,6 +153,7 @@ task = "TASK-10"
 // TEST: memory extract shows storage location
 // Traces to: TASK-7 AC-9
 func TestMemoryExtractShowsStorageLocation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -190,6 +195,7 @@ task = "TASK-7"
 // TEST: memory extract shows error in proper format
 // Traces to: TASK-7 AC-10
 func TestMemoryExtractShowsErrorFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -212,6 +218,7 @@ func TestMemoryExtractShowsErrorFormat(t *testing.T) {
 // TEST: memory extract outputs TOML to stdout
 // Traces to: TASK-7 AC-11
 func TestMemoryExtractOutputsTOML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -256,6 +263,7 @@ task = "TASK-7"
 // TEST: memory extract TOML output is machine-readable
 // Traces to: TASK-7 AC-11
 func TestMemoryExtractTOMLIsMachineReadable(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -308,6 +316,7 @@ task = "TASK-7"
 // TEST: memory extract integration with result file end-to-end
 // Traces to: TASK-7 AC-12
 func TestMemoryExtractIntegrationResultFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

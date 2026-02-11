@@ -13,6 +13,7 @@ import (
 // TEST-055 traces: TASK-008
 // Test splitting single item with frontmatter and body
 func TestSplitFrontmatter_SingleItem(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -35,6 +36,7 @@ This is the body content.
 // TEST-056 traces: TASK-008
 // Test splitting multiple items separated by ---
 func TestSplitFrontmatter_MultipleItems(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -62,6 +64,7 @@ Body two.
 // TEST-057 traces: TASK-008
 // Test item with frontmatter but empty body
 func TestSplitFrontmatter_EmptyBody(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -80,6 +83,7 @@ title: A requirement
 // TEST-058 traces: TASK-008
 // Test handles leading whitespace/newlines
 func TestSplitFrontmatter_LeadingWhitespace(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `
@@ -99,6 +103,7 @@ Body.
 // TEST-059 traces: TASK-008
 // Test handles frontmatter with no closing delimiter (invalid)
 func TestSplitFrontmatter_NoClosingDelimiter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -114,6 +119,7 @@ title: Unclosed
 // TEST-060 traces: TASK-008
 // Test handles no frontmatter (invalid - all items must have frontmatter)
 func TestSplitFrontmatter_NoFrontmatter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `Just some plain text without frontmatter.
@@ -127,6 +133,7 @@ func TestSplitFrontmatter_NoFrontmatter(t *testing.T) {
 // TEST-061 traces: TASK-008
 // Test handles empty content
 func TestSplitFrontmatter_EmptyContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items, err := parser.SplitFrontmatter("")
@@ -137,6 +144,7 @@ func TestSplitFrontmatter_EmptyContent(t *testing.T) {
 // TEST-062 traces: TASK-008
 // Test handles three dashes within content (not delimiter)
 func TestSplitFrontmatter_DashesInContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -156,6 +164,7 @@ Some content with --- in the middle and
 // TEST-063 traces: TASK-008
 // Property test: valid items always have matching frontmatter
 func TestSplitFrontmatter_PropertyValidItems(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -218,6 +227,7 @@ func intToStr(n int) string {
 // TEST-064 traces: TASK-009
 // Test parsing valid YAML frontmatter into TraceItem
 func TestParseFrontmatter_ValidREQ(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -249,6 +259,7 @@ tags:
 // TEST-065 traces: TASK-009
 // Test parsing TASK type frontmatter
 func TestParseFrontmatter_ValidTASK(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: TASK-042
@@ -272,6 +283,7 @@ traces_to:
 // TEST-066 traces: TASK-009
 // Test parsing TEST type frontmatter with location fields
 func TestParseFrontmatter_ValidTEST(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: TEST-001
@@ -299,6 +311,7 @@ function: TestValidateInput`
 // TEST-067 traces: TASK-009
 // Test missing required field returns error
 func TestParseFrontmatter_MissingID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `type: REQ
@@ -316,6 +329,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-068 traces: TASK-009
 // Test missing project field returns error
 func TestParseFrontmatter_MissingProject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -333,6 +347,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-069 traces: TASK-009
 // Test invalid YAML syntax returns error
 func TestParseFrontmatter_InvalidYAML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -347,6 +362,7 @@ project: test-project`
 // TEST-070 traces: TASK-009
 // Test invalid date format returns error
 func TestParseFrontmatter_InvalidDateFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -364,6 +380,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-071 traces: TASK-009
 // Test invalid ID format returns error (via TraceItem.Validate)
 func TestParseFrontmatter_InvalidIDFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: INVALID
@@ -382,6 +399,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-072 traces: TASK-009
 // Test invalid status value returns error
 func TestParseFrontmatter_InvalidStatus(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -400,6 +418,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-073 traces: TASK-009
 // Test empty traces_to is allowed
 func TestParseFrontmatter_EmptyTracesTo(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	frontmatter := `id: REQ-001
@@ -418,6 +437,7 @@ updated: 2024-01-16T14:00:00Z`
 // TEST-074 traces: TASK-009
 // Property test: valid frontmatter parses successfully
 func TestParseFrontmatter_PropertyValid(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -450,6 +470,7 @@ func TestParseFrontmatter_PropertyValid(t *testing.T) {
 // TEST-075 traces: TASK-010
 // Test parsing document with single item
 func TestParseDocument_SingleItem(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -478,6 +499,7 @@ This is the body content.
 // TEST-076 traces: TASK-010
 // Test parsing document with multiple items
 func TestParseDocument_MultipleItems(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -515,6 +537,7 @@ Body two.
 // TEST-077 traces: TASK-010
 // Test parsing document with malformed item continues to next
 func TestParseDocument_MalformedItemContinues(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -555,7 +578,7 @@ Body three.
 `
 
 	results, errs := parser.ParseDocument(content)
-	g.Expect(errs).To(HaveLen(1)) // One error for the malformed item
+	g.Expect(errs).To(HaveLen(1))    // One error for the malformed item
 	g.Expect(results).To(HaveLen(2)) // Two valid items parsed
 	g.Expect(results[0].Item.ID).To(Equal("REQ-001"))
 	g.Expect(results[1].Item.ID).To(Equal("REQ-003"))
@@ -564,6 +587,7 @@ Body three.
 // TEST-078 traces: TASK-010
 // Test parsing empty document
 func TestParseDocument_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results, errs := parser.ParseDocument("")
@@ -574,6 +598,7 @@ func TestParseDocument_Empty(t *testing.T) {
 // TEST-079 traces: TASK-010
 // Test parsing document with only invalid items
 func TestParseDocument_AllInvalid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `---
@@ -597,6 +622,7 @@ Body.
 // TEST-080 traces: TASK-010
 // Property test: valid document with N items returns N results
 func TestParseDocument_PropertyValidItems(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 

@@ -12,6 +12,7 @@ import (
 // TEST-181 traces: TASK-004
 // Test idNext command outputs next REQ ID
 func TestIdNext_REQ(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -34,6 +35,7 @@ func TestIdNext_REQ(t *testing.T) {
 // TEST-182 traces: TASK-004
 // Test idNext command outputs next TASK ID
 func TestIdNext_TASK(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -53,6 +55,7 @@ func TestIdNext_TASK(t *testing.T) {
 // TEST-183 traces: TASK-004
 // Test idNext command returns TYPE-001 when no IDs exist
 func TestIdNext_NoExisting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -64,6 +67,7 @@ func TestIdNext_NoExisting(t *testing.T) {
 // TEST-184 traces: TASK-004
 // Test idNext command returns error for invalid type
 func TestIdNext_InvalidType(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -75,6 +79,7 @@ func TestIdNext_InvalidType(t *testing.T) {
 // TEST-185 traces: TASK-004
 // Test idNext command handles ARCH prefix
 func TestIdNext_ARCH(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -93,6 +98,7 @@ func TestIdNext_ARCH(t *testing.T) {
 // TEST-186 traces: TASK-004
 // Test idNext command handles ISSUE prefix
 func TestIdNext_ISSUE(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 

@@ -174,6 +174,7 @@ func learnWithDefaults(g Gomega, memoryDir, message string, extractor memory.LLM
 
 // TEST: ADD decision → memory inserted normally
 func TestIngestDecisionAdd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -199,6 +200,7 @@ func TestIngestDecisionAdd(t *testing.T) {
 
 // TEST: UPDATE decision → existing content replaced, no new row
 func TestIngestDecisionUpdate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -232,6 +234,7 @@ func TestIngestDecisionUpdate(t *testing.T) {
 
 // TEST: DELETE decision → old confidence=0, new memory inserted
 func TestIngestDecisionDelete(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -274,6 +277,7 @@ func TestIngestDecisionDelete(t *testing.T) {
 
 // TEST: NOOP decision → no insert, existing confidence boosted
 func TestIngestDecisionNoop(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -317,6 +321,7 @@ func TestIngestDecisionNoop(t *testing.T) {
 
 // TEST: Invalid TargetID → falls back to threshold behavior
 func TestIngestDecisionInvalidTargetID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -347,6 +352,7 @@ func TestIngestDecisionInvalidTargetID(t *testing.T) {
 
 // TEST: Nil extractor → threshold fallback (backward compatibility)
 func TestIngestDecisionNilExtractor(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -363,6 +369,7 @@ func TestIngestDecisionNilExtractor(t *testing.T) {
 
 // TEST: Failing extractor → threshold fallback
 func TestIngestDecisionExtractorFails(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -382,6 +389,7 @@ func TestIngestDecisionExtractorFails(t *testing.T) {
 
 // TEST: ErrLLMUnavailable → threshold fallback
 func TestIngestDecisionErrLLMUnavailable(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -399,6 +407,7 @@ func TestIngestDecisionErrLLMUnavailable(t *testing.T) {
 
 // TEST: Type="correction" bypasses LLM decision entirely
 func TestIngestDecisionCorrectionBypass(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -424,6 +433,7 @@ func TestIngestDecisionCorrectionBypass(t *testing.T) {
 
 // TEST: All results < 0.5 similarity → skips LLM, goes to insert
 func TestIngestDecisionLowSimilarity(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -451,6 +461,7 @@ func TestIngestDecisionLowSimilarity(t *testing.T) {
 
 // TEST: After UPDATE, retrieval_count and projects_retrieved are preserved
 func TestIngestDecisionUpdatePreservesRetrieval(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -516,6 +527,7 @@ func TestIngestDecisionUpdatePreservesRetrieval(t *testing.T) {
 
 // TEST: After DELETE+insert, old memory not returned by query
 func TestIngestDecisionDeleteThenQuery(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -568,6 +580,7 @@ func TestIngestDecisionDeleteThenQuery(t *testing.T) {
 
 // TEST: After UPDATE, FTS5 search finds new content, not old
 func TestIngestDecisionUpdateFTS5(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	memoryDir := filepath.Join(t.TempDir(), "memory")
@@ -617,6 +630,7 @@ func TestIngestDecisionUpdateFTS5(t *testing.T) {
 
 // TEST: For any sequence of Learn calls with mock decisions, Query returns at least one result
 func TestPropertyIngestNeverLosesData(t *testing.T) {
+	t.Parallel()
 	actions := []memory.IngestAction{memory.IngestAdd, memory.IngestUpdate, memory.IngestDelete, memory.IngestNoop}
 
 	rapid.Check(t, func(rt *rapid.T) {
@@ -660,6 +674,7 @@ func TestPropertyIngestNeverLosesData(t *testing.T) {
 
 // TEST: For any failing extractor, Learn succeeds and memory is stored
 func TestPropertyIngestFallbackAlwaysWorks(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -685,6 +700,7 @@ func TestPropertyIngestFallbackAlwaysWorks(t *testing.T) {
 
 // TEST: IngestAction is always one of ADD/UPDATE/DELETE/NOOP
 func TestPropertyIngestActionValid(t *testing.T) {
+	t.Parallel()
 	validActions := []memory.IngestAction{memory.IngestAdd, memory.IngestUpdate, memory.IngestDelete, memory.IngestNoop}
 
 	rapid.Check(t, func(rt *rapid.T) {

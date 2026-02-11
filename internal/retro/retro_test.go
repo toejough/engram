@@ -10,6 +10,7 @@ import (
 )
 
 func TestExtractRecommendations(t *testing.T) {
+	t.Parallel()
 	t.Run("extracts high priority recommendations", func(t *testing.T) {
 		g := NewWithT(t)
 		dir := t.TempDir()
@@ -128,6 +129,7 @@ func TestExtractRecommendations(t *testing.T) {
 }
 
 func TestFilterByPriority(t *testing.T) {
+	t.Parallel()
 	t.Run("filters recommendations by minimum priority", func(t *testing.T) {
 		g := NewWithT(t)
 

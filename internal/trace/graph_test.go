@@ -12,6 +12,7 @@ import (
 // TEST-017 traces: TASK-002
 // Test creating a graph with valid nodes
 func TestGraph_NewGraph(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -24,6 +25,7 @@ func TestGraph_NewGraph(t *testing.T) {
 // TEST-018 traces: TASK-002
 // Test creating a node with valid fields
 func TestNode_ValidNode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	node := &trace.Node{
@@ -42,6 +44,7 @@ func TestNode_ValidNode(t *testing.T) {
 // TEST-019 traces: TASK-002
 // Test creating a TEST node with all required fields
 func TestNode_ValidTestNode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	node := &trace.Node{
@@ -65,6 +68,7 @@ func TestNode_ValidTestNode(t *testing.T) {
 // TEST-020 traces: TASK-002
 // Test creating an edge with valid From/To IDs
 func TestEdge_ValidEdge(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	edge := &trace.Edge{
@@ -79,6 +83,7 @@ func TestEdge_ValidEdge(t *testing.T) {
 // TEST-021 traces: TASK-002
 // Test that all NodeType constants are defined
 func TestNodeType_AllTypes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Verify all 5 types exist
@@ -92,6 +97,7 @@ func TestNodeType_AllTypes(t *testing.T) {
 // TEST-022 traces: TASK-002
 // Test creating a node from a TraceItem
 func TestNode_FromTraceItem(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	item := &trace.TraceItem{
@@ -119,6 +125,7 @@ func TestNode_FromTraceItem(t *testing.T) {
 // TEST-023 traces: TASK-002
 // Test creating edges from a TraceItem's TracesTo field
 func TestEdge_FromTraceItem(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	item := &trace.TraceItem{
@@ -138,6 +145,7 @@ func TestEdge_FromTraceItem(t *testing.T) {
 // TEST-024 traces: TASK-002
 // Property test: random valid nodes have consistent ID and Type
 func TestNode_PropertyIDMatchesType(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -169,6 +177,7 @@ func TestNode_PropertyIDMatchesType(t *testing.T) {
 // TEST-025 traces: TASK-002
 // Property test: edges always connect two distinct IDs
 func TestEdge_PropertyDistinctIDs(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -212,6 +221,7 @@ func intToString(n int) string {
 // TEST-026 traces: TASK-003
 // Test that AddNode adds a node to the graph
 func TestGraph_AddNode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -232,6 +242,7 @@ func TestGraph_AddNode(t *testing.T) {
 // TEST-027 traces: TASK-003
 // Test that AddNode returns error for duplicate ID
 func TestGraph_AddNode_DuplicateID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -261,11 +272,12 @@ func TestGraph_AddNode_DuplicateID(t *testing.T) {
 // TEST-028 traces: TASK-003
 // Test that AddNode validates ID format matches NodeType
 func TestGraph_AddNode_IDTypeMismatch(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
 	node := &trace.Node{
-		ID:      "REQ-001",      // ID says REQ
+		ID:      "REQ-001",          // ID says REQ
 		Type:    trace.NodeTypeTASK, // Type says TASK
 		Project: "my-project",
 		Title:   "Mismatched",
@@ -280,6 +292,7 @@ func TestGraph_AddNode_IDTypeMismatch(t *testing.T) {
 // TEST-029 traces: TASK-003
 // Test that AddNode returns error for nil node
 func TestGraph_AddNode_NilNode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -291,6 +304,7 @@ func TestGraph_AddNode_NilNode(t *testing.T) {
 // TEST-030 traces: TASK-003
 // Test that graph state is unchanged after AddNode error
 func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -326,6 +340,7 @@ func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
 // TEST-031 traces: TASK-003
 // Property test: AddNode with unique valid nodes always succeeds
 func TestGraph_AddNode_PropertyUniqueNodesSucceed(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		graph := trace.NewGraph()
@@ -358,6 +373,7 @@ func TestGraph_AddNode_PropertyUniqueNodesSucceed(t *testing.T) {
 // TEST-032 traces: TASK-003
 // Property test: AddNode with duplicate ID always fails
 func TestGraph_AddNode_PropertyDuplicateIDFails(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		graph := trace.NewGraph()
@@ -392,6 +408,7 @@ func TestGraph_AddNode_PropertyDuplicateIDFails(t *testing.T) {
 // TEST-033 traces: TASK-004
 // Test that AddEdge creates edge in both forward and reverse maps
 func TestGraph_AddEdge(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -416,6 +433,7 @@ func TestGraph_AddEdge(t *testing.T) {
 // TEST-034 traces: TASK-004
 // Test that AddEdge returns error when From node doesn't exist
 func TestGraph_AddEdge_FromNodeMissing(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -430,6 +448,7 @@ func TestGraph_AddEdge_FromNodeMissing(t *testing.T) {
 // TEST-035 traces: TASK-004
 // Test that AddEdge returns error when To node doesn't exist
 func TestGraph_AddEdge_ToNodeMissing(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -444,6 +463,7 @@ func TestGraph_AddEdge_ToNodeMissing(t *testing.T) {
 // TEST-036 traces: TASK-004
 // Test that multiple edges from same source are supported
 func TestGraph_AddEdge_MultipleFromSameSource(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -467,6 +487,7 @@ func TestGraph_AddEdge_MultipleFromSameSource(t *testing.T) {
 // TEST-037 traces: TASK-004
 // Test that AddEdge returns error for nil edge
 func TestGraph_AddEdge_NilEdge(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -478,6 +499,7 @@ func TestGraph_AddEdge_NilEdge(t *testing.T) {
 // TEST-038 traces: TASK-004
 // Property test: AddEdge with existing nodes always succeeds
 func TestGraph_AddEdge_PropertyExistingNodesSucceed(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		graph := trace.NewGraph()
@@ -504,6 +526,7 @@ func TestGraph_AddEdge_PropertyExistingNodesSucceed(t *testing.T) {
 // TEST-039 traces: TASK-005
 // Test Upstream returns empty for node with no ancestors
 func TestGraph_Upstream_NoAncestors(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -517,6 +540,7 @@ func TestGraph_Upstream_NoAncestors(t *testing.T) {
 // TEST-040 traces: TASK-005
 // Test Upstream returns direct ancestors
 func TestGraph_Upstream_DirectAncestors(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -533,6 +557,7 @@ func TestGraph_Upstream_DirectAncestors(t *testing.T) {
 // TEST-041 traces: TASK-005
 // Test Upstream returns transitive ancestors (multiple levels)
 func TestGraph_Upstream_TransitiveAncestors(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// REQ-001 <- ARCH-001 <- TASK-001 <- TEST-001
@@ -556,6 +581,7 @@ func TestGraph_Upstream_TransitiveAncestors(t *testing.T) {
 // TEST-042 traces: TASK-005
 // Test Upstream handles diamond dependency (each node visited once)
 func TestGraph_Upstream_DiamondDependency(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Diamond: REQ-001 <- ARCH-001 <- TASK-001
@@ -580,6 +606,7 @@ func TestGraph_Upstream_DiamondDependency(t *testing.T) {
 // TEST-043 traces: TASK-005
 // Test Upstream returns error for non-existent node
 func TestGraph_Upstream_NodeNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -591,6 +618,7 @@ func TestGraph_Upstream_NodeNotFound(t *testing.T) {
 // TEST-044 traces: TASK-005
 // Property test: Upstream on random DAG returns correct ancestors
 func TestGraph_Upstream_PropertyRandomDAG(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		graph := trace.NewGraph()
@@ -630,6 +658,7 @@ func TestGraph_Upstream_PropertyRandomDAG(t *testing.T) {
 // TEST-045 traces: TASK-006
 // Test Downstream returns empty for node with no descendants
 func TestGraph_Downstream_NoDescendants(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -643,6 +672,7 @@ func TestGraph_Downstream_NoDescendants(t *testing.T) {
 // TEST-046 traces: TASK-006
 // Test Downstream returns direct descendants
 func TestGraph_Downstream_DirectDescendants(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -659,6 +689,7 @@ func TestGraph_Downstream_DirectDescendants(t *testing.T) {
 // TEST-047 traces: TASK-006
 // Test Downstream returns transitive descendants (multiple levels)
 func TestGraph_Downstream_TransitiveDescendants(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// REQ-001 -> ARCH-001 -> TASK-001 -> TEST-001
@@ -682,6 +713,7 @@ func TestGraph_Downstream_TransitiveDescendants(t *testing.T) {
 // TEST-048 traces: TASK-006
 // Test Downstream handles diamond dependency (each node visited once)
 func TestGraph_Downstream_DiamondDependency(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Diamond: REQ-001 -> ARCH-001 -> TASK-001
@@ -706,6 +738,7 @@ func TestGraph_Downstream_DiamondDependency(t *testing.T) {
 // TEST-049 traces: TASK-006
 // Test Downstream returns error for non-existent node
 func TestGraph_Downstream_NodeNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -717,6 +750,7 @@ func TestGraph_Downstream_NodeNotFound(t *testing.T) {
 // TEST-050 traces: TASK-007
 // Test Orphans returns empty when no orphans of given type
 func TestGraph_Orphans_NoOrphans(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -732,6 +766,7 @@ func TestGraph_Orphans_NoOrphans(t *testing.T) {
 // TEST-051 traces: TASK-007
 // Test Orphans detects REQ with no downstream edges
 func TestGraph_Orphans_REQNoDownstream(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -749,6 +784,7 @@ func TestGraph_Orphans_REQNoDownstream(t *testing.T) {
 // TEST-052 traces: TASK-007
 // Test Orphans detects TASK with no TEST downstream
 func TestGraph_Orphans_TASKNoTest(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -766,6 +802,7 @@ func TestGraph_Orphans_TASKNoTest(t *testing.T) {
 // TEST-053 traces: TASK-007
 // Test Orphans detects TEST with no upstream edges
 func TestGraph_Orphans_TESTNoUpstream(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
@@ -783,6 +820,7 @@ func TestGraph_Orphans_TESTNoUpstream(t *testing.T) {
 // TEST-054 traces: TASK-007
 // Property test: Orphans detection on graphs with known gaps
 func TestGraph_Orphans_PropertyKnownGaps(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		graph := trace.NewGraph()

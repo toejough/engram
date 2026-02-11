@@ -18,6 +18,7 @@ import (
 
 // TEST-178001: Corrections appear before non-corrections in sorted results
 func TestSortByPrimacyCorrectionsFirst(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -39,6 +40,7 @@ func TestSortByPrimacyCorrectionsFirst(t *testing.T) {
 
 // TEST-178002: Within corrections, higher score appears first
 func TestSortByPrimacyWithinCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -55,6 +57,7 @@ func TestSortByPrimacyWithinCorrections(t *testing.T) {
 
 // TEST-178003: Within non-corrections, higher score appears first
 func TestSortByPrimacyWithinNonCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -71,6 +74,7 @@ func TestSortByPrimacyWithinNonCorrections(t *testing.T) {
 
 // TEST-178004: No corrections means ordering is purely by score
 func TestSortByPrimacyNoCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -87,6 +91,7 @@ func TestSortByPrimacyNoCorrections(t *testing.T) {
 
 // TEST-178005: All corrections means ordering is purely by score
 func TestSortByPrimacyAllCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -103,6 +108,7 @@ func TestSortByPrimacyAllCorrections(t *testing.T) {
 
 // TEST-178006: Property - corrections always appear before non-corrections
 func TestSortByPrimacyPropertyCorrectionsFirst(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -159,6 +165,7 @@ func TestSortByPrimacyPropertyCorrectionsFirst(t *testing.T) {
 
 // TEST-178007: Property - ordering is stable (deterministic for equal scores)
 func TestSortByPrimacyPropertyStableOrdering(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -189,6 +196,7 @@ func TestSortByPrimacyPropertyStableOrdering(t *testing.T) {
 
 // TEST-178008: Integration - corrections appear first in FormatMarkdown output with primacy
 func TestFormatMarkdownPrimacyOrdering(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -255,6 +263,7 @@ func TestFormatMarkdownPrimacyOrdering(t *testing.T) {
 
 // TEST-178009: SortByPrimacy preserves result count
 func TestSortByPrimacyPreservesCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -270,6 +279,7 @@ func TestSortByPrimacyPreservesCount(t *testing.T) {
 
 // TEST-178010: SortByPrimacy handles empty slice
 func TestSortByPrimacyEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	sorted := memory.SortByPrimacy(nil)
@@ -281,6 +291,7 @@ func TestSortByPrimacyEmpty(t *testing.T) {
 
 // TEST-178011: searchSimilar returns MemoryType
 func TestSearchSimilarReturnsMemoryType(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

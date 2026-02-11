@@ -12,6 +12,7 @@ import (
 
 // TestHooksInstall_CreatesNewFile tests that install creates settings.json if it doesn't exist.
 func TestHooksInstall_CreatesNewFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -137,6 +138,7 @@ func TestHooksInstall_CreatesNewFile(t *testing.T) {
 
 // TestHooksInstall_MergesWithExistingHooks tests that install preserves existing hooks.
 func TestHooksInstall_MergesWithExistingHooks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -195,6 +197,7 @@ func TestHooksInstall_MergesWithExistingHooks(t *testing.T) {
 
 // TestHooksInstall_OverwritesExistingProjectHooks tests that install replaces existing projctl hooks.
 func TestHooksInstall_OverwritesExistingProjectHooks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -253,6 +256,7 @@ func TestHooksInstall_OverwritesExistingProjectHooks(t *testing.T) {
 
 // TestHooksShow_DisplaysCurrentConfig tests that show returns current hook configuration.
 func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -324,6 +328,7 @@ func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
 
 // TestHooksShow_ReturnsEmptyWhenNoHooks tests that show handles missing hooks gracefully.
 func TestHooksShow_ReturnsEmptyWhenNoHooks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -354,6 +359,7 @@ func TestHooksShow_ReturnsEmptyWhenNoHooks(t *testing.T) {
 
 // TestHooksShow_HandlesNonExistentFile tests that show handles missing settings file.
 func TestHooksShow_HandlesNonExistentFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup

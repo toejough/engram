@@ -11,6 +11,7 @@ import (
 // TEST-209 traces: TASK-007
 // Test resolved status applies the decision to artifacts
 func TestApplyResolutions_Resolved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
@@ -35,6 +36,7 @@ func TestApplyResolutions_Resolved(t *testing.T) {
 // TEST-210 traces: TASK-007
 // Test deferred status creates issue
 func TestApplyResolutions_Deferred(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
@@ -60,6 +62,7 @@ func TestApplyResolutions_Deferred(t *testing.T) {
 // TEST-211 traces: TASK-007
 // Test issue status creates issue with user description
 func TestApplyResolutions_Issue(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
@@ -86,6 +89,7 @@ func TestApplyResolutions_Issue(t *testing.T) {
 // TEST-212 traces: TASK-007
 // Test pending status is skipped
 func TestApplyResolutions_Pending(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
@@ -109,6 +113,7 @@ func TestApplyResolutions_Pending(t *testing.T) {
 // TEST-213 traces: TASK-007
 // Test mixed statuses are handled correctly
 func TestApplyResolutions_Mixed(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
@@ -128,6 +133,7 @@ func TestApplyResolutions_Mixed(t *testing.T) {
 // TEST-214 traces: TASK-007
 // Test IssueSpec contains required fields
 func TestIssueSpec_Fields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	spec := escalation.IssueSpec{

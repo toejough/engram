@@ -25,6 +25,7 @@ import (
 // 3. Skill files exist on disk with correct frontmatter
 // 4. FormatMarkdown includes skill section
 func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -119,6 +120,7 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 
 // TestE2EPrunedSkillFileRemoval verifies that pruning removes skill files.
 func TestE2EPrunedSkillFileRemoval(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -146,8 +148,8 @@ func TestE2EPrunedSkillFileRemoval(t *testing.T) {
 		SourceMemoryIDs: "[1,2,3]",
 		Alpha:           1.0,
 		Beta:            4.0,
-		Utility:         0.2,  // < 0.4
-		RetrievalCount:  10,   // >= 5
+		Utility:         0.2, // < 0.4
+		RetrievalCount:  10,  // >= 5
 		CreatedAt:       "2025-01-01T00:00:00Z",
 		UpdatedAt:       "2025-01-01T00:00:00Z",
 	}
@@ -179,6 +181,7 @@ func TestE2EPrunedSkillFileRemoval(t *testing.T) {
 
 // TestE2ESkillFeedbackCycle verifies the feedback → utility update cycle.
 func TestE2ESkillFeedbackCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

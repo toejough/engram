@@ -18,6 +18,7 @@ import (
 // TEST-1100: Detect contradictions via negation patterns
 // traces: TASK-8
 func TestDetectContradictionViaNegation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -47,6 +48,7 @@ func TestDetectContradictionViaNegation(t *testing.T) {
 // TEST-1101: Detect contradictions via opposing advice
 // traces: TASK-8
 func TestDetectContradictionViaOpposingAdvice(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -75,6 +77,7 @@ func TestDetectContradictionViaOpposingAdvice(t *testing.T) {
 // TEST-1102: High similarity without contradiction = duplicate
 // traces: TASK-8
 func TestHighSimilarityWithoutContradictionIsDuplicate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -104,6 +107,7 @@ func TestHighSimilarityWithoutContradictionIsDuplicate(t *testing.T) {
 // TEST-1103: Low similarity = no conflict
 // traces: TASK-8
 func TestLowSimilarityNoConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -132,6 +136,7 @@ func TestLowSimilarityNoConflict(t *testing.T) {
 // TEST-1104: Conflict result returns existing entry text
 // traces: TASK-8
 func TestConflictReturnsExistingEntryText(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -159,6 +164,7 @@ func TestConflictReturnsExistingEntryText(t *testing.T) {
 // TEST-1105: Conflict result includes similarity score
 // traces: TASK-8
 func TestConflictResultIncludesSimilarityScore(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -186,6 +192,7 @@ func TestConflictResultIncludesSimilarityScore(t *testing.T) {
 // TEST-1106: Contradiction still stores entry (surfaces to caller)
 // traces: TASK-8
 func TestContradictionStillStoresEntry(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -218,6 +225,7 @@ func TestContradictionStillStoresEntry(t *testing.T) {
 // TEST-1107: Property-based: negation patterns always detected when present with high similarity
 // traces: TASK-8
 func TestPropertyNegationPatternsAlwaysDetected(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 

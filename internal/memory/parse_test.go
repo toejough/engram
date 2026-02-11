@@ -12,6 +12,7 @@ import (
 // TEST: ParseResultFile parses valid TOML
 // Traces to: TASK-3 AC-2, AC-3, AC-7
 func TestParseResultFile_ValidTOML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	validResult := `
@@ -47,6 +48,7 @@ task = "TASK-10"
 // TEST: ParseResultFile returns error on invalid TOML
 // Traces to: TASK-3 AC-5, AC-8
 func TestParseResultFile_InvalidTOML(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	invalidTOML := `
@@ -63,6 +65,7 @@ result = "success"
 // TEST: ParseResultFile returns SchemaValidationError on missing status.result
 // Traces to: TASK-3 AC-6, AC-9, AC-11
 func TestParseResultFile_MissingStatusResult(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	missingResult := `
@@ -88,6 +91,7 @@ phase = "design"
 // TEST: ParseResultFile returns SchemaValidationError on missing status.timestamp
 // Traces to: TASK-3 AC-6, AC-9
 func TestParseResultFile_MissingStatusTimestamp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	missingTimestamp := `
@@ -112,6 +116,7 @@ phase = "design"
 // TEST: ParseResultFile fails fast on first error
 // Traces to: TASK-3 AC-9
 func TestParseResultFile_FailsFastOnFirstError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Multiple missing fields - should fail on first one (status.result)
@@ -134,6 +139,7 @@ phase = "design"
 // TEST: ParseResultFile handles multiple decisions
 // Traces to: TASK-3 AC-3, AC-7
 func TestParseResultFile_MultipleDecisions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	multipleDecisions := `
@@ -168,6 +174,7 @@ task = "TASK-10"
 // TEST: ParseResultFile allows empty decisions array
 // Traces to: TASK-3 AC-3
 func TestParseResultFile_EmptyDecisions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	emptyDecisions := `
@@ -188,6 +195,7 @@ task = "TASK-10"
 // Property test: valid result TOML always parses successfully
 // Traces to: TASK-3 AC-12
 func TestParseResultFile_PropertyValidTOMLParses(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 

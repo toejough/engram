@@ -12,6 +12,7 @@ import (
 // TEST-123 traces: TASK-018
 // Test parsing valid TOML content
 func TestParseTOML_Valid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `id = "REQ-001"
@@ -37,6 +38,7 @@ traces_to = ["REQ-000"]
 // TEST-124 traces: TASK-018
 // Test parsing TOML with multiple items
 func TestParseTOML_MultipleItems(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `[[item]]
@@ -68,6 +70,7 @@ updated = 2024-01-17T08:00:00Z
 // TEST-125 traces: TASK-018
 // Test parsing invalid TOML returns error
 func TestParseTOML_Invalid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `id = "REQ-001
@@ -80,6 +83,7 @@ broken toml syntax`
 // TEST-126 traces: TASK-018
 // Test parsing TOML with missing required field
 func TestParseTOML_MissingField(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `id = "REQ-001"
@@ -96,6 +100,7 @@ status = "active"
 // TEST-127 traces: TASK-018
 // Test result indicates deprecation
 func TestParseTOML_DeprecatedFlag(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `id = "REQ-001"

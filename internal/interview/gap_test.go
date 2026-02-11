@@ -12,6 +12,7 @@ import (
 // TEST-199 traces: TASK-3 AC-1, AC-2
 // Test all questions answered returns 100% coverage and small gap
 func TestCalculateGap_AllAnswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -34,6 +35,7 @@ func TestCalculateGap_AllAnswered(t *testing.T) {
 // Test no questions answered returns 0% coverage and large gap
 // Using penalty formula: 4 critical (60%) + 4 important (40%) = 100% penalty = 0% coverage
 func TestCalculateGap_NoneAnswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -59,6 +61,7 @@ func TestCalculateGap_NoneAnswered(t *testing.T) {
 // TEST-201 traces: TASK-3 AC-3, AC-4
 // Test priority weights: critical unanswered = -15%
 func TestCalculateGap_CriticalUnanswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -80,6 +83,7 @@ func TestCalculateGap_CriticalUnanswered(t *testing.T) {
 // TEST-202 traces: TASK-3 AC-3, AC-4
 // Test priority weights: important unanswered = -10%
 func TestCalculateGap_ImportantUnanswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -101,6 +105,7 @@ func TestCalculateGap_ImportantUnanswered(t *testing.T) {
 // TEST-203 traces: TASK-3 AC-3, AC-4
 // Test priority weights: optional unanswered = -5%
 func TestCalculateGap_OptionalUnanswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -122,6 +127,7 @@ func TestCalculateGap_OptionalUnanswered(t *testing.T) {
 // TEST-204 traces: TASK-3 AC-3, AC-4
 // Test mixed priorities with medium gap (50-79% coverage)
 func TestCalculateGap_MixedPriorities_MediumGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -146,6 +152,7 @@ func TestCalculateGap_MixedPriorities_MediumGap(t *testing.T) {
 // TEST-205 traces: TASK-3 AC-3, AC-4
 // Test large gap (<50% coverage)
 func TestCalculateGap_LargeGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -168,6 +175,7 @@ func TestCalculateGap_LargeGap(t *testing.T) {
 // TEST-206 traces: TASK-3 AC-5
 // Test edge case: <20% coverage always returns large gap
 func TestCalculateGap_EdgeCase_VeryLowCoverage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -199,6 +207,7 @@ func TestCalculateGap_EdgeCase_VeryLowCoverage(t *testing.T) {
 // TEST-207 traces: TASK-3 AC-5
 // Test edge case: exactly 20% coverage returns medium gap (not forced to large)
 func TestCalculateGap_EdgeCase_Exactly20Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Need exactly 20%: that means -80% from unanswered
@@ -226,6 +235,7 @@ func TestCalculateGap_EdgeCase_Exactly20Percent(t *testing.T) {
 // TEST-208 traces: TASK-3 AC-5
 // Test edge case: 19% coverage returns large gap (edge case triggered)
 func TestCalculateGap_EdgeCase_Below20Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -250,6 +260,7 @@ func TestCalculateGap_EdgeCase_Below20Percent(t *testing.T) {
 // TEST-209 traces: TASK-3 AC-4
 // Test boundary: 80% coverage returns small gap
 func TestCalculateGap_Boundary_80Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -272,6 +283,7 @@ func TestCalculateGap_Boundary_80Percent(t *testing.T) {
 // TEST-210 traces: TASK-3 AC-4
 // Test boundary: 75% coverage returns medium gap (testing medium range)
 func TestCalculateGap_Boundary_75Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -301,6 +313,7 @@ func TestCalculateGap_Boundary_75Percent(t *testing.T) {
 // TEST-211 traces: TASK-3 AC-4
 // Test boundary: 50% coverage returns medium gap
 func TestCalculateGap_Boundary_50Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -323,6 +336,7 @@ func TestCalculateGap_Boundary_50Percent(t *testing.T) {
 // TEST-212 traces: TASK-3 AC-4
 // Test boundary: 49% coverage returns large gap
 func TestCalculateGap_Boundary_49Percent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -352,6 +366,7 @@ func TestCalculateGap_Boundary_49Percent(t *testing.T) {
 // TEST-213 traces: TASK-3 AC-6
 // Property test: coverage is always between 0 and 100
 func TestCalculateGap_Property_CoverageRange(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -394,6 +409,7 @@ func TestCalculateGap_Property_CoverageRange(t *testing.T) {
 // TEST-214 traces: TASK-3 AC-6
 // Property test: all answered means no unanswered questions in result
 func TestCalculateGap_Property_AllAnsweredMeansNoUnanswered(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -426,6 +442,7 @@ func TestCalculateGap_Property_AllAnsweredMeansNoUnanswered(t *testing.T) {
 // TEST-215 traces: TASK-3 AC-6
 // Property test: gap size classification is consistent with coverage
 func TestCalculateGap_Property_GapSizeConsistentWithCoverage(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -474,6 +491,7 @@ func TestCalculateGap_Property_GapSizeConsistentWithCoverage(t *testing.T) {
 // TEST-216 traces: TASK-3 AC-1
 // Test empty key questions returns 100% coverage (vacuous truth)
 func TestCalculateGap_EmptyKeyQuestions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{}
@@ -490,6 +508,7 @@ func TestCalculateGap_EmptyKeyQuestions(t *testing.T) {
 // TEST-217 traces: TASK-3 AC-1
 // Test answered questions not in key questions are ignored
 func TestCalculateGap_ExtraAnsweredQuestionsIgnored(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{

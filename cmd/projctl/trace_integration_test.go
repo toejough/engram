@@ -13,6 +13,7 @@ import (
 
 // TestTraceShowASCII tests the CLI interface for projctl trace show (default ASCII)
 func TestTraceShowASCII(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -42,6 +43,7 @@ Description.
 
 // TestTraceShowJSON tests the CLI interface for projctl trace show --format json
 func TestTraceShowJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -73,6 +75,7 @@ Description.
 
 // TestTraceShowInvalidFormat tests error handling for invalid format
 func TestTraceShowInvalidFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -87,6 +90,7 @@ func TestTraceShowInvalidFormat(t *testing.T) {
 // TEST-800: CLI trace promote promotes TASK traces to permanent IDs
 // traces: TASK-008
 func TestTracePromote(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -130,6 +134,7 @@ func TestFeature(t *testing.T) {
 // TEST-801: CLI trace promote --dry-run shows changes without modifying
 // traces: TASK-008
 func TestTracePromoteDryRun(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -173,6 +178,7 @@ func TestFeature(t *testing.T) {
 // TEST-802: CLI trace promote reports number of files modified
 // traces: TASK-008
 func TestTracePromoteReportsFileCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -220,6 +226,7 @@ func TestFeature2() {}
 // TEST-803: CLI trace promote with JSON output
 // traces: TASK-008
 func TestTracePromoteJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

@@ -58,6 +58,7 @@ func setupTestRepo(t *testing.T) (string, string) {
 }
 
 func TestManager_DetectBaseBranch(t *testing.T) {
+	t.Parallel()
 	t.Run("detects current branch as base", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, _ := setupTestRepo(t)
@@ -80,6 +81,7 @@ func TestManager_DetectBaseBranch(t *testing.T) {
 }
 
 func TestManager_Create(t *testing.T) {
+	t.Parallel()
 	t.Run("creates worktree and branch", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)
@@ -150,6 +152,7 @@ func TestManager_Create(t *testing.T) {
 }
 
 func TestManager_Merge(t *testing.T) {
+	t.Parallel()
 	t.Run("rebases and fast-forward merges task branch", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, targetBranch := setupTestRepo(t)
@@ -265,6 +268,7 @@ func TestManager_Merge(t *testing.T) {
 }
 
 func TestManager_List(t *testing.T) {
+	t.Parallel()
 	t.Run("returns empty slice when no task worktrees exist", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, _ := setupTestRepo(t)
@@ -360,6 +364,7 @@ func TestManager_List(t *testing.T) {
 }
 
 func TestManager_CreateProject(t *testing.T) {
+	t.Parallel()
 	t.Run("creates project worktree and branch", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)
@@ -403,6 +408,7 @@ func TestManager_CreateProject(t *testing.T) {
 }
 
 func TestManager_MergeProject(t *testing.T) {
+	t.Parallel()
 	t.Run("rebases and fast-forward merges project branch", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, targetBranch := setupTestRepo(t)
@@ -475,6 +481,7 @@ func TestManager_MergeProject(t *testing.T) {
 }
 
 func TestManager_CleanupProject(t *testing.T) {
+	t.Parallel()
 	t.Run("removes project worktree and branch", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)
@@ -500,6 +507,7 @@ func TestManager_CleanupProject(t *testing.T) {
 }
 
 func TestManager_ListIncludesProjects(t *testing.T) {
+	t.Parallel()
 	t.Run("lists both task and project worktrees", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)
@@ -548,6 +556,7 @@ func TestManager_ListIncludesProjects(t *testing.T) {
 }
 
 func TestManager_Cleanup(t *testing.T) {
+	t.Parallel()
 	t.Run("removes worktree directory", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)
@@ -653,6 +662,7 @@ func TestManager_Cleanup(t *testing.T) {
 }
 
 func TestManager_CleanupAll(t *testing.T) {
+	t.Parallel()
 	t.Run("removes all task worktrees", func(t *testing.T) {
 		g := NewWithT(t)
 		repoDir, branchName := setupTestRepo(t)

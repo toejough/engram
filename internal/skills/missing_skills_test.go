@@ -12,6 +12,7 @@ import (
 
 // TestPlanProducer_SkillExists verifies plan-producer SKILL.md exists
 func TestPlanProducer_SkillExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -24,6 +25,7 @@ func TestPlanProducer_SkillExists(t *testing.T) {
 
 // TestPlanProducer_Frontmatter verifies plan-producer has correct frontmatter
 func TestPlanProducer_Frontmatter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -44,6 +46,7 @@ func TestPlanProducer_Frontmatter(t *testing.T) {
 
 // TestPlanProducer_GatherSynthesizeProduce verifies plan-producer follows GATHER -> SYNTHESIZE -> PRODUCE
 func TestPlanProducer_GatherSynthesizeProduce(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -62,6 +65,7 @@ func TestPlanProducer_GatherSynthesizeProduce(t *testing.T) {
 
 // TestPlanProducer_Contract verifies plan-producer has a Contract section
 func TestPlanProducer_Contract(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -79,6 +83,7 @@ func TestPlanProducer_Contract(t *testing.T) {
 
 // TestPlanProducer_PlanMode verifies plan-producer uses plan mode for interactive review
 func TestPlanProducer_PlanMode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -101,6 +106,7 @@ func TestPlanProducer_PlanMode(t *testing.T) {
 
 // TestEvaluationProducer_SkillExists verifies evaluation-producer SKILL.md exists
 func TestEvaluationProducer_SkillExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -113,6 +119,7 @@ func TestEvaluationProducer_SkillExists(t *testing.T) {
 
 // TestEvaluationProducer_Frontmatter verifies evaluation-producer has correct frontmatter
 func TestEvaluationProducer_Frontmatter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -133,6 +140,7 @@ func TestEvaluationProducer_Frontmatter(t *testing.T) {
 
 // TestEvaluationProducer_GatherSynthesizeProduce verifies evaluation-producer follows GATHER -> SYNTHESIZE -> PRODUCE
 func TestEvaluationProducer_GatherSynthesizeProduce(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -151,6 +159,7 @@ func TestEvaluationProducer_GatherSynthesizeProduce(t *testing.T) {
 
 // TestEvaluationProducer_Contract verifies evaluation-producer has a Contract section
 func TestEvaluationProducer_Contract(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()
@@ -168,6 +177,7 @@ func TestEvaluationProducer_Contract(t *testing.T) {
 
 // TestEvaluationProducer_TracesToUpstream verifies evaluation-producer traces to upstream artifacts
 func TestEvaluationProducer_TracesToUpstream(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	root, err := findProjectRoot()

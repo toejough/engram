@@ -11,6 +11,7 @@ import (
 // TEST-300 traces: TASK-6 AC-1, AC-2
 // Small gap (≥80%): yields 1-2 confirmation questions for critical unanswered items only
 func TestSelectQuestions_SmallGap_OneCriticalUnanswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -58,6 +59,7 @@ func TestSelectQuestions_SmallGap_OneCriticalUnanswered(t *testing.T) {
 // TEST-301 traces: TASK-6 AC-2
 // Small gap with no critical unanswered: yields 1-2 questions prioritizing important
 func TestSelectQuestions_SmallGap_NoCriticalUnanswered(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -95,6 +97,7 @@ func TestSelectQuestions_SmallGap_NoCriticalUnanswered(t *testing.T) {
 // TEST-302 traces: TASK-6 AC-3
 // Medium gap (50-79%): yields 3-5 clarification questions prioritizing critical then important
 func TestSelectQuestions_MediumGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -146,6 +149,7 @@ func TestSelectQuestions_MediumGap(t *testing.T) {
 // TEST-303 traces: TASK-6 AC-4
 // Large gap (<50%): yields full interview sequence covering all key questions
 func TestSelectQuestions_LargeGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -198,6 +202,7 @@ func TestSelectQuestions_LargeGap(t *testing.T) {
 // TEST-304 traces: TASK-6 AC-5
 // Question text references gathered context where relevant
 func TestSelectQuestions_ReferencesGatheredContext(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -236,6 +241,7 @@ func TestSelectQuestions_ReferencesGatheredContext(t *testing.T) {
 // TEST-305 traces: TASK-6 AC-5
 // Questions include context information when available
 func TestSelectQuestions_IncludesContextInformation(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -287,6 +293,7 @@ func TestSelectQuestions_IncludesContextInformation(t *testing.T) {
 // TEST-306 traces: TASK-6 AC-6
 // Questions skip topics fully answered by context
 func TestSelectQuestions_SkipsAnsweredTopics(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -328,6 +335,7 @@ func TestSelectQuestions_SkipsAnsweredTopics(t *testing.T) {
 // TEST-307 traces: TASK-6 AC-1, AC-2, AC-3
 // Edge case: all questions answered should return empty list
 func TestSelectQuestions_AllAnswered_EmptyResult(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -355,6 +363,7 @@ func TestSelectQuestions_AllAnswered_EmptyResult(t *testing.T) {
 // TEST-308 traces: TASK-6 AC-2, AC-3
 // Priority ordering within medium gap: critical before important before optional
 func TestSelectQuestions_MediumGap_PriorityOrdering(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{
@@ -403,6 +412,7 @@ func TestSelectQuestions_MediumGap_PriorityOrdering(t *testing.T) {
 // TEST-309 traces: TASK-6 AC-4
 // Large gap includes all priority levels
 func TestSelectQuestions_LargeGap_AllPriorities(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	keyQuestions := []interview.KeyQuestion{

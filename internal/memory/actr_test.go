@@ -19,6 +19,7 @@ import (
 // TEST-1200: Query retrieval adds timestamp to activation history
 // traces: TASK-9
 func TestQueryRetrievalAddsTimestamp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -63,6 +64,7 @@ func TestQueryRetrievalAddsTimestamp(t *testing.T) {
 // TEST-1201: Activation score calculated from timestamps
 // traces: TASK-9
 func TestActivationScoreCalculated(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -99,6 +101,7 @@ func TestActivationScoreCalculated(t *testing.T) {
 // TEST-1202: Corrections use minimal decay
 // traces: TASK-9
 func TestCorrectionsUseMinimalDecay(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -135,6 +138,7 @@ func TestCorrectionsUseMinimalDecay(t *testing.T) {
 // TEST-1203: Reflections apply 30-day sliding window
 // traces: TASK-9
 func TestReflectionsUse30DayWindow(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -190,6 +194,7 @@ func TestReflectionsUse30DayWindow(t *testing.T) {
 // TEST-1204: Migration completes successfully
 // traces: TASK-9
 func TestMigrationCompletesSuccessfully(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -218,6 +223,7 @@ func TestMigrationCompletesSuccessfully(t *testing.T) {
 // TEST-1300: ClusterIntoSessions groups timestamps by gap threshold
 // traces: ISSUE-180
 func TestClusterIntoSessions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	base := time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)
@@ -241,6 +247,7 @@ func TestClusterIntoSessions(t *testing.T) {
 // TEST-1301: Single timestamp → 1 session
 // traces: ISSUE-180
 func TestClusterSingleTimestamp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	ts := []string{time.Now().Format(time.RFC3339)}
@@ -252,6 +259,7 @@ func TestClusterSingleTimestamp(t *testing.T) {
 // TEST-1302: All timestamps within 30min → 1 session, no bonus
 // traces: ISSUE-180
 func TestClusterAllWithinGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	base := time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)
@@ -270,6 +278,7 @@ func TestClusterAllWithinGap(t *testing.T) {
 // TEST-1303: Timestamps exactly at 30min boundary stay in same session
 // traces: ISSUE-180
 func TestClusterExactBoundary(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	base := time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)
@@ -286,6 +295,7 @@ func TestClusterExactBoundary(t *testing.T) {
 // TEST-1304: Empty timestamps → empty sessions
 // traces: ISSUE-180
 func TestClusterEmptyTimestamps(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	sessions := memory.ClusterIntoSessions([]string{}, 30*time.Minute)
@@ -295,6 +305,7 @@ func TestClusterEmptyTimestamps(t *testing.T) {
 // TEST-1305: Unsorted timestamps are handled correctly
 // traces: ISSUE-180
 func TestClusterUnsortedTimestamps(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	base := time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)
@@ -312,6 +323,7 @@ func TestClusterUnsortedTimestamps(t *testing.T) {
 // TEST-1306: Property — cross-session always scores higher than single-session
 // traces: ISSUE-180
 func TestPropertyCrossSessionScoresHigher(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -349,6 +361,7 @@ func TestPropertyCrossSessionScoresHigher(t *testing.T) {
 // TEST-1307: Property — cluster count matches expected for known patterns
 // traces: ISSUE-180
 func TestPropertyClusterCount(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -376,6 +389,7 @@ func TestPropertyClusterCount(t *testing.T) {
 // TEST-1308: SessionCount and SessionBonus populated in stats
 // traces: ISSUE-180
 func TestSessionBonusApplied(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -441,6 +455,7 @@ func TestSessionBonusApplied(t *testing.T) {
 // TEST-1309: Single session → no bonus applied
 // traces: ISSUE-180
 func TestSingleSessionNoBonus(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

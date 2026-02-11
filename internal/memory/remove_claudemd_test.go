@@ -55,6 +55,7 @@ func (m *MockFS) MkdirAll(path string, perm os.FileMode) error {
 
 // TEST-1110: RemoveFromClaudeMD removes matching entry
 func TestRemoveFromClaudeMDRemovesEntry(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `# Working With Joe
@@ -88,6 +89,7 @@ Some content here.
 
 // TEST-1111: RemoveFromClaudeMD with nonexistent entry is a no-op
 func TestRemoveFromClaudeMDNonexistentEntry(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `## Promoted Learnings
@@ -109,6 +111,7 @@ func TestRemoveFromClaudeMDNonexistentEntry(t *testing.T) {
 
 // TEST-1112: RemoveFromClaudeMD leaves other sections untouched
 func TestRemoveFromClaudeMDOtherSectionsUntouched(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `# Main Title
@@ -144,6 +147,7 @@ func TestRemoveFromClaudeMDOtherSectionsUntouched(t *testing.T) {
 
 // TEST-1113: RemoveFromClaudeMD on empty file returns nil
 func TestRemoveFromClaudeMDEmptyFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -158,6 +162,7 @@ func TestRemoveFromClaudeMDEmptyFile(t *testing.T) {
 
 // TEST-1114: RemoveFromClaudeMD on missing file returns nil
 func TestRemoveFromClaudeMDMissingFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &MockFS{
@@ -170,6 +175,7 @@ func TestRemoveFromClaudeMDMissingFile(t *testing.T) {
 
 // TEST-1115: RemoveFromClaudeMD removes multiple entries at once
 func TestRemoveFromClaudeMDMultipleEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	content := `## Promoted Learnings

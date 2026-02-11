@@ -17,6 +17,7 @@ import (
 
 // TEST-1400: Observation columns exist after fresh DB init
 func TestObservationColumnsExistOnFreshDB(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -40,6 +41,7 @@ func TestObservationColumnsExistOnFreshDB(t *testing.T) {
 
 // TEST-1401: Observation columns exist after double-init (migration on existing DB)
 func TestObservationColumnsMigrationIdempotent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -67,6 +69,7 @@ func TestObservationColumnsMigrationIdempotent(t *testing.T) {
 
 // TEST-1402: Observation columns have empty string defaults
 func TestObservationColumnDefaults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -97,6 +100,7 @@ func TestObservationColumnDefaults(t *testing.T) {
 
 // TEST-1403: Insert and read back observation fields
 func TestObservationFieldsRoundTrip(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

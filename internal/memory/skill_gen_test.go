@@ -24,6 +24,7 @@ import (
 // TestGeneratedSkillsTableCreated verifies that initEmbeddingsDB creates
 // the generated_skills table with all required columns.
 func TestGeneratedSkillsTableCreated(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -65,6 +66,7 @@ func TestGeneratedSkillsTableCreated(t *testing.T) {
 // TestInsertSkill verifies that insertSkill inserts a GeneratedSkill
 // and returns its auto-generated ID.
 func TestInsertSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -101,6 +103,7 @@ func TestInsertSkill(t *testing.T) {
 // TestInsertSkillUniqueSlug verifies that inserting a skill with a duplicate
 // slug fails with a unique constraint violation.
 func TestInsertSkillUniqueSlug(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -141,6 +144,7 @@ func TestInsertSkillUniqueSlug(t *testing.T) {
 
 // TestGetSkillBySlug verifies that getSkillBySlug retrieves a skill by its slug.
 func TestGetSkillBySlug(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -195,6 +199,7 @@ func TestGetSkillBySlug(t *testing.T) {
 // TestGetSkillBySlugNotFound verifies that getSkillBySlug returns nil
 // for a non-existent slug.
 func TestGetSkillBySlugNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -212,6 +217,7 @@ func TestGetSkillBySlugNotFound(t *testing.T) {
 
 // TestListSkills verifies that listSkills returns all non-pruned skills.
 func TestListSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -271,6 +277,7 @@ func TestListSkills(t *testing.T) {
 // TestListSkillsEmpty verifies that listSkills returns empty slice
 // when no skills exist.
 func TestListSkillsEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -288,6 +295,7 @@ func TestListSkillsEmpty(t *testing.T) {
 
 // TestUpdateSkill verifies that updateSkill modifies an existing skill.
 func TestUpdateSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -345,6 +353,7 @@ func TestUpdateSkill(t *testing.T) {
 
 // TestSoftDeleteSkill verifies that softDeleteSkill sets pruned=1.
 func TestSoftDeleteSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -388,6 +397,7 @@ func TestSoftDeleteSkill(t *testing.T) {
 // TestSkillConfidenceMean verifies that SkillConfidence.Mean() computes
 // alpha/(alpha+beta) correctly.
 func TestSkillConfidenceMean(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		alpha    float64
@@ -424,6 +434,7 @@ func TestSkillConfidenceMean(t *testing.T) {
 // TestComputeUtility verifies that computeUtility implements the MACLA formula:
 // utility = 0.5*(alpha/(alpha+beta)) + 0.3*min(1, ln(1+retrievals)/5) + 0.2*exp(-days_since_last/30)
 func TestComputeUtility(t *testing.T) {
+	t.Parallel()
 	now := time.Now().UTC()
 	lastWeek := now.Add(-7 * 24 * time.Hour).Format(time.RFC3339)
 	lastMonth := now.Add(-30 * 24 * time.Hour).Format(time.RFC3339)
@@ -493,6 +504,7 @@ func TestComputeUtility(t *testing.T) {
 
 // TestComputeUtilityMACLAFormula verifies the exact MACLA formula implementation.
 func TestComputeUtilityMACLAFormula(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Test a specific case where we can compute the expected value exactly
@@ -505,9 +517,9 @@ func TestComputeUtilityMACLAFormula(t *testing.T) {
 	utility := memory.ComputeUtilityForTest(alpha, beta, retrievals, lastRetrieved)
 
 	// Expected computation:
-	confidence := alpha / (alpha + beta)                     // 0.75
-	retrievalScore := math.Min(1.0, math.Log(1+20)/5)        // min(1, ln(21)/5) = min(1, 0.6072) = 0.6072
-	recencyScore := math.Exp(-15.0 / 30.0)                   // exp(-0.5) = 0.6065
+	confidence := alpha / (alpha + beta)              // 0.75
+	retrievalScore := math.Min(1.0, math.Log(1+20)/5) // min(1, ln(21)/5) = min(1, 0.6072) = 0.6072
+	recencyScore := math.Exp(-15.0 / 30.0)            // exp(-0.5) = 0.6065
 	expected := 0.5*confidence + 0.3*retrievalScore + 0.2*recencyScore
 
 	g.Expect(utility).To(BeNumerically("~", expected, 0.01))
@@ -516,6 +528,7 @@ func TestComputeUtilityMACLAFormula(t *testing.T) {
 // TestPropertyUtilityAlwaysInRange verifies via property test that
 // computeUtility always returns a value in [0, 1].
 func TestPropertyUtilityAlwaysInRange(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -541,6 +554,7 @@ func TestPropertyUtilityAlwaysInRange(t *testing.T) {
 // TestPropertySkillConfidenceAlwaysInRange verifies via property test that
 // SkillConfidence.Mean() always returns a value in [0, 1].
 func TestPropertySkillConfidenceAlwaysInRange(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -562,6 +576,7 @@ func TestPropertySkillConfidenceAlwaysInRange(t *testing.T) {
 // TestPropertyConfidenceMeanIsWeightedAverage verifies that Mean() correctly
 // computes alpha/(alpha+beta).
 func TestPropertyConfidenceMeanIsWeightedAverage(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -583,6 +598,7 @@ func TestPropertyConfidenceMeanIsWeightedAverage(t *testing.T) {
 // TestPropertyUtilityMonotonicWithConfidence verifies that utility increases
 // with confidence when other factors are held constant.
 func TestPropertyUtilityMonotonicWithConfidence(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -640,6 +656,7 @@ func (m *mockSkillCompilerGen) Synthesize(ctx context.Context, memories []string
 // TestScoreClusterComputesMACLA verifies that scoreCluster computes MACLA
 // utility score from cluster member metadata (confidence, retrieval_count, last_retrieved).
 func TestScoreClusterComputesMACLA(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -692,6 +709,7 @@ func TestScoreClusterComputesMACLA(t *testing.T) {
 // TestScoreClusterAveragesMembers verifies that scoreCluster averages
 // utility scores across all cluster members.
 func TestScoreClusterAveragesMembers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -735,6 +753,7 @@ func TestScoreClusterAveragesMembers(t *testing.T) {
 // TestGenerateSkillContentUsesCompiler verifies that generateSkillContent
 // calls the SkillCompiler when available.
 func TestGenerateSkillContentUsesCompiler(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cluster := []memory.ClusterEntry{
@@ -763,6 +782,7 @@ func TestGenerateSkillContentUsesCompiler(t *testing.T) {
 // TestGenerateSkillContentFallsBackToTemplate verifies that generateSkillContent
 // uses a template when the compiler is nil or returns an error.
 func TestGenerateSkillContentFallsBackToTemplate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cluster := []memory.ClusterEntry{
@@ -780,6 +800,7 @@ func TestGenerateSkillContentFallsBackToTemplate(t *testing.T) {
 // TestGenerateSkillContentFallsBackOnCompilerError verifies fallback behavior
 // when the compiler returns an error.
 func TestGenerateSkillContentFallsBackOnCompilerError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	cluster := []memory.ClusterEntry{
@@ -800,6 +821,7 @@ func TestGenerateSkillContentFallsBackOnCompilerError(t *testing.T) {
 
 // TestSlugifyProducesURLSafe verifies that slugify produces URL-safe identifiers.
 func TestSlugifyProducesURLSafe(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -867,6 +889,7 @@ func TestSlugifyProducesURLSafe(t *testing.T) {
 // TestPropertySlugifyAlwaysURLSafe verifies via property test that slugify
 // always produces URL-safe identifiers.
 func TestPropertySlugifyAlwaysURLSafe(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -886,6 +909,7 @@ func TestPropertySlugifyAlwaysURLSafe(t *testing.T) {
 // TestWriteSkillFileCreatesDirectory verifies that writeSkillFile creates
 // the skill directory structure.
 func TestWriteSkillFileCreatesDirectory(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -922,6 +946,7 @@ func TestWriteSkillFileCreatesDirectory(t *testing.T) {
 // TestWriteSkillFileContainsFrontmatter verifies that writeSkillFile creates
 // SKILL.md with proper YAML frontmatter.
 func TestWriteSkillFileContainsFrontmatter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -969,6 +994,7 @@ func TestWriteSkillFileContainsFrontmatter(t *testing.T) {
 // TestWriteSkillFileOverwritesExisting verifies that writeSkillFile overwrites
 // an existing SKILL.md file.
 func TestWriteSkillFileOverwritesExisting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1014,6 +1040,7 @@ func TestWriteSkillFileOverwritesExisting(t *testing.T) {
 // TestClaudeCLIExtractorImplementsSkillCompiler verifies that ClaudeCLIExtractor
 // implements the SkillCompiler interface.
 func TestClaudeCLIExtractorImplementsSkillCompiler(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// This is a compile-time check that ClaudeCLIExtractor implements SkillCompiler
@@ -1030,6 +1057,7 @@ func TestClaudeCLIExtractorImplementsSkillCompiler(t *testing.T) {
 // TestSkillCompilerInterface verifies that SkillCompiler interface is defined
 // with the expected method signature.
 func TestSkillCompilerInterface(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Create a mock that implements the interface

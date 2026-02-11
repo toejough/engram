@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/gomega"
 	_ "github.com/mattn/go-sqlite3"
+	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
 	"github.com/toejough/projctl/internal/memory"
@@ -20,6 +20,7 @@ import (
 // TEST-780: Memory learn creates embeddings.db if not exists
 // traces: TASK-048
 func TestLearnCreatesIndexIfNotExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -46,6 +47,7 @@ func TestLearnCreatesIndexIfNotExists(t *testing.T) {
 // TEST-781: Memory learn appends to existing entries in DB
 // traces: TASK-048
 func TestLearnAppendsToExistingIndex(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -84,6 +86,7 @@ func TestLearnAppendsToExistingIndex(t *testing.T) {
 // TEST-782: Memory learn entry format has timestamp prefix
 // traces: TASK-048
 func TestLearnEntryFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -113,6 +116,7 @@ func TestLearnEntryFormat(t *testing.T) {
 // TEST-783: Memory learn includes project context when provided
 // traces: TASK-048
 func TestLearnWithProjectContext(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -143,6 +147,7 @@ func TestLearnWithProjectContext(t *testing.T) {
 // TEST-784: Memory learn without project context
 // traces: TASK-048
 func TestLearnWithoutProjectContext(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -171,6 +176,7 @@ func TestLearnWithoutProjectContext(t *testing.T) {
 // TEST-785: Memory learn uses current timestamp
 // traces: TASK-048
 func TestLearnUsesCurrentTimestamp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -208,6 +214,7 @@ func TestLearnUsesCurrentTimestamp(t *testing.T) {
 // TEST-786: Memory learn requires non-empty message
 // traces: TASK-048
 func TestLearnRequiresMessage(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -226,6 +233,7 @@ func TestLearnRequiresMessage(t *testing.T) {
 // TEST-787: Property-based test for any message text
 // traces: TASK-048
 func TestLearnPropertyBasedMessageStorage(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -263,6 +271,7 @@ func TestLearnPropertyBasedMessageStorage(t *testing.T) {
 // TEST-788: Memory learn multiple entries all stored
 // traces: TASK-048
 func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -297,6 +306,7 @@ func TestLearnMultipleEntriesPreserveOrder(t *testing.T) {
 // TEST-199-01: Learn does not create index.md
 // traces: ISSUE-199
 func TestLearnDoesNotCreateIndexMd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	memoryDir := filepath.Join(t.TempDir(), "memory")
 
@@ -314,6 +324,7 @@ func TestLearnDoesNotCreateIndexMd(t *testing.T) {
 // TEST-199-02: Learn stores content accessible via DB
 // traces: ISSUE-199
 func TestLearnStoresContentInDB(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	memoryDir := filepath.Join(t.TempDir(), "memory")
 
@@ -339,6 +350,7 @@ func TestLearnStoresContentInDB(t *testing.T) {
 // TEST-790: Decision creates decisions directory if not exists
 // traces: TASK-049
 func TestDecideCreatesDirectoryIfNotExists(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -370,6 +382,7 @@ func TestDecideCreatesDirectoryIfNotExists(t *testing.T) {
 // TEST-791: Decision file format is JSONL with proper filename
 // traces: TASK-049
 func TestDecideFileFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -400,6 +413,7 @@ func TestDecideFileFormat(t *testing.T) {
 // TEST-792: Decision entry contains all fields as JSON
 // traces: TASK-049
 func TestDecideEntryFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -436,6 +450,7 @@ func TestDecideEntryFormat(t *testing.T) {
 // TEST-793: Decision appends to existing file
 // traces: TASK-049
 func TestDecideAppendsToExistingFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -484,6 +499,7 @@ func TestDecideAppendsToExistingFile(t *testing.T) {
 // TEST-794: Decision requires context
 // traces: TASK-049
 func TestDecideRequiresContext(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -506,6 +522,7 @@ func TestDecideRequiresContext(t *testing.T) {
 // TEST-795: Decision requires choice
 // traces: TASK-049
 func TestDecideRequiresChoice(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -528,6 +545,7 @@ func TestDecideRequiresChoice(t *testing.T) {
 // TEST-796: Decision requires reason
 // traces: TASK-049
 func TestDecideRequiresReason(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -550,6 +568,7 @@ func TestDecideRequiresReason(t *testing.T) {
 // TEST-797: Decision works with empty alternatives
 // traces: TASK-049
 func TestDecideEmptyAlternatives(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -572,6 +591,7 @@ func TestDecideEmptyAlternatives(t *testing.T) {
 // TEST-798: Decision uses today's date in filename
 // traces: TASK-049
 func TestDecideUsesTodayDate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -601,6 +621,7 @@ func TestDecideUsesTodayDate(t *testing.T) {
 // TEST-810: Grep searches embeddings DB
 // traces: TASK-051
 func TestGrepSearchesIndexMd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -634,6 +655,7 @@ func TestGrepSearchesIndexMd(t *testing.T) {
 // TEST-811: Grep searches sessions directory
 // traces: TASK-051
 func TestGrepSearchesSessions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -664,6 +686,7 @@ Gin was selected as the web framework.`
 // TEST-812: Grep returns file and line number
 // traces: TASK-051
 func TestGrepReturnsFileAndLineNumber(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -691,6 +714,7 @@ func TestGrepReturnsFileAndLineNumber(t *testing.T) {
 // TEST-813: Grep project filter limits search
 // traces: TASK-051
 func TestGrepProjectFilter(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -720,6 +744,7 @@ func TestGrepProjectFilter(t *testing.T) {
 // TEST-814: Grep with decisions flag searches decisions
 // traces: TASK-051
 func TestGrepWithDecisionsFlag(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -749,6 +774,7 @@ func TestGrepWithDecisionsFlag(t *testing.T) {
 // TEST-815: Grep returns empty results for no matches
 // traces: TASK-052
 func TestGrepNoMatches(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -774,6 +800,7 @@ func TestGrepNoMatches(t *testing.T) {
 // TEST-816: Grep requires pattern
 // traces: TASK-052
 func TestGrepRequiresPattern(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -792,6 +819,7 @@ func TestGrepRequiresPattern(t *testing.T) {
 // TEST-817: Grep is case insensitive
 // traces: TASK-052
 func TestGrepCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -821,6 +849,7 @@ func TestGrepCaseInsensitive(t *testing.T) {
 // TEST-199-03: Grep finds content from DB when index.md doesn't exist
 // traces: ISSUE-199
 func TestGrepFindsContentFromDBWithoutIndexMd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	memoryDir := filepath.Join(t.TempDir(), "memory")
 
@@ -846,6 +875,7 @@ func TestGrepFindsContentFromDBWithoutIndexMd(t *testing.T) {
 // TEST-199-04: Grep still searches sessions directory
 // traces: ISSUE-199
 func TestGrepStillSearchesSessions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	memoryDir := filepath.Join(t.TempDir(), "memory")
 
@@ -872,6 +902,7 @@ func TestGrepStillSearchesSessions(t *testing.T) {
 // TEST-820: Query creates embeddings.db on first use
 // traces: TASK-052
 func TestQueryCreatesEmbeddingsDb(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -905,6 +936,7 @@ func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 // TEST-821: Query uses SQLite-vec for vector storage
 // traces: TASK-052
 func TestQueryUsesSQLiteVec(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -936,6 +968,7 @@ func TestQueryUsesSQLiteVec(t *testing.T) {
 // TEST-822: Query uses ONNX model for embeddings with e5-small model
 // traces: TASK-052
 func TestQueryUsesONNXModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -972,6 +1005,7 @@ func TestQueryUsesONNXModel(t *testing.T) {
 // TEST-823: Query uses semantic similarity not keyword matching
 // traces: TASK-052
 func TestQueryUsesSemanticSimilarity(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1019,6 +1053,7 @@ func TestQueryUsesSemanticSimilarity(t *testing.T) {
 // TEST-824: Query returns default 5 results
 // traces: TASK-052
 func TestQueryDefaultLimit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1046,6 +1081,7 @@ func TestQueryDefaultLimit(t *testing.T) {
 // TEST-825: Query respects custom limit
 // traces: TASK-052
 func TestQueryCustomLimit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1074,6 +1110,7 @@ func TestQueryCustomLimit(t *testing.T) {
 // TEST-826: Query searches learned content
 // traces: TASK-052
 func TestQuerySearchesLearnedContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1105,6 +1142,7 @@ func TestQuerySearchesLearnedContent(t *testing.T) {
 // TEST-827: Query requires text
 // traces: TASK-052
 func TestQueryRequiresText(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1123,6 +1161,7 @@ func TestQueryRequiresText(t *testing.T) {
 // TEST-828: Query results include similarity scores
 // traces: TASK-052
 func TestQueryResultsIncludeScores(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1160,6 +1199,7 @@ func TestQueryResultsIncludeScores(t *testing.T) {
 // TEST-829: Query results are sorted by score descending
 // traces: TASK-052
 func TestQueryResultsSortedByScore(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1201,6 +1241,7 @@ func TestQueryResultsSortedByScore(t *testing.T) {
 // TEST-831: Property-based test for embedding consistency
 // traces: TASK-052
 func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -1257,7 +1298,10 @@ func TestQueryPropertyBasedEmbeddingConsistency(t *testing.T) {
 // TEST-832: Query downloads e5-small model on first use
 // traces: TASK-052
 func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
+	t.Parallel(
 	// Skip in short mode since this test requires network download
+	)
+
 	if testing.Short() {
 		t.Skip("skipping download test in short mode")
 	}
@@ -1318,6 +1362,7 @@ func TestQueryDownloadsModelOnFirstUse(t *testing.T) {
 // TEST-833: Query uses default model directory ~/.claude/models
 // traces: TASK-052
 func TestQueryUsesDefaultModelDirectory(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1349,6 +1394,7 @@ func TestQueryUsesDefaultModelDirectory(t *testing.T) {
 // TEST-834: Query verifies model dimensions match e5-small (384)
 // traces: TASK-052
 func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1380,6 +1426,7 @@ func TestQueryVerifiesE5SmallDimensions(t *testing.T) {
 // TEST-835: Query loads ONNX model into memory
 // traces: TASK-052
 func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1414,6 +1461,7 @@ func TestQueryLoadsONNXModelIntoMemory(t *testing.T) {
 // TEST-836: Query performs actual inference not mock embeddings
 // traces: TASK-052
 func TestQueryPerformsActualInference(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1453,6 +1501,7 @@ Frontend styling with CSS`
 // TEST-837: Query reuses model on subsequent calls
 // traces: TASK-052
 func TestQueryReusesDownloadedModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1488,6 +1537,7 @@ func TestQueryReusesDownloadedModel(t *testing.T) {
 // TEST-201-01: LearnWithConflictCheck actually stores the entry
 // traces: ISSUE-201 AC-1
 func TestLearnWithConflictCheckStoresEntry(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1513,6 +1563,7 @@ func TestLearnWithConflictCheckStoresEntry(t *testing.T) {
 // TEST-201-02: LearnWithConflictCheck detects conflict for similar entries
 // traces: ISSUE-201 AC-2
 func TestLearnWithConflictCheckDetectsConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1538,6 +1589,7 @@ func TestLearnWithConflictCheckDetectsConflict(t *testing.T) {
 // TEST-201-03: LearnWithConflictCheck reports no conflict for different entries
 // traces: ISSUE-201 AC-3
 func TestLearnWithConflictCheckNoConflictForDifferentMessages(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1566,6 +1618,7 @@ func TestLearnWithConflictCheckNoConflictForDifferentMessages(t *testing.T) {
 // TEST-208-01: Query is read-only and does not create new embeddings
 // traces: ISSUE-208 TASK-1
 func TestQueryIsReadOnly(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1618,6 +1671,7 @@ func TestQueryIsReadOnly(t *testing.T) {
 // TEST-208-02: Query ignores session files and does not return their content
 // traces: ISSUE-208 TASK-1
 func TestQueryIgnoresSessionFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -1650,6 +1704,7 @@ func TestQueryIgnoresSessionFiles(t *testing.T) {
 // TEST-208-03: Query finds content added via Learn() (positive control)
 // traces: ISSUE-208 TASK-1
 func TestQueryFindsLearnedContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

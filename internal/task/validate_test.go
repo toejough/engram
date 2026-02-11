@@ -12,6 +12,7 @@ import (
 // TEST-460 traces: TASK-025
 // Test ValidateTask checks for visual evidence when UI flag is true.
 func TestValidateTask_UIRequiresVisualEvidence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -36,9 +37,9 @@ func TestValidateTask_UIRequiresVisualEvidence(t *testing.T) {
 // TEST-461 traces: TASK-025
 // Test ValidateTask passes when UI task has visual evidence.
 func TestValidateTask_UIWithVisualEvidence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -59,9 +60,9 @@ func TestValidateTask_UIWithVisualEvidence(t *testing.T) {
 // TEST-462 traces: TASK-025
 // Test ValidateTask passes for non-UI tasks without visual evidence.
 func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -81,9 +82,9 @@ func TestValidateTask_NonUIWithoutVisualEvidence(t *testing.T) {
 // TEST-470 traces: TASK-026
 // Test ValidateTask with manual visual verified flag bypasses visual evidence requirement.
 func TestValidateTask_ManualVisualVerified(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -109,9 +110,9 @@ func TestValidateTask_ManualVisualVerified(t *testing.T) {
 // TEST-530 traces: TASK-030
 // Test ParseDependencies extracts task dependencies from tasks.md.
 func TestParseDependencies(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -141,9 +142,9 @@ func TestParseDependencies(t *testing.T) {
 // TEST-531 traces: TASK-030
 // Test ParseDependencies detects cycles.
 func TestParseDependencies_DetectsCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -167,9 +168,9 @@ func TestParseDependencies_DetectsCycle(t *testing.T) {
 // TEST-532 traces: TASK-030
 // Test ParseDependencies finds root tasks (no dependencies).
 func TestParseDependencies_RootTasks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -197,9 +198,9 @@ func TestParseDependencies_RootTasks(t *testing.T) {
 // TEST-540 traces: TASK-031
 // Test Parallel returns independent pending tasks.
 func TestParallel_IndependentTasks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -231,9 +232,9 @@ func TestParallel_IndependentTasks(t *testing.T) {
 // TEST-541 traces: TASK-031
 // Test Parallel excludes tasks with pending dependencies.
 func TestParallel_BlockedTasks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -259,9 +260,9 @@ func TestParallel_BlockedTasks(t *testing.T) {
 // TEST-542 traces: TASK-031
 // Test Parallel returns empty when all tasks complete.
 func TestParallel_AllComplete(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -281,9 +282,9 @@ func TestParallel_AllComplete(t *testing.T) {
 // TEST-590 traces: TASK-059
 // Test ValidateAcceptanceCriteria parses complete checkboxes.
 func TestValidateAcceptanceCriteria_CompleteCheckboxes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -305,9 +306,9 @@ func TestValidateAcceptanceCriteria_CompleteCheckboxes(t *testing.T) {
 // TEST-591 traces: TASK-059
 // Test ValidateAcceptanceCriteria parses incomplete checkboxes.
 func TestValidateAcceptanceCriteria_IncompleteCheckboxes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -335,9 +336,9 @@ func TestValidateAcceptanceCriteria_IncompleteCheckboxes(t *testing.T) {
 // TEST-592 traces: TASK-059
 // Test ValidateAcceptanceCriteria returns error when task not found.
 func TestValidateAcceptanceCriteria_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -356,9 +357,9 @@ func TestValidateAcceptanceCriteria_TaskNotFound(t *testing.T) {
 // TEST-593 traces: TASK-059
 // Test ValidateAcceptanceCriteria handles tasks with no AC section.
 func TestValidateAcceptanceCriteria_NoAcceptanceCriteria(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -378,9 +379,9 @@ func TestValidateAcceptanceCriteria_NoAcceptanceCriteria(t *testing.T) {
 // TEST-594 traces: TASK-059
 // Test task-complete transition is blocked when AC incomplete.
 func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -424,9 +425,9 @@ func TestStateTransition_TaskCompleteBlockedByIncompleteAC(t *testing.T) {
 // TEST-595 traces: TASK-059
 // Test task-complete transition succeeds when all AC complete.
 func TestStateTransition_TaskCompleteSucceedsWithCompleteAC(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -447,9 +448,9 @@ func TestStateTransition_TaskCompleteSucceedsWithCompleteAC(t *testing.T) {
 // TEST-596 traces: TASK-059
 // Test force flag bypasses AC validation.
 func TestValidateAcceptanceCriteria_ForceBypass(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 
@@ -474,9 +475,9 @@ func TestValidateAcceptanceCriteria_ForceBypass(t *testing.T) {
 // TEST-597 traces: TASK-059
 // Test error message lists specific incomplete AC items.
 func TestValidateAcceptanceCriteria_ErrorListsItems(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
-
 
 	tasksContent := `# Tasks
 

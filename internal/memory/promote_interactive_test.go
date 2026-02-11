@@ -19,6 +19,7 @@ import (
 // TEST-980: PromoteInteractive requires ReviewFunc when Review is true
 // traces: TASK-7
 func TestPromoteInteractiveRequiresReviewFunc(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -39,6 +40,7 @@ func TestPromoteInteractiveRequiresReviewFunc(t *testing.T) {
 // TEST-981: PromoteInteractive calls ReviewFunc for each candidate
 // traces: TASK-7
 func TestPromoteInteractiveCallsReviewFunc(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -85,6 +87,7 @@ func TestPromoteInteractiveCallsReviewFunc(t *testing.T) {
 // TEST-982: PromoteInteractive counts approved and rejected candidates
 // traces: TASK-7
 func TestPromoteInteractiveCounts(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -134,6 +137,7 @@ func TestPromoteInteractiveCounts(t *testing.T) {
 // TEST-983: PromoteInteractive appends approved candidates to CLAUDE.md
 // traces: TASK-7
 func TestPromoteInteractiveAppendsToClaudeMD(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -191,6 +195,7 @@ func TestPromoteInteractiveAppendsToClaudeMD(t *testing.T) {
 // TEST-984: PromoteInteractive without Review mode works like regular Promote
 // traces: TASK-7
 func TestPromoteInteractiveNonReviewMode(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -232,6 +237,7 @@ func TestPromoteInteractiveNonReviewMode(t *testing.T) {
 // TEST-985: PromoteInteractive returns summary with all counts
 // traces: TASK-7
 func TestPromoteInteractiveReturnsSummary(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -255,6 +261,7 @@ func TestPromoteInteractiveReturnsSummary(t *testing.T) {
 // TEST-986: PromoteInteractive handles ReviewFunc errors gracefully
 // traces: TASK-7
 func TestPromoteInteractiveHandlesReviewFuncErrors(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

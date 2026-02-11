@@ -20,6 +20,7 @@ import (
 // TEST-950: Embeddings schema includes retrieval_count column
 // traces: ARCH-060, REQ-013
 func TestEmbeddingsSchemaHasRetrievalCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -51,6 +52,7 @@ func TestEmbeddingsSchemaHasRetrievalCount(t *testing.T) {
 // TEST-951: Embeddings schema includes last_retrieved column
 // traces: ARCH-060, REQ-013
 func TestEmbeddingsSchemaHasLastRetrieved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -80,6 +82,7 @@ func TestEmbeddingsSchemaHasLastRetrieved(t *testing.T) {
 // TEST-952: Embeddings schema includes projects_retrieved column
 // traces: ARCH-060, REQ-013
 func TestEmbeddingsSchemaHasProjectsRetrieved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -114,6 +117,7 @@ func TestEmbeddingsSchemaHasProjectsRetrieved(t *testing.T) {
 // TEST-953: searchSimilar increments retrieval_count after query
 // traces: ARCH-060, REQ-013
 func TestSearchSimilarIncrementsRetrievalCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -150,6 +154,7 @@ func TestSearchSimilarIncrementsRetrievalCount(t *testing.T) {
 // TEST-954: searchSimilar updates last_retrieved timestamp
 // traces: ARCH-060, REQ-013
 func TestSearchSimilarUpdatesLastRetrieved(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -181,6 +186,7 @@ func TestSearchSimilarUpdatesLastRetrieved(t *testing.T) {
 // TEST-955: searchSimilar tracks project in projects_retrieved
 // traces: ARCH-060, REQ-013
 func TestSearchSimilarTracksProject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -213,6 +219,7 @@ func TestSearchSimilarTracksProject(t *testing.T) {
 // TEST-956: searchSimilar deduplicates projects in projects_retrieved
 // traces: ARCH-060, REQ-013
 func TestSearchSimilarDeduplicatesProjects(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -251,6 +258,7 @@ func TestSearchSimilarDeduplicatesProjects(t *testing.T) {
 // TEST-957: searchSimilar accumulates distinct projects
 // traces: ARCH-060, REQ-013
 func TestSearchSimilarAccumulatesDistinctProjects(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -296,6 +304,7 @@ func TestSearchSimilarAccumulatesDistinctProjects(t *testing.T) {
 // TEST-958: QueryOpts accepts Project field
 // traces: ARCH-060, REQ-013
 func TestQueryOptsHasProjectField(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -323,6 +332,7 @@ func TestQueryOptsHasProjectField(t *testing.T) {
 // TEST-960: Promote returns candidates meeting default thresholds
 // traces: ARCH-060, REQ-013
 func TestPromoteReturnsQualifyingCandidates(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -359,6 +369,7 @@ func TestPromoteReturnsQualifyingCandidates(t *testing.T) {
 // TEST-961: Promote uses default MinRetrievals of 3
 // traces: ARCH-060, REQ-013
 func TestPromoteDefaultMinRetrievals(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -391,6 +402,7 @@ func TestPromoteDefaultMinRetrievals(t *testing.T) {
 // TEST-962: Promote uses default MinProjects of 2
 // traces: ARCH-060, REQ-013
 func TestPromoteDefaultMinProjects(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -423,6 +435,7 @@ func TestPromoteDefaultMinProjects(t *testing.T) {
 // TEST-963: Promote respects custom MinRetrievals
 // traces: ARCH-060, REQ-013
 func TestPromoteCustomMinRetrievals(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -457,6 +470,7 @@ func TestPromoteCustomMinRetrievals(t *testing.T) {
 // TEST-964: Promote respects custom MinProjects
 // traces: ARCH-060, REQ-013
 func TestPromoteCustomMinProjects(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -491,6 +505,7 @@ func TestPromoteCustomMinProjects(t *testing.T) {
 // TEST-965: PromoteResult includes content and metadata
 // traces: ARCH-060, REQ-013
 func TestPromoteResultIncludesMetadata(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -527,6 +542,7 @@ func TestPromoteResultIncludesMetadata(t *testing.T) {
 // TEST-966: Promote returns empty when no candidates qualify
 // traces: ARCH-060, REQ-013
 func TestPromoteEmptyWhenNoCandidates(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -558,6 +574,7 @@ func TestPromoteEmptyWhenNoCandidates(t *testing.T) {
 // TEST-967: Promote requires MemoryRoot
 // traces: ARCH-060, REQ-013
 func TestPromoteRequiresMemoryRoot(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	promoteOpts := memory.PromoteOpts{
@@ -576,6 +593,7 @@ func TestPromoteRequiresMemoryRoot(t *testing.T) {
 // TEST-970: Property: retrieval_count is non-negative and monotonically increasing
 // traces: ARCH-060, REQ-013
 func TestPropertyRetrievalCountMonotonic(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -623,6 +641,7 @@ func TestPropertyRetrievalCountMonotonic(t *testing.T) {
 // TEST-971: Property: Promote candidates always meet both thresholds
 // traces: ARCH-060, REQ-013
 func TestPropertyPromoteCandidatesMeetThresholds(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 

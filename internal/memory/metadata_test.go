@@ -17,6 +17,7 @@ import (
 
 // TEST-1100: GetMetadata returns empty string for missing key
 func TestGetMetadataMissingKey(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -30,6 +31,7 @@ func TestGetMetadataMissingKey(t *testing.T) {
 
 // TEST-1101: SetMetadata and GetMetadata round-trip
 func TestMetadataRoundTrip(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -46,6 +48,7 @@ func TestMetadataRoundTrip(t *testing.T) {
 
 // TEST-1102: SetMetadata overwrites existing value
 func TestMetadataOverwrite(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

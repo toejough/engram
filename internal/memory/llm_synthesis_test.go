@@ -24,6 +24,7 @@ import (
 // with a working extractor produces a SynthesisPattern whose Synthesis contains
 // the LLM's output.
 func TestGeneratePatternLLMProducesActionablePrinciple(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -50,6 +51,7 @@ func TestGeneratePatternLLMProducesActionablePrinciple(t *testing.T) {
 
 // TestGeneratePatternLLMThemeTruncatesTo50Chars verifies Theme is capped at 50 characters.
 func TestGeneratePatternLLMThemeTruncatesTo50Chars(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	longPrinciple := "This is a very long principle that exceeds fifty characters and should be truncated for the theme field"
@@ -75,6 +77,7 @@ func TestGeneratePatternLLMThemeTruncatesTo50Chars(t *testing.T) {
 // TestGeneratePatternLLMFallsBackOnExtractorError verifies that when the extractor
 // returns an error, generatePatternLLM falls back to keyword-based generatePattern.
 func TestGeneratePatternLLMFallsBackOnExtractorError(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -104,6 +107,7 @@ func TestGeneratePatternLLMFallsBackOnExtractorError(t *testing.T) {
 // TestOptimizeSynthesizeUsesLLMWhenExtractorProvided verifies that when
 // OptimizeOpts.Extractor is set, synthesis uses LLM output instead of keywords.
 func TestOptimizeSynthesizeUsesLLMWhenExtractorProvided(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -155,6 +159,7 @@ func TestOptimizeSynthesizeUsesLLMWhenExtractorProvided(t *testing.T) {
 // TestOptimizeSynthesizeFallsBackWhenExtractorNil verifies that synthesis
 // works normally (keyword-based) when no extractor is provided.
 func TestOptimizeSynthesizeFallsBackWhenExtractorNil(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -195,6 +200,7 @@ func TestOptimizeSynthesizeFallsBackWhenExtractorNil(t *testing.T) {
 // TestPropertySynthesisOutputNeverEmptyRegardlessOfExtractor verifies that
 // synthesis output is never empty regardless of extractor state (nil, error, success).
 func TestPropertySynthesisOutputNeverEmptyRegardlessOfExtractor(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(rt)
 

@@ -20,6 +20,7 @@ import (
 // TestTokenizer_KnownTokensReturnCorrectIDs verifies vocab lookup for known tokens.
 // Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP]"
 func TestTokenizer_KnownTokensReturnCorrectIDs(t *testing.T) {
+	t.Parallel()
 	_ = NewWithT(t)
 
 	// Known BERT vocabulary tokens (these should exist in e5-small-v2 vocab)
@@ -77,6 +78,7 @@ func TestTokenizer_KnownTokensReturnCorrectIDs(t *testing.T) {
 // TestTokenizer_SubwordSplitting verifies WordPiece subword algorithm.
 // Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
 func TestTokenizer_SubwordSplitting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tokenizer := memory.NewTokenizer()
@@ -105,6 +107,7 @@ func TestTokenizer_SubwordSplitting(t *testing.T) {
 // TestTokenizer_LowercaseNormalization verifies case-insensitive tokenization.
 // Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP]"
 func TestTokenizer_LowercaseNormalization(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tokenizer := memory.NewTokenizer()
@@ -123,6 +126,7 @@ func TestTokenizer_LowercaseNormalization(t *testing.T) {
 // TestTokenizer_EmptyInput verifies handling of empty strings.
 // Traces to: TASK-23 AC "New file tokenizer_test.go with unit tests"
 func TestTokenizer_EmptyInput(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tokenizer := memory.NewTokenizer()
@@ -137,6 +141,7 @@ func TestTokenizer_EmptyInput(t *testing.T) {
 // TestTokenizer_SpecialTokens verifies [CLS] and [SEP] wrapping.
 // Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP] special tokens"
 func TestTokenizer_SpecialTokens(t *testing.T) {
+	t.Parallel()
 	_ = NewWithT(t)
 
 	tokenizer := memory.NewTokenizer()
@@ -170,6 +175,7 @@ func TestTokenizer_SpecialTokens(t *testing.T) {
 // TestTokenizer_UnknownWords verifies [UNK] token handling.
 // Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
 func TestTokenizer_UnknownWords(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tokenizer := memory.NewTokenizer()
@@ -178,7 +184,7 @@ func TestTokenizer_UnknownWords(t *testing.T) {
 	tokenIDs := tokenizer.Tokenize("你好🚀")
 
 	// Should still wrap with special tokens
-	g.Expect(tokenIDs[0]).To(Equal(int64(101))) // [CLS]
+	g.Expect(tokenIDs[0]).To(Equal(int64(101)))               // [CLS]
 	g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102))) // [SEP]
 
 	// Content should contain [UNK] token (100) for unknown words
@@ -200,6 +206,7 @@ func TestTokenizer_UnknownWords(t *testing.T) {
 
 // TestTokenizer_PropertyAlwaysWrapsWithSpecialTokens verifies invariant across random inputs.
 func TestTokenizer_PropertyAlwaysWrapsWithSpecialTokens(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		// Generate random ASCII text
 		text := rapid.String().Draw(t, "text")
@@ -228,6 +235,7 @@ func TestTokenizer_PropertyAlwaysWrapsWithSpecialTokens(t *testing.T) {
 
 // TestTokenizer_PropertyDeterministic verifies same input produces same output.
 func TestTokenizer_PropertyDeterministic(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		text := rapid.String().Draw(t, "text")
 
@@ -252,6 +260,7 @@ func TestTokenizer_PropertyDeterministic(t *testing.T) {
 
 // TestTokenizer_PropertyNonEmpty verifies non-empty output.
 func TestTokenizer_PropertyNonEmpty(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		text := rapid.String().Draw(t, "text")
 
@@ -267,6 +276,7 @@ func TestTokenizer_PropertyNonEmpty(t *testing.T) {
 
 // TestTokenizer_PropertyCaseInsensitive verifies case normalization.
 func TestTokenizer_PropertyCaseInsensitive(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		// Generate random lowercase text
 		text := rapid.StringMatching(`[a-z ]+`).Draw(t, "text")

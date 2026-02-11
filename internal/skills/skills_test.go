@@ -13,6 +13,7 @@ import (
 // TEST-055-001 traces: TASK-056
 // Test that Install creates symlinks for all skills in repo
 func TestInstall_CreatesSymlinksForAllSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup: Create temp directories
@@ -53,6 +54,7 @@ func TestInstall_CreatesSymlinksForAllSkills(t *testing.T) {
 // TEST-055-002 traces: TASK-056
 // Test that Install creates symlink for specific skill
 func TestInstall_CreatesSymlinkForSpecificSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -81,6 +83,7 @@ func TestInstall_CreatesSymlinkForSpecificSkill(t *testing.T) {
 // TEST-055-003 traces: TASK-056
 // Test that Install warns on existing non-symlink directory
 func TestInstall_WarnsOnConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -111,6 +114,7 @@ func TestInstall_WarnsOnConflict(t *testing.T) {
 // TEST-055-004 traces: TASK-056
 // Test that Install with Force overwrites conflicts
 func TestInstall_ForceOverwritesConflict(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -137,12 +141,13 @@ func TestInstall_ForceOverwritesConflict(t *testing.T) {
 	// Now points to repo
 	info, err := os.Lstat(filepath.Join(targetDir, "skill-a"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(info.Mode()&os.ModeSymlink).ToNot(BeZero())
+	g.Expect(info.Mode() & os.ModeSymlink).ToNot(BeZero())
 }
 
 // TEST-055-005 traces: TASK-056
 // Test that Install updates existing symlinks if target changed
 func TestInstall_UpdatesExistingSymlink(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -172,6 +177,7 @@ func TestInstall_UpdatesExistingSymlink(t *testing.T) {
 // TEST-055-006 traces: TASK-056
 // Test that Install returns error for non-existent skill
 func TestInstall_ErrorsOnNonexistentSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	repoDir := t.TempDir()
@@ -192,6 +198,7 @@ func TestInstall_ErrorsOnNonexistentSkill(t *testing.T) {
 // TEST-057-001 traces: TASK-057
 // Test that Status returns linked for properly symlinked skills
 func TestStatus_ReturnsLinkedForSymlinkedSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -215,6 +222,7 @@ func TestStatus_ReturnsLinkedForSymlinkedSkills(t *testing.T) {
 // TEST-057-002 traces: TASK-057
 // Test that Status returns missing for repo skills not installed
 func TestStatus_ReturnsMissingForUninstalledSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -237,6 +245,7 @@ func TestStatus_ReturnsMissingForUninstalledSkills(t *testing.T) {
 // TEST-057-003 traces: TASK-057
 // Test that Status returns local for skills only in target
 func TestStatus_ReturnsLocalForTargetOnlySkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -260,6 +269,7 @@ func TestStatus_ReturnsLocalForTargetOnlySkills(t *testing.T) {
 // TEST-057-004 traces: TASK-057
 // Test that Status returns conflict for non-symlink with same name
 func TestStatus_ReturnsConflictForNonSymlink(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -284,6 +294,7 @@ func TestStatus_ReturnsConflictForNonSymlink(t *testing.T) {
 // TEST-057-005 traces: TASK-057
 // Test that Status returns stale for symlink pointing to wrong location
 func TestStatus_ReturnsStaleForWrongSymlink(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -308,6 +319,7 @@ func TestStatus_ReturnsStaleForWrongSymlink(t *testing.T) {
 // TEST-058-001 traces: TASK-058
 // Test that Uninstall removes all symlinks
 func TestUninstall_RemovesAllSymlinks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -340,6 +352,7 @@ func TestUninstall_RemovesAllSymlinks(t *testing.T) {
 // TEST-058-002 traces: TASK-058
 // Test that Uninstall removes specific symlink
 func TestUninstall_RemovesSpecificSymlink(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -374,6 +387,7 @@ func TestUninstall_RemovesSpecificSymlink(t *testing.T) {
 // TEST-058-003 traces: TASK-058
 // Test that Uninstall preserves non-symlink directories
 func TestUninstall_PreservesNonSymlinks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -404,6 +418,7 @@ func TestUninstall_PreservesNonSymlinks(t *testing.T) {
 // TEST-058-004 traces: TASK-058
 // Test that Uninstall is idempotent
 func TestUninstall_Idempotent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup - no symlinks, just empty dirs
@@ -424,6 +439,7 @@ func TestUninstall_Idempotent(t *testing.T) {
 // TEST-600 traces: TASK-038
 // Test List returns all skill names
 func TestList_ReturnsAllSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -442,6 +458,7 @@ func TestList_ReturnsAllSkills(t *testing.T) {
 // TEST-601 traces: TASK-038
 // Test List excludes shared directory
 func TestList_ExcludesShared(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -459,6 +476,7 @@ func TestList_ExcludesShared(t *testing.T) {
 // TEST-602 traces: TASK-038
 // Test Docs returns SKILL-full.md if exists
 func TestDocs_PrefersFullMd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -474,6 +492,7 @@ func TestDocs_PrefersFullMd(t *testing.T) {
 // TEST-603 traces: TASK-038
 // Test Docs falls back to SKILL.md
 func TestDocs_FallsBackToSkillMd(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -488,6 +507,7 @@ func TestDocs_FallsBackToSkillMd(t *testing.T) {
 // TEST-604 traces: TASK-038
 // Test Docs errors for nonexistent skill
 func TestDocs_ErrorsForNonexistent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -500,6 +520,7 @@ func TestDocs_ErrorsForNonexistent(t *testing.T) {
 // TEST-605 traces: TASK-038
 // Test DocsSection returns specific section
 func TestDocsSection_ReturnsSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()
@@ -532,6 +553,7 @@ This is the purpose section.
 // TEST-606 traces: TASK-038
 // Test DocsSection errors for nonexistent section
 func TestDocsSection_ErrorsForNonexistentSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	skillsDir := t.TempDir()

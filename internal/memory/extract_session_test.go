@@ -22,6 +22,7 @@ import (
 // TEST-1001: ExtractSessionOpts accepts transcript path
 // traces: TASK-1 AC-2
 func TestExtractSessionOptsAcceptsTranscriptPath(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -44,6 +45,7 @@ func TestExtractSessionOptsAcceptsTranscriptPath(t *testing.T) {
 // TEST-1002: ExtractSession reads JSONL transcript file
 // traces: TASK-1 AC-2
 func TestExtractSessionReadsJSONLFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -71,6 +73,7 @@ func TestExtractSessionReadsJSONLFile(t *testing.T) {
 // TEST-1003: Tier A extraction detects "remember this" phrase with confidence 1.0
 // traces: TASK-1 AC-3
 func TestTierAExtractionDetectsRememberThis(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -108,6 +111,7 @@ func TestTierAExtractionDetectsRememberThis(t *testing.T) {
 // TEST-1004: Tier A extraction detects explicit corrections with confidence 1.0
 // traces: TASK-1 AC-3
 func TestTierAExtractionDetectsExplicitCorrections(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -158,6 +162,7 @@ func TestTierAExtractionDetectsExplicitCorrections(t *testing.T) {
 // TEST-1005: Tier A extraction detects CLAUDE.md edit events with confidence 1.0
 // traces: TASK-1 AC-3
 func TestTierAExtractionDetectsCLAUDEMdEdits(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -201,6 +206,7 @@ func TestTierAExtractionDetectsCLAUDEMdEdits(t *testing.T) {
 // TEST-1006: Tier B extraction detects error→fix sequences with confidence 0.7
 // traces: TASK-1 AC-4
 func TestTierBExtractionDetectsErrorFixSequences(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -255,6 +261,7 @@ func TestTierBExtractionDetectsErrorFixSequences(t *testing.T) {
 // TEST-1007: Tier B extraction detects repeated patterns with confidence 0.7
 // traces: TASK-1 AC-4
 func TestTierBExtractionDetectsRepeatedPatterns(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -310,6 +317,7 @@ func TestTierBExtractionDetectsRepeatedPatterns(t *testing.T) {
 // TEST-1008: ExtractSession stores learnings via existing memory functions
 // traces: TASK-1 AC-5
 func TestExtractSessionStoresViMemoryFunctions(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -343,6 +351,7 @@ func TestExtractSessionStoresViMemoryFunctions(t *testing.T) {
 // TEST-1009: ExtractSession returns summary with items extracted count
 // traces: TASK-1 AC-8
 func TestExtractSessionReturnsSummaryWithCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -384,6 +393,7 @@ func TestExtractSessionReturnsSummaryWithCount(t *testing.T) {
 // TEST-1010: ExtractSession returns confidence distribution in summary
 // traces: TASK-1 AC-8
 func TestExtractSessionReturnsConfidenceDistribution(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -429,6 +439,7 @@ func TestExtractSessionReturnsConfidenceDistribution(t *testing.T) {
 // TEST-1011: ExtractSession parsing is resilient to malformed JSONL lines
 // traces: TASK-1 AC-7
 func TestExtractSessionResilientToMalformedJSON(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -457,6 +468,7 @@ func TestExtractSessionResilientToMalformedJSON(t *testing.T) {
 // TEST-1012: ExtractSession handles empty transcript gracefully
 // traces: TASK-1 AC-7
 func TestExtractSessionHandlesEmptyTranscript(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -479,6 +491,7 @@ func TestExtractSessionHandlesEmptyTranscript(t *testing.T) {
 // TEST-1013: ExtractSession handles missing transcript file
 // traces: TASK-1 AC-7
 func TestExtractSessionHandlesMissingFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -496,6 +509,7 @@ func TestExtractSessionHandlesMissingFile(t *testing.T) {
 // TEST-1014: Property test - ExtractSession handles varied JSONL structures
 // traces: TASK-1 AC-7
 func TestExtractSessionPropertyResilientParsing(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -534,6 +548,7 @@ func TestExtractSessionPropertyResilientParsing(t *testing.T) {
 // TEST-1015: Integration test with real Claude Code transcript structure
 // traces: TASK-1 AC-11
 func TestExtractSessionIntegrationRealTranscript(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -589,6 +604,7 @@ func TestExtractSessionIntegrationRealTranscript(t *testing.T) {
 
 // TestParseTranscriptNewFormat tests parsing of the real Claude Code JSONL format
 func TestParseTranscriptNewFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -621,6 +637,7 @@ func TestParseTranscriptNewFormat(t *testing.T) {
 
 // TestTierBRequiresUserInterventionNewFormat tests that error→fix requires user message between error and fix
 func TestTierBRequiresUserInterventionNewFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -650,6 +667,7 @@ func TestTierBRequiresUserInterventionNewFormat(t *testing.T) {
 
 // TestTierBWithUserInterventionNewFormat tests that error→user fix→success IS detected as Tier B
 func TestTierBWithUserInterventionNewFormat(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -710,6 +728,7 @@ func newMockMatcher(memories map[string][]string) *mockSemanticMatcher {
 // --- 3a: Tool usage patterns ---
 
 func TestTierCDetectsToolUsagePatterns(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -744,6 +763,7 @@ func TestTierCDetectsToolUsagePatterns(t *testing.T) {
 }
 
 func TestTierCIgnoresFailedCommands(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -775,6 +795,7 @@ func TestTierCIgnoresFailedCommands(t *testing.T) {
 // --- 3b: Positive outcomes ---
 
 func TestTierCDetectsPositiveOutcomes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -803,6 +824,7 @@ func TestTierCDetectsPositiveOutcomes(t *testing.T) {
 }
 
 func TestTierCDeduplicatesOutcomes(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -836,6 +858,7 @@ func TestTierCDeduplicatesOutcomes(t *testing.T) {
 // --- 3c: Behavioral consistency ---
 
 func TestTierCDetectsBehavioralConsistency(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -868,6 +891,7 @@ func TestTierCDetectsBehavioralConsistency(t *testing.T) {
 }
 
 func TestTierCNoBehavioralConsistencyWithCorrection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -903,6 +927,7 @@ func TestTierCNoBehavioralConsistencyWithCorrection(t *testing.T) {
 // --- 3d: Self-corrected failures ---
 
 func TestTierCSelfCorrectedFailure(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -934,6 +959,7 @@ func TestTierCSelfCorrectedFailure(t *testing.T) {
 }
 
 func TestTierCSelfCorrectedNotTriggeredWithUserIntervention(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -965,6 +991,7 @@ func TestTierCSelfCorrectedNotTriggeredWithUserIntervention(t *testing.T) {
 // --- 3e: Behavioral conventions (semantic) ---
 
 func TestTierCBehavioralConventionDetected(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -1001,6 +1028,7 @@ func TestTierCBehavioralConventionDetected(t *testing.T) {
 }
 
 func TestTierCBehavioralConventionNotTriggeredBelowThreshold(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -1032,6 +1060,7 @@ func TestTierCBehavioralConventionNotTriggeredBelowThreshold(t *testing.T) {
 }
 
 func TestTierCBehavioralConventionBrokenByCorrection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -1073,6 +1102,7 @@ func TestTierCBehavioralConventionBrokenByCorrection(t *testing.T) {
 }
 
 func TestTierCBehavioralConventionNoMemoryMatch(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -1109,6 +1139,7 @@ func TestTierCBehavioralConventionNoMemoryMatch(t *testing.T) {
 // --- General Tier C properties ---
 
 func TestTierCConfidenceAlways05(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	tempDir := t.TempDir()
 	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
@@ -1146,6 +1177,7 @@ func TestTierCConfidenceAlways05(t *testing.T) {
 }
 
 func TestTierCPropertyEmptyTranscriptNoFalsePositives(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -1171,8 +1203,8 @@ func TestTierCPropertyEmptyTranscriptNoFalsePositives(t *testing.T) {
 		// No Tier C items should fire from a single random message
 		for _, item := range result.Items {
 			tierCTypes := map[string]bool{
-				"tool-usage-pattern":    true,
-				"positive-outcome":      true,
+				"tool-usage-pattern":     true,
+				"positive-outcome":       true,
 				"behavioral-consistency": true,
 				"self-corrected-failure": true,
 				"behavioral-convention":  true,
@@ -1190,6 +1222,7 @@ func TestTierCPropertyEmptyTranscriptNoFalsePositives(t *testing.T) {
 // TEST-196-01: ExtractSession logs fallback message when Matcher is nil
 // traces: ISSUE-196 AC-1
 func TestExtractSessionNilMatcherLogsFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

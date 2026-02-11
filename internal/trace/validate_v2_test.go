@@ -11,6 +11,7 @@ import (
 // TEST-179 traces: TASK-029
 // Test ValidateV2 passes with valid graph
 func TestValidateV2_Valid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// REQ -> ARCH -> TASK -> TEST chain
@@ -30,6 +31,7 @@ func TestValidateV2_Valid(t *testing.T) {
 // TEST-180 traces: TASK-029
 // Test ValidateV2 fails with cycle
 func TestValidateV2_WithCycle(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Create a cycle: REQ-001 -> REQ-002 -> REQ-001
@@ -47,6 +49,7 @@ func TestValidateV2_WithCycle(t *testing.T) {
 // TEST-181 traces: TASK-029
 // Test ValidateV2 fails with dangling reference
 func TestValidateV2_DanglingRef(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// TASK traces to non-existent ARCH
@@ -63,6 +66,7 @@ func TestValidateV2_DanglingRef(t *testing.T) {
 // TEST-182 traces: TASK-029
 // Test ValidateV2 reports coverage warnings
 func TestValidateV2_CoverageWarnings(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// REQ with no downstream ARCH
@@ -80,6 +84,7 @@ func TestValidateV2_CoverageWarnings(t *testing.T) {
 // TEST-183 traces: TASK-029
 // Test ValidateV2 with empty items
 func TestValidateV2_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{}
@@ -93,6 +98,7 @@ func TestValidateV2_Empty(t *testing.T) {
 // TEST-184 traces: TASK-029
 // Test ValidateV2 returns node count
 func TestValidateV2_NodeCount(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{

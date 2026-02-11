@@ -10,8 +10,8 @@ import (
 	"time"
 
 	sqlite_vec "github.com/asg017/sqlite-vec-go-bindings/cgo"
-	. "github.com/onsi/gomega"
 	_ "github.com/mattn/go-sqlite3"
+	. "github.com/onsi/gomega"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -66,6 +66,7 @@ func insertMemoryWithEmbedding(g *WithT, db *sql.DB, content string) int64 {
 // TestSkillReorganization_NotTriggeredWithin30Days verifies that reorganization
 // doesn't trigger when last_skill_reorg_at is < 30 days ago.
 func TestSkillReorganization_NotTriggeredWithin30Days(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -105,6 +106,7 @@ func TestSkillReorganization_NotTriggeredWithin30Days(t *testing.T) {
 // TestSkillReorganization_TriggeredAfter30Days verifies that reorganization
 // triggers automatically when >30 days elapsed since last run.
 func TestSkillReorganization_TriggeredAfter30Days(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -195,6 +197,7 @@ func TestSkillReorganization_TriggeredAfter30Days(t *testing.T) {
 // TestSkillReorganization_ForceReorgFlag verifies that ForceReorg=true
 // triggers reorganization regardless of elapsed time.
 func TestSkillReorganization_ForceReorgFlag(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -247,6 +250,7 @@ func TestSkillReorganization_ForceReorgFlag(t *testing.T) {
 // TestSkillReorganization_UpdatesExistingSkill verifies that reorganization
 // updates existing skill content while preserving alpha/beta parameters.
 func TestSkillReorganization_UpdatesExistingSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -331,6 +335,7 @@ func TestSkillReorganization_UpdatesExistingSkill(t *testing.T) {
 // TestSkillReorganization_CreatesNewSkill verifies that reorganization
 // creates new skills for clusters that don't match existing skill themes.
 func TestSkillReorganization_CreatesNewSkill(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -391,6 +396,7 @@ func TestSkillReorganization_CreatesNewSkill(t *testing.T) {
 // TestSkillReorganization_PrunesOrphanedSkills verifies that reorganization
 // soft-deletes skills whose themes no longer appear in any cluster.
 func TestSkillReorganization_PrunesOrphanedSkills(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

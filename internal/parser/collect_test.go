@@ -55,6 +55,7 @@ func (e *fileNotFoundError) Error() string {
 // TEST-165 traces: TASK-027
 // Test CollectTraceItems finds docs and returns items
 func TestCollectTraceItems_DocsOnly(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{
@@ -83,6 +84,7 @@ status: active
 // TEST-166 traces: TASK-027
 // Test CollectTraceItems finds test files and returns items
 func TestCollectTraceItems_TestsOnly(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{
@@ -113,6 +115,7 @@ func TestSomething(t *testing.T) {}
 // TEST-167 traces: TASK-027
 // Test CollectTraceItems combines docs and tests
 func TestCollectTraceItems_Combined(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{
@@ -164,6 +167,7 @@ func TestAPI(t *testing.T) {}
 // TEST-168 traces: TASK-027
 // Test CollectTraceItems with empty project returns empty
 func TestCollectTraceItems_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{
@@ -180,6 +184,7 @@ func TestCollectTraceItems_Empty(t *testing.T) {
 // TEST-169 traces: TASK-027
 // Test CollectTraceItems returns parse errors
 func TestCollectTraceItems_ParseErrors(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{
@@ -204,6 +209,7 @@ id: invalid format no type
 // TEST-170 traces: TASK-027
 // Test CollectTraceItems extracts project name for tests
 func TestCollectTraceItems_TestProjectName(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	fs := &mockCollectFS{

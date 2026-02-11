@@ -13,6 +13,7 @@ import (
 
 // TEST: hybridSearch returns results (basic end-to-end)
 func TestHybridSearchReturnsResults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -47,6 +48,7 @@ func TestHybridSearchReturnsResults(t *testing.T) {
 
 // TEST: Query with UsedHybridSearch=true (property)
 func TestQueryUsesHybridSearch(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(t *rapid.T) {
 		g := NewWithT(t)
 
@@ -77,6 +79,7 @@ func TestQueryUsesHybridSearch(t *testing.T) {
 
 // TEST: exact keyword match always appears in results (BM25 contribution) - property
 func TestBM25ExactKeywordMatchAppears(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -127,6 +130,7 @@ func TestBM25ExactKeywordMatchAppears(t *testing.T) {
 
 // TEST: empty FTS5 table returns empty from BM25
 func TestBM25EmptyFTS5ReturnsEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -148,6 +152,7 @@ func TestBM25EmptyFTS5ReturnsEmpty(t *testing.T) {
 
 // TEST: query with FTS5 special characters doesn't error (falls back)
 func TestBM25SpecialCharactersFallback(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

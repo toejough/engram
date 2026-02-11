@@ -11,6 +11,7 @@ import (
 // TEST-162-001 traces: ISSUE-162
 // Test that pm-interview-producer SKILL.md mentions plan awareness
 func TestPMInterviewProducer_MentionsPlanAwareness(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Read pm-interview-producer SKILL.md
@@ -29,6 +30,7 @@ func TestPMInterviewProducer_MentionsPlanAwareness(t *testing.T) {
 // TEST-162-002 traces: ISSUE-162
 // Test that design-interview-producer SKILL.md mentions plan awareness
 func TestDesignInterviewProducer_MentionsPlanAwareness(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Read design-interview-producer SKILL.md
@@ -46,6 +48,7 @@ func TestDesignInterviewProducer_MentionsPlanAwareness(t *testing.T) {
 // TEST-162-003 traces: ISSUE-162
 // Test that arch-interview-producer SKILL.md mentions plan awareness
 func TestArchInterviewProducer_MentionsPlanAwareness(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Read arch-interview-producer SKILL.md

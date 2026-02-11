@@ -46,6 +46,7 @@ func (m *MockFS) FileExists(path string) bool {
 // TEST-510 traces: TASK-028
 // Test Report sums tokens from log entries.
 func TestReport_SumsTokens(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -63,6 +64,7 @@ func TestReport_SumsTokens(t *testing.T) {
 // TEST-511 traces: TASK-028
 // Test Report provides breakdown by model.
 func TestReport_BreakdownByModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -84,6 +86,7 @@ func TestReport_BreakdownByModel(t *testing.T) {
 // TEST-512 traces: TASK-028
 // Test Report returns empty result for empty log.
 func TestReport_EmptyLog(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -96,6 +99,7 @@ func TestReport_EmptyLog(t *testing.T) {
 // TEST-513 traces: TASK-028
 // Test Report filters by model.
 func TestReport_FilterByModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -111,6 +115,7 @@ func TestReport_FilterByModel(t *testing.T) {
 // TEST-514 traces: TASK-028
 // Test Report property: total equals sum of by-model values.
 func TestReport_PropertyTotalMatchesBreakdown(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -142,6 +147,7 @@ func TestReport_PropertyTotalMatchesBreakdown(t *testing.T) {
 // TEST-515 traces: TASK-028
 // Test Report filters by session.
 func TestReport_FilterBySession(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -159,6 +165,7 @@ func TestReport_FilterBySession(t *testing.T) {
 // TEST-520 traces: TASK-029
 // Test Check returns OK when under warning threshold.
 func TestCheck_UnderWarning(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -175,6 +182,7 @@ func TestCheck_UnderWarning(t *testing.T) {
 // TEST-521 traces: TASK-029
 // Test Check returns warning when over warning but under limit.
 func TestCheck_OverWarning(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -192,6 +200,7 @@ func TestCheck_OverWarning(t *testing.T) {
 // TEST-522 traces: TASK-029
 // Test Check returns limit when over limit.
 func TestCheck_OverLimit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -208,6 +217,7 @@ func TestCheck_OverLimit(t *testing.T) {
 // TEST-523 traces: TASK-029
 // Test Check with zero thresholds (disabled) returns OK.
 func TestCheck_DisabledThresholds(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -223,6 +233,7 @@ func TestCheck_DisabledThresholds(t *testing.T) {
 // TEST-524 traces: TASK-028
 // Test ReportByProject reads logs from project directory by name.
 func TestReport_FilterByProject(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	projctlDir := t.TempDir()
 	fs := &MockFS{}
@@ -245,6 +256,7 @@ func TestReport_FilterByProject(t *testing.T) {
 // TEST-525 traces: TASK-028
 // Test ReportByProject returns error for non-existent project.
 func TestReport_ProjectNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	projctlDir := t.TempDir()
 	fs := &MockFS{}

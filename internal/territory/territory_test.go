@@ -14,6 +14,7 @@ import (
 // TEST-570 traces: TASK-034
 // Test Generate creates a territory map with structure section.
 func TestGenerate_StructureSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -33,6 +34,7 @@ func TestGenerate_StructureSection(t *testing.T) {
 // TEST-571 traces: TASK-034
 // Test Generate identifies entry points.
 func TestGenerate_EntryPoints(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -48,6 +50,7 @@ func TestGenerate_EntryPoints(t *testing.T) {
 // TEST-572 traces: TASK-034
 // Test Generate counts packages.
 func TestGenerate_PackagesSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -66,6 +69,7 @@ func TestGenerate_PackagesSection(t *testing.T) {
 // TEST-573 traces: TASK-034
 // Test Generate detects test patterns.
 func TestGenerate_TestsSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -84,6 +88,7 @@ func TestGenerate_TestsSection(t *testing.T) {
 // TEST-574 traces: TASK-034
 // Test Generate identifies docs.
 func TestGenerate_DocsSection(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -101,6 +106,7 @@ func TestGenerate_DocsSection(t *testing.T) {
 // TEST-575 traces: TASK-034
 // Test Marshal produces output under token budget.
 func TestMarshal_UnderTokenBudget(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	m := territory.Map{
@@ -137,6 +143,7 @@ func TestMarshal_UnderTokenBudget(t *testing.T) {
 // TEST-580 traces: TASK-035
 // Test LoadCached returns cached map if recent.
 func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -167,6 +174,7 @@ func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
 // TEST-581 traces: TASK-035
 // Test LoadCached regenerates if cache is old.
 func TestLoadCached_RegeneratesIfOld(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -192,6 +200,7 @@ func TestLoadCached_RegeneratesIfOld(t *testing.T) {
 // TEST-582 traces: TASK-035
 // Test LoadCached regenerates if file count changed significantly.
 func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -221,6 +230,7 @@ func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
 
 // Test Show returns the cached territory map.
 func TestShow_ReturnsCache(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
@@ -253,6 +263,7 @@ func TestShow_ReturnsCache(t *testing.T) {
 
 // Test Show errors when no cache exists.
 func TestShow_ErrorsWhenNoCache(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 

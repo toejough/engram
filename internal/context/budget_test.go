@@ -40,6 +40,7 @@ func (m *MockFS) FileExists(path string) bool {
 
 // TEST-700 traces: TASK-065
 func TestBudgetCheck(t *testing.T) {
+	t.Parallel()
 	t.Run("returns OK when under warning threshold", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{Files: make(map[string][]byte)}
@@ -148,6 +149,7 @@ func TestBudgetCheck(t *testing.T) {
 }
 
 func TestDefaultThresholds(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	thresholds := context.DefaultBudgetThresholds()

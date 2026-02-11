@@ -12,6 +12,7 @@ import (
 // TEST-300: Promote finds test files with TASK traces
 // traces: TASK-007
 func TestPromote_FindsTaskTraces(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -46,6 +47,7 @@ func TestFeature(t *testing.T) {
 // TEST-301: Promote updates test file content
 // traces: TASK-007
 func TestPromote_UpdatesFileContent(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -80,6 +82,7 @@ func TestFeature(t *testing.T) {
 // TEST-302: Promote handles multiple tasks in same file
 // traces: TASK-007
 func TestPromote_MultipleTasksInFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -118,6 +121,7 @@ func TestSecond(t *testing.T) {
 // TEST-303: Promote handles TypeScript test files
 // traces: TASK-007
 func TestPromote_TypeScriptFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -151,6 +155,7 @@ describe('Feature', () => {
 // TEST-304: Promote handles JavaScript test files
 // traces: TASK-007
 func TestPromote_JavaScriptFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -184,6 +189,7 @@ describe('Feature', () => {
 // TEST-305: Promote skips non-TASK traces
 // traces: TASK-007
 func TestPromote_SkipsNonTaskTraces(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -214,6 +220,7 @@ func TestFeature(t *testing.T) {
 // TEST-306: Promote handles task with no Traces-to
 // traces: TASK-007
 func TestPromote_TaskWithNoTracesTo(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -247,6 +254,7 @@ func TestFeature(t *testing.T) {
 // TEST-307: Promote handles task not found in tasks.md
 // traces: TASK-007
 func TestPromote_TaskNotFound(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -279,6 +287,7 @@ func TestFeature(t *testing.T) {
 // TEST-308: Promote handles multiple trace targets
 // traces: TASK-007
 func TestPromote_MultipleTraceTargets(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -316,6 +325,7 @@ func TestFeature(t *testing.T) {
 // TEST-309: Promote returns empty result when no test files
 // traces: TASK-007
 func TestPromote_NoTestFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -338,6 +348,7 @@ func TestPromote_NoTestFiles(t *testing.T) {
 // TEST-310: Promote handles .spec.ts files (alternate TS test pattern)
 // traces: TASK-007
 func TestPromote_SpecTsFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -371,6 +382,7 @@ describe('Feature', () => {
 // TEST-311: Promote handles .spec.js files
 // traces: TASK-007
 func TestPromote_SpecJsFiles(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -404,6 +416,7 @@ describe('Feature', () => {
 // TEST-312: Promote skips vendor directory
 // traces: TASK-007
 func TestPromote_SkipsVendorDir(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -446,6 +459,7 @@ func TestFeature(t *testing.T) {
 // TEST-313: Promote skips node_modules directory
 // traces: TASK-007
 func TestPromote_SkipsNodeModules(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -482,6 +496,7 @@ describe('feature', () => {});
 // TEST-314: Promote with dryRun=true reports changes without modifying files
 // traces: TASK-008
 func TestPromote_DryRun(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -520,6 +535,7 @@ func TestFeature(t *testing.T) {
 // TEST-320: Promote handles simple number IDs (TASK-1, TASK-42, etc.)
 // traces: TASK-001
 func TestPromote_SimpleNumberIDs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
@@ -568,6 +584,7 @@ func TestAnotherFeature(t *testing.T) {
 // TEST-321: Promote handles backward compatibility with 3-digit IDs
 // traces: TASK-001
 func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()

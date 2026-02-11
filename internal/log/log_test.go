@@ -48,6 +48,7 @@ func (m *MockFS) FileExists(path string) bool {
 }
 
 func TestWrite(t *testing.T) {
+	t.Parallel()
 	t.Run("appends valid JSONL entry to file", func(t *testing.T) {
 		g := NewWithT(t)
 		fs := &MockFS{}
@@ -144,6 +145,7 @@ func TestWrite(t *testing.T) {
 // TEST-410 traces: TASK-016
 // Test Write includes model field in entry.
 func TestWrite_ModelField(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -165,6 +167,7 @@ func TestWrite_ModelField(t *testing.T) {
 // TEST-411 traces: TASK-016
 // Test Write omits model when empty (backwards compatible).
 func TestWrite_ModelOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -181,6 +184,7 @@ func TestWrite_ModelOmittedWhenEmpty(t *testing.T) {
 }
 
 func TestWriteProperty(t *testing.T) {
+	t.Parallel()
 	levels := make([]string, 0, len(log.ValidLevels))
 	for k := range log.ValidLevels {
 		levels = append(levels, k)
@@ -217,6 +221,7 @@ func TestWriteProperty(t *testing.T) {
 // TEST-412 traces: TASK-016
 // Test Read returns all entries when no filter.
 func TestRead_AllEntries(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -234,6 +239,7 @@ func TestRead_AllEntries(t *testing.T) {
 // TEST-413 traces: TASK-016
 // Test Read filters by model.
 func TestRead_FilterByModel(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -254,6 +260,7 @@ func TestRead_FilterByModel(t *testing.T) {
 // TEST-414 traces: TASK-016
 // Test Read returns empty slice when log file missing.
 func TestRead_NoLogFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -265,6 +272,7 @@ func TestRead_NoLogFile(t *testing.T) {
 // TEST-500 traces: TASK-027
 // Test Write calculates token estimate from message length.
 func TestWrite_TokenEstimate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -287,6 +295,7 @@ func TestWrite_TokenEstimate(t *testing.T) {
 // TEST-501 traces: TASK-027
 // Test Write uses explicit token override when provided.
 func TestWrite_TokenOverride(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -307,6 +316,7 @@ func TestWrite_TokenOverride(t *testing.T) {
 // TEST-502 traces: TASK-027
 // Test token estimate rounds up for partial tokens.
 func TestWrite_TokenEstimateRoundsUp(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -329,6 +339,7 @@ func TestWrite_TokenEstimateRoundsUp(t *testing.T) {
 // TEST-503 traces: TASK-027
 // Test token estimate for empty message is zero.
 func TestWrite_TokenEstimateEmpty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -347,6 +358,7 @@ func TestWrite_TokenEstimateEmpty(t *testing.T) {
 // TEST-610 traces: TASK-061
 // Test Write includes context estimate field when provided.
 func TestWrite_ContextEstimate(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 
@@ -367,6 +379,7 @@ func TestWrite_ContextEstimate(t *testing.T) {
 // TEST-611 traces: TASK-061
 // Test Write omits context estimate when zero (backwards compatible).
 func TestWrite_ContextEstimateOmittedWhenZero(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{}
 

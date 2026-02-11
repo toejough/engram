@@ -14,6 +14,7 @@ import (
 // TEST-087 traces: TASK-012
 // Test parsing file with single test function
 func TestParseTestFunctions_SingleTest(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -36,6 +37,7 @@ func TestSomething(t *testing.T) {
 // TEST-088 traces: TASK-012
 // Test parsing file with multiple test functions
 func TestParseTestFunctions_MultipleTests(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -58,6 +60,7 @@ func TestThird(t *testing.T) {}
 // TEST-089 traces: TASK-012
 // Test parsing file with Benchmark function
 func TestParseTestFunctions_BenchmarkFunction(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -76,6 +79,7 @@ func BenchmarkSomething(b *testing.B) {}
 // TEST-090 traces: TASK-012
 // Test parsing ignores non-test functions
 func TestParseTestFunctions_IgnoresNonTest(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -96,6 +100,7 @@ func anotherHelper() {}
 // TEST-091 traces: TASK-012
 // Test parsing empty file returns no functions
 func TestParseTestFunctions_EmptyFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -109,6 +114,7 @@ func TestParseTestFunctions_EmptyFile(t *testing.T) {
 // TEST-092 traces: TASK-012
 // Test parsing invalid Go syntax returns error
 func TestParseTestFunctions_InvalidSyntax(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -123,6 +129,7 @@ func invalid syntax here {
 // TEST-093 traces: TASK-012
 // Test line numbers are correct
 func TestParseTestFunctions_LineNumbers(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -145,6 +152,7 @@ func TestSecond(t *testing.T) {}
 // TEST-094 traces: TASK-012
 // Property test: N test functions yields N results
 func TestParseTestFunctions_PropertyCount(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -187,6 +195,7 @@ func itoa(n int) string {
 // TEST-095 traces: TASK-013
 // Test extracting trace comment from function with doc comment
 func TestExtractTraceComment_WithComment(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -206,6 +215,7 @@ func TestSomething(t *testing.T) {}
 // TEST-096 traces: TASK-013
 // Test extracting comment when no trace comment exists
 func TestExtractTraceComment_NoComment(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -224,6 +234,7 @@ func TestSomething(t *testing.T) {}
 // TEST-097 traces: TASK-013
 // Test extracting comment with multiple doc comment lines
 func TestExtractTraceComment_MultipleLines(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -246,6 +257,7 @@ func TestSomething(t *testing.T) {}
 // TEST-098 traces: TASK-013
 // Test extracting comment with blank line gap (should not extract)
 func TestExtractTraceComment_BlankLineGap(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -267,6 +279,7 @@ func TestSomething(t *testing.T) {}
 // TEST-099 traces: TASK-014
 // Test parsing valid trace comment
 func TestParseTraceComment_Valid(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-001 traces: TASK-001"
@@ -279,6 +292,7 @@ func TestParseTraceComment_Valid(t *testing.T) {
 // TEST-100 traces: TASK-014
 // Test parsing trace comment with multiple targets
 func TestParseTraceComment_MultipleTargets(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-042 traces: TASK-001, ARCH-005, REQ-010"
@@ -291,6 +305,7 @@ func TestParseTraceComment_MultipleTargets(t *testing.T) {
 // TEST-101 traces: TASK-014
 // Test parsing trace comment with uppercase Traces
 func TestParseTraceComment_UppercaseTraces(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-001 Traces: TASK-001"
@@ -303,6 +318,7 @@ func TestParseTraceComment_UppercaseTraces(t *testing.T) {
 // TEST-102 traces: TASK-014
 // Test parsing trace comment with flexible whitespace
 func TestParseTraceComment_FlexibleWhitespace(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-001   traces:   TASK-001,   TASK-002"
@@ -314,6 +330,7 @@ func TestParseTraceComment_FlexibleWhitespace(t *testing.T) {
 // TEST-103 traces: TASK-014
 // Test parsing trace comment with lowercase target IDs (should uppercase)
 func TestParseTraceComment_UppercasesTargets(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-001 traces: task-001, arch-005"
@@ -325,6 +342,7 @@ func TestParseTraceComment_UppercasesTargets(t *testing.T) {
 // TEST-104 traces: TASK-014
 // Test parsing malformed trace comment returns error
 func TestParseTraceComment_Malformed(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	comment := "// TEST-001 invalid"
@@ -335,6 +353,7 @@ func TestParseTraceComment_Malformed(t *testing.T) {
 // TEST-105 traces: TASK-014
 // Test parsing empty string returns error
 func TestParseTraceComment_Empty(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	_, err := parser.ParseTraceComment("")
@@ -344,6 +363,7 @@ func TestParseTraceComment_Empty(t *testing.T) {
 // TEST-106 traces: TASK-014
 // Property test: valid format always parses
 func TestParseTraceComment_PropertyValid(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -370,6 +390,7 @@ func TestParseTraceComment_PropertyValid(t *testing.T) {
 // TEST-107 traces: TASK-015
 // Test parsing complete test file with traced tests
 func TestParseGoTestFile_TracedTests(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -395,6 +416,7 @@ func TestSecond(t *testing.T) {}
 // TEST-108 traces: TASK-015
 // Test parsing file with no trace comments
 func TestParseGoTestFile_NoTraceComments(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -414,6 +436,7 @@ func TestOther(t *testing.T) {}
 // TEST-109 traces: TASK-015
 // Test parsing file with duplicate TEST IDs returns error
 func TestParseGoTestFile_DuplicateTestID(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -435,6 +458,7 @@ func TestSecond(t *testing.T) {}
 // TEST-110 traces: TASK-015
 // Test parsing file with malformed comment continues
 func TestParseGoTestFile_MalformedComment(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test
@@ -461,6 +485,7 @@ func TestSecond(t *testing.T) {}
 // TEST-111 traces: TASK-015
 // Test TraceItem fields are populated correctly
 func TestParseGoTestFile_ItemFields(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	src := `package foo_test

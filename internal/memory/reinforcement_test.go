@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/onsi/gomega"
 	_ "github.com/mattn/go-sqlite3"
+	. "github.com/onsi/gomega"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -19,6 +19,7 @@ import (
 
 // TEST-1120: Querying a memory boosts its confidence
 func TestQueryBoostsConfidence(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -56,6 +57,7 @@ func TestQueryBoostsConfidence(t *testing.T) {
 
 // TEST-1121: Confidence caps at 1.0
 func TestConfidenceCapsAtOne(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
@@ -83,6 +85,7 @@ func TestConfidenceCapsAtOne(t *testing.T) {
 
 // TEST-1122: Learning a near-duplicate (>0.9 similarity) boosts existing instead of creating new
 func TestLearnDedupBoostsExisting(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()

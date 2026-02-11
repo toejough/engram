@@ -11,6 +11,7 @@ import (
 
 // TestMemoryHooksInstall_CreatesNewFile tests that CLI install command works.
 func TestMemoryHooksInstall_CreatesNewFile(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup
@@ -78,6 +79,7 @@ func TestMemoryHooksInstall_DefaultsToHomeDir(t *testing.T) {
 
 // TestMemoryHooksShow_DisplaysHooks tests that CLI show command works.
 func TestMemoryHooksShow_DisplaysHooks(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	// Setup

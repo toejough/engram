@@ -21,6 +21,7 @@ import (
 
 // TEST-7001: TierCurated with mock extractor returns annotated results with relevance
 func TestTierCuratedWithExtractorReturnsAnnotatedResults(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	curated := []memory.CuratedResult{
@@ -59,6 +60,7 @@ func TestTierCuratedWithExtractorReturnsAnnotatedResults(t *testing.T) {
 
 // TEST-7002: TierCurated with failing extractor falls back to compact
 func TestTierCuratedWithFailingExtractorFallsBackToCompact(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	extractor := &memory.ClaudeCLIExtractor{
@@ -89,6 +91,7 @@ func TestTierCuratedWithFailingExtractorFallsBackToCompact(t *testing.T) {
 
 // TEST-7003: TierCurated without extractor falls back to compact
 func TestTierCuratedWithoutExtractorFallsBackToCompact(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	results := []memory.QueryResult{
@@ -113,6 +116,7 @@ func TestTierCuratedWithoutExtractorFallsBackToCompact(t *testing.T) {
 
 // TEST-7004: IsPreToolUse returns true for PreToolUse hook event
 func TestHookInputIsPreToolUse(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "PreToolUse"}
@@ -121,6 +125,7 @@ func TestHookInputIsPreToolUse(t *testing.T) {
 
 // TEST-7005: IsPreToolUse returns false for UserPromptSubmit hook event
 func TestHookInputIsPreToolUseFalseForPromptSubmit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "UserPromptSubmit"}
@@ -129,6 +134,7 @@ func TestHookInputIsPreToolUseFalseForPromptSubmit(t *testing.T) {
 
 // TEST-7006: SupportsCuration returns true for UserPromptSubmit
 func TestHookInputSupportsCurationForUserPromptSubmit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "UserPromptSubmit"}
@@ -137,6 +143,7 @@ func TestHookInputSupportsCurationForUserPromptSubmit(t *testing.T) {
 
 // TEST-7007: SupportsCuration returns true for SessionStart
 func TestHookInputSupportsCurationForSessionStart(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "SessionStart"}
@@ -145,6 +152,7 @@ func TestHookInputSupportsCurationForSessionStart(t *testing.T) {
 
 // TEST-7008: SupportsCuration returns false for PreToolUse
 func TestHookInputSupportsCurationFalseForPreToolUse(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "PreToolUse"}
@@ -153,6 +161,7 @@ func TestHookInputSupportsCurationFalseForPreToolUse(t *testing.T) {
 
 // TEST-7009: SupportsCuration returns false for nil HookInput
 func TestHookInputSupportsCurationFalseForNil(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	var hi *memory.HookInput
@@ -163,6 +172,7 @@ func TestHookInputSupportsCurationFalseForNil(t *testing.T) {
 
 // TEST-7010: ResolveTier downgrades TierCurated to TierCompact for PreToolUse
 func TestResolveTierDowngradesCuratedForPreToolUse(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "PreToolUse"}
@@ -172,6 +182,7 @@ func TestResolveTierDowngradesCuratedForPreToolUse(t *testing.T) {
 
 // TEST-7011: ResolveTier keeps TierCurated for UserPromptSubmit
 func TestResolveTierKeepsCuratedForUserPromptSubmit(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "UserPromptSubmit"}
@@ -181,6 +192,7 @@ func TestResolveTierKeepsCuratedForUserPromptSubmit(t *testing.T) {
 
 // TEST-7012: ResolveTier keeps TierCurated for SessionStart
 func TestResolveTierKeepsCuratedForSessionStart(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "SessionStart"}
@@ -190,6 +202,7 @@ func TestResolveTierKeepsCuratedForSessionStart(t *testing.T) {
 
 // TEST-7013: ResolveTier keeps TierCompact regardless of hook type
 func TestResolveTierKeepsCompactForAnyHook(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "UserPromptSubmit"}
@@ -199,6 +212,7 @@ func TestResolveTierKeepsCompactForAnyHook(t *testing.T) {
 
 // TEST-7014: ResolveTier keeps TierFull regardless of hook type
 func TestResolveTierKeepsFullForAnyHook(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	hi := &memory.HookInput{HookEventName: "PreToolUse"}
@@ -208,6 +222,7 @@ func TestResolveTierKeepsFullForAnyHook(t *testing.T) {
 
 // TEST-7015: ResolveTier keeps TierCurated when hookInput is nil (CLI mode, not hook)
 func TestResolveTierKeepsCuratedWhenNoHookInput(t *testing.T) {
+	t.Parallel()
 	g := NewWithT(t)
 
 	tier := memory.ResolveTier(memory.TierCurated, nil)
@@ -218,6 +233,7 @@ func TestResolveTierKeepsCuratedWhenNoHookInput(t *testing.T) {
 
 // TEST-7016: Property: curated output entry count <= input candidate count
 func TestPropertyCuratedOutputCountLEInputCount(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
@@ -272,6 +288,7 @@ func TestPropertyCuratedOutputCountLEInputCount(t *testing.T) {
 
 // TEST-7017: Property: ResolveTier never returns TierCurated for PreToolUse
 func TestPropertyResolveTierNeverCuratedForPreToolUse(t *testing.T) {
+	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
 
