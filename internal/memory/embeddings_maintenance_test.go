@@ -80,7 +80,7 @@ func TestScanEmbeddings_StaleEntries(t *testing.T) {
 	g.Expect(len(decayProposals)).To(BeNumerically(">=", 1))
 	g.Expect(decayProposals[0].Tier).To(Equal("embeddings"))
 	g.Expect(decayProposals[0].Action).To(Equal("decay"))
-	g.Expect(decayProposals[0].Reason).To(ContainSubstring("stale"))
+	g.Expect(decayProposals[0].Reason).To(ContainSubstring("Stale"))
 }
 
 func TestScanEmbeddings_HighValuePromotion(t *testing.T) {
@@ -120,7 +120,7 @@ func TestScanEmbeddings_HighValuePromotion(t *testing.T) {
 	g.Expect(len(promoteProposals)).To(BeNumerically(">=", 1))
 	g.Expect(promoteProposals[0].Tier).To(Equal("embeddings"))
 	g.Expect(promoteProposals[0].Action).To(Equal("promote"))
-	g.Expect(promoteProposals[0].Reason).To(ContainSubstring("high retrieval"))
+	g.Expect(promoteProposals[0].Reason).To(ContainSubstring("High retrieval"))
 }
 
 func TestApplyEmbeddingsProposal_Prune(t *testing.T) {

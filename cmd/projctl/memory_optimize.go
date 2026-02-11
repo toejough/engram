@@ -12,6 +12,7 @@ import (
 )
 
 type memoryOptimizeArgs struct {
+	Review                   bool    `targ:"flag,desc=Use interactive proposal review mode (new ISSUE-212 workflow)"`
 	Yes                      bool    `targ:"flag,short=y,desc=Auto-approve all interactive prompts"`
 	ClaudeMD                 string  `targ:"flag,name=claude-md,desc=Path to CLAUDE.md (defaults to ~/.claude/CLAUDE.md)"`
 	MemoryRoot               string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
@@ -54,6 +55,13 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 			skillsDir = filepath.Join(home, ".claude", "skills")
 		}
 	}
+
+	// Use new interactive review workflow if --review flag is set
+	if args.Review {
+		return runInteractiveOptimize(ctx, memoryRoot, claudeMDPath, skillsDir, args)
+	}
+
+	// Otherwise use legacy optimize workflow
 
 	opts := memory.OptimizeOpts{
 		MemoryRoot:   memoryRoot,
@@ -162,6 +170,75 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	}
 	if result.SkillsPromoted > 0 {
 		fmt.Printf("SkillsPromoted: %d\n", result.SkillsPromoted)
+	}
+
+	return nil
+}
+
+// runInteractiveOptimize executes the new ISSUE-212 interactive review workflow.
+func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skillsDir string, args memoryOptimizeArgs) error {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+
+	// Set up review function
+	var reviewFunc memory.MaintenanceReviewFunc
+	if args.Yes {
+		// Auto-approve all
+		reviewFunc = func(p memory.MaintenanceProposal) bool {
+			return true
+		}
+	}
+	// If no --yes flag, reviewFunc is nil and OptimizeInteractive will use interactive reviewProposal
+
+	// Run interactive optimization
+	opts := memory.OptimizeInteractiveOpts{
+		DBPath:       dbPath,
+		ClaudeMDPath: claudeMDPath,
+		SkillsDir:    skillsDir,
+		ReviewFunc:   reviewFunc,
+		Input:        os.Stdin,
+		Output:       os.Stdout,
+		Context:      ctx,
+	}
+
+	result, err := memory.OptimizeInteractive(opts)
+	if err != nil {
+		return fmt.Errorf("interactive optimization failed: %w", err)
+	}
+
+	// Print summary
+	fmt.Println("\n=== Memory Optimization Summary ===")
+	fmt.Printf("Total proposals: %d\n", result.Total)
+	fmt.Printf("  Approved: %d\n", result.Approved)
+	fmt.Printf("  Rejected: %d\n", result.Rejected)
+	fmt.Printf("  Applied: %d\n", result.Applied)
+	if result.Failed > 0 {
+		fmt.Printf("  Failed: %d\n", result.Failed)
+	}
+
+	// Print tier-by-tier summary
+	if len(result.TierSummary) > 0 {
+		fmt.Println("\nBy tier:")
+		for tier, stats := range result.TierSummary {
+			if stats.Total > 0 {
+				fmt.Printf("  %s: %d proposals", tier, stats.Total)
+				if stats.Applied > 0 {
+					fmt.Printf(" (%d applied", stats.Applied)
+					if len(stats.Actions) > 0 {
+						var actionSummary []string
+						for action, count := range stats.Actions {
+							if count > 0 {
+								actionSummary = append(actionSummary, fmt.Sprintf("%s=%d", action, count))
+							}
+						}
+						if len(actionSummary) > 0 {
+							fmt.Printf(": %s", strings.Join(actionSummary, ", "))
+						}
+					}
+					fmt.Print(")")
+				}
+				fmt.Println()
+			}
+		}
 	}
 
 	return nil
