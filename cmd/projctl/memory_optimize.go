@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 
@@ -22,6 +24,10 @@ type memoryOptimizeArgs struct {
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
+	// Set up context with signal cancellation (ctrl-c / SIGINT)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	memoryRoot := args.MemoryRoot
 	if memoryRoot == "" {
 		home, err := os.UserHomeDir()
@@ -55,6 +61,7 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 		AutoApprove:  args.Yes,
 		SkillsDir:    skillsDir,
 		ForceReorg:   args.ForceReorg,
+		Context:      ctx,
 	}
 
 	// Wire LLM interfaces via shared instance (unless --no-llm is set)

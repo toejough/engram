@@ -1,7 +1,9 @@
 package memory_test
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -1739,4 +1741,36 @@ func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
 	g.Expect(claudeStr).To(ContainSubstring("Always write tests before implementation"))
 	// Should NOT promote the raw content
 	g.Expect(claudeStr).ToNot(ContainSubstring("Success ISSUE-180"))
+}
+
+// ============================================================================
+// Context Cancellation Tests
+// ============================================================================
+
+// TestOptimizeCancelledContext verifies that Optimize returns an error when
+// passed a cancelled context
+func TestOptimizeCancelledContext(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Run optimize with cancelled context
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+		Context:      ctx,
+	})
+
+	// VERIFY: Should return context.Canceled error
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, context.Canceled)).To(BeTrue(), "Should return context.Canceled error")
+	g.Expect(result).To(BeNil(), "Should return nil result on cancellation")
 }

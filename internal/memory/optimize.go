@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -36,6 +37,7 @@ type OptimizeOpts struct {
 	SkillCompiler    SkillCompiler       // Optional compiler for skill content
 	SpecificDetector SpecificityDetector // Optional detector for narrow/universal learning classification
 	SimilarityFunc   func(db *sql.DB, id1, id2 int64) (float64, error) // TASK-10: Optional similarity function for testing
+	Context          context.Context     // Optional context for cancellation support
 }
 
 // OptimizeResult contains the results of the optimization pipeline.
@@ -140,74 +142,151 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 
 	result := &OptimizeResult{}
 
+	// Check context before starting
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
+
 	// Step 1: Time-based decay
 	if err := optimizeDecay(db, opts, result); err != nil {
 		return nil, fmt.Errorf("decay failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 2: Contradiction detection
 	if err := optimizeContradictions(db, opts, result); err != nil {
 		return nil, fmt.Errorf("contradiction detection failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 3: Auto-demote
 	if err := optimizeAutoDemote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("auto-demote failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 4: Prune DB
 	if err := optimizePrune(db, opts, result); err != nil {
 		return nil, fmt.Errorf("prune failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 4.5: Purge boilerplate session entries
 	if err := optimizePurgeBoilerplate(db, opts, result); err != nil {
 		return nil, fmt.Errorf("boilerplate purge failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 4.6: Purge legacy session embeddings created by old Query() behavior
 	if err := optimizePurgeLegacySessionEmbeddings(db, opts, result); err != nil {
 		return nil, fmt.Errorf("legacy session purge failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 5: Deduplicate DB
 	if err := optimizeDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("dedup failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 6: Synthesize patterns (interactive)
 	if err := optimizeSynthesize(db, opts, result); err != nil {
 		return nil, fmt.Errorf("synthesis failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 7: Compile Skills (memories → skills)
 	if err := optimizeCompileSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill compilation failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 8: Merge similar skills (TASK-10)
 	if err := optimizeMergeSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill merge failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 9: Split incoherent skills (TASK-10)
 	if err := optimizeSplitSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill split failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 10: Promote (interactive)
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 11: Deduplicate CLAUDE.md
 	if err := optimizeClaudeMDDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md dedup failed: %w", err)
 	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
+	}
 
 	// Step 12: Demote narrow learnings from CLAUDE.md to skills
 	if err := optimizeDemoteClaudeMD(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md demotion failed: %w", err)
+	}
+	if opts.Context != nil {
+		if err := opts.Context.Err(); err != nil {
+			return nil, err
+		}
 	}
 
 	// Step 13: Promote high-utility skills to CLAUDE.md (TASK-3)
