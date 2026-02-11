@@ -120,6 +120,12 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	if result.EntriesPruned > 0 {
 		fmt.Printf("Entries pruned: %d\n", result.EntriesPruned)
 	}
+	if result.BoilerplatePurged > 0 {
+		fmt.Printf("Boilerplate purged: %d\n", result.BoilerplatePurged)
+	}
+	if result.LegacySessionPurged > 0 {
+		fmt.Printf("Legacy session embeddings purged: %d\n", result.LegacySessionPurged)
+	}
 	if result.DuplicatesMerged > 0 {
 		fmt.Printf("Duplicates merged: %d\n", result.DuplicatesMerged)
 	}

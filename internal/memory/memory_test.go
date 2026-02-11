@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	_ "github.com/mattn/go-sqlite3"
 	"pgregory.net/rapid"
 
 	"github.com/toejough/projctl/internal/memory"
@@ -593,221 +595,6 @@ func TestDecideUsesTodayDate(t *testing.T) {
 }
 
 // ============================================================================
-// Session end tests (TASK-050)
-// ============================================================================
-
-// TEST-800: Session end creates sessions directory if not exists
-// traces: TASK-050
-func TestSessionEndCreatesDirectoryIfNotExists(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-
-	// Verify sessions directory doesn't exist
-	_, err := os.Stat(sessionsDir)
-	g.Expect(os.IsNotExist(err)).To(BeTrue())
-
-	opts := memory.SessionEndOpts{
-		Project:    "test-project",
-		MemoryRoot: memoryDir,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).ToNot(BeNil())
-
-	// Verify sessions directory was created
-	_, err = os.Stat(sessionsDir)
-	g.Expect(err).ToNot(HaveOccurred())
-}
-
-// TEST-801: Session end file format and location
-// traces: TASK-050
-func TestSessionEndFileLocation(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-
-	opts := memory.SessionEndOpts{
-		Project:    "my-project",
-		MemoryRoot: memoryDir,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify file path format: {DATE}-{PROJECT}.md
-	today := time.Now().Format("2006-01-02")
-	expectedPath := filepath.Join(memoryDir, "sessions", today+"-my-project.md")
-	g.Expect(result.FilePath).To(Equal(expectedPath))
-
-	// Verify file exists
-	_, err = os.Stat(result.FilePath)
-	g.Expect(err).ToNot(HaveOccurred())
-}
-
-// TEST-802: Session summary includes key sections
-// traces: TASK-050
-func TestSessionEndIncludesKeySections(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-
-	opts := memory.SessionEndOpts{
-		Project:    "test-project",
-		MemoryRoot: memoryDir,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := os.ReadFile(result.FilePath)
-	g.Expect(err).ToNot(HaveOccurred())
-	contentStr := string(content)
-
-	// Should include standard sections
-	g.Expect(contentStr).To(ContainSubstring("Session Summary"))
-	g.Expect(contentStr).To(ContainSubstring("test-project"))
-}
-
-// TEST-803: Session summary is under character limit
-// traces: TASK-050
-func TestSessionEndUnderCharacterLimit(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-
-	// Create some decisions to summarize
-	for i := 0; i < 10; i++ {
-		decideOpts := memory.DecideOpts{
-			Context:      strings.Repeat("Long context text ", 20),
-			Choice:       "Choice " + string(rune('A'+i)),
-			Reason:       strings.Repeat("Detailed reason ", 15),
-			Alternatives: []string{"Alt1", "Alt2", "Alt3"},
-			Project:      "large-project",
-			MemoryRoot:   memoryDir,
-		}
-		_, _ = memory.Decide(decideOpts)
-	}
-
-	opts := memory.SessionEndOpts{
-		Project:    "large-project",
-		MemoryRoot: memoryDir,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := os.ReadFile(result.FilePath)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Must be under 2000 characters
-	g.Expect(len(content)).To(BeNumerically("<", 2000))
-}
-
-// TEST-804: Session end requires project name
-// traces: TASK-050
-func TestSessionEndRequiresProject(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-
-	opts := memory.SessionEndOpts{
-		Project:    "",
-		MemoryRoot: memoryDir,
-	}
-
-	_, err := memory.SessionEnd(opts)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("project"))
-}
-
-// TEST-805: Session end includes decisions from today
-// traces: TASK-050
-func TestSessionEndIncludesDecisions(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-
-	// Create a decision first
-	decideOpts := memory.DecideOpts{
-		Context:      "Test decision context",
-		Choice:       "PostgreSQL",
-		Reason:       "Better support",
-		Alternatives: []string{"MySQL"},
-		Project:      "decision-project",
-		MemoryRoot:   memoryDir,
-	}
-	_, err := memory.Decide(decideOpts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	opts := memory.SessionEndOpts{
-		Project:    "decision-project",
-		MemoryRoot: memoryDir,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := os.ReadFile(result.FilePath)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Should include decision information
-	g.Expect(string(content)).To(ContainSubstring("PostgreSQL"))
-}
-
-// TEST-806: Property-based test for size limit
-// traces: TASK-050
-func TestSessionEndPropertyBasedSizeLimit(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := NewWithT(t)
-
-		// Use alphanumeric suffix only for valid filesystem paths
-		suffix := rapid.StringMatching(`[a-zA-Z0-9]{8}`).Draw(t, "suffix")
-		tempDir := os.TempDir()
-		memoryDir := filepath.Join(tempDir, "session-test-"+suffix)
-		defer func() { _ = os.RemoveAll(memoryDir) }()
-
-		projectName := rapid.StringMatching(`[a-z]{5,10}`).Draw(t, "project")
-
-		// Create random number of decisions
-		numDecisions := rapid.IntRange(0, 20).Draw(t, "numDecisions")
-		for i := 0; i < numDecisions; i++ {
-			decideOpts := memory.DecideOpts{
-				Context:      rapid.StringMatching(`[a-zA-Z0-9 ]{10,100}`).Draw(t, "context"),
-				Choice:       rapid.StringMatching(`[a-zA-Z0-9 ]{5,20}`).Draw(t, "choice"),
-				Reason:       rapid.StringMatching(`[a-zA-Z0-9 ]{10,50}`).Draw(t, "reason"),
-				Alternatives: []string{rapid.StringMatching(`[a-zA-Z0-9]{5,10}`).Draw(t, "alt")},
-				Project:      projectName,
-				MemoryRoot:   memoryDir,
-			}
-			_, _ = memory.Decide(decideOpts)
-		}
-
-		opts := memory.SessionEndOpts{
-			Project:    projectName,
-			MemoryRoot: memoryDir,
-		}
-
-		result, err := memory.SessionEnd(opts)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		content, err := os.ReadFile(result.FilePath)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Property: output always under 2000 characters
-		g.Expect(len(content)).To(BeNumerically("<", 2000))
-	})
-}
-
-// ============================================================================
 // Memory grep tests (TASK-051)
 // ============================================================================
 
@@ -1089,18 +876,17 @@ func TestQueryCreatesEmbeddingsDb(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
 	// Verify embeddings.db doesn't exist
 	embeddingsPath := filepath.Join(memoryDir, "embeddings.db")
-	_, err = os.Stat(embeddingsPath)
+	_, err := os.Stat(embeddingsPath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue())
 
-	// Create session summary content
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte("Learned about PostgreSQL database design"), 0644)
+	// Learn content
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Learned about PostgreSQL database design",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1190,16 +976,24 @@ func TestQueryUsesSemanticSimilarity(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
+
+	// Learn content where semantic understanding is needed
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Database backup and recovery procedures",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create session content where semantic understanding is needed
-	sessionContent := `Database backup and recovery procedures
-Web frontend styling with CSS
-Data persistence and storage solutions`
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte(sessionContent), 0644)
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Web frontend styling with CSS",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Data persistence and storage solutions",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1229,18 +1023,15 @@ func TestQueryDefaultLimit(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	// Create more than 5 session lines
-	var lines []string
+	// Learn more than 5 entries
 	for i := 0; i < 10; i++ {
-		lines = append(lines, fmt.Sprintf("Memory about testing variant %d", i))
+		err := memory.Learn(memory.LearnOpts{
+			Message:    fmt.Sprintf("Memory about testing variant %d", i),
+			MemoryRoot: memoryDir,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
 	}
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte(strings.Join(lines, "\n")), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
 		Text:       "testing",
@@ -1259,17 +1050,15 @@ func TestQueryCustomLimit(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	var lines []string
+	// Learn 10 entries
 	for i := 0; i < 10; i++ {
-		lines = append(lines, fmt.Sprintf("Memory about testing variant %d", i))
+		err := memory.Learn(memory.LearnOpts{
+			Message:    fmt.Sprintf("Memory about testing variant %d", i),
+			MemoryRoot: memoryDir,
+		})
+		g.Expect(err).ToNot(HaveOccurred())
 	}
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte(strings.Join(lines, "\n")), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
 		Text:       "testing",
@@ -1282,21 +1071,25 @@ func TestQueryCustomLimit(t *testing.T) {
 	g.Expect(len(results.Results)).To(BeNumerically("<=", 3))
 }
 
-// TEST-826: Query searches sessions
+// TEST-826: Query searches learned content
 // traces: TASK-052
-func TestQuerySearchesSessions(t *testing.T) {
+func TestQuerySearchesLearnedContent(t *testing.T) {
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
+
+	// Learn content
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Decided to use PostgreSQL for the database layer",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	sessionContent := `# Session Summary
-Decided to use PostgreSQL for the database layer.
-Completed API design work.`
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-project.md"), []byte(sessionContent), 0644)
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Completed API design work",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1334,14 +1127,18 @@ func TestQueryResultsIncludeScores(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
+
+	// Learn content
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Testing database queries",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	sessionContent := `Testing database queries
-Building web frontend`
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte(sessionContent), 0644)
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Building web frontend",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1367,15 +1164,24 @@ func TestQueryResultsSortedByScore(t *testing.T) {
 
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
+
+	// Learn content
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "web frontend development",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	sessionContent := `web frontend development
-database indexing and optimization
-database schema design patterns`
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte(sessionContent), 0644)
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "database indexing and optimization",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "database schema design patterns",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	opts := memory.QueryOpts{
@@ -1390,43 +1196,6 @@ database schema design patterns`
 	for i := 1; i < len(results.Results); i++ {
 		g.Expect(results.Results[i-1].Score).To(BeNumerically(">=", results.Results[i].Score))
 	}
-}
-
-// TEST-830: Query stores embeddings incrementally
-// traces: TASK-052
-func TestQueryStoresEmbeddingsIncrementally(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	sessionsDir := filepath.Join(memoryDir, "sessions")
-	err := os.MkdirAll(sessionsDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// First query with initial session content
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte("First memory entry"), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	opts := memory.QueryOpts{
-		Text:       "first",
-		MemoryRoot: memoryDir,
-	}
-
-	results1, err := memory.Query(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-	initialCount := results1.EmbeddingsCount
-
-	// Add new session content
-	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
-		[]byte("First memory entry\nSecond memory entry"), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Second query should only create embedding for new entry
-	results2, err := memory.Query(opts)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(results2.EmbeddingsCount).To(Equal(initialCount + 1))
-	g.Expect(results2.NewEmbeddingsCreated).To(Equal(1))
 }
 
 // TEST-831: Property-based test for embedding consistency
@@ -1788,4 +1557,130 @@ func TestLearnWithConflictCheckNoConflictForDifferentMessages(t *testing.T) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.HasConflict).To(BeFalse(), "semantically different message should not be detected as conflict")
+}
+
+// ============================================================================
+// ISSUE-208: Query() read-only tests (TDD Red)
+// ============================================================================
+
+// TEST-208-01: Query is read-only and does not create new embeddings
+// traces: ISSUE-208 TASK-1
+func TestQueryIsReadOnly(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Learn some data first to seed the database
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "initial learning content",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Count embeddings before writing session file
+	dbPath := filepath.Join(memoryDir, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	var countBefore int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE embedding_id IS NOT NULL").Scan(&countBefore)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Write a session file (this would trigger the bug in current code)
+	sessionContent := "Session content that should not be embedded by Query"
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Call Query - should NOT create new embeddings from session file
+	opts := memory.QueryOpts{
+		Text:       "session content",
+		MemoryRoot: memoryDir,
+	}
+	_, err = memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Count embeddings after Query
+	var countAfter int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE embedding_id IS NOT NULL").Scan(&countAfter)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify no new embeddings were created
+	g.Expect(countAfter).To(Equal(countBefore),
+		"Query should not create embeddings from session files (read-only)")
+}
+
+// TEST-208-02: Query ignores session files and does not return their content
+// traces: ISSUE-208 TASK-1
+func TestQueryIgnoresSessionFiles(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	sessionsDir := filepath.Join(memoryDir, "sessions")
+	err := os.MkdirAll(sessionsDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Write session file with unique marker
+	sessionContent := "unique-session-marker-xyz-should-not-be-found"
+	err = os.WriteFile(filepath.Join(sessionsDir, "2024-01-01-test.md"),
+		[]byte(sessionContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Query for the session content
+	opts := memory.QueryOpts{
+		Text:       "unique-session-marker-xyz",
+		MemoryRoot: memoryDir,
+	}
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Results should NOT contain session file content
+	for _, result := range results.Results {
+		g.Expect(result.Content).ToNot(ContainSubstring("unique-session-marker-xyz"),
+			"Query should not return session file content")
+	}
+}
+
+// TEST-208-03: Query finds content added via Learn() (positive control)
+// traces: ISSUE-208 TASK-1
+func TestQueryFindsLearnedContent(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+
+	// Learn content
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "this is learned content that should be found",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Query for the learned content
+	opts := memory.QueryOpts{
+		Text:       "learned content",
+		MemoryRoot: memoryDir,
+	}
+	results, err := memory.Query(opts)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should find the learned content
+	g.Expect(results.Results).ToNot(BeEmpty(),
+		"Query should find content added via Learn()")
+
+	// Verify at least one result contains the learned content
+	found := false
+	for _, result := range results.Results {
+		if strings.Contains(result.Content, "learned content") {
+			found = true
+			break
+		}
+	}
+	g.Expect(found).To(BeTrue(), "Query should return learned content in results")
 }

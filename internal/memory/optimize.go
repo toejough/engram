@@ -48,6 +48,8 @@ type OptimizeResult struct {
 	ContradictionsFound   int
 	AutoDemoted           int
 	EntriesPruned         int
+	BoilerplatePurged     int
+	LegacySessionPurged   int
 	DuplicatesMerged      int
 	PatternsFound         int
 	PatternsApproved      int
@@ -156,6 +158,16 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	// Step 4: Prune DB
 	if err := optimizePrune(db, opts, result); err != nil {
 		return nil, fmt.Errorf("prune failed: %w", err)
+	}
+
+	// Step 4.5: Purge boilerplate session entries
+	if err := optimizePurgeBoilerplate(db, opts, result); err != nil {
+		return nil, fmt.Errorf("boilerplate purge failed: %w", err)
+	}
+
+	// Step 4.6: Purge legacy session embeddings created by old Query() behavior
+	if err := optimizePurgeLegacySessionEmbeddings(db, opts, result); err != nil {
+		return nil, fmt.Errorf("legacy session purge failed: %w", err)
 	}
 
 	// Step 5: Deduplicate DB
@@ -431,6 +443,151 @@ func optimizePrune(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error 
 
 	result.EntriesPruned = len(toDelete)
 	return nil
+}
+
+// optimizePurgeBoilerplate removes boilerplate session summary entries.
+func optimizePurgeBoilerplate(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
+	// Get non-promoted entries (need embedding_id for cleanup)
+	rows, err := db.Query("SELECT id, embedding_id, content FROM embeddings WHERE promoted = 0")
+	if err != nil {
+		return err
+	}
+
+	type purgeEntry struct {
+		id          int64
+		embeddingID int64
+		content     string
+	}
+	var toPurge []purgeEntry
+	for rows.Next() {
+		var e purgeEntry
+		var embID sql.NullInt64
+		if err := rows.Scan(&e.id, &embID, &e.content); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if embID.Valid {
+			e.embeddingID = embID.Int64
+		}
+		// Check both raw content and extracted message content
+		// (Learn() wraps messages with timestamps like "- 2026-02-10 18:15: message")
+		msg := extractMessageContent(e.content)
+		if IsSessionBoilerplate(e.content) || (msg != "" && IsSessionBoilerplate(msg)) {
+			toPurge = append(toPurge, e)
+		}
+	}
+	_ = rows.Close()
+
+	// Delete entries and clean up vec/FTS5
+	for _, e := range toPurge {
+		_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.id)
+		if e.embeddingID > 0 {
+			_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", e.embeddingID)
+		}
+		deleteFTS5(db, e.id)
+	}
+
+	result.BoilerplatePurged = len(toPurge)
+	return nil
+}
+
+// optimizePurgeLegacySessionEmbeddings removes legacy session embeddings created by old Query() behavior.
+// Learn() stores content with timestamp prefix: "- 2026-02-10 15:04: message" or "- 2026-02-10 15:04: [project] message"
+// Old createEmbeddings() stored raw session lines WITHOUT timestamp prefix.
+// Heuristic: non-promoted entries where content does NOT match Learn() timestamp format AND has empty observation_type and memory_type.
+func optimizePurgeLegacySessionEmbeddings(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
+	// Query non-promoted entries with empty observation_type and memory_type
+	rows, err := db.Query(`
+		SELECT id, embedding_id, content
+		FROM embeddings
+		WHERE promoted = 0
+		  AND observation_type = ''
+		  AND memory_type = ''
+		  AND source = 'memory'
+	`)
+	if err != nil {
+		return err
+	}
+
+	type purgeEntry struct {
+		id          int64
+		embeddingID int64
+		content     string
+	}
+	var candidates []purgeEntry
+	for rows.Next() {
+		var e purgeEntry
+		var embID sql.NullInt64
+		if err := rows.Scan(&e.id, &embID, &e.content); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if embID.Valid {
+			e.embeddingID = embID.Int64
+		}
+		candidates = append(candidates, e)
+	}
+	_ = rows.Close()
+
+	// Filter: keep entries whose content matches Learn() timestamp format
+	// Remaining entries are legacy session embeddings
+	var toPurge []purgeEntry
+	for _, e := range candidates {
+		// Check if content starts with Learn() timestamp format: "- YYYY-MM-DD HH:MM:"
+		// Use simple string matching instead of regex for performance
+		if !hasLearnTimestampPrefix(e.content) {
+			toPurge = append(toPurge, e)
+		}
+	}
+
+	// Delete legacy session embeddings
+	for _, e := range toPurge {
+		_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.id)
+		if e.embeddingID > 0 {
+			_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", e.embeddingID)
+		}
+		deleteFTS5(db, e.id)
+	}
+
+	result.LegacySessionPurged = len(toPurge)
+	return nil
+}
+
+// hasLearnTimestampPrefix checks if content starts with Learn() timestamp format: "- YYYY-MM-DD HH:MM:"
+func hasLearnTimestampPrefix(content string) bool {
+	// Learn() format: "- 2026-02-10 15:04: message" or "- 2026-02-10 15:04: [project] message"
+	if len(content) < 19 { // Minimum: "- YYYY-MM-DD HH:MM:"
+		return false
+	}
+	if !strings.HasPrefix(content, "- ") {
+		return false
+	}
+	// Check format: "YYYY-MM-DD HH:MM:"
+	// Position 2-6: YYYY-
+	// Position 7-9: MM-
+	// Position 10-12: DD
+	// Position 13: space
+	// Position 14-16: HH:
+	// Position 17-19: MM:
+	if len(content) < 20 {
+		return false
+	}
+	part := content[2:20]
+	// Check pattern: DDDD-DD-DD DD:DD:
+	if len(part) != 18 {
+		return false
+	}
+	// Quick check for dashes and colons in expected positions
+	if part[4] != '-' || part[7] != '-' || part[10] != ' ' || part[13] != ':' || part[16] != ':' {
+		return false
+	}
+	// Check digits in expected positions
+	for _, i := range []int{0, 1, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15} {
+		if part[i] < '0' || part[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // optimizeDedup merges entries with similarity > threshold.

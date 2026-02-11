@@ -89,36 +89,6 @@ func memoryDecide(args memoryDecideArgs) error {
 	return nil
 }
 
-type memorySessionEndArgs struct {
-	Project    string `targ:"flag,short=p,required,desc=Project name"`
-	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-}
-
-func memorySessionEnd(args memorySessionEndArgs) error {
-	memoryRoot := args.MemoryRoot
-	if memoryRoot == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("failed to get home directory: %w", err)
-		}
-		memoryRoot = home + "/.claude/memory"
-	}
-
-	opts := memory.SessionEndOpts{
-		Project:    args.Project,
-		MemoryRoot: memoryRoot,
-	}
-
-	result, err := memory.SessionEnd(opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Session summary saved to: %s\n", result.FilePath)
-	return nil
-}
-
 type memoryGrepArgs struct {
 	Pattern          string `targ:"positional,required,desc=Pattern to search for"`
 	Project          string `targ:"flag,short=p,desc=Limit search to specific project"`

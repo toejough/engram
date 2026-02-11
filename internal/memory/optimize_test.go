@@ -11,6 +11,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	_ "github.com/mattn/go-sqlite3"
+	"pgregory.net/rapid"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -1390,4 +1391,235 @@ func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
 	// Verify skill file deleted
 	_, err = os.Stat(skillFilePath)
 	g.Expect(os.IsNotExist(err)).To(BeTrue(), "Skill file should be deleted")
+}
+
+// ============================================================================
+// ISSUE-207: Session boilerplate filtering tests
+// ============================================================================
+
+// TEST-207-5: Purge removes existing boilerplate
+func TestSessionBoilerplatePurgeRemovesExisting(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with boilerplate entries
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "# Session Summary",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "**Project:** projctl",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Seed DB with real entry
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "Always use property-based testing for validation",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Verify boilerplate exists
+	boilerplateCount := countEmbeddings(g, memoryRoot, "# Session Summary")
+	g.Expect(boilerplateCount).To(BeNumerically(">=", 1))
+
+	// Call Optimize to trigger purge
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.BoilerplatePurged).To(BeNumerically(">", 0), "Should purge boilerplate entries")
+
+	// Verify boilerplate removed
+	afterCount := countEmbeddings(g, memoryRoot, "# Session Summary")
+	g.Expect(afterCount).To(Equal(0), "Boilerplate should be purged")
+
+	// Verify real content survives
+	realCount := countEmbeddings(g, memoryRoot, "property-based testing")
+	g.Expect(realCount).To(BeNumerically(">=", 1), "Real content should survive purge")
+}
+
+// TEST-207-6: Purge skips promoted entries
+func TestSessionBoilerplatePurgeSkipsPromoted(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with boilerplate
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "# Session Summary",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Mark as promoted in DB
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE content LIKE '%Session Summary%'")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Call Optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify promoted boilerplate survives
+	survivedCount := countEmbeddings(g, memoryRoot, "Session Summary")
+	g.Expect(survivedCount).To(BeNumerically(">=", 1), "Promoted boilerplate should survive purge")
+
+	// Verify BoilerplatePurged is 0 (promoted entries excluded from purge)
+	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge promoted entries")
+}
+
+// TEST-207-7: Purge on empty DB is no-op
+func TestSessionBoilerplatePurgeEmptyDB(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Call Optimize on empty DB
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge anything from empty DB")
+}
+
+// TEST-207-8: Property test - filter doesn't eat real content
+func TestSessionBoilerplatePropertyTest(t *testing.T) {
+	// Property: IsSessionBoilerplate returns false for random 20+ char alphanumeric strings
+	// that don't start with known boilerplate prefixes
+	rapid.Check(t, func(rt *rapid.T) {
+		// Generate a random alphabetic prefix (not #, *, -, .) followed by 20+ alphanumeric chars
+		prefix := rapid.StringMatching(`[a-zA-Z]`).Draw(rt, "prefix")
+		body := rapid.StringMatching(`[a-zA-Z0-9 ]{20,50}`).Draw(rt, "body")
+		randomStr := prefix + body
+
+		g := NewWithT(rt)
+		g.Expect(memory.IsSessionBoilerplate(randomStr)).To(BeFalse(),
+			"Random content should not be classified as boilerplate: %q", randomStr)
+	})
+}
+
+// ============================================================================
+// ISSUE-208: Legacy session embedding purge tests
+// ============================================================================
+
+// TEST-208-1: Purge removes legacy session embeddings (no timestamp prefix)
+func TestPurgeLegacySessionEmbeddings(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with Learn() entries (timestamp-prefixed)
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "This is a Learn entry with timestamp",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Seed DB with raw session lines (legacy createEmbeddings behavior - no timestamp)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Insert legacy session embedding without timestamp prefix
+	_, err = db.Exec(`
+		INSERT INTO embeddings (content, source, source_type, confidence, observation_type, memory_type)
+		VALUES (?, 'memory', 'internal', 1.0, '', '')
+	`, "Raw session line without timestamp prefix")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify both entries exist
+	var totalBefore int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&totalBefore)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(totalBefore).To(Equal(2), "Should have 2 entries before purge")
+
+	// Run Optimize to trigger purge
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.LegacySessionPurged).To(BeNumerically(">=", 1), "Should purge legacy session embedding")
+
+	// Verify legacy entry removed
+	var legacyCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content = ?", "Raw session line without timestamp prefix").Scan(&legacyCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(legacyCount).To(Equal(0), "Legacy entry should be purged")
+
+	// Verify Learn entry survives
+	var learnCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: This is a Learn entry%'").Scan(&learnCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
+}
+
+// TEST-208-2: Purge keeps Learn() entries with empty enrichment columns
+func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Learn entries with empty observation_type and memory_type (but timestamp-prefixed)
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "Learn entry without enrichment",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Verify Learn entry has timestamp prefix
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	var content string
+	err = db.QueryRow("SELECT content FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&content)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(content).To(MatchRegexp(`^- \d{4}-\d{2}-\d{2} \d{2}:\d{2}:`), "Learn entry should have timestamp prefix")
+
+	// Run Optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify Learn entry survives even though it has empty enrichment columns
+	var learnCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&learnCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
+
+	// Verify LegacySessionPurged is 0 (no legacy entries to purge)
+	g.Expect(result.LegacySessionPurged).To(Equal(0), "Should not purge Learn entries")
 }

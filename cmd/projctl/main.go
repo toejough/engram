@@ -98,7 +98,6 @@ func main() {
 		targ.Group("memory",
 			targ.Targ(memoryLearn).Name("learn").Description("Store a learning in the memory index"),
 			targ.Targ(memoryDecide).Name("decide").Description("Log a decision with reasoning and alternatives"),
-			targ.Targ(memorySessionEnd).Name("session-end").Description("Generate compressed session summary"),
 			targ.Targ(memoryGrep).Name("grep").Description("Search memory files for a pattern"),
 			targ.Targ(memoryQuery).Name("query").Description("Find semantically similar memories"),
 			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),

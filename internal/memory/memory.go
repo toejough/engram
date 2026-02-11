@@ -113,124 +113,46 @@ func Decide(opts DecideOpts) (*DecideResult, error) {
 	}, nil
 }
 
-// SessionEndOpts holds options for session end summary.
-type SessionEndOpts struct {
-	Project    string
-	MemoryRoot string
+// IsSessionBoilerplate returns true if the line is structural/boilerplate content
+// from session summary files that should not be embedded.
+func IsSessionBoilerplate(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return true
+	}
+
+	// Markdown headers
+	if strings.HasPrefix(trimmed, "#") {
+		return true
+	}
+
+	// Metadata lines
+	if strings.HasPrefix(trimmed, "**Project:**") || strings.HasPrefix(trimmed, "**Date:**") {
+		return true
+	}
+
+	// Horizontal rules and ellipsis
+	if trimmed == "---" || trimmed == "..." || strings.TrimLeft(trimmed, "-") == "" || strings.TrimLeft(trimmed, ".") == "" {
+		return true
+	}
+
+	// Short lines after stripping markdown formatting
+	stripped := stripMarkdownFormatting(trimmed)
+	if len(stripped) < 10 {
+		return true
+	}
+
+	return false
 }
 
-// SessionEndResult contains the result of creating a session summary.
-type SessionEndResult struct {
-	FilePath string
-}
-
-// SessionEnd generates a compressed session summary.
-func SessionEnd(opts SessionEndOpts) (*SessionEndResult, error) {
-	if opts.Project == "" {
-		return nil, fmt.Errorf("project is required")
-	}
-
-	// Ensure sessions directory exists
-	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
-	if err := os.MkdirAll(sessionsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create sessions directory: %w", err)
-	}
-
-	// Build filename: {DATE}-{PROJECT}.md
-	today := time.Now().Format("2006-01-02")
-	filename := fmt.Sprintf("%s-%s.md", today, opts.Project)
-	filePath := filepath.Join(sessionsDir, filename)
-
-	// Read today's decisions if they exist
-	decisionsPath := filepath.Join(opts.MemoryRoot, "decisions", today+"-"+opts.Project+".jsonl")
-	decisions := readDecisions(decisionsPath)
-
-	// Generate summary
-	summary := generateSessionSummary(opts.Project, today, decisions)
-
-	// Ensure under 2000 characters
-	if len(summary) > 2000 {
-		summary = truncateSummary(summary, 2000)
-	}
-
-	// Write the summary
-	if err := os.WriteFile(filePath, []byte(summary), 0644); err != nil {
-		return nil, fmt.Errorf("failed to write session summary: %w", err)
-	}
-
-	return &SessionEndResult{
-		FilePath: filePath,
-	}, nil
-}
-
-// readDecisions reads decisions from a JSONL file.
-func readDecisions(path string) []map[string]interface{} {
-	var decisions []map[string]interface{}
-
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return decisions
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-		var entry map[string]interface{}
-		if err := json.Unmarshal([]byte(line), &entry); err == nil {
-			decisions = append(decisions, entry)
-		}
-	}
-
-	return decisions
-}
-
-// generateSessionSummary creates a markdown summary.
-func generateSessionSummary(project, date string, decisions []map[string]interface{}) string {
-	var sb strings.Builder
-
-	sb.WriteString("# Session Summary\n\n")
-	sb.WriteString(fmt.Sprintf("**Project:** %s\n", project))
-	sb.WriteString(fmt.Sprintf("**Date:** %s\n\n", date))
-
-	if len(decisions) > 0 {
-		sb.WriteString("## Decisions\n\n")
-		for i, d := range decisions {
-			if i >= 5 { // Limit to 5 decisions for brevity
-				sb.WriteString(fmt.Sprintf("... and %d more decisions\n", len(decisions)-5))
-				break
-			}
-			choice, _ := d["choice"].(string)
-			reason, _ := d["reason"].(string)
-			// Truncate reason if too long
-			if len(reason) > 50 {
-				reason = reason[:47] + "..."
-			}
-			sb.WriteString(fmt.Sprintf("- **%s**: %s\n", choice, reason))
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-// truncateSummary truncates the summary to maxLen while keeping markdown valid.
-func truncateSummary(summary string, maxLen int) string {
-	if len(summary) <= maxLen {
-		return summary
-	}
-
-	// Find a good break point
-	truncated := summary[:maxLen-20]
-
-	// Find the last newline
-	lastNewline := strings.LastIndex(truncated, "\n")
-	if lastNewline > maxLen/2 {
-		truncated = truncated[:lastNewline]
-	}
-
-	return truncated + "\n\n...(truncated)\n"
+// stripMarkdownFormatting removes common markdown formatting characters.
+func stripMarkdownFormatting(s string) string {
+	s = strings.ReplaceAll(s, "**", "")
+	s = strings.ReplaceAll(s, "*", "")
+	s = strings.ReplaceAll(s, "`", "")
+	// Strip leading list markers
+	s = strings.TrimLeft(s, "- ")
+	return strings.TrimSpace(s)
 }
 
 // GrepOpts holds options for memory grep.
@@ -382,8 +304,6 @@ type QueryResults struct {
 	VectorStorage        string
 	EmbeddingModel       string
 	APICallsMade         bool
-	EmbeddingsCount      int
-	NewEmbeddingsCreated int
 	// ONNX model fields (TASK-052: Real ONNX inference)
 	EmbeddingDimensions int
 	UsedONNXRuntime     bool
@@ -455,52 +375,10 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	}
 	defer func() { _ = db.Close() }()
 
-	// Count existing embeddings before processing
-	var existingCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE embedding_id IS NOT NULL").Scan(&existingCount)
-	if err != nil {
-		existingCount = 0
-	}
-
-	// Collect all memory content
-	var contents []string
-
-	// Read session summaries
-	sessionsDir := filepath.Join(opts.MemoryRoot, "sessions")
-	if entries, err := os.ReadDir(sessionsDir); err == nil {
-		for _, entry := range entries {
-			if !entry.IsDir() {
-				path := filepath.Join(sessionsDir, entry.Name())
-				if data, err := os.ReadFile(path); err == nil {
-					lines := strings.Split(string(data), "\n")
-					for _, line := range lines {
-						if strings.TrimSpace(line) != "" {
-							contents = append(contents, line)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Create embeddings for new content using ONNX model
-	newEmbeddings, sessionCreated, sessionReused, err := createEmbeddings(db, contents, modelPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create embeddings: %w", err)
-	}
-
 	// Generate query embedding using ONNX model
-	queryEmbedding, querySessionCreated, querySessionReused, err := generateEmbeddingONNX(opts.Text, modelPath)
+	queryEmbedding, sessionCreated, sessionReused, err := generateEmbeddingONNX(opts.Text, modelPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate query embedding: %w", err)
-	}
-
-	// If session wasn't created during content embedding, check query embedding
-	if !sessionCreated && querySessionCreated {
-		sessionCreated = true
-		sessionReused = false
-	} else if !sessionReused && querySessionReused {
-		sessionReused = true
 	}
 
 	// Search using hybrid search (BM25 + vector + RRF)
@@ -531,8 +409,6 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		ModelType:            "onnx",
 		InferenceExecuted:    true,
 		UsedMockEmbeddings:   false,
-		EmbeddingsCount:      existingCount + newEmbeddings,
-		NewEmbeddingsCreated: newEmbeddings,
 		SessionCreatedNew:    sessionCreated,
 		SessionReused:        sessionReused,
 		QueryDuration:        duration,

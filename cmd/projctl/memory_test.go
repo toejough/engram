@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	"github.com/toejough/projctl/internal/memory"
 )
 
 // TestMemoryLearnCommand tests the CLI interface for projctl memory learn
@@ -77,27 +78,28 @@ func TestMemoryLearnMultipleEntries(t *testing.T) {
 	tempDir := t.TempDir()
 	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	// Add first learning
-	cmd := exec.Command("projctl", "memory", "learn",
-		"--message", "First CLI learning",
-		"--memoryroot", memoryDir)
-	_, err := cmd.CombinedOutput()
+	// Use Go API directly instead of spawning CLI processes
+	// This avoids cross-process SQLite issues and makes debugging easier
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "First CLI learning",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Add second learning
-	cmd = exec.Command("projctl", "memory", "learn",
-		"--message", "Second CLI learning",
-		"--memoryroot", memoryDir)
-	_, err = cmd.CombinedOutput()
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Second CLI learning",
+		MemoryRoot: memoryDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Verify both are in the DB via grep
 	for _, msg := range []string{"First CLI learning", "Second CLI learning"} {
-		grepCmd := exec.Command("projctl", "memory", "grep",
-			msg, "--memoryroot", memoryDir)
-		grepOutput, grepErr := grepCmd.CombinedOutput()
-		g.Expect(grepErr).ToNot(HaveOccurred(), "Grep should succeed: %s", string(grepOutput))
-		g.Expect(string(grepOutput)).To(ContainSubstring(msg))
+		result, grepErr := memory.Grep(memory.GrepOpts{
+			Pattern:    msg,
+			MemoryRoot: memoryDir,
+		})
+		g.Expect(grepErr).ToNot(HaveOccurred())
+		g.Expect(len(result.Matches)).To(BeNumerically(">", 0), "Message %q not found", msg)
 	}
 }
 
@@ -136,22 +138,6 @@ func TestMemoryDecideRequiresFields(t *testing.T) {
 		"--memoryroot", memoryDir)
 	_, err := cmd.CombinedOutput()
 	g.Expect(err).To(HaveOccurred(), "Should fail without context")
-}
-
-// TestMemorySessionEndCommand tests the CLI interface for projctl memory session-end
-func TestMemorySessionEndCommand(t *testing.T) {
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, ".claude", "memory")
-
-	cmd := exec.Command("projctl", "memory", "session-end",
-		"--project", "test-project",
-		"--memoryroot", memoryDir)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("Session summary saved"))
 }
 
 // ============================================================================

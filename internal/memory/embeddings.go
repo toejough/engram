@@ -88,6 +88,18 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
+	// Enable WAL mode for better concurrent write handling
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
+	// Set busy timeout for concurrent writes (5 seconds)
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("failed to set busy timeout: %w", err)
+	}
+
 	// Create embeddings table with vec0 virtual table
 	createTable := `
 		CREATE TABLE IF NOT EXISTS embeddings (
@@ -420,26 +432,6 @@ func hybridSearch(db *sql.DB, queryEmbedding []float32, queryText string, limit 
 	return results, nil
 }
 
-// getExistingEmbeddings returns a map of content -> embedding_id for already embedded content.
-func getExistingEmbeddings(db *sql.DB) (map[string]int64, error) {
-	rows, err := db.Query("SELECT content, embedding_id FROM embeddings WHERE embedding_id IS NOT NULL")
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	existing := make(map[string]int64)
-	for rows.Next() {
-		var content string
-		var embeddingID int64
-		if err := rows.Scan(&content, &embeddingID); err != nil {
-			return nil, err
-		}
-		existing[content] = embeddingID
-	}
-
-	return existing, rows.Err()
-}
 
 
 // downloadONNXRuntime downloads and extracts the ONNX Runtime library.
@@ -793,65 +785,6 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, bool, bool
 	return embedding, sessionCreated, sessionReused, nil
 }
 
-// createEmbeddings processes content and creates embeddings using ONNX model.
-// Returns the number of new embeddings created, whether a session was created, and whether it was reused.
-func createEmbeddings(db *sql.DB, contents []string, modelPath string) (int, bool, bool, error) {
-	existing, err := getExistingEmbeddings(db)
-	if err != nil {
-		return 0, false, false, err
-	}
-
-	newCount := 0
-	var sessionCreated, sessionReused bool
-
-	for _, content := range contents {
-		// Skip if already embedded
-		if _, exists := existing[content]; exists {
-			continue
-		}
-
-		// Generate embedding using ONNX model
-		embedding, created, reused, err := generateEmbeddingONNX(content, modelPath)
-		if err != nil {
-			return newCount, sessionCreated, sessionReused, fmt.Errorf("failed to generate embedding: %w", err)
-		}
-
-		// Track session status from first call
-		if newCount == 0 {
-			sessionCreated = created
-			sessionReused = reused
-		}
-
-		// Insert into vec table using sqlite-vec SerializeFloat32
-		vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
-		embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
-		if err != nil {
-			return newCount, sessionCreated, sessionReused, err
-		}
-		result, err := db.Exec(vecStmt, embeddingBlob)
-		if err != nil {
-			return newCount, sessionCreated, sessionReused, err
-		}
-
-		embeddingID, _ := result.LastInsertId()
-
-		// Insert into metadata table with defaults for source_type and confidence
-		metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, embedding_id) VALUES (?, ?, ?, ?, ?)`
-		metaResult, err := db.Exec(metaStmt, content, "memory", "internal", 1.0, embeddingID)
-		if err != nil {
-			return newCount, sessionCreated, sessionReused, err
-		}
-
-		// Insert into FTS5 table if available (rowid matches embeddings.id)
-		metaID, _ := metaResult.LastInsertId()
-		insertFTS5(db, metaID, content)
-
-		newCount++
-	}
-
-	return newCount, sessionCreated, sessionReused, nil
-}
-
 // searchSimilar finds the most similar embeddings using cosine similarity.
 func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResult, error) {
 	// Use sqlite-vec's distance function for similarity search
@@ -1128,6 +1061,9 @@ func learnToEmbeddings(opts LearnOpts) error {
 	if opts.Type != "correction" {
 		dupResult, err := searchRawSimilar(db, embedding, 3) // top-3 for LLM context
 
+		// Track whether we processed a valid LLM decision (to skip threshold fallback)
+		llmDecisionProcessed := false
+
 		// LLM-driven decision if extractor available and similar results exist above threshold
 		if opts.Extractor != nil && err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.5 {
 			existing := rawResultsToExistingMemories(dupResult)
@@ -1145,6 +1081,7 @@ func learnToEmbeddings(opts LearnOpts) error {
 				}
 
 				if targetValid {
+					llmDecisionProcessed = true
 					switch decision.Action {
 					case IngestUpdate:
 						if err := updateEmbeddingContent(db, decision.TargetID, content, embeddingBlob,
@@ -1161,7 +1098,6 @@ func learnToEmbeddings(opts LearnOpts) error {
 					case IngestAdd:
 						// Fall through to insert
 					}
-					goto insert
 				}
 				// Invalid TargetID — fall through to threshold-based dedup
 			}
@@ -1169,13 +1105,14 @@ func learnToEmbeddings(opts LearnOpts) error {
 		}
 
 		// Threshold fallback (original ISSUE-184 behavior)
-		if err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.9 {
+		// Use 0.98 threshold to require near-exact matches before deduplicating
+		// Skip if we already processed a valid LLM decision (prevents boosting superseded entries)
+		if !llmDecisionProcessed && err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.98 {
 			_ = boostExistingConfidence(db, dupResult[0].id)
 			return nil
 		}
 	}
 
-insert:
 	// Insert into vec table
 	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
 	result, err := db.Exec(vecStmt, embeddingBlob)

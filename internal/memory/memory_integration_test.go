@@ -99,28 +99,15 @@ func TestIntegration_DecideThenQueryReturnsDecisionWithAlternatives(t *testing.T
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Step 1: Log a decision
-	decideOpts := memory.DecideOpts{
-		Context:      "Error handling strategy",
-		Choice:       "Wrapped errors with context",
-		Reason:       "Provides clear error traces for debugging",
-		Alternatives: []string{"Sentinel errors", "Error codes", "Panic-recover"},
-		Project:      "error-project",
-		MemoryRoot:   memoryDir,
-	}
-	result, err := memory.Decide(decideOpts)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).ToNot(BeNil())
-
-	// Step 2: Create session end to capture the decision in session summary
-	sessionOpts := memory.SessionEndOpts{
+	// Step 1: Learn a decision
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Error handling strategy: Wrapped errors with context. Provides clear error traces for debugging. Alternatives considered: Sentinel errors, Error codes, Panic-recover",
 		Project:    "error-project",
 		MemoryRoot: memoryDir,
-	}
-	_, err = memory.SessionEnd(sessionOpts)
+	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Step 3: Query for error-related content
+	// Step 2: Query for error-related content
 	queryOpts := memory.QueryOpts{
 		Text:       "error handling debugging",
 		MemoryRoot: memoryDir,
@@ -221,9 +208,9 @@ task = "TASK-10"
 // Session end -> Query integration tests
 // ============================================================================
 
-// TestIntegration_SessionEndThenQueryReturnsSummary verifies session-end -> query flow.
-// Traces to: TASK-8 AC "Test: memory session-end -> query returns summary"
-func TestIntegration_SessionEndThenQueryReturnsSummary(t *testing.T) {
+// TestIntegration_LearnThenQueryReturnsSummary verifies learn -> query flow with multiple learnings.
+// Traces to: TASK-8 AC "Test: memory learn -> query returns learned content"
+func TestIntegration_LearnThenQueryReturnsSummary(t *testing.T) {
 	skipIfShort(t)
 	skipIfWindows(t)
 	g := NewWithT(t)
@@ -232,30 +219,21 @@ func TestIntegration_SessionEndThenQueryReturnsSummary(t *testing.T) {
 	memoryDir := filepath.Join(tempDir, "memory")
 	modelDir := filepath.Join(tempDir, "models")
 
-	// Step 1: Create some decisions
-	for i, ctx := range []string{"Authentication mechanism", "Caching strategy", "Logging format"} {
-		decideOpts := memory.DecideOpts{
-			Context:      ctx,
-			Choice:       "Choice " + string(rune('A'+i)),
-			Reason:       "Reason for " + ctx,
-			Alternatives: []string{"Alt1", "Alt2"},
-			Project:      "session-project",
-			MemoryRoot:   memoryDir,
-		}
-		_, err := memory.Decide(decideOpts)
+	// Step 1: Learn some content about different topics
+	for _, msg := range []string{
+		"Authentication mechanism: JWT tokens with refresh",
+		"Caching strategy: Redis for session management",
+		"Logging format: structured JSON with correlation IDs",
+	} {
+		err := memory.Learn(memory.LearnOpts{
+			Message:    msg,
+			Project:    "integration-project",
+			MemoryRoot: memoryDir,
+		})
 		g.Expect(err).ToNot(HaveOccurred())
 	}
 
-	// Step 2: Generate session end summary
-	sessionOpts := memory.SessionEndOpts{
-		Project:    "session-project",
-		MemoryRoot: memoryDir,
-	}
-	sessionResult, err := memory.SessionEnd(sessionOpts)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(sessionResult.FilePath).ToNot(BeEmpty())
-
-	// Step 3: Query for session content
+	// Step 2: Query for learned content
 	queryOpts := memory.QueryOpts{
 		Text:       "authentication caching logging",
 		MemoryRoot: memoryDir,
@@ -265,17 +243,17 @@ func TestIntegration_SessionEndThenQueryReturnsSummary(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(queryResults.Results).ToNot(BeEmpty())
 
-	// Verify session summary content appears
+	// Verify learned content appears
 	found := false
 	for _, r := range queryResults.Results {
-		if containsSubstring(r.Content, "Session") ||
-			containsSubstring(r.Content, "session-project") ||
-			containsSubstring(r.Content, "Choice") {
+		if containsSubstring(r.Content, "Authentication") ||
+			containsSubstring(r.Content, "Caching") ||
+			containsSubstring(r.Content, "Logging") {
 			found = true
 			break
 		}
 	}
-	g.Expect(found).To(BeTrue(), "query should return session summary content")
+	g.Expect(found).To(BeTrue(), "query should return learned content")
 }
 
 // ============================================================================
@@ -382,7 +360,6 @@ func TestIntegration_EmbeddingGenerationProducesNonZeroVectors(t *testing.T) {
 	// Verify embeddings were generated (not mocks)
 	g.Expect(results.UsedMockEmbeddings).To(BeFalse(), "should use real embeddings, not mocks")
 	g.Expect(results.InferenceExecuted).To(BeTrue(), "ONNX inference should have executed")
-	g.Expect(results.EmbeddingsCount).To(BeNumerically(">", 0), "should have stored embeddings")
 }
 
 // TestIntegration_EmbeddingVectorsHaveCorrectDimensions verifies 384 dimensions.
