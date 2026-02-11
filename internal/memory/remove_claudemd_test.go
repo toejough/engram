@@ -1,14 +1,52 @@
 package memory_test
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
 	"github.com/toejough/projctl/internal/memory"
 )
+
+// MockFS implements memory.FileSystem for testing
+type MockFS struct {
+	Files map[string][]byte
+}
+
+func (m *MockFS) ReadFile(path string) ([]byte, error) {
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, os.ErrNotExist
+	}
+	return content, nil
+}
+
+func (m *MockFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	m.Files[path] = data
+	return nil
+}
+
+func (m *MockFS) ReadDir(path string) ([]os.DirEntry, error) {
+	return nil, fmt.Errorf("ReadDir not implemented in MockFS")
+}
+
+func (m *MockFS) Stat(path string) (os.FileInfo, error) {
+	return nil, fmt.Errorf("Stat not implemented in MockFS")
+}
+
+func (m *MockFS) Rename(oldPath, newPath string) error {
+	return fmt.Errorf("Rename not implemented in MockFS")
+}
+
+func (m *MockFS) Remove(path string) error {
+	return fmt.Errorf("Remove not implemented in MockFS")
+}
+
+func (m *MockFS) MkdirAll(path string, perm os.FileMode) error {
+	return nil
+}
 
 // ============================================================================
 // Unit tests for removeFromClaudeMD
@@ -18,9 +56,6 @@ import (
 // TEST-1110: RemoveFromClaudeMD removes matching entry
 func TestRemoveFromClaudeMDRemovesEntry(t *testing.T) {
 	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
 
 	content := `# Working With Joe
 
@@ -34,49 +69,47 @@ func TestRemoveFromClaudeMDRemovesEntry(t *testing.T) {
 
 Some content here.
 `
-	g.Expect(os.WriteFile(claudeMDPath, []byte(content), 0644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
 
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"learning number A"})
+	err := memory.RemoveFromClaudeMD(fs, "/test/CLAUDE.md", []string{"learning number A"})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	result, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	resultStr := string(result)
-	g.Expect(resultStr).To(ContainSubstring("important pattern for review"))
-	g.Expect(resultStr).ToNot(ContainSubstring("learning number A"))
-	g.Expect(resultStr).To(ContainSubstring("learning number B"))
-	g.Expect(resultStr).To(ContainSubstring("Other Section"))
-	g.Expect(resultStr).To(ContainSubstring("Some content here"))
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).To(ContainSubstring("important pattern for review"))
+	g.Expect(result).ToNot(ContainSubstring("learning number A"))
+	g.Expect(result).To(ContainSubstring("learning number B"))
+	g.Expect(result).To(ContainSubstring("Other Section"))
+	g.Expect(result).To(ContainSubstring("Some content here"))
 }
 
 // TEST-1111: RemoveFromClaudeMD with nonexistent entry is a no-op
 func TestRemoveFromClaudeMDNonexistentEntry(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-
 	content := `## Promoted Learnings
 
 - 2026-02-08 21:40: important pattern for review
 `
-	g.Expect(os.WriteFile(claudeMDPath, []byte(content), 0644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
 
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"nonexistent entry"})
+	err := memory.RemoveFromClaudeMD(fs, "/test/CLAUDE.md", []string{"nonexistent entry"})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	result, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(result)).To(ContainSubstring("important pattern for review"))
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).To(ContainSubstring("important pattern for review"))
 }
 
 // TEST-1112: RemoveFromClaudeMD leaves other sections untouched
 func TestRemoveFromClaudeMDOtherSectionsUntouched(t *testing.T) {
 	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
 
 	content := `# Main Title
 
@@ -92,32 +125,34 @@ func TestRemoveFromClaudeMDOtherSectionsUntouched(t *testing.T) {
 
 - Run tests
 `
-	g.Expect(os.WriteFile(claudeMDPath, []byte(content), 0644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
 
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"learning to remove"})
+	err := memory.RemoveFromClaudeMD(fs, "/test/CLAUDE.md", []string{"learning to remove"})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	result, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	resultStr := string(result)
-	g.Expect(resultStr).To(ContainSubstring("Core Principles"))
-	g.Expect(resultStr).To(ContainSubstring("Be good"))
-	g.Expect(resultStr).To(ContainSubstring("Code Quality"))
-	g.Expect(resultStr).To(ContainSubstring("Run tests"))
-	g.Expect(resultStr).ToNot(ContainSubstring("learning to remove"))
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).To(ContainSubstring("Core Principles"))
+	g.Expect(result).To(ContainSubstring("Be good"))
+	g.Expect(result).To(ContainSubstring("Code Quality"))
+	g.Expect(result).To(ContainSubstring("Run tests"))
+	g.Expect(result).ToNot(ContainSubstring("learning to remove"))
 }
 
 // TEST-1113: RemoveFromClaudeMD on empty file returns nil
 func TestRemoveFromClaudeMDEmptyFile(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(""),
+		},
+	}
 
-	g.Expect(os.WriteFile(claudeMDPath, []byte(""), 0644)).To(Succeed())
-
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"anything"})
+	err := memory.RemoveFromClaudeMD(fs, "/test/CLAUDE.md", []string{"anything"})
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
@@ -125,10 +160,11 @@ func TestRemoveFromClaudeMDEmptyFile(t *testing.T) {
 func TestRemoveFromClaudeMDMissingFile(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "nonexistent", "CLAUDE.md")
+	fs := &MockFS{
+		Files: map[string][]byte{},
+	}
 
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"anything"})
+	err := memory.RemoveFromClaudeMD(fs, "/nonexistent/CLAUDE.md", []string{"anything"})
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
@@ -136,25 +172,23 @@ func TestRemoveFromClaudeMDMissingFile(t *testing.T) {
 func TestRemoveFromClaudeMDMultipleEntries(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-
 	content := `## Promoted Learnings
 
 - 2026-02-08 21:40: entry one
 - 2026-02-08 21:41: entry two
 - 2026-02-08 21:42: entry three
 `
-	g.Expect(os.WriteFile(claudeMDPath, []byte(content), 0644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
 
-	err := memory.RemoveFromClaudeMD(claudeMDPath, []string{"entry one", "entry three"})
+	err := memory.RemoveFromClaudeMD(fs, "/test/CLAUDE.md", []string{"entry one", "entry three"})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	result, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	resultStr := string(result)
-	g.Expect(resultStr).ToNot(ContainSubstring("entry one"))
-	g.Expect(resultStr).To(ContainSubstring("entry two"))
-	g.Expect(resultStr).ToNot(ContainSubstring("entry three"))
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).ToNot(ContainSubstring("entry one"))
+	g.Expect(result).To(ContainSubstring("entry two"))
+	g.Expect(result).ToNot(ContainSubstring("entry three"))
 }
