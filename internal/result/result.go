@@ -13,6 +13,19 @@ import (
 // ContextDir is the subdirectory for context files.
 const ContextDir = "context"
 
+// FileSystem provides file system operations for result collection.
+type FileSystem interface {
+	ReadFile(path string) ([]byte, error)
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// ReadFile reads a file using os.ReadFile.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
 // CollectedResults holds the merged results from multiple tasks.
 type CollectedResults struct {
 	Succeeded   int
@@ -115,7 +128,7 @@ func Marshal(r Result) ([]byte, error) {
 }
 
 // Collect reads and merges result files for multiple tasks.
-func Collect(dir string, tasks []string, skill string) (CollectedResults, error) {
+func Collect(dir string, tasks []string, skill string, fs FileSystem) (CollectedResults, error) {
 	collected := CollectedResults{
 		Total: len(tasks),
 	}
@@ -123,7 +136,7 @@ func Collect(dir string, tasks []string, skill string) (CollectedResults, error)
 	for _, task := range tasks {
 		resultPath := filepath.Join(dir, ContextDir, fmt.Sprintf("%s-%s.result.toml", task, skill))
 
-		data, err := os.ReadFile(resultPath)
+		data, err := fs.ReadFile(resultPath)
 		if err != nil {
 			// Missing result file = failed
 			collected.Failed++

@@ -1,8 +1,7 @@
 package result_test
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -10,6 +9,19 @@ import (
 
 	"github.com/toejough/projctl/internal/result"
 )
+
+// MockFS implements result.FileSystem for testing
+type MockFS struct {
+	Files map[string][]byte
+}
+
+func (m *MockFS) ReadFile(path string) ([]byte, error) {
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, fmt.Errorf("file not found: %s", path)
+	}
+	return content, nil
+}
 
 // TEST-001-001 traces: TASK-001
 // Test that Parse accepts valid TOML with required sections
@@ -189,13 +201,8 @@ func TestParse_RoundTrip(t *testing.T) {
 // Test Collect reads and merges multiple result files.
 func TestCollect_MergesResults(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
 
-	// Create context directory
-	contextDir := filepath.Join(dir, "context")
-	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
-
-	// Create result files for two tasks
+	// Create mock filesystem with result files
 	result1 := `[status]
 success = true
 [outputs]
@@ -210,10 +217,14 @@ files_modified = ["file2.go"]
 [[learnings]]
 content = "Learning from task 2"
 `
-	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-002-tdd-red.result.toml"), []byte(result2), 0o644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"testdir/context/TASK-001-tdd-red.result.toml": []byte(result1),
+			"testdir/context/TASK-002-tdd-red.result.toml": []byte(result2),
+		},
+	}
 
-	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	collected, err := result.Collect("testdir", []string{"TASK-001", "TASK-002"}, "tdd-red", fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(collected.Succeeded).To(Equal(2))
 	g.Expect(collected.Failed).To(Equal(0))
@@ -224,21 +235,20 @@ content = "Learning from task 2"
 // Test Collect reports failures for missing result files.
 func TestCollect_ReportsMissing(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
-
-	// Create context directory with only one result
-	contextDir := filepath.Join(dir, "context")
-	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
 
 	result1 := `[status]
 success = true
 [outputs]
 files_modified = []
 `
-	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"testdir/context/TASK-001-tdd-red.result.toml": []byte(result1),
+			// TASK-002 has no result file
+		},
+	}
 
-	// TASK-002 has no result file
-	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	collected, err := result.Collect("testdir", []string{"TASK-001", "TASK-002"}, "tdd-red", fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(collected.Succeeded).To(Equal(1))
 	g.Expect(collected.Failed).To(Equal(1))
@@ -249,10 +259,6 @@ files_modified = []
 // Test Collect reports failures for unsuccessful results.
 func TestCollect_ReportsUnsuccessful(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
-
-	contextDir := filepath.Join(dir, "context")
-	g.Expect(os.MkdirAll(contextDir, 0o755)).To(Succeed())
 
 	// TASK-001 succeeded, TASK-002 failed
 	result1 := `[status]
@@ -265,10 +271,14 @@ success = false
 [outputs]
 files_modified = []
 `
-	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-001-tdd-red.result.toml"), []byte(result1), 0o644)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(contextDir, "TASK-002-tdd-red.result.toml"), []byte(result2), 0o644)).To(Succeed())
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"testdir/context/TASK-001-tdd-red.result.toml": []byte(result1),
+			"testdir/context/TASK-002-tdd-red.result.toml": []byte(result2),
+		},
+	}
 
-	collected, err := result.Collect(dir, []string{"TASK-001", "TASK-002"}, "tdd-red")
+	collected, err := result.Collect("testdir", []string{"TASK-001", "TASK-002"}, "tdd-red", fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(collected.Succeeded).To(Equal(1))
 	g.Expect(collected.Failed).To(Equal(1))

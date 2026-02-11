@@ -100,7 +100,7 @@ func resultCollect(args resultCollectArgs) error {
 		tasks[i] = strings.TrimSpace(tasks[i])
 	}
 
-	collected, err := result.Collect(args.Dir, tasks, skill)
+	collected, err := result.Collect(args.Dir, tasks, skill, result.RealFS{})
 	if err != nil {
 		return err
 	}
