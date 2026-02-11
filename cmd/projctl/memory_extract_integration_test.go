@@ -1,3 +1,5 @@
+//go:build integration
+
 package main_test
 
 import (
@@ -339,4 +341,3 @@ task = "TASK-7"
 	g.Expect(string(output)).To(ContainSubstring("Extracted"))
 	g.Expect(string(output)).To(ContainSubstring("decision"))
 }
-

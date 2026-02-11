@@ -49,18 +49,18 @@ notes = "Moved issue commands to dev/targs/targs.go. Removed cmd/projctl/issue.g
 [[steps]]
 id = 4
 name = "Audit remaining tests: IO calls and business properties"
-status = "pending"
+status = "completed"
 assigned_model = "sonnet"
 test_time_seconds = ""
-notes = ""
+notes = "Created .test-audit.md cataloging all 99 test files. IO operations: 69 files (69.7%). Property-based tests: 47 files (47.5%). Identified ~22 pure integration tests, ~30 unit tests with properties, ~47 hybrid tests. Documented unique business properties and provided recommendations for refactoring."
 
 [[steps]]
 id = 5
 name = "Move pure integration tests to separate file with build flag"
-status = "pending"
+status = "completed"
 assigned_model = "haiku"
-test_time_seconds = ""
-notes = ""
+test_time_seconds = "69.54"
+notes = "Created 6 integration test files with build tag (refactor_extract_integration_test.go, refactor_integration_test.go, memory_integration_test.go, memory_extract_integration_test.go, trace_integration_test.go, worktree_integration_test.go). Deleted original test files. cmd/projctl: 0 test files. internal/worktree: [no test files]. All unit tests PASS (69.54s without integration tag)."
 
 [[steps]]
 id = 6
