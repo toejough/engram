@@ -451,7 +451,7 @@ func optimizeAutoDemote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 	}
 
 	// Remove from CLAUDE.md
-	if err := RemoveFromClaudeMD(opts.ClaudeMDPath, toRemove); err != nil {
+	if err := RemoveFromClaudeMD(RealFS{}, opts.ClaudeMDPath, toRemove); err != nil {
 		return fmt.Errorf("failed to remove demoted entries from CLAUDE.md: %w", err)
 	}
 
@@ -1003,7 +1003,7 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		removeStrings = append(removeStrings, embEntries[idx].content)
 	}
 
-	return RemoveFromClaudeMD(opts.ClaudeMDPath, removeStrings)
+	return RemoveFromClaudeMD(RealFS{}, opts.ClaudeMDPath, removeStrings)
 }
 
 // migrateMemoryGenSkills migrates skills from legacy memory-gen/ to mem-{slug}/ structure.
@@ -1665,7 +1665,7 @@ func optimizeDemoteClaudeMD(db *sql.DB, opts OptimizeOpts, result *OptimizeResul
 
 	// Remove approved entries from CLAUDE.md
 	if len(toRemove) > 0 {
-		if err := RemoveFromClaudeMD(opts.ClaudeMDPath, toRemove); err != nil {
+		if err := RemoveFromClaudeMD(RealFS{}, opts.ClaudeMDPath, toRemove); err != nil {
 			return fmt.Errorf("failed to remove demoted entries from CLAUDE.md: %w", err)
 		}
 	}

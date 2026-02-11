@@ -13,6 +13,38 @@ import (
 // LogFile is the filename for the updates log.
 const LogFile = "updates.jsonl"
 
+// FileSystem provides file system operations for logging.
+type FileSystem interface {
+	AppendFile(path string, data []byte) error
+	ReadFile(path string) ([]byte, error)
+	FileExists(path string) bool
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// AppendFile appends data to a file, creating it if it doesn't exist.
+func (RealFS) AppendFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	_, err = f.Write(data)
+	return err
+}
+
+// ReadFile reads a file.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// FileExists checks if a file exists.
+func (RealFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // Valid levels.
 var ValidLevels = map[string]bool{
 	"verbose": true,
@@ -66,7 +98,7 @@ type ReadOpts struct {
 }
 
 // Write appends a structured JSONL entry to the log file.
-func Write(dir string, level string, subject string, message string, opts WriteOpts, now func() time.Time) error {
+func Write(dir string, level string, subject string, message string, opts WriteOpts, now func() time.Time, fs FileSystem) error {
 	if !ValidLevels[level] {
 		return fmt.Errorf("invalid level %q (valid: verbose, status, phase)", level)
 	}
@@ -102,13 +134,7 @@ func Write(dir string, level string, subject string, message string, opts WriteO
 
 	logPath := filepath.Join(dir, LogFile)
 
-	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return fmt.Errorf("failed to open log file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	if _, err := f.Write(append(line, '\n')); err != nil {
+	if err := fs.AppendFile(logPath, append(line, '\n')); err != nil {
 		return fmt.Errorf("failed to write log entry: %w", err)
 	}
 
@@ -125,15 +151,15 @@ func subjectKeys() []string {
 }
 
 // Read reads log entries from the log file with optional filtering.
-func Read(dir string, opts ReadOpts) ([]Entry, error) {
+func Read(dir string, opts ReadOpts, fs FileSystem) ([]Entry, error) {
 	logPath := filepath.Join(dir, LogFile)
 
-	content, err := os.ReadFile(logPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []Entry{}, nil
-		}
+	if !fs.FileExists(logPath) {
+		return []Entry{}, nil
+	}
 
+	content, err := fs.ReadFile(logPath)
+	if err != nil {
 		return nil, fmt.Errorf("failed to read log file: %w", err)
 	}
 

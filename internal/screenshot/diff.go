@@ -6,12 +6,44 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"io"
 	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 )
+
+// FileSystem provides file system operations for screenshot diffing.
+type FileSystem interface {
+	Open(path string) (io.ReadCloser, error)
+	Create(path string) (io.WriteCloser, error)
+	Stat(path string) (os.FileInfo, error)
+	WriteFile(path string, data []byte, perm os.FileMode) error
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// Open opens a file for reading.
+func (RealFS) Open(path string) (io.ReadCloser, error) {
+	return os.Open(path)
+}
+
+// Create creates a file for writing.
+func (RealFS) Create(path string) (io.WriteCloser, error) {
+	return os.Create(path)
+}
+
+// Stat returns file information.
+func (RealFS) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
+// WriteFile writes data to a file.
+func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
 
 // DiffResult holds the complete result of a screenshot comparison.
 type DiffResult struct {
@@ -46,13 +78,13 @@ type DiffOpts struct {
 }
 
 // Diff compares two images and returns a detailed comparison result.
-func Diff(expectedPath, actualPath string, opts DiffOpts) (DiffResult, error) {
-	img1, err := loadImage(expectedPath)
+func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffResult, error) {
+	img1, err := loadImage(expectedPath, fs)
 	if err != nil {
 		return DiffResult{}, fmt.Errorf("failed to load expected image: %w", err)
 	}
 
-	img2, err := loadImage(actualPath)
+	img2, err := loadImage(actualPath, fs)
 	if err != nil {
 		return DiffResult{}, fmt.Errorf("failed to load actual image: %w", err)
 	}
@@ -84,7 +116,7 @@ func Diff(expectedPath, actualPath string, opts DiffOpts) (DiffResult, error) {
 	// Write heatmap if requested
 	if opts.HeatmapOutput != "" {
 		heatmap := RenderHeatmap(ssimResult)
-		if err := saveImage(opts.HeatmapOutput, heatmap); err != nil {
+		if err := saveImage(opts.HeatmapOutput, heatmap, fs); err != nil {
 			return DiffResult{}, fmt.Errorf("failed to save heatmap: %w", err)
 		}
 	}
@@ -92,7 +124,7 @@ func Diff(expectedPath, actualPath string, opts DiffOpts) (DiffResult, error) {
 	// Write diff image with bounding boxes if requested
 	if opts.DiffOutput != "" {
 		diffImg := RenderDiffWithBoxes(img1, img2, result.Clusters)
-		if err := saveImage(opts.DiffOutput, diffImg); err != nil {
+		if err := saveImage(opts.DiffOutput, diffImg, fs); err != nil {
 			return DiffResult{}, fmt.Errorf("failed to save diff image: %w", err)
 		}
 	}
@@ -151,8 +183,8 @@ func computeStats(result SSIMResult) DiffStats {
 	}
 }
 
-func loadImage(path string) (image.Image, error) {
-	f, err := os.Open(path)
+func loadImage(path string, fs FileSystem) (image.Image, error) {
+	f, err := fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +202,8 @@ func loadImage(path string) (image.Image, error) {
 	}
 }
 
-func saveImage(path string, img image.Image) error {
-	f, err := os.Create(path)
+func saveImage(path string, img image.Image, fs FileSystem) error {
+	f, err := fs.Create(path)
 	if err != nil {
 		return err
 	}

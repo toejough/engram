@@ -19,7 +19,7 @@ func screenshotDiff(args screenshotDiffArgs) error {
 		HeatmapOutput: args.HeatmapOutput,
 		DiffOutput:    args.DiffOutput,
 		Threshold:     args.Threshold,
-	})
+	}, screenshot.RealFS{})
 	if err != nil {
 		return err
 	}

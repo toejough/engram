@@ -13,6 +13,55 @@ import (
 	"time"
 )
 
+// FileSystem provides file system operations for memory management.
+type FileSystem interface {
+	ReadFile(path string) ([]byte, error)
+	WriteFile(path string, data []byte, perm os.FileMode) error
+	ReadDir(path string) ([]os.DirEntry, error)
+	Stat(path string) (os.FileInfo, error)
+	Rename(oldPath, newPath string) error
+	Remove(path string) error
+	MkdirAll(path string, perm os.FileMode) error
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// ReadFile reads a file using os.ReadFile.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// WriteFile writes a file using os.WriteFile.
+func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+// ReadDir reads a directory using os.ReadDir.
+func (RealFS) ReadDir(path string) ([]os.DirEntry, error) {
+	return os.ReadDir(path)
+}
+
+// Stat returns file info using os.Stat.
+func (RealFS) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
+// Rename renames a file or directory using os.Rename.
+func (RealFS) Rename(oldPath, newPath string) error {
+	return os.Rename(oldPath, newPath)
+}
+
+// Remove removes a file or directory using os.Remove.
+func (RealFS) Remove(path string) error {
+	return os.Remove(path)
+}
+
+// MkdirAll creates a directory and all parent directories using os.MkdirAll.
+func (RealFS) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
 // LearnOpts holds options for learning storage.
 type LearnOpts struct {
 	Message    string
@@ -831,8 +880,8 @@ func appendToClaudeMD(claudeMDPath string, learnings []string) error {
 // Each entry in entries is matched as a substring against the lines in the section.
 // Lines containing any of the entries are removed. Other sections are untouched.
 // Returns nil if the file doesn't exist or is empty.
-func RemoveFromClaudeMD(claudeMDPath string, entries []string) error {
-	content, err := os.ReadFile(claudeMDPath)
+func RemoveFromClaudeMD(fs FileSystem, claudeMDPath string, entries []string) error {
+	content, err := fs.ReadFile(claudeMDPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -873,7 +922,7 @@ func RemoveFromClaudeMD(claudeMDPath string, entries []string) error {
 		result = append(result, line)
 	}
 
-	return os.WriteFile(claudeMDPath, []byte(strings.Join(result, "\n")), 0644)
+	return fs.WriteFile(claudeMDPath, []byte(strings.Join(result, "\n")), 0644)
 }
 
 // LearnWithConflictCheck stores a learning but first checks for similar existing entries.
