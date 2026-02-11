@@ -1,3 +1,5 @@
+//go:build targ
+
 package main
 
 import (
@@ -6,7 +8,12 @@ import (
 	"time"
 
 	"github.com/toejough/projctl/internal/issue"
+	"github.com/toejough/targ"
 )
+
+func init() {
+	targ.Register(issueCreate, issueUpdate, issueList, issueGet)
+}
 
 type issueCreateArgs struct {
 	Dir      string `targ:"flag,short=d,desc=Project directory (default: current)"`

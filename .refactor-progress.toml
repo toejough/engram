@@ -41,10 +41,10 @@ notes = "Removed internal/state, internal/step, internal/workflow packages. Remo
 [[steps]]
 id = 3
 name = "Migrate issue logic to targs.go, remove issue tests"
-status = "pending"
+status = "completed"
 assigned_model = "sonnet"
-test_time_seconds = ""
-notes = ""
+test_time_seconds = "64.27"
+notes = "Moved issue commands to dev/targs/targs.go. Removed cmd/projctl/issue.go and internal/issue/issue_test.go. Kept internal/issue package (used by retro.go and checker.go). cmd/projctl: FAIL (timeout on TestTraceShowInvalidFormat, pre-existing). internal/memory: FAIL (timeout on TestDetectContradictionViaOpposingAdvice, pre-existing). internal/issue: [no test files]. Other packages: PASS. Total 64.27s."
 
 [[steps]]
 id = 4
