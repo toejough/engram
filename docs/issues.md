@@ -5664,7 +5664,7 @@ Tool call tracking and plan mode validation implemented and merged. 21 tests, 80
 ### ISSUE-171: Skill SKILL.md communication tables say 'team lead' instead of 'orchestrator'
 
 **Priority:** medium
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-08
 
 ## Problem
@@ -5700,7 +5700,7 @@ ISSUE-160: pm-interview-producer messaged team-lead instead of orchestrator, cau
 ### ISSUE-172: Orchestrator startup must create project worktree before state init
 
 **Priority:** high
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-08
 
 ## Problem
@@ -5772,7 +5772,7 @@ Update `projctl trace validate` to normalize ID format before comparison — tre
 ### ISSUE-174: phase_blocked skips evaluation phase — should still run retro/summary
 
 **Priority:** high
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-08
 
 ## Problem
@@ -5927,7 +5927,7 @@ Duplicate header fix is implemented in appendToClaudeMD. Missing: explicit 3-tie
 ### ISSUE-183: Replace LLM orchestrator with deterministic Go loop
 
 **Priority:** high
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-08
 
 ## Problem
@@ -6464,7 +6464,7 @@ All 4 deliverables already implemented: (1) optimizeDemoteClaudeMD() at optimize
 ### ISSUE-190: Evaluation: Add mandatory quality gate before evaluation phase
 
 **Priority:** High
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 From Memory Tiering Lifecycle evaluation (ISSUE-182):
@@ -6483,7 +6483,7 @@ Evaluation phase cannot fully assess quality without linting/coverage verificati
 ### ISSUE-191: Process: Define teammate spawning pattern for batched work items
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 From Memory Tiering Lifecycle evaluation (ISSUE-182):
@@ -6636,7 +6636,7 @@ index.md is a legacy flat-file store that predates embeddings.db. It creates a d
 ### ISSUE-200: RETRO-199: Add teammate heartbeat/progress check to team lead
 
 **Priority:** medium
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 ---
@@ -6734,7 +6734,7 @@ Implemented: skills restructured to mem-{slug} flat under ~/.claude/skills/, hoo
 ### ISSUE-203: Evaluation: Enable peer-to-peer agent messaging in TDD chains
 
 **Priority:** High
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 From ISSUE-202 evaluation R-HIGH-1: Agents in sequential chains (red → green → refactor) should message the next agent directly rather than routing through team lead. This reduces handoff latency and improves watchdog visibility.
@@ -6744,7 +6744,7 @@ From ISSUE-202 evaluation R-HIGH-1: Agents in sequential chains (red → green �
 ### ISSUE-204: Evaluation: Pre-brief agents on upcoming tasks
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 From ISSUE-202 evaluation R-MED-1: Send context about the next task to agents before formal handoff to reduce startup discovery time. Include: task description, relevant files, and expected approach.
@@ -6754,7 +6754,7 @@ From ISSUE-202 evaluation R-MED-1: Send context about the next task to agents be
 ### ISSUE-205: Evaluation: Batch minimal changes into single TDD cycle
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Won't Do (orchestration removed 2026-02-11)
 **Created:** 2026-02-10
 
 From ISSUE-202 evaluation R-MED-2: When multiple one-line changes share the same acceptance criteria pattern, consider batching them into a single TDD red/green cycle rather than individual agent spawns.
