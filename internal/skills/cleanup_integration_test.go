@@ -249,9 +249,9 @@ func TestPropertyQAReferencesUseUniversalSkill(t *testing.T) {
 
 			// Verify it uses generic "qa" references, not phase-specific
 			oldQAPattern := []string{
-				\`"pm-qa"\`, \`"design-qa"\`, \`"arch-qa"\`, \`"breakdown-qa"\`,
-				\`"tdd-qa"\`, \`"tdd-red-qa"\`, \`"tdd-green-qa"\`, \`"tdd-refactor-qa"\`,
-				\`"doc-qa"\`, \`"context-qa"\`, \`"alignment-qa"\`, \`"retro-qa"\`, \`"summary-qa"\`,
+				`"pm-qa"`, `"design-qa"`, `"arch-qa"`, `"breakdown-qa"`,
+				`"tdd-qa"`, `"tdd-red-qa"`, `"tdd-green-qa"`, `"tdd-refactor-qa"`,
+				`"doc-qa"`, `"context-qa"`, `"alignment-qa"`, `"retro-qa"`, `"summary-qa"`,
 			}
 
 			for _, pattern := range oldQAPattern {

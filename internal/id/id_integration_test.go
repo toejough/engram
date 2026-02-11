@@ -51,7 +51,7 @@ func TestNext_FindsIDInRoot(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Requirements
+	content := `# Requirements
 
 ## REQ-001: First requirement
 
@@ -60,7 +60,7 @@ Some content
 ## REQ-002: Second requirement
 
 More content
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "requirements.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -80,12 +80,12 @@ func TestNext_FindsIDInDocsSubdir(t *testing.T) {
 	err := os.MkdirAll(docsDir, 0o755)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	content := \`# Architecture
+	content := `# Architecture
 
 ## ARCH-005: Component design
 
 Some content
-\`
+`
 	err = os.WriteFile(filepath.Join(docsDir, "architecture.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -106,18 +106,18 @@ func TestNext_ScansRootAndDocs(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Root has REQ-003
-	rootContent := \`# Requirements
+	rootContent := `# Requirements
 
 ## REQ-003: Root requirement
-\`
+`
 	err = os.WriteFile(filepath.Join(dir, "requirements.md"), []byte(rootContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Docs has REQ-007
-	docsContent := \`# More Requirements
+	docsContent := `# More Requirements
 
 ## REQ-007: Docs requirement
-\`
+`
 	err = os.WriteFile(filepath.Join(docsDir, "more-reqs.md"), []byte(docsContent), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -134,10 +134,10 @@ func TestNext_DESPrefix(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Design
+	content := `# Design
 
 ## DES-010: Design decision
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "design.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -154,10 +154,10 @@ func TestNext_TASKPrefix(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Tasks
+	content := `# Tasks
 
 ## TASK-042: Do something
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -174,10 +174,10 @@ func TestNext_ISSUEPrefix(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Issues
+	content := `# Issues
 
 ## ISSUE-99: Bug report
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "issues.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -194,14 +194,14 @@ func TestNext_OnlyCountsRequestedType(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Mixed Artifacts
+	content := `# Mixed Artifacts
 
 ## REQ-050: A requirement
 
 ## TASK-100: A task
 
 ## ARCH-025: An architecture
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "artifacts.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -227,7 +227,7 @@ func TestNext_VariousMarkdownPatterns(t *testing.T) {
 	dir := t.TempDir()
 
 	// IDs can appear in various contexts
-	content := \`# Document
+	content := `# Document
 
 ## REQ-001: Header format
 
@@ -240,7 +240,7 @@ REQ-002 mentioned inline
 | ID | Title |
 | REQ-005 | Table |
 
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "doc.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -278,10 +278,10 @@ func TestNext_HandlesLargeNumbers(t *testing.T) {
 
 	dir := t.TempDir()
 
-	content := \`# Tasks
+	content := `# Tasks
 
 ## TASK-1234: Large number task
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "tasks.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -304,7 +304,7 @@ func TestNext_GeneratesIncrementingNumbers(t *testing.T) {
 	g.Expect(result).To(Equal("REQ-1"))
 
 	// Create REQ-9
-	content := \`## REQ-9: Ninth requirement\`
+	content := `## REQ-9: Ninth requirement`
 	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -313,7 +313,7 @@ func TestNext_GeneratesIncrementingNumbers(t *testing.T) {
 	g.Expect(result).To(Equal("REQ-10"))
 
 	// Create REQ-99
-	content = \`## REQ-99: 99th requirement\`
+	content = `## REQ-99: 99th requirement`
 	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -348,7 +348,7 @@ func TestNext_PropertyValidFormat(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Should match PREFIX-N format (any number of digits)
-		g.Expect(result).To(MatchRegexp(\`^\` + idType + \`-\d+$\`))
+		g.Expect(result).To(MatchRegexp(`^` + idType + `-\d+$`))
 	})
 }
 
@@ -416,7 +416,7 @@ func TestNext_GeneratesSimpleNumbers(t *testing.T) {
 	g.Expect(result).To(Equal("REQ-1"))
 
 	// Create REQ-9
-	content := \`## REQ-9: Ninth requirement\`
+	content := `## REQ-9: Ninth requirement`
 	err = os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -434,13 +434,13 @@ func TestNext_ScansAnyNumberDigits(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create files with 1, 2, 3, 4, and 5 digit IDs
-	content := \`# Requirements
+	content := `# Requirements
 ## REQ-1: One digit
 ## REQ-99: Two digits
 ## REQ-500: Three digits
 ## REQ-1234: Four digits
 ## REQ-99999: Five digits
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -458,11 +458,11 @@ func TestNext_BackwardCompatibleWithPaddedIDs(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create old-style zero-padded IDs
-	content := \`# Requirements
+	content := `# Requirements
 ## REQ-001: First
 ## REQ-002: Second
 ## REQ-042: Forty-second
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -481,12 +481,12 @@ func TestNext_HandlesMixedFormat(t *testing.T) {
 	dir := t.TempDir()
 
 	// Mix of old padded and new unpadded format
-	content := \`# Requirements
+	content := `# Requirements
 ## REQ-001: Old style
 ## REQ-5: New style
 ## REQ-099: Old style
 ## REQ-200: Could be either
-\`
+`
 	err := os.WriteFile(filepath.Join(dir, "reqs.md"), []byte(content), 0o644)
 	g.Expect(err).ToNot(HaveOccurred())
 
