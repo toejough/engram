@@ -6902,3 +6902,166 @@ Explore a background daemon approach (similar to claude-mem) where a persistent 
 - [ ] LLM calls during `projctl memory optimize` complete significantly faster than current ~60s per call
 - [ ] Ctrl-C still works (context cancellation propagates to daemon/API calls)
 - [ ] Fallback to current approach if daemon isn't running
+
+### ISSUE-212: Unified memory maintenance with interactive review across all tiers
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-11
+
+## Problem
+
+Memory maintenance is currently fragmented:
+- `optimize` only handles embeddings → skills promotion (no pruning/decay/consolidation)
+- `consolidate` is report-only (doesn't apply changes)
+- `prune`/`decay` only touch embeddings DB, ignore CLAUDE.md and skills
+- No unified workflow for maintaining all three tiers
+
+User needs interactive maintenance that:
+1. Reviews low-confidence/stale entries across **all three tiers**
+2. Proposes consolidation of redundant content
+3. Splits overly broad entries
+4. Prunes/decays entries with user approval
+5. Applies changes to CLAUDE.md, skills/, and embeddings.db
+
+## Proposed Solution
+
+Enhance `projctl memory optimize` to be a comprehensive, interactive maintenance tool:
+
+```bash
+projctl memory optimize --review
+```
+
+**Interactive workflow:**
+```
+1. Scan all three tiers (embeddings, skills, CLAUDE.md)
+2. Identify maintenance opportunities:
+   - Low-confidence embeddings (confidence < 0.3)
+   - Stale skills (no retrievals in 30+ days, utility < 0.4)
+   - Redundant CLAUDE.md entries (semantic similarity > 0.8)
+   - Overly broad entries (token count > threshold, covers multiple topics)
+3. Present each proposal with context
+4. User approves/rejects
+5. Apply changes atomically
+```
+
+**Example session:**
+```
+[Embeddings] Low confidence (0.15) - 90 days old:
+  "Try using rapid for property testing"
+  → Prune? [y/n/s(kip)]
+
+[Skills] No retrievals in 45 days, utility 0.2:
+  skills/old-pattern/SKILL.md
+  → Archive? [y/n/s]
+
+[CLAUDE.md] Redundant (similarity 0.92):
+  Entry 1: "Always use TDD: write tests first"
+  Entry 2: "Write failing tests before implementation (TDD)"
+  → Consolidate to: "Always use TDD: write failing tests before implementation"
+  → Apply? [y/n/s]
+
+[Embeddings] Split opportunity (850 tokens, 3 topics detected):
+  "Success ISSUE-152: Foundation task executed cleanly. Parallel agents work well. Memory optimization improved..."
+  → Split into 3 entries? [y/n/s]
+```
+
+## Implementation Notes
+
+**Three-tier scanning:**
+```go
+type MaintenanceProposal struct {
+    Tier     string // "embeddings", "skills", "claude-md"
+    Action   string // "prune", "decay", "consolidate", "split"
+    Target   string // ID, file path, or entry text
+    Reason   string // Why this is proposed
+    Preview  string // What the result would look like
+}
+```
+
+**Operations by tier:**
+
+| Tier | Prune | Decay | Consolidate | Split | Promote | Demote |
+|------|-------|-------|-------------|-------|---------|--------|
+| Embeddings | Delete low-conf | Reduce confidence | Merge similar | Break multi-topic | → Skill (high value) | N/A |
+| Skills | Archive unused | Lower utility score | Merge redundant | Extract sub-patterns | → CLAUDE.md (cross-project) | → Embeddings (narrow) |
+| CLAUDE.md | Remove stale | N/A | Merge redundant | Break long entries | N/A | → Skills (too specific) |
+
+
+**Promotion & Demotion:**
+
+Tiered movement based on value and scope:
+
+**Promote (move up tiers):**
+- **Embeddings → Skill:** High retrieval count (10+) + confidence (0.8+) + used in 3+ projects → generate skill
+- **Skill → CLAUDE.md:** Cross-project usage (3+ projects) + high utility (0.7+) → promote to universal principle
+
+**Demote (move down tiers):**
+- **CLAUDE.md → Skill:** Too specific (only applicable to single package/domain) → demote to domain skill
+- **Skill → Embeddings:** Narrow utility (single project) or low usage (utility < 0.4) → demote to learning
+
+**Example promotion:**
+```
+[Embeddings → Skill] High retrieval (15x), confidence 0.92, used in 4 projects:
+  "Always use property-based testing with rapid for ID generation"
+  → Generate skill: property-testing-patterns
+  → Promote? [y/n/s]
+
+[Skill → CLAUDE.md] Cross-project (5 projects), utility 0.85:
+  skills/tdd-patterns/SKILL.md
+  → Promote to CLAUDE.md Promoted Learnings
+  → Apply? [y/n/s]
+```
+
+**Example demotion:**
+```
+[CLAUDE.md → Skill] Too specific (memory package only):
+  "ONNX embedding scores for timestamp entries are ~0.03"
+  → Demote to skill: memory-testing-patterns
+  → Apply? [y/n/s]
+
+[Skill → Embeddings] Single-project (ISSUE-123), utility 0.25:
+  skills/legacy-pattern/SKILL.md
+  → Demote to embeddings (preserve as learning)
+  → Apply? [y/n/s]
+```
+
+**Review function signature:**
+```go
+func OptimizeInteractive(opts OptimizeOpts) error {
+    proposals := gatherProposals(opts.MemoryRoot, opts.ClaudeMDPath, opts.SkillsDir)
+    
+    for _, proposal := range proposals {
+        if approved := opts.ReviewFunc(proposal); approved {
+            applyProposal(proposal)
+        }
+    }
+}
+```
+
+**Rollback on error:**
+- Transaction log for all changes
+- If any apply fails, rollback all prior changes
+- Preserve backups: embeddings.db.bak, CLAUDE.md.bak, skills.bak/
+
+## Acceptance Criteria
+
+- [ ] `optimize --review` scans all three tiers
+- [ ] Proposes prune/decay/consolidate/split/promote/demote for each tier
+- [ ] Interactive review (approve/reject each proposal)
+- [ ] Applies changes atomically with rollback on error
+- [ ] Creates backups before modifying
+- [ ] Supports `--auto-approve` for non-interactive use
+- [ ] Reports summary: "5 pruned, 3 consolidated, 2 split, 1 decayed, 2 promoted, 1 demoted"
+
+## Related Issues
+
+- ISSUE-184: CLAUDE.md maintenance (consolidate, synthesize, prune/decay)
+- ISSUE-186: Dynamic skill generation from memory clusters
+
+This issue supersedes ISSUE-184 by providing a unified maintenance workflow.
+
+**Traces to:** Memory optimization, CLAUDE.md maintenance, skill lifecycle
+
+---
+
