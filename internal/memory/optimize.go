@@ -67,6 +67,14 @@ type OptimizeResult struct {
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
 }
 
+// checkContext checks if the context has been cancelled and returns an error if so.
+func checkContext(opts OptimizeOpts) error {
+	if opts.Context != nil {
+		return opts.Context.Err()
+	}
+	return nil
+}
+
 // Optimize runs the unified memory optimization pipeline.
 // Steps: time-decay → contradiction detection → auto-demote → prune → dedup → synthesize → compile skills → merge skills → split skills → promote → dedup CLAUDE.md.
 func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
@@ -142,154 +150,122 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 
 	result := &OptimizeResult{}
 
-	// Check context before starting
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
-
 	// Step 1: Time-based decay
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeDecay(db, opts, result); err != nil {
 		return nil, fmt.Errorf("decay failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 2: Contradiction detection
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeContradictions(db, opts, result); err != nil {
 		return nil, fmt.Errorf("contradiction detection failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 3: Auto-demote
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeAutoDemote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("auto-demote failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 4: Prune DB
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizePrune(db, opts, result); err != nil {
 		return nil, fmt.Errorf("prune failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 4.5: Purge boilerplate session entries
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizePurgeBoilerplate(db, opts, result); err != nil {
 		return nil, fmt.Errorf("boilerplate purge failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 4.6: Purge legacy session embeddings created by old Query() behavior
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizePurgeLegacySessionEmbeddings(db, opts, result); err != nil {
 		return nil, fmt.Errorf("legacy session purge failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 5: Deduplicate DB
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("dedup failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 6: Synthesize patterns (interactive)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeSynthesize(db, opts, result); err != nil {
 		return nil, fmt.Errorf("synthesis failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 7: Compile Skills (memories → skills)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeCompileSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill compilation failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 8: Merge similar skills (TASK-10)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeMergeSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill merge failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 9: Split incoherent skills (TASK-10)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeSplitSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill split failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 10: Promote (interactive)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 11: Deduplicate CLAUDE.md
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeClaudeMDDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md dedup failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 12: Demote narrow learnings from CLAUDE.md to skills
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizeDemoteClaudeMD(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md demotion failed: %w", err)
 	}
-	if opts.Context != nil {
-		if err := opts.Context.Err(); err != nil {
-			return nil, err
-		}
-	}
 
 	// Step 13: Promote high-utility skills to CLAUDE.md (TASK-3)
+	if err := checkContext(opts); err != nil {
+		return nil, err
+	}
 	if err := optimizePromoteSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill promotion failed: %w", err)
 	}
@@ -783,13 +759,22 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 
 	// Filter clusters by min size
 	for _, cluster := range clusters {
+		// Check context inside loop
+		if err := checkContext(opts); err != nil {
+			return err
+		}
+
 		if len(cluster) < opts.MinClusterSize {
 			continue
 		}
 
 		var pattern SynthesisPattern
 		if opts.Extractor != nil {
-			pattern = GeneratePatternLLM(cluster, opts.Extractor)
+			ctx := opts.Context
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			pattern = GeneratePatternLLM(ctx, cluster, opts.Extractor)
 		} else {
 			pattern = generatePattern(cluster)
 		}
@@ -1154,6 +1139,11 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	clusters := clusterBySimilarity(db, entries, threshold)
 
 	for _, cluster := range clusters {
+		// Check context inside loop
+		if err := checkContext(opts); err != nil {
+			return err
+		}
+
 		if len(cluster) < minCluster {
 			continue
 		}
@@ -1174,7 +1164,11 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		slug := slugify(theme)
 
 		// Generate skill content
-		content, err := generateSkillContent(theme, cluster, opts.SkillCompiler)
+		ctx := opts.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		content, err := generateSkillContent(ctx, theme, cluster, opts.SkillCompiler)
 		if err != nil {
 			continue
 		}
@@ -1281,6 +1275,11 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 
 	// Process each cluster
 	for _, cluster := range clusters {
+		// Check context inside loop
+		if err := checkContext(opts); err != nil {
+			return err
+		}
+
 		if len(cluster) < minCluster {
 			continue
 		}
@@ -1297,7 +1296,11 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 		}
 
 		// Generate skill content
-		content, err := generateSkillContent(theme, cluster, opts.SkillCompiler)
+		ctx := opts.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		content, err := generateSkillContent(ctx, theme, cluster, opts.SkillCompiler)
 		if err != nil {
 			continue
 		}
@@ -1604,7 +1607,11 @@ func optimizeDemoteClaudeMD(db *sql.DB, opts OptimizeOpts, result *OptimizeResul
 
 		// Try LLM detection first
 		if opts.SpecificDetector != nil {
-			isNarrow, reason, err = opts.SpecificDetector.IsNarrowLearning(e.content)
+			ctx := opts.Context
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			isNarrow, reason, err = opts.SpecificDetector.IsNarrowLearning(ctx, e.content)
 			if err != nil {
 				if errors.Is(err, ErrLLMUnavailable) {
 					fmt.Fprintf(os.Stderr, "LLM unavailable for specificity detection, using keyword fallback\n")
@@ -1723,8 +1730,12 @@ func generateSkillFromLearning(db *sql.DB, opts OptimizeOpts, learning string) e
 	// Generate skill content
 	var content string
 	if opts.SkillCompiler != nil {
+		ctx := opts.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
 		var err error
-		content, err = opts.SkillCompiler.CompileSkill(theme, []string{learning})
+		content, err = opts.SkillCompiler.CompileSkill(ctx, theme, []string{learning})
 		if err != nil {
 			if errors.Is(err, ErrLLMUnavailable) {
 				fmt.Fprintf(os.Stderr, "LLM unavailable for skill compilation, using template fallback\n")
@@ -1922,7 +1933,11 @@ func optimizePromoteSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		}
 
 		// Synthesize principle via LLM
-		principle, err := opts.SkillCompiler.Synthesize(memories)
+		ctx := opts.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		principle, err := opts.SkillCompiler.Synthesize(ctx, memories)
 		if err != nil {
 			if errors.Is(err, ErrLLMUnavailable) {
 				fmt.Fprintf(os.Stderr, "LLM unavailable for skill synthesis, skipping promotion candidate\n")
@@ -2117,6 +2132,11 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 	}
 
 	for _, skill := range skills {
+		// Check context inside loop
+		if err := checkContext(opts); err != nil {
+			return err
+		}
+
 		var memoryIDs []int64
 		if err := json.Unmarshal([]byte(skill.sourceMemoryIDs), &memoryIDs); err != nil {
 			continue
@@ -2162,7 +2182,11 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 			theme := generateThemeFromCluster(subcluster)
 			slug := slugify(theme)
 
-			content, err := generateSkillContent(theme, subcluster, opts.SkillCompiler)
+			ctx := opts.Context
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			content, err := generateSkillContent(ctx, theme, subcluster, opts.SkillCompiler)
 			if err != nil {
 				continue
 			}

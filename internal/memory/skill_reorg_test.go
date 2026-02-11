@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -162,7 +163,7 @@ func TestSkillReorganization_TriggeredAfter30Days(t *testing.T) {
 
 	// Create mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
 		},
 	}
@@ -224,7 +225,7 @@ func TestSkillReorganization_ForceReorgFlag(t *testing.T) {
 
 	// Create mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
 		},
 	}
@@ -295,7 +296,7 @@ func TestSkillReorganization_UpdatesExistingSkill(t *testing.T) {
 
 	// Create mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nRegenerated skill content", theme), nil
 		},
 	}
@@ -356,7 +357,7 @@ func TestSkillReorganization_CreatesNewSkill(t *testing.T) {
 
 	// Create mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nNew skill content", theme), nil
 		},
 	}
@@ -436,7 +437,7 @@ func TestSkillReorganization_PrunesOrphanedSkills(t *testing.T) {
 
 	// Create mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
 		},
 	}

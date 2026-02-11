@@ -3,6 +3,7 @@
 package memory_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -81,7 +82,7 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 
 	// Step 2: Optimize with mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, mems []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, mems []string) (string, error) {
 			return "# " + theme + "\n\nTest-driven development is essential.\n\n## Guidelines\n\n1. Write tests first\n2. Make them fail\n3. Implement minimum code\n4. Refactor\n", nil
 		},
 	}

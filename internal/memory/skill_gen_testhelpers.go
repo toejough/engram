@@ -2,7 +2,10 @@
 
 package memory
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 // Test wrappers for unexported skill_gen functions (TASK-1)
 
@@ -45,7 +48,7 @@ func ScoreClusterForTest(db *sql.DB, cluster []ClusterEntry) (float64, error) {
 
 // GenerateSkillContentForTest wraps generateSkillContent for blackbox testing.
 func GenerateSkillContentForTest(theme string, cluster []ClusterEntry, compiler SkillCompiler) (string, error) {
-	return generateSkillContent(theme, cluster, compiler)
+	return generateSkillContent(context.Background(), theme, cluster, compiler)
 }
 
 // SlugifyForTest wraps slugify for blackbox testing.

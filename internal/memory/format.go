@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -195,7 +196,7 @@ func formatAsMarkdownCurated(results []QueryResult, query string, extractor LLME
 
 	// If extractor available, try LLM curation
 	if extractor != nil && query != "" {
-		curated, err := extractor.Curate(query, results)
+		curated, err := extractor.Curate(context.Background(), query, results)
 		if err == nil && len(curated) > 0 {
 			var sb strings.Builder
 			sb.WriteString("## Recent Context from Memory\n\n")

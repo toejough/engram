@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -479,7 +480,7 @@ func generatePattern(cluster []ClusterEntry) SynthesisPattern {
 
 // GeneratePatternLLM uses an LLM extractor to synthesize a pattern from a cluster.
 // If extractor is nil or returns an error, falls back to keyword-based generatePattern.
-func GeneratePatternLLM(cluster []ClusterEntry, extractor LLMExtractor) SynthesisPattern {
+func GeneratePatternLLM(ctx context.Context, cluster []ClusterEntry, extractor LLMExtractor) SynthesisPattern {
 	if extractor == nil {
 		return generatePattern(cluster)
 	}
@@ -491,7 +492,7 @@ func GeneratePatternLLM(cluster []ClusterEntry, extractor LLMExtractor) Synthesi
 	}
 
 	// Try LLM synthesis
-	synthesis, err := extractor.Synthesize(memories)
+	synthesis, err := extractor.Synthesize(ctx, memories)
 	if err != nil {
 		if errors.Is(err, ErrLLMUnavailable) {
 			fmt.Fprintf(os.Stderr, "LLM unavailable for pattern extraction, using template fallback\n")

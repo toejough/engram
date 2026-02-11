@@ -3,6 +3,7 @@
 package memory_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -98,7 +99,7 @@ func TestOptimizeCompileSkillsCreatesSkill(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return "# " + theme + "\n\nGenerated skill content.", nil
 		},
 	}
@@ -196,7 +197,7 @@ func TestOptimizeCompileSkillsSkipsExistingSkillMembers(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return "# " + theme + "\n\nGenerated skill content.", nil
 		},
 	}

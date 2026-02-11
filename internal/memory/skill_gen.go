@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -293,7 +294,7 @@ func scoreCluster(db *sql.DB, cluster []ClusterEntry) (float64, error) {
 
 // generateSkillContent generates skill markdown content from a theme and cluster.
 // Uses the SkillCompiler if available, otherwise falls back to a template.
-func generateSkillContent(theme string, cluster []ClusterEntry, compiler SkillCompiler) (string, error) {
+func generateSkillContent(ctx context.Context, theme string, cluster []ClusterEntry, compiler SkillCompiler) (string, error) {
 	// Try to use compiler if available
 	if compiler != nil {
 		memories := make([]string, len(cluster))
@@ -301,7 +302,7 @@ func generateSkillContent(theme string, cluster []ClusterEntry, compiler SkillCo
 			memories[i] = entry.Content
 		}
 
-		content, err := compiler.CompileSkill(theme, memories)
+		content, err := compiler.CompileSkill(ctx, theme, memories)
 		if err == nil {
 			return content, nil
 		}

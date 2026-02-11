@@ -40,7 +40,7 @@ func TestExtractReturnsObservationFromValidJSON(t *testing.T) {
 		},
 	}
 
-	result, err := extractor.Extract("Never amend pushed commits because it rewrites shared history")
+	result, err := extractor.Extract(context.Background(), "Never amend pushed commits because it rewrites shared history")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result).ToNot(BeNil())
 	g.Expect(result.Type).To(Equal("correction"))
@@ -61,7 +61,7 @@ func TestExtractReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 		},
 	}
 
-	result, err := extractor.Extract("some content")
+	result, err := extractor.Extract(context.Background(), "some content")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(result).To(BeNil())
@@ -78,7 +78,7 @@ func TestExtractReturnsErrorOnInvalidJSON(t *testing.T) {
 		},
 	}
 
-	result, err := extractor.Extract("some content")
+	result, err := extractor.Extract(context.Background(), "some content")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(result).To(BeNil())
 }
@@ -99,7 +99,7 @@ func TestExtractPassesContentInPrompt(t *testing.T) {
 		},
 	}
 
-	_, err := extractor.Extract("my memory content here")
+	_, err := extractor.Extract(context.Background(), "my memory content here")
 	g.Expect(err).ToNot(HaveOccurred())
 	// The prompt arg should contain the memory content
 	g.Expect(capturedArgs).ToNot(BeEmpty())
@@ -126,7 +126,7 @@ func TestSynthesizeReturnsPrincipleFromLLM(t *testing.T) {
 		},
 	}
 
-	result, err := extractor.Synthesize([]string{
+	result, err := extractor.Synthesize(context.Background(), []string{
 		"ran tests before commit, caught bug",
 		"forgot to test, broken deploy",
 		"test-first approach saved time",
@@ -146,7 +146,7 @@ func TestSynthesizeReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 		},
 	}
 
-	result, err := extractor.Synthesize([]string{"memory1", "memory2"})
+	result, err := extractor.Synthesize(context.Background(), []string{"memory1", "memory2"})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(result).To(BeEmpty())
@@ -165,7 +165,7 @@ func TestSynthesizePassesMemoriesInPrompt(t *testing.T) {
 		},
 	}
 
-	_, err := extractor.Synthesize([]string{"memory alpha", "memory beta"})
+	_, err := extractor.Synthesize(context.Background(), []string{"memory alpha", "memory beta"})
 	g.Expect(err).ToNot(HaveOccurred())
 	found := false
 	for _, arg := range capturedArgs {
@@ -202,7 +202,7 @@ func TestCurateReturnsFilteredResults(t *testing.T) {
 		{Content: "Unrelated memory", Score: 0.3},
 	}
 
-	results, err := extractor.Curate("how should I test?", candidates)
+	results, err := extractor.Curate(context.Background(), "how should I test?", candidates)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(results).To(HaveLen(2))
 	g.Expect(results[0].Content).To(Equal("Use TDD always"))
@@ -221,7 +221,7 @@ func TestCurateReturnsErrLLMUnavailableWhenCommandFails(t *testing.T) {
 		},
 	}
 
-	results, err := extractor.Curate("query", []memory.QueryResult{{Content: "mem1"}})
+	results, err := extractor.Curate(context.Background(), "query", []memory.QueryResult{{Content: "mem1"}})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(results).To(BeNil())
@@ -238,7 +238,7 @@ func TestCurateReturnsErrorOnInvalidJSON(t *testing.T) {
 		},
 	}
 
-	results, err := extractor.Curate("query", []memory.QueryResult{{Content: "mem1"}})
+	results, err := extractor.Curate(context.Background(), "query", []memory.QueryResult{{Content: "mem1"}})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(results).To(BeNil())
 }
@@ -264,7 +264,7 @@ func TestCuratePassesQueryAndCandidatesInPrompt(t *testing.T) {
 		{Content: "candidate beta"},
 	}
 
-	_, err := extractor.Curate("my search query", candidates)
+	_, err := extractor.Curate(context.Background(), "my search query", candidates)
 	g.Expect(err).ToNot(HaveOccurred())
 	foundQuery := false
 	foundCandidate := false
@@ -330,7 +330,7 @@ func TestPropertyExtractAlwaysReturnsValidTypeOrError(t *testing.T) {
 			},
 		}
 
-		result, err := extractor.Extract("test content")
+		result, err := extractor.Extract(context.Background(), "test content")
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(validTypes[result.Type]).To(BeTrue(),
 			fmt.Sprintf("Extract returned invalid type %q", result.Type))
@@ -351,7 +351,7 @@ func TestPropertyExtractCommandRunnerFailureAlwaysReturnsErrLLMUnavailable(t *te
 			},
 		}
 
-		_, err := extractor.Extract("content")
+		_, err := extractor.Extract(context.Background(), "content")
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	})
@@ -375,7 +375,7 @@ func TestExtractUsesConfiguredModel(t *testing.T) {
 		},
 	}
 
-	_, err := extractor.Extract("test")
+	_, err := extractor.Extract(context.Background(), "test")
 	g.Expect(err).ToNot(HaveOccurred())
 	// Should contain "--model" followed by "sonnet" somewhere in args
 	foundModel := false
@@ -408,7 +408,7 @@ func TestIsNarrowLearning_UniversalPattern(t *testing.T) {
 		},
 	}
 
-	isNarrow, reason, err := extractor.IsNarrowLearning("Always run tests before committing code")
+	isNarrow, reason, err := extractor.IsNarrowLearning(context.Background(), "Always run tests before committing code")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(isNarrow).To(BeFalse())
 	g.Expect(reason).To(Equal("Universal testing principle applicable across all contexts"))
@@ -432,7 +432,7 @@ func TestIsNarrowLearning_NarrowPattern(t *testing.T) {
 		},
 	}
 
-	isNarrow, reason, err := extractor.IsNarrowLearning("Fix the bug in src/config.yaml by updating the timeout value")
+	isNarrow, reason, err := extractor.IsNarrowLearning(context.Background(), "Fix the bug in src/config.yaml by updating the timeout value")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(isNarrow).To(BeTrue())
 	g.Expect(reason).To(Equal("References specific file path 'src/config.yaml' - project-specific"))
@@ -449,7 +449,7 @@ func TestIsNarrowLearning_LLMUnavailable(t *testing.T) {
 		},
 	}
 
-	isNarrow, reason, err := extractor.IsNarrowLearning("some learning content")
+	isNarrow, reason, err := extractor.IsNarrowLearning(context.Background(), "some learning content")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(isNarrow).To(BeFalse())
@@ -467,7 +467,7 @@ func TestIsNarrowLearning_MalformedJSON(t *testing.T) {
 		},
 	}
 
-	isNarrow, reason, err := extractor.IsNarrowLearning("some learning content")
+	isNarrow, reason, err := extractor.IsNarrowLearning(context.Background(), "some learning content")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(isNarrow).To(BeFalse())

@@ -40,7 +40,7 @@ func TestGeneratePatternLLMProducesActionablePrinciple(t *testing.T) {
 		{Content: "- 2026-02-09 12:00: TDD is essential for quality"},
 	}
 
-	pattern := memory.GeneratePatternLLM(cluster, extractor)
+	pattern := memory.GeneratePatternLLM(context.Background(), cluster, extractor)
 
 	g.Expect(pattern.Synthesis).To(ContainSubstring("Always write tests before implementation"))
 	g.Expect(pattern.Occurrences).To(Equal(3))
@@ -67,7 +67,7 @@ func TestGeneratePatternLLMThemeTruncatesTo50Chars(t *testing.T) {
 		{Content: "memory three"},
 	}
 
-	pattern := memory.GeneratePatternLLM(cluster, extractor)
+	pattern := memory.GeneratePatternLLM(context.Background(), cluster, extractor)
 
 	g.Expect(len(pattern.Theme)).To(BeNumerically("<=", 50))
 }
@@ -91,7 +91,7 @@ func TestGeneratePatternLLMFallsBackOnExtractorError(t *testing.T) {
 		{Content: "- 2026-02-09 12:00: write your tests before implementation"},
 	}
 
-	pattern := memory.GeneratePatternLLM(cluster, extractor)
+	pattern := memory.GeneratePatternLLM(context.Background(), cluster, extractor)
 
 	// Fallback produces "Pattern observed across N memories" format
 	g.Expect(pattern.Synthesis).To(ContainSubstring("Pattern observed across"))
@@ -211,7 +211,7 @@ func TestPropertySynthesisOutputNeverEmptyRegardlessOfExtractor(t *testing.T) {
 
 		switch behavior {
 		case "nil":
-			pattern = memory.GeneratePatternLLM(cluster, nil)
+			pattern = memory.GeneratePatternLLM(context.Background(), cluster, nil)
 		case "error":
 			extractor := &memory.ClaudeCLIExtractor{
 				Model:   "haiku",
@@ -220,7 +220,7 @@ func TestPropertySynthesisOutputNeverEmptyRegardlessOfExtractor(t *testing.T) {
 					return nil, errors.New("simulated failure")
 				},
 			}
-			pattern = memory.GeneratePatternLLM(cluster, extractor)
+			pattern = memory.GeneratePatternLLM(context.Background(), cluster, extractor)
 		case "success":
 			extractor := &memory.ClaudeCLIExtractor{
 				Model:   "haiku",
@@ -229,7 +229,7 @@ func TestPropertySynthesisOutputNeverEmptyRegardlessOfExtractor(t *testing.T) {
 					return []byte("A synthesized principle about testing."), nil
 				},
 			}
-			pattern = memory.GeneratePatternLLM(cluster, extractor)
+			pattern = memory.GeneratePatternLLM(context.Background(), cluster, extractor)
 		}
 
 		g.Expect(pattern.Synthesis).ToNot(BeEmpty(), "Synthesis must never be empty for behavior=%s", behavior)

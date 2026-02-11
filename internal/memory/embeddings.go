@@ -3,6 +3,7 @@ package memory
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -1026,7 +1027,7 @@ func learnToEmbeddings(opts LearnOpts) error {
 	// ISSUE-188: Attempt LLM extraction if extractor is provided
 	var observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent string
 	if opts.Extractor != nil {
-		obs, extractErr := opts.Extractor.Extract(opts.Message)
+		obs, extractErr := opts.Extractor.Extract(context.Background(), opts.Message)
 		if extractErr == nil && obs != nil {
 			observationType = obs.Type
 			conceptsCSV = strings.Join(obs.Concepts, ",")
@@ -1067,7 +1068,7 @@ func learnToEmbeddings(opts LearnOpts) error {
 		// LLM-driven decision if extractor available and similar results exist above threshold
 		if opts.Extractor != nil && err == nil && len(dupResult) > 0 && dupResult[0].similarity > 0.5 {
 			existing := rawResultsToExistingMemories(dupResult)
-			decision, decideErr := opts.Extractor.Decide(opts.Message, existing)
+			decision, decideErr := opts.Extractor.Decide(context.Background(), opts.Message, existing)
 			if decideErr == nil && decision != nil {
 				// Validate TargetID: must match one of the returned dupResult IDs
 				targetValid := decision.Action == IngestAdd

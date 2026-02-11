@@ -264,13 +264,13 @@ func TestOptimizeEmptyDatabase(t *testing.T) {
 
 // mockSkillCompiler provides a test implementation for generating skill content.
 type mockSkillCompiler struct {
-	compileFunc    func(theme string, memories []string) (string, error)
-	synthesizeFunc func(memories []string) (string, error) // TASK-3
+	compileFunc    func(ctx context.Context, theme string, memories []string) (string, error)
+	synthesizeFunc func(ctx context.Context, memories []string) (string, error) // TASK-3
 }
 
-func (m *mockSkillCompiler) CompileSkill(theme string, memories []string) (string, error) {
+func (m *mockSkillCompiler) CompileSkill(ctx context.Context, theme string, memories []string) (string, error) {
 	if m.compileFunc != nil {
-		return m.compileFunc(theme, memories)
+		return m.compileFunc(ctx, theme, memories)
 	}
 	return "", fmt.Errorf("LLM unavailable")
 }
@@ -283,17 +283,17 @@ func (m *mockSkillCompiler) Decide(newMessage string, existing []memory.Existing
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockSkillCompiler) Synthesize(memories []string) (string, error) {
+func (m *mockSkillCompiler) Synthesize(ctx context.Context, memories []string) (string, error) {
 	// TASK-3: Allow override for skill promotion tests
 	if m.synthesizeFunc != nil {
-		return m.synthesizeFunc(memories)
+		return m.synthesizeFunc(ctx, memories)
 	}
 	return "", fmt.Errorf("not implemented")
 }
 
 // mockLLMSpecificDetector provides test implementation for narrow/universal detection.
 type mockLLMSpecificDetector struct {
-	detectFunc func(learning string) (bool, string, error)
+	detectFunc func(ctx context.Context, learning string) (bool, string, error)
 }
 
 func (m *mockLLMSpecificDetector) CompileSkill(theme string, memories []string) (string, error) {
@@ -312,9 +312,9 @@ func (m *mockLLMSpecificDetector) Synthesize(memories []string) (string, error) 
 	return "", fmt.Errorf("not implemented")
 }
 
-func (m *mockLLMSpecificDetector) IsNarrowLearning(learning string) (bool, string, error) {
+func (m *mockLLMSpecificDetector) IsNarrowLearning(ctx context.Context, learning string) (bool, string, error) {
 	if m.detectFunc != nil {
-		return m.detectFunc(learning)
+		return m.detectFunc(ctx, learning)
 	}
 	return false, "LLM unavailable", fmt.Errorf("LLM unavailable")
 }
@@ -339,7 +339,7 @@ func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
 
 	// Mock LLM detector that identifies the first entry as narrow
 	detector := &mockLLMSpecificDetector{
-		detectFunc: func(learning string) (bool, string, error) {
+		detectFunc: func(_ context.Context, learning string) (bool, string, error) {
 			if strings.Contains(learning, "foo-analyzer") {
 				return true, "Specific to project foo-analyzer", nil
 			}
@@ -349,7 +349,7 @@ func TestOptimizeDemoteClaudeMDNarrowLearning(t *testing.T) {
 
 	// Mock skill compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nGenerated skill content from: %s", theme, strings.Join(memories, "; ")), nil
 		},
 	}
@@ -397,7 +397,7 @@ func TestOptimizeDemoteClaudeMDUniversalLearning(t *testing.T) {
 
 	// Mock LLM detector that identifies all entries as universal
 	detector := &mockLLMSpecificDetector{
-		detectFunc: func(learning string) (bool, string, error) {
+		detectFunc: func(_ context.Context, learning string) (bool, string, error) {
 			return false, "Universal pattern", nil
 		},
 	}
@@ -439,7 +439,7 @@ func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
 
 	// Mock LLM detector
 	detector := &mockLLMSpecificDetector{
-		detectFunc: func(learning string) (bool, string, error) {
+		detectFunc: func(_ context.Context, learning string) (bool, string, error) {
 			return true, "Specific to project", nil
 		},
 	}
@@ -487,7 +487,7 @@ func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
 
 	// Mock skill compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
 		},
 	}
@@ -567,7 +567,7 @@ func TestOptimizePromoteSkillsHighUtility(t *testing.T) {
 
 	// Mock SkillCompiler with Synthesize method
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Always apply test pattern when working with test scenarios", nil
 		},
 	}
@@ -689,7 +689,7 @@ func TestOptimizePromoteSkillsSemanticDedup(t *testing.T) {
 
 	// Mock compiler returns nearly identical text
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Always apply test pattern when working with test scenarios", nil
 		},
 	}
@@ -749,7 +749,7 @@ func TestOptimizePromoteSkillsReviewReject(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Mock principle", nil
 		},
 	}
@@ -884,10 +884,10 @@ func TestOptimizePipelineEndToEnd(t *testing.T) {
 
 	// Mock compiler for both demotion and promotion
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSkill content for: %s", theme, strings.Join(memories, "; ")), nil
 		},
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Write tests before implementation to catch bugs early", nil
 		},
 	}
@@ -994,7 +994,7 @@ func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Test principle", nil
 		},
 	}
@@ -1054,7 +1054,7 @@ func TestOptimizeThresholdMinSkillConfidence(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Test principle", nil
 		},
 	}
@@ -1115,7 +1115,7 @@ func TestOptimizeThresholdMinSkillProjects(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(memories []string) (string, error) {
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
 			return "Test principle", nil
 		},
 	}
@@ -1181,7 +1181,7 @@ func TestSkillMerge(t *testing.T) {
 
 	// Mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return "# Merged Pattern\n\nCombined content", nil
 		},
 	}
@@ -1283,7 +1283,7 @@ func TestSkillSplit(t *testing.T) {
 
 	// Mock compiler
 	compiler := &mockSkillCompiler{
-		compileFunc: func(theme string, memories []string) (string, error) {
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return fmt.Sprintf("# %s\n\nSplit subcluster content", theme), nil
 		},
 	}

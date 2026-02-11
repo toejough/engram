@@ -3,6 +3,7 @@
 package memory_test
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -610,13 +611,13 @@ func TestPropertyUtilityMonotonicWithConfidence(t *testing.T) {
 
 // mockSkillCompilerGen is a test double for SkillCompiler interface.
 type mockSkillCompilerGen struct {
-	CompileFunc    func(theme string, memories []string) (string, error)
-	SynthesizeFunc func(memories []string) (string, error)
+	CompileFunc    func(ctx context.Context, theme string, memories []string) (string, error)
+	SynthesizeFunc func(ctx context.Context, memories []string) (string, error)
 }
 
-func (m *mockSkillCompilerGen) CompileSkill(theme string, memories []string) (string, error) {
+func (m *mockSkillCompilerGen) CompileSkill(ctx context.Context, theme string, memories []string) (string, error) {
 	if m.CompileFunc != nil {
-		return m.CompileFunc(theme, memories)
+		return m.CompileFunc(ctx, theme, memories)
 	}
 	return "# Mock Skill\n\nGenerated from mock compiler.", nil
 }
@@ -629,9 +630,9 @@ func (m *mockSkillCompilerGen) Decide(newMessage string, existing []memory.Exist
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockSkillCompilerGen) Synthesize(memories []string) (string, error) {
+func (m *mockSkillCompilerGen) Synthesize(ctx context.Context, memories []string) (string, error) {
 	if m.SynthesizeFunc != nil {
-		return m.SynthesizeFunc(memories)
+		return m.SynthesizeFunc(ctx, memories)
 	}
 	return "Mock synthesized principle.", nil
 }
@@ -744,7 +745,7 @@ func TestGenerateSkillContentUsesCompiler(t *testing.T) {
 
 	compilerCalled := false
 	compiler := &mockSkillCompilerGen{
-		CompileFunc: func(theme string, memories []string) (string, error) {
+		CompileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			compilerCalled = true
 			g.Expect(theme).To(Equal("TDD Best Practices"))
 			g.Expect(memories).To(HaveLen(3))
@@ -786,7 +787,7 @@ func TestGenerateSkillContentFallsBackOnCompilerError(t *testing.T) {
 	}
 
 	compiler := &mockSkillCompilerGen{
-		CompileFunc: func(theme string, memories []string) (string, error) {
+		CompileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return "", memory.ErrLLMUnavailable
 		},
 	}
@@ -1033,7 +1034,7 @@ func TestSkillCompilerInterface(t *testing.T) {
 
 	// Create a mock that implements the interface
 	mock := &mockSkillCompilerGen{
-		CompileFunc: func(theme string, memories []string) (string, error) {
+		CompileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
 			return "Test output", nil
 		},
 	}
@@ -1043,7 +1044,7 @@ func TestSkillCompilerInterface(t *testing.T) {
 	g.Expect(compiler).ToNot(BeNil())
 
 	// Verify we can call CompileSkill
-	result, err := compiler.CompileSkill("Test Theme", []string{"mem1", "mem2"})
+	result, err := compiler.CompileSkill(context.Background(), "Test Theme", []string{"mem1", "mem2"})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result).To(Equal("Test output"))
 }

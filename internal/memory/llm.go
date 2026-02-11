@@ -60,21 +60,21 @@ type IngestDecision struct {
 
 // LLMExtractor defines the interface for LLM-based memory processing.
 type LLMExtractor interface {
-	Extract(content string) (*Observation, error)
-	Synthesize(memories []string) (string, error)
-	Curate(query string, candidates []QueryResult) ([]CuratedResult, error)
-	Decide(newContent string, existing []ExistingMemory) (*IngestDecision, error)
+	Extract(ctx context.Context, content string) (*Observation, error)
+	Synthesize(ctx context.Context, memories []string) (string, error)
+	Curate(ctx context.Context, query string, candidates []QueryResult) ([]CuratedResult, error)
+	Decide(ctx context.Context, newContent string, existing []ExistingMemory) (*IngestDecision, error)
 }
 
 // SkillCompiler defines the interface for compiling memory clusters into skill content.
 type SkillCompiler interface {
-	CompileSkill(theme string, memories []string) (string, error)
-	Synthesize(memories []string) (string, error) // TASK-3: Synthesize principle from memories
+	CompileSkill(ctx context.Context, theme string, memories []string) (string, error)
+	Synthesize(ctx context.Context, memories []string) (string, error) // TASK-3: Synthesize principle from memories
 }
 
 // SpecificityDetector defines the interface for detecting narrow/context-specific learnings.
 type SpecificityDetector interface {
-	IsNarrowLearning(learning string) (isNarrow bool, reason string, err error)
+	IsNarrowLearning(ctx context.Context, learning string) (isNarrow bool, reason string, err error)
 }
 
 // ClaudeCLIExtractor implements LLMExtractor using the claude CLI tool.
@@ -100,14 +100,14 @@ func defaultCommandRunner(ctx context.Context, name string, args ...string) ([]b
 }
 
 // Extract analyzes a memory entry and returns structured knowledge.
-func (c *ClaudeCLIExtractor) Extract(content string) (*Observation, error) {
+func (c *ClaudeCLIExtractor) Extract(ctx context.Context, content string) (*Observation, error) {
 	prompt := fmt.Sprintf(`Analyze this memory entry and extract structured knowledge. Return ONLY valid JSON matching this schema:
 {"type":"<correction|pattern|decision|discovery>","concepts":["<concept1>","<concept2>"],"principle":"<actionable rule in imperative form>","anti_pattern":"<what NOT to do>","rationale":"<why this matters>"}
 
 Memory entry:
 %s`, content)
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ Memory entry:
 }
 
 // Synthesize produces a single actionable principle from a cluster of related memories.
-func (c *ClaudeCLIExtractor) Synthesize(memories []string) (string, error) {
+func (c *ClaudeCLIExtractor) Synthesize(ctx context.Context, memories []string) (string, error) {
 	var sb strings.Builder
 	for i, mem := range memories {
 		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, mem))
@@ -132,7 +132,7 @@ func (c *ClaudeCLIExtractor) Synthesize(memories []string) (string, error) {
 Related memories:
 %s`, sb.String())
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return "", err
 	}
@@ -141,7 +141,7 @@ Related memories:
 }
 
 // Curate selects the most relevant memory results for a query with relevance explanations.
-func (c *ClaudeCLIExtractor) Curate(query string, candidates []QueryResult) ([]CuratedResult, error) {
+func (c *ClaudeCLIExtractor) Curate(ctx context.Context, query string, candidates []QueryResult) ([]CuratedResult, error) {
 	var sb strings.Builder
 	for i, cand := range candidates {
 		sb.WriteString(fmt.Sprintf("%d. [score=%.2f] %s\n", i+1, cand.Score, cand.Content))
@@ -153,7 +153,7 @@ Here are %d memory candidates:
 Select the 5-7 most relevant results for the user's request. Return ONLY a JSON array of objects:
 [{"content":"<exact content>","relevance":"<why this is relevant>","memory_type":"<type>"}]`, query, len(candidates), sb.String())
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ Select the 5-7 most relevant results for the user's request. Return ONLY a JSON 
 
 // Decide asks the LLM whether a new memory should be added, should update/replace
 // an existing memory, makes an existing memory obsolete, or is a duplicate.
-func (c *ClaudeCLIExtractor) Decide(newContent string, existing []ExistingMemory) (*IngestDecision, error) {
+func (c *ClaudeCLIExtractor) Decide(ctx context.Context, newContent string, existing []ExistingMemory) (*IngestDecision, error) {
 	var sb strings.Builder
 	for i, mem := range existing {
 		sb.WriteString(fmt.Sprintf("%d. [id=%d, similarity=%.2f] %q\n", i+1, mem.ID, mem.Similarity, mem.Content))
@@ -188,7 +188,7 @@ Rules:
 - DELETE: new memory makes an existing one obsolete (target_id = which to remove)
 - NOOP: duplicate or less valuable than existing (target_id = which is better)`, newContent, sb.String())
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ Rules:
 }
 
 // CompileSkill generates skill content from a theme and related memories.
-func (c *ClaudeCLIExtractor) CompileSkill(theme string, memories []string) (string, error) {
+func (c *ClaudeCLIExtractor) CompileSkill(ctx context.Context, theme string, memories []string) (string, error) {
 	var sb strings.Builder
 	for i, mem := range memories {
 		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, mem))
@@ -220,7 +220,7 @@ Create a comprehensive SKILL.md content that:
 
 Return ONLY the skill content (markdown), no JSON or wrappers.`, theme, sb.String())
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return "", err
 	}
@@ -231,7 +231,7 @@ Return ONLY the skill content (markdown), no JSON or wrappers.`, theme, sb.Strin
 // IsNarrowLearning determines if a learning is narrow/context-specific or universal.
 // Returns true if the learning is narrow (e.g., references specific file paths, project names),
 // false if universal (e.g., general development principles).
-func (c *ClaudeCLIExtractor) IsNarrowLearning(learning string) (isNarrow bool, reason string, err error) {
+func (c *ClaudeCLIExtractor) IsNarrowLearning(ctx context.Context, learning string) (isNarrow bool, reason string, err error) {
 	prompt := fmt.Sprintf(`Analyze this learning and determine if it is narrow/context-specific or universal. Return ONLY valid JSON matching this schema:
 {"is_narrow": <bool>, "reason": "<explanation>", "confidence": <float>}
 
@@ -250,7 +250,7 @@ A learning is UNIVERSAL if it:
 Learning to analyze:
 %s`, learning)
 
-	output, err := c.runClaude(prompt)
+	output, err := c.runClaude(ctx, prompt)
 	if err != nil {
 		return false, "", err
 	}
@@ -268,8 +268,8 @@ Learning to analyze:
 }
 
 // runClaude executes the claude CLI and returns the output.
-func (c *ClaudeCLIExtractor) runClaude(prompt string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+func (c *ClaudeCLIExtractor) runClaude(parentCtx context.Context, prompt string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(parentCtx, c.Timeout)
 	defer cancel()
 
 	output, err := c.CommandRunner(ctx, "claude", "--print", "--model", c.Model, "-p", prompt)
