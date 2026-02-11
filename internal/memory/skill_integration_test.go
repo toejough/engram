@@ -1,4 +1,4 @@
-//go:build sqlite_fts5
+//go:build integration && sqlite_fts5
 
 package memory_test
 
