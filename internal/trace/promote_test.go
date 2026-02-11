@@ -1,7 +1,6 @@
 package trace_test
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,10 +13,11 @@ import (
 // traces: TASK-007
 func TestPromote_FindsTaskTraces(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
 	// Create tasks.md with TASK-001 tracing to ARCH-001
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -25,7 +25,7 @@ func TestPromote_FindsTaskTraces(t *testing.T) {
 `)
 
 	// Create a Go test file with TASK trace
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -35,7 +35,7 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("internal/feature/feature_test.go"))
@@ -47,16 +47,17 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_UpdatesFileContent(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
 **Traces to:** ARCH-001
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -66,11 +67,11 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	_, err := trace.Promote(dir, false)
+	_, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Read the file back and verify content changed
-	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001"))
 	g.Expect(string(content)).ToNot(ContainSubstring("// traces: TASK-001"))
@@ -80,9 +81,10 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_MultipleTasksInFile(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: First feature
 
@@ -93,7 +95,7 @@ func TestPromote_MultipleTasksInFile(t *testing.T) {
 **Traces to:** ARCH-002
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -108,7 +110,7 @@ func TestSecond(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(2))
 }
@@ -117,9 +119,10 @@ func TestSecond(t *testing.T) {
 // traces: TASK-007
 func TestPromote_TypeScriptFiles(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -136,10 +139,10 @@ describe('Feature', () => {
 });
 `
 	pkgDir := filepath.Join(dir, "src")
-	g.Expect(os.MkdirAll(pkgDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(pkgDir, "feature.test.ts"), []byte(tsTestContent), 0o644)).To(Succeed())
+	g.Expect(fs.MkdirAll(pkgDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(pkgDir, "feature.test.ts"), []byte(tsTestContent), 0o644)).To(Succeed())
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("src/feature.test.ts"))
@@ -149,9 +152,10 @@ describe('Feature', () => {
 // traces: TASK-007
 func TestPromote_JavaScriptFiles(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -168,10 +172,10 @@ describe('Feature', () => {
 });
 `
 	pkgDir := filepath.Join(dir, "src")
-	g.Expect(os.MkdirAll(pkgDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(pkgDir, "feature.test.js"), []byte(jsTestContent), 0o644)).To(Succeed())
+	g.Expect(fs.MkdirAll(pkgDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(pkgDir, "feature.test.js"), []byte(jsTestContent), 0o644)).To(Succeed())
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("src/feature.test.js"))
@@ -181,9 +185,10 @@ describe('Feature', () => {
 // traces: TASK-007
 func TestPromote_SkipsNonTaskTraces(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -191,7 +196,7 @@ func TestPromote_SkipsNonTaskTraces(t *testing.T) {
 `)
 
 	// Test file already has permanent trace (ARCH)
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -201,7 +206,7 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(BeEmpty())
 }
@@ -210,17 +215,18 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_TaskWithNoTracesTo(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
 	// Task has no Traces-to field
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
 No traces to field here.
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -230,7 +236,7 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	// Should report as skipped, not promoted
 	g.Expect(result.Promotions).To(BeEmpty())
@@ -242,17 +248,18 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_TaskNotFound(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
 	// tasks.md doesn't have TASK-999
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
 **Traces to:** ARCH-001
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -262,7 +269,7 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(BeEmpty())
 	g.Expect(result.Skipped).To(HaveLen(1))
@@ -273,17 +280,18 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_MultipleTraceTargets(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
 	// Task traces to multiple targets
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
 **Traces to:** ARCH-001, ARCH-002
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -293,14 +301,14 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	// Should promote to all targets
 	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-001, ARCH-002"))
 
 	// Verify file content
-	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001, ARCH-002"))
 }
@@ -309,9 +317,10 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_NoTestFiles(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -320,7 +329,7 @@ func TestPromote_NoTestFiles(t *testing.T) {
 
 	// No test files
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(BeEmpty())
 	g.Expect(result.Skipped).To(BeEmpty())
@@ -330,9 +339,10 @@ func TestPromote_NoTestFiles(t *testing.T) {
 // traces: TASK-007
 func TestPromote_SpecTsFiles(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -349,10 +359,10 @@ describe('Feature', () => {
 });
 `
 	pkgDir := filepath.Join(dir, "src")
-	g.Expect(os.MkdirAll(pkgDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(pkgDir, "feature.spec.ts"), []byte(specContent), 0o644)).To(Succeed())
+	g.Expect(fs.MkdirAll(pkgDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(pkgDir, "feature.spec.ts"), []byte(specContent), 0o644)).To(Succeed())
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("src/feature.spec.ts"))
@@ -362,9 +372,10 @@ describe('Feature', () => {
 // traces: TASK-007
 func TestPromote_SpecJsFiles(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -381,10 +392,10 @@ describe('Feature', () => {
 });
 `
 	pkgDir := filepath.Join(dir, "src")
-	g.Expect(os.MkdirAll(pkgDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(pkgDir, "feature.spec.js"), []byte(specContent), 0o644)).To(Succeed())
+	g.Expect(fs.MkdirAll(pkgDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(pkgDir, "feature.spec.js"), []byte(specContent), 0o644)).To(Succeed())
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("src/feature.spec.js"))
@@ -394,9 +405,10 @@ describe('Feature', () => {
 // traces: TASK-007
 func TestPromote_SkipsVendorDir(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -404,7 +416,7 @@ func TestPromote_SkipsVendorDir(t *testing.T) {
 `)
 
 	// Create test file in vendor directory (should be skipped)
-	writeTestFile(t, dir, "vendor/somelib", "lib_test.go", `package somelib_test
+	writeTestFile(t, fs, dir, "vendor/somelib", "lib_test.go", `package somelib_test
 
 import "testing"
 
@@ -415,7 +427,7 @@ func TestVendor(t *testing.T) {
 `)
 
 	// Create test file in normal directory (should be processed)
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -425,7 +437,7 @@ func TestFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("internal/feature/feature_test.go"))
@@ -435,9 +447,10 @@ func TestFeature(t *testing.T) {
 // traces: TASK-007
 func TestPromote_SkipsNodeModules(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -446,21 +459,21 @@ func TestPromote_SkipsNodeModules(t *testing.T) {
 
 	// Create test file in node_modules (should be skipped)
 	nmDir := filepath.Join(dir, "node_modules", "somelib")
-	g.Expect(os.MkdirAll(nmDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(nmDir, "lib.test.js"), []byte(`// TEST-100: Vendor test
+	g.Expect(fs.MkdirAll(nmDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(nmDir, "lib.test.js"), []byte(`// TEST-100: Vendor test
 // traces: TASK-001
 describe('test', () => {});
 `), 0o644)).To(Succeed())
 
 	// Create test file in normal directory
 	srcDir := filepath.Join(dir, "src")
-	g.Expect(os.MkdirAll(srcDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(srcDir, "feature.test.js"), []byte(`// TEST-101: Feature test
+	g.Expect(fs.MkdirAll(srcDir, 0o755)).To(Succeed())
+	g.Expect(fs.WriteFile(filepath.Join(srcDir, "feature.test.js"), []byte(`// TEST-101: Feature test
 // traces: TASK-001
 describe('feature', () => {});
 `), 0o644)).To(Succeed())
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("src/feature.test.js"))
@@ -470,9 +483,10 @@ describe('feature', () => {});
 // traces: TASK-008
 func TestPromote_DryRun(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Implement feature
 
@@ -488,17 +502,17 @@ import "testing"
 func TestFeature(t *testing.T) {
 }
 `
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", originalContent)
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", originalContent)
 
 	// Run with dryRun=true
-	result, err := trace.Promote(dir, true)
+	result, err := trace.Promote(dir, fs, true)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-001"))
 	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-001"))
 
 	// Verify file was NOT modified
-	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(Equal(originalContent))
 }
@@ -507,9 +521,10 @@ func TestFeature(t *testing.T) {
 // traces: TASK-001
 func TestPromote_SimpleNumberIDs(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-1: First feature
 
@@ -520,7 +535,7 @@ func TestPromote_SimpleNumberIDs(t *testing.T) {
 **Traces to:** ARCH-42
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -535,7 +550,7 @@ func TestAnotherFeature(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(2))
 	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-1"))
@@ -544,7 +559,7 @@ func TestAnotherFeature(t *testing.T) {
 	g.Expect(result.Promotions[1].NewTrace).To(Equal("ARCH-42"))
 
 	// Verify file content
-	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-1"))
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-42"))
@@ -554,10 +569,11 @@ func TestAnotherFeature(t *testing.T) {
 // traces: TASK-001
 func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
 	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
 	// Mix of old padded and new unpadded IDs
-	writeArtifact(t, dir, "tasks.md", `# Tasks
+	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
 ### TASK-001: Old style task
 
@@ -568,7 +584,7 @@ func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
 **Traces to:** ARCH-5
 `)
 
-	writeTestFile(t, dir, "internal/feature", "feature_test.go", `package feature_test
+	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
 
 import "testing"
 
@@ -583,12 +599,12 @@ func TestNewStyle(t *testing.T) {
 }
 `)
 
-	result, err := trace.Promote(dir, false)
+	result, err := trace.Promote(dir, fs, false)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(2))
 
 	// Verify both formats work
-	content, err := os.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
+	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001"))
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-5"))
