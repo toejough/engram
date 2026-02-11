@@ -36,14 +36,6 @@ func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
 		MemoryRoot: memoryRoot,
 	})).To(Succeed())
 
-	// ISSUE-210: Set high retrieval stats to prevent purging during optimize
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	_, err = db.Exec("UPDATE embeddings SET retrieval_count = 10, projects_retrieved = 'p1,p2,p3' WHERE content LIKE '%double decay%'")
-	g.Expect(err).ToNot(HaveOccurred())
-	_ = db.Close()
-
 	// First optimize
 	r1, err := memory.Optimize(memory.OptimizeOpts{
 		MemoryRoot:   memoryRoot,
@@ -84,12 +76,11 @@ func TestOptimizeAutoDemote(t *testing.T) {
 	})).To(Succeed())
 
 	// Mark as promoted in DB and set low confidence
-	// ISSUE-210: Set high retrieval stats to prevent purging after auto-demotion
 	dbPath := filepath.Join(memoryRoot, "embeddings.db")
 	db, err := sql.Open("sqlite3", dbPath)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer func() { _ = db.Close() }()
-	_, err = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ?, confidence = 0.2, retrieval_count = 10, projects_retrieved = 'p1,p2,p3' WHERE content LIKE '%old promoted learning%'",
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ?, confidence = 0.2 WHERE content LIKE '%old promoted learning%'",
 		time.Now().Format(time.RFC3339))
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -1631,4 +1622,121 @@ func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
 
 	// Verify LegacySessionPurged is 0 (no legacy entries to purge)
 	g.Expect(result.LegacySessionPurged).To(Equal(0), "Should not purge Learn entries")
+}
+
+// ============================================================================
+// ISSUE-210: Enrichment gate tests for promotion pipeline
+// Traces to: ISSUE-210
+// ============================================================================
+
+// TEST-210-1: Unenriched entry (principle = '') is not promoted to CLAUDE.md
+func TestOptimizePromoteRejectsUnenriched(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create CLAUDE.md with Promoted Learnings section
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	// Seed DB with unenriched entry (no principle, no enrichment)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Initialize the database schema
+	_, err = memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Insert unenriched entry: high retrieval count, multiple projects, but principle = ''
+	_, err = db.Exec(`
+		INSERT INTO embeddings (
+			content, source, source_type, confidence,
+			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
+			retrieval_count, projects_retrieved, promoted
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "Success ISSUE-170: TDD cycle executed cleanly", "memory", "internal", 1.0,
+		"", "", "", "", "", "", // All enrichment fields empty
+		10, "proj1,proj2,proj3", 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Run optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		AutoApprove:   true,
+		MinRetrievals: 5,
+		MinProjects:   3,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// VERIFY: Unenriched entry should NOT be promoted
+	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
+	g.Expect(result.PromotionsApproved).To(Equal(0), "Should not promote unenriched entry")
+
+	// VERIFY: CLAUDE.md should NOT contain the unenriched content
+	claudeContent, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(claudeContent)).ToNot(ContainSubstring("Success ISSUE-170"))
+}
+
+// TEST-210-2: Enriched entry (principle != '') IS promoted to CLAUDE.md
+func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create CLAUDE.md with Promoted Learnings section
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	// Seed DB with enriched entry (has principle)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Initialize the database schema
+	_, err = memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Insert enriched entry: high retrieval count, multiple projects, AND has principle
+	_, err = db.Exec(`
+		INSERT INTO embeddings (
+			content, source, source_type, confidence,
+			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
+			retrieval_count, projects_retrieved, promoted
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "Success ISSUE-180: TDD cycle completed successfully", "memory", "internal", 1.0,
+		"pattern", "reflection", "Always write tests before implementation", "Skip testing phase",
+		"Tests catch regressions early", "[pattern] Always write tests before implementation - Context: Tests catch regressions early",
+		10, "proj1,proj2,proj3", 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Run optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		AutoApprove:   true,
+		MinRetrievals: 5,
+		MinProjects:   3,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// VERIFY: Enriched entry should be promoted
+	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
+	g.Expect(result.PromotionsApproved).To(BeNumerically(">=", 1), "Should promote enriched entry")
+
+	// VERIFY: CLAUDE.md should contain the principle (not the raw observation)
+	claudeContent, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	claudeStr := string(claudeContent)
+	g.Expect(claudeStr).To(ContainSubstring("Always write tests before implementation"))
+	// Should NOT promote the raw content
+	g.Expect(claudeStr).ToNot(ContainSubstring("Success ISSUE-180"))
 }

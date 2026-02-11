@@ -63,7 +63,6 @@ type OptimizeResult struct {
 	SkillsPromoted        int // TASK-3: Skills promoted from memory to CLAUDE.md
 	SkillsSplit           int // TASK-10: Skills split due to incoherence
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
-	UnenrichedPurged      int // ISSUE-210: Number of unenriched entries purged from database
 }
 
 // Optimize runs the unified memory optimization pipeline.
@@ -199,11 +198,6 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	// Step 10: Promote (interactive)
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
-	}
-
-	// Step 10.5: Purge unenriched non-promoted entries (ISSUE-210)
-	if err := optimizePurgeUnenriched(db, opts, result); err != nil {
-		return nil, fmt.Errorf("unenriched purge failed: %w", err)
 	}
 
 	// Step 11: Deduplicate CLAUDE.md
@@ -600,92 +594,6 @@ func hasLearnTimestampPrefix(content string) bool {
 		}
 	}
 	return true
-}
-
-// optimizePurgeUnenriched removes unenriched non-promoted entries from the database (ISSUE-210).
-// Unenriched entries are raw observations without LLM enrichment (principle = '').
-// Promoted entries are preserved even if unenriched (they were promoted before the enrichment gate).
-// Entries that meet promotion thresholds are preserved (they're candidates awaiting enrichment, not junk).
-// ISSUE-210: Learn() entries with timestamp prefix are preserved (they're fresh entries awaiting enrichment).
-func optimizePurgeUnenriched(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
-	// Query unenriched non-promoted entries
-	rows, err := db.Query(`
-		SELECT id, embedding_id, content, retrieval_count, projects_retrieved
-		FROM embeddings
-		WHERE principle = ''
-		  AND promoted = 0
-	`)
-	if err != nil {
-		return err
-	}
-
-	type purgeEntry struct {
-		id          int64
-		embeddingID int64
-		content     string
-		meetsTresholds bool
-	}
-	var candidates []purgeEntry
-	for rows.Next() {
-		var e purgeEntry
-		var embID sql.NullInt64
-		var retrievalCount int
-		var projectsStr string
-		if err := rows.Scan(&e.id, &embID, &e.content, &retrievalCount, &projectsStr); err != nil {
-			_ = rows.Close()
-			return err
-		}
-		if embID.Valid {
-			e.embeddingID = embID.Int64
-		}
-
-		// Check if entry meets promotion thresholds
-		meetsRetrievals := retrievalCount >= opts.MinRetrievals
-		uniqueProjects := 0
-		if projectsStr != "" {
-			projectMap := make(map[string]bool)
-			for _, p := range strings.Split(projectsStr, ",") {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					projectMap[p] = true
-				}
-			}
-			uniqueProjects = len(projectMap)
-		}
-		meetsProjects := uniqueProjects >= opts.MinProjects
-		e.meetsTresholds = meetsRetrievals && meetsProjects
-
-		candidates = append(candidates, e)
-	}
-	_ = rows.Close()
-
-	// Filter: only purge entries that DON'T meet promotion thresholds AND DON'T have Learn() timestamp prefix
-	// Preserve:
-	// 1. Entries that meet promotion thresholds (they're candidates awaiting enrichment)
-	// 2. Learn() entries with timestamp prefix (they're fresh entries that haven't been enriched yet)
-	var toPurge []purgeEntry
-	for _, e := range candidates {
-		if !e.meetsTresholds {
-			// Check if this is a Learn() entry with timestamp prefix
-			// Learn() entries should be preserved even if unenriched and low retrieval stats
-			if hasLearnTimestampPrefix(e.content) {
-				continue // Preserve Learn() entries
-			}
-			toPurge = append(toPurge, e)
-		}
-	}
-
-	// Delete unenriched entries and clean up vec/FTS5
-	for _, e := range toPurge {
-		_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.id)
-		if e.embeddingID > 0 {
-			_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", e.embeddingID)
-		}
-		deleteFTS5(db, e.id)
-	}
-
-	result.UnenrichedPurged = len(toPurge)
-	return nil
 }
 
 // optimizeDedup merges entries with similarity > threshold.

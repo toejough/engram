@@ -126,9 +126,6 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	if result.LegacySessionPurged > 0 {
 		fmt.Printf("Legacy session embeddings purged: %d\n", result.LegacySessionPurged)
 	}
-	if result.UnenrichedPurged > 0 {
-		fmt.Printf("Unenriched entries purged: %d\n", result.UnenrichedPurged)
-	}
 	if result.DuplicatesMerged > 0 {
 		fmt.Printf("Duplicates merged: %d\n", result.DuplicatesMerged)
 	}
