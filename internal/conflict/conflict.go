@@ -3,6 +3,7 @@ package conflict
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -19,6 +20,47 @@ const (
 	StatusResolved    = "resolved"
 )
 
+// FileSystem provides file system operations for conflict management.
+type FileSystem interface {
+	ReadFile(path string) ([]byte, error)
+	WriteFile(path string, data []byte) error
+	OpenAppend(path string) (io.WriteCloser, int64, error) // Returns writer, file size, error
+	FileExists(path string) bool
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// ReadFile reads a file.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// WriteFile writes a file.
+func (RealFS) WriteFile(path string, data []byte) error {
+	return os.WriteFile(path, data, 0o644)
+}
+
+// OpenAppend opens a file for appending, creating it if needed.
+func (RealFS) OpenAppend(path string) (io.WriteCloser, int64, error) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return nil, 0, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, 0, err
+	}
+	return f, info.Size(), nil
+}
+
+// FileExists checks if a file exists.
+func (RealFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // Conflict represents a cross-skill conflict record.
 type Conflict struct {
 	ID            string
@@ -30,10 +72,10 @@ type Conflict struct {
 }
 
 // Create appends a new conflict entry to conflicts.md with an auto-incremented CONF- ID.
-func Create(dir, skills, traceability, description string) (string, error) {
+func Create(dir, skills, traceability, description string, fs FileSystem) (string, error) {
 	path := filepath.Join(dir, ConflictFile)
 
-	existing, err := loadAll(path)
+	existing, err := loadAll(path, fs)
 	if err != nil {
 		return "", err
 	}
@@ -50,21 +92,20 @@ func Create(dir, skills, traceability, description string) (string, error) {
 **Resolution:** (pending)
 `, nextID, skills, traceability, StatusNegotiating, description)
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, size, err := fs.OpenAppend(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open conflicts file: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
 	// Write header if file is empty
-	info, _ := f.Stat()
-	if info.Size() == 0 {
-		if _, err := f.WriteString("# Conflicts\n"); err != nil {
+	if size == 0 {
+		if _, err := io.WriteString(f, "# Conflicts\n"); err != nil {
 			return "", fmt.Errorf("failed to write header: %w", err)
 		}
 	}
 
-	if _, err := f.WriteString(entry); err != nil {
+	if _, err := io.WriteString(f, entry); err != nil {
 		return "", fmt.Errorf("failed to write conflict: %w", err)
 	}
 
@@ -77,10 +118,10 @@ type CheckResult struct {
 }
 
 // Check parses conflicts.md for entries with a non-empty Resolution field.
-func Check(dir string) (CheckResult, error) {
+func Check(dir string, fs FileSystem) (CheckResult, error) {
 	path := filepath.Join(dir, ConflictFile)
 
-	all, err := loadAll(path)
+	all, err := loadAll(path, fs)
 	if err != nil {
 		return CheckResult{}, err
 	}
@@ -104,10 +145,10 @@ type ListResult struct {
 }
 
 // List returns all conflicts with optional status filter.
-func List(dir, statusFilter string) (ListResult, error) {
+func List(dir, statusFilter string, fs FileSystem) (ListResult, error) {
 	path := filepath.Join(dir, ConflictFile)
 
-	all, err := loadAll(path)
+	all, err := loadAll(path, fs)
 	if err != nil {
 		return ListResult{}, err
 	}
@@ -137,13 +178,13 @@ var (
 	fieldPattern      = regexp.MustCompile(`\*\*(\w+):\*\*\s*(.*)`)
 )
 
-func loadAll(path string) ([]Conflict, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
+func loadAll(path string, fs FileSystem) ([]Conflict, error) {
+	if !fs.FileExists(path) {
+		return nil, nil
+	}
 
+	data, err := fs.ReadFile(path)
+	if err != nil {
 		return nil, fmt.Errorf("failed to read conflicts file: %w", err)
 	}
 

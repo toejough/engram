@@ -6,6 +6,7 @@ import (
 
 	"github.com/toejough/projctl/internal/config"
 	"github.com/toejough/projctl/internal/context"
+	"github.com/toejough/projctl/internal/log"
 )
 
 type contextCheckArgs struct {
@@ -32,7 +33,7 @@ func contextCheck(args contextCheckArgs) error {
 		thresholds.Limit = 90000 // Default
 	}
 
-	result, err := context.CheckBudget(args.Dir, thresholds)
+	result, err := context.CheckBudget(args.Dir, thresholds, log.RealFS{})
 	if err != nil {
 		return err
 	}

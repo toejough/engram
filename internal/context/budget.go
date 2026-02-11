@@ -43,8 +43,8 @@ func DefaultBudgetThresholds() BudgetThresholds {
 
 // CheckBudget reads the most recent context estimate from the log and compares
 // it against the provided thresholds.
-func CheckBudget(dir string, thresholds BudgetThresholds) (BudgetResult, error) {
-	entries, err := log.Read(dir, log.ReadOpts{})
+func CheckBudget(dir string, thresholds BudgetThresholds, fs log.FileSystem) (BudgetResult, error) {
+	entries, err := log.Read(dir, log.ReadOpts{}, fs)
 	if err != nil {
 		return BudgetResult{}, fmt.Errorf("failed to read log: %w", err)
 	}

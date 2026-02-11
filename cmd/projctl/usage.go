@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/toejough/projctl/internal/config"
+	"github.com/toejough/projctl/internal/log"
 	"github.com/toejough/projctl/internal/usage"
 )
 
@@ -34,9 +35,9 @@ func usageReport(args usageReportArgs) error {
 			return fmt.Errorf("failed to get home directory: %w", homeErr)
 		}
 		projctlDir := filepath.Join(homeDir, ".projctl")
-		report, err = usage.ReportByProject(args.Project, projctlDir, opts)
+		report, err = usage.ReportByProject(args.Project, projctlDir, opts, log.RealFS{})
 	} else if args.Dir != "" {
-		report, err = usage.Report(args.Dir, opts)
+		report, err = usage.Report(args.Dir, opts, log.RealFS{})
 	} else {
 		return fmt.Errorf("either --dir or --project is required")
 	}
@@ -90,7 +91,7 @@ func usageCheck(args usageCheckArgs) error {
 	result := usage.Check(args.Dir, usage.BudgetConfig{
 		WarningTokens: cfg.Budget.WarningTokens,
 		LimitTokens:   cfg.Budget.LimitTokens,
-	})
+	}, log.RealFS{})
 
 	switch result.Status {
 	case usage.StatusOK:

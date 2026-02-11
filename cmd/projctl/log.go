@@ -27,7 +27,7 @@ func logWrite(args logWriteArgs) error {
 		Model:           args.Model,
 		Tokens:          args.Tokens,
 		ContextEstimate: args.ContextEstimate,
-	}, time.Now)
+	}, time.Now, log.RealFS{})
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ type logReadArgs struct {
 func logRead(args logReadArgs) error {
 	entries, err := log.Read(args.Dir, log.ReadOpts{
 		Model: args.Model,
-	})
+	}, log.RealFS{})
 	if err != nil {
 		return err
 	}

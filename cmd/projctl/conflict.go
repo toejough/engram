@@ -15,7 +15,7 @@ type conflictCreateArgs struct {
 }
 
 func conflictCreate(args conflictCreateArgs) error {
-	id, err := conflict.Create(args.Dir, args.Skills, args.Traceability, args.Description)
+	id, err := conflict.Create(args.Dir, args.Skills, args.Traceability, args.Description, conflict.RealFS{})
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ type conflictCheckArgs struct {
 }
 
 func conflictCheck(args conflictCheckArgs) error {
-	result, err := conflict.Check(args.Dir)
+	result, err := conflict.Check(args.Dir, conflict.RealFS{})
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ type conflictListArgs struct {
 }
 
 func conflictList(args conflictListArgs) error {
-	result, err := conflict.List(args.Dir, args.Status)
+	result, err := conflict.List(args.Dir, args.Status, conflict.RealFS{})
 	if err != nil {
 		return err
 	}
