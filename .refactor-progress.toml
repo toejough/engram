@@ -65,18 +65,18 @@ notes = "Created 6 integration test files with build tag (refactor_extract_integ
 [[steps]]
 id = 6
 name = "Deduplicate properties and rank tests"
-status = "pending"
+status = "completed"
 assigned_model = "sonnet"
 test_time_seconds = ""
-notes = ""
+notes = "Created .test-deduplication.md mapping properties to tests. Ranked by IO presence and complexity. Found 3 potential duplicates for investigation: synthesis logic (2 files), JSONL parsing overlap (3 files), thin wrapper (1 file). Identified 27 test files as candidates for dependency injection in step 8. No fully redundant tests (all validate >= 1 unique property)."
 
 [[steps]]
 id = 7
 name = "Delete tests with zero top-ranked properties"
-status = "pending"
+status = "completed"
 assigned_model = "haiku"
-test_time_seconds = ""
-notes = ""
+test_time_seconds = "69.54 (unchanged)"
+notes = "Investigated 3 potential duplicates: (1) synthesis_test.go vs llm_synthesis_test.go - test different functions (basic vs LLM-enhanced), both kept; (2) analyze_test.go vs log_test.go vs corrections_test.go - test different packages and APIs, all kept; (3) realfs_test.go - thin wrapper tests with minimal overhead, kept. Conclusion: No fully redundant tests found - all validate unique properties. Tests with PASS (corrects pre-existing)."
 
 [[steps]]
 id = 8
