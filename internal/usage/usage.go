@@ -45,11 +45,11 @@ type ReportOpts struct {
 }
 
 // Report generates a token usage report from project logs.
-func Report(dir string, opts ReportOpts) (UsageReport, error) {
+func Report(dir string, opts ReportOpts, fs log.FileSystem) (UsageReport, error) {
 	entries, err := log.Read(dir, log.ReadOpts{
 		Model:   opts.Model,
 		Session: opts.Session,
-	})
+	}, fs)
 	if err != nil {
 		return UsageReport{}, err
 	}
@@ -69,7 +69,7 @@ func Report(dir string, opts ReportOpts) (UsageReport, error) {
 
 // ReportByProject generates a token usage report for a named project.
 // The project is looked up in projctlDir/projects/{projectName}/.
-func ReportByProject(projectName, projctlDir string, opts ReportOpts) (UsageReport, error) {
+func ReportByProject(projectName, projctlDir string, opts ReportOpts, fs log.FileSystem) (UsageReport, error) {
 	projectDir := filepath.Join(projctlDir, "projects", projectName)
 
 	// Check if project directory exists
@@ -77,12 +77,12 @@ func ReportByProject(projectName, projctlDir string, opts ReportOpts) (UsageRepo
 		return UsageReport{}, fmt.Errorf("project not found: %s", projectName)
 	}
 
-	return Report(projectDir, opts)
+	return Report(projectDir, opts, fs)
 }
 
 // Check compares current token usage against budget thresholds.
-func Check(dir string, budget BudgetConfig) CheckResult {
-	report, err := Report(dir, ReportOpts{})
+func Check(dir string, budget BudgetConfig, fs log.FileSystem) CheckResult {
+	report, err := Report(dir, ReportOpts{}, fs)
 	if err != nil {
 		return CheckResult{Status: StatusOK, TotalTokens: 0}
 	}
