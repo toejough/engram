@@ -3,11 +3,50 @@ package corrections
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"time"
 )
+
+// FileSystem provides file system operations for corrections management.
+type FileSystem interface {
+	AppendFile(path string, data []byte) error
+	ReadFile(path string) ([]byte, error)
+	FileExists(path string) bool
+	MkdirAll(path string) error
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// AppendFile appends data to a file, creating it if needed.
+func (RealFS) AppendFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	_, err = f.Write(data)
+	return err
+}
+
+// ReadFile reads a file.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// FileExists checks if a file exists.
+func (RealFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// MkdirAll creates a directory and all necessary parents.
+func (RealFS) MkdirAll(path string) error {
+	return os.MkdirAll(path, 0755)
+}
 
 // Entry represents a single correction log entry.
 type Entry struct {
@@ -23,34 +62,34 @@ type LogOpts struct {
 }
 
 // Log appends a correction entry to the project-specific corrections.jsonl file.
-func Log(dir string, message string, context string, opts LogOpts, now func() time.Time) error {
+func Log(dir string, message string, context string, opts LogOpts, now func() time.Time, fs FileSystem) error {
 	path := filepath.Join(dir, "corrections.jsonl")
-	return writeEntry(path, message, context, opts, now)
+	return writeEntry(path, message, context, opts, now, fs)
 }
 
 // LogGlobal appends a correction entry to the global ~/.claude/corrections.jsonl file.
-func LogGlobal(message string, context string, opts LogOpts, homeDir string, now func() time.Time) error {
+func LogGlobal(message string, context string, opts LogOpts, homeDir string, now func() time.Time, fs FileSystem) error {
 	claudeDir := filepath.Join(homeDir, ".claude")
-	if err := os.MkdirAll(claudeDir, 0755); err != nil {
+	if err := fs.MkdirAll(claudeDir); err != nil {
 		return err
 	}
 	path := filepath.Join(claudeDir, "corrections.jsonl")
-	return writeEntry(path, message, context, opts, now)
+	return writeEntry(path, message, context, opts, now, fs)
 }
 
 // Read reads correction entries from the project-specific corrections.jsonl file.
-func Read(dir string) ([]Entry, error) {
+func Read(dir string, fs FileSystem) ([]Entry, error) {
 	path := filepath.Join(dir, "corrections.jsonl")
-	return readEntries(path)
+	return readEntries(path, fs)
 }
 
 // ReadGlobal reads correction entries from the global ~/.claude/corrections.jsonl file.
-func ReadGlobal(homeDir string) ([]Entry, error) {
+func ReadGlobal(homeDir string, fs FileSystem) ([]Entry, error) {
 	path := filepath.Join(homeDir, ".claude", "corrections.jsonl")
-	return readEntries(path)
+	return readEntries(path, fs)
 }
 
-func writeEntry(path string, message string, context string, opts LogOpts, now func() time.Time) error {
+func writeEntry(path string, message string, context string, opts LogOpts, now func() time.Time, fs FileSystem) error {
 	if now == nil {
 		now = time.Now
 	}
@@ -66,33 +105,23 @@ func writeEntry(path string, message string, context string, opts LogOpts, now f
 		return err
 	}
 
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	if _, err := f.Write(data); err != nil {
-		return err
-	}
-	if _, err := f.Write([]byte("\n")); err != nil {
-		return err
-	}
-	return nil
+	// Append data with newline
+	line := append(data, '\n')
+	return fs.AppendFile(path, line)
 }
 
-func readEntries(path string) ([]Entry, error) {
-	f, err := os.Open(path)
+func readEntries(path string, fs FileSystem) ([]Entry, error) {
+	if !fs.FileExists(path) {
+		return []Entry{}, nil
+	}
+
+	data, err := fs.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return []Entry{}, nil
-		}
 		return nil, err
 	}
-	defer func() { _ = f.Close() }()
 
 	var entries []Entry
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		var entry Entry
 		if err := json.Unmarshal(scanner.Bytes(), &entry); err != nil {
@@ -121,7 +150,7 @@ type AnalyzeOpts struct {
 
 // Analyze detects patterns in corrections using fuzzy matching.
 // Returns patterns sorted by count (descending).
-func Analyze(dir string, opts AnalyzeOpts) ([]Pattern, error) {
+func Analyze(dir string, opts AnalyzeOpts, fs FileSystem) ([]Pattern, error) {
 	// Set default MinOccurrences to 2
 	minOccurrences := opts.MinOccurrences
 	if minOccurrences == 0 {
@@ -129,7 +158,7 @@ func Analyze(dir string, opts AnalyzeOpts) ([]Pattern, error) {
 	}
 
 	// Read all corrections
-	entries, err := Read(dir)
+	entries, err := Read(dir, fs)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +358,7 @@ func makeProposal(message string) string {
 }
 
 // AnalyzeGlobal detects patterns in global corrections (~/.claude/corrections.jsonl).
-func AnalyzeGlobal(homeDir string, opts AnalyzeOpts) ([]Pattern, error) {
+func AnalyzeGlobal(homeDir string, opts AnalyzeOpts, fs FileSystem) ([]Pattern, error) {
 	// Set default MinOccurrences to 2
 	minOccurrences := opts.MinOccurrences
 	if minOccurrences == 0 {
@@ -337,7 +366,7 @@ func AnalyzeGlobal(homeDir string, opts AnalyzeOpts) ([]Pattern, error) {
 	}
 
 	// Read all corrections
-	entries, err := ReadGlobal(homeDir)
+	entries, err := ReadGlobal(homeDir, fs)
 	if err != nil {
 		return nil, err
 	}

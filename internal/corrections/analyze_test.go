@@ -12,16 +12,16 @@ import (
 // Test Analyze identifies repeated corrections (count >= 2)
 func TestAnalyze_IdentifiesRepeatedCorrections(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Log same correction twice
-	_ = corrections.Log(dir, "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Different correction", "other context", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Never amend pushed commits", "git workflow", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Different correction", "other context", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 	g.Expect(patterns[0].Message).To(Equal("Never amend pushed commits"))
@@ -32,16 +32,16 @@ func TestAnalyze_IdentifiesRepeatedCorrections(t *testing.T) {
 // Test Analyze groups similar corrections with fuzzy matching
 func TestAnalyze_FuzzyMatchingSimilarCorrections(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// These should be grouped together despite different wording
-	_ = corrections.Log(dir, "Never amend pushed commits", "context1", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Don't amend commits that are pushed", "context2", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Avoid amending pushed commits", "context3", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Never amend pushed commits", "context1", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Don't amend commits that are pushed", "context2", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Avoid amending pushed commits", "context3", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Should find one pattern with 3 occurrences
@@ -57,24 +57,24 @@ func TestAnalyze_FuzzyMatchingSimilarCorrections(t *testing.T) {
 // Test Analyze respects MinOccurrences threshold
 func TestAnalyze_RespectsMinOccurrences(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Log correction 3 times
-	_ = corrections.Log(dir, "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Check VCS type before git commands", "vcs", corrections.LogOpts{}, nowFunc(), fs)
 
 	// With threshold of 2, should find pattern
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 
 	// With threshold of 4, should find nothing
-	patterns, err = corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err = corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 4,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(BeEmpty())
 }
@@ -83,21 +83,21 @@ func TestAnalyze_RespectsMinOccurrences(t *testing.T) {
 // Test Analyze default MinOccurrences is 2
 func TestAnalyze_DefaultMinOccurrencesIsTwo(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Single occurrence
-	_ = corrections.Log(dir, "Some correction", "context", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Some correction", "context", corrections.LogOpts{}, nowFunc(), fs)
 
 	// With default opts, should not find pattern
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{})
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(BeEmpty())
 
 	// Add second occurrence
-	_ = corrections.Log(dir, "Some correction", "context", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Some correction", "context", corrections.LogOpts{}, nowFunc(), fs)
 
 	// Now should find pattern
-	patterns, err = corrections.Analyze(dir, corrections.AnalyzeOpts{})
+	patterns, err = corrections.Analyze("testdir", corrections.AnalyzeOpts{}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 }
@@ -106,14 +106,14 @@ func TestAnalyze_DefaultMinOccurrencesIsTwo(t *testing.T) {
 // Test Pattern contains proposal for CLAUDE.md
 func TestAnalyze_PatternIncludesProposal(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	_ = corrections.Log(dir, "Never use git checkout -- .", "destroys work", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Never use git checkout -- .", "destroys work", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Never use git checkout -- .", "destroys work", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Never use git checkout -- .", "destroys work", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 
@@ -126,14 +126,14 @@ func TestAnalyze_PatternIncludesProposal(t *testing.T) {
 // Test Pattern output includes all required fields
 func TestAnalyze_PatternFieldsComplete(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	_ = corrections.Log(dir, "Use build tool commands", "context1", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Use build tool commands", "context2", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Use build tool commands", "context1", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Use build tool commands", "context2", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 
@@ -148,9 +148,9 @@ func TestAnalyze_PatternFieldsComplete(t *testing.T) {
 // Test Analyze with no corrections returns empty patterns
 func TestAnalyze_NoCorrections(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{})
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(BeEmpty())
 }
@@ -159,16 +159,16 @@ func TestAnalyze_NoCorrections(t *testing.T) {
 // Test Analyze groups by keywords not exact match
 func TestAnalyze_GroupsByKeywords(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Different messages but same keywords
-	_ = corrections.Log(dir, "Check for plan documents when resuming", "planning", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "After compaction, check plan documents exist", "planning", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Always check for plan docs on resume", "planning", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Check for plan documents when resuming", "planning", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "After compaction, check plan documents exist", "planning", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Always check for plan docs on resume", "planning", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Should group by "plan" and "document" keywords
@@ -181,7 +181,7 @@ func TestAnalyze_GroupsByKeywords(t *testing.T) {
 func TestAnalyze_Property_PatternsSortedByCount(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
-		dir := t.TempDir()
+		fs := &MockFS{}
 
 		// Generate random corrections with varying repetition
 		numPatterns := rapid.IntRange(2, 5).Draw(rt, "num_patterns")
@@ -189,13 +189,13 @@ func TestAnalyze_Property_PatternsSortedByCount(t *testing.T) {
 			message := rapid.StringMatching(`[a-z ]+`).Draw(rt, "message")
 			repetitions := rapid.IntRange(2, 10).Draw(rt, "repetitions")
 			for j := 0; j < repetitions; j++ {
-				_ = corrections.Log(dir, message, "context", corrections.LogOpts{}, nowFunc())
+				_ = corrections.Log("testdir", message, "context", corrections.LogOpts{}, nowFunc(), fs)
 			}
 		}
 
-		patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+		patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 			MinOccurrences: 2,
-		})
+		}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// Verify sorted by count descending
@@ -209,15 +209,15 @@ func TestAnalyze_Property_PatternsSortedByCount(t *testing.T) {
 // Test Analyze fuzzy matching uses keyword extraction
 func TestAnalyze_KeywordExtraction(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Should extract "amend", "push", "commit" as keywords
-	_ = corrections.Log(dir, "Never amend pushed commits - check git status first", "git", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Don't amend if commits are pushed upstream", "git", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Never amend pushed commits - check git status first", "git", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Don't amend if commits are pushed upstream", "git", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 
@@ -234,16 +234,16 @@ func TestAnalyze_KeywordExtraction(t *testing.T) {
 // Test Analyze ignores stop words in fuzzy matching
 func TestAnalyze_IgnoresStopWords(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
 	// Same meaning despite different stop words
-	_ = corrections.Log(dir, "Never use the git checkout command with -- .", "git", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Don't use git checkout with -- .", "git", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Avoid using git checkout -- .", "git", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Never use the git checkout command with -- .", "git", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Don't use git checkout with -- .", "git", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Avoid using git checkout -- .", "git", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Should group despite different stop words (the, with, using)
@@ -255,14 +255,14 @@ func TestAnalyze_IgnoresStopWords(t *testing.T) {
 // Test Pattern proposal format is markdown-compatible
 func TestAnalyze_ProposalIsMarkdown(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	_ = corrections.Log(dir, "Use dependency injection for time.Now", "testing", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Use dependency injection for time.Now", "testing", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Use dependency injection for time.Now", "testing", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Use dependency injection for time.Now", "testing", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 
@@ -279,16 +279,16 @@ func TestAnalyze_ProposalIsMarkdown(t *testing.T) {
 // Test Analyze with MinOccurrences of 1 returns all corrections
 func TestAnalyze_MinOccurrencesOne(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	_ = corrections.Log(dir, "Unique correction one", "context1", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Unique correction two", "context2", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Repeated correction", "context3", corrections.LogOpts{}, nowFunc())
-	_ = corrections.Log(dir, "Repeated correction", "context4", corrections.LogOpts{}, nowFunc())
+	_ = corrections.Log("testdir", "Unique correction one", "context1", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Unique correction two", "context2", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Repeated correction", "context3", corrections.LogOpts{}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Repeated correction", "context4", corrections.LogOpts{}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 1,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Should return all patterns including single occurrences
@@ -300,7 +300,7 @@ func TestAnalyze_MinOccurrencesOne(t *testing.T) {
 func TestAnalyze_Property_MinOccurrencesFilters(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewWithT(t)
-		dir := t.TempDir()
+		fs := &MockFS{}
 
 		threshold := rapid.IntRange(1, 5).Draw(rt, "threshold")
 
@@ -308,13 +308,13 @@ func TestAnalyze_Property_MinOccurrencesFilters(t *testing.T) {
 		for i := 1; i <= 5; i++ {
 			message := rapid.StringMatching(`pattern[0-9]+`).Draw(rt, "message")
 			for j := 0; j < i; j++ {
-				_ = corrections.Log(dir, message, "ctx", corrections.LogOpts{}, nowFunc())
+				_ = corrections.Log("testdir", message, "ctx", corrections.LogOpts{}, nowFunc(), fs)
 			}
 		}
 
-		patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+		patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 			MinOccurrences: threshold,
-		})
+		}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// All returned patterns must meet threshold
@@ -328,14 +328,14 @@ func TestAnalyze_Property_MinOccurrencesFilters(t *testing.T) {
 // Test Analyze includes example entries in pattern
 func TestAnalyze_PatternIncludesExamples(t *testing.T) {
 	g := NewWithT(t)
-	dir := t.TempDir()
+	fs := &MockFS{}
 
-	_ = corrections.Log(dir, "Stop words in patterns", "context A", corrections.LogOpts{SessionID: "sess-1"}, nowFunc())
-	_ = corrections.Log(dir, "Stop words in patterns", "context B", corrections.LogOpts{SessionID: "sess-2"}, nowFunc())
+	_ = corrections.Log("testdir", "Stop words in patterns", "context A", corrections.LogOpts{SessionID: "sess-1"}, nowFunc(), fs)
+	_ = corrections.Log("testdir", "Stop words in patterns", "context B", corrections.LogOpts{SessionID: "sess-2"}, nowFunc(), fs)
 
-	patterns, err := corrections.Analyze(dir, corrections.AnalyzeOpts{
+	patterns, err := corrections.Analyze("testdir", corrections.AnalyzeOpts{
 		MinOccurrences: 2,
-	})
+	}, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(patterns).To(HaveLen(1))
 

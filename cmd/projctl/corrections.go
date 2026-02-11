@@ -25,11 +25,11 @@ func correctionsLog(args correctionsLogArgs) error {
 		if err != nil {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
-		return corrections.LogGlobal(args.Message, args.Context, opts, homeDir, nil)
+		return corrections.LogGlobal(args.Message, args.Context, opts, homeDir, nil, corrections.RealFS{})
 	}
 
 	// Project-specific corrections
-	return corrections.Log(args.Dir, args.Message, args.Context, opts, nil)
+	return corrections.Log(args.Dir, args.Message, args.Context, opts, nil, corrections.RealFS{})
 }
 
 type correctionsCountArgs struct {
@@ -47,9 +47,9 @@ func correctionsCount(args correctionsCountArgs) error {
 		if errHome != nil {
 			return fmt.Errorf("failed to get home directory: %w", errHome)
 		}
-		entries, err = corrections.ReadGlobal(homeDir)
+		entries, err = corrections.ReadGlobal(homeDir, corrections.RealFS{})
 	} else {
-		entries, err = corrections.Read(args.Dir)
+		entries, err = corrections.Read(args.Dir, corrections.RealFS{})
 	}
 
 	if err != nil {
@@ -101,12 +101,12 @@ func correctionsAnalyze(args correctionsAnalyzeArgs) error {
 		if err != nil {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
-		patterns, err = corrections.AnalyzeGlobal(homeDir, opts)
+		patterns, err = corrections.AnalyzeGlobal(homeDir, opts, corrections.RealFS{})
 		if err != nil {
 			return err
 		}
 	} else {
-		patterns, err = corrections.Analyze(args.Dir, opts)
+		patterns, err = corrections.Analyze(args.Dir, opts, corrections.RealFS{})
 		if err != nil {
 			return err
 		}
