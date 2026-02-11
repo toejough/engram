@@ -36,9 +36,9 @@ type PromoteResult struct {
 // It looks up each TASK's "Traces to:" field in tasks.md and replaces the
 // "// traces: TASK-NNN" comment with the permanent target ID(s).
 // If dryRun is true, reports what would change without modifying files.
-func Promote(dir string, dryRun bool) (*PromoteResult, error) {
+func Promote(dir string, fs FileSystem, dryRun bool) (*PromoteResult, error) {
 	// Load task -> traces-to mapping from tasks.md
-	taskTraces, err := loadTaskTraces(dir)
+	taskTraces, err := loadTaskTraces(dir, fs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load task traces: %w", err)
 	}
@@ -52,7 +52,7 @@ func Promote(dir string, dryRun bool) (*PromoteResult, error) {
 	taskTracePattern := regexp.MustCompile(`^(\s*//\s*traces:\s*)TASK-(\d+)\s*$`)
 
 	// Walk directory looking for test files
-	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err = fs.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors
 		}
@@ -72,7 +72,7 @@ func Promote(dir string, dryRun bool) (*PromoteResult, error) {
 		}
 
 		// Read file content
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			return nil // Skip unreadable files
 		}
@@ -129,7 +129,7 @@ func Promote(dir string, dryRun bool) (*PromoteResult, error) {
 		// Write back if modified (unless dry run)
 		if modified && !dryRun {
 			newContent := strings.Join(lines, "\n")
-			if err := os.WriteFile(path, []byte(newContent), info.Mode()); err != nil {
+			if err := fs.WriteFile(path, []byte(newContent), 0644); err != nil {
 				return fmt.Errorf("failed to write %s: %w", relPath, err)
 			}
 		}
@@ -169,7 +169,7 @@ func isTestFile(name string) bool {
 }
 
 // loadTaskTraces reads tasks.md and builds a map of TASK-NNN -> task info.
-func loadTaskTraces(dir string) (map[string]taskInfo, error) {
+func loadTaskTraces(dir string, fs FileSystem) (map[string]taskInfo, error) {
 	// Get config to find tasks.md path
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -183,7 +183,7 @@ func loadTaskTraces(dir string) (map[string]taskInfo, error) {
 
 	tasksPath := filepath.Join(dir, cfg.ResolvePath("tasks"))
 
-	data, err := os.ReadFile(tasksPath)
+	data, err := fs.ReadFile(tasksPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return make(map[string]taskInfo), nil

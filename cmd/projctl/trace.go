@@ -140,7 +140,7 @@ type tracePromoteArgs struct {
 }
 
 func tracePromote(args tracePromoteArgs) error {
-	result, err := trace.Promote(args.Dir, args.DryRun)
+	result, err := trace.Promote(args.Dir, trace.RealFS{}, args.DryRun)
 	if err != nil {
 		return err
 	}
