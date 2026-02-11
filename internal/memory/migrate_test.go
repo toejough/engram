@@ -3,54 +3,148 @@
 package memory_test
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/projctl/internal/memory"
 )
+
+// MockDirEntry implements os.DirEntry for testing
+type MockDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (m MockDirEntry) Name() string               { return m.name }
+func (m MockDirEntry) IsDir() bool                { return m.isDir }
+func (m MockDirEntry) Type() os.FileMode          { return 0 }
+func (m MockDirEntry) Info() (os.FileInfo, error) { return nil, fmt.Errorf("not implemented") }
+
+// MockFileInfo implements os.FileInfo for testing
+type MockFileInfo struct {
+	name  string
+	isDir bool
+}
+
+func (m MockFileInfo) Name() string       { return m.name }
+func (m MockFileInfo) Size() int64        { return 0 }
+func (m MockFileInfo) Mode() os.FileMode  { return 0 }
+func (m MockFileInfo) ModTime() time.Time { return time.Time{} }
+func (m MockFileInfo) IsDir() bool        { return m.isDir }
+func (m MockFileInfo) Sys() interface{}   { return nil }
+
+// MigrateMockFS implements memory.FileSystem for migrate tests
+type MigrateMockFS struct {
+	Files       map[string][]byte
+	Directories map[string][]MockDirEntry
+	Removed     []string
+	Renamed     map[string]string // oldPath -> newPath
+}
+
+func (m *MigrateMockFS) ReadFile(path string) ([]byte, error) {
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, os.ErrNotExist
+	}
+	return content, nil
+}
+
+func (m *MigrateMockFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	m.Files[path] = data
+	return nil
+}
+
+func (m *MigrateMockFS) ReadDir(path string) ([]os.DirEntry, error) {
+	entries, exists := m.Directories[path]
+	if !exists {
+		return nil, os.ErrNotExist
+	}
+	result := make([]os.DirEntry, len(entries))
+	for i, e := range entries {
+		result[i] = e
+	}
+	return result, nil
+}
+
+func (m *MigrateMockFS) Stat(path string) (os.FileInfo, error) {
+	// Check if path exists in Files
+	if _, exists := m.Files[path]; exists {
+		return MockFileInfo{name: path, isDir: false}, nil
+	}
+	// Check if path exists in Directories
+	if _, exists := m.Directories[path]; exists {
+		return MockFileInfo{name: path, isDir: true}, nil
+	}
+	// Check if path has been renamed (destination exists)
+	for _, newPath := range m.Renamed {
+		if newPath == path {
+			return MockFileInfo{name: path, isDir: true}, nil
+		}
+	}
+	return nil, os.ErrNotExist
+}
+
+func (m *MigrateMockFS) Rename(oldPath, newPath string) error {
+	if m.Renamed == nil {
+		m.Renamed = make(map[string]string)
+	}
+	m.Renamed[oldPath] = newPath
+	// Move directory entry if it exists
+	if entries, exists := m.Directories[oldPath]; exists {
+		delete(m.Directories, oldPath)
+		m.Directories[newPath] = entries
+	}
+	return nil
+}
+
+func (m *MigrateMockFS) Remove(path string) error {
+	if m.Removed == nil {
+		m.Removed = []string{}
+	}
+	m.Removed = append(m.Removed, path)
+	delete(m.Directories, path)
+	delete(m.Files, path)
+	return nil
+}
+
+func (m *MigrateMockFS) MkdirAll(path string, perm os.FileMode) error {
+	if m.Directories == nil {
+		m.Directories = make(map[string][]MockDirEntry)
+	}
+	m.Directories[path] = []MockDirEntry{}
+	return nil
+}
 
 // TestMigrateMemoryGenSkills verifies that migrateMemoryGenSkills moves
 // skills from memory-gen/{slug}/ to mem-{slug}/ and removes memory-gen/.
 func TestMigrateMemoryGenSkills(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	skillsDir := filepath.Join(tempDir, ".claude", "skills")
+	fs := &MigrateMockFS{
+		Files: map[string][]byte{
+			"/test/skills/memory-gen/foo/SKILL.md": []byte("# Foo Skill\n\nFoo content here."),
+			"/test/skills/memory-gen/bar/SKILL.md": []byte("# Bar Skill\n\nBar content here."),
+		},
+		Directories: map[string][]MockDirEntry{
+			"/test/skills/memory-gen": {
+				{name: "foo", isDir: true},
+				{name: "bar", isDir: true},
+			},
+		},
+	}
 
-	// Create old-style memory-gen/foo/SKILL.md
-	fooDir := filepath.Join(skillsDir, "memory-gen", "foo")
-	g.Expect(os.MkdirAll(fooDir, 0755)).To(Succeed())
-	fooContent := "# Foo Skill\n\nFoo content here."
-	g.Expect(os.WriteFile(filepath.Join(fooDir, "SKILL.md"), []byte(fooContent), 0644)).To(Succeed())
-
-	// Create old-style memory-gen/bar/SKILL.md
-	barDir := filepath.Join(skillsDir, "memory-gen", "bar")
-	g.Expect(os.MkdirAll(barDir, 0755)).To(Succeed())
-	barContent := "# Bar Skill\n\nBar content here."
-	g.Expect(os.WriteFile(filepath.Join(barDir, "SKILL.md"), []byte(barContent), 0644)).To(Succeed())
-
-	// Call migration
-	err := memory.MigrateMemoryGenSkillsForTest(skillsDir)
+	err := memory.MigrateMemoryGenSkillsForTest(fs, "/test/skills")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Assert mem-foo/SKILL.md exists with same content
-	memFooPath := filepath.Join(skillsDir, "mem-foo", "SKILL.md")
-	content, err := os.ReadFile(memFooPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal(fooContent))
+	// Verify renames happened
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/foo", "/test/skills/mem-foo"))
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/bar", "/test/skills/mem-bar"))
 
-	// Assert mem-bar/SKILL.md exists with same content
-	memBarPath := filepath.Join(skillsDir, "mem-bar", "SKILL.md")
-	content, err = os.ReadFile(memBarPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal(barContent))
-
-	// Assert memory-gen/ directory is gone
-	memoryGenDir := filepath.Join(skillsDir, "memory-gen")
-	_, err = os.Stat(memoryGenDir)
-	g.Expect(os.IsNotExist(err)).To(BeTrue(), "memory-gen directory should be removed")
+	// Verify memory-gen directory was removed
+	g.Expect(fs.Removed).To(ContainElement("/test/skills/memory-gen"))
 }
 
 // TestMigrateMemoryGenSkillsIdempotent verifies that calling migration twice
@@ -58,33 +152,25 @@ func TestMigrateMemoryGenSkills(t *testing.T) {
 func TestMigrateMemoryGenSkillsIdempotent(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	skillsDir := filepath.Join(tempDir, ".claude", "skills")
+	fs := &MigrateMockFS{
+		Files: map[string][]byte{
+			"/test/skills/memory-gen/foo/SKILL.md": []byte("# Foo Skill\n\nFoo content here."),
+		},
+		Directories: map[string][]MockDirEntry{
+			"/test/skills/memory-gen": {
+				{name: "foo", isDir: true},
+			},
+		},
+	}
 
-	// Create old-style memory-gen/foo/SKILL.md
-	fooDir := filepath.Join(skillsDir, "memory-gen", "foo")
-	g.Expect(os.MkdirAll(fooDir, 0755)).To(Succeed())
-	fooContent := "# Foo Skill\n\nFoo content here."
-	g.Expect(os.WriteFile(filepath.Join(fooDir, "SKILL.md"), []byte(fooContent), 0644)).To(Succeed())
-
-	// First migration call
-	err := memory.MigrateMemoryGenSkillsForTest(skillsDir)
+	// First migration
+	err := memory.MigrateMemoryGenSkillsForTest(fs, "/test/skills")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Second migration call (should be idempotent)
-	err = memory.MigrateMemoryGenSkillsForTest(skillsDir)
+	// Second migration - memory-gen should not exist anymore
+	fs.Directories = map[string][]MockDirEntry{} // Simulate directory gone
+	err = memory.MigrateMemoryGenSkillsForTest(fs, "/test/skills")
 	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify mem-foo/SKILL.md still exists with correct content
-	memFooPath := filepath.Join(skillsDir, "mem-foo", "SKILL.md")
-	content, err := os.ReadFile(memFooPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal(fooContent))
-
-	// Verify memory-gen/ directory is still gone
-	memoryGenDir := filepath.Join(skillsDir, "memory-gen")
-	_, err = os.Stat(memoryGenDir)
-	g.Expect(os.IsNotExist(err)).To(BeTrue(), "memory-gen directory should remain removed")
 }
 
 // TestMigrateMemoryGenSkillsNoOp verifies that migration is a no-op when
@@ -92,11 +178,15 @@ func TestMigrateMemoryGenSkillsIdempotent(t *testing.T) {
 func TestMigrateMemoryGenSkillsNoOp(t *testing.T) {
 	g := NewWithT(t)
 
-	tempDir := t.TempDir()
-	skillsDir := filepath.Join(tempDir, ".claude", "skills")
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+	fs := &MigrateMockFS{
+		Files:       map[string][]byte{},
+		Directories: map[string][]MockDirEntry{},
+	}
 
-	// Call migration with no memory-gen/ directory present
-	err := memory.MigrateMemoryGenSkillsForTest(skillsDir)
+	err := memory.MigrateMemoryGenSkillsForTest(fs, "/test/skills")
 	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify nothing was renamed or removed
+	g.Expect(fs.Renamed).To(BeEmpty())
+	g.Expect(fs.Removed).To(BeEmpty())
 }

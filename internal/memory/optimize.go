@@ -1007,9 +1007,9 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 }
 
 // migrateMemoryGenSkills migrates skills from legacy memory-gen/ to mem-{slug}/ structure.
-func migrateMemoryGenSkills(skillsDir string) error {
+func migrateMemoryGenSkills(fs FileSystem, skillsDir string) error {
 	memGenDir := filepath.Join(skillsDir, "memory-gen")
-	entries, err := os.ReadDir(memGenDir)
+	entries, err := fs.ReadDir(memGenDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil // No memory-gen dir, nothing to migrate
@@ -1025,17 +1025,17 @@ func migrateMemoryGenSkills(skillsDir string) error {
 		newPath := filepath.Join(skillsDir, "mem-"+entry.Name())
 
 		// Skip if destination already exists
-		if _, err := os.Stat(newPath); err == nil {
+		if _, err := fs.Stat(newPath); err == nil {
 			continue
 		}
 
-		if err := os.Rename(oldPath, newPath); err != nil {
+		if err := fs.Rename(oldPath, newPath); err != nil {
 			return fmt.Errorf("failed to migrate skill %s: %w", entry.Name(), err)
 		}
 	}
 
 	// Remove empty memory-gen directory
-	_ = os.Remove(memGenDir)
+	_ = fs.Remove(memGenDir)
 	return nil
 }
 
@@ -1052,7 +1052,7 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	}
 
 	// Migrate legacy memory-gen/ skills to mem-{slug}/ structure
-	if err := migrateMemoryGenSkills(opts.SkillsDir); err != nil {
+	if err := migrateMemoryGenSkills(RealFS{}, opts.SkillsDir); err != nil {
 		return fmt.Errorf("failed to migrate memory-gen skills: %w", err)
 	}
 
