@@ -63,6 +63,7 @@ type OptimizeResult struct {
 	SkillsPromoted        int // TASK-3: Skills promoted from memory to CLAUDE.md
 	SkillsSplit           int // TASK-10: Skills split due to incoherence
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
+	UnenrichedPurged      int // ISSUE-210: Number of unenriched entries purged from database
 }
 
 // Optimize runs the unified memory optimization pipeline.
@@ -198,6 +199,11 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	// Step 10: Promote (interactive)
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
+	}
+
+	// Step 10.5: Purge unenriched non-promoted entries (ISSUE-210)
+	if err := optimizePurgeUnenriched(db, opts, result); err != nil {
+		return nil, fmt.Errorf("unenriched purge failed: %w", err)
 	}
 
 	// Step 11: Deduplicate CLAUDE.md
@@ -495,10 +501,11 @@ func optimizePurgeBoilerplate(db *sql.DB, opts OptimizeOpts, result *OptimizeRes
 // Learn() stores content with timestamp prefix: "- 2026-02-10 15:04: message" or "- 2026-02-10 15:04: [project] message"
 // Old createEmbeddings() stored raw session lines WITHOUT timestamp prefix.
 // Heuristic: non-promoted entries where content does NOT match Learn() timestamp format AND has empty observation_type and memory_type.
+// ISSUE-210: Preserve entries with retrieval_count > 0 (they're being actively used, not legacy).
 func optimizePurgeLegacySessionEmbeddings(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
 	// Query non-promoted entries with empty observation_type and memory_type
 	rows, err := db.Query(`
-		SELECT id, embedding_id, content
+		SELECT id, embedding_id, content, retrieval_count
 		FROM embeddings
 		WHERE promoted = 0
 		  AND observation_type = ''
@@ -510,15 +517,16 @@ func optimizePurgeLegacySessionEmbeddings(db *sql.DB, opts OptimizeOpts, result 
 	}
 
 	type purgeEntry struct {
-		id          int64
-		embeddingID int64
-		content     string
+		id             int64
+		embeddingID    int64
+		content        string
+		retrievalCount int
 	}
 	var candidates []purgeEntry
 	for rows.Next() {
 		var e purgeEntry
 		var embID sql.NullInt64
-		if err := rows.Scan(&e.id, &embID, &e.content); err != nil {
+		if err := rows.Scan(&e.id, &embID, &e.content, &e.retrievalCount); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -529,10 +537,14 @@ func optimizePurgeLegacySessionEmbeddings(db *sql.DB, opts OptimizeOpts, result 
 	}
 	_ = rows.Close()
 
-	// Filter: keep entries whose content matches Learn() timestamp format
+	// Filter: keep entries whose content matches Learn() timestamp format OR have retrieval_count > 0
 	// Remaining entries are legacy session embeddings
 	var toPurge []purgeEntry
 	for _, e := range candidates {
+		// Skip entries with retrieval_count > 0 (they're being used, not legacy)
+		if e.retrievalCount > 0 {
+			continue
+		}
 		// Check if content starts with Learn() timestamp format: "- YYYY-MM-DD HH:MM:"
 		// Use simple string matching instead of regex for performance
 		if !hasLearnTimestampPrefix(e.content) {
@@ -588,6 +600,92 @@ func hasLearnTimestampPrefix(content string) bool {
 		}
 	}
 	return true
+}
+
+// optimizePurgeUnenriched removes unenriched non-promoted entries from the database (ISSUE-210).
+// Unenriched entries are raw observations without LLM enrichment (principle = '').
+// Promoted entries are preserved even if unenriched (they were promoted before the enrichment gate).
+// Entries that meet promotion thresholds are preserved (they're candidates awaiting enrichment, not junk).
+// ISSUE-210: Learn() entries with timestamp prefix are preserved (they're fresh entries awaiting enrichment).
+func optimizePurgeUnenriched(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
+	// Query unenriched non-promoted entries
+	rows, err := db.Query(`
+		SELECT id, embedding_id, content, retrieval_count, projects_retrieved
+		FROM embeddings
+		WHERE principle = ''
+		  AND promoted = 0
+	`)
+	if err != nil {
+		return err
+	}
+
+	type purgeEntry struct {
+		id          int64
+		embeddingID int64
+		content     string
+		meetsTresholds bool
+	}
+	var candidates []purgeEntry
+	for rows.Next() {
+		var e purgeEntry
+		var embID sql.NullInt64
+		var retrievalCount int
+		var projectsStr string
+		if err := rows.Scan(&e.id, &embID, &e.content, &retrievalCount, &projectsStr); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		if embID.Valid {
+			e.embeddingID = embID.Int64
+		}
+
+		// Check if entry meets promotion thresholds
+		meetsRetrievals := retrievalCount >= opts.MinRetrievals
+		uniqueProjects := 0
+		if projectsStr != "" {
+			projectMap := make(map[string]bool)
+			for _, p := range strings.Split(projectsStr, ",") {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					projectMap[p] = true
+				}
+			}
+			uniqueProjects = len(projectMap)
+		}
+		meetsProjects := uniqueProjects >= opts.MinProjects
+		e.meetsTresholds = meetsRetrievals && meetsProjects
+
+		candidates = append(candidates, e)
+	}
+	_ = rows.Close()
+
+	// Filter: only purge entries that DON'T meet promotion thresholds AND DON'T have Learn() timestamp prefix
+	// Preserve:
+	// 1. Entries that meet promotion thresholds (they're candidates awaiting enrichment)
+	// 2. Learn() entries with timestamp prefix (they're fresh entries that haven't been enriched yet)
+	var toPurge []purgeEntry
+	for _, e := range candidates {
+		if !e.meetsTresholds {
+			// Check if this is a Learn() entry with timestamp prefix
+			// Learn() entries should be preserved even if unenriched and low retrieval stats
+			if hasLearnTimestampPrefix(e.content) {
+				continue // Preserve Learn() entries
+			}
+			toPurge = append(toPurge, e)
+		}
+	}
+
+	// Delete unenriched entries and clean up vec/FTS5
+	for _, e := range toPurge {
+		_, _ = db.Exec("DELETE FROM embeddings WHERE id = ?", e.id)
+		if e.embeddingID > 0 {
+			_, _ = db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", e.embeddingID)
+		}
+		deleteFTS5(db, e.id)
+	}
+
+	result.UnenrichedPurged = len(toPurge)
+	return nil
 }
 
 // optimizeDedup merges entries with similarity > threshold.
@@ -744,10 +842,11 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 }
 
 // optimizePromote finds high-value memories for promotion to CLAUDE.md.
+// ISSUE-210: Only promote enriched entries (principle != '').
 func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
 	// Find candidates: high retrieval count, multiple projects, not yet promoted
 	query := `
-		SELECT id, content, retrieval_count, projects_retrieved
+		SELECT id, content, principle, retrieval_count, projects_retrieved
 		FROM embeddings
 		WHERE retrieval_count >= ?
 		  AND promoted = 0
@@ -760,6 +859,7 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 	type candidate struct {
 		id             int64
 		content        string
+		principle      string
 		retrievalCount int
 		uniqueProjects int
 	}
@@ -768,7 +868,7 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 	for rows.Next() {
 		var c candidate
 		var projectsStr string
-		if err := rows.Scan(&c.id, &c.content, &c.retrievalCount, &projectsStr); err != nil {
+		if err := rows.Scan(&c.id, &c.content, &c.principle, &c.retrievalCount, &projectsStr); err != nil {
 			_ = rows.Close()
 			return err
 		}
@@ -793,11 +893,20 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 
 	result.PromotionCandidates = len(candidates)
 
+	// Collect approved principles to batch append to CLAUDE.md
+	var approvedPrinciples []string
+	var approvedIDs []int64
+
 	for _, c := range candidates {
+		// ISSUE-210: Skip unenriched entries (principle = '')
+		if c.principle == "" {
+			continue
+		}
+
 		approved := opts.AutoApprove
 		if !approved && opts.ReviewFunc != nil {
 			var err error
-			desc := fmt.Sprintf("[%d retrievals, %d projects] %s", c.retrievalCount, c.uniqueProjects, c.content)
+			desc := fmt.Sprintf("[%d retrievals, %d projects] %s", c.retrievalCount, c.uniqueProjects, c.principle)
 			approved, err = opts.ReviewFunc("promote", desc)
 			if err != nil {
 				return err
@@ -805,23 +914,24 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 		}
 
 		if approved {
-			result.PromotionsApproved++
-
-			// Set promoted flag in DB
-			now := time.Now().Format(time.RFC3339)
-			_, _ = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ? WHERE id = ?", now, c.id)
-
-			// Extract message content for CLAUDE.md
-			msg := extractMessageContent(c.content)
-			if msg == "" {
-				msg = c.content
-			}
-
-			// Append to CLAUDE.md
-			if err := appendToClaudeMD(opts.ClaudeMDPath, []string{msg}); err != nil {
-				return fmt.Errorf("failed to append to CLAUDE.md: %w", err)
-			}
+			approvedPrinciples = append(approvedPrinciples, c.principle)
+			approvedIDs = append(approvedIDs, c.id)
 		}
+	}
+
+	// Batch update DB and append to CLAUDE.md
+	if len(approvedPrinciples) > 0 {
+		now := time.Now().Format(time.RFC3339)
+		for _, id := range approvedIDs {
+			_, _ = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ? WHERE id = ?", now, id)
+		}
+
+		// Append all approved principles to CLAUDE.md at once
+		if err := appendToClaudeMD(opts.ClaudeMDPath, approvedPrinciples); err != nil {
+			return fmt.Errorf("failed to append to CLAUDE.md: %w", err)
+		}
+
+		result.PromotionsApproved = len(approvedPrinciples)
 	}
 
 	return nil

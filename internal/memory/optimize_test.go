@@ -36,6 +36,14 @@ func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
 		MemoryRoot: memoryRoot,
 	})).To(Succeed())
 
+	// ISSUE-210: Set high retrieval stats to prevent purging during optimize
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	_, err = db.Exec("UPDATE embeddings SET retrieval_count = 10, projects_retrieved = 'p1,p2,p3' WHERE content LIKE '%double decay%'")
+	g.Expect(err).ToNot(HaveOccurred())
+	_ = db.Close()
+
 	// First optimize
 	r1, err := memory.Optimize(memory.OptimizeOpts{
 		MemoryRoot:   memoryRoot,
@@ -76,11 +84,12 @@ func TestOptimizeAutoDemote(t *testing.T) {
 	})).To(Succeed())
 
 	// Mark as promoted in DB and set low confidence
+	// ISSUE-210: Set high retrieval stats to prevent purging after auto-demotion
 	dbPath := filepath.Join(memoryRoot, "embeddings.db")
 	db, err := sql.Open("sqlite3", dbPath)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer func() { _ = db.Close() }()
-	_, err = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ?, confidence = 0.2 WHERE content LIKE '%old promoted learning%'",
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1, promoted_at = ?, confidence = 0.2, retrieval_count = 10, projects_retrieved = 'p1,p2,p3' WHERE content LIKE '%old promoted learning%'",
 		time.Now().Format(time.RFC3339))
 	g.Expect(err).ToNot(HaveOccurred())
 

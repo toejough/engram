@@ -6768,3 +6768,112 @@ From ISSUE-202 evaluation R-MED-2: When multiple one-line changes share the same
 **Created:** 2026-02-10
 
 From ISSUE-202 evaluation Q2: As the number of mem-* skills grows, should there be a cap on total generated skills to prevent ~/.claude/skills/ directory from becoming cluttered?
+
+---
+
+### ISSUE-207: Filter boilerplate lines from session summary embeddings
+
+**Priority:** High
+**Status:** done
+**Created:** 2026-02-10
+
+## Problem
+
+Session summary files are split line-by-line into individual embeddings during `memory query` ingestion (memory.go:468-484). This means structural/boilerplate lines like `# Session Summary`, `**Project:** projctl`, `**Date:** 2026-02-04` each become separate embedding entries.
+
+Since `# Session Summary` appears in EVERY session file, it matches many queries, accumulates massive retrieval counts (16000+) across all projects, and surfaces as a nonsensical promotion candidate during `memory optimize`.
+
+## Proposed Changes
+
+### 1. Filter boilerplate at ingestion (memory.go:468-484)
+Skip lines from session files that are:
+- Markdown headers (`# ...`)
+- Metadata lines (`**Project:**`, `**Date:**`)
+- Too short to be meaningful (< ~20 chars after stripping formatting)
+
+### 2. Retroactive DB cleanup in optimize pipeline
+Add an optimization step that purges existing boilerplate entries from the embeddings DB, so users don't need to manually rebuild their database.
+
+## Acceptance Criteria
+- [ ] Session file ingestion skips markdown headers, metadata lines, and very short lines
+- [ ] `memory optimize` includes a cleanup step that deletes existing boilerplate embeddings from DB
+- [ ] Existing tests continue to pass
+- [ ] New tests cover both the ingestion filter and the DB cleanup
+
+## Files Affected
+- `internal/memory/memory.go` (ingestion filter in Query function)
+- `internal/memory/optimize.go` (new cleanup step)
+- `internal/memory/memory_test.go` (ingestion filter tests)
+- `internal/memory/optimize_test.go` (cleanup step tests)
+
+---
+
+### ISSUE-208: Make Query() read-only: remove embedding creation side effect
+
+**Priority:** high
+**Status:** done
+**Created:** 2026-02-10
+
+## Problem
+
+Query() in internal/memory/memory.go has a write side effect: it reads session summary .md files from sessions/, splits them line-by-line, and calls createEmbeddings() to INSERT new rows into the embeddings DB. This was a pragmatic shortcut from the original keyword-based implementation (commit 07a6b14) that was never refactored when proper ingestion paths were added.
+
+This is wrong for several reasons:
+1. **Query should be read-only** — writes during reads violate separation of concerns
+2. **Low-fidelity embeddings** — createEmbeddings() stores raw lines with no ISSUE-188 enrichment (empty observation_type, concepts, principle, anti_pattern, rationale, enriched_content columns), while Learn() produces enriched entries
+3. **Dead code path** — SessionEnd() (which writes session .md files) is not wired to any hook; extract-session replaced it. The sessions/ directory is typically empty, making this code a no-op that adds complexity
+4. **Triple execution** — Query() runs on SessionStart, UserPromptSubmit, AND PreToolUse hooks, so every turn scans sessions/ three times
+5. **Source of ISSUE-207** — the boilerplate embedding problem existed because of this path
+
+## Scope
+
+### Remove from Query()
+- Remove session file reading (memory.go ~lines 507-526)
+- Remove `createEmbeddings()` call (line 529) — Query should only call `searchSimilar()`
+- Remove or simplify `NewEmbeddingsCreated` and `EmbeddingsCount` from QueryResults
+
+### Identify and purge Query-created embeddings
+- Query-created embeddings have: source="memory", source_type="internal", confidence=1.0, memory_type=NULL, AND all observation columns empty, AND content is raw text (no timestamp prefix like "- 2026-02-10 15:04:")
+- Add a purge step or one-time migration to clean these up
+
+### Deprecate or remove SessionEnd()
+- SessionEnd() writes sessions/*.md files but nothing calls it automatically
+- extract-session → Learn() is the proper ingestion path
+- Either remove SessionEnd entirely or mark deprecated
+
+### Simplify createEmbeddings()
+- With Query() no longer calling it, createEmbeddings() may be dead code
+- If nothing else uses it, remove it and its helpers (getExistingEmbeddings, etc.)
+
+### Update tests
+- ~50 tests depend on Query() ingesting session files before searching
+- These need to be refactored: Learn() the content first, then Query() to search
+- 1 test checks NewEmbeddingsCreated, 3 check EmbeddingsCount — update or remove
+
+## Acceptance Criteria
+- [ ] Query() performs no INSERTs into embeddings or vec_embeddings tables
+- [ ] Existing Query-created low-fidelity embeddings are purged from DB
+- [ ] SessionEnd() removed or deprecated with clear comment
+- [ ] createEmbeddings() removed if no longer called
+- [ ] All existing tests pass (refactored to use Learn() for setup)
+- [ ] Full test suite green, go vet clean
+
+---
+
+### ISSUE-209: Reduce test suite runtime for internal/memory
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-10
+
+The full test suite for internal/memory takes too long to run, slowing down QA validation cycles during development. Investigate which tests are slowest (likely ONNX model loading per test), and optimize with shared fixtures, test parallelism, or model caching.
+
+---
+
+### ISSUE-210: Add enrichment gate to promotion pipeline and purge unenriched entries
+
+**Priority:** High
+**Status:** done
+**Created:** 2026-02-10
+
+optimizePromote() promotes entries based purely on retrieval count + project count thresholds, with no check for LLM enrichment. 35 unenriched entries exist - raw observations from Learn() where LLM extractor was unavailable. Raw observations like 'Success ISSUE-170: TDD cycle executed cleanly' get promoted instead of synthesized principles. Fix: (1) require principle \!= '' in promotion query or synthesize before promoting, (2) retroactively enrich or purge 35 existing unenriched entries.
