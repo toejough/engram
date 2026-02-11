@@ -14,7 +14,7 @@ type traceRepairArgs struct {
 }
 
 func traceRepair(args traceRepairArgs) error {
-	result, err := trace.Repair(args.Dir)
+	result, err := trace.Repair(args.Dir, trace.RealFS{})
 	if err != nil {
 		return err
 	}
@@ -65,9 +65,9 @@ func traceValidateArtifacts(args traceValidateArtifactsArgs) error {
 	var err error
 
 	if args.Phase != "" {
-		result, err = trace.ValidateV2Artifacts(args.Dir, args.Phase)
+		result, err = trace.ValidateV2Artifacts(args.Dir, trace.RealFS{}, args.Phase)
 	} else {
-		result, err = trace.ValidateV2Artifacts(args.Dir)
+		result, err = trace.ValidateV2Artifacts(args.Dir, trace.RealFS{})
 	}
 	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
@@ -123,7 +123,7 @@ func traceShow(args traceShowArgs) error {
 		format = "ascii"
 	}
 
-	output, err := trace.Show(args.Dir, format)
+	output, err := trace.Show(args.Dir, format, trace.RealFS{})
 	if err != nil {
 		return err
 	}

@@ -33,6 +33,49 @@ func (r *realConfigFS) FileExists(path string) bool {
 	return err == nil
 }
 
+// FileSystem provides file system operations for trace operations.
+type FileSystem interface {
+	ReadFile(path string) ([]byte, error)
+	WriteFile(path string, data []byte, perm os.FileMode) error
+	Stat(path string) (os.FileInfo, error)
+	MkdirAll(path string, perm os.FileMode) error
+	Walk(root string, walkFn filepath.WalkFunc) error
+	Glob(pattern string) ([]string, error)
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// ReadFile reads a file from disk.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// WriteFile writes data to a file.
+func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+// Stat returns file information.
+func (RealFS) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
+// MkdirAll creates a directory path.
+func (RealFS) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+// Walk walks the file tree.
+func (RealFS) Walk(root string, walkFn filepath.WalkFunc) error {
+	return filepath.Walk(root, walkFn)
+}
+
+// Glob returns files matching a pattern.
+func (RealFS) Glob(pattern string) ([]string, error) {
+	return filepath.Glob(pattern)
+}
+
 // idPattern matches a traceability ID.
 var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+$`)
 
@@ -54,7 +97,7 @@ func ValidID(id string) bool {
 
 // Add adds traceability links from one ID to one or more target IDs.
 // Creates the file if it doesn't exist. Rejects duplicate links.
-func Add(dir, from string, to []string) error {
+func Add(dir, from string, to []string, fs FileSystem) error {
 	if !ValidID(from) {
 		return fmt.Errorf("invalid source ID: %s (must match ISSUE|REQ|DES|ARCH|TASK-N)", from)
 	}
@@ -74,7 +117,7 @@ func Add(dir, from string, to []string) error {
 		}
 	}
 
-	m, err := load(dir)
+	m, err := load(dir, fs)
 	if err != nil {
 		return err
 	}
@@ -110,7 +153,7 @@ func Add(dir, from string, to []string) error {
 		existing[t] = true
 	}
 
-	return save(dir, m)
+	return save(dir, m, fs)
 }
 
 // ValidateResult holds the results of a traceability validation.
@@ -129,7 +172,7 @@ type MissingLink struct {
 
 // Validate checks traceability coverage and consistency.
 // It reads artifact files to discover IDs and compares against the matrix.
-func Validate(dir string) (ValidateResult, error) {
+func Validate(dir string, fs FileSystem) (ValidateResult, error) {
 	// Load config to get artifact paths
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -141,7 +184,7 @@ func Validate(dir string) (ValidateResult, error) {
 		return ValidateResult{}, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	m, err := load(dir)
+	m, err := load(dir, fs)
 	if err != nil {
 		return ValidateResult{}, err
 	}
@@ -158,7 +201,7 @@ func Validate(dir string) (ValidateResult, error) {
 	}
 
 	// Scan artifact files for embedded IDs
-	artifactIDs, err := scanArtifacts(dir, cfg)
+	artifactIDs, err := scanArtifacts(dir, cfg, fs)
 	if err != nil {
 		return ValidateResult{}, err
 	}
@@ -233,12 +276,12 @@ type ImpactResult struct {
 // Impact performs forward or backward impact analysis.
 // Forward: given REQ-003, returns all DES, ARCH, TASK that trace from it.
 // Backward (reverse): given TASK-005, returns all upstream IDs.
-func Impact(dir, id string, reverse bool) (ImpactResult, error) {
+func Impact(dir, id string, reverse bool, fs FileSystem) (ImpactResult, error) {
 	if !ValidID(id) {
 		return ImpactResult{}, fmt.Errorf("invalid ID: %s", id)
 	}
 
-	m, err := load(dir)
+	m, err := load(dir, fs)
 	if err != nil {
 		return ImpactResult{}, err
 	}
@@ -310,7 +353,7 @@ func hasPrefix(targets []string, prefix string) bool {
 // scanArtifacts scans known artifact files for embedded traceability IDs.
 // Uses config to resolve artifact paths (typically docs/ subdirectory).
 // Note: Does NOT scan tests.md - TEST tracing is in source files.
-func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, error) {
+func scanArtifacts(dir string, cfg *config.ProjectConfig, fs FileSystem) (map[string]bool, error) {
 	ids := make(map[string]bool)
 
 	// Get artifact paths from config
@@ -328,7 +371,7 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig) (map[string]bool, erro
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -376,7 +419,7 @@ type idLocation struct {
 
 // Repair analyzes artifact files for traceability issues and auto-fixes when possible.
 // It renumbers duplicate IDs and creates escalations for dangling references.
-func Repair(dir string) (RepairResult, error) {
+func Repair(dir string, fs FileSystem) (RepairResult, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return RepairResult{}, fmt.Errorf("failed to get home directory: %w", err)
@@ -410,7 +453,7 @@ func Repair(dir string) (RepairResult, error) {
 	}
 
 	for _, pattern := range featurePatterns {
-		matches, err := filepath.Glob(pattern)
+		matches, err := fs.Glob(pattern)
 		if err == nil {
 			for _, match := range matches {
 				relPath, _ := filepath.Rel(dir, match)
@@ -427,7 +470,7 @@ func Repair(dir string) (RepairResult, error) {
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -493,14 +536,14 @@ func Repair(dir string) (RepairResult, error) {
 
 				// Update the file
 				path := filepath.Join(dir, loc.File)
-				content, err := os.ReadFile(path)
+				content, err := fs.ReadFile(path)
 				if err != nil {
 					continue
 				}
 
 				// Replace the ID in the file
 				newContent := strings.ReplaceAll(string(content), id, newID)
-				if err := os.WriteFile(path, []byte(newContent), 0644); err != nil {
+				if err := fs.WriteFile(path, []byte(newContent), 0644); err != nil {
 					continue
 				}
 
@@ -537,7 +580,7 @@ type TestTrace struct {
 //
 //	// traces: TARGET-NNN[, TARGET-NNN...]
 //	func TestFunctionName(t *testing.T) {
-func scanTestFiles(dir string) (map[string]TestTrace, error) {
+func scanTestFiles(dir string, fs FileSystem) (map[string]TestTrace, error) {
 	result := make(map[string]TestTrace)
 
 	// Pattern for TEST-NNN comment followed by traces comment
@@ -548,7 +591,7 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
 
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	err := fs.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors
 		}
@@ -568,7 +611,7 @@ func scanTestFiles(dir string) (map[string]TestTrace, error) {
 			return nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			return nil // Skip unreadable files
 		}
@@ -752,7 +795,7 @@ var validPhases = map[string]bool{
 //   - At architect-complete: ARCH allowed to be unlinked (TASK doesn't exist yet)
 //   - At breakdown_commit: TASK allowed to be unlinked (TEST doesn't exist yet)
 //   - Without phase or at later phases: full chain required (strictest)
-func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult, error) {
+func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2ArtifactsResult, error) {
 	// Validate and extract phase parameter
 	currentPhase := ""
 	if len(phase) > 0 {
@@ -796,7 +839,7 @@ func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult
 	}
 
 	for _, pattern := range featurePatterns {
-		matches, err := filepath.Glob(pattern)
+		matches, err := fs.Glob(pattern)
 		if err == nil {
 			for _, match := range matches {
 				relPath, _ := filepath.Rel(dir, match)
@@ -813,7 +856,7 @@ func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -845,7 +888,7 @@ func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult
 	}
 
 	// Scan test source files for TEST-NNN comments
-	testTraces, err := scanTestFiles(dir)
+	testTraces, err := scanTestFiles(dir, fs)
 	if err != nil {
 		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to scan test files: %w", err)
 	}
@@ -909,33 +952,37 @@ func ValidateV2Artifacts(dir string, phase ...string) (ValidateV2ArtifactsResult
 	return result, nil
 }
 
-func load(dir string) (Matrix, error) {
+func load(dir string, fs FileSystem) (Matrix, error) {
 	path := filepath.Join(dir, TraceFile)
 
 	var m Matrix
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := fs.Stat(path); os.IsNotExist(err) {
 		return Matrix{}, nil
 	}
 
-	if _, err := toml.DecodeFile(path, &m); err != nil {
+	data, err := fs.ReadFile(path)
+	if err != nil {
 		return Matrix{}, fmt.Errorf("failed to read traceability file: %w", err)
+	}
+
+	if err := toml.Unmarshal(data, &m); err != nil {
+		return Matrix{}, fmt.Errorf("failed to parse traceability file: %w", err)
 	}
 
 	return m, nil
 }
 
-func save(dir string, m Matrix) error {
+func save(dir string, m Matrix, fs FileSystem) error {
 	path := filepath.Join(dir, TraceFile)
 
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create traceability file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	if err := toml.NewEncoder(f).Encode(m); err != nil {
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
 		return fmt.Errorf("failed to encode traceability matrix: %w", err)
+	}
+
+	if err := fs.WriteFile(path, []byte(buf.String()), 0644); err != nil {
+		return fmt.Errorf("failed to write traceability file: %w", err)
 	}
 
 	return nil
@@ -962,19 +1009,19 @@ type ShowGraph struct {
 
 // Show returns a visualization of the traceability graph.
 // Format can be "ascii" for an ASCII tree or "json" for a JSON graph.
-func Show(dir, format string) (string, error) {
+func Show(dir, format string, fs FileSystem) (string, error) {
 	if format != "ascii" && format != "json" {
 		return "", fmt.Errorf("invalid format: %s (must be 'ascii' or 'json')", format)
 	}
 
 	// Use ValidateV2Artifacts to get orphan/unlinked status
-	result, err := ValidateV2Artifacts(dir)
+	result, err := ValidateV2Artifacts(dir, fs)
 	if err != nil {
 		return "", err
 	}
 
 	// Build graph from artifact files
-	graph, err := buildShowGraph(dir, result)
+	graph, err := buildShowGraph(dir, result, fs)
 	if err != nil {
 		return "", err
 	}
@@ -987,7 +1034,7 @@ func Show(dir, format string) (string, error) {
 }
 
 // buildShowGraph constructs the graph from artifact files.
-func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph, error) {
+func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSystem) (ShowGraph, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return ShowGraph{}, fmt.Errorf("failed to get home directory: %w", err)
@@ -1019,7 +1066,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph
 	}
 
 	for _, pattern := range featurePatterns {
-		matches, globErr := filepath.Glob(pattern)
+		matches, globErr := fs.Glob(pattern)
 		if globErr == nil {
 			for _, match := range matches {
 				relPath, _ := filepath.Rel(dir, match)
@@ -1036,7 +1083,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph
 	for _, relPath := range artifactPaths {
 		path := filepath.Join(dir, relPath)
 
-		data, err := os.ReadFile(path)
+		data, err := fs.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
@@ -1066,7 +1113,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult) (ShowGraph
 	}
 
 	// Also scan test files for TEST traces
-	testTraces, err := scanTestFiles(dir)
+	testTraces, err := scanTestFiles(dir, fs)
 	if err != nil {
 		return ShowGraph{}, fmt.Errorf("failed to scan test files: %w", err)
 	}

@@ -49,9 +49,9 @@ func (c *DefaultChecker) TraceValidationPasses(dir string, phase string) bool {
 	var err error
 
 	if phase != "" {
-		result, err = trace.ValidateV2Artifacts(dir, phase)
+		result, err = trace.ValidateV2Artifacts(dir, trace.RealFS{}, phase)
 	} else {
-		result, err = trace.ValidateV2Artifacts(dir)
+		result, err = trace.ValidateV2Artifacts(dir, trace.RealFS{})
 	}
 	if err != nil {
 		return false

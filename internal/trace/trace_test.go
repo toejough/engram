@@ -1,15 +1,113 @@
 package trace_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 	"github.com/toejough/projctl/internal/trace"
 	"pgregory.net/rapid"
 )
+
+// MockFS implements trace.FileSystem for testing.
+type MockFS struct {
+	Files map[string][]byte
+	Dirs  map[string]bool
+}
+
+type mockFileInfo struct {
+	name  string
+	size  int64
+	isDir bool
+}
+
+func (m mockFileInfo) Name() string       { return m.name }
+func (m mockFileInfo) Size() int64        { return m.size }
+func (m mockFileInfo) Mode() os.FileMode  { return 0o644 }
+func (m mockFileInfo) ModTime() time.Time { return time.Now() }
+func (m mockFileInfo) IsDir() bool        { return m.isDir }
+func (m mockFileInfo) Sys() interface{}   { return nil }
+
+func (m *MockFS) ReadFile(path string) ([]byte, error) {
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, os.ErrNotExist
+	}
+	return content, nil
+}
+
+func (m *MockFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	m.Files[path] = data
+	return nil
+}
+
+func (m *MockFS) Stat(path string) (os.FileInfo, error) {
+	if m.Dirs[path] {
+		return mockFileInfo{name: filepath.Base(path), isDir: true}, nil
+	}
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, os.ErrNotExist
+	}
+	return mockFileInfo{name: filepath.Base(path), size: int64(len(content))}, nil
+}
+
+func (m *MockFS) MkdirAll(path string, perm os.FileMode) error {
+	m.Dirs[path] = true
+	return nil
+}
+
+func (m *MockFS) Walk(root string, walkFn filepath.WalkFunc) error {
+	// Walk through all files and directories
+	visited := make(map[string]bool)
+
+	// First, walk directories
+	for dir := range m.Dirs {
+		if strings.HasPrefix(dir, root) && !visited[dir] {
+			visited[dir] = true
+			info := mockFileInfo{name: filepath.Base(dir), isDir: true}
+			if err := walkFn(dir, info, nil); err != nil {
+				if err == filepath.SkipDir {
+					continue
+				}
+				return err
+			}
+		}
+	}
+
+	// Then walk files
+	for path := range m.Files {
+		if strings.HasPrefix(path, root) && !visited[path] {
+			visited[path] = true
+			content := m.Files[path]
+			info := mockFileInfo{name: filepath.Base(path), size: int64(len(content))}
+			if err := walkFn(path, info, nil); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (m *MockFS) Glob(pattern string) ([]string, error) {
+	var matches []string
+	for path := range m.Files {
+		matched, err := filepath.Match(pattern, path)
+		if err != nil {
+			return nil, err
+		}
+		if matched {
+			matches = append(matches, path)
+		}
+	}
+	return matches, nil
+}
 
 func TestValidID(t *testing.T) {
 	t.Run("accepts valid IDs", func(t *testing.T) {
@@ -54,87 +152,96 @@ func padNumber(n int) string {
 func TestAdd(t *testing.T) {
 	t.Run("adds link to empty matrix", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001", "ARCH-001"})
+		err := trace.Add(dir, "REQ-001", []string{"DES-001", "ARCH-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// File should exist
-		_, err = os.Stat(filepath.Join(dir, trace.TraceFile))
+		_, err = fs.Stat(filepath.Join(dir, trace.TraceFile))
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
 	t.Run("appends to existing link", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001"})
+		err := trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = trace.Add(dir, "REQ-001", []string{"ARCH-001"})
+		err = trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
 	t.Run("rejects duplicate link", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001"})
+		err := trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = trace.Add(dir, "REQ-001", []string{"DES-001"})
+		err = trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("duplicate"))
 	})
 
 	t.Run("rejects invalid source ID", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "INVALID", []string{"DES-001"})
+		err := trace.Add(dir, "INVALID", []string{"DES-001"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("invalid source"))
 	})
 
 	t.Run("rejects invalid target ID", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"bad"})
+		err := trace.Add(dir, "REQ-001", []string{"bad"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("invalid target"))
 	})
 
 	t.Run("supports comma-separated targets", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-002", []string{"DES-001", "DES-002", "ARCH-001"})
+		err := trace.Add(dir, "REQ-002", []string{"DES-001", "DES-002", "ARCH-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
 	t.Run("accepts ISSUE linking to REQ", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"REQ-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
 	t.Run("rejects ISSUE linking to non-REQ", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"DES-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"DES-001"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
 
 	t.Run("rejects ISSUE linking to ARCH", func(t *testing.T) {
 		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"ARCH-001"})
+		err := trace.Add(dir, "ISSUE-1", []string{"ARCH-001"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
@@ -347,29 +454,23 @@ func TestImpact(t *testing.T) {
 	})
 }
 
-func writeArtifact(t *testing.T, dir, name, content string) {
+func writeArtifact(t *testing.T, fs *MockFS, dir, name, content string) {
 	t.Helper()
 
 	// Write to project root directory
-	err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
+	path := filepath.Join(dir, name)
+	fs.Files[path] = []byte(content)
 }
 
-func writeTestFile(t *testing.T, dir, pkg, name, content string) {
+func writeTestFile(t *testing.T, fs *MockFS, dir, pkg, name, content string) {
 	t.Helper()
 
 	// Write Go test file to specified package directory
 	pkgDir := filepath.Join(dir, pkg)
-	if err := os.MkdirAll(pkgDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	fs.Dirs[pkgDir] = true
 
-	err := os.WriteFile(filepath.Join(pkgDir, name), []byte(content), 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
+	path := filepath.Join(pkgDir, name)
+	fs.Files[path] = []byte(content)
 }
 
 // TEST-230 traces: TASK-003
