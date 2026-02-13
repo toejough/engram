@@ -7065,3 +7065,102 @@ This issue supersedes ISSUE-184 by providing a unified maintenance workflow.
 
 ---
 
+### ISSUE-213: Complete memory maintenance gaps: embeddings archive, CLAUDE.md decay, problem surfacing
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-11
+
+## Problem
+
+ISSUE-212 implemented 14/18 maintenance operations across all three tiers. Three operations were left incomplete due to design questions that have now been resolved:
+
+1. **Embeddings demotion (was N/A):** "Bottom tier has nowhere to go" — but entries *can* exit the system. Deletion without audit trail loses institutional knowledge.
+2. **CLAUDE.md decay (was N/A):** Promoted learnings can absolutely go stale, but there's no mechanism to detect or act on it. Hand-written principles are different from auto-promoted entries.
+3. **CLAUDE.md promotion (was N/A):** When a CLAUDE.md entry keeps being violated, the current system has no way to surface that as a problem requiring a new approach.
+
+The two stubbed split operations (embeddings, skills) remain deferred — they require topic detection/clustering that is a separate concern.
+
+## Proposed Solution
+
+### 1. Embeddings Demotion → Archive + Delete
+
+When an embedding is "demoted" (too low-value to keep in retrieval):
+- Append to `~/.claude/memory/archive.md` with timestamp and reason
+- Delete from embeddings.db
+
+Archive format:
+```markdown
+## 2026-02-11 — Pruned (low confidence)
+- "Try using rapid for property testing" (conf: 0.12, last retrieved: 2026-01-05)
+
+## 2026-02-11 — Archived (superseded)
+- "Use index.md for storage" (reason: replaced by embeddings.db in ISSUE-199)
+```
+
+The archive is append-only, never queried by retrieval, and exists solely as a human-readable audit trail.
+
+### 2. CLAUDE.md Decay — Staleness Detection for Promoted Entries
+
+Track promotion metadata in embeddings.db (new table or column):
+```sql
+CREATE TABLE IF NOT EXISTS promoted_tracking (
+    entry_hash TEXT PRIMARY KEY,
+    promoted_at TEXT,
+    source_cluster TEXT,
+    last_confirmed_session TEXT,
+    confirmation_count INTEGER DEFAULT 0
+);
+```
+
+**Staleness signals:**
+- **Age without reinforcement:** Promoted N sessions ago, source skill/embedding cluster not retrieved since. Pattern may no longer apply.
+- **Contradiction:** Newer memory contradicts the promoted entry. "Always use X" but recent memories say "X caused problems."
+- **Drift:** Entry references functions, tools, or patterns that no longer exist in the codebase.
+- **Violation without consequence:** Entry says "never do X" but recent sessions do X successfully without problems.
+
+**Decay action:** Propose demotion back to skills tier (not deletion — the knowledge may still have value in a narrower context).
+
+Only applies to entries in `## Promoted Learnings` section. Hand-written principles above that section are never candidates for decay.
+
+### 3. CLAUDE.md Problem Surfacing — Recurring Violation Detection
+
+When a CLAUDE.md entry exists but memories keep showing violations or workarounds, surface it as a problem with actionable options:
+
+```
+⚠ Recurring issue detected:
+  CLAUDE.md says: "No whitebox tests for unexported functions"
+  But 4 recent sessions created whitebox tests anyway.
+
+Options:
+  [1] Rewrite the rule (current wording isn't clear enough)
+  [2] Create an issue to address root cause
+  [3] Demote to skill (maybe not universal after all)
+  [4] Split into more specific actionable items
+  [5] Keep as-is (false positive)
+```
+
+**Detection:** During scan, cross-reference each CLAUDE.md entry against recent session memories. If memories contain phrases like "had to work around", "couldn't follow", or semantic contradiction (cosine similarity to negation), flag as a recurring violation.
+
+**Action:** Present multi-option menu (not just y/n). User selects approach, system applies it (rewrite requires user input, issue creation is automated, demote/split use existing machinery).
+
+## Acceptance Criteria
+
+- [ ] `optimize --review` proposes archival for low-value embeddings (archive.md + delete)
+- [ ] Archive file is append-only with timestamps and reasons
+- [ ] `promoted_tracking` table tracks promotion metadata for CLAUDE.md entries
+- [ ] Staleness detection identifies promoted entries with no recent reinforcement
+- [ ] Contradiction detection flags entries contradicted by recent memories
+- [ ] Recurring violation detection cross-references CLAUDE.md rules against session history
+- [ ] Multi-option menu presented for problem surfacing (rewrite/issue/demote/split/keep)
+- [ ] Only `## Promoted Learnings` entries are candidates for decay (hand-written principles excluded)
+
+## Related Issues
+
+- ISSUE-212: Parent issue (unified maintenance — implemented foundation)
+- ISSUE-184: CLAUDE.md maintenance (superseded by ISSUE-212)
+
+**Traces to:** Memory optimization, CLAUDE.md maintenance, skill lifecycle
+
+---
+
