@@ -666,5 +666,6 @@ func TestFormatMarkdownCompactBackwardCompatible(t *testing.T) {
 	})
 
 	g.Expect(output).To(ContainSubstring("## Recent Context from Memory"))
-	g.Expect(output).To(ContainSubstring("- "))
+	// ISSUE-214: Changed to numbered output format
+	g.Expect(output).To(ContainSubstring("1. "))
 }

@@ -135,7 +135,8 @@ func formatAsMarkdownCompact(results []QueryResult, maxTokens int) string {
 			break
 		}
 
-		sb.WriteString(fmt.Sprintf("- %s\n", entry))
+		// ISSUE-214: Use numbered output format
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, entry))
 
 		currentTokens += entryTokens
 	}
@@ -153,17 +154,24 @@ func formatAsMarkdownFull(results []QueryResult) string {
 
 	sb.WriteString("## Recent Context from Memory\n\n")
 
-	for _, result := range results {
+	for i, result := range results {
 		// Extract clean content
 		content := extractMessageContent(result.Content)
 		if content == "" {
 			content = strings.TrimPrefix(result.Content, "- ")
 		}
 
-		sb.WriteString(fmt.Sprintf("- %s\n", content))
+		// ISSUE-214: Use numbered output format
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, content))
 
 		// Metadata line
 		var meta []string
+
+		// ISSUE-214: Show ID in rich mode
+		if result.ID > 0 {
+			meta = append(meta, fmt.Sprintf("id=%d", result.ID))
+		}
+
 		meta = append(meta, fmt.Sprintf("%d%% confidence", int(result.Confidence*100)))
 
 		if result.MemoryType != "" {

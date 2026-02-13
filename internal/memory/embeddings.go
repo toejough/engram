@@ -166,6 +166,8 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN rationale TEXT NOT NULL DEFAULT ''",         // ISSUE-188: why the principle matters
 		"ALTER TABLE embeddings ADD COLUMN enriched_content TEXT NOT NULL DEFAULT ''",  // ISSUE-188: LLM-enriched content for embedding
 		"ALTER TABLE embeddings ADD COLUMN model_version TEXT NOT NULL DEFAULT ''",     // ISSUE-221: Track which embedding model was used
+		"ALTER TABLE embeddings ADD COLUMN flagged_for_review INTEGER NOT NULL DEFAULT 0",   // ISSUE-214: 1 if flagged for review
+		"ALTER TABLE embeddings ADD COLUMN flagged_for_rewrite INTEGER NOT NULL DEFAULT 0",  // ISSUE-214: 1 if flagged for rewrite
 		"ALTER TABLE generated_skills ADD COLUMN demoted_from_claude_md TEXT NOT NULL DEFAULT ''", // TASK-2: RFC3339 timestamp if demoted from CLAUDE.md
 		"ALTER TABLE generated_skills ADD COLUMN claude_md_promoted INTEGER NOT NULL DEFAULT 0",   // TASK-3: 1 if promoted to CLAUDE.md
 		"ALTER TABLE generated_skills ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''",             // TASK-3: RFC3339 timestamp of promotion
@@ -178,6 +180,15 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 
 	// ISSUE-184: Create metadata table for key-value storage (e.g., last_optimized_at)
 	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)`)
+
+	// ISSUE-214: Create feedback table
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS feedback (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		embedding_id INTEGER NOT NULL,
+		feedback_type TEXT NOT NULL,
+		created_at TEXT NOT NULL,
+		FOREIGN KEY (embedding_id) REFERENCES embeddings(id)
+	)`)
 
 	return db, nil
 }
@@ -371,8 +382,9 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 	}
 
 	// ISSUE-188: join back to embeddings to get retrieval_count and projects_retrieved
+	// ISSUE-214: also fetch e.id for feedback
 	rows, err := db.Query(
-		`SELECT f.content, f.rank, COALESCE(e.memory_type, ''),
+		`SELECT COALESCE(e.id, 0), f.content, f.rank, COALESCE(e.memory_type, ''),
 		        COALESCE(e.retrieval_count, 0), COALESCE(e.projects_retrieved, '')
 		 FROM embeddings_fts f
 		 LEFT JOIN embeddings e ON e.id = f.rowid
@@ -387,12 +399,13 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 
 	var results []QueryResult
 	for rows.Next() {
+		var id int64
 		var content string
 		var rank float64
 		var memoryType string
 		var retrievalCount int
 		var projectsRaw string
-		if err := rows.Scan(&content, &rank, &memoryType, &retrievalCount, &projectsRaw); err != nil {
+		if err := rows.Scan(&id, &content, &rank, &memoryType, &retrievalCount, &projectsRaw); err != nil {
 			continue
 		}
 		// FTS5 rank is negative (lower = better match). Normalize to positive score.
@@ -401,6 +414,7 @@ func searchBM25(db *sql.DB, queryText string, limit int) ([]QueryResult, error) 
 			score = 0
 		}
 		results = append(results, QueryResult{
+			ID:                id,
 			Content:           content,
 			Score:             score,
 			Source:            "memory",
@@ -924,8 +938,9 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	// Use sqlite-vec's distance function for similarity search
 	// Weight by confidence for TASK-43
 	// ISSUE-188: also fetch retrieval_count and projects_retrieved
+	// ISSUE-214: also fetch e.id for feedback
 	query := `
-		SELECT e.content, e.source, e.source_type, e.confidence, e.memory_type,
+		SELECT e.id, e.content, e.source, e.source_type, e.confidence, e.memory_type,
 		       e.retrieval_count, e.projects_retrieved,
 		       (1 - vec_distance_cosine(v.embedding, ?)) * e.confidence as score
 		FROM vec_embeddings v
@@ -949,7 +964,7 @@ func searchSimilar(db *sql.DB, queryEmbedding []float32, limit int) ([]QueryResu
 	for rows.Next() {
 		var r QueryResult
 		var projectsRaw string
-		if err := rows.Scan(&r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.MemoryType,
+		if err := rows.Scan(&r.ID, &r.Content, &r.Source, &r.SourceType, &r.Confidence, &r.MemoryType,
 			&r.RetrievalCount, &projectsRaw, &r.Score); err != nil {
 			return nil, err
 		}
@@ -1186,6 +1201,36 @@ func learnToEmbeddings(opts LearnOpts) error {
 			enrichedContent = fmt.Sprintf("[%s] %s - Context: %s", obs.Type, obs.Principle, obs.Rationale)
 		}
 		// On failure (including ErrLLMUnavailable): fall through with empty strings
+	}
+
+	// ISSUE-216: Write-time validation after LLM enrichment but before DB insert
+	if opts.Extractor != nil {
+		// Validate metadata when LLM was used
+		var validationErrors []string
+
+		// enriched_content non-empty OR observation_type non-empty
+		if enrichedContent == "" && observationType == "" {
+			validationErrors = append(validationErrors, "enriched_content and observation_type are both empty")
+		}
+
+		// concepts has at least one entry
+		if conceptsCSV == "" {
+			validationErrors = append(validationErrors, "concepts is empty")
+		}
+
+		// confidence in [0.0, 1.0] (already validated by sourceType logic, but double-check)
+		if confidence < 0.0 || confidence > 1.0 {
+			validationErrors = append(validationErrors, fmt.Sprintf("confidence out of range: %f", confidence))
+		}
+
+		if len(validationErrors) > 0 {
+			return fmt.Errorf("LLM enrichment validation failed: %s", strings.Join(validationErrors, "; "))
+		}
+	} else {
+		// No extractor = --no-llm mode: warn but allow
+		if enrichedContent == "" && observationType == "" && conceptsCSV == "" {
+			fmt.Fprintf(os.Stderr, "Warning: learning stored without LLM enrichment (use --extractor for better quality)\n")
+		}
 	}
 
 	// Determine embedding text: use enriched content when available for better embeddings

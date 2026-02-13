@@ -36,10 +36,16 @@ type hookEntry struct {
 func InstallHooks(opts InstallHooksOpts) error {
 	// Define the hooks to install (new format: { hooks: [...] })
 	stopHook := hookEntry{
-		Hooks: []hookCommand{{
-			Type:    "command",
-			Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
-		}},
+		Hooks: []hookCommand{
+			{
+				Type:    "command",
+				Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+			},
+			{
+				Type:    "command",
+				Command: "projctl memory hooks check-claudemd --max-lines=260",
+			},
+		},
 	}
 
 	preCompactHook := hookEntry{
@@ -67,6 +73,21 @@ func InstallHooks(opts InstallHooksOpts) error {
 		Hooks: []hookCommand{{
 			Type:    "command",
 			Command: "projctl memory query --stdin-tool --min-confidence=50 --max-tokens=1000 -n 5",
+		}},
+	}
+
+	postToolUseHook := hookEntry{
+		Matcher: "Bash",
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory hooks check-embedding",
+		}},
+	}
+
+	teammateIdleHook := hookEntry{
+		Hooks: []hookCommand{{
+			Type:    "command",
+			Command: "projctl memory hooks check-skill",
 		}},
 	}
 
@@ -100,6 +121,8 @@ func InstallHooks(opts InstallHooksOpts) error {
 	hooks["SessionStart"] = []hookEntry{sessionStartHook}
 	hooks["UserPromptSubmit"] = []hookEntry{userPromptSubmitHook}
 	hooks["PreToolUse"] = []hookEntry{preToolUseHook}
+	hooks["PostToolUse"] = []hookEntry{postToolUseHook}
+	hooks["TeammateIdle"] = []hookEntry{teammateIdleHook}
 
 	// Write updated settings
 	data, err = json.MarshalIndent(settings, "", "  ")

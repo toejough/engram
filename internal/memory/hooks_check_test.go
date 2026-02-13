@@ -1,0 +1,467 @@
+package memory_test
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	. "github.com/onsi/gomega"
+	"github.com/toejough/projctl/internal/memory"
+)
+
+func TestCheckClaudeMDSize(t *testing.T) {
+	t.Run("returns nil when file under threshold", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		claudeMD := filepath.Join(dir, "CLAUDE.md")
+
+		// Create file with 50 lines
+		content := strings.Repeat("line\n", 50)
+		err := os.WriteFile(claudeMD, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns nil when file exactly at threshold", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		claudeMD := filepath.Join(dir, "CLAUDE.md")
+
+		// Create file with 100 lines
+		content := strings.Repeat("line\n", 100)
+		err := os.WriteFile(claudeMD, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns error when file exceeds threshold", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		claudeMD := filepath.Join(dir, "CLAUDE.md")
+
+		// Create file with 101 lines
+		content := strings.Repeat("line\n", 101)
+		err := os.WriteFile(claudeMD, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("CLAUDE.md exceeds"))
+		g.Expect(err.Error()).To(ContainSubstring("101"))
+		g.Expect(err.Error()).To(ContainSubstring("100"))
+	})
+
+	t.Run("returns error when file does not exist", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		claudeMD := filepath.Join(dir, "nonexistent.md")
+
+		err := memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).ToNot(BeNil())
+	})
+
+	t.Run("counts lines correctly with empty lines", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+		claudeMD := filepath.Join(dir, "CLAUDE.md")
+
+		// Create file with 50 non-empty and 50 empty lines
+		var lines []string
+		for i := 0; i < 50; i++ {
+			lines = append(lines, "content")
+			lines = append(lines, "")
+		}
+		content := strings.Join(lines, "\n") + "\n"
+		err := os.WriteFile(claudeMD, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).To(BeNil())
+
+		// Now add one more line to exceed
+		content = strings.Join(append(lines, "extra"), "\n") + "\n"
+		err = os.WriteFile(claudeMD, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
+			ClaudeMDPath: claudeMD,
+			MaxLines:     100,
+		})
+		g.Expect(err).ToNot(BeNil())
+	})
+}
+
+func TestCheckSkillContract(t *testing.T) {
+	t.Run("returns nil when no SKILL.md files exist", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		err := memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns nil when SKILL.md files are valid", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Create a valid SKILL.md
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		validContent := `---
+description: Test skill description
+---
+
+# Test Skill
+
+This is a valid skill file with proper frontmatter.
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(validContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		// Note: File just created has recent mtime, so it will be checked
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns error when SKILL.md missing frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		invalidContent := `# Test Skill
+
+No frontmatter here.
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(invalidContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("missing YAML frontmatter"))
+	})
+
+	t.Run("returns error when SKILL.md missing description field", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		invalidContent := `---
+other_field: value
+---
+
+# Test Skill
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(invalidContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("missing description"))
+	})
+
+	t.Run("returns error when SKILL.md contains TODO", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		invalidContent := `---
+description: Test skill
+---
+
+# Test Skill
+
+TODO: Finish this section
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(invalidContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("contains TODO"))
+	})
+
+	t.Run("returns error when SKILL.md contains FIXME", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		invalidContent := `---
+description: Test skill
+---
+
+# Test Skill
+
+FIXME: Fix this bug
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(invalidContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("contains FIXME"))
+	})
+
+	t.Run("warns when token count exceeds 2500", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		// Create a large content (approximate 2500+ tokens = ~10000+ characters)
+		largeContent := "---\ndescription: Test skill\n---\n\n" + strings.Repeat("word ", 3000)
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(largeContent), 0644)
+		g.Expect(err).To(BeNil())
+
+		// This should not error, just warn (we'll check stderr in integration tests)
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		// No error expected for warning
+		g.Expect(err).To(BeNil())
+	})
+}
+
+func TestCheckEmbeddingMetadata(t *testing.T) {
+	t.Run("returns nil when hook JSON does not contain memory learn command", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		hookJSON := `{"tool_name": "Bash", "tool_input": {"command": "echo hello"}}`
+		stdin := strings.NewReader(hookJSON)
+
+		err := memory.CheckEmbeddingMetadata(memory.CheckEmbeddingMetaOpts{
+			MemoryRoot: dir,
+			Stdin:      stdin,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns error when most recent embedding has empty enriched_content and no observation_type", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Initialize DB and insert a learning with empty metadata
+		db, err := memory.InitDBForTest(dir)
+		g.Expect(err).To(BeNil())
+		defer db.Close()
+
+		// Insert an embedding with empty enriched_content and observation_type
+		_, err = db.Exec(`INSERT INTO embeddings (content, source, enriched_content, observation_type, concepts, confidence, embedding_id)
+			VALUES ('test', 'memory', '', '', '', 1.0, 1)`)
+		g.Expect(err).To(BeNil())
+
+		hookJSON := `{"tool_name": "Bash", "tool_input": {"command": "projctl memory learn test"}}`
+		stdin := strings.NewReader(hookJSON)
+
+		err = memory.CheckEmbeddingMetadata(memory.CheckEmbeddingMetaOpts{
+			MemoryRoot: dir,
+			Stdin:      stdin,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("enriched_content"))
+		g.Expect(err.Error()).To(ContainSubstring("observation_type"))
+	})
+
+	t.Run("returns error when most recent embedding has empty concepts", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		db, err := memory.InitDBForTest(dir)
+		g.Expect(err).To(BeNil())
+		defer db.Close()
+
+		_, err = db.Exec(`INSERT INTO embeddings (content, source, enriched_content, observation_type, concepts, confidence, embedding_id)
+			VALUES ('test', 'memory', 'enriched', 'pattern', '', 1.0, 1)`)
+		g.Expect(err).To(BeNil())
+
+		hookJSON := `{"tool_name": "Bash", "tool_input": {"command": "projctl memory learn test"}}`
+		stdin := strings.NewReader(hookJSON)
+
+		err = memory.CheckEmbeddingMetadata(memory.CheckEmbeddingMetaOpts{
+			MemoryRoot: dir,
+			Stdin:      stdin,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("concepts"))
+	})
+
+	t.Run("returns error when confidence out of range", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		db, err := memory.InitDBForTest(dir)
+		g.Expect(err).To(BeNil())
+		defer db.Close()
+
+		_, err = db.Exec(`INSERT INTO embeddings (content, source, enriched_content, observation_type, concepts, confidence, embedding_id)
+			VALUES ('test', 'memory', 'enriched', 'pattern', 'concept1,concept2', 1.5, 1)`)
+		g.Expect(err).To(BeNil())
+
+		hookJSON := `{"tool_name": "Bash", "tool_input": {"command": "projctl memory learn test"}}`
+		stdin := strings.NewReader(hookJSON)
+
+		err = memory.CheckEmbeddingMetadata(memory.CheckEmbeddingMetaOpts{
+			MemoryRoot: dir,
+			Stdin:      stdin,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("confidence"))
+	})
+
+	t.Run("returns nil when all metadata is valid", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		db, err := memory.InitDBForTest(dir)
+		g.Expect(err).To(BeNil())
+		defer db.Close()
+
+		_, err = db.Exec(`INSERT INTO embeddings (content, source, enriched_content, observation_type, concepts, confidence, embedding_id)
+			VALUES ('test', 'memory', 'enriched content', 'pattern', 'concept1,concept2', 0.85, 1)`)
+		g.Expect(err).To(BeNil())
+
+		hookJSON := `{"tool_name": "Bash", "tool_input": {"command": "projctl memory learn --message test"}}`
+		stdin := strings.NewReader(hookJSON)
+
+		err = memory.CheckEmbeddingMetadata(memory.CheckEmbeddingMetaOpts{
+			MemoryRoot: dir,
+			Stdin:      stdin,
+		})
+		g.Expect(err).To(BeNil())
+	})
+}
+
+func TestLearnWithValidation(t *testing.T) {
+	t.Run("rejects learning when LLM enrichment incomplete and extractor provided", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// Mock extractor that returns incomplete data
+		extractor := &mockExtractor{
+			extractResult: &memory.Observation{
+				Type:     "", // Empty
+				Concepts: []string{}, // Empty
+			},
+		}
+
+		err := memory.Learn(memory.LearnOpts{
+			Message:    "test learning",
+			MemoryRoot: dir,
+			Extractor:  extractor,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("validation failed"))
+	})
+
+	t.Run("allows learning when no extractor provided", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		// No extractor = --no-llm mode, should allow
+		err := memory.Learn(memory.LearnOpts{
+			Message:    "test learning",
+			MemoryRoot: dir,
+			Extractor:  nil,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("allows learning when LLM enrichment complete", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		extractor := &mockExtractor{
+			extractResult: &memory.Observation{
+				Type:     "pattern",
+				Concepts: []string{"concept1", "concept2"},
+			},
+		}
+
+		err := memory.Learn(memory.LearnOpts{
+			Message:    "test learning",
+			MemoryRoot: dir,
+			Extractor:  extractor,
+		})
+		g.Expect(err).To(BeNil())
+	})
+}
+
+// mockExtractor is a mock LLM extractor for testing
+type mockExtractor struct {
+	extractResult *memory.Observation
+	extractError  error
+}
+
+func (m *mockExtractor) Extract(ctx context.Context, message string) (*memory.Observation, error) {
+	return m.extractResult, m.extractError
+}
+
+func (m *mockExtractor) Decide(ctx context.Context, message string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
+	return &memory.IngestDecision{Action: memory.IngestAdd}, nil
+}
+
+func (m *mockExtractor) Curate(ctx context.Context, query string, candidates []memory.QueryResult) ([]memory.CuratedResult, error) {
+	// Mock implementation: just return empty list
+	return nil, nil
+}
+
+func (m *mockExtractor) Synthesize(ctx context.Context, memories []string) (string, error) {
+	// Mock implementation: just return empty string
+	return "", nil
+}
