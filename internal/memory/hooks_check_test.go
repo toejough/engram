@@ -133,7 +133,7 @@ func TestCheckSkillContract(t *testing.T) {
 		g.Expect(err).To(BeNil())
 
 		validContent := `---
-description: Test skill description
+description: Test skill description with enough characters to meet the minimum length requirement of 100 characters total for validation purposes.
 ---
 
 # Test Skill
@@ -209,7 +209,7 @@ other_field: value
 		g.Expect(err).To(BeNil())
 
 		invalidContent := `---
-description: Test skill
+description: Test skill with a description that is long enough to pass the minimum length validation requirement of 100 characters.
 ---
 
 # Test Skill
@@ -236,7 +236,7 @@ TODO: Finish this section
 		g.Expect(err).To(BeNil())
 
 		invalidContent := `---
-description: Test skill
+description: Test skill with a description that is long enough to pass the minimum length validation requirement of 100 characters.
 ---
 
 # Test Skill
@@ -263,7 +263,7 @@ FIXME: Fix this bug
 		g.Expect(err).To(BeNil())
 
 		// Create a large content (approximate 2500+ tokens = ~10000+ characters)
-		largeContent := "---\ndescription: Test skill\n---\n\n" + strings.Repeat("word ", 3000)
+		largeContent := "---\ndescription: Test skill with a description that is long enough to pass the minimum length validation requirement.\n---\n\n" + strings.Repeat("word ", 3000)
 		skillFile := filepath.Join(skillDir, "SKILL.md")
 		err = os.WriteFile(skillFile, []byte(largeContent), 0644)
 		g.Expect(err).To(BeNil())
@@ -273,6 +273,113 @@ FIXME: Fix this bug
 			SkillsDir: dir,
 		})
 		// No error expected for warning
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("returns error when description is too short (< 100 chars)", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		shortDesc := `---
+description: Short.
+---
+
+# Test Skill
+
+Body content here.
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(shortDesc), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("description too short"))
+	})
+
+	t.Run("returns error when description is exactly 99 chars", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		// Create exactly 99 char description
+		desc99 := strings.Repeat("x", 99)
+		content := `---
+description: ` + desc99 + `
+---
+
+# Test Skill
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).ToNot(BeNil())
+		g.Expect(err.Error()).To(ContainSubstring("description too short"))
+	})
+
+	t.Run("accepts description with exactly 100 chars", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		// Create exactly 100 char description
+		desc100 := strings.Repeat("x", 100)
+		content := `---
+description: ` + desc100 + `
+---
+
+# Test Skill
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(content), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
+		g.Expect(err).To(BeNil())
+	})
+
+	t.Run("accepts multiline description with structured sections", func(t *testing.T) {
+		g := NewWithT(t)
+		dir := t.TempDir()
+
+		skillDir := filepath.Join(dir, "test-skill")
+		err := os.MkdirAll(skillDir, 0755)
+		g.Expect(err).To(BeNil())
+
+		structuredDesc := `---
+description: |
+  Core: Produces tests for acceptance criteria following TDD red phase.
+  Triggers: write tests, tdd red, failing tests.
+  Domains: testing, tdd, quality.
+---
+
+# Test Skill
+`
+		skillFile := filepath.Join(skillDir, "SKILL.md")
+		err = os.WriteFile(skillFile, []byte(structuredDesc), 0644)
+		g.Expect(err).To(BeNil())
+
+		err = memory.CheckSkillContract(memory.CheckSkillContractOpts{
+			SkillsDir: dir,
+		})
 		g.Expect(err).To(BeNil())
 	})
 }

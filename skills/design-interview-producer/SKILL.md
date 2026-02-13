@@ -1,6 +1,11 @@
 ---
 name: design-interview-producer
-description: Gathers design decisions via user interview and produces design.md with DES-N IDs
+description: |
+  Core: Gathers user experience and interaction design decisions through structured interview and produces design.md with DES-N IDs.
+  Triggers: gather design decisions, design interview, define user experience, UX planning, interaction design.
+  Domains: design, user-experience, ux, interaction-design, workflows, traceability.
+  Anti-patterns: NOT for technical architecture (that's Arch), NOT for implementation details, NOT for problem discovery (that's PM).
+  Related: design-infer-producer (infers design from code), pm-interview-producer (previous phase), arch-interview-producer (follows design).
 context: inherit
 model: opus
 skills: ownership-rules

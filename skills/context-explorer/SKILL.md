@@ -1,6 +1,11 @@
 ---
 name: context-explorer
-description: Gathers context from multiple query sources, returns aggregated results
+description: |
+  Core: Executes context queries (file reads, memory searches, semantic exploration) and returns aggregated results to requesting producer.
+  Triggers: gather context, execute queries, fetch context, explore codebase, semantic search.
+  Domains: context-gathering, information-retrieval, semantic-search, codebase-exploration, query-execution.
+  Anti-patterns: NOT for production work, NOT for validation, only gathers and returns context per producer requests.
+  Related: all producer skills (services context requests), project (orchestrates context flow).
 context: inherit
 model: sonnet
 skills: ownership-rules

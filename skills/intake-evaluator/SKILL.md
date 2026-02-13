@@ -1,6 +1,11 @@
 ---
 name: intake-evaluator
-description: Classifies user requests into workflow types (new, align, scoped, quick-fix)
+description: |
+  Core: Analyzes user requests and classifies them into appropriate workflow types: new, align, scoped, or quick-fix.
+  Triggers: classify request, determine workflow, evaluate task scope, route request, workflow selection.
+  Domains: intake, classification, workflow-routing, scope-assessment, tier-selection.
+  Anti-patterns: NOT for implementation, NOT for planning details, only classifies and routes to appropriate workflow.
+  Related: project (receives classification to select workflow), plan-producer (executes after classification).
 context: inherit
 model: haiku
 user-invocable: true

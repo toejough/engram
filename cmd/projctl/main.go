@@ -98,6 +98,7 @@ func main() {
 				targ.Targ(memoryHooksCheckClaudeMD).Name("check-claudemd").Description("Check CLAUDE.md size (Stop hook)"),
 				targ.Targ(memoryHooksCheckSkill).Name("check-skill").Description("Check SKILL.md contract (TeammateIdle hook)"),
 				targ.Targ(memoryHooksCheckEmbedding).Name("check-embedding").Description("Check embedding metadata (PostToolUse hook)"),
+				targ.Targ(memoryHooksStats).Name("stats").Description("Show hook execution statistics"),
 			),
 		),
 		targ.Group("id",

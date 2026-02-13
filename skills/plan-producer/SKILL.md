@@ -1,6 +1,11 @@
 ---
 name: plan-producer
-description: Produces structured project plan from issue context
+description: |
+  Core: Creates structured project plan documenting problem definition, approach, tasks, risks, and open questions from issue context.
+  Triggers: create project plan, plan the work, write project plan, start planning phase, define approach.
+  Domains: planning, project-management, architecture-planning, risk-assessment, task-identification.
+  Anti-patterns: NOT for implementation details, NOT for writing code, NOT for creating detailed task breakdowns (that's breakdown-producer).
+  Related: breakdown-producer (follows plan-producer), pm-interview-producer, arch-interview-producer, design-interview-producer.
 context: inherit
 model: opus
 user-invocable: true

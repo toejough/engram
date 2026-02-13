@@ -1,6 +1,11 @@
 ---
 name: arch-interview-producer
-description: Architecture interview producer gathering technology decisions via user interview
+description: |
+  Core: Gathers architecture and technology decisions through structured user interview and produces architecture.md with ARCH-N IDs.
+  Triggers: gather architecture decisions, architecture interview, define system design, tech stack decisions.
+  Domains: architecture, system-design, technology-stack, technical-decisions, traceability.
+  Anti-patterns: NOT for problem discovery (that's PM), NOT for UX design (that's Design), focuses only on technical decisions.
+  Related: arch-infer-producer (infers architecture from code), design-interview-producer (previous phase), breakdown-producer (follows arch phase).
 context: inherit
 model: opus
 skills: ownership-rules

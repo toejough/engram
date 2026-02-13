@@ -1,6 +1,11 @@
 ---
 name: alignment-producer
-description: Validates traceability chain across project artifacts
+description: |
+  Core: Validates end-to-end traceability chain from requirements through design, architecture, and tasks to ensure complete coverage.
+  Triggers: validate traceability, check alignment, verify coverage, validate REQ-DES-ARCH-TASK chain.
+  Domains: traceability, validation, alignment, coverage-analysis, quality-assurance.
+  Anti-patterns: NOT for creating artifacts, NOT for implementation, only validates existing traceability.
+  Related: doc-producer (precedes alignment), evaluation-producer (follows alignment), qa (general quality validation).
 context: inherit
 model: sonnet
 skills: ownership-rules

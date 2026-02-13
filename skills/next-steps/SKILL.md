@@ -1,6 +1,11 @@
 ---
 name: next-steps
-description: Suggest follow-up work based on completed project
+description: |
+  Core: Analyzes completed project state and suggests prioritized follow-up work based on open issues and remaining tasks.
+  Triggers: suggest next steps, recommend follow-up, prioritize remaining work, post-project planning.
+  Domains: project-planning, follow-up, prioritization, backlog-management, recommendations.
+  Anti-patterns: NOT for implementation, NOT for current project work, runs only after project completion.
+  Related: evaluation-producer (precedes next-steps), project (receives recommendations).
 context: inherit
 model: haiku
 skills: ownership-rules

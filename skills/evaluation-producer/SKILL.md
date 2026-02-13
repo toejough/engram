@@ -1,6 +1,11 @@
 ---
 name: evaluation-producer
-description: Produces combined retrospective and project summary
+description: |
+  Core: Produces combined evaluation.md capturing retrospective findings, key decisions, outcomes, and actionable recommendations after project completion.
+  Triggers: create retrospective, project evaluation, review project outcomes, summarize project learnings.
+  Domains: retrospective, evaluation, project-summary, learnings, process-improvement.
+  Anti-patterns: NOT for mid-project reviews, NOT for implementation work, runs only after project completion.
+  Related: alignment-producer (validates before evaluation), next-steps (suggests follow-up work).
 context: inherit
 model: sonnet
 user-invocable: true

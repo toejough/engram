@@ -98,6 +98,45 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 	return nil
 }
 
+// extractDescriptionFromFrontmatter extracts the description field value from YAML frontmatter.
+// Handles both single-line and multi-line (|) YAML format.
+func extractDescriptionFromFrontmatter(frontmatter string) string {
+	lines := strings.Split(frontmatter, "\n")
+	var inDescription bool
+	var description strings.Builder
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check if this line starts the description field
+		if strings.HasPrefix(trimmed, "description:") {
+			inDescription = true
+			// Check for single-line description
+			rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
+			if rest != "" && rest != "|" {
+				// Single-line description
+				return rest
+			}
+			// Multi-line description (|), continue to next lines
+			continue
+		}
+
+		// If in description, collect indented lines
+		if inDescription {
+			// Check if line is indented (part of multi-line value)
+			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				description.WriteString(strings.TrimSpace(line))
+				description.WriteString("\n")
+			} else if i > 0 && trimmed != "" {
+				// Non-indented line means end of multi-line value
+				break
+			}
+		}
+	}
+
+	return strings.TrimSpace(description.String())
+}
+
 // validateSkillFile validates a single SKILL.md file.
 func validateSkillFile(path string) error {
 	data, err := os.ReadFile(path)
@@ -124,6 +163,21 @@ func validateSkillFile(path string) error {
 	// Check for description field in frontmatter
 	if !strings.Contains(frontmatter, "description:") {
 		return fmt.Errorf("missing description field in frontmatter")
+	}
+
+	// Extract and validate description value
+	description := extractDescriptionFromFrontmatter(frontmatter)
+	if len(description) < 100 {
+		return fmt.Errorf("description too short: %d chars (minimum: 100)", len(description))
+	}
+
+	// Warn if description lacks structured sections
+	hasStructure := strings.Contains(description, "Core:") ||
+		strings.Contains(description, "Triggers:") ||
+		strings.Contains(description, "Domains:")
+	if !hasStructure {
+		fmt.Fprintf(os.Stderr, "Warning: %s description lacks structured sections (Core:, Triggers:, Domains:)\n",
+			filepath.Base(filepath.Dir(path)))
 	}
 
 	// Check for TODO/FIXME in entire file

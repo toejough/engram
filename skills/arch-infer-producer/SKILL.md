@@ -1,6 +1,11 @@
 ---
 name: arch-infer-producer
-description: Infer architecture decisions from existing code structure
+description: |
+  Core: Analyzes existing code structure to infer and document architecture decisions with ARCH-N IDs for codebase adoption.
+  Triggers: infer architecture, reverse-engineer architecture, analyze code structure, document existing architecture.
+  Domains: architecture-inference, code-analysis, reverse-engineering, system-design, traceability.
+  Anti-patterns: NOT for new architecture design, NOT for requirements inference (that's pm-infer-producer), NOT for design patterns (that's design-infer-producer).
+  Related: arch-interview-producer (interview variant), pm-infer-producer, design-infer-producer (parallel infer skills).
 context: inherit
 model: sonnet
 skills: ownership-rules

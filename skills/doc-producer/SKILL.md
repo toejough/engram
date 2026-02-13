@@ -1,6 +1,11 @@
 ---
 name: doc-producer
-description: Produce and update project documentation
+description: |
+  Core: Creates and updates project documentation including README, API docs, and user guides based on artifacts and implementation.
+  Triggers: create documentation, update docs, write README, generate API documentation, produce user guides.
+  Domains: documentation, readme, api-docs, user-guides, technical-writing.
+  Anti-patterns: NOT for code implementation, NOT for artifact creation (requirements/design/arch), focuses only on end-user documentation.
+  Related: alignment-producer (validates traceability), evaluation-producer (reviews documentation quality).
 context: inherit
 model: opus
 user-invocable: false

@@ -173,6 +173,7 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE generated_skills ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''",             // TASK-3: RFC3339 timestamp of promotion
 		"ALTER TABLE generated_skills ADD COLUMN merge_source_ids TEXT NOT NULL DEFAULT ''",        // TASK-10: JSON array of skill IDs that were merged into this one
 		"ALTER TABLE generated_skills ADD COLUMN split_from_id INTEGER NOT NULL DEFAULT 0",         // TASK-10: Parent skill ID if this skill was created from a split
+		"ALTER TABLE generated_skills ADD COLUMN feedback_propagated_at TEXT NOT NULL DEFAULT ''",  // ISSUE-224: RFC3339 timestamp when feedback was propagated
 	}
 	for _, stmt := range alterStatements {
 		_, _ = db.Exec(stmt) // Ignore "duplicate column" errors
@@ -188,6 +189,15 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		feedback_type TEXT NOT NULL,
 		created_at TEXT NOT NULL,
 		FOREIGN KEY (embedding_id) REFERENCES embeddings(id)
+	)`)
+
+	// ISSUE-224: Create hook_events table
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS hook_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		hook_name TEXT NOT NULL,
+		fired_at TEXT NOT NULL,
+		exit_code INTEGER NOT NULL DEFAULT 0,
+		duration_ms INTEGER NOT NULL DEFAULT 0
 	)`)
 
 	return db, nil
@@ -222,6 +232,12 @@ func setMetadata(db *sql.DB, key, value string) error {
 // The caller is responsible for closing the returned *sql.DB.
 func InitDBForTest(memoryRoot string) (*sql.DB, error) {
 	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	return initEmbeddingsDB(dbPath)
+}
+
+// InitEmbeddingsDBForTest is a test-accessible wrapper that initializes and returns the embeddings DB with a custom path.
+// Use ":memory:" for in-memory databases. The caller is responsible for closing the returned *sql.DB.
+func InitEmbeddingsDBForTest(dbPath string) (*sql.DB, error) {
 	return initEmbeddingsDB(dbPath)
 }
 
@@ -1418,3 +1434,23 @@ func updateRetrievalTracking(db *sql.DB, results []QueryResult, project string) 
 	return nil
 }
 
+// GetModelPath returns the path to the ONNX model file for testing.
+func GetModelPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+	modelDir := filepath.Join(homeDir, ".claude", "models")
+	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+	return modelPath, nil
+}
+
+// GenerateEmbeddingONNX is a test-accessible wrapper for generateEmbeddingONNX.
+func GenerateEmbeddingONNX(text string, modelPath string) ([]float32, bool, bool, error) {
+	return generateEmbeddingONNX(text, modelPath)
+}
+
+// InitializeONNXRuntimeForTest is a test-accessible wrapper for initializeONNXRuntime.
+func InitializeONNXRuntimeForTest(modelDir string) error {
+	return initializeONNXRuntime(modelDir)
+}

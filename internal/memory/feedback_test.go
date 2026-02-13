@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -382,4 +383,181 @@ func TestImplicitReAskDetection(t *testing.T) {
 	stats, err := memory.GetFeedbackStats(db, result1.Results[0].ID)
 	g.Expect(err).To(BeNil())
 	g.Expect(stats.WrongCount).To(BeNumerically(">", 0))
+}
+
+// TestPropagateEmbeddingFeedbackToSkills_NoFlaggedSources verifies no propagation when sources are not flagged
+func TestPropagateEmbeddingFeedbackToSkills_NoFlaggedSources(t *testing.T) {
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn some memories
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Test memory 1",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Test memory 2",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	// Query to get embedding IDs
+	result, err := memory.Query(memory.QueryOpts{
+		Text:       "Test memory",
+		Limit:      10,
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+	g.Expect(len(result.Results)).To(BeNumerically(">=", 2))
+
+	// Create a fake skill referencing these embeddings
+	sourceIDs := []int64{result.Results[0].ID, result.Results[1].ID}
+	sourceIDsJSON := `[` + fmt.Sprintf("%d,%d", sourceIDs[0], sourceIDs[1]) + `]`
+
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (slug, theme, description, content, source_memory_ids, alpha, beta, utility, created_at, updated_at, pruned)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "test-skill", "Test Theme", "Test description", "Test content", sourceIDsJSON, 1.0, 1.0, 0.5, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z", 0)
+	g.Expect(err).To(BeNil())
+
+	// Call PropagateEmbeddingFeedbackToSkills (no flagged sources)
+	affected, err := memory.PropagateEmbeddingFeedbackToSkills(db)
+	g.Expect(err).To(BeNil())
+	g.Expect(affected).To(Equal(0), "should not propagate when no sources are flagged")
+}
+
+// TestPropagateEmbeddingFeedbackToSkills_FlaggedSource verifies propagation when source is flagged
+func TestPropagateEmbeddingFeedbackToSkills_FlaggedSource(t *testing.T) {
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn some memories
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Test memory 1",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Test memory 2",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	// Query to get embedding IDs
+	result, err := memory.Query(memory.QueryOpts{
+		Text:       "Test memory",
+		Limit:      10,
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+	g.Expect(len(result.Results)).To(BeNumerically(">=", 2))
+
+	embID1 := result.Results[0].ID
+	embID2 := result.Results[1].ID
+
+	// Flag first embedding for review
+	err = memory.RecordFeedback(db, embID1, memory.FeedbackWrong)
+	g.Expect(err).To(BeNil())
+
+	// Create a skill referencing these embeddings
+	sourceIDsJSON := fmt.Sprintf(`[%d,%d]`, embID1, embID2)
+
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (slug, theme, description, content, source_memory_ids, alpha, beta, utility, created_at, updated_at, pruned)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "test-skill", "Test Theme", "Test description", "Test content", sourceIDsJSON, 1.0, 1.0, 0.5, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z", 0)
+	g.Expect(err).To(BeNil())
+
+	// Call PropagateEmbeddingFeedbackToSkills
+	affected, err := memory.PropagateEmbeddingFeedbackToSkills(db)
+	g.Expect(err).To(BeNil())
+	g.Expect(affected).To(Equal(1), "should propagate to 1 skill")
+
+	// Verify skill beta was incremented and utility recomputed
+	var beta, utility float64
+	var propagatedAt string
+	err = db.QueryRow(`SELECT beta, utility, feedback_propagated_at FROM generated_skills WHERE slug = ?`, "test-skill").Scan(&beta, &utility, &propagatedAt)
+	g.Expect(err).To(BeNil())
+	g.Expect(beta).To(Equal(2.0), "beta should be incremented by 1.0")
+	g.Expect(propagatedAt).ToNot(BeEmpty(), "feedback_propagated_at should be set")
+
+	// Utility should be recomputed (with beta=2, utility should be lower than initial 0.5)
+	g.Expect(utility).To(BeNumerically("<", 0.5), "utility should decrease when beta increases")
+}
+
+// TestPropagateEmbeddingFeedbackToSkills_AlreadyPropagated verifies no re-propagation when already propagated
+func TestPropagateEmbeddingFeedbackToSkills_AlreadyPropagated(t *testing.T) {
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn some memories
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Test memory 1",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	// Query to get embedding ID
+	result, err := memory.Query(memory.QueryOpts{
+		Text:       "Test memory",
+		Limit:      1,
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+	g.Expect(result.Results).To(HaveLen(1))
+
+	embID := result.Results[0].ID
+
+	// Flag embedding for review
+	err = memory.RecordFeedback(db, embID, memory.FeedbackWrong)
+	g.Expect(err).To(BeNil())
+
+	// Create a skill with feedback already propagated
+	sourceIDsJSON := fmt.Sprintf(`[%d]`, embID)
+	propagatedTimestamp := "2024-01-01T12:00:00Z"
+
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (slug, theme, description, content, source_memory_ids, alpha, beta, utility, created_at, updated_at, pruned, feedback_propagated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "test-skill", "Test Theme", "Test description", "Test content", sourceIDsJSON, 1.0, 2.0, 0.3, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z", 0, propagatedTimestamp)
+	g.Expect(err).To(BeNil())
+
+	// Call PropagateEmbeddingFeedbackToSkills
+	affected, err := memory.PropagateEmbeddingFeedbackToSkills(db)
+	g.Expect(err).To(BeNil())
+	g.Expect(affected).To(Equal(0), "should not re-propagate when already propagated")
+
+	// Verify beta hasn't changed
+	var beta float64
+	var propagatedAt string
+	err = db.QueryRow(`SELECT beta, feedback_propagated_at FROM generated_skills WHERE slug = ?`, "test-skill").Scan(&beta, &propagatedAt)
+	g.Expect(err).To(BeNil())
+	g.Expect(beta).To(Equal(2.0), "beta should remain unchanged")
+	g.Expect(propagatedAt).To(Equal(propagatedTimestamp), "propagation timestamp should remain unchanged")
 }

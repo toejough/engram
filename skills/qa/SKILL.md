@@ -1,6 +1,11 @@
 ---
 name: qa
-description: Universal QA skill that validates any producer against its SKILL.md contract
+description: |
+  Core: Validates any producer's output against contract specifications defined in its SKILL.md file.
+  Triggers: validate output, qa check, verify contract compliance, review producer work, check quality.
+  Domains: quality-assurance, validation, contract-checking, testing, compliance.
+  Anti-patterns: NOT for writing code, NOT for fixing issues directly, only validates and reports findings.
+  Related: all producer skills (validates their output), project (orchestrates QA phases).
 context: inherit
 model: haiku
 skills: ownership-rules

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 )
@@ -134,4 +135,100 @@ func ListFlaggedForRewrite(db *sql.DB) ([]FlaggedEntry, error) {
 	}
 
 	return entries, rows.Err()
+}
+
+// PropagateEmbeddingFeedbackToSkills propagates negative feedback from source embeddings to their derived skills.
+func PropagateEmbeddingFeedbackToSkills(db *sql.DB) (int, error) {
+	// Query all non-pruned skills with their source_memory_ids and feedback_propagated_at
+	query := `
+		SELECT id, source_memory_ids, feedback_propagated_at, alpha, beta, retrieval_count, last_retrieved
+		FROM generated_skills
+		WHERE pruned = 0
+	`
+	rows, err := db.Query(query)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query skills: %w", err)
+	}
+	defer rows.Close()
+
+	type skillRecord struct {
+		id                   int64
+		sourceMemoryIDs      string
+		feedbackPropagatedAt string
+		alpha                float64
+		beta                 float64
+		retrievalCount       int
+		lastRetrieved        sql.NullString
+	}
+
+	var skills []skillRecord
+	for rows.Next() {
+		var s skillRecord
+		if err := rows.Scan(&s.id, &s.sourceMemoryIDs, &s.feedbackPropagatedAt, &s.alpha, &s.beta, &s.retrievalCount, &s.lastRetrieved); err != nil {
+			continue
+		}
+		skills = append(skills, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("error iterating skills: %w", err)
+	}
+
+	affected := 0
+
+	for _, skill := range skills {
+		// Skip if already propagated
+		if skill.feedbackPropagatedAt != "" {
+			continue
+		}
+
+		// Parse source_memory_ids JSON array
+		var sourceIDs []int64
+		if err := json.Unmarshal([]byte(skill.sourceMemoryIDs), &sourceIDs); err != nil {
+			continue
+		}
+
+		if len(sourceIDs) == 0 {
+			continue
+		}
+
+		// Check if any source is flagged
+		hasFlaggedSource := false
+		for _, sourceID := range sourceIDs {
+			var flaggedForReview int
+			err := db.QueryRow("SELECT flagged_for_review FROM embeddings WHERE id = ?", sourceID).Scan(&flaggedForReview)
+			if err == nil && flaggedForReview == 1 {
+				hasFlaggedSource = true
+				break
+			}
+		}
+
+		if !hasFlaggedSource {
+			continue
+		}
+
+		// Increment beta by 1.0
+		newBeta := skill.beta + 1.0
+
+		// Recompute utility using computeUtility from optimize.go
+		newUtility := computeUtility(skill.alpha, newBeta, skill.retrievalCount, skill.lastRetrieved.String)
+
+		// Set feedback_propagated_at to current RFC3339 timestamp
+		now := time.Now().Format(time.RFC3339)
+
+		// Update skill
+		_, err = db.Exec(`
+			UPDATE generated_skills
+			SET beta = ?, utility = ?, feedback_propagated_at = ?
+			WHERE id = ?
+		`, newBeta, newUtility, now, skill.id)
+
+		if err != nil {
+			continue
+		}
+
+		affected++
+	}
+
+	return affected, nil
 }

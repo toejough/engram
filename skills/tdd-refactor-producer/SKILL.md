@@ -1,6 +1,11 @@
 ---
 name: tdd-refactor-producer
-description: Refactor implementation while keeping tests green (TDD refactor phase)
+description: |
+  Core: Improves code quality through refactoring while maintaining all passing tests (TDD refactor phase).
+  Triggers: refactor code, clean up implementation, tdd refactor phase, improve code quality, fix lint issues.
+  Domains: refactoring, code-quality, tdd, test-driven-development, linting, code-cleanup.
+  Anti-patterns: NOT for adding new features, NOT for changing test behavior, NOT for breaking existing tests.
+  Related: tdd-green-producer (previous phase), qa (validates refactor quality), commit (creates refactor commit).
 context: inherit
 model: sonnet
 skills: ownership-rules

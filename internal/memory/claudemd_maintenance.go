@@ -2,6 +2,7 @@ package memory
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -159,6 +160,122 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 				Reason: "stale (>90 days, no retrieval)",
 			}
 			proposals = append(proposals, proposal)
+		}
+	}
+
+	return proposals, nil
+}
+
+// ScanClaudeMDFeedback checks promoted learnings against feedback-flagged embeddings.
+// Returns "review" proposals for entries whose source embeddings have been flagged.
+func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposal, error) {
+	// Read CLAUDE.md
+	content, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
+	}
+
+	if len(content) == 0 {
+		return nil, nil
+	}
+
+	// Parse "Promoted Learnings" section
+	sections := ParseCLAUDEMD(string(content))
+	promoted, ok := sections["Promoted Learnings"]
+	if !ok || len(promoted) == 0 {
+		return nil, nil
+	}
+
+	// Parse learning entries
+	type learningEntry struct {
+		line    string
+		content string
+	}
+	var entries []learningEntry
+	for _, line := range promoted {
+		trimmed := strings.TrimSpace(line)
+		entry := strings.TrimPrefix(trimmed, "- ")
+		// Strip timestamp prefix if present
+		entry = stripTimestampPrefix(entry)
+		if entry != "" {
+			entries = append(entries, learningEntry{line: line, content: entry})
+		}
+	}
+
+	if len(entries) == 0 {
+		return nil, nil
+	}
+
+	// Query embeddings WHERE promoted = 1 AND (flagged_for_review = 1 OR flagged_for_rewrite = 1)
+	query := `
+		SELECT id, content, flagged_for_review, flagged_for_rewrite
+		FROM embeddings
+		WHERE promoted = 1
+		  AND (flagged_for_review = 1 OR flagged_for_rewrite = 1)
+	`
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query flagged embeddings: %w", err)
+	}
+	defer rows.Close()
+
+	type flaggedEmbedding struct {
+		id                int64
+		content           string
+		flaggedForReview  int
+		flaggedForRewrite int
+	}
+
+	var flaggedEmbeddings []flaggedEmbedding
+	for rows.Next() {
+		var e flaggedEmbedding
+		if err := rows.Scan(&e.id, &e.content, &e.flaggedForReview, &e.flaggedForRewrite); err != nil {
+			continue
+		}
+		flaggedEmbeddings = append(flaggedEmbeddings, e)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating flagged embeddings: %w", err)
+	}
+
+	if len(flaggedEmbeddings) == 0 {
+		return nil, nil
+	}
+
+	var proposals []MaintenanceProposal
+
+	// For each flagged embedding, check if its content appears in any promoted learning entry
+	for _, flagged := range flaggedEmbeddings {
+		// Extract the actual message content (strip timestamp prefix from flagged content)
+		flaggedContent := extractMessageContent(flagged.content)
+		if flaggedContent == "" {
+			flaggedContent = flagged.content
+		}
+
+		// Check if this content appears in any promoted learning
+		for _, entry := range entries {
+			if strings.Contains(entry.content, flaggedContent) || strings.Contains(flaggedContent, entry.content) {
+				// Determine feedback type
+				feedbackType := "wrong/unclear"
+				if flagged.flaggedForReview == 1 {
+					feedbackType = "wrong"
+				} else if flagged.flaggedForRewrite == 1 {
+					feedbackType = "unclear"
+				}
+
+				proposal := MaintenanceProposal{
+					Tier:   "claude-md",
+					Action: "review",
+					Target: entry.content,
+					Reason: fmt.Sprintf("source embedding flagged (%s feedback)", feedbackType),
+				}
+				proposals = append(proposals, proposal)
+				break // Only create one proposal per entry
+			}
 		}
 	}
 

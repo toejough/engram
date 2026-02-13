@@ -1,6 +1,11 @@
 ---
 name: commit
-description: Create a well-formatted git commit following project conventions
+description: |
+  Core: Stages specific files and creates conventional commits with AI-Used trailer and proper message formatting.
+  Triggers: commit my changes, create a commit, git commit, save my work, commit these files.
+  Domains: git, version-control, commits, conventional-commits, VCS.
+  Anti-patterns: NOT for pushing to remote, NOT for amending commits, NOT for destructive git operations like reset --hard.
+  Related: qa (often validates before commit).
 context: inherit
 model: haiku
 skills: ownership-rules

@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -521,4 +522,169 @@ func TestApplyClaudeMDProposal_ExtractExamples(t *testing.T) {
 	g.Expect(result).ToNot(ContainSubstring("`go test -tags sqlite_fts5 -count=1`"))
 	g.Expect(result).To(ContainSubstring("Use go test -tags sqlite_fts5 for all tests"))
 	g.Expect(result).To(ContainSubstring("Always validate inputs"))
+}
+
+// ============================================================================
+// Tests for ISSUE-224: Feedback-aware CLAUDE.md staleness
+// ============================================================================
+
+// TestScanClaudeMDFeedback_NoFlaggedEmbeddings verifies no proposals when no embeddings are flagged
+func TestScanClaudeMDFeedback_NoFlaggedEmbeddings(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn some memories and promote them
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Always use TDD approach",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB and promote the memory
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE content LIKE '%Always use TDD%'")
+	g.Expect(err).To(BeNil())
+
+	// Create CLAUDE.md with promoted learning
+	claudeMDPath := memoryRoot + "/CLAUDE.md"
+	err = os.WriteFile(claudeMDPath, []byte(`## Promoted Learnings
+
+- Always use TDD approach
+`), 0644)
+	g.Expect(err).To(BeNil())
+
+	// Call ScanClaudeMDFeedback (no flagged embeddings)
+	proposals, err := memory.ScanClaudeMDFeedback(db, claudeMDPath)
+	g.Expect(err).To(BeNil())
+	g.Expect(len(proposals)).To(Equal(0), "should return no proposals when no embeddings are flagged")
+}
+
+// TestScanClaudeMDFeedback_FlaggedMatchesPromoted verifies proposals when flagged embedding matches promoted learning
+func TestScanClaudeMDFeedback_FlaggedMatchesPromoted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn a memory
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Always use TDD approach",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	// Query to get embedding ID
+	result, err := memory.Query(memory.QueryOpts{
+		Text:       "TDD",
+		Limit:      1,
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+	g.Expect(result.Results).To(HaveLen(1))
+
+	embID := result.Results[0].ID
+
+	// Flag the embedding and mark as promoted
+	err = memory.RecordFeedback(db, embID, memory.FeedbackWrong)
+	g.Expect(err).To(BeNil())
+
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE id = ?", embID)
+	g.Expect(err).To(BeNil())
+
+	// Create CLAUDE.md with the promoted learning
+	claudeMDPath := memoryRoot + "/CLAUDE.md"
+	err = os.WriteFile(claudeMDPath, []byte(`## Promoted Learnings
+
+- Always use TDD approach
+`), 0644)
+	g.Expect(err).To(BeNil())
+
+	// Call ScanClaudeMDFeedback
+	proposals, err := memory.ScanClaudeMDFeedback(db, claudeMDPath)
+	g.Expect(err).To(BeNil())
+	g.Expect(len(proposals)).To(BeNumerically(">", 0), "should return at least one proposal")
+
+	// Verify proposal details
+	found := false
+	for _, p := range proposals {
+		if strings.Contains(p.Target, "Always use TDD") {
+			found = true
+			g.Expect(p.Tier).To(Equal("claude-md"))
+			g.Expect(p.Action).To(Equal("review"))
+			g.Expect(p.Reason).To(ContainSubstring("source embedding flagged"))
+			g.Expect(p.Reason).To(ContainSubstring("wrong"))
+		}
+	}
+	g.Expect(found).To(BeTrue(), "should find proposal for flagged TDD learning")
+}
+
+// TestScanClaudeMDFeedback_FlaggedNoMatch verifies no proposals when flagged embedding doesn't match promoted learnings
+func TestScanClaudeMDFeedback_FlaggedNoMatch(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memoryRoot := t.TempDir()
+
+	// Learn two different memories
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Always validate inputs",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Use property-based testing",
+		Project:    "testproject",
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+
+	// Get DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).To(BeNil())
+	defer db.Close()
+
+	// Query to get first embedding ID
+	result, err := memory.Query(memory.QueryOpts{
+		Text:       "validate",
+		Limit:      1,
+		MemoryRoot: memoryRoot,
+	})
+	g.Expect(err).To(BeNil())
+	g.Expect(result.Results).To(HaveLen(1))
+
+	embID := result.Results[0].ID
+
+	// Flag the first embedding and mark as promoted
+	err = memory.RecordFeedback(db, embID, memory.FeedbackUnclear)
+	g.Expect(err).To(BeNil())
+
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE id = ?", embID)
+	g.Expect(err).To(BeNil())
+
+	// Create CLAUDE.md with DIFFERENT learning (not matching flagged one)
+	claudeMDPath := memoryRoot + "/CLAUDE.md"
+	err = os.WriteFile(claudeMDPath, []byte(`## Promoted Learnings
+
+- Use property-based testing for edge cases
+`), 0644)
+	g.Expect(err).To(BeNil())
+
+	// Call ScanClaudeMDFeedback
+	proposals, err := memory.ScanClaudeMDFeedback(db, claudeMDPath)
+	g.Expect(err).To(BeNil())
+	g.Expect(len(proposals)).To(Equal(0), "should return no proposals when flagged embedding doesn't match CLAUDE.md entries")
 }

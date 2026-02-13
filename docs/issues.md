@@ -6019,8 +6019,9 @@ From retrospectives and session analysis (Feb 7-8, 2026):
 ### ISSUE-184: CLAUDE.md maintenance: interactive consolidation, synthesis output, and prune/decay support
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-09
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -6063,7 +6064,7 @@ ISSUE-177 and ISSUE-179 were implemented as report-only — they print proposals
 
 ### Comment
 
-LARGELY SUPERSEDED by optimize.go implementation. Gap 1 (interactive consolidate): DONE via optimizePromote() with ReviewFunc. Gap 2 (synthesis output): DONE via optimizeSynthesize() with generatePattern(). Gap 3 (CLAUDE.md in prune/decay): DONE via optimizeAutoDemote() and optimizeClaudeMDDedup(). The unified 'projctl memory optimize' command implements all requested functionality. Only gap: no standalone prune/decay commands for CLAUDE.md (but optimize pipeline includes it).
+LARGELY SUPERSEDED by optimize.go implementation. Gap 1 (interactive consolidate): DONE via optimizePromote() with ReviewFunc. Gap 2 (synthesis output): DONE via optimizeSynthesize() with generatePattern(). Gap 3 (CLAUDE.md in prune/decay): DONE via optimizeAutoDemote() and optimizeClaudeMDDedup(). The unified 'projctl memory optimize' command implements all requested functionality. Only gap: no standalone prune/decay commands for CLAUDE.md (but optimize pipeline includes it). Completed via commit 09ce99f.
 ### ISSUE-185: Implicit signal detection in extract-session and project-aware context-inject
 
 **Priority:** High
@@ -7333,8 +7334,9 @@ Implemented in 5ffabf9: added MinScore float64 to QueryOpts with filtering and l
 ### ISSUE-218: Content refinement operations — rewrite, merge-with-context, add-rationale
 
 **Priority:** High
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7365,6 +7367,10 @@ All operations use interactive review (user confirms before applying).
 See `.research-synthesis.md` Section 4.2 Priority 2 for full context.
 
 **Traces to:** Memory optimization, content quality
+
+### Comment
+
+Completed via commit 09ce99f. Content refinement operations implemented in optimize.go (LLM-assisted rewrite, merge-with-context, add-rationale) with interactive review workflow integration.
 
 ---
 

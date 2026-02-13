@@ -1,6 +1,11 @@
 ---
 name: tdd-red-infer-producer
-description: Infer needed tests from existing implementation code
+description: |
+  Core: Analyzes existing implementation code to infer and create needed failing tests for untested behavior (TDD red phase inference).
+  Triggers: infer tests, add test coverage, reverse-engineer tests, create tests for existing code.
+  Domains: test-inference, reverse-engineering, test-coverage, tdd, code-analysis.
+  Anti-patterns: NOT for writing new tests with AC (that's tdd-red-producer), NOT for implementation, only infers tests from existing code.
+  Related: tdd-red-producer (standard variant), tdd-green-producer (follows red phase), qa (validates test quality).
 context: inherit
 model: sonnet
 skills: ownership-rules

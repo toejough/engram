@@ -1,6 +1,11 @@
 ---
 name: breakdown-producer
-description: Decompose architecture into implementation tasks with dependency graph
+description: |
+  Core: Transforms architecture specifications into executable TDD tasks with TASK-N IDs and dependency graphs.
+  Triggers: break down architecture, create task list, decompose into tasks, generate implementation tasks.
+  Domains: task-decomposition, breakdown, dependency-analysis, work-planning, tdd-workflow.
+  Anti-patterns: NOT for high-level planning (that's plan-producer), NOT for implementation work, NOT for architecture design.
+  Related: plan-producer (provides input), arch-interview-producer (defines architecture), tdd-red-producer (executes tasks).
 context: inherit
 model: opus
 skills: ownership-rules

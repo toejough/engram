@@ -449,10 +449,7 @@ func applyPromote(db *sql.DB, skillsDir string, proposal MaintenanceProposal) er
 	slug := slugify(principle)
 	theme := principle
 	skillContent := generateSkillTemplate(theme, content)
-	description := theme
-	if len(description) > 200 {
-		description = description[:200]
-	}
+	description := ExtractSkillDescription(skillContent, 1500)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &GeneratedSkill{

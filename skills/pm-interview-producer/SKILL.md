@@ -1,6 +1,11 @@
 ---
 name: pm-interview-producer
-description: Gathers requirements via user interview, produces requirements.md with REQ-N IDs
+description: |
+  Core: Gathers product requirements through structured user interview and produces requirements.md with traceable REQ-N IDs.
+  Triggers: gather requirements, interview for requirements, create requirements document, pm interview, define requirements.
+  Domains: requirements-gathering, product-management, user-needs, problem-discovery, traceability.
+  Anti-patterns: NOT for design decisions, NOT for architecture choices, NOT for implementation planning, focuses only on problem discovery.
+  Related: pm-infer-producer (infers requirements from code), plan-producer (provides context), design-interview-producer (follows PM phase).
 context: inherit
 model: opus
 skills: ownership-rules

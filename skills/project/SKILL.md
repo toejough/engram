@@ -1,6 +1,11 @@
 ---
 name: project
-description: State-machine-driven project orchestrator (team lead)
+description: |
+  Core: State-machine-driven workflow orchestrator that coordinates teammates through project phases from planning to evaluation.
+  Triggers: /project, start new project, orchestrate workflow, run project workflow, manage project lifecycle.
+  Domains: orchestration, workflow, state-machine, team-coordination, project-management.
+  Anti-patterns: NOT for writing code directly, NOT for editing files, NOT for implementation work, delegates all substantive work to teammates.
+  Related: plan-producer, breakdown-producer, tdd-red-producer, tdd-green-producer, tdd-refactor-producer, evaluation-producer.
 model: haiku
 user-invocable: true
 ---

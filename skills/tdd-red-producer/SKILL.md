@@ -1,6 +1,11 @@
 ---
 name: tdd-red-producer
-description: Write failing tests for a task's acceptance criteria (TDD red phase)
+description: |
+  Core: Writes failing tests that specify expected behavior for task acceptance criteria before implementation (TDD red phase).
+  Triggers: write tests, tdd red phase, create failing tests, test-first development, add test coverage.
+  Domains: testing, tdd, test-driven-development, acceptance-criteria, quality-assurance.
+  Anti-patterns: NOT for writing passing tests, NOT for implementation code, NOT for refactoring existing tests.
+  Related: tdd-green-producer (next phase), tdd-red-infer-producer (infers tests from code), qa (validates test quality).
 context: inherit
 model: sonnet
 user-invocable: false

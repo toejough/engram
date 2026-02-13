@@ -1,6 +1,11 @@
 ---
 name: design-infer-producer
-description: Infer design decisions from existing UI/UX analysis
+description: |
+  Core: Analyzes existing UI/UX to infer and document design decisions with DES-N IDs for codebase adoption scenarios.
+  Triggers: infer design, reverse-engineer UX, analyze existing interface, document existing design patterns.
+  Domains: design-inference, ux-analysis, reverse-engineering, interaction-patterns, traceability.
+  Anti-patterns: NOT for new design work, NOT for requirements inference (that's pm-infer-producer), NOT for architecture analysis (that's arch-infer-producer).
+  Related: design-interview-producer (interview variant), pm-infer-producer, arch-infer-producer (parallel infer skills).
 context: inherit
 model: sonnet
 skills: ownership-rules

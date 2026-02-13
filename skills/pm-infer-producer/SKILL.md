@@ -1,6 +1,11 @@
 ---
 name: pm-infer-producer
-description: Infer requirements from existing codebase analysis
+description: |
+  Core: Analyzes existing codebase to infer and document requirements with REQ-N IDs for codebase adoption scenarios.
+  Triggers: infer requirements, analyze existing code for requirements, reverse-engineer requirements, codebase adoption.
+  Domains: requirements-inference, code-analysis, reverse-engineering, codebase-adoption, traceability.
+  Anti-patterns: NOT for new features, NOT for design inference (that's design-infer-producer), NOT for architecture analysis (that's arch-infer-producer).
+  Related: pm-interview-producer (interview variant), arch-infer-producer, design-infer-producer (parallel infer skills).
 context: inherit
 model: sonnet
 skills: ownership-rules

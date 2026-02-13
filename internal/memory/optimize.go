@@ -65,6 +65,7 @@ type OptimizeResult struct {
 	SkillsPromoted        int // TASK-3: Skills promoted from memory to CLAUDE.md
 	SkillsSplit           int // TASK-10: Skills split due to incoherence
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
+	FeedbackPropagated    int // ISSUE-224: Number of skills with propagated feedback
 }
 
 // MaintenanceProposal represents a proposed maintenance action for ISSUE-212.
@@ -1214,6 +1215,11 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	}
 
 	if len(entries) < minCluster {
+		// Propagate embedding feedback to skills before pruning
+		propagated, err := PropagateEmbeddingFeedbackToSkills(db)
+		if err == nil && propagated > 0 {
+			result.FeedbackPropagated = propagated
+		}
 		// Still prune stale skills even if nothing to compile
 		result.SkillsPruned = pruneStaleSkills(db, opts.SkillsDir, opts.AutoDemoteUtility)
 		return nil
@@ -1261,8 +1267,8 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 			continue
 		}
 
-		// Build description (first 200 chars of content, single line)
-		description := extractSkillDescription(content, 200)
+		// Build description (first 1500 chars of content, potentially multi-line)
+		description := ExtractSkillDescription(content, 1500)
 
 		// Build source memory IDs
 		sourceIDs := formatClusterSourceIDs(cluster)
@@ -1307,6 +1313,12 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 			_ = writeSkillFile(opts.SkillsDir, skill)
 			result.SkillsCompiled++
 		}
+	}
+
+	// Propagate embedding feedback to skills
+	propagated, err := PropagateEmbeddingFeedbackToSkills(db)
+	if err == nil && propagated > 0 {
+		result.FeedbackPropagated = propagated
 	}
 
 	// Prune stale skills with configurable threshold
@@ -1394,7 +1406,7 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 		}
 
 		// Build description
-		description := extractSkillDescription(content, 200)
+		description := ExtractSkillDescription(content, 1500)
 
 		// Build source memory IDs
 		sourceIDs := formatClusterSourceIDs(cluster)
@@ -1554,24 +1566,78 @@ func generateThemeFromCluster(cluster []ClusterEntry) string {
 	return strings.TrimSpace(content)
 }
 
-// extractSkillDescription creates a short description from skill content.
-func extractSkillDescription(content string, maxLen int) string {
-	// Take first non-empty, non-header line
+// ExtractSkillDescription creates a short description from skill content.
+// If content contains structured markers (Core:, Triggers:, Domains:, etc.),
+// extracts lines from first marker through last marker (up to maxLen).
+// Otherwise, collects multiple non-empty, non-header lines up to maxLen.
+func ExtractSkillDescription(content string, maxLen int) string {
 	lines := strings.Split(content, "\n")
+
+	// Check for structured markers
+	structuredMarkers := []string{"Core:", "Triggers:", "Domains:", "Anti-patterns:", "Related:"}
+	firstMarkerIdx := -1
+	lastMarkerIdx := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		for _, marker := range structuredMarkers {
+			if strings.HasPrefix(trimmed, marker) {
+				if firstMarkerIdx == -1 {
+					firstMarkerIdx = i
+				}
+				lastMarkerIdx = i
+				break
+			}
+		}
+	}
+
+	// If structured markers found, extract that section
+	if firstMarkerIdx != -1 {
+		var result strings.Builder
+		for i := firstMarkerIdx; i <= lastMarkerIdx && i < len(lines); i++ {
+			if result.Len() > 0 {
+				result.WriteString("\n")
+			}
+			result.WriteString(strings.TrimSpace(lines[i]))
+			if result.Len() >= maxLen {
+				break
+			}
+		}
+		extracted := result.String()
+		if len(extracted) > maxLen {
+			return extracted[:maxLen]
+		}
+		return extracted
+	}
+
+	// Otherwise, collect multiple non-empty, non-header lines up to maxLen
+	var result strings.Builder
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "---") {
 			continue
 		}
-		if len(trimmed) > maxLen {
-			return trimmed[:maxLen]
+		if result.Len() > 0 {
+			result.WriteString(" ")
 		}
-		return trimmed
+		result.WriteString(trimmed)
+		if result.Len() >= maxLen {
+			break
+		}
 	}
-	if len(content) > maxLen {
-		return content[:maxLen]
+
+	extracted := result.String()
+	if len(extracted) > maxLen {
+		return extracted[:maxLen]
 	}
-	return content
+	if extracted == "" && len(content) > 0 {
+		// Fallback: return first maxLen chars of content
+		if len(content) > maxLen {
+			return strings.TrimSpace(content[:maxLen])
+		}
+		return strings.TrimSpace(content)
+	}
+	return extracted
 }
 
 // formatClusterSourceIDs returns a JSON array of cluster member IDs.
@@ -2279,7 +2345,7 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 				continue
 			}
 
-			description := extractSkillDescription(content, 200)
+			description := ExtractSkillDescription(content, 1500)
 			sourceIDs := formatClusterSourceIDs(subcluster)
 
 			now := time.Now().UTC().Format(time.RFC3339)

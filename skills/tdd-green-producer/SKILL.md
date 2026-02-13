@@ -1,6 +1,11 @@
 ---
 name: tdd-green-producer
-description: Write minimal implementation to make tests pass (TDD green phase)
+description: |
+  Core: Writes minimal implementation code to make failing tests pass without refactoring or over-engineering (TDD green phase).
+  Triggers: implement the feature, make tests pass, tdd green phase, write implementation, fix failing tests.
+  Domains: implementation, tdd, test-driven-development, minimal-code, behavior-implementation.
+  Anti-patterns: NOT for refactoring code, NOT for adding new tests, NOT for over-engineering beyond minimal requirements.
+  Related: tdd-red-producer (previous phase), tdd-refactor-producer (next phase), qa (validates implementation quality).
 context: inherit
 model: sonnet
 skills: ownership-rules

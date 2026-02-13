@@ -34,6 +34,11 @@ type memoryHooksCheckEmbeddingArgs struct {
 	MemoryRoot string `targ:"flag,desc=Path to memory root directory (default: ~/.claude/memory)"`
 }
 
+// memoryHooksStatsArgs holds the command-line arguments for hooks stats.
+type memoryHooksStatsArgs struct {
+	MemoryRoot string `targ:"flag,desc=Path to memory root directory (default: ~/.claude/memory)"`
+}
+
 // memoryHooksInstall installs projctl memory hooks into Claude Code settings.json.
 func memoryHooksInstall(args memoryHooksInstallArgs) error {
 	// Determine settings path
@@ -177,6 +182,51 @@ func memoryHooksCheckEmbedding(args memoryHooksCheckEmbeddingArgs) error {
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 		os.Exit(2)
+	}
+
+	return nil
+}
+
+// memoryHooksStats displays hook execution statistics.
+func memoryHooksStats(args memoryHooksStatsArgs) error {
+	// Determine memory root
+	memoryRoot := args.MemoryRoot
+	if memoryRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		memoryRoot = filepath.Join(home, ".claude", "memory")
+	}
+
+	// Open DB
+	db, err := memory.InitDBForTest(memoryRoot)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
+
+	// Get hook stats
+	stats, err := memory.GetHookStats(db)
+	if err != nil {
+		return fmt.Errorf("failed to get hook stats: %w", err)
+	}
+
+	if len(stats) == 0 {
+		fmt.Println("No hook events recorded")
+		return nil
+	}
+
+	// Format as table
+	fmt.Printf("%-30s %10s %12s %15s %25s\n", "Hook Name", "Fire Count", "Success Rate", "Avg Duration", "Last Fired")
+	fmt.Println(string(make([]byte, 100, 100))) // Print separator line
+	for i := range stats {
+		fmt.Printf("%-30s %10d %11.1f%% %12dms %25s\n",
+			stats[i].HookName,
+			stats[i].FireCount,
+			stats[i].SuccessRate*100,
+			stats[i].AvgDuration,
+			stats[i].LastFired)
 	}
 
 	return nil
