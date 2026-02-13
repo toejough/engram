@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,7 +101,7 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 			sim := cosineSimilarity(embeddedEntries[i].embedding, embeddedEntries[j].embedding)
 			if sim > similarityThreshold {
 				// Consolidate: merge entries
-				merged := mergeEntries(embeddedEntries[i].content, embeddedEntries[j].content)
+				merged := mergeEntries(embeddedEntries[i].content, embeddedEntries[j].content, nil)
 				proposal := MaintenanceProposal{
 					Tier:    "claude-md",
 					Action:  "consolidate",
@@ -212,9 +213,19 @@ func stripTimestampPrefix(entry string) string {
 }
 
 // mergeEntries merges two similar entries into a consolidated version.
-func mergeEntries(entry1, entry2 string) string {
-	// Simple heuristic: use the longer entry as base, incorporate unique words from shorter
-	// For now, just pick the longer one (can enhance with LLM later)
+// If extractor is provided, uses LLM synthesis; otherwise uses simple heuristic (longer entry).
+func mergeEntries(entry1, entry2 string, extractor LLMExtractor) string {
+	// Try LLM synthesis if extractor is available
+	if extractor != nil {
+		ctx := context.Background()
+		merged, err := extractor.Synthesize(ctx, []string{entry1, entry2})
+		if err == nil && merged != "" {
+			return merged
+		}
+		// Fall through to heuristic if LLM fails
+	}
+
+	// Fallback heuristic: use the longer entry
 	if len(entry1) > len(entry2) {
 		return entry1
 	}

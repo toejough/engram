@@ -501,6 +501,12 @@ func GeneratePatternLLM(ctx context.Context, cluster []ClusterEntry, extractor L
 		return generatePattern(cluster)
 	}
 
+	// ISSUE-215: Validate synthesis actionability
+	if err := ValidateActionability(synthesis); err != nil {
+		fmt.Fprintf(os.Stderr, "LLM synthesis failed actionability validation (%v), using template fallback\n", err)
+		return generatePattern(cluster)
+	}
+
 	// Build examples from cluster
 	var examples []string
 	for _, e := range cluster {

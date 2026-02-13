@@ -14,6 +14,7 @@ type memoryLearnArgs struct {
 	Source     string `targ:"flag,short=s,desc=Source type: internal or external (default: internal)"`
 	Type       string `targ:"flag,short=t,desc=Memory type: correction or reflection (default: empty)"`
 	MemoryRoot string `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	NoLLM      bool   `targ:"flag,desc=Disable LLM-based knowledge extraction"`
 }
 
 func memoryLearn(args memoryLearnArgs) error {
@@ -32,6 +33,11 @@ func memoryLearn(args memoryLearnArgs) error {
 		Source:     args.Source,
 		Type:       args.Type,
 		MemoryRoot: memoryRoot,
+	}
+
+	// Wire LLM extractor (unless --no-llm is set)
+	if !args.NoLLM {
+		opts.Extractor = memory.NewClaudeCLIExtractor()
 	}
 
 	if err := memory.Learn(opts); err != nil {

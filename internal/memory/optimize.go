@@ -889,6 +889,44 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 
 	result.PromotionCandidates = len(candidates)
 
+	// Load existing Promoted Learnings from CLAUDE.md for non-redundancy check
+	var existingEmbeddings []struct {
+		content   string
+		embedding []float32
+	}
+
+	claudeContent, err := os.ReadFile(opts.ClaudeMDPath)
+	if err == nil {
+		sections := ParseCLAUDEMD(string(claudeContent))
+		if promoted, ok := sections["Promoted Learnings"]; ok {
+			// Initialize ONNX for embedding generation
+			homeDir, _ := os.UserHomeDir()
+			if homeDir != "" {
+				modelDir := filepath.Join(homeDir, ".claude", "models")
+				_ = os.MkdirAll(modelDir, 0755)
+				if initializeONNXRuntime(modelDir) == nil {
+					modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+					if _, err := os.Stat(modelPath); err == nil {
+						// Generate embeddings for existing learnings
+						for _, line := range promoted {
+							trimmed := strings.TrimSpace(line)
+							learning := strings.TrimPrefix(trimmed, "- ")
+							if learning != "" {
+								emb, _, _, err := generateEmbeddingONNX("passage: "+learning, modelPath)
+								if err == nil {
+									existingEmbeddings = append(existingEmbeddings, struct {
+										content   string
+										embedding []float32
+									}{content: learning, embedding: emb})
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// Collect approved principles to batch append to CLAUDE.md
 	var approvedPrinciples []string
 	var approvedIDs []int64
@@ -897,6 +935,32 @@ func optimizePromote(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) erro
 		// ISSUE-210: Skip unenriched entries (principle = '')
 		if c.principle == "" {
 			continue
+		}
+
+		// ISSUE-215: Non-redundancy check - skip if similar to existing Promoted Learning
+		if len(existingEmbeddings) > 0 {
+			homeDir, _ := os.UserHomeDir()
+			if homeDir != "" {
+				modelDir := filepath.Join(homeDir, ".claude", "models")
+				modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
+				if _, err := os.Stat(modelPath); err == nil {
+					candidateEmb, _, _, err := generateEmbeddingONNX("passage: "+c.principle, modelPath)
+					if err == nil {
+						// Check similarity against existing learnings
+						isDuplicate := false
+						for _, existing := range existingEmbeddings {
+							sim := cosineSimilarity(candidateEmb, existing.embedding)
+							if sim > 0.9 {
+								isDuplicate = true
+								break
+							}
+						}
+						if isDuplicate {
+							continue // Skip this candidate
+						}
+					}
+				}
+			}
 		}
 
 		approved := opts.AutoApprove

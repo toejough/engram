@@ -1218,6 +1218,13 @@ func learnToEmbeddings(opts LearnOpts) error {
 			validationErrors = append(validationErrors, "concepts is empty")
 		}
 
+		// ISSUE-215: Validate principle actionability
+		if principle != "" {
+			if err := ValidateActionability(principle); err != nil {
+				validationErrors = append(validationErrors, fmt.Sprintf("principle validation failed: %v", err))
+			}
+		}
+
 		// confidence in [0.0, 1.0] (already validated by sourceType logic, but double-check)
 		if confidence < 0.0 || confidence > 1.0 {
 			validationErrors = append(validationErrors, fmt.Sprintf("confidence out of range: %f", confidence))
