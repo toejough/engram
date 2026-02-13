@@ -46,7 +46,7 @@ func NewGraph() *Graph {
 // NodeFromItem creates a Node from a TraceItem.
 func NodeFromItem(item *TraceItem) *Node {
 	return &Node{
-		ID:       item.ID,
+		ID:       NormalizeID(item.ID),
 		Type:     item.Type,
 		Project:  item.Project,
 		Title:    item.Title,
@@ -63,8 +63,8 @@ func EdgesFromItem(item *TraceItem) []*Edge {
 	edges := make([]*Edge, 0, len(item.TracesTo))
 	for _, target := range item.TracesTo {
 		edges = append(edges, &Edge{
-			From: item.ID,
-			To:   target,
+			From: NormalizeID(item.ID),
+			To:   NormalizeID(target),
 		})
 	}
 	return edges
@@ -76,6 +76,9 @@ func (g *Graph) AddNode(n *Node) error {
 	if n == nil {
 		return fmt.Errorf("node is nil")
 	}
+
+	// Normalize ID
+	n.ID = NormalizeID(n.ID)
 
 	// Validate ID prefix matches Type
 	expectedPrefix := string(n.Type) + "-"
@@ -98,6 +101,10 @@ func (g *Graph) AddEdge(e *Edge) error {
 	if e == nil {
 		return fmt.Errorf("edge is nil")
 	}
+
+	// Normalize IDs
+	e.From = NormalizeID(e.From)
+	e.To = NormalizeID(e.To)
 
 	// Validate From node exists
 	if _, exists := g.Nodes[e.From]; !exists {
@@ -122,6 +129,7 @@ func (g *Graph) AddEdge(e *Edge) error {
 // Uses ReverseEdges to traverse upstream.
 // Returns error if source node doesn't exist.
 func (g *Graph) Upstream(nodeID string) ([]string, error) {
+	nodeID = NormalizeID(nodeID)
 	if _, exists := g.Nodes[nodeID]; !exists {
 		return nil, fmt.Errorf("node not found: %s", nodeID)
 	}
@@ -147,6 +155,7 @@ func (g *Graph) upstreamWalk(nodeID string, visited map[string]bool, result *[]s
 // Uses Edges to traverse downstream.
 // Returns error if source node doesn't exist.
 func (g *Graph) Downstream(nodeID string) ([]string, error) {
+	nodeID = NormalizeID(nodeID)
 	if _, exists := g.Nodes[nodeID]; !exists {
 		return nil, fmt.Errorf("node not found: %s", nodeID)
 	}

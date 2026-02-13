@@ -95,6 +95,21 @@ func ValidID(id string) bool {
 	return idPattern.MatchString(id)
 }
 
+// NormalizeID strips leading zeros from the numeric part of a trace ID.
+// e.g., REQ-013 → REQ-13, ARCH-060 → ARCH-60, TASK-001 → TASK-1
+func NormalizeID(id string) string {
+	parts := strings.SplitN(id, "-", 2)
+	if len(parts) != 2 {
+		return id
+	}
+	// Strip leading zeros but keep at least one digit
+	num := strings.TrimLeft(parts[1], "0")
+	if num == "" {
+		num = "0"
+	}
+	return parts[0] + "-" + num
+}
+
 // Add adds traceability links from one ID to one or more target IDs.
 // Creates the file if it doesn't exist. Rejects duplicate links.
 func Add(dir, from string, to []string, fs FileSystem) error {
@@ -382,7 +397,7 @@ func scanArtifacts(dir string, cfg *config.ProjectConfig, fs FileSystem) (map[st
 
 		matches := pattern.FindAllString(string(data), -1)
 		for _, m := range matches {
-			ids[m] = true
+			ids[NormalizeID(m)] = true
 		}
 	}
 
@@ -627,7 +642,7 @@ func scanTestFiles(dir string, fs FileSystem) (map[string]TestTrace, error) {
 		for lineNum, line := range lines {
 			// Check for TEST-NNN comment
 			if match := testIDPattern.FindStringSubmatch(line); match != nil {
-				currentTestID = match[1]
+				currentTestID = NormalizeID(match[1])
 				currentDesc = match[2]
 				testIDLine = lineNum + 1
 				currentTraces = nil
@@ -638,7 +653,11 @@ func scanTestFiles(dir string, fs FileSystem) (map[string]TestTrace, error) {
 			if currentTestID != "" && currentTraces == nil {
 				if match := tracesPattern.FindStringSubmatch(line); match != nil {
 					refs := idRefPattern.FindAllString(match[1], -1)
-					currentTraces = refs
+					// Normalize all trace targets
+					currentTraces = make([]string, 0, len(refs))
+					for _, ref := range refs {
+						currentTraces = append(currentTraces, NormalizeID(ref))
+					}
 					continue
 				}
 			}
@@ -869,7 +888,7 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
-				currentID = match[1]
+				currentID = NormalizeID(match[1])
 				definedIDs[currentID] = true
 			}
 
@@ -877,7 +896,7 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
 				refs := idRefPattern.FindAllString(match[1], -1)
 				for _, ref := range refs {
-					referencedIDs[ref] = true
+					referencedIDs[NormalizeID(ref)] = true
 				}
 				// Mark that this ID has a Traces to: field
 				if currentID != "" {
@@ -895,12 +914,13 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 
 	// Integrate test file results
 	for id, trace := range testTraces {
-		definedIDs[id] = true
+		normalizedID := NormalizeID(id)
+		definedIDs[normalizedID] = true
 		if len(trace.TracesTo) > 0 {
-			hasTracesTo[id] = true
+			hasTracesTo[normalizedID] = true
 			// Also add the trace targets to referencedIDs
 			for _, target := range trace.TracesTo {
-				referencedIDs[target] = true
+				referencedIDs[NormalizeID(target)] = true
 			}
 		}
 	}
@@ -1096,7 +1116,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
-				currentID = match[1]
+				currentID = NormalizeID(match[1])
 				definedIDs[currentID] = true
 			}
 
@@ -1105,7 +1125,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 				refs := idRefPattern.FindAllString(match[1], -1)
 				for _, ref := range refs {
 					if currentID != "" {
-						edges = append(edges, ShowEdge{From: currentID, To: ref})
+						edges = append(edges, ShowEdge{From: currentID, To: NormalizeID(ref)})
 					}
 				}
 			}
@@ -1119,9 +1139,10 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 	}
 
 	for id, testTrace := range testTraces {
-		definedIDs[id] = true
+		normalizedID := NormalizeID(id)
+		definedIDs[normalizedID] = true
 		for _, target := range testTrace.TracesTo {
-			edges = append(edges, ShowEdge{From: id, To: target})
+			edges = append(edges, ShowEdge{From: normalizedID, To: NormalizeID(target)})
 		}
 	}
 

@@ -10,19 +10,19 @@ import (
 )
 
 // TEST-300: Promote finds test files with TASK traces
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_FindsTaskTraces(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	// Create tasks.md with TASK-001 tracing to ARCH-001
+	// Create tasks.md with TASK-1 tracing to ARCH-1
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create a Go test file with TASK trace
@@ -31,7 +31,7 @@ func TestPromote_FindsTaskTraces(t *testing.T) {
 import "testing"
 
 // TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -40,12 +40,12 @@ func TestFeature(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	g.Expect(result.Promotions[0].File).To(Equal("internal/feature/feature_test.go"))
-	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-001"))
-	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-001"))
+	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-1"))
+	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-1"))
 }
 
 // TEST-301: Promote updates test file content
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_UpdatesFileContent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -54,9 +54,9 @@ func TestPromote_UpdatesFileContent(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
@@ -64,7 +64,7 @@ func TestPromote_UpdatesFileContent(t *testing.T) {
 import "testing"
 
 // TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -75,12 +75,12 @@ func TestFeature(t *testing.T) {
 	// Read the file back and verify content changed
 	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001"))
-	g.Expect(string(content)).ToNot(ContainSubstring("// traces: TASK-001"))
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-1"))
+	g.Expect(string(content)).ToNot(ContainSubstring("// traces: TASK-1"))
 }
 
 // TEST-302: Promote handles multiple tasks in same file
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_MultipleTasksInFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -89,13 +89,13 @@ func TestPromote_MultipleTasksInFile(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: First feature
+### TASK-1: First feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 
-### TASK-002: Second feature
+### TASK-2: Second feature
 
-**Traces to:** ARCH-002
+**Traces to:** ARCH-2
 `)
 
 	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
@@ -103,12 +103,12 @@ func TestPromote_MultipleTasksInFile(t *testing.T) {
 import "testing"
 
 // TEST-100: First test
-// traces: TASK-001
+// traces: TASK-1
 func TestFirst(t *testing.T) {
 }
 
 // TEST-101: Second test
-// traces: TASK-002
+// traces: TASK-2
 func TestSecond(t *testing.T) {
 }
 `)
@@ -119,7 +119,7 @@ func TestSecond(t *testing.T) {
 }
 
 // TEST-303: Promote handles TypeScript test files
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_TypeScriptFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -128,14 +128,14 @@ func TestPromote_TypeScriptFiles(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create TypeScript test file
 	tsTestContent := `// TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 describe('Feature', () => {
   it('should work', () => {
     expect(true).toBe(true);
@@ -153,7 +153,7 @@ describe('Feature', () => {
 }
 
 // TEST-304: Promote handles JavaScript test files
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_JavaScriptFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -162,14 +162,14 @@ func TestPromote_JavaScriptFiles(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create JavaScript test file
 	jsTestContent := `// TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 describe('Feature', () => {
   it('should work', () => {
     expect(true).toBe(true);
@@ -187,7 +187,7 @@ describe('Feature', () => {
 }
 
 // TEST-305: Promote skips non-TASK traces
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_SkipsNonTaskTraces(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -196,9 +196,9 @@ func TestPromote_SkipsNonTaskTraces(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Test file already has permanent trace (ARCH)
@@ -207,7 +207,7 @@ func TestPromote_SkipsNonTaskTraces(t *testing.T) {
 import "testing"
 
 // TEST-100: Feature test
-// traces: ARCH-001
+// traces: ARCH-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -218,7 +218,7 @@ func TestFeature(t *testing.T) {
 }
 
 // TEST-306: Promote handles task with no Traces-to
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_TaskWithNoTracesTo(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -228,7 +228,7 @@ func TestPromote_TaskWithNoTracesTo(t *testing.T) {
 	// Task has no Traces-to field
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
 No traces to field here.
 `)
@@ -238,7 +238,7 @@ No traces to field here.
 import "testing"
 
 // TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -252,7 +252,7 @@ func TestFeature(t *testing.T) {
 }
 
 // TEST-307: Promote handles task not found in tasks.md
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_TaskNotFound(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -262,9 +262,9 @@ func TestPromote_TaskNotFound(t *testing.T) {
 	// tasks.md doesn't have TASK-999
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
@@ -285,7 +285,7 @@ func TestFeature(t *testing.T) {
 }
 
 // TEST-308: Promote handles multiple trace targets
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_MultipleTraceTargets(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -295,9 +295,9 @@ func TestPromote_MultipleTraceTargets(t *testing.T) {
 	// Task traces to multiple targets
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001, ARCH-002
+**Traces to:** ARCH-1, ARCH-2
 `)
 
 	writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
@@ -305,7 +305,7 @@ func TestPromote_MultipleTraceTargets(t *testing.T) {
 import "testing"
 
 // TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -314,16 +314,16 @@ func TestFeature(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
 	// Should promote to all targets
-	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-001, ARCH-002"))
+	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-1, ARCH-2"))
 
 	// Verify file content
 	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001, ARCH-002"))
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-1, ARCH-2"))
 }
 
 // TEST-309: Promote returns empty result when no test files
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_NoTestFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -332,9 +332,9 @@ func TestPromote_NoTestFiles(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// No test files
@@ -346,7 +346,7 @@ func TestPromote_NoTestFiles(t *testing.T) {
 }
 
 // TEST-310: Promote handles .spec.ts files (alternate TS test pattern)
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_SpecTsFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -355,14 +355,14 @@ func TestPromote_SpecTsFiles(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create .spec.ts test file
 	specContent := `// TEST-100: Feature spec
-// traces: TASK-001
+// traces: TASK-1
 describe('Feature', () => {
   it('should work', () => {
     expect(true).toBe(true);
@@ -380,7 +380,7 @@ describe('Feature', () => {
 }
 
 // TEST-311: Promote handles .spec.js files
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_SpecJsFiles(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -389,14 +389,14 @@ func TestPromote_SpecJsFiles(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create .spec.js test file
 	specContent := `// TEST-100: Feature spec
-// traces: TASK-001
+// traces: TASK-1
 describe('Feature', () => {
   it('should work', () => {
     expect(true).toBe(true);
@@ -414,7 +414,7 @@ describe('Feature', () => {
 }
 
 // TEST-312: Promote skips vendor directory
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_SkipsVendorDir(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -423,9 +423,9 @@ func TestPromote_SkipsVendorDir(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create test file in vendor directory (should be skipped)
@@ -434,7 +434,7 @@ func TestPromote_SkipsVendorDir(t *testing.T) {
 import "testing"
 
 // TEST-100: Vendor test
-// traces: TASK-001
+// traces: TASK-1
 func TestVendor(t *testing.T) {
 }
 `)
@@ -445,7 +445,7 @@ func TestVendor(t *testing.T) {
 import "testing"
 
 // TEST-101: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `)
@@ -457,7 +457,7 @@ func TestFeature(t *testing.T) {
 }
 
 // TEST-313: Promote skips node_modules directory
-// traces: TASK-007
+// traces: TASK-7
 func TestPromote_SkipsNodeModules(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -466,16 +466,16 @@ func TestPromote_SkipsNodeModules(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Create test file in node_modules (should be skipped)
 	nmDir := filepath.Join(dir, "node_modules", "somelib")
 	g.Expect(fs.MkdirAll(nmDir, 0o755)).To(Succeed())
 	g.Expect(fs.WriteFile(filepath.Join(nmDir, "lib.test.js"), []byte(`// TEST-100: Vendor test
-// traces: TASK-001
+// traces: TASK-1
 describe('test', () => {});
 `), 0o644)).To(Succeed())
 
@@ -483,7 +483,7 @@ describe('test', () => {});
 	srcDir := filepath.Join(dir, "src")
 	g.Expect(fs.MkdirAll(srcDir, 0o755)).To(Succeed())
 	g.Expect(fs.WriteFile(filepath.Join(srcDir, "feature.test.js"), []byte(`// TEST-101: Feature test
-// traces: TASK-001
+// traces: TASK-1
 describe('feature', () => {});
 `), 0o644)).To(Succeed())
 
@@ -494,7 +494,7 @@ describe('feature', () => {});
 }
 
 // TEST-314: Promote with dryRun=true reports changes without modifying files
-// traces: TASK-008
+// traces: TASK-8
 func TestPromote_DryRun(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -503,9 +503,9 @@ func TestPromote_DryRun(t *testing.T) {
 
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	originalContent := `package feature_test
@@ -513,7 +513,7 @@ func TestPromote_DryRun(t *testing.T) {
 import "testing"
 
 // TEST-100: Feature test
-// traces: TASK-001
+// traces: TASK-1
 func TestFeature(t *testing.T) {
 }
 `
@@ -523,8 +523,8 @@ func TestFeature(t *testing.T) {
 	result, err := trace.Promote(dir, fs, true)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Promotions).To(HaveLen(1))
-	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-001"))
-	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-001"))
+	g.Expect(result.Promotions[0].OldTrace).To(Equal("TASK-1"))
+	g.Expect(result.Promotions[0].NewTrace).To(Equal("ARCH-1"))
 
 	// Verify file was NOT modified
 	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
@@ -533,7 +533,7 @@ func TestFeature(t *testing.T) {
 }
 
 // TEST-320: Promote handles simple number IDs (TASK-1, TASK-42, etc.)
-// traces: TASK-001
+// traces: TASK-1
 func TestPromote_SimpleNumberIDs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -582,7 +582,7 @@ func TestAnotherFeature(t *testing.T) {
 }
 
 // TEST-321: Promote handles backward compatibility with 3-digit IDs
-// traces: TASK-001
+// traces: TASK-1
 func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -592,9 +592,9 @@ func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
 	// Mix of old padded and new unpadded IDs
 	writeArtifact(t, fs, dir, "tasks.md", `# Tasks
 
-### TASK-001: Old style task
+### TASK-1: Old style task
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 
 ### TASK-5: New style task
 
@@ -606,7 +606,7 @@ func TestPromote_BackwardCompatWithPaddedIDs(t *testing.T) {
 import "testing"
 
 // TEST-100: Old style test
-// traces: TASK-001
+// traces: TASK-1
 func TestOldStyle(t *testing.T) {
 }
 
@@ -623,6 +623,6 @@ func TestNewStyle(t *testing.T) {
 	// Verify both formats work
 	content, err := fs.ReadFile(filepath.Join(dir, "internal/feature/feature_test.go"))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-001"))
+	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-1"))
 	g.Expect(string(content)).To(ContainSubstring("// traces: ARCH-5"))
 }

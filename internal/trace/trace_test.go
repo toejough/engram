@@ -166,7 +166,7 @@ func TestValidID(t *testing.T) {
 	t.Run("accepts valid IDs", func(t *testing.T) {
 		g := NewWithT(t)
 		g.Expect(trace.ValidID("ISSUE-1")).To(BeTrue())
-		g.Expect(trace.ValidID("REQ-001")).To(BeTrue())
+		g.Expect(trace.ValidID("REQ-1")).To(BeTrue())
 		g.Expect(trace.ValidID("DES-042")).To(BeTrue())
 		g.Expect(trace.ValidID("ARCH-123")).To(BeTrue())
 		g.Expect(trace.ValidID("TASK-007")).To(BeTrue())
@@ -210,7 +210,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001", "ARCH-001"}, fs)
+		err := trace.Add(dir, "REQ-1", []string{"DES-1", "ARCH-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
 		// File should exist
@@ -223,10 +223,10 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
+		err := trace.Add(dir, "REQ-1", []string{"DES-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)
+		err = trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -235,10 +235,10 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
+		err := trace.Add(dir, "REQ-1", []string{"DES-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		err = trace.Add(dir, "REQ-001", []string{"DES-001"}, fs)
+		err = trace.Add(dir, "REQ-1", []string{"DES-1"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("duplicate"))
 	})
@@ -248,7 +248,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "INVALID", []string{"DES-001"}, fs)
+		err := trace.Add(dir, "INVALID", []string{"DES-1"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("invalid source"))
 	})
@@ -258,7 +258,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-001", []string{"bad"}, fs)
+		err := trace.Add(dir, "REQ-1", []string{"bad"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("invalid target"))
 	})
@@ -268,7 +268,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "REQ-002", []string{"DES-001", "DES-002", "ARCH-001"}, fs)
+		err := trace.Add(dir, "REQ-002", []string{"DES-1", "DES-2", "ARCH-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -277,7 +277,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)
+		err := trace.Add(dir, "ISSUE-1", []string{"REQ-1"}, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -286,7 +286,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"DES-001"}, fs)
+		err := trace.Add(dir, "ISSUE-1", []string{"DES-1"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
@@ -296,7 +296,7 @@ func TestAdd(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		err := trace.Add(dir, "ISSUE-1", []string{"ARCH-001"}, fs)
+		err := trace.Add(dir, "ISSUE-1", []string{"ARCH-1"}, fs)
 		g.Expect(err).To(HaveOccurred())
 		g.Expect(err.Error()).To(ContainSubstring("ISSUE can only link to REQ"))
 	})
@@ -315,8 +315,8 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// Add trace links
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -335,13 +335,13 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "architecture.md", "### ARCH-001: Decision\n")
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeFalse())
-		g.Expect(result.UnlinkedIDs).To(ContainElement("REQ-002"))
+		g.Expect(result.UnlinkedIDs).To(ContainElement("REQ-2"))
 	})
 
 	t.Run("detects missing coverage", func(t *testing.T) {
@@ -354,7 +354,7 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// REQ-001 → ARCH-001 but ARCH-001 has no TASK link
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -372,8 +372,8 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// REQ→ARCH is sufficient (DES is not required for every REQ)
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -392,9 +392,9 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// Add trace links including ISSUE
-		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -431,9 +431,9 @@ func TestValidate(t *testing.T) {
 		writeArtifact(t, fs, dir, "tasks.md", "### TASK-001: Implement\n")
 
 		// Complete chain starting from ISSUE
-		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Validate(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
@@ -448,12 +448,12 @@ func TestImpact(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "REQ-001", []string{"DES-001", "ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001", "TASK-002"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"DES-1", "ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1", "TASK-002"}, fs)).To(Succeed())
 
-		result, err := trace.Impact(dir, "REQ-001", false, fs)
+		result, err := trace.Impact(dir, "REQ-1", false, fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElements("DES-001", "ARCH-001", "TASK-001", "TASK-002"))
+		g.Expect(result.AffectedIDs).To(ContainElements("DES-1", "ARCH-1", "TASK-1", "TASK-002"))
 		g.Expect(result.Reverse).To(BeFalse())
 	})
 
@@ -462,12 +462,12 @@ func TestImpact(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
-		result, err := trace.Impact(dir, "TASK-001", true, fs)
+		result, err := trace.Impact(dir, "TASK-1", true, fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElements("ARCH-001", "REQ-001"))
+		g.Expect(result.AffectedIDs).To(ContainElements("ARCH-1", "REQ-1"))
 		g.Expect(result.Reverse).To(BeTrue())
 	})
 
@@ -477,12 +477,12 @@ func TestImpact(t *testing.T) {
 		dir := t.TempDir()
 
 		// Shouldn't happen but test it doesn't infinite loop
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"REQ-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"REQ-1"}, fs)).To(Succeed())
 
-		result, err := trace.Impact(dir, "REQ-001", false, fs)
+		result, err := trace.Impact(dir, "REQ-1", false, fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElement("ARCH-001"))
+		g.Expect(result.AffectedIDs).To(ContainElement("ARCH-1"))
 	})
 
 	t.Run("rejects invalid ID", func(t *testing.T) {
@@ -499,13 +499,13 @@ func TestImpact(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "ARCH-001", []string{"TASK-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ARCH-1", []string{"TASK-1"}, fs)).To(Succeed())
 
 		result, err := trace.Impact(dir, "ISSUE-1", false, fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ARCH-001", "TASK-001"))
+		g.Expect(result.AffectedIDs).To(ContainElements("REQ-1", "ARCH-1", "TASK-1"))
 		g.Expect(result.Reverse).To(BeFalse())
 	})
 
@@ -514,12 +514,12 @@ func TestImpact(t *testing.T) {
 		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 		dir := t.TempDir()
 
-		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-001"}, fs)).To(Succeed())
-		g.Expect(trace.Add(dir, "REQ-001", []string{"ARCH-001"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "ISSUE-1", []string{"REQ-1"}, fs)).To(Succeed())
+		g.Expect(trace.Add(dir, "REQ-1", []string{"ARCH-1"}, fs)).To(Succeed())
 
-		result, err := trace.Impact(dir, "ARCH-001", true, fs)
+		result, err := trace.Impact(dir, "ARCH-1", true, fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(result.AffectedIDs).To(ContainElements("REQ-001", "ISSUE-1"))
+		g.Expect(result.AffectedIDs).To(ContainElements("REQ-1", "ISSUE-1"))
 		g.Expect(result.Reverse).To(BeTrue())
 	})
 }
@@ -680,7 +680,7 @@ Duplicate.
 		content, err := fs.ReadFile(filepath.Join(dir, "design-feature.md"))
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(string(content)).To(ContainSubstring("DES-2"))
-		g.Expect(string(content)).ToNot(ContainSubstring("DES-001"))
+		g.Expect(string(content)).ToNot(ContainSubstring("DES-1"))
 	})
 
 	t.Run("creates escalation for dangling refs", func(t *testing.T) {
@@ -768,10 +768,10 @@ Description.
 		result, err := trace.ValidateV2Artifacts(dir, fs)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Pass).To(BeFalse())
-		g.Expect(result.UnlinkedIDs).To(ContainElement("DES-002"), "DES-002 has nothing tracing to it")
-		g.Expect(result.UnlinkedIDs).To(ContainElement("ARCH-001"), "ARCH-001 has nothing tracing to it")
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-001"), "DES-001 is traced to by ARCH-001")
-		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-001"), "REQ can be root")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("DES-2"), "DES-002 has nothing tracing to it")
+		g.Expect(result.UnlinkedIDs).To(ContainElement("ARCH-1"), "ARCH-001 has nothing tracing to it")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-1"), "DES-001 is traced to by ARCH-001")
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-1"), "REQ can be root")
 		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("REQ-002"), "REQ can be root - issues are optional")
 	})
 
@@ -902,6 +902,173 @@ func TestConfig(t *testing.T) {}
 
 // TEST-005: Show function returns ASCII tree representation
 // traces: TASK-005
+// TEST-300: normalizeID strips leading zeros from trace IDs
+// traces: TASK-1
+func TestNormalizeID(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"strips single leading zero", "REQ-013", "REQ-13"},
+		{"strips multiple leading zeros", "REQ-0013", "REQ-13"},
+		{"preserves non-zero", "REQ-13", "REQ-13"},
+		{"preserves single digit", "REQ-1", "REQ-1"},
+		{"handles zero", "REQ-0", "REQ-0"},
+		{"handles ARCH prefix", "ARCH-060", "ARCH-60"},
+		{"handles TASK prefix", "TASK-1", "TASK-1"},
+		{"handles TEST prefix", "TEST-042", "TEST-42"},
+		{"handles DES prefix", "DES-007", "DES-7"},
+		{"handles ISSUE prefix", "ISSUE-003", "ISSUE-3"},
+		{"preserves malformed ID", "INVALID", "INVALID"},
+		{"preserves ID without hyphen", "REQ001", "REQ001"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g := NewWithT(t)
+			result := trace.NormalizeID(tt.input)
+			g.Expect(result).To(Equal(tt.expected))
+		})
+	}
+}
+
+// TEST-301: ValidateV2Artifacts normalizes padded IDs to prevent false orphans
+// traces: TASK-1
+func TestValidateV2Artifacts_PaddedIDs(t *testing.T) {
+	t.Parallel()
+	t.Run("padded and non-padded IDs match", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+		dir := t.TempDir()
+
+		// REQ-13 is defined (non-padded)
+		// DES-001 references REQ-013 (padded)
+		// ARCH-001 references DES-001 (padded) to complete the chain
+		// Should normalize to REQ-13 and not report orphan
+		writeArtifact(t, fs, dir, "requirements.md", `# Requirements
+
+### REQ-13: Feature
+
+Description.
+`)
+		writeArtifact(t, fs, dir, "design.md", `# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-013
+`)
+		writeArtifact(t, fs, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Architecture
+
+**Traces to:** DES-001
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir, fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.OrphanIDs).To(BeEmpty(), "no orphans - REQ-013 normalizes to REQ-13 which is defined")
+		// DES-001 and ARCH-001 will be unlinked without TASK, but no orphans
+	})
+
+	t.Run("mixed padding formats are treated as same ID", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+		dir := t.TempDir()
+
+		// Mix of REQ-013, REQ-13, and REQ-0013 all normalize to REQ-13
+		// Focus: no false orphans from padding mismatch
+		writeArtifact(t, fs, dir, "requirements.md", `# Requirements
+
+### REQ-013: Feature
+
+Description.
+`)
+		writeArtifact(t, fs, dir, "design.md", `# Design
+
+### DES-001: Design One
+
+**Traces to:** REQ-13
+
+### DES-002: Design Two
+
+**Traces to:** REQ-0013
+`)
+		writeArtifact(t, fs, dir, "architecture.md", `# Architecture
+
+### ARCH-001: Arch One
+
+**Traces to:** DES-001
+
+### ARCH-002: Arch Two
+
+**Traces to:** DES-002
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir, fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.OrphanIDs).To(BeEmpty(), "no orphans - REQ-13, REQ-013, REQ-0013 all normalize to REQ-13")
+	})
+
+	t.Run("normalizes test file trace targets", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+		dir := t.TempDir()
+
+		// TEST-001 references TASK-013 (padded)
+		// TASK-13 is defined (non-padded)
+		writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
+
+import "testing"
+
+// TEST-001: Feature test
+// traces: TASK-013
+func TestFeature(t *testing.T) {}
+`)
+
+		writeArtifact(t, fs, dir, "tasks.md", `# Tasks
+
+### TASK-13: Implement feature
+
+Description.
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir, fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeTrue(), "test trace target should normalize")
+		g.Expect(result.OrphanIDs).ToNot(ContainElement("TASK-013"), "TASK-013 should normalize to TASK-13")
+	})
+
+	t.Run("normalizes test IDs", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+		dir := t.TempDir()
+
+		// TEST-042 (padded) should normalize to TEST-42
+		writeTestFile(t, fs, dir, "internal/feature", "feature_test.go", `package feature_test
+
+import "testing"
+
+// TEST-042: Feature test
+// traces: TASK-13
+func TestFeature(t *testing.T) {}
+`)
+
+		writeArtifact(t, fs, dir, "tasks.md", `# Tasks
+
+### TASK-13: Implement feature
+
+Description.
+`)
+
+		result, err := trace.ValidateV2Artifacts(dir, fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(result.Pass).To(BeTrue())
+		g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TEST-042"), "TEST-042 should normalize to TEST-42")
+	})
+}
+
 func TestShow(t *testing.T) {
 	t.Parallel()
 	t.Run("returns ASCII tree for simple chain", func(t *testing.T) {
@@ -936,10 +1103,10 @@ Description.
 
 		output, err := trace.Show(dir, "ascii", fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(output).To(ContainSubstring("REQ-001"))
-		g.Expect(output).To(ContainSubstring("DES-001"))
-		g.Expect(output).To(ContainSubstring("ARCH-001"))
-		g.Expect(output).To(ContainSubstring("TASK-001"))
+		g.Expect(output).To(ContainSubstring("REQ-1"))
+		g.Expect(output).To(ContainSubstring("DES-1"))
+		g.Expect(output).To(ContainSubstring("ARCH-1"))
+		g.Expect(output).To(ContainSubstring("TASK-1"))
 	})
 
 	t.Run("marks orphan IDs in ASCII output", func(t *testing.T) {
@@ -992,7 +1159,7 @@ Description.
 
 		output, err := trace.Show(dir, "ascii", fs)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(output).To(ContainSubstring("DES-002"))
+		g.Expect(output).To(ContainSubstring("DES-2"))
 		g.Expect(output).To(ContainSubstring("[UNLINKED]"))
 	})
 
@@ -1018,8 +1185,8 @@ Description.
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(output).To(ContainSubstring(`"nodes"`))
 		g.Expect(output).To(ContainSubstring(`"edges"`))
-		g.Expect(output).To(ContainSubstring(`"REQ-001"`))
-		g.Expect(output).To(ContainSubstring(`"DES-001"`))
+		g.Expect(output).To(ContainSubstring(`"REQ-1"`))
+		g.Expect(output).To(ContainSubstring(`"DES-1"`))
 	})
 
 	t.Run("JSON includes orphan and unlinked markers", func(t *testing.T) {
@@ -1097,6 +1264,6 @@ Description.
 		output, err := trace.Show(dir, "ascii", fs)
 		g.Expect(err).ToNot(HaveOccurred())
 		// Should show tree structure with indentation
-		g.Expect(output).To(MatchRegexp(`REQ-001.*\n.*DES-001`))
+		g.Expect(output).To(MatchRegexp(`REQ-1.*\n.*DES-1`))
 	})
 }

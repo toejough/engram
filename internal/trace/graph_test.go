@@ -9,7 +9,7 @@ import (
 	"github.com/toejough/projctl/internal/trace"
 )
 
-// TEST-017 traces: TASK-002
+// TEST-017 traces: TASK-2
 // Test creating a graph with valid nodes
 func TestGraph_NewGraph(t *testing.T) {
 	t.Parallel()
@@ -22,33 +22,33 @@ func TestGraph_NewGraph(t *testing.T) {
 	g.Expect(graph.ReverseEdges).ToNot(BeNil())
 }
 
-// TEST-018 traces: TASK-002
+// TEST-018 traces: TASK-2
 // Test creating a node with valid fields
 func TestNode_ValidNode(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	node := &trace.Node{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "A valid requirement",
 		Status:  "active",
 	}
 
-	g.Expect(node.ID).To(Equal("REQ-001"))
+	g.Expect(node.ID).To(Equal("REQ-1"))
 	g.Expect(node.Type).To(Equal(trace.NodeTypeREQ))
 	g.Expect(node.Project).To(Equal("my-project"))
 }
 
-// TEST-019 traces: TASK-002
+// TEST-019 traces: TASK-2
 // Test creating a TEST node with all required fields
 func TestNode_ValidTestNode(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	node := &trace.Node{
-		ID:       "TEST-001",
+		ID:       "TEST-1",
 		Type:     trace.NodeTypeTEST,
 		Project:  "my-project",
 		Title:    "Test user validation",
@@ -58,29 +58,29 @@ func TestNode_ValidTestNode(t *testing.T) {
 		Function: "TestValidateUser",
 	}
 
-	g.Expect(node.ID).To(Equal("TEST-001"))
+	g.Expect(node.ID).To(Equal("TEST-1"))
 	g.Expect(node.Type).To(Equal(trace.NodeTypeTEST))
 	g.Expect(node.Location).To(Equal("user_test.go"))
 	g.Expect(node.Line).To(Equal(45))
 	g.Expect(node.Function).To(Equal("TestValidateUser"))
 }
 
-// TEST-020 traces: TASK-002
+// TEST-020 traces: TASK-2
 // Test creating an edge with valid From/To IDs
 func TestEdge_ValidEdge(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	edge := &trace.Edge{
-		From: "REQ-001",
-		To:   "ARCH-001",
+		From: "REQ-1",
+		To:   "ARCH-1",
 	}
 
-	g.Expect(edge.From).To(Equal("REQ-001"))
-	g.Expect(edge.To).To(Equal("ARCH-001"))
+	g.Expect(edge.From).To(Equal("REQ-1"))
+	g.Expect(edge.To).To(Equal("ARCH-1"))
 }
 
-// TEST-021 traces: TASK-002
+// TEST-021 traces: TASK-2
 // Test that all NodeType constants are defined
 func TestNodeType_AllTypes(t *testing.T) {
 	t.Parallel()
@@ -94,26 +94,26 @@ func TestNodeType_AllTypes(t *testing.T) {
 	g.Expect(trace.NodeTypeTEST).To(Equal(trace.NodeType("TEST")))
 }
 
-// TEST-022 traces: TASK-002
+// TEST-022 traces: TASK-2
 // Test creating a node from a TraceItem
 func TestNode_FromTraceItem(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := &trace.TraceItem{
-		ID:       "TEST-042",
+		ID:       "TEST-42",
 		Type:     trace.NodeTypeTEST,
 		Project:  "my-project",
 		Title:    "Test something",
 		Status:   "active",
-		TracesTo: []string{"TASK-001"},
+		TracesTo: []string{"TASK-1"},
 		Location: "foo_test.go",
 		Line:     10,
 		Function: "TestFoo",
 	}
 
 	node := trace.NodeFromItem(item)
-	g.Expect(node.ID).To(Equal("TEST-042"))
+	g.Expect(node.ID).To(Equal("TEST-42"))
 	g.Expect(node.Type).To(Equal(trace.NodeTypeTEST))
 	g.Expect(node.Project).To(Equal("my-project"))
 	g.Expect(node.Title).To(Equal("Test something"))
@@ -122,27 +122,27 @@ func TestNode_FromTraceItem(t *testing.T) {
 	g.Expect(node.Function).To(Equal("TestFoo"))
 }
 
-// TEST-023 traces: TASK-002
+// TEST-023 traces: TASK-2
 // Test creating edges from a TraceItem's TracesTo field
 func TestEdge_FromTraceItem(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := &trace.TraceItem{
-		ID:       "TEST-001",
+		ID:       "TEST-1",
 		Type:     trace.NodeTypeTEST,
-		TracesTo: []string{"TASK-001", "TASK-002"},
+		TracesTo: []string{"TASK-1", "TASK-2"},
 	}
 
 	edges := trace.EdgesFromItem(item)
 	g.Expect(edges).To(HaveLen(2))
-	g.Expect(edges[0].From).To(Equal("TEST-001"))
-	g.Expect(edges[0].To).To(Equal("TASK-001"))
-	g.Expect(edges[1].From).To(Equal("TEST-001"))
-	g.Expect(edges[1].To).To(Equal("TASK-002"))
+	g.Expect(edges[0].From).To(Equal("TEST-1"))
+	g.Expect(edges[0].To).To(Equal("TASK-1"))
+	g.Expect(edges[1].From).To(Equal("TEST-1"))
+	g.Expect(edges[1].To).To(Equal("TASK-2"))
 }
 
-// TEST-024 traces: TASK-002
+// TEST-024 traces: TASK-2
 // Property test: random valid nodes have consistent ID and Type
 func TestNode_PropertyIDMatchesType(t *testing.T) {
 	t.Parallel()
@@ -174,7 +174,7 @@ func TestNode_PropertyIDMatchesType(t *testing.T) {
 	})
 }
 
-// TEST-025 traces: TASK-002
+// TEST-025 traces: TASK-2
 // Property test: edges always connect two distinct IDs
 func TestEdge_PropertyDistinctIDs(t *testing.T) {
 	t.Parallel()
@@ -226,7 +226,7 @@ func TestGraph_AddNode(t *testing.T) {
 
 	graph := trace.NewGraph()
 	node := &trace.Node{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "A requirement",
@@ -235,8 +235,8 @@ func TestGraph_AddNode(t *testing.T) {
 
 	err := graph.AddNode(node)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(graph.Nodes).To(HaveKey("REQ-001"))
-	g.Expect(graph.Nodes["REQ-001"]).To(Equal(node))
+	g.Expect(graph.Nodes).To(HaveKey("REQ-1"))
+	g.Expect(graph.Nodes["REQ-1"]).To(Equal(node))
 }
 
 // TEST-027 traces: TASK-003
@@ -247,14 +247,14 @@ func TestGraph_AddNode_DuplicateID(t *testing.T) {
 
 	graph := trace.NewGraph()
 	node1 := &trace.Node{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "First requirement",
 		Status:  "active",
 	}
 	node2 := &trace.Node{
-		ID:      "REQ-001", // Same ID
+		ID:      "REQ-1", // Same ID
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "Duplicate requirement",
@@ -277,7 +277,7 @@ func TestGraph_AddNode_IDTypeMismatch(t *testing.T) {
 
 	graph := trace.NewGraph()
 	node := &trace.Node{
-		ID:      "REQ-001",          // ID says REQ
+		ID:      "REQ-1",          // ID says REQ
 		Type:    trace.NodeTypeTASK, // Type says TASK
 		Project: "my-project",
 		Title:   "Mismatched",
@@ -309,7 +309,7 @@ func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
 
 	graph := trace.NewGraph()
 	node1 := &trace.Node{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "First requirement",
@@ -323,7 +323,7 @@ func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
 
 	// Try to add duplicate
 	node2 := &trace.Node{
-		ID:      "REQ-001", // Same ID
+		ID:      "REQ-1", // Same ID
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "Duplicate",
@@ -334,7 +334,7 @@ func TestGraph_AddNode_StateUnchangedOnError(t *testing.T) {
 
 	// State should be unchanged
 	g.Expect(graph.Nodes).To(HaveLen(originalCount))
-	g.Expect(graph.Nodes["REQ-001"].Title).To(Equal("First requirement"))
+	g.Expect(graph.Nodes["REQ-1"].Title).To(Equal("First requirement"))
 }
 
 // TEST-031 traces: TASK-003
@@ -366,7 +366,9 @@ func TestGraph_AddNode_PropertyUniqueNodesSucceed(t *testing.T) {
 
 		err := graph.AddNode(node)
 		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(graph.Nodes).To(HaveKey(id))
+		// ID is normalized when stored
+		normalizedID := trace.NormalizeID(id)
+		g.Expect(graph.Nodes).To(HaveKey(normalizedID))
 	})
 }
 
@@ -412,22 +414,22 @@ func TestGraph_AddEdge(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
 
-	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"}
+	edge := &trace.Edge{From: "REQ-1", To: "ARCH-1"}
 	err := graph.AddEdge(edge)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Check forward edge
-	g.Expect(graph.Edges).To(HaveKey("REQ-001"))
-	g.Expect(graph.Edges["REQ-001"]).To(HaveLen(1))
-	g.Expect(graph.Edges["REQ-001"][0].To).To(Equal("ARCH-001"))
+	g.Expect(graph.Edges).To(HaveKey("REQ-1"))
+	g.Expect(graph.Edges["REQ-1"]).To(HaveLen(1))
+	g.Expect(graph.Edges["REQ-1"][0].To).To(Equal("ARCH-1"))
 
 	// Check reverse edge
-	g.Expect(graph.ReverseEdges).To(HaveKey("ARCH-001"))
-	g.Expect(graph.ReverseEdges["ARCH-001"]).To(HaveLen(1))
-	g.Expect(graph.ReverseEdges["ARCH-001"][0].From).To(Equal("REQ-001"))
+	g.Expect(graph.ReverseEdges).To(HaveKey("ARCH-1"))
+	g.Expect(graph.ReverseEdges["ARCH-1"]).To(HaveLen(1))
+	g.Expect(graph.ReverseEdges["ARCH-1"][0].From).To(Equal("REQ-1"))
 }
 
 // TEST-034 traces: TASK-004
@@ -437,12 +439,12 @@ func TestGraph_AddEdge_FromNodeMissing(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
 
-	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"} // REQ-001 doesn't exist
+	edge := &trace.Edge{From: "REQ-1", To: "ARCH-1"} // REQ-1 doesn't exist
 	err := graph.AddEdge(edge)
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("REQ-001"))
+	g.Expect(err.Error()).To(ContainSubstring("REQ-1"))
 }
 
 // TEST-035 traces: TASK-004
@@ -452,12 +454,12 @@ func TestGraph_AddEdge_ToNodeMissing(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
 
-	edge := &trace.Edge{From: "REQ-001", To: "ARCH-001"} // ARCH-001 doesn't exist
+	edge := &trace.Edge{From: "REQ-1", To: "ARCH-1"} // ARCH-1 doesn't exist
 	err := graph.AddEdge(edge)
 	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("ARCH-001"))
+	g.Expect(err.Error()).To(ContainSubstring("ARCH-1"))
 }
 
 // TEST-036 traces: TASK-004
@@ -467,12 +469,12 @@ func TestGraph_AddEdge_MultipleFromSameSource(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-2", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
 
-	edge1 := &trace.Edge{From: "REQ-001", To: "ARCH-001"}
-	edge2 := &trace.Edge{From: "REQ-001", To: "ARCH-002"}
+	edge1 := &trace.Edge{From: "REQ-1", To: "ARCH-1"}
+	edge2 := &trace.Edge{From: "REQ-1", To: "ARCH-2"}
 
 	err := graph.AddEdge(edge1)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -480,8 +482,8 @@ func TestGraph_AddEdge_MultipleFromSameSource(t *testing.T) {
 	err = graph.AddEdge(edge2)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Should have 2 edges from REQ-001
-	g.Expect(graph.Edges["REQ-001"]).To(HaveLen(2))
+	// Should have 2 edges from REQ-1
+	g.Expect(graph.Edges["REQ-1"]).To(HaveLen(2))
 }
 
 // TEST-037 traces: TASK-004
@@ -517,9 +519,11 @@ func TestGraph_AddEdge_PropertyExistingNodesSucceed(t *testing.T) {
 		err := graph.AddEdge(edge)
 		g.Expect(err).ToNot(HaveOccurred())
 
-		// Verify bidirectional storage
-		g.Expect(graph.Edges[fromID]).To(ContainElement(edge))
-		g.Expect(graph.ReverseEdges[toID]).To(ContainElement(edge))
+		// Verify bidirectional storage (IDs are normalized in storage)
+		normalizedFrom := trace.NormalizeID(fromID)
+		normalizedTo := trace.NormalizeID(toID)
+		g.Expect(graph.Edges[normalizedFrom]).To(ContainElement(edge))
+		g.Expect(graph.ReverseEdges[normalizedTo]).To(ContainElement(edge))
 	})
 }
 
@@ -530,9 +534,9 @@ func TestGraph_Upstream_NoAncestors(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
 
-	ancestors, err := graph.Upstream("REQ-001")
+	ancestors, err := graph.Upstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(ancestors).To(BeEmpty())
 }
@@ -544,14 +548,14 @@ func TestGraph_Upstream_DirectAncestors(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-1", To: "REQ-1"})
 
-	ancestors, err := graph.Upstream("REQ-001")
+	ancestors, err := graph.Upstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(ancestors).To(HaveLen(1))
-	g.Expect(ancestors).To(ContainElement("ARCH-001"))
+	g.Expect(ancestors).To(ContainElement("ARCH-1"))
 }
 
 // TEST-041 traces: TASK-005
@@ -560,47 +564,47 @@ func TestGraph_Upstream_TransitiveAncestors(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// REQ-001 <- ARCH-001 <- TASK-001 <- TEST-001
+	// REQ-1 <- ARCH-1 <- TASK-1 <- TEST-1
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
 
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "TEST-001", To: "TASK-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-1", To: "REQ-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-1", To: "ARCH-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "TEST-1", To: "TASK-1"})
 
-	// Starting from REQ-001, should get all 3 ancestors
-	ancestors, err := graph.Upstream("REQ-001")
+	// Starting from REQ-1, should get all 3 ancestors
+	ancestors, err := graph.Upstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(ancestors).To(HaveLen(3))
-	g.Expect(ancestors).To(ContainElements("ARCH-001", "TASK-001", "TEST-001"))
+	g.Expect(ancestors).To(ContainElements("ARCH-1", "TASK-1", "TEST-1"))
 }
 
-// TEST-042 traces: TASK-005
+// TEST-42 traces: TASK-005
 // Test Upstream handles diamond dependency (each node visited once)
 func TestGraph_Upstream_DiamondDependency(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Diamond: REQ-001 <- ARCH-001 <- TASK-001
-	//                 <- ARCH-002 <-
+	// Diamond: REQ-1 <- ARCH-1 <- TASK-1
+	//                 <- ARCH-2 <-
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-2", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
 
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "REQ-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-002", To: "REQ-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "ARCH-002"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-1", To: "REQ-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-2", To: "REQ-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-1", To: "ARCH-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-1", To: "ARCH-2"})
 
-	ancestors, err := graph.Upstream("REQ-001")
+	ancestors, err := graph.Upstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(ancestors).To(HaveLen(3))
-	g.Expect(ancestors).To(ContainElements("ARCH-001", "ARCH-002", "TASK-001"))
+	g.Expect(ancestors).To(ContainElements("ARCH-1", "ARCH-2", "TASK-1"))
 }
 
 // TEST-043 traces: TASK-005
@@ -662,9 +666,9 @@ func TestGraph_Downstream_NoDescendants(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
 
-	descendants, err := graph.Downstream("TEST-001")
+	descendants, err := graph.Downstream("TEST-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(descendants).To(BeEmpty())
 }
@@ -676,14 +680,14 @@ func TestGraph_Downstream_DirectDescendants(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-1"})
 
-	descendants, err := graph.Downstream("REQ-001")
+	descendants, err := graph.Downstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(descendants).To(HaveLen(1))
-	g.Expect(descendants).To(ContainElement("ARCH-001"))
+	g.Expect(descendants).To(ContainElement("ARCH-1"))
 }
 
 // TEST-047 traces: TASK-006
@@ -692,22 +696,22 @@ func TestGraph_Downstream_TransitiveDescendants(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// REQ-001 -> ARCH-001 -> TASK-001 -> TEST-001
+	// REQ-1 -> ARCH-1 -> TASK-1 -> TEST-1
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
 
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "TASK-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "TEST-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-1", To: "TASK-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-1", To: "TEST-1"})
 
-	// Starting from REQ-001, should get all 3 descendants
-	descendants, err := graph.Downstream("REQ-001")
+	// Starting from REQ-1, should get all 3 descendants
+	descendants, err := graph.Downstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(descendants).To(HaveLen(3))
-	g.Expect(descendants).To(ContainElements("ARCH-001", "TASK-001", "TEST-001"))
+	g.Expect(descendants).To(ContainElements("ARCH-1", "TASK-1", "TEST-1"))
 }
 
 // TEST-048 traces: TASK-006
@@ -716,23 +720,23 @@ func TestGraph_Downstream_DiamondDependency(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Diamond: REQ-001 -> ARCH-001 -> TASK-001
-	//                  -> ARCH-002 ->
+	// Diamond: REQ-1 -> ARCH-1 -> TASK-1
+	//                  -> ARCH-2 ->
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-002", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-2", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
 
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-002"})
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-001", To: "TASK-001"})
-	_ = graph.AddEdge(&trace.Edge{From: "ARCH-002", To: "TASK-001"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-2"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-1", To: "TASK-1"})
+	_ = graph.AddEdge(&trace.Edge{From: "ARCH-2", To: "TASK-1"})
 
-	descendants, err := graph.Downstream("REQ-001")
+	descendants, err := graph.Downstream("REQ-1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(descendants).To(HaveLen(3))
-	g.Expect(descendants).To(ContainElements("ARCH-001", "ARCH-002", "TASK-001"))
+	g.Expect(descendants).To(ContainElements("ARCH-1", "ARCH-2", "TASK-1"))
 }
 
 // TEST-049 traces: TASK-006
@@ -754,11 +758,11 @@ func TestGraph_Orphans_NoOrphans(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-1"})
 
-	// REQ-001 has downstream, so not an orphan with direction="downstream"
+	// REQ-1 has downstream, so not an orphan with direction="downstream"
 	orphans := graph.Orphans(trace.NodeTypeREQ, "downstream")
 	g.Expect(orphans).To(BeEmpty())
 }
@@ -770,15 +774,15 @@ func TestGraph_Orphans_REQNoDownstream(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-001", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "REQ-002", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "ARCH-001", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-001", To: "ARCH-001"})
-	// REQ-002 has no downstream edges
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-2", Type: trace.NodeTypeREQ, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "ARCH-1", Type: trace.NodeTypeARCH, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "ARCH-1"})
+	// REQ-2 has no downstream edges
 
 	orphans := graph.Orphans(trace.NodeTypeREQ, "downstream")
 	g.Expect(orphans).To(HaveLen(1))
-	g.Expect(orphans).To(ContainElement("REQ-002"))
+	g.Expect(orphans).To(ContainElement("REQ-2"))
 }
 
 // TEST-052 traces: TASK-007
@@ -788,15 +792,15 @@ func TestGraph_Orphans_TASKNoTest(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TASK-002", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
-	_ = graph.AddEdge(&trace.Edge{From: "TASK-001", To: "TEST-001"})
-	// TASK-002 has no downstream edges
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TASK-2", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test"})
+	_ = graph.AddEdge(&trace.Edge{From: "TASK-1", To: "TEST-1"})
+	// TASK-2 has no downstream edges
 
 	orphans := graph.Orphans(trace.NodeTypeTASK, "downstream")
 	g.Expect(orphans).To(HaveLen(1))
-	g.Expect(orphans).To(ContainElement("TASK-002"))
+	g.Expect(orphans).To(ContainElement("TASK-2"))
 }
 
 // TEST-053 traces: TASK-007
@@ -806,15 +810,15 @@ func TestGraph_Orphans_TESTNoUpstream(t *testing.T) {
 	g := NewWithT(t)
 
 	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "TASK-001", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
-	_ = graph.AddNode(&trace.Node{ID: "TEST-001", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test1"})
-	_ = graph.AddNode(&trace.Node{ID: "TEST-002", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test2"})
-	_ = graph.AddEdge(&trace.Edge{From: "TEST-001", To: "TASK-001"})
-	// TEST-002 has no upstream edges (no traces)
+	_ = graph.AddNode(&trace.Node{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "p", Title: "t", Status: "active"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test1"})
+	_ = graph.AddNode(&trace.Node{ID: "TEST-2", Type: trace.NodeTypeTEST, Project: "p", Title: "t", Status: "active", Location: "t.go", Function: "Test2"})
+	_ = graph.AddEdge(&trace.Edge{From: "TEST-1", To: "TASK-1"})
+	// TEST-2 has no upstream edges (no traces)
 
 	orphans := graph.Orphans(trace.NodeTypeTEST, "upstream")
 	g.Expect(orphans).To(HaveLen(1))
-	g.Expect(orphans).To(ContainElement("TEST-002"))
+	g.Expect(orphans).To(ContainElement("TEST-2"))
 }
 
 // TEST-054 traces: TASK-007

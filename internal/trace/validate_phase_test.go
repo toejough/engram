@@ -21,7 +21,7 @@ func TestValidateV2Artifacts_AcceptsPhaseParameter(t *testing.T) {
 	// Create minimal artifact
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
@@ -44,25 +44,25 @@ func TestValidateV2Artifacts_ArchitectComplete_AllowsUnlinkedARCH(t *testing.T) 
 	// ARCH exists but no TASK traces to it yet (this is expected during architect phase)
 	writeArtifact(t, fs, tempDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component Design
+### ARCH-1: Component Design
 
 Description.
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
 
-	// At architect-complete, ARCH-001 should be allowed to be unlinked (no TASK traces to it yet)
+	// At architect-complete, ARCH-1 should be allowed to be unlinked (no TASK traces to it yet)
 	result, err := trace.ValidateV2Artifacts(tempDir, fs, "arch_commit")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeTrue(), "ARCH should be allowed to be unlinked at arch_commit")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("ARCH-001"), "ARCH-001 should not be reported as unlinked at arch_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("ARCH-1"), "ARCH-1 should not be reported as unlinked at arch_commit")
 }
 
 // TEST-203: At breakdown-complete, TASK IDs can be unlinked
@@ -77,32 +77,32 @@ func TestValidateV2Artifacts_BreakdownComplete_AllowsUnlinkedTASK(t *testing.T) 
 	// TASK exists but no TEST traces to it yet (this is expected during breakdown phase)
 	writeArtifact(t, fs, tempDir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
 Description.
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	writeArtifact(t, fs, tempDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component Design
+### ARCH-1: Component Design
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
 
-	// At breakdown-complete, TASK-001 should be allowed to be unlinked (no TEST traces to it yet)
+	// At breakdown-complete, TASK-1 should be allowed to be unlinked (no TEST traces to it yet)
 	result, err := trace.ValidateV2Artifacts(tempDir, fs, "breakdown_commit")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeTrue(), "TASK should be allowed to be unlinked at breakdown_commit")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TASK-001"), "TASK-001 should not be reported as unlinked at breakdown_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("TASK-1"), "TASK-1 should not be reported as unlinked at breakdown_commit")
 }
 
 // TEST-204: At task-complete and later, full chain is required
@@ -117,32 +117,32 @@ func TestValidateV2Artifacts_TaskComplete_RequiresFullChain(t *testing.T) {
 	// TASK exists but no TEST traces to it
 	writeArtifact(t, fs, tempDir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
 Description.
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	writeArtifact(t, fs, tempDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component Design
+### ARCH-1: Component Design
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
 
-	// At task-complete, TASK-001 MUST have TEST tracing to it
+	// At task-complete, TASK-1 MUST have TEST tracing to it
 	result, err := trace.ValidateV2Artifacts(tempDir, fs, "tdd_commit")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeFalse(), "Validation should fail when TASK has no TEST at tdd_commit")
-	g.Expect(result.UnlinkedIDs).To(ContainElement("TASK-001"), "TASK-001 should be reported as unlinked at tdd_commit")
+	g.Expect(result.UnlinkedIDs).To(ContainElement("TASK-1"), "TASK-1 should be reported as unlinked at tdd_commit")
 }
 
 // TEST-205: Without phase parameter, strictest validation applies
@@ -157,14 +157,14 @@ func TestValidateV2Artifacts_NoPhase_StrictestValidation(t *testing.T) {
 	// ARCH exists but no TASK traces to it
 	writeArtifact(t, fs, tempDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component Design
+### ARCH-1: Component Design
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
@@ -173,7 +173,7 @@ Description.
 	result, err := trace.ValidateV2Artifacts(tempDir, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeFalse(), "Validation should fail for unlinked ARCH without phase parameter")
-	g.Expect(result.UnlinkedIDs).To(ContainElement("ARCH-001"), "ARCH-001 should be reported as unlinked without phase parameter")
+	g.Expect(result.UnlinkedIDs).To(ContainElement("ARCH-1"), "ARCH-1 should be reported as unlinked without phase parameter")
 }
 
 // TEST-206: Phase-aware validation propagates through CLI
@@ -187,14 +187,14 @@ func TestValidateV2Artifacts_PhaseParameterPropagation(t *testing.T) {
 
 	writeArtifact(t, fs, tempDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component Design
+### ARCH-1: Component Design
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
@@ -221,23 +221,23 @@ func TestValidateV2Artifacts_EarlyPhases_AllowUpstreamUnlinked(t *testing.T) {
 	// DES exists but no ARCH traces to it yet (expected during design phase)
 	writeArtifact(t, fs, tempDir, "design.md", `# Design
 
-### DES-001: Feature Design
+### DES-1: Feature Design
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)
 
-	// At design-complete, DES-001 should be allowed to be unlinked
+	// At design-complete, DES-1 should be allowed to be unlinked
 	result, err := trace.ValidateV2Artifacts(tempDir, fs, "design_commit")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.Pass).To(BeTrue(), "DES should be allowed to be unlinked at design_commit")
-	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-001"), "DES-001 should not be reported as unlinked at design_commit")
+	g.Expect(result.UnlinkedIDs).ToNot(ContainElement("DES-1"), "DES-1 should not be reported as unlinked at design_commit")
 }
 
 // TEST-209: ISSUE IDs referenced in Traces to are not reported as orphan when defined in issues.md
@@ -262,7 +262,7 @@ func TestValidateV2Artifacts_IssueIDNotOrphan(t *testing.T) {
 	// Requirements trace to the issue
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Interview User
+### REQ-1: Interview User
 
 The PM skill must interview the user.
 
@@ -303,7 +303,7 @@ docs_dir = "docs"
 	// Requirements in docs/ trace to the issue
 	writeArtifact(t, fs, filepath.Join(tempDir, "docs"), "requirements.md", `# Requirements
 
-### REQ-001: Interview User
+### REQ-1: Interview User
 
 The PM skill must interview the user.
 
@@ -347,7 +347,7 @@ Description.
 	// Project artifacts in subdirectory reference the issue
 	writeArtifact(t, fs, projectDir, "requirements.md", `# Requirements
 
-### REQ-001: Foundation Feature
+### REQ-1: Foundation Feature
 
 Description.
 
@@ -356,20 +356,20 @@ Description.
 
 	writeArtifact(t, fs, projectDir, "architecture.md", `# Architecture
 
-### ARCH-001: Component
+### ARCH-1: Component
 
 Description.
 
-**Traces to:** REQ-001
+**Traces to:** REQ-1
 `)
 
 	writeArtifact(t, fs, projectDir, "tasks.md", `# Tasks
 
-### TASK-001: Implement feature
+### TASK-1: Implement feature
 
 Description.
 
-**Traces to:** ARCH-001
+**Traces to:** ARCH-1
 `)
 
 	// Validate from project subdirectory (the actual scenario that fails)
@@ -390,7 +390,7 @@ func TestValidateV2Artifacts_InvalidPhase_ReturnsError(t *testing.T) {
 
 	writeArtifact(t, fs, tempDir, "requirements.md", `# Requirements
 
-### REQ-001: Feature
+### REQ-1: Feature
 
 Description.
 `)

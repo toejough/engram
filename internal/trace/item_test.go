@@ -10,14 +10,14 @@ import (
 	"github.com/toejough/projctl/internal/trace"
 )
 
-// TEST-001 traces: TASK-001
+// TEST-1 traces: TASK-1
 // Test that a valid documentation item passes validation
 func TestTraceItem_ValidDocItem(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:           "REQ-001",
+		ID:           "REQ-1",
 		Type:         trace.NodeTypeREQ,
 		Project:      "my-project",
 		Title:        "A valid requirement",
@@ -55,19 +55,19 @@ func TestTraceItem_ValidIssueItem(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-// TEST-002 traces: TASK-001
+// TEST-2 traces: TASK-1
 // Test that a valid TEST item passes validation
 func TestTraceItem_ValidTestItem(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:           "TEST-042",
+		ID:           "TEST-42",
 		Type:         trace.NodeTypeTEST,
 		Project:      "my-project",
 		Title:        "Test user validation",
 		Status:       "active",
-		TracesTo:     []string{"TASK-003"},
+		TracesTo:     []string{"TASK-3"},
 		Location:     "user_test.go",
 		Line:         10,
 		Function:     "TestValidateUser",
@@ -79,7 +79,7 @@ func TestTraceItem_ValidTestItem(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 }
 
-// TEST-003 traces: TASK-001
+// TEST-3 traces: TASK-1
 // Test that missing required ID field produces validation error
 func TestTraceItem_MissingID(t *testing.T) {
 	t.Parallel()
@@ -98,14 +98,14 @@ func TestTraceItem_MissingID(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("ID"))
 }
 
-// TEST-004 traces: TASK-001
+// TEST-4 traces: TASK-1
 // Test that missing required Type field produces validation error
 func TestTraceItem_MissingType(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    "", // Missing/invalid
 		Project: "my-project",
 		Title:   "A requirement",
@@ -117,14 +117,14 @@ func TestTraceItem_MissingType(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Type"))
 }
 
-// TEST-005 traces: TASK-001
+// TEST-5 traces: TASK-1
 // Test that missing required Project field produces validation error
 func TestTraceItem_MissingProject(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "", // Missing
 		Title:   "A requirement",
@@ -136,14 +136,14 @@ func TestTraceItem_MissingProject(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Project"))
 }
 
-// TEST-006 traces: TASK-001
+// TEST-6 traces: TASK-1
 // Test that missing required Title field produces validation error
 func TestTraceItem_MissingTitle(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "", // Missing
@@ -155,14 +155,14 @@ func TestTraceItem_MissingTitle(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Title"))
 }
 
-// TEST-007 traces: TASK-001
+// TEST-7 traces: TASK-1
 // Test that missing required Status field produces validation error
 func TestTraceItem_MissingStatus(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "A requirement",
@@ -174,7 +174,7 @@ func TestTraceItem_MissingStatus(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Status"))
 }
 
-// TEST-008 traces: TASK-001
+// TEST-8 traces: TASK-1
 // Test that invalid ID format produces validation error
 func TestTraceItem_InvalidIDFormat(t *testing.T) {
 	t.Parallel()
@@ -203,19 +203,19 @@ func TestTraceItem_InvalidIDFormat(t *testing.T) {
 	}
 }
 
-// TEST-009 traces: TASK-001
+// TEST-9 traces: TASK-1
 // Test that TEST node without Location produces validation error
 func TestTraceItem_TestNodeMissingLocation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:       "TEST-001",
+		ID:       "TEST-1",
 		Type:     trace.NodeTypeTEST,
 		Project:  "my-project",
 		Title:    "Test something",
 		Status:   "active",
-		TracesTo: []string{"TASK-001"},
+		TracesTo: []string{"TASK-1"},
 		Location: "", // Missing - required for TEST
 		Line:     10,
 		Function: "TestSomething",
@@ -226,19 +226,19 @@ func TestTraceItem_TestNodeMissingLocation(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Location"))
 }
 
-// TEST-010 traces: TASK-001
+// TEST-10 traces: TASK-1
 // Test that TEST node without Function produces validation error
 func TestTraceItem_TestNodeMissingFunction(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:       "TEST-001",
+		ID:       "TEST-1",
 		Type:     trace.NodeTypeTEST,
 		Project:  "my-project",
 		Title:    "Test something",
 		Status:   "active",
-		TracesTo: []string{"TASK-001"},
+		TracesTo: []string{"TASK-1"},
 		Location: "foo_test.go",
 		Line:     10,
 		Function: "", // Missing - required for TEST
@@ -249,14 +249,14 @@ func TestTraceItem_TestNodeMissingFunction(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Function"))
 }
 
-// TEST-011 traces: TASK-001
+// TEST-11 traces: TASK-1
 // Test that ID type must match Type field
 func TestTraceItem_IDTypeMismatch(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",          // ID says REQ
+		ID:      "REQ-1",          // ID says REQ
 		Type:    trace.NodeTypeTEST, // Type says TEST
 		Project: "my-project",
 		Title:   "A test item",
@@ -268,7 +268,7 @@ func TestTraceItem_IDTypeMismatch(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("mismatch"))
 }
 
-// TEST-012 traces: TASK-001
+// TEST-12 traces: TASK-1
 // Property test: valid TraceItems never produce validation errors
 func TestTraceItem_PropertyValidItemsPass(t *testing.T) {
 	t.Parallel()
@@ -306,7 +306,7 @@ func TestTraceItem_PropertyValidItemsPass(t *testing.T) {
 
 		// Add TracesTo for types that require it
 		if nodeType != trace.NodeTypeREQ {
-			item.TracesTo = []string{"REQ-001"}
+			item.TracesTo = []string{"REQ-1"}
 		}
 
 		err := item.Validate()
@@ -314,7 +314,7 @@ func TestTraceItem_PropertyValidItemsPass(t *testing.T) {
 	})
 }
 
-// TEST-013 traces: TASK-001
+// TEST-13 traces: TASK-1
 // Property test: valid TEST items with all required fields pass
 func TestTraceItem_PropertyValidTestItemsPass(t *testing.T) {
 	t.Parallel()
@@ -336,7 +336,7 @@ func TestTraceItem_PropertyValidTestItemsPass(t *testing.T) {
 			Project:      project,
 			Title:        title,
 			Status:       "active",
-			TracesTo:     []string{"TASK-001"},
+			TracesTo:     []string{"TASK-1"},
 			Location:     location,
 			Line:         line,
 			Function:     funcName,
@@ -349,7 +349,7 @@ func TestTraceItem_PropertyValidTestItemsPass(t *testing.T) {
 	})
 }
 
-// TEST-014 traces: TASK-001
+// TEST-14 traces: TASK-1
 // Property test: missing any required field produces error
 func TestTraceItem_PropertyMissingRequiredFieldFails(t *testing.T) {
 	t.Parallel()
@@ -358,7 +358,7 @@ func TestTraceItem_PropertyMissingRequiredFieldFails(t *testing.T) {
 
 		// Start with valid item
 		item := trace.TraceItem{
-			ID:           "REQ-001",
+			ID:           "REQ-1",
 			Type:         trace.NodeTypeREQ,
 			Project:      "my-project",
 			Title:        "A requirement",
@@ -389,7 +389,7 @@ func TestTraceItem_PropertyMissingRequiredFieldFails(t *testing.T) {
 	})
 }
 
-// TEST-015 traces: TASK-001
+// TEST-15 traces: TASK-1
 // Test valid status values
 func TestTraceItem_ValidStatuses(t *testing.T) {
 	t.Parallel()
@@ -399,7 +399,7 @@ func TestTraceItem_ValidStatuses(t *testing.T) {
 
 	for _, status := range validStatuses {
 		item := trace.TraceItem{
-			ID:           "REQ-001",
+			ID:           "REQ-1",
 			Type:         trace.NodeTypeREQ,
 			Project:      "my-project",
 			Title:        "A requirement",
@@ -415,14 +415,14 @@ func TestTraceItem_ValidStatuses(t *testing.T) {
 	}
 }
 
-// TEST-016 traces: TASK-001
+// TEST-16 traces: TASK-1
 // Test invalid status values
 func TestTraceItem_InvalidStatus(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	item := trace.TraceItem{
-		ID:      "REQ-001",
+		ID:      "REQ-1",
 		Type:    trace.NodeTypeREQ,
 		Project: "my-project",
 		Title:   "A requirement",

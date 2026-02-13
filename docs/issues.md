@@ -5743,8 +5743,9 @@ ISSUE-160 + ISSUE-170 parallel execution: qa-160-crosscut used main repo state i
 ### ISSUE-173: Trace validator uses padded IDs (REQ-013) but project convention is non-padded (REQ-13)
 
 **Priority:** medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-08
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -5763,9 +5764,9 @@ ISSUE-43 established that IDs should be simple incrementing numbers, not zero-pa
 Update `projctl trace validate` to normalize ID format before comparison — treat REQ-013 and REQ-13 as equivalent.
 
 ## Acceptance Criteria
-- [ ] Trace validator normalizes IDs (strips leading zeros) before matching
-- [ ] `projctl trace validate` passes on projects using non-padded IDs
-- [ ] No false orphan reports from format mismatch
+- [x] Trace validator normalizes IDs (strips leading zeros) before matching
+- [x] `projctl trace validate` passes on projects using non-padded IDs
+- [x] No false orphan reports from format mismatch
 
 ---
 
@@ -6527,18 +6528,11 @@ Moot — was 'fold into ISSUE-189' for threshold tuning, but ISSUE-189 deliverab
 ### ISSUE-193: Memory: Remove or integrate task9_standalone_test.go
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-10
+**Completed:** 2026-02-13
 
-From Memory Tiering Lifecycle evaluation (ISSUE-182):
-
-Untracked test file `internal/memory/task9_standalone_test.go` found in repository. Either integrate into skill_feedback_test.go if valuable, or delete if experimental.
-
-**Acceptance Criteria:**
-- Review task9_standalone_test.go purpose and content
-- If testing RecordSkillUsage(): move tests into skill_feedback_test.go
-- If experimental/obsolete: delete file
-- Verify `go test ./internal/memory/` still passes after cleanup
+File `internal/memory/task9_standalone_test.go` was never committed and no longer exists on disk. Already cleaned up. Existing tests for RecordSkillUsage live in `skill_feedback_integration_test.go`.
 
 **Context:** Clean repository hygiene, avoid orphaned files.
 
