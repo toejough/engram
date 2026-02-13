@@ -340,3 +340,185 @@ func TestScanClaudeMDSimilarityThreshold(t *testing.T) {
 
 	g.Expect(len(consolidateProposals)).To(Equal(0))
 }
+
+// ============================================================================
+// Additional tests for ISSUE-184: CLAUDE.md Maintenance Gaps
+// ============================================================================
+
+// TEST-1211: scanClaudeMD detects stale entries (ISSUE-184)
+func TestScanClaudeMD_DetectsStaleness(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := `## Promoted Learnings
+
+- 2020-01-01 10:00: Old learning that should be pruned
+- 2026-02-08 21:40: Recent learning to keep
+- Learning without timestamp
+`
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
+
+	proposals, err := memory.ScanClaudeMD(fs, "/test/CLAUDE.md", 0.9)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should detect stale entry (>90 days old)
+	var pruneProposals []memory.MaintenanceProposal
+	for _, p := range proposals {
+		if p.Action == "prune" {
+			pruneProposals = append(pruneProposals, p)
+		}
+	}
+
+	g.Expect(len(pruneProposals)).To(BeNumerically(">", 0))
+
+	// Find the stale entry proposal
+	var foundStale bool
+	for _, p := range pruneProposals {
+		if strings.Contains(p.Target, "Old learning") {
+			foundStale = true
+			g.Expect(p.Tier).To(Equal("claude-md"))
+			g.Expect(p.Reason).To(ContainSubstring("stale"))
+			g.Expect(p.Reason).To(ContainSubstring(">90 days"))
+		}
+	}
+	g.Expect(foundStale).To(BeTrue())
+}
+
+// TEST-1212: scanClaudeMD does not flag entries without timestamps (ISSUE-184)
+func TestScanClaudeMD_NoTimestampNotFlagged(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := `## Promoted Learnings
+
+- Learning without timestamp should not be flagged
+- Another learning without timestamp
+`
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
+
+	proposals, err := memory.ScanClaudeMD(fs, "/test/CLAUDE.md", 0.9)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should not generate prune proposals for entries without timestamps
+	var pruneProposals []memory.MaintenanceProposal
+	for _, p := range proposals {
+		if p.Action == "prune" {
+			pruneProposals = append(pruneProposals, p)
+		}
+	}
+
+	// No stale pruning should occur since there are no timestamps
+	g.Expect(len(pruneProposals)).To(Equal(0))
+}
+
+// ============================================================================
+// Additional tests for ISSUE-218: Content Refinement Operations
+// ============================================================================
+
+// TEST-1213: applyClaudeMDProposal handles rewrite action (ISSUE-218)
+func TestApplyClaudeMDProposal_Rewrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := `## Promoted Learnings
+
+- Use TDD
+- Always validate inputs
+`
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
+
+	proposal := memory.MaintenanceProposal{
+		Tier:    "claude-md",
+		Action:  "rewrite",
+		Target:  "Use TDD",
+		Preview: "Always use Test-Driven Development for all code changes",
+		Reason:  "improve clarity and specificity",
+	}
+
+	err := memory.ApplyClaudeMDProposal(fs, "/test/CLAUDE.md", proposal)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).ToNot(ContainSubstring("Use TDD"))
+	g.Expect(result).To(ContainSubstring("Always use Test-Driven Development"))
+	g.Expect(result).To(ContainSubstring("Always validate inputs"))
+}
+
+// TEST-1214: applyClaudeMDProposal handles add-rationale action (ISSUE-218)
+func TestApplyClaudeMDProposal_AddRationale(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := `## Promoted Learnings
+
+- Never use git amend on pushed commits
+- Always validate inputs
+`
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
+
+	proposal := memory.MaintenanceProposal{
+		Tier:    "claude-md",
+		Action:  "add-rationale",
+		Target:  "Never use git amend on pushed commits",
+		Preview: "Never use git amend on pushed commits - this rewrites history and breaks collaboration",
+		Reason:  "add explanation of why this matters",
+	}
+
+	err := memory.ApplyClaudeMDProposal(fs, "/test/CLAUDE.md", proposal)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).To(ContainSubstring("rewrites history"))
+	g.Expect(result).To(ContainSubstring("breaks collaboration"))
+	g.Expect(result).To(ContainSubstring("Always validate inputs"))
+}
+
+// TEST-1215: applyClaudeMDProposal handles extract-examples action (ISSUE-218)
+func TestApplyClaudeMDProposal_ExtractExamples(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	content := `## Promoted Learnings
+
+- Use go test -tags sqlite_fts5 for all tests. Example: ` + "`go test -tags sqlite_fts5 -count=1`" + `
+- Always validate inputs
+`
+	fs := &MockFS{
+		Files: map[string][]byte{
+			"/test/CLAUDE.md": []byte(content),
+		},
+	}
+
+	proposal := memory.MaintenanceProposal{
+		Tier:    "claude-md",
+		Action:  "extract-examples",
+		Target:  "Use go test -tags sqlite_fts5 for all tests. Example: `go test -tags sqlite_fts5 -count=1`",
+		Preview: "Use go test -tags sqlite_fts5 for all tests",
+		Reason:  "extract code examples to keep principle clean",
+	}
+
+	err := memory.ApplyClaudeMDProposal(fs, "/test/CLAUDE.md", proposal)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	result := string(fs.Files["/test/CLAUDE.md"])
+	g.Expect(result).ToNot(ContainSubstring("Example:"))
+	g.Expect(result).ToNot(ContainSubstring("`go test -tags sqlite_fts5 -count=1`"))
+	g.Expect(result).To(ContainSubstring("Use go test -tags sqlite_fts5 for all tests"))
+	g.Expect(result).To(ContainSubstring("Always validate inputs"))
+}

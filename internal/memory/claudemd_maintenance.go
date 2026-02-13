@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ScanClaudeMD scans CLAUDE.md for maintenance opportunities and returns proposals.
@@ -146,6 +147,21 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 		}
 	}
 
+	// 4. Detect stale entries (ISSUE-184)
+	// Entries with timestamp prefix older than 90 days → prune
+	for _, e := range entries {
+		// Check for timestamp prefix (format: "YYYY-MM-DD HH:MM: ")
+		if isStaleEntry(e.line) {
+			proposal := MaintenanceProposal{
+				Tier:   "claude-md",
+				Action: "prune",
+				Target: e.content,
+				Reason: "stale (>90 days, no retrieval)",
+			}
+			proposals = append(proposals, proposal)
+		}
+	}
+
 	return proposals, nil
 }
 
@@ -189,6 +205,27 @@ func ApplyClaudeMDProposal(fs FileSystem, claudeMDPath string, proposal Maintena
 	case "demote":
 		// Just remove from CLAUDE.md (caller handles skill creation)
 		return RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+
+	case "rewrite":
+		// ISSUE-218: Replace target entry with refined preview content
+		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
+			return err
+		}
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	case "add-rationale":
+		// ISSUE-218: Replace target entry with enriched version (includes rationale)
+		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
+			return err
+		}
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	case "extract-examples":
+		// ISSUE-218: Replace target with principle-only (examples removed)
+		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
+			return err
+		}
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
 
 	default:
 		return fmt.Errorf("unknown action: %s", proposal.Action)
@@ -273,6 +310,51 @@ func splitLongEntry(entry string) []string {
 
 	// Fallback: return original as single part
 	return []string{entry}
+}
+
+// isStaleEntry checks if a CLAUDE.md entry has a timestamp prefix older than 90 days.
+// ISSUE-184: Entries without timestamps are not flagged.
+func isStaleEntry(line string) bool {
+	// Check for timestamp prefix: "- YYYY-MM-DD HH:MM: "
+	trimmed := strings.TrimSpace(line)
+	if !strings.HasPrefix(trimmed, "- ") {
+		return false
+	}
+	rest := trimmed[2:] // Skip "- "
+
+	// Check format: YYYY-MM-DD HH:MM:
+	if len(rest) < 17 {
+		return false
+	}
+
+	// Parse timestamp
+	timestampPart := rest[:16] // "YYYY-MM-DD HH:MM"
+	// Check pattern
+	if len(timestampPart) != 16 {
+		return false
+	}
+	if timestampPart[4] != '-' || timestampPart[7] != '-' || timestampPart[10] != ' ' || timestampPart[13] != ':' {
+		return false
+	}
+
+	// Check if followed by ": "
+	if len(rest) < 19 || rest[16:18] != ": " {
+		return false
+	}
+
+	// Parse timestamp into time.Time
+	// Format: "2006-01-02 15:04"
+	timestamp, err := time.Parse("2006-01-02 15:04", timestampPart)
+	if err != nil {
+		return false
+	}
+
+	// Check if older than 90 days
+	now := time.Now()
+	age := now.Sub(timestamp)
+	threshold := 90 * 24 * time.Hour
+
+	return age > threshold
 }
 
 // appendToClaudeMDWithFS is a variant of appendToClaudeMD that uses FileSystem interface.

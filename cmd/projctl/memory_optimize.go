@@ -22,6 +22,7 @@ type memoryOptimizeArgs struct {
 	MinSkillConfidenceThresh float64 `targ:"flag,name=min-skill-confidence,desc=Minimum confidence for skill promotion (default 0.8)"`
 	ForceReorg               bool    `targ:"flag,desc=Force full skill reorganization regardless of last run time (normally runs every 30 days)"`
 	NoLLM                    bool    `targ:"flag,desc=Disable all LLM-based features (extractor, specificity detector, skill compiler)"`
+	Tier                     string  `targ:"flag,desc=Filter proposals by tier: embeddings, skills, or claude-md (ISSUE-184)"`
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
@@ -189,6 +190,12 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 	}
 	// If no --yes flag, reviewFunc is nil and OptimizeInteractive will use interactive reviewProposal
 
+	// Wire LLM extractor (unless --no-llm is set) for refinement proposals (ISSUE-218)
+	var extractor memory.LLMExtractor
+	if !args.NoLLM {
+		extractor = memory.NewClaudeCLIExtractor()
+	}
+
 	// Run interactive optimization
 	opts := memory.OptimizeInteractiveOpts{
 		DBPath:       dbPath,
@@ -198,6 +205,8 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 		Input:        os.Stdin,
 		Output:       os.Stdout,
 		Context:      ctx,
+		Extractor:    extractor,   // ISSUE-218: Wire extractor for refinement proposals
+		TierFilter:   args.Tier,   // ISSUE-184: Wire tier filter
 	}
 
 	result, err := memory.OptimizeInteractive(opts)

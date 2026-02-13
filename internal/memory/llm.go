@@ -64,6 +64,8 @@ type LLMExtractor interface {
 	Synthesize(ctx context.Context, memories []string) (string, error)
 	Curate(ctx context.Context, query string, candidates []QueryResult) ([]CuratedResult, error)
 	Decide(ctx context.Context, newContent string, existing []ExistingMemory) (*IngestDecision, error)
+	Rewrite(ctx context.Context, content string) (string, error)         // ISSUE-218: Improve clarity/specificity
+	AddRationale(ctx context.Context, content string) (string, error)    // ISSUE-218: Add explanation of why
 }
 
 // SkillCompiler defines the interface for compiling memory clusters into skill content.
@@ -265,6 +267,38 @@ Learning to analyze:
 	}
 
 	return response.IsNarrow, response.Reason, nil
+}
+
+// Rewrite improves clarity and specificity of a memory entry.
+func (c *ClaudeCLIExtractor) Rewrite(ctx context.Context, content string) (string, error) {
+	prompt := fmt.Sprintf(`Rewrite this memory entry to improve clarity and specificity while preserving its meaning:
+
+%s
+
+Return ONLY the rewritten version, no JSON or markdown formatting.`, content)
+
+	output, err := c.runClaude(ctx, prompt)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// AddRationale adds an explanation of why a rule or principle matters.
+func (c *ClaudeCLIExtractor) AddRationale(ctx context.Context, content string) (string, error) {
+	prompt := fmt.Sprintf(`Add a brief explanation of WHY this rule/principle matters to the end of it. Format: "Rule - explanation of why it matters"
+
+Rule: %s
+
+Return ONLY the enriched version with rationale, no JSON or markdown formatting.`, content)
+
+	output, err := c.runClaude(ctx, prompt)
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(output)), nil
 }
 
 // runClaude executes the claude CLI and returns the output.

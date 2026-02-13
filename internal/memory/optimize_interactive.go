@@ -18,6 +18,8 @@ type OptimizeInteractiveOpts struct {
 	Input        io.Reader              // Input stream for interactive prompts (default os.Stdin)
 	Output       io.Writer              // Output stream for display (default os.Stdout)
 	Context      context.Context        // Context for cancellation
+	Extractor    LLMExtractor           // Optional LLM extractor for refinement proposals (ISSUE-218)
+	TierFilter   string                 // Optional tier filter: "embeddings", "skills", "claude-md" (ISSUE-184)
 }
 
 // OptimizeInteractiveResult holds the results of interactive optimization.
@@ -161,6 +163,44 @@ func OptimizeInteractive(opts OptimizeInteractiveOpts) (*OptimizeInteractiveResu
 	}
 	allProposals = append(allProposals, claudeMDProposals...)
 	updateTierStats(result, claudeMDProposals, "claude-md")
+
+	// Scan for refinement opportunities (ISSUE-218)
+	if opts.Extractor != nil {
+		if err := checkContextErr(opts.Context); err != nil {
+			_ = txn.Rollback()
+			return nil, err
+		}
+		fmt.Fprintln(opts.Output, "- Scanning for refinement opportunities...")
+		refinementProposals, err := ScanForRefinements(db, opts.ClaudeMDPath, opts.Extractor)
+		if err != nil {
+			_ = txn.Rollback()
+			return nil, fmt.Errorf("failed to scan for refinements: %w", err)
+		}
+		allProposals = append(allProposals, refinementProposals...)
+		// Update tier stats for refinement proposals
+		for _, p := range refinementProposals {
+			stats := result.TierSummary[p.Tier]
+			stats.Total++
+			stats.Actions[p.Action]++
+			result.TierSummary[p.Tier] = stats
+		}
+	}
+
+	// Apply tier filter (ISSUE-184)
+	if opts.TierFilter != "" {
+		filteredProposals := make([]MaintenanceProposal, 0)
+		for _, p := range allProposals {
+			if p.Tier == opts.TierFilter {
+				filteredProposals = append(filteredProposals, p)
+			}
+		}
+		allProposals = filteredProposals
+		// Rebuild tier stats for filtered proposals
+		result.TierSummary = make(map[string]TierSummaryStats)
+		for _, p := range allProposals {
+			updateTierStats(result, []MaintenanceProposal{p}, p.Tier)
+		}
+	}
 
 	result.Total = len(allProposals)
 

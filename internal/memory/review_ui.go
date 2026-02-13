@@ -77,6 +77,12 @@ func formatActionVerb(action, tier string) string {
 		return "Promote?"
 	case "demote":
 		return "Demote?"
+	case "rewrite":
+		return "Rewrite?"
+	case "add-rationale":
+		return "Add rationale?"
+	case "extract-examples":
+		return "Extract?"
 	default:
 		return action + "?"
 	}

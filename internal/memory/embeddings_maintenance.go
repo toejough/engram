@@ -311,6 +311,12 @@ func applyEmbeddingsProposal(db *sql.DB, memoryRoot, skillsDir string, proposal 
 		return applySplit(db, proposal)
 	case "promote":
 		return applyPromote(db, skillsDir, proposal)
+	case "rewrite":
+		// ISSUE-218: Rewrite embedding content
+		return applyEmbeddingsRewrite(db, proposal)
+	case "add-rationale":
+		// ISSUE-218: Add rationale to embedding
+		return applyEmbeddingsAddRationale(db, proposal)
 	default:
 		return fmt.Errorf("unknown action: %s", proposal.Action)
 	}
@@ -482,4 +488,61 @@ func applyPromote(db *sql.DB, skillsDir string, proposal MaintenanceProposal) er
 	}
 
 	return writeSkillFile(skillsDir, skill)
+}
+
+// applyEmbeddingsRewrite rewrites an embedding's content.
+func applyEmbeddingsRewrite(db *sql.DB, proposal MaintenanceProposal) error {
+	id, err := strconv.ParseInt(proposal.Target, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid target ID: %w", err)
+	}
+
+	// Update content with refined version
+	_, err = db.Exec("UPDATE embeddings SET content = ? WHERE id = ?", proposal.Preview, id)
+	if err != nil {
+		return fmt.Errorf("failed to update content: %w", err)
+	}
+
+	// Clear flagged_for_rewrite flag
+	_, _ = db.Exec("UPDATE embeddings SET flagged_for_rewrite = 0 WHERE id = ?", id)
+
+	return nil
+}
+
+// applyEmbeddingsAddRationale adds rationale to an embedding.
+func applyEmbeddingsAddRationale(db *sql.DB, proposal MaintenanceProposal) error {
+	id, err := strconv.ParseInt(proposal.Target, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid target ID: %w", err)
+	}
+
+	// Extract rationale from preview (format: "principle - rationale")
+	// The preview contains the enriched version with rationale
+	// We need to extract just the rationale part
+	rationale := extractRationaleFromEnriched(proposal.Preview)
+
+	// Update rationale field
+	_, err = db.Exec("UPDATE embeddings SET rationale = ? WHERE id = ?", rationale, id)
+	if err != nil {
+		return fmt.Errorf("failed to update rationale: %w", err)
+	}
+
+	return nil
+}
+
+// extractRationaleFromEnriched extracts the rationale from an enriched entry.
+// Format: "principle - rationale" or "principle because rationale"
+func extractRationaleFromEnriched(enriched string) string {
+	// Try to split on " - "
+	if idx := strings.Index(enriched, " - "); idx != -1 {
+		return strings.TrimSpace(enriched[idx+3:])
+	}
+
+	// Try to split on " because "
+	if idx := strings.Index(enriched, " because "); idx != -1 {
+		return strings.TrimSpace(enriched[idx+9:])
+	}
+
+	// Otherwise return the whole enriched string as rationale
+	return enriched
 }

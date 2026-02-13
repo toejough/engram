@@ -465,3 +465,13 @@ func (m *mockExtractor) Synthesize(ctx context.Context, memories []string) (stri
 	// Mock implementation: just return empty string
 	return "", nil
 }
+
+func (m *mockExtractor) Rewrite(ctx context.Context, content string) (string, error) {
+	// Mock implementation: just return content as-is
+	return content, nil
+}
+
+func (m *mockExtractor) AddRationale(ctx context.Context, content string) (string, error) {
+	// Mock implementation: just return content as-is
+	return content, nil
+}

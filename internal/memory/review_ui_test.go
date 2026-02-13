@@ -398,3 +398,36 @@ func TestFormatProposalActionVerbs(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Additional tests for ISSUE-218: Content Refinement Action Verbs
+// ============================================================================
+
+// TEST-1216: formatProposal handles new refinement action verbs
+func TestFormatProposalNewRefinementActions(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	testCases := []struct {
+		action       string
+		expectedVerb string
+	}{
+		{"rewrite", "Rewrite?"},
+		{"add-rationale", "Add rationale?"},
+		{"extract-examples", "Extract?"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("action %s formats as %s", tc.action, tc.expectedVerb), func(t *testing.T) {
+			proposal := MaintenanceProposal{
+				Tier:    "embeddings",
+				Action:  tc.action,
+				Target:  "test-target",
+				Reason:  "test reason",
+				Preview: "test preview",
+			}
+
+			formatted := formatProposal(proposal)
+			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedVerb))
+		})
+	}
+}
