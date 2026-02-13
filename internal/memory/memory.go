@@ -329,9 +329,10 @@ func searchDirectory(dir, pattern, projectFilter string) []GrepMatch {
 type QueryOpts struct {
 	Text       string
 	Limit      int
-	Project    string // Project name for tracking retrievals
+	Project    string  // Project name for tracking retrievals
 	MemoryRoot string
-	ModelDir   string // Directory for ONNX models (default: ~/.claude/models)
+	ModelDir   string  // Directory for ONNX models (default: ~/.claude/models)
+	MinScore   float64 // Minimum similarity score threshold (0.0 = no filtering)
 }
 
 // QueryResult represents a single query result.
@@ -452,6 +453,21 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	results, err := hybridSearch(db, queryEmbedding, opts.Text, limit, 60)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search: %w", err)
+	}
+
+	// ISSUE-217: Filter results by minimum score threshold
+	if opts.MinScore > 0 {
+		filtered := make([]QueryResult, 0, len(results))
+		for _, r := range results {
+			if r.Score >= opts.MinScore {
+				filtered = append(filtered, r)
+			}
+		}
+		if len(filtered) == 0 && len(results) > 0 {
+			fmt.Fprintf(os.Stderr, "Warning: all %d results filtered by MinScore threshold %.2f (max score: %.4f)\n",
+				len(results), opts.MinScore, results[0].Score)
+		}
+		results = filtered
 	}
 
 	// Update retrieval tracking for TASK-41
