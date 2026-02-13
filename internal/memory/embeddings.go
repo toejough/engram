@@ -26,7 +26,7 @@ import (
 const embeddingDim = 384
 
 // e5SmallModelURL is the HuggingFace URL for the e5-small-v2 ONNX model
-const e5SmallModelURL = "https://huggingface.co/intfloat/e5-small-v2/resolve/main/onnx/model.onnx"
+const e5SmallModelURL = "https://huggingface.co/intfloat/e5-small-v2/resolve/main/model.onnx"
 
 // onnxRuntimeVersion is the version of ONNX Runtime to download
 const onnxRuntimeVersion = "1.23.2"

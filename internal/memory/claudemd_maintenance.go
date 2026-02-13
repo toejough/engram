@@ -80,7 +80,7 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 	}
 	var embeddedEntries []embeddedEntry
 	for _, e := range entries {
-		emb, _, _, err := generateEmbeddingONNX(e.content, modelPath)
+		emb, _, _, err := generateEmbeddingONNX("passage: "+e.content, modelPath)
 		if err != nil {
 			continue
 		}

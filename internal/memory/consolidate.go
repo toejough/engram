@@ -164,8 +164,9 @@ func ConsolidateClaudeMD(opts ConsolidateClaudeMDOpts) (*ConsolidateClaudeMDResu
 			continue
 		}
 
-		// Generate embedding for the learning text
-		embedding, _, _, err := generateEmbeddingONNX(learning, modelPath)
+		// Generate embedding for the learning text with "passage: " prefix (ISSUE-221)
+		// This is passage-to-passage comparison, not user query
+		embedding, _, _, err := generateEmbeddingONNX("passage: "+learning, modelPath)
 		if err != nil {
 			continue // Skip on error
 		}

@@ -991,7 +991,7 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	}
 	var embEntries []embEntry
 	for _, e := range entries {
-		emb, _, _, err := generateEmbeddingONNX(e.content, modelPath)
+		emb, _, _, err := generateEmbeddingONNX("passage: "+e.content, modelPath)
 		if err != nil {
 			continue
 		}
@@ -1931,7 +1931,7 @@ func optimizePromoteSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		if learning == "" {
 			continue
 		}
-		emb, _, _, err := generateEmbeddingONNX(learning, modelPath)
+		emb, _, _, err := generateEmbeddingONNX("passage: "+learning, modelPath)
 		if err != nil {
 			continue
 		}
@@ -1970,7 +1970,7 @@ func optimizePromoteSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		}
 
 		// Semantic deduplication: check similarity with existing CLAUDE.md entries
-		principleEmb, _, _, err := generateEmbeddingONNX(principle, modelPath)
+		principleEmb, _, _, err := generateEmbeddingONNX("passage: "+principle, modelPath)
 		if err != nil {
 			continue
 		}

@@ -142,8 +142,8 @@ func storeExtractedItems(opts ExtractOpts, items []ExtractedItem) error {
 		// Combine type, context, and content for embedding
 		textForEmbedding := fmt.Sprintf("%s: %s - %s", item.Type, item.Context, item.Content)
 
-		// Generate embedding
-		embedding, _, _, err := generateEmbeddingONNX(textForEmbedding, modelPath)
+		// Generate embedding with "passage: " prefix for storage (ISSUE-221)
+		embedding, _, _, err := generateEmbeddingONNX("passage: "+textForEmbedding, modelPath)
 		if err != nil {
 			return fmt.Errorf("failed to generate embedding: %w", err)
 		}

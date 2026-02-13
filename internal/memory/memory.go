@@ -424,8 +424,25 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	}
 	defer func() { _ = db.Close() }()
 
-	// Generate query embedding using ONNX model
-	queryEmbedding, sessionCreated, sessionReused, err := generateEmbeddingONNX(opts.Text, modelPath)
+	// ISSUE-221: Check for stale model and re-download if needed
+	needsDownload, err := ensureCorrectModel(db, modelPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check model validity: %w", err)
+	}
+	if needsDownload {
+		if err := downloadModel(modelPath); err != nil {
+			return nil, fmt.Errorf("failed to download model: %w", err)
+		}
+		modelDownloaded = true
+	}
+
+	// ISSUE-221: Run model version migration if needed
+	if err := migrateModelVersion(db, modelPath); err != nil {
+		return nil, fmt.Errorf("failed to migrate model version: %w", err)
+	}
+
+	// Generate query embedding using ONNX model with "query: " prefix for e5-small-v2 (ISSUE-221)
+	queryEmbedding, sessionCreated, sessionReused, err := generateEmbeddingONNX("query: "+opts.Text, modelPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate query embedding: %w", err)
 	}
@@ -958,8 +975,9 @@ func LearnWithConflictCheck(opts LearnOpts) (*LearnConflictResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	// Generate embedding for the new message
-	embedding, _, _, err := generateEmbeddingONNX(opts.Message, modelPath)
+	// Generate embedding for the new message with "passage: " prefix for e5-small-v2 (ISSUE-221)
+	// This is passage-to-passage comparison for deduplication, not a user query
+	embedding, _, _, err := generateEmbeddingONNX("passage: "+opts.Message, modelPath)
 	if err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("failed to generate embedding: %w", err)
