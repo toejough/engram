@@ -219,6 +219,57 @@ contract:
 
 ---
 
+## Hook Configuration
+
+### Purpose
+
+Hooks enable automatic logging during plan mode. They can:
+- Log EnterPlanMode/ExitPlanMode calls to memory
+- Enforce plan mode state tracking
+- Track planning patterns across projects
+
+### PostToolUse Hook for Plan Mode
+
+Configure a PostToolUse hook to capture plan mode transitions automatically.
+
+### Installation
+
+Most users don't need manual configuration:
+
+```bash
+projctl memory hooks install
+```
+
+This command sets up all recommended hooks, including plan mode tracking.
+
+### Manual Configuration
+
+For custom setups, add to `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "EnterPlanMode|ExitPlanMode",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "projctl memory learn --source plan-mode \"Plan mode: $TOOL_NAME called\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+The `matcher` field uses regex to match tool names, and `$TOOL_NAME` is replaced at runtime.
+
+**Note**: Most users should use `projctl memory hooks install` rather than manual configuration.
+
+---
+
 ## Lessons Learned
 
 **Don't skip hard parts**: "Deferred due to complexity" is not acceptable. Raise blockers, don't silently skip.

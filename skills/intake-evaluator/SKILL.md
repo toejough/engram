@@ -40,7 +40,14 @@ Are the exact files/lines and fix already known?
   → YES: quick-fix (Quick Fix — no state machine, just do it)
 
 Is it a well-defined change spanning multiple files/tasks?
-  → YES: scoped (Scoped — TDD loop with task breakdown)
+  Check ALL of these for scoped:
+  ✓ Problem AND solution both clearly defined in issue
+  ✓ No exploratory or discovery work needed
+  ✓ No design trade-offs to evaluate
+  ✓ Existing codebase context is sufficient
+  ✓ Clear acceptance criteria already exist
+  → ALL YES: scoped (Scoped — TDD loop with task breakdown)
+  → ANY NO: new (Full Project — needs PM/design/arch phases)
 
 Uncertain?
   → Escalate to user with options
@@ -84,6 +91,27 @@ Evaluate the request against these indicators:
 - Doesn't need full PM interview or architecture design
 - Existing project context is sufficient
 - "Add feature X to existing system Y"
+
+**Scoped vs Full Decision Criteria:**
+
+Use **scoped** when ALL of these are true:
+1. Problem statement is clear (no ambiguity about what's wrong/needed)
+2. Solution approach is known (no need to explore alternatives)
+3. No design trade-offs require user input
+4. Codebase context exists (not greenfield)
+5. Acceptance criteria can be written without discovery
+
+Use **full (new)** when ANY of these are true:
+1. Problem is vague or needs investigation
+2. Multiple solution approaches need evaluation
+3. Design decisions need user input (UI, API shape, etc.)
+4. No existing codebase to build on
+5. Requirements need gathering from user
+
+**Examples from past issues:**
+- ISSUE-170 (scoped ✓): "Fix trace validator ID normalization" — clear problem, clear solution, existing code
+- ISSUE-152 (full ✓): "Memory tiering lifecycle" — new feature, needed PM/design/arch from scratch
+- ISSUE-202 (scoped ✓): "Restructure hook system" — well-defined AC, existing code, no design trade-offs
 
 ### Quick Fix Signals
 - Scoped to a specific file or function

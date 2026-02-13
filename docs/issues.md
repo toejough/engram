@@ -5812,8 +5812,9 @@ Corrected diagnosis: The state diagram correctly shows phase_blocked → escalat
 ### ISSUE-175: Document hook installation for plan mode enforcement
 
 **Priority:** medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-08
+**Completed:** 2026-02-13
 
 From ISSUE-170 evaluation: AC-2 mentions hook installation docs or 'projctl hooks install' support, but this was not completed. The state infrastructure for tool call tracking is ready, but users need guidance on configuring PostToolUse hooks.
 
@@ -5826,8 +5827,9 @@ Context: ISSUE-170 implemented the state-layer infrastructure (LogToolCall, step
 ### ISSUE-176: Codify scoped workflow decision criteria in intake-evaluator
 
 **Priority:** medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-08
+**Completed:** 2026-02-13
 
 From ISSUE-170 evaluation: The intake-evaluator should have clear criteria for when to use scoped workflow vs full workflow. ISSUE-170 was a good candidate for scoped (clear problem, clear solution), but the decision was implicit.
 
