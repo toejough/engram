@@ -211,3 +211,19 @@ contract:
       description: "Plan is appropriately scoped (not over-engineered)"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+**Don't skip hard parts**: "Deferred due to complexity" is not acceptable. Raise blockers, don't silently skip.
+
+**Check for plan documents when resuming**: After context compaction, look for planning docs before doing work.
+
+**Check learnings against specs**: When capturing learnings or discoveries, compare them against documented architecture, design, and requirements. If a learning reveals a mismatch (e.g., function named differently than spec says), that's a failure - fix it or get explicit approval to update the spec. Spec violations are not warnings to note; they're blockers to resolve.
+
+**Stop spinning on conflicts**: After 2-3 failed attempts, present options. Don't try 10 variations.
+
+**Trace the full user journey**: Don't just think about what code does - trace what happens AFTER. If generating code, ask: "What happens when this runs?"
+
+**When generating code, consider existing code interactions**: Before generating, ask: "What already exists with this name?"

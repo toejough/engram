@@ -392,3 +392,23 @@ Verdict: improvement-request
 - **ARCH-024**: Prose fallback behavior
 - **ARCH-028**: Iteration tracking (max 3)
 - **ARCH-040**: Commit-QA validation contract (ISSUE-92)
+
+---
+
+## Lessons Learned
+
+**No "pre-existing" excuses**: Never dismiss issues from deterministic checks (tests, linters) as "pre-existing" or "unrelated to my changes." The only way to keep a system clean is to tackle failures when you find them. Context compaction means I likely caused them earlier in the session anyway. Fix ALL failures when discovered - no exceptions. If unsure about the fix, ask - but default to fixing, never to ignoring.
+
+**Interface testing verifies correctness, not just existence**: When doing verification, actually check the output. For UI, look at the screenshot - DOM snapshots showing correct structure is not enough if the screenshot is blank or malformed. For CLI, check the actual output format - parsing success doesn't mean the output is usable. For API, validate response bodies - status 200 with malformed JSON is still wrong. "It runs" is not the same as "it works correctly." For user-facing tasks, acceptance criteria MUST include output verification. Use `projctl screenshot diff` with SSIM for visual regression detection.
+
+**Interface validation is critical, not optional**: For projects with user-facing output (UI, CLI, API), verification via appropriate tools is a REQUIRED part of the TDD/audit cycle - not something to skip when tools have issues. If verification tools are broken, FIX THEM before proceeding. Passing unit tests are necessary but not sufficient for user-facing components. Structure tests + behavior tests + output verification together constitute complete testing.
+
+**Test behavior, not just presence**: For interactive elements (UI buttons, CLI commands, API endpoints), tests must verify BEHAVIOR, not just that elements exist. Testing `expect(button).toBeTruthy()` is necessary but insufficient - you must also test `button.click(); expect(handler).toHaveBeenCalled()` AND that the handler actually does something meaningful. The full chain is: element exists → element is interactive → interaction triggers event → event handler runs → state changes → output updates. A button that renders but does nothing on click is a test failure, even if "button renders" passes. For CLI: command parses → processing runs → output produced. For API: endpoint exists → request accepted → response returned.
+
+**Property-based testing for interfaces**: Express and verify properties that should hold across all screens/commands/endpoints, not just hand-picked examples. "Every screen has X" is a property that can be tested exhaustively. "All commands support --help" is a property. "All endpoints return valid JSON" is a property. Use randomized/exhaustive exploration (rapid, fast-check) to verify these invariants across the full interface surface.
+
+**Evidence-based findings only**: Every audit finding must reference concrete proof - a specific file, line number, test output, or screenshot. Never claim "X is wrong" without showing what is actually there vs. what should be. See skill docs: `architect-audit`, `design-audit`, `task-audit`.
+
+**Compare logs AND rendered output**: When UI shows wrong values but logs show correct, the gap is in data transfer.
+
+**Save expensive command output**: Save slow command output to a file rather than re-running.

@@ -546,3 +546,17 @@ projctl trace validate --dir .
 ```
 
 If validation fails, loop until pass or abort.
+
+---
+
+## Lessons Learned
+
+**Follow explicit instructions exactly**: When Joe says "don't support X", that means don't support X. If it seems wrong, ask.
+
+**Use watchdog agents for team monitoring**: When running a team, spawn a haiku watchdog agent to monitor idle teammates instead of polling manually. Never busy-wait or sleep-check in the lead agent. The plan specifies the team structure for a reason — follow it.
+
+**Retro recommendations require issues**: When a retrospective produces recommendations (R1, R2, etc.) or open questions (Q1, Q2, etc.), issues MUST be created for High/Medium priority items before the project is considered complete. Don't just document them in retro.md - create tracking issues via `projctl issue create`.
+
+**Guard against duplicate role assignments**: Before spawning a teammate for a role, verify no active teammate already holds that role. Two agents performing the same job wastes resources and produces conflicting results (e.g., duplicate QA approvals in ISSUE-89).
+
+**Established patterns reduce rework**: When a pattern is proven (e.g., Phase 1 migration approach), apply it consistently to subsequent work. Phase 2 achieved 0 QA failures by reusing the Phase 1 pattern. Invest in establishing patterns early in multi-phase or multi-issue projects.

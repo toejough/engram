@@ -184,3 +184,22 @@ contract:
       description: "Coverage metrics included"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+### Traceability
+
+**Inline only - NO traceability.toml**: Traceability links MUST be embedded in artifact markdown files via `**Traces to:**` fields. There is NO separate traceability.toml file. Never create traceability.toml. Never remove `**Traces to:**` or `**Traceability:**` lines from artifacts.
+
+**Format**: Each artifact section with an ID should have a traces field:
+```markdown
+### REQ-001: Feature Name
+
+Description...
+
+**Traces to:** DES-001, ARCH-002
+```
+
+**Validation**: Use `projctl trace validate` which scans artifact files for `### ID: Title` headers and `**Traces to:**` fields. It reports orphan IDs (referenced but not defined) and unlinked IDs (defined but not connected to the chain).

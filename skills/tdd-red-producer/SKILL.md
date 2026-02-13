@@ -315,3 +315,24 @@ contract:
       description: "Tests are blackbox (test public API, not internals)"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+**No flaky tests**: Flaky tests are not acceptable. Never dismiss test failures as "flaky" or "race conditions" - fix them. Use dependency injection (imptest) to avoid IO-based flakiness. If a test captures stdout/stderr or uses timing, inject those dependencies instead.
+
+**Failing tests mean implementation bugs**: When a test fails, investigate the implementation first, not the test. Never adjust tests to match code without verifying whether the code has a bug. Tests encode expected behavior - if the test is reasonable, the code is wrong.
+
+**No whitebox tests for unexported functions**: Testing unexported functions directly is testing implementation, not behavior. Use dependency injection with property tests instead. If coverage seems insufficient without whitebox access, stop and discuss the specific situation - the design likely needs adjustment, not the test approach.
+
+**Test tooling expectations**: Tests should use two categories of libraries:
+1. **Human-readable matchers** - Assertions that read like sentences (e.g., `Expect(x).To(Equal(y))`, `expect(x).toBe(y)`). These make test failures self-documenting.
+2. **Randomized property exploration** - Libraries that generate random inputs to verify properties hold across many cases, not just hand-picked examples. This catches edge cases humans miss.
+The specific libraries vary by language (Go: gomega + rapid, TS: vitest matchers + fast-check), but the principle is universal: tests should be readable AND thorough.
+
+**Sketch test structure before writing**: Before writing tests, outline the expected structure (Given/When/Then) and review for simplicity. This catches over-engineering before implementation. Tests refactored during creation (-66 +46 lines in ISSUE-58) indicate premature complexity that should have been caught in planning.
+
+**TDD applies to ALL artifacts, not just code**: Documentation and design/UI work require TDD discipline too. Tests for docs include: word/phrase matching (grep for required terms), semantic matching (projctl memory query for conceptual coverage), structural tests (required sections exist). Tests for design/UI include: visual regression tests (projctl screenshot diff), component presence/behavior tests, accessibility checks. When a task produces .md files, .pen files, SKILL.md updates, or any artifact, write tests that verify the artifact's intent. See `tdd-red-producer` SKILL.md "Documentation Tests" and "Testing User Interfaces" sections.
+
+**No TODO comments for incomplete work**: Never leave TODO/FIXME comments for functionality that should be implemented now. Either implement it fully or ask Joe before deferring. Silent deferral via comments is unacceptable.

@@ -169,3 +169,15 @@ contract:
       description: "User guides cover key workflows"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+**Consolidate, don't fragment**: Check if content belongs in existing file before creating new one.
+
+**Stick to the established taxonomy**: Don't invent new headers/sections when the document has an existing structure. Fit new content into the existing taxonomy.
+
+**Don't make up anchors**: Only link to sections that actually exist. Verify the anchor before linking, or document fresh if it doesn't exist.
+
+**Simpler is better**: Flat content under one header often beats splitting into subsections. Don't over-structure.

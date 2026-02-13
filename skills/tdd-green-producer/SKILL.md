@@ -329,3 +329,15 @@ contract:
       description: "Visual verification for tasks with [visual] marker"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+**Side effects only at the thin wrapper layer**: Side-effectful dependencies (os.Getenv, os.Args, file I/O, network, time.Now, etc.) should ONLY be imported/used at the top-level thin wrapper layer (entry points). All internal logic must accept these as injected dependencies so tests can use mocks (imptest). Never write tests that manipulate real environment variables, files, or other OS state - that's integration testing, not unit testing. If a function reads os.Getenv directly, it needs refactoring to accept the value as a parameter.
+
+**Struct field changes**: When adding struct fields, grep for copy/clone logic. New fields silently stay zero if not added to copy functions.
+
+**Wire events end-to-end before marking done**: When adding interactive UI elements, the definition of done includes: (1) element renders, (2) element emits event on interaction, (3) parent/orchestrator listens for event, (4) handler updates state, (5) state change reflects in UI. If any link is missing, the feature is not complete. Acceptance criteria must explicitly cover the behavior chain, not just structural presence.
+
+**Don't fake features**: Don't create "approximations" that lack core behavior. Implement it or wait.

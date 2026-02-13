@@ -262,3 +262,13 @@ contract:
       description: "Duplication removed where possible"
       severity: warning
 ```
+
+---
+
+## Lessons Learned
+
+**Extract before refactoring**: COPY working code first, verify it works, THEN refactor. Never rewrite during extraction.
+
+**Multiple code paths**: Similar operations often have multiple paths. When fixing one, ask: "Is there another code path doing something similar?"
+
+**Accumulated boolean flags**: Flags that only turn on need phase/state checks. Use `if hasX && phase == X`, not just `if hasX`.
