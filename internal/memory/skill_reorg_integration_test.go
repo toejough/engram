@@ -60,34 +60,6 @@ func insertMemoryWithEmbedding(g *WithT, db *sql.DB, content string) int64 {
 	return memID
 }
 
-// mockSkillCompiler provides test implementation for skill compilation.
-type mockSkillCompiler struct {
-	compileFunc    func(ctx context.Context, theme string, memories []string) (string, error)
-	synthesizeFunc func(ctx context.Context, memories []string) (string, error)
-}
-
-func (m *mockSkillCompiler) CompileSkill(ctx context.Context, theme string, memories []string) (string, error) {
-	if m.compileFunc != nil {
-		return m.compileFunc(ctx, theme, memories)
-	}
-	return "", fmt.Errorf("LLM unavailable")
-}
-
-func (m *mockSkillCompiler) Extract(message string) (*memory.Observation, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockSkillCompiler) Decide(newMessage string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockSkillCompiler) Synthesize(ctx context.Context, memories []string) (string, error) {
-	if m.synthesizeFunc != nil {
-		return m.synthesizeFunc(ctx, memories)
-	}
-	return "", fmt.Errorf("not implemented")
-}
-
 // ============================================================================
 // Tests for TASK-11: Periodic Skill Reorganization
 // traces: ISSUE-182, REQ-11

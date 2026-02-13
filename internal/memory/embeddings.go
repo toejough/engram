@@ -26,8 +26,7 @@ import (
 const embeddingDim = 384
 
 // e5SmallModelURL is the HuggingFace URL for the e5-small-v2 ONNX model
-// Note: Using all-MiniLM-L6-v2 as a compatible alternative with same 384 dimensions
-const e5SmallModelURL = "https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx"
+const e5SmallModelURL = "https://huggingface.co/intfloat/e5-small-v2/resolve/main/onnx/model.onnx"
 
 // onnxRuntimeVersion is the version of ONNX Runtime to download
 const onnxRuntimeVersion = "1.23.2"
@@ -166,6 +165,7 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE embeddings ADD COLUMN anti_pattern TEXT NOT NULL DEFAULT ''",      // ISSUE-188: what to avoid
 		"ALTER TABLE embeddings ADD COLUMN rationale TEXT NOT NULL DEFAULT ''",         // ISSUE-188: why the principle matters
 		"ALTER TABLE embeddings ADD COLUMN enriched_content TEXT NOT NULL DEFAULT ''",  // ISSUE-188: LLM-enriched content for embedding
+		"ALTER TABLE embeddings ADD COLUMN model_version TEXT NOT NULL DEFAULT ''",     // ISSUE-221: Track which embedding model was used
 		"ALTER TABLE generated_skills ADD COLUMN demoted_from_claude_md TEXT NOT NULL DEFAULT ''", // TASK-2: RFC3339 timestamp if demoted from CLAUDE.md
 		"ALTER TABLE generated_skills ADD COLUMN claude_md_promoted INTEGER NOT NULL DEFAULT 0",   // TASK-3: 1 if promoted to CLAUDE.md
 		"ALTER TABLE generated_skills ADD COLUMN promoted_at TEXT NOT NULL DEFAULT ''",             // TASK-3: RFC3339 timestamp of promotion
@@ -270,6 +270,96 @@ func migrateFTS5(db *sql.DB) error {
 		WHERE e.id NOT IN (SELECT rowid FROM embeddings_fts)
 	`)
 	return err
+}
+
+// migrateModelVersion re-embeds all entries with the new e5-small-v2 model (ISSUE-221).
+// Idempotent: checks metadata "model_version_migrated" to skip if already done.
+func migrateModelVersion(db *sql.DB, modelPath string) error {
+	// Check if migration already done
+	migrated, err := getMetadata(db, "model_version_migrated")
+	if err != nil {
+		return fmt.Errorf("failed to check migration status: %w", err)
+	}
+	if migrated == "e5-small-v2" {
+		return nil // Already migrated
+	}
+
+	// Query all embeddings that need migration (where model_version != 'e5-small-v2' or empty)
+	rows, err := db.Query(`SELECT id, content FROM embeddings WHERE model_version != 'e5-small-v2' OR model_version = ''`)
+	if err != nil {
+		return fmt.Errorf("failed to query embeddings for migration: %w", err)
+	}
+	defer rows.Close()
+
+	type entry struct {
+		id      int64
+		content string
+	}
+	var entries []entry
+	for rows.Next() {
+		var e entry
+		if err := rows.Scan(&e.id, &e.content); err != nil {
+			return fmt.Errorf("failed to scan entry: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	// Re-embed each entry with "passage: " prefix
+	for _, e := range entries {
+		// Generate new embedding with passage prefix
+		embedding, _, _, err := generateEmbeddingONNX("passage: "+e.content, modelPath)
+		if err != nil {
+			// Log error but continue with other entries
+			fmt.Fprintf(os.Stderr, "Warning: failed to re-embed entry %d: %v\n", e.id, err)
+			continue
+		}
+
+		embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to serialize embedding for entry %d: %v\n", e.id, err)
+			continue
+		}
+
+		// Get current embedding_id
+		var oldEmbeddingID int64
+		err = db.QueryRow("SELECT embedding_id FROM embeddings WHERE id = ?", e.id).Scan(&oldEmbeddingID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to get embedding_id for entry %d: %v\n", e.id, err)
+			continue
+		}
+
+		// Delete old vec row
+		if _, err := db.Exec("DELETE FROM vec_embeddings WHERE rowid = ?", oldEmbeddingID); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to delete old vec row for entry %d: %v\n", e.id, err)
+			continue
+		}
+
+		// Insert new vec row
+		result, err := db.Exec("INSERT INTO vec_embeddings(embedding) VALUES (?)", embeddingBlob)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to insert new vec row for entry %d: %v\n", e.id, err)
+			continue
+		}
+		newEmbeddingID, _ := result.LastInsertId()
+
+		// Update metadata with new embedding_id and model_version
+		_, err = db.Exec("UPDATE embeddings SET embedding_id = ?, model_version = 'e5-small-v2' WHERE id = ?",
+			newEmbeddingID, e.id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update metadata for entry %d: %v\n", e.id, err)
+			continue
+		}
+	}
+
+	// Mark migration as complete
+	if err := setMetadata(db, "model_version_migrated", "e5-small-v2"); err != nil {
+		return fmt.Errorf("failed to set migration metadata: %w", err)
+	}
+
+	return nil
 }
 
 // searchBM25 performs full-text search using FTS5 BM25 ranking.
@@ -531,6 +621,49 @@ func downloadONNXRuntime(modelDir string) (string, error) {
 	return "", fmt.Errorf("library not found in archive")
 }
 
+// ensureCorrectModel checks if the cached model matches the current e5SmallModelURL.
+// If the URL has changed (stale model), it deletes the cached model and returns true.
+// Returns (needsDownload, error).
+func ensureCorrectModel(db *sql.DB, modelPath string) (bool, error) {
+	// Check if model file exists
+	_, statErr := os.Stat(modelPath)
+	if os.IsNotExist(statErr) {
+		// Set metadata for new databases
+		if err := setMetadata(db, "model_url", e5SmallModelURL); err != nil {
+			return false, fmt.Errorf("failed to set model_url metadata: %w", err)
+		}
+		return true, nil // Model doesn't exist, needs download
+	}
+
+	// Check metadata for current model URL
+	currentURL, err := getMetadata(db, "model_url")
+	if err != nil {
+		return false, fmt.Errorf("failed to get model_url metadata: %w", err)
+	}
+
+	// If this is a new database (empty metadata), just set it and use existing model
+	if currentURL == "" {
+		if err := setMetadata(db, "model_url", e5SmallModelURL); err != nil {
+			return false, fmt.Errorf("failed to set model_url metadata: %w", err)
+		}
+		return false, nil // Model exists, no download needed
+	}
+
+	// If metadata exists and doesn't match current URL, delete stale model
+	if currentURL != e5SmallModelURL {
+		if err := os.Remove(modelPath); err != nil && !os.IsNotExist(err) {
+			return false, fmt.Errorf("failed to delete stale model: %w", err)
+		}
+		// Update metadata to new URL
+		if err := setMetadata(db, "model_url", e5SmallModelURL); err != nil {
+			return false, fmt.Errorf("failed to set model_url metadata: %w", err)
+		}
+		return true, nil // Stale model deleted, needs download
+	}
+
+	return false, nil // Model is up to date
+}
+
 // downloadModel downloads the e5-small-v2 model from HuggingFace if not already present.
 // Thread-safe: uses mutex to prevent concurrent downloads.
 func downloadModel(modelPath string) error {
@@ -684,7 +817,7 @@ func generateEmbeddingONNX(text string, modelPath string) ([]float32, bool, bool
 	tokens := tokenizer.Tokenize(text)
 
 	// Prepare input tensors with padding/truncation
-	inputSize := 128 // Max sequence length
+	inputSize := 512 // Max sequence length for e5-small-v2
 	inputIDs := make([]int64, inputSize)
 	attentionMask := make([]int64, inputSize)
 	tokenTypeIDs := make([]int64, inputSize) // All zeros for single-sequence input
@@ -1005,6 +1138,22 @@ func learnToEmbeddings(opts LearnOpts) error {
 	}
 	defer func() { _ = db.Close() }()
 
+	// ISSUE-221: Check for stale model and re-download if needed
+	needsDownload, err := ensureCorrectModel(db, modelPath)
+	if err != nil {
+		return fmt.Errorf("failed to check model validity: %w", err)
+	}
+	if needsDownload {
+		if err := downloadModel(modelPath); err != nil {
+			return fmt.Errorf("failed to download model: %w", err)
+		}
+	}
+
+	// ISSUE-221: Run model version migration if needed
+	if err := migrateModelVersion(db, modelPath); err != nil {
+		return fmt.Errorf("failed to migrate model version: %w", err)
+	}
+
 	// Determine source_type and confidence
 	sourceType := opts.Source
 	if sourceType == "" {
@@ -1045,8 +1194,8 @@ func learnToEmbeddings(opts LearnOpts) error {
 		embeddingText = enrichedContent
 	}
 
-	// Generate embedding
-	embedding, _, _, err := generateEmbeddingONNX(embeddingText, modelPath)
+	// Generate embedding with "passage: " prefix for e5-small-v2 (ISSUE-221)
+	embedding, _, _, err := generateEmbeddingONNX("passage: "+embeddingText, modelPath)
 	if err != nil {
 		return fmt.Errorf("failed to generate embedding: %w", err)
 	}
@@ -1128,10 +1277,10 @@ func learnToEmbeddings(opts LearnOpts) error {
 
 	// Insert into metadata table with the full formatted content and observation columns
 	metaStmt := `INSERT INTO embeddings(content, source, source_type, confidence, memory_type, embedding_id,
-		observation_type, concepts, principle, anti_pattern, rationale, enriched_content)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		observation_type, concepts, principle, anti_pattern, rationale, enriched_content, model_version)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	metaResult, err := db.Exec(metaStmt, content, "memory", sourceType, confidence, memoryType, embeddingID,
-		observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent)
+		observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent, "e5-small-v2")
 	if err != nil {
 		return err
 	}
