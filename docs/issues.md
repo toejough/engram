@@ -7167,8 +7167,9 @@ Options:
 ### ISSUE-214: User feedback loop for memory retrieval quality
 
 **Priority:** Critical
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7201,6 +7202,10 @@ Store feedback in embeddings.db (new table or column) to drive data-informed opt
 See `.research-synthesis.md` Section 4.4, Recommendation #1 for full context.
 
 **Traces to:** Memory optimization, retrieval quality
+
+## Timeline
+
+- 2026-02-13 - Complete: User feedback loop implemented (commit e8d9439)
 
 ---
 
@@ -7249,8 +7254,9 @@ See `.research-synthesis.md` Section 2.3 items 1-2 and Section 4.2 Priority 1 fo
 ### ISSUE-216: Implement top 3 quality gate hooks
 
 **Priority:** High
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7280,6 +7286,10 @@ Hook exit code semantics: Exit 0 = success, Exit 2 = blocking error with stderr 
 See `.research-synthesis.md` Section 1.4 for hook types and Section 4.4 Recommendation #2 for implementation details.
 
 **Traces to:** Memory optimization, quality enforcement
+
+## Timeline
+
+- 2026-02-13 - Complete: Quality gate hooks implemented (commit e8d9439)
 
 ---
 
