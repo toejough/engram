@@ -5913,7 +5913,7 @@ Hybrid search (BM25 + vector) implemented using FTS5 with Reciprocal Rank Fusion
 ### ISSUE-182: ISSUE-182: Define explicit memory tiering policy in CLAUDE.md
 
 **Priority:** low
-**Status:** Open
+**Status:** Closed (superseded by .research-synthesis.md — content captured in top 10 recommendations)
 **Created:** 2026-02-08
 
 Research converges on three tiers that should be documented as policy: (1) Always loaded (CLAUDE.md): <100 lines, only things preventing concrete mistakes, RFC 2119 language. (2) Retrieved on demand (semantic memory via context-inject): episodic learnings, bounded to ~2000 tokens. (3) Dynamic lookup (grep/glob/web): code, docs, references — never preloaded. Document this tiering policy so consolidate and promote --review can enforce it. Memory that belongs in a lower tier should not be promoted to a higher one.
@@ -6906,7 +6906,7 @@ Explore a background daemon approach (similar to claude-mem) where a persistent 
 ### ISSUE-212: Unified memory maintenance with interactive review across all tiers
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed (partially implemented, remaining work superseded by .research-synthesis.md top 10 recommendations)
 **Created:** 2026-02-11
 
 ## Problem
@@ -7068,7 +7068,7 @@ This issue supersedes ISSUE-184 by providing a unified maintenance workflow.
 ### ISSUE-213: Complete memory maintenance gaps: embeddings archive, CLAUDE.md decay, problem surfacing
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (superseded by .research-synthesis.md — content captured in top 10 recommendations)
 **Created:** 2026-02-11
 
 ## Problem
