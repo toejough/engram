@@ -7505,8 +7505,9 @@ Implemented in 8be70be: switched to actual e5-small-v2 model, added query/passag
 ### ISSUE-222: Richer skill descriptions for discovery (128 to 256-384 tokens)
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7525,10 +7526,10 @@ Validate non-redundancy between descriptions (similarity < 0.85). Total cost: ~2
 
 ## Acceptance Criteria
 
-- [ ] Skill descriptions updated to structured 256-384 token format
-- [ ] Descriptions include trigger contexts and anti-patterns (when NOT to use)
-- [ ] Non-redundancy validated between descriptions
-- [ ] Discovery accuracy measured before/after
+- [x] Skill descriptions updated to structured 256-384 token format
+- [x] Descriptions include trigger contexts and anti-patterns (when NOT to use)
+- [x] Non-redundancy validated between descriptions
+- [x] Discovery accuracy measured before/after
 
 ## Reference
 
@@ -7580,8 +7581,9 @@ See `.research-synthesis.md` Section 4.4 Phase 4 Recommendation #10 for full con
 
 ### ISSUE-224: Propagate feedback signals across memory tiers (skills, CLAUDE.md, hooks)
 
-**Priority:** high
-**Status:** Open
+**Priority:** High
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ISSUE-214 added a feedback loop at the embeddings tier, but signals do not propagate upward. Each tier has gaps: Skills measure retrieval frequency not content quality. CLAUDE.md has a size ratchet but no staleness signal. Hooks have no self-evaluation. Solution: (1) Propagate negative feedback from embeddings to matching skill utility scores. (2) Track CLAUDE.md rule references with staleness reporting. (3) Log hook fire rate and false positive tracking with hooks stats command. Depends on ISSUE-214, ISSUE-216. Related to ISSUE-219.
