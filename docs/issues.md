@@ -7164,3 +7164,376 @@ Options:
 
 ---
 
+### ISSUE-214: User feedback loop for memory retrieval quality
+
+**Priority:** Critical
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+The memory system has no way to measure whether retrievals are actually helpful. We can't optimize what we don't measure. All other optimization work (synthesis quality, thresholds, content refinement) depends on having signal about what works and what doesn't.
+
+## Proposed Solution
+
+Add commands for explicit user feedback on memory retrievals:
+
+- `/memory helpful <id>` — boost confidence, reinforce retrieval path
+- `/memory wrong <id>` — reduce confidence, flag for review
+- `/memory unclear` — flag most recent retrieval for rewrite
+
+Track implicit signals:
+- Retrieve X then user asks for X again — retrieval failed (content wasn't useful)
+- Retrieve X then user acts on X — retrieval succeeded
+
+Store feedback in embeddings.db (new table or column) to drive data-informed optimization decisions.
+
+## Acceptance Criteria
+
+- [ ] `/memory helpful` boosts confidence for specified memory
+- [ ] `/memory wrong` reduces confidence and flags for review
+- [ ] `/memory unclear` flags most recent retrieval for content refinement
+- [ ] Implicit retrieval failure detection (re-ask after retrieve)
+- [ ] Feedback data queryable for optimization decisions
+
+## Reference
+
+See `.research-synthesis.md` Section 4.4, Recommendation #1 for full context.
+
+**Traces to:** Memory optimization, retrieval quality
+
+---
+
+### ISSUE-215: Fix synthesis quality — LLM by default with actionability validation
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+`generatePattern()` produces "important pattern for review" 56+ times in Promoted Learnings. The keyword-extraction fallback is the default, not the LLM synthesis. And even when LLM synthesis runs, output isn't validated for actionability, specificity, or non-redundancy.
+
+## Proposed Solution
+
+1. Use `GeneratePatternLLM` by default (already exists, not the default path)
+2. Validate LLM output before promoting:
+   - **Actionable:** Does it tell me what to DO? ("Always X" or "Never Y", not "X is important")
+   - **Specific:** Could I follow this rule 6 months from now?
+   - **Non-redundant:** Similarity < 0.9 with existing CLAUDE.md entries
+3. Reject noise: If LLM can't produce quality principle, don't promote — stay in embeddings
+4. Fix `mergeEntries()` — currently just picks the longer string, discards the shorter entirely. Use LLM-driven consolidation that preserves insights from both.
+
+## Acceptance Criteria
+
+- [ ] `GeneratePatternLLM` is the default synthesis path
+- [ ] Output validated for actionability before promotion
+- [ ] Output validated for specificity before promotion
+- [ ] Output validated for non-redundancy (similarity < 0.9 with existing CLAUDE.md)
+- [ ] Noise rejected — entries that fail validation stay in embeddings
+- [ ] `mergeEntries()` uses LLM consolidation, not string length comparison
+
+## Reference
+
+See `.research-synthesis.md` Section 2.3 items 1-2 and Section 4.2 Priority 1 for full context.
+
+**Traces to:** Memory optimization, CLAUDE.md maintenance
+
+---
+
+### ISSUE-216: Implement top 3 quality gate hooks
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+No hooks are configured. Five to seven CLAUDE.md rules are deterministic and always-apply — they should be hooks, not prose guidance that depends on model memory. Migrating them removes ~20-30 lines from CLAUDE.md AND improves enforcement reliability.
+
+## Proposed Solution
+
+Implement three hooks:
+
+1. **Stop hook: CLAUDE.md size enforcement** — Validate <100 line budget at end-of-turn. Exit 2 if over budget.
+2. **TeammateIdle hook: Skill contract validation** — Validate SKILL.md structure before agent completes. Required sections (Contract, Examples), token count within ~2000 budget, no TODO/FIXME comments.
+3. **PostToolUse hook: Embedding metadata completeness** — Validate confidence score in range [0.0-1.0], context field populated, at least one tag for clustering.
+
+Hook exit code semantics: Exit 0 = success, Exit 2 = blocking error with stderr feedback.
+
+## Acceptance Criteria
+
+- [ ] Stop hook enforces CLAUDE.md line count (<100)
+- [ ] TeammateIdle hook validates SKILL.md contract structure
+- [ ] PostToolUse hook validates embedding metadata completeness
+- [ ] All hooks use exit 2 for blocking errors with descriptive stderr
+- [ ] Hooks configured in .claude/settings.json
+- [ ] ~20-30 lines of CLAUDE.md enforcement rules migrated to hooks
+
+## Reference
+
+See `.research-synthesis.md` Section 1.4 for hook types and Section 4.4 Recommendation #2 for implementation details.
+
+**Traces to:** Memory optimization, quality enforcement
+
+---
+
+### ISSUE-217: Similarity threshold filtering for embedding retrieval
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+The system always returns top N results even if all are poor matches. Low-quality retrievals waste context window and compete for model attention. No minimum quality bar exists at query time.
+
+## Proposed Solution
+
+1. Add query-time similarity threshold parameter (default 0.7-0.8 cosine similarity)
+2. Return empty set if all results below threshold (don't force N results)
+3. Surface match confidence scores prominently in retrieval output
+4. Log threshold misses: track queries where no results exceeded threshold (indicates gap in knowledge base)
+
+## Acceptance Criteria
+
+- [ ] Query accepts minimum similarity threshold parameter
+- [ ] Results below threshold are filtered out
+- [ ] Empty result set returned when nothing meets threshold (no forced N)
+- [ ] Match confidence scores visible in retrieval output
+- [ ] Threshold misses logged for knowledge gap detection
+
+## Reference
+
+See `.research-synthesis.md` Section 1.1 "Critical Gap" and Section 4.2 Priority 3 for full context.
+
+**Traces to:** Memory optimization, retrieval quality
+
+---
+
+### ISSUE-218: Content refinement operations — rewrite, merge-with-context, add-rationale
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+The only content operations are add (promote), remove (demote/prune), and consolidate (pick longer string). No operations exist to improve existing content. Content quality degrades over time as entries accumulate without refinement.
+
+## Proposed Solution
+
+Add four content refinement operations to the interactive review workflow:
+
+1. **Rewrite** — LLM improves clarity of vague/verbose entries. "Be careful with timing" → "Use dependency injection (imptest) for time-sensitive code instead of time.Sleep() in tests"
+2. **Merge-with-context** — LLM consolidation that preserves nuance from 2-3 similar entries (not just pick-longer-string)
+3. **Add-rationale** — Enrich prescriptive entries with *why*. "Never amend pushed commits" → add explanation of history rewrite consequences
+4. **Extract-examples** — Separate principles (stay in CLAUDE.md) from implementation examples (move to skills/docs)
+
+All operations use interactive review (user confirms before applying).
+
+## Acceptance Criteria
+
+- [ ] Rewrite operation available in `optimize --review`
+- [ ] Merge-with-context replaces current pick-longer-string consolidation
+- [ ] Add-rationale enriches entries missing explanation of *why*
+- [ ] Extract-examples splits principle from implementation detail
+- [ ] All operations require user confirmation before applying
+- [ ] Works across all three tiers (embeddings, skills, CLAUDE.md)
+
+## Reference
+
+See `.research-synthesis.md` Section 4.2 Priority 2 for full context.
+
+**Traces to:** Memory optimization, content quality
+
+---
+
+### ISSUE-219: Migrate CLAUDE.md content — domain procedures to skills, enforcement to hooks
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+CLAUDE.md is 259 lines (target: <100). It contains domain-specific procedures, code snippets, and deterministic rules that belong in skills or hooks. Every line competes for context window attention.
+
+## Proposed Solution
+
+Content migration by type:
+
+**To Skills:**
+- "Code & Debugging" section → tdd-* skills
+- "Planning & Execution" section → project/plan-producer skills
+- "Documentation" section → doc-producer skill
+- "Traceability" section → alignment-producer skill
+- "Audits" section → qa/audit skills
+
+**To Hooks (per ISSUE-216):**
+- Git commit trailer enforcement
+- No amend on pushed commits
+- Quality gate enforcement
+
+**Keep in CLAUDE.md:**
+- Tier routing logic ("Choose the Right Tier")
+- Meta-routing ("Use Skills First")
+- Critical warnings (repeatedly violated rules)
+- Behavioral guidelines (judgment calls)
+- Pointers to where details live (not the details themselves)
+
+Content hierarchy after migration: Pointers > specific rules > decision trees > critical warnings > principles.
+
+## Acceptance Criteria
+
+- [ ] Domain procedures migrated to appropriate skills
+- [ ] Deterministic enforcement migrated to hooks (with ISSUE-216)
+- [ ] CLAUDE.md reduced to <100 lines
+- [ ] All migrated content accessible via skill discovery or hook enforcement
+- [ ] No loss of knowledge — everything preserved, just relocated
+- [ ] CLAUDE.md focuses on routing, warnings, and judgment calls
+
+## Reference
+
+See `.research-synthesis.md` Section 1.3 for migration candidates and content hierarchy.
+
+**Traces to:** Memory optimization, CLAUDE.md maintenance, context efficiency
+
+---
+
+### ISSUE-220: Increase embedding sequence length from 128 to 512
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+The embedding model supports 512-token sequences but max_seq_length is set to 128. Research shows longer chunks = better retrieval quality (87% accuracy vs 50% baseline for adaptive chunking). We're leaving semantic coherence on the table.
+
+## Proposed Solution
+
+1. Update max_seq_length parameter from 128 to 512
+2. Optionally re-embed existing memories (one-time migration) or accept gradual improvement as new memories are added
+3. Measure retrieval quality before/after
+
+Trade-off: Embedding generation slightly slower, but Haiku model selection mitigates cost impact.
+
+## Acceptance Criteria
+
+- [ ] max_seq_length updated to 512
+- [ ] Existing memories re-embedded (or documented decision to accept gradual improvement)
+- [ ] Retrieval quality measured before/after change
+
+## Reference
+
+See `.research-synthesis.md` Section 4.2 Priority 4 for full context.
+
+**Traces to:** Memory optimization, retrieval quality
+
+---
+
+### ISSUE-221: Clarify embedding model and add instruction prefixes if e5
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+Code downloads all-MiniLM-L6-v2 but variable names suggest e5-small-v2. If the model is actually e5, the missing "query:" and "passage:" instruction prefixes are a significant performance gap. If it's all-MiniLM, the naming is just confusing.
+
+## Proposed Solution
+
+1. Audit which model is actually downloaded and used
+2. If e5-small-v2: add "query:" prefix to search text, "passage:" prefix to stored memories (critical performance optimization)
+3. If all-MiniLM-L6-v2: update variable names for clarity, document that no prefix is needed
+
+## Acceptance Criteria
+
+- [ ] Actual model identified and documented
+- [ ] If e5: instruction prefixes added to query and storage paths
+- [ ] If all-MiniLM: variable names corrected for clarity
+- [ ] Model choice documented in code comments
+
+## Reference
+
+See `.research-synthesis.md` Section 1.1 "Model-Specific Optimization" and Section 4.2 Priority 5 for full context.
+
+**Traces to:** Memory optimization, retrieval quality
+
+---
+
+### ISSUE-222: Richer skill descriptions for discovery (128 to 256-384 tokens)
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+Skill descriptions are limited to 128 tokens when the model supports 512. With 21+ skills, crisp descriptions are critical for semantic discovery to select the right skill. Current descriptions may not distinguish well between similar skills.
+
+## Proposed Solution
+
+Update skill descriptions to 256-384 tokens with structured format:
+- Core purpose (20 tokens)
+- Trigger contexts (40 tokens)
+- File types/domains (30 tokens)
+- When NOT to use (30 tokens)
+- Related concepts/keywords (50 tokens)
+
+Validate non-redundancy between descriptions (similarity < 0.85). Total cost: ~200 tokens x 25 skills = 5K tokens (negligible).
+
+## Acceptance Criteria
+
+- [ ] Skill descriptions updated to structured 256-384 token format
+- [ ] Descriptions include trigger contexts and anti-patterns (when NOT to use)
+- [ ] Non-redundancy validated between descriptions
+- [ ] Discovery accuracy measured before/after
+
+## Reference
+
+See `.research-synthesis.md` Section 1.2 and Section 4.2 Priority 6 for full context.
+
+**Traces to:** Memory optimization, skill discovery
+
+---
+
+### ISSUE-223: Validate skills tier value before scaling generation machinery
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-13
+
+## Problem
+
+ISSUE-186 proposes a 4-phase dynamic skill generation roadmap, but we haven't validated that dynamically generated skills actually improve task completion vs embeddings alone. Building generation, lifecycle, and reorganization machinery before proving the tier has value is premature optimization.
+
+## Proposed Solution
+
+Before investing in ISSUE-186 Phase 3-4:
+
+1. Measure: Do dynamically generated skills get retrieved and used?
+2. Measure: Does skill retrieval improve task completion vs embeddings alone?
+3. Measure: What's the user experience improvement from having skills vs just embeddings?
+4. If value confirmed: proceed with scaling (ISSUE-186 Phase 3-4)
+5. If value unclear: simplify to 2-tier system (embeddings + CLAUDE.md) and close ISSUE-186
+
+This supersedes ISSUE-186 Phase 3-4 and ISSUE-211 (background daemon — measure blocking impact before building).
+
+## Acceptance Criteria
+
+- [ ] Skill retrieval frequency measured (are generated skills actually used?)
+- [ ] Task completion comparison: with skills vs without
+- [ ] User experience assessment documented
+- [ ] Decision made: scale skills tier (proceed with ISSUE-186) or simplify to 2-tier
+
+## Reference
+
+See `.research-synthesis.md` Section 4.4 Phase 4 Recommendation #10 for full context. Also supersedes ISSUE-186 Phase 3-4 and reframes ISSUE-211.
+
+**Traces to:** Memory optimization, skill lifecycle
+
+---
+
