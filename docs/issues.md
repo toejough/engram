@@ -6764,7 +6764,7 @@ From ISSUE-202 evaluation R-MED-2: When multiple one-line changes share the same
 ### ISSUE-206: Decision needed: Generated skill count cap
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (superseded by ISSUE-224)
 **Created:** 2026-02-10
 
 From ISSUE-202 evaluation Q2: As the number of mem-* skills grows, should there be a cap on total generated skills to prevent ~/.claude/skills/ directory from becoming cluttered?
@@ -7207,8 +7207,9 @@ See `.research-synthesis.md` Section 4.4, Recommendation #1 for full context.
 ### ISSUE-215: Fix synthesis quality — LLM by default with actionability validation
 
 **Priority:** High
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7238,6 +7239,10 @@ See `.research-synthesis.md` Section 4.4, Recommendation #1 for full context.
 See `.research-synthesis.md` Section 2.3 items 1-2 and Section 4.2 Priority 1 for full context.
 
 **Traces to:** Memory optimization, CLAUDE.md maintenance
+
+## Timeline
+
+- 2026-02-13 - Complete: Implemented actionability validation, LLM wiring in learn CLI, non-redundancy check in promotion, LLM mergeEntries
 
 ---
 
@@ -7281,7 +7286,7 @@ See `.research-synthesis.md` Section 1.4 for hook types and Section 4.4 Recommen
 ### ISSUE-217: Similarity threshold filtering for embedding retrieval
 
 **Priority:** High
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-13
 
 ## Problem
@@ -7311,6 +7316,10 @@ See `.research-synthesis.md` Section 1.1 "Critical Gap" and Section 4.2 Priority
 
 ---
 
+
+### Comment
+
+Implemented in 5ffabf9: added MinScore float64 to QueryOpts with filtering and logging
 ### ISSUE-218: Content refinement operations — rewrite, merge-with-context, add-rationale
 
 **Priority:** High
@@ -7352,8 +7361,9 @@ See `.research-synthesis.md` Section 4.2 Priority 2 for full context.
 ### ISSUE-219: Migrate CLAUDE.md content — domain procedures to skills, enforcement to hooks
 
 **Priority:** High
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-13
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -7399,12 +7409,16 @@ See `.research-synthesis.md` Section 1.3 for migration candidates and content hi
 
 **Traces to:** Memory optimization, CLAUDE.md maintenance, context efficiency
 
+## Timeline
+
+- 2026-02-13 - Complete: Migrated lessons learned to 8 skills, reduced CLAUDE.md from 259 to 99 lines
+
 ---
 
 ### ISSUE-220: Increase embedding sequence length from 128 to 512
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-13
 
 ## Problem
@@ -7433,10 +7447,14 @@ See `.research-synthesis.md` Section 4.2 Priority 4 for full context.
 
 ---
 
+
+### Comment
+
+Implemented in d52b111: changed inputSize from 128 to 512 for e5-small-v2 full capacity
 ### ISSUE-221: Clarify embedding model and add instruction prefixes if e5
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-13
 
 ## Problem
@@ -7464,6 +7482,10 @@ See `.research-synthesis.md` Section 1.1 "Model-Specific Optimization" and Secti
 
 ---
 
+
+### Comment
+
+Implemented in 8be70be: switched to actual e5-small-v2 model, added query/passage prefixes, model_version migration, stale model detection
 ### ISSUE-222: Richer skill descriptions for discovery (128 to 256-384 tokens)
 
 **Priority:** Medium
@@ -7503,7 +7525,7 @@ See `.research-synthesis.md` Section 1.2 and Section 4.2 Priority 6 for full con
 ### ISSUE-223: Validate skills tier value before scaling generation machinery
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed (superseded by ISSUE-224 — cross-tier feedback signals will provide measurement data; no separate validation needed)
 **Created:** 2026-02-13
 
 ## Problem
@@ -7537,3 +7559,13 @@ See `.research-synthesis.md` Section 4.4 Phase 4 Recommendation #10 for full con
 
 ---
 
+
+---
+
+### ISSUE-224: Propagate feedback signals across memory tiers (skills, CLAUDE.md, hooks)
+
+**Priority:** high
+**Status:** Open
+**Created:** 2026-02-13
+
+ISSUE-214 added a feedback loop at the embeddings tier, but signals do not propagate upward. Each tier has gaps: Skills measure retrieval frequency not content quality. CLAUDE.md has a size ratchet but no staleness signal. Hooks have no self-evaluation. Solution: (1) Propagate negative feedback from embeddings to matching skill utility scores. (2) Track CLAUDE.md rule references with staleness reporting. (3) Log hook fire rate and false positive tracking with hooks stats command. Depends on ISSUE-214, ISSUE-216. Related to ISSUE-219.
