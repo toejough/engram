@@ -582,3 +582,42 @@ func TestDirectAPIExtractor_AddRationale_ReturnsErrOn401(t *testing.T) {
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(result).To(BeEmpty())
 }
+
+// NewLLMExtractor factory tests
+func TestNewLLMExtractor_ReturnsDirectAPIWhenTokenAvailable(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	creds := map[string]any{
+		"claudeAiOauth": map[string]any{
+			"accessToken": "sk-ant-oat01-valid",
+			"expiresAt":   "2099-12-31T23:59:59Z",
+		},
+	}
+	credsJSON, _ := json.Marshal(creds)
+
+	auth := &memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return credsJSON, nil
+		},
+	}
+
+	extractor := memory.NewLLMExtractor(memory.WithAuth(auth))
+	_, isDirectAPI := extractor.(*memory.DirectAPIExtractor)
+	g.Expect(isDirectAPI).To(BeTrue())
+}
+
+func TestNewLLMExtractor_FallsBackToCLIWhenKeychainFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	auth := &memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return nil, errors.New("keychain not available")
+		},
+	}
+
+	extractor := memory.NewLLMExtractor(memory.WithAuth(auth))
+	_, isCLI := extractor.(*memory.ClaudeCLIExtractor)
+	g.Expect(isCLI).To(BeTrue())
+}

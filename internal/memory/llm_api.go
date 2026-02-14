@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+// LLMClient is the union interface for all LLM functionality.
+type LLMClient interface {
+	LLMExtractor
+	SkillCompiler
+	SpecificityDetector
+}
+
 type DirectAPIExtractor struct {
 	token   string
 	model   string
@@ -298,4 +305,37 @@ Return ONLY the enriched version with rationale, no JSON or markdown formatting.
 	}
 
 	return strings.TrimSpace(string(output)), nil
+}
+
+// LLMExtractorOption configures NewLLMExtractor.
+type LLMExtractorOption func(*llmExtractorConfig)
+
+type llmExtractorConfig struct {
+	auth *KeychainAuth
+}
+
+// WithAuth configures a custom KeychainAuth for testing.
+func WithAuth(auth *KeychainAuth) LLMExtractorOption {
+	return func(c *llmExtractorConfig) { c.auth = auth }
+}
+
+// NewLLMExtractor creates the best available LLM client.
+// Tries DirectAPIExtractor first (via Keychain token), falls back to ClaudeCLIExtractor.
+func NewLLMExtractor(opts ...LLMExtractorOption) LLMClient {
+	cfg := &llmExtractorConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	auth := cfg.auth
+	if auth == nil {
+		auth = NewKeychainAuth()
+	}
+
+	token, err := auth.GetToken(context.Background())
+	if err == nil {
+		return NewDirectAPIExtractor(token)
+	}
+
+	return NewClaudeCLIExtractor()
 }
