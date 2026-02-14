@@ -17,8 +17,8 @@ var InstallProjctl = targ.Targ("go install -tags sqlite_fts5 ./cmd/projctl").Nam
 // InstallHooks runs: projctl memory hooks install
 var InstallHooks = targ.Targ("projctl memory hooks install").Name("install-hooks")
 
-// Install runs: targ install-skills install-projctl install-hooks
-var Install = targ.Targ("targ install-skills install-projctl install-hooks").Name("install")
+// Install runs: targ install-projctl install-skills install-hooks
+var Install = targ.Targ("targ install-projctl install-skills install-hooks").Name("install")
 
 // Status runs: git status
 var Status = targ.Targ("git status").Name("status")

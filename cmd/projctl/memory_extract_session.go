@@ -33,8 +33,9 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 
 	// Validate that transcript file is provided
 	if transcriptPath == "" {
-		fmt.Fprintln(os.Stderr, "Error: --transcript must be provided (or pass transcript_path via stdin JSON)")
-		os.Exit(1)
+		// Exit 0 gracefully — in hook context, missing transcript is non-critical
+		fmt.Fprintln(os.Stderr, "Warning: no transcript path provided, skipping extraction")
+		return nil
 	}
 
 	// Set up memory root

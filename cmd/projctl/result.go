@@ -10,8 +10,8 @@ import (
 )
 
 type resultValidateArgs struct {
-	File   string `targ:"--file,-f,Path to result.toml file (required)"`
-	Format string `targ:"--format,Output format: text (default) or json"`
+	File   string `targ:"flag,short=f,required,desc=Path to result.toml file"`
+	Format string `targ:"flag,desc=Output format: text (default) or json"`
 }
 
 // ValidationResult is the JSON output format for validation results.

@@ -1,8 +1,9 @@
 //go:build targ
 
-package main
+package targs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -12,17 +13,17 @@ import (
 )
 
 func init() {
-	targ.Register(issueCreate, issueUpdate, issueList, issueGet)
+	targ.Register(IssueCreate, IssueUpdate, IssueList, IssueGet)
 }
 
 type issueCreateArgs struct {
 	Dir      string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	Title    string `targ:"flag,short=t,required,desc=Issue title"`
-	Priority string `targ:"flag,short=p,desc=Priority (High, Medium, Low)"`
+	Priority string `targ:"flag,short=p,enum=High|Medium|Low,desc=Issue priority"`
 	Body     string `targ:"flag,short=b,desc=Issue body/description"`
 }
 
-func issueCreate(args issueCreateArgs) error {
+var IssueCreate = targ.Targ(func(_ context.Context, args issueCreateArgs) error {
 	dir := args.Dir
 	if dir == "" {
 		var err error
@@ -43,17 +44,17 @@ func issueCreate(args issueCreateArgs) error {
 
 	fmt.Printf("Created %s: %s\n", i.ID, i.Title)
 	return nil
-}
+}).Name("issue-create")
 
 type issueUpdateArgs struct {
 	Dir     string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	ID      string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-42)"`
-	Status  string `targ:"flag,short=s,desc=New status (Open, Closed, etc.)"`
+	Status  string `targ:"flag,short=s,desc=New status"`
 	Comment string `targ:"flag,short=c,desc=Comment to append"`
 	Force   bool   `targ:"flag,short=f,desc=Force close even if AC incomplete"`
 }
 
-func issueUpdate(args issueUpdateArgs) error {
+var IssueUpdate = targ.Targ(func(_ context.Context, args issueUpdateArgs) error {
 	dir := args.Dir
 	if dir == "" {
 		var err error
@@ -77,14 +78,14 @@ func issueUpdate(args issueUpdateArgs) error {
 
 	fmt.Printf("Updated %s\n", args.ID)
 	return nil
-}
+}).Name("issue-update")
 
 type issueListArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	Status string `targ:"flag,short=s,desc=Filter by status (e.g. Open)"`
 }
 
-func issueList(args issueListArgs) error {
+var IssueList = targ.Targ(func(_ context.Context, args issueListArgs) error {
 	dir := args.Dir
 	if dir == "" {
 		var err error
@@ -109,14 +110,14 @@ func issueList(args issueListArgs) error {
 	}
 
 	return nil
-}
+}).Name("issue-list")
 
 type issueGetArgs struct {
 	Dir string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	ID  string `targ:"flag,short=i,required,desc=Issue ID (e.g. ISSUE-42)"`
 }
 
-func issueGet(args issueGetArgs) error {
+var IssueGet = targ.Targ(func(_ context.Context, args issueGetArgs) error {
 	dir := args.Dir
 	if dir == "" {
 		var err error
@@ -140,4 +141,4 @@ func issueGet(args issueGetArgs) error {
 	}
 
 	return nil
-}
+}).Name("issue-get")

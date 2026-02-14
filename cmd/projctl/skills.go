@@ -9,10 +9,10 @@ import (
 )
 
 type skillsInstallArgs struct {
-	RepoDir   string `targ:"--repo,-r,Project repository directory"`
-	TargetDir string `targ:"--target,-t,Target skills directory (default: ~/.claude/skills)"`
-	SkillName string `targ:"[skill],Optional: specific skill to install"`
-	Force     bool   `targ:"--force,-f,Overwrite conflicting directories"`
+	RepoDir   string `targ:"flag,short=r,desc=Project repository directory"`
+	TargetDir string `targ:"flag,short=t,desc=Target skills directory (default: ~/.claude/skills)"`
+	SkillName string `targ:"positional,desc=Optional: specific skill to install"`
+	Force     bool   `targ:"flag,short=f,desc=Overwrite conflicting directories"`
 }
 
 func skillsInstall(args skillsInstallArgs) error {
@@ -80,8 +80,8 @@ func skillsInstall(args skillsInstallArgs) error {
 }
 
 type skillsStatusArgs struct {
-	RepoDir   string `targ:"--repo,-r,Project repository directory"`
-	TargetDir string `targ:"--target,-t,Target skills directory (default: ~/.claude/skills)"`
+	RepoDir   string `targ:"flag,short=r,desc=Project repository directory"`
+	TargetDir string `targ:"flag,short=t,desc=Target skills directory (default: ~/.claude/skills)"`
 }
 
 func skillsStatus(args skillsStatusArgs) error {
@@ -160,9 +160,9 @@ func skillsStatus(args skillsStatusArgs) error {
 }
 
 type skillsUninstallArgs struct {
-	RepoDir   string `targ:"--repo,-r,Project repository directory"`
-	TargetDir string `targ:"--target,-t,Target skills directory (default: ~/.claude/skills)"`
-	SkillName string `targ:"[skill],Optional: specific skill to uninstall"`
+	RepoDir   string `targ:"flag,short=r,desc=Project repository directory"`
+	TargetDir string `targ:"flag,short=t,desc=Target skills directory (default: ~/.claude/skills)"`
+	SkillName string `targ:"positional,desc=Optional: specific skill to uninstall"`
 }
 
 func skillsUninstall(args skillsUninstallArgs) error {
@@ -220,7 +220,7 @@ func skillsUninstall(args skillsUninstallArgs) error {
 }
 
 type skillsListArgs struct {
-	SkillsDir string `targ:"--dir,-d,Skills directory (default: ~/.claude/skills)"`
+	SkillsDir string `targ:"flag,short=d,desc=Skills directory (default: ~/.claude/skills)"`
 }
 
 func skillsList(args skillsListArgs) error {
@@ -246,9 +246,9 @@ func skillsList(args skillsListArgs) error {
 }
 
 type skillsDocsArgs struct {
-	SkillsDir string `targ:"--dir,-d,Skills directory (default: ~/.claude/skills)"`
-	SkillName string `targ:"[skill],Skill name (required)"`
-	Section   string `targ:"--section,-s,Specific section to output"`
+	SkillsDir string `targ:"flag,short=d,desc=Skills directory (default: ~/.claude/skills)"`
+	SkillName string `targ:"positional,required,desc=Skill name"`
+	Section   string `targ:"flag,short=s,desc=Specific section to output"`
 }
 
 func skillsDocs(args skillsDocsArgs) error {

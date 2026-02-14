@@ -7586,3 +7586,239 @@ See `.research-synthesis.md` Section 4.4 Phase 4 Recommendation #10 for full con
 **Completed:** 2026-02-13
 
 ISSUE-214 added a feedback loop at the embeddings tier, but signals do not propagate upward. Each tier has gaps: Skills measure retrieval frequency not content quality. CLAUDE.md has a size ratchet but no staleness signal. Hooks have no self-evaluation. Solution: (1) Propagate negative feedback from embeddings to matching skill utility scores. (2) Track CLAUDE.md rule references with staleness reporting. (3) Log hook fire rate and false positive tracking with hooks stats command. Depends on ISSUE-214, ISSUE-216. Related to ISSUE-219.
+
+---
+
+### ISSUE-225: Fix targ struct tag syntax in skills.go and result.go
+
+**Priority:** High
+**Status:** Closed
+**Created:** 2026-02-14
+
+The targ package was updated with a new struct tag format (key=value), but `cmd/projctl/skills.go` and `cmd/projctl/result.go` still use the old comma-separated format. This breaks `targ install-projctl` and all `targ issue-*` commands.
+
+### Problem
+
+`targ install-projctl` fails with:
+```
+Error: invalid tag for field RepoDir: unrecognized struct tag keys: --repo, -r, Project repository directory
+```
+
+Old format: `targ:"--repo,-r,Project repository directory"`
+New format: `targ:"flag,short=r,desc=Project repository directory"`
+
+### Files Affected
+
+- `cmd/projctl/skills.go` — 5 arg structs (`skillsInstallArgs`, `skillsStatusArgs`, `skillsUninstallArgs`, `skillsListArgs`, `skillsDocsArgs`)
+- `cmd/projctl/result.go` — `resultValidateArgs` struct (line 13-14; `resultCollectArgs` on line 86-89 already uses new format)
+- `dev/targs/targs.go` — `issueCreateArgs` and `issueUpdateArgs` structs (also old format, breaks `targ issue-create` and `targ issue-update`)
+
+### Acceptance Criteria
+
+1. All struct tags in affected files converted to new key=value format
+2. `targ install-projctl` succeeds
+3. `targ issue-create`, `targ issue-update` succeed
+4. `go build ./cmd/projctl/` still compiles
+5. Existing CLI behavior unchanged (same flags, same names)
+
+Area: Build System
+
+---
+
+
+### Comment
+
+Fixed: converted old targ struct tags to new key=value format in skills.go and result.go. Also fixed commas-in-desc in targs.go. targ install-projctl and targ issue-create/update now work.
+### ISSUE-226: Fix stop hook exit code handling for extract-session
+
+**Priority:** High
+**Status:** Closed
+**Created:** 2026-02-14
+
+Persistent error: "stop hook error: Failed with non-blocking status code: No stderr output" appears on every session stop.
+
+### Problem
+
+The Stop hook in `~/.claude/settings.json` runs:
+```json
+{"type": "command", "command": "projctl memory extract-session --transcript $TRANSCRIPT_PATH &"}
+```
+
+When `$TRANSCRIPT_PATH` is unset or the file doesn't exist, `extract-session` exits with code 1. Claude Code interprets exit 1 as "non-blocking failure" (only exit 2 = blocking) and reports the error with "No stderr output" because the background `&` detaches stderr.
+
+### Root Cause
+
+Two compounding issues:
+1. `extract-session` uses `os.Exit(1)` for errors (`cmd/projctl/memory_extract_session.go:37`), but Claude hooks expect exit 0 (success) or exit 2 (blocking error). Exit 1 is ambiguous.
+2. The `&` (background) in the hook command detaches stderr, so even if the command writes to stderr, Claude Code can't capture it.
+
+### Acceptance Criteria
+
+1. extract-session exits 0 on non-critical failures (missing transcript, empty path) — graceful degradation for hook context
+2. Remove `&` from hook command or handle backgrounding properly
+3. Check commands (`check-claudemd`, `check-skill`, `check-embedding`) continue using exit 2 for blocking errors
+4. No more "Failed with non-blocking status code" errors during normal usage
+5. Hook still extracts learnings when `$TRANSCRIPT_PATH` is valid
+
+### Implementation Notes
+
+Options:
+- (A) Make extract-session exit 0 with stderr warning when path is missing (graceful for hooks)
+- (B) Add guard in hook command: `test -f "$TRANSCRIPT_PATH" && projctl memory extract-session --transcript "$TRANSCRIPT_PATH"`
+- (C) Both A and B
+
+Related: `hooks.go:38-48` defines the Stop hook installation. `memory_extract_session.go:35-37` is the failing check.
+
+Area: Hooks, CLI
+
+---
+
+
+### Comment
+
+Fixed: extract-session exits 0 with warning when no transcript path. Removed backgrounding and stale --transcript flag from hook commands. Updated display strings.
+### ISSUE-227: Implement skill split operation
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-14
+
+The skill split operation in `skills_maintenance.go:487-491` is a stub that returns `fmt.Errorf("split action not yet implemented")`. This was identified as a Phase 5 gap in the research synthesis (.research-synthesis.md Section 2.3 item 4).
+
+### Problem
+
+When a generated skill covers multiple incoherent topics (detected by `detectRedundantSkills` or manual review), there's no way to split it into focused skills. The current code just returns an error.
+
+### Acceptance Criteria
+
+1. `applySplit()` in `skills_maintenance.go` re-clusters the skill's source memories at a tighter threshold (e.g., 0.6)
+2. Creates new focused skills from each sub-cluster using `SkillCompiler.CompileSkill()`
+3. Marks the original skill as pruned
+4. Preserves retrieval history by distributing retrieval_count proportionally
+5. Integration test verifies split produces multiple focused skills
+
+### Context
+
+Research synthesis (Section 2.3): "Skills split: re-clusters at 0.6 but no topic detection—just splits by similarity, not semantic coherence." LLM-based topic detection is ideal but similarity-based re-clustering is an acceptable first implementation.
+
+Related: ISSUE-212 (interactive maintenance gaps). Depends on: skill compilation infrastructure (already done).
+
+Area: Memory, Skills
+
+---
+
+### ISSUE-228: Implement skill demotion to embeddings (not just prune)
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-14
+
+The skill demotion operation in `skills_maintenance.go:531-536` currently calls `applyPrune()` (soft delete). The research synthesis recommends demoting skills back to embeddings tier to preserve learned knowledge for potential re-clustering.
+
+### Problem
+
+When a skill becomes obsolete or single-project-scoped, pruning it loses the knowledge entirely. Demotion to embeddings preserves the learning for future retrieval and potential re-compilation into a better skill.
+
+### Acceptance Criteria
+
+1. `applyDemote()` creates embedding entries from the skill's source memories (if they don't already exist)
+2. New embeddings get appropriate metadata (confidence, observation_type from original memories)
+3. Skill is marked as pruned after successful demotion
+4. No duplicate embeddings created if source memories still exist
+5. Integration test verifies demotion preserves knowledge
+
+### Context
+
+Research synthesis (Section 4.1): "Skills → Embeddings: When skill unused (retrieval_count = 0 for 90+ days) OR utility < 0.4. Don't delete—demote to embeddings (preserves learning, allows re-clustering)."
+
+Related: ISSUE-212 (interactive maintenance gaps).
+
+Area: Memory, Skills
+
+---
+
+### ISSUE-229: LLM-driven merge consolidation for skills
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-14
+
+The skill consolidation in `skills_maintenance.go:463-483` currently keeps the higher-utility skill and prunes the other. The research synthesis recommends LLM-driven consolidation that preserves nuance from both skills.
+
+### Problem
+
+Current `applyConsolidate()` picks the winner by utility score, discarding the loser entirely. If two skills cover overlapping topics with different nuances (e.g., "Go error handling patterns" and "Go error wrapping best practices"), merging should synthesize both into a richer skill.
+
+### Acceptance Criteria
+
+1. When consolidating two skills, use `SkillCompiler` to synthesize a merged skill from both skills' source memories
+2. Merged skill inherits the higher utility score and combined retrieval history
+3. Both original skills marked as pruned with `merge_source_ids` set
+4. Falls back to current "keep higher utility" behavior when no LLM available
+5. Integration test verifies merged skill contains content from both originals
+
+### Context
+
+Research synthesis (Section 2.3 item 5, Section 4.2 Priority 2): "Consolidate Is Merge-Only, Loses Nuance" — `mergeEntries()` picks longer string, discards shorter one entirely. Same pattern applies to skills consolidation.
+
+Related: ISSUE-218 (content refinement operations — the CLAUDE.md side is done, skills side is not).
+
+Area: Memory, Skills
+
+---
+
+### ISSUE-230: Embeddings archive — append-only audit trail
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-14
+
+No append-only audit trail exists for embedding operations. When embeddings are pruned, decayed, or merged, there's no record of what existed before. This was identified as an ISSUE-212/213 gap in the research synthesis.
+
+### Problem
+
+Debugging memory quality issues requires understanding what was pruned and why. Currently, pruned embeddings are deleted from the database with no record.
+
+### Acceptance Criteria
+
+1. Archive table stores pruned/merged/decayed embeddings with reason and timestamp
+2. Optimize pipeline writes to archive before deleting
+3. `projctl memory archive list` command to view recent archive entries
+4. Archive auto-prunes entries older than 90 days to prevent unbounded growth
+
+### Context
+
+Research synthesis (Section 2.4, ISSUE-213): "Medium priority: Embeddings archive (append-only audit trail)—useful for debugging, not critical."
+
+Related: ISSUE-212 (interactive maintenance gaps), ISSUE-213 (maintenance gaps, now closed/superseded).
+
+Area: Memory, Embeddings
+
+---
+
+### ISSUE-231: Problem surfacing — recurring violation detection
+
+**Priority:** Medium
+**Status:** Open
+**Created:** 2026-02-14
+
+No mechanism exists to detect and surface recurring patterns from hook violations, feedback signals, and optimization actions. This was the highest-priority item in the ISSUE-213 maintenance gaps.
+
+### Problem
+
+When hooks fire repeatedly on the same type of violation, or users mark the same kind of memory as "wrong", the system should detect the pattern and surface it as a learning or CLAUDE.md update candidate. Currently these signals are logged but never analyzed.
+
+### Acceptance Criteria
+
+1. Analyze `hook_events` table for repeated failures on the same hook (e.g., CLAUDE.md size violation 5+ times)
+2. Analyze `feedback` table for clusters of "wrong" feedback on similar content
+3. Surface recurring patterns during `projctl memory optimize --review` as high-priority proposals
+4. Include pattern context: "This hook has failed 12 times in the last 7 days" or "3 similar memories were marked wrong"
+
+### Context
+
+Research synthesis (Section 2.4, ISSUE-213): "High priority: Problem surfacing (recurring violations)—helps user learn from mistakes." Hook stats infrastructure (ISSUE-216, `hooks_stats.go`) provides the data; this issue adds the analysis layer.
+
+Depends on: ISSUE-214 (feedback loop — done), ISSUE-216 (hook stats — done).
+
+Area: Memory, Optimization

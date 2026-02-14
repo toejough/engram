@@ -39,7 +39,7 @@ func InstallHooks(opts InstallHooksOpts) error {
 		Hooks: []hookCommand{
 			{
 				Type:    "command",
-				Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+				Command: "projctl memory extract-session",
 			},
 			{
 				Type:    "command",
@@ -51,7 +51,7 @@ func InstallHooks(opts InstallHooksOpts) error {
 	preCompactHook := hookEntry{
 		Hooks: []hookCommand{{
 			Type:    "command",
-			Command: "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+			Command: "projctl memory extract-session",
 		}},
 	}
 
