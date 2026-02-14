@@ -2,9 +2,11 @@ package memory
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -21,7 +23,7 @@ type SkillsScannerOpts struct {
 	LowUtilityThreshold float64 // Utility below this is considered low (default 0.4)
 
 	// Redundancy detection
-	SimilarityThreshold float64                                                 // Similarity above this triggers consolidation (default 0.85)
+	SimilarityThreshold float64                                             // Similarity above this triggers consolidation (default 0.85)
 	SimilarityFunc      func(db *sql.DB, emb1, emb2 int64) (float64, error) // Optional similarity function
 
 	// Promotion criteria
@@ -142,10 +144,10 @@ func (s *SkillsScanner) detectUnusedSkills() ([]MaintenanceProposal, error) {
 		daysSinceCreation := int(now.Sub(created).Hours() / 24)
 		if now.Sub(created) > threshold {
 			proposals = append(proposals, MaintenanceProposal{
-				Tier:   "skills",
-				Action: "prune",
-				Target: slug,
-				Reason: fmt.Sprintf("Unused: no retrievals in %d days, utility %.2f", daysSinceCreation, utility),
+				Tier:    "skills",
+				Action:  "prune",
+				Target:  slug,
+				Reason:  fmt.Sprintf("Unused: no retrievals in %d days, utility %.2f", daysSinceCreation, utility),
 				Preview: fmt.Sprintf("Remove skill %q (%s)", slug, theme),
 			})
 		}
@@ -182,10 +184,10 @@ func (s *SkillsScanner) detectLowUtilitySkills() ([]MaintenanceProposal, error) 
 		}
 
 		proposals = append(proposals, MaintenanceProposal{
-			Tier:   "skills",
-			Action: "decay",
-			Target: slug,
-			Reason: fmt.Sprintf("Low utility %.2f despite %d retrievals", utility, retrievalCount),
+			Tier:    "skills",
+			Action:  "decay",
+			Target:  slug,
+			Reason:  fmt.Sprintf("Low utility %.2f despite %d retrievals", utility, retrievalCount),
 			Preview: fmt.Sprintf("Decrease confidence for %q (%s)", slug, theme),
 		})
 	}
@@ -257,10 +259,10 @@ func (s *SkillsScanner) detectRedundantSkills() ([]MaintenanceProposal, error) {
 				}
 
 				proposals = append(proposals, MaintenanceProposal{
-					Tier:   "skills",
-					Action: "consolidate",
-					Target: mergeSkill.slug,
-					Reason: fmt.Sprintf("Redundant with %q (similarity %.2f)", keepSkill.slug, sim),
+					Tier:    "skills",
+					Action:  "consolidate",
+					Target:  mergeSkill.slug,
+					Reason:  fmt.Sprintf("Redundant with %q (similarity %.2f)", keepSkill.slug, sim),
 					Preview: fmt.Sprintf("Merge %q into %q", mergeSkill.slug, keepSkill.slug),
 				})
 
@@ -315,10 +317,10 @@ func (s *SkillsScanner) detectPromotionCandidates() ([]MaintenanceProposal, erro
 
 		if projectCount >= s.opts.PromoteMinProjects {
 			proposals = append(proposals, MaintenanceProposal{
-				Tier:   "skills",
-				Action: "promote",
-				Target: slug,
-				Reason: fmt.Sprintf("High utility %.2f across %d projects", utility, projectCount),
+				Tier:    "skills",
+				Action:  "promote",
+				Target:  slug,
+				Reason:  fmt.Sprintf("High utility %.2f across %d projects", utility, projectCount),
 				Preview: fmt.Sprintf("Add %q to CLAUDE.md Promoted Learnings", theme),
 			})
 		}
@@ -367,10 +369,10 @@ func (s *SkillsScanner) detectDemotionCandidates() ([]MaintenanceProposal, error
 
 		if projectCount <= s.opts.DemoteMaxProjects {
 			proposals = append(proposals, MaintenanceProposal{
-				Tier:   "skills",
-				Action: "demote",
-				Target: slug,
-				Reason: fmt.Sprintf("Narrow scope: only used in %d project(s)", projectCount),
+				Tier:    "skills",
+				Action:  "demote",
+				Target:  slug,
+				Reason:  fmt.Sprintf("Narrow scope: only used in %d project(s)", projectCount),
 				Preview: fmt.Sprintf("Convert %q to embeddings", slug),
 			})
 		}
@@ -462,11 +464,76 @@ func (a *SkillsApplier) applyDecay(proposal MaintenanceProposal) error {
 
 // applyConsolidate merges one skill into another.
 func (a *SkillsApplier) applyConsolidate(proposal MaintenanceProposal) error {
-	// Extract target and destination from proposal (format: "target -> destination")
-	// For now, just soft-delete the target skill
-	// A more sophisticated implementation would merge content and source_memory_ids
+	// Extract keep-skill slug from Reason field using helper function
+	keepSlug := extractKeepSkillSlug(proposal.Reason)
 
-	_, err := a.db.Exec("UPDATE generated_skills SET pruned = 1 WHERE slug = ?", proposal.Target)
+	// Get target skill (the one being merged away)
+	targetSkill, err := getSkillBySlug(a.db, proposal.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get target skill: %w", err)
+	}
+	if targetSkill == nil {
+		return fmt.Errorf("target skill %q not found", proposal.Target)
+	}
+
+	// If we found a keep-skill slug, try to merge
+	if keepSlug != "" {
+		keepSkill, err := getSkillBySlug(a.db, keepSlug)
+		if err != nil {
+			return fmt.Errorf("failed to get keep skill: %w", err)
+		}
+
+		// If keep-skill exists, perform the merge
+		if keepSkill != nil {
+			// Parse source_memory_ids from both skills
+			var targetMemIDs, keepMemIDs []int64
+			if err := json.Unmarshal([]byte(targetSkill.SourceMemoryIDs), &targetMemIDs); err != nil {
+				return fmt.Errorf("failed to parse target source_memory_ids: %w", err)
+			}
+			if err := json.Unmarshal([]byte(keepSkill.SourceMemoryIDs), &keepMemIDs); err != nil {
+				return fmt.Errorf("failed to parse keep source_memory_ids: %w", err)
+			}
+
+			// Combine and deduplicate source_memory_ids using helper function
+			mergedMemIDs := deduplicateInt64(append(keepMemIDs, targetMemIDs...))
+			mergedMemJSON, err := json.Marshal(mergedMemIDs)
+			if err != nil {
+				return fmt.Errorf("failed to marshal merged source_memory_ids: %w", err)
+			}
+
+			// Parse existing merge_source_ids from DB
+			var mergeSourceIDs []int64
+			var mergeSourceIDsStr string
+			err = a.db.QueryRow("SELECT COALESCE(merge_source_ids, '') FROM generated_skills WHERE id = ?",
+				keepSkill.ID).Scan(&mergeSourceIDsStr)
+			if err == nil && mergeSourceIDsStr != "" && mergeSourceIDsStr != "[]" {
+				_ = json.Unmarshal([]byte(mergeSourceIDsStr), &mergeSourceIDs)
+			}
+
+			// Append target skill ID to merge_source_ids
+			mergeSourceIDs = append(mergeSourceIDs, targetSkill.ID)
+			mergeSourceJSON, err := json.Marshal(mergeSourceIDs)
+			if err != nil {
+				return fmt.Errorf("failed to marshal merge_source_ids: %w", err)
+			}
+
+			// Update keep-skill
+			now := time.Now().UTC().Format(time.RFC3339)
+			_, err = a.db.Exec(`
+				UPDATE generated_skills
+				SET source_memory_ids = ?,
+				    merge_source_ids = ?,
+				    updated_at = ?
+				WHERE id = ?
+			`, string(mergedMemJSON), string(mergeSourceJSON), now, keepSkill.ID)
+			if err != nil {
+				return fmt.Errorf("failed to update keep skill: %w", err)
+			}
+		}
+	}
+
+	// Prune the target skill (whether or not merge succeeded)
+	_, err = a.db.Exec("UPDATE generated_skills SET pruned = 1 WHERE slug = ?", proposal.Target)
 	if err != nil {
 		return fmt.Errorf("failed to consolidate skill: %w", err)
 	}
@@ -483,11 +550,95 @@ func (a *SkillsApplier) applyConsolidate(proposal MaintenanceProposal) error {
 }
 
 // applySplit splits an overly broad skill into sub-skills.
-// (Placeholder implementation - full split requires re-clustering logic)
 func (a *SkillsApplier) applySplit(proposal MaintenanceProposal) error {
-	// This would require re-clustering source memories and creating new skills
-	// For now, return not implemented
-	return fmt.Errorf("split action not yet implemented")
+	// Get skill by slug
+	skill, err := getSkillBySlug(a.db, proposal.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get skill: %w", err)
+	}
+	if skill == nil {
+		return fmt.Errorf("skill %q not found", proposal.Target)
+	}
+
+	// Parse source_memory_ids JSON array
+	var sourceMemoryIDs []int64
+	if err := json.Unmarshal([]byte(skill.SourceMemoryIDs), &sourceMemoryIDs); err != nil {
+		return fmt.Errorf("failed to parse source_memory_ids: %w", err)
+	}
+
+	// Check minimum source memories
+	if len(sourceMemoryIDs) < 2 {
+		return fmt.Errorf("cannot split skill with fewer than 2 source memories")
+	}
+
+	// Simple split: divide memories in half
+	midpoint := len(sourceMemoryIDs) / 2
+	groupA := sourceMemoryIDs[:midpoint]
+	groupB := sourceMemoryIDs[midpoint:]
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Create skill A
+	if len(groupA) > 0 {
+		groupAJSON, err := json.Marshal(groupA)
+		if err != nil {
+			return fmt.Errorf("failed to marshal group A IDs: %w", err)
+		}
+
+		skillA := &GeneratedSkill{
+			Slug:            skill.Slug + "-a",
+			Theme:           skill.Theme + " (part A)",
+			Description:     skill.Description,
+			Content:         skill.Content,
+			SourceMemoryIDs: string(groupAJSON),
+			SplitFromID:     skill.ID,
+			Alpha:           1.0,
+			Beta:            1.0,
+			Utility:         computeUtility(1.0, 1.0, 0, ""),
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+
+		if _, err := insertSkill(a.db, skillA); err != nil {
+			return fmt.Errorf("failed to insert skill A: %w", err)
+		}
+	}
+
+	// Create skill B
+	if len(groupB) > 0 {
+		groupBJSON, err := json.Marshal(groupB)
+		if err != nil {
+			return fmt.Errorf("failed to marshal group B IDs: %w", err)
+		}
+
+		skillB := &GeneratedSkill{
+			Slug:            skill.Slug + "-b",
+			Theme:           skill.Theme + " (part B)",
+			Description:     skill.Description,
+			Content:         skill.Content,
+			SourceMemoryIDs: string(groupBJSON),
+			SplitFromID:     skill.ID,
+			Alpha:           1.0,
+			Beta:            1.0,
+			Utility:         computeUtility(1.0, 1.0, 0, ""),
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+
+		if _, err := insertSkill(a.db, skillB); err != nil {
+			return fmt.Errorf("failed to insert skill B: %w", err)
+		}
+	}
+
+	// Prune original skill
+	pruneProposal := MaintenanceProposal{
+		Tier:   "skills",
+		Action: "prune",
+		Target: proposal.Target,
+		Reason: "split into sub-skills",
+	}
+
+	return a.applyPrune(pruneProposal)
 }
 
 // applyPromote adds skill to CLAUDE.md.
@@ -528,9 +679,66 @@ func (a *SkillsApplier) applyPromote(proposal MaintenanceProposal) error {
 }
 
 // applyDemote converts skill to embedding entries.
-// (Placeholder implementation - full demotion requires creating embedding entries)
 func (a *SkillsApplier) applyDemote(proposal MaintenanceProposal) error {
-	// This would require creating embeddings from skill content
-	// For now, just soft-delete the skill
+	// Get skill by slug
+	skill, err := getSkillBySlug(a.db, proposal.Target)
+	if err != nil {
+		return fmt.Errorf("failed to get skill: %w", err)
+	}
+	if skill == nil {
+		return fmt.Errorf("skill %q not found", proposal.Target)
+	}
+
+	// Parse source_memory_ids JSON array
+	var sourceMemoryIDs []int64
+	if err := json.Unmarshal([]byte(skill.SourceMemoryIDs), &sourceMemoryIDs); err != nil {
+		return fmt.Errorf("failed to parse source_memory_ids: %w", err)
+	}
+
+	// Check if source memories still exist
+	missingCount := 0
+	for _, memID := range sourceMemoryIDs {
+		var exists int
+		err := a.db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE id = ?", memID).Scan(&exists)
+		if err != nil || exists == 0 {
+			missingCount++
+		}
+	}
+
+	// Log warning if some sources are missing
+	if missingCount > 0 && missingCount < len(sourceMemoryIDs) {
+		fmt.Fprintf(os.Stderr, "Warning: skill %q has %d/%d source memories missing\n",
+			proposal.Target, missingCount, len(sourceMemoryIDs))
+	}
+
+	// Prune the skill (sources already exist as embeddings, or are gone and can't be recreated)
 	return a.applyPrune(proposal)
+}
+
+// extractKeepSkillSlug extracts the keep-skill slug from a consolidation reason string.
+// Format: 'Redundant with "keep-skill-slug" (similarity 0.XX)'
+func extractKeepSkillSlug(reason string) string {
+	// Find text between quotes
+	startIdx := strings.Index(reason, `"`)
+	if startIdx == -1 {
+		return ""
+	}
+	endIdx := strings.Index(reason[startIdx+1:], `"`)
+	if endIdx == -1 {
+		return ""
+	}
+	return reason[startIdx+1 : startIdx+1+endIdx]
+}
+
+// deduplicateInt64 removes duplicate values from a slice of int64.
+func deduplicateInt64(slice []int64) []int64 {
+	seen := make(map[int64]bool)
+	result := make([]int64, 0, len(slice))
+	for _, val := range slice {
+		if !seen[val] {
+			seen[val] = true
+			result = append(result, val)
+		}
+	}
+	return result
 }

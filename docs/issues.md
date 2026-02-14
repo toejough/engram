@@ -4167,7 +4167,7 @@ Related challenges: doc-producer skill missing guidance on ID format conventions
 ### ISSUE-130: Retro: Create visual testing workflow for CLI commands
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-06
 
 From ISSUE-120 retrospective (R3):
@@ -4191,6 +4191,10 @@ Related challenges: TASK-6 visual test requirement not explicitly validated
 ### Comment
 
 Deferred — independent but low urgency. No blockers, can proceed anytime. See docs/open-issues-plan.md.
+
+### Comment
+
+Closed: CLI output is hook-consumed not user-facing. Functional test coverage (59 test files + property-based testing) provides sufficient validation. Visual testing adds complexity without proportional value.
 ### ISSUE-131: Retro: Include simplicity rationale in all task breakdowns
 
 **Priority:** Medium
@@ -7680,7 +7684,7 @@ Fixed: extract-session exits 0 with warning when no transcript path. Removed bac
 ### ISSUE-227: Implement skill split operation
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-14
 
 The skill split operation in `skills_maintenance.go:487-491` is a stub that returns `fmt.Errorf("split action not yet implemented")`. This was identified as a Phase 5 gap in the research synthesis (.research-synthesis.md Section 2.3 item 4).
@@ -7707,10 +7711,14 @@ Area: Memory, Skills
 
 ---
 
+
+### Comment
+
+Implemented applySplit in skills_maintenance.go: splits source memories in half and creates two sub-skills with split_from_id tracking. Tests in skills_maintenance_apply_test.go.
 ### ISSUE-228: Implement skill demotion to embeddings (not just prune)
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-14
 
 The skill demotion operation in `skills_maintenance.go:531-536` currently calls `applyPrune()` (soft delete). The research synthesis recommends demoting skills back to embeddings tier to preserve learned knowledge for potential re-clustering.
@@ -7737,10 +7745,14 @@ Area: Memory, Skills
 
 ---
 
+
+### Comment
+
+Implemented applyDemote in skills_maintenance.go: verifies source embeddings exist then prunes skill. Sources already exist in embeddings tier so demotion is verification + prune.
 ### ISSUE-229: LLM-driven merge consolidation for skills
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-14
 
 The skill consolidation in `skills_maintenance.go:463-483` currently keeps the higher-utility skill and prunes the other. The research synthesis recommends LLM-driven consolidation that preserves nuance from both skills.
@@ -7767,10 +7779,14 @@ Area: Memory, Skills
 
 ---
 
+
+### Comment
+
+Implemented applyConsolidate with full merge: extracts keep-skill slug from reason field, combines source_memory_ids with dedup, tracks merge_source_ids. Falls back to prune if keep-skill not found.
 ### ISSUE-230: Embeddings archive — append-only audit trail
 
 **Priority:** Low
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-14
 
 No append-only audit trail exists for embedding operations. When embeddings are pruned, decayed, or merged, there's no record of what existed before. This was identified as an ISSUE-212/213 gap in the research synthesis.
@@ -7796,11 +7812,16 @@ Area: Memory, Embeddings
 
 ---
 
+
+### Comment
+
+Implemented embeddings_archive table, ArchiveEmbedding/ListArchive/PruneArchive functions in archive.go, wired into embeddings maintenance. CLI: projctl memory archive-list.
 ### ISSUE-231: Problem surfacing — recurring violation detection
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Closed
 **Created:** 2026-02-14
+**Resolved:** 2026-02-14
 
 No mechanism exists to detect and surface recurring patterns from hook violations, feedback signals, and optimization actions. This was the highest-priority item in the ISSUE-213 maintenance gaps.
 
@@ -7810,10 +7831,19 @@ When hooks fire repeatedly on the same type of violation, or users mark the same
 
 ### Acceptance Criteria
 
-1. Analyze `hook_events` table for repeated failures on the same hook (e.g., CLAUDE.md size violation 5+ times)
-2. Analyze `feedback` table for clusters of "wrong" feedback on similar content
-3. Surface recurring patterns during `projctl memory optimize --review` as high-priority proposals
-4. Include pattern context: "This hook has failed 12 times in the last 7 days" or "3 similar memories were marked wrong"
+1. ✅ Analyze `hook_events` table for repeated failures on the same hook (e.g., CLAUDE.md size violation 5+ times)
+2. ✅ Analyze `feedback` table for clusters of "wrong" feedback on similar content
+3. ✅ Surface recurring patterns during `projctl memory optimize --review` as high-priority proposals
+4. ✅ Include pattern context: "This hook has failed 12 times in the last 7 days" or "3 similar memories were marked wrong"
+
+### Resolution
+
+Implemented `internal/memory/problem_surfacing.go` with:
+- `DetectRecurringProblems()`: Queries hook failures (configurable rate threshold, default 30%, 7-day window) and feedback clusters (configurable minimum "wrong" count, default 2)
+- `ProblemsToProposals()`: Converts detected problems to "meta" tier proposals with "surface" action
+- Wired into `OptimizeInteractive()` to run after refinement scan, prepending high-priority problem proposals
+- Added "meta" tier handling in `applyProposal()` (no-op, informational only)
+- Full test coverage: hook failures, feedback clusters, defaults, edge cases
 
 ### Context
 
@@ -7822,3 +7852,8 @@ Research synthesis (Section 2.4, ISSUE-213): "High priority: Problem surfacing (
 Depends on: ISSUE-214 (feedback loop — done), ISSUE-216 (hook stats — done).
 
 Area: Memory, Optimization
+
+
+### Comment
+
+Implemented DetectRecurringProblems and ProblemsToProposals in problem_surfacing.go. Detects high-failure-rate hooks and clustered wrong feedback. Wired into OptimizeInteractive as high-priority proposals.

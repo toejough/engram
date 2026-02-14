@@ -100,6 +100,7 @@ func main() {
 				targ.Targ(memoryHooksCheckEmbedding).Name("check-embedding").Description("Check embedding metadata (PostToolUse hook)"),
 				targ.Targ(memoryHooksStats).Name("stats").Description("Show hook execution statistics"),
 			),
+			targ.Targ(memoryArchiveList).Name("archive-list").Description("List archived embedding entries"),
 		),
 		targ.Group("id",
 			targ.Targ(idNext).Name("next").Description("Get next sequential ID for a type"),

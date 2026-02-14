@@ -329,6 +329,9 @@ func applyPrune(db *sql.DB, proposal MaintenanceProposal) error {
 		return fmt.Errorf("invalid target ID: %w", err)
 	}
 
+	// ISSUE-230: Archive before deletion
+	_ = ArchiveEmbedding(db, id, "prune", proposal.Reason)
+
 	// Get embedding_id for cleanup
 	var embeddingID sql.NullInt64
 	err = db.QueryRow("SELECT embedding_id FROM embeddings WHERE id = ?", id).Scan(&embeddingID)
@@ -396,6 +399,9 @@ func applyConsolidate(db *sql.DB, proposal MaintenanceProposal) error {
 	if err != nil {
 		return fmt.Errorf("failed to merge retrieval counts: %w", err)
 	}
+
+	// ISSUE-230: Archive before deletion
+	_ = ArchiveEmbedding(db, deleteID, "consolidate", proposal.Reason)
 
 	// Delete redundant entry
 	var embeddingID sql.NullInt64

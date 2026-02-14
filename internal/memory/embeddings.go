@@ -200,6 +200,16 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		duration_ms INTEGER NOT NULL DEFAULT 0
 	)`)
 
+	// ISSUE-230: Create embeddings_archive table
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS embeddings_archive (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		embedding_id INTEGER NOT NULL,
+		content TEXT NOT NULL,
+		action TEXT NOT NULL,
+		reason TEXT NOT NULL,
+		archived_at TEXT NOT NULL
+	)`)
+
 	return db, nil
 }
 
