@@ -6081,8 +6081,9 @@ extract-session only captures explicit signals (corrections, 'remember this', er
 ### ISSUE-186: Dynamic skill generation from memory clusters (knowledge compilation)
 
 **Priority:** High
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-09
+**Completed:** 2026-02-13
 
 ## Problem
 
@@ -6883,22 +6884,24 @@ optimizePromote() promotes entries based purely on retrieval count + project cou
 ### ISSUE-211: Use background daemon for LLM calls instead of spawning claude CLI per-call
 
 **Priority:** Medium
-**Status:** Open
+**Status:** Complete
 **Created:** 2026-02-11
+**Completed:** 2026-02-14
 
-Currently `runClaude()` in `internal/memory/llm.go` spawns a new `claude --print` subprocess for every LLM operation (extract, synthesize, curate, decide, compile skill, detect specificity). Each call pays ~60s of CLI startup + API round-trip overhead.
+Replaced `ClaudeCLIExtractor` (~59s/call) with `DirectAPIExtractor` (~730ms/call, 80x speedup) using direct Anthropic API calls via `net/http`. OAuth token extracted from macOS Keychain. Falls back to CLI when Keychain/API unavailable.
 
-Explore a background daemon approach (similar to claude-mem) where a persistent Claude process stays running and accepts prompts on-demand via stdin/socket/pipe. This would eliminate repeated CLI startup overhead and could enable batching multiple operations.
-
-## Options to explore
-1. **Background daemon** — long-running `claude` process, communicate via stdin/stdout pipe
-2. **Direct API client** — bypass the CLI entirely, use Anthropic HTTP API from Go
-3. **Hybrid** — daemon for interactive sessions, direct API for batch operations
+## Implementation
+- `internal/memory/auth.go` — KeychainAuth for OAuth token extraction from macOS Keychain
+- `internal/memory/llm_api.go` — DirectAPIExtractor implementing LLMExtractor, SkillCompiler, SpecificityDetector
+- `NewLLMExtractor()` factory: tries DirectAPI first, falls back to ClaudeCLIExtractor
+- All CLI wiring updated to use `NewLLMExtractor()`
 
 ## Acceptance Criteria
-- [ ] LLM calls during `projctl memory optimize` complete significantly faster than current ~60s per call
-- [ ] Ctrl-C still works (context cancellation propagates to daemon/API calls)
-- [ ] Fallback to current approach if daemon isn't running
+- [x] LLM calls during `projctl memory optimize` complete at <2s per call (vs ~60s)
+- [x] Ctrl-C propagates via context cancellation
+- [x] Falls back to CLI if Keychain/API unavailable
+- [x] Existing tests pass unchanged
+- [x] New tests cover: auth extraction, API call, fallback behavior
 
 ### ISSUE-212: Unified memory maintenance with interactive review across all tiers
 
