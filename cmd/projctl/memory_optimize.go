@@ -75,7 +75,7 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 
 	// Wire LLM interfaces via shared instance (unless --no-llm is set)
 	if !args.NoLLM {
-		extractor := memory.NewClaudeCLIExtractor()
+		extractor := memory.NewLLMExtractor()
 		opts.SkillCompiler = extractor
 		opts.SpecificDetector = extractor
 		opts.Extractor = extractor
@@ -193,7 +193,7 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 	// Wire LLM extractor (unless --no-llm is set) for refinement proposals (ISSUE-218)
 	var extractor memory.LLMExtractor
 	if !args.NoLLM {
-		extractor = memory.NewClaudeCLIExtractor()
+		extractor = memory.NewLLMExtractor()
 	}
 
 	// Run interactive optimization

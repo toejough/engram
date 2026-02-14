@@ -37,7 +37,7 @@ func memoryLearn(args memoryLearnArgs) error {
 
 	// Wire LLM extractor (unless --no-llm is set)
 	if !args.NoLLM {
-		opts.Extractor = memory.NewClaudeCLIExtractor()
+		opts.Extractor = memory.NewLLMExtractor()
 	}
 
 	if err := memory.Learn(opts); err != nil {
@@ -267,7 +267,7 @@ func memoryQuery(args memoryQueryArgs) error {
 	// Create LLM extractor for curated tier
 	var extractor memory.LLMExtractor
 	if tier == memory.TierCurated {
-		extractor = memory.NewClaudeCLIExtractor()
+		extractor = memory.NewLLMExtractor()
 	}
 
 	// Always markdown output
