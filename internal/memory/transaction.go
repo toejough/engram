@@ -44,11 +44,14 @@ func NewTransaction(opts TransactionOpts) *Transaction {
 }
 
 // CreateBackups creates backup copies of all critical files before modifications.
-// Returns an error if backups already exist to prevent accidental overwrites.
+// Removes any stale backups from previous failed runs before creating new ones.
 func (t *Transaction) CreateBackups() error {
 	if t.backupsCreated {
 		return errors.New("backups already created")
 	}
+
+	// Remove stale backups from previous failed runs
+	t.Cleanup()
 
 	// Backup embeddings.db
 	if t.opts.DBPath != "" {
@@ -245,7 +248,16 @@ func copyDir(src, dst string) error {
 		srcPath := filepath.Join(src, entry.Name())
 		dstPath := filepath.Join(dst, entry.Name())
 
-		if entry.IsDir() {
+		// Handle symlinks: recreate the link rather than copying the target
+		if entry.Type()&os.ModeSymlink != 0 {
+			linkTarget, err := os.Readlink(srcPath)
+			if err != nil {
+				return err
+			}
+			if err := os.Symlink(linkTarget, dstPath); err != nil {
+				return err
+			}
+		} else if entry.IsDir() {
 			// Recursively copy subdirectory
 			if err := copyDir(srcPath, dstPath); err != nil {
 				return err

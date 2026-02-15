@@ -68,7 +68,7 @@ func configInit(args configInitArgs) error {
 
 type configGetArgs struct {
 	Dir string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	Key string `targ:"flag,short=k,desc=Config key to get (optional, returns all if not specified)"`
+	Key string `targ:"flag,short=k,desc=Config key to get (optional; returns all if not specified)"`
 }
 
 func configGet(args configGetArgs) error {
@@ -139,7 +139,7 @@ func configGet(args configGetArgs) error {
 
 type configPathArgs struct {
 	Dir      string `targ:"flag,short=d,desc=Project directory (default: current)"`
-	Artifact string `targ:"flag,short=a,required,desc=Artifact name (readme, requirements, design, architecture, tasks, issues, glossary, traceability, projects)"`
+	Artifact string `targ:"flag,short=a,required,desc=Artifact name (readme / requirements / design / architecture / tasks / issues / glossary / traceability / projects)"`
 }
 
 func configPath(args configPathArgs) error {

@@ -29,7 +29,7 @@ type escalationWriteArgs struct {
 	Dir      string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	File     string `targ:"flag,short=f,desc=Output file path (default: escalations.md)"`
 	ID       string `targ:"flag,desc=Escalation ID (e.g. ESC-001),required"`
-	Category string `targ:"flag,short=c,desc=Category: requirement, design, architecture, task,required"`
+	Category string `targ:"flag,short=c,required,desc=Category: requirement / design / architecture / task"`
 	Context  string `targ:"flag,desc=What was being analyzed,required"`
 	Question string `targ:"flag,short=q,desc=The question needing resolution,required"`
 }
@@ -154,7 +154,7 @@ func runCommand(name string, args ...string) error {
 type escalationListArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	File   string `targ:"flag,short=f,desc=Escalation file path (default: escalations.md)"`
-	Status string `targ:"flag,short=s,desc=Filter by status (pending, resolved, deferred, issue)"`
+	Status string `targ:"flag,short=s,desc=Filter by status (pending / resolved / deferred / issue)"`
 	JSON   bool   `targ:"flag,short=j,desc=Output as JSON"`
 }
 
@@ -162,7 +162,7 @@ type escalationResolveArgs struct {
 	Dir    string `targ:"flag,short=d,desc=Project directory (default: current)"`
 	File   string `targ:"flag,short=f,desc=Escalation file path (default: escalations.md)"`
 	ID     string `targ:"flag,desc=Escalation ID to resolve (e.g. ESC-001),required"`
-	Status string `targ:"flag,short=s,desc=New status: resolved, deferred, issue,required"`
+	Status string `targ:"flag,short=s,required,desc=New status: resolved / deferred / issue"`
 	Notes  string `targ:"flag,short=n,desc=Resolution notes"`
 }
 

@@ -84,7 +84,7 @@ func resultValidate(args resultValidateArgs) error {
 
 type resultCollectArgs struct {
 	Dir    string `targ:"flag,short=d,required,desc=Project directory"`
-	Tasks  string `targ:"flag,short=t,required,desc=Comma-separated task IDs (e.g. TASK-001,TASK-002)"`
+	Tasks  string `targ:"flag,short=t,required,desc=Comma-separated task IDs (e.g. TASK-001;TASK-002)"`
 	Skill  string `targ:"flag,short=s,desc=Skill name (default: tdd-red)"`
 	Format string `targ:"flag,short=f,desc=Output format: text (default) or json"`
 }

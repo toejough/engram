@@ -7,7 +7,7 @@ import (
 )
 
 type idNextArgs struct {
-	Type string `targ:"flag,short=t,required,desc=ID type (REQ, DES, ARCH, TASK, ISSUE)"`
+	Type string `targ:"flag,short=t,required,desc=ID type (REQ / DES / ARCH / TASK / ISSUE)"`
 	Dir  string `targ:"flag,short=d,default=.,desc=Project directory to scan"`
 }
 

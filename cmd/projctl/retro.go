@@ -12,7 +12,7 @@ import (
 type retroExtractArgs struct {
 	Dir         string `targ:"flag,short=d,desc=Project directory containing retro.md"`
 	RepoDir     string `targ:"flag,short=r,desc=Repository directory for issues.md (default: current)"`
-	MinPriority string `targ:"flag,short=p,desc=Minimum priority to extract (High, Medium, Low)"`
+	MinPriority string `targ:"flag,short=p,desc=Minimum priority to extract (High / Medium / Low)"`
 	DryRun      bool   `targ:"flag,desc=Print what would be created without creating"`
 }
 

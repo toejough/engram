@@ -9,8 +9,8 @@ import (
 
 type conflictCreateArgs struct {
 	Dir          string `targ:"flag,short=d,required,desc=Project directory"`
-	Skills       string `targ:"flag,short=s,required,desc=Involved skills (e.g. pm,architect)"`
-	Traceability string `targ:"flag,short=t,required,desc=Traceability IDs (e.g. REQ-001,ARCH-003)"`
+	Skills       string `targ:"flag,short=s,required,desc=Involved skills (e.g. pm;architect)"`
+	Traceability string `targ:"flag,short=t,required,desc=Traceability IDs (e.g. REQ-001;ARCH-003)"`
 	Description  string `targ:"flag,short=m,required,desc=Conflict description"`
 }
 
