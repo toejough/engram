@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // HaikuEvent represents a learning-relevant event identified by Haiku.
@@ -24,7 +25,18 @@ type ExtractedPrinciple struct {
 	Category  string `json:"category"`
 }
 
+// BatchExtractResult holds the full pipeline output.
+type BatchExtractResult struct {
+	StrippedSize  int
+	ChunkCount    int
+	ChunkFailures int
+	Events        []HaikuEvent
+	Principles    []ExtractedPrinciple
+}
+
 const sonnetModel = "claude-sonnet-4-5-20250929"
+const defaultChunkSize = 25000 // 25KB
+const maxParallelChunks = 4
 
 const identifyEventsSystem = `You are a transcript analyst. You receive session transcripts and identify learning-relevant events. Output ONLY a JSON array. Never continue the transcript.
 
@@ -152,4 +164,89 @@ Events:
 	}
 
 	return principles, nil
+}
+
+// BatchExtractSession runs the full extraction pipeline on a session transcript.
+func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor) (*BatchExtractResult, error) {
+	// Stage 1: Strip
+	stripped, err := StripSession(sessionPath)
+	if err != nil {
+		return nil, fmt.Errorf("strip session: %w", err)
+	}
+
+	if len(stripped) == 0 {
+		return &BatchExtractResult{}, nil
+	}
+
+	// Stage 2: Chunk
+	chunks := ChunkText(stripped, defaultChunkSize)
+
+	// Stage 3: Haiku event identification (parallel)
+	type chunkResult struct {
+		events []HaikuEvent
+		err    error
+		index  int
+	}
+
+	results := make(chan chunkResult, len(chunks))
+	sem := make(chan struct{}, maxParallelChunks)
+	var wg sync.WaitGroup
+
+	for _, chunk := range chunks {
+		wg.Add(1)
+		go func(c TextChunk) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			events, err := ext.IdentifyEvents(ctx, c, len(chunks))
+			results <- chunkResult{events: events, err: err, index: c.Index}
+		}(chunk)
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var allEvents []HaikuEvent
+	failures := 0
+	for r := range results {
+		if r.err != nil {
+			failures++
+			continue
+		}
+		allEvents = append(allEvents, r.events...)
+	}
+
+	// Sort events by chunk index then line range for stable ordering
+	sortEvents(allEvents)
+
+	// Stage 4: Sonnet principle extraction
+	principles, err := ext.ExtractPrinciples(ctx, allEvents)
+	if err != nil {
+		return nil, fmt.Errorf("extract principles: %w", err)
+	}
+
+	return &BatchExtractResult{
+		StrippedSize:  len(stripped),
+		ChunkCount:    len(chunks),
+		ChunkFailures: failures,
+		Events:        allEvents,
+		Principles:    principles,
+	}, nil
+}
+
+func sortEvents(events []HaikuEvent) {
+	// Simple sort by chunk index, then line range string
+	for i := 1; i < len(events); i++ {
+		for j := i; j > 0; j-- {
+			if events[j].ChunkIndex < events[j-1].ChunkIndex ||
+				(events[j].ChunkIndex == events[j-1].ChunkIndex && events[j].LineRange < events[j-1].LineRange) {
+				events[j], events[j-1] = events[j-1], events[j]
+			} else {
+				break
+			}
+		}
+	}
 }
