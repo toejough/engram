@@ -193,27 +193,6 @@ func OptimizeInteractive(opts OptimizeInteractiveOpts) (*OptimizeInteractiveResu
 		}
 	}
 
-	// Scan for recurring problems (ISSUE-231)
-	fmt.Fprintln(opts.Output, "- Scanning for recurring problems...")
-	problems, err := DetectRecurringProblems(db, RecurringProblemOpts{})
-	if err != nil {
-		// Non-fatal — log warning and continue
-		fmt.Fprintf(opts.Output, "  Warning: problem detection failed: %v\n", err)
-	} else if len(problems) > 0 {
-		problemProposals := ProblemsToProposals(problems)
-		// Prepend problems (high priority — show first)
-		allProposals = append(problemProposals, allProposals...)
-		for _, p := range problemProposals {
-			stats := result.TierSummary[p.Tier]
-			if stats.Actions == nil {
-				stats.Actions = make(map[string]int)
-			}
-			stats.Total++
-			stats.Actions[p.Action]++
-			result.TierSummary[p.Tier] = stats
-		}
-	}
-
 	// Apply tier filter (ISSUE-184)
 	if opts.TierFilter != "" {
 		filteredProposals := make([]MaintenanceProposal, 0)
@@ -344,10 +323,6 @@ func applyProposal(db *sql.DB, dbPath, claudeMDPath, skillsDir string, proposal 
 		return applier.Apply(proposal)
 	case "claude-md":
 		return ApplyClaudeMDProposal(RealFS{}, claudeMDPath, proposal)
-	case "meta":
-		// Surface proposals are informational — applying them is a no-op
-		// The value is in the user seeing and acknowledging them
-		return nil
 	default:
 		return fmt.Errorf("unknown tier: %s", proposal.Tier)
 	}
