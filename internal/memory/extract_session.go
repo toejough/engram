@@ -22,6 +22,10 @@ type ExtractSessionOpts struct {
 	// Matcher is an optional semantic matcher for behavioral convention detection (Tier C.3e).
 	// If nil, behavioral convention detection is skipped.
 	Matcher SemanticMatcher
+
+	// Extractor is an optional LLM extractor for enriching stored learnings.
+	// If nil, learnings are stored without LLM enrichment.
+	Extractor LLMExtractor
 }
 
 // ExtractSessionResult contains the results of a session extraction operation.
@@ -171,8 +175,10 @@ func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
 		ConfidenceDistribution: make(map[float64]int),
 	}
 
-	// Read JSONL line by line
+	// Read JSONL line by line — use 1MB buffer since transcript lines
+	// can exceed the default 64KB (large tool results, file reads, etc.)
 	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 	var messages []map[string]any
 
 	for scanner.Scan() {
@@ -208,9 +214,18 @@ func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
 			Message:    item.Content,
 			MemoryRoot: opts.MemoryRoot,
 			Project:    opts.Project,
+			Extractor:  opts.Extractor,
 		}); err != nil {
 			// Continue on error but mark as partial
 			result.Status = "partial"
+		}
+
+		// Detect recurrence for corrections (Task 4: self-reinforcing learning)
+		if item.Type == "correction" {
+			if err := detectCorrectionRecurrence(item.Content, opts.MemoryRoot); err != nil {
+				// Log error but don't fail the extraction
+				fmt.Fprintf(os.Stderr, "failed to detect correction recurrence: %v\n", err)
+			}
 		}
 	}
 
@@ -734,4 +749,47 @@ func truncateForItem(text string, maxLen int) string {
 		return text
 	}
 	return text[:maxLen-3] + "..."
+}
+
+// detectCorrectionRecurrence checks if a similar correction already exists in the embeddings database.
+// If so, it logs a recurrence event to the changelog.
+func detectCorrectionRecurrence(correctionContent, memoryRoot string) error {
+	// Query for similar prior corrections using hybrid search
+	results, err := Query(QueryOpts{
+		Text:       correctionContent,
+		Limit:      5,
+		MemoryRoot: memoryRoot,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to query for similar corrections: %w", err)
+	}
+
+	// Check if any prior correction is similar (cosine similarity > 0.8)
+	for _, result := range results.Results {
+		if result.Score > 0.8 {
+			// Found a recurrent correction
+			// Log to changelog
+			entry := ChangelogEntry{
+				Action:         "correction_recurrence",
+				SourceTier:     "embeddings",
+				DestinationTier: "embeddings",
+				ContentSummary: truncateForItem(correctionContent, 100),
+				Reason:         "same correction detected (prior similarity: " + fmt.Sprintf("%.2f", result.Score) + ")",
+			}
+			if err := WriteChangelogEntry(memoryRoot, entry); err != nil {
+				return fmt.Errorf("failed to write changelog entry: %w", err)
+			}
+
+			// Only log once per correction (first match is sufficient)
+			break
+		}
+	}
+
+	return nil
+}
+
+// detectCorrectionRecurrence is a stub for Task 4 (correction recurrence detection).
+// TODO: Implement in Task 4
+func detectCorrectionRecurrence(content, memoryRoot string) error {
+	return nil
 }
