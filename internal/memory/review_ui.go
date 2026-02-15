@@ -13,32 +13,89 @@ import (
 func formatProposal(p MaintenanceProposal) string {
 	var sb strings.Builder
 
-	// Format tier name with capitalization
-	tierName := formatTierName(p.Tier)
-	sb.WriteString(fmt.Sprintf("[%s] ", tierName))
+	if p.LLMEval != nil {
+		// LLM-evaluated format
+		sb.WriteString(fmt.Sprintf("\n━━━ Proposed Change: %s ━━━\n", formatActionExplanation(p.Action, p.Tier)))
 
-	// Add reason
-	if p.Reason != "" {
-		sb.WriteString(p.Reason)
-		sb.WriteString(":\n")
-	}
+		// Why proposed
+		sb.WriteString(fmt.Sprintf("  Why proposed: %s\n", p.Reason))
 
-	// Add preview with indentation
-	if p.Preview != "" {
-		// Indent preview lines
-		previewLines := strings.Split(p.Preview, "\n")
-		for _, line := range previewLines {
-			if line != "" {
-				sb.WriteString("  ")
-				sb.WriteString(line)
-				sb.WriteString("\n")
+		// What changes
+		if p.Preview != "" {
+			sb.WriteString("\n  What changes:\n")
+			previewLines := strings.Split(p.Preview, "\n")
+			for _, line := range previewLines {
+				if line != "" {
+					sb.WriteString("  │ ")
+					sb.WriteString(line)
+					sb.WriteString("\n")
+				}
 			}
 		}
-	}
 
-	// Add action prompt
-	actionVerb := formatActionVerb(p.Action, p.Tier)
-	sb.WriteString(fmt.Sprintf("  → %s [y/n/s]", actionVerb))
+		// Haiku validation
+		sb.WriteString("\n")
+		if p.LLMEval.HaikuValid {
+			sb.WriteString(fmt.Sprintf("  Haiku: Valid concern — %s\n", p.LLMEval.HaikuRationale))
+		} else {
+			sb.WriteString(fmt.Sprintf("  Haiku: Invalid concern — %s\n", p.LLMEval.HaikuRationale))
+		}
+
+		// Sonnet recommendation
+		recommendAction := "Apply"
+		if p.LLMEval.SonnetRecommend == "skip" {
+			recommendAction = "Skip"
+		}
+		sb.WriteString(fmt.Sprintf("  Sonnet recommends: %s this change (%s confidence)\n", recommendAction, p.LLMEval.SonnetConfidence))
+
+		// Scenario results
+		if len(p.LLMEval.ScenarioResults) > 0 {
+			sb.WriteString("\n")
+			for _, scenario := range p.LLMEval.ScenarioResults {
+				if scenario.Preserved {
+					sb.WriteString(fmt.Sprintf("  ✓ \"%s\" → guidance preserved\n", scenario.Prompt))
+				} else {
+					sb.WriteString(fmt.Sprintf("  ✗ \"%s\" → %s\n", scenario.Prompt, scenario.Lost))
+				}
+			}
+		}
+
+		// Summary
+		if p.LLMEval.SonnetSummary != "" {
+			sb.WriteString(fmt.Sprintf("\n  %s\n", p.LLMEval.SonnetSummary))
+		}
+
+		// Prompt
+		sb.WriteString("\n  [a]pply change / [s]kip change")
+
+	} else {
+		// Original format (backward compatible)
+		// Header: tier + reason
+		tierName := formatTierName(p.Tier)
+		sb.WriteString(fmt.Sprintf("\n━━━ [%s] %s ━━━\n", tierName, p.Reason))
+
+		// Explain what this action will do
+		explanation := formatActionExplanation(p.Action, p.Tier)
+		if explanation != "" {
+			sb.WriteString(fmt.Sprintf("  Action: %s\n", explanation))
+		}
+
+		// Content
+		if p.Preview != "" {
+			sb.WriteString("\n")
+			previewLines := strings.Split(p.Preview, "\n")
+			for _, line := range previewLines {
+				if line != "" {
+					sb.WriteString("  │ ")
+					sb.WriteString(line)
+					sb.WriteString("\n")
+				}
+			}
+		}
+
+		// Prompt
+		sb.WriteString("\n  [y]es / [n]o / [s]kip")
+	}
 
 	return sb.String()
 }
@@ -57,35 +114,47 @@ func formatTierName(tier string) string {
 	}
 }
 
-// formatActionVerb converts an action into a question verb.
-// For skills tier, "prune" actions use "Archive?" instead of "Prune?".
-func formatActionVerb(action, tier string) string {
-	// Special case: skills tier uses "Archive?" for prune actions
-	if action == "prune" && tier == "skills" {
-		return "Archive?"
-	}
-
+// formatActionExplanation returns a human-readable explanation of what the action does.
+func formatActionExplanation(action, tier string) string {
 	switch action {
 	case "prune":
-		return "Prune?"
+		if tier == "skills" {
+			return "Move this skill to archive (stops retrieval, keeps file for reference)"
+		}
+		if tier == "claude-md" {
+			return "Remove this line from CLAUDE.md"
+		}
+		return "Delete this memory entry permanently (archived for recovery)"
 	case "decay":
-		return "Decay?"
+		return "Reduce confidence score (makes it less likely to be retrieved)"
 	case "consolidate":
-		return "Apply?"
+		if tier == "claude-md" {
+			return "Merge duplicate CLAUDE.md entries into one"
+		}
+		return "Delete the second entry, keep the first (they appear to be duplicates)"
 	case "split":
-		return "Split?"
+		return "Break this multi-topic entry into separate focused entries"
 	case "promote":
-		return "Promote?"
+		if tier == "embeddings" {
+			return "Create a new skill from this high-value memory"
+		}
+		if tier == "skills" {
+			return "Add this skill's content to CLAUDE.md (always-loaded)"
+		}
+		return "Move to a higher tier for more visibility"
 	case "demote":
-		return "Demote?"
+		if tier == "claude-md" {
+			return "Remove from CLAUDE.md (too narrow for always-loaded tier)"
+		}
+		return "Move to a lower tier"
 	case "rewrite":
-		return "Rewrite?"
+		return "Replace content with an LLM-improved version for clarity"
 	case "add-rationale":
-		return "Add rationale?"
+		return "Append an explanation of WHY this rule matters"
 	case "extract-examples":
-		return "Extract?"
+		return "Pull out concrete examples into separate entries"
 	default:
-		return action + "?"
+		return ""
 	}
 }
 
@@ -133,7 +202,7 @@ func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Read
 			response := strings.TrimSpace(strings.ToLower(res.line))
 
 			switch response {
-			case "y", "yes":
+			case "y", "yes", "a", "apply":
 				return true, nil
 			case "n", "no":
 				return false, nil

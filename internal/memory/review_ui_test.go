@@ -26,7 +26,7 @@ func TestFormatProposal(t *testing.T) {
 		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Low confidence (0.15) - 90 days old"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Try using rapid for property testing"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Prune?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Delete this memory entry permanently"))
 	})
 
 	t.Run("formats skills archive proposal", func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestFormatProposal(t *testing.T) {
 		g.Expect(formatted).To(gomega.ContainSubstring("Skills"))
 		g.Expect(formatted).To(gomega.ContainSubstring("No retrievals in 45 days"))
 		g.Expect(formatted).To(gomega.ContainSubstring("old-pattern"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Archive?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Move this skill to archive"))
 	})
 
 	t.Run("formats CLAUDE.md consolidate proposal", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestFormatProposal(t *testing.T) {
 		g.Expect(formatted).To(gomega.ContainSubstring("CLAUDE.md"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Redundant"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Consolidate to"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Apply?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Merge duplicate CLAUDE.md entries"))
 	})
 
 	t.Run("formats split proposal", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestFormatProposal(t *testing.T) {
 		formatted := formatProposal(proposal)
 		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Split opportunity"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Split?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Break this multi-topic entry"))
 	})
 
 	t.Run("formats promote proposal", func(t *testing.T) {
@@ -88,7 +88,7 @@ func TestFormatProposal(t *testing.T) {
 		formatted := formatProposal(proposal)
 		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
 		g.Expect(formatted).To(gomega.ContainSubstring("High retrieval"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Promote?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Create a new skill"))
 	})
 
 	t.Run("formats demote proposal", func(t *testing.T) {
@@ -103,7 +103,37 @@ func TestFormatProposal(t *testing.T) {
 		formatted := formatProposal(proposal)
 		g.Expect(formatted).To(gomega.ContainSubstring("CLAUDE.md"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Too specific"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Demote?"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Remove from CLAUDE.md"))
+	})
+
+	t.Run("formats proposal with LLMEval", func(t *testing.T) {
+		proposal := MaintenanceProposal{
+			Tier:    "embeddings",
+			Action:  "consolidate",
+			Target:  "id1,id2",
+			Reason:  "Redundant (similarity 0.92)",
+			Preview: "Keep: When managing teams...\nDelete: When using multi-agent teams...",
+			LLMEval: &LLMEvalResult{
+				HaikuValid:       true,
+				HaikuRationale:   "Entries share vocabulary but teach different lessons",
+				SonnetRecommend:  "skip",
+				SonnetConfidence: "high",
+				SonnetSummary:    "Deleted entry contains actionable advice not in kept entry",
+				ScenarioResults: []ScenarioResult{
+					{Prompt: "team structure", Preserved: true},
+					{Prompt: "idle agents", Preserved: false, Lost: "explicit polling instruction"},
+				},
+			},
+		}
+
+		formatted := formatProposal(proposal)
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Haiku:"))
+		g.Expect(formatted).To(gomega.ContainSubstring("different lessons"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Sonnet recommends: Skip"))
+		g.Expect(formatted).To(gomega.ContainSubstring("✓"))
+		g.Expect(formatted).To(gomega.ContainSubstring("✗"))
+		g.Expect(formatted).To(gomega.ContainSubstring("[a]pply"))
 	})
 }
 
@@ -125,7 +155,7 @@ func TestReviewProposal(t *testing.T) {
 		result, err := reviewProposal(proposal, input, output)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		g.Expect(result).To(gomega.BeTrue())
-		g.Expect(output.String()).To(gomega.ContainSubstring("[y/n/s]"))
+		g.Expect(output.String()).To(gomega.ContainSubstring("[y]es / [n]o / [s]kip"))
 	})
 
 	t.Run("accepts Y input (uppercase)", func(t *testing.T) {
@@ -370,21 +400,21 @@ func TestReviewProposalEdgeCases(t *testing.T) {
 func TestFormatProposalActionVerbs(t *testing.T) {
 	g := gomega.NewWithT(t)
 
-	// Test that action verbs are correctly transformed into questions
+	// Test that action explanations appear in formatted output
 	testCases := []struct {
-		action       string
-		expectedVerb string
+		action          string
+		expectedContain string
 	}{
-		{"prune", "Prune?"},
-		{"decay", "Decay?"},
-		{"consolidate", "Apply?"},
-		{"split", "Split?"},
-		{"promote", "Promote?"},
-		{"demote", "Demote?"},
+		{"prune", "Delete this memory entry permanently"},
+		{"decay", "Reduce confidence score"},
+		{"consolidate", "Delete the second entry, keep the first"},
+		{"split", "Break this multi-topic entry"},
+		{"promote", "Create a new skill"},
+		{"demote", "Move to a lower tier"},
 	}
 
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("action %s formats as %s", tc.action, tc.expectedVerb), func(t *testing.T) {
+		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
 			proposal := MaintenanceProposal{
 				Tier:    "embeddings",
 				Action:  tc.action,
@@ -394,7 +424,7 @@ func TestFormatProposalActionVerbs(t *testing.T) {
 			}
 
 			formatted := formatProposal(proposal)
-			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedVerb))
+			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
 		})
 	}
 }
@@ -408,16 +438,16 @@ func TestFormatProposalNewRefinementActions(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	testCases := []struct {
-		action       string
-		expectedVerb string
+		action          string
+		expectedContain string
 	}{
-		{"rewrite", "Rewrite?"},
-		{"add-rationale", "Add rationale?"},
-		{"extract-examples", "Extract?"},
+		{"rewrite", "Replace content with an LLM-improved version"},
+		{"add-rationale", "Append an explanation of WHY"},
+		{"extract-examples", "Pull out concrete examples"},
 	}
 
 	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("action %s formats as %s", tc.action, tc.expectedVerb), func(t *testing.T) {
+		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
 			proposal := MaintenanceProposal{
 				Tier:    "embeddings",
 				Action:  tc.action,
@@ -427,7 +457,7 @@ func TestFormatProposalNewRefinementActions(t *testing.T) {
 			}
 
 			formatted := formatProposal(proposal)
-			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedVerb))
+			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
 		})
 	}
 }

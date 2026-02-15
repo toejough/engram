@@ -79,6 +79,24 @@ type MaintenanceProposal struct {
 	Target  string // ID, file path, or entry text
 	Reason  string // Why this is proposed
 	Preview string // What the result would look like
+	LLMEval *LLMEvalResult
+}
+
+// LLMEvalResult holds the results of LLM evaluation stages.
+type LLMEvalResult struct {
+	HaikuValid       bool             // Did Haiku consider this a valid concern?
+	HaikuRationale   string           // Haiku's one-line explanation
+	SonnetRecommend  string           // "apply" or "skip"
+	SonnetConfidence string           // "high", "medium", "low"
+	SonnetSummary    string           // Human-readable change analysis
+	ScenarioResults  []ScenarioResult // Per-scenario preservation checks
+}
+
+// ScenarioResult holds one behavioral test scenario result.
+type ScenarioResult struct {
+	Prompt    string // Simulated user prompt
+	Preserved bool   // Did expected guidance surface?
+	Lost      string // What was lost (if not preserved)
 }
 
 // MaintenanceReviewFunc is called to review a maintenance proposal.
