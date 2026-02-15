@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -113,14 +114,29 @@ func memoryLearnSessions(args memoryLearnSessionsArgs) error {
 		return nil
 	}
 
+	// Set up signal handling for clean Ctrl-C exit
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	// Process each session sequentially
 	fmt.Println()
+	processed := 0
 	for i, session := range unevaluated {
+		// Check for cancellation before starting next session
+		if ctx.Err() != nil {
+			fmt.Printf("\nInterrupted. Processed %d/%d session(s).\n", processed, len(unevaluated))
+			return nil
+		}
+
 		fmt.Printf("[%d/%d] Extracting %s (%s)...\n", i+1, len(unevaluated), session.SessionID, session.Project)
 
-		// Process with 60s timeout
-		itemsFound, status, err := processSessionWithTimeout(session, memoryRoot)
+		// Process with 60s timeout, respecting Ctrl-C
+		items, status, err := processSessionWithTimeout(ctx, session, memoryRoot)
 		if err != nil {
+			if ctx.Err() != nil {
+				fmt.Printf("\nInterrupted. Processed %d/%d session(s).\n", processed, len(unevaluated))
+				return nil
+			}
 			fmt.Fprintf(os.Stderr, "  -> Error: %v\n", err)
 			// Record failure
 			if recErr := memory.RecordProcessedSession(db, session.SessionID, session.Project, 0, "error"); recErr != nil {
@@ -129,69 +145,104 @@ func memoryLearnSessions(args memoryLearnSessionsArgs) error {
 			continue
 		}
 
-		fmt.Printf("  -> %d learning(s) extracted\n", itemsFound)
+		fmt.Printf("  -> %d learning(s) extracted\n", len(items))
+		for _, item := range items {
+			fmt.Printf("     [%s] %s\n", item.Type, item.Content)
+		}
 
 		// Record to processed_sessions table
-		if err := memory.RecordProcessedSession(db, session.SessionID, session.Project, itemsFound, status); err != nil {
+		if err := memory.RecordProcessedSession(db, session.SessionID, session.Project, len(items), status); err != nil {
 			fmt.Fprintf(os.Stderr, "  -> Warning: failed to record session: %v\n", err)
 		}
+		processed++
 	}
 
-	fmt.Printf("\nProcessed %d session(s)\n", len(unevaluated))
+	fmt.Printf("\nProcessed %d session(s)\n", processed)
 	return nil
 }
 
 // processSessionWithTimeout processes a session with a 60s timeout.
-// Returns (itemsFound, status, error).
-func processSessionWithTimeout(session memory.DiscoveredSession, memoryRoot string) (int, string, error) {
+// Respects parent context cancellation (e.g. Ctrl-C).
+func processSessionWithTimeout(ctx context.Context, session memory.DiscoveredSession, memoryRoot string) ([]memory.SessionExtractedItem, string, error) {
 	type result struct {
-		itemsFound int
-		status     string
-		err        error
+		items  []memory.SessionExtractedItem
+		status string
+		err    error
 	}
 	done := make(chan result, 1)
 
-	go func() {
-		itemsFound, status, err := processSession(session, memoryRoot)
-		done <- result{itemsFound, status, err}
-	}()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
+
+	go func() {
+		items, status, err := processSession(session, memoryRoot)
+		done <- result{items, status, err}
+	}()
 
 	select {
 	case r := <-done:
-		return r.itemsFound, r.status, r.err
-	case <-ctx.Done():
-		return 0, "timeout", fmt.Errorf("processing timed out after 60s")
+		return r.items, r.status, r.err
+	case <-timeoutCtx.Done():
+		if ctx.Err() != nil {
+			return nil, "interrupted", ctx.Err()
+		}
+		return nil, "timeout", fmt.Errorf("processing timed out after 5 minutes")
 	}
 }
 
-// processSession processes a single session and returns (itemsFound, status, error).
-func processSession(session memory.DiscoveredSession, memoryRoot string) (int, string, error) {
-	// Wire SemanticMatcher
-	matcher := memory.NewMemoryStoreSemanticMatcher(memoryRoot)
-
+// processSession processes a single session using the batch extraction pipeline.
+func processSession(session memory.DiscoveredSession, memoryRoot string) ([]memory.SessionExtractedItem, string, error) {
 	// Wire LLM extractor
-	extractor := memory.NewLLMExtractor()
-	if extractor == nil {
-		return 0, "error", fmt.Errorf("LLM extractor unavailable (keychain auth failed)")
+	ext := memory.NewLLMExtractor()
+	if ext == nil {
+		return nil, "error", fmt.Errorf("LLM extractor unavailable (keychain auth failed)")
 	}
 
-	opts := memory.ExtractSessionOpts{
-		TranscriptPath: session.Path,
-		MemoryRoot:     memoryRoot,
-		Project:        session.Project,
-		Matcher:        matcher,
-		Extractor:      extractor,
+	// Cast to DirectAPIExtractor — BatchExtractSession needs the concrete type
+	// for CallAPIWithMessages access
+	directExt, ok := ext.(*memory.DirectAPIExtractor)
+	if !ok {
+		return nil, "error", fmt.Errorf("batch extraction requires DirectAPIExtractor")
 	}
 
-	result, err := memory.ExtractSession(opts)
+	result, err := memory.BatchExtractSession(context.Background(), session.Path, directExt)
 	if err != nil {
-		return 0, "error", err
+		return nil, "error", err
 	}
 
-	return len(result.Items), "success", nil
+	// Store each principle via Learn()
+	var items []memory.SessionExtractedItem
+	for _, p := range result.Principles {
+		learnErr := memory.Learn(memory.LearnOpts{
+			Message:    p.Principle,
+			Project:    session.Project,
+			Source:     "internal",
+			Type:       "discovery",
+			MemoryRoot: memoryRoot,
+			Extractor:  ext,
+			PrecomputedObservation: &memory.Observation{
+				Type:      p.Category,
+				Concepts:  []string{p.Category},
+				Principle: p.Principle,
+				Rationale: p.Evidence,
+			},
+		})
+		if learnErr != nil {
+			fmt.Fprintf(os.Stderr, "  -> Warning: failed to store principle: %v\n", learnErr)
+			continue
+		}
+		items = append(items, memory.SessionExtractedItem{
+			Type:    p.Category,
+			Content: p.Principle,
+		})
+	}
+
+	status := "success"
+	if result.ChunkFailures > 0 {
+		status = fmt.Sprintf("partial (%d/%d chunks failed)", result.ChunkFailures, result.ChunkCount)
+	}
+
+	return items, status, nil
 }
 
 // parseSize parses a human-readable size string (e.g., "8KB", "1MB") into bytes.
