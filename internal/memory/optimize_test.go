@@ -7,6 +7,92 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+func TestSkillTestingIntegration(t *testing.T) {
+	t.Run("skill mutation blocked when tests fail", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create mock test harness that returns failing tests
+		mockHarness := &mockSkillTester{
+			shouldPass: false,
+			reasoning:  "RED: 2/3 failures, GREEN: 1/3 successes → FAIL",
+		}
+
+		opts := memory.OptimizeOpts{
+			TestSkills:  true,
+			TestRuns:    3,
+			SkillTester: mockHarness,
+		}
+
+		// Attempt to compile a skill - should be blocked
+		err := memory.TestAndCompileSkill(opts, testSkillCandidate())
+
+		g.Expect(err).To(HaveOccurred())
+		g.Expect(err.Error()).To(ContainSubstring("skill test failed"))
+		g.Expect(mockHarness.called).To(BeTrue())
+	})
+
+	t.Run("skill mutation proceeds when tests pass", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create mock test harness that returns passing tests
+		mockHarness := &mockSkillTester{
+			shouldPass: true,
+			reasoning:  "RED: 3/3 failures, GREEN: 3/3 successes → PASS",
+		}
+
+		opts := memory.OptimizeOpts{
+			TestSkills:  true,
+			TestRuns:    3,
+			SkillTester: mockHarness,
+		}
+
+		// Attempt to compile a skill - should succeed
+		err := memory.TestAndCompileSkill(opts, testSkillCandidate())
+
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(mockHarness.called).To(BeTrue())
+	})
+
+	t.Run("skill testing skipped when TestSkills=false", func(t *testing.T) {
+		g := NewWithT(t)
+
+		// Create mock test harness
+		mockHarness := &mockSkillTester{
+			shouldPass: false,
+		}
+
+		opts := memory.OptimizeOpts{
+			TestSkills:  false,
+			SkillTester: mockHarness,
+		}
+
+		// Attempt to compile a skill - should skip testing
+		err := memory.TestAndCompileSkill(opts, testSkillCandidate())
+
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(mockHarness.called).To(BeFalse())
+	})
+}
+
+// mockSkillTester implements SkillTester for testing
+type mockSkillTester struct {
+	shouldPass bool
+	reasoning  string
+	called     bool
+}
+
+func (m *mockSkillTester) TestAndEvaluate(scenario memory.TestScenario, runs int) (bool, string, error) {
+	m.called = true
+	return m.shouldPass, m.reasoning, nil
+}
+
+func testSkillCandidate() memory.SkillCandidate {
+	return memory.SkillCandidate{
+		Theme:   "test-skill",
+		Content: "Test skill content",
+	}
+}
+
 func TestExtractSkillDescription(t *testing.T) {
 	t.Run("extracts first non-empty non-header line for simple content", func(t *testing.T) {
 		g := NewWithT(t)

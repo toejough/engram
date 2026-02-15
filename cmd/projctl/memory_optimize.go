@@ -23,6 +23,8 @@ type memoryOptimizeArgs struct {
 	ForceReorg               bool    `targ:"flag,desc=Force full skill reorganization regardless of last run time (normally runs every 30 days)"`
 	NoLLM                    bool    `targ:"flag,desc=Disable all LLM-based features (extractor, specificity detector, skill compiler)"`
 	Tier                     string  `targ:"flag,desc=Filter proposals by tier: embeddings, skills, or claude-md (ISSUE-184)"`
+	TestSkills               bool    `targ:"flag,desc=Test skills before deployment using RED/GREEN protocol (default true, Task 8)"`
+	TestRuns                 int     `targ:"flag,desc=Number of test runs for RED/GREEN protocol (default 3, Task 8)"`
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
@@ -71,6 +73,8 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 		SkillsDir:    skillsDir,
 		ForceReorg:   args.ForceReorg,
 		Context:      ctx,
+		TestSkills:   true, // Task 8: Default to true (test skills before deployment)
+		TestRuns:     args.TestRuns,
 	}
 
 	// Wire LLM interfaces via shared instance (unless --no-llm is set)

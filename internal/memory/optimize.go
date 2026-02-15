@@ -38,6 +38,9 @@ type OptimizeOpts struct {
 	SpecificDetector SpecificityDetector // Optional detector for narrow/universal learning classification
 	SimilarityFunc   func(db *sql.DB, id1, id2 int64) (float64, error) // TASK-10: Optional similarity function for testing
 	Context          context.Context     // Optional context for cancellation support
+	TestSkills       bool                // Task 8: Enable skill testing before deployment (default true)
+	TestRuns         int                 // Task 8: Number of test runs for RED/GREEN protocol (default 3)
+	SkillTester      SkillTester         // Task 8: Optional skill tester for testing (defaults to API-based implementation)
 }
 
 // OptimizeResult contains the results of the optimization pipeline.
@@ -92,11 +95,72 @@ type ProposalApplier interface {
 	Apply(MaintenanceProposal) error
 }
 
+// SkillTester tests skill candidates using RED/GREEN protocol.
+type SkillTester interface {
+	TestAndEvaluate(scenario TestScenario, runs int) (pass bool, reasoning string, err error)
+}
+
+// SkillCandidate represents a skill candidate for testing before deployment.
+type SkillCandidate struct {
+	Theme           string
+	Content         string
+	SourceEmbeddings []Embedding
+}
+
 // checkContext checks if the context has been cancelled and returns an error if so.
 func checkContext(opts OptimizeOpts) error {
 	if opts.Context != nil {
 		return opts.Context.Err()
 	}
+	return nil
+}
+
+// defaultSkillTester implements SkillTester using the skill test harness.
+type defaultSkillTester struct {
+	apiKey string
+}
+
+func (d *defaultSkillTester) TestAndEvaluate(scenario TestScenario, runs int) (bool, string, error) {
+	// Call the harness to run RED/GREEN tests
+	ctx := context.Background()
+	redResults, greenResults, err := TestSkillCandidate(ctx, scenario, runs, d.apiKey)
+	if err != nil {
+		return false, "", err
+	}
+
+	// Evaluate the results
+	pass, reasoning := EvaluateTestResults(redResults, greenResults)
+	return pass, reasoning, nil
+}
+
+// TestAndCompileSkill tests a skill candidate and returns an error if tests fail.
+// This is a simplified version for testing the integration.
+func TestAndCompileSkill(opts OptimizeOpts, candidate SkillCandidate) error {
+	// Skip testing if TestSkills is false
+	if !opts.TestSkills {
+		return nil
+	}
+
+	// Derive scenario from embeddings
+	scenario := DeriveScenarioFromEmbeddings(candidate.SourceEmbeddings)
+	scenario.SkillContent = candidate.Content
+	scenario.SkillName = candidate.Theme
+
+	// Test the skill
+	runs := opts.TestRuns
+	if runs == 0 {
+		runs = 3
+	}
+
+	pass, reasoning, err := opts.SkillTester.TestAndEvaluate(scenario, runs)
+	if err != nil {
+		return fmt.Errorf("skill test failed: %w", err)
+	}
+
+	if !pass {
+		return fmt.Errorf("skill test failed: %s", reasoning)
+	}
+
 	return nil
 }
 
@@ -158,6 +222,18 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if opts.ReorgThreshold == 0 {
 		opts.ReorgThreshold = 0.8
+	}
+
+	// Task 8: Set defaults for skill testing
+	// TestSkills defaults to true (test skills before deployment)
+	// TestRuns defaults to 3 (run 3 RED and 3 GREEN tests)
+	if opts.TestRuns == 0 {
+		opts.TestRuns = 3
+	}
+	// Set default SkillTester if not provided
+	if opts.SkillTester == nil {
+		apiKey := os.Getenv("ANTHROPIC_API_KEY")
+		opts.SkillTester = &defaultSkillTester{apiKey: apiKey}
 	}
 
 	// Ensure memory dir exists
