@@ -461,3 +461,66 @@ func TestFormatProposalNewRefinementActions(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// Backward Compatibility and Apply/Skip Input Tests
+// ============================================================================
+
+func TestFormatProposal_BackwardCompatible(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	proposal := MaintenanceProposal{
+		Tier:    "embeddings",
+		Action:  "rewrite",
+		Target:  "id1",
+		Reason:  "Clarity improvement",
+		Preview: "Rewritten content here",
+		// No LLMEval — old format
+	}
+
+	formatted := formatProposal(proposal)
+	g.Expect(formatted).To(gomega.ContainSubstring("[y]es / [n]o / [s]kip"))
+	g.Expect(formatted).ToNot(gomega.ContainSubstring("Haiku:"))
+	g.Expect(formatted).ToNot(gomega.ContainSubstring("Sonnet"))
+	g.Expect(formatted).ToNot(gomega.ContainSubstring("Proposed Change:"))
+}
+
+func TestReviewProposal_AcceptsApplyInput(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	proposal := MaintenanceProposal{
+		Tier:    "embeddings",
+		Action:  "consolidate",
+		Target:  "id1,id2",
+		Reason:  "Redundant",
+		Preview: "content",
+		LLMEval: &LLMEvalResult{HaikuValid: true},
+	}
+
+	input := strings.NewReader("a\n")
+	output := &bytes.Buffer{}
+
+	result, err := reviewProposal(proposal, input, output)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(result).To(gomega.BeTrue())
+}
+
+func TestReviewProposal_AcceptsApplyFullWord(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	proposal := MaintenanceProposal{
+		Tier:    "embeddings",
+		Action:  "consolidate",
+		Target:  "id1,id2",
+		Reason:  "Redundant",
+		Preview: "content",
+		LLMEval: &LLMEvalResult{HaikuValid: true},
+	}
+
+	input := strings.NewReader("apply\n")
+	output := &bytes.Buffer{}
+
+	result, err := reviewProposal(proposal, input, output)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(result).To(gomega.BeTrue())
+}
