@@ -2,6 +2,8 @@ package memory_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -145,7 +147,6 @@ func TestRecordFeedback_Helpful(t *testing.T) {
 	err = memory.RecordFeedback(db, embeddingID, memory.FeedbackHelpful)
 	g.Expect(err).To(BeNil())
 
-	// Query again with completely different text to avoid re-ask detection
 	result2, err := memory.Query(memory.QueryOpts{
 		Text:       "goroutine concurrency patterns in Go programming language",
 		Limit:      10, // Query more to ensure we get our result
@@ -306,83 +307,6 @@ func TestGetFeedbackStats(t *testing.T) {
 	g.Expect(stats.HelpfulCount).To(Equal(2))
 	g.Expect(stats.WrongCount).To(Equal(1))
 	g.Expect(stats.UnclearCount).To(Equal(0))
-}
-
-// TestSaveLoadLastQueryResults verifies last query caching
-func TestSaveLoadLastQueryResults(t *testing.T) {
-	g := NewWithT(t)
-
-	memoryRoot := t.TempDir()
-
-	// Create test results
-	results := []memory.QueryResult{
-		{
-			ID:      42,
-			Content: "Test memory 1",
-			Score:   0.95,
-		},
-		{
-			ID:      43,
-			Content: "Test memory 2",
-			Score:   0.85,
-		},
-	}
-
-	// Save results
-	err := memory.SaveLastQueryResults(results, "test query", memoryRoot)
-	g.Expect(err).To(BeNil())
-
-	// Load results back
-	loaded, query, err := memory.LoadLastQueryResults(memoryRoot)
-	g.Expect(err).To(BeNil())
-	g.Expect(query).To(Equal("test query"))
-	g.Expect(loaded).To(HaveLen(2))
-	g.Expect(loaded[0].ID).To(Equal(int64(42)))
-	g.Expect(loaded[0].Content).To(Equal("Test memory 1"))
-	g.Expect(loaded[1].ID).To(Equal(int64(43)))
-}
-
-// TestImplicitReAskDetection verifies auto-feedback on repeated similar queries
-func TestImplicitReAskDetection(t *testing.T) {
-	g := NewWithT(t)
-
-	memoryRoot := t.TempDir()
-
-	// Learn memories
-	err := memory.Learn(memory.LearnOpts{
-		Message:    "Go concurrency patterns",
-		Project:    "testproject",
-		MemoryRoot: memoryRoot,
-	})
-	g.Expect(err).To(BeNil())
-
-	// First query
-	result1, err := memory.Query(memory.QueryOpts{
-		Text:       "how to use goroutines",
-		Limit:      1,
-		MemoryRoot: memoryRoot,
-	})
-	g.Expect(err).To(BeNil())
-	g.Expect(result1.Results).To(HaveLen(1))
-
-	// Second query (similar, should trigger re-ask detection)
-	result2, err := memory.Query(memory.QueryOpts{
-		Text:       "how to use channels and goroutines",
-		Limit:      1,
-		MemoryRoot: memoryRoot,
-	})
-	g.Expect(err).To(BeNil())
-	g.Expect(result2.Results).To(HaveLen(1))
-
-	// Verify feedback was automatically recorded for first query results
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).To(BeNil())
-	defer db.Close()
-
-	// First result should have wrong feedback recorded
-	stats, err := memory.GetFeedbackStats(db, result1.Results[0].ID)
-	g.Expect(err).To(BeNil())
-	g.Expect(stats.WrongCount).To(BeNumerically(">", 0))
 }
 
 // TestPropagateEmbeddingFeedbackToSkills_NoFlaggedSources verifies no propagation when sources are not flagged
@@ -560,4 +484,45 @@ func TestPropagateEmbeddingFeedbackToSkills_AlreadyPropagated(t *testing.T) {
 	g.Expect(err).To(BeNil())
 	g.Expect(beta).To(Equal(2.0), "beta should remain unchanged")
 	g.Expect(propagatedAt).To(Equal(propagatedTimestamp), "propagation timestamp should remain unchanged")
+}
+
+// TestCleanupReQueryArtifacts verifies cleanup of stale re-query detection artifacts
+func TestCleanupReQueryArtifacts(t *testing.T) {
+	g := NewWithT(t)
+	memoryRoot := t.TempDir()
+
+	// Set up DB with flagged entries
+	db, err := memory.InitTestDB(filepath.Join(memoryRoot, "embeddings.db"))
+	g.Expect(err).To(BeNil())
+
+	_, err = db.Exec(`INSERT INTO embeddings (content, source, flagged_for_review) VALUES ('test1', 'memory', 1)`)
+	g.Expect(err).To(BeNil())
+	_, err = db.Exec(`INSERT INTO embeddings (content, source, flagged_for_review) VALUES ('test2', 'memory', 0)`)
+	g.Expect(err).To(BeNil())
+
+	// Create stale last_query.json
+	lastQueryPath := filepath.Join(memoryRoot, "last_query.json")
+	err = os.WriteFile(lastQueryPath, []byte(`{"query_text":"test"}`), 0644)
+	g.Expect(err).To(BeNil())
+
+	db.Close()
+
+	// Run cleanup
+	count, err := memory.CleanupReQueryArtifacts(memoryRoot)
+	g.Expect(err).To(BeNil())
+	g.Expect(count).To(Equal(1)) // Only 1 entry was flagged
+
+	// Verify flag reset
+	db2, err := memory.InitTestDB(filepath.Join(memoryRoot, "embeddings.db"))
+	g.Expect(err).To(BeNil())
+	defer db2.Close()
+
+	var flaggedCount int
+	err = db2.QueryRow("SELECT COUNT(*) FROM embeddings WHERE flagged_for_review = 1").Scan(&flaggedCount)
+	g.Expect(err).To(BeNil())
+	g.Expect(flaggedCount).To(Equal(0))
+
+	// Verify last_query.json deleted
+	_, err = os.Stat(lastQueryPath)
+	g.Expect(os.IsNotExist(err)).To(BeTrue())
 }

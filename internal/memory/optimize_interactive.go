@@ -114,6 +114,13 @@ func OptimizeInteractive(opts OptimizeInteractiveOpts) (*OptimizeInteractiveResu
 	}
 	defer db.Close()
 
+	// ISSUE-232: Clean up stale re-query detection artifacts
+	if cleaned, err := CleanupReQueryArtifacts(filepath.Dir(opts.DBPath)); err != nil {
+		fmt.Fprintf(opts.Output, "Warning: failed to clean re-query artifacts: %v\n", err)
+	} else if cleaned > 0 {
+		fmt.Fprintf(opts.Output, "Cleaned %d stale flagged_for_review entries from re-query detection.\n", cleaned)
+	}
+
 	// Scan all tiers and collect proposals
 	fmt.Fprintln(opts.Output, "\nScanning memory tiers for maintenance opportunities...")
 
@@ -246,9 +253,9 @@ func OptimizeInteractive(opts OptimizeInteractiveOpts) (*OptimizeInteractiveResu
 			// Use MaintenanceReviewFunc (simple boolean)
 			approved = opts.ReviewFunc(proposal)
 		} else {
-			// Use interactive reviewProposal (io-based)
+			// Use interactive reviewProposal (io-based, context-aware for Ctrl-C)
 			var err error
-			approved, err = reviewProposal(proposal, opts.Input, opts.Output)
+			approved, err = reviewProposalCtx(opts.Context, proposal, opts.Input, opts.Output)
 			if err != nil {
 				_ = txn.Rollback()
 				return nil, fmt.Errorf("review failed: %w", err)

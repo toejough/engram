@@ -499,46 +499,6 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		fmt.Fprintf(os.Stderr, "Warning: failed to update retrieval tracking: %v\n", err)
 	}
 
-	// ISSUE-214: Implicit re-ask detection
-	previousResults, previousQuery, loadErr := LoadLastQueryResults(opts.MemoryRoot)
-	if loadErr == nil && previousQuery != "" && len(previousResults) > 0 {
-		// Check if within same session (30 min window)
-		cachePath := filepath.Join(opts.MemoryRoot, "last_query.json")
-		if stat, err := os.Stat(cachePath); err == nil {
-			timeSinceLastQuery := time.Since(stat.ModTime())
-			if timeSinceLastQuery < 30*time.Minute {
-				// Generate embedding for previous query to compare
-				prevEmbedding, _, _, embErr := generateEmbeddingONNX("query: "+previousQuery, modelPath)
-				if embErr == nil {
-					// Calculate cosine similarity between current and previous query
-					var dotProduct, magCurrent, magPrev float32
-					for i := 0; i < len(queryEmbedding) && i < len(prevEmbedding); i++ {
-						dotProduct += queryEmbedding[i] * prevEmbedding[i]
-						magCurrent += queryEmbedding[i] * queryEmbedding[i]
-						magPrev += prevEmbedding[i] * prevEmbedding[i]
-					}
-					similarity := float64(dotProduct) / (math.Sqrt(float64(magCurrent)) * math.Sqrt(float64(magPrev)))
-
-					// If similarity > 0.85, auto-record "wrong" feedback for previous results
-					if similarity > 0.85 {
-						fmt.Fprintf(os.Stderr, "Detected similar re-query (similarity: %.2f) - recording negative feedback for previous results\n", similarity)
-						for _, prevResult := range previousResults {
-							if prevResult.ID > 0 {
-								_ = RecordFeedback(db, prevResult.ID, FeedbackWrong)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// Save current query results for next re-ask detection
-	if saveErr := SaveLastQueryResults(results, opts.Text, opts.MemoryRoot); saveErr != nil {
-		// Log error but don't fail the query
-		fmt.Fprintf(os.Stderr, "Warning: failed to save last query results: %v\n", saveErr)
-	}
-
 	duration := time.Since(startTime)
 
 	return &QueryResults{
@@ -1189,56 +1149,28 @@ func extractMessageContent(content string) string {
 	return strings.TrimSpace(content)
 }
 
-// ============================================================================
-// ISSUE-214: Last query caching for implicit re-ask detection
-// ============================================================================
-
-// LastQueryCache represents cached query results for re-ask detection.
-type LastQueryCache struct {
-	QueryText string        `json:"query_text"`
-	Timestamp string        `json:"timestamp"`
-	Results   []QueryResult `json:"results"`
-}
-
-// SaveLastQueryResults saves query results to last_query.json for re-ask detection.
-func SaveLastQueryResults(results []QueryResult, queryText string, memoryRoot string) error {
-	cache := LastQueryCache{
-		QueryText: queryText,
-		Timestamp: time.Now().Format(time.RFC3339),
-		Results:   results,
-	}
-
-	data, err := json.MarshalIndent(cache, "", "  ")
+// CleanupReQueryArtifacts removes stale re-query detection artifacts (ISSUE-232).
+// Resets flagged_for_review on all embeddings and deletes last_query.json.
+// Returns the number of entries that had their flag reset.
+func CleanupReQueryArtifacts(memoryRoot string) (int, error) {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to marshal query cache: %w", err)
+		return 0, fmt.Errorf("failed to open database: %w", err)
 	}
+	defer db.Close()
 
-	cachePath := filepath.Join(memoryRoot, "last_query.json")
-	if err := os.WriteFile(cachePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write query cache: %w", err)
-	}
-
-	return nil
-}
-
-// LoadLastQueryResults loads the last query results from last_query.json.
-// Returns the results, the query text, and any error.
-func LoadLastQueryResults(memoryRoot string) ([]QueryResult, string, error) {
-	cachePath := filepath.Join(memoryRoot, "last_query.json")
-	data, err := os.ReadFile(cachePath)
+	// Reset flagged_for_review
+	result, err := db.Exec("UPDATE embeddings SET flagged_for_review = 0 WHERE flagged_for_review = 1")
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, "", nil // No cache exists yet
-		}
-		return nil, "", fmt.Errorf("failed to read query cache: %w", err)
+		return 0, fmt.Errorf("failed to reset flagged_for_review: %w", err)
 	}
+	count, _ := result.RowsAffected()
 
-	var cache LastQueryCache
-	if err := json.Unmarshal(data, &cache); err != nil {
-		return nil, "", fmt.Errorf("failed to unmarshal query cache: %w", err)
-	}
+	// Delete last_query.json
+	_ = os.Remove(filepath.Join(memoryRoot, "last_query.json"))
 
-	return cache.Results, cache.QueryText, nil
+	return int(count), nil
 }
 
 // ============================================================================

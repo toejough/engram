@@ -8,7 +8,6 @@ import (
 )
 
 type memoryFeedbackArgs struct {
-	Index        int    `targ:"positional,desc=Index from last query results (1-based)"`
 	ID           int64  `targ:"flag,name=id,desc=Memory ID to give feedback on"`
 	Helpful      bool   `targ:"flag,desc=Mark memory as helpful"`
 	Wrong        bool   `targ:"flag,desc=Mark memory as wrong or not useful"`
@@ -52,26 +51,11 @@ func memoryFeedback(args memoryFeedbackArgs) error {
 		feedbackType = memory.FeedbackUnclear
 	}
 
-	// Resolve ID: either direct via --id or from positional index
-	var embeddingID int64
-	if args.ID > 0 {
-		embeddingID = args.ID
-	} else if args.Index > 0 {
-		// Load last query results
-		results, _, err := memory.LoadLastQueryResults(memoryRoot)
-		if err != nil {
-			return fmt.Errorf("failed to load last query results: %w", err)
-		}
-		if len(results) == 0 {
-			return fmt.Errorf("no previous query results found - run a query first")
-		}
-		if args.Index > len(results) {
-			return fmt.Errorf("index %d out of range (only %d results available)", args.Index, len(results))
-		}
-		embeddingID = results[args.Index-1].ID // Convert 1-based to 0-based
-	} else {
-		return fmt.Errorf("either positional index or --id must be provided")
+	// Resolve ID: must use --id flag
+	if args.ID <= 0 {
+		return fmt.Errorf("--id must be provided")
 	}
+	embeddingID := args.ID
 
 	// Open database
 	db, err := memory.InitDBForTest(memoryRoot)
