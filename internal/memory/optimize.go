@@ -133,6 +133,18 @@ func (d *defaultSkillTester) TestAndEvaluate(scenario TestScenario, runs int) (b
 	return pass, reasoning, nil
 }
 
+// clusterEntriesToEmbeddings converts ClusterEntry slice to Embedding slice for skill testing.
+func clusterEntriesToEmbeddings(cluster []ClusterEntry) []Embedding {
+	embeddings := make([]Embedding, 0, len(cluster))
+	for _, entry := range cluster {
+		embeddings = append(embeddings, Embedding{
+			ID:      entry.ID,
+			Content: entry.Content,
+		})
+	}
+	return embeddings
+}
+
 // TestAndCompileSkill tests a skill candidate and returns an error if tests fail.
 // This is a simplified version for testing the integration.
 func TestAndCompileSkill(opts OptimizeOpts, candidate SkillCandidate) error {
@@ -154,12 +166,34 @@ func TestAndCompileSkill(opts OptimizeOpts, candidate SkillCandidate) error {
 
 	pass, reasoning, err := opts.SkillTester.TestAndEvaluate(scenario, runs)
 	if err != nil {
+		// Log test failure to changelog
+		_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+			Action:         "skill_test_fail",
+			SourceTier:     "skills",
+			ContentSummary: candidate.Theme,
+			Reason:         fmt.Sprintf("test error: %v", err),
+		})
 		return fmt.Errorf("skill test failed: %w", err)
 	}
 
 	if !pass {
+		// Log test failure to changelog
+		_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+			Action:         "skill_test_fail",
+			SourceTier:     "skills",
+			ContentSummary: candidate.Theme,
+			Reason:         reasoning,
+		})
 		return fmt.Errorf("skill test failed: %s", reasoning)
 	}
+
+	// Log test success to changelog
+	_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+		Action:         "skill_test_pass",
+		SourceTier:     "skills",
+		ContentSummary: candidate.Theme,
+		Reason:         reasoning,
+	})
 
 	return nil
 }
@@ -1464,6 +1498,17 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		merged := false
 		existing, err := getSkillBySlug(db, slug)
 		if err == nil && existing != nil && !existing.Pruned {
+			// Test the merged skill before updating
+			candidate := SkillCandidate{
+				Theme:            theme,
+				Content:          content,
+				SourceEmbeddings: clusterEntriesToEmbeddings(cluster),
+			}
+			if err := TestAndCompileSkill(opts, candidate); err != nil {
+				// Test failed, skip merge
+				continue
+			}
+
 			// Merge: update existing skill
 			existing.Content = content
 			existing.SourceMemoryIDs = sourceIDs
@@ -1478,6 +1523,17 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		}
 
 		if !merged {
+			// Test the new skill before inserting
+			candidate := SkillCandidate{
+				Theme:            theme,
+				Content:          content,
+				SourceEmbeddings: clusterEntriesToEmbeddings(cluster),
+			}
+			if err := TestAndCompileSkill(opts, candidate); err != nil {
+				// Test failed, skip insertion
+				continue
+			}
+
 			_, err = insertSkill(db, skill)
 			if err != nil {
 				continue
@@ -2340,6 +2396,29 @@ func optimizePromoteSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		}
 
 		if approved {
+			// Test the skill before promotion
+			var sourceEmbeddings []Embedding
+			for _, memID := range memoryIDs {
+				var content string
+				err := db.QueryRow("SELECT content FROM embeddings WHERE id = ?", memID).Scan(&content)
+				if err == nil {
+					sourceEmbeddings = append(sourceEmbeddings, Embedding{
+						ID:      memID,
+						Content: content,
+					})
+				}
+			}
+
+			candidate := SkillCandidate{
+				Theme:            c.theme,
+				Content:          principle,
+				SourceEmbeddings: sourceEmbeddings,
+			}
+			if err := TestAndCompileSkill(opts, candidate); err != nil {
+				// Test failed, skip promotion
+				continue
+			}
+
 			result.SkillsPromoted++
 
 			// Set promoted flag in DB
