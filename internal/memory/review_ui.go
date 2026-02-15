@@ -2,6 +2,7 @@ package memory
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -88,10 +89,21 @@ func formatActionVerb(action, tier string) string {
 	}
 }
 
+// readResult holds the result of a non-blocking line read.
+type readResult struct {
+	line string
+	err  error
+}
+
 // reviewProposal presents a maintenance proposal interactively and prompts for user decision.
 // Returns true if approved (y), false if rejected (n) or skipped (s).
-// Handles EOF and invalid input gracefully.
+// Respects context cancellation (e.g. Ctrl-C) even while blocked on stdin.
 func reviewProposal(p MaintenanceProposal, input io.Reader, output io.Writer) (bool, error) {
+	return reviewProposalCtx(context.Background(), p, input, output)
+}
+
+// reviewProposalCtx is the context-aware implementation of reviewProposal.
+func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Reader, output io.Writer) (bool, error) {
 	// Display formatted proposal
 	formatted := formatProposal(p)
 	fmt.Fprintln(output, formatted)
@@ -100,34 +112,39 @@ func reviewProposal(p MaintenanceProposal, input io.Reader, output io.Writer) (b
 	reader := bufio.NewReader(input)
 
 	for {
-		// Read user input
-		response, err := reader.ReadString('\n')
-		if err != nil {
-			// Handle EOF or other read errors
-			if err == io.EOF {
-				return false, io.EOF
+		// Read in a goroutine so we can select on context cancellation
+		ch := make(chan readResult, 1)
+		go func() {
+			line, err := reader.ReadString('\n')
+			ch <- readResult{line, err}
+		}()
+
+		select {
+		case <-ctx.Done():
+			return false, ctx.Err()
+		case res := <-ch:
+			if res.err != nil {
+				if res.err == io.EOF {
+					return false, io.EOF
+				}
+				return false, res.err
 			}
-			return false, err
-		}
 
-		// Trim whitespace and convert to lowercase
-		response = strings.TrimSpace(strings.ToLower(response))
+			response := strings.TrimSpace(strings.ToLower(res.line))
 
-		// Handle input
-		switch response {
-		case "y", "yes":
-			return true, nil
-		case "n", "no":
-			return false, nil
-		case "s", "skip":
-			return false, nil
-		case "":
-			// Empty input - just reprompt
-			continue
-		default:
-			// Invalid input - show error and reprompt
-			fmt.Fprintln(output, "Invalid input. Please enter y (yes), n (no), or s (skip).")
-			continue
+			switch response {
+			case "y", "yes":
+				return true, nil
+			case "n", "no":
+				return false, nil
+			case "s", "skip":
+				return false, nil
+			case "":
+				continue
+			default:
+				fmt.Fprintln(output, "Invalid input. Please enter y (yes), n (no), or s (skip).")
+				continue
+			}
 		}
 	}
 }

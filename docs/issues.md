@@ -7857,3 +7857,87 @@ Area: Memory, Optimization
 ### Comment
 
 Implemented DetectRecurringProblems and ProblemsToProposals in problem_surfacing.go. Detects high-failure-rate hooks and clustered wrong feedback. Wired into OptimizeInteractive as high-priority proposals.
+
+---
+
+### ISSUE-232: Re-query similarity detection bulk-inserts bogus "wrong" feedback
+
+**Priority:** High
+**Status:** Open
+**Created:** 2026-02-14
+
+### Problem
+
+The re-query detection logic in `internal/memory/memory.go:522-529` records "wrong" feedback for **all** previous query results whenever a new query has >0.85 cosine similarity to the last query. Because hooks fire similar queries repeatedly across sessions, this accumulates massive volumes of bogus feedback — observed 98,272 "wrong" feedback rows across 171 embeddings, with individual entries receiving 3,500-6,600 "wrong" records each.
+
+This has cascading effects:
+- Every embedding's confidence is driven to 0.0 by repeated -0.1 decrements
+- All embeddings get `flagged_for_review = 1`
+- `DetectRecurringProblems` surfaces hundreds of false-positive "wrong feedback" proposals during `optimize --review`
+- The feedback table grows unbounded (90KB+ in days of normal use)
+
+### Root Cause
+
+```go
+// memory.go:522-529
+if similarity > 0.85 {
+    for _, prevResult := range previousResults {
+        if prevResult.ID > 0 {
+            _ = RecordFeedback(db, prevResult.ID, FeedbackWrong)
+        }
+    }
+}
+```
+
+Hook-driven queries (SessionStart, UserPromptSubmit, PreToolUse) naturally produce similar queries across invocations. The similarity check fires on nearly every hook query, recording "wrong" for all returned results each time.
+
+### Acceptance Criteria
+
+1. Re-query detection should not fire on hook-driven queries (or should be disabled for hook contexts entirely)
+2. If retained, re-query detection should have a cooldown — at most one "wrong" feedback per embedding per session
+3. The feedback table should not grow unboundedly from automated processes
+4. Existing bogus feedback should be cleaned up (or the table truncated) during optimize
+
+### Files Affected
+
+- `internal/memory/memory.go` (lines 510-530, re-query detection)
+- `internal/memory/feedback.go` (RecordFeedback — no dedup guard)
+
+Area: Memory, Feedback
+
+---
+
+### ISSUE-233: "surface" proposals use actionable prompt but are no-ops
+
+**Priority:** Low
+**Status:** Open
+**Created:** 2026-02-14
+
+### Problem
+
+The `optimize --review` interactive UI presents "surface" proposals (from `DetectRecurringProblems`) with the same `→ surface? [y/n/s]` prompt as actionable proposals. However, approving a surface proposal is a no-op — the apply handler just returns nil:
+
+```go
+// optimize_interactive.go:340-343
+case "meta":
+    // Surface proposals are informational — applying them is a no-op
+    return nil
+```
+
+This confuses users who don't know what "surface" means, what will happen if they say yes, or why they're being asked a question that has no effect.
+
+### Acceptance Criteria
+
+1. Surface proposals should either:
+   - (a) Display as informational (no y/n/s prompt, just show and continue), or
+   - (b) Offer a meaningful action (e.g., "create issue?", "prune flagged entries?", "add to CLAUDE.md?")
+2. The `formatActionVerb` function should have an explicit case for "surface" rather than falling through to the default
+3. The prompt text should clearly explain what the user is being shown and what their options do
+
+### Files Affected
+
+- `internal/memory/review_ui.go` (formatActionVerb, reviewProposal)
+- `internal/memory/optimize_interactive.go` (applyProposal meta case)
+- `internal/memory/problem_surfacing.go` (ProblemsToProposals — may need richer proposal data)
+
+Area: Memory, UX
