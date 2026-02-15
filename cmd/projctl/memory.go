@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -138,19 +139,20 @@ func memoryGrep(args memoryGrepArgs) error {
 }
 
 type memoryQueryArgs struct {
-	Text          string  `targ:"positional,desc=Text to search for"`
-	Limit         int     `targ:"flag,short=n,desc=Maximum number of results (default 10)"`
-	Project       string  `targ:"flag,short=p,desc=Project name for retrieval tracking"`
-	Verbose       bool    `targ:"flag,short=v,desc=Show detailed scoring info"`
-	MemoryRoot    string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
-	MinConfidence int `targ:"flag,name=min-confidence,desc=Minimum confidence threshold 0-100 (default: 0)"`
-	MaxTokens     int     `targ:"flag,name=max-tokens,desc=Max token count for output (default: 2000)"`
-	Primacy       bool    `targ:"flag,desc=Sort corrections first (primacy ordering)"`
-	Rich          bool    `targ:"flag,desc=Show full metadata (confidence/retrieval count/match type/projects)"`
-	Curate        bool    `targ:"flag,desc=Use LLM curation for result selection and relevance annotations"`
-	StdinProject  bool    `targ:"flag,name=stdin-project,desc=Derive project from stdin hook JSON cwd"`
-	StdinPrompt   bool    `targ:"flag,name=stdin-prompt,desc=Read query text and project from stdin hook JSON prompt field"`
-	StdinTool     bool    `targ:"flag,name=stdin-tool,desc=Read query from stdin hook JSON tool_name + tool_input fields"`
+	Text                string  `targ:"positional,desc=Text to search for"`
+	Limit               int     `targ:"flag,short=n,desc=Maximum number of results (default 10)"`
+	Project             string  `targ:"flag,short=p,desc=Project name for retrieval tracking"`
+	Verbose             bool    `targ:"flag,short=v,desc=Show detailed scoring info"`
+	MemoryRoot          string  `targ:"flag,desc=Memory root directory (defaults to ~/.claude/memory)"`
+	MinConfidence       int     `targ:"flag,name=min-confidence,desc=Minimum confidence threshold 0-100 (default: 0)"`
+	SimilarityThreshold float64 `targ:"flag,name=similarity-threshold,desc=Minimum similarity score 0.0-1.0 (default: 0.7)"`
+	MaxTokens           int     `targ:"flag,name=max-tokens,desc=Max token count for output (default: 2000)"`
+	Primacy             bool    `targ:"flag,desc=Sort corrections first (primacy ordering)"`
+	Rich                bool    `targ:"flag,desc=Show full metadata (confidence/retrieval count/match type/projects)"`
+	Curate              bool    `targ:"flag,desc=Use LLM curation for result selection and relevance annotations"`
+	StdinProject        bool    `targ:"flag,name=stdin-project,desc=Derive project from stdin hook JSON cwd"`
+	StdinPrompt         bool    `targ:"flag,name=stdin-prompt,desc=Read query text and project from stdin hook JSON prompt field"`
+	StdinTool           bool    `targ:"flag,name=stdin-tool,desc=Read query from stdin hook JSON tool_name + tool_input fields"`
 }
 
 func memoryQuery(args memoryQueryArgs) error {
@@ -218,17 +220,54 @@ func memoryQuery(args memoryQueryArgs) error {
 		searchText = "[" + project + "] " + queryText
 	}
 
+	// Apply similarity threshold (default to DefaultSimilarityThreshold)
+	minScore := args.SimilarityThreshold
+	if minScore == 0 {
+		minScore = memory.DefaultSimilarityThreshold
+	}
+
 	opts := memory.QueryOpts{
 		Text:       searchText,
 		Limit:      limit * 2, // Query more than needed for confidence filtering
 		Project:    project,
 		MemoryRoot: memoryRoot,
+		MinScore:   minScore,
 	}
 
 	result, err := memory.Query(opts)
 	if err != nil {
 		// Graceful degradation for hook usage
 		return nil
+	}
+
+	// Log retrieval for relevance measurement (Task 2: self-reinforcing learning)
+	if hookInput != nil {
+		var retrievalResults []memory.RetrievalResult
+		for _, r := range result.Results {
+			retrievalResults = append(retrievalResults, memory.RetrievalResult{
+				ID:      r.ID,
+				Content: r.Content,
+				Score:   r.Score,
+				Tier:    "embedding",
+			})
+		}
+		metadata := map[string]string{
+			"project": project,
+		}
+		if hookInput.ToolName != "" {
+			metadata["tool_name"] = hookInput.ToolName
+		}
+		logEntry := memory.RetrievalLogEntry{
+			Timestamp:     time.Now().Format(time.RFC3339),
+			Hook:          hookInput.HookEventName,
+			Query:         queryText,
+			Results:       retrievalResults,
+			FilteredCount: result.FilteredCount,
+			SessionID:     hookInput.SessionID,
+			Metadata:      metadata,
+		}
+		// Best-effort logging - don't fail the query
+		_ = memory.LogRetrieval(memoryRoot, logEntry)
 	}
 
 	if args.Verbose {
@@ -282,6 +321,65 @@ func memoryQuery(args memoryQueryArgs) error {
 		Extractor:     extractor,
 	})
 
+	fmt.Print(output)
+	return nil
+}
+
+type memoryDigestArgs struct {
+	Since      string `targ:"flag,short=s,desc=Time window like 7d or 24h or 168h,default=168h"`
+	Tier       string `targ:"flag,short=t,desc=Filter by tier: skill or embedding or claude_md"`
+	FlagsOnly  bool   `targ:"flag,short=f,desc=Show only flags not full digest"`
+	MaxEntries int    `targ:"flag,short=n,desc=Maximum number of entries to show"`
+	MemoryRoot string `targ:"flag,desc=Memory root directory"`
+}
+
+func memoryDigest(args memoryDigestArgs) error {
+	memoryRoot := args.MemoryRoot
+	if memoryRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		memoryRoot = home + "/.claude/memory"
+	}
+
+	// Parse since duration
+	sinceStr := args.Since
+	if sinceStr == "" {
+		sinceStr = "168h" // 7 days
+	}
+	since, err := time.ParseDuration(sinceStr)
+	if err != nil {
+		return fmt.Errorf("invalid duration %q: %w", sinceStr, err)
+	}
+
+	opts := memory.DigestOptions{
+		Since:      since,
+		Tier:       args.Tier,
+		FlagsOnly:  args.FlagsOnly,
+		MaxEntries: args.MaxEntries,
+	}
+
+	digest, err := memory.ComputeDigest(opts, memoryRoot)
+	if err != nil {
+		return fmt.Errorf("failed to compute digest: %w", err)
+	}
+
+	// If flags-only mode, only show flags
+	if args.FlagsOnly {
+		if len(digest.Flags) == 0 {
+			fmt.Println("No flags detected")
+			return nil
+		}
+		fmt.Println("Flags:")
+		for _, flag := range digest.Flags {
+			fmt.Printf("  ⚠ %s\n", flag)
+		}
+		return nil
+	}
+
+	// Show full digest
+	output := memory.FormatDigest(digest)
 	fmt.Print(output)
 	return nil
 }
