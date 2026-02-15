@@ -260,6 +260,13 @@ func InitEmbeddingsDBForTest(dbPath string) (*sql.DB, error) {
 	return initEmbeddingsDB(dbPath)
 }
 
+// InitEmbeddingsDB initializes and returns the embeddings database from a memory root directory.
+// The caller is responsible for closing the returned *sql.DB.
+func InitEmbeddingsDB(memoryRoot string) (*sql.DB, error) {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	return initEmbeddingsDB(dbPath)
+}
+
 // GetMetadataForTest is a test-accessible wrapper around getMetadata.
 func GetMetadataForTest(memoryRoot, key string) (string, error) {
 	dbPath := filepath.Join(memoryRoot, "embeddings.db")

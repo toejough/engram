@@ -89,6 +89,7 @@ func main() {
 			targ.Targ(memoryFeedback).Name("feedback").Description("Record feedback for a memory entry"),
 			targ.Targ(memoryExtract).Name("extract").Description("Extract decisions and learnings from result files"),
 			targ.Targ(memoryExtractSession).Name("extract-session").Description("Extract learnings from session transcripts"),
+			targ.Targ(memoryLearnSessions).Name("learn-sessions").Description("Learn from unevaluated session transcripts"),
 			targ.Targ(memoryOptimize).Name("optimize").Description("Run unified memory optimization (decay, prune, dedup, promote)"),
 			targ.Targ(memorySkillList).Name("skill-list").Description("List generated skills with confidence and utility"),
 			targ.Targ(memorySkillFeedback).Name("skill-feedback").Description("Record positive/negative feedback for a skill"),
