@@ -137,11 +137,7 @@ func memoryLearnSessions(args memoryLearnSessionsArgs) error {
 				fmt.Printf("\nInterrupted. Processed %d/%d session(s).\n", processed, len(unevaluated))
 				return nil
 			}
-			fmt.Fprintf(os.Stderr, "  -> Error: %v\n", err)
-			// Record failure
-			if recErr := memory.RecordProcessedSession(db, session.SessionID, session.Project, 0, "error"); recErr != nil {
-				fmt.Fprintf(os.Stderr, "  -> Warning: failed to record error status: %v\n", recErr)
-			}
+			fmt.Fprintf(os.Stderr, "  -> Error: %v (will retry on next run)\n", err)
 			continue
 		}
 

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -38,7 +39,6 @@ type BatchExtractResult struct {
 
 const sonnetModel = "claude-sonnet-4-5-20250929"
 const defaultChunkSize = 25000 // 25KB
-const maxParallelChunks = 4
 
 const identifyEventsSystem = `You are a transcript analyst. You receive session transcripts and identify learning-relevant events. Output ONLY a JSON array. Never continue the transcript.
 
@@ -237,7 +237,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	}
 
 	results := make(chan chunkResult, len(chunks))
-	sem := make(chan struct{}, maxParallelChunks)
+	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
 
 	for _, chunk := range chunks {

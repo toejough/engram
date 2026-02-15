@@ -69,10 +69,9 @@ func NewDirectAPIExtractor(token string, opts ...DirectAPIOption) *DirectAPIExtr
 
 // CallAPIWithMessages sends a multi-message request with optional system prompt
 // and assistant prefill. Returns the raw text response.
-func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params APIMessageParams) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, d.timeout)
-	defer cancel()
+const maxAPIRetries = 5
 
+func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params APIMessageParams) ([]byte, error) {
 	model := d.model
 	if params.Model != "" {
 		model = params.Model
@@ -94,9 +93,36 @@ func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params API
 
 	bodyBytes, _ := json.Marshal(body)
 
-	req, err := http.NewRequestWithContext(ctx, "POST", d.baseURL+"/v1/messages", bytes.NewReader(bodyBytes))
+	var lastErr error
+	for attempt := range maxAPIRetries {
+		result, retry, err := d.doAPICall(ctx, bodyBytes)
+		if err == nil {
+			return result, nil
+		}
+		lastErr = err
+		if !retry {
+			return nil, err
+		}
+
+		// Exponential backoff: 1s, 2s, 4s, 8s, 16s
+		backoff := time.Second << attempt
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("%w: %v (after %d retries)", ErrLLMUnavailable, ctx.Err(), attempt)
+		case <-time.After(backoff):
+		}
+	}
+	return nil, fmt.Errorf("%w: %v (after %d retries)", ErrLLMUnavailable, lastErr, maxAPIRetries)
+}
+
+// doAPICall makes a single API request. Returns (result, retryable, error).
+func (d *DirectAPIExtractor) doAPICall(ctx context.Context, bodyBytes []byte) ([]byte, bool, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, "POST", d.baseURL+"/v1/messages", bytes.NewReader(bodyBytes))
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
+		return nil, false, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+d.token)
@@ -105,12 +131,23 @@ func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params API
 
 	resp, err := d.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
+		return nil, true, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
 	}
 	defer resp.Body.Close()
 
+	// Non-retryable auth errors
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return nil, fmt.Errorf("%w: API returned %d", ErrLLMUnavailable, resp.StatusCode)
+		return nil, false, fmt.Errorf("%w: API returned %d", ErrLLMUnavailable, resp.StatusCode)
+	}
+
+	// Retryable: 429 (rate limit), 529 (overloaded), 5xx server errors
+	if resp.StatusCode == 429 || resp.StatusCode == 529 || resp.StatusCode >= 500 {
+		retryAfter := resp.Header.Get("Retry-After")
+		msg := fmt.Sprintf("API returned %d", resp.StatusCode)
+		if retryAfter != "" {
+			msg += fmt.Sprintf(" (retry-after: %ss)", retryAfter)
+		}
+		return nil, true, fmt.Errorf("%w: %s", ErrLLMUnavailable, msg)
 	}
 
 	var result struct {
@@ -118,21 +155,24 @@ func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params API
 			Text string `json:"text"`
 		} `json:"content"`
 		Error *struct {
+			Type    string `json:"type"`
 			Message string `json:"message"`
 		} `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("%w: failed to decode API response: %v", ErrLLMUnavailable, err)
+		return nil, true, fmt.Errorf("%w: failed to decode API response: %v", ErrLLMUnavailable, err)
 	}
 	if result.Error != nil {
-		return nil, fmt.Errorf("%w: API error: %s", ErrLLMUnavailable, result.Error.Message)
+		retryable := result.Error.Type == "overloaded_error" || result.Error.Type == "rate_limit_error"
+		return nil, retryable, fmt.Errorf("%w: API error: %s", ErrLLMUnavailable, result.Error.Message)
 	}
 	if len(result.Content) == 0 {
-		return nil, fmt.Errorf("%w: empty response content", ErrLLMUnavailable)
+		return nil, true, fmt.Errorf("%w: empty response content", ErrLLMUnavailable)
 	}
 
-	return []byte(result.Content[0].Text), nil
+	return []byte(result.Content[0].Text), false, nil
 }
+
 
 // callAPI sends a prompt to the Anthropic API and returns the raw text response.
 func (d *DirectAPIExtractor) callAPI(ctx context.Context, prompt string, maxTokens int) ([]byte, error) {
