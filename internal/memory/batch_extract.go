@@ -231,14 +231,16 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	logf("identifying events with haiku (%d chunks)...", len(chunks))
 
 	type chunkResult struct {
-		events []HaikuEvent
-		err    error
-		index  int
+		events    []HaikuEvent
+		err       error
+		index     int
+		inputSize int
 	}
 
 	results := make(chan chunkResult, len(chunks))
 	sem := make(chan struct{}, runtime.NumCPU())
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 
 	for _, chunk := range chunks {
 		wg.Add(1)
@@ -247,8 +249,22 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
+			mu.Lock()
+			logf("  chunk %d/%d: querying with %d bytes...", c.Index+1, len(chunks), len(c.Text))
+			mu.Unlock()
+
 			events, err := ext.IdentifyEvents(ctx, c, len(chunks))
-			results <- chunkResult{events: events, err: err, index: c.Index}
+
+			mu.Lock()
+			if err != nil {
+				logf("  chunk %d/%d: error: %v", c.Index+1, len(chunks), err)
+			} else {
+				respBytes, _ := json.Marshal(events)
+				logf("  chunk %d/%d: identified %d events (%d bytes response)", c.Index+1, len(chunks), len(events), len(respBytes))
+			}
+			mu.Unlock()
+
+			results <- chunkResult{events: events, err: err, index: c.Index, inputSize: len(c.Text)}
 		}(chunk)
 	}
 
@@ -259,7 +275,9 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 
 	var allEvents []HaikuEvent
 	failures := 0
+	totalHaikuInput := 0
 	for r := range results {
+		totalHaikuInput += r.inputSize
 		if r.err != nil {
 			failures++
 			continue
@@ -270,7 +288,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	// Sort events by chunk index then line range for stable ordering
 	sortEvents(allEvents)
 
-	logf("identified %d events in %d chunks", len(allEvents), len(chunks))
+	logf("haiku totals: %d events from %d chunks (%d bytes sent)", len(allEvents), len(chunks), totalHaikuInput)
 
 	if len(allEvents) == 0 {
 		return &BatchExtractResult{
@@ -282,13 +300,15 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	}
 
 	// Stage 4: Sonnet principle extraction
-	logf("extracting principles with sonnet...")
+	eventsJSON, _ := json.Marshal(allEvents)
+	logf("extracting principles with sonnet (%d bytes input)...", len(eventsJSON))
 	principles, err := ext.ExtractPrinciples(ctx, allEvents)
 	if err != nil {
 		return nil, fmt.Errorf("extract principles: %w", err)
 	}
 
-	logf("extracted %d principles", len(principles))
+	principlesJSON, _ := json.Marshal(principles)
+	logf("sonnet: extracted %d principles (%d bytes response)", len(principles), len(principlesJSON))
 
 	return &BatchExtractResult{
 		StrippedSize:  len(stripped),
