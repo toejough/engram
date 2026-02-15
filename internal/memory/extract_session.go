@@ -276,10 +276,46 @@ func extractTierA(blocks []parsedBlock, rawMessages []map[string]any) []SessionE
 		}
 	}
 
-	// Detect CLAUDE.md edits from raw messages (file-history-snapshot is top-level, not in blocks)
-	for _, msg := range rawMessages {
-		msgType, _ := msg["type"].(string)
-		if msgType == "file-history-snapshot" {
+	// Detect CLAUDE.md edits: first scan blocks for actual Edit/Write operations,
+	// then fall back to file-history-snapshot detection.
+	var claudeEdits []string
+	for _, block := range blocks {
+		if block.blockType != "tool_use" {
+			continue
+		}
+		if block.toolName != "Edit" && block.toolName != "Write" {
+			continue
+		}
+		filePath, _ := block.toolInput["file_path"].(string)
+		if !strings.Contains(filePath, "CLAUDE.md") {
+			continue
+		}
+		if block.toolName == "Edit" {
+			oldStr, _ := block.toolInput["old_string"].(string)
+			newStr, _ := block.toolInput["new_string"].(string)
+			claudeEdits = append(claudeEdits,
+				fmt.Sprintf("Changed: %q → %q",
+					truncateForItem(oldStr, 100), truncateForItem(newStr, 100)))
+		} else {
+			content, _ := block.toolInput["content"].(string)
+			claudeEdits = append(claudeEdits,
+				fmt.Sprintf("Wrote: %s", truncateForItem(content, 200)))
+		}
+	}
+
+	if len(claudeEdits) > 0 {
+		items = append(items, SessionExtractedItem{
+			Type:       "claude-md-edit",
+			Content:    "CLAUDE.md modifications:\n" + strings.Join(claudeEdits, "\n"),
+			Confidence: 1.0,
+		})
+	} else {
+		// Fall back to file-history-snapshot detection
+		for _, msg := range rawMessages {
+			msgType, _ := msg["type"].(string)
+			if msgType != "file-history-snapshot" {
+				continue
+			}
 			snapshot, ok := msg["snapshot"].(map[string]any)
 			if !ok {
 				continue
@@ -292,7 +328,7 @@ func extractTierA(blocks []parsedBlock, rawMessages []map[string]any) []SessionE
 				if strings.Contains(path, "CLAUDE.md") {
 					items = append(items, SessionExtractedItem{
 						Type:       "claude-md-edit",
-						Content:    "CLAUDE.md was edited",
+						Content:    "CLAUDE.md was modified (changes not captured in transcript)",
 						Confidence: 1.0,
 					})
 					break
@@ -340,31 +376,6 @@ func extractTierB(blocks []parsedBlock) []SessionExtractedItem {
 		}
 	}
 
-	// Detect repeated patterns in assistant text blocks
-	patternCounts := make(map[string]int)
-	for _, block := range blocks {
-		if block.role != "assistant" || block.blockType != "text" {
-			continue
-		}
-		words := strings.Fields(block.text)
-		for i := 0; i < len(words)-3; i++ {
-			phrase := strings.Join(words[i:i+4], " ")
-			if len(phrase) > 20 {
-				patternCounts[phrase]++
-			}
-		}
-	}
-
-	for pattern, count := range patternCounts {
-		if count >= 3 {
-			items = append(items, SessionExtractedItem{
-				Type:       "repeated-pattern",
-				Content:    pattern,
-				Confidence: 0.7,
-			})
-		}
-	}
-
 	return items
 }
 
@@ -408,10 +419,12 @@ func extractTierC(blocks []parsedBlock, matcher SemanticMatcher) []SessionExtrac
 }
 
 // extractToolUsagePatterns (3a) detects Bash commands used 3+ times with >50% success.
+// Collects actual command strings for LLM reflection.
 func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 	type cmdStats struct {
-		success int
-		total   int
+		success  int
+		total    int
+		examples []string // actual full command strings
 	}
 	stats := make(map[string]*cmdStats)
 
@@ -429,6 +442,12 @@ func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 			stats[cmd] = &cmdStats{}
 		}
 		stats[cmd].total++
+
+		// Collect actual command for examples
+		fullCmd := extractFullCommand(block.toolInput)
+		if fullCmd != "" && len(stats[cmd].examples) < 5 {
+			stats[cmd].examples = append(stats[cmd].examples, fullCmd)
+		}
 
 		// Check if the next tool_result is successful
 		for j := i + 1; j < len(blocks); j++ {
@@ -451,14 +470,25 @@ func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 	var items []SessionExtractedItem
 	for cmd, s := range stats {
 		if s.total >= 3 && float64(s.success)/float64(s.total) > 0.5 {
+			examples := strings.Join(s.examples, "\n  - ")
 			items = append(items, SessionExtractedItem{
-				Type:       "tool-usage-pattern",
-				Content:    fmt.Sprintf("used %s successfully in session", cmd),
+				Type: "tool-usage-pattern",
+				Content: fmt.Sprintf("Frequently used command '%s' (%d/%d successful):\n  - %s",
+					cmd, s.success, s.total, examples),
 				Confidence: 0.5,
 			})
 		}
 	}
 	return items
+}
+
+// extractFullCommand returns the complete command string from tool input.
+func extractFullCommand(input map[string]any) string {
+	if input == nil {
+		return ""
+	}
+	command, _ := input["command"].(string)
+	return command
 }
 
 // extractCommandPrefix extracts a normalized command prefix from tool input.
@@ -489,6 +519,7 @@ func extractCommandPrefix(input map[string]any) string {
 }
 
 // extractPositiveOutcomes (3b) detects strong success signals in tool results.
+// Collects actual command and output for LLM reflection.
 func extractPositiveOutcomes(blocks []parsedBlock) []SessionExtractedItem {
 	seen := make(map[string]bool) // deduplicate by command type
 	var items []SessionExtractedItem
@@ -506,30 +537,37 @@ func extractPositiveOutcomes(blocks []parsedBlock) []SessionExtractedItem {
 		}
 
 		// Find the preceding tool_use to get the command
-		cmd := ""
+		cmdPrefix := ""
+		fullCmd := ""
 		for j := i - 1; j >= 0; j-- {
 			if blocks[j].blockType == "tool_use" {
 				if blocks[j].toolID == block.toolID || block.toolID == "" {
-					cmd = extractCommandPrefix(blocks[j].toolInput)
-					if cmd == "" {
-						cmd = blocks[j].toolName
+					cmdPrefix = extractCommandPrefix(blocks[j].toolInput)
+					fullCmd = extractFullCommand(blocks[j].toolInput)
+					if cmdPrefix == "" {
+						cmdPrefix = blocks[j].toolName
+					}
+					if fullCmd == "" {
+						fullCmd = blocks[j].toolName
 					}
 				}
 				break
 			}
 		}
-		if cmd == "" {
-			cmd = "command"
+		if cmdPrefix == "" {
+			cmdPrefix = "command"
+			fullCmd = "command"
 		}
 
-		if seen[cmd] {
+		if seen[cmdPrefix] {
 			continue
 		}
-		seen[cmd] = true
+		seen[cmdPrefix] = true
 
 		items = append(items, SessionExtractedItem{
-			Type:       "positive-outcome",
-			Content:    fmt.Sprintf("tests passed using %s", cmd),
+			Type: "positive-outcome",
+			Content: fmt.Sprintf("Successful outcome:\nCommand: %s\nResult: %s",
+				fullCmd, truncateForItem(block.text, 300)),
 			Confidence: 0.5,
 		})
 	}
@@ -553,11 +591,13 @@ func containsPositiveSignal(text string) bool {
 
 // extractBehavioralConsistency (3c) detects tool/library names mentioned
 // in 5+ distinct assistant messages without user correction.
+// Collects example usage text for LLM reflection.
 func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 	// Track mentions per distinct assistant text block index
 	type mentionTracker struct {
 		blockIndices []int
 		corrected    bool
+		examples     []string // example text snippets showing usage
 	}
 	mentions := make(map[string]*mentionTracker)
 
@@ -582,6 +622,10 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 						mentions[name] = &mentionTracker{}
 					}
 					mentions[name].blockIndices = append(mentions[name].blockIndices, i)
+					if len(mentions[name].examples) < 3 {
+						mentions[name].examples = append(mentions[name].examples,
+							truncateForItem(block.text, 100))
+					}
 				}
 			}
 		}
@@ -607,9 +651,11 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 	var items []SessionExtractedItem
 	for name, tracker := range mentions {
 		if len(tracker.blockIndices) >= 5 && !tracker.corrected {
+			examples := strings.Join(tracker.examples, "\n  - ")
 			items = append(items, SessionExtractedItem{
-				Type:       "behavioral-consistency",
-				Content:    fmt.Sprintf("consistently used %s throughout session", name),
+				Type: "behavioral-consistency",
+				Content: fmt.Sprintf("Consistent use of '%s' across %d assistant messages (no corrections):\n  - %s",
+					name, len(tracker.blockIndices), examples),
 				Confidence: 0.5,
 			})
 		}
@@ -619,10 +665,11 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 
 // extractSelfCorrectedFailures (3d) detects error→fix sequences with NO user intervention.
 // Based on SCoRe's operational definition: no user text block between error and fix.
+// Collects full error/fix context for LLM reflection (Reflexion pattern).
 func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 	var items []SessionExtractedItem
 
-	for i := 0; i < len(blocks); i++ {
+	for i := range len(blocks) {
 		// Find error tool_result
 		if blocks[i].blockType != "tool_result" {
 			continue
@@ -631,12 +678,16 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 			continue
 		}
 
+		errorText := blocks[i].text
 		errorToolName := ""
+		failedCommand := ""
+
 		// Find the tool_use that produced this error
 		for j := i - 1; j >= 0; j-- {
 			if blocks[j].blockType == "tool_use" {
 				if blocks[j].toolID == blocks[i].toolID || blocks[i].toolID == "" {
 					errorToolName = blocks[j].toolName
+					failedCommand = extractFullCommand(blocks[j].toolInput)
 				}
 				break
 			}
@@ -650,16 +701,25 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 				break // User intervened — this is Tier B, not self-corrected
 			}
 			if blocks[j].blockType == "tool_result" && !blocks[j].isError && !containsErrorSignal(blocks[j].text) {
+				fixResult := blocks[j].text
+
 				// Check it's the same tool type if we know it
 				if errorToolName != "" {
 					// Find the tool_use for this result
 					for k := j - 1; k > i; k-- {
 						if blocks[k].blockType == "tool_use" && blocks[k].toolName == errorToolName {
 							if !hasUserText {
-								desc := fmt.Sprintf("autonomously fixed %s error", errorToolName)
+								fixCommand := extractFullCommand(blocks[k].toolInput)
+								content := fmt.Sprintf(
+									"Self-corrected %s failure:\nFailed: %s\nError: %s\nFix: %s\nResult: %s",
+									errorToolName,
+									failedCommand,
+									truncateForItem(errorText, 300),
+									fixCommand,
+									truncateForItem(fixResult, 200))
 								items = append(items, SessionExtractedItem{
 									Type:       "self-corrected-failure",
-									Content:    desc,
+									Content:    content,
 									Confidence: 0.5,
 								})
 							}
@@ -667,9 +727,14 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 						}
 					}
 				} else if !hasUserText {
+					content := fmt.Sprintf(
+						"Self-corrected failure:\nFailed: %s\nError: %s\nResult: %s",
+						failedCommand,
+						truncateForItem(errorText, 300),
+						truncateForItem(fixResult, 200))
 					items = append(items, SessionExtractedItem{
 						Type:       "self-corrected-failure",
-						Content:    "autonomously fixed error",
+						Content:    content,
 						Confidence: 0.5,
 					})
 				}
@@ -733,9 +798,20 @@ func extractBehavioralConventions(blocks []parsedBlock, matcher SemanticMatcher)
 	for mem, m := range matches {
 		if len(m.blockIndices) >= 3 && !seen[mem] {
 			seen[mem] = true
+			// Collect example behavior snippets
+			var examples []string
+			for _, idx := range m.blockIndices {
+				if idx < len(blocks) && len(examples) < 3 {
+					examples = append(examples, truncateForItem(blocks[idx].text, 100))
+				}
+			}
+			content := fmt.Sprintf(
+				"Session behavior aligns with existing memory: %q\nMatching behavior in %d assistant messages:\n  - %s",
+				truncateForItem(mem, 100), len(m.blockIndices),
+				strings.Join(examples, "\n  - "))
 			items = append(items, SessionExtractedItem{
 				Type:       "behavioral-convention",
-				Content:    fmt.Sprintf("session behavior aligns with: %s", truncateForItem(mem, 100)),
+				Content:    content,
 				Confidence: 0.5,
 			})
 		}

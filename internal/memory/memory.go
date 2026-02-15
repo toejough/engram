@@ -191,6 +191,37 @@ func IsSessionBoilerplate(line string) bool {
 		return true
 	}
 
+	// Fragment detection: fewer than 5 words can't express a useful learning
+	if len(strings.Fields(stripped)) < 5 {
+		return true
+	}
+
+	// Legacy canned extraction strings (pre-rich-context extractors)
+	if isLegacyCannedExtraction(trimmed) {
+		return true
+	}
+
+	return false
+}
+
+// isLegacyCannedExtraction detects content-free canned strings from the old
+// session extractors that stored observations instead of lessons.
+func isLegacyCannedExtraction(s string) bool {
+	lower := strings.ToLower(s)
+	switch {
+	case strings.HasPrefix(lower, "used ") && strings.HasSuffix(lower, " successfully in session"):
+		return true
+	case strings.HasPrefix(lower, "autonomously fixed"):
+		return true
+	case lower == "claude.md was edited":
+		return true
+	case strings.HasPrefix(lower, "consistently used ") && strings.HasSuffix(lower, " throughout session"):
+		return true
+	case strings.HasPrefix(lower, "tests passed using "):
+		return true
+	case strings.HasPrefix(lower, "session behavior aligns with:"):
+		return true
+	}
 	return false
 }
 
