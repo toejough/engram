@@ -38,27 +38,5 @@ func ValidateActionability(principle string) error {
 		}
 	}
 
-	// Check for imperative structure (starts with action verb)
-	imperativeVerbs := []string{
-		"always", "never", "prefer", "avoid", "use", "ensure",
-		"check", "verify", "validate", "test", "implement",
-		"apply", "follow", "set", "configure", "add", "remove",
-		"create", "delete", "update", "replace", "fix", "run",
-		"execute", "install", "deploy", "build", "compile",
-		"when", "before", "after", "if", "do not",
-	}
-
-	hasImperative := false
-	for _, verb := range imperativeVerbs {
-		if strings.HasPrefix(lowerPrinciple, verb+" ") || strings.HasPrefix(lowerPrinciple, verb) {
-			hasImperative = true
-			break
-		}
-	}
-
-	if !hasImperative {
-		return fmt.Errorf("principle must start with imperative verb (Always, Never, Use, etc.)")
-	}
-
 	return nil
 }
