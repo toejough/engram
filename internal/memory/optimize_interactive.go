@@ -11,15 +11,17 @@ import (
 
 // OptimizeInteractiveOpts holds options for interactive memory optimization.
 type OptimizeInteractiveOpts struct {
-	DBPath       string                 // Path to embeddings.db
-	ClaudeMDPath string                 // Path to CLAUDE.md
-	SkillsDir    string                 // Path to skills directory
-	ReviewFunc   MaintenanceReviewFunc  // Function to review proposals
-	Input        io.Reader              // Input stream for interactive prompts (default os.Stdin)
-	Output       io.Writer              // Output stream for display (default os.Stdout)
-	Context      context.Context        // Context for cancellation
-	Extractor    LLMExtractor           // Optional LLM extractor for refinement proposals (ISSUE-218)
-	TierFilter   string                 // Optional tier filter: "embeddings", "skills", "claude-md" (ISSUE-184)
+	DBPath           string                 // Path to embeddings.db
+	ClaudeMDPath     string                 // Path to CLAUDE.md
+	SkillsDir        string                 // Path to skills directory
+	ReviewFunc       MaintenanceReviewFunc  // Function to review proposals
+	Input            io.Reader              // Input stream for interactive prompts (default os.Stdin)
+	Output           io.Writer              // Output stream for display (default os.Stdout)
+	Context          context.Context        // Context for cancellation
+	Extractor        LLMExtractor           // Optional LLM extractor for refinement proposals (ISSUE-218)
+	TierFilter       string                 // Optional tier filter: "embeddings", "skills", "claude-md" (ISSUE-184)
+	NoLLMEval        bool                   // Skip LLM triage and behavioral testing
+	ContextAssembler ContextAssembler       // For behavioral testing (nil = skip behavioral)
 }
 
 // OptimizeInteractiveResult holds the results of interactive optimization.
@@ -209,6 +211,37 @@ func OptimizeInteractive(opts OptimizeInteractiveOpts) (*OptimizeInteractiveResu
 		}
 	}
 
+	// LLM evaluation pipeline (skip if --no-llm-eval or no extractor)
+	if !opts.NoLLMEval && opts.Extractor != nil {
+		caller, ok := opts.Extractor.(APIMessageCaller)
+		if ok {
+			// Stage 1: Haiku triage
+			triaged, triageErr := TriageProposals(opts.Context, allProposals, caller, opts.Output)
+			if triageErr != nil {
+				fmt.Fprintf(opts.Output, "Warning: LLM triage failed: %v (proceeding without)\n", triageErr)
+			} else {
+				allProposals = triaged
+			}
+
+			// Stage 2: Sonnet behavioral testing (sequential, on triaged proposals only)
+			if opts.ContextAssembler != nil {
+				triaged := 0
+				for i, p := range allProposals {
+					if p.LLMEval != nil && p.LLMEval.HaikuValid {
+						triaged++
+						tested, testErr := BehavioralTest(opts.Context, p, caller, opts.ContextAssembler, opts.Output)
+						if testErr != nil {
+							fmt.Fprintf(opts.Output, "  Warning: behavioral test failed: %v\n", testErr)
+						} else {
+							allProposals[i] = tested
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Update total after triage filtering
 	result.Total = len(allProposals)
 
 	if len(allProposals) == 0 {

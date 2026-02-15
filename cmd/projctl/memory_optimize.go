@@ -25,6 +25,7 @@ type memoryOptimizeArgs struct {
 	Tier                     string  `targ:"flag,desc=Filter proposals by tier: embeddings / skills / claude-md (ISSUE-184)"`
 	NoTestSkills             bool    `targ:"flag,desc=Disable skill testing before deployment (default is to test; Task 8)"`
 	TestRuns                 int     `targ:"flag,desc=Number of test runs for RED/GREEN protocol (default 3; Task 8)"`
+	NoLLMEval                bool    `targ:"flag,name=no-llm-eval,desc=Skip LLM triage and behavioral testing (mechanical + human only)"`
 }
 
 func memoryOptimize(args memoryOptimizeArgs) error {
@@ -216,8 +217,9 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 		Input:        os.Stdin,
 		Output:       os.Stdout,
 		Context:      ctx,
-		Extractor:    extractor,   // ISSUE-218: Wire extractor for refinement proposals
-		TierFilter:   args.Tier,   // ISSUE-184: Wire tier filter
+		Extractor:    extractor,      // ISSUE-218: Wire extractor for refinement proposals
+		TierFilter:   args.Tier,      // ISSUE-184: Wire tier filter
+		NoLLMEval:    args.NoLLMEval,
 	}
 
 	result, err := memory.OptimizeInteractive(opts)
