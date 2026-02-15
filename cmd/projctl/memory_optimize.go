@@ -208,18 +208,65 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 		extractor = ext
 	}
 
+	// Build context assembler for behavioral testing
+	var contextAssembler memory.ContextAssembler
+	if !args.NoLLMEval && !args.NoLLM {
+		claudeMDContent, _ := os.ReadFile(claudeMDPath)
+
+		// Load skill descriptions
+		var skillDescs []string
+		if skillsDir != "" {
+			entries, _ := os.ReadDir(skillsDir)
+			for _, e := range entries {
+				if e.IsDir() {
+					skillPath := filepath.Join(skillsDir, e.Name(), "SKILL.md")
+					if data, err := os.ReadFile(skillPath); err == nil {
+						lines := strings.SplitN(string(data), "\n", 2)
+						if len(lines) > 0 {
+							skillDescs = append(skillDescs, e.Name()+": "+lines[0])
+						}
+					}
+				}
+			}
+		}
+
+		// Load recent embeddings from DB
+		var embeddingTexts []string
+		adb, dbErr := memory.InitEmbeddingsDB(memoryRoot)
+		if dbErr == nil {
+			rows, qErr := adb.Query(`SELECT content FROM embeddings ORDER BY confidence DESC, retrieval_count DESC LIMIT 50`)
+			if qErr == nil {
+				for rows.Next() {
+					var content string
+					if rows.Scan(&content) == nil {
+						embeddingTexts = append(embeddingTexts, content)
+					}
+				}
+				rows.Close()
+			}
+			adb.Close()
+		}
+
+		contextAssembler = &memory.MemoryContextAssembler{
+			ClaudeMDContent:   string(claudeMDContent),
+			SkillDescriptions: skillDescs,
+			Embeddings:        embeddingTexts,
+		}
+	}
+
 	// Run interactive optimization
 	opts := memory.OptimizeInteractiveOpts{
-		DBPath:       dbPath,
-		ClaudeMDPath: claudeMDPath,
-		SkillsDir:    skillsDir,
-		ReviewFunc:   reviewFunc,
-		Input:        os.Stdin,
-		Output:       os.Stdout,
-		Context:      ctx,
-		Extractor:    extractor,      // ISSUE-218: Wire extractor for refinement proposals
-		TierFilter:   args.Tier,      // ISSUE-184: Wire tier filter
-		NoLLMEval:    args.NoLLMEval,
+		DBPath:           dbPath,
+		ClaudeMDPath:     claudeMDPath,
+		SkillsDir:        skillsDir,
+		ReviewFunc:       reviewFunc,
+		Input:            os.Stdin,
+		Output:           os.Stdout,
+		Context:          ctx,
+		Extractor:        extractor,         // ISSUE-218: Wire extractor for refinement proposals
+		TierFilter:       args.Tier,         // ISSUE-184: Wire tier filter
+		NoLLMEval:        args.NoLLMEval,
+		ContextAssembler: contextAssembler,
 	}
 
 	result, err := memory.OptimizeInteractive(opts)
