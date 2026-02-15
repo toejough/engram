@@ -128,10 +128,18 @@ func memoryHooksCheckClaudeMD(args memoryHooksCheckClaudeMDArgs) error {
 		maxLines = 260
 	}
 
+	// Get memory root for logging
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+	memoryRoot := filepath.Join(home, ".claude", "memory")
+
 	// Call internal check function
 	if err := memory.CheckClaudeMDSize(memory.CheckClaudeMDSizeOpts{
 		ClaudeMDPath: claudeMDPath,
 		MaxLines:     maxLines,
+		MemoryRoot:   memoryRoot,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 		os.Exit(2)
@@ -152,9 +160,17 @@ func memoryHooksCheckSkill(args memoryHooksCheckSkillArgs) error {
 		skillsDir = filepath.Join(home, ".claude", "skills")
 	}
 
+	// Get memory root for logging
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+	memoryRoot := filepath.Join(home, ".claude", "memory")
+
 	// Call internal check function
 	if err := memory.CheckSkillContract(memory.CheckSkillContractOpts{
-		SkillsDir: skillsDir,
+		SkillsDir:  skillsDir,
+		MemoryRoot: memoryRoot,
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
 		os.Exit(2)

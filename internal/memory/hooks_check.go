@@ -16,6 +16,7 @@ import (
 type CheckClaudeMDSizeOpts struct {
 	ClaudeMDPath string
 	MaxLines     int
+	MemoryRoot   string
 }
 
 // CheckClaudeMDSize checks if CLAUDE.md exceeds the maximum line count.
@@ -36,6 +37,17 @@ func CheckClaudeMDSize(opts CheckClaudeMDSizeOpts) error {
 	}
 
 	if lineCount > opts.MaxLines {
+		// Log violation to changelog
+		if opts.MemoryRoot != "" {
+			_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+				Action: "hook_violation",
+				Metadata: map[string]string{
+					"rule": "claudemd-max-lines",
+					"hook": "Stop",
+				},
+				Reason: fmt.Sprintf("CLAUDE.md has %d lines (max: %d)", lineCount, opts.MaxLines),
+			})
+		}
 		return fmt.Errorf("CLAUDE.md exceeds maximum line count: %d lines (max: %d)", lineCount, opts.MaxLines)
 	}
 
@@ -44,7 +56,8 @@ func CheckClaudeMDSize(opts CheckClaudeMDSizeOpts) error {
 
 // CheckSkillContractOpts contains options for checking skill contract validation.
 type CheckSkillContractOpts struct {
-	SkillsDir string
+	SkillsDir  string
+	MemoryRoot string
 }
 
 // CheckSkillContract validates SKILL.md files in the skills directory.
@@ -91,6 +104,18 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 	// Validate each file
 	for _, path := range recentFiles {
 		if err := validateSkillFile(path); err != nil {
+			// Log violation to changelog
+			if opts.MemoryRoot != "" {
+				_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+					Action: "hook_violation",
+					Metadata: map[string]string{
+						"rule":  "skill-contract",
+						"hook":  "TeammateIdle",
+						"skill": filepath.Base(filepath.Dir(path)),
+					},
+					Reason: err.Error(),
+				})
+			}
 			return fmt.Errorf("%s: %w", filepath.Base(filepath.Dir(path)), err)
 		}
 	}
@@ -277,6 +302,15 @@ func CheckEmbeddingMetadata(opts CheckEmbeddingMetaOpts) error {
 	}
 
 	if len(errors) > 0 {
+		// Log violation to changelog
+		_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+			Action: "hook_violation",
+			Metadata: map[string]string{
+				"rule": "embedding-metadata",
+				"hook": "PostToolUse",
+			},
+			Reason: strings.Join(errors, "; "),
+		})
 		return fmt.Errorf("embedding metadata validation failed: %s", strings.Join(errors, "; "))
 	}
 
