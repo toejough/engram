@@ -1232,7 +1232,16 @@ func learnToEmbeddings(opts LearnOpts) error {
 
 	// ISSUE-188: Attempt LLM extraction if extractor is provided
 	var observationType, conceptsCSV, principle, antiPattern, rationale, enrichedContent string
-	if opts.Extractor != nil {
+	if opts.PrecomputedObservation != nil {
+		// Use precomputed observation from batch extraction (skip API call)
+		obs := opts.PrecomputedObservation
+		observationType = obs.Type
+		conceptsCSV = strings.Join(obs.Concepts, ",")
+		principle = obs.Principle
+		antiPattern = obs.AntiPattern
+		rationale = obs.Rationale
+		enrichedContent = fmt.Sprintf("[%s] %s - Context: %s", obs.Type, obs.Principle, obs.Rationale)
+	} else if opts.Extractor != nil {
 		obs, extractErr := opts.Extractor.Extract(context.Background(), opts.Message)
 		if extractErr == nil && obs != nil {
 			observationType = obs.Type
@@ -1246,8 +1255,8 @@ func learnToEmbeddings(opts LearnOpts) error {
 	}
 
 	// ISSUE-216: Write-time validation after LLM enrichment but before DB insert
-	if opts.Extractor != nil {
-		// Validate metadata when LLM was used
+	if opts.Extractor != nil || opts.PrecomputedObservation != nil {
+		// Validate metadata when LLM-enriched data is present
 		var validationErrors []string
 
 		// enriched_content non-empty OR observation_type non-empty

@@ -230,7 +230,6 @@ func processSession(session memory.DiscoveredSession, memoryRoot string) ([]memo
 			Source:     "internal",
 			Type:       "discovery",
 			MemoryRoot: memoryRoot,
-			Extractor:  ext,
 			PrecomputedObservation: &memory.Observation{
 				Type:      p.Category,
 				Concepts:  []string{p.Category},

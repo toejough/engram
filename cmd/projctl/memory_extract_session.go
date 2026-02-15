@@ -140,7 +140,6 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 			Source:     "internal",
 			Type:       "discovery",
 			MemoryRoot: memoryRoot,
-			Extractor:  ext,
 			PrecomputedObservation: &memory.Observation{
 				Type:      p.Category,
 				Concepts:  []string{p.Category},
