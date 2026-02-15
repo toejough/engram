@@ -58,7 +58,7 @@ func NewDirectAPIExtractor(token string, opts ...DirectAPIOption) *DirectAPIExtr
 		token:   token,
 		model:   "claude-haiku-4-5-20251001",
 		baseURL: "https://api.anthropic.com",
-		timeout: 30 * time.Second,
+		timeout: 120 * time.Second,
 		client:  &http.Client{},
 	}
 	for _, opt := range opts {

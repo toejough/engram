@@ -45,6 +45,7 @@ func ValidateActionability(principle string) error {
 		"apply", "follow", "set", "configure", "add", "remove",
 		"create", "delete", "update", "replace", "fix", "run",
 		"execute", "install", "deploy", "build", "compile",
+		"when", "before", "after", "if", "do not",
 	}
 
 	hasImperative := false

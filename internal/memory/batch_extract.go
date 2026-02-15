@@ -123,7 +123,7 @@ func (d *DirectAPIExtractor) ExtractPrinciples(ctx context.Context, events []Hai
 Rules:
 - Merge events about the same underlying issue into one principle
 - Each principle must be specific and actionable — not generic advice
-- Frame principles as "When X, do Y" or "Before X, check Y" patterns
+- Each principle MUST start with one of these words: Always, Never, Prefer, Avoid, Use, Ensure, Check, Verify, Validate, Test, When, Before, After, If, Do not, Follow, Apply, Set, Configure, Add, Remove, Create, Build, Run, Fix, Update, Replace, Delete, Execute, Install, Deploy, Compile, Implement
 - Include the concrete example from the session that demonstrates the principle
 - If an event is just routine work (no lesson), skip it
 - Aim for 3-8 principles per session — fewer is better than padding

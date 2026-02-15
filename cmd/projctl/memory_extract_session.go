@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,9 +41,22 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 
 func doExtractSession(args memoryExtractSessionArgs) error {
 	start := time.Now()
+	home, _ := os.UserHomeDir()
+	logPath := filepath.Join(home, ".claude", "memory", "extract-session.log")
+	logFile, _ := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	dbg := func(msg string) {
-		fmt.Fprintf(os.Stderr, "[extract-session] %s (+%dms)\n", msg, time.Since(start).Milliseconds())
+		line := fmt.Sprintf("%s [extract-session] %s (+%dms)\n",
+			time.Now().Format("15:04:05"), msg, time.Since(start).Milliseconds())
+		if logFile != nil {
+			_, _ = logFile.WriteString(line)
+		}
 	}
+	defer func() {
+		if logFile != nil {
+			_ = logFile.Close()
+		}
+	}()
+	dbg("starting")
 
 	// Read hook input from stdin for project and transcript derivation
 	project := args.Project
@@ -90,24 +104,50 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
 	}
 
+	// Read stored offset for incremental extraction
+	sessionID := filepath.Base(transcriptPath)
+	sessionID = strings.TrimSuffix(sessionID, ".jsonl")
+
+	// Skip if already processed by learn-sessions (batch pipeline)
+	if recDB, err := memory.InitEmbeddingsDB(memoryRoot); err == nil {
+		processed, checkErr := memory.IsSessionProcessed(recDB, sessionID)
+		_ = recDB.Close()
+		if checkErr == nil && processed {
+			dbg("session already processed by learn-sessions, skipping")
+			fmt.Fprintln(os.Stderr, "Session already processed by learn-sessions, skipping")
+			return nil
+		}
+	}
+
+	offsetDir := filepath.Join(memoryRoot, "offsets")
+	offsetFile := filepath.Join(offsetDir, sessionID+".offset")
+	var startOffset int64
+	if data, err := os.ReadFile(offsetFile); err == nil {
+		if v, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
+			startOffset = v
+		}
+	}
+	dbg(fmt.Sprintf("start offset: %d", startOffset))
+
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
 		Project:        project,
 		Matcher:        matcher,
 		Extractor:      extractor,
+		StartOffset:    startOffset,
 	}
 
 	result, err := memory.ExtractSession(opts)
-	dbg(fmt.Sprintf("extraction done: %d items, status=%s", len(result.Items), result.Status))
+	dbg(fmt.Sprintf("extraction done: %d items, status=%s, endOffset=%d", len(result.Items), result.Status, result.EndOffset))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
-	// Record processed session (best-effort, don't fail extraction on error)
-	sessionID := filepath.Base(transcriptPath)
-	sessionID = strings.TrimSuffix(sessionID, ".jsonl")
+	// Persist new offset for next incremental run
+	_ = os.MkdirAll(offsetDir, 0755)
+	_ = os.WriteFile(offsetFile, []byte(strconv.FormatInt(result.EndOffset, 10)), 0644)
 	if recDB, err := memory.InitEmbeddingsDB(memoryRoot); err == nil {
 		_ = memory.RecordProcessedSession(recDB, sessionID, project, len(result.Items), "success")
 		_ = recDB.Close()
