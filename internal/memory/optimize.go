@@ -182,6 +182,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeDecay(db, opts, result); err != nil {
 		return nil, fmt.Errorf("decay failed: %w", err)
 	}
+	if result.EntriesDecayed > 0 {
+		logChangelogMutation(opts.MemoryRoot, "decay", "embeddings", "embeddings",
+			fmt.Sprintf("decayed %d entries (factor=%.4f)", result.EntriesDecayed, result.DecayFactor))
+	}
 
 	// Step 2: Contradiction detection
 	if err := checkContext(opts); err != nil {
@@ -189,6 +193,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizeContradictions(db, opts, result); err != nil {
 		return nil, fmt.Errorf("contradiction detection failed: %w", err)
+	}
+	if result.ContradictionsFound > 0 {
+		logChangelogMutation(opts.MemoryRoot, "demote", "embeddings", "embeddings",
+			fmt.Sprintf("penalized %d contradicted entries", result.ContradictionsFound))
 	}
 
 	// Step 3: Auto-demote
@@ -198,6 +206,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeAutoDemote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("auto-demote failed: %w", err)
 	}
+	if result.AutoDemoted > 0 {
+		logChangelogMutation(opts.MemoryRoot, "demote", "claude-md", "embeddings",
+			fmt.Sprintf("auto-demoted %d low-confidence entries", result.AutoDemoted))
+	}
 
 	// Step 4: Prune DB
 	if err := checkContext(opts); err != nil {
@@ -205,6 +217,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizePrune(db, opts, result); err != nil {
 		return nil, fmt.Errorf("prune failed: %w", err)
+	}
+	if result.EntriesPruned > 0 {
+		logChangelogMutation(opts.MemoryRoot, "prune", "embeddings", "",
+			fmt.Sprintf("pruned %d entries below threshold %.2f", result.EntriesPruned, opts.PruneThreshold))
 	}
 
 	// Step 4.5: Purge boilerplate session entries
@@ -214,6 +230,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizePurgeBoilerplate(db, opts, result); err != nil {
 		return nil, fmt.Errorf("boilerplate purge failed: %w", err)
 	}
+	if result.BoilerplatePurged > 0 {
+		logChangelogMutation(opts.MemoryRoot, "prune", "embeddings", "",
+			fmt.Sprintf("purged %d boilerplate entries", result.BoilerplatePurged))
+	}
 
 	// Step 4.6: Purge legacy session embeddings created by old Query() behavior
 	if err := checkContext(opts); err != nil {
@@ -221,6 +241,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizePurgeLegacySessionEmbeddings(db, opts, result); err != nil {
 		return nil, fmt.Errorf("legacy session purge failed: %w", err)
+	}
+	if result.LegacySessionPurged > 0 {
+		logChangelogMutation(opts.MemoryRoot, "prune", "embeddings", "",
+			fmt.Sprintf("purged %d legacy session embeddings", result.LegacySessionPurged))
 	}
 
 	// Step 5: Deduplicate DB
@@ -230,6 +254,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("dedup failed: %w", err)
 	}
+	if result.DuplicatesMerged > 0 {
+		logChangelogMutation(opts.MemoryRoot, "dedup", "embeddings", "embeddings",
+			fmt.Sprintf("merged %d duplicate entries", result.DuplicatesMerged))
+	}
 
 	// Step 6: Synthesize patterns (interactive)
 	if err := checkContext(opts); err != nil {
@@ -237,6 +265,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizeSynthesize(db, opts, result); err != nil {
 		return nil, fmt.Errorf("synthesis failed: %w", err)
+	}
+	if result.PatternsApproved > 0 {
+		logChangelogMutation(opts.MemoryRoot, "merge", "embeddings", "embeddings",
+			fmt.Sprintf("synthesized %d patterns from clusters", result.PatternsApproved))
 	}
 
 	// Step 7: Compile Skills (memories → skills)
@@ -246,6 +278,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeCompileSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill compilation failed: %w", err)
 	}
+	if result.SkillsCompiled > 0 {
+		logChangelogMutation(opts.MemoryRoot, "promote", "embeddings", "skills",
+			fmt.Sprintf("compiled %d new skills", result.SkillsCompiled))
+	}
 
 	// Step 8: Merge similar skills (TASK-10)
 	if err := checkContext(opts); err != nil {
@@ -253,6 +289,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizeMergeSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill merge failed: %w", err)
+	}
+	if result.SkillsMerged > 0 {
+		logChangelogMutation(opts.MemoryRoot, "merge", "skills", "skills",
+			fmt.Sprintf("merged %d similar skills", result.SkillsMerged))
 	}
 
 	// Step 9: Split incoherent skills (TASK-10)
@@ -262,6 +302,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeSplitSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill split failed: %w", err)
 	}
+	if result.SkillsSplit > 0 {
+		logChangelogMutation(opts.MemoryRoot, "split", "skills", "skills",
+			fmt.Sprintf("split %d incoherent skills", result.SkillsSplit))
+	}
 
 	// Step 10: Promote (interactive)
 	if err := checkContext(opts); err != nil {
@@ -269,6 +313,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizePromote(db, opts, result); err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
+	}
+	if result.PromotionsApproved > 0 {
+		logChangelogMutation(opts.MemoryRoot, "promote", "embeddings", "claude-md",
+			fmt.Sprintf("promoted %d entries to CLAUDE.md", result.PromotionsApproved))
 	}
 
 	// Step 11: Deduplicate CLAUDE.md
@@ -278,6 +326,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeClaudeMDDedup(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md dedup failed: %w", err)
 	}
+	if result.ClaudeMDDeduped > 0 {
+		logChangelogMutation(opts.MemoryRoot, "dedup", "claude-md", "claude-md",
+			fmt.Sprintf("deduped %d CLAUDE.md entries", result.ClaudeMDDeduped))
+	}
 
 	// Step 12: Demote narrow learnings from CLAUDE.md to skills
 	if err := checkContext(opts); err != nil {
@@ -286,6 +338,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	if err := optimizeDemoteClaudeMD(db, opts, result); err != nil {
 		return nil, fmt.Errorf("CLAUDE.md demotion failed: %w", err)
 	}
+	if result.ClaudeMDDemoted > 0 {
+		logChangelogMutation(opts.MemoryRoot, "demote", "claude-md", "skills",
+			fmt.Sprintf("demoted %d narrow learnings to skills", result.ClaudeMDDemoted))
+	}
 
 	// Step 13: Promote high-utility skills to CLAUDE.md (TASK-3)
 	if err := checkContext(opts); err != nil {
@@ -293,6 +349,10 @@ func Optimize(opts OptimizeOpts) (*OptimizeResult, error) {
 	}
 	if err := optimizePromoteSkills(db, opts, result); err != nil {
 		return nil, fmt.Errorf("skill promotion failed: %w", err)
+	}
+	if result.SkillsPromoted > 0 {
+		logChangelogMutation(opts.MemoryRoot, "promote", "skills", "claude-md",
+			fmt.Sprintf("promoted %d skills to CLAUDE.md", result.SkillsPromoted))
 	}
 
 	return result, nil
@@ -751,6 +811,32 @@ func optimizeDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error 
 	return nil
 }
 
+// getExistingPatterns retrieves existing synthesized patterns from the database.
+func getExistingPatterns(db *sql.DB) []string {
+	rows, err := db.Query(`
+		SELECT content FROM embeddings
+		WHERE source = 'synthesized'
+		  AND memory_type = 'reflection'
+		ORDER BY created_at DESC
+		LIMIT 100
+	`)
+	if err != nil {
+		return []string{}
+	}
+	defer func() { _ = rows.Close() }()
+
+	var patterns []string
+	for rows.Next() {
+		var content string
+		if err := rows.Scan(&content); err != nil {
+			continue
+		}
+		patterns = append(patterns, content)
+	}
+
+	return patterns
+}
+
 // optimizeSynthesize clusters similar entries and generates patterns.
 func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) error {
 	// Get all entries with embeddings
@@ -804,6 +890,17 @@ func optimizeSynthesize(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) e
 			pattern = generatePattern(cluster)
 		}
 		result.PatternsFound++
+
+		// Validate synthesis quality (Task 9)
+		existingPatterns := getExistingPatterns(db)
+		validation := ValidateSynthesis(pattern.Synthesis, existingPatterns)
+
+		// Reject low-quality synthesis (quality floor 0.8)
+		if validation.Quality < 0.8 {
+			logChangelogMutation(opts.MemoryRoot, "reject", "synthesis", "",
+				fmt.Sprintf("rejected pattern (quality=%.2f): %s. Issues: %v", validation.Quality, pattern.Synthesis, validation.Issues))
+			continue
+		}
 
 		// Ask for approval
 		approved := opts.AutoApprove
@@ -1806,10 +1903,46 @@ func optimizeDemoteClaudeMD(db *sql.DB, opts OptimizeOpts, result *OptimizeResul
 		}
 
 		if approved {
-			// Generate skill from learning
-			if err := generateSkillFromLearning(db, opts, candidate.entry.content); err != nil {
-				continue // Skip on error, don't fail the entire pipeline
+			// TASK-10: Plan demotion with safety check
+			plan := PlanCLAUDEMDDemotion(candidate.entry.content, map[string]interface{}{
+				"reason": candidate.reason,
+			})
+
+			// Safety check: only proceed if destination is clear
+			if !plan.Safe {
+				// Log unsafe demotion attempt to changelog
+				logChangelogMutation(opts.MemoryRoot, "demote_blocked", "claude-md", "",
+					fmt.Sprintf("blocked unsafe demotion: %s - %s", candidate.entry.content, plan.Reasoning))
+				continue // Skip unsafe demotion
 			}
+
+			// Create destination based on plan
+			switch plan.DestinationTier {
+			case DestinationSkill:
+				// Generate skill from learning
+				if err := generateSkillFromLearning(db, opts, candidate.entry.content); err != nil {
+					continue // Skip on error, don't fail the entire pipeline
+				}
+			case DestinationEmbedding:
+				// Store as embedding in memory database
+				_, err := db.Exec(
+					"INSERT INTO embeddings (content, source, source_type, confidence, memory_type) VALUES (?, 'claude-md-demotion', 'internal', 0.8, 'pattern')",
+					candidate.entry.content,
+				)
+				if err != nil {
+					continue // Skip on error
+				}
+			case DestinationHook:
+				// For now, log that hook creation is needed (hook creation requires user action)
+				logChangelogMutation(opts.MemoryRoot, "demote_hook_needed", "claude-md", "hook",
+					fmt.Sprintf("hook needed: %s - %s", candidate.entry.content, plan.Reasoning))
+				// Don't remove from CLAUDE.md until hook is created
+				continue
+			}
+
+			// Log successful demotion to changelog
+			logChangelogMutation(opts.MemoryRoot, "demote", "claude-md", string(plan.DestinationTier),
+				fmt.Sprintf("demoted: %s - reason: %s", candidate.entry.content, plan.Reasoning))
 
 			// Mark for removal from CLAUDE.md
 			toRemove = append(toRemove, candidate.entry.content)
