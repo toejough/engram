@@ -39,11 +39,17 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 }
 
 func doExtractSession(args memoryExtractSessionArgs) error {
+	start := time.Now()
+	dbg := func(msg string) {
+		fmt.Fprintf(os.Stderr, "[extract-session] %s (+%dms)\n", msg, time.Since(start).Milliseconds())
+	}
+
 	// Read hook input from stdin for project and transcript derivation
 	project := args.Project
 	transcriptPath := args.TranscriptPath
 
 	hookInput, _ := memory.ParseHookInput(os.Stdin)
+	dbg("stdin parsed")
 	if hookInput != nil {
 		if project == "" {
 			project = memory.DeriveProjectName(hookInput.Cwd)
@@ -75,9 +81,11 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 
 	// Wire SemanticMatcher (uses local ONNX, no LLM needed)
 	matcher := memory.NewMemoryStoreSemanticMatcher(memoryRoot)
+	dbg("semantic matcher ready")
 
 	// Wire LLM extractor for enrichment (uses Haiku via direct API)
 	extractor := memory.NewLLMExtractor()
+	dbg("LLM extractor ready")
 	if extractor == nil {
 		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
 	}
@@ -91,6 +99,7 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 	}
 
 	result, err := memory.ExtractSession(opts)
+	dbg(fmt.Sprintf("extraction done: %d items, status=%s", len(result.Items), result.Status))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)
@@ -103,6 +112,7 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 		_ = memory.RecordProcessedSession(recDB, sessionID, project, len(result.Items), "success")
 		_ = recDB.Close()
 	}
+	dbg("session recorded")
 
 	// Build session summary from extraction result
 	learnings := make([]memory.LearningItem, 0, len(result.Items))

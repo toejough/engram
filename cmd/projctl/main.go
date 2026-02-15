@@ -103,6 +103,7 @@ func main() {
 			),
 			targ.Targ(memoryArchiveList).Name("archive-list").Description("List archived embedding entries"),
 			targ.Targ(memoryDigest).Name("digest").Description("View recent learning activity and system health"),
+			targ.Targ(memoryDiag).Name("diag").Description("Run diagnostic timing checks on memory system components"),
 		),
 		targ.Group("id",
 			targ.Targ(idNext).Name("next").Description("Get next sequential ID for a type"),
