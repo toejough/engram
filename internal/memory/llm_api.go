@@ -320,7 +320,7 @@ func WithAuth(auth *KeychainAuth) LLMExtractorOption {
 }
 
 // NewLLMExtractor creates the best available LLM client.
-// Tries DirectAPIExtractor first (via Keychain token), falls back to ClaudeCLIExtractor.
+// Uses DirectAPIExtractor via Keychain token. Returns nil if auth is unavailable.
 func NewLLMExtractor(opts ...LLMExtractorOption) LLMClient {
 	cfg := &llmExtractorConfig{}
 	for _, opt := range opts {
@@ -337,5 +337,5 @@ func NewLLMExtractor(opts ...LLMExtractorOption) LLMClient {
 		return NewDirectAPIExtractor(token)
 	}
 
-	return NewClaudeCLIExtractor()
+	return nil
 }

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
+	"strconv"
 	"time"
 )
 
@@ -22,10 +24,15 @@ func NewKeychainAuth() *KeychainAuth {
 }
 
 func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
-	user := os.Getenv("USER")
+	username := os.Getenv("USER")
+	if username == "" {
+		if u, err := user.Current(); err == nil {
+			username = u.Username
+		}
+	}
 	out, err := k.CommandRunner(ctx, "security", "find-generic-password",
 		"-s", "Claude Code-credentials",
-		"-a", user,
+		"-a", username,
 		"-w",
 	)
 	if err != nil {
@@ -45,11 +52,16 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%w: no accessToken in keychain credentials", ErrAuthUnavailable)
 	}
 
-	// Check expiry if present
+	// Check expiry if present — keychain stores as Unix millis or RFC3339
 	if creds.ClaudeAiOauth.ExpiresAt != "" {
-		expiry, err := time.Parse(time.RFC3339, creds.ClaudeAiOauth.ExpiresAt)
-		if err == nil && time.Now().After(expiry) {
-			return "", fmt.Errorf("%w: token expired at %s", ErrAuthUnavailable, creds.ClaudeAiOauth.ExpiresAt)
+		var expiry time.Time
+		if ms, err := strconv.ParseInt(creds.ClaudeAiOauth.ExpiresAt, 10, 64); err == nil {
+			expiry = time.UnixMilli(ms)
+		} else if t, err := time.Parse(time.RFC3339, creds.ClaudeAiOauth.ExpiresAt); err == nil {
+			expiry = t
+		}
+		if !expiry.IsZero() && time.Now().After(expiry) {
+			return "", fmt.Errorf("%w: token expired at %s", ErrAuthUnavailable, expiry.Format(time.RFC3339))
 		}
 	}
 

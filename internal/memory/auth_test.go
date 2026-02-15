@@ -136,6 +136,53 @@ func TestGetKeychainToken_MissingExpiresAtTreatedAsValid(t *testing.T) {
 	g.Expect(token).To(Equal("sk-ant-oat01-no-expiry"))
 }
 
+func TestGetKeychainToken_ReturnsErrOnExpiredUnixMillisToken(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	creds := map[string]any{
+		"claudeAiOauth": map[string]any{
+			"accessToken": "sk-ant-oat01-expired",
+			"expiresAt":   "1577836800000", // 2020-01-01T00:00:00Z in millis
+		},
+	}
+	credsJSON, _ := json.Marshal(creds)
+
+	auth := memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return credsJSON, nil
+		},
+	}
+
+	token, err := auth.GetToken(context.Background())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrAuthUnavailable)).To(BeTrue())
+	g.Expect(token).To(BeEmpty())
+}
+
+func TestGetKeychainToken_AcceptsValidUnixMillisExpiry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	creds := map[string]any{
+		"claudeAiOauth": map[string]any{
+			"accessToken": "sk-ant-oat01-valid",
+			"expiresAt":   "4102444800000", // 2099-12-31 in millis
+		},
+	}
+	credsJSON, _ := json.Marshal(creds)
+
+	auth := memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return credsJSON, nil
+		},
+	}
+
+	token, err := auth.GetToken(context.Background())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(token).To(Equal("sk-ant-oat01-valid"))
+}
+
 func TestGetKeychainToken_PassesCorrectSecurityArgs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

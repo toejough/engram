@@ -607,7 +607,7 @@ func TestNewLLMExtractor_ReturnsDirectAPIWhenTokenAvailable(t *testing.T) {
 	g.Expect(isDirectAPI).To(BeTrue())
 }
 
-func TestNewLLMExtractor_FallsBackToCLIWhenKeychainFails(t *testing.T) {
+func TestNewLLMExtractor_ReturnsNilWhenKeychainFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -618,6 +618,5 @@ func TestNewLLMExtractor_FallsBackToCLIWhenKeychainFails(t *testing.T) {
 	}
 
 	extractor := memory.NewLLMExtractor(memory.WithAuth(auth))
-	_, isCLI := extractor.(*memory.ClaudeCLIExtractor)
-	g.Expect(isCLI).To(BeTrue())
+	g.Expect(extractor).To(BeNil())
 }
