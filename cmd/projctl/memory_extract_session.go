@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/toejough/projctl/internal/memory"
@@ -93,6 +94,14 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)
+	}
+
+	// Record processed session (best-effort, don't fail extraction on error)
+	sessionID := filepath.Base(transcriptPath)
+	sessionID = strings.TrimSuffix(sessionID, ".jsonl")
+	if recDB, err := memory.InitEmbeddingsDB(memoryRoot); err == nil {
+		_ = memory.RecordProcessedSession(recDB, sessionID, project, len(result.Items), "success")
+		_ = recDB.Close()
 	}
 
 	// Build session summary from extraction result
