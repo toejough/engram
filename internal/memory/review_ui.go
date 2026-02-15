@@ -48,41 +48,35 @@ func formatProposal(p MaintenanceProposal) string {
 		}
 		sb.WriteString(fmt.Sprintf("  Sonnet recommends: %s this change (%s confidence)\n", recommendAction, p.LLMEval.SonnetConfidence))
 
-		// Scenario results
+		// Scenario results (indented under Sonnet section)
 		if len(p.LLMEval.ScenarioResults) > 0 {
-			sb.WriteString("\n")
 			for _, scenario := range p.LLMEval.ScenarioResults {
 				if scenario.Preserved {
-					sb.WriteString(fmt.Sprintf("  ✓ \"%s\" → guidance preserved\n", scenario.Prompt))
+					sb.WriteString(fmt.Sprintf("    ✓ \"%s\" → guidance preserved\n", scenario.Prompt))
 				} else {
-					sb.WriteString(fmt.Sprintf("  ✗ \"%s\" → %s\n", scenario.Prompt, scenario.Lost))
+					sb.WriteString(fmt.Sprintf("    ✗ \"%s\" → %s\n", scenario.Prompt, scenario.Lost))
 				}
 			}
 		}
 
-		// Summary
+		// Summary (labeled, part of Sonnet section)
 		if p.LLMEval.SonnetSummary != "" {
-			sb.WriteString(fmt.Sprintf("\n  %s\n", p.LLMEval.SonnetSummary))
+			sb.WriteString(fmt.Sprintf("    Summary: %s\n", p.LLMEval.SonnetSummary))
 		}
 
 		// Prompt
 		sb.WriteString("\n  [a]pply change / [s]kip change")
 
 	} else {
-		// Original format (backward compatible)
-		// Header: tier + reason
-		tierName := formatTierName(p.Tier)
-		sb.WriteString(fmt.Sprintf("\n━━━ [%s] %s ━━━\n", tierName, p.Reason))
+		// Non-LLM-evaluated format
+		sb.WriteString(fmt.Sprintf("\n━━━ Proposed Change: %s ━━━\n", formatActionExplanation(p.Action, p.Tier)))
 
-		// Explain what this action will do
-		explanation := formatActionExplanation(p.Action, p.Tier)
-		if explanation != "" {
-			sb.WriteString(fmt.Sprintf("  Action: %s\n", explanation))
-		}
+		// Why proposed
+		sb.WriteString(fmt.Sprintf("  Why proposed: %s\n", p.Reason))
 
 		// Content
 		if p.Preview != "" {
-			sb.WriteString("\n")
+			sb.WriteString("\n  What changes:\n")
 			previewLines := strings.Split(p.Preview, "\n")
 			for _, line := range previewLines {
 				if line != "" {
@@ -93,25 +87,17 @@ func formatProposal(p MaintenanceProposal) string {
 			}
 		}
 
+		// Show LLM eval status for actions that should have been triaged
+		if needsLLMTriage(p.Action) {
+			sb.WriteString("\n  Haiku: not evaluated (triage failed or skipped)\n")
+			sb.WriteString("  Sonnet: not evaluated\n")
+		}
+
 		// Prompt
-		sb.WriteString("\n  [y]es / [n]o / [s]kip")
+		sb.WriteString("\n  [a]pply / [s]kip")
 	}
 
 	return sb.String()
-}
-
-// formatTierName formats the tier name for display.
-func formatTierName(tier string) string {
-	switch tier {
-	case "embeddings":
-		return "Embeddings"
-	case "skills":
-		return "Skills"
-	case "claude-md":
-		return "CLAUDE.md"
-	default:
-		return tier
-	}
 }
 
 // formatActionExplanation returns a human-readable explanation of what the action does.
@@ -211,7 +197,7 @@ func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Read
 			case "":
 				continue
 			default:
-				fmt.Fprintln(output, "Invalid input. Please enter y (yes), n (no), or s (skip).")
+				fmt.Fprintln(output, "Invalid input. Please enter a (apply) or s (skip).")
 				continue
 			}
 		}

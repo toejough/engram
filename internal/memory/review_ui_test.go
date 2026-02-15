@@ -23,10 +23,11 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Low confidence (0.15) - 90 days old"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Try using rapid for property testing"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Delete this memory entry permanently"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: Low confidence (0.15) - 90 days old"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Try using rapid for property testing"))
+		g.Expect(formatted).To(gomega.ContainSubstring("[a]pply / [s]kip"))
 	})
 
 	t.Run("formats skills archive proposal", func(t *testing.T) {
@@ -39,10 +40,10 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("Skills"))
-		g.Expect(formatted).To(gomega.ContainSubstring("No retrievals in 45 days"))
-		g.Expect(formatted).To(gomega.ContainSubstring("old-pattern"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Move this skill to archive"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: No retrievals in 45 days"))
+		g.Expect(formatted).To(gomega.ContainSubstring("old-pattern"))
 	})
 
 	t.Run("formats CLAUDE.md consolidate proposal", func(t *testing.T) {
@@ -55,10 +56,9 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("CLAUDE.md"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Redundant"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change: Merge duplicate CLAUDE.md entries"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: Redundant"))
 		g.Expect(formatted).To(gomega.ContainSubstring("Consolidate to"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Merge duplicate CLAUDE.md entries"))
 	})
 
 	t.Run("formats split proposal", func(t *testing.T) {
@@ -71,9 +71,8 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Split opportunity"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Break this multi-topic entry"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change: Break this multi-topic entry"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: Split opportunity"))
 	})
 
 	t.Run("formats promote proposal", func(t *testing.T) {
@@ -86,9 +85,8 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("Embeddings"))
-		g.Expect(formatted).To(gomega.ContainSubstring("High retrieval"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Create a new skill"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change: Create a new skill"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: High retrieval"))
 	})
 
 	t.Run("formats demote proposal", func(t *testing.T) {
@@ -101,9 +99,8 @@ func TestFormatProposal(t *testing.T) {
 		}
 
 		formatted := formatProposal(proposal)
-		g.Expect(formatted).To(gomega.ContainSubstring("CLAUDE.md"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Too specific"))
-		g.Expect(formatted).To(gomega.ContainSubstring("Remove from CLAUDE.md"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change: Remove from CLAUDE.md"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Why proposed: Too specific"))
 	})
 
 	t.Run("formats proposal with LLMEval", func(t *testing.T) {
@@ -133,6 +130,7 @@ func TestFormatProposal(t *testing.T) {
 		g.Expect(formatted).To(gomega.ContainSubstring("Sonnet recommends: Skip"))
 		g.Expect(formatted).To(gomega.ContainSubstring("✓"))
 		g.Expect(formatted).To(gomega.ContainSubstring("✗"))
+		g.Expect(formatted).To(gomega.ContainSubstring("Summary: Deleted entry"))
 		g.Expect(formatted).To(gomega.ContainSubstring("[a]pply"))
 	})
 }
@@ -155,7 +153,7 @@ func TestReviewProposal(t *testing.T) {
 		result, err := reviewProposal(proposal, input, output)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		g.Expect(result).To(gomega.BeTrue())
-		g.Expect(output.String()).To(gomega.ContainSubstring("[y]es / [n]o / [s]kip"))
+		g.Expect(output.String()).To(gomega.ContainSubstring("[a]pply / [s]kip"))
 	})
 
 	t.Run("accepts Y input (uppercase)", func(t *testing.T) {
@@ -307,14 +305,14 @@ func TestReviewProposal(t *testing.T) {
 			Preview: "Try using rapid for property testing",
 		}
 
-		input := strings.NewReader("y\n")
+		input := strings.NewReader("a\n")
 		output := &bytes.Buffer{}
 
 		_, err := reviewProposal(proposal, input, output)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		outputStr := output.String()
-		g.Expect(outputStr).To(gomega.ContainSubstring("Embeddings"))
+		g.Expect(outputStr).To(gomega.ContainSubstring("Proposed Change:"))
 		g.Expect(outputStr).To(gomega.ContainSubstring("Low confidence"))
 		g.Expect(outputStr).To(gomega.ContainSubstring("Try using rapid"))
 	})
@@ -466,7 +464,7 @@ func TestFormatProposalNewRefinementActions(t *testing.T) {
 // Backward Compatibility and Apply/Skip Input Tests
 // ============================================================================
 
-func TestFormatProposal_BackwardCompatible(t *testing.T) {
+func TestFormatProposal_WithoutLLMEval(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	proposal := MaintenanceProposal{
@@ -475,14 +473,14 @@ func TestFormatProposal_BackwardCompatible(t *testing.T) {
 		Target:  "id1",
 		Reason:  "Clarity improvement",
 		Preview: "Rewritten content here",
-		// No LLMEval — old format
+		// No LLMEval — no Haiku/Sonnet sections
 	}
 
 	formatted := formatProposal(proposal)
-	g.Expect(formatted).To(gomega.ContainSubstring("[y]es / [n]o / [s]kip"))
+	g.Expect(formatted).To(gomega.ContainSubstring("[a]pply / [s]kip"))
+	g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
 	g.Expect(formatted).ToNot(gomega.ContainSubstring("Haiku:"))
 	g.Expect(formatted).ToNot(gomega.ContainSubstring("Sonnet"))
-	g.Expect(formatted).ToNot(gomega.ContainSubstring("Proposed Change:"))
 }
 
 func TestReviewProposal_AcceptsApplyInput(t *testing.T) {

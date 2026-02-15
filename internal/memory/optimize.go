@@ -2115,6 +2115,27 @@ func optimizeDemoteClaudeMD(db *sql.DB, opts OptimizeOpts, result *OptimizeResul
 func isNarrowByKeywords(learning string) (bool, string) {
 	lower := strings.ToLower(learning)
 
+	// Check for issue/task tracker IDs (e.g., ISSUE-152, TASK-23, PR-45)
+	trackerPrefixes := []string{"issue-", "task-", "pr-", "bug-", "feat-", "ticket-"}
+	for _, prefix := range trackerPrefixes {
+		idx := strings.Index(lower, prefix)
+		if idx >= 0 {
+			// Verify followed by digit
+			afterPrefix := idx + len(prefix)
+			if afterPrefix < len(lower) && lower[afterPrefix] >= '0' && lower[afterPrefix] <= '9' {
+				return true, "Contains issue/task tracker ID"
+			}
+		}
+	}
+
+	// Check for retrospective/evaluation markers
+	retroKeywords := []string{"success issue", "challenge issue", "retro recommendation", "retro:", "retrospective:"}
+	for _, kw := range retroKeywords {
+		if strings.Contains(lower, kw) {
+			return true, "Contains retrospective/evaluation content"
+		}
+	}
+
 	// Check for project names
 	projectKeywords := []string{"projctl", "project ", "repository ", "repo ", "codebase "}
 	for _, kw := range projectKeywords {

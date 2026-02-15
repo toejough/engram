@@ -114,16 +114,22 @@ func TriageProposals(ctx context.Context, proposals []MaintenanceProposal, ext A
 
 	// Build filtered list
 	var filtered []MaintenanceProposal
-	dropped := 0
+	dropped, validated, errored, passthrough := 0, 0, 0, 0
 	for i, p := range proposals {
 		if !needsLLMTriage(p.Action) {
+			passthrough++
 			filtered = append(filtered, p)
 			continue
 		}
 
 		tr, ok := triageResults[i]
 		if !ok || tr.err != nil {
-			// On error, keep the proposal (fail open)
+			errored++
+			if !ok {
+				logf("  warning: triage result missing for %s %s (index %d)", p.Action, p.Tier, i)
+			} else {
+				logf("  warning: triage failed for %s %s: %v", p.Action, p.Tier, tr.err)
+			}
 			filtered = append(filtered, p)
 			continue
 		}
@@ -134,6 +140,7 @@ func TriageProposals(ctx context.Context, proposals []MaintenanceProposal, ext A
 			continue
 		}
 
+		validated++
 		p.LLMEval = &LLMEvalResult{
 			HaikuValid:     true,
 			HaikuRationale: tr.rationale,
@@ -141,7 +148,7 @@ func TriageProposals(ctx context.Context, proposals []MaintenanceProposal, ext A
 		filtered = append(filtered, p)
 	}
 
-	logf("  triage complete: %d kept, %d dropped", len(filtered), dropped)
+	logf("  triage complete: %d validated, %d dropped, %d passthrough, %d errors", validated, dropped, passthrough, errored)
 	return filtered, nil
 }
 
@@ -269,20 +276,29 @@ Generate test scenarios and check if the change preserves critical guidance.`,
 }
 
 // parseJSONResponse attempts to parse JSON from raw bytes.
-// If direct unmarshal fails, tries to find JSON object in the text.
+// Tries: direct unmarshal, strip markdown fencing, extract between braces.
 func parseJSONResponse[T any](raw []byte, result *T) error {
 	if err := json.Unmarshal(raw, result); err != nil {
-		// Try to find JSON in response
 		s := string(raw)
+
+		// Try stripping markdown fencing (```json ... ```)
+		stripped := stripMarkdownFencing(s)
+		if stripped != s {
+			if err2 := json.Unmarshal([]byte(stripped), result); err2 == nil {
+				return nil
+			}
+		}
+
+		// Try to find JSON object between braces
 		start := strings.Index(s, "{")
 		end := strings.LastIndex(s, "}")
 		if start >= 0 && end > start {
-			if err2 := json.Unmarshal([]byte(s[start:end+1]), result); err2 != nil {
-				return fmt.Errorf("parse JSON response: %w", err)
+			if err2 := json.Unmarshal([]byte(s[start:end+1]), result); err2 == nil {
+				return nil
 			}
-		} else {
-			return fmt.Errorf("parse JSON response: %w", err)
 		}
+
+		return fmt.Errorf("parse JSON response: %w (raw: %.200s)", err, s)
 	}
 	return nil
 }

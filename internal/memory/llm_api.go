@@ -170,7 +170,7 @@ func (d *DirectAPIExtractor) doAPICall(ctx context.Context, bodyBytes []byte) ([
 		return nil, true, fmt.Errorf("%w: empty response content", ErrLLMUnavailable)
 	}
 
-	return []byte(result.Content[0].Text), false, nil
+	return []byte(stripMarkdownFencing(result.Content[0].Text)), false, nil
 }
 
 
