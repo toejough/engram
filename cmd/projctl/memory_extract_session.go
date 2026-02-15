@@ -61,7 +61,9 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
 	}
 
-	// Call internal ExtractSession function
+	// Call internal ExtractSession function with timeout to prevent Stop hook hanging.
+	// Each Learn() call makes 2 API calls (Extract + Decide) with 30s timeout each.
+	// With many items, total can exceed minutes — cap at 60s.
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
@@ -70,10 +72,27 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		Extractor:      extractor,
 	}
 
-	result, err := memory.ExtractSession(opts)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
-		return fmt.Errorf("extraction failed: %w", err)
+	type extractResult struct {
+		result *memory.ExtractSessionResult
+		err    error
+	}
+	done := make(chan extractResult, 1)
+	go func() {
+		r, err := memory.ExtractSession(opts)
+		done <- extractResult{r, err}
+	}()
+
+	var result *memory.ExtractSessionResult
+	select {
+	case r := <-done:
+		if r.err != nil {
+			fmt.Fprintf(os.Stderr, "extraction failed: %v\n", r.err)
+			return fmt.Errorf("extraction failed: %w", r.err)
+		}
+		result = r.result
+	case <-time.After(60 * time.Second):
+		fmt.Fprintln(os.Stderr, "Warning: extract-session timed out after 60s, skipping")
+		return nil
 	}
 
 	// Build session summary from extraction result
