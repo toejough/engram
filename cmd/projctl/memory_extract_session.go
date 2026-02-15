@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/toejough/projctl/internal/memory"
 )
@@ -31,10 +32,13 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		}
 	}
 
-	// Validate that transcript file is provided
+	// Validate that transcript file is provided and exists
 	if transcriptPath == "" {
-		// Exit 0 gracefully — in hook context, missing transcript is non-critical
 		fmt.Fprintln(os.Stderr, "Warning: no transcript path provided, skipping extraction")
+		return nil
+	}
+	if _, err := os.Stat(transcriptPath); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Warning: transcript file not found (%s), skipping extraction\n", transcriptPath)
 		return nil
 	}
 
@@ -51,35 +55,43 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 	// Wire SemanticMatcher (uses local ONNX, no LLM needed)
 	matcher := memory.NewMemoryStoreSemanticMatcher(memoryRoot)
 
+	// Wire LLM extractor for enrichment (uses Haiku via direct API)
+	extractor := memory.NewLLMExtractor()
+
 	// Call internal ExtractSession function
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
 		Project:        project,
 		Matcher:        matcher,
+		Extractor:      extractor,
 	}
 
 	result, err := memory.ExtractSession(opts)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)
 	}
 
-	// Print summary to stdout
-	fmt.Printf("Session extraction complete\n")
-	fmt.Printf("Status: %s\n", result.Status)
-	fmt.Printf("Items extracted: %d\n", result.ItemsExtracted)
-
-	if len(result.ConfidenceDistribution) > 0 {
-		fmt.Printf("Confidence distribution:\n")
-		for confidence, count := range result.ConfidenceDistribution {
-			fmt.Printf("  %.1f: %d items\n", confidence, count)
-		}
+	// Build session summary from extraction result
+	learnings := make([]memory.LearningItem, 0, len(result.Items))
+	for _, item := range result.Items {
+		learnings = append(learnings, memory.LearningItem{
+			Type:       item.Type,
+			Content:    item.Content,
+			Confidence: item.Confidence,
+		})
 	}
 
-	if project != "" {
-		fmt.Printf("Project: %s\n", project)
+	summary := memory.SessionSummary{
+		SessionID:   filepath.Base(transcriptPath),
+		ExtractedAt: time.Now(),
+		Learnings:   learnings,
+		// Note: RetrievalsCount, SkillCandidates, etc. will be populated by future tasks
 	}
-	fmt.Printf("Memory root: %s\n", memoryRoot)
+
+	// Print formatted summary
+	memory.PrintSessionSummary(summary, os.Stdout)
 
 	return nil
 }
