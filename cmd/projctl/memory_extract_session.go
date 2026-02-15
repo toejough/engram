@@ -17,7 +17,27 @@ type memoryExtractSessionArgs struct {
 }
 
 // memoryExtractSession extracts learnings from a Claude Code session transcript.
+// The entire function is wrapped in a 60s timeout because any step can block:
+// stdin read (waiting for EOF), ONNX model load, keychain auth, API calls, etc.
 func memoryExtractSession(args memoryExtractSessionArgs) error {
+	type funcResult struct {
+		err error
+	}
+	done := make(chan funcResult, 1)
+	go func() {
+		done <- funcResult{doExtractSession(args)}
+	}()
+
+	select {
+	case r := <-done:
+		return r.err
+	case <-time.After(60 * time.Second):
+		fmt.Fprintln(os.Stderr, "Warning: extract-session timed out after 60s, skipping")
+		return nil
+	}
+}
+
+func doExtractSession(args memoryExtractSessionArgs) error {
 	// Read hook input from stdin for project and transcript derivation
 	project := args.Project
 	transcriptPath := args.TranscriptPath
@@ -61,9 +81,6 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
 	}
 
-	// Call internal ExtractSession function with timeout to prevent Stop hook hanging.
-	// Each Learn() call makes 2 API calls (Extract + Decide) with 30s timeout each.
-	// With many items, total can exceed minutes — cap at 60s.
 	opts := memory.ExtractSessionOpts{
 		TranscriptPath: transcriptPath,
 		MemoryRoot:     memoryRoot,
@@ -72,27 +89,10 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		Extractor:      extractor,
 	}
 
-	type extractResult struct {
-		result *memory.ExtractSessionResult
-		err    error
-	}
-	done := make(chan extractResult, 1)
-	go func() {
-		r, err := memory.ExtractSession(opts)
-		done <- extractResult{r, err}
-	}()
-
-	var result *memory.ExtractSessionResult
-	select {
-	case r := <-done:
-		if r.err != nil {
-			fmt.Fprintf(os.Stderr, "extraction failed: %v\n", r.err)
-			return fmt.Errorf("extraction failed: %w", r.err)
-		}
-		result = r.result
-	case <-time.After(60 * time.Second):
-		fmt.Fprintln(os.Stderr, "Warning: extract-session timed out after 60s, skipping")
-		return nil
+	result, err := memory.ExtractSession(opts)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
+		return fmt.Errorf("extraction failed: %w", err)
 	}
 
 	// Build session summary from extraction result
@@ -109,7 +109,6 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 		SessionID:   filepath.Base(transcriptPath),
 		ExtractedAt: time.Now(),
 		Learnings:   learnings,
-		// Note: RetrievalsCount, SkillCandidates, etc. will be populated by future tasks
 	}
 
 	// Print formatted summary
