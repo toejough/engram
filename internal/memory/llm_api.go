@@ -104,7 +104,23 @@ func (d *DirectAPIExtractor) callAPI(ctx context.Context, prompt string, maxToke
 		return nil, fmt.Errorf("%w: empty response content", ErrLLMUnavailable)
 	}
 
-	return []byte(result.Content[0].Text), nil
+	return []byte(stripMarkdownFencing(result.Content[0].Text)), nil
+}
+
+// stripMarkdownFencing removes ```json ... ``` or ``` ... ``` wrapping
+// that models sometimes add despite "Return ONLY valid JSON" prompts.
+func stripMarkdownFencing(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if !strings.HasPrefix(trimmed, "```") {
+		return s
+	}
+	// Strip opening fence line (```json, ```, etc.)
+	if idx := strings.Index(trimmed, "\n"); idx != -1 {
+		trimmed = trimmed[idx+1:]
+	}
+	// Strip closing fence
+	trimmed = strings.TrimSuffix(trimmed, "```")
+	return strings.TrimSpace(trimmed)
 }
 
 // Extract analyzes a memory entry and returns structured knowledge.
