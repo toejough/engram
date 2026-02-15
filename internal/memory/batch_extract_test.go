@@ -178,7 +178,7 @@ func TestBatchExtractSession_EndToEnd(t *testing.T) {
 		memory.WithBaseURL(server.URL),
 	)
 
-	result, err := memory.BatchExtractSession(context.Background(), sessionPath, ext)
+	result, err := memory.BatchExtractSession(context.Background(), sessionPath, ext, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -194,5 +194,8 @@ func TestBatchExtractSession_EndToEnd(t *testing.T) {
 	}
 	if len(result.Principles) == 0 {
 		t.Error("should have principles")
+	}
+	if result.EndOffset == 0 {
+		t.Error("EndOffset should be > 0")
 	}
 }

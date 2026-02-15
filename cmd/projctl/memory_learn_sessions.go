@@ -44,7 +44,7 @@ func memoryLearnSessions(args memoryLearnSessionsArgs) error {
 
 	// Handle --reset-last flag
 	if args.ResetLast > 0 {
-		count, err := memory.ResetLastNSessions(db, args.ResetLast)
+		count, err := memory.ResetLastNSessions(db, args.ResetLast, memoryRoot)
 		if err != nil {
 			return fmt.Errorf("failed to reset sessions: %w", err)
 		}
@@ -205,10 +205,25 @@ func processSession(session memory.DiscoveredSession, memoryRoot string) ([]memo
 		return nil, "error", fmt.Errorf("batch extraction requires DirectAPIExtractor")
 	}
 
-	result, err := memory.BatchExtractSession(context.Background(), session.Path, directExt)
+	// Read stored offset for incremental extraction
+	sessionID := session.SessionID
+	offsetDir := filepath.Join(memoryRoot, "offsets")
+	offsetFile := filepath.Join(offsetDir, sessionID+".offset")
+	var startOffset int64
+	if data, err := os.ReadFile(offsetFile); err == nil {
+		if v, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err == nil {
+			startOffset = v
+		}
+	}
+
+	result, err := memory.BatchExtractSession(context.Background(), session.Path, directExt, startOffset)
 	if err != nil {
 		return nil, "error", err
 	}
+
+	// Persist updated offset
+	_ = os.MkdirAll(offsetDir, 0755)
+	_ = os.WriteFile(offsetFile, []byte(strconv.FormatInt(result.EndOffset, 10)), 0644)
 
 	// Store each principle via Learn()
 	var items []memory.SessionExtractedItem

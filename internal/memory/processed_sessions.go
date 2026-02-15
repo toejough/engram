@@ -3,6 +3,8 @@ package memory
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -33,8 +35,36 @@ func IsSessionProcessed(db *sql.DB, sessionID string) (bool, error) {
 }
 
 // ResetLastNSessions deletes the N most recently processed sessions (by processed_at DESC).
+// Also deletes their offset files so reprocessing starts from byte 0.
 // Returns the number of rows deleted.
-func ResetLastNSessions(db *sql.DB, n int) (int64, error) {
+func ResetLastNSessions(db *sql.DB, n int, memoryRoot string) (int64, error) {
+	// Query session IDs being reset so we can delete their offset files
+	rows, err := db.Query(`
+		SELECT session_id FROM processed_sessions
+		ORDER BY processed_at DESC
+		LIMIT ?
+	`, n)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query sessions to reset: %w", err)
+	}
+	var sessionIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("failed to scan session ID: %w", err)
+		}
+		sessionIDs = append(sessionIDs, id)
+	}
+	rows.Close()
+
+	// Delete offset files
+	offsetDir := filepath.Join(memoryRoot, "offsets")
+	for _, id := range sessionIDs {
+		_ = os.Remove(filepath.Join(offsetDir, id+".offset"))
+	}
+
+	// Delete DB rows
 	result, err := db.Exec(`
 		DELETE FROM processed_sessions
 		WHERE session_id IN (

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,31 +94,20 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 		memoryRoot = filepath.Join(home, ".claude", "memory")
 	}
 
-	// Wire SemanticMatcher (uses local ONNX, no LLM needed)
-	matcher := memory.NewMemoryStoreSemanticMatcher(memoryRoot)
-	dbg("semantic matcher ready")
-
-	// Wire LLM extractor for enrichment (uses Haiku via direct API)
-	extractor := memory.NewLLMExtractor()
+	// Wire LLM extractor (uses Haiku + Sonnet via direct API)
+	ext := memory.NewLLMExtractor()
 	dbg("LLM extractor ready")
-	if extractor == nil {
+	if ext == nil {
 		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
+	}
+	directExt, ok := ext.(*memory.DirectAPIExtractor)
+	if !ok {
+		return fmt.Errorf("batch extraction requires DirectAPIExtractor")
 	}
 
 	// Read stored offset for incremental extraction
 	sessionID := filepath.Base(transcriptPath)
 	sessionID = strings.TrimSuffix(sessionID, ".jsonl")
-
-	// Skip if already processed by learn-sessions (batch pipeline)
-	if recDB, err := memory.InitEmbeddingsDB(memoryRoot); err == nil {
-		processed, checkErr := memory.IsSessionProcessed(recDB, sessionID)
-		_ = recDB.Close()
-		if checkErr == nil && processed {
-			dbg("session already processed by learn-sessions, skipping")
-			fmt.Fprintln(os.Stderr, "Session already processed by learn-sessions, skipping")
-			return nil
-		}
-	}
 
 	offsetDir := filepath.Join(memoryRoot, "offsets")
 	offsetFile := filepath.Join(offsetDir, sessionID+".offset")
@@ -129,48 +119,51 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 	}
 	dbg(fmt.Sprintf("start offset: %d", startOffset))
 
-	opts := memory.ExtractSessionOpts{
-		TranscriptPath: transcriptPath,
-		MemoryRoot:     memoryRoot,
-		Project:        project,
-		Matcher:        matcher,
-		Extractor:      extractor,
-		StartOffset:    startOffset,
-	}
-
-	result, err := memory.ExtractSession(opts)
-	dbg(fmt.Sprintf("extraction done: %d items, status=%s, endOffset=%d", len(result.Items), result.Status, result.EndOffset))
+	// Run batch extraction pipeline (strip -> haiku -> sonnet)
+	result, err := memory.BatchExtractSession(context.Background(), transcriptPath, directExt, startOffset)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)
 	}
+	dbg(fmt.Sprintf("extraction done: %d principles, endOffset=%d", len(result.Principles), result.EndOffset))
 
-	// Persist new offset for next incremental run
+	// Persist new offset for next incremental run (stop hook relies on offsets only)
 	_ = os.MkdirAll(offsetDir, 0755)
 	_ = os.WriteFile(offsetFile, []byte(strconv.FormatInt(result.EndOffset, 10)), 0644)
-	if recDB, err := memory.InitEmbeddingsDB(memoryRoot); err == nil {
-		_ = memory.RecordProcessedSession(recDB, sessionID, project, len(result.Items), "success")
-		_ = recDB.Close()
-	}
-	dbg("session recorded")
 
-	// Build session summary from extraction result
-	learnings := make([]memory.LearningItem, 0, len(result.Items))
-	for _, item := range result.Items {
+	// Store each principle via Learn()
+	learnings := make([]memory.LearningItem, 0, len(result.Principles))
+	for _, p := range result.Principles {
+		learnErr := memory.Learn(memory.LearnOpts{
+			Message:    p.Principle,
+			Project:    project,
+			Source:     "internal",
+			Type:       "discovery",
+			MemoryRoot: memoryRoot,
+			Extractor:  ext,
+			PrecomputedObservation: &memory.Observation{
+				Type:      p.Category,
+				Concepts:  []string{p.Category},
+				Principle: p.Principle,
+				Rationale: p.Evidence,
+			},
+		})
+		if learnErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to store principle: %v\n", learnErr)
+			continue
+		}
 		learnings = append(learnings, memory.LearningItem{
-			Type:       item.Type,
-			Content:    item.Content,
-			Confidence: item.Confidence,
+			Type:    p.Category,
+			Content: p.Principle,
 		})
 	}
 
+	// Print formatted summary
 	summary := memory.SessionSummary{
 		SessionID:   filepath.Base(transcriptPath),
 		ExtractedAt: time.Now(),
 		Learnings:   learnings,
 	}
-
-	// Print formatted summary
 	memory.PrintSessionSummary(summary, os.Stdout)
 
 	return nil

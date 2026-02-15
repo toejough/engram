@@ -32,6 +32,7 @@ type BatchExtractResult struct {
 	ChunkFailures int
 	Events        []HaikuEvent
 	Principles    []ExtractedPrinciple
+	EndOffset     int64
 }
 
 const sonnetModel = "claude-sonnet-4-5-20250929"
@@ -167,15 +168,16 @@ Events:
 }
 
 // BatchExtractSession runs the full extraction pipeline on a session transcript.
-func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor) (*BatchExtractResult, error) {
+// If startOffset > 0, only processes content from that byte position onward.
+func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor, startOffset int64) (*BatchExtractResult, error) {
 	// Stage 1: Strip
-	stripped, err := StripSession(sessionPath)
+	stripped, endOffset, err := StripSession(sessionPath, startOffset)
 	if err != nil {
 		return nil, fmt.Errorf("strip session: %w", err)
 	}
 
 	if len(stripped) == 0 {
-		return &BatchExtractResult{}, nil
+		return &BatchExtractResult{EndOffset: endOffset}, nil
 	}
 
 	// Stage 2: Chunk
@@ -234,6 +236,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 		ChunkFailures: failures,
 		Events:        allEvents,
 		Principles:    principles,
+		EndOffset:     endOffset,
 	}, nil
 }
 

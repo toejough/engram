@@ -15,17 +15,28 @@ var teammateRe = regexp.MustCompile(`(?s)<teammate-message[^>]*teammate_id="([^"
 
 // StripSession reads a JSONL session transcript and returns stripped text
 // containing only learning-relevant content.
-func StripSession(path string) (string, error) {
+// If startOffset > 0, seeks to that byte position before reading (for incremental extraction).
+// Returns the stripped text and the byte offset after the last line read.
+func StripSession(path string, startOffset int64) (string, int64, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return "", fmt.Errorf("open session: %w", err)
+		return "", 0, fmt.Errorf("open session: %w", err)
 	}
 	defer f.Close()
 
+	if startOffset > 0 {
+		if _, err := f.Seek(startOffset, 0); err != nil {
+			return "", 0, fmt.Errorf("seek to offset %d: %w", startOffset, err)
+		}
+	}
+
+	bytesRead := startOffset
 	var lines []string
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // 10MB line buffer
 	for scanner.Scan() {
+		bytesRead += int64(len(scanner.Bytes())) + 1 // +1 for newline
+
 		var msg map[string]any
 		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
 			continue
@@ -89,7 +100,10 @@ func StripSession(path string) (string, error) {
 		}
 	}
 
-	return strings.Join(lines, "\n\n"), scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return "", 0, err
+	}
+	return strings.Join(lines, "\n\n"), bytesRead, nil
 }
 
 // stripNoise removes system-reminders and extracts teammate messages.

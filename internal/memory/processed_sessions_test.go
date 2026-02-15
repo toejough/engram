@@ -2,6 +2,7 @@ package memory_test
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -143,6 +144,12 @@ func TestResetLastNSessions(t *testing.T) {
 		{"session-3", now},
 	}
 
+	// Create offset files for all sessions
+	offsetDir := filepath.Join(tmpDir, "offsets")
+	if err := os.MkdirAll(offsetDir, 0755); err != nil {
+		t.Fatalf("failed to create offset dir: %v", err)
+	}
+
 	for _, s := range sessions {
 		_, err := db.Exec(`
 			INSERT INTO processed_sessions (session_id, project, processed_at, items_found, status)
@@ -151,10 +158,14 @@ func TestResetLastNSessions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to insert session %s: %v", s.id, err)
 		}
+		// Write offset file
+		if err := os.WriteFile(filepath.Join(offsetDir, s.id+".offset"), []byte("12345"), 0644); err != nil {
+			t.Fatalf("failed to write offset file for %s: %v", s.id, err)
+		}
 	}
 
 	// Reset the 2 most recent sessions
-	deleted, err := memory.ResetLastNSessions(db, 2)
+	deleted, err := memory.ResetLastNSessions(db, 2, tmpDir)
 	if err != nil {
 		t.Fatalf("ResetLastNSessions failed: %v", err)
 	}
@@ -171,6 +182,11 @@ func TestResetLastNSessions(t *testing.T) {
 		t.Error("expected session-1 to still exist")
 	}
 
+	// Verify session-1 offset file still exists
+	if _, err := os.Stat(filepath.Join(offsetDir, "session-1.offset")); os.IsNotExist(err) {
+		t.Error("expected session-1 offset file to still exist")
+	}
+
 	// Verify session-2 and session-3 were deleted
 	processed, err = memory.IsSessionProcessed(db, "session-2")
 	if err != nil {
@@ -180,11 +196,21 @@ func TestResetLastNSessions(t *testing.T) {
 		t.Error("expected session-2 to be deleted")
 	}
 
+	// Verify session-2 offset file was deleted
+	if _, err := os.Stat(filepath.Join(offsetDir, "session-2.offset")); !os.IsNotExist(err) {
+		t.Error("expected session-2 offset file to be deleted")
+	}
+
 	processed, err = memory.IsSessionProcessed(db, "session-3")
 	if err != nil {
 		t.Fatalf("IsSessionProcessed failed: %v", err)
 	}
 	if processed {
 		t.Error("expected session-3 to be deleted")
+	}
+
+	// Verify session-3 offset file was deleted
+	if _, err := os.Stat(filepath.Join(offsetDir, "session-3.offset")); !os.IsNotExist(err) {
+		t.Error("expected session-3 offset file to be deleted")
 	}
 }
