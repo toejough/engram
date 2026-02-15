@@ -79,3 +79,57 @@ func TestIdentifyEvents_HandlesEmptyArray(t *testing.T) {
 		t.Errorf("expected 0 events, got %d", len(events))
 	}
 }
+
+func TestExtractPrinciples_ParsesSonnetResponse(t *testing.T) {
+	responsePrinciples := `
+		{"principle": "When X, do Y.", "evidence": "Session showed X failing.", "category": "debugging"}
+	]`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Verify Sonnet model is used
+		var body map[string]any
+		json.NewDecoder(r.Body).Decode(&body)
+		model, _ := body["model"].(string)
+		if model != "claude-sonnet-4-5-20250929" {
+			t.Errorf("expected sonnet model, got %s", model)
+		}
+
+		json.NewEncoder(w).Encode(map[string]any{
+			"content": []map[string]any{
+				{"text": responsePrinciples},
+			},
+		})
+	}))
+	defer server.Close()
+
+	ext := memory.NewDirectAPIExtractor("test-token",
+		memory.WithBaseURL(server.URL),
+	)
+
+	events := []memory.HaikuEvent{
+		{EventType: "root-cause-discovery", WhatHappened: "Found bug.", WhyItMatters: "Check types."},
+	}
+
+	principles, err := ext.ExtractPrinciples(context.Background(), events)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(principles) != 1 {
+		t.Fatalf("expected 1 principle, got %d", len(principles))
+	}
+	if principles[0].Category != "debugging" {
+		t.Errorf("category: want debugging, got %s", principles[0].Category)
+	}
+}
+
+func TestExtractPrinciples_NoEvents(t *testing.T) {
+	ext := memory.NewDirectAPIExtractor("test-token")
+	principles, err := ext.ExtractPrinciples(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(principles) != 0 {
+		t.Errorf("expected 0 principles for nil events, got %d", len(principles))
+	}
+}
