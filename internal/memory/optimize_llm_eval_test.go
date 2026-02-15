@@ -111,3 +111,109 @@ func TestNeedsLLMTriage(t *testing.T) {
 	g.Expect(needsLLMTriage("prune")).To(gomega.BeFalse())
 	g.Expect(needsLLMTriage("decay")).To(gomega.BeFalse())
 }
+
+type mockBehavioralExtractor struct {
+	response string
+}
+
+func (m *mockBehavioralExtractor) CallAPIWithMessages(ctx context.Context, params APIMessageParams) ([]byte, error) {
+	return []byte(m.response), nil
+}
+
+type mockContextAssembler struct {
+	before string
+	after  string
+}
+
+func (m *mockContextAssembler) AssembleContext(proposal MaintenanceProposal, applied bool) string {
+	if applied {
+		return m.after
+	}
+	return m.before
+}
+
+func TestBehavioralTest_PopulatesSonnetFields(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ext := &mockBehavioralExtractor{
+		response: `{
+			"recommend": "skip",
+			"confidence": "high",
+			"change_analysis": "loses polling advice",
+			"preservation_report": [
+				{"scenario": "user asks about polling", "preserved": true},
+				{"scenario": "user asks about rate limits", "preserved": false, "lost": "polling instruction"}
+			]
+		}`,
+	}
+
+	assembler := &mockContextAssembler{
+		before: "before context",
+		after:  "after context",
+	}
+
+	proposal := MaintenanceProposal{
+		Action: "consolidate",
+		Tier:   "embeddings",
+		Target: "id1,id2",
+		LLMEval: &LLMEvalResult{
+			HaikuValid:     true,
+			HaikuRationale: "valid consolidation",
+		},
+	}
+
+	result, err := BehavioralTest(context.Background(), proposal, ext, assembler, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+
+	g.Expect(result.LLMEval).ToNot(gomega.BeNil())
+	g.Expect(result.LLMEval.SonnetRecommend).To(gomega.Equal("skip"))
+	g.Expect(result.LLMEval.SonnetConfidence).To(gomega.Equal("high"))
+	g.Expect(result.LLMEval.SonnetSummary).To(gomega.Equal("loses polling advice"))
+	g.Expect(result.LLMEval.ScenarioResults).To(gomega.HaveLen(2))
+	g.Expect(result.LLMEval.ScenarioResults[0].Prompt).To(gomega.Equal("user asks about polling"))
+	g.Expect(result.LLMEval.ScenarioResults[0].Preserved).To(gomega.BeTrue())
+	g.Expect(result.LLMEval.ScenarioResults[0].Lost).To(gomega.BeEmpty())
+	g.Expect(result.LLMEval.ScenarioResults[1].Prompt).To(gomega.Equal("user asks about rate limits"))
+	g.Expect(result.LLMEval.ScenarioResults[1].Preserved).To(gomega.BeFalse())
+	g.Expect(result.LLMEval.ScenarioResults[1].Lost).To(gomega.Equal("polling instruction"))
+}
+
+func TestBehavioralTest_SkipsWithoutHaikuValid(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	ext := &mockBehavioralExtractor{
+		response: `{"recommend": "apply", "confidence": "high", "change_analysis": "good", "preservation_report": []}`,
+	}
+
+	assembler := &mockContextAssembler{}
+
+	// Proposal without LLMEval
+	proposal := MaintenanceProposal{
+		Action: "consolidate",
+		Tier:   "embeddings",
+		Target: "id1,id2",
+	}
+
+	result, err := BehavioralTest(context.Background(), proposal, ext, assembler, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(result).To(gomega.Equal(proposal)) // Unchanged
+	g.Expect(result.LLMEval).To(gomega.BeNil())
+
+	// Proposal with LLMEval but HaikuValid=false
+	proposal2 := MaintenanceProposal{
+		Action: "consolidate",
+		Tier:   "embeddings",
+		Target: "id1,id2",
+		LLMEval: &LLMEvalResult{
+			HaikuValid:     false,
+			HaikuRationale: "not valid",
+		},
+	}
+
+	result2, err := BehavioralTest(context.Background(), proposal2, ext, assembler, nil)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(result2).To(gomega.Equal(proposal2)) // Unchanged
+	g.Expect(result2.LLMEval.SonnetRecommend).To(gomega.BeEmpty())
+}
