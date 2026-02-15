@@ -8,31 +8,43 @@ import (
 	"time"
 )
 
+// AutoMaintenance runs automatic prune and decay operations.
+// Prune: Delete embeddings with confidence < 0.3
+// Decay: Multiply confidence by 0.5 for entries >90 days old with <5 retrievals
+// Returns counts of pruned and decayed entries.
+func AutoMaintenance(db *sql.DB) (pruned int, decayed int, err error) {
+	// Prune: confidence < 0.3
+	res, err := db.Exec(`DELETE FROM embeddings WHERE confidence < 0.3`)
+	if err != nil {
+		return 0, 0, fmt.Errorf("auto-prune: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	pruned = int(rows)
+
+	// Decay: >90 days old, <5 retrievals → confidence × 0.5
+	res, err = db.Exec(`UPDATE embeddings SET confidence = confidence * 0.5
+		WHERE julianday('now') - julianday(created_at) > 90
+		AND retrieval_count < 5
+		AND confidence >= 0.3`)
+	if err != nil {
+		return pruned, 0, fmt.Errorf("auto-decay: %w", err)
+	}
+	rows, _ = res.RowsAffected()
+	decayed = int(rows)
+
+	return pruned, decayed, nil
+}
+
 // scanEmbeddings scans the embeddings database tier and returns maintenance proposals.
 // It detects:
-// - Low-confidence embeddings (confidence < 0.3) → prune
-// - Stale embeddings (>90 days, low retrieval) → decay
-// - Redundant embeddings (similarity > 0.8) → consolidate
+// - Redundant embeddings (similarity > 0.92) → consolidate
 // - Multi-topic embeddings (token count > threshold) → split
 // - High-value embeddings (retrieval 10+, confidence 0.8+, multi-project) → promote to skill
+// Note: Low-confidence and stale embeddings are now handled automatically by AutoMaintenance.
 func scanEmbeddings(db *sql.DB, memoryRoot, skillsDir string) ([]MaintenanceProposal, error) {
 	var proposals []MaintenanceProposal
 
-	// Scan for low-confidence entries (confidence < 0.3, not promoted)
-	lowConfProposals, err := scanLowConfidenceEmbeddings(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan low-confidence embeddings: %w", err)
-	}
-	proposals = append(proposals, lowConfProposals...)
-
-	// Scan for stale entries (>90 days, low retrieval)
-	staleProposals, err := scanStaleEmbeddings(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan stale embeddings: %w", err)
-	}
-	proposals = append(proposals, staleProposals...)
-
-	// Scan for redundant entries (similarity > 0.8)
+	// Scan for redundant entries (similarity > 0.92)
 	redundantProposals, err := scanRedundantEmbeddings(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan redundant embeddings: %w", err)
@@ -73,18 +85,12 @@ func scanLowConfidenceEmbeddings(db *sql.DB) ([]MaintenanceProposal, error) {
 			continue
 		}
 
-		// Truncate content for preview
-		preview := content
-		if len(preview) > 80 {
-			preview = preview[:80] + "..."
-		}
-
 		proposals = append(proposals, MaintenanceProposal{
 			Tier:    "embeddings",
 			Action:  "prune",
 			Target:  fmt.Sprintf("%d", id),
 			Reason:  fmt.Sprintf("Low confidence (%.2f)", confidence),
-			Preview: preview,
+			Preview: content,
 		})
 	}
 
@@ -130,12 +136,6 @@ func scanStaleEmbeddings(db *sql.DB) ([]MaintenanceProposal, error) {
 		// Check if stale (>90 days old)
 		age := now.Sub(lastRetrieved)
 		if age > threshold {
-			// Truncate content for preview
-			preview := content
-			if len(preview) > 60 {
-				preview = preview[:60] + "..."
-			}
-
 			// Calculate decay factor (reduce confidence by 50%)
 			newConfidence := confidence * 0.5
 
@@ -144,7 +144,7 @@ func scanStaleEmbeddings(db *sql.DB) ([]MaintenanceProposal, error) {
 				Action:  "decay",
 				Target:  fmt.Sprintf("%d", id),
 				Reason:  fmt.Sprintf("Stale (%d days, %d retrievals)", int(age.Hours()/24), retrievalCount),
-				Preview: fmt.Sprintf("Confidence: %.2f → %.2f\n%s", confidence, newConfidence, preview),
+				Preview: fmt.Sprintf("Confidence: %.2f → %.2f\n%s", confidence, newConfidence, content),
 			})
 		}
 	}
@@ -204,7 +204,7 @@ func scanRedundantEmbeddings(db *sql.DB) ([]MaintenanceProposal, error) {
 				continue
 			}
 
-			if sim > 0.8 {
+			if sim > 0.92 {
 				// Identify which to keep (higher confidence/retrieval count)
 				var keepEntry, deleteEntry entry
 				if entries[i].confidence > entries[j].confidence ||
@@ -214,22 +214,12 @@ func scanRedundantEmbeddings(db *sql.DB) ([]MaintenanceProposal, error) {
 					keepEntry, deleteEntry = entries[j], entries[i]
 				}
 
-				// Truncate content for preview
-				keepPreview := keepEntry.content
-				if len(keepPreview) > 60 {
-					keepPreview = keepPreview[:60] + "..."
-				}
-				deletePreview := deleteEntry.content
-				if len(deletePreview) > 60 {
-					deletePreview = deletePreview[:60] + "..."
-				}
-
 				proposals = append(proposals, MaintenanceProposal{
 					Tier:    "embeddings",
 					Action:  "consolidate",
 					Target:  fmt.Sprintf("%d,%d", keepEntry.id, deleteEntry.id),
 					Reason:  fmt.Sprintf("Redundant (similarity %.2f)", sim),
-					Preview: fmt.Sprintf("Keep: %s\nMerge: %s", keepPreview, deletePreview),
+					Preview: fmt.Sprintf("Keep:   %s\nDelete: %s", keepEntry.content, deleteEntry.content),
 				})
 
 				checked[deleteEntry.id] = true

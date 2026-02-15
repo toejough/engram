@@ -164,11 +164,16 @@ func TestOptimizeInteractive(t *testing.T) {
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		defer db.Close()
 
-		// Insert test data
-		_, err = db.Exec(`
-			INSERT INTO embeddings (content, source, source_type, confidence, promoted)
-			VALUES ('Test entry', 'memory', 'user', 0.2, 0)
-		`)
+		// Create test CLAUDE.md with duplicate entries to generate proposals
+		claudeMDContent := `# Working With Joe
+
+## Promoted Learnings
+
+- Learning one about testing
+- Learning one about testing
+- Different learning about docs
+`
+		err = os.WriteFile(claudeMDPath, []byte(claudeMDContent), 0644)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Reject all proposals
@@ -233,14 +238,16 @@ func TestOptimizeInteractive(t *testing.T) {
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		defer db.Close()
 
-		// Insert multiple test entries
-		_, err = db.Exec(`
-			INSERT INTO embeddings (content, source, source_type, confidence, promoted)
-			VALUES
-				('Low conf 1', 'memory', 'user', 0.1, 0),
-				('Low conf 2', 'memory', 'user', 0.15, 0),
-				('Good entry', 'memory', 'user', 0.9, 0)
-		`)
+		// Create test CLAUDE.md with duplicate entries to generate proposals
+		claudeMDContent := `# Working With Joe
+
+## Promoted Learnings
+
+- Learning one about testing
+- Learning one about testing
+- Different learning about docs
+`
+		err = os.WriteFile(claudeMDPath, []byte(claudeMDContent), 0644)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Auto-approve all
@@ -381,15 +388,18 @@ func TestOptimizeInteractive_TierFilter(t *testing.T) {
 		dbPath := filepath.Join(tmpDir, "embeddings.db")
 		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
 		skillsDir := filepath.Join(tmpDir, "skills")
+		err := os.MkdirAll(skillsDir, 0755)
+		g.Expect(err).ToNot(gomega.HaveOccurred())
 
-		// Initialize test DB with low-confidence entry
+		// Initialize test DB with high-value promotable entry
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 		defer db.Close()
 
+		// Insert high-value embedding that should trigger promote proposal
 		_, err = db.Exec(`
-			INSERT INTO embeddings (content, source, source_type, confidence, promoted)
-			VALUES ('Low confidence entry', 'memory', 'user', 0.1, 0)
+			INSERT INTO embeddings (content, source, source_type, confidence, retrieval_count, projects_retrieved, principle, promoted)
+			VALUES ('High value pattern', 'memory', 'user', 0.9, 15, 'proj1,proj2,proj3', 'Always use TDD', 0)
 		`)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 

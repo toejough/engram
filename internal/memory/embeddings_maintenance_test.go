@@ -34,16 +34,14 @@ func TestScanEmbeddings_LowConfidence(t *testing.T) {
 	`)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Scan for proposals
+	// Low-confidence entries are now handled automatically by AutoMaintenance
+	// scanEmbeddings should NOT return prune proposals for them
 	proposals, err := scanEmbeddings(db, tempDir, "")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Expect one prune proposal for low-confidence entry
+	// Verify no prune proposals are returned (handled automatically now)
 	pruneProposals := filterProposals(proposals, "prune")
-	g.Expect(len(pruneProposals)).To(BeNumerically(">=", 1))
-	g.Expect(pruneProposals[0].Tier).To(Equal("embeddings"))
-	g.Expect(pruneProposals[0].Action).To(Equal("prune"))
-	g.Expect(pruneProposals[0].Reason).To(ContainSubstring("confidence"))
+	g.Expect(len(pruneProposals)).To(Equal(0))
 }
 
 func TestScanEmbeddings_StaleEntries(t *testing.T) {
@@ -71,16 +69,14 @@ func TestScanEmbeddings_StaleEntries(t *testing.T) {
 	`, recentTime)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Scan for proposals
+	// Stale entries are now handled automatically by AutoMaintenance
+	// scanEmbeddings should NOT return decay proposals for them
 	proposals, err := scanEmbeddings(db, tempDir, "")
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Expect decay proposal for stale entry
+	// Verify no decay proposals are returned (handled automatically now)
 	decayProposals := filterProposals(proposals, "decay")
-	g.Expect(len(decayProposals)).To(BeNumerically(">=", 1))
-	g.Expect(decayProposals[0].Tier).To(Equal("embeddings"))
-	g.Expect(decayProposals[0].Action).To(Equal("decay"))
-	g.Expect(decayProposals[0].Reason).To(ContainSubstring("Stale"))
+	g.Expect(len(decayProposals)).To(Equal(0))
 }
 
 func TestScanEmbeddings_HighValuePromotion(t *testing.T) {

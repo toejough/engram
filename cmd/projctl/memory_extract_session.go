@@ -157,6 +157,18 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 		})
 	}
 
+	// Auto-maintenance: prune and decay
+	maintenanceDB, dbErr := memory.InitEmbeddingsDB(memoryRoot)
+	if dbErr == nil {
+		pruned, decayed, maintErr := memory.AutoMaintenance(maintenanceDB)
+		maintenanceDB.Close()
+		if maintErr != nil {
+			fmt.Fprintf(os.Stderr, "Warning: auto-maintenance failed: %v\n", maintErr)
+		} else if pruned > 0 || decayed > 0 {
+			fmt.Fprintf(os.Stdout, "Memory maintenance: pruned %d, decayed %d\n", pruned, decayed)
+		}
+	}
+
 	// Print formatted summary
 	summary := memory.SessionSummary{
 		SessionID:   filepath.Base(transcriptPath),
