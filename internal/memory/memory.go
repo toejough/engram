@@ -325,6 +325,25 @@ func searchDirectory(dir, pattern, projectFilter string) []GrepMatch {
 	return matches
 }
 
+// DefaultSimilarityThreshold is the default minimum score for query results.
+// Results scoring below this threshold are filtered out to prevent noise.
+const DefaultSimilarityThreshold = 0.7
+
+// FilterByMinScore returns only results with Score >= minScore.
+// A minScore of 0.0 disables filtering and returns all results.
+func FilterByMinScore(results []QueryResult, minScore float64) []QueryResult {
+	if minScore <= 0 {
+		return results
+	}
+	filtered := make([]QueryResult, 0, len(results))
+	for _, r := range results {
+		if r.Score >= minScore {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered
+}
+
 // QueryOpts holds options for memory query.
 type QueryOpts struct {
 	Text       string
@@ -371,6 +390,8 @@ type QueryResults struct {
 	// Hybrid search fields (ISSUE-181)
 	UsedHybridSearch bool
 	BM25Enabled      bool
+	// Retrieval logging (Task 2: self-reinforcing learning)
+	FilteredCount int // Number of results excluded by MinScore threshold
 }
 
 // Query searches memory for semantically similar content using embeddings.
@@ -457,18 +478,19 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 	}
 
 	// ISSUE-217: Filter results by minimum score threshold
+	var filteredCount int
 	if opts.MinScore > 0 {
-		filtered := make([]QueryResult, 0, len(results))
-		for _, r := range results {
-			if r.Score >= opts.MinScore {
-				filtered = append(filtered, r)
-			}
+		preFilterCount := len(results)
+		var maxScore float64
+		if preFilterCount > 0 {
+			maxScore = results[0].Score
 		}
-		if len(filtered) == 0 && len(results) > 0 {
+		results = FilterByMinScore(results, opts.MinScore)
+		filteredCount = preFilterCount - len(results)
+		if len(results) == 0 && preFilterCount > 0 {
 			fmt.Fprintf(os.Stderr, "Warning: all %d results filtered by MinScore threshold %.2f (max score: %.4f)\n",
-				len(results), opts.MinScore, results[0].Score)
+				preFilterCount, opts.MinScore, maxScore)
 		}
-		results = filtered
 	}
 
 	// Update retrieval tracking for TASK-41
@@ -537,6 +559,7 @@ func Query(opts QueryOpts) (*QueryResults, error) {
 		QueryDuration:        duration,
 		UsedHybridSearch:     true,
 		BM25Enabled:          bm25Available,
+		FilteredCount:        filteredCount,
 	}, nil
 }
 

@@ -787,9 +787,3 @@ func detectCorrectionRecurrence(correctionContent, memoryRoot string) error {
 
 	return nil
 }
-
-// detectCorrectionRecurrence is a stub for Task 4 (correction recurrence detection).
-// TODO: Implement in Task 4
-func detectCorrectionRecurrence(content, memoryRoot string) error {
-	return nil
-}
