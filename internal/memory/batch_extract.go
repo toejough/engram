@@ -200,6 +200,18 @@ func parsePrinciplesJSON(fullJSON string) ([]ExtractedPrinciple, error) {
 	return nil, fmt.Errorf("unexpected end of JSON input")
 }
 
+// formatBytes formats a byte count as a human-readable string (B, KB, MB).
+func formatBytes(n int) string {
+	switch {
+	case n >= 1024*1024:
+		return fmt.Sprintf("%.1fMB", float64(n)/(1024*1024))
+	case n >= 1024:
+		return fmt.Sprintf("%.1fKB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%dB", n)
+	}
+}
+
 // BatchExtractSession runs the full extraction pipeline on a session transcript.
 // If startOffset > 0, only processes content from that byte position onward.
 // If progress is non-nil, one-line status updates are written to it.
@@ -222,7 +234,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 		return &BatchExtractResult{EndOffset: endOffset}, nil
 	}
 
-	logf("stripped to %d bytes", len(stripped))
+	logf("stripped to %s", formatBytes(len(stripped)))
 
 	// Stage 2: Chunk
 	chunks := ChunkText(stripped, defaultChunkSize)
@@ -250,7 +262,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 			defer func() { <-sem }()
 
 			mu.Lock()
-			logf("  chunk %d/%d: querying with %d bytes...", c.Index+1, len(chunks), len(c.Text))
+			logf("  chunk %d/%d: querying with %s...", c.Index+1, len(chunks), formatBytes(len(c.Text)))
 			mu.Unlock()
 
 			events, err := ext.IdentifyEvents(ctx, c, len(chunks))
@@ -260,7 +272,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 				logf("  chunk %d/%d: error: %v", c.Index+1, len(chunks), err)
 			} else {
 				respBytes, _ := json.Marshal(events)
-				logf("  chunk %d/%d: identified %d events (%d bytes response)", c.Index+1, len(chunks), len(events), len(respBytes))
+				logf("  chunk %d/%d: identified %d events (%s response)", c.Index+1, len(chunks), len(events), formatBytes(len(respBytes)))
 			}
 			mu.Unlock()
 
@@ -288,7 +300,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	// Sort events by chunk index then line range for stable ordering
 	sortEvents(allEvents)
 
-	logf("haiku totals: %d events from %d chunks (%d bytes sent)", len(allEvents), len(chunks), totalHaikuInput)
+	logf("haiku totals: %d events from %d chunks (%s sent)", len(allEvents), len(chunks), formatBytes(totalHaikuInput))
 
 	if len(allEvents) == 0 {
 		return &BatchExtractResult{
@@ -301,14 +313,14 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 
 	// Stage 4: Sonnet principle extraction
 	eventsJSON, _ := json.Marshal(allEvents)
-	logf("extracting principles with sonnet (%d bytes input)...", len(eventsJSON))
+	logf("extracting principles with sonnet (%s input)...", formatBytes(len(eventsJSON)))
 	principles, err := ext.ExtractPrinciples(ctx, allEvents)
 	if err != nil {
 		return nil, fmt.Errorf("extract principles: %w", err)
 	}
 
 	principlesJSON, _ := json.Marshal(principles)
-	logf("sonnet: extracted %d principles (%d bytes response)", len(principles), len(principlesJSON))
+	logf("sonnet: extracted %d principles (%s response)", len(principles), formatBytes(len(principlesJSON)))
 
 	return &BatchExtractResult{
 		StrippedSize:  len(stripped),
