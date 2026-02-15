@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"sync"
 )
@@ -169,21 +170,34 @@ Events:
 
 // BatchExtractSession runs the full extraction pipeline on a session transcript.
 // If startOffset > 0, only processes content from that byte position onward.
-func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor, startOffset int64) (*BatchExtractResult, error) {
+// If progress is non-nil, one-line status updates are written to it.
+func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor, startOffset int64, progress io.Writer) (*BatchExtractResult, error) {
+	logf := func(format string, args ...any) {
+		if progress != nil {
+			fmt.Fprintf(progress, "  "+format+"\n", args...)
+		}
+	}
+
 	// Stage 1: Strip
+	logf("stripping %s (offset %d)...", sessionPath, startOffset)
 	stripped, endOffset, err := StripSession(sessionPath, startOffset)
 	if err != nil {
 		return nil, fmt.Errorf("strip session: %w", err)
 	}
 
 	if len(stripped) == 0 {
+		logf("nothing new to process")
 		return &BatchExtractResult{EndOffset: endOffset}, nil
 	}
+
+	logf("stripped to %d bytes", len(stripped))
 
 	// Stage 2: Chunk
 	chunks := ChunkText(stripped, defaultChunkSize)
 
 	// Stage 3: Haiku event identification (parallel)
+	logf("identifying events with haiku (%d chunks)...", len(chunks))
+
 	type chunkResult struct {
 		events []HaikuEvent
 		err    error
@@ -224,11 +238,25 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	// Sort events by chunk index then line range for stable ordering
 	sortEvents(allEvents)
 
+	logf("identified %d events in %d chunks", len(allEvents), len(chunks))
+
+	if len(allEvents) == 0 {
+		return &BatchExtractResult{
+			StrippedSize:  len(stripped),
+			ChunkCount:    len(chunks),
+			ChunkFailures: failures,
+			EndOffset:     endOffset,
+		}, nil
+	}
+
 	// Stage 4: Sonnet principle extraction
+	logf("extracting principles with sonnet...")
 	principles, err := ext.ExtractPrinciples(ctx, allEvents)
 	if err != nil {
 		return nil, fmt.Errorf("extract principles: %w", err)
 	}
+
+	logf("extracted %d principles", len(principles))
 
 	return &BatchExtractResult{
 		StrippedSize:  len(stripped),

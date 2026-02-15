@@ -216,7 +216,7 @@ func processSession(session memory.DiscoveredSession, memoryRoot string) ([]memo
 		}
 	}
 
-	result, err := memory.BatchExtractSession(context.Background(), session.Path, directExt, startOffset)
+	result, err := memory.BatchExtractSession(context.Background(), session.Path, directExt, startOffset, os.Stdout)
 	if err != nil {
 		return nil, "error", err
 	}

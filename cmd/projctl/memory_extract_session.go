@@ -120,7 +120,7 @@ func doExtractSession(args memoryExtractSessionArgs) error {
 	dbg(fmt.Sprintf("start offset: %d", startOffset))
 
 	// Run batch extraction pipeline (strip -> haiku -> sonnet)
-	result, err := memory.BatchExtractSession(context.Background(), transcriptPath, directExt, startOffset)
+	result, err := memory.BatchExtractSession(context.Background(), transcriptPath, directExt, startOffset, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "extraction failed: %v\n", err)
 		return fmt.Errorf("extraction failed: %w", err)

@@ -178,7 +178,7 @@ func TestBatchExtractSession_EndToEnd(t *testing.T) {
 		memory.WithBaseURL(server.URL),
 	)
 
-	result, err := memory.BatchExtractSession(context.Background(), sessionPath, ext, 0)
+	result, err := memory.BatchExtractSession(context.Background(), sessionPath, ext, 0, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
