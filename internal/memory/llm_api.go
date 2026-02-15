@@ -39,6 +39,20 @@ func WithTimeout(timeout time.Duration) DirectAPIOption {
 	return func(d *DirectAPIExtractor) { d.timeout = timeout }
 }
 
+// APIMessage represents a single message in a conversation.
+type APIMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// APIMessageParams holds parameters for multi-message API calls.
+type APIMessageParams struct {
+	System    string
+	Messages  []APIMessage
+	MaxTokens int
+	Model     string // override default model if set
+}
+
 func NewDirectAPIExtractor(token string, opts ...DirectAPIOption) *DirectAPIExtractor {
 	d := &DirectAPIExtractor{
 		token:   token,
@@ -51,6 +65,73 @@ func NewDirectAPIExtractor(token string, opts ...DirectAPIOption) *DirectAPIExtr
 		opt(d)
 	}
 	return d
+}
+
+// CallAPIWithMessages sends a multi-message request with optional system prompt
+// and assistant prefill. Returns the raw text response.
+func (d *DirectAPIExtractor) CallAPIWithMessages(ctx context.Context, params APIMessageParams) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+
+	model := d.model
+	if params.Model != "" {
+		model = params.Model
+	}
+
+	body := map[string]any{
+		"model":      model,
+		"max_tokens": params.MaxTokens,
+	}
+	if params.System != "" {
+		body["system"] = params.System
+	}
+
+	var msgs []map[string]any
+	for _, m := range params.Messages {
+		msgs = append(msgs, map[string]any{"role": m.Role, "content": m.Content})
+	}
+	body["messages"] = msgs
+
+	bodyBytes, _ := json.Marshal(body)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", d.baseURL+"/v1/messages", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+d.token)
+	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-beta", "oauth-2025-04-20")
+
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrLLMUnavailable, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("%w: API returned %d", ErrLLMUnavailable, resp.StatusCode)
+	}
+
+	var result struct {
+		Content []struct {
+			Text string `json:"text"`
+		} `json:"content"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("%w: failed to decode API response: %v", ErrLLMUnavailable, err)
+	}
+	if result.Error != nil {
+		return nil, fmt.Errorf("%w: API error: %s", ErrLLMUnavailable, result.Error.Message)
+	}
+	if len(result.Content) == 0 {
+		return nil, fmt.Errorf("%w: empty response content", ErrLLMUnavailable)
+	}
+
+	return []byte(result.Content[0].Text), nil
 }
 
 // callAPI sends a prompt to the Anthropic API and returns the raw text response.
@@ -128,6 +209,8 @@ func (d *DirectAPIExtractor) Extract(ctx context.Context, content string) (*Obse
 	prompt := fmt.Sprintf(`Analyze this memory entry and extract structured knowledge. Return ONLY valid JSON matching this schema:
 {"type":"<correction|pattern|decision|discovery>","concepts":["<concept1>","<concept2>"],"principle":"<actionable rule in imperative form>","anti_pattern":"<what NOT to do>","rationale":"<why this matters>"}
 
+CRITICAL: The "principle" field MUST start with an imperative verb. Valid starters: Always, Never, Prefer, Avoid, Use, Ensure, Check, Verify, Validate, Test, Apply, Follow, Set, Configure, Add, Remove, Create, Delete, Update, Replace, Fix, Run, Execute, Install, Build, Compile, Implement, Deploy.
+
 Memory entry:
 %s`, content)
 
@@ -142,6 +225,61 @@ Memory entry:
 	}
 
 	return &obs, nil
+}
+
+// ExtractBatch analyzes multiple memory entries in a single API call and returns structured knowledge for each.
+func (d *DirectAPIExtractor) ExtractBatch(ctx context.Context, contents []string) ([]*Observation, error) {
+	if len(contents) == 0 {
+		return nil, nil
+	}
+	// Single item: use standard Extract
+	if len(contents) == 1 {
+		obs, err := d.Extract(ctx, contents[0])
+		if err != nil {
+			return []*Observation{nil}, nil
+		}
+		return []*Observation{obs}, nil
+	}
+
+	var sb strings.Builder
+	for i, content := range contents {
+		sb.WriteString(fmt.Sprintf("ENTRY %d:\n%s\n\n", i+1, content))
+	}
+
+	prompt := fmt.Sprintf(`Analyze each memory entry below and extract structured knowledge. Return ONLY a valid JSON array with one object per entry, in the same order.
+Each object must match this schema:
+{"type":"<correction|pattern|decision|discovery>","concepts":["<concept1>","<concept2>"],"principle":"<actionable rule in imperative form>","anti_pattern":"<what NOT to do>","rationale":"<why this matters>"}
+
+CRITICAL: Every "principle" field MUST start with an imperative verb. Valid starters: Always, Never, Prefer, Avoid, Use, Ensure, Check, Verify, Validate, Test, Apply, Follow, Set, Configure, Add, Remove, Create, Delete, Update, Replace, Fix, Run, Execute, Install, Build, Compile, Implement, Deploy.
+
+%s`, sb.String())
+
+	// Scale max tokens with batch size
+	maxTokens := 256 * len(contents)
+	if maxTokens > 4096 {
+		maxTokens = 4096
+	}
+
+	output, err := d.callAPI(ctx, prompt, maxTokens)
+	if err != nil {
+		return nil, err
+	}
+
+	var observations []Observation
+	if err := json.Unmarshal(output, &observations); err != nil {
+		return nil, fmt.Errorf("failed to parse batch LLM response: %w", err)
+	}
+
+	// Convert to pointer slice, pad with nil if LLM returned fewer than expected
+	results := make([]*Observation, len(contents))
+	for i := range observations {
+		if i < len(results) {
+			obs := observations[i]
+			results[i] = &obs
+		}
+	}
+
+	return results, nil
 }
 
 // Synthesize produces a single actionable principle from a cluster of related memories.
