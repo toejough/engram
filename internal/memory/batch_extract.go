@@ -139,13 +139,23 @@ Output each principle as:
 Events:
 %s`, string(eventsJSON))
 
+	// Scale max tokens with event count — more events means richer evidence sections.
+	// Base 4096 for ≤20 events, +100 per event beyond that, capped at 16384.
+	maxTokens := 4096
+	if len(events) > 20 {
+		maxTokens += (len(events) - 20) * 100
+	}
+	if maxTokens > 16384 {
+		maxTokens = 16384
+	}
+
 	params := APIMessageParams{
 		System: extractPrinciplesSystem,
 		Messages: []APIMessage{
 			{Role: "user", Content: userMsg},
 			{Role: "assistant", Content: "["},
 		},
-		MaxTokens: 4096,
+		MaxTokens: maxTokens,
 		Model:     sonnetModel,
 	}
 
@@ -154,18 +164,40 @@ Events:
 		return nil, err
 	}
 
-	fullJSON := "[" + string(raw)
-	endIdx := strings.LastIndex(fullJSON, "]")
-	if endIdx < 0 {
-		return nil, fmt.Errorf("no closing ] in response")
-	}
-
-	var principles []ExtractedPrinciple
-	if err := json.Unmarshal([]byte(fullJSON[:endIdx+1]), &principles); err != nil {
+	principles, err := parsePrinciplesJSON("[" + string(raw))
+	if err != nil {
 		return nil, fmt.Errorf("parse principles: %w", err)
 	}
 
 	return principles, nil
+}
+
+// parsePrinciplesJSON parses a JSON array of principles, recovering partial results
+// from truncated output (e.g., when MaxTokens is hit mid-response).
+func parsePrinciplesJSON(fullJSON string) ([]ExtractedPrinciple, error) {
+	// Try clean parse first — response has a proper closing ]
+	endIdx := strings.LastIndex(fullJSON, "]")
+	if endIdx >= 0 {
+		var principles []ExtractedPrinciple
+		if err := json.Unmarshal([]byte(fullJSON[:endIdx+1]), &principles); err == nil {
+			return principles, nil
+		}
+	}
+
+	// Truncated response — find the last complete JSON object by looking for "}".
+	// Walk backward to find a position where the array parses successfully.
+	lastBrace := strings.LastIndex(fullJSON, "}")
+	for lastBrace > 0 {
+		candidate := strings.TrimRight(fullJSON[:lastBrace+1], ", \n\t") + "]"
+		var principles []ExtractedPrinciple
+		if err := json.Unmarshal([]byte(candidate), &principles); err == nil {
+			return principles, nil
+		}
+		// Try the previous }
+		lastBrace = strings.LastIndex(fullJSON[:lastBrace], "}")
+	}
+
+	return nil, fmt.Errorf("unexpected end of JSON input")
 }
 
 // BatchExtractSession runs the full extraction pipeline on a session transcript.

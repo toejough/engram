@@ -137,6 +137,46 @@ func TestExtractPrinciples_NoEvents(t *testing.T) {
 	}
 }
 
+func TestExtractPrinciples_TruncatedResponse(t *testing.T) {
+	// Simulate Sonnet response truncated mid-JSON (MaxTokens hit)
+	truncatedResponse := `{"principle":"When X, do Y.","evidence":"Session showed X.","category":"debugging"},
+		{"principle":"Always check Z.","evidence":"Z was missed.","category":"testing"},
+		{"principle":"Never skip validat`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"content": []map[string]any{
+				{"text": truncatedResponse},
+			},
+		})
+	}))
+	defer server.Close()
+
+	ext := memory.NewDirectAPIExtractor("test-token",
+		memory.WithBaseURL(server.URL),
+	)
+
+	events := []memory.HaikuEvent{
+		{EventType: "root-cause-discovery", WhatHappened: "Found bug.", WhyItMatters: "Check types."},
+	}
+
+	principles, err := ext.ExtractPrinciples(context.Background(), events)
+	if err != nil {
+		t.Fatalf("should recover partial results, got error: %v", err)
+	}
+
+	// Should recover the 2 complete principles, discarding the truncated 3rd
+	if len(principles) != 2 {
+		t.Fatalf("expected 2 recovered principles, got %d", len(principles))
+	}
+	if principles[0].Category != "debugging" {
+		t.Errorf("principle 0 category: want debugging, got %s", principles[0].Category)
+	}
+	if principles[1].Category != "testing" {
+		t.Errorf("principle 1 category: want testing, got %s", principles[1].Category)
+	}
+}
+
 func TestBatchExtractSession_EndToEnd(t *testing.T) {
 	// Create a minimal session JSONL
 	dir := t.TempDir()
