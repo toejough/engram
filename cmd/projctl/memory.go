@@ -39,6 +39,9 @@ func memoryLearn(args memoryLearnArgs) error {
 	// Wire LLM extractor (unless --no-llm is set)
 	if !args.NoLLM {
 		opts.Extractor = memory.NewLLMExtractor()
+		if opts.Extractor == nil {
+			return fmt.Errorf("LLM extractor unavailable (keychain auth failed); use --no-llm to store without enrichment")
+		}
 	}
 
 	if err := memory.Learn(opts); err != nil {
@@ -306,7 +309,13 @@ func memoryQuery(args memoryQueryArgs) error {
 	// Create LLM extractor for curated tier
 	var extractor memory.LLMExtractor
 	if tier == memory.TierCurated {
-		extractor = memory.NewLLMExtractor()
+		ext := memory.NewLLMExtractor()
+		if ext == nil {
+			// Downgrade to compact — curated requires LLM
+			tier = memory.TierCompact
+		} else {
+			extractor = ext
+		}
 	}
 
 	// Always markdown output

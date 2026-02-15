@@ -57,6 +57,9 @@ func memoryExtractSession(args memoryExtractSessionArgs) error {
 
 	// Wire LLM extractor for enrichment (uses Haiku via direct API)
 	extractor := memory.NewLLMExtractor()
+	if extractor == nil {
+		return fmt.Errorf("LLM extractor unavailable (keychain auth failed); cannot extract session without enrichment")
+	}
 
 	// Call internal ExtractSession function
 	opts := memory.ExtractSessionOpts{

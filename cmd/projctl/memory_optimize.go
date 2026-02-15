@@ -80,6 +80,9 @@ func memoryOptimize(args memoryOptimizeArgs) error {
 	// Wire LLM interfaces via shared instance (unless --no-llm is set)
 	if !args.NoLLM {
 		extractor := memory.NewLLMExtractor()
+		if extractor == nil {
+			return fmt.Errorf("LLM extractor unavailable (keychain auth failed); use --no-llm to run without LLM features")
+		}
 		opts.SkillCompiler = extractor
 		opts.SpecificDetector = extractor
 		opts.Extractor = extractor
@@ -197,7 +200,11 @@ func runInteractiveOptimize(ctx context.Context, memoryRoot, claudeMDPath, skill
 	// Wire LLM extractor (unless --no-llm is set) for refinement proposals (ISSUE-218)
 	var extractor memory.LLMExtractor
 	if !args.NoLLM {
-		extractor = memory.NewLLMExtractor()
+		ext := memory.NewLLMExtractor()
+		if ext == nil {
+			return fmt.Errorf("LLM extractor unavailable (keychain auth failed); use --no-llm to run without LLM features")
+		}
+		extractor = ext
 	}
 
 	// Run interactive optimization
