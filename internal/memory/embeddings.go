@@ -210,6 +210,15 @@ func initEmbeddingsDB(dbPath string) (*sql.DB, error) {
 		archived_at TEXT NOT NULL
 	)`)
 
+	// Create processed_sessions table for batch session learning
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS processed_sessions (
+		session_id   TEXT PRIMARY KEY,
+		project      TEXT NOT NULL,
+		processed_at TEXT NOT NULL,
+		items_found  INTEGER NOT NULL DEFAULT 0,
+		status       TEXT NOT NULL DEFAULT 'success'
+	)`)
+
 	return db, nil
 }
 
