@@ -75,3 +75,33 @@ func RecordSkillUsageForTest(db *sql.DB, slug string, success bool) error {
 func MigrateMemoryGenSkillsForTest(fs FileSystem, skillsDir string) error {
 	return migrateMemoryGenSkills(fs, skillsDir)
 }
+
+// MigrateMemSkillsForTest wraps migrateMemSkills for blackbox testing.
+func MigrateMemSkillsForTest(fs FileSystem, skillsDir string) error {
+	return migrateMemSkills(fs, skillsDir)
+}
+
+// IsGeneratedSkillForTest wraps isGeneratedSkill for blackbox testing.
+func IsGeneratedSkillForTest(name string, generated bool) bool {
+	return isGeneratedSkill(name, generated)
+}
+
+// GenerateTriggerDescriptionForTest wraps generateTriggerDescription for blackbox testing.
+func GenerateTriggerDescriptionForTest(theme, content string) string {
+	return generateTriggerDescription(theme, content)
+}
+
+// GenerateSkillTemplateForTest wraps generateSkillTemplate for blackbox testing.
+func GenerateSkillTemplateForTest(theme, learning string) string {
+	return generateSkillTemplate(theme, learning)
+}
+
+// ParseCompileSkillJSONForTest wraps parseCompileSkillJSON for blackbox testing.
+func ParseCompileSkillJSONForTest(output string) (description, body string, err error) {
+	return parseCompileSkillJSON(output)
+}
+
+// ValidateSkillComplianceForTest wraps ValidateSkillCompliance for blackbox testing.
+func ValidateSkillComplianceForTest(skill *GeneratedSkill) SkillComplianceResult {
+	return ValidateSkillCompliance(skill)
+}

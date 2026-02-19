@@ -414,13 +414,17 @@ func (d *DirectAPIExtractor) CompileSkill(ctx context.Context, theme string, mem
 
 %s
 
-Create a comprehensive SKILL.md content that:
-- Explains the concept clearly
-- Provides actionable guidance
-- Includes specific examples or patterns from the memories
-- Uses markdown formatting
+Create a comprehensive SKILL.md with these sections: Overview, When to Use, Quick Reference, Common Mistakes.
 
-Return ONLY the skill content (markdown), no JSON or wrappers.`, theme, sb.String())
+Return ONLY valid JSON with this exact structure:
+{"description": "Use when <triggering conditions>", "body": "## Overview\n..."}
+
+The "description" must:
+- Start with "Use when"
+- Be under 1024 characters
+- Describe when to invoke this skill (third person, no "I"/"you"/"we")
+
+The "body" must use markdown with the 4 section headers.`, theme, sb.String())
 
 	output, err := d.callAPI(ctx, prompt, 4096)
 	if err != nil {

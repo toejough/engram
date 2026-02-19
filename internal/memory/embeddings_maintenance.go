@@ -445,7 +445,7 @@ func applyPromote(db *sql.DB, skillsDir string, proposal MaintenanceProposal) er
 	slug := slugify(principle)
 	theme := principle
 	skillContent := generateSkillTemplate(theme, content)
-	description := ExtractSkillDescription(skillContent, 1500)
+	description := generateTriggerDescription(theme, skillContent)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &GeneratedSkill{
@@ -461,11 +461,18 @@ func applyPromote(db *sql.DB, skillsDir string, proposal MaintenanceProposal) er
 		UpdatedAt:       now,
 	}
 
+	// Validate compliance before writing
+	compliance := ValidateSkillCompliance(skill)
+	if len(compliance.Issues) > 0 {
+		return fmt.Errorf("skill %q failed compliance validation: %v", slug, compliance.Issues)
+	}
+
 	// Check if skill already exists
 	existing, err := getSkillBySlug(db, slug)
 	if err == nil && existing != nil && !existing.Pruned {
 		// Update existing skill
 		existing.Content = skillContent
+		existing.Description = description
 		existing.SourceMemoryIDs = fmt.Sprintf("[%d]", id)
 		existing.UpdatedAt = now
 		if err := updateSkill(db, existing); err != nil {

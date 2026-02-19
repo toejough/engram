@@ -5,6 +5,7 @@ package memory_test
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -97,6 +98,14 @@ func (m *MigrateMockFS) Rename(oldPath, newPath string) error {
 		delete(m.Directories, oldPath)
 		m.Directories[newPath] = entries
 	}
+	// Move files whose paths are under oldPath to newPath
+	for filePath, content := range m.Files {
+		if strings.HasPrefix(filePath, oldPath+"/") {
+			newFilePath := newPath + filePath[len(oldPath):]
+			m.Files[newFilePath] = content
+			delete(m.Files, filePath)
+		}
+	}
 	return nil
 }
 
@@ -141,8 +150,8 @@ func TestMigrateMemoryGenSkills(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 
 	// Verify renames happened
-	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/foo", "/test/skills/mem-foo"))
-	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/bar", "/test/skills/mem-bar"))
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/foo", "/test/skills/memory-foo"))
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/memory-gen/bar", "/test/skills/memory-bar"))
 
 	// Verify memory-gen directory was removed
 	g.Expect(fs.Removed).To(ContainElement("/test/skills/memory-gen"))
@@ -192,4 +201,97 @@ func TestMigrateMemoryGenSkillsNoOp(t *testing.T) {
 	// Verify nothing was renamed or removed
 	g.Expect(fs.Renamed).To(BeEmpty())
 	g.Expect(fs.Removed).To(BeEmpty())
+}
+
+// ============================================================================
+// T001: migrateMemSkills() — rename mem-{slug}/ to memory-{slug}/
+// ============================================================================
+
+// TestMigrateMemSkills verifies that migrateMemSkills renames mem-foo/ to
+// memory-foo/ and updates name: mem:foo to name: memory.foo in SKILL.md.
+func TestMigrateMemSkills(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MigrateMockFS{
+		Files: map[string][]byte{
+			"/test/skills/mem-foo/SKILL.md": []byte("---\nname: mem:foo\ndescription: Test skill\ngenerated: true\n---\n\n# Foo\n\nContent."),
+			"/test/skills/mem-bar/SKILL.md": []byte("---\nname: mem:bar\ndescription: Another skill\ngenerated: true\n---\n\n# Bar\n\nContent."),
+		},
+		Directories: map[string][]MockDirEntry{
+			"/test/skills": {
+				{name: "mem-foo", isDir: true},
+				{name: "mem-bar", isDir: true},
+				{name: "other-skill", isDir: true},
+			},
+		},
+	}
+
+	err := memory.MigrateMemSkillsForTest(fs, "/test/skills")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify directories were renamed
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/mem-foo", "/test/skills/memory-foo"))
+	g.Expect(fs.Renamed).To(HaveKeyWithValue("/test/skills/mem-bar", "/test/skills/memory-bar"))
+
+	// Verify SKILL.md frontmatter was updated (name: mem:foo → name: memory.foo)
+	fooContent := string(fs.Files["/test/skills/memory-foo/SKILL.md"])
+	g.Expect(fooContent).To(ContainSubstring("name: memory.foo"))
+	g.Expect(fooContent).ToNot(ContainSubstring("name: mem:foo"))
+
+	barContent := string(fs.Files["/test/skills/memory-bar/SKILL.md"])
+	g.Expect(barContent).To(ContainSubstring("name: memory.bar"))
+	g.Expect(barContent).ToNot(ContainSubstring("name: mem:bar"))
+}
+
+// TestMigrateMemSkillsSkipsExisting verifies that migration skips when
+// memory-foo/ already exists (avoids overwriting).
+func TestMigrateMemSkillsSkipsExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MigrateMockFS{
+		Files: map[string][]byte{
+			"/test/skills/mem-foo/SKILL.md":    []byte("---\nname: mem:foo\n---\n\n# Old"),
+			"/test/skills/memory-foo/SKILL.md": []byte("---\nname: memory.foo\n---\n\n# Existing"),
+		},
+		Directories: map[string][]MockDirEntry{
+			"/test/skills": {
+				{name: "mem-foo", isDir: true},
+				{name: "memory-foo", isDir: true},
+			},
+			"/test/skills/memory-foo": {},
+		},
+	}
+
+	err := memory.MigrateMemSkillsForTest(fs, "/test/skills")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify mem-foo was NOT renamed (memory-foo already exists)
+	g.Expect(fs.Renamed).ToNot(HaveKey("/test/skills/mem-foo"))
+
+	// Verify existing memory-foo content preserved
+	g.Expect(string(fs.Files["/test/skills/memory-foo/SKILL.md"])).To(ContainSubstring("# Existing"))
+}
+
+// TestMigrateMemSkillsNoOp verifies no-op when no mem- directories exist.
+func TestMigrateMemSkillsNoOp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MigrateMockFS{
+		Files: map[string][]byte{},
+		Directories: map[string][]MockDirEntry{
+			"/test/skills": {
+				{name: "memory-foo", isDir: true},
+				{name: "other-skill", isDir: true},
+			},
+		},
+	}
+
+	err := memory.MigrateMemSkillsForTest(fs, "/test/skills")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify nothing was renamed
+	g.Expect(fs.Renamed).To(BeEmpty())
 }

@@ -432,7 +432,7 @@ func (a *SkillsApplier) applyPrune(proposal MaintenanceProposal) error {
 
 	// Remove skill directory if SkillsDir is configured
 	if a.opts.SkillsDir != "" {
-		skillDir := filepath.Join(a.opts.SkillsDir, "mem-"+proposal.Target)
+		skillDir := filepath.Join(a.opts.SkillsDir, "memory-"+proposal.Target)
 		if err := os.RemoveAll(skillDir); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to remove skill directory: %w", err)
 		}
@@ -540,7 +540,7 @@ func (a *SkillsApplier) applyConsolidate(proposal MaintenanceProposal) error {
 
 	// Remove skill directory
 	if a.opts.SkillsDir != "" {
-		skillDir := filepath.Join(a.opts.SkillsDir, "mem-"+proposal.Target)
+		skillDir := filepath.Join(a.opts.SkillsDir, "memory-"+proposal.Target)
 		if err := os.RemoveAll(skillDir); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to remove consolidated skill directory: %w", err)
 		}

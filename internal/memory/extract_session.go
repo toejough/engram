@@ -2,11 +2,29 @@ package memory
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
+
+// extractLog writes a timestamped debug line to ~/.claude/memory/extract-session.log.
+func extractLog(format string, args ...any) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	f, err := os.OpenFile(filepath.Join(home, ".claude", "memory", "extract-session.log"),
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s [ExtractSession] %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+}
 
 // ExtractSessionOpts contains the options for session-based extraction.
 type ExtractSessionOpts struct {
@@ -26,6 +44,10 @@ type ExtractSessionOpts struct {
 	// Extractor is an optional LLM extractor for enriching stored learnings.
 	// If nil, learnings are stored without LLM enrichment.
 	Extractor LLMExtractor
+
+	// StartOffset is the byte offset to start reading from in the transcript file.
+	// Used for incremental extraction — skip already-processed content.
+	StartOffset int64
 }
 
 // ExtractSessionResult contains the results of a session extraction operation.
@@ -41,6 +63,10 @@ type ExtractSessionResult struct {
 
 	// ConfidenceDistribution maps confidence levels to counts
 	ConfidenceDistribution map[float64]int
+
+	// EndOffset is the byte offset after the last line read.
+	// Pass this as StartOffset on the next call for incremental extraction.
+	EndOffset int64
 }
 
 // SessionExtractedItem represents a single item extracted from a session transcript.
@@ -162,6 +188,9 @@ func parseTranscriptMessages(messages []map[string]any) []parsedBlock {
 // - Tier A (confidence 1.0): explicit signals like "remember this", corrections, CLAUDE.md edits
 // - Tier B (confidence 0.7): inferred patterns like error→fix sequences, repeated patterns
 func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
+	esStart := time.Now()
+	extractLog("start: %s", filepath.Base(opts.TranscriptPath))
+
 	// Open and read the transcript file
 	file, err := os.Open(opts.TranscriptPath)
 	if err != nil {
@@ -175,14 +204,24 @@ func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
 		ConfidenceDistribution: make(map[float64]int),
 	}
 
+	// Seek to start offset for incremental extraction
+	if opts.StartOffset > 0 {
+		if _, err := file.Seek(opts.StartOffset, 0); err != nil {
+			return nil, fmt.Errorf("failed to seek to offset %d: %w", opts.StartOffset, err)
+		}
+		extractLog("seeking to offset %d", opts.StartOffset)
+	}
+
 	// Read JSONL line by line — use 1MB buffer since transcript lines
 	// can exceed the default 64KB (large tool results, file reads, etc.)
 	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
 	var messages []map[string]any
+	bytesRead := opts.StartOffset
 
 	for scanner.Scan() {
 		line := scanner.Text()
+		bytesRead += int64(len(scanner.Bytes())) + 1 // +1 for newline
 		if line == "" {
 			continue
 		}
@@ -199,25 +238,73 @@ func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("failed to read transcript: %w", err)
 	}
+	result.EndOffset = bytesRead
+	extractLog("parsed %d new messages from offset %d to %d (+%dms)", len(messages), opts.StartOffset, bytesRead, time.Since(esStart).Milliseconds())
+
+	// Nothing new to process
+	if len(messages) == 0 {
+		return result, nil
+	}
 
 	// Parse transcript into normalized blocks
 	blocks := parseTranscriptMessages(messages)
+	extractLog("normalized to %d blocks (+%dms)", len(blocks), time.Since(esStart).Milliseconds())
 
 	// Extract items using multi-tier approach
 	items := extractTierA(blocks, messages) // pass raw messages for file-history-snapshot
+	extractLog("tierA: %d items (+%dms)", len(items), time.Since(esStart).Milliseconds())
 	items = append(items, extractTierB(blocks)...)
+	extractLog("tierB: %d items total (+%dms)", len(items), time.Since(esStart).Milliseconds())
 	items = append(items, extractTierC(blocks, opts.Matcher)...)
+	extractLog("tierC: %d items total (+%dms)", len(items), time.Since(esStart).Milliseconds())
+
+	// Cap items to avoid blowing the Stop hook timeout.
+	// Items are already ordered by tier (A=1.0, B=0.7, C=0.5), so truncating
+	// keeps the highest-confidence items.
+	const maxItems = 10
+	if len(items) > maxItems {
+		items = items[:maxItems]
+	}
+
+	// Batch Extract: get all observations in a single API call (~2s instead of N×1.5s)
+	var observations []*Observation
+	if opts.Extractor != nil {
+		if batcher, ok := opts.Extractor.(interface {
+			ExtractBatch(ctx context.Context, contents []string) ([]*Observation, error)
+		}); ok {
+			contents := make([]string, len(items))
+			for i, item := range items {
+				contents[i] = item.Content
+			}
+			batchStart := time.Now()
+			observations, err = batcher.ExtractBatch(context.Background(), contents)
+			extractLog("ExtractBatch: %d items (%dms)", len(items), time.Since(batchStart).Milliseconds())
+			if err != nil {
+				extractLog("ExtractBatch FAIL: %v", err)
+				observations = nil // fall back to per-item Extract via Learn()
+			}
+		}
+	}
 
 	// Store extracted items using existing memory functions
-	for _, item := range items {
-		if err := Learn(LearnOpts{
+	for i, item := range items {
+		learnStart := time.Now()
+		learnOpts := LearnOpts{
 			Message:    item.Content,
 			MemoryRoot: opts.MemoryRoot,
 			Project:    opts.Project,
 			Extractor:  opts.Extractor,
-		}); err != nil {
+		}
+		// Use precomputed observation if batch succeeded
+		if observations != nil && i < len(observations) && observations[i] != nil {
+			learnOpts.PrecomputedObservation = observations[i]
+		}
+		if err := Learn(learnOpts); err != nil {
 			// Continue on error but mark as partial
 			result.Status = "partial"
+			extractLog("Learn[%d/%d] FAIL (%dms): %v", i+1, len(items), time.Since(learnStart).Milliseconds(), err)
+		} else {
+			extractLog("Learn[%d/%d] ok (%dms)", i+1, len(items), time.Since(learnStart).Milliseconds())
 		}
 
 		// Detect recurrence for corrections (Task 4: self-reinforcing learning)
@@ -245,13 +332,24 @@ func ExtractSession(opts ExtractSessionOpts) (*ExtractSessionResult, error) {
 func extractTierA(blocks []parsedBlock, rawMessages []map[string]any) []SessionExtractedItem {
 	var items []SessionExtractedItem
 
-	// Detect "remember this" phrase in user text blocks
+	// Detect "remember this" phrase in user text blocks.
+	// Skip system-reminder content injected into user messages (skill files, hook output, etc.)
 	for _, block := range blocks {
-		if block.role == "user" && block.blockType == "text" &&
-			strings.Contains(strings.ToLower(block.text), "remember this") {
+		if block.role != "user" || block.blockType != "text" {
+			continue
+		}
+		text := block.text
+		// Strip system-reminder tags and their content — these are injected by hooks/skills,
+		// not typed by the user
+		text = stripSystemReminders(text)
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		if strings.Contains(strings.ToLower(text), "remember this") {
 			items = append(items, SessionExtractedItem{
 				Type:       "explicit-learning",
-				Content:    block.text,
+				Content:    text,
 				Confidence: 1.0,
 			})
 		}
@@ -393,6 +491,9 @@ func containsErrorSignal(text string) bool {
 // Used by Tier C behavioral convention detection.
 type SemanticMatcher interface {
 	FindSimilarMemories(text string, threshold float64, limit int) ([]string, error)
+	// FindSimilarMemoriesBatch queries multiple texts in a single batch, sharing DB/model setup.
+	// Returns a slice parallel to texts where each entry is the matching memories (or nil).
+	FindSimilarMemoriesBatch(texts []string, threshold float64, limit int) ([][]string, error)
 }
 
 // extractTierC extracts low-confidence implicit signal items (confidence 0.5).
@@ -404,13 +505,27 @@ type SemanticMatcher interface {
 // - 3e: Behavioral conventions (assistant text semantically matches existing memories)
 func extractTierC(blocks []parsedBlock, matcher SemanticMatcher) []SessionExtractedItem {
 	var items []SessionExtractedItem
+	tcStart := time.Now()
 
 	items = append(items, extractToolUsagePatterns(blocks)...)
+	extractLog("  tierC.3a toolUsage: %d items (%dms)", len(items), time.Since(tcStart).Milliseconds())
+
+	prevCount := len(items)
 	items = append(items, extractPositiveOutcomes(blocks)...)
+	extractLog("  tierC.3b positiveOutcomes: %d items (%dms)", len(items)-prevCount, time.Since(tcStart).Milliseconds())
+
+	prevCount = len(items)
 	items = append(items, extractBehavioralConsistency(blocks)...)
+	extractLog("  tierC.3c consistency: %d items (%dms)", len(items)-prevCount, time.Since(tcStart).Milliseconds())
+
+	prevCount = len(items)
 	items = append(items, extractSelfCorrectedFailures(blocks)...)
+	extractLog("  tierC.3d selfCorrected: %d items (%dms)", len(items)-prevCount, time.Since(tcStart).Milliseconds())
+
 	if matcher != nil {
+		prevCount = len(items)
 		items = append(items, extractBehavioralConventions(blocks, matcher)...)
+		extractLog("  tierC.3e conventions: %d items (%dms)", len(items)-prevCount, time.Since(tcStart).Milliseconds())
 	} else {
 		fmt.Fprintf(os.Stderr, "SemanticMatcher not configured, skipping behavioral convention detection\n")
 	}
@@ -422,9 +537,8 @@ func extractTierC(blocks []parsedBlock, matcher SemanticMatcher) []SessionExtrac
 // Collects actual command strings for LLM reflection.
 func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 	type cmdStats struct {
-		success  int
-		total    int
-		examples []string // actual full command strings
+		success int
+		total   int
 	}
 	stats := make(map[string]*cmdStats)
 
@@ -442,12 +556,6 @@ func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 			stats[cmd] = &cmdStats{}
 		}
 		stats[cmd].total++
-
-		// Collect actual command for examples
-		fullCmd := extractFullCommand(block.toolInput)
-		if fullCmd != "" && len(stats[cmd].examples) < 5 {
-			stats[cmd].examples = append(stats[cmd].examples, fullCmd)
-		}
 
 		// Check if the next tool_result is successful
 		for j := i + 1; j < len(blocks); j++ {
@@ -470,11 +578,10 @@ func extractToolUsagePatterns(blocks []parsedBlock) []SessionExtractedItem {
 	var items []SessionExtractedItem
 	for cmd, s := range stats {
 		if s.total >= 3 && float64(s.success)/float64(s.total) > 0.5 {
-			examples := strings.Join(s.examples, "\n  - ")
+			// Produce a concise observation, not a raw dump
 			items = append(items, SessionExtractedItem{
-				Type: "tool-usage-pattern",
-				Content: fmt.Sprintf("Frequently used command '%s' (%d/%d successful):\n  - %s",
-					cmd, s.success, s.total, examples),
+				Type:       "tool-usage-pattern",
+				Content:    fmt.Sprintf("Prefer '%s' for this task (used %d times, %d%% success rate)", cmd, s.total, s.success*100/s.total),
 				Confidence: 0.5,
 			})
 		}
@@ -538,17 +645,12 @@ func extractPositiveOutcomes(blocks []parsedBlock) []SessionExtractedItem {
 
 		// Find the preceding tool_use to get the command
 		cmdPrefix := ""
-		fullCmd := ""
 		for j := i - 1; j >= 0; j-- {
 			if blocks[j].blockType == "tool_use" {
 				if blocks[j].toolID == block.toolID || block.toolID == "" {
 					cmdPrefix = extractCommandPrefix(blocks[j].toolInput)
-					fullCmd = extractFullCommand(blocks[j].toolInput)
 					if cmdPrefix == "" {
 						cmdPrefix = blocks[j].toolName
-					}
-					if fullCmd == "" {
-						fullCmd = blocks[j].toolName
 					}
 				}
 				break
@@ -556,7 +658,6 @@ func extractPositiveOutcomes(blocks []parsedBlock) []SessionExtractedItem {
 		}
 		if cmdPrefix == "" {
 			cmdPrefix = "command"
-			fullCmd = "command"
 		}
 
 		if seen[cmdPrefix] {
@@ -565,9 +666,8 @@ func extractPositiveOutcomes(blocks []parsedBlock) []SessionExtractedItem {
 		seen[cmdPrefix] = true
 
 		items = append(items, SessionExtractedItem{
-			Type: "positive-outcome",
-			Content: fmt.Sprintf("Successful outcome:\nCommand: %s\nResult: %s",
-				fullCmd, truncateForItem(block.text, 300)),
+			Type:       "positive-outcome",
+			Content:    fmt.Sprintf("Use '%s' — produces successful results", cmdPrefix),
 			Confidence: 0.5,
 		})
 	}
@@ -597,7 +697,6 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 	type mentionTracker struct {
 		blockIndices []int
 		corrected    bool
-		examples     []string // example text snippets showing usage
 	}
 	mentions := make(map[string]*mentionTracker)
 
@@ -622,10 +721,6 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 						mentions[name] = &mentionTracker{}
 					}
 					mentions[name].blockIndices = append(mentions[name].blockIndices, i)
-					if len(mentions[name].examples) < 3 {
-						mentions[name].examples = append(mentions[name].examples,
-							truncateForItem(block.text, 100))
-					}
 				}
 			}
 		}
@@ -651,11 +746,9 @@ func extractBehavioralConsistency(blocks []parsedBlock) []SessionExtractedItem {
 	var items []SessionExtractedItem
 	for name, tracker := range mentions {
 		if len(tracker.blockIndices) >= 5 && !tracker.corrected {
-			examples := strings.Join(tracker.examples, "\n  - ")
 			items = append(items, SessionExtractedItem{
-				Type: "behavioral-consistency",
-				Content: fmt.Sprintf("Consistent use of '%s' across %d assistant messages (no corrections):\n  - %s",
-					name, len(tracker.blockIndices), examples),
+				Type:       "behavioral-consistency",
+				Content:    fmt.Sprintf("Prefer '%s' — used consistently (%d times) without correction", name, len(tracker.blockIndices)),
 				Confidence: 0.5,
 			})
 		}
@@ -678,7 +771,6 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 			continue
 		}
 
-		errorText := blocks[i].text
 		errorToolName := ""
 		failedCommand := ""
 
@@ -701,8 +793,6 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 				break // User intervened — this is Tier B, not self-corrected
 			}
 			if blocks[j].blockType == "tool_result" && !blocks[j].isError && !containsErrorSignal(blocks[j].text) {
-				fixResult := blocks[j].text
-
 				// Check it's the same tool type if we know it
 				if errorToolName != "" {
 					// Find the tool_use for this result
@@ -710,31 +800,19 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 						if blocks[k].blockType == "tool_use" && blocks[k].toolName == errorToolName {
 							if !hasUserText {
 								fixCommand := extractFullCommand(blocks[k].toolInput)
-								content := fmt.Sprintf(
-									"Self-corrected %s failure:\nFailed: %s\nError: %s\nFix: %s\nResult: %s",
-									errorToolName,
-									failedCommand,
-									truncateForItem(errorText, 300),
-									fixCommand,
-									truncateForItem(fixResult, 200))
 								items = append(items, SessionExtractedItem{
 									Type:       "self-corrected-failure",
-									Content:    content,
+									Content:    fmt.Sprintf("When '%s' fails, fix: '%s'", failedCommand, fixCommand),
 									Confidence: 0.5,
 								})
 							}
 							break
 						}
 					}
-				} else if !hasUserText {
-					content := fmt.Sprintf(
-						"Self-corrected failure:\nFailed: %s\nError: %s\nResult: %s",
-						failedCommand,
-						truncateForItem(errorText, 300),
-						truncateForItem(fixResult, 200))
+				} else if !hasUserText && failedCommand != "" {
 					items = append(items, SessionExtractedItem{
 						Type:       "self-corrected-failure",
-						Content:    content,
+						Content:    fmt.Sprintf("'%s' may fail — self-corrected without user help", failedCommand),
 						Confidence: 0.5,
 					})
 				}
@@ -747,12 +825,14 @@ func extractSelfCorrectedFailures(blocks []parsedBlock) []SessionExtractedItem {
 
 // extractBehavioralConventions (3e) detects assistant text that semantically matches
 // existing memories. Uses the memory corpus as the convention library.
+// Uses batch FindSimilarMemories to avoid per-call DB/model overhead.
 func extractBehavioralConventions(blocks []parsedBlock, matcher SemanticMatcher) []SessionExtractedItem {
-	// Track which memories are matched by distinct assistant text blocks
-	type memoryMatch struct {
-		blockIndices []int
+	// Collect qualifying texts and their block indices
+	type candidate struct {
+		text     string
+		blockIdx int
 	}
-	matches := make(map[string]*memoryMatch)
+	var candidates []candidate
 
 	for i, block := range blocks {
 		if block.role != "assistant" || block.blockType != "text" {
@@ -778,17 +858,36 @@ func extractBehavioralConventions(blocks []parsedBlock, matcher SemanticMatcher)
 			continue
 		}
 
-		// Find similar memories
-		memories, err := matcher.FindSimilarMemories(block.text, 0.7, 3)
-		if err != nil || len(memories) == 0 {
-			continue
-		}
+		candidates = append(candidates, candidate{text: block.text, blockIdx: i})
+	}
 
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Batch query all candidate texts at once (single DB open/close)
+	texts := make([]string, len(candidates))
+	for i, c := range candidates {
+		texts[i] = c.text
+	}
+
+	batchResults, err := matcher.FindSimilarMemoriesBatch(texts, 0.7, 3)
+	if err != nil {
+		return nil
+	}
+
+	// Track which memories are matched by distinct assistant text blocks
+	type memoryMatch struct {
+		blockIndices []int
+	}
+	matches := make(map[string]*memoryMatch)
+
+	for i, memories := range batchResults {
 		for _, mem := range memories {
 			if matches[mem] == nil {
 				matches[mem] = &memoryMatch{}
 			}
-			matches[mem].blockIndices = append(matches[mem].blockIndices, i)
+			matches[mem].blockIndices = append(matches[mem].blockIndices, candidates[i].blockIdx)
 		}
 	}
 
@@ -820,6 +919,26 @@ func extractBehavioralConventions(blocks []parsedBlock, matcher SemanticMatcher)
 }
 
 // truncateForItem truncates text for inclusion in an extracted item.
+// stripSystemReminders removes <system-reminder>...</system-reminder> blocks from text.
+// These are injected by hooks and skills into user messages and are not user-authored content.
+func stripSystemReminders(text string) string {
+	result := text
+	for {
+		start := strings.Index(result, "<system-reminder>")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(result[start:], "</system-reminder>")
+		if end == -1 {
+			// Unclosed tag — strip from start to end of string
+			result = result[:start]
+			break
+		}
+		result = result[:start] + result[start+end+len("</system-reminder>"):]
+	}
+	return result
+}
+
 func truncateForItem(text string, maxLen int) string {
 	if len(text) <= maxLen {
 		return text

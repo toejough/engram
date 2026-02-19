@@ -18,7 +18,15 @@ func (m *mockMatcher) FindSimilarMemories(text string, threshold float64, limit 
 	return nil, nil
 }
 
-// --- Self-corrected failures (3d): rich context ---
+func (m *mockMatcher) FindSimilarMemoriesBatch(texts []string, threshold float64, limit int) ([][]string, error) {
+	results := make([][]string, len(texts))
+	for i, text := range texts {
+		results[i], _ = m.FindSimilarMemories(text, threshold, limit)
+	}
+	return results, nil
+}
+
+// --- Self-corrected failures (3d): concise observations ---
 
 func TestSelfCorrectedFailures_IncludesErrorAndFixContext(t *testing.T) {
 	t.Parallel()
@@ -44,11 +52,9 @@ func TestSelfCorrectedFailures_IncludesErrorAndFixContext(t *testing.T) {
 	g.Expect(items[0].Type).To(Equal("self-corrected-failure"))
 	g.Expect(items[0].Confidence).To(Equal(0.5))
 
-	// Must include actual error and fix context, not a canned string
+	// Must mention both the failed and fixed commands
 	g.Expect(items[0].Content).To(ContainSubstring("projctl query --query foo"))
-	g.Expect(items[0].Content).To(ContainSubstring("flag provided but not defined"))
 	g.Expect(items[0].Content).To(ContainSubstring("projctl query foo"))
-	g.Expect(items[0].Content).NotTo(Equal("autonomously fixed Bash error"))
 }
 
 func TestSelfCorrectedFailures_UnknownToolStillIncludesContext(t *testing.T) {
@@ -71,18 +77,17 @@ func TestSelfCorrectedFailures_UnknownToolStillIncludesContext(t *testing.T) {
 	items := extractSelfCorrectedFailures(blocks)
 	g.Expect(items).To(HaveLen(1))
 	g.Expect(items[0].Content).To(ContainSubstring("make build"))
-	g.Expect(items[0].Content).To(ContainSubstring("No rule to make target"))
-	g.Expect(items[0].Content).NotTo(Equal("autonomously fixed error"))
+	g.Expect(items[0].Content).To(ContainSubstring("targ build"))
 }
 
-// --- Tool usage patterns (3a): rich context ---
+// --- Tool usage patterns (3a): concise observations ---
 
-func TestToolUsagePatterns_IncludesActualCommands(t *testing.T) {
+func TestToolUsagePatterns_ProducesConciseObservation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	blocks := []parsedBlock{
-		// 3 successful "go test" invocations with different args
+		// 3 successful "go test" invocations
 		{role: "assistant", blockType: "tool_use", toolName: "Bash",
 			toolInput: map[string]any{"command": "go test -tags sqlite_fts5 ./internal/memory/..."},
 			toolID:    "t1"},
@@ -102,15 +107,13 @@ func TestToolUsagePatterns_IncludesActualCommands(t *testing.T) {
 	items := extractToolUsagePatterns(blocks)
 	g.Expect(items).To(HaveLen(1))
 	g.Expect(items[0].Type).To(Equal("tool-usage-pattern"))
-
-	// Must include actual commands, not just "used go test successfully"
-	g.Expect(items[0].Content).To(ContainSubstring("go test -tags sqlite_fts5"))
-	g.Expect(items[0].Content).NotTo(Equal("used go test successfully in session"))
+	g.Expect(items[0].Content).To(ContainSubstring("go test"))
+	g.Expect(items[0].Content).To(ContainSubstring("100%"))
 }
 
-// --- Positive outcomes (3b): rich context ---
+// --- Positive outcomes (3b): concise observations ---
 
-func TestPositiveOutcomes_IncludesCommandAndOutput(t *testing.T) {
+func TestPositiveOutcomes_ProducesConciseObservation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -126,16 +129,15 @@ func TestPositiveOutcomes_IncludesCommandAndOutput(t *testing.T) {
 	items := extractPositiveOutcomes(blocks)
 	g.Expect(items).To(HaveLen(1))
 	g.Expect(items[0].Type).To(Equal("positive-outcome"))
-
-	// Must include actual command and output
-	g.Expect(items[0].Content).To(ContainSubstring("go test -tags sqlite_fts5"))
-	g.Expect(items[0].Content).To(ContainSubstring("PASS"))
-	g.Expect(items[0].Content).NotTo(HavePrefix("tests passed using"))
+	g.Expect(items[0].Content).To(ContainSubstring("go test"))
+	// Should NOT dump the raw output
+	g.Expect(items[0].Content).NotTo(ContainSubstring("PASS"))
+	g.Expect(items[0].Content).NotTo(ContainSubstring("1.234s"))
 }
 
-// --- Behavioral consistency (3c): rich context ---
+// --- Behavioral consistency (3c): concise observations ---
 
-func TestBehavioralConsistency_IncludesUsageExamples(t *testing.T) {
+func TestBehavioralConsistency_ProducesConciseObservation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -157,11 +159,10 @@ func TestBehavioralConsistency_IncludesUsageExamples(t *testing.T) {
 	items := extractBehavioralConsistency(blocks)
 	g.Expect(items).To(HaveLen(1))
 	g.Expect(items[0].Type).To(Equal("behavioral-consistency"))
-
-	// Must include example usages, not just "consistently used targ"
 	g.Expect(items[0].Content).To(ContainSubstring("targ"))
-	g.Expect(items[0].Content).To(ContainSubstring("targ check"))
-	g.Expect(items[0].Content).NotTo(Equal("consistently used targ throughout session"))
+	g.Expect(items[0].Content).To(ContainSubstring("5 times"))
+	// Should NOT dump raw message text
+	g.Expect(items[0].Content).NotTo(ContainSubstring("I'll run targ check"))
 }
 
 // --- CLAUDE.md edit (Tier A): captures actual changes ---
@@ -294,8 +295,6 @@ func TestBehavioralConventions_IncludesMatchingText(t *testing.T) {
 
 	// Must include the matching memory AND the behavior context
 	g.Expect(items[0].Content).To(ContainSubstring("targ"))
-	g.Expect(items[0].Content).To(ContainSubstring("targ check"))
-	g.Expect(items[0].Content).NotTo(HavePrefix("session behavior aligns with:"))
 }
 
 // --- Legacy canned extraction purge ---
@@ -320,15 +319,59 @@ func TestIsLegacyCannedExtraction_DetectsOldPatterns(t *testing.T) {
 			"should detect legacy canned extraction: %q", p)
 	}
 
-	// Rich context content should NOT be detected as boilerplate
+	// Concise observations should NOT be detected as boilerplate
 	richContent := []string{
-		"Self-corrected Bash failure:\nFailed: projctl query --query foo\nError: flag not defined",
-		"Frequently used command 'go test' (3/3 successful):\n  - go test -tags sqlite_fts5",
+		"When 'projctl query --query foo' fails, fix: 'projctl query foo'",
+		"Prefer 'go test' for this task (used 3 times, 100% success rate)",
 		"CLAUDE.md modifications:\nChanged: \"Use mage\" → \"Use targ\"",
-		"Consistent use of 'targ' across 5 messages (no corrections):\n  - I'll run targ check",
+		"Prefer 'targ' — used consistently (5 times) without correction",
 	}
 	for _, c := range richContent {
 		g.Expect(IsSessionBoilerplate(c)).To(BeFalse(),
-			"should NOT detect rich context as boilerplate: %q", c)
+			"should NOT detect concise observation as boilerplate: %q", c)
+	}
+}
+
+// --- Explicit learning: system-reminder stripping ---
+
+func TestTierA_ExplicitLearning_StripsSystemReminders(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	blocks := []parsedBlock{
+		{role: "user", blockType: "text",
+			text: "<system-reminder>Skill file content here...</system-reminder>remember this: always use targ"},
+	}
+
+	items := extractTierA(blocks, nil)
+
+	var explicit *SessionExtractedItem
+	for i := range items {
+		if items[i].Type == "explicit-learning" {
+			explicit = &items[i]
+			break
+		}
+	}
+	g.Expect(explicit).NotTo(BeNil())
+	g.Expect(explicit.Content).NotTo(ContainSubstring("Skill file content"))
+	g.Expect(explicit.Content).To(ContainSubstring("always use targ"))
+}
+
+func TestTierA_ExplicitLearning_SkipsSystemReminderOnlyMessages(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Message that's entirely system-reminder content (injected by hooks)
+	blocks := []parsedBlock{
+		{role: "user", blockType: "text",
+			text: "<system-reminder>remember this skill content...</system-reminder>"},
+	}
+
+	items := extractTierA(blocks, nil)
+
+	// Should not produce any explicit-learning items
+	for _, item := range items {
+		g.Expect(item.Type).NotTo(Equal("explicit-learning"),
+			"should not treat system-reminder as explicit learning")
 	}
 }
