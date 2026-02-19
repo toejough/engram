@@ -113,7 +113,7 @@ func TestE2EOptimizeCreatesSkillAndQueryReturns(t *testing.T) {
 	content, err := os.ReadFile(skillFile)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("---"))
-	g.Expect(string(content)).To(ContainSubstring("mem:"))
+	g.Expect(string(content)).To(ContainSubstring("memory."))
 	g.Expect(string(content)).To(ContainSubstring("confidence:"))
 	g.Expect(string(content)).To(ContainSubstring("generated: true"))
 }

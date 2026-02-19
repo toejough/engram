@@ -70,6 +70,10 @@ type LearnOpts struct {
 	Type       string // "correction", "reflection", or empty for default
 	MemoryRoot string
 	Extractor  LLMExtractor // Optional LLM extractor for structured knowledge extraction (ISSUE-188)
+
+	// PrecomputedObservation skips the Extract() API call when set.
+	// Used by batch extraction to avoid redundant per-item API calls.
+	PrecomputedObservation *Observation
 }
 
 // Learn stores a learning in the memory index.
@@ -220,6 +224,15 @@ func isLegacyCannedExtraction(s string) bool {
 	case strings.HasPrefix(lower, "tests passed using "):
 		return true
 	case strings.HasPrefix(lower, "session behavior aligns with:"):
+		return true
+	// Old verbose formats (pre-concise extractors)
+	case strings.HasPrefix(lower, "frequently used command"):
+		return true
+	case strings.HasPrefix(lower, "successful outcome:\ncommand:"):
+		return true
+	case strings.HasPrefix(lower, "consistent use of '") && strings.Contains(lower, "across") && strings.Contains(lower, "messages"):
+		return true
+	case strings.HasPrefix(lower, "self-corrected") && strings.Contains(lower, "failure:\nfailed:"):
 		return true
 	}
 	return false

@@ -42,7 +42,7 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 	var creds struct {
 		ClaudeAiOauth struct {
 			AccessToken string `json:"accessToken"`
-			ExpiresAt   string `json:"expiresAt"`
+			ExpiresAt   any    `json:"expiresAt"`
 		} `json:"claudeAiOauth"`
 	}
 	if err := json.Unmarshal(out, &creds); err != nil {
@@ -52,13 +52,23 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("%w: no accessToken in keychain credentials", ErrAuthUnavailable)
 	}
 
-	// Check expiry if present — keychain stores as Unix millis or RFC3339
-	if creds.ClaudeAiOauth.ExpiresAt != "" {
+	// Check expiry if present — keychain stores as Unix millis (number or string) or RFC3339
+	if creds.ClaudeAiOauth.ExpiresAt != nil {
+		var expiresAtStr string
+		switch v := creds.ClaudeAiOauth.ExpiresAt.(type) {
+		case string:
+			expiresAtStr = v
+		case float64:
+			expiresAtStr = strconv.FormatInt(int64(v), 10)
+		}
+
 		var expiry time.Time
-		if ms, err := strconv.ParseInt(creds.ClaudeAiOauth.ExpiresAt, 10, 64); err == nil {
-			expiry = time.UnixMilli(ms)
-		} else if t, err := time.Parse(time.RFC3339, creds.ClaudeAiOauth.ExpiresAt); err == nil {
-			expiry = t
+		if expiresAtStr != "" {
+			if ms, err := strconv.ParseInt(expiresAtStr, 10, 64); err == nil {
+				expiry = time.UnixMilli(ms)
+			} else if t, err := time.Parse(time.RFC3339, expiresAtStr); err == nil {
+				expiry = t
+			}
 		}
 		if !expiry.IsZero() && time.Now().After(expiry) {
 			return "", fmt.Errorf("%w: token expired at %s", ErrAuthUnavailable, expiry.Format(time.RFC3339))

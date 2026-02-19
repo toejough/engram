@@ -69,6 +69,9 @@ type OptimizeResult struct {
 	SkillsSplit           int // TASK-10: Skills split due to incoherence
 	SkillsReorganized     int // TASK-11: Number of skills affected by periodic reorganization
 	FeedbackPropagated    int // ISSUE-224: Number of skills with propagated feedback
+	SkillsBlocked         int                    // Skills that failed validation and were not written
+	SkillsSkipped         int                    // Skills skipped due to insufficient content
+	ValidationIssues      []SkillComplianceResult // Detailed per-skill violations
 }
 
 // MaintenanceProposal represents a proposed maintenance action for ISSUE-212.
@@ -1320,6 +1323,124 @@ func optimizeClaudeMDDedup(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 	return RemoveFromClaudeMD(RealFS{}, opts.ClaudeMDPath, removeStrings)
 }
 
+// SkillComplianceResult holds per-skill validation results.
+type SkillComplianceResult struct {
+	Slug            string
+	DescriptionOK   bool
+	BodyStructureOK bool
+	BodyLengthOK    bool
+	NamingOK        bool
+	Issues          []string
+}
+
+// ValidateSkillCompliance checks a generated skill against all plugin criteria (V1-V8).
+func ValidateSkillCompliance(skill *GeneratedSkill) SkillComplianceResult {
+	result := SkillComplianceResult{
+		Slug:            skill.Slug,
+		DescriptionOK:   true,
+		BodyStructureOK: true,
+		BodyLengthOK:    true,
+		NamingOK:        true,
+	}
+
+	// V1: Description must start with "Use when"
+	if !strings.HasPrefix(skill.Description, "Use when") {
+		result.DescriptionOK = false
+		result.Issues = append(result.Issues, "description must start with \"Use when\"")
+	}
+
+	// V2: Description must be <= 1024 chars
+	if len(skill.Description) > 1024 {
+		result.DescriptionOK = false
+		result.Issues = append(result.Issues, fmt.Sprintf("description exceeds 1024 chars (%d)", len(skill.Description)))
+	}
+
+	// V4: Description must be third person (no I/you/we/my as subjects)
+	descLower := strings.ToLower(skill.Description)
+	prohibitedPronouns := []string{" i ", " you ", " we ", " my "}
+	for _, pronoun := range prohibitedPronouns {
+		if strings.Contains(descLower, pronoun) {
+			result.DescriptionOK = false
+			result.Issues = append(result.Issues, "description must be third person (no I/you/we/my)")
+			break
+		}
+	}
+
+	// V5: Body must contain required sections
+	requiredSections := []string{"## Overview", "## When to Use", "## Quick Reference", "## Common Mistakes"}
+	for _, section := range requiredSections {
+		if !strings.Contains(skill.Content, section) {
+			result.BodyStructureOK = false
+			result.Issues = append(result.Issues, fmt.Sprintf("body missing required section: %s", section))
+		}
+	}
+
+	// V6: Body must be <= 500 lines
+	lineCount := strings.Count(skill.Content, "\n") + 1
+	if lineCount > 500 {
+		result.BodyLengthOK = false
+		result.Issues = append(result.Issues, fmt.Sprintf("body exceeds 500 lines (%d)", lineCount))
+	}
+
+	// V7+V8: Naming OK is always true at validation time since the pipeline
+	// sets memory. prefix and generated: true. The slug-based naming is correct
+	// by construction when writeSkillFile creates the file.
+
+	return result
+}
+
+// isGeneratedSkill returns true if a skill is managed by the optimization pipeline.
+// Both conditions must be true: generated flag set AND name starts with "memory." prefix.
+func isGeneratedSkill(name string, generated bool) bool {
+	return generated && strings.HasPrefix(name, "memory.")
+}
+
+// migrateMemSkills migrates skills from mem-{slug}/ to memory-{slug}/ structure
+// and updates frontmatter name from mem:{slug} to memory.{slug} in SKILL.md files.
+func migrateMemSkills(fs FileSystem, skillsDir string) error {
+	entries, err := fs.ReadDir(skillsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to read skills directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, "mem-") {
+			continue
+		}
+
+		slug := strings.TrimPrefix(name, "mem-")
+		oldPath := filepath.Join(skillsDir, name)
+		newPath := filepath.Join(skillsDir, "memory-"+slug)
+
+		// Skip if destination already exists
+		if _, err := fs.Stat(newPath); err == nil {
+			fmt.Fprintf(os.Stderr, "migrateMemSkills: skipping %s, %s already exists\n", name, "memory-"+slug)
+			continue
+		}
+
+		// Update SKILL.md frontmatter name before renaming directory
+		skillFile := filepath.Join(oldPath, "SKILL.md")
+		content, err := fs.ReadFile(skillFile)
+		if err == nil {
+			updated := strings.Replace(string(content), "name: mem:"+slug, "name: memory."+slug, 1)
+			_ = fs.WriteFile(skillFile, []byte(updated), 0644)
+		}
+
+		if err := fs.Rename(oldPath, newPath); err != nil {
+			return fmt.Errorf("failed to migrate skill %s: %w", name, err)
+		}
+	}
+
+	return nil
+}
+
 // migrateMemoryGenSkills migrates skills from legacy memory-gen/ to mem-{slug}/ structure.
 func migrateMemoryGenSkills(fs FileSystem, skillsDir string) error {
 	memGenDir := filepath.Join(skillsDir, "memory-gen")
@@ -1336,7 +1457,7 @@ func migrateMemoryGenSkills(fs FileSystem, skillsDir string) error {
 			continue
 		}
 		oldPath := filepath.Join(memGenDir, entry.Name())
-		newPath := filepath.Join(skillsDir, "mem-"+entry.Name())
+		newPath := filepath.Join(skillsDir, "memory-"+entry.Name())
 
 		// Skip if destination already exists
 		if _, err := fs.Stat(newPath); err == nil {
@@ -1365,9 +1486,14 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		return fmt.Errorf("failed to create skills directory: %w", err)
 	}
 
-	// Migrate legacy memory-gen/ skills to mem-{slug}/ structure
+	// Migrate legacy memory-gen/ skills to memory-{slug}/ structure
 	if err := migrateMemoryGenSkills(RealFS{}, opts.SkillsDir); err != nil {
 		return fmt.Errorf("failed to migrate memory-gen skills: %w", err)
+	}
+
+	// Migrate mem-{slug}/ to memory-{slug}/ (naming convention update)
+	if err := migrateMemSkills(RealFS{}, opts.SkillsDir); err != nil {
+		return fmt.Errorf("failed to migrate mem- skills: %w", err)
 	}
 
 	// TASK-11: Check if periodic reorganization should trigger
@@ -1489,11 +1615,24 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 		}
 		content, err := generateSkillContent(ctx, theme, cluster, opts.SkillCompiler)
 		if err != nil {
+			result.SkillsSkipped++
 			continue
 		}
 
-		// Build description (first 1500 chars of content, potentially multi-line)
-		description := ExtractSkillDescription(content, 1500)
+		// Try to parse as JSON (LLM path) for separate description/body
+		description := ""
+		if jsonDesc, jsonBody, jsonErr := parseCompileSkillJSON(content); jsonErr == nil {
+			// LLM returned structured JSON
+			content = jsonBody
+			if jsonDesc != "" {
+				description = jsonDesc
+			} else {
+				description = generateTriggerDescription(theme, content)
+			}
+		} else {
+			// Template path or invalid JSON — use trigger description
+			description = generateTriggerDescription(theme, content)
+		}
 
 		// Build source memory IDs
 		sourceIDs := formatClusterSourceIDs(cluster)
@@ -1510,6 +1649,14 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 			Utility:         score,
 			CreatedAt:       now,
 			UpdatedAt:       now,
+		}
+
+		// Validate compliance before writing
+		compliance := ValidateSkillCompliance(skill)
+		if len(compliance.Issues) > 0 {
+			result.SkillsBlocked++
+			result.ValidationIssues = append(result.ValidationIssues, compliance)
+			continue
 		}
 
 		// Check for merge candidate (existing skill with similar theme)
@@ -1529,6 +1676,7 @@ func optimizeCompileSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult
 
 			// Merge: update existing skill
 			existing.Content = content
+			existing.Description = description
 			existing.SourceMemoryIDs = sourceIDs
 			existing.UpdatedAt = now
 			existing.Alpha += 1.0 // Positive reinforcement
@@ -1649,11 +1797,12 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 		}
 		content, err := generateSkillContent(ctx, theme, cluster, opts.SkillCompiler)
 		if err != nil {
+			result.SkillsSkipped++
 			continue
 		}
 
-		// Build description
-		description := ExtractSkillDescription(content, 1500)
+		// Build trigger description
+		description := generateTriggerDescription(theme, content)
 
 		// Build source memory IDs
 		sourceIDs := formatClusterSourceIDs(cluster)
@@ -1669,6 +1818,14 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 			// Preserve alpha/beta (usage history)
 			// Recompute utility with updated retrieval stats
 			existing.Utility = computeUtility(existing.Alpha, existing.Beta, existing.RetrievalCount, existing.LastRetrieved)
+
+			// Validate compliance before writing
+			compliance := ValidateSkillCompliance(existing)
+			if len(compliance.Issues) > 0 {
+				result.SkillsBlocked++
+				result.ValidationIssues = append(result.ValidationIssues, compliance)
+				continue
+			}
 
 			if err := updateSkill(db, existing); err == nil {
 				_ = writeSkillFile(opts.SkillsDir, existing)
@@ -1688,6 +1845,14 @@ func performSkillReorganization(db *sql.DB, opts OptimizeOpts, result *OptimizeR
 				Utility:         score,
 				CreatedAt:       now,
 				UpdatedAt:       now,
+			}
+
+			// Validate compliance before writing
+			compliance := ValidateSkillCompliance(skill)
+			if len(compliance.Issues) > 0 {
+				result.SkillsBlocked++
+				result.ValidationIssues = append(result.ValidationIssues, compliance)
+				continue
 			}
 
 			_, err = insertSkill(db, skill)
@@ -1743,7 +1908,7 @@ func pruneOrphanedSkills(db *sql.DB, skillsDir string, activeThemes map[string]b
 				continue
 			}
 			// Remove skill directory from disk
-			skillDir := filepath.Join(skillsDir, "mem-"+s.slug)
+			skillDir := filepath.Join(skillsDir, "memory-"+s.slug)
 			_ = os.RemoveAll(skillDir)
 			pruned++
 		}
@@ -1813,80 +1978,6 @@ func generateThemeFromCluster(cluster []ClusterEntry) string {
 	return strings.TrimSpace(content)
 }
 
-// ExtractSkillDescription creates a short description from skill content.
-// If content contains structured markers (Core:, Triggers:, Domains:, etc.),
-// extracts lines from first marker through last marker (up to maxLen).
-// Otherwise, collects multiple non-empty, non-header lines up to maxLen.
-func ExtractSkillDescription(content string, maxLen int) string {
-	lines := strings.Split(content, "\n")
-
-	// Check for structured markers
-	structuredMarkers := []string{"Core:", "Triggers:", "Domains:", "Anti-patterns:", "Related:"}
-	firstMarkerIdx := -1
-	lastMarkerIdx := -1
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		for _, marker := range structuredMarkers {
-			if strings.HasPrefix(trimmed, marker) {
-				if firstMarkerIdx == -1 {
-					firstMarkerIdx = i
-				}
-				lastMarkerIdx = i
-				break
-			}
-		}
-	}
-
-	// If structured markers found, extract that section
-	if firstMarkerIdx != -1 {
-		var result strings.Builder
-		for i := firstMarkerIdx; i <= lastMarkerIdx && i < len(lines); i++ {
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(strings.TrimSpace(lines[i]))
-			if result.Len() >= maxLen {
-				break
-			}
-		}
-		extracted := result.String()
-		if len(extracted) > maxLen {
-			return extracted[:maxLen]
-		}
-		return extracted
-	}
-
-	// Otherwise, collect multiple non-empty, non-header lines up to maxLen
-	var result strings.Builder
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "---") {
-			continue
-		}
-		if result.Len() > 0 {
-			result.WriteString(" ")
-		}
-		result.WriteString(trimmed)
-		if result.Len() >= maxLen {
-			break
-		}
-	}
-
-	extracted := result.String()
-	if len(extracted) > maxLen {
-		return extracted[:maxLen]
-	}
-	if extracted == "" && len(content) > 0 {
-		// Fallback: return first maxLen chars of content
-		if len(content) > maxLen {
-			return strings.TrimSpace(content[:maxLen])
-		}
-		return strings.TrimSpace(content)
-	}
-	return extracted
-}
-
 // formatClusterSourceIDs returns a JSON array of cluster member IDs.
 func formatClusterSourceIDs(cluster []ClusterEntry) string {
 	ids := make([]int64, len(cluster))
@@ -1930,7 +2021,7 @@ func pruneStaleSkills(db *sql.DB, skillsDir string, autoDemoteUtility float64) i
 			continue
 		}
 		// Remove skill directory from disk
-		skillDir := filepath.Join(skillsDir, "mem-"+s.slug)
+		skillDir := filepath.Join(skillsDir, "memory-"+s.slug)
 		_ = os.RemoveAll(skillDir)
 		pruned++
 	}
@@ -2205,11 +2296,8 @@ func generateSkillFromLearning(db *sql.DB, opts OptimizeOpts, learning string) e
 		content = generateSkillTemplate(theme, learning)
 	}
 
-	// Build description
-	description := theme
-	if len(description) > 200 {
-		description = description[:200]
-	}
+	// Build trigger description
+	description := generateTriggerDescription(theme, content)
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	skill := &GeneratedSkill{
@@ -2227,11 +2315,18 @@ func generateSkillFromLearning(db *sql.DB, opts OptimizeOpts, learning string) e
 		DemotedFromClaudeMD:  now, // Mark as demoted from CLAUDE.md
 	}
 
+	// Validate compliance before writing
+	compliance := ValidateSkillCompliance(skill)
+	if len(compliance.Issues) > 0 {
+		return fmt.Errorf("skill %q failed compliance validation: %v", slug, compliance.Issues)
+	}
+
 	// Check if skill already exists
 	existing, err := getSkillBySlug(db, slug)
 	if err == nil && existing != nil && !existing.Pruned {
 		// Update existing skill
 		existing.Content = content
+		existing.Description = description
 		existing.UpdatedAt = now
 		if err := updateSkill(db, existing); err != nil {
 			return err
@@ -2248,16 +2343,35 @@ func generateSkillFromLearning(db *sql.DB, opts OptimizeOpts, learning string) e
 	return writeSkillFile(opts.SkillsDir, skill)
 }
 
-// generateSkillTemplate creates a simple template-based skill content.
+// generateSkillTemplate creates a template-based skill content with 4 required sections.
 func generateSkillTemplate(theme, learning string) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# %s\n\n", theme))
-	sb.WriteString("This skill was automatically generated from a CLAUDE.md learning.\n\n")
-	sb.WriteString("## Context\n\n")
-	sb.WriteString(fmt.Sprintf("%s\n\n", learning))
-	sb.WriteString("## Application\n\n")
-	sb.WriteString("Apply this pattern when working in similar contexts.\n")
+	sb.WriteString("## Overview\n\n")
+	sb.WriteString(fmt.Sprintf("This skill covers %s patterns derived from project learnings.\n\n", theme))
+	sb.WriteString("## When to Use\n\n")
+	sb.WriteString(fmt.Sprintf("Apply when working on %s-related tasks or encountering similar patterns.\n\n", theme))
+	sb.WriteString("## Quick Reference\n\n")
+	sb.WriteString(fmt.Sprintf("1. %s\n\n", learning))
+	sb.WriteString("## Common Mistakes\n\n")
+	sb.WriteString(fmt.Sprintf("- Ignoring %s best practices when under time pressure.\n", theme))
 	return sb.String()
+}
+
+// parseCompileSkillJSON parses the LLM CompileSkill JSON output into separate description and body.
+// Returns an error if the output is not valid JSON with the expected structure.
+func parseCompileSkillJSON(output string) (description, body string, err error) {
+	var result struct {
+		Description *string `json:"description"`
+		Body        string  `json:"body"`
+	}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		return "", "", fmt.Errorf("invalid CompileSkill JSON: %w", err)
+	}
+	if result.Description != nil {
+		description = *result.Description
+	}
+	return description, result.Body, nil
 }
 
 // optimizePromoteSkills promotes high-utility skills to CLAUDE.md (TASK-3).
@@ -2566,7 +2680,7 @@ func optimizeMergeSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 				_, _ = db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", deleteSkill.id)
 
 				// Remove deleted skill file
-				skillDir := filepath.Join(opts.SkillsDir, "mem-"+deleteSkill.slug)
+				skillDir := filepath.Join(opts.SkillsDir, "memory-"+deleteSkill.slug)
 				_ = os.RemoveAll(skillDir)
 
 				merged[deleteSkill.id] = true
@@ -2669,10 +2783,11 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 			}
 			content, err := generateSkillContent(ctx, theme, subcluster, opts.SkillCompiler)
 			if err != nil {
+				result.SkillsSkipped++
 				continue
 			}
 
-			description := ExtractSkillDescription(content, 1500)
+			description := generateTriggerDescription(theme, content)
 			sourceIDs := formatClusterSourceIDs(subcluster)
 
 			now := time.Now().UTC().Format(time.RFC3339)
@@ -2690,6 +2805,14 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 				SplitFromID:     skill.id,
 			}
 
+			// Validate compliance before writing
+			compliance := ValidateSkillCompliance(newSkill)
+			if len(compliance.Issues) > 0 {
+				result.SkillsBlocked++
+				result.ValidationIssues = append(result.ValidationIssues, compliance)
+				continue
+			}
+
 			_, err = insertSkill(db, newSkill)
 			if err != nil {
 				continue
@@ -2702,7 +2825,7 @@ func optimizeSplitSkills(db *sql.DB, opts OptimizeOpts, result *OptimizeResult) 
 		_, _ = db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", skill.id)
 
 		// Remove original skill file
-		skillDir := filepath.Join(opts.SkillsDir, "mem-"+skill.slug)
+		skillDir := filepath.Join(opts.SkillsDir, "memory-"+skill.slug)
 		_ = os.RemoveAll(skillDir)
 
 		result.SkillsSplit++

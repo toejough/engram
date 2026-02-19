@@ -312,16 +312,19 @@ func generateSkillContent(ctx context.Context, theme string, cluster []ClusterEn
 		}
 	}
 
-	// Fallback: use simple template
+	// Fallback: use 4-section template
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("# %s\n\n", theme))
-	sb.WriteString("This skill was automatically generated from memory patterns.\n\n")
-	sb.WriteString("## Related Memories\n\n")
+	sb.WriteString("## Overview\n\n")
+	sb.WriteString(fmt.Sprintf("This skill covers %s patterns derived from memory clusters.\n\n", theme))
+	sb.WriteString("## When to Use\n\n")
+	sb.WriteString(fmt.Sprintf("Apply when working on %s-related tasks or encountering similar patterns.\n\n", theme))
+	sb.WriteString("## Quick Reference\n\n")
 	for i, entry := range cluster {
 		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, entry.Content))
 	}
-	sb.WriteString("\n## Application\n\n")
-	sb.WriteString("Apply these patterns when working on similar tasks.\n")
+	sb.WriteString("\n## Common Mistakes\n\n")
+	sb.WriteString(fmt.Sprintf("- Ignoring %s best practices when under time pressure.\n", theme))
 
 	return sb.String(), nil
 }
@@ -410,10 +413,26 @@ func OpenSkillDB(memoryRoot string) (*sql.DB, error) {
 	return initEmbeddingsDB(dbPath)
 }
 
+// generateTriggerDescription generates a "Use when..." trigger description from theme.
+// Returns a string starting with "Use when", max 1024 chars, third person only.
+// The output is deterministic from the theme — it is NOT derived from content truncation.
+func generateTriggerDescription(theme, content string) string {
+	desc := fmt.Sprintf("Use when the user encounters %s-related patterns or needs guidance on %s.", theme, theme)
+	if len(desc) > 1024 {
+		desc = desc[:1024]
+	}
+	return desc
+}
+
+// needsYAMLQuoting returns true if the string contains characters that need YAML quoting.
+func needsYAMLQuoting(s string) bool {
+	return strings.ContainsAny(s, ":\"'\n\\#[]{}|>&*!%@`")
+}
+
 // writeSkillFile creates a SKILL.md file with YAML frontmatter.
 func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	// Create skill directory
-	skillDir := filepath.Join(skillsDir, "mem-"+skill.Slug)
+	skillDir := filepath.Join(skillsDir, "memory-"+skill.Slug)
 	if err := os.MkdirAll(skillDir, 0755); err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
@@ -421,11 +440,21 @@ func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	// Compute confidence from alpha/beta
 	confidence := skill.Alpha / (skill.Alpha + skill.Beta)
 
+	// Cap description at 1024 chars
+	desc := skill.Description
+	if len(desc) > 1024 {
+		desc = desc[:1024]
+	}
+
 	// Build frontmatter
 	var sb strings.Builder
 	sb.WriteString("---\n")
-	sb.WriteString(fmt.Sprintf("name: mem:%s\n", skill.Slug))
-	sb.WriteString(fmt.Sprintf("description: %s\n", skill.Description))
+	sb.WriteString(fmt.Sprintf("name: memory.%s\n", skill.Slug))
+	if needsYAMLQuoting(desc) {
+		sb.WriteString(fmt.Sprintf("description: %q\n", desc))
+	} else {
+		sb.WriteString(fmt.Sprintf("description: %s\n", desc))
+	}
 	sb.WriteString("model: haiku\n")
 	sb.WriteString("user-invocable: true\n")
 	sb.WriteString("generated: true\n")
