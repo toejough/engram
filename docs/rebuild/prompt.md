@@ -14,6 +14,26 @@ This replaces the existing projctl memory system — a Go library with ONNX embe
 
 ---
 
+## Bootstrap (do this FIRST, before any other work)
+
+This prompt does not survive session boundaries. The ONLY things that persist are files on disk and CLAUDE.md. Before doing any rebuild work, verify this instruction exists in project CLAUDE.md under `<!-- MANUAL ADDITIONS START -->`:
+
+```markdown
+## Active Work: Memory System Rebuild
+
+When user says "continue", "resume", or similar without other context:
+1. Read `docs/rebuild/state.md` for current phase and next action
+2. Read `docs/rebuild/prompt.md` for full process instructions (especially the current phase section)
+3. Resume from the "Next Action" in state.md — do NOT ask "what would you like to work on?"
+4. Announce what phase you're in and what you're about to do
+
+Before ending any rebuild session or when user says "stop", "/exit", "/clear":
+1. Update `docs/rebuild/state.md` with: current phase, specific next action, context files, and session summary
+2. The next action must be concrete enough that a fresh session can start immediately without asking questions
+```
+
+If it's not there, add it. This is the anchor that makes "continue" work across sessions.
+
 ## Session Structure
 
 This work is organized as a state machine. You will progress through phases, and you may be interrupted at any point by /clear, /compact, or /exit. You must be able to resume from a "continue" message.
@@ -27,13 +47,16 @@ This work is organized as a state machine. You will progress through phases, and
 
 Design before architecture — you need to know how people interact with the system before deciding how to build it.
 
-**Persistence rule:** At the end of every phase, and before responding to any message that changes your understanding of the design, write your current state to `docs/rebuild/state.md`. This file contains:
-- Current phase
-- Completed phases with summary of decisions made
-- Open questions
-- Artifacts produced so far (with file paths)
+**Persistence rule (write-ahead, not write-on-exit):** After every substantive interaction (phase transition, decision validated, interview question answered, understanding changed), immediately update `docs/rebuild/state.md`. Do NOT defer to session end — the session can die at any time (/exit, /clear, crash) and you will NOT get a chance to save. state.md must always reflect the current state. This file MUST contain:
+- **Current phase** — which phase and substep
+- **Next action** — specific enough that a fresh session with NO context can start immediately. Not "Phase 2 starting" but "Present seed use case categories and ask which apply." If mid-interview, include the last question asked and answer received.
+- **Context files** — which files to read to understand current state
+- **Completed phases** — with summary of decisions made
+- **Last session summary** — what was accomplished
+- **Open questions** — anything unresolved
+- **Artifacts produced** — with file paths
 
-When you receive "continue" as your first message, read `docs/rebuild/state.md` and resume from where you left off. Announce what phase you're in and what you're about to do next.
+When you receive "continue" as your first message, read `docs/rebuild/state.md` and `docs/rebuild/prompt.md`, then resume from the next action. Announce what phase you're in and what you're about to do. Do NOT ask what the user wants to work on.
 
 **Lesson discovery:** Lessons don't only emerge in Phase 1. During every phase, actively check whether your current work reveals new lessons:
 - A design decision that contradicts or extends an existing lesson
