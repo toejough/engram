@@ -85,7 +85,7 @@ Every lesson below should be evaluated against the problem statement: does it he
 
 1. **Hybrid search with multiple complementary signals.** Two or more retrieval signals merged by Reciprocal Rank Fusion. The existing system used BM25 + vector (ONNX); the rebuild replaces ONNX vectors with TF-IDF (per constraint #4), so the pipeline becomes BM25 + TF-IDF + RRF or similar. The principle that worked: multiple signals catch what any single signal misses, and RRF merges without score normalization headaches.
 
-2. **Session extraction with confidence tiers.** Extracting learnings from conversation transcripts with A/B/C confidence tiers (A = user explicitly stated, B = agent inferred and user didn't correct, C = agent inferred, unvalidated). Confidence governs how aggressively the memory is surfaced.
+2. **Session extraction with confidence tiers.** Extracting learnings from conversation transcripts with A/B/C confidence tiers (A = user explicitly stated, B = agent inferred and visible during session — user had opportunity to correct but didn't, C = agent inferred post-session from transcript patterns — user never saw it). Confidence governs how aggressively the memory is surfaced.
 
 3. **Semantic enrichment of memories.** LLM extraction at write-time creates structured metadata: observation_type, concepts, principle, anti_pattern, rationale, enriched_content. Dramatically improves retrieval quality compared to raw text storage.
 
@@ -228,10 +228,21 @@ Transform validated use cases into traceable requirements.
 - Acceptance criteria (how do you know it's satisfied)
 - Verification tier (deterministic / TF-IDF / haiku / sonnet / opus) — the cheapest tier that can confirm this requirement
 
+**Per-requirement checklist (apply to each REQ-N; see lessons #15-22 in `docs/rebuild/lessons.md` for full context):**
+- [ ] Could this be satisfied by a no-op or disconnected function? → Rewrite to demand end-to-end wiring (#16)
+- [ ] Are definitions using labels or observable conditions? → Replace labels with testable mechanisms (#15)
+- [ ] Does the UC text explicitly support this requirement? → If the UC is ambiguous, fix the UC first, then derive (#17)
+- [ ] Is any constraint imported from outside this UC's scope? → Remove or trace to the layer that states it (#18)
+- [ ] Does a validated artifact already state this explicitly? → Reflect it directly, don't re-derive from first principles (#19)
+- [ ] Does the requirement contain specific items when the UC enumerates them? → Include verbatim, don't summarize (#20)
+- [ ] Does any threshold lack validated data? → Specify the decision mechanism and data collection plan, not a placeholder (#21)
+- [ ] Do evaluation/promotion criteria connect to the system's stated purpose? → Each criterion must trace to faster, cheaper, or fewer corrections (#22)
+
 **Process:**
 - Walk through each use case and extract requirements implied by its interactions and end state
 - Group requirements by domain (storage, retrieval, evaluation, enforcement, plugin, CLAUDE.md management, etc.)
 - For each requirement, determine the cheapest verification tier that can confirm it
+- Apply the per-requirement checklist above before presenting each group
 - Present requirements to the user grouped by domain, one group at a time
 - After all groups validated, write to `docs/rebuild/requirements.md`
 - Cross-check: every UC-N must be referenced by at least one REQ-N. Every REQ-N must reference at least one UC-N. Report any gaps.
