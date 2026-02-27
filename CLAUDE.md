@@ -5,22 +5,21 @@ This repo is being rebuilt from scratch as a Claude Code plugin for self-correct
 ## Active Work
 
 When user says "continue", "resume", or similar without other context:
-1. Read `docs/state.md` for current phase and next action
+1. Read `docs/state.toml` for current cursor position and next action
 2. Read `docs/prompt.md` for full process instructions
-3. Resume from the "Next Action" in state.md — do NOT ask "what would you like to work on?"
-4. Announce what phase you're in and what you're about to do
+3. Resume from the cursor's `next_action` — do NOT ask "what would you like to work on?"
+4. Announce what layer/group you're in and what you're about to do
 
-State persistence (belt and suspenders):
-- **Write-ahead (primary):** After each substantive rebuild interaction (phase transition, decision made, interview question answered), update `docs/state.md` with current phase, specific next action, context files, and session summary. The next action must be concrete enough that a fresh session can start immediately.
-- **Stop hook (safety net):** A Stop agent hook in `.claude/settings.local.json` infers the current phase from artifact file existence and updates state.md if it's stale.
+State persistence (write-ahead): After each substantive interaction (node transition, decision made, flag set/cleared), immediately update `docs/state.toml`. Do not defer to session end. See the specification-layers skill for the TOML format.
 
-## Process: Depth-First Vertical
+## Process: Depth-First Tree Traversal
 
-See `docs/state.md` for the full process description. Key points:
-- Group and prioritize at every layer (UC → REQ → DES/ARCH → Tests → Impl)
-- Refactor the ENTIRE current layer before descending
-- Dirty-mark descendants of changed nodes; resolve on visit
-- Final depth-first sweep as safety net
+See the specification-layers skill for the full model. Key points:
+- Tree of group nodes within layers, walked depth-first left-to-right
+- Group and prioritize at EVERY layer (not just UC)
+- `dirty` and `unsatisfiable` flags on nodes drive cursor behavior
+- Refactor the ENTIRE layer only when a change is absorbed (not on escalation)
+- Escalate without refactoring — rise until something absorbs
 
 ## Design Principles
 

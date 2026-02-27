@@ -1,0 +1,78 @@
+[project]
+name = "projctl"
+skill = "specification-layers"
+
+# Layer registries: all discovered items per layer
+
+[layers.L1] # UC
+items = ["UC-1", "UC-2", "UC-3", "UC-4", "UC-5", "UC-6", "UC-7", "UC-8", "UC-9", "UC-10", "UC-11", "UC-12", "UC-13", "UC-14"]
+
+[layers.L2] # REQ
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "REQ-21"]
+
+[layers.L3] # DES
+items = []
+
+[layers.L4] # ARCH
+items = []
+
+[layers.L5] # TEST
+items = []
+
+[layers.L6] # IMPL
+items = []
+
+# Tree: group nodes within layers
+
+[tree.L1A]
+layer = "L1"
+items = ["UC-1", "UC-2", "UC-3"]
+status = "complete"
+history = "Core Pipeline: write (UC-1), read (UC-2), correct (UC-3). Foundation for all other groups. 8 UC changes during refactor: removed premature TF-IDF constraint, added quality gate, unified reconciliation terminology, added ranking behavior to UC-2."
+
+[tree.L1B]
+layer = "L1"
+items = ["UC-7", "UC-8", "UC-9", "UC-10"]
+status = "pending"
+history = "Evaluation & Quadrant Actions. Depends on Group A signals."
+
+[tree.L1C]
+layer = "L1"
+items = ["UC-4", "UC-5", "UC-6", "UC-12"]
+status = "pending"
+history = "Promotion & Lifecycle. Depends on Group B evaluation data."
+
+[tree.L1D]
+layer = "L1"
+items = ["UC-11", "UC-13", "UC-14"]
+status = "pending"
+history = "Infrastructure. Mostly independent."
+
+[tree.L2A]
+layer = "L2"
+parent = "L1A"
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18"]
+status = "complete"
+history = "REQ-1 through REQ-18. Validated, refactored. TF-IDF replaced with local similarity. REQ-4 expanded to full ranking behavior REQ absorbing misplaced ACs from REQ-7. Cross-references unified."
+
+[tree.L2B]
+layer = "L2"
+parent = "L1C"
+items = ["REQ-19", "REQ-20", "REQ-21"]
+status = "pending"
+history = "Skill promotion requirements (UC-4). Written but not yet reviewed or refactored."
+
+[tree.L3A]
+layer = "L3"
+parent = "L1A"
+items = []
+status = "in_progress"
+history = "Starting horizontal pass for Group A UCs: design interaction primitives across UC-1, UC-2, UC-3."
+
+# Cursor
+
+[cursor]
+node = "L3A"
+mode = "work"
+next_action = "Horizontal pass: design interaction primitives across UC-1, UC-2, UC-3. First study all three UCs as a whole and design unified feedback formats, proposal patterns, communication channels. Then walk each UC through those primitives as concrete scenarios."
+context_files = ["docs/use-cases.md", "docs/requirements.md"]

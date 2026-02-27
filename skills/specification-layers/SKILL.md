@@ -70,65 +70,94 @@ REQ and DES consistency is checked after both are complete, before descending to
 
 ## Bidirectional Signal Propagation
 
-Two signal types propagate through the diamond:
+The traversal algorithm uses two flags (`dirty` and `unsatisfiable`) to propagate signals through the diamond. This section explains the rationale and diamond-specific behavior.
 
-| Signal | Direction | Trigger | Action |
-|--------|-----------|---------|--------|
-| **Derivation staleness** | Downward | Parent artifact revised | Mark children dirty; resolve when visited |
-| **Constraint discovery** | Upward | Child can't satisfy parent | Annotate parent; backtrack immediately; parent revises (triggers downward) |
+### Why Two Signals
 
-### Downward Propagation
+| Signal | Direction | Flag | Purpose |
+|--------|-----------|------|---------|
+| **Derivation staleness** | Downward | `dirty` on children | Parent revised → children may be stale |
+| **Constraint discovery** | Upward | `unsatisfiable` on parent | Child can't satisfy parent → parent must adapt |
 
-When a layer revises an artifact, mark descendant layers dirty. UC fans out: a UC change dirties both REQ and DES. REQ or DES changes dirty ARCH. ARCH dirties TEST. TEST dirties IMPL.
+Both flags are written on the impacted node by the discoverer. The traversal algorithm (see "Depth-First Traversal") defines what happens when the cursor arrives at a flagged node.
 
-### Upward Propagation
+### Diamond-Specific Propagation
 
-When a layer discovers its parent is unsatisfiable (impossible, over-constrained, under-specified):
+UC fans out: a UC change dirties both REQ and DES nodes. REQ or DES changes dirty ARCH nodes. ARCH dirties TEST. TEST dirties IMPL.
 
-1. Annotate the parent with the discovered constraint and why
-2. Immediately backtrack to the parent
-3. Parent absorbs the constraint by revising — triggering normal downward propagation
-4. Resume descent
-
-ARCH has two parents. If ARCH can't satisfy a REQ, propagate to REQ. If ARCH can't support a DES decision, propagate to DES. Independent upward paths.
+ARCH has two parents (REQ and DES groups). If ARCH can't satisfy a REQ, it marks the REQ group node `unsatisfiable`. If ARCH can't support a DES decision, it marks the DES group node `unsatisfiable`. These are independent upward paths.
 
 ### Absorption-First Rule
 
-Each layer absorbs constraints locally before escalating. Most constraints resolve one layer up. Only fundamental impossibilities cascade. If propagation reaches UC and the use case is unsatisfiable, that's a scope cut.
+Each node tries to absorb constraints locally before escalating. Most constraints resolve one layer up. Only fundamental impossibilities cascade. If propagation reaches UC and the use case is unsatisfiable, that's a scope cut — remove or revise the UC.
+
+The escalation path: rise until something absorbs. Only refactor at the absorption point. Everything below gets dirtied from there. Everything above is untouched.
 
 **Examples:**
-- IMPL: "Hook model is synchronous" → ARCH absorbs (revises to sync pipeline). Done.
-- IMPL: "Can't inject multiple reminders per hook" → ARCH can't absorb → DES absorbs (feedback at next hook point). Done.
-- TEST: "Property X is computationally infeasible" → ARCH can't absorb → REQ absorbs (weakens invariant). Downward dirty-flags ARCH.
+- IMPL: "Hook model is synchronous" → marks ARCH node `unsatisfiable`. ARCH absorbs (revises to sync pipeline), dirties TEST and IMPL. Done.
+- IMPL: "Can't inject multiple reminders per hook" → ARCH can't absorb → marks DES node `unsatisfiable`. DES absorbs (feedback at next hook point), dirties ARCH. Done.
+- TEST: "Property X is computationally infeasible" → ARCH can't absorb → marks REQ node `unsatisfiable`. REQ absorbs (weakens invariant), dirties ARCH. Done.
 
 ## Depth-First Traversal
 
-The traversal is a cycle of group → refactor → descend → backtrack applied recursively at every layer.
+The traversal walks a tree of nodes depth-first, top-to-bottom, left-to-right. Each node is a group of items within a layer. The flags on each node determine what happens when the cursor arrives.
+
+### Node States and Flags
+
+Each node has a `status`: `pending | in_progress | refactoring | complete`.
+
+Two flags can be set on a node by other nodes:
+
+- **`dirty`** — set by a parent (or ancestor) when it revises. Tells the node: "your derivation basis changed, re-validate when the cursor arrives." Includes a source reference (e.g., `"L1A revised UC-2 ranking specification"`).
+- **`unsatisfiable`** — set by a child that discovers it can't satisfy this node's spec. Tells the node: "absorb this constraint or escalate." Includes the constraint (e.g., `"ARCH could not satisfy REQ-4 AC(3) with pure-Go local similarity"`).
+
+Flags are written ON the impacted node BY whatever discovers the issue. No node reads another node's state to decide what to do — when the cursor arrives, everything it needs is on the node itself.
 
 ### Algorithm
 
-1. **Group and prioritize** at the current layer. Present to the user:
-   - **Grouping options:** 2-3 ways to cluster items at this layer (by dependency, domain, complexity, risk). Explain the tradeoff of each grouping.
-   - **Recommended grouping** with rationale (e.g., "Group by dependency — Group A is foundational for B and C").
-   - **Priority ordering** within the chosen grouping. Recommend which group to take deep first and why. The user chooses.
+The cursor visits nodes depth-first. On arrival at any node, check its state:
 
-   This decision point recurs at every layer for every set of items. Never silently pick a grouping or priority — always present options.
+**1. Node is `unsatisfiable`:**
+- Try to absorb the constraint locally (revise this node's items).
+- **If absorbed:** Clear the flag. Refactor the whole layer. Dirty affected child nodes.
+- **If can't absorb:** Mark this node's parent `unsatisfiable` with the constraint. Rise to the parent immediately. Do NOT refactor this layer — it may change once an ancestor absorbs.
 
-2. **Refactor the ENTIRE current layer** (not just the active group) before descending:
-   - Validate dirty nodes against refactored parents (clear if still valid, re-derive if not)
-   - Resolve any upward constraints annotated from prior descents
-   - Whole-layer consistency check across all nodes
-   - Bidirectional satisfaction: does this layer satisfy exactly the layer above?
-   - For diamond peers (REQ ⟷ DES): cross-check consistency
-   - Ubiquitous language: same terms for same concepts across all layers
-   - Surface lessons learned
-   - Dirty-mark descendants of anything changed
+**2. Node is `dirty`:**
+- Re-validate against the parent node.
+- **If still valid:** Clear the flag.
+- **If changed:** Clear the flag, apply changes. Refactor the whole layer. Dirty affected child nodes.
 
-3. **Descend** to the next layer on the chosen group. Repeat from step 1 at the new layer.
+**3. Node is `pending`:**
+- Normal work: derive items at this layer, then group and prioritize.
+- **Grouping:** Present 2-3 ways to cluster items (by dependency, domain, complexity, risk) with tradeoffs. Recommend one. This recurs at every layer — never silently pick a grouping.
+- **Priority ordering:** Recommend which group to take first and why. The user chooses.
 
-4. **Backtrack** when a group reaches IMPL. Return to the parent layer and pick the next unfinished sibling group. Repeat from step 3.
+**4. Node is `complete` + clean:**
+- Skip. Move to the next node in depth-first order.
 
-5. **Final sweep** after the entire tree is complete. Walk depth-first to resolve any orphaned dirty flags. Expected: all clean (safety net only).
+### Refactoring
+
+Triggered by **any change** to a layer (absorption, re-derivation, or initial completion of work). Scope: the ENTIRE layer, not just the active group.
+
+- Validate dirty nodes against refactored parents (clear if still valid, re-derive if not)
+- Whole-layer consistency check across all nodes at this layer
+- Bidirectional satisfaction: does this layer satisfy exactly the layer above?
+- For diamond peers (L2 ⟷ L3): cross-check consistency
+- Ubiquitous language: same terms for same concepts across all layers
+- Surface lessons learned
+- Dirty-mark child nodes of anything that changed
+
+### Descend and Backtrack
+
+After completing work at a node (and refactoring if anything changed):
+1. **Descend** into the first pending/dirty child node.
+2. **On child completion:** The child marks this node `unsatisfiable` if it discovered a constraint. Cursor returns to this node, which processes its own flags per the algorithm above.
+3. **After processing flags:** Move to the next pending/dirty sibling (left-to-right).
+4. **When all children are complete and clean:** This node completes. Pop up to its parent.
+
+### Final Sweep
+
+After the entire tree is complete, walk depth-first to resolve any orphaned dirty flags. Expected: all clean (safety net only).
 
 ### Process Ordering Through the Diamond
 
@@ -147,7 +176,7 @@ ARCH (converge) → TEST (TDD red) → IMPL (TDD green + refactor)
 
 3. **Peer consistency.** REQ and DES checked against each other after both complete (standard consistency check applied between diamond peers).
 
-4. **Dirty flag propagation.** Downward staleness and upward constraints both follow the diamond structure. UC fans out; ARCH has two independent upward paths.
+4. **Flag-based propagation.** `dirty` (downward staleness) and `unsatisfiable` (upward constraints) flags are written on the impacted node. The traversal algorithm processes them on arrival. UC fans out; ARCH has two independent upward paths.
 
 ## Applying to a Project
 
@@ -166,19 +195,70 @@ Skip for: single-file fixes, clear requirements with known implementation, proto
 1. **Write UCs.** Interview or discover use cases.
 2. **Group and prioritize.** Present 2-3 grouping options with tradeoffs. Recommend one. User chooses grouping and priority order.
 3. **Pick a group.** Take it through all layers before backtracking for the next.
-3. **Derive REQ and DES from UC** (either order). Check peer consistency.
-4. **Converge at ARCH.** Must satisfy REQ + support DES.
-5. **TDD.** Tests from ARCH, code to pass them.
-6. **Backtrack** for the next group.
+4. **Derive REQ and DES from UC** (either order). Check peer consistency.
+5. **Converge at ARCH.** Must satisfy REQ + support DES.
+6. **TDD.** Tests from ARCH, code to pass them.
+7. **Backtrack** for the next group.
 
 ### State Persistence
 
-After every substantive interaction, update a state file with:
-- Current layer and group
-- Specific next action (concrete enough for a fresh session)
-- Context files to read
-- Completed layers with summary
-- Open questions
+State is persisted in `docs/state.toml` (committed to git). Write-ahead: update after every substantive interaction — do not defer to session end.
+
+The file has four sections:
+
+**`[project]`** — Project name and skill reference.
+
+**`[layers.L1]` through `[layers.L6]`** — Flat registry of all discovered items per layer. L1=UC, L2=REQ, L3=DES, L4=ARCH, L5=TEST, L6=IMPL. Items are added as they're derived.
+
+**`[tree.<node>]`** — Nodes are groups within layers. Each node has: `layer`, `parent` (the parent group node, omitted for root nodes), `items` (member IDs), `status` (pending/in_progress/refactoring/complete), `history` (what happened at this node and why). Optional flags: `dirty` (source reference string) and `unsatisfiable` (constraint string). Omit flags when clean.
+
+Node naming: `L{layer}{letter}` — e.g., L1A, L2A, L3B. Layer number prevents false equivalence across layers. Groups at L2 are independent from groups at L1.
+
+**`[cursor]`** — Current position: `node`, `mode` (descend/work/refactor/backtrack), `next_action` (concrete enough for a fresh session to start immediately), `context_files`.
+
+Example:
+
+```toml
+[project]
+name = "my-project"
+skill = "specification-layers"
+
+[layers.L1]
+items = ["UC-1", "UC-2", "UC-3"]
+
+[layers.L2]
+items = ["REQ-1", "REQ-2", "REQ-3"]
+
+[layers.L3]
+items = []
+
+[tree.L1A]
+layer = "L1"
+items = ["UC-1", "UC-2"]
+status = "complete"
+history = "Core pipeline. Foundation for other groups."
+
+[tree.L1B]
+layer = "L1"
+items = ["UC-3"]
+status = "pending"
+
+[tree.L2A]
+layer = "L2"
+parent = "L1A"
+items = ["REQ-1", "REQ-2", "REQ-3"]
+status = "complete"
+dirty = "L1A revised UC-1 scope"
+history = "Derived from UC-1 and UC-2."
+
+[cursor]
+node = "L2A"
+mode = "work"
+next_action = "Re-validate REQ-1 through REQ-3 against revised UC-1"
+context_files = ["docs/use-cases.md", "docs/requirements.md"]
+```
+
+When the user says "continue" or "resume", read `docs/state.toml` and resume from the cursor's `next_action`.
 
 ### Reference
 

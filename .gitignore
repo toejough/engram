@@ -5,7 +5,7 @@
 .projctl/
 context/
 context.test
-state.toml
+/state.toml
 updates.jsonl
 
 # Test artifacts
@@ -17,6 +17,9 @@ internal/memory/embeddings.db
 # Claude local state
 .claude/projects/
 .claude/settings.local.json
+
+# Session logs (local to developer, not committed)
+docs/session-logs/
 
 # Skill results
 result.toml

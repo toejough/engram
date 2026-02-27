@@ -22,14 +22,13 @@ This prompt does not survive session boundaries. The ONLY things that persist ar
 ## Active Work: Memory System Rebuild
 
 When user says "continue", "resume", or similar without other context:
-1. Read `docs/state.md` for current phase and next action
-2. Read `docs/prompt.md` for full process instructions (especially the current phase section)
-3. Resume from the "Next Action" in state.md — do NOT ask "what would you like to work on?"
-4. Announce what phase you're in and what you're about to do
+1. Read `docs/state.toml` for current cursor position and next action
+2. Read `docs/prompt.md` for full process instructions
+3. Resume from the cursor's `next_action` — do NOT ask "what would you like to work on?"
+4. Announce what layer/group you're in and what you're about to do
 
-Before ending any rebuild session or when user says "stop", "/exit", "/clear":
-1. Update `docs/state.md` with: current phase, specific next action, context files, and session summary
-2. The next action must be concrete enough that a fresh session can start immediately without asking questions
+State is persisted write-ahead in `docs/state.toml`. Update after every substantive interaction.
+See the specification-layers skill for the TOML format.
 ```
 
 If it's not there, add it. This is the anchor that makes "continue" work across sessions.
@@ -47,16 +46,9 @@ This work is organized as a state machine. You will progress through phases, and
 
 Design before architecture — you need to know how people interact with the system before deciding how to build it.
 
-**Persistence rule (write-ahead, not write-on-exit):** After every substantive interaction (phase transition, decision validated, interview question answered, understanding changed), immediately update `docs/state.md`. Do NOT defer to session end — the session can die at any time (/exit, /clear, crash) and you will NOT get a chance to save. state.md must always reflect the current state. This file MUST contain:
-- **Current phase** — which phase and substep
-- **Next action** — specific enough that a fresh session with NO context can start immediately. Not "Phase 2 starting" but "Present seed use case categories and ask which apply." If mid-interview, include the last question asked and answer received.
-- **Context files** — which files to read to understand current state
-- **Completed phases** — with summary of decisions made
-- **Last session summary** — what was accomplished
-- **Open questions** — anything unresolved
-- **Artifacts produced** — with file paths
+**Persistence rule (write-ahead, not write-on-exit):** After every substantive interaction (node transition, decision validated, flag set/cleared, interview question answered), immediately update `docs/state.toml`. Do NOT defer to session end — the session can die at any time (/exit, /clear, crash) and you will NOT get a chance to save. The TOML format is defined in the specification-layers skill. The cursor's `next_action` must be specific enough that a fresh session with NO context can start immediately.
 
-When you receive "continue" as your first message, read `docs/state.md` and `docs/prompt.md`, then resume from the next action. Announce what phase you're in and what you're about to do. Do NOT ask what the user wants to work on.
+When you receive "continue" as your first message, read `docs/state.toml` and `docs/prompt.md`, then resume from the cursor's `next_action`. Announce what layer/group you're in and what you're about to do. Do NOT ask what the user wants to work on.
 
 **Lesson discovery:** Lessons don't only emerge in Phase 1. During every phase, actively check whether your current work reveals new lessons:
 - A design decision that contradicts or extends an existing lesson
@@ -314,8 +306,8 @@ Design the system that implements the validated design.
 These apply across all phases.
 
 **Progress persistence:**
-- Update `docs/state.md` after completing each phase and after any significant decision
-- When you receive "continue", read `state.md`, announce your phase and next step, and resume
+- Update `docs/state.toml` after every substantive interaction (write-ahead). See the specification-layers skill for the TOML format.
+- When you receive "continue", read `state.toml`, announce your layer/group and next step, and resume
 - Append new lessons to `docs/lessons.md` whenever you discover something that should inform future phases
 
 **Interaction style:**
