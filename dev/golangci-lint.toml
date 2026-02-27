@@ -1,0 +1,144 @@
+version = '2'
+
+# Run options
+[run]
+relative-path-mode = 'gomod'
+
+# Linter rules
+[linters]
+default = 'all'
+disable = [
+	'exhaustruct',    # too noisy for zero value structs
+	'forbidigo',      # I print output on purpose sometimes
+	'godot',          # has a bug that causes panics on some files
+	'godox',          # saving todos till another validation step
+	'ireturn',        # I like generic return types
+	'nonamedreturns', # I like named returns
+	'wsl',            # deprecated
+]
+
+# Exclude certain linters from test files
+[[linters.exclusions.rules]]
+path = '_test\.go$'
+linters = [
+	'dogsled',
+	'dupl',
+	'err113',
+	'funlen',
+	'gochecknoglobals',
+	'goconst',
+	'gosec',
+	'mnd',
+	'noctx',
+	'noinlineerr',
+	'wrapcheck',
+]
+
+# Allow dot imports in test files (gomega requires them)
+[[linters.exclusions.rules]]
+path = '_test\.go$'
+text = 'dot-imports'
+
+[linters.settings.depguard.rules.all]
+files = ['$all', '!$test']
+allow = [
+	'$gostd',
+	'github.com/BurntSushi/toml',
+	'github.com/akedrou/textdiff',
+	'github.com/bmatcuk/doublestar/v4',
+	'github.com/charmbracelet/lipgloss',
+	'github.com/dave/dst',
+	'github.com/toejough/go-reorder',
+	'github.com/toejough/imptest',
+	'github.com/toejough/targ',
+	'golang.org/x/tools/go/packages',
+]
+
+[linters.settings.depguard.rules.test]
+files = ['$test']
+allow = [
+	'$gostd',
+	'github.com/BurntSushi/toml',
+	'github.com/akedrou/textdiff',
+	'github.com/charmbracelet/lipgloss',
+	'github.com/dave/dst',
+	'github.com/onsi/gomega',
+	'github.com/toejough/imptest',
+	'github.com/toejough/targ',
+	'github.com/toejough/testredundancy',
+	'pgregory.net/rapid',
+]
+
+[linters.settings.nlreturn]
+block-size = 2
+
+[linters.settings.varnamelen]
+# ignore-decls should work for conventional declarations like 't *testing.T' but doesn't
+# See: https://github.com/blizzy78/varnamelen/issues/5
+# Using ignore-names as workaround
+ignore-names = [
+	't',
+	'b',
+	'rt',
+	'a',
+	'g',
+	'i',
+	'j',
+	'fs',
+	'fn',
+	'ok',
+	'r',
+	'p',
+	'mt',
+	'f',
+	'v',
+	'w',
+	'pc',
+	'm',
+	'n',
+	'ch',
+	'wg',
+	'tc',
+	'tt',
+	'fv',
+	'ft',
+	'mu',
+	'sb',
+	'e',
+	's',
+	'hf',
+	'et',
+	'pt',
+	'st',
+	'd',
+	'h',
+]
+
+[linters.settings.unused]
+field-writes-are-uses = false
+exported-fields-are-used = false
+local-variables-are-used = false
+
+[linters.settings.wrapcheck]
+# Allow internal packages without wrapping (they're part of this project)
+ignore-package-globs = ['*/internal/*']
+
+# how to handle the issues the linters find
+[issues]
+# Apply the fixes detected by the linters and formatters (if it's supported by the linter). Default: false
+# if there are easy canonical fixes, just do them
+fix = true
+# Maximum count of issues with the same text. Set to 0 to disable. Default: 3
+# Repeated issues don't bother me - I'll count on the issues per linter rule to limit the noise
+max-same-issues = 0
+# Maximum issues count per one linter. Set to 0 to disable. Default: 50
+# I want to see when there's a lot of findings, but ten is enough to get the idea
+max-issues-per-linter = 10
+
+# how to show the issues the linters find
+[output]
+sort-order = ['severity', 'linter', 'file']
+
+# The formats used to render issues.
+[output.formats.tab]
+path = "stdout"

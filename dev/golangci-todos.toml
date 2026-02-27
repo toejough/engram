@@ -1,0 +1,9 @@
+version = '2'
+
+# Run options
+[run]
+relative-path-mode = 'gomod'
+
+[linters]
+default = 'none'
+enable = ['godox']

@@ -1,0 +1,21 @@
+version = '2'
+
+# Run options
+[run]
+relative-path-mode = 'gomod'
+
+# Fast linters only - for quick fail-fast checks
+[linters]
+default = 'none'
+enable = [
+	'govet',      # basic Go vet checks
+	'errcheck',   # unchecked errors
+	'staticcheck', # fast static analysis
+	'unused',     # unused code
+	'ineffassign', # unused assignments
+]
+
+[issues]
+fix = false
+max-same-issues = 1
+max-issues-per-linter = 1

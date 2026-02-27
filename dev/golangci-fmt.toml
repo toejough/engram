@@ -1,0 +1,29 @@
+version = '2'
+
+# Run options
+[run]
+relative-path-mode = 'gomod'
+
+[linters]
+default = 'none' # disable all linters - this is a formatter config file
+
+[formatters]
+enable = ['goimports', 'gci', 'gofumpt', 'golines']
+
+[formatters.settings.gci]
+custom-order = true
+sections = [
+	'standard',    # Standard section: captures all standard packages.
+	'default',     # Default section: contains all imports that could not be matched to another section type.
+	'localmodule', # Local module section: contains all local packages.
+]
+
+[formatters.settings.gofumpt]
+# Choose whether to use the extra rules.
+extra-rules = true
+
+# how to handle the issues the formatters find
+[issues]
+# Apply the fixes detected by the linters and formatters (if it's supported by the linter). Default: false
+# if there are easy canonical fixes, just do them
+fix = true
