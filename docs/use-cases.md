@@ -6,15 +6,16 @@
 
 **Starting state:** A session has ended (Stop hook fires). The transcript contains corrections, decisions, patterns, and mistakes.
 
-**End state:** New memories exist in the memory store with structured metadata (observation_type, concepts, principle, anti_pattern, rationale, enriched_content) and TF-IDF-optimized keywords. Existing memories that overlap with new learnings have been enriched rather than duplicated.
+**End state:** New memories exist in the memory store with structured metadata (observation_type, concepts, principle, anti_pattern, rationale, enriched_content) and LLM-generated keywords optimized for retrieval. Extracted content has passed a quality gate before storage. Existing memories that overlap with new learnings have been enriched rather than duplicated.
 
 **Actor:** System (background Go binary triggered by Stop hook).
 
 **Key interactions:**
 - Stop hook fires, invokes Go binary with session transcript
-- LLM enrichment generates keywords, concepts, and anti-patterns for TF-IDF indexing
+- LLM enrichment generates keywords, concepts, and anti-patterns for retrieval
 - Confidence tiers: A (user explicitly stated), B (agent inferred and visible to user — user had opportunity to correct but didn't), C (agent inferred post-session — user never saw it, zero validation)
-- Deduplication against existing memories before insert
+- Reconciliation against existing memories before insert (retrieve candidates, haiku overlap gate, enrich existing or create new)
+- Quality gate: extracted memories must be specific and actionable — mechanical patterns and vague generalizations are rejected before storage
 - Mid-session corrections (UC-3) are reconciled — session-end extraction doesn't duplicate what was already captured
 
 ---
@@ -32,9 +33,9 @@
 **Key interactions:**
 - **SessionStart:** Broad context retrieval — project-level memories, recent high-importance items
 - **UserPromptSubmit:** Task-relevant retrieval — memories matching the user's current request
-- **PreToolUse:** Narrow, high-threshold retrieval — only surface if highly confident it's relevant (this is the latency-critical path)
-- All three hooks use TF-IDF retrieval only (no LLM calls at retrieval time). Retrieval quality depends on keyword enrichment at extraction time (UC-1), not on LLM judgment at retrieval time.
-- Compaction-time contradiction checking deferred as potential enhancement
+- **PreToolUse:** Smallest budget, latency-critical — only the single most relevant memory surfaced
+- All three hooks use local retrieval only (no LLM calls at retrieval time). Specific retrieval algorithm (TF-IDF, BM25, dense vectors, or hybrid) is an architecture decision constrained by pure Go. Retrieval quality depends on keyword enrichment at extraction time (UC-1), not on retrieval-time judgment.
+- Ranking: frecency (recency × impact) as primary signal, confidence tier (UC-1) as tiebreaker. During cold start, recency dominates; as evaluation data accumulates, impact becomes the dominant signal.
 
 ---
 
@@ -49,7 +50,7 @@
 **Actor:** System (two-speed: inline detection at UserPromptSubmit + session-end catch-up at Stop hook).
 
 **Key interactions:**
-- **Inline detection (UserPromptSubmit):** Deterministic pattern matcher checks the user's prompt for correction signals (~15 patterns covering ~85% of explicit corrections: `^no,`, `^wait`, `^hold on`, `\bwrong\b`, `\bdon't\s+[verb]`, `\bstop\s+[verb]ing`, `\btry again`, `\bgo back`, `\bthat's not`, `^actually,`, `\bremember\s+(that|to)`, `\bstart over`, `\bpre-?existing`, `\byou're still`, `\bincorrect`). On match → TF-IDF reconciliation against existing memories.
+- **Inline detection (UserPromptSubmit):** Deterministic pattern matcher checks the user's prompt for correction signals (~15 patterns covering ~85% of explicit corrections: `^no,`, `^wait`, `^hold on`, `\bwrong\b`, `\bdon't\s+[verb]`, `\bstop\s+[verb]ing`, `\btry again`, `\bgo back`, `\bthat's not`, `^actually,`, `\bremember\s+(that|to)`, `\bstart over`, `\bpre-?existing`, `\byou're still`, `\bincorrect`). On match → reconciliation against existing memories.
 - **If overlap found:** Enhance the full memory — trigger terms, refined observation, new anti-patterns, updated rationale, concrete examples. Memories mature through corrections.
 - **If no overlap:** Create new memory with enriched keywords.
 - **Immediate reclassification:** When an inline correction is detected, the system reclassifies artifacts that were surfaced (or should have been surfaced) this session. If a skill or memory led the agent wrong, it moves toward the leech quadrant now, not at session-end.

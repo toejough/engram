@@ -2,8 +2,6 @@
 
 Requirements extracted from validated use cases. Each REQ-N traces to one or more UC-N.
 
-Note: REQ-1 through REQ-12 were validated verbally in the prior session but never written to file. They are reconstructed here from UC-1/UC-2 and session notes (REQ-8 dissolved into per-hook wiring requirements, UC-2 updated for TF-IDF everywhere, performance constraints dropped as premature, Go binary kept per lesson #19). UC-5 through UC-14 requirements are not yet extracted.
-
 ---
 
 ## Session Learning (UC-1)
@@ -15,11 +13,11 @@ When a session ends (Stop hook fires), the system must invoke the Go binary with
 - AC: (1) Stop hook script exists and invokes the Go binary. (2) Session transcript is passed as input. (3) Extraction produces zero or more memories.
 - Verification: deterministic (hook fires, binary invoked, memories written)
 
-**REQ-2: Extracted memories have structured metadata and TF-IDF-optimized keywords.**
-Each extracted memory must include structured metadata (observation_type, concepts, principle, anti_pattern, rationale, enriched_content) and TF-IDF-optimized keywords, generated via LLM enrichment at extraction time.
+**REQ-2: Extracted memories have structured metadata and LLM-generated keywords.**
+Each extracted memory must include structured metadata (observation_type, concepts, principle, anti_pattern, rationale, enriched_content) and LLM-generated keywords for local similarity retrieval, produced via LLM enrichment at extraction time.
 
 - Traces to: UC-1
-- AC: (1) LLM enrichment runs on each extracted learning. (2) All six metadata fields are populated. (3) Keywords are optimized for TF-IDF retrieval (not raw transcript text).
+- AC: (1) LLM enrichment runs on each extracted learning. (2) All six metadata fields are populated. (3) Keywords are LLM-generated terms and phrases, not verbatim transcript excerpts. (4) Extracted content passes quality gate — memories must be specific and actionable; mechanical patterns and vague generalizations are rejected before storage.
 - Verification: sonnet (LLM enrichment) + deterministic (schema validation of stored memory)
 
 **REQ-3: Confidence tiers based on observable validation conditions.**
@@ -29,19 +27,19 @@ Each extracted memory must be assigned a confidence tier: A (user explicitly sta
 - AC: (1) Every memory has exactly one confidence tier. (2) Tier assignment is based on the observable condition (was user present and able to correct?), not a label.
 - Verification: haiku (tier classification from transcript context)
 
-**REQ-4: Confidence tier governs surfacing aggressiveness.**
-Higher-confidence memories (A > B > C) are surfaced more readily at hook time. Confidence is a factor in retrieval ranking, not a hard filter.
+**REQ-4: Retrieval ranking — frecency primary, confidence tiebreaker.**
+Results are ranked by frecency (recency × impact harmonic mean) as the primary sort, with confidence tier (A > B > C) as tiebreaker when frecency is equal. During cold start (insufficient evaluation data), impact defaults to a neutral baseline so recency dominates. As evaluation data accumulates, impact becomes the dominant signal.
 
 - Traces to: UC-1, UC-2
-- AC: Given two memories of equal TF-IDF relevance, the higher-confidence memory ranks higher in retrieval results.
-- Verification: deterministic (ranking comparison)
+- AC: (1) Given two memories of equal frecency, the higher-confidence memory ranks higher. (2) With no evaluation data, ranking equals recency. (3) With evaluation data, a memory surfaced 10 times and never followed ranks below a memory surfaced 3 times and followed every time.
+- Verification: deterministic (ranking comparisons)
 
-**REQ-5: Deduplication before insert.**
-Before inserting a new memory, the system must check for overlapping existing memories via TF-IDF similarity. If overlap is found, the existing memory is enriched rather than a duplicate being created.
+**REQ-5: Reconciliation before insert via candidate retrieval and haiku gate.**
+Before inserting a new memory, the system retrieves the top-K most similar existing memories by local similarity (K defaults to 3, user-configurable) and uses a haiku LLM gate to decide merge vs. create. If haiku identifies genuine overlap, the existing memory is enriched rather than a duplicate being created. Self-correction: merged memories whose frecency declines (surfaced but not followed) naturally drop out of future surfacing — bad merges are contained without manual review.
 
 - Traces to: UC-1
-- AC: (1) TF-IDF similarity search runs before every insert. (2) Above similarity threshold → existing memory enriched. (3) Below threshold → new memory created. (4) No two memories contain substantially the same content.
-- Verification: TF-IDF (similarity search) + deterministic (no duplicates)
+- AC: (1) Local similarity candidate retrieval runs before every insert. (2) Haiku evaluates top-K candidates for genuine overlap. (3) Overlap → existing memory enriched with new context. (4) No overlap → new memory created. (5) Each reconciliation decision logged: memory_id, similarity scores, haiku decision, rationale.
+- Verification: local similarity (candidate retrieval) + haiku (overlap decision) + deterministic (memory written/updated, event logged)
 
 **REQ-6: Extraction is implemented as a Go binary.**
 Session extraction, retrieval, and scoring operations are implemented in a Go binary (pure Go, no CGO).
@@ -54,40 +52,38 @@ Session extraction, retrieval, and scoring operations are implemented in a Go bi
 
 ## Hook-Time Surfacing (UC-2)
 
-**REQ-7: SessionStart retrieves broad project-level memories.**
-At SessionStart, the hook invokes the Go binary to perform TF-IDF retrieval of project-level memories and recent high-importance items, surfacing results as system reminders in the agent's context.
+The three hooks form a retrieval gradient by budget: SessionStart surfaces the most memories (broadest context, no task to narrow on), UserPromptSubmit surfaces fewer (task-scoped), PreToolUse surfaces the fewest (latency-critical). All hooks rank results by frecency (recency × impact harmonic mean) and enforce a user-configurable result budget. The adaptation happens in the frecency scores — memories surfaced but not followed see their impact drop, their frecency drop, and they naturally fall out of the top-K — not in the budgets themselves.
+
+**REQ-7: SessionStart surfaces top-K memories by frecency against project context.**
+At SessionStart, the hook invokes the Go binary to retrieve the top-K memories ranked by frecency (REQ-4), queried via local similarity against project context: directory name, project CLAUDE.md, and README. K defaults to 5 (user-configurable).
 
 - Traces to: UC-2
-- AC: (1) SessionStart hook script exists and invokes Go binary. (2) TF-IDF retrieval runs against the memory database. (3) Results appear as system reminder text in the agent's context.
-- Verification: deterministic (hook fires, binary invoked, system reminder present)
+- AC: (1) SessionStart hook invokes Go binary with project context tokens. (2) Results ranked by frecency. (3) At most K results surfaced as system reminders.
+- Verification: deterministic (hook fires, ranking order, budget enforced)
 
-**REQ-8: UserPromptSubmit retrieves task-relevant memories.**
-At UserPromptSubmit, the hook invokes the Go binary to perform TF-IDF retrieval of memories matching the user's current request, surfacing results as system reminders.
-
-- Traces to: UC-2
-- AC: (1) UserPromptSubmit hook script exists and invokes Go binary with the user's message. (2) TF-IDF retrieval uses the message as the query. (3) Results appear as system reminder text.
-- Verification: deterministic (hook fires, binary invoked, system reminder present)
-
-**REQ-9: PreToolUse retrieves with high relevance threshold.**
-At PreToolUse, the hook invokes the Go binary to perform TF-IDF retrieval with a high relevance threshold, surfacing only highly confident matches as system reminders.
+**REQ-8: UserPromptSubmit surfaces top-K memories by frecency against user's message.**
+At UserPromptSubmit, the hook invokes the Go binary to retrieve the top-K memories ranked by frecency (REQ-4), queried via local similarity against the user's current message. K defaults to 3 (user-configurable).
 
 - Traces to: UC-2
-- AC: (1) PreToolUse hook script exists and invokes Go binary with tool context. (2) TF-IDF retrieval uses a higher similarity threshold than SessionStart or UserPromptSubmit. (3) Only high-confidence matches surface.
-- Verification: deterministic (threshold comparison, fewer results than broader hooks)
+- AC: (1) UserPromptSubmit hook invokes Go binary with the user's message. (2) Local similarity retrieval uses the message as the query, ranked by frecency. (3) At most K results surfaced as system reminders.
+- Verification: deterministic (hook fires, ranking order, budget enforced)
 
-**REQ-10: All hook-time retrieval uses TF-IDF only — no LLM calls.**
-SessionStart, UserPromptSubmit, and PreToolUse retrieval must use TF-IDF (and other deterministic/local signals) only. No LLM calls at retrieval time.
+**REQ-9: PreToolUse surfaces top-K memories by frecency against tool context.**
+At PreToolUse, the hook invokes the Go binary to retrieve the top-K memories ranked by frecency (REQ-4), queried via local similarity against tool context. K defaults to 1 (user-configurable). This is the latency-critical path.
 
 - Traces to: UC-2
-- AC: Hook-time retrieval completes without any API calls to an LLM provider. Retrieval quality depends entirely on write-time enrichment (REQ-2).
+- AC: (1) PreToolUse hook invokes Go binary with tool context. (2) Local similarity retrieval runs with frecency ranking. (3) At most K results surfaced as system reminders.
+- Verification: deterministic (hook fires, ranking order, budget enforced)
+
+**REQ-10: All hook-time retrieval uses local similarity and frecency only — no LLM calls.**
+SessionStart, UserPromptSubmit, and PreToolUse retrieval must use local similarity and frecency ranking only. No LLM calls at retrieval time. Retrieval quality depends entirely on write-time enrichment (REQ-2) and evaluation-time scoring (Group B), not on retrieval-time judgment.
+
+- Traces to: UC-2
+- AC: (1) Hook-time retrieval completes without any API calls to an LLM provider. (2) Improving retrieval quality requires improving extraction enrichment (REQ-2) or evaluation scoring, not adding LLM calls to the retrieval path.
 - Verification: deterministic (no LLM calls in retrieval path)
 
-**REQ-11: Retrieval quality depends on write-time enrichment, not retrieval-time judgment.**
-The quality of hook-time retrieval results is determined by the keyword enrichment performed at extraction time (REQ-2), not by LLM evaluation at retrieval time.
-
-- Traces to: UC-1, UC-2
-- AC: Improving retrieval quality requires improving extraction enrichment (REQ-2), not adding LLM calls to the retrieval path.
-- Verification: deterministic (architectural constraint — no LLM in retrieval)
+**REQ-11: *Dissolved into REQ-10.***
+Previously "Retrieval quality depends on write-time enrichment, not retrieval-time judgment." This was a design principle restating the consequence of REQ-10, not a separately testable requirement. Its content is now incorporated as REQ-10's rationale and AC(2).
 
 **REQ-12: Surfaced memories appear as system reminders in the agent's context.**
 All hook-time surfacing delivers memories as system reminder text that the agent sees as part of its context, not as separate tool output or side-channel.
@@ -126,14 +122,14 @@ The corpus is persisted across sessions and grows via session-end catch-up (REQ-
 - AC: (1) Pattern corpus persists on disk with at least the 15 patterns above. (2) Pattern matching runs at every UserPromptSubmit. (3) On match, downstream processing is triggered (REQ-14, REQ-16, REQ-17).
 - Verification: deterministic (pattern match)
 
-**REQ-14: Memory reconciliation on detected correction.**
-When an inline correction is detected (REQ-13), the system reconciles it against existing memories via TF-IDF candidate retrieval + haiku LLM gate. The top-3 TF-IDF candidates (above a noise floor of cosine > 0.1) are evaluated by haiku to determine genuine overlap. If haiku identifies overlap, the existing memory is enriched (trigger terms, refined observation, anti-patterns, rationale, concrete examples). If no overlap, a new enriched memory is created.
+**REQ-14: Memory reconciliation on detected correction via local similarity candidates and haiku gate.**
+When an inline correction is detected (REQ-13), the system retrieves the top-K most similar existing memories by local similarity (K defaults to 3, user-configurable) and evaluates each with a haiku LLM gate for genuine overlap. If haiku identifies overlap, the existing memory is enriched (trigger terms, refined observation, anti-patterns, rationale, concrete examples). If no overlap, a new enriched memory is created.
 
-No fixed similarity threshold governs the dedup decision — haiku does. TF-IDF scores and haiku decisions (overlap/no-overlap + rationale) are logged per reconciliation event for future analysis. See ISSUE-236: evaluate whether deterministic thresholds could replace the haiku gate based on accumulated data.
+The K is a budget — how many candidates haiku evaluates. Corrections are infrequent; K haiku calls per correction is negligible cost. No similarity floor — if the best candidates are poor matches, haiku rejects them. Self-correction operates through frecency: a bad merge produces a memory that gets surfaced but not followed, its impact drops, its frecency drops, and it falls out of future surfacing.
 
 - Traces to: UC-3
-- AC: (1) TF-IDF retrieves top-3 candidates above cosine 0.1. (2) Haiku evaluates each candidate for genuine overlap. (3) Overlap → existing memory enriched with correction context. (4) No overlap → new enriched memory created. (5) Every reconciliation event logs: memory_id, TF-IDF scores of candidates, haiku decision, haiku rationale.
-- Verification: TF-IDF (candidate retrieval) + haiku (overlap decision) + deterministic (memory written/updated, event logged)
+- AC: (1) Local similarity retrieves top-K candidates. (2) Haiku evaluates each for genuine overlap. (3) Overlap → existing memory enriched with correction context. (4) No overlap → new enriched memory created. (5) Each reconciliation event logged: memory_id, similarity scores, haiku decision, rationale.
+- Verification: local similarity (candidate retrieval) + haiku (overlap decision) + deterministic (memory written/updated, event logged)
 
 **REQ-15: Session-end catch-up for missed corrections.**
 At session end (Stop hook), the system evaluates the transcript via LLM for corrections the pattern matcher missed. Newly discovered correction phrases are added to the persisted pattern corpus, so the matcher self-improves across sessions.
@@ -161,7 +157,20 @@ Session-end extraction (UC-1) must not duplicate corrections already captured mi
 
 - Traces to: UC-1, UC-3
 - AC: After a session with inline corrections, no memory contains the same correction content twice.
-- Verification: deterministic (deduplication check) + TF-IDF (overlap detection)
+- Verification: deterministic (deduplication check) + local similarity (overlap detection)
+
+---
+
+## User-Configurable Budgets
+
+All result budgets and candidate counts are user-configurable via plugin settings. Defaults are sensible starting points:
+
+| Parameter | Default | Used by |
+|-----------|---------|---------|
+| `surfacing.session_start.budget` | 5 | REQ-7 |
+| `surfacing.user_prompt.budget` | 3 | REQ-8 |
+| `surfacing.pre_tool_use.budget` | 1 | REQ-9 |
+| `reconciliation.candidate_count` | 3 | REQ-5, REQ-14 |
 
 ---
 
@@ -233,4 +242,4 @@ When a skill is created from a memory, a CLAUDE.md pointer (a one-liner referenc
 
 ## Remaining Extraction
 
-Requirements for UC-5 through UC-14 have not yet been extracted. Next: UC-5 (CLAUDE.md Management) and UC-6 (Skill Evaluation and Maintenance).
+Requirements for UC-5 through UC-14 have not yet been extracted. These will be addressed when their respective UC groups (B, C, D) become active.

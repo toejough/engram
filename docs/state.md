@@ -1,7 +1,7 @@
 # Rebuild State
 
 ## Current Phase
-VERTICAL IMPLEMENTATION — Group A (Core Pipeline: UC-1, UC-2, UC-3). UC grouping validated. Next step: requirements layer refactor before descending.
+VERTICAL IMPLEMENTATION — Group A (Core Pipeline: UC-1, UC-2, UC-3). UC-level refactor and REQ dirty-flag resolution COMPLETE. Ready to descend to design layer.
 
 ## UC Groupings (Validated)
 
@@ -34,14 +34,14 @@ Dirty-marking rules:
 - Dirty resolution: re-validate against refactored parent → still valid? clear flag. Invalid? re-derive, mark own descendants dirty.
 
 ## Next Action
-1. Requirements layer refactor for Group A (UC-1, UC-2, UC-3): REQ-1 through REQ-18 exist. Apply the per-requirement checklist from prompt.md, do whole-layer consistency check, bidirectional satisfaction check against use-cases.md, and semantic review.
-2. After requirements are clean: descend to design layer for Group A.
+1. Descend to design layer for Group A (UC-1, UC-2, UC-3). Per prompt.md Phase 4: produce case study walkthroughs, hook interaction flows, system reminder mock output, and error/edge case interactions for each UC.
+2. Present each case study to user for validation before moving to the next.
 
 ## Context Files
 - `docs/prompt.md` — Full rebuild process instructions
 - `docs/lessons.md` — Validated Phase 1 output + 5 process lessons from Phase 3
 - `docs/use-cases.md` — Validated Phase 2 output (14 use cases + 7 cross-cutting design decisions)
-- `docs/requirements.md` — REQ-1 through REQ-21 (UC-1 through UC-4), pending inline review
+- `docs/requirements.md` — REQ-1 through REQ-21 (UC-1 through UC-4). Group A (REQ-1-18) validated and refactored.
 
 ## Completed Phases
 - **LESSONS (Phase 1)** — Validated. 16 successes, 13 failures, 9 design constraints.
@@ -49,7 +49,13 @@ Dirty-marking rules:
 - **REQUIREMENTS (Phase 3, partial)** — REQ-1 through REQ-21 written covering UC-1 through UC-4. Not yet reviewed inline. UC-5-14 not yet extracted. Process changed to vertical before completing this phase horizontally.
 
 ## Last Session Summary
-Validated UC groupings: Group A (Core Pipeline: UC-1/2/3), Group B (Evaluation: UC-7/8/9/10), Group C (Promotion: UC-4/5/6/12), Group D (Infrastructure: UC-11/13/14). Group A goes first as the dependency root and fastest path to a working plugin. Fixed SessionEnd hook error (prompt hooks not supported on SessionEnd — removed it, Stop hook provides same coverage). Next: requirements layer refactor for Group A before descending.
+Retroactive UC-level refactoring + full REQ dirty-flag resolution + verified refactoring criteria at both layers. Key changes:
+
+**UC layer (8 changes):** Removed premature TF-IDF constraint → "local retrieval" with algorithm deferred to architecture. Added quality gate to UC-1. Unified "reconciliation" terminology across UC-1/UC-3. Removed deferred backlog note from UC-2. Added ranking bullet to UC-2 (frecency primary, confidence tiebreaker, cold start behavior) — this closed a gap where REQ-4 traced to UC-2 but UC-2 never mentioned confidence or ranking.
+
+**REQ layer (10 REQs touched):** All TF-IDF → local similarity. REQ-5 renamed Deduplication → Reconciliation. REQ-2 got quality gate AC(4). REQ-4 expanded from "confidence tiebreaker" to full ranking behavior REQ (absorbed REQ-7's misplaced ACs 4-5 about cold start and impact-over-frequency). REQ-7/8/9 all got consistent (REQ-4) cross-references. Budget table unified to single `reconciliation.candidate_count` for REQ-5 and REQ-14.
+
+**Verification:** Both UC and REQ layers passed all 5 refactoring criteria (parent validation, consistency, bidirectional satisfaction, semantic review, lessons). Each pass done against actual file content, not assumptions. UC re-verified after adding ranking bullet. REQ re-verified after adding cross-references.
 
 ## Open Questions
 None.
@@ -57,4 +63,4 @@ None.
 ## Artifacts Produced
 - `docs/lessons.md` — Validated
 - `docs/use-cases.md` — Validated
-- `docs/requirements.md` — Partial (REQ-1 through REQ-21, UC-1 through UC-4 only)
+- `docs/requirements.md` — Group A validated, Group C (UC-4) unchanged, UC-5-14 not yet extracted
