@@ -89,7 +89,14 @@ At every layer, for every group, the work follows this cycle:
 - Surface lessons learned
 - If content of any group changes, dirty-mark its child nodes
 
-**4. (RE)GROUP.** Group items from the whole layer. Refactoring may have changed content enough to disrupt prior groupings. Present 2-3 grouping options with tradeoffs. Recommend one. User chooses.
+**4. (RE)GROUP.** Group items from the whole layer. Refactoring may have changed content enough to disrupt prior groupings. If regrouping changes a group's membership, dirty-mark the children of disrupted groups — they are now parentless. At the next layer refactor, orphaned children must be assigned new parents or cut.
+
+Grouping proposals (present to the user every time):
+- Present 2-3 ways to cluster items (by dependency, domain, complexity, risk). Explain the tradeoff of each grouping.
+- Recommend one grouping with rationale.
+- After the user chooses a grouping, recommend a priority ordering for which group to take deep first and why. The user chooses.
+
+Never silently pick a grouping or priority. This decision recurs at every layer.
 
 **5. DESCEND.** Pick the next incomplete group and descend to the next layer. Start the RED → GREEN → REFACTOR cycle there.
 
@@ -177,12 +184,7 @@ Skip for: single-file fixes, clear requirements with known implementation, proto
 
 ### Getting Started
 
-1. **Write UCs.** Interview or discover use cases. Refactor and group at L1.
-2. **Pick a group.** Descend to L2.
-3. **RED/GREEN/REFACTOR at L2.** Derive REQ and DES items from the parent UC group. Refactor the whole layer. Group L2 items (groups can mix REQ and DES).
-4. **Pick an L2 group, descend to ARCH.** Repeat the cycle.
-5. **Continue through TEST and IMPL.**
-6. **Backtrack** for the next incomplete group at any layer.
+Follow the RED → GREEN → REFACTOR → (RE)GROUP → DESCEND cycle. At L1 (the top), the "parent" is the core project purpose, and GREEN means interviewing the user to discover use cases.
 
 ### State Persistence
 
