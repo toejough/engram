@@ -11,15 +11,32 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-func TestGetKeychainToken_ReturnsToken(t *testing.T) {
+func TestGetKeychainToken_AcceptsNumericExpiresAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Real keychain JSON has expiresAt as a JSON number, not a string
+	rawJSON := []byte(`{"claudeAiOauth":{"accessToken":"sk-ant-oat01-numeric","expiresAt":4102444800000}}`)
+
+	auth := memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return rawJSON, nil
+		},
+	}
+
+	token, err := auth.GetToken(context.Background())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(token).To(Equal("sk-ant-oat01-numeric"))
+}
+
+func TestGetKeychainToken_AcceptsValidUnixMillisExpiry(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	creds := map[string]any{
 		"claudeAiOauth": map[string]any{
-			"accessToken":  "sk-ant-oat01-test-token",
-			"refreshToken": "sk-ant-oart01-refresh",
-			"expiresAt":    "2099-12-31T23:59:59Z",
+			"accessToken": "sk-ant-oat01-valid",
+			"expiresAt":   "4102444800000", // 2099-12-31 in millis
 		},
 	}
 	credsJSON, _ := json.Marshal(creds)
@@ -32,32 +49,73 @@ func TestGetKeychainToken_ReturnsToken(t *testing.T) {
 
 	token, err := auth.GetToken(context.Background())
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(token).To(Equal("sk-ant-oat01-test-token"))
+	g.Expect(token).To(Equal("sk-ant-oat01-valid"))
 }
 
-func TestGetKeychainToken_ReturnsErrWhenKeychainFails(t *testing.T) {
+func TestGetKeychainToken_MissingExpiresAtTreatedAsValid(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	creds := map[string]any{
+		"claudeAiOauth": map[string]any{
+			"accessToken": "sk-ant-oat01-no-expiry",
+		},
+	}
+	credsJSON, _ := json.Marshal(creds)
+
 	auth := memory.KeychainAuth{
 		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return nil, errors.New("security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.")
+			return credsJSON, nil
 		},
 	}
 
 	token, err := auth.GetToken(context.Background())
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, memory.ErrAuthUnavailable)).To(BeTrue())
-	g.Expect(token).To(BeEmpty())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(token).To(Equal("sk-ant-oat01-no-expiry"))
 }
 
-func TestGetKeychainToken_ReturnsErrOnMalformedJSON(t *testing.T) {
+func TestGetKeychainToken_PassesCorrectSecurityArgs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	var (
+		capturedName string
+		capturedArgs []string
+	)
+
+	creds := map[string]any{
+		"claudeAiOauth": map[string]any{
+			"accessToken": "sk-ant-oat01-x",
+			"expiresAt":   "2099-12-31T23:59:59Z",
+		},
+	}
+	credsJSON, _ := json.Marshal(creds)
+
+	auth := memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, name string, args ...string) ([]byte, error) {
+			capturedName = name
+			capturedArgs = args
+
+			return credsJSON, nil
+		},
+	}
+
+	_, err := auth.GetToken(context.Background())
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(capturedName).To(Equal("security"))
+	g.Expect(capturedArgs).To(ContainElements("find-generic-password", "-s", "Claude Code-credentials", "-w"))
+}
+
+func TestGetKeychainToken_RejectsExpiredNumericExpiresAt(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Expired token with numeric expiresAt
+	rawJSON := []byte(`{"claudeAiOauth":{"accessToken":"sk-ant-oat01-expired","expiresAt":1577836800000}}`)
+
 	auth := memory.KeychainAuth{
 		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return []byte("not json"), nil
+			return rawJSON, nil
 		},
 	}
 
@@ -114,28 +172,6 @@ func TestGetKeychainToken_ReturnsErrOnExpiredToken(t *testing.T) {
 	g.Expect(token).To(BeEmpty())
 }
 
-func TestGetKeychainToken_MissingExpiresAtTreatedAsValid(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	creds := map[string]any{
-		"claudeAiOauth": map[string]any{
-			"accessToken": "sk-ant-oat01-no-expiry",
-		},
-	}
-	credsJSON, _ := json.Marshal(creds)
-
-	auth := memory.KeychainAuth{
-		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return credsJSON, nil
-		},
-	}
-
-	token, err := auth.GetToken(context.Background())
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(token).To(Equal("sk-ant-oat01-no-expiry"))
-}
-
 func TestGetKeychainToken_ReturnsErrOnExpiredUnixMillisToken(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -160,57 +196,13 @@ func TestGetKeychainToken_ReturnsErrOnExpiredUnixMillisToken(t *testing.T) {
 	g.Expect(token).To(BeEmpty())
 }
 
-func TestGetKeychainToken_AcceptsValidUnixMillisExpiry(t *testing.T) {
+func TestGetKeychainToken_ReturnsErrOnMalformedJSON(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	creds := map[string]any{
-		"claudeAiOauth": map[string]any{
-			"accessToken": "sk-ant-oat01-valid",
-			"expiresAt":   "4102444800000", // 2099-12-31 in millis
-		},
-	}
-	credsJSON, _ := json.Marshal(creds)
-
 	auth := memory.KeychainAuth{
 		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return credsJSON, nil
-		},
-	}
-
-	token, err := auth.GetToken(context.Background())
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(token).To(Equal("sk-ant-oat01-valid"))
-}
-
-func TestGetKeychainToken_AcceptsNumericExpiresAt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Real keychain JSON has expiresAt as a JSON number, not a string
-	rawJSON := []byte(`{"claudeAiOauth":{"accessToken":"sk-ant-oat01-numeric","expiresAt":4102444800000}}`)
-
-	auth := memory.KeychainAuth{
-		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return rawJSON, nil
-		},
-	}
-
-	token, err := auth.GetToken(context.Background())
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(token).To(Equal("sk-ant-oat01-numeric"))
-}
-
-func TestGetKeychainToken_RejectsExpiredNumericExpiresAt(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Expired token with numeric expiresAt
-	rawJSON := []byte(`{"claudeAiOauth":{"accessToken":"sk-ant-oat01-expired","expiresAt":1577836800000}}`)
-
-	auth := memory.KeychainAuth{
-		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return rawJSON, nil
+			return []byte("not json"), nil
 		},
 	}
 
@@ -220,30 +212,42 @@ func TestGetKeychainToken_RejectsExpiredNumericExpiresAt(t *testing.T) {
 	g.Expect(token).To(BeEmpty())
 }
 
-func TestGetKeychainToken_PassesCorrectSecurityArgs(t *testing.T) {
+func TestGetKeychainToken_ReturnsErrWhenKeychainFails(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	var capturedName string
-	var capturedArgs []string
+	auth := memory.KeychainAuth{
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return nil, errors.New("security: SecKeychainSearchCopyNext: The specified item could not be found in the keychain.")
+		},
+	}
+
+	token, err := auth.GetToken(context.Background())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrAuthUnavailable)).To(BeTrue())
+	g.Expect(token).To(BeEmpty())
+}
+
+func TestGetKeychainToken_ReturnsToken(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
 	creds := map[string]any{
 		"claudeAiOauth": map[string]any{
-			"accessToken": "sk-ant-oat01-x",
-			"expiresAt":   "2099-12-31T23:59:59Z",
+			"accessToken":  "sk-ant-oat01-test-token",
+			"refreshToken": "sk-ant-oart01-refresh",
+			"expiresAt":    "2099-12-31T23:59:59Z",
 		},
 	}
 	credsJSON, _ := json.Marshal(creds)
 
 	auth := memory.KeychainAuth{
-		CommandRunner: func(_ context.Context, name string, args ...string) ([]byte, error) {
-			capturedName = name
-			capturedArgs = args
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 			return credsJSON, nil
 		},
 	}
 
-	_, err := auth.GetToken(context.Background())
+	token, err := auth.GetToken(context.Background())
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(capturedName).To(Equal("security"))
-	g.Expect(capturedArgs).To(ContainElements("find-generic-password", "-s", "Claude Code-credentials", "-w"))
+	g.Expect(token).To(Equal("sk-ant-oat01-test-token"))
 }

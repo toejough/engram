@@ -1,0 +1,22 @@
+[
+  {
+    "principle": "When integrating with external data sources (APIs, system keychains, databases), validate struct field types against actual runtime data, not just test fixtures. Type mismatches between what external systems return (e.g., JSON numbers) and what Go structs expect (e.g., strings) cause silent unmarshaling failures.",
+    "evidence": "The macOS keychain stored `expiresAt` as a JSON number (1771135463328), but the Go struct declared it as string, causing json.Unmarshal to fail with 'keychain auth failed'. All 11 existing tests passed because they used Go string values that marshaled to JSON strings, completely missing the real-world numeric format.",
+    "category": "debugging"
+  },
+  {
+    "principle": "When debugging cross-boundary failures (shell/environment/runtime), reproduce the error in the actual execution context rather than testing peripheral components. Shell diagnostics and environment variable checks can lead to false leads if the real issue is in the runtime data handling.",
+    "evidence": "Initial debugging focused on shell environment variables ($USER vs literal 'joe'), but the actual failure occurred during Go json.Unmarshal execution. Shifting focus to the Go runtime context revealed the type mismatch was the root cause, not environment configuration.",
+    "category": "debugging"
+  },
+  {
+    "principle": "When testing serialization/deserialization logic, use raw data literals (JSON strings, XML documents) that match the exact format external systems provide, not Go objects that get marshaled. Go-marshaled test data can mask type incompatibilities that only appear with real external data.",
+    "evidence": "Test fixtures used Go structs with string `expiresAt` fields, which when marshaled produced JSON strings. This created false confidence\u2014all tests passed despite the keychain returning numeric values. Adding TestGetKeychainToken_AcceptsNumericExpiresAt with raw JSON literal `\"expiresAt\": 1771135463328` immediately caught the bug.",
+    "category": "testing"
+  },
+  {
+    "principle": "When external data format varies or is uncertain, use flexible types (interface{}, any, or custom unmarshalers) rather than strict types. This prevents brittle failures when external systems return valid JSON with different type representations than expected.",
+    "evidence": "Changed the `expiresAt` field from `string` to `any` type to handle both numeric and string representations from the keychain, allowing the code to work regardless of which format the external system provides.",
+    "category": "api-design"
+  }
+]

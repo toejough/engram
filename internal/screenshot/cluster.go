@@ -9,12 +9,12 @@ import (
 
 // Cluster represents a spatial region of differences.
 type Cluster struct {
-	ID         int     `json:"id"`
-	BoundingBox Rect   `json:"bounding_box"`
-	PixelCount int     `json:"pixel_count"`
-	CenterX    float64 `json:"center_x"`
-	CenterY    float64 `json:"center_y"`
-	LocalSSIM  float64 `json:"local_ssim"`
+	ID          int     `json:"id"`
+	BoundingBox Rect    `json:"bounding_box"`
+	PixelCount  int     `json:"pixel_count"`
+	CenterX     float64 `json:"center_x"`
+	CenterY     float64 `json:"center_y"`
+	LocalSSIM   float64 `json:"local_ssim"`
 }
 
 // Rect is a simple rectangle.
@@ -51,6 +51,7 @@ func FindClusters(result SSIMResult, threshold float64) []Cluster {
 			parent[x] = parent[parent[x]] // path compression
 			x = parent[x]
 		}
+
 		return x
 	}
 
@@ -88,6 +89,7 @@ func FindClusters(result SSIMResult, threshold float64) []Cluster {
 						minLabel = n
 					}
 				}
+
 				labels[y*w+x] = minLabel
 				for _, n := range neighbors {
 					union(minLabel, n)
@@ -129,12 +131,15 @@ func FindClusters(result SSIMResult, threshold float64) []Cluster {
 			if x < cd.minX {
 				cd.minX = x
 			}
+
 			if x > cd.maxX {
 				cd.maxX = x
 			}
+
 			if y < cd.minY {
 				cd.minY = y
 			}
+
 			if y > cd.maxY {
 				cd.maxY = y
 			}
@@ -148,6 +153,7 @@ func FindClusters(result SSIMResult, threshold float64) []Cluster {
 
 	// Build result
 	var result2 []Cluster
+
 	id := 1
 
 	for _, cd := range clusters {
@@ -182,6 +188,10 @@ func FindClusters(result SSIMResult, threshold float64) []Cluster {
 
 // RenderDiffWithBoxes creates a diff image with bounding boxes drawn around clusters.
 func RenderDiffWithBoxes(img1, img2 image.Image, clusters []Cluster) *image.RGBA {
+	if img1 == nil || img2 == nil {
+		return nil
+	}
+
 	b := img1.Bounds()
 	w, h := b.Dx(), b.Dy()
 	out := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -189,8 +199,15 @@ func RenderDiffWithBoxes(img1, img2 image.Image, clusters []Cluster) *image.RGBA
 	// Blend the two images (50/50)
 	for y := range h {
 		for x := range w {
-			r1, g1, b1, _ := img1.At(b.Min.X+x, b.Min.Y+y).RGBA()
-			r2, g2, b2, _ := img2.At(b.Min.X+x, b.Min.Y+y).RGBA()
+			c1 := img1.At(b.Min.X+x, b.Min.Y+y)
+
+			c2 := img2.At(b.Min.X+x, b.Min.Y+y)
+			if c1 == nil || c2 == nil {
+				continue
+			}
+
+			r1, g1, b1, _ := c1.RGBA()
+			r2, g2, b2, _ := c2.RGBA()
 			out.SetRGBA(x, y, color.RGBA{
 				R: uint8((r1/256 + r2/256) / 2),
 				G: uint8((g1/256 + g2/256) / 2),
@@ -211,6 +228,10 @@ func RenderDiffWithBoxes(img1, img2 image.Image, clusters []Cluster) *image.RGBA
 	return out
 }
 
+func clampInt(v, lo, hi int) int {
+	return int(math.Max(float64(lo), math.Min(float64(hi), float64(v))))
+}
+
 func drawRect(img *image.RGBA, x1, y1, x2, y2 int, c color.RGBA) {
 	b := img.Bounds()
 	x1 = clampInt(x1, 0, b.Dx()-1)
@@ -227,8 +248,4 @@ func drawRect(img *image.RGBA, x1, y1, x2, y2 int, c color.RGBA) {
 		img.SetRGBA(x1, y, c)
 		img.SetRGBA(x2, y, c)
 	}
-}
-
-func clampInt(v, lo, hi int) int {
-	return int(math.Max(float64(lo), math.Min(float64(hi), float64(v))))
 }

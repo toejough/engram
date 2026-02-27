@@ -135,6 +135,94 @@ func TestFormatProposal(t *testing.T) {
 	})
 }
 
+func TestFormatProposalActionVerbs(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	// Test that action explanations appear in formatted output
+	testCases := []struct {
+		action          string
+		expectedContain string
+	}{
+		{"prune", "Delete this memory entry permanently"},
+		{"decay", "Reduce confidence score"},
+		{"consolidate", "Delete the second entry, keep the first"},
+		{"split", "Break this multi-topic entry"},
+		{"promote", "Create a new skill"},
+		{"demote", "Move to a lower tier"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
+			proposal := MaintenanceProposal{
+				Tier:    "embeddings",
+				Action:  tc.action,
+				Target:  "test-target",
+				Reason:  "test reason",
+				Preview: "test preview",
+			}
+
+			formatted := formatProposal(proposal)
+			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
+		})
+	}
+}
+
+// ============================================================================
+// Additional tests for ISSUE-218: Content Refinement Action Verbs
+// ============================================================================
+
+// TEST-1216: formatProposal handles new refinement action verbs
+func TestFormatProposalNewRefinementActions(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	testCases := []struct {
+		action          string
+		expectedContain string
+	}{
+		{"rewrite", "Replace content with an LLM-improved version"},
+		{"add-rationale", "Append an explanation of WHY"},
+		{"extract-examples", "Pull out concrete examples"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
+			proposal := MaintenanceProposal{
+				Tier:    "embeddings",
+				Action:  tc.action,
+				Target:  "test-target",
+				Reason:  "test reason",
+				Preview: "test preview",
+			}
+
+			formatted := formatProposal(proposal)
+			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
+		})
+	}
+}
+
+// ============================================================================
+// Backward Compatibility and Apply/Skip Input Tests
+// ============================================================================
+
+func TestFormatProposal_WithoutLLMEval(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	proposal := MaintenanceProposal{
+		Tier:    "embeddings",
+		Action:  "rewrite",
+		Target:  "id1",
+		Reason:  "Clarity improvement",
+		Preview: "Rewritten content here",
+		// No LLMEval — no Haiku/Sonnet sections
+	}
+
+	formatted := formatProposal(proposal)
+	g.Expect(formatted).To(gomega.ContainSubstring("[a]pply / [s]kip"))
+	g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
+	g.Expect(formatted).ToNot(gomega.ContainSubstring("Haiku:"))
+	g.Expect(formatted).ToNot(gomega.ContainSubstring("Sonnet"))
+}
+
 func TestReviewProposal(t *testing.T) {
 	g := gomega.NewWithT(t)
 
@@ -395,92 +483,24 @@ func TestReviewProposalEdgeCases(t *testing.T) {
 	})
 }
 
-func TestFormatProposalActionVerbs(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	// Test that action explanations appear in formatted output
-	testCases := []struct {
-		action          string
-		expectedContain string
-	}{
-		{"prune", "Delete this memory entry permanently"},
-		{"decay", "Reduce confidence score"},
-		{"consolidate", "Delete the second entry, keep the first"},
-		{"split", "Break this multi-topic entry"},
-		{"promote", "Create a new skill"},
-		{"demote", "Move to a lower tier"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
-			proposal := MaintenanceProposal{
-				Tier:    "embeddings",
-				Action:  tc.action,
-				Target:  "test-target",
-				Reason:  "test reason",
-				Preview: "test preview",
-			}
-
-			formatted := formatProposal(proposal)
-			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
-		})
-	}
-}
-
-// ============================================================================
-// Additional tests for ISSUE-218: Content Refinement Action Verbs
-// ============================================================================
-
-// TEST-1216: formatProposal handles new refinement action verbs
-func TestFormatProposalNewRefinementActions(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	testCases := []struct {
-		action          string
-		expectedContain string
-	}{
-		{"rewrite", "Replace content with an LLM-improved version"},
-		{"add-rationale", "Append an explanation of WHY"},
-		{"extract-examples", "Pull out concrete examples"},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("action %s has explanation", tc.action), func(t *testing.T) {
-			proposal := MaintenanceProposal{
-				Tier:    "embeddings",
-				Action:  tc.action,
-				Target:  "test-target",
-				Reason:  "test reason",
-				Preview: "test preview",
-			}
-
-			formatted := formatProposal(proposal)
-			g.Expect(formatted).To(gomega.ContainSubstring(tc.expectedContain))
-		})
-	}
-}
-
-// ============================================================================
-// Backward Compatibility and Apply/Skip Input Tests
-// ============================================================================
-
-func TestFormatProposal_WithoutLLMEval(t *testing.T) {
+func TestReviewProposal_AcceptsApplyFullWord(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	proposal := MaintenanceProposal{
 		Tier:    "embeddings",
-		Action:  "rewrite",
-		Target:  "id1",
-		Reason:  "Clarity improvement",
-		Preview: "Rewritten content here",
-		// No LLMEval — no Haiku/Sonnet sections
+		Action:  "consolidate",
+		Target:  "id1,id2",
+		Reason:  "Redundant",
+		Preview: "content",
+		LLMEval: &LLMEvalResult{HaikuValid: true},
 	}
 
-	formatted := formatProposal(proposal)
-	g.Expect(formatted).To(gomega.ContainSubstring("[a]pply / [s]kip"))
-	g.Expect(formatted).To(gomega.ContainSubstring("Proposed Change:"))
-	g.Expect(formatted).ToNot(gomega.ContainSubstring("Haiku:"))
-	g.Expect(formatted).ToNot(gomega.ContainSubstring("Sonnet"))
+	input := strings.NewReader("apply\n")
+	output := &bytes.Buffer{}
+
+	result, err := reviewProposal(proposal, input, output)
+	g.Expect(err).ToNot(gomega.HaveOccurred())
+	g.Expect(result).To(gomega.BeTrue())
 }
 
 func TestReviewProposal_AcceptsApplyInput(t *testing.T) {
@@ -496,26 +516,6 @@ func TestReviewProposal_AcceptsApplyInput(t *testing.T) {
 	}
 
 	input := strings.NewReader("a\n")
-	output := &bytes.Buffer{}
-
-	result, err := reviewProposal(proposal, input, output)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(result).To(gomega.BeTrue())
-}
-
-func TestReviewProposal_AcceptsApplyFullWord(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	proposal := MaintenanceProposal{
-		Tier:    "embeddings",
-		Action:  "consolidate",
-		Target:  "id1,id2",
-		Reason:  "Redundant",
-		Preview: "content",
-		LLMEval: &LLMEvalResult{HaikuValid: true},
-	}
-
-	input := strings.NewReader("apply\n")
 	output := &bytes.Buffer{}
 
 	result, err := reviewProposal(proposal, input, output)

@@ -12,8 +12,32 @@ import (
 	"time"
 )
 
-// IssuesFile is the default filename for issues.
-const IssuesFile = "docs/issues.md"
+// Exported constants.
+const (
+	IssuesFile = "docs/issues.md"
+)
+
+// ACItem represents a single acceptance criterion item.
+type ACItem struct {
+	Text     string
+	Complete bool
+}
+
+// ACResult holds the result of acceptance criteria parsing.
+type ACResult struct {
+	Complete    int
+	Incomplete  int
+	AllComplete bool
+	Items       []ACItem
+	Error       string
+}
+
+// CreateOpts holds options for creating an issue.
+type CreateOpts struct {
+	Title    string
+	Priority string // Defaults to "Medium"
+	Body     string // Optional detailed body
+}
 
 // Issue represents a tracked issue.
 type Issue struct {
@@ -25,121 +49,11 @@ type Issue struct {
 	Body     string // Full markdown body after metadata
 }
 
-var issueHeaderRe = regexp.MustCompile(`^### (ISSUE-\d+): (.+)$`)
-var priorityRe = regexp.MustCompile(`^\*\*Priority:\*\* (.+)$`)
-var statusRe = regexp.MustCompile(`^\*\*Status:\*\* (.+)$`)
-var createdRe = regexp.MustCompile(`^\*\*Created:\*\* (.+)$`)
-
-// Parse reads issues from the issues file.
-func Parse(dir string) ([]Issue, error) {
-	path := filepath.Join(dir, IssuesFile)
-	content, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil // No issues file yet
-		}
-		return nil, fmt.Errorf("failed to read issues file: %w", err)
-	}
-
-	return ParseContent(string(content)), nil
-}
-
-// ParseContent parses issues from markdown content.
-func ParseContent(content string) []Issue {
-	var issues []Issue
-	var current *Issue
-	var bodyLines []string
-
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Check for new issue header
-		if matches := issueHeaderRe.FindStringSubmatch(line); matches != nil {
-			// Save previous issue
-			if current != nil {
-				current.Body = strings.TrimSpace(strings.Join(bodyLines, "\n"))
-				issues = append(issues, *current)
-			}
-			current = &Issue{
-				ID:    matches[1],
-				Title: matches[2],
-			}
-			bodyLines = nil
-			continue
-		}
-
-		if current == nil {
-			continue
-		}
-
-		// Parse metadata fields
-		if matches := priorityRe.FindStringSubmatch(line); matches != nil {
-			current.Priority = matches[1]
-			continue
-		}
-		if matches := statusRe.FindStringSubmatch(line); matches != nil {
-			current.Status = matches[1]
-			continue
-		}
-		if matches := createdRe.FindStringSubmatch(line); matches != nil {
-			current.Created = matches[1]
-			continue
-		}
-
-		// Accumulate body
-		bodyLines = append(bodyLines, line)
-	}
-
-	// Save last issue
-	if current != nil {
-		current.Body = strings.TrimSpace(strings.Join(bodyLines, "\n"))
-		issues = append(issues, *current)
-	}
-
-	return issues
-}
-
-// Get returns a single issue by ID.
-func Get(dir string, id string) (*Issue, error) {
-	issues, err := Parse(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, issue := range issues {
-		if issue.ID == id {
-			return &issue, nil
-		}
-	}
-
-	return nil, fmt.Errorf("issue not found: %s", id)
-}
-
-// NextID returns the next available issue ID.
-func NextID(dir string) (string, error) {
-	issues, err := Parse(dir)
-	if err != nil {
-		return "", err
-	}
-
-	maxNum := 0
-	for _, issue := range issues {
-		// Extract number from ISSUE-N
-		numStr := strings.TrimPrefix(issue.ID, "ISSUE-")
-		if num, err := strconv.Atoi(numStr); err == nil && num > maxNum {
-			maxNum = num
-		}
-	}
-
-	return fmt.Sprintf("ISSUE-%d", maxNum+1), nil
-}
-
-// CreateOpts holds options for creating an issue.
-type CreateOpts struct {
-	Title    string
-	Priority string // Defaults to "Medium"
-	Body     string // Optional detailed body
+// UpdateOpts holds options for updating an issue.
+type UpdateOpts struct {
+	Status  string // New status (Open, Closed, etc.)
+	Comment string // Optional comment to append
+	Force   bool   // Skip AC validation when closing
 }
 
 // Create adds a new issue to the issues file.
@@ -165,6 +79,7 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 
 	// Read existing content
 	path := filepath.Join(dir, IssuesFile)
+
 	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return Issue{}, fmt.Errorf("failed to read issues file: %w", err)
@@ -174,9 +89,11 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 	var builder strings.Builder
 	if len(existing) > 0 {
 		builder.Write(existing)
+
 		if !strings.HasSuffix(string(existing), "\n") {
 			builder.WriteString("\n")
 		}
+
 		builder.WriteString("\n---\n\n")
 	} else {
 		// Create header for new file
@@ -190,6 +107,7 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 	builder.WriteString(fmt.Sprintf("**Priority:** %s\n", issue.Priority))
 	builder.WriteString(fmt.Sprintf("**Status:** %s\n", issue.Status))
 	builder.WriteString(fmt.Sprintf("**Created:** %s\n", issue.Created))
+
 	if issue.Body != "" {
 		builder.WriteString("\n")
 		builder.WriteString(issue.Body)
@@ -210,83 +128,20 @@ func Create(dir string, opts CreateOpts, now func() time.Time) (Issue, error) {
 	return issue, nil
 }
 
-// UpdateOpts holds options for updating an issue.
-type UpdateOpts struct {
-	Status  string // New status (Open, Closed, etc.)
-	Comment string // Optional comment to append
-	Force   bool   // Skip AC validation when closing
-}
-
-// Update modifies an existing issue.
-func Update(dir string, id string, opts UpdateOpts) error {
-	// Validate AC before closing (unless forced)
-	if strings.EqualFold(opts.Status, "closed") && !opts.Force {
-		if err := ValidateClose(dir, id); err != nil {
-			return err
-		}
-	}
-
-	path := filepath.Join(dir, IssuesFile)
-	content, err := os.ReadFile(path)
+// Get returns a single issue by ID.
+func Get(dir string, id string) (*Issue, error) {
+	issues, err := Parse(dir)
 	if err != nil {
-		return fmt.Errorf("failed to read issues file: %w", err)
+		return nil, err
 	}
 
-	lines := strings.Split(string(content), "\n")
-	var result []string
-	inIssue := false
-	foundIssue := false
-	issuePattern := fmt.Sprintf("### %s:", id)
-
-	for i := 0; i < len(lines); i++ {
-		line := lines[i]
-
-		// Check if entering target issue
-		if strings.HasPrefix(line, issuePattern) {
-			inIssue = true
-			foundIssue = true
-			result = append(result, line)
-			continue
+	for _, issue := range issues {
+		if issue.ID == id {
+			return &issue, nil
 		}
-
-		// Check if leaving target issue (next issue or end)
-		if inIssue && strings.HasPrefix(line, "### ISSUE-") {
-			// Add comment before leaving if specified
-			if opts.Comment != "" {
-				result = append(result, "")
-				result = append(result, "### Comment")
-				result = append(result, "")
-				result = append(result, opts.Comment)
-			}
-			inIssue = false
-		}
-
-		// Update status line if in target issue
-		if inIssue && strings.HasPrefix(line, "**Status:**") && opts.Status != "" {
-			result = append(result, fmt.Sprintf("**Status:** %s", opts.Status))
-			continue
-		}
-
-		result = append(result, line)
 	}
 
-	// Add comment at end if still in issue (last issue in file)
-	if inIssue && opts.Comment != "" {
-		result = append(result, "")
-		result = append(result, "### Comment")
-		result = append(result, "")
-		result = append(result, opts.Comment)
-	}
-
-	if !foundIssue {
-		return fmt.Errorf("issue not found: %s", id)
-	}
-
-	if err := os.WriteFile(path, []byte(strings.Join(result, "\n")), 0o644); err != nil {
-		return fmt.Errorf("failed to write issues file: %w", err)
-	}
-
-	return nil
+	return nil, fmt.Errorf("issue not found: %s", id)
 }
 
 // List returns all issues, optionally filtered by status.
@@ -301,6 +156,7 @@ func List(dir string, statusFilter string) ([]Issue, error) {
 	}
 
 	var filtered []Issue
+
 	for _, issue := range issues {
 		if strings.EqualFold(issue.Status, statusFilter) {
 			filtered = append(filtered, issue)
@@ -310,45 +166,40 @@ func List(dir string, statusFilter string) ([]Issue, error) {
 	return filtered, nil
 }
 
-// ValidateClose checks if an issue can be closed (all AC must be complete).
-func ValidateClose(dir, issueID string) error {
-	result := ParseAcceptanceCriteria(dir, issueID)
-	if result.Error != "" {
-		return fmt.Errorf("failed to parse AC: %s", result.Error)
+// NextID returns the next available issue ID.
+func NextID(dir string) (string, error) {
+	issues, err := Parse(dir)
+	if err != nil {
+		return "", err
 	}
 
-	if !result.AllComplete {
-		var incompleteItems []string
-		for _, item := range result.Items {
-			if !item.Complete {
-				incompleteItems = append(incompleteItems, item.Text)
-			}
-		}
+	maxNum := 0
 
-		errMsg := fmt.Sprintf("cannot close %s: %d acceptance criteria incomplete:\n", issueID, result.Incomplete)
-		for _, item := range incompleteItems {
-			errMsg += "- " + item + "\n"
+	for _, issue := range issues {
+		// Extract number from ISSUE-N
+		numStr := strings.TrimPrefix(issue.ID, "ISSUE-")
+		if num, err := strconv.Atoi(numStr); err == nil && num > maxNum {
+			maxNum = num
 		}
-
-		return fmt.Errorf("%s", errMsg)
 	}
 
-	return nil
+	return fmt.Sprintf("ISSUE-%d", maxNum+1), nil
 }
 
-// ACItem represents a single acceptance criterion item.
-type ACItem struct {
-	Text     string
-	Complete bool
-}
+// Parse reads issues from the issues file.
+func Parse(dir string) ([]Issue, error) {
+	path := filepath.Join(dir, IssuesFile)
 
-// ACResult holds the result of acceptance criteria parsing.
-type ACResult struct {
-	Complete    int
-	Incomplete  int
-	AllComplete bool
-	Items       []ACItem
-	Error       string
+	content, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No issues file yet
+		}
+
+		return nil, fmt.Errorf("failed to read issues file: %w", err)
+	}
+
+	return ParseContent(string(content)), nil
 }
 
 // ParseAcceptanceCriteria extracts and validates acceptance criteria for an issue.
@@ -379,12 +230,193 @@ func ParseAcceptanceCriteria(dir, issueID string) ACResult {
 	}
 }
 
+// ParseContent parses issues from markdown content.
+func ParseContent(content string) []Issue {
+	var (
+		issues    []Issue
+		current   *Issue
+		bodyLines []string
+	)
+
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Check for new issue header
+		if matches := issueHeaderRe.FindStringSubmatch(line); matches != nil {
+			// Save previous issue
+			if current != nil {
+				current.Body = strings.TrimSpace(strings.Join(bodyLines, "\n"))
+				issues = append(issues, *current)
+			}
+
+			current = &Issue{
+				ID:    matches[1],
+				Title: matches[2],
+			}
+			bodyLines = nil
+
+			continue
+		}
+
+		if current == nil {
+			continue
+		}
+
+		// Parse metadata fields
+		if matches := priorityRe.FindStringSubmatch(line); matches != nil {
+			current.Priority = matches[1]
+			continue
+		}
+
+		if matches := statusRe.FindStringSubmatch(line); matches != nil {
+			current.Status = matches[1]
+			continue
+		}
+
+		if matches := createdRe.FindStringSubmatch(line); matches != nil {
+			current.Created = matches[1]
+			continue
+		}
+
+		// Accumulate body
+		bodyLines = append(bodyLines, line)
+	}
+
+	// Save last issue
+	if current != nil {
+		current.Body = strings.TrimSpace(strings.Join(bodyLines, "\n"))
+		issues = append(issues, *current)
+	}
+
+	return issues
+}
+
+// Update modifies an existing issue.
+func Update(dir string, id string, opts UpdateOpts) error {
+	// Validate AC before closing (unless forced)
+	if strings.EqualFold(opts.Status, "closed") && !opts.Force {
+		err := ValidateClose(dir, id)
+		if err != nil {
+			return err
+		}
+	}
+
+	path := filepath.Join(dir, IssuesFile)
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read issues file: %w", err)
+	}
+
+	lines := strings.Split(string(content), "\n")
+
+	var result []string
+
+	inIssue := false
+	foundIssue := false
+	issuePattern := fmt.Sprintf("### %s:", id)
+
+	for i := range lines {
+		line := lines[i]
+
+		// Check if entering target issue
+		if strings.HasPrefix(line, issuePattern) {
+			inIssue = true
+			foundIssue = true
+
+			result = append(result, line)
+
+			continue
+		}
+
+		// Check if leaving target issue (next issue or end)
+		if inIssue && strings.HasPrefix(line, "### ISSUE-") {
+			// Add comment before leaving if specified
+			if opts.Comment != "" {
+				result = append(result, "")
+				result = append(result, "### Comment")
+				result = append(result, "")
+				result = append(result, opts.Comment)
+			}
+
+			inIssue = false
+		}
+
+		// Update status line if in target issue
+		if inIssue && strings.HasPrefix(line, "**Status:**") && opts.Status != "" {
+			result = append(result, "**Status:** "+opts.Status)
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	// Add comment at end if still in issue (last issue in file)
+	if inIssue && opts.Comment != "" {
+		result = append(result, "")
+		result = append(result, "### Comment")
+		result = append(result, "")
+		result = append(result, opts.Comment)
+	}
+
+	if !foundIssue {
+		return fmt.Errorf("issue not found: %s", id)
+	}
+
+	if err := os.WriteFile(path, []byte(strings.Join(result, "\n")), 0o644); err != nil {
+		return fmt.Errorf("failed to write issues file: %w", err)
+	}
+
+	return nil
+}
+
+// ValidateClose checks if an issue can be closed (all AC must be complete).
+func ValidateClose(dir, issueID string) error {
+	result := ParseAcceptanceCriteria(dir, issueID)
+	if result.Error != "" {
+		return fmt.Errorf("failed to parse AC: %s", result.Error)
+	}
+
+	if !result.AllComplete {
+		var incompleteItems []string
+
+		for _, item := range result.Items {
+			if !item.Complete {
+				incompleteItems = append(incompleteItems, item.Text)
+			}
+		}
+
+		errMsg := fmt.Sprintf("cannot close %s: %d acceptance criteria incomplete:\n", issueID, result.Incomplete)
+
+		var errMsgSb369 strings.Builder
+		for _, item := range incompleteItems {
+			errMsgSb369.WriteString("- " + item + "\n")
+		}
+
+		errMsg += errMsgSb369.String()
+
+		return fmt.Errorf("%s", errMsg)
+	}
+
+	return nil
+}
+
+// unexported variables.
+var (
+	createdRe     = regexp.MustCompile(`^\*\*Created:\*\* (.+)$`)
+	issueHeaderRe = regexp.MustCompile(`^### (ISSUE-\d+): (.+)$`)
+	priorityRe    = regexp.MustCompile(`^\*\*Priority:\*\* (.+)$`)
+	statusRe      = regexp.MustCompile(`^\*\*Status:\*\* (.+)$`)
+)
+
 // parseACItems extracts AC items from issue body content.
 func parseACItems(body string) []ACItem {
 	// Find AC section header - supports both formats:
 	// ### Acceptance Criteria (h3 header)
 	// **Acceptance Criteria:** (bold field)
 	acPattern := regexp.MustCompile(`(?m)^(### Acceptance Criteria\s*$|\*\*Acceptance Criteria:\*\*\s*$)`)
+
 	loc := acPattern.FindStringIndex(body)
 	if loc == nil {
 		return nil
@@ -406,6 +438,7 @@ func parseACItems(body string) []ACItem {
 
 	// Parse checkboxes
 	var items []ACItem
+
 	checkboxPattern := regexp.MustCompile(`(?m)^-\s+\[([ xX])\]\s+(.+)$`)
 	matches := checkboxPattern.FindAllStringSubmatch(acContent, -1)
 

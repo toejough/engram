@@ -30,6 +30,50 @@ type ChangelogFilter struct {
 	DestinationTier string    // Filter by destination tier
 }
 
+// ReadChangelogEntries reads changelog entries from changelog.jsonl, applying optional filters.
+// Returns an empty slice (not an error) if the file doesn't exist.
+func ReadChangelogEntries(memoryRoot string, filter ChangelogFilter) ([]ChangelogEntry, error) {
+	logPath := filepath.Join(memoryRoot, "changelog.jsonl")
+
+	f, err := os.Open(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("failed to open changelog: %w", err)
+	}
+
+	defer func() { _ = f.Close() }()
+
+	var entries []ChangelogEntry
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+
+		var entry ChangelogEntry
+
+		err := json.Unmarshal(line, &entry)
+		if err != nil {
+			continue // skip malformed lines
+		}
+
+		if matchesFilter(entry, filter) {
+			entries = append(entries, entry)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read changelog: %w", err)
+	}
+
+	return entries, nil
+}
+
 // WriteChangelogEntry appends a changelog entry as a JSON line to changelog.jsonl.
 // The memoryRoot directory is created if it doesn't exist.
 // ContentSummary is truncated to 100 characters.
@@ -52,59 +96,23 @@ func WriteChangelogEntry(memoryRoot string, entry ChangelogEntry) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal changelog entry: %w", err)
 	}
+
 	data = append(data, '\n')
 
 	logPath := filepath.Join(memoryRoot, "changelog.jsonl")
+
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open changelog: %w", err)
 	}
-	defer f.Close()
+
+	defer func() { _ = f.Close() }()
 
 	if _, err := f.Write(data); err != nil {
 		return fmt.Errorf("failed to write changelog entry: %w", err)
 	}
 
 	return nil
-}
-
-// ReadChangelogEntries reads changelog entries from changelog.jsonl, applying optional filters.
-// Returns an empty slice (not an error) if the file doesn't exist.
-func ReadChangelogEntries(memoryRoot string, filter ChangelogFilter) ([]ChangelogEntry, error) {
-	logPath := filepath.Join(memoryRoot, "changelog.jsonl")
-
-	f, err := os.Open(logPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to open changelog: %w", err)
-	}
-	defer f.Close()
-
-	var entries []ChangelogEntry
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
-		var entry ChangelogEntry
-		if err := json.Unmarshal(line, &entry); err != nil {
-			continue // skip malformed lines
-		}
-
-		if matchesFilter(entry, filter) {
-			entries = append(entries, entry)
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read changelog: %w", err)
-	}
-
-	return entries, nil
 }
 
 // logChangelogMutation is an internal helper for logging optimize mutations.
@@ -122,14 +130,18 @@ func matchesFilter(entry ChangelogEntry, filter ChangelogFilter) bool {
 	if !filter.Since.IsZero() && entry.Timestamp.Before(filter.Since) {
 		return false
 	}
+
 	if filter.Action != "" && entry.Action != filter.Action {
 		return false
 	}
+
 	if filter.SourceTier != "" && entry.SourceTier != filter.SourceTier {
 		return false
 	}
+
 	if filter.DestinationTier != "" && entry.DestinationTier != filter.DestinationTier {
 		return false
 	}
+
 	return true
 }

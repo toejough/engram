@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,18 @@ type CheckClaudeMDSizeOpts struct {
 	ClaudeMDPath string
 	MaxLines     int
 	MemoryRoot   string
+}
+
+// CheckEmbeddingMetaOpts contains options for checking embedding metadata.
+type CheckEmbeddingMetaOpts struct {
+	MemoryRoot string
+	Stdin      io.Reader
+}
+
+// CheckSkillContractOpts contains options for checking skill contract validation.
+type CheckSkillContractOpts struct {
+	SkillsDir  string
+	MemoryRoot string
 }
 
 // CheckClaudeMDSize checks if CLAUDE.md exceeds the maximum line count.
@@ -48,16 +61,97 @@ func CheckClaudeMDSize(opts CheckClaudeMDSizeOpts) error {
 				Reason: fmt.Sprintf("CLAUDE.md has %d lines (max: %d)", lineCount, opts.MaxLines),
 			})
 		}
+
 		return fmt.Errorf("CLAUDE.md exceeds maximum line count: %d lines (max: %d)", lineCount, opts.MaxLines)
 	}
 
 	return nil
 }
 
-// CheckSkillContractOpts contains options for checking skill contract validation.
-type CheckSkillContractOpts struct {
-	SkillsDir  string
-	MemoryRoot string
+// CheckEmbeddingMetadata validates that the most recently inserted embedding has complete metadata.
+// Reads stdin for hook JSON, checks if command contains "projctl memory learn".
+// If not a learn command, exits 0 (fast path).
+// If learn command: queries most recent embedding, validates metadata fields.
+func CheckEmbeddingMetadata(opts CheckEmbeddingMetaOpts) error {
+	// Read and parse hook JSON from stdin
+	var hook hookJSON
+
+	decoder := json.NewDecoder(opts.Stdin)
+	if err := decoder.Decode(&hook); err != nil {
+		// If JSON parse fails, treat as non-learn command (fast path)
+		return nil
+	}
+
+	// Check if this is a memory learn command
+	if !strings.Contains(hook.ToolInput.Command, "projctl memory learn") {
+		return nil // Fast path: not a learn command
+	}
+
+	// Open database
+	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+
+	db, err := initEmbeddingsDB(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+
+	defer func() { _ = db.Close() }()
+
+	// Query most recently inserted embedding
+	var (
+		enrichedContent, observationType, concepts string
+		confidence                                 float64
+	)
+
+	err = db.QueryRow(`
+		SELECT enriched_content, observation_type, concepts, confidence
+		FROM embeddings
+		ORDER BY id DESC
+		LIMIT 1
+	`).Scan(&enrichedContent, &observationType, &concepts, &confidence)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		// No embeddings yet, treat as pass (avoid false positives on first run)
+		return nil
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to query embeddings: %w", err)
+	}
+
+	// Validate metadata
+	var errors []string
+
+	// enriched_content non-empty OR observation_type non-empty
+	if enrichedContent == "" && observationType == "" {
+		errors = append(errors, "enriched_content and observation_type are both empty")
+	}
+
+	// concepts has at least one entry
+	if concepts == "" {
+		errors = append(errors, "concepts is empty")
+	}
+
+	// confidence in [0.0, 1.0]
+	if confidence < 0.0 || confidence > 1.0 {
+		errors = append(errors, fmt.Sprintf("confidence out of range: %f (must be 0.0-1.0)", confidence))
+	}
+
+	if len(errors) > 0 {
+		// Log violation to changelog
+		_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
+			Action: "hook_violation",
+			Metadata: map[string]string{
+				"rule": "embedding-metadata",
+				"hook": "PostToolUse",
+			},
+			Reason: strings.Join(errors, "; "),
+		})
+
+		return fmt.Errorf("embedding metadata validation failed: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
 }
 
 // CheckSkillContract validates SKILL.md files in the skills directory.
@@ -66,13 +160,16 @@ type CheckSkillContractOpts struct {
 func CheckSkillContract(opts CheckSkillContractOpts) error {
 	// Find all SKILL.md files
 	var skillFiles []string
+
 	err := filepath.Walk(opts.SkillsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+
 		if !info.IsDir() && filepath.Base(path) == "SKILL.md" {
 			skillFiles = append(skillFiles, path)
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -85,12 +182,15 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 
 	// Filter to recently modified files (last 5 minutes)
 	var recentFiles []string
+
 	fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
+
 	for _, path := range skillFiles {
 		info, err := os.Stat(path)
 		if err != nil {
 			continue
 		}
+
 		if info.ModTime().After(fiveMinutesAgo) {
 			recentFiles = append(recentFiles, path)
 		}
@@ -103,7 +203,8 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 
 	// Validate each file
 	for _, path := range recentFiles {
-		if err := validateSkillFile(path); err != nil {
+		err := validateSkillFile(path)
+		if err != nil {
 			// Log violation to changelog
 			if opts.MemoryRoot != "" {
 				_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
@@ -116,6 +217,7 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 					Reason: err.Error(),
 				})
 			}
+
 			return fmt.Errorf("%s: %w", filepath.Base(filepath.Dir(path)), err)
 		}
 	}
@@ -123,12 +225,23 @@ func CheckSkillContract(opts CheckSkillContractOpts) error {
 	return nil
 }
 
+// hookJSON represents the JSON structure passed to PostToolUse hooks.
+type hookJSON struct {
+	ToolName  string `json:"tool_name"`
+	ToolInput struct {
+		Command string `json:"command"`
+	} `json:"tool_input"`
+}
+
 // extractDescriptionFromFrontmatter extracts the description field value from YAML frontmatter.
 // Handles both single-line and multi-line (|) YAML format.
 func extractDescriptionFromFrontmatter(frontmatter string) string {
 	lines := strings.Split(frontmatter, "\n")
-	var inDescription bool
-	var description strings.Builder
+
+	var (
+		inDescription bool
+		description   strings.Builder
+	)
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -173,13 +286,13 @@ func validateSkillFile(path string) error {
 
 	// Check for YAML frontmatter
 	if !strings.HasPrefix(content, "---\n") {
-		return fmt.Errorf("missing YAML frontmatter (must start with ---)")
+		return errors.New("missing YAML frontmatter (must start with ---)")
 	}
 
 	// Extract frontmatter
 	parts := strings.SplitN(content[4:], "\n---\n", 2)
 	if len(parts) < 2 {
-		return fmt.Errorf("missing YAML frontmatter closing ---")
+		return errors.New("missing YAML frontmatter closing ---")
 	}
 
 	frontmatter := parts[0]
@@ -187,7 +300,7 @@ func validateSkillFile(path string) error {
 
 	// Check for description field in frontmatter
 	if !strings.Contains(frontmatter, "description:") {
-		return fmt.Errorf("missing description field in frontmatter")
+		return errors.New("missing description field in frontmatter")
 	}
 
 	// Extract and validate description value
@@ -207,10 +320,11 @@ func validateSkillFile(path string) error {
 
 	// Check for TODO/FIXME in entire file
 	if strings.Contains(content, "TODO") {
-		return fmt.Errorf("contains TODO")
+		return errors.New("contains TODO")
 	}
+
 	if strings.Contains(content, "FIXME") {
-		return fmt.Errorf("contains FIXME")
+		return errors.New("contains FIXME")
 	}
 
 	// Estimate token count (rough approximation: ~4 characters per token)
@@ -221,98 +335,6 @@ func validateSkillFile(path string) error {
 	}
 
 	_ = body // Silence unused variable warning
-
-	return nil
-}
-
-// CheckEmbeddingMetaOpts contains options for checking embedding metadata.
-type CheckEmbeddingMetaOpts struct {
-	MemoryRoot string
-	Stdin      io.Reader
-}
-
-// hookJSON represents the JSON structure passed to PostToolUse hooks.
-type hookJSON struct {
-	ToolName  string `json:"tool_name"`
-	ToolInput struct {
-		Command string `json:"command"`
-	} `json:"tool_input"`
-}
-
-// CheckEmbeddingMetadata validates that the most recently inserted embedding has complete metadata.
-// Reads stdin for hook JSON, checks if command contains "projctl memory learn".
-// If not a learn command, exits 0 (fast path).
-// If learn command: queries most recent embedding, validates metadata fields.
-func CheckEmbeddingMetadata(opts CheckEmbeddingMetaOpts) error {
-	// Read and parse hook JSON from stdin
-	var hook hookJSON
-	decoder := json.NewDecoder(opts.Stdin)
-	if err := decoder.Decode(&hook); err != nil {
-		// If JSON parse fails, treat as non-learn command (fast path)
-		return nil
-	}
-
-	// Check if this is a memory learn command
-	if !strings.Contains(hook.ToolInput.Command, "projctl memory learn") {
-		return nil // Fast path: not a learn command
-	}
-
-	// Open database
-	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
-	db, err := initEmbeddingsDB(dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
-	}
-	defer db.Close()
-
-	// Query most recently inserted embedding
-	var enrichedContent, observationType, concepts string
-	var confidence float64
-	err = db.QueryRow(`
-		SELECT enriched_content, observation_type, concepts, confidence
-		FROM embeddings
-		ORDER BY id DESC
-		LIMIT 1
-	`).Scan(&enrichedContent, &observationType, &concepts, &confidence)
-
-	if err == sql.ErrNoRows {
-		// No embeddings yet, treat as pass (avoid false positives on first run)
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("failed to query embeddings: %w", err)
-	}
-
-	// Validate metadata
-	var errors []string
-
-	// enriched_content non-empty OR observation_type non-empty
-	if enrichedContent == "" && observationType == "" {
-		errors = append(errors, "enriched_content and observation_type are both empty")
-	}
-
-	// concepts has at least one entry
-	if concepts == "" {
-		errors = append(errors, "concepts is empty")
-	}
-
-	// confidence in [0.0, 1.0]
-	if confidence < 0.0 || confidence > 1.0 {
-		errors = append(errors, fmt.Sprintf("confidence out of range: %f (must be 0.0-1.0)", confidence))
-	}
-
-	if len(errors) > 0 {
-		// Log violation to changelog
-		_ = WriteChangelogEntry(opts.MemoryRoot, ChangelogEntry{
-			Action: "hook_violation",
-			Metadata: map[string]string{
-				"rule": "embedding-metadata",
-				"hook": "PostToolUse",
-			},
-			Reason: strings.Join(errors, "; "),
-		})
-		return fmt.Errorf("embedding metadata validation failed: %s", strings.Join(errors, "; "))
-	}
 
 	return nil
 }

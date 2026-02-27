@@ -8,70 +8,33 @@ import (
 	"github.com/toejough/projctl/internal/trace"
 )
 
-// Integration tests for trace.Repair function.
-// These tests use real file operations to verify end-to-end behavior.
-
-func TestIntegrationRepairDuplicateIDSameFile(t *testing.T) {
+func TestIntegrationRepairDanglingReferenceEscalation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	// Create a design file with duplicate IDs in the same file
-	// Note: The current implementation uses strings.ReplaceAll, which replaces
-	// ALL occurrences of the duplicate ID in the file. This means when there are
-	// two DES-1 definitions in the same file, BOTH get renamed to DES-2.
-	// This is arguably a bug, but this test verifies the current behavior.
-	content := `# Design
-
-### DES-1: First Design
-
-First design description.
-
-**Traces to:** REQ-1
-
-### DES-1: Duplicate Design
-
-Duplicate design in same file.
-
-**Traces to:** REQ-2
-`
-	writeArtifact(t, fs, dir, "design.md", content)
-	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
-
-### REQ-1: First Requirement
-
-Description.
-
-### REQ-2: Second Requirement
-
-Description.
-`)
+	// Create a design that references a non-existent requirement
+	writeArtifact(t, fs, dir, "design.md", "# Design\n\n### DES-1: Orphan Design\n\nthat references non-existent requirement.\n\n**Traces to:** REQ-999")
 
 	// Run repair
 	result, err := trace.Repair(dir, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Should detect duplicate and renumber
-	g.Expect(result.DuplicateIDs).To(ContainElement("DES-1"))
-	g.Expect(result.Renumbered).To(HaveLen(1))
-	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-1"))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
-	g.Expect(result.Renumbered[0].File).To(Equal("design.md"))
+	// Should detect dangling reference
+	g.Expect(result.DanglingRefs).To(ContainElement("REQ-999"))
 
-	// Verify file was actually modified
-	updatedContent, err := fs.ReadFile(filepath.Join(dir, "design.md"))
+	// Should create escalation for dangling ref
+	g.Expect(result.Escalations).To(HaveLen(1))
+	g.Expect(result.Escalations[0].ID).To(Equal("REQ-999"))
+	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("dangling"))
+	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("referenced"))
+	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("not defined"))
+
+	// File should NOT be modified (dangling refs are not auto-fixed)
+	content, err := fs.ReadFile(filepath.Join(dir, "design.md"))
 	g.Expect(err).ToNot(HaveOccurred())
-
-	// Due to ReplaceAll behavior, BOTH occurrences of DES-1 become DES-2
-	// (this is current behavior - arguably a bug but this test documents it)
-	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: First Design"))
-	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: Duplicate Design"))
-	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-1"))
-	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-2"))
-
-	// No escalations for duplicate IDs (auto-fixed)
-	g.Expect(result.Escalations).To(BeEmpty())
+	g.Expect(string(content)).To(ContainSubstring("REQ-999"))
 }
 
 func TestIntegrationRepairDuplicateIDAcrossFiles(t *testing.T) {
@@ -136,100 +99,42 @@ Description.
 	g.Expect(result.Escalations).To(BeEmpty())
 }
 
-func TestIntegrationRepairDanglingReferenceEscalation(t *testing.T) {
+// Integration tests for trace.Repair function.
+// These tests use real file operations to verify end-to-end behavior.
+
+func TestIntegrationRepairDuplicateIDSameFile(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
 	dir := t.TempDir()
 
-	// Create a design that references a non-existent requirement
-	writeArtifact(t, fs, dir, "design.md", `# Design
+	// Create a design file with duplicate IDs in the same file
+	// Note: The current implementation uses strings.ReplaceAll, which replaces
+	// ALL occurrences of the duplicate ID in the file. This means when there are
+	// two DES-1 definitions in the same file, BOTH get renamed to DES-2.
+	// This is arguably a bug, but this test verifies the current behavior.
+	content := `# Design
 
-### DES-1: Orphan Design
+### DES-1: First Design
 
-Design that references non-existent requirement.
-
-**Traces to:** REQ-999
-`)
-
-	// Run repair
-	result, err := trace.Repair(dir, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Should detect dangling reference
-	g.Expect(result.DanglingRefs).To(ContainElement("REQ-999"))
-
-	// Should create escalation for dangling ref
-	g.Expect(result.Escalations).To(HaveLen(1))
-	g.Expect(result.Escalations[0].ID).To(Equal("REQ-999"))
-	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("dangling"))
-	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("referenced"))
-	g.Expect(result.Escalations[0].Reason).To(ContainSubstring("not defined"))
-
-	// File should NOT be modified (dangling refs are not auto-fixed)
-	content, err := fs.ReadFile(filepath.Join(dir, "design.md"))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("REQ-999"))
-}
-
-func TestIntegrationRepairUsesNextAvailableID(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
-	dir := t.TempDir()
-
-	// Create design files where DES-1 through DES-5 exist
-	// Then have a duplicate DES-3 - should renumber to DES-6
-	writeArtifact(t, fs, dir, "design.md", `# Design
-
-### DES-1: Design One
-
-Description.
+First design description.
 
 **Traces to:** REQ-1
 
-### DES-2: Design Two
+### DES-1: Duplicate Design
 
-Description.
-
-**Traces to:** REQ-1
-
-### DES-3: Design Three
-
-Description.
-
-**Traces to:** REQ-1
-
-### DES-4: Design Four
-
-Description.
-
-**Traces to:** REQ-1
-
-### DES-5: Design Five
-
-Description.
-
-**Traces to:** REQ-1
-`)
-
-	// Create a duplicate DES-3 in another file
-	writeArtifact(t, fs, dir, "design-feature.md", `# Feature Design
-
-### DES-3: Duplicate Three
-
-This is a duplicate of DES-3.
+Duplicate design in same file.
 
 **Traces to:** REQ-2
-`)
-
+`
+	writeArtifact(t, fs, dir, "design.md", content)
 	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
 
-### REQ-1: First
+### REQ-1: First Requirement
 
 Description.
 
-### REQ-2: Second
+### REQ-2: Second Requirement
 
 Description.
 `)
@@ -238,63 +143,25 @@ Description.
 	result, err := trace.Repair(dir, fs)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Should detect duplicate
-	g.Expect(result.DuplicateIDs).To(ContainElement("DES-3"))
-
-	// Should renumber to DES-6 (next available after DES-5)
-	g.Expect(result.Renumbered).To(HaveLen(1))
-	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-3"))
-	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-6"))
-
-	// Verify file was updated correctly
-	featureContent, err := fs.ReadFile(filepath.Join(dir, "design-feature.md"))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(featureContent)).To(ContainSubstring("### DES-6: Duplicate Three"))
-}
-
-func TestIntegrationRepairNoDuplicateEscalations(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
-	dir := t.TempDir()
-
-	// Create files with duplicate IDs (should be auto-fixed, not escalated)
-	writeArtifact(t, fs, dir, "design.md", `# Design
-
-### DES-1: First
-
-Description.
-
-**Traces to:** REQ-1
-`)
-
-	writeArtifact(t, fs, dir, "design-feature.md", `# Feature Design
-
-### DES-1: Duplicate
-
-Description.
-
-**Traces to:** REQ-1
-`)
-
-	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
-
-### REQ-1: Requirement
-
-Description.
-`)
-
-	// Run repair
-	result, err := trace.Repair(dir, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Should have duplicate detected
+	// Should detect duplicate and renumber
 	g.Expect(result.DuplicateIDs).To(ContainElement("DES-1"))
+	g.Expect(result.Renumbered).To(HaveLen(1))
+	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-1"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-2"))
+	g.Expect(result.Renumbered[0].File).To(Equal("design.md"))
 
-	// Should have renumbered
-	g.Expect(result.Renumbered).ToNot(BeEmpty())
+	// Verify file was actually modified
+	updatedContent, err := fs.ReadFile(filepath.Join(dir, "design.md"))
+	g.Expect(err).ToNot(HaveOccurred())
 
-	// NO escalations for duplicates - they are auto-fixed
+	// Due to ReplaceAll behavior, BOTH occurrences of DES-1 become DES-2
+	// (this is current behavior - arguably a bug but this test documents it)
+	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: First Design"))
+	g.Expect(string(updatedContent)).To(ContainSubstring("### DES-2: Duplicate Design"))
+	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-1"))
+	g.Expect(string(updatedContent)).To(ContainSubstring("**Traces to:** REQ-2"))
+
+	// No escalations for duplicate IDs (auto-fixed)
 	g.Expect(result.Escalations).To(BeEmpty())
 }
 
@@ -426,6 +293,7 @@ Description.
 	for _, r := range result.Renumbered {
 		newIDs = append(newIDs, r.NewID)
 	}
+
 	g.Expect(newIDs).To(ContainElements("DES-3", "DES-4"))
 
 	// Should detect both dangling references
@@ -433,11 +301,99 @@ Description.
 
 	// Should have escalations for dangling refs (not for duplicates)
 	g.Expect(result.Escalations).To(HaveLen(2))
+
 	escalationIDs := make([]string, 0, 2)
 	for _, e := range result.Escalations {
 		escalationIDs = append(escalationIDs, e.ID)
 	}
+
 	g.Expect(escalationIDs).To(ContainElements("REQ-999", "REQ-888"))
+}
+
+func TestIntegrationRepairNoDuplicateEscalations(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+	dir := t.TempDir()
+
+	// Create files with duplicate IDs (should be auto-fixed, not escalated)
+	writeArtifact(t, fs, dir, "design.md", `# Design
+
+### DES-1: First
+
+Description.
+
+**Traces to:** REQ-1
+`)
+
+	writeArtifact(t, fs, dir, "design-feature.md", `# Feature Design
+
+### DES-1: Duplicate
+
+Description.
+
+**Traces to:** REQ-1
+`)
+
+	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
+
+### REQ-1: Requirement
+
+Description.
+`)
+
+	// Run repair
+	result, err := trace.Repair(dir, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should have duplicate detected
+	g.Expect(result.DuplicateIDs).To(ContainElement("DES-1"))
+
+	// Should have renumbered
+	g.Expect(result.Renumbered).ToNot(BeEmpty())
+
+	// NO escalations for duplicates - they are auto-fixed
+	g.Expect(result.Escalations).To(BeEmpty())
+}
+
+func TestIntegrationRepairNoIssues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+	dir := t.TempDir()
+
+	// Create well-formed artifacts with no issues
+	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
+
+### REQ-1: First Requirement
+
+Description.
+
+### REQ-2: Second Requirement
+
+Description.
+`)
+
+	writeArtifact(t, fs, dir, "design.md", `# Design
+
+### DES-1: First Design
+
+**Traces to:** REQ-1
+
+### DES-2: Second Design
+
+**Traces to:** REQ-2
+`)
+
+	// Run repair
+	result, err := trace.Repair(dir, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Everything should be empty - no issues found
+	g.Expect(result.DanglingRefs).To(BeEmpty())
+	g.Expect(result.DuplicateIDs).To(BeEmpty())
+	g.Expect(result.Renumbered).To(BeEmpty())
+	g.Expect(result.Escalations).To(BeEmpty())
 }
 
 func TestIntegrationRepairPreservesFileContent(t *testing.T) {
@@ -505,46 +461,6 @@ Description.
 	g.Expect(string(featureContent)).To(ContainSubstring("**Traces to:** REQ-1"))
 }
 
-func TestIntegrationRepairNoIssues(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
-	dir := t.TempDir()
-
-	// Create well-formed artifacts with no issues
-	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
-
-### REQ-1: First Requirement
-
-Description.
-
-### REQ-2: Second Requirement
-
-Description.
-`)
-
-	writeArtifact(t, fs, dir, "design.md", `# Design
-
-### DES-1: First Design
-
-**Traces to:** REQ-1
-
-### DES-2: Second Design
-
-**Traces to:** REQ-2
-`)
-
-	// Run repair
-	result, err := trace.Repair(dir, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Everything should be empty - no issues found
-	g.Expect(result.DanglingRefs).To(BeEmpty())
-	g.Expect(result.DuplicateIDs).To(BeEmpty())
-	g.Expect(result.Renumbered).To(BeEmpty())
-	g.Expect(result.Escalations).To(BeEmpty())
-}
-
 func TestIntegrationRepairReferencesUpdatedOnRenumber(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -595,4 +511,84 @@ Description.
 	// ALL occurrences of the duplicate ID in the file, including in body text
 	g.Expect(string(featureContent)).To(ContainSubstring("### DES-2: Feature Design"))
 	g.Expect(string(featureContent)).To(ContainSubstring("extends DES-2"))
+}
+
+func TestIntegrationRepairUsesNextAvailableID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{Files: make(map[string][]byte), Dirs: make(map[string]bool)}
+	dir := t.TempDir()
+
+	// Create design files where DES-1 through DES-5 exist
+	// Then have a duplicate DES-3 - should renumber to DES-6
+	writeArtifact(t, fs, dir, "design.md", `# Design
+
+### DES-1: Design One
+
+Description.
+
+**Traces to:** REQ-1
+
+### DES-2: Design Two
+
+Description.
+
+**Traces to:** REQ-1
+
+### DES-3: Design Three
+
+Description.
+
+**Traces to:** REQ-1
+
+### DES-4: Design Four
+
+Description.
+
+**Traces to:** REQ-1
+
+### DES-5: Design Five
+
+Description.
+
+**Traces to:** REQ-1
+`)
+
+	// Create a duplicate DES-3 in another file
+	writeArtifact(t, fs, dir, "design-feature.md", `# Feature Design
+
+### DES-3: Duplicate Three
+
+This is a duplicate of DES-3.
+
+**Traces to:** REQ-2
+`)
+
+	writeArtifact(t, fs, dir, "requirements.md", `# Requirements
+
+### REQ-1: First
+
+Description.
+
+### REQ-2: Second
+
+Description.
+`)
+
+	// Run repair
+	result, err := trace.Repair(dir, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Should detect duplicate
+	g.Expect(result.DuplicateIDs).To(ContainElement("DES-3"))
+
+	// Should renumber to DES-6 (next available after DES-5)
+	g.Expect(result.Renumbered).To(HaveLen(1))
+	g.Expect(result.Renumbered[0].OldID).To(Equal("DES-3"))
+	g.Expect(result.Renumbered[0].NewID).To(Equal("DES-6"))
+
+	// Verify file was updated correctly
+	featureContent, err := fs.ReadFile(filepath.Join(dir, "design-feature.md"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(featureContent)).To(ContainSubstring("### DES-6: Duplicate Three"))
 }

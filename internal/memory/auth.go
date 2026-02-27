@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-var ErrAuthUnavailable = errors.New("auth unavailable")
+// Exported variables.
+var (
+	ErrAuthUnavailable = errors.New("auth unavailable")
+)
 
 type KeychainAuth struct {
 	CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
@@ -30,13 +33,14 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 			username = u.Username
 		}
 	}
+
 	out, err := k.CommandRunner(ctx, "security", "find-generic-password",
 		"-s", "Claude Code-credentials",
 		"-a", username,
 		"-w",
 	)
 	if err != nil {
-		return "", fmt.Errorf("%w: keychain read failed: %v", ErrAuthUnavailable, err)
+		return "", fmt.Errorf("%w: keychain read failed: %w", ErrAuthUnavailable, err)
 	}
 
 	var creds struct {
@@ -46,8 +50,9 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 		} `json:"claudeAiOauth"`
 	}
 	if err := json.Unmarshal(out, &creds); err != nil {
-		return "", fmt.Errorf("%w: failed to parse keychain credentials: %v", ErrAuthUnavailable, err)
+		return "", fmt.Errorf("%w: failed to parse keychain credentials: %w", ErrAuthUnavailable, err)
 	}
+
 	if creds.ClaudeAiOauth.AccessToken == "" {
 		return "", fmt.Errorf("%w: no accessToken in keychain credentials", ErrAuthUnavailable)
 	}
@@ -55,6 +60,7 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 	// Check expiry if present — keychain stores as Unix millis (number or string) or RFC3339
 	if creds.ClaudeAiOauth.ExpiresAt != nil {
 		var expiresAtStr string
+
 		switch v := creds.ClaudeAiOauth.ExpiresAt.(type) {
 		case string:
 			expiresAtStr = v
@@ -63,6 +69,7 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 		}
 
 		var expiry time.Time
+
 		if expiresAtStr != "" {
 			if ms, err := strconv.ParseInt(expiresAtStr, 10, 64); err == nil {
 				expiry = time.UnixMilli(ms)
@@ -70,6 +77,7 @@ func (k *KeychainAuth) GetToken(ctx context.Context) (string, error) {
 				expiry = t
 			}
 		}
+
 		if !expiry.IsZero() && time.Now().After(expiry) {
 			return "", fmt.Errorf("%w: token expired at %s", ErrAuthUnavailable, expiry.Format(time.RFC3339))
 		}

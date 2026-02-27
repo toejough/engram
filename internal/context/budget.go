@@ -9,6 +9,7 @@ import (
 // BudgetStatus represents the current budget state.
 type BudgetStatus int
 
+// BudgetStatus values.
 const (
 	// BudgetOK indicates context usage is under warning threshold.
 	BudgetOK BudgetStatus = iota
@@ -17,12 +18,6 @@ const (
 	// BudgetExceeded indicates context usage is over the limit.
 	BudgetExceeded
 )
-
-// BudgetThresholds defines the warning and limit thresholds.
-type BudgetThresholds struct {
-	Warning int // Tokens at which to warn
-	Limit   int // Tokens at which to block
-}
 
 // BudgetResult holds the result of a budget check.
 type BudgetResult struct {
@@ -33,12 +28,10 @@ type BudgetResult struct {
 	ExitCode        int
 }
 
-// DefaultBudgetThresholds returns the default thresholds.
-func DefaultBudgetThresholds() BudgetThresholds {
-	return BudgetThresholds{
-		Warning: 80000,
-		Limit:   90000,
-	}
+// BudgetThresholds defines the warning and limit thresholds.
+type BudgetThresholds struct {
+	Warning int // Tokens at which to warn
+	Limit   int // Tokens at which to block
 }
 
 // CheckBudget reads the most recent context estimate from the log and compares
@@ -51,6 +44,7 @@ func CheckBudget(dir string, thresholds BudgetThresholds, fs log.FileSystem) (Bu
 
 	// Find the most recent context estimate
 	var currentEstimate int
+
 	for _, entry := range entries {
 		if entry.ContextEstimate > 0 {
 			currentEstimate = entry.ContextEstimate
@@ -64,9 +58,11 @@ func CheckBudget(dir string, thresholds BudgetThresholds, fs log.FileSystem) (Bu
 	}
 
 	// Determine status and exit code
-	var status BudgetStatus
-	var exitCode int
-	var message string
+	var (
+		status   BudgetStatus
+		exitCode int
+		message  string
+	)
 
 	switch {
 	case currentEstimate >= thresholds.Limit:
@@ -90,4 +86,12 @@ func CheckBudget(dir string, thresholds BudgetThresholds, fs log.FileSystem) (Bu
 		Message:         message,
 		ExitCode:        exitCode,
 	}, nil
+}
+
+// DefaultBudgetThresholds returns the default thresholds.
+func DefaultBudgetThresholds() BudgetThresholds {
+	return BudgetThresholds{
+		Warning: 80000,
+		Limit:   90000,
+	}
 }

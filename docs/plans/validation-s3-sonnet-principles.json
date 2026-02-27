@@ -1,0 +1,67 @@
+[
+  {
+    "principle": "When upgrading dependencies with breaking API changes, run code generation (go generate, mock regeneration) before attempting to fix compilation errors in consuming code.",
+    "evidence": "Updating imptest library revealed import path change from subdirectory to root. Build failed after go get until mocks were regenerated, then systematic API updates could be applied across all test files.",
+    "category": "code-quality"
+  },
+  {
+    "principle": "When implementing multi-module workspace support, use walk-up directory discovery to find the nearest go.mod instead of symlink-based fallback modules. This eliminates symlink corruption bugs and leverages Go's natural module resolution.",
+    "evidence": "Symlink-based fallback overwrote project go.mod files when writeFallbackGoMod wrote through symlinks. Shifting to walk-up discovery (findModuleForPath) eliminated entire classes of bugs while maintaining flexibility.",
+    "category": "code-quality"
+  },
+  {
+    "principle": "When using pointers as cache keys with reflection, include type information (reflect.Type or type name string) in the key structure. Go's zero-sized struct optimization causes different empty struct types to share the same pointer address.",
+    "evidence": "Deps cache incorrectly treated &Test{} and &Lint{} as identical because both had the same pointer address. Adding typName field to depKey fixed the collision by distinguishing types with identical addresses.",
+    "category": "debugging"
+  },
+  {
+    "principle": "When building in isolation to avoid package conflicts, copy build-tagged files to a temporary directory outside any module context using the collapsed namespace structure. This prevents Go's import resolution from finding conflicting packages in the source directory.",
+    "evidence": "Package main targs.go files in library directories caused conflicts when Go resolved imports. Copying to isolated temp dir with namespace-based structure allowed clean builds without import collisions.",
+    "category": "code-quality"
+  },
+  {
+    "principle": "Before amending any commit, run `git status` to verify 'Your branch is ahead of' appears. Never amend commits that have already been pushed.",
+    "evidence": "Assistant amended a pushed commit despite explicit rules in CLAUDE.md. User correction: 'you amended a pushed commit. double check your CLAUDE file, there's expressly instructions not to do that.'",
+    "category": "git-workflow"
+  },
+  {
+    "principle": "When user says 'remember this' or gives a correction, immediately write the lesson to persistent documentation (CLAUDE.md) before continuing work. Verbal acknowledgment without persistence leads to repeated mistakes.",
+    "evidence": "User corrected multiple times: 'when I say remember this, I want you to persist it' and 'how are you going to remember to write it down?' Lessons were forgotten across context windows until explicitly persisted.",
+    "category": "team-coordination"
+  },
+  {
+    "principle": "Always prioritize structural linting issues (cyclop, gocognit, funlen, gosec, dupl) before cosmetic issues (funcorder, formatting). Fix code to comply with linters rather than adding global exclusions unless explicitly discussed with user.",
+    "evidence": "User corrected: 'I always want the structural linting problems addressed. Always. usually _first_' and 'Joe vastly prefers adjusting code over adding lint config exclusions. If I think I need a global exclusion, I must STOP and discuss it first.'",
+    "category": "code-quality"
+  },
+  {
+    "principle": "When testing functions with external dependencies (JSON encoding, file I/O, shell commands), extract dependencies as injectable function parameters or struct fields. Use mocking libraries (imptest) to validate business logic independently from implementation details.",
+    "evidence": "User corrected: 'why not extract the JSON dependency and use imptest to validate that we interact correctly when the dependency returns failures? This is literally what imptest is all about, and I asked you to maximize your use of it.' Extracting doListTo with listFunc parameter enabled clean error path testing.",
+    "category": "testing"
+  },
+  {
+    "principle": "When refactoring function signatures (parameter order, return values), update all call sites before declaring the refactoring complete. Use grep to find all usages and verify compilation before moving to next task.",
+    "evidence": "unparam/unused agent changed tagOptionsForField signature but didn't update all call sites, causing typecheck errors. Manual grep search found 5 missed call sites that needed updating.",
+    "category": "code-quality"
+  },
+  {
+    "principle": "When parallel agents modify the same codebase, coordinate commits by having completing agents commit first, then retrying conflicting agents on the updated codebase. Close IDE auto-format watchers before launching agents to prevent edit conflicts.",
+    "evidence": "Multiple agents hit 'File has been modified since read' conflicts. dupl agent was blocked by format-on-save reverting changes. User closed editor, allowing retry to succeed.",
+    "category": "team-coordination"
+  },
+  {
+    "principle": "When converting tests from white-box (package foo) to black-box style (package foo_test), update package declarations, regenerate mocks with --import-path flag, and prefix all exported symbols with package name. Verify coverage after conversion as black-box tests may not naturally exercise all code paths.",
+    "evidence": "buildtool test conversion required changing package declaration, updating impgen directive, regenerating fs_mock, and adding buildtool. prefix throughout. Coverage gaps emerged in error paths requiring explicit test cases.",
+    "category": "testing"
+  },
+  {
+    "principle": "When refactoring CLI help output, use progressive disclosure: top-level shows structure (command grid), command-level shows that command's usage/flags, leaf-level shows full details. Avoid recursive detail printing that creates overwhelming verbosity.",
+    "evidence": "User requested shift from verbose recursive help to git/docker/kubectl-style progressive disclosure. New design separates levels: top shows grid of commands with source paths, command shows usage line and immediate flags only, leaf shows full flag details.",
+    "category": "cli-design"
+  },
+  {
+    "principle": "When implementing file discovery in commands, search downward from current directory rather than assuming fixed relative paths. Resolve the path once and reuse it for both reads and writes to ensure consistency.",
+    "evidence": "targ issues list failed when run from different directories because it assumed issues.md was at a fixed relative path. Changed to findIssueFile() that searches downward, then reused resolved path for both loadIssues() and writeIssues().",
+    "category": "cli-design"
+  }
+]

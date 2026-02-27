@@ -1,0 +1,23 @@
+[
+  {
+    "line_range": "1-20",
+    "event_type": "root-cause-discovery",
+    "what_happened": "LLM extractor was failing with 'keychain auth failed' error. Through systematic debugging, the root cause was discovered: the macOS keychain stores `expiresAt` as a JSON number (e.g., 1771135463328), but the Go struct declared it as a string, causing json.Unmarshal to fail.",
+    "why_it_matters": "Type mismatches between external data formats and struct definitions can cause silent failures; always validate against real-world data formats, not just test fixtures.",
+    "chunk": 1
+  },
+  {
+    "line_range": "40-75",
+    "event_type": "strategy-change",
+    "what_happened": "The debugging approach shifted from chasing shell environment variable issues (`$USER` vs literal `joe`) to focusing on the actual Go code execution path, demonstrating the importance of reproducing errors in the actual runtime context rather than in shell diagnostics.",
+    "why_it_matters": "When debugging cross-boundary issues (shell, environment, Go runtime), always reproduce the error in the actual context where it occurs to avoid pursuing false leads.",
+    "chunk": 1
+  },
+  {
+    "line_range": "80-120",
+    "event_type": "error-and-fix",
+    "what_happened": "The test suite had 11 passing tests for keychain token retrieval, but all used Go string values for `expiresAt` which marshaled to JSON strings\u2014masking the real-world bug where the keychain returns numeric values. New tests were written using raw JSON literals with numeric `expiresAt` (TestGetKeychainToken_AcceptsNumericExpiresAt), and the fix changed the struct field from `string` to `any` type to handle both representations.",
+    "why_it_matters": "Test fixtures that don't mirror actual external data formats create false confidence; use raw data literals in tests to catch serialization/deserialization mismatches.",
+    "chunk": 1
+  }
+]

@@ -38,6 +38,30 @@ func TestMemoryContextAssembler_BeforeAfter(t *testing.T) {
 	g.Expect(after).ToNot(gomega.ContainSubstring("active polling"))
 }
 
+func TestMemoryContextAssembler_DemoteFromClaudeMD(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	assembler := &MemoryContextAssembler{
+		ClaudeMDContent:   "# CLAUDE.md\nAlways use TDD.\nDomain specific rule.\n",
+		SkillDescriptions: []string{},
+		Embeddings:        []string{},
+	}
+
+	proposal := MaintenanceProposal{
+		Tier:    "claude-md",
+		Action:  "demote",
+		Target:  "Domain specific rule.",
+		Preview: "Domain specific rule.",
+	}
+
+	before := assembler.AssembleContext(proposal, false)
+	g.Expect(before).To(gomega.ContainSubstring("Domain specific rule"))
+
+	after := assembler.AssembleContext(proposal, true)
+	g.Expect(after).ToNot(gomega.ContainSubstring("Domain specific rule"))
+}
+
 func TestMemoryContextAssembler_PromoteMovesToSkills(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -64,30 +88,7 @@ func TestMemoryContextAssembler_PromoteMovesToSkills(t *testing.T) {
 	// Verify it appears in skills section, not memories
 	skillsSection := strings.Split(after, "## Memories")[0]
 	memoriesSection := strings.Split(after, "## Memories")[1]
+
 	g.Expect(skillsSection).To(gomega.ContainSubstring("Promote this entry"))
 	g.Expect(memoriesSection).ToNot(gomega.ContainSubstring("Promote this entry"))
-}
-
-func TestMemoryContextAssembler_DemoteFromClaudeMD(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	assembler := &MemoryContextAssembler{
-		ClaudeMDContent:   "# CLAUDE.md\nAlways use TDD.\nDomain specific rule.\n",
-		SkillDescriptions: []string{},
-		Embeddings:        []string{},
-	}
-
-	proposal := MaintenanceProposal{
-		Tier:    "claude-md",
-		Action:  "demote",
-		Target:  "Domain specific rule.",
-		Preview: "Domain specific rule.",
-	}
-
-	before := assembler.AssembleContext(proposal, false)
-	g.Expect(before).To(gomega.ContainSubstring("Domain specific rule"))
-
-	after := assembler.AssembleContext(proposal, true)
-	g.Expect(after).ToNot(gomega.ContainSubstring("Domain specific rule"))
 }

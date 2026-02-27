@@ -10,6 +10,12 @@ import (
 	"github.com/toejough/projctl/internal/config"
 )
 
+// PromoteResult holds the results of a promote operation.
+type PromoteResult struct {
+	Promotions []Promotion        `json:"promotions"`
+	Skipped    []SkippedPromotion `json:"skipped"`
+}
+
 // Promotion represents a single trace promotion that was made.
 type Promotion struct {
 	File     string `json:"file"`      // relative path to file
@@ -24,12 +30,6 @@ type SkippedPromotion struct {
 	Line   int    `json:"line"`    // line number
 	TaskID string `json:"task_id"` // the TASK-NNN that couldn't be promoted
 	Reason string `json:"reason"`  // why it was skipped
-}
-
-// PromoteResult holds the results of a promote operation.
-type PromoteResult struct {
-	Promotions []Promotion        `json:"promotions"`
-	Skipped    []SkippedPromotion `json:"skipped"`
 }
 
 // Promote finds test files with TASK traces and replaces them with permanent IDs.
@@ -63,6 +63,7 @@ func Promote(dir string, fs FileSystem, dryRun bool) (*PromoteResult, error) {
 			if name == "vendor" || name == "node_modules" || name == ".git" {
 				return filepath.SkipDir
 			}
+
 			return nil
 		}
 
@@ -101,6 +102,7 @@ func Promote(dir string, fs FileSystem, dryRun bool) (*PromoteResult, error) {
 					TaskID: taskID,
 					Reason: fmt.Sprintf("task %s not found in tasks.md", taskID),
 				})
+
 				continue
 			}
 
@@ -111,6 +113,7 @@ func Promote(dir string, fs FileSystem, dryRun bool) (*PromoteResult, error) {
 					TaskID: taskID,
 					Reason: fmt.Sprintf("task %s has no Traces-to field", taskID),
 				})
+
 				continue
 			}
 
@@ -129,19 +132,26 @@ func Promote(dir string, fs FileSystem, dryRun bool) (*PromoteResult, error) {
 		// Write back if modified (unless dry run)
 		if modified && !dryRun {
 			newContent := strings.Join(lines, "\n")
-			if err := fs.WriteFile(path, []byte(newContent), 0644); err != nil {
+
+			err := fs.WriteFile(path, []byte(newContent), 0644)
+			if err != nil {
 				return fmt.Errorf("failed to write %s: %w", relPath, err)
 			}
 		}
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
 
 	return result, nil
+}
+
+// taskInfo holds parsed information about a task.
+type taskInfo struct {
+	found    bool   // task was found in tasks.md
+	tracesTo string // the Traces-to value, empty if not present
 }
 
 // isTestFile returns true if the filename matches test file patterns.
@@ -155,12 +165,15 @@ func isTestFile(name string) bool {
 	if strings.HasSuffix(name, ".test.ts") || strings.HasSuffix(name, ".spec.ts") {
 		return true
 	}
+
 	if strings.HasSuffix(name, ".test.js") || strings.HasSuffix(name, ".spec.js") {
 		return true
 	}
+
 	if strings.HasSuffix(name, ".test.tsx") || strings.HasSuffix(name, ".spec.tsx") {
 		return true
 	}
+
 	if strings.HasSuffix(name, ".test.jsx") || strings.HasSuffix(name, ".spec.jsx") {
 		return true
 	}
@@ -188,16 +201,11 @@ func loadTaskTraces(dir string, fs FileSystem) (map[string]taskInfo, error) {
 		if os.IsNotExist(err) {
 			return make(map[string]taskInfo), nil
 		}
+
 		return nil, fmt.Errorf("failed to read tasks.md: %w", err)
 	}
 
 	return parseTaskTraces(string(data)), nil
-}
-
-// taskInfo holds parsed information about a task.
-type taskInfo struct {
-	found    bool   // task was found in tasks.md
-	tracesTo string // the Traces-to value, empty if not present
 }
 
 // parseTaskTraces extracts TASK-NNN -> traces-to mappings from tasks.md content.
@@ -211,6 +219,7 @@ func parseTaskTraces(content string) map[string]taskInfo {
 	tracesToPattern := regexp.MustCompile(`^\*\*Traces to:\*\*\s*(.+)`)
 
 	lines := strings.Split(content, "\n")
+
 	var currentTask string
 
 	for _, line := range lines {
@@ -222,9 +231,11 @@ func parseTaskTraces(content string) map[string]taskInfo {
 					result[currentTask] = taskInfo{found: true, tracesTo: ""}
 				}
 			}
+
 			currentTask = match[1]
 			// Mark task as found (may update tracesTo later)
 			result[currentTask] = taskInfo{found: true, tracesTo: ""}
+
 			continue
 		}
 

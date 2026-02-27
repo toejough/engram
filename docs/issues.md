@@ -8043,3 +8043,36 @@ The plugin checks whether commands still work, file paths still exist, and archi
 - `internal/memory/skills_maintenance.go` — `applyPromote()` (promotes to CLAUDE.md)
 
 Area: Memory, CLAUDE.md
+---
+
+### ISSUE-236: Evaluate whether deterministic TF-IDF thresholds can replace haiku gate in memory reconciliation
+
+**Priority:** Low (data collection needed first)
+**Status:** Open
+**Created:** 2026-02-26
+
+### Problem
+
+REQ-14 uses haiku ($0.0001/call) to decide whether TF-IDF candidates genuinely overlap with a correction, because no validated threshold exists for TF-IDF cosine similarity on memory dedup. This works but adds an LLM call to the inline correction path.
+
+### Data Being Collected
+
+Per REQ-14, every reconciliation event logs: memory_id, TF-IDF cosine scores of top-3 candidates, haiku decision (overlap/no-overlap), and haiku rationale. This data accumulates over normal usage.
+
+### Evaluation Criteria
+
+After 100+ reconciliation events with logged data:
+1. Plot TF-IDF score distributions for haiku-confirmed overlaps vs haiku-confirmed non-overlaps
+2. If distributions are separable (clear threshold between them), a deterministic threshold can replace haiku
+3. If distributions overlap significantly, haiku remains necessary
+4. Consider a two-tier approach: scores above high threshold auto-merge, scores below low threshold auto-create, scores in between use haiku
+
+### Expected Outcome
+
+Either: (a) a validated threshold that eliminates the haiku call for most reconciliation decisions, or (b) evidence that the decision is too nuanced for a fixed threshold, confirming haiku is the right tool.
+
+### Traces To
+
+REQ-14 (memory reconciliation on correction)
+
+Area: Memory, Rebuild

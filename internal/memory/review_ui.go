@@ -3,10 +3,67 @@ package memory
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 )
+
+// readResult holds the result of a non-blocking line read.
+type readResult struct {
+	line string
+	err  error
+}
+
+// formatActionExplanation returns a human-readable explanation of what the action does.
+func formatActionExplanation(action, tier string) string {
+	switch action {
+	case "prune":
+		if tier == "skills" {
+			return "Move this skill to archive (stops retrieval, keeps file for reference)"
+		}
+
+		if tier == "claude-md" {
+			return "Remove this line from CLAUDE.md"
+		}
+
+		return "Delete this memory entry permanently (archived for recovery)"
+	case "decay":
+		return "Reduce confidence score (makes it less likely to be retrieved)"
+	case "consolidate":
+		if tier == "claude-md" {
+			return "Merge duplicate CLAUDE.md entries into one"
+		}
+
+		return "Delete the second entry, keep the first (they appear to be duplicates)"
+	case "split":
+		return "Break this multi-topic entry into separate focused entries"
+	case "promote":
+		if tier == "embeddings" {
+			return "Create a new skill from this high-value memory"
+		}
+
+		if tier == "skills" {
+			return "Add this skill's content to CLAUDE.md (always-loaded)"
+		}
+
+		return "Move to a higher tier for more visibility"
+	case "demote":
+		if tier == "claude-md" {
+			return "Remove from CLAUDE.md (too narrow for always-loaded tier)"
+		}
+
+		return "Move to a lower tier"
+	case "rewrite":
+		return "Replace content with an LLM-improved version for clarity"
+	case "add-rationale":
+		return "Append an explanation of WHY this rule matters"
+	case "extract-examples":
+		return "Pull out concrete examples into separate entries"
+	default:
+		return ""
+	}
+}
 
 // formatProposal formats a maintenance proposal for display with color/emphasis.
 // Returns a formatted string ready for terminal output.
@@ -23,8 +80,9 @@ func formatProposal(p MaintenanceProposal) string {
 		// What changes
 		if p.Preview != "" {
 			sb.WriteString("\n  What changes:\n")
-			previewLines := strings.Split(p.Preview, "\n")
-			for _, line := range previewLines {
+
+			previewLines := strings.SplitSeq(p.Preview, "\n")
+			for line := range previewLines {
 				if line != "" {
 					sb.WriteString("  │ ")
 					sb.WriteString(line)
@@ -35,6 +93,7 @@ func formatProposal(p MaintenanceProposal) string {
 
 		// Haiku validation
 		sb.WriteString("\n")
+
 		if p.LLMEval.HaikuValid {
 			sb.WriteString(fmt.Sprintf("  Haiku: Valid concern — %s\n", p.LLMEval.HaikuRationale))
 		} else {
@@ -46,6 +105,7 @@ func formatProposal(p MaintenanceProposal) string {
 		if p.LLMEval.SonnetRecommend == "skip" {
 			recommendAction = "Skip"
 		}
+
 		sb.WriteString(fmt.Sprintf("  Sonnet recommends: %s this change (%s confidence)\n", recommendAction, p.LLMEval.SonnetConfidence))
 
 		// Scenario results (indented under Sonnet section)
@@ -66,7 +126,6 @@ func formatProposal(p MaintenanceProposal) string {
 
 		// Prompt
 		sb.WriteString("\n  [a]pply change / [s]kip change")
-
 	} else {
 		// Non-LLM-evaluated format
 		sb.WriteString(fmt.Sprintf("\n━━━ Proposed Change: %s ━━━\n", formatActionExplanation(p.Action, p.Tier)))
@@ -77,8 +136,9 @@ func formatProposal(p MaintenanceProposal) string {
 		// Content
 		if p.Preview != "" {
 			sb.WriteString("\n  What changes:\n")
-			previewLines := strings.Split(p.Preview, "\n")
-			for _, line := range previewLines {
+
+			previewLines := strings.SplitSeq(p.Preview, "\n")
+			for line := range previewLines {
 				if line != "" {
 					sb.WriteString("  │ ")
 					sb.WriteString(line)
@@ -100,56 +160,6 @@ func formatProposal(p MaintenanceProposal) string {
 	return sb.String()
 }
 
-// formatActionExplanation returns a human-readable explanation of what the action does.
-func formatActionExplanation(action, tier string) string {
-	switch action {
-	case "prune":
-		if tier == "skills" {
-			return "Move this skill to archive (stops retrieval, keeps file for reference)"
-		}
-		if tier == "claude-md" {
-			return "Remove this line from CLAUDE.md"
-		}
-		return "Delete this memory entry permanently (archived for recovery)"
-	case "decay":
-		return "Reduce confidence score (makes it less likely to be retrieved)"
-	case "consolidate":
-		if tier == "claude-md" {
-			return "Merge duplicate CLAUDE.md entries into one"
-		}
-		return "Delete the second entry, keep the first (they appear to be duplicates)"
-	case "split":
-		return "Break this multi-topic entry into separate focused entries"
-	case "promote":
-		if tier == "embeddings" {
-			return "Create a new skill from this high-value memory"
-		}
-		if tier == "skills" {
-			return "Add this skill's content to CLAUDE.md (always-loaded)"
-		}
-		return "Move to a higher tier for more visibility"
-	case "demote":
-		if tier == "claude-md" {
-			return "Remove from CLAUDE.md (too narrow for always-loaded tier)"
-		}
-		return "Move to a lower tier"
-	case "rewrite":
-		return "Replace content with an LLM-improved version for clarity"
-	case "add-rationale":
-		return "Append an explanation of WHY this rule matters"
-	case "extract-examples":
-		return "Pull out concrete examples into separate entries"
-	default:
-		return ""
-	}
-}
-
-// readResult holds the result of a non-blocking line read.
-type readResult struct {
-	line string
-	err  error
-}
-
 // reviewProposal presents a maintenance proposal interactively and prompts for user decision.
 // Returns true if approved (y), false if rejected (n) or skipped (s).
 // Respects context cancellation (e.g. Ctrl-C) even while blocked on stdin.
@@ -161,7 +171,7 @@ func reviewProposal(p MaintenanceProposal, input io.Reader, output io.Writer) (b
 func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Reader, output io.Writer) (bool, error) {
 	// Display formatted proposal
 	formatted := formatProposal(p)
-	fmt.Fprintln(output, formatted)
+	_, _ = fmt.Fprintln(output, formatted)
 
 	// Create buffered reader for input
 	reader := bufio.NewReader(input)
@@ -169,6 +179,7 @@ func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Read
 	for {
 		// Read in a goroutine so we can select on context cancellation
 		ch := make(chan readResult, 1)
+
 		go func() {
 			line, err := reader.ReadString('\n')
 			ch <- readResult{line, err}
@@ -179,9 +190,10 @@ func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Read
 			return false, ctx.Err()
 		case res := <-ch:
 			if res.err != nil {
-				if res.err == io.EOF {
+				if errors.Is(res.err, io.EOF) {
 					return false, io.EOF
 				}
+
 				return false, res.err
 			}
 
@@ -197,7 +209,7 @@ func reviewProposalCtx(ctx context.Context, p MaintenanceProposal, input io.Read
 			case "":
 				continue
 			default:
-				fmt.Fprintln(output, "Invalid input. Please enter a (apply) or s (skip).")
+				_, _ = fmt.Fprintln(output, "Invalid input. Please enter a (apply) or s (skip).")
 				continue
 			}
 		}

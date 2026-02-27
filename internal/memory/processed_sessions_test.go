@@ -9,12 +9,44 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-func TestRecordProcessedSession(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "record-session-test-*")
+func TestIsSessionProcessed(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	db, err := memory.InitDBForTest(tmpDir)
 	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
+		t.Fatalf("failed to initialize DB: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer db.Close()
+
+	// Check unknown session - should return false
+	processed, err := memory.IsSessionProcessed(db, "unknown-session")
+	if err != nil {
+		t.Fatalf("IsSessionProcessed failed: %v", err)
+	}
+
+	if processed {
+		t.Error("expected unknown session to return false")
+	}
+
+	// Record a session
+	err = memory.RecordProcessedSession(db, "session-456", "test-project", 3, "success")
+	if err != nil {
+		t.Fatalf("RecordProcessedSession failed: %v", err)
+	}
+
+	// Check known session - should return true
+	processed, err = memory.IsSessionProcessed(db, "session-456")
+	if err != nil {
+		t.Fatalf("IsSessionProcessed failed: %v", err)
+	}
+
+	if !processed {
+		t.Error("expected known session to return true")
+	}
+}
+
+func TestRecordProcessedSession(t *testing.T) {
+	tmpDir := t.TempDir()
 
 	db, err := memory.InitDBForTest(tmpDir)
 	if err != nil {
@@ -29,14 +61,16 @@ func TestRecordProcessedSession(t *testing.T) {
 	}
 
 	// Verify it was recorded
-	var sessionID, project, status string
-	var itemsFound int
+	var (
+		sessionID, project, status string
+		itemsFound                 int
+	)
+
 	err = db.QueryRow(`
 		SELECT session_id, project, items_found, status
 		FROM processed_sessions
 		WHERE session_id = ?
 	`, "session-123").Scan(&sessionID, &project, &itemsFound, &status)
-
 	if err != nil {
 		t.Fatalf("failed to query session: %v", err)
 	}
@@ -44,12 +78,15 @@ func TestRecordProcessedSession(t *testing.T) {
 	if sessionID != "session-123" {
 		t.Errorf("expected session_id 'session-123', got '%s'", sessionID)
 	}
+
 	if project != "my-project" {
 		t.Errorf("expected project 'my-project', got '%s'", project)
 	}
+
 	if itemsFound != 5 {
 		t.Errorf("expected items_found 5, got %d", itemsFound)
 	}
+
 	if status != "success" {
 		t.Errorf("expected status 'success', got '%s'", status)
 	}
@@ -66,7 +103,6 @@ func TestRecordProcessedSession(t *testing.T) {
 		FROM processed_sessions
 		WHERE session_id = ?
 	`, "session-123").Scan(&project, &itemsFound, &status)
-
 	if err != nil {
 		t.Fatalf("failed to query updated session: %v", err)
 	}
@@ -74,58 +110,18 @@ func TestRecordProcessedSession(t *testing.T) {
 	if project != "my-project-updated" {
 		t.Errorf("expected project 'my-project-updated', got '%s'", project)
 	}
+
 	if itemsFound != 10 {
 		t.Errorf("expected items_found 10, got %d", itemsFound)
 	}
+
 	if status != "error" {
 		t.Errorf("expected status 'error', got '%s'", status)
 	}
 }
 
-func TestIsSessionProcessed(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "is-session-processed-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	db, err := memory.InitDBForTest(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to initialize DB: %v", err)
-	}
-	defer db.Close()
-
-	// Check unknown session - should return false
-	processed, err := memory.IsSessionProcessed(db, "unknown-session")
-	if err != nil {
-		t.Fatalf("IsSessionProcessed failed: %v", err)
-	}
-	if processed {
-		t.Error("expected unknown session to return false")
-	}
-
-	// Record a session
-	err = memory.RecordProcessedSession(db, "session-456", "test-project", 3, "success")
-	if err != nil {
-		t.Fatalf("RecordProcessedSession failed: %v", err)
-	}
-
-	// Check known session - should return true
-	processed, err = memory.IsSessionProcessed(db, "session-456")
-	if err != nil {
-		t.Fatalf("IsSessionProcessed failed: %v", err)
-	}
-	if !processed {
-		t.Error("expected known session to return true")
-	}
-}
-
 func TestResetLastNSessions(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "reset-sessions-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	db, err := memory.InitDBForTest(tmpDir)
 	if err != nil {
@@ -169,6 +165,7 @@ func TestResetLastNSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResetLastNSessions failed: %v", err)
 	}
+
 	if deleted != 2 {
 		t.Errorf("expected 2 sessions deleted, got %d", deleted)
 	}
@@ -178,6 +175,7 @@ func TestResetLastNSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IsSessionProcessed failed: %v", err)
 	}
+
 	if !processed {
 		t.Error("expected session-1 to still exist")
 	}
@@ -192,6 +190,7 @@ func TestResetLastNSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IsSessionProcessed failed: %v", err)
 	}
+
 	if processed {
 		t.Error("expected session-2 to be deleted")
 	}
@@ -205,6 +204,7 @@ func TestResetLastNSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("IsSessionProcessed failed: %v", err)
 	}
+
 	if processed {
 		t.Error("expected session-3 to be deleted")
 	}

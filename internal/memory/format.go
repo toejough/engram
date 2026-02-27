@@ -7,16 +7,16 @@ import (
 	"strings"
 )
 
-// OutputTier controls the level of detail in formatted output.
-type OutputTier string
-
+// Exported constants.
 const (
 	// TierCompact is hook output: type prefix + content, token-budgeted. Default tier.
 	TierCompact OutputTier = "compact"
-	// TierFull is CLI --rich: metadata + full content, no truncation.
-	TierFull OutputTier = "full"
 	// TierCurated is LLM-selected results with relevance annotations.
 	TierCurated OutputTier = "curated"
+	// TierFiltered is hook output when Filter() was used: only relevant memories, optional synthesis.
+	TierFiltered OutputTier = "filtered"
+	// TierFull is CLI --rich: metadata + full content, no truncation.
+	TierFull OutputTier = "full"
 )
 
 // FormatMarkdownOpts holds options for formatting query results as markdown.
@@ -46,6 +46,67 @@ type FormatMarkdownOpts struct {
 	Extractor LLMExtractor
 }
 
+// OutputTier controls the level of detail in formatted output.
+type OutputTier string
+
+// FormatFiltered formats filter results for hook output.
+// Only relevant results are shown. If synthesizedText is non-empty,
+// it replaces individual memories with a synthesized guidance section.
+// Returns empty string if no relevant results exist.
+func FormatFiltered(results []FilterResult, synthesizedText string) string {
+	const maxTokens = 2000
+
+	// Collect relevant results
+	var relevant []FilterResult
+
+	for _, r := range results {
+		if r.Relevant {
+			relevant = append(relevant, r)
+		}
+	}
+
+	if len(relevant) == 0 {
+		return ""
+	}
+
+	// If synthesis is available, use it instead of individual memories
+	if synthesizedText != "" {
+		return "## Recent Context from Memory\n\n" + synthesizedText + "\n"
+	}
+
+	// Format relevant results as numbered list with type prefixes
+	var sb strings.Builder
+	sb.WriteString("## Recent Context from Memory\n\n")
+
+	currentTokens := 10 // estimated header tokens
+
+	for i, r := range relevant {
+		content := extractMessageContent(r.Content)
+		if content == "" {
+			content = strings.TrimPrefix(r.Content, "- ")
+		}
+
+		prefix := typePrefix(r.MemoryType)
+		entry := prefix + content
+
+		entryTokens := len(entry) / 4
+		if currentTokens+entryTokens > maxTokens {
+			remaining := len(relevant) - i
+			if remaining > 0 {
+				sb.WriteString(fmt.Sprintf("\n_(... and %d more memories truncated due to token limit)_\n", remaining))
+			}
+
+			break
+		}
+
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, entry))
+
+		currentTokens += entryTokens
+	}
+
+	return sb.String()
+}
+
 // FormatMarkdown takes pre-fetched query results and applies confidence filtering,
 // entry cap, optional primacy sort, and markdown formatting with token budget.
 func FormatMarkdown(opts FormatMarkdownOpts) string {
@@ -66,6 +127,7 @@ func FormatMarkdown(opts FormatMarkdownOpts) string {
 
 	// Filter by confidence threshold
 	var filtered []QueryResult
+
 	for _, r := range opts.Results {
 		if r.Confidence >= opts.MinConfidence {
 			filtered = append(filtered, r)
@@ -83,16 +145,44 @@ func FormatMarkdown(opts FormatMarkdownOpts) string {
 	}
 
 	var memoriesSection string
+
 	switch tier {
 	case TierFull:
 		memoriesSection = formatAsMarkdownFull(filtered)
 	case TierCurated:
 		memoriesSection = formatAsMarkdownCurated(filtered, opts.Query, opts.Extractor)
-	default:
+	case TierCompact, TierFiltered:
 		memoriesSection = formatAsMarkdownCompact(filtered, maxTokens)
 	}
 
 	return memoriesSection
+}
+
+// SortByPrimacy reorders results so corrections appear first (primacy position),
+// then by score descending within each group. Uses stable sort for deterministic ordering.
+func SortByPrimacy(results []QueryResult) []QueryResult {
+	if len(results) == 0 {
+		return results
+	}
+
+	// Make a copy to avoid mutating the input
+	sorted := make([]QueryResult, len(results))
+	copy(sorted, results)
+
+	sort.SliceStable(sorted, func(i, j int) bool {
+		iIsCorrection := sorted[i].MemoryType == "correction"
+		jIsCorrection := sorted[j].MemoryType == "correction"
+
+		// Corrections come first
+		if iIsCorrection != jIsCorrection {
+			return iIsCorrection
+		}
+
+		// Within same group, higher score first
+		return sorted[i].Score > sorted[j].Score
+	})
+
+	return sorted
 }
 
 // formatAsMarkdownCompact formats results with type prefixes and no hard truncation.
@@ -132,6 +222,7 @@ func formatAsMarkdownCompact(results []QueryResult, maxTokens int) string {
 			if remaining > 0 {
 				sb.WriteString(fmt.Sprintf("\n_(... and %d more memories truncated due to token limit)_\n", remaining))
 			}
+
 			break
 		}
 
@@ -142,6 +233,35 @@ func formatAsMarkdownCompact(results []QueryResult, maxTokens int) string {
 	}
 
 	return sb.String()
+}
+
+// formatAsMarkdownCurated formats LLM-curated results with relevance annotations.
+func formatAsMarkdownCurated(results []QueryResult, query string, extractor LLMExtractor) string {
+	if len(results) == 0 {
+		return formatEmptyResult()
+	}
+
+	// If extractor available, try LLM curation
+	if extractor != nil && query != "" {
+		curated, err := extractor.Curate(context.Background(), query, results)
+		if err == nil && len(curated) > 0 {
+			var sb strings.Builder
+			sb.WriteString("## Recent Context from Memory\n\n")
+
+			for _, c := range curated {
+				sb.WriteString(fmt.Sprintf("- %s\n", c.Content))
+
+				if c.Relevance != "" {
+					sb.WriteString(fmt.Sprintf("  _(relevant: %s)_\n", c.Relevance))
+				}
+			}
+
+			return sb.String()
+		}
+	}
+
+	// Fall back to compact
+	return formatAsMarkdownCompact(results, 2000)
 }
 
 // formatAsMarkdownFull formats results with full metadata, no truncation.
@@ -196,30 +316,9 @@ func formatAsMarkdownFull(results []QueryResult) string {
 	return sb.String()
 }
 
-// formatAsMarkdownCurated formats LLM-curated results with relevance annotations.
-func formatAsMarkdownCurated(results []QueryResult, query string, extractor LLMExtractor) string {
-	if len(results) == 0 {
-		return formatEmptyResult()
-	}
-
-	// If extractor available, try LLM curation
-	if extractor != nil && query != "" {
-		curated, err := extractor.Curate(context.Background(), query, results)
-		if err == nil && len(curated) > 0 {
-			var sb strings.Builder
-			sb.WriteString("## Recent Context from Memory\n\n")
-			for _, c := range curated {
-				sb.WriteString(fmt.Sprintf("- %s\n", c.Content))
-				if c.Relevance != "" {
-					sb.WriteString(fmt.Sprintf("  _(relevant: %s)_\n", c.Relevance))
-				}
-			}
-			return sb.String()
-		}
-	}
-
-	// Fall back to compact
-	return formatAsMarkdownCompact(results, 2000)
+// formatEmptyResult returns markdown for empty results.
+func formatEmptyResult() string {
+	return "## Recent Context from Memory\n\n_(No relevant memories found)_\n"
 }
 
 // typePrefix returns a short type indicator for compact output.
@@ -232,36 +331,4 @@ func typePrefix(memoryType string) string {
 	default:
 		return ""
 	}
-}
-
-// formatEmptyResult returns markdown for empty results.
-func formatEmptyResult() string {
-	return "## Recent Context from Memory\n\n_(No relevant memories found)_\n"
-}
-
-// SortByPrimacy reorders results so corrections appear first (primacy position),
-// then by score descending within each group. Uses stable sort for deterministic ordering.
-func SortByPrimacy(results []QueryResult) []QueryResult {
-	if len(results) == 0 {
-		return results
-	}
-
-	// Make a copy to avoid mutating the input
-	sorted := make([]QueryResult, len(results))
-	copy(sorted, results)
-
-	sort.SliceStable(sorted, func(i, j int) bool {
-		iIsCorrection := sorted[i].MemoryType == "correction"
-		jIsCorrection := sorted[j].MemoryType == "correction"
-
-		// Corrections come first
-		if iIsCorrection != jIsCorrection {
-			return iIsCorrection
-		}
-
-		// Within same group, higher score first
-		return sorted[i].Score > sorted[j].Score
-	})
-
-	return sorted
 }

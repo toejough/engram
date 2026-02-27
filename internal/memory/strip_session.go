@@ -1,4 +1,3 @@
-// strip_session.go
 package memory
 
 import (
@@ -10,9 +9,6 @@ import (
 	"strings"
 )
 
-var systemReminderRe = regexp.MustCompile(`(?s)<system-reminder>.*?</system-reminder>`)
-var teammateRe = regexp.MustCompile(`(?s)<teammate-message[^>]*teammate_id="([^"]*)"[^>]*>(.*?)</teammate-message>`)
-
 // StripSession reads a JSONL session transcript and returns stripped text
 // containing only learning-relevant content.
 // If startOffset > 0, seeks to that byte position before reading (for incremental extraction).
@@ -22,7 +18,8 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 	if err != nil {
 		return "", 0, fmt.Errorf("open session: %w", err)
 	}
-	defer f.Close()
+
+	defer func() { _ = f.Close() }()
 
 	if startOffset > 0 {
 		if _, err := f.Seek(startOffset, 0); err != nil {
@@ -31,14 +28,19 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 	}
 
 	bytesRead := startOffset
+
 	var lines []string
+
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // 10MB line buffer
+
 	for scanner.Scan() {
 		bytesRead += int64(len(scanner.Bytes())) + 1 // +1 for newline
 
 		var msg map[string]any
-		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+
+		err := json.Unmarshal(scanner.Bytes(), &msg)
+		if err != nil {
 			continue
 		}
 
@@ -51,7 +53,9 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 		if !ok {
 			continue
 		}
+
 		role, _ := message["role"].(string)
+
 		contentArr, ok := message["content"].([]any)
 		if !ok {
 			continue
@@ -62,11 +66,13 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 			if !ok {
 				continue
 			}
+
 			blockType, _ := block["type"].(string)
 
 			switch blockType {
 			case "text":
 				text, _ := block["text"].(string)
+
 				text = stripNoise(text)
 				if text != "" {
 					lines = append(lines, fmt.Sprintf("[%s] %s", role, text))
@@ -75,6 +81,7 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 			case "tool_use":
 				name, _ := block["name"].(string)
 				input, _ := block["input"].(map[string]any)
+
 				line := formatToolUse(name, input)
 				if line != "" {
 					lines = append(lines, fmt.Sprintf("[%s] %s", role, line))
@@ -85,13 +92,16 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 				if !isError {
 					continue // omit successful results
 				}
+
 				text, _ := block["content"].(string)
 				if text == "" {
 					text, _ = block["text"].(string)
 				}
+
 				if len(text) > 300 {
 					text = text[:300] + "..."
 				}
+
 				lines = append(lines, fmt.Sprintf("[%s] ERROR: %s", role, text))
 
 			case "thinking":
@@ -103,35 +113,76 @@ func StripSession(path string, startOffset int64) (string, int64, error) {
 	if err := scanner.Err(); err != nil {
 		return "", 0, err
 	}
+
 	return strings.Join(lines, "\n\n"), bytesRead, nil
 }
 
-// stripNoise removes system-reminders and extracts teammate messages.
-func stripNoise(text string) string {
-	// Extract teammate messages first (before stripping system-reminders)
-	text = teammateRe.ReplaceAllStringFunc(text, func(match string) string {
-		m := teammateRe.FindStringSubmatch(match)
-		if len(m) >= 3 {
-			return fmt.Sprintf("[teammate %s] %s", m[1], strings.TrimSpace(m[2]))
-		}
-		return match
-	})
+// unexported variables.
+var (
+	systemReminderRe = regexp.MustCompile(`(?s)<system-reminder>.*?</system-reminder>`)
+	teammateRe       = regexp.MustCompile(`(?s)<teammate-message[^>]*teammate_id="([^"]*)"[^>]*>(.*?)</teammate-message>`)
+)
 
-	// Strip system-reminders
-	text = systemReminderRe.ReplaceAllString(text, "")
+// computeEditDiff shows only what changed between old and updated strings.
+func computeEditDiff(old, updated string) string {
+	// For short edits, show full old/updated lines
+	if len(old) < 200 && len(updated) < 200 {
+		var result strings.Builder
+		result.WriteString("  - " + old + "\n")
+		result.WriteString("  + " + updated)
 
-	// Collapse skill content
-	if isSkillContent(text) {
-		return "(skill loaded)"
+		return result.String()
 	}
 
-	return strings.TrimSpace(text)
-}
+	// Find common prefix
+	prefixLen := 0
 
-// isSkillContent detects skill loading patterns.
-func isSkillContent(text string) bool {
-	return strings.Contains(text, "Base directory for this skill:") ||
-		strings.Contains(text, "Launching skill:")
+	for i := 0; i < len(old) && i < len(updated); i++ {
+		if old[i] != updated[i] {
+			break
+		}
+
+		prefixLen = i + 1
+	}
+
+	// Find common suffix
+	suffixLen := 0
+
+	for i := 1; i <= len(old)-prefixLen && i <= len(updated)-prefixLen; i++ {
+		if old[len(old)-i] != updated[len(updated)-i] {
+			break
+		}
+
+		suffixLen = i
+	}
+
+	oldChanged := old[prefixLen : len(old)-suffixLen]
+	newChanged := updated[prefixLen : len(updated)-suffixLen]
+
+	// Add context (up to 60 chars around the change)
+	ctx := 60
+	ctxBefore := ""
+
+	if prefixLen > 0 {
+		start := max(prefixLen-ctx, 0)
+
+		ctxBefore = old[start:prefixLen]
+	}
+
+	var result strings.Builder
+	if ctxBefore != "" {
+		result.WriteString("  ..." + ctxBefore + "\n")
+	}
+
+	if oldChanged != "" {
+		result.WriteString("  - " + oldChanged + "\n")
+	}
+
+	if newChanged != "" {
+		result.WriteString("  + " + newChanged)
+	}
+
+	return result.String()
 }
 
 // formatToolUse formats a tool invocation for stripped output.
@@ -145,91 +196,73 @@ func formatToolUse(name string, input map[string]any) string {
 				cmd = cmd[:idx+nl] + fmt.Sprintf("... [%d chars]", len(cmd))
 			}
 		}
-		return fmt.Sprintf("TOOL:Bash $ %s", cmd)
+
+		return "TOOL:Bash $ " + cmd
 
 	case "Edit":
 		fp, _ := input["file_path"].(string)
 		old, _ := input["old_string"].(string)
-		new, _ := input["new_string"].(string)
+		newStr, _ := input["new_string"].(string)
+
 		if old == "" {
-			return fmt.Sprintf("TOOL:Edit %s", fp)
+			return "TOOL:Edit " + fp
 		}
-		diff := computeEditDiff(old, new)
+
+		diff := computeEditDiff(old, newStr)
+
 		return fmt.Sprintf("TOOL:Edit %s\n%s", fp, diff)
 
 	case "Write":
 		fp, _ := input["file_path"].(string)
-		return fmt.Sprintf("TOOL:Write %s", fp)
+		return "TOOL:Write " + fp
 
 	case "Read", "Glob", "Grep":
 		b, _ := json.Marshal(input)
+
 		s := string(b)
 		if len(s) > 150 {
 			s = s[:150] + "..."
 		}
+
 		return fmt.Sprintf("TOOL:%s %s", name, s)
 
 	default:
 		b, _ := json.Marshal(input)
+
 		s := string(b)
 		if len(s) > 150 {
 			s = s[:150] + "..."
 		}
+
 		return fmt.Sprintf("TOOL:%s %s", name, s)
 	}
 }
 
-// computeEditDiff shows only what changed between old and new strings.
-func computeEditDiff(old, new string) string {
-	// For short edits, show full old/new lines
-	if len(old) < 200 && len(new) < 200 {
-		var result strings.Builder
-		result.WriteString("  - " + old + "\n")
-		result.WriteString("  + " + new)
-		return result.String()
-	}
+// isSkillContent detects skill loading patterns.
+func isSkillContent(text string) bool {
+	return strings.Contains(text, "Base directory for this skill:") ||
+		strings.Contains(text, "Launching skill:")
+}
 
-	// Find common prefix
-	prefixLen := 0
-	for i := 0; i < len(old) && i < len(new); i++ {
-		if old[i] != new[i] {
-			break
+// stripNoise removes system-reminders and extracts teammate messages.
+func stripNoise(text string) string {
+	// Extract teammate messages first (before stripping system-reminders)
+	text = teammateRe.ReplaceAllStringFunc(text, func(match string) string {
+		m := teammateRe.FindStringSubmatch(match)
+		if len(m) >= 3 {
+			return fmt.Sprintf("[teammate %s] %s", m[1], strings.TrimSpace(m[2]))
 		}
-		prefixLen = i + 1
+
+		return match
+	})
+
+	// Strip system-reminders
+	text = systemReminderRe.ReplaceAllString(text, "")
+
+	// Collapse skill content
+	if isSkillContent(text) {
+		return "(skill loaded)"
 	}
 
-	// Find common suffix
-	suffixLen := 0
-	for i := 1; i <= len(old)-prefixLen && i <= len(new)-prefixLen; i++ {
-		if old[len(old)-i] != new[len(new)-i] {
-			break
-		}
-		suffixLen = i
-	}
-
-	oldChanged := old[prefixLen : len(old)-suffixLen]
-	newChanged := new[prefixLen : len(new)-suffixLen]
-
-	// Add context (up to 60 chars around the change)
-	ctx := 60
-	ctxBefore := ""
-	if prefixLen > 0 {
-		start := prefixLen - ctx
-		if start < 0 {
-			start = 0
-		}
-		ctxBefore = old[start:prefixLen]
-	}
-
-	var result strings.Builder
-	if ctxBefore != "" {
-		result.WriteString("  ..." + ctxBefore + "\n")
-	}
-	if oldChanged != "" {
-		result.WriteString("  - " + oldChanged + "\n")
-	}
-	if newChanged != "" {
-		result.WriteString("  + " + newChanged)
-	}
-	return result.String()
+	return strings.TrimSpace(text)
 }

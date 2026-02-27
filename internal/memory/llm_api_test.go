@@ -14,194 +14,33 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-func TestDirectAPIExtractor_Extract_ReturnsObservation(t *testing.T) {
+// AddRationale tests
+func TestDirectAPIExtractor_AddRationale_ReturnsEnrichedContent(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	obs := memory.Observation{
-		Type:      "correction",
-		Concepts:  []string{"git"},
-		Principle: "Never amend pushed commits",
-	}
-	obsJSON, _ := json.Marshal(obs)
+	enriched := "Never use global variables - they make testing difficult and create hidden dependencies"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify headers
-		g.Expect(r.Header.Get("Authorization")).To(Equal("Bearer test-token"))
-		g.Expect(r.Header.Get("anthropic-beta")).To(Equal("oauth-2025-04-20"))
-		g.Expect(r.Header.Get("anthropic-version")).To(Equal("2023-06-01"))
-
-		// Verify body
-		var body struct {
-			Messages []struct {
-				Content string `json:"content"`
-			} `json:"messages"`
-		}
-		json.NewDecoder(r.Body).Decode(&body)
-		g.Expect(body.Messages).To(HaveLen(1))
-
-		// Return content block with the JSON observation
 		resp := map[string]any{
 			"content": []map[string]any{
-				{"type": "text", "text": string(obsJSON)},
+				{"type": "text", "text": enriched},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	extractor := memory.NewDirectAPIExtractor("test-token",
+	extractor := memory.NewDirectAPIExtractor("token",
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.Extract(context.Background(), "test content")
+	result, err := extractor.AddRationale(context.Background(), "Never use global variables")
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Type).To(Equal("correction"))
-	g.Expect(result.Principle).To(Equal("Never amend pushed commits"))
+	g.Expect(result).To(Equal(enriched))
 }
 
-func TestDirectAPIExtractor_Extract_ReturnsErrLLMUnavailableOn401(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]any{
-			"error": map[string]any{"message": "invalid token"},
-		})
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("bad-token",
-		memory.WithBaseURL(srv.URL),
-	)
-
-	result, err := extractor.Extract(context.Background(), "content")
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
-	g.Expect(result).To(BeNil())
-}
-
-func TestDirectAPIExtractor_Extract_ReturnsErrOnBadJSON(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"content": []map[string]any{
-				{"type": "text", "text": "not valid json"},
-			},
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("token",
-		memory.WithBaseURL(srv.URL),
-	)
-
-	result, err := extractor.Extract(context.Background(), "content")
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(result).To(BeNil())
-}
-
-func TestDirectAPIExtractor_Extract_RespectsContextCancellation(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		<-r.Context().Done() // block until cancelled
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("token",
-		memory.WithBaseURL(srv.URL),
-	)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // cancel immediately
-
-	_, err := extractor.Extract(ctx, "content")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestDirectAPIExtractor_Extract_SendsCorrectModel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var capturedModel string
-	obs := memory.Observation{Type: "pattern", Concepts: []string{"x"}, Principle: "p"}
-	obsJSON, _ := json.Marshal(obs)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Model string `json:"model"`
-		}
-		bodyBytes, _ := io.ReadAll(r.Body)
-		json.Unmarshal(bodyBytes, &body)
-		capturedModel = body.Model
-		resp := map[string]any{
-			"content": []map[string]any{
-				{"type": "text", "text": string(obsJSON)},
-			},
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("token",
-		memory.WithBaseURL(srv.URL),
-		memory.WithModel("claude-haiku-4-5-20251001"),
-	)
-
-	_, err := extractor.Extract(context.Background(), "content")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
-}
-
-func TestDirectAPIExtractor_ImplementsLLMExtractor(t *testing.T) {
-	t.Parallel()
-
-	var _ memory.LLMExtractor = &memory.DirectAPIExtractor{}
-}
-
-func TestDirectAPIExtractor_ImplementsSkillCompiler(t *testing.T) {
-	t.Parallel()
-
-	var _ memory.SkillCompiler = &memory.DirectAPIExtractor{}
-}
-
-func TestDirectAPIExtractor_ImplementsSpecificityDetector(t *testing.T) {
-	t.Parallel()
-
-	var _ memory.SpecificityDetector = &memory.DirectAPIExtractor{}
-}
-
-// Synthesize tests
-func TestDirectAPIExtractor_Synthesize_ReturnsPrinciple(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]any{
-			"content": []map[string]any{
-				{"type": "text", "text": "Always use TDD for code changes"},
-			},
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("token",
-		memory.WithBaseURL(srv.URL),
-	)
-
-	result, err := extractor.Synthesize(context.Background(), []string{"mem1", "mem2"})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal("Always use TDD for code changes"))
-}
-
-func TestDirectAPIExtractor_Synthesize_ReturnsErrOn401(t *testing.T) {
+func TestDirectAPIExtractor_AddRationale_ReturnsErrOn401(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -214,10 +53,55 @@ func TestDirectAPIExtractor_Synthesize_ReturnsErrOn401(t *testing.T) {
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.Synthesize(context.Background(), []string{"mem"})
+	result, err := extractor.AddRationale(context.Background(), "content")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(result).To(BeEmpty())
+}
+
+func TestDirectAPIExtractor_CompileSkill_ReturnsErrOn401(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("bad-token",
+		memory.WithBaseURL(srv.URL),
+	)
+
+	result, err := extractor.CompileSkill(context.Background(), "theme", []string{"mem"})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
+	g.Expect(result).To(BeEmpty())
+}
+
+// CompileSkill tests
+func TestDirectAPIExtractor_CompileSkill_ReturnsSkillContent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	skillContent := "# My Skill\n\nThis is skill content."
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"content": []map[string]any{
+				{"type": "text", "text": skillContent},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("token",
+		memory.WithBaseURL(srv.URL),
+	)
+
+	result, err := extractor.CompileSkill(context.Background(), "theme", []string{"mem1", "mem2"})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).To(Equal(skillContent))
 }
 
 // Curate tests
@@ -252,6 +136,11 @@ func TestDirectAPIExtractor_Curate_ReturnsCuratedResults(t *testing.T) {
 	result, err := extractor.Curate(context.Background(), "test query", candidates)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result).To(HaveLen(2))
+
+	if len(result) < 1 {
+		t.Fatal("expected at least 1 result from Curate")
+	}
+
 	g.Expect(result[0].Content).To(Equal("result1"))
 	g.Expect(result[0].Relevance).To(Equal("highly relevant"))
 }
@@ -326,6 +215,11 @@ func TestDirectAPIExtractor_Decide_ReturnsDecision(t *testing.T) {
 
 	result, err := extractor.Decide(context.Background(), "new content", []memory.ExistingMemory{})
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("Decide returned nil result")
+	}
+
 	g.Expect(result.Action).To(Equal(memory.IngestAdd))
 	g.Expect(result.Reason).To(Equal("New knowledge"))
 }
@@ -372,17 +266,56 @@ func TestDirectAPIExtractor_Decide_ReturnsErrOnBadJSON(t *testing.T) {
 	g.Expect(result).To(BeNil())
 }
 
-// CompileSkill tests
-func TestDirectAPIExtractor_CompileSkill_ReturnsSkillContent(t *testing.T) {
+func TestDirectAPIExtractor_Extract_RespectsContextCancellation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	skillContent := "# My Skill\n\nThis is skill content."
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // block until cancelled
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("token",
+		memory.WithBaseURL(srv.URL),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	_, err := extractor.Extract(ctx, "content")
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestDirectAPIExtractor_Extract_ReturnsErrLLMUnavailableOn401(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]any{
+			"error": map[string]any{"message": "invalid token"},
+		})
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("bad-token",
+		memory.WithBaseURL(srv.URL),
+	)
+
+	result, err := extractor.Extract(context.Background(), "content")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
+	g.Expect(result).To(BeNil())
+}
+
+func TestDirectAPIExtractor_Extract_ReturnsErrOnBadJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"content": []map[string]any{
-				{"type": "text", "text": skillContent},
+				{"type": "text", "text": "not valid json"},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -393,28 +326,114 @@ func TestDirectAPIExtractor_CompileSkill_ReturnsSkillContent(t *testing.T) {
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.CompileSkill(context.Background(), "theme", []string{"mem1", "mem2"})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal(skillContent))
+	result, err := extractor.Extract(context.Background(), "content")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(result).To(BeNil())
 }
 
-func TestDirectAPIExtractor_CompileSkill_ReturnsErrOn401(t *testing.T) {
+func TestDirectAPIExtractor_Extract_ReturnsObservation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
+	obs := memory.Observation{
+		Type:      "correction",
+		Concepts:  []string{"git"},
+		Principle: "Never amend pushed commits",
+	}
+	obsJSON, _ := json.Marshal(obs)
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
+		// Verify headers
+		g.Expect(r.Header.Get("Authorization")).To(Equal("Bearer test-token"))
+		g.Expect(r.Header.Get("Anthropic-Beta")).To(Equal("oauth-2025-04-20"))
+		g.Expect(r.Header.Get("Anthropic-Version")).To(Equal("2023-06-01"))
+
+		// Verify body
+		var body struct {
+			Messages []struct {
+				Content string `json:"content"`
+			} `json:"messages"`
+		}
+		json.NewDecoder(r.Body).Decode(&body)
+		g.Expect(body.Messages).To(HaveLen(1))
+
+		// Return content block with the JSON observation
+		resp := map[string]any{
+			"content": []map[string]any{
+				{"type": "text", "text": string(obsJSON)},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
-	extractor := memory.NewDirectAPIExtractor("bad-token",
+	extractor := memory.NewDirectAPIExtractor("test-token",
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.CompileSkill(context.Background(), "theme", []string{"mem"})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
-	g.Expect(result).To(BeEmpty())
+	result, err := extractor.Extract(context.Background(), "test content")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("Extract returned nil result")
+	}
+
+	g.Expect(result.Type).To(Equal("correction"))
+	g.Expect(result.Principle).To(Equal("Never amend pushed commits"))
+}
+
+func TestDirectAPIExtractor_Extract_SendsCorrectModel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedModel string
+
+	obs := memory.Observation{Type: "pattern", Concepts: []string{"x"}, Principle: "p"}
+	obsJSON, _ := json.Marshal(obs)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Model string `json:"model"`
+		}
+
+		bodyBytes, _ := io.ReadAll(r.Body)
+		json.Unmarshal(bodyBytes, &body)
+		capturedModel = body.Model
+		resp := map[string]any{
+			"content": []map[string]any{
+				{"type": "text", "text": string(obsJSON)},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("token",
+		memory.WithBaseURL(srv.URL),
+		memory.WithModel("claude-haiku-4-5-20251001"),
+	)
+
+	_, err := extractor.Extract(context.Background(), "content")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
+}
+
+func TestDirectAPIExtractor_ImplementsLLMExtractor(t *testing.T) {
+	t.Parallel()
+
+	var _ memory.LLMExtractor = &memory.DirectAPIExtractor{}
+}
+
+func TestDirectAPIExtractor_ImplementsSkillCompiler(t *testing.T) {
+	t.Parallel()
+
+	var _ memory.SkillCompiler = &memory.DirectAPIExtractor{}
+}
+
+func TestDirectAPIExtractor_ImplementsSpecificityDetector(t *testing.T) {
+	t.Parallel()
+
+	var _ memory.SpecificityDetector = &memory.DirectAPIExtractor{}
 }
 
 // IsNarrowLearning tests
@@ -493,6 +512,25 @@ func TestDirectAPIExtractor_IsNarrowLearning_ReturnsErrOnBadJSON(t *testing.T) {
 	g.Expect(reason).To(BeEmpty())
 }
 
+func TestDirectAPIExtractor_Rewrite_ReturnsErrOn401(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	extractor := memory.NewDirectAPIExtractor("bad-token",
+		memory.WithBaseURL(srv.URL),
+	)
+
+	result, err := extractor.Rewrite(context.Background(), "content")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
+	g.Expect(result).To(BeEmpty())
+}
+
 // Rewrite tests
 func TestDirectAPIExtractor_Rewrite_ReturnsRewrittenContent(t *testing.T) {
 	t.Parallel()
@@ -519,7 +557,7 @@ func TestDirectAPIExtractor_Rewrite_ReturnsRewrittenContent(t *testing.T) {
 	g.Expect(result).To(Equal(rewritten))
 }
 
-func TestDirectAPIExtractor_Rewrite_ReturnsErrOn401(t *testing.T) {
+func TestDirectAPIExtractor_Synthesize_ReturnsErrOn401(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -532,23 +570,21 @@ func TestDirectAPIExtractor_Rewrite_ReturnsErrOn401(t *testing.T) {
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.Rewrite(context.Background(), "content")
+	result, err := extractor.Synthesize(context.Background(), []string{"mem"})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
 	g.Expect(result).To(BeEmpty())
 }
 
-// AddRationale tests
-func TestDirectAPIExtractor_AddRationale_ReturnsEnrichedContent(t *testing.T) {
+// Synthesize tests
+func TestDirectAPIExtractor_Synthesize_ReturnsPrinciple(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	enriched := "Never use global variables - they make testing difficult and create hidden dependencies"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"content": []map[string]any{
-				{"type": "text", "text": enriched},
+				{"type": "text", "text": "Always use TDD for code changes"},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -559,28 +595,9 @@ func TestDirectAPIExtractor_AddRationale_ReturnsEnrichedContent(t *testing.T) {
 		memory.WithBaseURL(srv.URL),
 	)
 
-	result, err := extractor.AddRationale(context.Background(), "Never use global variables")
+	result, err := extractor.Synthesize(context.Background(), []string{"mem1", "mem2"})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).To(Equal(enriched))
-}
-
-func TestDirectAPIExtractor_AddRationale_ReturnsErrOn401(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer srv.Close()
-
-	extractor := memory.NewDirectAPIExtractor("bad-token",
-		memory.WithBaseURL(srv.URL),
-	)
-
-	result, err := extractor.AddRationale(context.Background(), "content")
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, memory.ErrLLMUnavailable)).To(BeTrue())
-	g.Expect(result).To(BeEmpty())
+	g.Expect(result).To(Equal("Always use TDD for code changes"))
 }
 
 // NewLLMExtractor factory tests

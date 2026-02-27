@@ -6,12 +6,12 @@ import (
 
 // SynthesisValidation represents the validation result for a synthesized pattern.
 type SynthesisValidation struct {
-	Content         string
-	IsActionable    bool
-	IsSpecific      bool
-	IsNonRedundant  bool
-	Quality         float64
-	Issues          []string
+	Content        string
+	IsActionable   bool
+	IsSpecific     bool
+	IsNonRedundant bool
+	Quality        float64
+	Issues         []string
 }
 
 // ValidateSynthesis validates a synthesized pattern for actionability, specificity, and non-redundancy.
@@ -31,6 +31,7 @@ func ValidateSynthesis(content string, existingPatterns []string) SynthesisValid
 		result.IsNonRedundant = false
 		result.Issues = append(result.Issues, "Pattern is empty")
 		result.Quality = 0.0
+
 		return result
 	}
 
@@ -53,6 +54,7 @@ func ValidateSynthesis(content string, existingPatterns []string) SynthesisValid
 			if similarity >= 0.8 {
 				result.IsNonRedundant = false
 				result.Issues = append(result.Issues, "Pattern is redundant with existing pattern")
+
 				break
 			}
 		}
@@ -63,15 +65,35 @@ func ValidateSynthesis(content string, existingPatterns []string) SynthesisValid
 	if result.IsActionable {
 		passingCriteria++
 	}
+
 	if result.IsSpecific {
 		passingCriteria++
 	}
+
 	if result.IsNonRedundant {
 		passingCriteria++
 	}
+
 	result.Quality = float64(passingCriteria) / 3.0
 
 	return result
+}
+
+// generateTrigrams generates character trigrams from a string for fuzzy matching.
+func generateTrigrams(s string) []string {
+	// Remove spaces for character-level analysis
+	cleaned := strings.ReplaceAll(s, " ", "")
+
+	if len(cleaned) < 3 {
+		return []string{cleaned}
+	}
+
+	trigrams := make([]string, 0, len(cleaned)-2)
+	for i := 0; i <= len(cleaned)-3; i++ {
+		trigrams = append(trigrams, cleaned[i:i+3])
+	}
+
+	return trigrams
 }
 
 // isActionable checks if content contains imperative keywords.
@@ -174,6 +196,7 @@ func jaccardSimilarity(s1, s2 string) float64 {
 	if s1 == "" && s2 == "" {
 		return 1.0
 	}
+
 	if s1 == "" || s2 == "" {
 		return 0.0
 	}
@@ -210,12 +233,15 @@ func jaccardSimilarity(s1, s2 string) float64 {
 
 	// Calculate token-based Jaccard similarity
 	tokenIntersection := 0
+
 	for token := range tokenSet1 {
 		if tokenSet2[token] {
 			tokenIntersection++
 		}
 	}
+
 	tokenUnion := len(tokenSet1) + len(tokenSet2) - tokenIntersection
+
 	tokenSimilarity := 0.0
 	if tokenUnion > 0 {
 		tokenSimilarity = float64(tokenIntersection) / float64(tokenUnion)
@@ -223,12 +249,15 @@ func jaccardSimilarity(s1, s2 string) float64 {
 
 	// Calculate trigram-based Jaccard similarity
 	trigramIntersection := 0
+
 	for trigram := range trigramSet1 {
 		if trigramSet2[trigram] {
 			trigramIntersection++
 		}
 	}
+
 	trigramUnion := len(trigramSet1) + len(trigramSet2) - trigramIntersection
+
 	trigramSimilarity := 0.0
 	if trigramUnion > 0 {
 		trigramSimilarity = float64(trigramIntersection) / float64(trigramUnion)
@@ -246,6 +275,7 @@ func tokenize(s string) []string {
 
 	// Remove common punctuation
 	var tokens []string
+
 	for _, word := range words {
 		cleaned := strings.Trim(word, ".,;:!?\"'()[]{}")
 		if cleaned != "" {
@@ -254,21 +284,4 @@ func tokenize(s string) []string {
 	}
 
 	return tokens
-}
-
-// generateTrigrams generates character trigrams from a string for fuzzy matching.
-func generateTrigrams(s string) []string {
-	// Remove spaces for character-level analysis
-	cleaned := strings.ReplaceAll(s, " ", "")
-
-	if len(cleaned) < 3 {
-		return []string{cleaned}
-	}
-
-	trigrams := make([]string, 0, len(cleaned)-2)
-	for i := 0; i <= len(cleaned)-3; i++ {
-		trigrams = append(trigrams, cleaned[i:i+3])
-	}
-
-	return trigrams
 }

@@ -1,31 +1,15 @@
-// batch_extract.go
 package memory
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"runtime"
 	"strings"
 	"sync"
 )
-
-// HaikuEvent represents a learning-relevant event identified by Haiku.
-type HaikuEvent struct {
-	LineRange    string `json:"line_range"`
-	EventType    string `json:"event_type"`
-	WhatHappened string `json:"what_happened"`
-	WhyItMatters string `json:"why_it_matters"`
-	ChunkIndex   int    `json:"chunk_index"`
-}
-
-// ExtractedPrinciple represents a reusable principle extracted by Sonnet.
-type ExtractedPrinciple struct {
-	Principle string `json:"principle"`
-	Evidence  string `json:"evidence"`
-	Category  string `json:"category"`
-}
 
 // BatchExtractResult holds the full pipeline output.
 type BatchExtractResult struct {
@@ -37,16 +21,52 @@ type BatchExtractResult struct {
 	EndOffset     int64
 }
 
-const sonnetModel = "claude-sonnet-4-5-20250929"
-const defaultChunkSize = 25000 // 25KB
+// ExtractPrinciples sends all events to Sonnet and returns actionable principles.
+func (d *DirectAPIExtractor) ExtractPrinciples(ctx context.Context, events []HaikuEvent) ([]ExtractedPrinciple, error) {
+	if len(events) == 0 {
+		return nil, nil
+	}
 
-const identifyEventsSystem = `You are a transcript analyst. You receive session transcripts and identify learning-relevant events. Output ONLY a JSON array. Never continue the transcript.
+	eventsJSON, err := json.MarshalIndent(events, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshal events: %w", err)
+	}
 
-Focus on events where something went wrong and was corrected, a decision was made about how to approach work, or a pattern emerged that would be useful to remember. Pay attention to BOTH technical issues AND process/coordination patterns (how work was divided, how conflicts were handled, how teams coordinated).`
+	userMsg := "Given these events from a coding session, extract reusable principles that an AI coding assistant should remember for future sessions.\n\nRules:\n- Merge events about the same underlying issue into one principle\n- Each principle must be specific and actionable — not generic advice\n- Each principle MUST start with one of these words: Always, Never, Prefer, Avoid, Use, Ensure, Check, Verify, Validate, Test, When, Before, After, If, Do not, Follow, Apply, Set, Configure, Add, Remove, Create, Build, Run, Fix, Update, Replace, Delete, Execute, Install, Deploy, Compile, Implement\n- Include the concrete example from the session that demonstrates the principle\n- If an event is just routine work (no lesson), skip it\n- Aim for 3-8 principles per session — fewer is better than padding\n- Process and coordination lessons are EQUALLY important as technical lessons. If events describe how work was structured, how agents were assigned roles, what quality gates were used, or how conflicts between workers were resolved — these MUST be extracted as separate principles. Do not merge them into technical principles or drop them.\n\nOutput each principle as:\n- \"principle\": The actionable rule (1-2 sentences)\n- \"evidence\": What happened in the session that demonstrates this (1-2 sentences)\n- \"category\": one of [debugging, git-workflow, api-design, team-coordination, testing, code-quality, cli-design]\n\nEvents:\n" + string(eventsJSON)
 
-const extractPrinciplesSystem = `You are a learning extraction system. You receive events identified from coding session transcripts and synthesize them into reusable, actionable principles.
+	// Scale max tokens with event count — more events means richer evidence sections.
+	// Base 4096 for ≤20 events, +100 per event beyond that, capped at 16384.
+	maxTokens := 4096
+	if len(events) > 20 {
+		maxTokens += (len(events) - 20) * 100
+	}
 
-Your output is ONLY a JSON array of principle objects. Never output anything else.`
+	if maxTokens > 16384 {
+		maxTokens = 16384
+	}
+
+	params := APIMessageParams{
+		System: extractPrinciplesSystem,
+		Messages: []APIMessage{
+			{Role: "user", Content: userMsg},
+			{Role: "assistant", Content: "["},
+		},
+		MaxTokens: maxTokens,
+		Model:     sonnetModel,
+	}
+
+	raw, err := d.CallAPIWithMessages(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	principles, err := parsePrinciplesJSON("[" + string(raw))
+	if err != nil {
+		return nil, fmt.Errorf("parse principles: %w", err)
+	}
+
+	return principles, nil
+}
 
 // IdentifyEvents sends a text chunk to Haiku and returns structured events.
 // Uses assistant prefill with "[" to force JSON array output.
@@ -93,7 +113,7 @@ Respond with ONLY a JSON array. No other text.
 	// Find the closing bracket
 	endIdx := strings.LastIndex(fullJSON, "]")
 	if endIdx < 0 {
-		return nil, fmt.Errorf("no closing ] in response")
+		return nil, errors.New("no closing ] in response")
 	}
 
 	var events []HaikuEvent
@@ -109,107 +129,20 @@ Respond with ONLY a JSON array. No other text.
 	return events, nil
 }
 
-// ExtractPrinciples sends all events to Sonnet and returns actionable principles.
-func (d *DirectAPIExtractor) ExtractPrinciples(ctx context.Context, events []HaikuEvent) ([]ExtractedPrinciple, error) {
-	if len(events) == 0 {
-		return nil, nil
-	}
-
-	eventsJSON, err := json.MarshalIndent(events, "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("marshal events: %w", err)
-	}
-
-	userMsg := fmt.Sprintf(`Given these events from a coding session, extract reusable principles that an AI coding assistant should remember for future sessions.
-
-Rules:
-- Merge events about the same underlying issue into one principle
-- Each principle must be specific and actionable — not generic advice
-- Each principle MUST start with one of these words: Always, Never, Prefer, Avoid, Use, Ensure, Check, Verify, Validate, Test, When, Before, After, If, Do not, Follow, Apply, Set, Configure, Add, Remove, Create, Build, Run, Fix, Update, Replace, Delete, Execute, Install, Deploy, Compile, Implement
-- Include the concrete example from the session that demonstrates the principle
-- If an event is just routine work (no lesson), skip it
-- Aim for 3-8 principles per session — fewer is better than padding
-- Process and coordination lessons are EQUALLY important as technical lessons. If events describe how work was structured, how agents were assigned roles, what quality gates were used, or how conflicts between workers were resolved — these MUST be extracted as separate principles. Do not merge them into technical principles or drop them.
-
-Output each principle as:
-- "principle": The actionable rule (1-2 sentences)
-- "evidence": What happened in the session that demonstrates this (1-2 sentences)
-- "category": one of [debugging, git-workflow, api-design, team-coordination, testing, code-quality, cli-design]
-
-Events:
-%s`, string(eventsJSON))
-
-	// Scale max tokens with event count — more events means richer evidence sections.
-	// Base 4096 for ≤20 events, +100 per event beyond that, capped at 16384.
-	maxTokens := 4096
-	if len(events) > 20 {
-		maxTokens += (len(events) - 20) * 100
-	}
-	if maxTokens > 16384 {
-		maxTokens = 16384
-	}
-
-	params := APIMessageParams{
-		System: extractPrinciplesSystem,
-		Messages: []APIMessage{
-			{Role: "user", Content: userMsg},
-			{Role: "assistant", Content: "["},
-		},
-		MaxTokens: maxTokens,
-		Model:     sonnetModel,
-	}
-
-	raw, err := d.CallAPIWithMessages(ctx, params)
-	if err != nil {
-		return nil, err
-	}
-
-	principles, err := parsePrinciplesJSON("[" + string(raw))
-	if err != nil {
-		return nil, fmt.Errorf("parse principles: %w", err)
-	}
-
-	return principles, nil
+// ExtractedPrinciple represents a reusable principle extracted by Sonnet.
+type ExtractedPrinciple struct {
+	Principle string `json:"principle"`
+	Evidence  string `json:"evidence"`
+	Category  string `json:"category"`
 }
 
-// parsePrinciplesJSON parses a JSON array of principles, recovering partial results
-// from truncated output (e.g., when MaxTokens is hit mid-response).
-func parsePrinciplesJSON(fullJSON string) ([]ExtractedPrinciple, error) {
-	// Try clean parse first — response has a proper closing ]
-	endIdx := strings.LastIndex(fullJSON, "]")
-	if endIdx >= 0 {
-		var principles []ExtractedPrinciple
-		if err := json.Unmarshal([]byte(fullJSON[:endIdx+1]), &principles); err == nil {
-			return principles, nil
-		}
-	}
-
-	// Truncated response — find the last complete JSON object by looking for "}".
-	// Walk backward to find a position where the array parses successfully.
-	lastBrace := strings.LastIndex(fullJSON, "}")
-	for lastBrace > 0 {
-		candidate := strings.TrimRight(fullJSON[:lastBrace+1], ", \n\t") + "]"
-		var principles []ExtractedPrinciple
-		if err := json.Unmarshal([]byte(candidate), &principles); err == nil {
-			return principles, nil
-		}
-		// Try the previous }
-		lastBrace = strings.LastIndex(fullJSON[:lastBrace], "}")
-	}
-
-	return nil, fmt.Errorf("unexpected end of JSON input")
-}
-
-// formatBytes formats a byte count as a human-readable string (B, KB, MB).
-func formatBytes(n int) string {
-	switch {
-	case n >= 1024*1024:
-		return fmt.Sprintf("%.1fMB", float64(n)/(1024*1024))
-	case n >= 1024:
-		return fmt.Sprintf("%.1fKB", float64(n)/1024)
-	default:
-		return fmt.Sprintf("%dB", n)
-	}
+// HaikuEvent represents a learning-relevant event identified by Haiku.
+type HaikuEvent struct {
+	LineRange    string `json:"line_range"`
+	EventType    string `json:"event_type"`
+	WhatHappened string `json:"what_happened"`
+	WhyItMatters string `json:"why_it_matters"`
+	ChunkIndex   int    `json:"chunk_index"`
 }
 
 // BatchExtractSession runs the full extraction pipeline on a session transcript.
@@ -218,12 +151,13 @@ func formatBytes(n int) string {
 func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPIExtractor, startOffset int64, progress io.Writer) (*BatchExtractResult, error) {
 	logf := func(format string, args ...any) {
 		if progress != nil {
-			fmt.Fprintf(progress, "  "+format+"\n", args...)
+			_, _ = fmt.Fprintf(progress, "  "+format+"\n", args...)
 		}
 	}
 
 	// Stage 1: Strip
 	logf("stripping %s (offset %d)...", sessionPath, startOffset)
+
 	stripped, endOffset, err := StripSession(sessionPath, startOffset)
 	if err != nil {
 		return nil, fmt.Errorf("strip session: %w", err)
@@ -245,20 +179,25 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	type chunkResult struct {
 		events    []HaikuEvent
 		err       error
-		index     int
 		inputSize int
 	}
 
 	results := make(chan chunkResult, len(chunks))
 	sem := make(chan struct{}, runtime.NumCPU())
-	var wg sync.WaitGroup
-	var mu sync.Mutex
+
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
 
 	for _, chunk := range chunks {
 		wg.Add(1)
+
 		go func(c TextChunk) {
 			defer wg.Done()
+
 			sem <- struct{}{}
+
 			defer func() { <-sem }()
 
 			mu.Lock()
@@ -268,15 +207,17 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 			events, err := ext.IdentifyEvents(ctx, c, len(chunks))
 
 			mu.Lock()
+
 			if err != nil {
 				logf("  chunk %d/%d: error: %v", c.Index+1, len(chunks), err)
 			} else {
 				respBytes, _ := json.Marshal(events)
 				logf("  chunk %d/%d: identified %d events (%s response)", c.Index+1, len(chunks), len(events), formatBytes(len(respBytes)))
 			}
+
 			mu.Unlock()
 
-			results <- chunkResult{events: events, err: err, index: c.Index, inputSize: len(c.Text)}
+			results <- chunkResult{events: events, err: err, inputSize: len(c.Text)}
 		}(chunk)
 	}
 
@@ -286,7 +227,9 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	}()
 
 	var allEvents []HaikuEvent
+
 	failures := 0
+
 	totalHaikuInput := 0
 	for r := range results {
 		totalHaikuInput += r.inputSize
@@ -294,6 +237,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 			failures++
 			continue
 		}
+
 		allEvents = append(allEvents, r.events...)
 	}
 
@@ -314,6 +258,7 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 	// Stage 4: Sonnet principle extraction
 	eventsJSON, _ := json.Marshal(allEvents)
 	logf("extracting principles with sonnet (%s input)...", formatBytes(len(eventsJSON)))
+
 	principles, err := ext.ExtractPrinciples(ctx, allEvents)
 	if err != nil {
 		return nil, fmt.Errorf("extract principles: %w", err)
@@ -330,6 +275,63 @@ func BatchExtractSession(ctx context.Context, sessionPath string, ext *DirectAPI
 		Principles:    principles,
 		EndOffset:     endOffset,
 	}, nil
+}
+
+// unexported constants.
+const (
+	defaultChunkSize        = 25000
+	extractPrinciplesSystem = `You are a learning extraction system. You receive events identified from coding session transcripts and synthesize them into reusable, actionable principles.
+
+Your output is ONLY a JSON array of principle objects. Never output anything else.`
+	identifyEventsSystem = `You are a transcript analyst. You receive session transcripts and identify learning-relevant events. Output ONLY a JSON array. Never continue the transcript.
+
+Focus on events where something went wrong and was corrected, a decision was made about how to approach work, or a pattern emerged that would be useful to remember. Pay attention to BOTH technical issues AND process/coordination patterns (how work was divided, how conflicts were handled, how teams coordinated).`
+	sonnetModel = "claude-sonnet-4-5-20250929"
+)
+
+// formatBytes formats a byte count as a human-readable string (B, KB, MB).
+func formatBytes(n int) string {
+	switch {
+	case n >= 1024*1024:
+		return fmt.Sprintf("%.1fMB", float64(n)/(1024*1024))
+	case n >= 1024:
+		return fmt.Sprintf("%.1fKB", float64(n)/1024)
+	default:
+		return fmt.Sprintf("%dB", n)
+	}
+}
+
+// parsePrinciplesJSON parses a JSON array of principles, recovering partial results
+// from truncated output (e.g., when MaxTokens is hit mid-response).
+func parsePrinciplesJSON(fullJSON string) ([]ExtractedPrinciple, error) {
+	// Try clean parse first — response has a proper closing ]
+	endIdx := strings.LastIndex(fullJSON, "]")
+	if endIdx >= 0 {
+		var principles []ExtractedPrinciple
+
+		err := json.Unmarshal([]byte(fullJSON[:endIdx+1]), &principles)
+		if err == nil {
+			return principles, nil
+		}
+	}
+
+	// Truncated response — find the last complete JSON object by looking for "}".
+	// Walk backward to find a position where the array parses successfully.
+	lastBrace := strings.LastIndex(fullJSON, "}")
+	for lastBrace > 0 {
+		candidate := strings.TrimRight(fullJSON[:lastBrace+1], ", \n\t") + "]"
+
+		var principles []ExtractedPrinciple
+
+		err := json.Unmarshal([]byte(candidate), &principles)
+		if err == nil {
+			return principles, nil
+		}
+		// Try the previous }
+		lastBrace = strings.LastIndex(fullJSON[:lastBrace], "}")
+	}
+
+	return nil, errors.New("unexpected end of JSON input")
 }
 
 func sortEvents(events []HaikuEvent) {

@@ -20,7 +20,7 @@ func TestSkillDiscovery(t *testing.T) {
 
 	// Test cases: query -> expected best-match skill
 	testCases := []struct {
-		query        string
+		query         string
 		expectedSkill string
 	}{
 		{"tdd red phase write failing tests", "tdd-red-producer"},
@@ -37,28 +37,30 @@ func TestSkillDiscovery(t *testing.T) {
 
 	// Find skills directory (go up from test file location to project root)
 	cwd, err := os.Getwd()
-	g.Expect(err).To(BeNil())
+	g.Expect(err).ToNot(HaveOccurred())
+
 	projectRoot := filepath.Join(cwd, "../..")
 	skillsDir := filepath.Join(projectRoot, "skills")
 
 	// Load all SKILL.md descriptions
 	skillDescriptions, err := loadSkillDescriptions(skillsDir)
-	g.Expect(err).To(BeNil())
-	g.Expect(len(skillDescriptions)).To(BeNumerically(">", 0), "should find skill files")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(skillDescriptions).ToNot(BeEmpty(), "should find skill files")
 
 	// Get model path and initialize ONNX runtime
 	modelPath, err := memory.GetModelPath()
-	g.Expect(err).To(BeNil())
+	g.Expect(err).ToNot(HaveOccurred())
 
 	// Initialize ONNX runtime (required before generating embeddings)
 	err = memory.InitializeONNXRuntimeForTest(filepath.Dir(modelPath))
-	g.Expect(err).To(BeNil())
+	g.Expect(err).ToNot(HaveOccurred())
 
 	// Generate embeddings for all skill descriptions
 	skillEmbeddings := make(map[string][]float32)
+
 	for skillName, description := range skillDescriptions {
 		embedding, _, _, err := memory.GenerateEmbeddingONNX(description, modelPath)
-		g.Expect(err).To(BeNil(), "failed to generate embedding for skill: "+skillName)
+		g.Expect(err).ToNot(HaveOccurred(), "failed to generate embedding for skill: "+skillName)
 		skillEmbeddings[skillName] = embedding
 	}
 
@@ -69,11 +71,13 @@ func TestSkillDiscovery(t *testing.T) {
 
 			// Generate embedding for query
 			queryEmbedding, _, _, err := memory.GenerateEmbeddingONNX(tc.query, modelPath)
-			g.Expect(err).To(BeNil())
+			g.Expect(err).ToNot(HaveOccurred())
 
 			// Find best match
-			var bestSkill string
-			var bestScore float32 = -1.0
+			var (
+				bestSkill string
+				bestScore float32 = -1.0
+			)
 
 			for skillName, skillEmbedding := range skillEmbeddings {
 				score := cosineSimilarity(queryEmbedding, skillEmbedding)
@@ -89,6 +93,79 @@ func TestSkillDiscovery(t *testing.T) {
 				tc.query, tc.expectedSkill, bestSkill, bestScore)
 		})
 	}
+}
+
+// cosineSimilarity computes the cosine similarity between two vectors.
+func cosineSimilarity(a, b []float32) float32 {
+	if len(a) != len(b) {
+		return 0.0
+	}
+
+	var dotProduct, normA, normB float32
+	for i := range a {
+		dotProduct += a[i] * b[i]
+		normA += a[i] * a[i]
+		normB += b[i] * b[i]
+	}
+
+	if normA == 0 || normB == 0 {
+		return 0.0
+	}
+
+	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
+}
+
+// extractDescriptionFromFrontmatter extracts the description field value from YAML frontmatter.
+// Handles both single-line and multi-line (|) YAML format.
+func extractDescriptionFromFrontmatter(content string) string {
+	// Find frontmatter boundaries
+	if !strings.HasPrefix(content, "---\n") {
+		return ""
+	}
+
+	parts := strings.SplitN(content[4:], "\n---\n", 2)
+	if len(parts) < 2 {
+		return ""
+	}
+
+	frontmatter := parts[0]
+	lines := strings.Split(frontmatter, "\n")
+
+	var (
+		inDescription bool
+		description   strings.Builder
+	)
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check if this line starts the description field
+		if strings.HasPrefix(trimmed, "description:") {
+			inDescription = true
+			// Check for single-line description
+			rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
+			if rest != "" && rest != "|" {
+				// Single-line description
+				return rest
+			}
+			// Multi-line description (|), continue to next lines
+			continue
+		}
+
+		// If in description, collect indented lines
+		if inDescription {
+			// Check if line is indented (part of multi-line value)
+			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
+				description.WriteString(strings.TrimSpace(line))
+				description.WriteString("\n")
+			} else if i > 0 && trimmed != "" {
+				// Non-indented line means end of multi-line value
+				break
+			}
+		}
+	}
+
+	return strings.TrimSpace(description.String())
 }
 
 // loadSkillDescriptions reads all SKILL.md files and extracts their description fields.
@@ -127,74 +204,4 @@ func loadSkillDescriptions(skillsDir string) (map[string]string, error) {
 	}
 
 	return descriptions, nil
-}
-
-// extractDescriptionFromFrontmatter extracts the description field value from YAML frontmatter.
-// Handles both single-line and multi-line (|) YAML format.
-func extractDescriptionFromFrontmatter(content string) string {
-	// Find frontmatter boundaries
-	if !strings.HasPrefix(content, "---\n") {
-		return ""
-	}
-
-	parts := strings.SplitN(content[4:], "\n---\n", 2)
-	if len(parts) < 2 {
-		return ""
-	}
-
-	frontmatter := parts[0]
-	lines := strings.Split(frontmatter, "\n")
-	var inDescription bool
-	var description strings.Builder
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Check if this line starts the description field
-		if strings.HasPrefix(trimmed, "description:") {
-			inDescription = true
-			// Check for single-line description
-			rest := strings.TrimSpace(strings.TrimPrefix(trimmed, "description:"))
-			if rest != "" && rest != "|" {
-				// Single-line description
-				return rest
-			}
-			// Multi-line description (|), continue to next lines
-			continue
-		}
-
-		// If in description, collect indented lines
-		if inDescription {
-			// Check if line is indented (part of multi-line value)
-			if len(line) > 0 && (line[0] == ' ' || line[0] == '\t') {
-				description.WriteString(strings.TrimSpace(line))
-				description.WriteString("\n")
-			} else if i > 0 && trimmed != "" {
-				// Non-indented line means end of multi-line value
-				break
-			}
-		}
-	}
-
-	return strings.TrimSpace(description.String())
-}
-
-// cosineSimilarity computes the cosine similarity between two vectors.
-func cosineSimilarity(a, b []float32) float32 {
-	if len(a) != len(b) {
-		return 0.0
-	}
-
-	var dotProduct, normA, normB float32
-	for i := range a {
-		dotProduct += a[i] * b[i]
-		normA += a[i] * a[i]
-		normB += b[i] * b[i]
-	}
-
-	if normA == 0 || normB == 0 {
-		return 0.0
-	}
-
-	return dotProduct / (float32(math.Sqrt(float64(normA))) * float32(math.Sqrt(float64(normB))))
 }

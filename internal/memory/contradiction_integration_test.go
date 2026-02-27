@@ -13,6 +13,95 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TEST-1105: Conflict result includes similarity score
+// traces: TASK-8
+func TestConflictResultIncludesSimilarityScore(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Use caching for performance optimization",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Store contradictory advice
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    "Avoid caching for performance optimization",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.HasConflict).To(BeTrue())
+	g.Expect(result.Similarity).To(BeNumerically(">", 0.85))
+	g.Expect(result.Similarity).To(BeNumerically("<=", 1.0))
+}
+
+// TEST-1104: Conflict result returns existing entry text
+// traces: TASK-8
+func TestConflictReturnsExistingEntryText(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	originalMsg := "Always validate input data before processing"
+	err = memory.Learn(memory.LearnOpts{
+		Message:    originalMsg,
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Store contradictory advice (high semantic overlap)
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    "Never validate input data before processing",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.HasConflict).To(BeTrue())
+	g.Expect(result.ConflictEntry).To(ContainSubstring(originalMsg))
+}
+
+// TEST-1106: Contradiction still stores entry (surfaces to caller)
+// traces: TASK-8
+func TestContradictionStillStoresEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "Use tabs for indentation in code",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Store contradictory advice (high semantic overlap)
+	contradictoryMsg := "Never use tabs for indentation in code"
+	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
+		Message:    contradictoryMsg,
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.HasConflict).To(BeTrue())
+	g.Expect(result.Stored).To(BeTrue())
+
+	// Verify DB was created and has content
+	dbPath := filepath.Join(memoryDir, "embeddings.db")
+	_, err = os.Stat(dbPath)
+	g.Expect(err).ToNot(HaveOccurred(), "embeddings.db should exist")
+}
+
 // ============================================================================
 // TASK-8: Contradiction detection tests
 // ============================================================================
@@ -133,95 +222,6 @@ func TestLowSimilarityNoConflict(t *testing.T) {
 	g.Expect(result).ToNot(BeNil())
 	g.Expect(result.HasConflict).To(BeFalse())
 	g.Expect(result.ConflictType).To(BeEmpty())
-}
-
-// TEST-1104: Conflict result returns existing entry text
-// traces: TASK-8
-func TestConflictReturnsExistingEntryText(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	originalMsg := "Always validate input data before processing"
-	err = memory.Learn(memory.LearnOpts{
-		Message:    originalMsg,
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Store contradictory advice (high semantic overlap)
-	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
-		Message:    "Never validate input data before processing",
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.HasConflict).To(BeTrue())
-	g.Expect(result.ConflictEntry).To(ContainSubstring(originalMsg))
-}
-
-// TEST-1105: Conflict result includes similarity score
-// traces: TASK-8
-func TestConflictResultIncludesSimilarityScore(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	err = memory.Learn(memory.LearnOpts{
-		Message:    "Use caching for performance optimization",
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Store contradictory advice
-	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
-		Message:    "Avoid caching for performance optimization",
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.HasConflict).To(BeTrue())
-	g.Expect(result.Similarity).To(BeNumerically(">", 0.85))
-	g.Expect(result.Similarity).To(BeNumerically("<=", 1.0))
-}
-
-// TEST-1106: Contradiction still stores entry (surfaces to caller)
-// traces: TASK-8
-func TestContradictionStillStoresEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	err = memory.Learn(memory.LearnOpts{
-		Message:    "Use tabs for indentation in code",
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Store contradictory advice (high semantic overlap)
-	contradictoryMsg := "Never use tabs for indentation in code"
-	result, err := memory.LearnWithConflictCheck(memory.LearnOpts{
-		Message:    contradictoryMsg,
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.HasConflict).To(BeTrue())
-	g.Expect(result.Stored).To(BeTrue())
-
-	// Verify DB was created and has content
-	dbPath := filepath.Join(memoryDir, "embeddings.db")
-	_, err = os.Stat(dbPath)
-	g.Expect(err).ToNot(HaveOccurred(), "embeddings.db should exist")
 }
 
 // TEST-1107: Property-based: negation patterns always detected when present with high similarity

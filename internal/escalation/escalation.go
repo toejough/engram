@@ -7,12 +7,6 @@ import (
 	"strings"
 )
 
-// EscalationFS provides file system operations for escalation handling.
-type EscalationFS interface {
-	WriteFile(path string, content string) error
-	ReadFile(path string) (string, error)
-}
-
 // Escalation represents a question that needs user input.
 type Escalation struct {
 	ID       string // Unique ID (ESC-NNN)
@@ -23,73 +17,15 @@ type Escalation struct {
 	Notes    string // User's answer or notes
 }
 
-// validStatuses lists all valid escalation status values.
-var validStatuses = map[string]bool{
-	"pending":  true,
-	"resolved": true,
-	"deferred": true,
-	"issue":    true,
+// EscalationFS provides file system operations for escalation handling.
+type EscalationFS interface {
+	WriteFile(path string, content string) error
+	ReadFile(path string) (string, error)
 }
 
 // IsValidStatus checks if a status string is valid.
 func IsValidStatus(status string) bool {
 	return validStatuses[status]
-}
-
-// WriteEscalationFile writes escalations to a markdown file.
-func WriteEscalationFile(path string, escalations []Escalation, fs EscalationFS) error {
-	var b strings.Builder
-
-	b.WriteString("# Escalations\n\n")
-	b.WriteString("Review each escalation and update the **Status** field:\n")
-	b.WriteString("- `pending` - Not yet reviewed\n")
-	b.WriteString("- `resolved` - Add your answer in **Notes**\n")
-	b.WriteString("- `deferred` - Create an issue for later\n")
-	b.WriteString("- `issue` - Create an issue with your description in **Notes**\n\n")
-	b.WriteString("---\n\n")
-
-	for _, e := range escalations {
-		b.WriteString(fmt.Sprintf("## %s\n\n", e.ID))
-		b.WriteString(fmt.Sprintf("**Category:** %s\n", e.Category))
-		b.WriteString(fmt.Sprintf("**Context:** %s\n", e.Context))
-		b.WriteString(fmt.Sprintf("**Question:** %s\n\n", e.Question))
-		b.WriteString(fmt.Sprintf("**Status:** %s\n", e.Status))
-		b.WriteString(fmt.Sprintf("**Notes:** %s\n\n", e.Notes))
-		b.WriteString("---\n\n")
-	}
-
-	return fs.WriteFile(path, b.String())
-}
-
-// escHeaderPattern matches ## ESC-NNN headers
-var escHeaderPattern = regexp.MustCompile(`^## (ESC-\d+)`)
-
-// fieldPattern matches **Field:** Value lines
-var fieldPattern = regexp.MustCompile(`^\*\*(\w+):\*\*\s*(.*)$`)
-
-// Resolve updates an escalation's status and notes by ID.
-// Returns the updated slice or error if ID not found or status invalid.
-func Resolve(escalations []Escalation, id, status, notes string) ([]Escalation, error) {
-	if !IsValidStatus(status) {
-		return nil, fmt.Errorf("invalid status %q", status)
-	}
-
-	found := false
-	result := make([]Escalation, len(escalations))
-	for i, e := range escalations {
-		if e.ID == id {
-			e.Status = status
-			e.Notes = notes
-			found = true
-		}
-		result[i] = e
-	}
-
-	if !found {
-		return nil, fmt.Errorf("escalation %q not found", id)
-	}
-
-	return result, nil
 }
 
 // ParseEscalationFile reads escalations from a markdown file.
@@ -99,11 +35,13 @@ func ParseEscalationFile(path string, fs EscalationFS) ([]Escalation, error) {
 		return nil, err
 	}
 
-	var escalations []Escalation
-	var current *Escalation
+	var (
+		escalations []Escalation
+		current     *Escalation
+	)
 
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
 		line = strings.TrimRight(line, "\r")
 
 		// Check for new escalation header
@@ -111,7 +49,9 @@ func ParseEscalationFile(path string, fs EscalationFS) ([]Escalation, error) {
 			if current != nil {
 				escalations = append(escalations, *current)
 			}
+
 			current = &Escalation{ID: match[1]}
+
 			continue
 		}
 
@@ -154,3 +94,67 @@ func ParseEscalationFile(path string, fs EscalationFS) ([]Escalation, error) {
 
 	return escalations, nil
 }
+
+// Resolve updates an escalation's status and notes by ID.
+// Returns the updated slice or error if ID not found or status invalid.
+func Resolve(escalations []Escalation, id, status, notes string) ([]Escalation, error) {
+	if !IsValidStatus(status) {
+		return nil, fmt.Errorf("invalid status %q", status)
+	}
+
+	found := false
+
+	result := make([]Escalation, len(escalations))
+	for i, e := range escalations {
+		if e.ID == id {
+			e.Status = status
+			e.Notes = notes
+			found = true
+		}
+
+		result[i] = e
+	}
+
+	if !found {
+		return nil, fmt.Errorf("escalation %q not found", id)
+	}
+
+	return result, nil
+}
+
+// WriteEscalationFile writes escalations to a markdown file.
+func WriteEscalationFile(path string, escalations []Escalation, fs EscalationFS) error {
+	var b strings.Builder
+
+	b.WriteString("# Escalations\n\n")
+	b.WriteString("Review each escalation and update the **Status** field:\n")
+	b.WriteString("- `pending` - Not yet reviewed\n")
+	b.WriteString("- `resolved` - Add your answer in **Notes**\n")
+	b.WriteString("- `deferred` - Create an issue for later\n")
+	b.WriteString("- `issue` - Create an issue with your description in **Notes**\n\n")
+	b.WriteString("---\n\n")
+
+	for _, e := range escalations {
+		b.WriteString(fmt.Sprintf("## %s\n\n", e.ID))
+		b.WriteString(fmt.Sprintf("**Category:** %s\n", e.Category))
+		b.WriteString(fmt.Sprintf("**Context:** %s\n", e.Context))
+		b.WriteString(fmt.Sprintf("**Question:** %s\n\n", e.Question))
+		b.WriteString(fmt.Sprintf("**Status:** %s\n", e.Status))
+		b.WriteString(fmt.Sprintf("**Notes:** %s\n\n", e.Notes))
+		b.WriteString("---\n\n")
+	}
+
+	return fs.WriteFile(path, b.String())
+}
+
+// unexported variables.
+var (
+	escHeaderPattern = regexp.MustCompile(`^## (ESC-\d+)`)
+	fieldPattern     = regexp.MustCompile(`^\*\*(\w+):\*\*\s*(.*)$`)
+	validStatuses    = map[string]bool{
+		"pending":  true,
+		"resolved": true,
+		"deferred": true,
+		"issue":    true,
+	}
+)

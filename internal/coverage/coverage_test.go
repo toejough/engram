@@ -9,48 +9,52 @@ import (
 	"github.com/toejough/projctl/internal/coverage"
 )
 
-// Mock file system for coverage tests
-type mockFS struct {
-	files map[string]string // path -> content
-	dirs  map[string]bool   // directories that exist
-}
+// TEST-196 traces: TASK-003
+// Test custom thresholds from config are respected
+func TestAnalyze_CustomThresholds(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-func (m *mockFS) ReadFile(path string) (string, error) {
-	content, exists := m.files[path]
-	if !exists {
-		return "", &fileNotFoundError{path: path}
+	fs := &mockFS{
+		files: map[string]string{
+			"/project/docs/requirements.md": `
+## REQ-001: Only requirement
+`,
+			"/project/api.go": `
+package project
+
+func Export1() {}
+func Export2() {}
+`,
+		},
+		dirs: map[string]bool{
+			"/project":      true,
+			"/project/docs": true,
+		},
 	}
-	return content, nil
-}
 
-func (m *mockFS) FileExists(path string) bool {
-	_, exists := m.files[path]
-	return exists
-}
-
-func (m *mockFS) DirExists(path string) bool {
-	return m.dirs[path]
-}
-
-func (m *mockFS) Walk(root string, fn func(path string, isDir bool) error) error {
-	// Walk directories first, then files
-	for dir := range m.dirs {
-		if err := fn(dir, true); err != nil {
-			continue // skip directory
-		}
+	// Custom config with lower preserve threshold
+	cfg := &config.ProjectConfig{
+		Paths: config.PathsConfig{
+			DocsDir:      "docs",
+			Requirements: "requirements.md",
+		},
+		Heuristics: config.HeuristicsConfig{
+			PreserveThreshold: 0.30, // Very low threshold
+			MigrateThreshold:  0.10,
+		},
 	}
-	for path := range m.files {
-		_ = fn(path, false)
+
+	result, err := coverage.Analyze("/project", cfg, fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
 	}
-	return nil
-}
 
-type fileNotFoundError struct {
-	path string
-}
-
-func (e *fileNotFoundError) Error() string {
-	return "file not found: " + e.path
+	// With low thresholds, even partial docs should be "preserve"
+	g.Expect(result.Recommendation).To(Equal("preserve"))
 }
 
 // TEST-193 traces: TASK-003
@@ -68,6 +72,11 @@ func TestAnalyze_EmptyRepo(t *testing.T) {
 	result, err := coverage.Analyze("/project", cfg, fs)
 
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
 	g.Expect(result.DocumentedCount).To(Equal(0))
 	g.Expect(result.InferredCount).To(Equal(0))
 	g.Expect(result.CoverageRatio).To(Equal(0.0))
@@ -119,9 +128,58 @@ Traces: ARCH-001
 	result, err := coverage.Analyze("/project", cfg, fs)
 
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
 	g.Expect(result.DocumentedCount).To(BeNumerically(">", 0))
 	g.Expect(result.CoverageRatio).To(BeNumerically(">=", 0.6))
 	g.Expect(result.Recommendation).To(Equal("preserve"))
+}
+
+// TEST-198 traces: TASK-003
+// Test low coverage returns migrate recommendation
+func TestAnalyze_LowCoverage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &mockFS{
+		files: map[string]string{
+			// No documentation at all
+			"/project/api.go": `
+package project
+
+func PublicAPI() {}
+type PublicType struct{}
+func AnotherFunc() {}
+type AnotherType interface{}
+`,
+			"/project/internal/impl.go": `
+package internal
+
+func Helper() {}
+`,
+		},
+		dirs: map[string]bool{
+			"/project":          true,
+			"/project/internal": true,
+		},
+	}
+
+	cfg := config.Default()
+	result, err := coverage.Analyze("/project", cfg, fs)
+
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
+	g.Expect(result.DocumentedCount).To(Equal(0))
+	g.Expect(result.InferredCount).To(BeNumerically(">", 0))
+	g.Expect(result.CoverageRatio).To(Equal(0.0))
+	g.Expect(result.Recommendation).To(Equal("migrate"))
 }
 
 // TEST-195 traces: TASK-003
@@ -164,52 +222,14 @@ func privateFunc() {}
 	result, err := coverage.Analyze("/project", cfg, fs)
 
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
 	g.Expect(result.DocumentedCount).To(Equal(1))            // REQ-001
 	g.Expect(result.InferredCount).To(BeNumerically(">", 0)) // Public exports
 	g.Expect(result.Recommendation).To(BeElementOf("migrate", "evaluate"))
-}
-
-// TEST-196 traces: TASK-003
-// Test custom thresholds from config are respected
-func TestAnalyze_CustomThresholds(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &mockFS{
-		files: map[string]string{
-			"/project/docs/requirements.md": `
-## REQ-001: Only requirement
-`,
-			"/project/api.go": `
-package project
-
-func Export1() {}
-func Export2() {}
-`,
-		},
-		dirs: map[string]bool{
-			"/project":      true,
-			"/project/docs": true,
-		},
-	}
-
-	// Custom config with lower preserve threshold
-	cfg := &config.ProjectConfig{
-		Paths: config.PathsConfig{
-			DocsDir:      "docs",
-			Requirements: "requirements.md",
-		},
-		Heuristics: config.HeuristicsConfig{
-			PreserveThreshold: 0.30, // Very low threshold
-			MigrateThreshold:  0.10,
-		},
-	}
-
-	result, err := coverage.Analyze("/project", cfg, fs)
-
-	g.Expect(err).ToNot(HaveOccurred())
-	// With low thresholds, even partial docs should be "preserve"
-	g.Expect(result.Recommendation).To(Equal("preserve"))
 }
 
 // TEST-197 traces: TASK-003
@@ -242,45 +262,58 @@ func TestFeature(t *testing.T) {}
 	result, err := coverage.Analyze("/project", cfg, fs)
 
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("result is nil")
+	}
+
 	// Should count documented items including TEST-001
 	g.Expect(result.DocumentedCount).To(BeNumerically(">=", 3)) // REQ-001, TASK-001, TEST-001
 }
 
-// TEST-198 traces: TASK-003
-// Test low coverage returns migrate recommendation
-func TestAnalyze_LowCoverage(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+type fileNotFoundError struct {
+	path string
+}
 
-	fs := &mockFS{
-		files: map[string]string{
-			// No documentation at all
-			"/project/api.go": `
-package project
+func (e *fileNotFoundError) Error() string {
+	return "file not found: " + e.path
+}
 
-func PublicAPI() {}
-type PublicType struct{}
-func AnotherFunc() {}
-type AnotherType interface{}
-`,
-			"/project/internal/impl.go": `
-package internal
+// Mock file system for coverage tests
+type mockFS struct {
+	files map[string]string // path -> content
+	dirs  map[string]bool   // directories that exist
+}
 
-func Helper() {}
-`,
-		},
-		dirs: map[string]bool{
-			"/project":          true,
-			"/project/internal": true,
-		},
+func (m *mockFS) DirExists(path string) bool {
+	return m.dirs[path]
+}
+
+func (m *mockFS) FileExists(path string) bool {
+	_, exists := m.files[path]
+	return exists
+}
+
+func (m *mockFS) ReadFile(path string) (string, error) {
+	content, exists := m.files[path]
+	if !exists {
+		return "", &fileNotFoundError{path: path}
 	}
 
-	cfg := config.Default()
-	result, err := coverage.Analyze("/project", cfg, fs)
+	return content, nil
+}
 
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.DocumentedCount).To(Equal(0))
-	g.Expect(result.InferredCount).To(BeNumerically(">", 0))
-	g.Expect(result.CoverageRatio).To(Equal(0.0))
-	g.Expect(result.Recommendation).To(Equal("migrate"))
+func (m *mockFS) Walk(root string, fn func(path string, isDir bool) error) error {
+	// Walk directories first, then files
+	for dir := range m.dirs {
+		if err := fn(dir, true); err != nil {
+			continue // skip directory
+		}
+	}
+
+	for path := range m.files {
+		_ = fn(path, false)
+	}
+
+	return nil
 }

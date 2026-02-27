@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -21,17 +22,20 @@ type ArchiveEntry struct {
 func ArchiveEmbedding(db *sql.DB, embeddingID int64, action string, reason string) error {
 	// Query the embedding's content
 	var content string
+
 	err := db.QueryRow("SELECT content FROM embeddings WHERE id = ?", embeddingID).Scan(&content)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		// Embedding doesn't exist - nothing to archive
 		return nil
 	}
+
 	if err != nil {
 		return fmt.Errorf("failed to query embedding content: %w", err)
 	}
 
 	// Insert into archive
 	timestamp := time.Now().Format(time.RFC3339)
+
 	_, err = db.Exec(`
 		INSERT INTO embeddings_archive (embedding_id, content, action, reason, archived_at)
 		VALUES (?, ?, ?, ?, ?)
@@ -56,14 +60,19 @@ func ListArchive(db *sql.DB, limit int) ([]ArchiveEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to query archive: %w", err)
 	}
-	defer rows.Close()
+
+	defer func() { _ = rows.Close() }()
 
 	var entries []ArchiveEntry
+
 	for rows.Next() {
 		var e ArchiveEntry
-		if err := rows.Scan(&e.ID, &e.EmbeddingID, &e.Content, &e.Action, &e.Reason, &e.ArchivedAt); err != nil {
+
+		err := rows.Scan(&e.ID, &e.EmbeddingID, &e.Content, &e.Action, &e.Reason, &e.ArchivedAt)
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan archive entry: %w", err)
 		}
+
 		entries = append(entries, e)
 	}
 

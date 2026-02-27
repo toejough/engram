@@ -1,10 +1,14 @@
 // Package interview provides functions for interview gap analysis.
 package interview
 
-// Priority represents the importance level of a key question.
-type Priority string
-
+// Exported constants.
 const (
+	// GapSizeLarge means <50% coverage - need 6+ questions, full interview.
+	GapSizeLarge GapSize = "large"
+	// GapSizeMedium means 50-79% coverage - need 3-5 clarification questions.
+	GapSizeMedium GapSize = "medium"
+	// GapSizeSmall means ≥80% coverage - need 1-2 confirmation questions.
+	GapSizeSmall GapSize = "small"
 	// PriorityCritical means the question must be answered for any project.
 	PriorityCritical Priority = "critical"
 	// PriorityImportant means the question is usually needed, occasionally skippable.
@@ -13,17 +17,15 @@ const (
 	PriorityOptional Priority = "optional"
 )
 
+// GapAnalysis holds the results of calculating interview depth.
+type GapAnalysis struct {
+	CoveragePercent     float64  // Coverage percentage (0-100)
+	GapSize             GapSize  // Classification: small, medium, or large
+	UnansweredQuestions []string // List of question IDs that are unanswered
+}
+
 // GapSize represents the classification of the knowledge gap.
 type GapSize string
-
-const (
-	// GapSizeSmall means ≥80% coverage - need 1-2 confirmation questions.
-	GapSizeSmall GapSize = "small"
-	// GapSizeMedium means 50-79% coverage - need 3-5 clarification questions.
-	GapSizeMedium GapSize = "medium"
-	// GapSizeLarge means <50% coverage - need 6+ questions, full interview.
-	GapSizeLarge GapSize = "large"
-)
 
 // KeyQuestion represents a question that should be answered to understand a project phase.
 type KeyQuestion struct {
@@ -32,12 +34,8 @@ type KeyQuestion struct {
 	Priority Priority // Importance level of the question
 }
 
-// GapAnalysis holds the results of calculating interview depth.
-type GapAnalysis struct {
-	CoveragePercent     float64  // Coverage percentage (0-100)
-	GapSize             GapSize  // Classification: small, medium, or large
-	UnansweredQuestions []string // List of question IDs that are unanswered
-}
+// Priority represents the importance level of a key question.
+type Priority string
 
 // CalculateGap determines interview depth based on context coverage.
 //
@@ -91,6 +89,7 @@ func CalculateGap(keyQuestions []KeyQuestion, answeredQuestions []string) GapAna
 	if coverage < 0.0 {
 		coverage = 0.0
 	}
+
 	if coverage > 100.0 {
 		coverage = 100.0
 	}
@@ -105,6 +104,25 @@ func CalculateGap(keyQuestions []KeyQuestion, answeredQuestions []string) GapAna
 	}
 }
 
+// classifyGapSize determines the gap size based on coverage percentage.
+func classifyGapSize(coverage float64) GapSize {
+	// Edge case: <20% coverage always returns large
+	if coverage < 20.0 {
+		return GapSizeLarge
+	}
+
+	// Normal classification
+	if coverage >= 80.0 {
+		return GapSizeSmall
+	}
+
+	if coverage >= 50.0 {
+		return GapSizeMedium
+	}
+
+	return GapSizeLarge
+}
+
 // questionPenalty returns the coverage penalty for an unanswered question.
 func questionPenalty(p Priority) float64 {
 	switch p {
@@ -117,21 +135,4 @@ func questionPenalty(p Priority) float64 {
 	default:
 		return 0.0
 	}
-}
-
-// classifyGapSize determines the gap size based on coverage percentage.
-func classifyGapSize(coverage float64) GapSize {
-	// Edge case: <20% coverage always returns large
-	if coverage < 20.0 {
-		return GapSizeLarge
-	}
-
-	// Normal classification
-	if coverage >= 80.0 {
-		return GapSizeSmall
-	}
-	if coverage >= 50.0 {
-		return GapSizeMedium
-	}
-	return GapSizeLarge
 }

@@ -9,13 +9,11 @@ import (
 	"github.com/toejough/projctl/internal/log"
 )
 
-// CheckStatus represents the budget check result status.
-type CheckStatus int
-
+// Exported constants.
 const (
+	StatusLimit   CheckStatus = 2
 	StatusOK      CheckStatus = 0
 	StatusWarning CheckStatus = 1
-	StatusLimit   CheckStatus = 2
 )
 
 // BudgetConfig holds token budget thresholds.
@@ -31,6 +29,15 @@ type CheckResult struct {
 	Recommendation string
 }
 
+// CheckStatus represents the budget check result status.
+type CheckStatus int
+
+// ReportOpts holds options for generating a usage report.
+type ReportOpts struct {
+	Model   string // Filter to specific model (empty = all)
+	Session string // Filter to specific session (empty = all)
+}
+
 // UsageReport contains aggregated token usage data.
 type UsageReport struct {
 	TotalTokens int            `json:"total_tokens"`
@@ -38,10 +45,35 @@ type UsageReport struct {
 	ByModel     map[string]int `json:"by_model"`
 }
 
-// ReportOpts holds options for generating a usage report.
-type ReportOpts struct {
-	Model   string // Filter to specific model (empty = all)
-	Session string // Filter to specific session (empty = all)
+// Check compares current token usage against budget thresholds.
+func Check(dir string, budget BudgetConfig, fs log.FileSystem) CheckResult {
+	report, err := Report(dir, ReportOpts{}, fs)
+	if err != nil {
+		return CheckResult{Status: StatusOK, TotalTokens: 0}
+	}
+
+	result := CheckResult{
+		TotalTokens: report.TotalTokens,
+		Status:      StatusOK,
+	}
+
+	// Check limit first (higher priority)
+	if budget.LimitTokens > 0 && report.TotalTokens >= budget.LimitTokens {
+		result.Status = StatusLimit
+		result.Recommendation = "token limit exceeded"
+
+		return result
+	}
+
+	// Check warning threshold
+	if budget.WarningTokens > 0 && report.TotalTokens >= budget.WarningTokens {
+		result.Status = StatusWarning
+		result.Recommendation = "consider using haiku for remaining tasks"
+
+		return result
+	}
+
+	return result
 }
 
 // Report generates a token usage report from project logs.
@@ -78,33 +110,4 @@ func ReportByProject(projectName, projctlDir string, opts ReportOpts, fs log.Fil
 	}
 
 	return Report(projectDir, opts, fs)
-}
-
-// Check compares current token usage against budget thresholds.
-func Check(dir string, budget BudgetConfig, fs log.FileSystem) CheckResult {
-	report, err := Report(dir, ReportOpts{}, fs)
-	if err != nil {
-		return CheckResult{Status: StatusOK, TotalTokens: 0}
-	}
-
-	result := CheckResult{
-		TotalTokens: report.TotalTokens,
-		Status:      StatusOK,
-	}
-
-	// Check limit first (higher priority)
-	if budget.LimitTokens > 0 && report.TotalTokens >= budget.LimitTokens {
-		result.Status = StatusLimit
-		result.Recommendation = "token limit exceeded"
-		return result
-	}
-
-	// Check warning threshold
-	if budget.WarningTokens > 0 && report.TotalTokens >= budget.WarningTokens {
-		result.Status = StatusWarning
-		result.Recommendation = "consider using haiku for remaining tasks"
-		return result
-	}
-
-	return result
 }

@@ -23,6 +23,156 @@ func (m *MockFS) FileExists(path string) bool {
 	return m.Files[path]
 }
 
+// MockWalkFS implements parser.WalkableFS for testing test file discovery
+type MockWalkFS struct {
+	Files []string // All file paths in the tree
+}
+
+func (m *MockWalkFS) Walk(root string, fn func(path string, isDir bool) error) error {
+	for _, f := range m.Files {
+		// Determine if it's a directory by checking if anything has it as prefix
+		isDir := false
+
+		for _, other := range m.Files {
+			if other != f && len(other) > len(f) && other[:len(f)] == f && other[len(f)] == '/' {
+				isDir = true
+				break
+			}
+		}
+
+		if err := fn(f, isDir); err != nil {
+			if err.Error() == "skip" {
+				continue
+			}
+
+			return err
+		}
+	}
+
+	return nil
+}
+
+// TEST-200 traces: TASK-005
+// Test DiscoverDocsWithConfig discovers issues.md and glossary.md
+func TestDiscoverDocsWithConfig_AllArtifacts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockFS{
+		Dirs: map[string]bool{
+			"/project/docs": true,
+		},
+		Files: map[string]bool{
+			"/project/docs/requirements.md": true,
+			"/project/docs/design.md":       true,
+			"/project/docs/architecture.md": true,
+			"/project/docs/tasks.md":        true,
+			"/project/docs/issues.md":       true,
+			"/project/docs/glossary.md":     true,
+		},
+	}
+
+	cfg := &parser.DiscoveryConfig{
+		DocsDir:      "docs",
+		Requirements: "requirements.md",
+		Design:       "design.md",
+		Architecture: "architecture.md",
+		Tasks:        "tasks.md",
+		Issues:       "issues.md",
+		Glossary:     "glossary.md",
+	}
+
+	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
+	g.Expect(result.Paths).To(HaveLen(6))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/issues.md"))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/glossary.md"))
+}
+
+// TEST-199 traces: TASK-005
+// Test DiscoverDocsWithConfig uses custom docs_dir from config
+func TestDiscoverDocsWithConfig_CustomDocsDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockFS{
+		Dirs: map[string]bool{
+			"/project/documentation": true,
+		},
+		Files: map[string]bool{
+			"/project/documentation/requirements.md": true,
+			"/project/documentation/design.md":       true,
+		},
+	}
+
+	cfg := &parser.DiscoveryConfig{
+		DocsDir:      "documentation",
+		Requirements: "requirements.md",
+		Design:       "design.md",
+		Architecture: "architecture.md",
+		Tasks:        "tasks.md",
+		Issues:       "issues.md",
+		Glossary:     "glossary.md",
+	}
+
+	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
+	g.Expect(result.Paths).To(ConsistOf(
+		"/project/documentation/requirements.md",
+		"/project/documentation/design.md",
+	))
+	g.Expect(result.UsedFallback).To(BeFalse())
+}
+
+// TEST-201 traces: TASK-005
+// Test DiscoverDocsWithConfig falls back to root with custom paths
+func TestDiscoverDocsWithConfig_RootFallback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockFS{
+		Dirs: map[string]bool{
+			"/project/documentation": false,
+		},
+		Files: map[string]bool{
+			"/project/reqs.md": true,
+		},
+	}
+
+	cfg := &parser.DiscoveryConfig{
+		DocsDir:      "documentation",
+		Requirements: "reqs.md",
+	}
+
+	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
+	g.Expect(result.Paths).To(ConsistOf("/project/reqs.md"))
+	g.Expect(result.UsedFallback).To(BeTrue())
+}
+
+// TEST-085 traces: TASK-011
+// Test discovery finds all known file types
+func TestDiscoverDocs_AllFileTypes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockFS{
+		Dirs: map[string]bool{
+			"/project/docs": true,
+		},
+		Files: map[string]bool{
+			"/project/docs/requirements.md": true,
+			"/project/docs/design.md":       true,
+			"/project/docs/architecture.md": true,
+			"/project/docs/tasks.md":        true,
+		},
+	}
+
+	result := parser.DiscoverDocs("/project", fs)
+	g.Expect(result.Paths).To(HaveLen(4))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/requirements.md"))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/design.md"))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/architecture.md"))
+	g.Expect(result.Paths).To(ContainElement("/project/docs/tasks.md"))
+}
+
 // TEST-081 traces: TASK-011
 // Test discovery finds files in docs/ directory
 func TestDiscoverDocs_DocsDir(t *testing.T) {
@@ -47,30 +197,6 @@ func TestDiscoverDocs_DocsDir(t *testing.T) {
 		"/project/docs/tasks.md",
 	))
 	g.Expect(result.UsedFallback).To(BeFalse())
-}
-
-// TEST-082 traces: TASK-011
-// Test discovery falls back to root when docs/ missing
-func TestDiscoverDocs_RootFallback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockFS{
-		Dirs: map[string]bool{
-			"/project/docs": false,
-		},
-		Files: map[string]bool{
-			"/project/requirements.md": true,
-			"/project/design.md":       true,
-		},
-	}
-
-	result := parser.DiscoverDocs("/project", fs)
-	g.Expect(result.Paths).To(ConsistOf(
-		"/project/requirements.md",
-		"/project/design.md",
-	))
-	g.Expect(result.UsedFallback).To(BeTrue())
 }
 
 // TEST-083 traces: TASK-011
@@ -110,32 +236,6 @@ func TestDiscoverDocs_PrefersDocsDir(t *testing.T) {
 	g.Expect(result.UsedFallback).To(BeFalse())
 }
 
-// TEST-085 traces: TASK-011
-// Test discovery finds all known file types
-func TestDiscoverDocs_AllFileTypes(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockFS{
-		Dirs: map[string]bool{
-			"/project/docs": true,
-		},
-		Files: map[string]bool{
-			"/project/docs/requirements.md": true,
-			"/project/docs/design.md":       true,
-			"/project/docs/architecture.md": true,
-			"/project/docs/tasks.md":        true,
-		},
-	}
-
-	result := parser.DiscoverDocs("/project", fs)
-	g.Expect(result.Paths).To(HaveLen(4))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/requirements.md"))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/design.md"))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/architecture.md"))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/tasks.md"))
-}
-
 // TEST-086 traces: TASK-011
 // Property test: docs/ takes priority over root
 func TestDiscoverDocs_PropertyDocsHasPriority(t *testing.T) {
@@ -150,13 +250,13 @@ func TestDiscoverDocs_PropertyDocsHasPriority(t *testing.T) {
 		docsFiles := make(map[string]bool)
 		dirs := map[string]bool{"/project/docs": true}
 
-		for i := 0; i < docsFileCount; i++ {
+		for i := range docsFileCount {
 			docsFiles["/project/docs/"+knownFiles[i]] = true
 		}
 
 		// Also add some files in root (should be ignored)
 		rootFileCount := rapid.IntRange(0, 4).Draw(rt, "rootFileCount")
-		for i := 0; i < rootFileCount; i++ {
+		for i := range rootFileCount {
 			docsFiles["/project/"+knownFiles[i]] = true
 		}
 
@@ -165,35 +265,69 @@ func TestDiscoverDocs_PropertyDocsHasPriority(t *testing.T) {
 
 		// Should only contain docs/ files
 		g.Expect(result.UsedFallback).To(BeFalse())
+
 		for _, path := range result.Paths {
 			g.Expect(path).To(HavePrefix("/project/docs/"))
 		}
 	})
 }
 
-// MockWalkFS implements parser.WalkableFS for testing test file discovery
-type MockWalkFS struct {
-	Files []string // All file paths in the tree
+// TEST-082 traces: TASK-011
+// Test discovery falls back to root when docs/ missing
+func TestDiscoverDocs_RootFallback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockFS{
+		Dirs: map[string]bool{
+			"/project/docs": false,
+		},
+		Files: map[string]bool{
+			"/project/requirements.md": true,
+			"/project/design.md":       true,
+		},
+	}
+
+	result := parser.DiscoverDocs("/project", fs)
+	g.Expect(result.Paths).To(ConsistOf(
+		"/project/requirements.md",
+		"/project/design.md",
+	))
+	g.Expect(result.UsedFallback).To(BeTrue())
 }
 
-func (m *MockWalkFS) Walk(root string, fn func(path string, isDir bool) error) error {
-	for _, f := range m.Files {
-		// Determine if it's a directory by checking if anything has it as prefix
-		isDir := false
-		for _, other := range m.Files {
-			if other != f && len(other) > len(f) && other[:len(f)] == f && other[len(f)] == '/' {
-				isDir = true
-				break
-			}
-		}
-		if err := fn(f, isDir); err != nil {
-			if err.Error() == "skip" {
-				continue
-			}
-			return err
-		}
+// TEST-114 traces: TASK-016
+// Test excluding .git directory
+func TestDiscoverTestFiles_ExcludesGit(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main_test.go",
+			"/project/.git/hooks/pre-commit_test.go",
+		},
 	}
-	return nil
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
+}
+
+// TEST-113 traces: TASK-016
+// Test excluding vendor directory
+func TestDiscoverTestFiles_ExcludesVendor(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &MockWalkFS{
+		Files: []string{
+			"/project/main_test.go",
+			"/project/vendor/dep_test.go",
+		},
+	}
+
+	paths := parser.DiscoverTestFiles("/project", fs)
+	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
 }
 
 // TEST-112 traces: TASK-016
@@ -218,40 +352,6 @@ func TestDiscoverTestFiles_FindsTests(t *testing.T) {
 	))
 }
 
-// TEST-113 traces: TASK-016
-// Test excluding vendor directory
-func TestDiscoverTestFiles_ExcludesVendor(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockWalkFS{
-		Files: []string{
-			"/project/main_test.go",
-			"/project/vendor/dep_test.go",
-		},
-	}
-
-	paths := parser.DiscoverTestFiles("/project", fs)
-	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
-}
-
-// TEST-114 traces: TASK-016
-// Test excluding .git directory
-func TestDiscoverTestFiles_ExcludesGit(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockWalkFS{
-		Files: []string{
-			"/project/main_test.go",
-			"/project/.git/hooks/pre-commit_test.go",
-		},
-	}
-
-	paths := parser.DiscoverTestFiles("/project", fs)
-	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
-}
-
 // TEST-115 traces: TASK-016
 // Test ignoring non-test Go files
 func TestDiscoverTestFiles_IgnoresNonTest(t *testing.T) {
@@ -268,99 +368,4 @@ func TestDiscoverTestFiles_IgnoresNonTest(t *testing.T) {
 
 	paths := parser.DiscoverTestFiles("/project", fs)
 	g.Expect(paths).To(ConsistOf("/project/main_test.go"))
-}
-
-// TEST-199 traces: TASK-005
-// Test DiscoverDocsWithConfig uses custom docs_dir from config
-func TestDiscoverDocsWithConfig_CustomDocsDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockFS{
-		Dirs: map[string]bool{
-			"/project/documentation": true,
-		},
-		Files: map[string]bool{
-			"/project/documentation/requirements.md": true,
-			"/project/documentation/design.md":       true,
-		},
-	}
-
-	cfg := &parser.DiscoveryConfig{
-		DocsDir:      "documentation",
-		Requirements: "requirements.md",
-		Design:       "design.md",
-		Architecture: "architecture.md",
-		Tasks:        "tasks.md",
-		Issues:       "issues.md",
-		Glossary:     "glossary.md",
-	}
-
-	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
-	g.Expect(result.Paths).To(ConsistOf(
-		"/project/documentation/requirements.md",
-		"/project/documentation/design.md",
-	))
-	g.Expect(result.UsedFallback).To(BeFalse())
-}
-
-// TEST-200 traces: TASK-005
-// Test DiscoverDocsWithConfig discovers issues.md and glossary.md
-func TestDiscoverDocsWithConfig_AllArtifacts(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockFS{
-		Dirs: map[string]bool{
-			"/project/docs": true,
-		},
-		Files: map[string]bool{
-			"/project/docs/requirements.md": true,
-			"/project/docs/design.md":       true,
-			"/project/docs/architecture.md": true,
-			"/project/docs/tasks.md":        true,
-			"/project/docs/issues.md":       true,
-			"/project/docs/glossary.md":     true,
-		},
-	}
-
-	cfg := &parser.DiscoveryConfig{
-		DocsDir:      "docs",
-		Requirements: "requirements.md",
-		Design:       "design.md",
-		Architecture: "architecture.md",
-		Tasks:        "tasks.md",
-		Issues:       "issues.md",
-		Glossary:     "glossary.md",
-	}
-
-	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
-	g.Expect(result.Paths).To(HaveLen(6))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/issues.md"))
-	g.Expect(result.Paths).To(ContainElement("/project/docs/glossary.md"))
-}
-
-// TEST-201 traces: TASK-005
-// Test DiscoverDocsWithConfig falls back to root with custom paths
-func TestDiscoverDocsWithConfig_RootFallback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := &MockFS{
-		Dirs: map[string]bool{
-			"/project/documentation": false,
-		},
-		Files: map[string]bool{
-			"/project/reqs.md": true,
-		},
-	}
-
-	cfg := &parser.DiscoveryConfig{
-		DocsDir:      "documentation",
-		Requirements: "reqs.md",
-	}
-
-	result := parser.DiscoverDocsWithConfig("/project", cfg, fs)
-	g.Expect(result.Paths).To(ConsistOf("/project/reqs.md"))
-	g.Expect(result.UsedFallback).To(BeTrue())
 }

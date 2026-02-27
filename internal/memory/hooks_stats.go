@@ -14,6 +14,43 @@ type HookStat struct {
 	LastFired   string
 }
 
+// GetHookStats retrieves statistics for all hooks.
+func GetHookStats(db *sql.DB) ([]HookStat, error) {
+	query := `
+		SELECT
+			hook_name,
+			COUNT(*) as fire_count,
+			SUM(CASE WHEN exit_code = 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as success_rate,
+			CAST(AVG(duration_ms) AS INTEGER) as avg_duration,
+			MAX(fired_at) as last_fired
+		FROM hook_events
+		GROUP BY hook_name
+		ORDER BY hook_name
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query hook stats: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var stats []HookStat
+
+	for rows.Next() {
+		var s HookStat
+
+		err := rows.Scan(&s.HookName, &s.FireCount, &s.SuccessRate, &s.AvgDuration, &s.LastFired)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan hook stat: %w", err)
+		}
+
+		stats = append(stats, s)
+	}
+
+	return stats, rows.Err()
+}
+
 // RecordHookEvent records a hook execution event and prunes old events.
 // Keeps last 1000 events per hook.
 func RecordHookEvent(db *sql.DB, hookName string, exitCode int, durationMs int) error {
@@ -42,36 +79,4 @@ func RecordHookEvent(db *sql.DB, hookName string, exitCode int, durationMs int) 
 	}
 
 	return nil
-}
-
-// GetHookStats retrieves statistics for all hooks.
-func GetHookStats(db *sql.DB) ([]HookStat, error) {
-	query := `
-		SELECT
-			hook_name,
-			COUNT(*) as fire_count,
-			SUM(CASE WHEN exit_code = 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as success_rate,
-			CAST(AVG(duration_ms) AS INTEGER) as avg_duration,
-			MAX(fired_at) as last_fired
-		FROM hook_events
-		GROUP BY hook_name
-		ORDER BY hook_name
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query hook stats: %w", err)
-	}
-	defer rows.Close()
-
-	var stats []HookStat
-	for rows.Next() {
-		var s HookStat
-		if err := rows.Scan(&s.HookName, &s.FireCount, &s.SuccessRate, &s.AvgDuration, &s.LastFired); err != nil {
-			return nil, fmt.Errorf("failed to scan hook stat: %w", err)
-		}
-		stats = append(stats, s)
-	}
-
-	return stats, rows.Err()
 }

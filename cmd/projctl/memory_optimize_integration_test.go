@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,7 +18,6 @@ func TestMemoryOptimizeReviewFlag(t *testing.T) {
 		memoryRoot := filepath.Join(tmpDir, "memory")
 		dbPath := filepath.Join(memoryRoot, "embeddings.db")
 		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
-		skillsDir := filepath.Join(tmpDir, "skills")
 
 		// Create memory directory
 		err := os.MkdirAll(memoryRoot, 0755)
@@ -28,6 +26,7 @@ func TestMemoryOptimizeReviewFlag(t *testing.T) {
 		// Initialize test DB
 		db, err := memory.InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Insert test data
@@ -47,16 +46,15 @@ func TestMemoryOptimizeReviewFlag(t *testing.T) {
 		err = os.WriteFile(claudeMDPath, []byte(claudeMDContent), 0644)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
-		// Run optimize with --review and --yes (auto-approve)
-		args := memoryOptimizeArgs{
+		// Run optimize with --review and --yes (auto-approve) via public API
+		args := memory.OptimizeArgs{
 			Review:     true,
 			Yes:        true,
 			MemoryRoot: memoryRoot,
 			ClaudeMD:   claudeMDPath,
 		}
 
-		ctx := context.Background()
-		err = runInteractiveOptimize(ctx, memoryRoot, claudeMDPath, skillsDir, args)
+		err = memoryOptimize(args)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Verify backups were cleaned up
@@ -77,6 +75,7 @@ func TestMemoryOptimizeReviewFlag(t *testing.T) {
 		// Initialize test DB
 		db, err := memory.InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Create CLAUDE.md
@@ -84,7 +83,7 @@ func TestMemoryOptimizeReviewFlag(t *testing.T) {
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Run optimize without --review (legacy mode)
-		args := memoryOptimizeArgs{
+		args := memory.OptimizeArgs{
 			Review:     false,
 			Yes:        true,
 			MemoryRoot: memoryRoot,

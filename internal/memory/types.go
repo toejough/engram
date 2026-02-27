@@ -2,6 +2,33 @@ package memory
 
 import "fmt"
 
+// ContextSection contains execution context information for result files.
+type ContextSection struct {
+	// Phase indicates the current execution phase (e.g., "tdd-red", "design")
+	Phase string `toml:"phase"`
+
+	// Subphase provides more granular phase information
+	Subphase string `toml:"subphase"`
+
+	// Task identifies the task being worked on (e.g., "TASK-5")
+	Task string `toml:"task"`
+}
+
+// Decision represents a decision made during execution.
+type Decision struct {
+	// Context provides the situational context for the decision
+	Context string `toml:"context"`
+
+	// Choice is the decision that was made
+	Choice string `toml:"choice"`
+
+	// Reason explains why the choice was made
+	Reason string `toml:"reason"`
+
+	// Alternatives lists other options that were considered
+	Alternatives []string `toml:"alternatives"`
+}
+
 // ExtractOpts contains the options for memory extraction operations.
 // It provides file paths for input and output locations, along with optional
 // injection points for testing.
@@ -71,42 +98,6 @@ type ResultFile struct {
 	Context ContextSection `toml:"context"`
 }
 
-// StatusSection contains status information for a result file.
-type StatusSection struct {
-	// Result indicates the outcome. Typical values: "success", "failure", "error"
-	Result string `toml:"result"`
-
-	// Timestamp indicates when the result was created (RFC3339 format)
-	Timestamp string `toml:"timestamp"`
-}
-
-// Decision represents a decision made during execution.
-type Decision struct {
-	// Context provides the situational context for the decision
-	Context string `toml:"context"`
-
-	// Choice is the decision that was made
-	Choice string `toml:"choice"`
-
-	// Reason explains why the choice was made
-	Reason string `toml:"reason"`
-
-	// Alternatives lists other options that were considered
-	Alternatives []string `toml:"alternatives"`
-}
-
-// ContextSection contains execution context information for result files.
-type ContextSection struct {
-	// Phase indicates the current execution phase (e.g., "tdd-red", "design")
-	Phase string `toml:"phase"`
-
-	// Subphase provides more granular phase information
-	Subphase string `toml:"subphase"`
-
-	// Task identifies the task being worked on (e.g., "TASK-5")
-	Task string `toml:"task"`
-}
-
 // SchemaValidationError represents an error that occurred during schema validation.
 // It provides detailed information about what was expected versus what was found.
 type SchemaValidationError struct {
@@ -128,4 +119,13 @@ type SchemaValidationError struct {
 func (e *SchemaValidationError) Error() string {
 	return fmt.Sprintf("schema validation error: field '%s' expected %s but got %s at line %d",
 		e.Field, e.Expected, e.Actual, e.Line)
+}
+
+// StatusSection contains status information for a result file.
+type StatusSection struct {
+	// Result indicates the outcome. Typical values: "success", "failure", "error"
+	Result string `toml:"result"`
+
+	// Timestamp indicates when the result was created (RFC3339 format)
+	Timestamp string `toml:"timestamp"`
 }

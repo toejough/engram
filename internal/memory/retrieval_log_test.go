@@ -13,6 +13,104 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TestLogRetrievalAppendsMultipleEntries verifies that multiple calls append
+// correctly, producing one JSON object per line.
+func TestLogRetrievalAppendsMultipleEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	for i := range 3 {
+		entry := memory.RetrievalLogEntry{
+			Timestamp: time.Now().Format(time.RFC3339),
+			Hook:      "UserPromptSubmit",
+			Query:     "query " + string(rune('A'+i)),
+			Results: []memory.RetrievalResult{
+				{ID: int64(i + 1), Content: "result", Score: 0.9, Tier: "embedding"},
+			},
+			SessionID: "sess-multi",
+		}
+		err := memory.LogRetrieval(dir, entry)
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	logPath := filepath.Join(dir, "retrievals.jsonl")
+	data, err := os.ReadFile(logPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Split by newline, filter empty
+	lines := splitNonEmpty(string(data))
+	g.Expect(lines).To(HaveLen(3))
+
+	// Each line must be valid JSON
+	for _, line := range lines {
+		var entry memory.RetrievalLogEntry
+
+		err := json.Unmarshal([]byte(line), &entry)
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(entry.Hook).To(Equal("UserPromptSubmit"))
+	}
+}
+
+// TestLogRetrievalCreatesDirectory verifies that LogRetrieval creates the
+// directory if it doesn't exist.
+func TestLogRetrievalCreatesDirectory(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := filepath.Join(t.TempDir(), "nested", "dir")
+
+	entry := memory.RetrievalLogEntry{
+		Timestamp: time.Now().Format(time.RFC3339),
+		Hook:      "SessionStart",
+		Query:     "test",
+		SessionID: "sess-mkdir",
+	}
+
+	err := memory.LogRetrieval(dir, entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	logPath := filepath.Join(dir, "retrievals.jsonl")
+	_, err = os.Stat(logPath)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+// TestLogRetrievalWithMetadata verifies that optional metadata is included.
+func TestLogRetrievalWithMetadata(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	entry := memory.RetrievalLogEntry{
+		Timestamp:     time.Now().Format(time.RFC3339),
+		Hook:          "PreToolUse",
+		Query:         "git commit",
+		Results:       []memory.RetrievalResult{},
+		FilteredCount: 5,
+		SessionID:     "sess-meta",
+		Metadata: map[string]string{
+			"tool_name": "Bash",
+			"project":   "projctl",
+		},
+	}
+
+	err := memory.LogRetrieval(dir, entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	logPath := filepath.Join(dir, "retrievals.jsonl")
+	data, err := os.ReadFile(logPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var decoded memory.RetrievalLogEntry
+
+	err = json.Unmarshal(data, &decoded)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(decoded.Metadata).To(HaveKeyWithValue("tool_name", "Bash"))
+	g.Expect(decoded.Metadata).To(HaveKeyWithValue("project", "projctl"))
+}
+
 // ============================================================================
 // Task 2: Retrieval log infrastructure tests
 // ============================================================================
@@ -46,6 +144,7 @@ func TestLogRetrievalWritesValidJSONL(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	var decoded memory.RetrievalLogEntry
+
 	err = json.Unmarshal(data, &decoded)
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(decoded.Hook).To(Equal("SessionStart"))
@@ -54,102 +153,6 @@ func TestLogRetrievalWritesValidJSONL(t *testing.T) {
 	g.Expect(decoded.Results[0].Content).To(Equal("use AI-Used trailer"))
 	g.Expect(decoded.FilteredCount).To(Equal(3))
 	g.Expect(decoded.SessionID).To(Equal("sess-abc-123"))
-}
-
-// TestLogRetrievalAppendsMultipleEntries verifies that multiple calls append
-// correctly, producing one JSON object per line.
-func TestLogRetrievalAppendsMultipleEntries(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-
-	for i := 0; i < 3; i++ {
-		entry := memory.RetrievalLogEntry{
-			Timestamp: time.Now().Format(time.RFC3339),
-			Hook:      "UserPromptSubmit",
-			Query:     "query " + string(rune('A'+i)),
-			Results: []memory.RetrievalResult{
-				{ID: int64(i + 1), Content: "result", Score: 0.9, Tier: "embedding"},
-			},
-			SessionID: "sess-multi",
-		}
-		err := memory.LogRetrieval(dir, entry)
-		g.Expect(err).NotTo(HaveOccurred())
-	}
-
-	logPath := filepath.Join(dir, "retrievals.jsonl")
-	data, err := os.ReadFile(logPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// Split by newline, filter empty
-	lines := splitNonEmpty(string(data))
-	g.Expect(lines).To(HaveLen(3))
-
-	// Each line must be valid JSON
-	for _, line := range lines {
-		var entry memory.RetrievalLogEntry
-		err := json.Unmarshal([]byte(line), &entry)
-		g.Expect(err).NotTo(HaveOccurred())
-		g.Expect(entry.Hook).To(Equal("UserPromptSubmit"))
-	}
-}
-
-// TestLogRetrievalWithMetadata verifies that optional metadata is included.
-func TestLogRetrievalWithMetadata(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-
-	entry := memory.RetrievalLogEntry{
-		Timestamp:     time.Now().Format(time.RFC3339),
-		Hook:          "PreToolUse",
-		Query:         "git commit",
-		Results:       []memory.RetrievalResult{},
-		FilteredCount: 5,
-		SessionID:     "sess-meta",
-		Metadata: map[string]string{
-			"tool_name": "Bash",
-			"project":   "projctl",
-		},
-	}
-
-	err := memory.LogRetrieval(dir, entry)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	logPath := filepath.Join(dir, "retrievals.jsonl")
-	data, err := os.ReadFile(logPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var decoded memory.RetrievalLogEntry
-	err = json.Unmarshal(data, &decoded)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(decoded.Metadata).To(HaveKeyWithValue("tool_name", "Bash"))
-	g.Expect(decoded.Metadata).To(HaveKeyWithValue("project", "projctl"))
-}
-
-// TestLogRetrievalCreatesDirectory verifies that LogRetrieval creates the
-// directory if it doesn't exist.
-func TestLogRetrievalCreatesDirectory(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := filepath.Join(t.TempDir(), "nested", "dir")
-
-	entry := memory.RetrievalLogEntry{
-		Timestamp: time.Now().Format(time.RFC3339),
-		Hook:      "SessionStart",
-		Query:     "test",
-		SessionID: "sess-mkdir",
-	}
-
-	err := memory.LogRetrieval(dir, entry)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	logPath := filepath.Join(dir, "retrievals.jsonl")
-	_, err = os.Stat(logPath)
-	g.Expect(err).NotTo(HaveOccurred())
 }
 
 // TestReadRetrievalLogsAll verifies that ReadRetrievalLogs reads all entries.
@@ -180,6 +183,18 @@ func TestReadRetrievalLogsAll(t *testing.T) {
 	g.Expect(entries).To(HaveLen(3))
 }
 
+// TestReadRetrievalLogsEmptyFile returns empty slice for missing file.
+func TestReadRetrievalLogsEmptyFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+
+	entries, err := memory.ReadRetrievalLogs(dir, memory.RetrievalLogFilter{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
+}
+
 // TestReadRetrievalLogsFilterByHook verifies filtering by hook type.
 func TestReadRetrievalLogsFilterByHook(t *testing.T) {
 	t.Parallel()
@@ -204,6 +219,7 @@ func TestReadRetrievalLogsFilterByHook(t *testing.T) {
 	})
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(entries).To(HaveLen(2))
+
 	for _, e := range entries {
 		g.Expect(e.Hook).To(Equal("UserPromptSubmit"))
 	}
@@ -267,29 +283,24 @@ func TestReadRetrievalLogsFilterBySince(t *testing.T) {
 		Since: &since,
 	})
 	g.Expect(err).NotTo(HaveOccurred())
+
+	if len(entries) < 1 {
+		t.Fatal("expected at least 1 entry from ReadRetrievalLogs")
+	}
+
 	g.Expect(entries).To(HaveLen(1))
 	g.Expect(entries[0].Query).To(Equal("new query"))
-}
-
-// TestReadRetrievalLogsEmptyFile returns empty slice for missing file.
-func TestReadRetrievalLogsEmptyFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-
-	entries, err := memory.ReadRetrievalLogs(dir, memory.RetrievalLogFilter{})
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(entries).To(BeEmpty())
 }
 
 // splitNonEmpty splits a string by newline and filters empty strings.
 func splitNonEmpty(s string) []string {
 	var result []string
-	for _, line := range strings.Split(s, "\n") {
+
+	for line := range strings.SplitSeq(s, "\n") {
 		if line != "" {
 			result = append(result, line)
 		}
 	}
+
 	return result
 }

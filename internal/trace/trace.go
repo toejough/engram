@@ -14,23 +14,16 @@ import (
 	"github.com/toejough/projctl/internal/config"
 )
 
-// TraceFile is the filename for the traceability matrix.
-const TraceFile = "traceability.toml"
+// Exported constants.
+const (
+	TraceFile = "traceability.toml"
+)
 
-// realConfigFS implements config.ConfigFS using the real file system.
-type realConfigFS struct{}
-
-func (r *realConfigFS) ReadFile(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}
-
-func (r *realConfigFS) FileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+// EscalationInfo records an issue that needs manual resolution.
+type EscalationInfo struct {
+	ID     string `json:"id"`
+	Reason string `json:"reason"`
+	File   string `json:"file"`
 }
 
 // FileSystem provides file system operations for trace operations.
@@ -43,41 +36,12 @@ type FileSystem interface {
 	Glob(pattern string) ([]string, error)
 }
 
-// RealFS implements FileSystem using the real file system.
-type RealFS struct{}
-
-// ReadFile reads a file from disk.
-func (RealFS) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
+// ImpactResult holds forward or backward impact analysis results.
+type ImpactResult struct {
+	SourceID    string   `json:"source_id"`
+	AffectedIDs []string `json:"affected_ids"`
+	Reverse     bool     `json:"reverse"`
 }
-
-// WriteFile writes data to a file.
-func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
-	return os.WriteFile(path, data, perm)
-}
-
-// Stat returns file information.
-func (RealFS) Stat(path string) (os.FileInfo, error) {
-	return os.Stat(path)
-}
-
-// MkdirAll creates a directory path.
-func (RealFS) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
-}
-
-// Walk walks the file tree.
-func (RealFS) Walk(root string, walkFn filepath.WalkFunc) error {
-	return filepath.Walk(root, walkFn)
-}
-
-// Glob returns files matching a pattern.
-func (RealFS) Glob(pattern string) ([]string, error) {
-	return filepath.Glob(pattern)
-}
-
-// idPattern matches a traceability ID.
-var idPattern = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+$`)
 
 // Link represents a single traceability link.
 type Link struct {
@@ -90,24 +54,101 @@ type Matrix struct {
 	Links []Link `toml:"links"`
 }
 
-// ValidID returns true if the ID matches the expected pattern.
-func ValidID(id string) bool {
-	return idPattern.MatchString(id)
+// MissingLink represents a required but missing traceability link.
+type MissingLink struct {
+	ID          string `json:"id"`
+	MissingType string `json:"missing_type"`
 }
 
-// NormalizeID strips leading zeros from the numeric part of a trace ID.
-// e.g., REQ-013 → REQ-13, ARCH-060 → ARCH-60, TASK-001 → TASK-1
-func NormalizeID(id string) string {
-	parts := strings.SplitN(id, "-", 2)
-	if len(parts) != 2 {
-		return id
-	}
-	// Strip leading zeros but keep at least one digit
-	num := strings.TrimLeft(parts[1], "0")
-	if num == "" {
-		num = "0"
-	}
-	return parts[0] + "-" + num
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// Glob returns files matching a pattern.
+func (RealFS) Glob(pattern string) ([]string, error) {
+	return filepath.Glob(pattern)
+}
+
+// MkdirAll creates a directory path.
+func (RealFS) MkdirAll(path string, perm os.FileMode) error {
+	return os.MkdirAll(path, perm)
+}
+
+// ReadFile reads a file from disk.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
+// Stat returns file information.
+func (RealFS) Stat(path string) (os.FileInfo, error) {
+	return os.Stat(path)
+}
+
+// Walk walks the file tree.
+func (RealFS) Walk(root string, walkFn filepath.WalkFunc) error {
+	return filepath.Walk(root, walkFn)
+}
+
+// WriteFile writes data to a file.
+func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
+	return os.WriteFile(path, data, perm)
+}
+
+// RenumberInfo records an ID renumbering action.
+type RenumberInfo struct {
+	OldID string `json:"old_id"`
+	NewID string `json:"new_id"`
+	File  string `json:"file"`
+}
+
+// RepairResult holds the results of a repair analysis.
+type RepairResult struct {
+	DanglingRefs []string         `json:"dangling_refs"` // IDs referenced in Traces to: but not defined
+	DuplicateIDs []string         `json:"duplicate_ids"` // IDs defined more than once (before fix)
+	Renumbered   []RenumberInfo   `json:"renumbered"`    // IDs that were renumbered to fix duplicates
+	Escalations  []EscalationInfo `json:"escalations"`   // Issues that couldn't be auto-fixed
+}
+
+// ShowEdge represents an edge in the trace graph for JSON output.
+type ShowEdge struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// ShowGraph represents the complete trace graph for JSON output.
+type ShowGraph struct {
+	Nodes []ShowNode `json:"nodes"`
+	Edges []ShowEdge `json:"edges"`
+}
+
+// ShowNode represents a node in the trace graph for JSON output.
+type ShowNode struct {
+	ID       string `json:"id"`
+	Orphan   bool   `json:"orphan,omitempty"`
+	Unlinked bool   `json:"unlinked,omitempty"`
+}
+
+// TestTrace represents a test with traceability information from source file comments.
+type TestTrace struct {
+	ID       string   // TEST-NNN
+	Function string   // TestFunctionName
+	File     string   // path/to/file_test.go
+	Line     int      // line number
+	TracesTo []string // [TASK-NNN, ...]
+}
+
+// ValidateResult holds the results of a traceability validation.
+type ValidateResult struct {
+	Pass            bool          `json:"pass"`
+	OrphanIDs       []string      `json:"orphan_ids"`
+	UnlinkedIDs     []string      `json:"unlinked_ids"`
+	MissingCoverage []MissingLink `json:"missing_coverage"`
+}
+
+// ValidateV2ArtifactsResult holds the results of artifact-based validation.
+type ValidateV2ArtifactsResult struct {
+	Pass        bool     `json:"pass"`
+	OrphanIDs   []string `json:"orphan_ids"`   // IDs referenced in Traces to: but not defined
+	UnlinkedIDs []string `json:"unlinked_ids"` // IDs defined but nothing traces to them
 }
 
 // Add adds traceability links from one ID to one or more target IDs.
@@ -171,18 +212,231 @@ func Add(dir, from string, to []string, fs FileSystem) error {
 	return save(dir, m, fs)
 }
 
-// ValidateResult holds the results of a traceability validation.
-type ValidateResult struct {
-	Pass           bool     `json:"pass"`
-	OrphanIDs      []string `json:"orphan_ids"`
-	UnlinkedIDs    []string `json:"unlinked_ids"`
-	MissingCoverage []MissingLink `json:"missing_coverage"`
+// Impact performs forward or backward impact analysis.
+// Forward: given REQ-003, returns all DES, ARCH, TASK that trace from it.
+// Backward (reverse): given TASK-005, returns all upstream IDs.
+func Impact(dir, id string, reverse bool, fs FileSystem) (ImpactResult, error) {
+	if !ValidID(id) {
+		return ImpactResult{}, fmt.Errorf("invalid ID: %s", id)
+	}
+
+	m, err := load(dir, fs)
+	if err != nil {
+		return ImpactResult{}, err
+	}
+
+	var graph map[string][]string
+	if reverse {
+		graph = buildReverseGraph(m)
+	} else {
+		graph = buildForwardGraph(m)
+	}
+
+	visited := make(map[string]bool)
+
+	var result []string
+
+	walk(graph, id, visited, &result)
+
+	return ImpactResult{
+		SourceID:    id,
+		AffectedIDs: result,
+		Reverse:     reverse,
+	}, nil
 }
 
-// MissingLink represents a required but missing traceability link.
-type MissingLink struct {
-	ID          string `json:"id"`
-	MissingType string `json:"missing_type"`
+// NormalizeID strips leading zeros from the numeric part of a trace ID.
+// e.g., REQ-013 → REQ-13, ARCH-060 → ARCH-60, TASK-001 → TASK-1
+func NormalizeID(id string) string {
+	parts := strings.SplitN(id, "-", 2)
+	if len(parts) != 2 {
+		return id
+	}
+	// Strip leading zeros but keep at least one digit
+	num := strings.TrimLeft(parts[1], "0")
+	if num == "" {
+		num = "0"
+	}
+
+	return parts[0] + "-" + num
+}
+
+// Repair analyzes artifact files for traceability issues and auto-fixes when possible.
+// It renumbers duplicate IDs and creates escalations for dangling references.
+func Repair(dir string, fs FileSystem) (RepairResult, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return RepairResult{}, fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
+	if err != nil {
+		return RepairResult{}, fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Scan all artifact files
+	definedIDs := make(map[string][]idLocation) // ID -> list of locations
+	referencedIDs := make(map[string]bool)      // IDs referenced in Traces to:
+	maxIDByPrefix := make(map[string]int)       // prefix -> max number
+
+	// Note: tests.md is NOT scanned - TEST tracing is in source files
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
+	}
+
+	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
+	docsDir := dir
+	featurePatterns := []string{
+		filepath.Join(docsDir, "design-*.md"),
+		filepath.Join(docsDir, "requirements-*.md"),
+		filepath.Join(docsDir, "architecture-*.md"),
+	}
+
+	for _, pattern := range featurePatterns {
+		matches, err := fs.Glob(pattern)
+		if err == nil {
+			for _, match := range matches {
+				relPath, _ := filepath.Rel(dir, match)
+				artifactPaths = append(artifactPaths, relPath)
+			}
+		}
+	}
+
+	// Patterns for parsing
+	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-(\d+)):\s*`)
+	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
+
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
+
+		data, err := fs.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return RepairResult{}, fmt.Errorf("failed to read %s: %w", relPath, err)
+		}
+
+		lines := strings.SplitSeq(string(data), "\n")
+		for line := range lines {
+			// Check for ID definitions
+			if match := idDefPattern.FindStringSubmatch(line); match != nil {
+				id := match[1]
+				definedIDs[id] = append(definedIDs[id], idLocation{ID: id, File: relPath})
+
+				// Track max ID number by prefix
+				prefix := strings.Split(id, "-")[0]
+				numStr := match[2]
+
+				var num int
+
+				_, _ = fmt.Sscanf(numStr, "%d", &num)
+				if num > maxIDByPrefix[prefix] {
+					maxIDByPrefix[prefix] = num
+				}
+			}
+
+			// Check for Traces to: references
+			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
+				refs := idRefPattern.FindAllString(match[1], -1)
+				for _, ref := range refs {
+					referencedIDs[ref] = true
+				}
+			}
+		}
+	}
+
+	result := RepairResult{}
+
+	// Find dangling references: referenced but not defined
+	// ISSUE IDs are exempt because they are defined at repo root, not in project directories
+	for ref := range referencedIDs {
+		if len(definedIDs[ref]) == 0 && !strings.HasPrefix(ref, "ISSUE-") {
+			result.DanglingRefs = append(result.DanglingRefs, ref)
+			// Create escalation for dangling ref
+			result.Escalations = append(result.Escalations, EscalationInfo{
+				ID:     ref,
+				Reason: "dangling reference: ID referenced in Traces to: but not defined",
+			})
+		}
+	}
+
+	// Find and fix duplicate IDs
+	for id, locations := range definedIDs {
+		if len(locations) > 1 {
+			result.DuplicateIDs = append(result.DuplicateIDs, id)
+
+			// Keep first occurrence, renumber subsequent ones
+			prefix := strings.Split(id, "-")[0]
+
+			for i := 1; i < len(locations); i++ {
+				loc := locations[i]
+
+				// Generate new ID
+				maxIDByPrefix[prefix]++
+				newID := fmt.Sprintf("%s-%d", prefix, maxIDByPrefix[prefix])
+
+				// Update the file
+				path := filepath.Join(dir, loc.File)
+
+				content, err := fs.ReadFile(path)
+				if err != nil {
+					continue
+				}
+
+				// Replace the ID in the file
+				newContent := strings.ReplaceAll(string(content), id, newID)
+				if err := fs.WriteFile(path, []byte(newContent), 0644); err != nil {
+					continue
+				}
+
+				result.Renumbered = append(result.Renumbered, RenumberInfo{
+					OldID: id,
+					NewID: newID,
+					File:  loc.File,
+				})
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// Show returns a visualization of the traceability graph.
+// Format can be "ascii" for an ASCII tree or "json" for a JSON graph.
+func Show(dir, format string, fs FileSystem) (string, error) {
+	if format != "ascii" && format != "json" {
+		return "", fmt.Errorf("invalid format: %s (must be 'ascii' or 'json')", format)
+	}
+
+	// Use ValidateV2Artifacts to get orphan/unlinked status
+	result, err := ValidateV2Artifacts(dir, fs)
+	if err != nil {
+		return "", err
+	}
+
+	// Build graph from artifact files
+	graph, err := buildShowGraph(dir, result, fs)
+	if err != nil {
+		return "", err
+	}
+
+	if format == "json" {
+		return formatJSON(graph), nil
+	}
+
+	return formatASCII(graph, result)
+}
+
+// ValidID returns true if the ID matches the expected pattern.
+func ValidID(id string) bool {
+	return idPattern.MatchString(id)
 }
 
 // Validate checks traceability coverage and consistency.
@@ -281,527 +535,6 @@ func Validate(dir string, fs FileSystem) (ValidateResult, error) {
 	return result, nil
 }
 
-// ImpactResult holds forward or backward impact analysis results.
-type ImpactResult struct {
-	SourceID    string   `json:"source_id"`
-	AffectedIDs []string `json:"affected_ids"`
-	Reverse     bool     `json:"reverse"`
-}
-
-// Impact performs forward or backward impact analysis.
-// Forward: given REQ-003, returns all DES, ARCH, TASK that trace from it.
-// Backward (reverse): given TASK-005, returns all upstream IDs.
-func Impact(dir, id string, reverse bool, fs FileSystem) (ImpactResult, error) {
-	if !ValidID(id) {
-		return ImpactResult{}, fmt.Errorf("invalid ID: %s", id)
-	}
-
-	m, err := load(dir, fs)
-	if err != nil {
-		return ImpactResult{}, err
-	}
-
-	var graph map[string][]string
-	if reverse {
-		graph = buildReverseGraph(m)
-	} else {
-		graph = buildForwardGraph(m)
-	}
-
-	visited := make(map[string]bool)
-	var result []string
-
-	walk(graph, id, visited, &result)
-
-	return ImpactResult{
-		SourceID:    id,
-		AffectedIDs: result,
-		Reverse:     reverse,
-	}, nil
-}
-
-func walk(graph map[string][]string, id string, visited map[string]bool, result *[]string) {
-	for _, next := range graph[id] {
-		if visited[next] {
-			continue
-		}
-
-		visited[next] = true
-		*result = append(*result, next)
-
-		walk(graph, next, visited, result)
-	}
-}
-
-func buildForwardGraph(m Matrix) map[string][]string {
-	g := make(map[string][]string)
-
-	for _, link := range m.Links {
-		g[link.From] = append(g[link.From], link.To...)
-	}
-
-	return g
-}
-
-func buildReverseGraph(m Matrix) map[string][]string {
-	g := make(map[string][]string)
-
-	for _, link := range m.Links {
-		for _, t := range link.To {
-			g[t] = append(g[t], link.From)
-		}
-	}
-
-	return g
-}
-
-func hasPrefix(targets []string, prefix string) bool {
-	for _, t := range targets {
-		if strings.HasPrefix(t, prefix) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// scanArtifacts scans known artifact files for embedded traceability IDs.
-// Uses config to resolve artifact paths (typically docs/ subdirectory).
-// Note: Does NOT scan tests.md - TEST tracing is in source files.
-func scanArtifacts(dir string, cfg *config.ProjectConfig, fs FileSystem) (map[string]bool, error) {
-	ids := make(map[string]bool)
-
-	// Get artifact paths from config
-	// Note: tests.md is NOT scanned - TEST tracing is in source files
-	artifactPaths := []string{
-		cfg.ResolvePath("issues"),
-		cfg.ResolvePath("requirements"),
-		cfg.ResolvePath("design"),
-		cfg.ResolvePath("architecture"),
-		cfg.ResolvePath("tasks"),
-	}
-
-	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+`)
-
-	for _, relPath := range artifactPaths {
-		path := filepath.Join(dir, relPath)
-
-		data, err := fs.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-
-			return nil, fmt.Errorf("failed to read %s: %w", relPath, err)
-		}
-
-		matches := pattern.FindAllString(string(data), -1)
-		for _, m := range matches {
-			ids[NormalizeID(m)] = true
-		}
-	}
-
-	return ids, nil
-}
-
-// RepairResult holds the results of a repair analysis.
-type RepairResult struct {
-	DanglingRefs []string       `json:"dangling_refs"` // IDs referenced in Traces to: but not defined
-	DuplicateIDs []string       `json:"duplicate_ids"` // IDs defined more than once (before fix)
-	Renumbered   []RenumberInfo `json:"renumbered"`    // IDs that were renumbered to fix duplicates
-	Escalations  []EscalationInfo `json:"escalations"` // Issues that couldn't be auto-fixed
-}
-
-// RenumberInfo records an ID renumbering action.
-type RenumberInfo struct {
-	OldID string `json:"old_id"`
-	NewID string `json:"new_id"`
-	File  string `json:"file"`
-}
-
-// EscalationInfo records an issue that needs manual resolution.
-type EscalationInfo struct {
-	ID     string `json:"id"`
-	Reason string `json:"reason"`
-	File   string `json:"file"`
-}
-
-// idLocation tracks where an ID is defined.
-type idLocation struct {
-	ID   string
-	File string // relative path
-}
-
-// Repair analyzes artifact files for traceability issues and auto-fixes when possible.
-// It renumbers duplicate IDs and creates escalations for dangling references.
-func Repair(dir string, fs FileSystem) (RepairResult, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return RepairResult{}, fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	cfg, err := config.Load(dir, homeDir, &realConfigFS{})
-	if err != nil {
-		return RepairResult{}, fmt.Errorf("failed to load config: %w", err)
-	}
-
-	// Scan all artifact files
-	definedIDs := make(map[string][]idLocation) // ID -> list of locations
-	referencedIDs := make(map[string]bool)      // IDs referenced in Traces to:
-	maxIDByPrefix := make(map[string]int)       // prefix -> max number
-
-	// Note: tests.md is NOT scanned - TEST tracing is in source files
-	artifactPaths := []string{
-		cfg.ResolvePath("issues"),
-		cfg.ResolvePath("requirements"),
-		cfg.ResolvePath("design"),
-		cfg.ResolvePath("architecture"),
-		cfg.ResolvePath("tasks"),
-	}
-
-	// Also look for feature-specific files (no tests-*.md - TEST tracing is in source)
-	docsDir := dir
-	featurePatterns := []string{
-		filepath.Join(docsDir, "design-*.md"),
-		filepath.Join(docsDir, "requirements-*.md"),
-		filepath.Join(docsDir, "architecture-*.md"),
-	}
-
-	for _, pattern := range featurePatterns {
-		matches, err := fs.Glob(pattern)
-		if err == nil {
-			for _, match := range matches {
-				relPath, _ := filepath.Rel(dir, match)
-				artifactPaths = append(artifactPaths, relPath)
-			}
-		}
-	}
-
-	// Patterns for parsing
-	idDefPattern := regexp.MustCompile(`^###\s+((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-(\d+)):\s*`)
-	tracesToPattern := regexp.MustCompile(`\*\*Traces to:\*\*\s*(.+)`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
-
-	for _, relPath := range artifactPaths {
-		path := filepath.Join(dir, relPath)
-
-		data, err := fs.ReadFile(path)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
-			}
-			return RepairResult{}, fmt.Errorf("failed to read %s: %w", relPath, err)
-		}
-
-		lines := strings.Split(string(data), "\n")
-		for _, line := range lines {
-			// Check for ID definitions
-			if match := idDefPattern.FindStringSubmatch(line); match != nil {
-				id := match[1]
-				definedIDs[id] = append(definedIDs[id], idLocation{ID: id, File: relPath})
-
-				// Track max ID number by prefix
-				prefix := strings.Split(id, "-")[0]
-				numStr := match[2]
-				var num int
-				_, _ = fmt.Sscanf(numStr, "%d", &num)
-				if num > maxIDByPrefix[prefix] {
-					maxIDByPrefix[prefix] = num
-				}
-			}
-
-			// Check for Traces to: references
-			if match := tracesToPattern.FindStringSubmatch(line); match != nil {
-				refs := idRefPattern.FindAllString(match[1], -1)
-				for _, ref := range refs {
-					referencedIDs[ref] = true
-				}
-			}
-		}
-	}
-
-	result := RepairResult{}
-
-	// Find dangling references: referenced but not defined
-	// ISSUE IDs are exempt because they are defined at repo root, not in project directories
-	for ref := range referencedIDs {
-		if len(definedIDs[ref]) == 0 && !strings.HasPrefix(ref, "ISSUE-") {
-			result.DanglingRefs = append(result.DanglingRefs, ref)
-			// Create escalation for dangling ref
-			result.Escalations = append(result.Escalations, EscalationInfo{
-				ID:     ref,
-				Reason: "dangling reference: ID referenced in Traces to: but not defined",
-			})
-		}
-	}
-
-	// Find and fix duplicate IDs
-	for id, locations := range definedIDs {
-		if len(locations) > 1 {
-			result.DuplicateIDs = append(result.DuplicateIDs, id)
-
-			// Keep first occurrence, renumber subsequent ones
-			prefix := strings.Split(id, "-")[0]
-			for i := 1; i < len(locations); i++ {
-				loc := locations[i]
-
-				// Generate new ID
-				maxIDByPrefix[prefix]++
-				newID := fmt.Sprintf("%s-%d", prefix, maxIDByPrefix[prefix])
-
-				// Update the file
-				path := filepath.Join(dir, loc.File)
-				content, err := fs.ReadFile(path)
-				if err != nil {
-					continue
-				}
-
-				// Replace the ID in the file
-				newContent := strings.ReplaceAll(string(content), id, newID)
-				if err := fs.WriteFile(path, []byte(newContent), 0644); err != nil {
-					continue
-				}
-
-				result.Renumbered = append(result.Renumbered, RenumberInfo{
-					OldID: id,
-					NewID: newID,
-					File:  loc.File,
-				})
-			}
-		}
-	}
-
-	return result, nil
-}
-
-// ValidateV2ArtifactsResult holds the results of artifact-based validation.
-type ValidateV2ArtifactsResult struct {
-	Pass        bool     `json:"pass"`
-	OrphanIDs   []string `json:"orphan_ids"`   // IDs referenced in Traces to: but not defined
-	UnlinkedIDs []string `json:"unlinked_ids"` // IDs defined but nothing traces to them
-}
-
-// TestTrace represents a test with traceability information from source file comments.
-type TestTrace struct {
-	ID       string   // TEST-NNN
-	Function string   // TestFunctionName
-	File     string   // path/to/file_test.go
-	Line     int      // line number
-	TracesTo []string // [TASK-NNN, ...]
-}
-
-// scanTestFiles scans Go test files for TEST-NNN comments with traces.
-// Pattern: // TEST-NNN: description
-//
-//	// traces: TARGET-NNN[, TARGET-NNN...]
-//	func TestFunctionName(t *testing.T) {
-func scanTestFiles(dir string, fs FileSystem) (map[string]TestTrace, error) {
-	result := make(map[string]TestTrace)
-
-	// Pattern for TEST-NNN comment followed by traces comment
-	// We look for: // TEST-NNN: ...
-	//              // traces: ...
-	testIDPattern := regexp.MustCompile(`^//\s*(TEST-\d+):\s*(.*)`)
-	tracesPattern := regexp.MustCompile(`^//\s*traces:\s*(.+)`)
-	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
-	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
-
-	err := fs.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-
-		// Skip vendor directory
-		if info.IsDir() && info.Name() == "vendor" {
-			return filepath.SkipDir
-		}
-
-		// Only process *_test.go files
-		if info.IsDir() || !strings.HasSuffix(info.Name(), "_test.go") {
-			return nil
-		}
-
-		// Skip trace_test.go which contains test fixtures with TEST-NNN patterns
-		if info.Name() == "trace_test.go" {
-			return nil
-		}
-
-		data, err := fs.ReadFile(path)
-		if err != nil {
-			return nil // Skip unreadable files
-		}
-
-		relPath, _ := filepath.Rel(dir, path)
-		lines := strings.Split(string(data), "\n")
-
-		var currentTestID string
-		var currentDesc string
-		var currentTraces []string
-		var testIDLine int
-
-		for lineNum, line := range lines {
-			// Check for TEST-NNN comment
-			if match := testIDPattern.FindStringSubmatch(line); match != nil {
-				currentTestID = NormalizeID(match[1])
-				currentDesc = match[2]
-				testIDLine = lineNum + 1
-				currentTraces = nil
-				continue
-			}
-
-			// Check for traces comment (must follow TEST-NNN)
-			if currentTestID != "" && currentTraces == nil {
-				if match := tracesPattern.FindStringSubmatch(line); match != nil {
-					refs := idRefPattern.FindAllString(match[1], -1)
-					// Normalize all trace targets
-					currentTraces = make([]string, 0, len(refs))
-					for _, ref := range refs {
-						currentTraces = append(currentTraces, NormalizeID(ref))
-					}
-					continue
-				}
-			}
-
-			// Check for function declaration
-			if currentTestID != "" {
-				if match := funcPattern.FindStringSubmatch(line); match != nil {
-					result[currentTestID] = TestTrace{
-						ID:       currentTestID,
-						Function: match[1],
-						File:     relPath,
-						Line:     testIDLine,
-						TracesTo: currentTraces,
-					}
-					// Reset for next test
-					currentTestID = ""
-					currentDesc = ""
-					currentTraces = nil
-				}
-			}
-
-			// Reset if we hit a blank line or other content
-			if strings.TrimSpace(line) == "" || (!strings.HasPrefix(strings.TrimSpace(line), "//") && !strings.HasPrefix(strings.TrimSpace(line), "func")) {
-				if currentTestID != "" && currentTraces == nil {
-					// TEST-NNN without traces - still record it
-					result[currentTestID] = TestTrace{
-						ID:       currentTestID,
-						Function: "",
-						File:     relPath,
-						Line:     testIDLine,
-						TracesTo: nil,
-					}
-				}
-				currentTestID = ""
-				currentDesc = ""
-				currentTraces = nil
-			}
-		}
-
-		// Handle case where file ends with a TEST comment
-		if currentTestID != "" {
-			result[currentTestID] = TestTrace{
-				ID:       currentTestID,
-				Function: "",
-				File:     relPath,
-				Line:     testIDLine,
-				TracesTo: currentTraces,
-			}
-		}
-
-		// Suppress unused variable warning
-		_ = currentDesc
-
-		return nil
-	})
-
-	return result, err
-}
-
-// phaseAllowsUnlinked returns which ID prefixes are allowed to be unlinked at a given phase.
-// The workflow creates artifacts progressively:
-//   - At design-complete: DES exists but ARCH doesn't trace to it yet
-//   - At architect-complete: ARCH exists but TASK doesn't trace to it yet
-//   - At breakdown-complete: TASK exists but TEST doesn't trace to it yet
-//   - At tdd_commit and later: full chain required
-func phaseAllowsUnlinked(phase string) map[string]bool {
-	allowed := make(map[string]bool)
-
-	switch phase {
-	case "pm_produce", "pm_qa", "pm_decide", "pm_commit":
-		// Only REQ exists, nothing traces to it - REQ is always allowed as root
-		// No special exemptions needed
-	case "design_produce", "design_qa", "design_decide", "design_commit":
-		// DES exists, but ARCH doesn't exist yet to trace to it
-		allowed["DES-"] = true
-	case "arch_produce", "arch_qa", "arch_decide", "arch_commit":
-		// ARCH exists, but TASK doesn't exist yet to trace to it
-		// DES should have ARCH tracing to it now
-		allowed["ARCH-"] = true
-	case "breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit":
-		// TASK exists, but TEST doesn't exist yet to trace to it
-		// ARCH should have TASK tracing to it now
-		allowed["TASK-"] = true
-	case "":
-		// No phase specified = strictest validation (default behavior)
-	default:
-		// All other phases (tdd_*, documentation_*, etc.)
-		// require full chain - no exemptions
-	}
-
-	return allowed
-}
-
-// validPhases lists all valid phase names for validation.
-// Generated from the flat state machine defined in workflows.toml.
-var validPhases = map[string]bool{
-	"":     true, // empty = strictest
-	"init": true,
-	// TaskList creation
-	"tasklist_create": true,
-	// Plan phases
-	"plan_produce": true, "plan_approve": true,
-	// PM phases (kept for align workflow and legacy)
-	"pm_produce": true, "pm_qa": true, "pm_decide": true, "pm_commit": true,
-	// Design phases (kept for align workflow and legacy)
-	"design_produce": true, "design_qa": true, "design_decide": true, "design_commit": true,
-	// Architecture phases (kept for align workflow and legacy)
-	"arch_produce": true, "arch_qa": true, "arch_decide": true, "arch_commit": true,
-	// Parallel artifact production
-	"artifact_fork": true, "artifact_pm_produce": true,
-	"artifact_design_produce": true, "artifact_arch_produce": true,
-	"artifact_join": true, "crosscut_qa": true, "crosscut_decide": true, "artifact_commit": true,
-	// Breakdown phases
-	"breakdown_produce": true, "breakdown_qa": true, "breakdown_decide": true, "breakdown_commit": true,
-	// Item execution
-	"item_select": true, "item_fork": true, "worktree_create": true,
-	// TDD red
-	"tdd_red_produce": true, "tdd_red_qa": true, "tdd_red_decide": true,
-	// TDD green
-	"tdd_green_produce": true, "tdd_green_qa": true, "tdd_green_decide": true,
-	// TDD refactor
-	"tdd_refactor_produce": true, "tdd_refactor_qa": true, "tdd_refactor_decide": true,
-	// TDD commit and item lifecycle
-	"tdd_commit": true, "item_escalated": true, "item_parked": true,
-	"merge_acquire": true, "rebase": true, "merge": true,
-	"worktree_cleanup": true, "item_join": true, "item_assess": true, "items_done": true,
-	// Documentation phases
-	"documentation_produce": true, "documentation_qa": true, "documentation_decide": true, "documentation_commit": true,
-	// Alignment phases
-	"alignment_produce": true, "alignment_qa": true, "alignment_decide": true, "alignment_commit": true,
-	// Evaluation phases (consolidated retro + summary)
-	"evaluation_produce": true, "evaluation_interview": true, "evaluation_commit": true,
-	// Ending phases
-	"issue_update": true, "next_steps": true, "complete": true,
-	// Align workflow phases
-	"align_plan_produce": true, "align_plan_approve": true,
-	"align_infer_fork": true, "align_infer_join": true,
-	"align_infer_reqs_produce": true, "align_infer_design_produce": true,
-	"align_infer_arch_produce": true, "align_infer_tests_produce": true,
-	"align_crosscut_qa": true, "align_crosscut_decide": true, "align_artifact_commit": true,
-	// Error handling
-	"phase_blocked": true,
-}
-
 // ValidateV2Artifacts validates traceability by scanning artifact files directly.
 // Unlike Validate, this doesn't use the traceability.toml matrix.
 // - Orphan: ID in **Traces to:** field but not defined as header (### ID: Title)
@@ -820,11 +553,13 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 	if len(phase) > 0 {
 		currentPhase = phase[0]
 	}
+
 	if !validPhases[currentPhase] {
 		return ValidateV2ArtifactsResult{}, fmt.Errorf("invalid phase: %q", currentPhase)
 	}
 
 	allowedUnlinked := phaseAllowsUnlinked(currentPhase)
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to get home directory: %w", err)
@@ -880,11 +615,14 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 			if os.IsNotExist(err) {
 				continue
 			}
+
 			return ValidateV2ArtifactsResult{}, fmt.Errorf("failed to read %s: %w", relPath, err)
 		}
 
 		lines := strings.Split(string(data), "\n")
+
 		var currentID string
+
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
@@ -915,6 +653,7 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 	// Integrate test file results
 	for id, trace := range testTraces {
 		normalizedID := NormalizeID(id)
+
 		definedIDs[normalizedID] = true
 		if len(trace.TracesTo) > 0 {
 			hasTracesTo[normalizedID] = true
@@ -955,12 +694,14 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 			if !referencedIDs[id] {
 				// Check if this ID type is allowed to be unlinked at the current phase
 				isAllowed := false
+
 				for prefix := range allowedUnlinked {
 					if strings.HasPrefix(id, prefix) {
 						isAllowed = true
 						break
 					}
 				}
+
 				if !isAllowed {
 					result.UnlinkedIDs = append(result.UnlinkedIDs, id)
 					result.Pass = false
@@ -972,85 +713,102 @@ func ValidateV2Artifacts(dir string, fs FileSystem, phase ...string) (ValidateV2
 	return result, nil
 }
 
-func load(dir string, fs FileSystem) (Matrix, error) {
-	path := filepath.Join(dir, TraceFile)
-
-	var m Matrix
-
-	if _, err := fs.Stat(path); os.IsNotExist(err) {
-		return Matrix{}, nil
+// unexported variables.
+var (
+	idPattern   = regexp.MustCompile(`^(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+$`)
+	validPhases = map[string]bool{
+		"":     true, // empty = strictest
+		"init": true,
+		// TaskList creation
+		"tasklist_create": true,
+		// Plan phases
+		"plan_produce": true, "plan_approve": true,
+		// PM phases (kept for align workflow and legacy)
+		"pm_produce": true, "pm_qa": true, "pm_decide": true, "pm_commit": true,
+		// Design phases (kept for align workflow and legacy)
+		"design_produce": true, "design_qa": true, "design_decide": true, "design_commit": true,
+		// Architecture phases (kept for align workflow and legacy)
+		"arch_produce": true, "arch_qa": true, "arch_decide": true, "arch_commit": true,
+		// Parallel artifact production
+		"artifact_fork": true, "artifact_pm_produce": true,
+		"artifact_design_produce": true, "artifact_arch_produce": true,
+		"artifact_join": true, "crosscut_qa": true, "crosscut_decide": true, "artifact_commit": true,
+		// Breakdown phases
+		"breakdown_produce": true, "breakdown_qa": true, "breakdown_decide": true, "breakdown_commit": true,
+		// Item execution
+		"item_select": true, "item_fork": true, "worktree_create": true,
+		// TDD red
+		"tdd_red_produce": true, "tdd_red_qa": true, "tdd_red_decide": true,
+		// TDD green
+		"tdd_green_produce": true, "tdd_green_qa": true, "tdd_green_decide": true,
+		// TDD refactor
+		"tdd_refactor_produce": true, "tdd_refactor_qa": true, "tdd_refactor_decide": true,
+		// TDD commit and item lifecycle
+		"tdd_commit": true, "item_escalated": true, "item_parked": true,
+		"merge_acquire": true, "rebase": true, "merge": true,
+		"worktree_cleanup": true, "item_join": true, "item_assess": true, "items_done": true,
+		// Documentation phases
+		"documentation_produce": true, "documentation_qa": true, "documentation_decide": true, "documentation_commit": true,
+		// Alignment phases
+		"alignment_produce": true, "alignment_qa": true, "alignment_decide": true, "alignment_commit": true,
+		// Evaluation phases (consolidated retro + summary)
+		"evaluation_produce": true, "evaluation_interview": true, "evaluation_commit": true,
+		// Ending phases
+		"issue_update": true, "next_steps": true, "complete": true,
+		// Align workflow phases
+		"align_plan_produce": true, "align_plan_approve": true,
+		"align_infer_fork": true, "align_infer_join": true,
+		"align_infer_reqs_produce": true, "align_infer_design_produce": true,
+		"align_infer_arch_produce": true, "align_infer_tests_produce": true,
+		"align_crosscut_qa": true, "align_crosscut_decide": true, "align_artifact_commit": true,
+		// Error handling
+		"phase_blocked": true,
 	}
+)
 
-	data, err := fs.ReadFile(path)
-	if err != nil {
-		return Matrix{}, fmt.Errorf("failed to read traceability file: %w", err)
-	}
-
-	if err := toml.Unmarshal(data, &m); err != nil {
-		return Matrix{}, fmt.Errorf("failed to parse traceability file: %w", err)
-	}
-
-	return m, nil
+// idLocation tracks where an ID is defined.
+type idLocation struct {
+	ID   string
+	File string // relative path
 }
 
-func save(dir string, m Matrix, fs FileSystem) error {
-	path := filepath.Join(dir, TraceFile)
+// realConfigFS implements config.ConfigFS using the real file system.
+type realConfigFS struct{}
 
-	var buf strings.Builder
-	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
-		return fmt.Errorf("failed to encode traceability matrix: %w", err)
-	}
-
-	if err := fs.WriteFile(path, []byte(buf.String()), 0644); err != nil {
-		return fmt.Errorf("failed to write traceability file: %w", err)
-	}
-
-	return nil
+func (r *realConfigFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
-// ShowNode represents a node in the trace graph for JSON output.
-type ShowNode struct {
-	ID       string `json:"id"`
-	Orphan   bool   `json:"orphan,omitempty"`
-	Unlinked bool   `json:"unlinked,omitempty"`
-}
-
-// ShowEdge represents an edge in the trace graph for JSON output.
-type ShowEdge struct {
-	From string `json:"from"`
-	To   string `json:"to"`
-}
-
-// ShowGraph represents the complete trace graph for JSON output.
-type ShowGraph struct {
-	Nodes []ShowNode `json:"nodes"`
-	Edges []ShowEdge `json:"edges"`
-}
-
-// Show returns a visualization of the traceability graph.
-// Format can be "ascii" for an ASCII tree or "json" for a JSON graph.
-func Show(dir, format string, fs FileSystem) (string, error) {
-	if format != "ascii" && format != "json" {
-		return "", fmt.Errorf("invalid format: %s (must be 'ascii' or 'json')", format)
-	}
-
-	// Use ValidateV2Artifacts to get orphan/unlinked status
-	result, err := ValidateV2Artifacts(dir, fs)
+func (r *realConfigFS) ReadFile(path string) (string, error) {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
 
-	// Build graph from artifact files
-	graph, err := buildShowGraph(dir, result, fs)
-	if err != nil {
-		return "", err
+	return string(data), nil
+}
+
+func buildForwardGraph(m Matrix) map[string][]string {
+	g := make(map[string][]string)
+
+	for _, link := range m.Links {
+		g[link.From] = append(g[link.From], link.To...)
 	}
 
-	if format == "json" {
-		return formatJSON(graph)
+	return g
+}
+
+func buildReverseGraph(m Matrix) map[string][]string {
+	g := make(map[string][]string)
+
+	for _, link := range m.Links {
+		for _, t := range link.To {
+			g[t] = append(g[t], link.From)
+		}
 	}
 
-	return formatASCII(graph, result)
+	return g
 }
 
 // buildShowGraph constructs the graph from artifact files.
@@ -1108,11 +866,14 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 			if os.IsNotExist(err) {
 				continue
 			}
+
 			return ShowGraph{}, fmt.Errorf("failed to read %s: %w", relPath, err)
 		}
 
 		lines := strings.Split(string(data), "\n")
+
 		var currentID string
+
 		for _, line := range lines {
 			// Check for ID definitions
 			if match := idDefPattern.FindStringSubmatch(line); match != nil {
@@ -1140,6 +901,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 
 	for id, testTrace := range testTraces {
 		normalizedID := NormalizeID(id)
+
 		definedIDs[normalizedID] = true
 		for _, target := range testTrace.TracesTo {
 			edges = append(edges, ShowEdge{From: normalizedID, To: NormalizeID(target)})
@@ -1159,6 +921,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 
 	// Create node list
 	var nodes []ShowNode
+
 	allIDs := make(map[string]bool)
 
 	// Add defined IDs
@@ -1176,6 +939,7 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 	for id := range allIDs {
 		sortedIDs = append(sortedIDs, id)
 	}
+
 	sort.Strings(sortedIDs)
 
 	for _, id := range sortedIDs {
@@ -1187,14 +951,6 @@ func buildShowGraph(dir string, validation ValidateV2ArtifactsResult, fs FileSys
 	}
 
 	return ShowGraph{Nodes: nodes, Edges: edges}, nil
-}
-
-func formatJSON(graph ShowGraph) (string, error) {
-	data, err := json.MarshalIndent(graph, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-	return string(data), nil
 }
 
 func formatASCII(graph ShowGraph, validation ValidateV2ArtifactsResult) (string, error) {
@@ -1223,11 +979,13 @@ func formatASCII(graph ShowGraph, validation ValidateV2ArtifactsResult) (string,
 
 	// Find root nodes (IDs that have no parent, or are orphans referenced but not defined)
 	var roots []string
+
 	for _, node := range graph.Nodes {
 		if !hasParent[node.ID] {
 			roots = append(roots, node.ID)
 		}
 	}
+
 	sort.Strings(roots)
 
 	// Handle case with no nodes
@@ -1236,6 +994,7 @@ func formatASCII(graph ShowGraph, validation ValidateV2ArtifactsResult) (string,
 	}
 
 	var sb strings.Builder
+
 	visited := make(map[string]bool)
 
 	// Print each root and its descendants
@@ -1246,11 +1005,83 @@ func formatASCII(graph ShowGraph, validation ValidateV2ArtifactsResult) (string,
 	return sb.String(), nil
 }
 
+func formatJSON(graph ShowGraph) string {
+	data, _ := json.MarshalIndent(graph, "", "  ")
+
+	return string(data)
+}
+
+func hasPrefix(targets []string, prefix string) bool {
+	for _, t := range targets {
+		if strings.HasPrefix(t, prefix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func load(dir string, fs FileSystem) (Matrix, error) {
+	path := filepath.Join(dir, TraceFile)
+
+	var m Matrix
+
+	if _, err := fs.Stat(path); os.IsNotExist(err) {
+		return Matrix{}, nil
+	}
+
+	data, err := fs.ReadFile(path)
+	if err != nil {
+		return Matrix{}, fmt.Errorf("failed to read traceability file: %w", err)
+	}
+
+	if err := toml.Unmarshal(data, &m); err != nil {
+		return Matrix{}, fmt.Errorf("failed to parse traceability file: %w", err)
+	}
+
+	return m, nil
+}
+
+// phaseAllowsUnlinked returns which ID prefixes are allowed to be unlinked at a given phase.
+// The workflow creates artifacts progressively:
+//   - At design-complete: DES exists but ARCH doesn't trace to it yet
+//   - At architect-complete: ARCH exists but TASK doesn't trace to it yet
+//   - At breakdown-complete: TASK exists but TEST doesn't trace to it yet
+//   - At tdd_commit and later: full chain required
+func phaseAllowsUnlinked(phase string) map[string]bool {
+	allowed := make(map[string]bool)
+
+	switch phase {
+	case "pm_produce", "pm_qa", "pm_decide", "pm_commit":
+		// Only REQ exists, nothing traces to it - REQ is always allowed as root
+		// No special exemptions needed
+	case "design_produce", "design_qa", "design_decide", "design_commit":
+		// DES exists, but ARCH doesn't exist yet to trace to it
+		allowed["DES-"] = true
+	case "arch_produce", "arch_qa", "arch_decide", "arch_commit":
+		// ARCH exists, but TASK doesn't exist yet to trace to it
+		// DES should have ARCH tracing to it now
+		allowed["ARCH-"] = true
+	case "breakdown_produce", "breakdown_qa", "breakdown_decide", "breakdown_commit":
+		// TASK exists, but TEST doesn't exist yet to trace to it
+		// ARCH should have TASK tracing to it now
+		allowed["TASK-"] = true
+	case "":
+		// No phase specified = strictest validation (default behavior)
+	default:
+		// All other phases (tdd_*, documentation_*, etc.)
+		// require full chain - no exemptions
+	}
+
+	return allowed
+}
+
 func printTree(sb *strings.Builder, id, prefix string, isLast bool, children map[string][]string, orphanSet, unlinkedSet map[string]bool, visited map[string]bool) {
 	// Prevent infinite loops from cycles
 	if visited[id] {
 		return
 	}
+
 	visited[id] = true
 
 	// Determine connector
@@ -1258,6 +1089,7 @@ func printTree(sb *strings.Builder, id, prefix string, isLast bool, children map
 	if isLast {
 		connector = "└── "
 	}
+
 	if prefix == "" {
 		connector = ""
 	}
@@ -1267,9 +1099,11 @@ func printTree(sb *strings.Builder, id, prefix string, isLast bool, children map
 	if orphanSet[id] {
 		line += " [ORPHAN]"
 	}
+
 	if unlinkedSet[id] {
 		line += " [UNLINKED]"
 	}
+
 	sb.WriteString(line + "\n")
 
 	// Get and sort children
@@ -1290,5 +1124,207 @@ func printTree(sb *strings.Builder, id, prefix string, isLast bool, children map
 	for i, child := range childIDs {
 		isChildLast := i == len(childIDs)-1
 		printTree(sb, child, newPrefix, isChildLast, children, orphanSet, unlinkedSet, visited)
+	}
+}
+
+func save(dir string, m Matrix, fs FileSystem) error {
+	path := filepath.Join(dir, TraceFile)
+
+	var buf strings.Builder
+
+	err := toml.NewEncoder(&buf).Encode(m)
+	if err != nil {
+		return fmt.Errorf("failed to encode traceability matrix: %w", err)
+	}
+
+	err = fs.WriteFile(path, []byte(buf.String()), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write traceability file: %w", err)
+	}
+
+	return nil
+}
+
+// scanArtifacts scans known artifact files for embedded traceability IDs.
+// Uses config to resolve artifact paths (typically docs/ subdirectory).
+// Note: Does NOT scan tests.md - TEST tracing is in source files.
+func scanArtifacts(dir string, cfg *config.ProjectConfig, fs FileSystem) (map[string]bool, error) {
+	ids := make(map[string]bool)
+
+	// Get artifact paths from config
+	// Note: tests.md is NOT scanned - TEST tracing is in source files
+	artifactPaths := []string{
+		cfg.ResolvePath("issues"),
+		cfg.ResolvePath("requirements"),
+		cfg.ResolvePath("design"),
+		cfg.ResolvePath("architecture"),
+		cfg.ResolvePath("tasks"),
+	}
+
+	pattern := regexp.MustCompile(`(ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+`)
+
+	for _, relPath := range artifactPaths {
+		path := filepath.Join(dir, relPath)
+
+		data, err := fs.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+
+			return nil, fmt.Errorf("failed to read %s: %w", relPath, err)
+		}
+
+		matches := pattern.FindAllString(string(data), -1)
+		for _, m := range matches {
+			ids[NormalizeID(m)] = true
+		}
+	}
+
+	return ids, nil
+}
+
+// scanTestFiles scans Go test files for TEST-NNN comments with traces.
+// Pattern: // TEST-NNN: description
+//
+//	// traces: TARGET-NNN[, TARGET-NNN...]
+//	func TestFunctionName(t *testing.T) {
+func scanTestFiles(dir string, fs FileSystem) (map[string]TestTrace, error) {
+	result := make(map[string]TestTrace)
+
+	// Pattern for TEST-NNN comment followed by traces comment
+	// We look for: // TEST-NNN: ...
+	//              // traces: ...
+	testIDPattern := regexp.MustCompile(`^//\s*(TEST-\d+):\s*(.*)`)
+	tracesPattern := regexp.MustCompile(`^//\s*traces:\s*(.+)`)
+	funcPattern := regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+	idRefPattern := regexp.MustCompile(`((?:ISSUE|REQ|DES|ARCH|TASK|TEST)-\d+)`)
+
+	err := fs.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+
+		// Skip vendor directory
+		if info.IsDir() && info.Name() == "vendor" {
+			return filepath.SkipDir
+		}
+
+		// Only process *_test.go files
+		if info.IsDir() || !strings.HasSuffix(info.Name(), "_test.go") {
+			return nil
+		}
+
+		// Skip trace_test.go which contains test fixtures with TEST-NNN patterns
+		if info.Name() == "trace_test.go" {
+			return nil
+		}
+
+		data, err := fs.ReadFile(path)
+		if err != nil {
+			return nil // Skip unreadable files
+		}
+
+		relPath, _ := filepath.Rel(dir, path)
+		lines := strings.Split(string(data), "\n")
+
+		var (
+			currentTestID string
+			currentDesc   string
+			currentTraces []string
+			testIDLine    int
+		)
+
+		for lineNum, line := range lines {
+			// Check for TEST-NNN comment
+			if match := testIDPattern.FindStringSubmatch(line); match != nil {
+				currentTestID = NormalizeID(match[1])
+				currentDesc = match[2]
+				testIDLine = lineNum + 1
+				currentTraces = nil
+
+				continue
+			}
+
+			// Check for traces comment (must follow TEST-NNN)
+			if currentTestID != "" && currentTraces == nil {
+				if match := tracesPattern.FindStringSubmatch(line); match != nil {
+					refs := idRefPattern.FindAllString(match[1], -1)
+					// Normalize all trace targets
+					currentTraces = make([]string, 0, len(refs))
+					for _, ref := range refs {
+						currentTraces = append(currentTraces, NormalizeID(ref))
+					}
+
+					continue
+				}
+			}
+
+			// Check for function declaration
+			if currentTestID != "" {
+				if match := funcPattern.FindStringSubmatch(line); match != nil {
+					result[currentTestID] = TestTrace{
+						ID:       currentTestID,
+						Function: match[1],
+						File:     relPath,
+						Line:     testIDLine,
+						TracesTo: currentTraces,
+					}
+					// Reset for next test
+					currentTestID = ""
+					currentDesc = ""
+					currentTraces = nil
+				}
+			}
+
+			// Reset if we hit a blank line or other content
+			if strings.TrimSpace(line) == "" || (!strings.HasPrefix(strings.TrimSpace(line), "//") && !strings.HasPrefix(strings.TrimSpace(line), "func")) {
+				if currentTestID != "" && currentTraces == nil {
+					// TEST-NNN without traces - still record it
+					result[currentTestID] = TestTrace{
+						ID:       currentTestID,
+						Function: "",
+						File:     relPath,
+						Line:     testIDLine,
+						TracesTo: nil,
+					}
+				}
+
+				currentTestID = ""
+				currentDesc = ""
+				currentTraces = nil
+			}
+		}
+
+		// Handle case where file ends with a TEST comment
+		if currentTestID != "" {
+			result[currentTestID] = TestTrace{
+				ID:       currentTestID,
+				Function: "",
+				File:     relPath,
+				Line:     testIDLine,
+				TracesTo: currentTraces,
+			}
+		}
+
+		// Suppress unused variable warning
+		_ = currentDesc
+
+		return nil
+	})
+
+	return result, err
+}
+
+func walk(graph map[string][]string, id string, visited map[string]bool, result *[]string) {
+	for _, next := range graph[id] {
+		if visited[next] {
+			continue
+		}
+
+		visited[next] = true
+		*result = append(*result, next)
+
+		walk(graph, next, visited, result)
 	}
 }

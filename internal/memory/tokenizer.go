@@ -2,28 +2,13 @@ package memory
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-)
-
-// e5SmallVocabURL is the HuggingFace URL for the e5-small-v2 vocab file
-const e5SmallVocabURL = "https://huggingface.co/intfloat/e5-small-v2/resolve/main/vocab.txt"
-
-// BERT special token IDs
-const (
-	clsTokenID = 101 // [CLS]
-	sepTokenID = 102 // [SEP]
-	unkTokenID = 100 // [UNK]
-)
-
-var (
-	vocabCache   map[string]int64
-	vocabCacheMu sync.RWMutex
-	vocabOnce    sync.Once
 )
 
 // Tokenizer implements BERT WordPiece tokenization.
@@ -38,6 +23,7 @@ func NewTokenizer() *Tokenizer {
 		// Return tokenizer with empty vocab - will use [UNK] for all tokens
 		return &Tokenizer{vocab: make(map[string]int64)}
 	}
+
 	return &Tokenizer{vocab: vocab}
 }
 
@@ -51,10 +37,10 @@ func (t *Tokenizer) Tokenize(text string) []int64 {
 	text = strings.ToLower(text)
 
 	// Split into words
-	words := strings.Fields(text)
+	words := strings.FieldsSeq(text)
 
 	// Apply WordPiece to each word
-	for _, word := range words {
+	for word := range words {
 		tokens = append(tokens, t.wordpiece(word)...)
 	}
 
@@ -75,7 +61,9 @@ func (t *Tokenizer) wordpiece(word string) []int64 {
 
 	for start < len(word) {
 		end := len(word)
+
 		var subword string
+
 		found := false
 
 		// Greedily match longest subword
@@ -89,8 +77,10 @@ func (t *Tokenizer) wordpiece(word string) []int64 {
 			if id, exists := t.vocab[subword]; exists {
 				tokens = append(tokens, id)
 				found = true
+
 				break
 			}
+
 			end--
 		}
 
@@ -99,59 +89,30 @@ func (t *Tokenizer) wordpiece(word string) []int64 {
 			tokens = append(tokens, unkTokenID)
 			break
 		}
+
 		start = end
 	}
 
 	return tokens
 }
 
-// loadVocab loads the e5-small-v2 vocabulary file.
-// Uses caching to avoid repeated downloads.
-func loadVocab() (map[string]int64, error) {
-	// Try cached vocab first
-	vocabCacheMu.RLock()
-	if vocabCache != nil {
-		defer vocabCacheMu.RUnlock()
-		return vocabCache, nil
-	}
-	vocabCacheMu.RUnlock()
+// unexported constants.
+const (
+	clsTokenID      = 101 // [CLS]
+	e5SmallVocabURL = "https://huggingface.co/intfloat/e5-small-v2/resolve/main/vocab.txt"
+	sepTokenID      = 102 // [SEP]
+	unkTokenID      = 100 // [UNK]
+)
 
-	// Load vocab (once)
-	var loadErr error
-	vocabOnce.Do(func() {
-		modelDir := filepath.Join(os.Getenv("HOME"), ".projctl", "models")
-		vocabPath := filepath.Join(modelDir, "vocab.txt")
-
-		// Download if not present
-		if err := downloadVocab(vocabPath); err != nil {
-			loadErr = err
-			return
-		}
-
-		// Parse vocab file
-		vocab, err := parseVocab(vocabPath)
-		if err != nil {
-			loadErr = err
-			return
-		}
-
-		// Cache for future use
-		vocabCacheMu.Lock()
-		vocabCache = vocab
-		vocabCacheMu.Unlock()
-	})
-
-	if loadErr != nil {
-		return nil, loadErr
-	}
-
-	vocabCacheMu.RLock()
-	defer vocabCacheMu.RUnlock()
-	return vocabCache, nil
-}
+// unexported variables.
+var (
+	vocabCache   map[string]int64
+	vocabCacheMu sync.RWMutex
+	vocabOnce    sync.Once
+)
 
 // downloadVocab downloads the vocab file from HuggingFace if not present.
-func downloadVocab(vocabPath string) error {
+func downloadVocab(vocabPath string, client *http.Client) error {
 	// Check if already exists
 	if _, err := os.Stat(vocabPath); err == nil {
 		return nil
@@ -163,10 +124,15 @@ func downloadVocab(vocabPath string) error {
 	}
 
 	// Download vocab
-	resp, err := http.Get(e5SmallVocabURL)
+	resp, err := client.Get(e5SmallVocabURL)
 	if err != nil {
 		return fmt.Errorf("failed to download vocab: %w", err)
 	}
+
+	if resp == nil {
+		return errors.New("failed to download vocab: nil response")
+	}
+
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
@@ -175,14 +141,17 @@ func downloadVocab(vocabPath string) error {
 
 	// Write to temp file
 	tempPath := vocabPath + ".tmp"
+
 	out, err := os.Create(tempPath)
 	if err != nil {
 		return fmt.Errorf("failed to create vocab file: %w", err)
 	}
+
 	defer func() { _ = out.Close() }()
 
 	// Copy data
 	scanner := bufio.NewScanner(resp.Body)
+
 	writer := bufio.NewWriter(out)
 	for scanner.Scan() {
 		if _, err := writer.WriteString(scanner.Text() + "\n"); err != nil {
@@ -212,12 +181,64 @@ func downloadVocab(vocabPath string) error {
 	return nil
 }
 
+// loadVocab loads the e5-small-v2 vocabulary file.
+// Uses caching to avoid repeated downloads.
+func loadVocab() (map[string]int64, error) {
+	// Try cached vocab first
+	vocabCacheMu.RLock()
+
+	if vocabCache != nil {
+		defer vocabCacheMu.RUnlock()
+		return vocabCache, nil
+	}
+
+	vocabCacheMu.RUnlock()
+
+	// Load vocab (once)
+	var loadErr error
+
+	vocabOnce.Do(func() {
+		modelDir := filepath.Join(os.Getenv("HOME"), ".projctl", "models")
+		vocabPath := filepath.Join(modelDir, "vocab.txt")
+
+		// Download if not present
+		if err := downloadVocab(vocabPath, http.DefaultClient); err != nil {
+			loadErr = err
+			return
+		}
+
+		// Parse vocab file
+		vocab, err := parseVocab(vocabPath)
+		if err != nil {
+			loadErr = err
+			return
+		}
+
+		// Cache for future use
+		vocabCacheMu.Lock()
+
+		vocabCache = vocab
+
+		vocabCacheMu.Unlock()
+	})
+
+	if loadErr != nil {
+		return nil, loadErr
+	}
+
+	vocabCacheMu.RLock()
+	defer vocabCacheMu.RUnlock()
+
+	return vocabCache, nil
+}
+
 // parseVocab parses the vocab.txt file into a token -> ID map.
 func parseVocab(vocabPath string) (map[string]int64, error) {
 	file, err := os.Open(vocabPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open vocab: %w", err)
 	}
+
 	defer func() { _ = file.Close() }()
 
 	vocab := make(map[string]int64)

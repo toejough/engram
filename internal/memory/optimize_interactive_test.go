@@ -15,12 +15,12 @@ type MockExtractor struct {
 	AddRationaleFunc func(ctx context.Context, content string) (string, error)
 }
 
-func (m *MockExtractor) Extract(ctx context.Context, content string) (*Observation, error) {
-	return nil, nil
-}
+func (m *MockExtractor) AddRationale(ctx context.Context, content string) (string, error) {
+	if m.AddRationaleFunc != nil {
+		return m.AddRationaleFunc(ctx, content)
+	}
 
-func (m *MockExtractor) Synthesize(ctx context.Context, memories []string) (string, error) {
-	return "", nil
+	return content, nil
 }
 
 func (m *MockExtractor) Curate(ctx context.Context, query string, candidates []QueryResult) ([]CuratedResult, error) {
@@ -31,18 +31,28 @@ func (m *MockExtractor) Decide(ctx context.Context, newContent string, existing 
 	return nil, nil
 }
 
+func (m *MockExtractor) Extract(ctx context.Context, content string) (*Observation, error) {
+	return nil, nil
+}
+
+func (m *MockExtractor) Filter(ctx context.Context, query string, candidates []QueryResult) ([]FilterResult, error) {
+	return nil, nil
+}
+
+func (m *MockExtractor) PostEval(_ context.Context, _, _ string) (*PostEvalResult, error) {
+	return &PostEvalResult{Faithfulness: 0.5, Signal: "positive"}, nil
+}
+
 func (m *MockExtractor) Rewrite(ctx context.Context, content string) (string, error) {
 	if m.RewriteFunc != nil {
 		return m.RewriteFunc(ctx, content)
 	}
+
 	return content, nil
 }
 
-func (m *MockExtractor) AddRationale(ctx context.Context, content string) (string, error) {
-	if m.AddRationaleFunc != nil {
-		return m.AddRationaleFunc(ctx, content)
-	}
-	return content, nil
+func (m *MockExtractor) Synthesize(ctx context.Context, memories []string) (string, error) {
+	return "", nil
 }
 
 func TestOptimizeInteractive(t *testing.T) {
@@ -58,6 +68,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Initialize test DB
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Insert test data: low-confidence entry that should trigger prune proposal
@@ -128,6 +139,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Make DB read-only to cause error during Apply
 		err = os.Chmod(dbPath, 0444)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer os.Chmod(dbPath, 0644) // Restore for cleanup
 
 		// Run interactive optimization with auto-approve
@@ -143,6 +155,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Should succeed scanning but fail during apply
 		// The function returns success even if individual applies fail
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		if result != nil && result.Total > 0 {
 			// Some applies should have failed due to read-only DB
 			g.Expect(result.Failed).To(gomega.BeNumerically(">", 0))
@@ -162,6 +175,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Initialize test DB
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Create test CLAUDE.md with duplicate entries to generate proposals
@@ -207,6 +221,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Initialize test DB
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Create cancelled context
@@ -236,6 +251,7 @@ func TestOptimizeInteractive(t *testing.T) {
 		// Initialize test DB
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Create test CLAUDE.md with duplicate entries to generate proposals
@@ -283,13 +299,11 @@ func TestOptimizeInteractiveWithSkills(t *testing.T) {
 		// Initialize test DB with skills
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Create low-utility skill
-		_, err = db.Exec(`
-			INSERT INTO generated_skills (slug, theme, content, description, source_memory_ids, alpha, beta, utility, retrieval_count, created_at, updated_at, pruned)
-			VALUES ('test-skill', 'Test Skill', '# Test\nContent', 'Test skill', '[]', 1.0, 5.0, 0.2, 10, datetime('now'), datetime('now'), 0)
-		`)
+		_, err = db.Exec("\n\t\t\tINSERT INTO generated_skills (slug, theme, content, description, source_memory_ids, alpha, beta, utility, retrieval_count, created_at, updated_at, pruned)\n\t\t\tVALUES ('test-skill', 'Test Skill', '# Test\\nContent', 'Test skill', '[]', 1.0, 5.0, 0.2, 10, datetime('now'), datetime('now', '-1 second'), 0)\n\t\t")
 		g.Expect(err).ToNot(gomega.HaveOccurred())
 
 		// Create skill directory
@@ -317,64 +331,6 @@ func TestOptimizeInteractiveWithSkills(t *testing.T) {
 }
 
 // ============================================================================
-// Additional tests for ISSUE-218: Content Refinement Operations
-// ============================================================================
-
-// TEST-1217: OptimizeInteractive includes refinement proposals (ISSUE-218)
-func TestOptimizeInteractive_WithRefinements(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	t.Run("includes refinement proposals when extractor is provided", func(t *testing.T) {
-		// Setup test environment
-		tmpDir := t.TempDir()
-		dbPath := filepath.Join(tmpDir, "embeddings.db")
-		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
-		skillsDir := filepath.Join(tmpDir, "skills")
-
-		// Initialize test DB
-		db, err := InitTestDB(dbPath)
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-		defer db.Close()
-
-		// Insert test data with flagged_for_rewrite=1
-		_, err = db.Exec(`
-			INSERT INTO embeddings (content, source, source_type, confidence, promoted, flagged_for_rewrite)
-			VALUES ('Content needing rewrite', 'memory', 'user', 0.8, 0, 1)
-		`)
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-
-		// Create mock extractor
-		extractor := &MockExtractor{
-			RewriteFunc: func(ctx context.Context, content string) (string, error) {
-				return "Refined: " + content, nil
-			},
-		}
-
-		// Auto-approve all
-		opts := OptimizeInteractiveOpts{
-			DBPath:       dbPath,
-			ClaudeMDPath: claudeMDPath,
-			SkillsDir:    skillsDir,
-			ReviewFunc:   func(p MaintenanceProposal) bool { return true },
-			Context:      context.Background(),
-			Extractor:    extractor,
-		}
-
-		result, err := OptimizeInteractive(opts)
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-
-		// Should have processed refinement proposals
-		g.Expect(result.Total).To(gomega.BeNumerically(">", 0))
-
-		// Check if embeddings tier has proposals (which may include refinements)
-		embeddingsSummary, exists := result.TierSummary["embeddings"]
-		if exists {
-			g.Expect(embeddingsSummary.Total).To(gomega.BeNumerically(">", 0))
-		}
-	})
-}
-
-// ============================================================================
 // Additional tests for ISSUE-184: Tier Filtering
 // ============================================================================
 
@@ -394,6 +350,7 @@ func TestOptimizeInteractive_TierFilter(t *testing.T) {
 		// Initialize test DB with high-value promotable entry
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		// Insert high-value embedding that should trigger promote proposal
@@ -443,6 +400,7 @@ func TestOptimizeInteractive_TierFilter(t *testing.T) {
 		// Initialize test DB with low-confidence entry
 		db, err := InitTestDB(dbPath)
 		g.Expect(err).ToNot(gomega.HaveOccurred())
+
 		defer db.Close()
 
 		_, err = db.Exec(`
@@ -474,5 +432,64 @@ func TestOptimizeInteractive_TierFilter(t *testing.T) {
 
 		// Should have proposals from multiple tiers
 		g.Expect(len(result.TierSummary)).To(gomega.BeNumerically(">", 1))
+	})
+}
+
+// ============================================================================
+// Additional tests for ISSUE-218: Content Refinement Operations
+// ============================================================================
+
+// TEST-1217: OptimizeInteractive includes refinement proposals (ISSUE-218)
+func TestOptimizeInteractive_WithRefinements(t *testing.T) {
+	g := gomega.NewWithT(t)
+
+	t.Run("includes refinement proposals when extractor is provided", func(t *testing.T) {
+		// Setup test environment
+		tmpDir := t.TempDir()
+		dbPath := filepath.Join(tmpDir, "embeddings.db")
+		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
+		skillsDir := filepath.Join(tmpDir, "skills")
+
+		// Initialize test DB
+		db, err := InitTestDB(dbPath)
+		g.Expect(err).ToNot(gomega.HaveOccurred())
+
+		defer db.Close()
+
+		// Insert test data with flagged_for_rewrite=1
+		_, err = db.Exec(`
+			INSERT INTO embeddings (content, source, source_type, confidence, promoted, flagged_for_rewrite)
+			VALUES ('Content needing rewrite', 'memory', 'user', 0.8, 0, 1)
+		`)
+		g.Expect(err).ToNot(gomega.HaveOccurred())
+
+		// Create mock extractor
+		extractor := &MockExtractor{
+			RewriteFunc: func(ctx context.Context, content string) (string, error) {
+				return "Refined: " + content, nil
+			},
+		}
+
+		// Auto-approve all
+		opts := OptimizeInteractiveOpts{
+			DBPath:       dbPath,
+			ClaudeMDPath: claudeMDPath,
+			SkillsDir:    skillsDir,
+			ReviewFunc:   func(p MaintenanceProposal) bool { return true },
+			Context:      context.Background(),
+			Extractor:    extractor,
+		}
+
+		result, err := OptimizeInteractive(opts)
+		g.Expect(err).ToNot(gomega.HaveOccurred())
+
+		// Should have processed refinement proposals
+		g.Expect(result.Total).To(gomega.BeNumerically(">", 0))
+
+		// Check if embeddings tier has proposals (which may include refinements)
+		embeddingsSummary, exists := result.TierSummary["embeddings"]
+		if exists {
+			g.Expect(embeddingsSummary.Total).To(gomega.BeNumerically(">", 0))
+		}
 	})
 }

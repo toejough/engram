@@ -12,6 +12,24 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+func TestModelURLMetadataTracking(t *testing.T) {
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// Learn an entry - this should set model_url metadata
+	err := memory.Learn(memory.LearnOpts{
+		Message:    "Test for URL tracking",
+		MemoryRoot: tempDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Check metadata
+	modelURL, err := memory.GetMetadataForTest(tempDir, "model_url")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(modelURL).To(ContainSubstring("intfloat/e5-small-v2"), "model_url metadata should point to e5-small-v2")
+}
+
 func TestModelURLPointsToE5SmallV2(t *testing.T) {
 	g := NewWithT(t)
 
@@ -31,29 +49,6 @@ func TestModelURLPointsToE5SmallV2(t *testing.T) {
 
 	// Verify the misleading comment is removed
 	g.Expect(contentStr).ToNot(ContainSubstring("Using all-MiniLM-L6-v2 as a compatible alternative"))
-}
-
-func TestQueryPrefixesQueryText(t *testing.T) {
-	g := NewWithT(t)
-
-	// Create temp dir for test
-	tempDir := t.TempDir()
-
-	// Learn an entry with "passage: " prefix
-	err := memory.Learn(memory.LearnOpts{
-		Message:    "This is a test memory about Go programming",
-		Project:    "test-project",
-		MemoryRoot: tempDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Query with "query: " prefix - should find the result
-	results, err := memory.Query(memory.QueryOpts{
-		Text:       "Go programming",
-		MemoryRoot: tempDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(results.Results).ToNot(BeEmpty(), "Query with 'query:' prefix should find stored 'passage:' entry")
 }
 
 func TestModelVersionColumnExists(t *testing.T) {
@@ -141,22 +136,27 @@ func TestPassagePrefixInLearn(t *testing.T) {
 	g.Expect(results.Results).ToNot(BeEmpty())
 }
 
-func TestModelURLMetadataTracking(t *testing.T) {
+func TestQueryPrefixesQueryText(t *testing.T) {
 	g := NewWithT(t)
 
+	// Create temp dir for test
 	tempDir := t.TempDir()
 
-	// Learn an entry - this should set model_url metadata
+	// Learn an entry with "passage: " prefix
 	err := memory.Learn(memory.LearnOpts{
-		Message:    "Test for URL tracking",
+		Message:    "This is a test memory about Go programming",
+		Project:    "test-project",
 		MemoryRoot: tempDir,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Check metadata
-	modelURL, err := memory.GetMetadataForTest(tempDir, "model_url")
+	// Query with "query: " prefix - should find the result
+	results, err := memory.Query(memory.QueryOpts{
+		Text:       "Go programming",
+		MemoryRoot: tempDir,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(modelURL).To(ContainSubstring("intfloat/e5-small-v2"), "model_url metadata should point to e5-small-v2")
+	g.Expect(results.Results).ToNot(BeEmpty(), "Query with 'query:' prefix should find stored 'passage:' entry")
 }
 
 func TestStaleModelDeletion(t *testing.T) {

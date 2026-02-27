@@ -9,6 +9,21 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TestTokenizer_EmptyInput verifies handling of empty strings.
+// Traces to: TASK-23 AC "New file tokenizer_test.go with unit tests"
+func TestTokenizer_EmptyInput(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tokenizer := memory.NewTokenizer()
+	tokenIDs := tokenizer.Tokenize("")
+
+	// Empty input should still have [CLS] and [SEP]
+	g.Expect(tokenIDs).To(HaveLen(2))
+	g.Expect(tokenIDs[0]).To(Equal(int64(101))) // [CLS]
+	g.Expect(tokenIDs[1]).To(Equal(int64(102))) // [SEP]
+}
+
 // ============================================================================
 // Unit tests for BERT WordPiece tokenizer (TASK-23)
 // These tests verify correct token ID assignment and subword splitting
@@ -75,35 +90,6 @@ func TestTokenizer_KnownTokensReturnCorrectIDs(t *testing.T) {
 	}
 }
 
-// TestTokenizer_SubwordSplitting verifies WordPiece subword algorithm.
-// Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
-func TestTokenizer_SubwordSplitting(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tokenizer := memory.NewTokenizer()
-
-	// Test word that should be split into subwords
-	// "tokenization" might split into "token" + "##ization"
-	tokenIDs := tokenizer.Tokenize("tokenization")
-
-	// Should have at least [CLS] + some subwords + [SEP]
-	g.Expect(len(tokenIDs)).To(BeNumerically(">=", 3),
-		"should have [CLS], content tokens, and [SEP]")
-
-	// First should be [CLS], last should be [SEP]
-	g.Expect(tokenIDs[0]).To(Equal(int64(101)))
-	g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102)))
-
-	// All content tokens should be valid (non-zero, within vocab range)
-	for i := 1; i < len(tokenIDs)-1; i++ {
-		g.Expect(tokenIDs[i]).To(BeNumerically(">", 0),
-			"content token should be positive")
-		g.Expect(tokenIDs[i]).To(BeNumerically("<", 30522),
-			"token ID should be within BERT vocab size (30522)")
-	}
-}
-
 // TestTokenizer_LowercaseNormalization verifies case-insensitive tokenization.
 // Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP]"
 func TestTokenizer_LowercaseNormalization(t *testing.T) {
@@ -121,82 +107,6 @@ func TestTokenizer_LowercaseNormalization(t *testing.T) {
 		"uppercase should normalize to lowercase")
 	g.Expect(mixedIDs).To(Equal(lowerIDs),
 		"mixed case should normalize to lowercase")
-}
-
-// TestTokenizer_EmptyInput verifies handling of empty strings.
-// Traces to: TASK-23 AC "New file tokenizer_test.go with unit tests"
-func TestTokenizer_EmptyInput(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tokenizer := memory.NewTokenizer()
-	tokenIDs := tokenizer.Tokenize("")
-
-	// Empty input should still have [CLS] and [SEP]
-	g.Expect(tokenIDs).To(HaveLen(2))
-	g.Expect(tokenIDs[0]).To(Equal(int64(101))) // [CLS]
-	g.Expect(tokenIDs[1]).To(Equal(int64(102))) // [SEP]
-}
-
-// TestTokenizer_SpecialTokens verifies [CLS] and [SEP] wrapping.
-// Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP] special tokens"
-func TestTokenizer_SpecialTokens(t *testing.T) {
-	t.Parallel()
-	_ = NewWithT(t)
-
-	tokenizer := memory.NewTokenizer()
-
-	tests := []string{
-		"hello",
-		"error handling",
-		"PostgreSQL database query optimization",
-	}
-
-	for _, text := range tests {
-		t.Run(text, func(t *testing.T) {
-			g := NewWithT(t)
-
-			tokenIDs := tokenizer.Tokenize(text)
-
-			// Every tokenized sequence starts with [CLS] (101)
-			g.Expect(tokenIDs[0]).To(Equal(int64(101)),
-				"should start with [CLS] token")
-
-			// Every tokenized sequence ends with [SEP] (102)
-			g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102)),
-				"should end with [SEP] token")
-
-			// Length should be at least 2 (CLS + SEP)
-			g.Expect(len(tokenIDs)).To(BeNumerically(">=", 2))
-		})
-	}
-}
-
-// TestTokenizer_UnknownWords verifies [UNK] token handling.
-// Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
-func TestTokenizer_UnknownWords(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tokenizer := memory.NewTokenizer()
-
-	// Use Unicode characters that are not in BERT vocab
-	tokenIDs := tokenizer.Tokenize("你好🚀")
-
-	// Should still wrap with special tokens
-	g.Expect(tokenIDs[0]).To(Equal(int64(101)))               // [CLS]
-	g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102))) // [SEP]
-
-	// Content should contain [UNK] token (100) for unknown words
-	foundUnk := false
-	for i := 1; i < len(tokenIDs)-1; i++ {
-		if tokenIDs[i] == 100 { // [UNK] token
-			foundUnk = true
-			break
-		}
-	}
-	g.Expect(foundUnk).To(BeTrue(),
-		"unknown words should map to [UNK] token (100)")
 }
 
 // ============================================================================
@@ -219,6 +129,7 @@ func TestTokenizer_PropertyAlwaysWrapsWithSpecialTokens(t *testing.T) {
 			if tokenIDs[0] != 101 {
 				t.Fatalf("first token should always be [CLS] (101), got %d", tokenIDs[0])
 			}
+
 			if tokenIDs[len(tokenIDs)-1] != 102 {
 				t.Fatalf("last token should always be [SEP] (102), got %d", tokenIDs[len(tokenIDs)-1])
 			}
@@ -228,6 +139,35 @@ func TestTokenizer_PropertyAlwaysWrapsWithSpecialTokens(t *testing.T) {
 		for i, id := range tokenIDs {
 			if id < 0 || id >= 30522 {
 				t.Fatalf("token ID at position %d out of range: %d (expected 0-30521)", i, id)
+			}
+		}
+	})
+}
+
+// TestTokenizer_PropertyCaseInsensitive verifies case normalization.
+func TestTokenizer_PropertyCaseInsensitive(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(t *rapid.T) {
+		// Generate random lowercase text
+		text := rapid.StringMatching(`[a-z ]+`).Draw(t, "text")
+		if text == "" {
+			t.Skip("empty text")
+		}
+
+		tokenizer := memory.NewTokenizer()
+
+		// Tokenize lowercase and uppercase versions
+		lowerIDs := tokenizer.Tokenize(text)
+		upperIDs := tokenizer.Tokenize(toUpper(text))
+
+		// Property: Case should not affect tokenization
+		if len(lowerIDs) != len(upperIDs) {
+			t.Fatalf("case sensitivity detected: lengths differ %d vs %d", len(lowerIDs), len(upperIDs))
+		}
+
+		for i := range lowerIDs {
+			if lowerIDs[i] != upperIDs[i] {
+				t.Fatalf("case sensitivity detected at position %d: %d vs %d", i, lowerIDs[i], upperIDs[i])
 			}
 		}
 	})
@@ -274,33 +214,96 @@ func TestTokenizer_PropertyNonEmpty(t *testing.T) {
 	})
 }
 
-// TestTokenizer_PropertyCaseInsensitive verifies case normalization.
-func TestTokenizer_PropertyCaseInsensitive(t *testing.T) {
+// TestTokenizer_SpecialTokens verifies [CLS] and [SEP] wrapping.
+// Traces to: TASK-23 AC "Tokenizer returns token IDs wrapped with [CLS] ... [SEP] special tokens"
+func TestTokenizer_SpecialTokens(t *testing.T) {
 	t.Parallel()
-	rapid.Check(t, func(t *rapid.T) {
-		// Generate random lowercase text
-		text := rapid.StringMatching(`[a-z ]+`).Draw(t, "text")
-		if text == "" {
-			t.Skip("empty text")
+	_ = NewWithT(t)
+
+	tokenizer := memory.NewTokenizer()
+
+	tests := []string{
+		"hello",
+		"error handling",
+		"PostgreSQL database query optimization",
+	}
+
+	for _, text := range tests {
+		t.Run(text, func(t *testing.T) {
+			g := NewWithT(t)
+
+			tokenIDs := tokenizer.Tokenize(text)
+
+			// Every tokenized sequence starts with [CLS] (101)
+			g.Expect(tokenIDs[0]).To(Equal(int64(101)),
+				"should start with [CLS] token")
+
+			// Every tokenized sequence ends with [SEP] (102)
+			g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102)),
+				"should end with [SEP] token")
+
+			// Length should be at least 2 (CLS + SEP)
+			g.Expect(len(tokenIDs)).To(BeNumerically(">=", 2))
+		})
+	}
+}
+
+// TestTokenizer_SubwordSplitting verifies WordPiece subword algorithm.
+// Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
+func TestTokenizer_SubwordSplitting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tokenizer := memory.NewTokenizer()
+
+	// Test word that should be split into subwords
+	// "tokenization" might split into "token" + "##ization"
+	tokenIDs := tokenizer.Tokenize("tokenization")
+
+	// Should have at least [CLS] + some subwords + [SEP]
+	g.Expect(len(tokenIDs)).To(BeNumerically(">=", 3),
+		"should have [CLS], content tokens, and [SEP]")
+
+	// First should be [CLS], last should be [SEP]
+	g.Expect(tokenIDs[0]).To(Equal(int64(101)))
+	g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102)))
+
+	// All content tokens should be valid (non-zero, within vocab range)
+	for i := 1; i < len(tokenIDs)-1; i++ {
+		g.Expect(tokenIDs[i]).To(BeNumerically(">", 0),
+			"content token should be positive")
+		g.Expect(tokenIDs[i]).To(BeNumerically("<", 30522),
+			"token ID should be within BERT vocab size (30522)")
+	}
+}
+
+// TestTokenizer_UnknownWords verifies [UNK] token handling.
+// Traces to: TASK-23 AC "Tokenizer loads vocab from e5-small-v2/vocab.txt"
+func TestTokenizer_UnknownWords(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tokenizer := memory.NewTokenizer()
+
+	// Use Unicode characters that are not in BERT vocab
+	tokenIDs := tokenizer.Tokenize("你好🚀") //nolint:gosmopolitan // intentional CJK test case
+
+	// Should still wrap with special tokens
+	g.Expect(tokenIDs[0]).To(Equal(int64(101)))               // [CLS]
+	g.Expect(tokenIDs[len(tokenIDs)-1]).To(Equal(int64(102))) // [SEP]
+
+	// Content should contain [UNK] token (100) for unknown words
+	foundUnk := false
+
+	for i := 1; i < len(tokenIDs)-1; i++ {
+		if tokenIDs[i] == 100 { // [UNK] token
+			foundUnk = true
+			break
 		}
+	}
 
-		tokenizer := memory.NewTokenizer()
-
-		// Tokenize lowercase and uppercase versions
-		lowerIDs := tokenizer.Tokenize(text)
-		upperIDs := tokenizer.Tokenize(toUpper(text))
-
-		// Property: Case should not affect tokenization
-		if len(lowerIDs) != len(upperIDs) {
-			t.Fatalf("case sensitivity detected: lengths differ %d vs %d", len(lowerIDs), len(upperIDs))
-		}
-
-		for i := range lowerIDs {
-			if lowerIDs[i] != upperIDs[i] {
-				t.Fatalf("case sensitivity detected at position %d: %d vs %d", i, lowerIDs[i], upperIDs[i])
-			}
-		}
-	})
+	g.Expect(foundUnk).To(BeTrue(),
+		"unknown words should map to [UNK] token (100)")
 }
 
 // ============================================================================
@@ -315,7 +318,9 @@ func toUpper(s string) string {
 		if c >= 'a' && c <= 'z' {
 			c -= 'a' - 'A'
 		}
+
 		b[i] = c
 	}
+
 	return string(b)
 }

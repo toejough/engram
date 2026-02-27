@@ -12,6 +12,16 @@ import (
 	"github.com/toejough/projctl/internal/parser"
 )
 
+// TEST-172 traces: TASK-028
+// Test RealFS DirExists returns false for non-existent directory
+func TestRealFS_DirExists_False(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := parser.NewRealFS()
+	g.Expect(fs.DirExists("/non-existent-dir-12345")).To(BeFalse())
+}
+
 // TEST-171 traces: TASK-028
 // Test RealFS DirExists returns true for existing directory
 func TestRealFS_DirExists_True(t *testing.T) {
@@ -23,14 +33,14 @@ func TestRealFS_DirExists_True(t *testing.T) {
 	g.Expect(fs.DirExists(dir)).To(BeTrue())
 }
 
-// TEST-172 traces: TASK-028
-// Test RealFS DirExists returns false for non-existent directory
-func TestRealFS_DirExists_False(t *testing.T) {
+// TEST-174 traces: TASK-028
+// Test RealFS FileExists returns false for non-existent file
+func TestRealFS_FileExists_False(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()
-	g.Expect(fs.DirExists("/non-existent-dir-12345")).To(BeFalse())
+	g.Expect(fs.FileExists("/non-existent-file-12345")).To(BeFalse())
 }
 
 // TEST-173 traces: TASK-028
@@ -46,14 +56,15 @@ func TestRealFS_FileExists_True(t *testing.T) {
 	g.Expect(fs.FileExists(path)).To(BeTrue())
 }
 
-// TEST-174 traces: TASK-028
-// Test RealFS FileExists returns false for non-existent file
-func TestRealFS_FileExists_False(t *testing.T) {
+// TEST-178 traces: TASK-028
+// Test RealFS implements CollectableFS
+func TestRealFS_ImplementsCollectableFS(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	fs := parser.NewRealFS()
-	g.Expect(fs.FileExists("/non-existent-file-12345")).To(BeFalse())
+	var _ parser.CollectableFS = fs
+	g.Expect(fs).ToNot(BeNil())
 }
 
 // TEST-175 traces: TASK-028
@@ -106,15 +117,4 @@ func TestRealFS_Walk(t *testing.T) {
 	g.Expect(paths).To(ContainElement(filepath.Join(dir, "a.txt")))
 	g.Expect(paths).To(ContainElement(subdir))
 	g.Expect(paths).To(ContainElement(filepath.Join(subdir, "b.txt")))
-}
-
-// TEST-178 traces: TASK-028
-// Test RealFS implements CollectableFS
-func TestRealFS_ImplementsCollectableFS(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	fs := parser.NewRealFS()
-	var _ parser.CollectableFS = fs
-	g.Expect(fs).ToNot(BeNil())
 }

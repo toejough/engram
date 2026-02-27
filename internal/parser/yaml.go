@@ -2,6 +2,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -11,22 +12,10 @@ import (
 	"github.com/toejough/projctl/internal/trace"
 )
 
-// frontmatterData represents the raw YAML structure before conversion to TraceItem.
-type frontmatterData struct {
-	ID       string    `yaml:"id"`
-	Type     string    `yaml:"type"`
-	Project  string    `yaml:"project"`
-	Title    string    `yaml:"title"`
-	Status   string    `yaml:"status"`
-	TracesTo []string  `yaml:"traces_to"`
-	Tags     []string  `yaml:"tags"`
-	Created  time.Time `yaml:"created"`
-	Updated  time.Time `yaml:"updated"`
-
-	// TEST-specific fields
-	Location string `yaml:"location"`
-	Line     int    `yaml:"line"`
-	Function string `yaml:"function"`
+// FrontmatterItem represents a parsed item with frontmatter and body.
+type FrontmatterItem struct {
+	Frontmatter string // YAML frontmatter content (without delimiters)
+	Body        string // Markdown body content
 }
 
 // ParseResult represents a parsed traceability item with its body content.
@@ -44,8 +33,10 @@ func ParseDocument(content string) ([]ParseResult, []error) {
 		return nil, []error{err}
 	}
 
-	var results []ParseResult
-	var errs []error
+	var (
+		results []ParseResult
+		errs    []error
+	)
 
 	for _, item := range items {
 		parsed, err := ParseFrontmatter(item.Frontmatter)
@@ -67,7 +58,9 @@ func ParseDocument(content string) ([]ParseResult, []error) {
 // Returns error if YAML is invalid or required fields are missing.
 func ParseFrontmatter(frontmatter string) (*trace.TraceItem, error) {
 	var data frontmatterData
-	if err := yaml.Unmarshal([]byte(frontmatter), &data); err != nil {
+
+	err := yaml.Unmarshal([]byte(frontmatter), &data)
+	if err != nil {
 		return nil, fmt.Errorf("invalid YAML: %w", err)
 	}
 
@@ -86,17 +79,12 @@ func ParseFrontmatter(frontmatter string) (*trace.TraceItem, error) {
 		Function: data.Function,
 	}
 
-	if err := item.Validate(); err != nil {
+	err = item.Validate()
+	if err != nil {
 		return nil, err
 	}
 
 	return item, nil
-}
-
-// FrontmatterItem represents a parsed item with frontmatter and body.
-type FrontmatterItem struct {
-	Frontmatter string // YAML frontmatter content (without delimiters)
-	Body        string // Markdown body content
 }
 
 // SplitFrontmatter splits multi-item markdown content into frontmatter/body pairs.
@@ -108,6 +96,7 @@ func SplitFrontmatter(content string) ([]FrontmatterItem, error) {
 	}
 
 	var items []FrontmatterItem
+
 	lines := strings.Split(content, "\n")
 
 	i := 0
@@ -137,7 +126,7 @@ func SplitFrontmatter(content string) ([]FrontmatterItem, error) {
 		}
 
 		if i >= len(lines) {
-			return nil, fmt.Errorf("frontmatter missing closing delimiter")
+			return nil, errors.New("frontmatter missing closing delimiter")
 		}
 
 		frontmatter := strings.Join(lines[frontmatterStart:i], "\n")
@@ -155,6 +144,7 @@ func SplitFrontmatter(content string) ([]FrontmatterItem, error) {
 					break
 				}
 			}
+
 			i++
 		}
 
@@ -167,4 +157,22 @@ func SplitFrontmatter(content string) ([]FrontmatterItem, error) {
 	}
 
 	return items, nil
+}
+
+// frontmatterData represents the raw YAML structure before conversion to TraceItem.
+type frontmatterData struct {
+	ID       string    `yaml:"id"`
+	Type     string    `yaml:"type"`
+	Project  string    `yaml:"project"`
+	Title    string    `yaml:"title"`
+	Status   string    `yaml:"status"`
+	TracesTo []string  `yaml:"traces_to"`
+	Tags     []string  `yaml:"tags"`
+	Created  time.Time `yaml:"created"`
+	Updated  time.Time `yaml:"updated"`
+
+	// TEST-specific fields
+	Location string `yaml:"location"`
+	Line     int    `yaml:"line"`
+	Function string `yaml:"function"`
 }

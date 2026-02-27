@@ -8,31 +8,6 @@ import (
 	"github.com/toejough/projctl/internal/escalation"
 )
 
-// TEST-209 traces: TASK-007
-// Test resolved status applies the decision to artifacts
-func TestApplyResolutions_Resolved(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	resolutions := []escalation.Escalation{
-		{
-			ID:       "ESC-001",
-			Category: "requirement",
-			Context:  "Analyzing auth",
-			Question: "Use OAuth?",
-			Status:   "resolved",
-			Notes:    "Yes, we need OAuth for enterprise customers.",
-		},
-	}
-
-	result := escalation.ApplyResolutions(resolutions)
-
-	g.Expect(result.Applied).To(HaveLen(1))
-	g.Expect(result.Applied[0].ID).To(Equal("ESC-001"))
-	g.Expect(result.Applied[0].Notes).To(ContainSubstring("OAuth"))
-	g.Expect(result.Issues).To(BeEmpty())
-}
-
 // TEST-210 traces: TASK-007
 // Test deferred status creates issue
 func TestApplyResolutions_Deferred(t *testing.T) {
@@ -86,6 +61,26 @@ func TestApplyResolutions_Issue(t *testing.T) {
 	g.Expect(result.Issues[0].Category).To(Equal("user-issue"))
 }
 
+// TEST-213 traces: TASK-007
+// Test mixed statuses are handled correctly
+func TestApplyResolutions_Mixed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	resolutions := []escalation.Escalation{
+		{ID: "ESC-001", Status: "resolved", Notes: "Done"},
+		{ID: "ESC-002", Status: "deferred", Question: "Later?"},
+		{ID: "ESC-003", Status: "issue", Question: "Track this?", Notes: "Details here"},
+		{ID: "ESC-004", Status: "pending"},
+	}
+
+	result := escalation.ApplyResolutions(resolutions)
+
+	g.Expect(result.Applied).To(HaveLen(1))
+	g.Expect(result.Issues).To(HaveLen(2))
+	g.Expect(result.Pending).To(HaveLen(1))
+}
+
 // TEST-212 traces: TASK-007
 // Test pending status is skipped
 func TestApplyResolutions_Pending(t *testing.T) {
@@ -110,24 +105,29 @@ func TestApplyResolutions_Pending(t *testing.T) {
 	g.Expect(result.Pending).To(HaveLen(1))
 }
 
-// TEST-213 traces: TASK-007
-// Test mixed statuses are handled correctly
-func TestApplyResolutions_Mixed(t *testing.T) {
+// TEST-209 traces: TASK-007
+// Test resolved status applies the decision to artifacts
+func TestApplyResolutions_Resolved(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	resolutions := []escalation.Escalation{
-		{ID: "ESC-001", Status: "resolved", Notes: "Done"},
-		{ID: "ESC-002", Status: "deferred", Question: "Later?"},
-		{ID: "ESC-003", Status: "issue", Question: "Track this?", Notes: "Details here"},
-		{ID: "ESC-004", Status: "pending"},
+		{
+			ID:       "ESC-001",
+			Category: "requirement",
+			Context:  "Analyzing auth",
+			Question: "Use OAuth?",
+			Status:   "resolved",
+			Notes:    "Yes, we need OAuth for enterprise customers.",
+		},
 	}
 
 	result := escalation.ApplyResolutions(resolutions)
 
 	g.Expect(result.Applied).To(HaveLen(1))
-	g.Expect(result.Issues).To(HaveLen(2))
-	g.Expect(result.Pending).To(HaveLen(1))
+	g.Expect(result.Applied[0].ID).To(Equal("ESC-001"))
+	g.Expect(result.Applied[0].Notes).To(ContainSubstring("OAuth"))
+	g.Expect(result.Issues).To(BeEmpty())
 }
 
 // TEST-214 traces: TASK-007

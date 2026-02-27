@@ -13,6 +13,109 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TestTransactionChangeRecordJSON verifies change records can be serialized.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionChangeRecordJSON(t *testing.T) {
+	g := NewWithT(t)
+
+	record := memory.ChangeRecord{
+		Type:   "prune",
+		Tier:   "embeddings",
+		Target: "entry-123",
+		Before: "old content",
+		After:  "",
+	}
+
+	// Serialize
+	data, err := json.Marshal(record)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Deserialize
+	var decoded memory.ChangeRecord
+
+	err = json.Unmarshal(data, &decoded)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	g.Expect(decoded.Type).To(Equal(record.Type))
+	g.Expect(decoded.Tier).To(Equal(record.Tier))
+	g.Expect(decoded.Target).To(Equal(record.Target))
+	g.Expect(decoded.Before).To(Equal(record.Before))
+	g.Expect(decoded.After).To(Equal(record.After))
+}
+
+// TestTransactionCleanupIdempotent verifies cleanup can be called multiple times safely.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionCleanupIdempotent(t *testing.T) {
+	g := NewWithT(t)
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "embeddings.db")
+
+	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
+
+	tx := memory.NewTransaction(memory.TransactionOpts{
+		DBPath:       dbPath,
+		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
+		SkillsDir:    tmpDir,
+	})
+
+	g.Expect(tx.CreateBackups()).To(Succeed())
+
+	// First cleanup
+	g.Expect(tx.Cleanup()).To(Succeed())
+
+	// Second cleanup (should be no-op)
+	g.Expect(tx.Cleanup()).To(Succeed())
+}
+
+// TestTransactionCleanupSuccess verifies backups removed on successful commit.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionCleanupSuccess(t *testing.T) {
+	g := NewWithT(t)
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "embeddings.db")
+	claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
+	skillsDir := filepath.Join(tmpDir, "skills")
+
+	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
+	g.Expect(os.WriteFile(claudeMDPath, []byte("test"), 0644)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	tx := memory.NewTransaction(memory.TransactionOpts{
+		DBPath:       dbPath,
+		ClaudeMDPath: claudeMDPath,
+		SkillsDir:    skillsDir,
+	})
+
+	// Create backups
+	g.Expect(tx.CreateBackups()).To(Succeed())
+
+	// Verify backups exist
+	g.Expect(dbPath + ".bak").To(BeAnExistingFile())
+	g.Expect(claudeMDPath + ".bak").To(BeAnExistingFile())
+
+	_, err := os.Stat(skillsDir + ".bak")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Commit (cleanup)
+	err = tx.Cleanup()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify backups removed
+	_, err = os.Stat(dbPath + ".bak")
+	g.Expect(err).To(HaveOccurred())
+	_, err = os.Stat(claudeMDPath + ".bak")
+	g.Expect(err).To(HaveOccurred())
+	_, err = os.Stat(skillsDir + ".bak")
+	g.Expect(err).To(HaveOccurred())
+
+	// Verify originals still exist
+	g.Expect(dbPath).To(BeAnExistingFile())
+	g.Expect(claudeMDPath).To(BeAnExistingFile())
+
+	_, err = os.Stat(skillsDir)
+	g.Expect(err).ToNot(HaveOccurred())
+}
+
 // TestTransactionCreateBackups verifies that backups are created for all critical files.
 // Traces to: ISSUE-212 AC-4
 func TestTransactionCreateBackups(t *testing.T) {
@@ -43,6 +146,7 @@ func TestTransactionCreateBackups(t *testing.T) {
 	// Verify backups exist
 	g.Expect(dbPath + ".bak").To(BeAnExistingFile())
 	g.Expect(claudeMDPath + ".bak").To(BeAnExistingFile())
+
 	_, err = os.Stat(skillsDir + ".bak")
 	g.Expect(err).ToNot(HaveOccurred())
 
@@ -58,6 +162,41 @@ func TestTransactionCreateBackups(t *testing.T) {
 	skillBakContent, err := os.ReadFile(filepath.Join(skillsDir+".bak", "test-skill", "SKILL.md"))
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(skillBakContent).To(Equal([]byte("test skill")))
+}
+
+// TestTransactionLogPersistence verifies transaction log can be saved and loaded.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionLogPersistence(t *testing.T) {
+	g := NewWithT(t)
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "transaction.log")
+
+	tx := memory.NewTransaction(memory.TransactionOpts{
+		DBPath:       filepath.Join(tmpDir, "embeddings.db"),
+		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
+		SkillsDir:    tmpDir,
+	})
+
+	// Record changes
+	tx.RecordChange(memory.ChangeRecord{Type: "prune", Tier: "embeddings", Target: "1"})
+	tx.RecordChange(memory.ChangeRecord{Type: "consolidate", Tier: "skills", Target: "2"})
+
+	// Save log
+	err := tx.SaveLog(logPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(logPath).To(BeAnExistingFile())
+
+	// Load log
+	loaded, err := memory.LoadTransactionLog(logPath)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(loaded) < 2 {
+		t.Fatalf("expected 2 entries from LoadTransactionLog, got %d", len(loaded))
+	}
+
+	g.Expect(loaded).To(HaveLen(2))
+	g.Expect(loaded[0].Type).To(Equal("prune"))
+	g.Expect(loaded[1].Type).To(Equal("consolidate"))
 }
 
 // TestTransactionLogRecordsChanges verifies transaction log captures all operations.
@@ -103,6 +242,102 @@ func TestTransactionLogRecordsChanges(t *testing.T) {
 	g.Expect(changes[1].Tier).To(Equal("claude-md"))
 }
 
+// TestTransactionMultipleBackupsError verifies creating backups twice fails.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionMultipleBackupsError(t *testing.T) {
+	g := NewWithT(t)
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "embeddings.db")
+
+	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
+
+	tx := memory.NewTransaction(memory.TransactionOpts{
+		DBPath:       dbPath,
+		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
+		SkillsDir:    tmpDir,
+	})
+
+	// First backup should succeed
+	g.Expect(tx.CreateBackups()).To(Succeed())
+
+	// Second backup should fail
+	err := tx.CreateBackups()
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		t.Fatal("CreateBackups should have returned an error")
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("backups already created"))
+}
+
+// TestTransactionPropertyBackupsBeforeModifications verifies backups are always created before changes.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionPropertyBackupsBeforeModifications(t *testing.T) {
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(rt)
+		tmpDir := t.TempDir()
+
+		dbPath := filepath.Join(tmpDir, "embeddings.db")
+		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
+		skillsDir := filepath.Join(tmpDir, "skills")
+
+		// Generate random initial content
+		dbContent := rapid.SliceOfN(rapid.Byte(), 10, 100).Draw(rt, "dbContent")
+		mdContent := rapid.SliceOfN(rapid.Byte(), 10, 100).Draw(rt, "mdContent")
+
+		g.Expect(os.WriteFile(dbPath, dbContent, 0644)).To(Succeed())
+		g.Expect(os.WriteFile(claudeMDPath, mdContent, 0644)).To(Succeed())
+		g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+		tx := memory.NewTransaction(memory.TransactionOpts{
+			DBPath:       dbPath,
+			ClaudeMDPath: claudeMDPath,
+			SkillsDir:    skillsDir,
+		})
+
+		// Property: Cannot record changes before backups created
+		tx.RecordChange(memory.ChangeRecord{Type: "test", Tier: "embeddings", Target: "test"})
+		g.Expect(tx.BackupsCreated()).To(BeFalse(), "backups should not be marked created yet")
+
+		// Create backups
+		g.Expect(tx.CreateBackups()).To(Succeed())
+		g.Expect(tx.BackupsCreated()).To(BeTrue(), "backups should be marked created")
+
+		// Property: Backup content matches original
+		bakDB, err := os.ReadFile(dbPath + ".bak")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(bakDB).To(Equal(dbContent))
+
+		bakMD, err := os.ReadFile(claudeMDPath + ".bak")
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(bakMD).To(Equal(mdContent))
+	})
+}
+
+// TestTransactionRollbackBeforeBackupsFails verifies rollback fails if no backups exist.
+// Traces to: ISSUE-212 AC-4
+func TestTransactionRollbackBeforeBackupsFails(t *testing.T) {
+	g := NewWithT(t)
+	tmpDir := t.TempDir()
+
+	tx := memory.NewTransaction(memory.TransactionOpts{
+		DBPath:       filepath.Join(tmpDir, "embeddings.db"),
+		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
+		SkillsDir:    tmpDir,
+	})
+
+	// Rollback without backups should fail
+	err := tx.Rollback()
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		t.Fatal("Rollback should have returned an error")
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("no backups to restore"))
+}
+
 // TestTransactionRollbackOnError verifies rollback restores original state.
 // Traces to: ISSUE-212 AC-4
 func TestTransactionRollbackOnError(t *testing.T) {
@@ -115,6 +350,7 @@ func TestTransactionRollbackOnError(t *testing.T) {
 	// Create original files
 	originalDB := []byte("original db content")
 	originalMD := []byte("original md content")
+
 	g.Expect(os.WriteFile(dbPath, originalDB, 0644)).To(Succeed())
 	g.Expect(os.WriteFile(claudeMDPath, originalMD, 0644)).To(Succeed())
 	g.Expect(os.MkdirAll(filepath.Join(skillsDir, "original-skill"), 0755)).To(Succeed())
@@ -160,53 +396,6 @@ func TestTransactionRollbackOnError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// TestTransactionCleanupSuccess verifies backups removed on successful commit.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionCleanupSuccess(t *testing.T) {
-	g := NewWithT(t)
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "embeddings.db")
-	claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tmpDir, "skills")
-
-	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
-	g.Expect(os.WriteFile(claudeMDPath, []byte("test"), 0644)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	tx := memory.NewTransaction(memory.TransactionOpts{
-		DBPath:       dbPath,
-		ClaudeMDPath: claudeMDPath,
-		SkillsDir:    skillsDir,
-	})
-
-	// Create backups
-	g.Expect(tx.CreateBackups()).To(Succeed())
-
-	// Verify backups exist
-	g.Expect(dbPath + ".bak").To(BeAnExistingFile())
-	g.Expect(claudeMDPath + ".bak").To(BeAnExistingFile())
-	_, err := os.Stat(skillsDir + ".bak")
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Commit (cleanup)
-	err = tx.Cleanup()
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify backups removed
-	_, err = os.Stat(dbPath + ".bak")
-	g.Expect(err).To(HaveOccurred())
-	_, err = os.Stat(claudeMDPath + ".bak")
-	g.Expect(err).To(HaveOccurred())
-	_, err = os.Stat(skillsDir + ".bak")
-	g.Expect(err).To(HaveOccurred())
-
-	// Verify originals still exist
-	g.Expect(dbPath).To(BeAnExistingFile())
-	g.Expect(claudeMDPath).To(BeAnExistingFile())
-	_, err = os.Stat(skillsDir)
-	g.Expect(err).ToNot(HaveOccurred())
-}
-
 // TestTransactionRollbackWithDBChanges verifies rollback works with database operations.
 // Traces to: ISSUE-212 AC-4
 func TestTransactionRollbackWithDBChanges(t *testing.T) {
@@ -246,7 +435,9 @@ func TestTransactionRollbackWithDBChanges(t *testing.T) {
 	// Verify deletion
 	db, err = sql.Open("sqlite3", dbPath)
 	g.Expect(err).ToNot(HaveOccurred())
+
 	var count int
+
 	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&count)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(count).To(Equal(0))
@@ -258,6 +449,7 @@ func TestTransactionRollbackWithDBChanges(t *testing.T) {
 	// Verify original data restored
 	db, err = sql.Open("sqlite3", dbPath)
 	g.Expect(err).ToNot(HaveOccurred())
+
 	defer db.Close()
 
 	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&count)
@@ -265,178 +457,8 @@ func TestTransactionRollbackWithDBChanges(t *testing.T) {
 	g.Expect(count).To(Equal(1))
 
 	var content string
+
 	err = db.QueryRow("SELECT content FROM embeddings").Scan(&content)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(content).To(Equal("test entry"))
-}
-
-// TestTransactionChangeRecordJSON verifies change records can be serialized.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionChangeRecordJSON(t *testing.T) {
-	g := NewWithT(t)
-
-	record := memory.ChangeRecord{
-		Type:   "prune",
-		Tier:   "embeddings",
-		Target: "entry-123",
-		Before: "old content",
-		After:  "",
-	}
-
-	// Serialize
-	data, err := json.Marshal(record)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Deserialize
-	var decoded memory.ChangeRecord
-	err = json.Unmarshal(data, &decoded)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	g.Expect(decoded.Type).To(Equal(record.Type))
-	g.Expect(decoded.Tier).To(Equal(record.Tier))
-	g.Expect(decoded.Target).To(Equal(record.Target))
-	g.Expect(decoded.Before).To(Equal(record.Before))
-	g.Expect(decoded.After).To(Equal(record.After))
-}
-
-// TestTransactionMultipleBackupsError verifies creating backups twice fails.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionMultipleBackupsError(t *testing.T) {
-	g := NewWithT(t)
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "embeddings.db")
-
-	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
-
-	tx := memory.NewTransaction(memory.TransactionOpts{
-		DBPath:       dbPath,
-		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
-		SkillsDir:    tmpDir,
-	})
-
-	// First backup should succeed
-	g.Expect(tx.CreateBackups()).To(Succeed())
-
-	// Second backup should fail
-	err := tx.CreateBackups()
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("backups already created"))
-}
-
-// TestTransactionRollbackBeforeBackupsFails verifies rollback fails if no backups exist.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionRollbackBeforeBackupsFails(t *testing.T) {
-	g := NewWithT(t)
-	tmpDir := t.TempDir()
-
-	tx := memory.NewTransaction(memory.TransactionOpts{
-		DBPath:       filepath.Join(tmpDir, "embeddings.db"),
-		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
-		SkillsDir:    tmpDir,
-	})
-
-	// Rollback without backups should fail
-	err := tx.Rollback()
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("no backups to restore"))
-}
-
-// TestTransactionCleanupIdempotent verifies cleanup can be called multiple times safely.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionCleanupIdempotent(t *testing.T) {
-	g := NewWithT(t)
-	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "embeddings.db")
-
-	g.Expect(os.WriteFile(dbPath, []byte("test"), 0644)).To(Succeed())
-
-	tx := memory.NewTransaction(memory.TransactionOpts{
-		DBPath:       dbPath,
-		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
-		SkillsDir:    tmpDir,
-	})
-
-	g.Expect(tx.CreateBackups()).To(Succeed())
-
-	// First cleanup
-	g.Expect(tx.Cleanup()).To(Succeed())
-
-	// Second cleanup (should be no-op)
-	g.Expect(tx.Cleanup()).To(Succeed())
-}
-
-// TestTransactionLogPersistence verifies transaction log can be saved and loaded.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionLogPersistence(t *testing.T) {
-	g := NewWithT(t)
-	tmpDir := t.TempDir()
-	logPath := filepath.Join(tmpDir, "transaction.log")
-
-	tx := memory.NewTransaction(memory.TransactionOpts{
-		DBPath:       filepath.Join(tmpDir, "embeddings.db"),
-		ClaudeMDPath: filepath.Join(tmpDir, "CLAUDE.md"),
-		SkillsDir:    tmpDir,
-	})
-
-	// Record changes
-	tx.RecordChange(memory.ChangeRecord{Type: "prune", Tier: "embeddings", Target: "1"})
-	tx.RecordChange(memory.ChangeRecord{Type: "consolidate", Tier: "skills", Target: "2"})
-
-	// Save log
-	err := tx.SaveLog(logPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(logPath).To(BeAnExistingFile())
-
-	// Load log
-	loaded, err := memory.LoadTransactionLog(logPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(loaded).To(HaveLen(2))
-	g.Expect(loaded[0].Type).To(Equal("prune"))
-	g.Expect(loaded[1].Type).To(Equal("consolidate"))
-}
-
-// TestTransactionPropertyBackupsBeforeModifications verifies backups are always created before changes.
-// Traces to: ISSUE-212 AC-4
-func TestTransactionPropertyBackupsBeforeModifications(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := NewWithT(t)
-		tmpDir, err := os.MkdirTemp("", "transaction-test-*")
-		g.Expect(err).ToNot(HaveOccurred())
-		defer os.RemoveAll(tmpDir)
-
-		dbPath := filepath.Join(tmpDir, "embeddings.db")
-		claudeMDPath := filepath.Join(tmpDir, "CLAUDE.md")
-		skillsDir := filepath.Join(tmpDir, "skills")
-
-		// Generate random initial content
-		dbContent := rapid.SliceOfN(rapid.Byte(), 10, 100).Draw(t, "dbContent")
-		mdContent := rapid.SliceOfN(rapid.Byte(), 10, 100).Draw(t, "mdContent")
-
-		g.Expect(os.WriteFile(dbPath, dbContent, 0644)).To(Succeed())
-		g.Expect(os.WriteFile(claudeMDPath, mdContent, 0644)).To(Succeed())
-		g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-		tx := memory.NewTransaction(memory.TransactionOpts{
-			DBPath:       dbPath,
-			ClaudeMDPath: claudeMDPath,
-			SkillsDir:    skillsDir,
-		})
-
-		// Property: Cannot record changes before backups created
-		tx.RecordChange(memory.ChangeRecord{Type: "test", Tier: "embeddings", Target: "test"})
-		g.Expect(tx.BackupsCreated()).To(BeFalse(), "backups should not be marked created yet")
-
-		// Create backups
-		g.Expect(tx.CreateBackups()).To(Succeed())
-		g.Expect(tx.BackupsCreated()).To(BeTrue(), "backups should be marked created")
-
-		// Property: Backup content matches original
-		bakDB, err := os.ReadFile(dbPath + ".bak")
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(bakDB).To(Equal(dbContent))
-
-		bakMD, err := os.ReadFile(claudeMDPath + ".bak")
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(bakMD).To(Equal(mdContent))
-	})
 }

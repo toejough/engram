@@ -1,7 +1,7 @@
 package memory
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -15,11 +15,11 @@ type Embedding struct {
 
 // TestScenario represents a test case for validating skill effectiveness.
 type TestScenario struct {
-	Description      string // Human-readable description of what's being tested
-	SkillName        string // Name of the skill being tested
-	SkillContent     string // The actual skill content to inject (for GREEN phase)
-	SuccessCriteria  string // Pattern to match in response indicating success
-	FailureCriteria  string // Pattern indicating the failure mode we're preventing
+	Description     string // Human-readable description of what's being tested
+	SkillName       string // Name of the skill being tested
+	SkillContent    string // The actual skill content to inject (for GREEN phase)
+	SuccessCriteria string // Pattern to match in response indicating success
+	FailureCriteria string // Pattern indicating the failure mode we're preventing
 }
 
 // DeriveScenarioFromEmbeddings creates a test scenario from a cluster of related embeddings.
@@ -38,6 +38,7 @@ func DeriveScenarioFromEmbeddings(embeddings []Embedding) TestScenario {
 
 	// Extract common theme from embeddings
 	var corrections, antiPatterns []string
+
 	for _, emb := range embeddings {
 		typ, _ := emb.Metadata["type"].(string)
 		switch typ {
@@ -49,25 +50,29 @@ func DeriveScenarioFromEmbeddings(embeddings []Embedding) TestScenario {
 	}
 
 	// Build skill name from first embedding content (simplified)
-	skillName := "skill-" + fmt.Sprintf("%d", embeddings[0].ID)
+	skillName := "skill-" + strconv.FormatInt(embeddings[0].ID, 10)
+
 	if len(corrections) > 0 {
 		// Extract first few words as skill name
 		words := strings.Fields(corrections[0])
 		if len(words) > 3 {
 			words = words[:3]
 		}
+
 		skillName = strings.ToLower(strings.Join(words, "-"))
 	}
 
 	// Build skill content from corrections
 	var skillContent strings.Builder
 	skillContent.WriteString("# Skill: " + skillName + "\n\n")
+
 	for _, corr := range corrections {
 		skillContent.WriteString("- " + corr + "\n")
 	}
 
 	// Derive success criteria (what we want to see)
 	successCriteria := "correct"
+
 	if len(corrections) > 0 {
 		// Extract key phrase from first correction
 		words := strings.Fields(corrections[0])
@@ -78,6 +83,7 @@ func DeriveScenarioFromEmbeddings(embeddings []Embedding) TestScenario {
 
 	// Derive failure criteria (what we want to avoid)
 	failureCriteria := "incorrect"
+
 	if len(antiPatterns) > 0 {
 		// Extract key phrase from first anti-pattern
 		words := strings.Fields(antiPatterns[0])
@@ -87,7 +93,7 @@ func DeriveScenarioFromEmbeddings(embeddings []Embedding) TestScenario {
 	}
 
 	return TestScenario{
-		Description:     fmt.Sprintf("Test whether skill prevents common mistakes in %s", skillName),
+		Description:     "Test whether skill prevents common mistakes in " + skillName,
 		SkillName:       skillName,
 		SkillContent:    skillContent.String(),
 		SuccessCriteria: successCriteria,

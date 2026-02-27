@@ -26,15 +26,6 @@ type Result struct {
 	Recommendation  string  // "preserve", "migrate", or "evaluate"
 }
 
-// idPattern matches traceability IDs in documentation.
-var idPattern = regexp.MustCompile(`(REQ|DES|ARCH|TASK|TEST)-\d+`)
-
-// exportPattern matches exported Go symbols (functions, types, vars, consts).
-var exportPattern = regexp.MustCompile(`(?m)^(?:func|type|var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
-
-// errSkipDir signals to skip a directory during walking.
-var errSkipDir = errors.New("skip")
-
 // Analyze performs coverage analysis on a project.
 func Analyze(root string, cfg *config.ProjectConfig, fs CoverageFS) (*Result, error) {
 	documented := countDocumentedItems(root, cfg, fs)
@@ -57,6 +48,13 @@ func Analyze(root string, cfg *config.ProjectConfig, fs CoverageFS) (*Result, er
 	return result, nil
 }
 
+// unexported variables.
+var (
+	errSkipDir    = errors.New("skip")
+	exportPattern = regexp.MustCompile(`(?m)^(?:func|type|var|const)\s+([A-Z][a-zA-Z0-9_]*)`)
+	idPattern     = regexp.MustCompile(`(REQ|DES|ARCH|TASK|TEST)-\d+`)
+)
+
 // countDocumentedItems counts traceability IDs in documentation files.
 func countDocumentedItems(root string, cfg *config.ProjectConfig, fs CoverageFS) int {
 	ids := make(map[string]bool)
@@ -72,10 +70,12 @@ func countDocumentedItems(root string, cfg *config.ProjectConfig, fs CoverageFS)
 
 	for _, name := range docFiles {
 		path := filepath.Join(docsDir, name)
+
 		content, err := fs.ReadFile(path)
 		if err != nil {
 			continue
 		}
+
 		matches := idPattern.FindAllString(content, -1)
 		for _, m := range matches {
 			ids[m] = true
@@ -89,6 +89,7 @@ func countDocumentedItems(root string, cfg *config.ProjectConfig, fs CoverageFS)
 			if base == "vendor" || base == ".git" {
 				return errSkipDir
 			}
+
 			return nil
 		}
 
@@ -97,11 +98,13 @@ func countDocumentedItems(root string, cfg *config.ProjectConfig, fs CoverageFS)
 			if err != nil {
 				return nil
 			}
+
 			matches := idPattern.FindAllString(content, -1)
 			for _, m := range matches {
 				ids[m] = true
 			}
 		}
+
 		return nil
 	})
 
@@ -118,6 +121,7 @@ func countInferredItems(root string, fs CoverageFS) int {
 			if base == "vendor" || base == ".git" || base == "internal" {
 				return errSkipDir
 			}
+
 			return nil
 		}
 
@@ -140,6 +144,7 @@ func countInferredItems(root string, fs CoverageFS) int {
 				}
 			}
 		}
+
 		return nil
 	})
 
@@ -151,8 +156,10 @@ func getRecommendation(ratio float64, cfg *config.ProjectConfig) string {
 	if ratio >= cfg.Heuristics.PreserveThreshold {
 		return "preserve"
 	}
+
 	if ratio < cfg.Heuristics.MigrateThreshold {
 		return "migrate"
 	}
+
 	return "evaluate"
 }

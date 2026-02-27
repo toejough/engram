@@ -22,11 +22,11 @@ func (m *mockSkillCompiler) CompileSkill(ctx context.Context, theme string, memo
 	return "", fmt.Errorf("LLM unavailable")
 }
 
-func (m *mockSkillCompiler) Extract(message string) (*memory.Observation, error) {
+func (m *mockSkillCompiler) Decide(newMessage string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (m *mockSkillCompiler) Decide(newMessage string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
+func (m *mockSkillCompiler) Extract(message string) (*memory.Observation, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 

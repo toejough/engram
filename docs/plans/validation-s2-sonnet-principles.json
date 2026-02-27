@@ -1,0 +1,47 @@
+[
+  {
+    "principle": "Before implementing a feature that modifies how items accumulate (like dependency chaining), model the domain as ordered groups rather than flat lists with mode flags. This prevents silent downgrades when the same API is called multiple times with different settings.",
+    "evidence": "User discovered that calling `Deps()` twice\u2014once with `Parallel` option, then without\u2014silently downgraded everything to serial mode because `depMode` was reset on every call. The team redesigned to use ordered `depGroups []depGroup` structure, which preserved each group's mode and enabled natural chaining without rework.",
+    "category": "api-design"
+  },
+  {
+    "principle": "When auditing a new feature, trace the full flow from parse \u2192 apply \u2192 runtime behavior. Config values that are parsed but never applied at runtime represent latent bugs that should be fixed during related refactoring work.",
+    "evidence": "During design review, the team discovered that `--dep-mode` override was parsed into `RuntimeOverrides.DepMode` but never actually applied at runtime\u2014it only affected help display strings. This latent bug had been hiding for years and was flagged for fixing as part of the refactor.",
+    "category": "debugging"
+  },
+  {
+    "principle": "When assigning parallel work to multiple agents, pre-plan file access patterns and create explicit sequencing for tasks that modify the same files. Block dependent tasks until conflicting work completes to avoid merge conflicts.",
+    "evidence": "Team split 5 bug fixes across 2 workers, but tasks 2, 3, and 4 all modified command.go. Worker-b handled tasks 2+3 independently while worker-a completed tasks 1 and 5, then explicitly waited for worker-b to finish before starting task 4.",
+    "category": "team-coordination"
+  },
+  {
+    "principle": "Structure multi-agent workflows with explicit roles (coordinator, executor, reviewer) and task dependencies rather than sequential management. Use a watchdog to maintain pipeline flow and enable peer-to-peer handoffs between workers and QA.",
+    "evidence": "User initiated a multi-agent team with watchdog coordinator, TDD worker, and QA reviewer with task dependencies. The system successfully coordinated 5 implementation tasks with peer-to-peer handoffs, keeping the pipeline moving without manual micromanagement.",
+    "category": "team-coordination"
+  },
+  {
+    "principle": "When batching independent bug fixes, perform dependency mapping at intake to identify file conflicts and task sequencing needs. Group tasks by file access patterns to minimize context switching and enable safe parallelization.",
+    "evidence": "Five independent bug fixes were triaged as a batch with dependency analysis: float64 (isolated), kebab-case + unknown tags (sequential, same file), binary help (blocked on others), create codegen (isolated). This mapping enabled efficient parallel execution across two workers.",
+    "category": "team-coordination"
+  },
+  {
+    "principle": "When encountering fragmented, inconsistently-applied systems (like help text appearing in wrong contexts), recognize it as an architectural problem requiring comprehensive redesign rather than incremental patches. This prevents future regressions.",
+    "evidence": "User identified that targ CLI commands (--create, --dependencies) were appearing in standalone binary help where they don't make sense, revealing systemic help ecosystem fragmentation. This led to a comprehensive help system overhaul rather than point fixes.",
+    "category": "code-quality"
+  },
+  {
+    "principle": "For user-facing output like help text and examples, choose deterministic auto-generation over dynamic content to ensure stable, predictable output and avoid non-reproducible behavior in compiled binaries.",
+    "evidence": "User shifted from accepting rapid-based dynamic examples to accepting deterministic auto-generated examples built from flag metadata. This decision prioritized stable, predictable help output and avoided pulling test library dependencies into compiled binaries.",
+    "category": "cli-design"
+  },
+  {
+    "principle": "When designing flag systems with multiple contexts (CLI vs binary mode), make it actively difficult to do the wrong thing: default user-created flags to the safe path (bypass explicit declaration) and require explicit mode tagging only for system flags.",
+    "evidence": "User designed tag-based `FlagMode` on `flags.Def` (FlagModeAll vs FlagModeTargOnly) where user-created flags default to ModeAll via a different code path (`AddCommandFlags()` vs `AddTargFlagsFiltered()`), while system flags must be explicitly declared with their mode.",
+    "category": "api-design"
+  },
+  {
+    "principle": "When multiple tasks in a refactoring effort each update test expectations incrementally, document this preventive pattern at task completion. If later regression-testing tasks find no work needed, this indicates successful incremental quality maintenance rather than task redundancy.",
+    "evidence": "Task 7 (regression testing) required no new commits because test expectation updates were already handled incrementally during Tasks 1-6. Worker-a questioned whether to document this preventive work, but the pattern showed that distributing regression prevention across earlier tasks eliminated downstream rework.",
+    "category": "testing"
+  }
+]

@@ -10,13 +10,6 @@ import (
 	"path/filepath"
 )
 
-// TransactionOpts holds options for creating a transaction.
-type TransactionOpts struct {
-	DBPath       string // Path to embeddings.db
-	ClaudeMDPath string // Path to CLAUDE.md
-	SkillsDir    string // Path to skills directory
-}
-
 // ChangeRecord represents a single change made during a transaction.
 // Used for transaction logging and potential undo operations.
 type ChangeRecord struct {
@@ -43,109 +36,9 @@ func NewTransaction(opts TransactionOpts) *Transaction {
 	}
 }
 
-// CreateBackups creates backup copies of all critical files before modifications.
-// Removes any stale backups from previous failed runs before creating new ones.
-func (t *Transaction) CreateBackups() error {
-	if t.backupsCreated {
-		return errors.New("backups already created")
-	}
-
-	// Remove stale backups from previous failed runs
-	t.Cleanup()
-
-	// Backup embeddings.db
-	if t.opts.DBPath != "" {
-		if _, err := os.Stat(t.opts.DBPath); err == nil {
-			if err := copyFile(t.opts.DBPath, t.opts.DBPath+".bak"); err != nil {
-				return fmt.Errorf("failed to backup database: %w", err)
-			}
-		}
-	}
-
-	// Backup CLAUDE.md
-	if t.opts.ClaudeMDPath != "" {
-		if _, err := os.Stat(t.opts.ClaudeMDPath); err == nil {
-			if err := copyFile(t.opts.ClaudeMDPath, t.opts.ClaudeMDPath+".bak"); err != nil {
-				return fmt.Errorf("failed to backup CLAUDE.md: %w", err)
-			}
-		}
-	}
-
-	// Backup skills directory
-	if t.opts.SkillsDir != "" {
-		if _, err := os.Stat(t.opts.SkillsDir); err == nil {
-			if err := copyDir(t.opts.SkillsDir, t.opts.SkillsDir+".bak"); err != nil {
-				return fmt.Errorf("failed to backup skills directory: %w", err)
-			}
-		}
-	}
-
-	t.backupsCreated = true
-	return nil
-}
-
-// RecordChange records a change operation in the transaction log.
-func (t *Transaction) RecordChange(change ChangeRecord) {
-	t.changes = append(t.changes, change)
-}
-
-// GetChanges returns all recorded changes in the transaction.
-func (t *Transaction) GetChanges() []ChangeRecord {
-	return t.changes
-}
-
 // BackupsCreated returns whether backups have been created for this transaction.
 func (t *Transaction) BackupsCreated() bool {
 	return t.backupsCreated
-}
-
-// Rollback restores all files from backups, undoing all changes.
-// Returns an error if no backups exist.
-func (t *Transaction) Rollback() error {
-	if !t.backupsCreated {
-		return errors.New("no backups to restore")
-	}
-
-	// Restore embeddings.db
-	if t.opts.DBPath != "" {
-		bakPath := t.opts.DBPath + ".bak"
-		if _, err := os.Stat(bakPath); err == nil {
-			// Remove current file
-			_ = os.Remove(t.opts.DBPath)
-			// Restore from backup
-			if err := copyFile(bakPath, t.opts.DBPath); err != nil {
-				return fmt.Errorf("failed to restore database: %w", err)
-			}
-		}
-	}
-
-	// Restore CLAUDE.md
-	if t.opts.ClaudeMDPath != "" {
-		bakPath := t.opts.ClaudeMDPath + ".bak"
-		if _, err := os.Stat(bakPath); err == nil {
-			// Remove current file
-			_ = os.Remove(t.opts.ClaudeMDPath)
-			// Restore from backup
-			if err := copyFile(bakPath, t.opts.ClaudeMDPath); err != nil {
-				return fmt.Errorf("failed to restore CLAUDE.md: %w", err)
-			}
-		}
-	}
-
-	// Restore skills directory
-	if t.opts.SkillsDir != "" {
-		bakPath := t.opts.SkillsDir + ".bak"
-		if _, err := os.Stat(bakPath); err == nil {
-			// Remove current directory
-			_ = os.RemoveAll(t.opts.SkillsDir)
-			// Restore from backup
-			if err := copyDir(bakPath, t.opts.SkillsDir); err != nil {
-				return fmt.Errorf("failed to restore skills directory: %w", err)
-			}
-		}
-	}
-
-	return nil
 }
 
 // Cleanup removes all backup files after successful commit.
@@ -169,6 +62,113 @@ func (t *Transaction) Cleanup() error {
 	return nil
 }
 
+// CreateBackups creates backup copies of all critical files before modifications.
+// Removes any stale backups from previous failed runs before creating new ones.
+func (t *Transaction) CreateBackups() error {
+	if t.backupsCreated {
+		return errors.New("backups already created")
+	}
+
+	// Remove stale backups from previous failed runs
+	_ = t.Cleanup()
+
+	// Backup embeddings.db
+	if t.opts.DBPath != "" {
+		if _, err := os.Stat(t.opts.DBPath); err == nil {
+			err := copyFile(t.opts.DBPath, t.opts.DBPath+".bak")
+			if err != nil {
+				return fmt.Errorf("failed to backup database: %w", err)
+			}
+		}
+	}
+
+	// Backup CLAUDE.md
+	if t.opts.ClaudeMDPath != "" {
+		if _, err := os.Stat(t.opts.ClaudeMDPath); err == nil {
+			err := copyFile(t.opts.ClaudeMDPath, t.opts.ClaudeMDPath+".bak")
+			if err != nil {
+				return fmt.Errorf("failed to backup CLAUDE.md: %w", err)
+			}
+		}
+	}
+
+	// Backup skills directory
+	if t.opts.SkillsDir != "" {
+		if _, err := os.Stat(t.opts.SkillsDir); err == nil {
+			err := copyDir(osDirOps{}, t.opts.SkillsDir, t.opts.SkillsDir+".bak")
+			if err != nil {
+				return fmt.Errorf("failed to backup skills directory: %w", err)
+			}
+		}
+	}
+
+	t.backupsCreated = true
+
+	return nil
+}
+
+// GetChanges returns all recorded changes in the transaction.
+func (t *Transaction) GetChanges() []ChangeRecord {
+	return t.changes
+}
+
+// RecordChange records a change operation in the transaction log.
+func (t *Transaction) RecordChange(change ChangeRecord) {
+	t.changes = append(t.changes, change)
+}
+
+// Rollback restores all files from backups, undoing all changes.
+// Returns an error if no backups exist.
+func (t *Transaction) Rollback() error {
+	if !t.backupsCreated {
+		return errors.New("no backups to restore")
+	}
+
+	// Restore embeddings.db
+	if t.opts.DBPath != "" {
+		bakPath := t.opts.DBPath + ".bak"
+		if _, err := os.Stat(bakPath); err == nil {
+			// Remove current file
+			_ = os.Remove(t.opts.DBPath)
+			// Restore from backup
+			err := copyFile(bakPath, t.opts.DBPath)
+			if err != nil {
+				return fmt.Errorf("failed to restore database: %w", err)
+			}
+		}
+	}
+
+	// Restore CLAUDE.md
+	if t.opts.ClaudeMDPath != "" {
+		bakPath := t.opts.ClaudeMDPath + ".bak"
+		if _, err := os.Stat(bakPath); err == nil {
+			// Remove current file
+			_ = os.Remove(t.opts.ClaudeMDPath)
+			// Restore from backup
+			err := copyFile(bakPath, t.opts.ClaudeMDPath)
+			if err != nil {
+				return fmt.Errorf("failed to restore CLAUDE.md: %w", err)
+			}
+		}
+	}
+
+	// Restore skills directory
+	if t.opts.SkillsDir != "" {
+		bakPath := t.opts.SkillsDir + ".bak"
+		if _, err := os.Stat(bakPath); err == nil {
+			// Remove current directory
+			_ = os.RemoveAll(t.opts.SkillsDir)
+			// Restore from backup
+			err := copyDir(osDirOps{}, bakPath, t.opts.SkillsDir)
+			if err != nil {
+				return fmt.Errorf("failed to restore skills directory: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // SaveLog saves the transaction log to a file.
 func (t *Transaction) SaveLog(path string) error {
 	data, err := json.MarshalIndent(t.changes, "", "  ")
@@ -181,6 +181,19 @@ func (t *Transaction) SaveLog(path string) error {
 	}
 
 	return nil
+}
+
+// TransactionOpts holds options for creating a transaction.
+type TransactionOpts struct {
+	DBPath       string // Path to embeddings.db
+	ClaudeMDPath string // Path to CLAUDE.md
+	SkillsDir    string // Path to skills directory
+}
+
+// InitTestDB is a helper function for tests to initialize a test database.
+// It wraps initEmbeddingsDB which is package-private.
+func InitTestDB(path string) (*sql.DB, error) {
+	return initEmbeddingsDB(path)
 }
 
 // LoadTransactionLog loads a transaction log from a file.
@@ -198,47 +211,43 @@ func LoadTransactionLog(path string) ([]ChangeRecord, error) {
 	return changes, nil
 }
 
-// copyFile copies a file from src to dst.
-func copyFile(src, dst string) error {
-	sourceFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer sourceFile.Close()
-
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	if _, err := io.Copy(destFile, sourceFile); err != nil {
-		return err
-	}
-
-	// Copy file permissions
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	return os.Chmod(dst, srcInfo.Mode())
+// dirOps abstracts filesystem operations used by copyDir to allow DI in tests.
+type dirOps interface {
+	Stat(name string) (os.FileInfo, error)
+	MkdirAll(path string, perm os.FileMode) error
+	ReadDir(name string) ([]os.DirEntry, error)
+	Readlink(name string) (string, error)
+	Symlink(oldname, newname string) error
 }
 
+// osDirOps implements dirOps using the real OS.
+type osDirOps struct{}
+
+func (osDirOps) MkdirAll(path string, perm os.FileMode) error { return os.MkdirAll(path, perm) }
+
+func (osDirOps) ReadDir(name string) ([]os.DirEntry, error) { return os.ReadDir(name) }
+
+func (osDirOps) Readlink(name string) (string, error) { return os.Readlink(name) }
+
+func (osDirOps) Stat(name string) (os.FileInfo, error) { return os.Stat(name) }
+
+func (osDirOps) Symlink(oldname, newname string) error { return os.Symlink(oldname, newname) }
+
 // copyDir recursively copies a directory from src to dst.
-func copyDir(src, dst string) error {
+func copyDir(ops dirOps, src, dst string) error {
 	// Get source directory info
-	srcInfo, err := os.Stat(src)
+	srcInfo, err := ops.Stat(src)
 	if err != nil {
 		return err
 	}
 
 	// Create destination directory
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
+	if err := ops.MkdirAll(dst, srcInfo.Mode()); err != nil {
 		return err
 	}
 
 	// Read source directory
-	entries, err := os.ReadDir(src)
+	entries, err := ops.ReadDir(src)
 	if err != nil {
 		return err
 	}
@@ -250,21 +259,24 @@ func copyDir(src, dst string) error {
 
 		// Handle symlinks: recreate the link rather than copying the target
 		if entry.Type()&os.ModeSymlink != 0 {
-			linkTarget, err := os.Readlink(srcPath)
+			linkTarget, err := ops.Readlink(srcPath)
 			if err != nil {
 				return err
 			}
-			if err := os.Symlink(linkTarget, dstPath); err != nil {
+
+			if err := ops.Symlink(linkTarget, dstPath); err != nil {
 				return err
 			}
 		} else if entry.IsDir() {
 			// Recursively copy subdirectory
-			if err := copyDir(srcPath, dstPath); err != nil {
+			err := copyDir(ops, srcPath, dstPath)
+			if err != nil {
 				return err
 			}
 		} else {
 			// Copy file
-			if err := copyFile(srcPath, dstPath); err != nil {
+			err := copyFile(srcPath, dstPath)
+			if err != nil {
 				return err
 			}
 		}
@@ -273,8 +285,31 @@ func copyDir(src, dst string) error {
 	return nil
 }
 
-// InitTestDB is a helper function for tests to initialize a test database.
-// It wraps initEmbeddingsDB which is package-private.
-func InitTestDB(path string) (*sql.DB, error) {
-	return initEmbeddingsDB(path)
+// copyFile copies a file from src to dst.
+func copyFile(src, dst string) error {
+	sourceFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = sourceFile.Close() }()
+
+	destFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = destFile.Close() }()
+
+	if _, err := io.Copy(destFile, sourceFile); err != nil {
+		return err
+	}
+
+	// Copy file permissions
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	return os.Chmod(dst, srcInfo.Mode())
 }

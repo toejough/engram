@@ -21,9 +21,11 @@ func TestDiscoverSessions(t *testing.T) {
 	if err := os.MkdirAll(proj1, 0755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.MkdirAll(proj2, 0755); err != nil {
 		t.Fatal(err)
 	}
+
 	if err := os.MkdirAll(subagentDir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -55,9 +57,11 @@ func TestDiscoverSessions(t *testing.T) {
 		for i := range content {
 			content[i] = 'x'
 		}
+
 		if err := os.WriteFile(s.path, content, 0644); err != nil {
 			t.Fatal(err)
 		}
+
 		modTime := now.Add(-s.age)
 		if err := os.Chtimes(s.path, modTime, modTime); err != nil {
 			t.Fatal(err)
@@ -68,6 +72,7 @@ func TestDiscoverSessions(t *testing.T) {
 		opts := memory.DiscoverOpts{
 			ProjectsDir: tmpDir,
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -91,6 +96,7 @@ func TestDiscoverSessions(t *testing.T) {
 			ProjectsDir: tmpDir,
 			MinSize:     500, // Should exclude tiny.jsonl (10 bytes)
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -114,6 +120,7 @@ func TestDiscoverSessions(t *testing.T) {
 			ProjectsDir: tmpDir,
 			Days:        1, // Only sessions modified in last 24 hours
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -131,6 +138,7 @@ func TestDiscoverSessions(t *testing.T) {
 			ProjectsDir: tmpDir,
 			Last:        2,
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -146,6 +154,7 @@ func TestDiscoverSessions(t *testing.T) {
 			ProjectsDir: tmpDir,
 			MinSize:     500, // Exclude tiny.jsonl for clarity
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -165,6 +174,7 @@ func TestDiscoverSessions(t *testing.T) {
 			ProjectsDir: tmpDir,
 			MinSize:     500,
 		}
+
 		results, err := memory.DiscoverSessions(opts)
 		if err != nil {
 			t.Fatalf("DiscoverSessions failed: %v", err)
@@ -179,6 +189,7 @@ func TestDiscoverSessions(t *testing.T) {
 		if !projectNames["projctl"] {
 			t.Errorf("expected project 'projctl' to be derived from -Users-joe-repos-personal-projctl")
 		}
+
 		if !projectNames["myapp"] {
 			t.Errorf("expected project 'myapp' to be derived from -Users-joe-repos-work-myapp")
 		}

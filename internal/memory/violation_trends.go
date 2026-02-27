@@ -21,19 +21,23 @@ func ComputeViolationTrends(violations []ChangelogEntry, periodDays int) map[str
 
 	// Group violations by rule
 	ruleViolations := make(map[string][]ChangelogEntry)
+
 	for _, v := range violations {
 		if v.Action != "hook_violation" {
 			continue
 		}
+
 		rule := v.Metadata["rule"]
 		if rule == "" {
 			continue
 		}
+
 		ruleViolations[rule] = append(ruleViolations[rule], v)
 	}
 
 	// Compute trends for each rule
 	trends := make(map[string]ViolationTrend)
+
 	now := violations[len(violations)-1].Timestamp // Use latest violation as "now"
 	if len(violations) > 0 {
 		for _, v := range violations {
@@ -67,10 +71,13 @@ func computeTrendForRule(rule string, violations []ChangelogEntry, periodDays in
 	}
 
 	// Determine trend
-	var trending string
-	var recommendation string
+	var (
+		trending       string
+		recommendation string
+	)
 
 	// Single violation is always stable (insufficient data for trend)
+
 	if len(violations) == 1 {
 		trending = "stable"
 		recommendation = "Insufficient data for trend analysis"

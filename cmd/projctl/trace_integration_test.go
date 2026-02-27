@@ -11,82 +11,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TestTraceShowASCII tests the CLI interface for projctl trace show (default ASCII)
-func TestTraceShowASCII(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	// Create artifacts with trace links (at root, since DocsDir defaults to "")
-	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
-
-### REQ-001: Feature
-
-Description.
-`), 0o644)).To(Succeed())
-
-	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
-
-### DES-001: Design
-
-**Traces to:** REQ-001
-`), 0o644)).To(Succeed())
-
-	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("REQ-001"))
-	g.Expect(string(output)).To(ContainSubstring("DES-001"))
-}
-
-// TestTraceShowJSON tests the CLI interface for projctl trace show --format json
-func TestTraceShowJSON(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	// Create artifacts with trace links (at root, since DocsDir defaults to "")
-	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
-
-### REQ-001: Feature
-
-Description.
-`), 0o644)).To(Succeed())
-
-	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
-
-### DES-001: Design
-
-**Traces to:** REQ-001
-`), 0o644)).To(Succeed())
-
-	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir, "--format", "json")
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring(`"nodes"`))
-	g.Expect(string(output)).To(ContainSubstring(`"edges"`))
-	g.Expect(string(output)).To(ContainSubstring(`"REQ-001"`))
-	g.Expect(string(output)).To(ContainSubstring(`"DES-001"`))
-}
-
-// TestTraceShowInvalidFormat tests error handling for invalid format
-func TestTraceShowInvalidFormat(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir, "--format", "invalid")
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Command should fail for invalid format")
-	g.Expect(string(output)).To(ContainSubstring("invalid format"))
-}
-
 // TEST-800: CLI trace promote promotes TASK traces to permanent IDs
 // traces: TASK-008
 func TestTracePromote(t *testing.T) {
@@ -175,6 +99,40 @@ func TestFeature(t *testing.T) {
 	g.Expect(string(content)).To(Equal(originalContent))
 }
 
+// TEST-803: CLI trace promote with JSON output
+// traces: TASK-008
+func TestTracePromoteJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// tasks.md goes at root (DocsDir is empty by default)
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
+
+### TASK-001: Implement feature
+
+**Traces to:** ARCH-001
+`), 0o644)).To(Succeed())
+
+	internalDir := filepath.Join(tempDir, "internal", "feature")
+	g.Expect(os.MkdirAll(internalDir, 0o755)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(internalDir, "feature_test.go"), []byte(`package feature_test
+
+// TEST-100: Feature test
+// traces: TASK-001
+func TestFeature() {}
+`), 0o644)).To(Succeed())
+
+	cmd := exec.Command("projctl", "trace", "promote", "--dir", tempDir, "--json")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring(`"promotions"`))
+	g.Expect(string(output)).To(ContainSubstring(`"old_trace"`))
+	g.Expect(string(output)).To(ContainSubstring(`"new_trace"`))
+}
+
 // TEST-802: CLI trace promote reports number of files modified
 // traces: TASK-008
 func TestTracePromoteReportsFileCount(t *testing.T) {
@@ -223,36 +181,78 @@ func TestFeature2() {}
 	g.Expect(string(output)).To(ContainSubstring("2 file"))
 }
 
-// TEST-803: CLI trace promote with JSON output
-// traces: TASK-008
-func TestTracePromoteJSON(t *testing.T) {
+// TestTraceShowASCII tests the CLI interface for projctl trace show (default ASCII)
+func TestTraceShowASCII(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 
-	// tasks.md goes at root (DocsDir is empty by default)
-	g.Expect(os.WriteFile(filepath.Join(tempDir, "tasks.md"), []byte(`# Tasks
+	// Create artifacts with trace links (at root, since DocsDir defaults to "")
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
 
-### TASK-001: Implement feature
+### REQ-001: Feature
 
-**Traces to:** ARCH-001
+Description.
 `), 0o644)).To(Succeed())
 
-	internalDir := filepath.Join(tempDir, "internal", "feature")
-	g.Expect(os.MkdirAll(internalDir, 0o755)).To(Succeed())
-	g.Expect(os.WriteFile(filepath.Join(internalDir, "feature_test.go"), []byte(`package feature_test
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
 
-// TEST-100: Feature test
-// traces: TASK-001
-func TestFeature() {}
+### DES-001: Design
+
+**Traces to:** REQ-001
 `), 0o644)).To(Succeed())
 
-	cmd := exec.Command("projctl", "trace", "promote", "--dir", tempDir, "--json")
+	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir)
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring(`"promotions"`))
-	g.Expect(string(output)).To(ContainSubstring(`"old_trace"`))
-	g.Expect(string(output)).To(ContainSubstring(`"new_trace"`))
+	g.Expect(string(output)).To(ContainSubstring("REQ-001"))
+	g.Expect(string(output)).To(ContainSubstring("DES-001"))
+}
+
+// TestTraceShowInvalidFormat tests error handling for invalid format
+func TestTraceShowInvalidFormat(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir, "--format", "invalid")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).To(HaveOccurred(), "Command should fail for invalid format")
+	g.Expect(string(output)).To(ContainSubstring("invalid format"))
+}
+
+// TestTraceShowJSON tests the CLI interface for projctl trace show --format json
+func TestTraceShowJSON(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// Create artifacts with trace links (at root, since DocsDir defaults to "")
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "requirements.md"), []byte(`# Requirements
+
+### REQ-001: Feature
+
+Description.
+`), 0o644)).To(Succeed())
+
+	g.Expect(os.WriteFile(filepath.Join(tempDir, "design.md"), []byte(`# Design
+
+### DES-001: Design
+
+**Traces to:** REQ-001
+`), 0o644)).To(Succeed())
+
+	cmd := exec.Command("projctl", "trace", "show", "--dir", tempDir, "--format", "json")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring(`"nodes"`))
+	g.Expect(string(output)).To(ContainSubstring(`"edges"`))
+	g.Expect(string(output)).To(ContainSubstring(`"REQ-001"`))
+	g.Expect(string(output)).To(ContainSubstring(`"DES-001"`))
 }

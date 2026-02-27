@@ -46,6 +46,7 @@ func (sc SkillConfidence) Mean() float64 {
 	if sum == 0 {
 		return 0
 	}
+
 	return sc.Alpha / sum
 }
 
@@ -63,6 +64,75 @@ type SkillGenResult struct {
 	SkillsPruned   int
 }
 
+// ListSkillsPublic returns all non-pruned skills. Exported for CLI usage.
+func ListSkillsPublic(db *sql.DB) ([]GeneratedSkill, error) {
+	return listSkills(db)
+}
+
+// OpenSkillDB opens the embeddings database for skill operations.
+func OpenSkillDB(memoryRoot string) (*sql.DB, error) {
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	return initEmbeddingsDB(dbPath)
+}
+
+// RecordSkillFeedback updates a skill's alpha/beta parameters and recomputes utility.
+// If success is true, alpha is incremented; otherwise beta is incremented.
+func RecordSkillFeedback(db *sql.DB, slug string, success bool) error {
+	skill, err := getSkillBySlug(db, slug)
+	if err != nil {
+		return fmt.Errorf("failed to find skill %q: %w", slug, err)
+	}
+
+	if skill == nil {
+		return fmt.Errorf("skill %q not found", slug)
+	}
+
+	if success {
+		skill.Alpha += 1.0
+	} else {
+		skill.Beta += 1.0
+	}
+
+	skill.Utility = computeUtility(skill.Alpha, skill.Beta, skill.RetrievalCount, skill.LastRetrieved)
+	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	return updateSkill(db, skill)
+}
+
+// RecordSkillUsage updates retrieval tracking and optionally records positive feedback.
+// Increments retrieval_count, updates last_retrieved timestamp.
+// If success is true, also calls RecordSkillFeedback to update alpha.
+func RecordSkillUsage(db *sql.DB, slug string, success bool) error {
+	skill, err := getSkillBySlug(db, slug)
+	if err != nil {
+		return fmt.Errorf("failed to find skill %q: %w", slug, err)
+	}
+
+	if skill == nil {
+		return fmt.Errorf("skill %q not found", slug)
+	}
+
+	// Update retrieval tracking
+	skill.RetrievalCount += 1
+	skill.LastRetrieved = time.Now().UTC().Format(time.RFC3339)
+	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	// Recompute utility with updated retrieval stats
+	skill.Utility = computeUtility(skill.Alpha, skill.Beta, skill.RetrievalCount, skill.LastRetrieved)
+
+	// Persist the retrieval tracking update
+	if err := updateSkill(db, skill); err != nil {
+		return err
+	}
+
+	// If successful usage, also record positive feedback (increments alpha)
+	if success {
+		return RecordSkillFeedback(db, slug, true)
+	}
+
+	return nil
+}
+
 // computeUtility calculates skill utility using the MACLA formula:
 // utility = 0.5*(alpha/(alpha+beta)) + 0.3*min(1, ln(1+retrievals)/5) + 0.2*exp(-days_since_last/30)
 func computeUtility(alpha, beta float64, retrievals int, lastRetrieved string) float64 {
@@ -74,6 +144,7 @@ func computeUtility(alpha, beta float64, retrievals int, lastRetrieved string) f
 
 	// Recency score
 	var recencyScore float64
+
 	if lastRetrieved != "" {
 		t, err := time.Parse(time.RFC3339, lastRetrieved)
 		if err == nil {
@@ -88,208 +159,12 @@ func computeUtility(alpha, beta float64, retrievals int, lastRetrieved string) f
 	if utility < 0 {
 		utility = 0
 	}
+
 	if utility > 1 {
 		utility = 1
 	}
 
 	return utility
-}
-
-// insertSkill inserts a GeneratedSkill and returns its auto-generated ID.
-func insertSkill(db *sql.DB, skill *GeneratedSkill) (int64, error) {
-	prunedInt := 0
-	if skill.Pruned {
-		prunedInt = 1
-	}
-
-	stmt := `INSERT INTO generated_skills (
-		slug, theme, description, content, source_memory_ids,
-		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id, demoted_from_claude_md, split_from_id
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-
-	result, err := db.Exec(stmt,
-		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
-		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
-		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD, skill.SplitFromID)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return result.LastInsertId()
-}
-
-// getSkillBySlug retrieves a GeneratedSkill by its slug.
-// Returns (nil, nil) if not found.
-func getSkillBySlug(db *sql.DB, slug string) (*GeneratedSkill, error) {
-	stmt := `SELECT
-		id, slug, theme, description, content, source_memory_ids,
-		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
-	FROM generated_skills WHERE slug = ?`
-
-	skill := &GeneratedSkill{}
-	var prunedInt int
-	var lastRetrieved sql.NullString
-	var embeddingID sql.NullInt64
-
-	err := db.QueryRow(stmt, slug).Scan(
-		&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
-		&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
-		&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
-
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	skill.Pruned = prunedInt != 0
-	if lastRetrieved.Valid {
-		skill.LastRetrieved = lastRetrieved.String
-	}
-	if embeddingID.Valid {
-		skill.EmbeddingID = embeddingID.Int64
-	}
-
-	return skill, nil
-}
-
-// listSkills returns all non-pruned GeneratedSkills.
-func listSkills(db *sql.DB) ([]GeneratedSkill, error) {
-	stmt := `SELECT
-		id, slug, theme, description, content, source_memory_ids,
-		alpha, beta, utility, retrieval_count, last_retrieved,
-		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
-	FROM generated_skills WHERE pruned = 0`
-
-	rows, err := db.Query(stmt)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = rows.Close() }()
-
-	skills := make([]GeneratedSkill, 0)
-
-	for rows.Next() {
-		var skill GeneratedSkill
-		var prunedInt int
-		var lastRetrieved sql.NullString
-		var embeddingID sql.NullInt64
-
-		err := rows.Scan(
-			&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
-			&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
-			&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
-
-		if err != nil {
-			return nil, err
-		}
-
-		skill.Pruned = prunedInt != 0
-		if lastRetrieved.Valid {
-			skill.LastRetrieved = lastRetrieved.String
-		}
-		if embeddingID.Valid {
-			skill.EmbeddingID = embeddingID.Int64
-		}
-
-		skills = append(skills, skill)
-	}
-
-	return skills, rows.Err()
-}
-
-// updateSkill updates an existing GeneratedSkill by ID.
-func updateSkill(db *sql.DB, skill *GeneratedSkill) error {
-	prunedInt := 0
-	if skill.Pruned {
-		prunedInt = 1
-	}
-
-	stmt := `UPDATE generated_skills SET
-		slug = ?, theme = ?, description = ?, content = ?, source_memory_ids = ?,
-		alpha = ?, beta = ?, utility = ?, retrieval_count = ?, last_retrieved = ?,
-		created_at = ?, updated_at = ?, pruned = ?, embedding_id = ?, demoted_from_claude_md = ?
-	WHERE id = ?`
-
-	_, err := db.Exec(stmt,
-		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
-		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
-		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD,
-		skill.ID)
-
-	return err
-}
-
-// softDeleteSkill marks a skill as pruned (soft delete).
-func softDeleteSkill(db *sql.DB, id int64) error {
-	_, err := db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", id)
-	return err
-}
-
-// nullString converts an empty string to NULL for SQL.
-func nullString(s string) interface{} {
-	if s == "" {
-		return nil
-	}
-	return s
-}
-
-// nullInt64 converts a zero int64 to NULL for SQL.
-func nullInt64(i int64) interface{} {
-	if i == 0 {
-		return nil
-	}
-	return i
-}
-
-// scoreCluster computes the MACLA utility score for a memory cluster
-// by averaging the utility of all member memories.
-func scoreCluster(db *sql.DB, cluster []ClusterEntry) (float64, error) {
-	if len(cluster) == 0 {
-		return 0, nil
-	}
-
-	var totalUtility float64
-
-	for _, entry := range cluster {
-		// Fetch metadata for this embedding
-		var confidence float64
-		var retrievalCount int
-		var lastRetrieved sql.NullString
-
-		err := db.QueryRow(`
-			SELECT confidence, retrieval_count, last_retrieved
-			FROM embeddings
-			WHERE id = ?
-		`, entry.ID).Scan(&confidence, &retrievalCount, &lastRetrieved)
-
-		if err != nil {
-			return 0, fmt.Errorf("failed to fetch metadata for embedding %d: %w", entry.ID, err)
-		}
-
-		// Convert confidence to alpha/beta parameters (simplified: confidence -> alpha, 1-confidence -> beta)
-		// For MACLA formula, we treat confidence as alpha/(alpha+beta)
-		// If confidence = c, then alpha = c and beta = 1-c satisfies alpha/(alpha+beta) = c
-		alpha := confidence
-		beta := 1.0 - confidence
-		if beta < 0.001 {
-			beta = 0.001 // Avoid division by zero
-		}
-
-		lastRetrievedStr := ""
-		if lastRetrieved.Valid {
-			lastRetrievedStr = lastRetrieved.String
-		}
-
-		utility := computeUtility(alpha, beta, retrievalCount, lastRetrievedStr)
-		totalUtility += utility
-	}
-
-	return totalUtility / float64(len(cluster)), nil
 }
 
 // generateSkillContent generates skill markdown content from a theme and cluster.
@@ -320,13 +195,212 @@ func generateSkillContent(ctx context.Context, theme string, cluster []ClusterEn
 	sb.WriteString("## When to Use\n\n")
 	sb.WriteString(fmt.Sprintf("Apply when working on %s-related tasks or encountering similar patterns.\n\n", theme))
 	sb.WriteString("## Quick Reference\n\n")
+
 	for i, entry := range cluster {
 		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, entry.Content))
 	}
+
 	sb.WriteString("\n## Common Mistakes\n\n")
 	sb.WriteString(fmt.Sprintf("- Ignoring %s best practices when under time pressure.\n", theme))
 
 	return sb.String(), nil
+}
+
+// generateTriggerDescription generates a "Use when..." trigger description from theme.
+// Returns a string starting with "Use when", max 1024 chars, third person only.
+// The output is deterministic from the theme — it is NOT derived from content truncation.
+func generateTriggerDescription(theme, content string) string {
+	desc := fmt.Sprintf("Use when the user encounters %s-related patterns or needs guidance on %s.", theme, theme)
+	if len(desc) > 1024 {
+		desc = desc[:1024]
+	}
+
+	return desc
+}
+
+// getSkillBySlug retrieves a GeneratedSkill by its slug.
+// Returns (nil, nil) if not found.
+func getSkillBySlug(db *sql.DB, slug string) (*GeneratedSkill, error) {
+	stmt := `SELECT
+		id, slug, theme, description, content, source_memory_ids,
+		alpha, beta, utility, retrieval_count, last_retrieved,
+		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
+	FROM generated_skills WHERE slug = ?`
+
+	skill := &GeneratedSkill{}
+
+	var (
+		prunedInt     int
+		lastRetrieved sql.NullString
+		embeddingID   sql.NullInt64
+	)
+
+	err := db.QueryRow(stmt, slug).Scan(
+		&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
+		&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
+		&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	skill.Pruned = prunedInt != 0
+	if lastRetrieved.Valid {
+		skill.LastRetrieved = lastRetrieved.String
+	}
+
+	if embeddingID.Valid {
+		skill.EmbeddingID = embeddingID.Int64
+	}
+
+	return skill, nil
+}
+
+// insertSkill inserts a GeneratedSkill and returns its auto-generated ID.
+func insertSkill(db *sql.DB, skill *GeneratedSkill) (int64, error) {
+	prunedInt := 0
+	if skill.Pruned {
+		prunedInt = 1
+	}
+
+	stmt := `INSERT INTO generated_skills (
+		slug, theme, description, content, source_memory_ids,
+		alpha, beta, utility, retrieval_count, last_retrieved,
+		created_at, updated_at, pruned, embedding_id, demoted_from_claude_md, split_from_id
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	result, err := db.Exec(stmt,
+		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
+		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
+		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD, skill.SplitFromID)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.LastInsertId()
+}
+
+// listSkills returns all non-pruned GeneratedSkills.
+func listSkills(db *sql.DB) ([]GeneratedSkill, error) {
+	stmt := `SELECT
+		id, slug, theme, description, content, source_memory_ids,
+		alpha, beta, utility, retrieval_count, last_retrieved,
+		created_at, updated_at, pruned, embedding_id, COALESCE(demoted_from_claude_md, '')
+	FROM generated_skills WHERE pruned = 0`
+
+	rows, err := db.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	skills := make([]GeneratedSkill, 0)
+
+	for rows.Next() {
+		var (
+			skill         GeneratedSkill
+			prunedInt     int
+			lastRetrieved sql.NullString
+			embeddingID   sql.NullInt64
+		)
+
+		err := rows.Scan(
+			&skill.ID, &skill.Slug, &skill.Theme, &skill.Description, &skill.Content, &skill.SourceMemoryIDs,
+			&skill.Alpha, &skill.Beta, &skill.Utility, &skill.RetrievalCount, &lastRetrieved,
+			&skill.CreatedAt, &skill.UpdatedAt, &prunedInt, &embeddingID, &skill.DemotedFromClaudeMD)
+		if err != nil {
+			return nil, err
+		}
+
+		skill.Pruned = prunedInt != 0
+		if lastRetrieved.Valid {
+			skill.LastRetrieved = lastRetrieved.String
+		}
+
+		if embeddingID.Valid {
+			skill.EmbeddingID = embeddingID.Int64
+		}
+
+		skills = append(skills, skill)
+	}
+
+	return skills, rows.Err()
+}
+
+// needsYAMLQuoting returns true if the string contains characters that need YAML quoting.
+func needsYAMLQuoting(s string) bool {
+	return strings.ContainsAny(s, ":\"'\n\\#[]{}|>&*!%@`")
+}
+
+// nullInt64 converts a zero int64 to NULL for SQL.
+func nullInt64(i int64) any {
+	if i == 0 {
+		return nil
+	}
+
+	return i
+}
+
+// nullString converts an empty string to NULL for SQL.
+func nullString(s string) any {
+	if s == "" {
+		return nil
+	}
+
+	return s
+}
+
+// scoreCluster computes the MACLA utility score for a memory cluster
+// by averaging the utility of all member memories.
+func scoreCluster(db *sql.DB, cluster []ClusterEntry) (float64, error) {
+	if len(cluster) == 0 {
+		return 0, nil
+	}
+
+	var totalUtility float64
+
+	for _, entry := range cluster {
+		// Fetch metadata for this embedding
+		var (
+			confidence     float64
+			retrievalCount int
+			lastRetrieved  sql.NullString
+		)
+
+		err := db.QueryRow(`
+			SELECT confidence, retrieval_count, last_retrieved
+			FROM embeddings
+			WHERE id = ?
+		`, entry.ID).Scan(&confidence, &retrievalCount, &lastRetrieved)
+		if err != nil {
+			return 0, fmt.Errorf("failed to fetch metadata for embedding %d: %w", entry.ID, err)
+		}
+
+		// Convert confidence to alpha/beta parameters (simplified: confidence -> alpha, 1-confidence -> beta)
+		// For MACLA formula, we treat confidence as alpha/(alpha+beta)
+		// If confidence = c, then alpha = c and beta = 1-c satisfies alpha/(alpha+beta) = c
+		alpha := confidence
+
+		beta := 1.0 - confidence
+		if beta < 0.001 {
+			beta = 0.001 // Avoid division by zero
+		}
+
+		lastRetrievedStr := ""
+		if lastRetrieved.Valid {
+			lastRetrievedStr = lastRetrieved.String
+		}
+
+		utility := computeUtility(alpha, beta, retrievalCount, lastRetrievedStr)
+		totalUtility += utility
+	}
+
+	return totalUtility / float64(len(cluster)), nil
 }
 
 // slugify converts a theme string to a URL-safe slug.
@@ -346,94 +420,41 @@ func slugify(s string) string {
 	return s
 }
 
-// RecordSkillFeedback updates a skill's alpha/beta parameters and recomputes utility.
-// If success is true, alpha is incremented; otherwise beta is incremented.
-func RecordSkillFeedback(db *sql.DB, slug string, success bool) error {
-	skill, err := getSkillBySlug(db, slug)
-	if err != nil {
-		return fmt.Errorf("failed to find skill %q: %w", slug, err)
-	}
-	if skill == nil {
-		return fmt.Errorf("skill %q not found", slug)
-	}
-
-	if success {
-		skill.Alpha += 1.0
-	} else {
-		skill.Beta += 1.0
-	}
-
-	skill.Utility = computeUtility(skill.Alpha, skill.Beta, skill.RetrievalCount, skill.LastRetrieved)
-	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-
-	return updateSkill(db, skill)
+// softDeleteSkill marks a skill as pruned (soft delete).
+func softDeleteSkill(db *sql.DB, id int64) error {
+	_, err := db.Exec("UPDATE generated_skills SET pruned = 1 WHERE id = ?", id)
+	return err
 }
 
-// RecordSkillUsage updates retrieval tracking and optionally records positive feedback.
-// Increments retrieval_count, updates last_retrieved timestamp.
-// If success is true, also calls RecordSkillFeedback to update alpha.
-func RecordSkillUsage(db *sql.DB, slug string, success bool) error {
-	skill, err := getSkillBySlug(db, slug)
-	if err != nil {
-		return fmt.Errorf("failed to find skill %q: %w", slug, err)
-	}
-	if skill == nil {
-		return fmt.Errorf("skill %q not found", slug)
+// updateSkill updates an existing GeneratedSkill by ID.
+func updateSkill(db *sql.DB, skill *GeneratedSkill) error {
+	prunedInt := 0
+	if skill.Pruned {
+		prunedInt = 1
 	}
 
-	// Update retrieval tracking
-	skill.RetrievalCount += 1
-	skill.LastRetrieved = time.Now().UTC().Format(time.RFC3339)
-	skill.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	stmt := `UPDATE generated_skills SET
+		slug = ?, theme = ?, description = ?, content = ?, source_memory_ids = ?,
+		alpha = ?, beta = ?, utility = ?, retrieval_count = ?, last_retrieved = ?,
+		created_at = ?, updated_at = ?, pruned = ?, embedding_id = ?, demoted_from_claude_md = ?
+	WHERE id = ?`
 
-	// Recompute utility with updated retrieval stats
-	skill.Utility = computeUtility(skill.Alpha, skill.Beta, skill.RetrievalCount, skill.LastRetrieved)
+	_, err := db.Exec(stmt,
+		skill.Slug, skill.Theme, skill.Description, skill.Content, skill.SourceMemoryIDs,
+		skill.Alpha, skill.Beta, skill.Utility, skill.RetrievalCount, nullString(skill.LastRetrieved),
+		skill.CreatedAt, skill.UpdatedAt, prunedInt, nullInt64(skill.EmbeddingID), skill.DemotedFromClaudeMD,
+		skill.ID)
 
-	// Persist the retrieval tracking update
-	if err := updateSkill(db, skill); err != nil {
-		return err
-	}
-
-	// If successful usage, also record positive feedback (increments alpha)
-	if success {
-		return RecordSkillFeedback(db, slug, true)
-	}
-
-	return nil
-}
-
-// ListSkillsPublic returns all non-pruned skills. Exported for CLI usage.
-func ListSkillsPublic(db *sql.DB) ([]GeneratedSkill, error) {
-	return listSkills(db)
-}
-
-// OpenSkillDB opens the embeddings database for skill operations.
-func OpenSkillDB(memoryRoot string) (*sql.DB, error) {
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	return initEmbeddingsDB(dbPath)
-}
-
-// generateTriggerDescription generates a "Use when..." trigger description from theme.
-// Returns a string starting with "Use when", max 1024 chars, third person only.
-// The output is deterministic from the theme — it is NOT derived from content truncation.
-func generateTriggerDescription(theme, content string) string {
-	desc := fmt.Sprintf("Use when the user encounters %s-related patterns or needs guidance on %s.", theme, theme)
-	if len(desc) > 1024 {
-		desc = desc[:1024]
-	}
-	return desc
-}
-
-// needsYAMLQuoting returns true if the string contains characters that need YAML quoting.
-func needsYAMLQuoting(s string) bool {
-	return strings.ContainsAny(s, ":\"'\n\\#[]{}|>&*!%@`")
+	return err
 }
 
 // writeSkillFile creates a SKILL.md file with YAML frontmatter.
 func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	// Create skill directory
 	skillDir := filepath.Join(skillsDir, "memory-"+skill.Slug)
-	if err := os.MkdirAll(skillDir, 0755); err != nil {
+
+	err := os.MkdirAll(skillDir, 0755)
+	if err != nil {
 		return fmt.Errorf("failed to create skill directory: %w", err)
 	}
 
@@ -450,11 +471,13 @@ func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 	var sb strings.Builder
 	sb.WriteString("---\n")
 	sb.WriteString(fmt.Sprintf("name: memory.%s\n", skill.Slug))
+
 	if needsYAMLQuoting(desc) {
 		sb.WriteString(fmt.Sprintf("description: %q\n", desc))
 	} else {
 		sb.WriteString(fmt.Sprintf("description: %s\n", desc))
 	}
+
 	sb.WriteString("model: haiku\n")
 	sb.WriteString("user-invocable: true\n")
 	sb.WriteString("generated: true\n")
@@ -467,7 +490,9 @@ func writeSkillFile(skillsDir string, skill *GeneratedSkill) error {
 
 	// Write to file
 	skillFile := filepath.Join(skillDir, "SKILL.md")
-	if err := os.WriteFile(skillFile, []byte(sb.String()), 0644); err != nil {
+
+	err = os.WriteFile(skillFile, []byte(sb.String()), 0644)
+	if err != nil {
 		return fmt.Errorf("failed to write skill file: %w", err)
 	}
 

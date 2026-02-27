@@ -12,6 +12,73 @@ import (
 	"pgregory.net/rapid"
 )
 
+// TestRefactorRenameAtomic tests that rename is atomic (no partial changes on failure)
+func TestRefactorRenameAtomic(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// Create files
+	file1 := filepath.Join(tempDir, "file1.go")
+	originalContent1 := `package example
+
+type Symbol struct {
+	Field string
+}
+`
+	err := os.WriteFile(file1, []byte(originalContent1), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	file2 := filepath.Join(tempDir, "file2.go")
+	originalContent2 := `package example
+
+func UseSymbol() *Symbol {
+	return &Symbol{}
+}
+`
+	err = os.WriteFile(file2, []byte(originalContent2), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create a conflicting symbol
+	file3 := filepath.Join(tempDir, "file3.go")
+	originalContent3 := `package example
+
+type NewSymbol struct {
+	Other int
+}
+`
+	err = os.WriteFile(file3, []byte(originalContent3), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Initialize go.mod
+	modCmd := exec.Command("go", "mod", "init", "example")
+	modCmd.Dir = tempDir
+	err = modCmd.Run()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Try to rename to conflicting name (should fail)
+	cmd := exec.Command("projctl", "refactor", "rename",
+		"--dir", tempDir,
+		"--symbol", "Symbol",
+		"--to", "NewSymbol")
+	_, err = cmd.CombinedOutput()
+	g.Expect(err).To(HaveOccurred(), "Rename should fail due to conflict")
+
+	// Verify NO files were changed (atomic operation)
+	content1, err := os.ReadFile(file1)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content1)).To(Equal(originalContent1), "file1 should be unchanged")
+
+	content2, err := os.ReadFile(file2)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content2)).To(Equal(originalContent2), "file2 should be unchanged")
+
+	content3, err := os.ReadFile(file3)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content3)).To(Equal(originalContent3), "file3 should be unchanged")
+}
+
 // TestRefactorRenameCommand tests the CLI interface for projctl refactor rename
 func TestRefactorRenameCommand(t *testing.T) {
 	t.Parallel()
@@ -54,6 +121,118 @@ func NewOldName() *OldName {
 	content, err := os.ReadFile(testFile)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("type NewName struct"))
+}
+
+// TestRefactorRenameConflict tests error handling when rename would cause a conflict
+func TestRefactorRenameConflict(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// Create a Go file with two symbols where rename would conflict
+	testFile := filepath.Join(tempDir, "example.go")
+	err := os.WriteFile(testFile, []byte(`package example
+
+type OldName struct {
+	Field string
+}
+
+type NewName struct {
+	Other int
+}
+`), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Initialize go.mod
+	modCmd := exec.Command("go", "mod", "init", "example")
+	modCmd.Dir = tempDir
+	err = modCmd.Run()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Try to rename to a name that already exists
+	cmd := exec.Command("projctl", "refactor", "rename",
+		"--dir", tempDir,
+		"--symbol", "OldName",
+		"--to", "NewName")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).To(HaveOccurred(), "Should fail with exit code 1 on conflict")
+	g.Expect(string(output)).To(ContainSubstring("conflict"))
+
+	// Verify original file unchanged (atomic operation)
+	content, err := os.ReadFile(testFile)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("type OldName struct"))
+	g.Expect(string(content)).To(ContainSubstring("type NewName struct"))
+}
+
+// TestRefactorRenamePropertyBasedValidIdentifiers tests property: valid Go identifiers
+func TestRefactorRenamePropertyBasedValidIdentifiers(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		// Generate valid Go identifier names
+		identifier := rapid.StringMatching(`^[A-Z][a-zA-Z0-9_]*$`).
+			Filter(func(s string) bool {
+				// Filter out Go keywords
+				keywords := map[string]bool{
+					"break": true, "case": true, "chan": true, "const": true,
+					"continue": true, "default": true, "defer": true, "else": true,
+					"fallthrough": true, "for": true, "func": true, "go": true,
+					"goto": true, "if": true, "import": true, "interface": true,
+					"map": true, "package": true, "range": true, "return": true,
+					"select": true, "struct": true, "switch": true, "type": true,
+					"var": true,
+				}
+				return !keywords[s] && len(s) > 0 && len(s) < 50
+			}).Draw(rt, "identifier")
+
+		newIdentifier := rapid.StringMatching(`^[A-Z][a-zA-Z0-9_]*$`).
+			Filter(func(s string) bool {
+				keywords := map[string]bool{
+					"break": true, "case": true, "chan": true, "const": true,
+					"continue": true, "default": true, "defer": true, "else": true,
+					"fallthrough": true, "for": true, "func": true, "go": true,
+					"goto": true, "if": true, "import": true, "interface": true,
+					"map": true, "package": true, "range": true, "return": true,
+					"select": true, "struct": true, "switch": true, "type": true,
+					"var": true,
+				}
+				return !keywords[s] && len(s) > 0 && len(s) < 50 && s != identifier
+			}).Draw(rt, "newIdentifier")
+
+		tempDir := t.TempDir()
+
+		// Create a test file with the generated identifier
+		testFile := filepath.Join(tempDir, "test.go")
+		content := "package example\n\ntype " + identifier + " struct {\n\tField string\n}\n"
+		err := os.WriteFile(testFile, []byte(content), 0644)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Initialize go.mod
+		modCmd := exec.Command("go", "mod", "init", "example")
+		modCmd.Dir = tempDir
+		err = modCmd.Run()
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Rename should work for any valid identifier pair
+		cmd := exec.Command("projctl", "refactor", "rename",
+			"--dir", tempDir,
+			"--symbol", identifier,
+			"--to", newIdentifier)
+		_, err = cmd.CombinedOutput()
+
+		// Property: rename of valid identifiers should succeed
+		g.Expect(err).ToNot(HaveOccurred(), "Valid identifier rename should succeed")
+
+		// Verify the rename happened
+		resultContent, err := os.ReadFile(testFile)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(resultContent)).To(ContainSubstring("type " + newIdentifier + " struct"))
+		g.Expect(string(resultContent)).ToNot(ContainSubstring("type " + identifier + " struct"))
+	})
 }
 
 // TestRefactorRenameSuccess tests successful symbol rename
@@ -151,183 +330,4 @@ type Something struct {
 	content, err := os.ReadFile(testFile)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(content)).To(ContainSubstring("type Something struct"))
-}
-
-// TestRefactorRenameConflict tests error handling when rename would cause a conflict
-func TestRefactorRenameConflict(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	// Create a Go file with two symbols where rename would conflict
-	testFile := filepath.Join(tempDir, "example.go")
-	err := os.WriteFile(testFile, []byte(`package example
-
-type OldName struct {
-	Field string
-}
-
-type NewName struct {
-	Other int
-}
-`), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Initialize go.mod
-	modCmd := exec.Command("go", "mod", "init", "example")
-	modCmd.Dir = tempDir
-	err = modCmd.Run()
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Try to rename to a name that already exists
-	cmd := exec.Command("projctl", "refactor", "rename",
-		"--dir", tempDir,
-		"--symbol", "OldName",
-		"--to", "NewName")
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Should fail with exit code 1 on conflict")
-	g.Expect(string(output)).To(ContainSubstring("conflict"))
-
-	// Verify original file unchanged (atomic operation)
-	content, err := os.ReadFile(testFile)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("type OldName struct"))
-	g.Expect(string(content)).To(ContainSubstring("type NewName struct"))
-}
-
-// TestRefactorRenameAtomic tests that rename is atomic (no partial changes on failure)
-func TestRefactorRenameAtomic(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	// Create files
-	file1 := filepath.Join(tempDir, "file1.go")
-	originalContent1 := `package example
-
-type Symbol struct {
-	Field string
-}
-`
-	err := os.WriteFile(file1, []byte(originalContent1), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	file2 := filepath.Join(tempDir, "file2.go")
-	originalContent2 := `package example
-
-func UseSymbol() *Symbol {
-	return &Symbol{}
-}
-`
-	err = os.WriteFile(file2, []byte(originalContent2), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Create a conflicting symbol
-	file3 := filepath.Join(tempDir, "file3.go")
-	originalContent3 := `package example
-
-type NewSymbol struct {
-	Other int
-}
-`
-	err = os.WriteFile(file3, []byte(originalContent3), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Initialize go.mod
-	modCmd := exec.Command("go", "mod", "init", "example")
-	modCmd.Dir = tempDir
-	err = modCmd.Run()
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Try to rename to conflicting name (should fail)
-	cmd := exec.Command("projctl", "refactor", "rename",
-		"--dir", tempDir,
-		"--symbol", "Symbol",
-		"--to", "NewSymbol")
-	_, err = cmd.CombinedOutput()
-	g.Expect(err).To(HaveOccurred(), "Rename should fail due to conflict")
-
-	// Verify NO files were changed (atomic operation)
-	content1, err := os.ReadFile(file1)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content1)).To(Equal(originalContent1), "file1 should be unchanged")
-
-	content2, err := os.ReadFile(file2)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content2)).To(Equal(originalContent2), "file2 should be unchanged")
-
-	content3, err := os.ReadFile(file3)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content3)).To(Equal(originalContent3), "file3 should be unchanged")
-}
-
-// TestRefactorRenamePropertyBasedValidIdentifiers tests property: valid Go identifiers
-func TestRefactorRenamePropertyBasedValidIdentifiers(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(t)
-
-		// Generate valid Go identifier names
-		identifier := rapid.StringMatching(`^[A-Z][a-zA-Z0-9_]*$`).
-			Filter(func(s string) bool {
-				// Filter out Go keywords
-				keywords := map[string]bool{
-					"break": true, "case": true, "chan": true, "const": true,
-					"continue": true, "default": true, "defer": true, "else": true,
-					"fallthrough": true, "for": true, "func": true, "go": true,
-					"goto": true, "if": true, "import": true, "interface": true,
-					"map": true, "package": true, "range": true, "return": true,
-					"select": true, "struct": true, "switch": true, "type": true,
-					"var": true,
-				}
-				return !keywords[s] && len(s) > 0 && len(s) < 50
-			}).Draw(rt, "identifier")
-
-		newIdentifier := rapid.StringMatching(`^[A-Z][a-zA-Z0-9_]*$`).
-			Filter(func(s string) bool {
-				keywords := map[string]bool{
-					"break": true, "case": true, "chan": true, "const": true,
-					"continue": true, "default": true, "defer": true, "else": true,
-					"fallthrough": true, "for": true, "func": true, "go": true,
-					"goto": true, "if": true, "import": true, "interface": true,
-					"map": true, "package": true, "range": true, "return": true,
-					"select": true, "struct": true, "switch": true, "type": true,
-					"var": true,
-				}
-				return !keywords[s] && len(s) > 0 && len(s) < 50 && s != identifier
-			}).Draw(rt, "newIdentifier")
-
-		tempDir := t.TempDir()
-
-		// Create a test file with the generated identifier
-		testFile := filepath.Join(tempDir, "test.go")
-		content := "package example\n\ntype " + identifier + " struct {\n\tField string\n}\n"
-		err := os.WriteFile(testFile, []byte(content), 0644)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Initialize go.mod
-		modCmd := exec.Command("go", "mod", "init", "example")
-		modCmd.Dir = tempDir
-		err = modCmd.Run()
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Rename should work for any valid identifier pair
-		cmd := exec.Command("projctl", "refactor", "rename",
-			"--dir", tempDir,
-			"--symbol", identifier,
-			"--to", newIdentifier)
-		_, err = cmd.CombinedOutput()
-
-		// Property: rename of valid identifiers should succeed
-		g.Expect(err).ToNot(HaveOccurred(), "Valid identifier rename should succeed")
-
-		// Verify the rename happened
-		resultContent, err := os.ReadFile(testFile)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(string(resultContent)).To(ContainSubstring("type " + newIdentifier + " struct"))
-		g.Expect(string(resultContent)).ToNot(ContainSubstring("type " + identifier + " struct"))
-	})
 }

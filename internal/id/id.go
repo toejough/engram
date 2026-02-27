@@ -2,6 +2,7 @@
 package id
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,14 +11,16 @@ import (
 	"strings"
 )
 
-// ValidPrefixes contains the allowed ID prefixes.
-var ValidPrefixes = map[string]bool{
-	"REQ":   true,
-	"DES":   true,
-	"ARCH":  true,
-	"TASK":  true,
-	"ISSUE": true,
-}
+// Exported variables.
+var (
+	ValidPrefixes = map[string]bool{
+		"REQ":   true,
+		"DES":   true,
+		"ARCH":  true,
+		"TASK":  true,
+		"ISSUE": true,
+	}
+)
 
 // Next returns the next sequential ID for the given type prefix.
 // It scans markdown files in the directory and docs/ subdirectory
@@ -25,7 +28,7 @@ var ValidPrefixes = map[string]bool{
 // If no IDs of that type exist, returns TYPE-001.
 func Next(dir, prefix string) (string, error) {
 	if prefix == "" {
-		return "", fmt.Errorf("prefix cannot be empty")
+		return "", errors.New("prefix cannot be empty")
 	}
 
 	if !ValidPrefixes[prefix] {
@@ -39,18 +42,22 @@ func Next(dir, prefix string) (string, error) {
 	maxNum := 0
 
 	// Scan root directory
-	if err := scanDir(dir, pattern, &maxNum); err != nil {
+	err := scanDir(dir, pattern, &maxNum)
+	if err != nil {
 		return "", err
 	}
 
 	// Scan docs/ subdirectory
 	docsDir := filepath.Join(dir, "docs")
-	if err := scanDir(docsDir, pattern, &maxNum); err != nil {
+
+	err = scanDir(docsDir, pattern, &maxNum)
+	if err != nil {
 		return "", err
 	}
 
 	// Format next ID as simple number (no padding)
 	nextNum := maxNum + 1
+
 	return fmt.Sprintf("%s-%d", prefix, nextNum), nil
 }
 
@@ -62,6 +69,7 @@ func scanDir(dir string, pattern *regexp.Regexp, maxNum *int) error {
 		if os.IsNotExist(err) {
 			return nil // Directory doesn't exist, that's fine
 		}
+
 		return fmt.Errorf("failed to read directory %s: %w", dir, err)
 	}
 

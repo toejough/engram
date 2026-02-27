@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// DiscoverOpts controls session discovery behavior.
+type DiscoverOpts struct {
+	ProjectsDir string // Directory to search (e.g., ~/.claude/projects/)
+	Days        int    // Filter: only sessions modified in last N days (0 = no filter)
+	Last        int    // Filter: return only last N sessions (0 = no filter)
+	MinSize     int64  // Filter: minimum file size in bytes (0 = no filter)
+}
+
 // DiscoveredSession represents a session transcript file found on disk.
 type DiscoveredSession struct {
 	SessionID string
@@ -15,14 +23,6 @@ type DiscoveredSession struct {
 	Path      string
 	ModTime   time.Time
 	Size      int64
-}
-
-// DiscoverOpts controls session discovery behavior.
-type DiscoverOpts struct {
-	ProjectsDir string // Directory to search (e.g., ~/.claude/projects/)
-	Days        int    // Filter: only sessions modified in last N days (0 = no filter)
-	Last        int    // Filter: return only last N sessions (0 = no filter)
-	MinSize     int64  // Filter: minimum file size in bytes (0 = no filter)
 }
 
 // DiscoverSessions walks ProjectsDir for *.jsonl session files, applies filters,
@@ -90,7 +90,6 @@ func DiscoverSessions(opts DiscoverOpts) ([]DiscoveredSession, error) {
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -123,5 +122,6 @@ func ReverseClaudeProjectDir(dirName string) string {
 	}
 
 	parts := strings.Split(trimmed, "-")
+
 	return "/" + filepath.Join(parts...)
 }

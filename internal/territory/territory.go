@@ -12,17 +12,30 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// CacheMaxAge is the maximum age for a valid cache.
-const CacheMaxAge = time.Hour
-
-// CacheFile is the name of the cache file.
-const CacheFile = "context/territory.toml"
+// Exported constants.
+const (
+	CacheFile   = "context/territory.toml"
+	CacheMaxAge = time.Hour
+)
 
 // CachedMap wraps a Map with cache metadata.
 type CachedMap struct {
-	Map       `toml:"map"`
+	Map `toml:"map"`
+
 	CachedAt  time.Time `toml:"cached_at"`
 	FileCount int       `toml:"file_count"`
+}
+
+// Docs describes documentation files.
+type Docs struct {
+	Readme    string   `toml:"readme"`
+	Artifacts []string `toml:"artifacts"`
+}
+
+// EntryPoints identifies where execution begins.
+type EntryPoints struct {
+	CLI       string `toml:"cli"`
+	PublicAPI string `toml:"public_api"`
 }
 
 // Map represents a compressed territory map of a codebase.
@@ -34,6 +47,12 @@ type Map struct {
 	Docs        Docs        `toml:"docs"`
 }
 
+// Packages summarizes the package structure.
+type Packages struct {
+	Count    int      `toml:"count"`
+	Internal []string `toml:"internal"`
+}
+
 // Structure describes the project structure.
 type Structure struct {
 	Root          string   `toml:"root"`
@@ -42,28 +61,10 @@ type Structure struct {
 	TestFramework string   `toml:"test_framework"`
 }
 
-// EntryPoints identifies where execution begins.
-type EntryPoints struct {
-	CLI       string `toml:"cli"`
-	PublicAPI string `toml:"public_api"`
-}
-
-// Packages summarizes the package structure.
-type Packages struct {
-	Count    int      `toml:"count"`
-	Internal []string `toml:"internal"`
-}
-
 // Tests describes the test structure.
 type Tests struct {
 	Pattern string `toml:"pattern"`
 	Count   int    `toml:"count"`
-}
-
-// Docs describes documentation files.
-type Docs struct {
-	Readme    string   `toml:"readme"`
-	Artifacts []string `toml:"artifacts"`
 }
 
 // Generate creates a territory map for the given directory.
@@ -130,9 +131,11 @@ func Generate(dir string) (Map, error) {
 		if err != nil {
 			return nil
 		}
+
 		if strings.HasSuffix(path, "_test.go") {
 			m.Tests.Count++
 		}
+
 		return nil
 	})
 
@@ -151,42 +154,6 @@ func Generate(dir string) (Map, error) {
 	}
 
 	return m, nil
-}
-
-// Marshal converts a Map to TOML bytes.
-func Marshal(m Map) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// MarshalCached converts a CachedMap to TOML bytes.
-func MarshalCached(m CachedMap) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := toml.NewEncoder(&buf).Encode(m); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
-
-// Show returns the cached territory map without regenerating.
-// Returns an error if no cache exists.
-func Show(dir string) (CachedMap, error) {
-	cachePath := filepath.Join(dir, CacheFile)
-
-	data, err := os.ReadFile(cachePath)
-	if err != nil {
-		return CachedMap{}, fmt.Errorf("no cached territory map: %w", err)
-	}
-
-	var cached CachedMap
-	if _, err := toml.Decode(string(data), &cached); err != nil {
-		return CachedMap{}, fmt.Errorf("failed to parse cached territory: %w", err)
-	}
-
-	return cached, nil
 }
 
 // LoadCached loads a cached territory map or generates a new one.
@@ -208,10 +175,9 @@ func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
 				// Check if file count changed significantly (> 10%)
 				if cached.FileCount > 0 {
 					diff := abs(currentCount - cached.FileCount)
-					threshold := cached.FileCount / 10
-					if threshold < 1 {
-						threshold = 1
-					}
+
+					threshold := max(cached.FileCount/10, 1)
+
 					if diff <= threshold {
 						return cached.Map, true, nil
 					}
@@ -234,6 +200,7 @@ func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
 		CachedAt:  now(),
 		FileCount: currentCount,
 	}
+
 	cacheData, err := MarshalCached(cached)
 	if err == nil {
 		_ = os.MkdirAll(filepath.Dir(cachePath), 0o755)
@@ -243,6 +210,56 @@ func LoadCached(dir string, now func() time.Time) (Map, bool, error) {
 	return m, false, nil
 }
 
+// Marshal converts a Map to TOML bytes.
+func Marshal(m Map) ([]byte, error) {
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(m)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// MarshalCached converts a CachedMap to TOML bytes.
+func MarshalCached(m CachedMap) ([]byte, error) {
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(m)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// Show returns the cached territory map without regenerating.
+// Returns an error if no cache exists.
+func Show(dir string) (CachedMap, error) {
+	cachePath := filepath.Join(dir, CacheFile)
+
+	data, err := os.ReadFile(cachePath)
+	if err != nil {
+		return CachedMap{}, fmt.Errorf("no cached territory map: %w", err)
+	}
+
+	var cached CachedMap
+	if _, err := toml.Decode(string(data), &cached); err != nil {
+		return CachedMap{}, fmt.Errorf("failed to parse cached territory: %w", err)
+	}
+
+	return cached, nil
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+
+	return n
+}
+
 // countFiles counts all files in a directory.
 func countFiles(dir string) int {
 	count := 0
@@ -250,17 +267,13 @@ func countFiles(dir string) int {
 		if err != nil {
 			return nil
 		}
+
 		if !info.IsDir() && !strings.Contains(path, ".git") {
 			count++
 		}
+
 		return nil
 	})
-	return count
-}
 
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
+	return count
 }

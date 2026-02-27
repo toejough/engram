@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -17,13 +18,21 @@ func NewRealFS() *RealFS {
 // DirExists returns true if the directory exists.
 func (r *RealFS) DirExists(path string) bool {
 	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
+	if err != nil || info == nil {
+		return false
+	}
+
+	return info.IsDir()
 }
 
 // FileExists returns true if the file exists.
 func (r *RealFS) FileExists(path string) bool {
 	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
+	if err != nil || info == nil {
+		return false
+	}
+
+	return !info.IsDir()
 }
 
 // ReadFile reads the file content as a string.
@@ -32,6 +41,7 @@ func (r *RealFS) ReadFile(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	return string(data), nil
 }
 
@@ -41,12 +51,16 @@ func (r *RealFS) Walk(root string, fn func(path string, isDir bool) error) error
 		if err != nil {
 			return err
 		}
-		if walkErr := fn(path, d.IsDir()); walkErr != nil {
-			if walkErr == errSkipDir {
+
+		walkErr := fn(path, d.IsDir())
+		if walkErr != nil {
+			if errors.Is(walkErr, errSkipDir) {
 				return fs.SkipDir
 			}
+
 			return walkErr
 		}
+
 		return nil
 	})
 }

@@ -16,31 +16,9 @@ type MockFS struct {
 	Files map[string][]byte
 }
 
-func (m *MockFS) ReadFile(path string) ([]byte, error) {
-	content, exists := m.Files[path]
-	if !exists {
-		return nil, fmt.Errorf("file not found: %s", path)
-	}
-	return content, nil
-}
-
-func (m *MockFS) WriteFile(path string, data []byte) error {
-	if m.Files == nil {
-		m.Files = make(map[string][]byte)
-	}
-	m.Files[path] = data
-	return nil
-}
-
-type mockWriteCloser struct {
-	*bytes.Buffer
-	fs   *MockFS
-	path string
-}
-
-func (m *mockWriteCloser) Close() error {
-	m.fs.Files[m.path] = m.Bytes()
-	return nil
+func (m *MockFS) FileExists(path string) bool {
+	_, exists := m.Files[path]
+	return exists
 }
 
 func (m *MockFS) OpenAppend(path string) (io.WriteCloser, int64, error) {
@@ -52,40 +30,27 @@ func (m *MockFS) OpenAppend(path string) (io.WriteCloser, int64, error) {
 	size := int64(len(existing))
 
 	buf := bytes.NewBuffer(existing)
+
 	return &mockWriteCloser{Buffer: buf, fs: m, path: path}, size, nil
 }
 
-func (m *MockFS) FileExists(path string) bool {
-	_, exists := m.Files[path]
-	return exists
+func (m *MockFS) ReadFile(path string) ([]byte, error) {
+	content, exists := m.Files[path]
+	if !exists {
+		return nil, fmt.Errorf("file not found: %s", path)
+	}
+
+	return content, nil
 }
 
-func TestCreate(t *testing.T) {
-	t.Parallel()
-	t.Run("creates first conflict", func(t *testing.T) {
-		g := NewWithT(t)
-		fs := &MockFS{}
+func (m *MockFS) WriteFile(path string, data []byte) error {
+	if m.Files == nil {
+		m.Files = make(map[string][]byte)
+	}
 
-		id, err := conflict.Create("testdir", "pm, architect", "REQ-001, ARCH-003", "PM requires sync but architect says eventual consistency", fs)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(id).To(Equal("CONF-001"))
+	m.Files[path] = data
 
-		// File should exist
-		g.Expect(fs.FileExists(filepath.Join("testdir", conflict.ConflictFile))).To(BeTrue())
-	})
-
-	t.Run("auto-increments ID", func(t *testing.T) {
-		g := NewWithT(t)
-		fs := &MockFS{}
-
-		id1, err := conflict.Create("testdir", "pm, design", "REQ-001", "First conflict", fs)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(id1).To(Equal("CONF-001"))
-
-		id2, err := conflict.Create("testdir", "design, architect", "DES-002", "Second conflict", fs)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(id2).To(Equal("CONF-002"))
-	})
+	return nil
 }
 
 func TestCheck(t *testing.T) {
@@ -133,6 +98,34 @@ func TestCheck(t *testing.T) {
 		result, err := conflict.Check("testdir", fs)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Resolved).To(BeEmpty())
+	})
+}
+
+func TestCreate(t *testing.T) {
+	t.Parallel()
+	t.Run("creates first conflict", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{}
+
+		id, err := conflict.Create("testdir", "pm, architect", "REQ-001, ARCH-003", "PM requires sync but architect says eventual consistency", fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(id).To(Equal("CONF-001"))
+
+		// File should exist
+		g.Expect(fs.FileExists(filepath.Join("testdir", conflict.ConflictFile))).To(BeTrue())
+	})
+
+	t.Run("auto-increments ID", func(t *testing.T) {
+		g := NewWithT(t)
+		fs := &MockFS{}
+
+		id1, err := conflict.Create("testdir", "pm, design", "REQ-001", "First conflict", fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(id1).To(Equal("CONF-001"))
+
+		id2, err := conflict.Create("testdir", "design, architect", "DES-002", "Second conflict", fs)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(id2).To(Equal("CONF-002"))
 	})
 }
 
@@ -207,4 +200,16 @@ func TestList(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(result.Conflicts).To(BeEmpty())
 	})
+}
+
+type mockWriteCloser struct {
+	*bytes.Buffer
+
+	fs   *MockFS
+	path string
+}
+
+func (m *mockWriteCloser) Close() error {
+	m.fs.Files[m.path] = m.Bytes()
+	return nil
 }

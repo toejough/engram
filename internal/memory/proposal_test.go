@@ -77,12 +77,13 @@ func TestMaintenanceReviewFunc(t *testing.T) {
 	})
 
 	t.Run("review function can inspect proposal fields", func(t *testing.T) {
-		var capturedProposal MaintenanceProposal
-		var reviewFunc MaintenanceReviewFunc = func(p MaintenanceProposal) bool {
-			capturedProposal = p
-			// Only approve prune actions for embeddings
-			return p.Tier == "embeddings" && p.Action == "prune"
-		}
+		var (
+			capturedProposal MaintenanceProposal
+			reviewFunc       MaintenanceReviewFunc = func(p MaintenanceProposal) bool {
+				capturedProposal = p
+				return p.Tier == "embeddings" && p.Action == "prune"
+			}
+		)
 
 		proposal := MaintenanceProposal{
 			Tier:   "embeddings",
@@ -104,36 +105,6 @@ func TestMaintenanceReviewFunc(t *testing.T) {
 		}
 		approved2 := reviewFunc(proposal2)
 		g.Expect(approved2).To(gomega.BeFalse())
-	})
-}
-
-func TestTierScanner(t *testing.T) {
-	g := gomega.NewWithT(t)
-
-	t.Run("scanner returns proposals", func(t *testing.T) {
-		scanner := &mockTierScanner{
-			proposals: []MaintenanceProposal{
-				{
-					Tier:   "embeddings",
-					Action: "prune",
-					Target: "entry-123",
-				},
-			},
-		}
-
-		proposals, err := scanner.Scan()
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-		g.Expect(proposals).To(gomega.HaveLen(1))
-		g.Expect(proposals[0].Tier).To(gomega.Equal("embeddings"))
-	})
-
-	t.Run("scanner returns error on failure", func(t *testing.T) {
-		scanner := &mockTierScanner{
-			shouldError: true,
-		}
-
-		_, err := scanner.Scan()
-		g.Expect(err).To(gomega.HaveOccurred())
 	})
 }
 
@@ -171,18 +142,34 @@ func TestProposalApplier(t *testing.T) {
 	})
 }
 
-// Mock implementations for testing
+func TestTierScanner(t *testing.T) {
+	g := gomega.NewWithT(t)
 
-type mockTierScanner struct {
-	proposals   []MaintenanceProposal
-	shouldError bool
-}
+	t.Run("scanner returns proposals", func(t *testing.T) {
+		scanner := &mockTierScanner{
+			proposals: []MaintenanceProposal{
+				{
+					Tier:   "embeddings",
+					Action: "prune",
+					Target: "entry-123",
+				},
+			},
+		}
 
-func (m *mockTierScanner) Scan() ([]MaintenanceProposal, error) {
-	if m.shouldError {
-		return nil, errors.New("scan error")
-	}
-	return m.proposals, nil
+		proposals, err := scanner.Scan()
+		g.Expect(err).ToNot(gomega.HaveOccurred())
+		g.Expect(proposals).To(gomega.HaveLen(1))
+		g.Expect(proposals[0].Tier).To(gomega.Equal("embeddings"))
+	})
+
+	t.Run("scanner returns error on failure", func(t *testing.T) {
+		scanner := &mockTierScanner{
+			shouldError: true,
+		}
+
+		_, err := scanner.Scan()
+		g.Expect(err).To(gomega.HaveOccurred())
+	})
 }
 
 type mockProposalApplier struct {
@@ -194,6 +181,23 @@ func (m *mockProposalApplier) Apply(p MaintenanceProposal) error {
 	if m.shouldError {
 		return errors.New("apply error")
 	}
+
 	m.appliedProposals = append(m.appliedProposals, p)
+
 	return nil
+}
+
+// Mock implementations for testing
+
+type mockTierScanner struct {
+	proposals   []MaintenanceProposal
+	shouldError bool
+}
+
+func (m *mockTierScanner) Scan() ([]MaintenanceProposal, error) {
+	if m.shouldError {
+		return nil, errors.New("scan error")
+	}
+
+	return m.proposals, nil
 }

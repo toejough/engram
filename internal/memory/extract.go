@@ -3,6 +3,7 @@ package memory
 import (
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,6 +42,7 @@ func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 
 	// Set source field for all items
 	filename := filepath.Base(opts.FilePath)
+
 	source := fmt.Sprintf("%s:%s", fileType, filename)
 	for i := range items {
 		items[i].Source = source
@@ -50,12 +52,14 @@ func (opts ExtractOpts) Extract() (*ExtractResult, error) {
 	if len(items) > 0 {
 		if opts.WriteDB != nil {
 			// Use injected WriteDB for testing
-			if err := opts.WriteDB(items); err != nil {
+			err := opts.WriteDB(items)
+			if err != nil {
 				return nil, fmt.Errorf("failed to write to database: %w", err)
 			}
 		} else {
 			// Use real embedding infrastructure
-			if err := storeExtractedItems(opts, items); err != nil {
+			err := storeExtractedItems(opts, items)
+			if err != nil {
 				return nil, fmt.Errorf("failed to store extracted items: %w", err)
 			}
 		}
@@ -76,10 +80,12 @@ func extractFromResult(rf *ResultFile) []ExtractedItem {
 	for _, decision := range rf.Decisions {
 		// Build content from decision fields
 		var contentParts []string
-		contentParts = append(contentParts, fmt.Sprintf("Choice: %s", decision.Choice))
-		contentParts = append(contentParts, fmt.Sprintf("Reason: %s", decision.Reason))
+
+		contentParts = append(contentParts, "Choice: "+decision.Choice)
+
+		contentParts = append(contentParts, "Reason: "+decision.Reason)
 		if len(decision.Alternatives) > 0 {
-			contentParts = append(contentParts, fmt.Sprintf("Alternatives: %s", strings.Join(decision.Alternatives, ", ")))
+			contentParts = append(contentParts, "Alternatives: "+strings.Join(decision.Alternatives, ", "))
 		}
 
 		items = append(items, ExtractedItem{
@@ -106,6 +112,7 @@ func storeExtractedItems(opts ExtractOpts, items []ExtractedItem) error {
 		if err != nil {
 			return fmt.Errorf("failed to get home directory: %w", err)
 		}
+
 		modelDir = filepath.Join(homeDir, ".claude", "models")
 	}
 
@@ -124,17 +131,20 @@ func storeExtractedItems(opts ExtractOpts, items []ExtractedItem) error {
 
 	// Download model if needed
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		if err := downloadModel(modelPath); err != nil {
+		err := downloadModel(modelPath, http.DefaultClient)
+		if err != nil {
 			return fmt.Errorf("failed to download model: %w", err)
 		}
 	}
 
 	// Initialize embeddings database
 	dbPath := filepath.Join(opts.MemoryRoot, "embeddings.db")
+
 	db, err := initEmbeddingsDB(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to initialize embeddings database: %w", err)
 	}
+
 	defer func() { _ = db.Close() }()
 
 	// Store each item with embedding
@@ -161,10 +171,12 @@ func storeExtractedItems(opts ExtractOpts, items []ExtractedItem) error {
 func storeItemWithEmbeddingDB(db *sql.DB, item ExtractedItem, embedding []float32) error {
 	// Insert into vec table using sqlite-vec SerializeFloat32
 	vecStmt := `INSERT INTO vec_embeddings(embedding) VALUES (?)`
+
 	embeddingBlob, err := sqlite_vec.SerializeFloat32(embedding)
 	if err != nil {
 		return err
 	}
+
 	result, err := db.Exec(vecStmt, embeddingBlob)
 	if err != nil {
 		return err
@@ -174,6 +186,7 @@ func storeItemWithEmbeddingDB(db *sql.DB, item ExtractedItem, embedding []float3
 
 	// Insert into metadata table with source field
 	metaStmt := `INSERT INTO embeddings(content, source, embedding_id) VALUES (?, ?, ?)`
+
 	content := fmt.Sprintf("[%s] %s: %s", item.Type, item.Context, item.Content)
 	if _, err := db.Exec(metaStmt, content, item.Source, embeddingID); err != nil {
 		return err

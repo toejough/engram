@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -29,6 +30,7 @@ func ScanForRefinements(db *sql.DB, claudeMDPath string, extractor LLMExtractor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan flagged entries: %w", err)
 	}
+
 	proposals = append(proposals, rewriteProposals...)
 
 	// Scan embeddings tier for entries with principle but no rationale
@@ -36,6 +38,7 @@ func ScanForRefinements(db *sql.DB, claudeMDPath string, extractor LLMExtractor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan missing rationale: %w", err)
 	}
+
 	proposals = append(proposals, rationaleProposals...)
 
 	// Scan CLAUDE.md for imperative entries without explanation
@@ -43,6 +46,7 @@ func ScanForRefinements(db *sql.DB, claudeMDPath string, extractor LLMExtractor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan CLAUDE.md: %w", err)
 	}
+
 	proposals = append(proposals, claudeMDProposals...)
 
 	// Scan CLAUDE.md for entries with code blocks
@@ -50,146 +54,108 @@ func ScanForRefinements(db *sql.DB, claudeMDPath string, extractor LLMExtractor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan CLAUDE.md code blocks: %w", err)
 	}
+
 	proposals = append(proposals, codeBlockProposals...)
 
 	return proposals, nil
 }
 
-// scanFlaggedForRewrite scans embeddings tier for entries flagged for rewriting.
-func scanFlaggedForRewrite(db *sql.DB, extractor LLMExtractor) ([]MaintenanceProposal, error) {
-	rows, err := db.Query(`
-		SELECT id, content
-		FROM embeddings
-		WHERE flagged_for_rewrite = 1
-		ORDER BY id
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var proposals []MaintenanceProposal
-	ctx := context.Background()
-
-	for rows.Next() {
-		var id int64
-		var content string
-		if err := rows.Scan(&id, &content); err != nil {
-			continue
-		}
-
-		// Generate refined version via LLM
-		refined, err := extractor.Rewrite(ctx, content)
-		if err != nil {
-			continue // Skip on LLM error
-		}
-
-		proposals = append(proposals, MaintenanceProposal{
-			Tier:    "embeddings",
-			Action:  "rewrite",
-			Target:  fmt.Sprintf("%d", id),
-			Reason:  "flagged for clarity/specificity improvements",
-			Preview: refined,
-		})
-	}
-
-	return proposals, nil
+// WriteFile is a helper for tests to write files (thin wrapper around os.WriteFile).
+func WriteFile(path string, data []byte) error {
+	return os.WriteFile(path, data, 0644)
 }
 
-// scanMissingRationale scans embeddings tier for entries with principle but no rationale.
-func scanMissingRationale(db *sql.DB, extractor LLMExtractor) ([]MaintenanceProposal, error) {
-	rows, err := db.Query(`
-		SELECT id, content, principle
-		FROM embeddings
-		WHERE principle != ''
-		  AND (rationale IS NULL OR rationale = '')
-		ORDER BY id
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var proposals []MaintenanceProposal
-	ctx := context.Background()
-
-	for rows.Next() {
-		var id int64
-		var content, principle string
-		if err := rows.Scan(&id, &content, &principle); err != nil {
-			continue
+// extractPrinciple extracts the principle part from an entry with examples.
+func extractPrinciple(entry string) string {
+	// Try to extract principle before ". Example:", ". E.g.", etc.
+	markers := []string{". Example:", ". E.g.", ". For example,", ". Usage:"}
+	for _, marker := range markers {
+		if before, _, ok := strings.Cut(entry, marker); ok {
+			return strings.TrimSpace(before)
 		}
-
-		// Generate enriched version with rationale
-		enriched, err := extractor.AddRationale(ctx, principle)
-		if err != nil {
-			continue // Skip on LLM error
-		}
-
-		proposals = append(proposals, MaintenanceProposal{
-			Tier:    "embeddings",
-			Action:  "add-rationale",
-			Target:  fmt.Sprintf("%d", id),
-			Reason:  "principle without explanation of why",
-			Preview: enriched,
-		})
 	}
 
-	return proposals, nil
-}
+	// If no marker, try to remove code blocks
+	if strings.Contains(entry, "`") {
+		// Remove everything in backticks
+		result := entry
+		for strings.Contains(result, "`") {
+			start := strings.Index(result, "`")
 
-// scanClaudeMDForRationale scans CLAUDE.md for imperative entries without explanation.
-func scanClaudeMDForRationale(claudeMDPath string, extractor LLMExtractor) ([]MaintenanceProposal, error) {
-	content, err := os.ReadFile(claudeMDPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
-	}
-
-	if len(content) == 0 {
-		return nil, nil
-	}
-
-	sections := ParseCLAUDEMD(string(content))
-	promoted, ok := sections["Promoted Learnings"]
-	if !ok || len(promoted) == 0 {
-		return nil, nil
-	}
-
-	var proposals []MaintenanceProposal
-	ctx := context.Background()
-
-	for _, line := range promoted {
-		trimmed := strings.TrimSpace(line)
-		entry := strings.TrimPrefix(trimmed, "- ")
-		// Strip timestamp prefix
-		entry = stripTimestampPrefix(entry)
-
-		if entry == "" {
-			continue
-		}
-
-		// Check if entry is imperative without explanation (lacks "because", "to", "-", etc.)
-		if isImperativeWithoutRationale(entry) {
-			// Generate enriched version with rationale
-			enriched, err := extractor.AddRationale(ctx, entry)
-			if err != nil {
-				continue // Skip on LLM error
+			end := strings.Index(result[start+1:], "`")
+			if end == -1 {
+				break
 			}
 
-			proposals = append(proposals, MaintenanceProposal{
-				Tier:    "claude-md",
-				Action:  "add-rationale",
-				Target:  entry,
-				Reason:  "imperative rule without explanation",
-				Preview: enriched,
-			})
+			end += start + 1
+			result = result[:start] + result[end+1:]
+		}
+
+		return strings.TrimSpace(result)
+	}
+
+	// Otherwise return as-is
+	return entry
+}
+
+// hasCodeBlockOrPath checks if entry contains code blocks or file paths.
+func hasCodeBlockOrPath(entry string) bool {
+	// Check for backticks (code blocks)
+	if strings.Contains(entry, "`") {
+		return true
+	}
+
+	// Check for file paths (contains / or .go, .py, .ts, etc.)
+	if strings.Contains(entry, "/") {
+		return true
+	}
+
+	extensions := []string{".go", ".py", ".ts", ".js", ".yaml", ".json", ".md"}
+	for _, ext := range extensions {
+		if strings.Contains(entry, ext) {
+			return true
 		}
 	}
 
-	return proposals, nil
+	return false
+}
+
+// isImperativeWithoutRationale checks if entry is imperative without explanation.
+func isImperativeWithoutRationale(entry string) bool {
+	// Imperative entries typically start with verbs: "Always", "Never", "Use", "Avoid", etc.
+	// And lack explanation markers: "because", "to", "-", ":", etc.
+	lower := strings.ToLower(entry)
+
+	// Check for imperative starters
+	imperativeStarters := []string{
+		"always ", "never ", "use ", "avoid ", "prefer ", "ensure ",
+		"check ", "verify ", "validate ", "do not ", "don't ",
+	}
+	hasImperative := false
+
+	for _, starter := range imperativeStarters {
+		if strings.HasPrefix(lower, starter) {
+			hasImperative = true
+			break
+		}
+	}
+
+	if !hasImperative {
+		return false
+	}
+
+	// Check for explanation markers
+	explanationMarkers := []string{
+		" because ", " to ", " - ", " since ", " as ",
+		" for ", " when ", " so that ",
+	}
+	for _, marker := range explanationMarkers {
+		if strings.Contains(lower, marker) {
+			return false // Has explanation, not a candidate
+		}
+	}
+
+	return true // Imperative without explanation
 }
 
 // scanClaudeMDCodeBlocks scans CLAUDE.md for entries mixing rule + code blocks/paths.
@@ -199,6 +165,7 @@ func scanClaudeMDCodeBlocks(claudeMDPath string) ([]MaintenanceProposal, error) 
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+
 		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
 	}
 
@@ -207,6 +174,7 @@ func scanClaudeMDCodeBlocks(claudeMDPath string) ([]MaintenanceProposal, error) 
 	}
 
 	sections := ParseCLAUDEMD(string(content))
+
 	promoted, ok := sections["Promoted Learnings"]
 	if !ok || len(promoted) == 0 {
 		return nil, nil
@@ -242,96 +210,152 @@ func scanClaudeMDCodeBlocks(claudeMDPath string) ([]MaintenanceProposal, error) 
 	return proposals, nil
 }
 
-// isImperativeWithoutRationale checks if entry is imperative without explanation.
-func isImperativeWithoutRationale(entry string) bool {
-	// Imperative entries typically start with verbs: "Always", "Never", "Use", "Avoid", etc.
-	// And lack explanation markers: "because", "to", "-", ":", etc.
-	lower := strings.ToLower(entry)
-
-	// Check for imperative starters
-	imperativeStarters := []string{
-		"always ", "never ", "use ", "avoid ", "prefer ", "ensure ",
-		"check ", "verify ", "validate ", "do not ", "don't ",
-	}
-	hasImperative := false
-	for _, starter := range imperativeStarters {
-		if strings.HasPrefix(lower, starter) {
-			hasImperative = true
-			break
+// scanClaudeMDForRationale scans CLAUDE.md for imperative entries without explanation.
+func scanClaudeMDForRationale(claudeMDPath string, extractor LLMExtractor) ([]MaintenanceProposal, error) {
+	content, err := os.ReadFile(claudeMDPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
 		}
+
+		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
 	}
 
-	if !hasImperative {
-		return false
+	if len(content) == 0 {
+		return nil, nil
 	}
 
-	// Check for explanation markers
-	explanationMarkers := []string{
-		" because ", " to ", " - ", " since ", " as ",
-		" for ", " when ", " so that ",
+	sections := ParseCLAUDEMD(string(content))
+
+	promoted, ok := sections["Promoted Learnings"]
+	if !ok || len(promoted) == 0 {
+		return nil, nil
 	}
-	for _, marker := range explanationMarkers {
-		if strings.Contains(lower, marker) {
-			return false // Has explanation, not a candidate
+
+	var proposals []MaintenanceProposal
+
+	ctx := context.Background()
+
+	for _, line := range promoted {
+		trimmed := strings.TrimSpace(line)
+		entry := strings.TrimPrefix(trimmed, "- ")
+		// Strip timestamp prefix
+		entry = stripTimestampPrefix(entry)
+
+		if entry == "" {
+			continue
 		}
-	}
 
-	return true // Imperative without explanation
-}
-
-// hasCodeBlockOrPath checks if entry contains code blocks or file paths.
-func hasCodeBlockOrPath(entry string) bool {
-	// Check for backticks (code blocks)
-	if strings.Contains(entry, "`") {
-		return true
-	}
-
-	// Check for file paths (contains / or .go, .py, .ts, etc.)
-	if strings.Contains(entry, "/") {
-		return true
-	}
-
-	extensions := []string{".go", ".py", ".ts", ".js", ".yaml", ".json", ".md"}
-	for _, ext := range extensions {
-		if strings.Contains(entry, ext) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// extractPrinciple extracts the principle part from an entry with examples.
-func extractPrinciple(entry string) string {
-	// Try to extract principle before ". Example:", ". E.g.", etc.
-	markers := []string{". Example:", ". E.g.", ". For example,", ". Usage:"}
-	for _, marker := range markers {
-		if idx := strings.Index(entry, marker); idx != -1 {
-			return strings.TrimSpace(entry[:idx])
-		}
-	}
-
-	// If no marker, try to remove code blocks
-	if strings.Contains(entry, "`") {
-		// Remove everything in backticks
-		result := entry
-		for strings.Contains(result, "`") {
-			start := strings.Index(result, "`")
-			end := strings.Index(result[start+1:], "`")
-			if end == -1 {
-				break
+		// Check if entry is imperative without explanation (lacks "because", "to", "-", etc.)
+		if isImperativeWithoutRationale(entry) {
+			// Generate enriched version with rationale
+			enriched, err := extractor.AddRationale(ctx, entry)
+			if err != nil {
+				continue // Skip on LLM error
 			}
-			end += start + 1
-			result = result[:start] + result[end+1:]
+
+			proposals = append(proposals, MaintenanceProposal{
+				Tier:    "claude-md",
+				Action:  "add-rationale",
+				Target:  entry,
+				Reason:  "imperative rule without explanation",
+				Preview: enriched,
+			})
 		}
-		return strings.TrimSpace(result)
 	}
 
-	// Otherwise return as-is
-	return entry
+	return proposals, nil
 }
 
-// WriteFile is a helper for tests to write files (thin wrapper around os.WriteFile).
-func WriteFile(path string, data []byte) error {
-	return os.WriteFile(path, data, 0644)
+// scanFlaggedForRewrite scans embeddings tier for entries flagged for rewriting.
+func scanFlaggedForRewrite(db *sql.DB, extractor LLMExtractor) ([]MaintenanceProposal, error) {
+	rows, err := db.Query(`
+		SELECT id, content
+		FROM embeddings
+		WHERE flagged_for_rewrite = 1
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var proposals []MaintenanceProposal
+
+	ctx := context.Background()
+
+	for rows.Next() {
+		var (
+			id      int64
+			content string
+		)
+
+		if err := rows.Scan(&id, &content); err != nil {
+			continue
+		}
+
+		// Generate refined version via LLM
+		refined, err := extractor.Rewrite(ctx, content)
+		if err != nil {
+			continue // Skip on LLM error
+		}
+
+		proposals = append(proposals, MaintenanceProposal{
+			Tier:    "embeddings",
+			Action:  "rewrite",
+			Target:  strconv.FormatInt(id, 10),
+			Reason:  "flagged for clarity/specificity improvements",
+			Preview: refined,
+		})
+	}
+
+	return proposals, nil
+}
+
+// scanMissingRationale scans embeddings tier for entries with principle but no rationale.
+func scanMissingRationale(db *sql.DB, extractor LLMExtractor) ([]MaintenanceProposal, error) {
+	rows, err := db.Query(`
+		SELECT id, content, principle
+		FROM embeddings
+		WHERE principle != ''
+		  AND (rationale IS NULL OR rationale = '')
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var proposals []MaintenanceProposal
+
+	ctx := context.Background()
+
+	for rows.Next() {
+		var (
+			id                 int64
+			content, principle string
+		)
+
+		if err := rows.Scan(&id, &content, &principle); err != nil {
+			continue
+		}
+
+		// Generate enriched version with rationale
+		enriched, err := extractor.AddRationale(ctx, principle)
+		if err != nil {
+			continue // Skip on LLM error
+		}
+
+		proposals = append(proposals, MaintenanceProposal{
+			Tier:    "embeddings",
+			Action:  "add-rationale",
+			Target:  strconv.FormatInt(id, 10),
+			Reason:  "principle without explanation of why",
+			Preview: enriched,
+		})
+	}
+
+	return proposals, nil
 }

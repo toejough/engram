@@ -4,11 +4,87 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
+
+// ApplyClaudeMDProposal applies a maintenance proposal to CLAUDE.md.
+// Supported actions:
+// - prune: remove entry from Promoted Learnings
+// - consolidate: merge similar entries into one
+// - split: break long entry into multiple entries
+// - demote: remove entry from CLAUDE.md (caller should create skill)
+func ApplyClaudeMDProposal(fs FileSystem, claudeMDPath string, proposal MaintenanceProposal) error {
+	switch proposal.Action {
+	case "prune":
+		return RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+
+	case "consolidate":
+		// Target format: "entry1|entry2"
+		parts := strings.Split(proposal.Target, "|")
+		if len(parts) != 2 {
+			return fmt.Errorf("consolidate target must be 'entry1|entry2', got: %s", proposal.Target)
+		}
+		// Remove both entries
+		err := RemoveFromClaudeMD(fs, claudeMDPath, parts)
+		if err != nil {
+			return err
+		}
+		// Add merged entry
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	case "split":
+		// Preview format: "part1|part2|part3"
+		parts := strings.Split(proposal.Preview, "|")
+		if len(parts) < 2 {
+			return fmt.Errorf("split preview must contain at least 2 parts, got: %s", proposal.Preview)
+		}
+		// Remove original entry
+		err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+		if err != nil {
+			return err
+		}
+		// Add split parts
+		return appendToClaudeMDWithFS(fs, claudeMDPath, parts)
+
+	case "demote":
+		// Just remove from CLAUDE.md (caller handles skill creation)
+		return RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+
+	case "rewrite":
+		// ISSUE-218: Replace target entry with refined preview content
+		err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+		if err != nil {
+			return err
+		}
+
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	case "add-rationale":
+		// ISSUE-218: Replace target entry with enriched version (includes rationale)
+		err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+		if err != nil {
+			return err
+		}
+
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	case "extract-examples":
+		// ISSUE-218: Replace target with principle-only (examples removed)
+		err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
+		if err != nil {
+			return err
+		}
+
+		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
+
+	default:
+		return fmt.Errorf("unknown action: %s", proposal.Action)
+	}
+}
 
 // ScanClaudeMD scans CLAUDE.md for maintenance opportunities and returns proposals.
 // It detects:
@@ -22,6 +98,7 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+
 		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
 	}
 
@@ -30,6 +107,7 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 	}
 
 	sections := ParseCLAUDEMD(string(content))
+
 	promoted, ok := sections["Promoted Learnings"]
 	if !ok || len(promoted) == 0 {
 		return nil, nil
@@ -40,7 +118,9 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 		line    string
 		content string
 	}
+
 	var entries []learningEntry
+
 	for _, line := range promoted {
 		trimmed := strings.TrimSpace(line)
 		entry := strings.TrimPrefix(trimmed, "- ")
@@ -62,16 +142,20 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 	if err != nil {
 		return nil, fmt.Errorf("failed to get home directory: %w", err)
 	}
+
 	modelDir := filepath.Join(homeDir, ".claude", "models")
 	if err := os.MkdirAll(modelDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create model directory: %w", err)
 	}
+
 	if err := initializeONNXRuntime(modelDir); err != nil {
 		return nil, fmt.Errorf("failed to initialize ONNX Runtime: %w", err)
 	}
+
 	modelPath := filepath.Join(modelDir, "e5-small-v2.onnx")
 	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		if err := downloadModel(modelPath); err != nil {
+		err := downloadModel(modelPath, http.DefaultClient)
+		if err != nil {
 			return nil, fmt.Errorf("failed to download model: %w", err)
 		}
 	}
@@ -79,27 +163,33 @@ func ScanClaudeMD(fs FileSystem, claudeMDPath string, similarityThreshold float6
 	// Generate embeddings for all entries
 	type embeddedEntry struct {
 		learningEntry
+
 		embedding []float32
 	}
+
 	var embeddedEntries []embeddedEntry
+
 	for _, e := range entries {
 		emb, _, _, err := generateEmbeddingONNX("passage: "+e.content, modelPath)
 		if err != nil {
 			continue
 		}
+
 		embeddedEntries = append(embeddedEntries, embeddedEntry{learningEntry: e, embedding: emb})
 	}
 
 	// 1. Detect redundant entries (similarity > threshold)
 	seen := make(map[int]bool)
-	for i := 0; i < len(embeddedEntries); i++ {
+	for i := range embeddedEntries {
 		if seen[i] {
 			continue
 		}
+
 		for j := i + 1; j < len(embeddedEntries); j++ {
 			if seen[j] {
 				continue
 			}
+
 			sim := cosineSimilarity(embeddedEntries[i].embedding, embeddedEntries[j].embedding)
 			if sim > similarityThreshold {
 				// Consolidate: merge entries
@@ -175,6 +265,7 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+
 		return nil, fmt.Errorf("failed to read CLAUDE.md: %w", err)
 	}
 
@@ -184,6 +275,7 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 
 	// Parse "Promoted Learnings" section
 	sections := ParseCLAUDEMD(string(content))
+
 	promoted, ok := sections["Promoted Learnings"]
 	if !ok || len(promoted) == 0 {
 		return nil, nil
@@ -191,17 +283,18 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 
 	// Parse learning entries
 	type learningEntry struct {
-		line    string
 		content string
 	}
+
 	var entries []learningEntry
+
 	for _, line := range promoted {
 		trimmed := strings.TrimSpace(line)
 		entry := strings.TrimPrefix(trimmed, "- ")
 		// Strip timestamp prefix if present
 		entry = stripTimestampPrefix(entry)
 		if entry != "" {
-			entries = append(entries, learningEntry{line: line, content: entry})
+			entries = append(entries, learningEntry{content: entry})
 		}
 	}
 
@@ -216,11 +309,13 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 		WHERE promoted = 1
 		  AND (flagged_for_review = 1 OR flagged_for_rewrite = 1)
 	`
+
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query flagged embeddings: %w", err)
 	}
-	defer rows.Close()
+
+	defer func() { _ = rows.Close() }()
 
 	type flaggedEmbedding struct {
 		id                int64
@@ -230,11 +325,15 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 	}
 
 	var flaggedEmbeddings []flaggedEmbedding
+
 	for rows.Next() {
 		var e flaggedEmbedding
-		if err := rows.Scan(&e.id, &e.content, &e.flaggedForReview, &e.flaggedForRewrite); err != nil {
+
+		err := rows.Scan(&e.id, &e.content, &e.flaggedForReview, &e.flaggedForRewrite)
+		if err != nil {
 			continue
 		}
+
 		flaggedEmbeddings = append(flaggedEmbeddings, e)
 	}
 
@@ -274,6 +373,7 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 					Reason: fmt.Sprintf("source embedding flagged (%s feedback)", feedbackType),
 				}
 				proposals = append(proposals, proposal)
+
 				break // Only create one proposal per entry
 			}
 		}
@@ -282,151 +382,53 @@ func ScanClaudeMDFeedback(db *sql.DB, claudeMDPath string) ([]MaintenanceProposa
 	return proposals, nil
 }
 
-// ApplyClaudeMDProposal applies a maintenance proposal to CLAUDE.md.
-// Supported actions:
-// - prune: remove entry from Promoted Learnings
-// - consolidate: merge similar entries into one
-// - split: break long entry into multiple entries
-// - demote: remove entry from CLAUDE.md (caller should create skill)
-func ApplyClaudeMDProposal(fs FileSystem, claudeMDPath string, proposal MaintenanceProposal) error {
-	switch proposal.Action {
-	case "prune":
-		return RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
-
-	case "consolidate":
-		// Target format: "entry1|entry2"
-		parts := strings.Split(proposal.Target, "|")
-		if len(parts) != 2 {
-			return fmt.Errorf("consolidate target must be 'entry1|entry2', got: %s", proposal.Target)
-		}
-		// Remove both entries
-		if err := RemoveFromClaudeMD(fs, claudeMDPath, parts); err != nil {
-			return err
-		}
-		// Add merged entry
-		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
-
-	case "split":
-		// Preview format: "part1|part2|part3"
-		parts := strings.Split(proposal.Preview, "|")
-		if len(parts) < 2 {
-			return fmt.Errorf("split preview must contain at least 2 parts, got: %s", proposal.Preview)
-		}
-		// Remove original entry
-		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
-			return err
-		}
-		// Add split parts
-		return appendToClaudeMDWithFS(fs, claudeMDPath, parts)
-
-	case "demote":
-		// Just remove from CLAUDE.md (caller handles skill creation)
-		return RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target})
-
-	case "rewrite":
-		// ISSUE-218: Replace target entry with refined preview content
-		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
-			return err
-		}
-		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
-
-	case "add-rationale":
-		// ISSUE-218: Replace target entry with enriched version (includes rationale)
-		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
-			return err
-		}
-		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
-
-	case "extract-examples":
-		// ISSUE-218: Replace target with principle-only (examples removed)
-		if err := RemoveFromClaudeMD(fs, claudeMDPath, []string{proposal.Target}); err != nil {
-			return err
-		}
-		return appendToClaudeMDWithFS(fs, claudeMDPath, []string{proposal.Preview})
-
-	default:
-		return fmt.Errorf("unknown action: %s", proposal.Action)
-	}
-}
-
-// stripTimestampPrefix removes the timestamp prefix from a learning entry.
-// Format: "2026-02-08 21:40: content" -> "content"
-func stripTimestampPrefix(entry string) string {
-	// Check for timestamp prefix: "YYYY-MM-DD HH:MM: "
-	if len(entry) < 19 {
-		return entry
-	}
-	// Quick check for pattern
-	if entry[4] == '-' && entry[7] == '-' && entry[10] == ' ' && entry[13] == ':' && entry[16] == ':' {
-		// Check if followed by space
-		if len(entry) > 19 && entry[19] == ' ' {
-			return strings.TrimSpace(entry[20:])
-		}
-	}
-	return entry
-}
-
-// mergeEntries merges two similar entries into a consolidated version.
-// If extractor is provided, uses LLM synthesis; otherwise uses simple heuristic (longer entry).
-func mergeEntries(entry1, entry2 string, extractor LLMExtractor) string {
-	// Try LLM synthesis if extractor is available
-	if extractor != nil {
-		ctx := context.Background()
-		merged, err := extractor.Synthesize(ctx, []string{entry1, entry2})
-		if err == nil && merged != "" {
-			return merged
-		}
-		// Fall through to heuristic if LLM fails
+// appendToClaudeMDWithFS is a variant of appendToClaudeMD that uses FileSystem interface.
+func appendToClaudeMDWithFS(fs FileSystem, claudeMDPath string, learnings []string) error {
+	// Build the new learning lines
+	var newLines strings.Builder
+	for _, learning := range learnings {
+		newLines.WriteString("- " + learning + "\n")
 	}
 
-	// Fallback heuristic: use the longer entry
-	if len(entry1) > len(entry2) {
-		return entry1
+	// Read existing content (empty if file doesn't exist)
+	existing, err := fs.ReadFile(claudeMDPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read CLAUDE.md: %w", err)
 	}
-	return entry2
-}
 
-// splitLongEntry splits a long entry into multiple parts based on sentence boundaries.
-func splitLongEntry(entry string) []string {
-	// Split on sentence boundaries (. followed by space or end)
-	sentences := strings.Split(entry, ". ")
+	content := string(existing)
 
-	// If we have multiple sentences, return each as a separate part
-	if len(sentences) > 1 {
-		var parts []string
-		for _, s := range sentences {
-			trimmed := strings.TrimSpace(s)
-			if trimmed != "" {
-				// Add period back if it was removed
-				if !strings.HasSuffix(trimmed, ".") && !strings.HasSuffix(trimmed, "?") && !strings.HasSuffix(trimmed, "!") {
-					trimmed += "."
-				}
-				parts = append(parts, trimmed)
+	const sectionHeader = "## Promoted Learnings"
+
+	idx := strings.Index(content, sectionHeader)
+	if idx == -1 {
+		// No Promoted Learnings section - add it
+		if content != "" && !strings.HasSuffix(content, "\n\n") {
+			content += "\n\n"
+		}
+
+		content += sectionHeader + "\n\n" + newLines.String()
+	} else {
+		// Find next section or end of file
+		afterHeader := idx + len(sectionHeader)
+		nextSection := strings.Index(content[afterHeader:], "\n## ")
+
+		var insertPos int
+		if nextSection == -1 {
+			// No next section - append at end
+			insertPos = len(content)
+			if !strings.HasSuffix(content, "\n") {
+				content += "\n"
 			}
+		} else {
+			// Insert before next section
+			insertPos = afterHeader + nextSection
 		}
-		return parts
+
+		content = content[:insertPos] + newLines.String() + content[insertPos:]
 	}
 
-	// If no sentence boundaries, split on conjunction words
-	conjunctions := []string{". ", "; ", ", and ", ", but ", ": "}
-	for _, conj := range conjunctions {
-		if strings.Contains(entry, conj) {
-			parts := strings.Split(entry, conj)
-			var cleaned []string
-			for _, p := range parts {
-				trimmed := strings.TrimSpace(p)
-				if trimmed != "" {
-					cleaned = append(cleaned, trimmed)
-				}
-			}
-			if len(cleaned) > 1 {
-				return cleaned
-			}
-		}
-	}
-
-	// Fallback: return original as single part
-	return []string{entry}
+	return fs.WriteFile(claudeMDPath, []byte(content), 0644)
 }
 
 // isStaleEntry checks if a CLAUDE.md entry has a timestamp prefix older than 90 days.
@@ -437,6 +439,7 @@ func isStaleEntry(line string) bool {
 	if !strings.HasPrefix(trimmed, "- ") {
 		return false
 	}
+
 	rest := trimmed[2:] // Skip "- "
 
 	// Check format: YYYY-MM-DD HH:MM:
@@ -450,6 +453,7 @@ func isStaleEntry(line string) bool {
 	if len(timestampPart) != 16 {
 		return false
 	}
+
 	if timestampPart[4] != '-' || timestampPart[7] != '-' || timestampPart[10] != ' ' || timestampPart[13] != ':' {
 		return false
 	}
@@ -474,49 +478,91 @@ func isStaleEntry(line string) bool {
 	return age > threshold
 }
 
-// appendToClaudeMDWithFS is a variant of appendToClaudeMD that uses FileSystem interface.
-func appendToClaudeMDWithFS(fs FileSystem, claudeMDPath string, learnings []string) error {
-	// Build the new learning lines
-	var newLines strings.Builder
-	for _, learning := range learnings {
-		newLines.WriteString("- " + learning + "\n")
-	}
+// mergeEntries merges two similar entries into a consolidated version.
+// If extractor is provided, uses LLM synthesis; otherwise uses simple heuristic (longer entry).
+func mergeEntries(entry1, entry2 string, extractor LLMExtractor) string {
+	// Try LLM synthesis if extractor is available
+	if extractor != nil {
+		ctx := context.Background()
 
-	// Read existing content (empty if file doesn't exist)
-	existing, err := fs.ReadFile(claudeMDPath)
-	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read CLAUDE.md: %w", err)
-	}
-
-	content := string(existing)
-	const sectionHeader = "## Promoted Learnings"
-
-	idx := strings.Index(content, sectionHeader)
-	if idx == -1 {
-		// No Promoted Learnings section - add it
-		if content != "" && !strings.HasSuffix(content, "\n\n") {
-			content += "\n\n"
+		merged, err := extractor.Synthesize(ctx, []string{entry1, entry2})
+		if err == nil && merged != "" {
+			return merged
 		}
-		content += sectionHeader + "\n\n" + newLines.String()
-	} else {
-		// Find next section or end of file
-		afterHeader := idx + len(sectionHeader)
-		nextSection := strings.Index(content[afterHeader:], "\n## ")
+		// Fall through to heuristic if LLM fails
+	}
 
-		var insertPos int
-		if nextSection == -1 {
-			// No next section - append at end
-			insertPos = len(content)
-			if !strings.HasSuffix(content, "\n") {
-				content += "\n"
+	// Fallback heuristic: use the longer entry
+	if len(entry1) > len(entry2) {
+		return entry1
+	}
+
+	return entry2
+}
+
+// splitLongEntry splits a long entry into multiple parts based on sentence boundaries.
+func splitLongEntry(entry string) []string {
+	// Split on sentence boundaries (. followed by space or end)
+	sentences := strings.Split(entry, ". ")
+
+	// If we have multiple sentences, return each as a separate part
+	if len(sentences) > 1 {
+		var parts []string
+
+		for _, s := range sentences {
+			trimmed := strings.TrimSpace(s)
+			if trimmed != "" {
+				// Add period back if it was removed
+				if !strings.HasSuffix(trimmed, ".") && !strings.HasSuffix(trimmed, "?") && !strings.HasSuffix(trimmed, "!") {
+					trimmed += "."
+				}
+
+				parts = append(parts, trimmed)
 			}
-		} else {
-			// Insert before next section
-			insertPos = afterHeader + nextSection
 		}
 
-		content = content[:insertPos] + newLines.String() + content[insertPos:]
+		return parts
 	}
 
-	return fs.WriteFile(claudeMDPath, []byte(content), 0644)
+	// If no sentence boundaries, split on conjunction words
+	conjunctions := []string{". ", "; ", ", and ", ", but ", ": "}
+	for _, conj := range conjunctions {
+		if strings.Contains(entry, conj) {
+			parts := strings.Split(entry, conj)
+
+			var cleaned []string
+
+			for _, p := range parts {
+				trimmed := strings.TrimSpace(p)
+				if trimmed != "" {
+					cleaned = append(cleaned, trimmed)
+				}
+			}
+
+			if len(cleaned) > 1 {
+				return cleaned
+			}
+		}
+	}
+
+	// Fallback: return original as single part
+	return []string{entry}
+}
+
+// stripTimestampPrefix removes the timestamp prefix from a learning entry.
+// Format: "2026-02-08 21:40: content" -> "content"
+func stripTimestampPrefix(entry string) string {
+	// Check for timestamp prefix: "YYYY-MM-DD HH:MM: "
+	if len(entry) < 19 {
+		return entry
+	}
+	// Quick check for pattern
+	if entry[4] == '-' && entry[7] == '-' && entry[10] == ' ' && entry[13] == ':' && entry[16] == ':' {
+		// Check if followed by space
+		if len(entry) > 19 && entry[19] == ' ' {
+			return strings.TrimSpace(entry[20:])
+		}
+	}
+
+	return entry
 }

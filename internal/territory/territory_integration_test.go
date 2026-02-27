@@ -13,24 +13,22 @@ import (
 	"github.com/toejough/projctl/internal/territory"
 )
 
-// TEST-570 traces: TASK-034
-// Test Generate creates a territory map with structure section.
-func TestGenerate_StructureSection(t *testing.T) {
+// TEST-574 traces: TASK-034
+// Test Generate identifies docs.
+func TestGenerate_DocsSection(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	// Create a minimal Go project structure
-	_ = os.MkdirAll(filepath.Join(dir, "cmd", "myapp"), 0o755)
-	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
-	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "cmd", "myapp", "main.go"), []byte("package main\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
+	// Create docs
+	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "docs", "design.md"), []byte("# Design\n"), 0o644)
 
 	m, err := territory.Generate(dir)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(m.Structure.Root).To(Equal(dir))
-	g.Expect(m.Structure.Languages).To(ContainElement("go"))
+	g.Expect(m.Docs.Readme).To(Equal("README.md"))
+	g.Expect(m.Docs.Artifacts).To(ContainElement("docs/design.md"))
 }
 
 // TEST-571 traces: TASK-034
@@ -68,6 +66,26 @@ func TestGenerate_PackagesSection(t *testing.T) {
 	g.Expect(m.Packages.Internal).To(ContainElements("pkg1", "pkg2"))
 }
 
+// TEST-570 traces: TASK-034
+// Test Generate creates a territory map with structure section.
+func TestGenerate_StructureSection(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a minimal Go project structure
+	_ = os.MkdirAll(filepath.Join(dir, "cmd", "myapp"), 0o755)
+	_ = os.MkdirAll(filepath.Join(dir, "internal", "pkg1"), 0o755)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example.com/test\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "cmd", "myapp", "main.go"), []byte("package main\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "internal", "pkg1", "pkg.go"), []byte("package pkg1\n"), 0o644)
+
+	m, err := territory.Generate(dir)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(m.Structure.Root).To(Equal(dir))
+	g.Expect(m.Structure.Languages).To(ContainElement("go"))
+}
+
 // TEST-573 traces: TASK-034
 // Test Generate detects test patterns.
 func TestGenerate_TestsSection(t *testing.T) {
@@ -87,22 +105,92 @@ func TestGenerate_TestsSection(t *testing.T) {
 	g.Expect(m.Tests.Count).To(BeNumerically(">=", 1))
 }
 
-// TEST-574 traces: TASK-034
-// Test Generate identifies docs.
-func TestGenerate_DocsSection(t *testing.T) {
+// TEST-582 traces: TASK-035
+// Test LoadCached regenerates if file count changed significantly.
+func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	// Create docs
-	_ = os.MkdirAll(filepath.Join(dir, "docs"), 0o755)
-	_ = os.WriteFile(filepath.Join(dir, "README.md"), []byte("# Test\n"), 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "docs", "design.md"), []byte("# Design\n"), 0o644)
+	// Create a cached map with file count of 100
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: "/old/path"},
+		},
+		CachedAt:  time.Now(),
+		FileCount: 100,
+	}
+	data, _ := territory.MarshalCached(cached)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
 
-	m, err := territory.Generate(dir)
+	// Only create 5 files (> 10% difference from 100)
+	for i := 0; i < 5; i++ {
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+	}
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(m.Docs.Readme).To(Equal("README.md"))
-	g.Expect(m.Docs.Artifacts).To(ContainElement("docs/design.md"))
+	g.Expect(hit).To(BeFalse())
+	g.Expect(result.Structure.Root).To(Equal(dir))
+}
+
+// TEST-581 traces: TASK-035
+// Test LoadCached regenerates if cache is old.
+func TestLoadCached_RegeneratesIfOld(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map with old timestamp
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: "/old/path"},
+		},
+		CachedAt:  time.Now().Add(-2 * time.Hour), // 2 hours ago
+		FileCount: 10,
+	}
+	data, _ := territory.MarshalCached(cached)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(hit).To(BeFalse())
+	g.Expect(result.Structure.Root).To(Equal(dir)) // Fresh generation
+}
+
+// TEST-580 traces: TASK-035
+// Test LoadCached returns cached map if recent.
+func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	dir := t.TempDir()
+
+	// Create a cached map with recent timestamp
+	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
+	cached := territory.CachedMap{
+		Map: territory.Map{
+			Structure: territory.Structure{Root: dir},
+			Packages:  territory.Packages{Count: 5},
+		},
+		CachedAt:  time.Now(),
+		FileCount: 10,
+	}
+	data, _ := territory.MarshalCached(cached)
+	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
+
+	// Create directory structure matching the cached count
+	for i := 0; i < 10; i++ {
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
+	}
+
+	result, hit, err := territory.LoadCached(dir, time.Now)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(hit).To(BeTrue())
+	g.Expect(result.Structure.Root).To(Equal(dir))
 }
 
 // TEST-575 traces: TASK-034
@@ -142,92 +230,15 @@ func TestMarshal_UnderTokenBudget(t *testing.T) {
 	g.Expect(len(data)).To(BeNumerically("<", 4000))
 }
 
-// TEST-580 traces: TASK-035
-// Test LoadCached returns cached map if recent.
-func TestLoadCached_ReturnsCachedIfRecent(t *testing.T) {
+// Test Show errors when no cache exists.
+func TestShow_ErrorsWhenNoCache(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 	dir := t.TempDir()
 
-	// Create a cached map with recent timestamp
-	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
-	cached := territory.CachedMap{
-		Map: territory.Map{
-			Structure: territory.Structure{Root: dir},
-			Packages:  territory.Packages{Count: 5},
-		},
-		CachedAt:  time.Now(),
-		FileCount: 10,
-	}
-	data, _ := territory.MarshalCached(cached)
-	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
-
-	// Create directory structure matching the cached count
-	for i := 0; i < 10; i++ {
-		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
-	}
-
-	result, hit, err := territory.LoadCached(dir, time.Now)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(hit).To(BeTrue())
-	g.Expect(result.Structure.Root).To(Equal(dir))
-}
-
-// TEST-581 traces: TASK-035
-// Test LoadCached regenerates if cache is old.
-func TestLoadCached_RegeneratesIfOld(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	dir := t.TempDir()
-
-	// Create a cached map with old timestamp
-	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
-	cached := territory.CachedMap{
-		Map: territory.Map{
-			Structure: territory.Structure{Root: "/old/path"},
-		},
-		CachedAt:  time.Now().Add(-2 * time.Hour), // 2 hours ago
-		FileCount: 10,
-	}
-	data, _ := territory.MarshalCached(cached)
-	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
-
-	result, hit, err := territory.LoadCached(dir, time.Now)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(hit).To(BeFalse())
-	g.Expect(result.Structure.Root).To(Equal(dir)) // Fresh generation
-}
-
-// TEST-582 traces: TASK-035
-// Test LoadCached regenerates if file count changed significantly.
-func TestLoadCached_RegeneratesIfFileCountChanged(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	dir := t.TempDir()
-
-	// Create a cached map with file count of 100
-	_ = os.MkdirAll(filepath.Join(dir, "context"), 0o755)
-	cached := territory.CachedMap{
-		Map: territory.Map{
-			Structure: territory.Structure{Root: "/old/path"},
-		},
-		CachedAt:  time.Now(),
-		FileCount: 100,
-	}
-	data, _ := territory.MarshalCached(cached)
-	_ = os.WriteFile(filepath.Join(dir, "context", "territory.toml"), data, 0o644)
-	_ = os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0o644)
-
-	// Only create 5 files (> 10% difference from 100)
-	for i := 0; i < 5; i++ {
-		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("file%d.go", i)), []byte("package main\n"), 0o644)
-	}
-
-	result, hit, err := territory.LoadCached(dir, time.Now)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(hit).To(BeFalse())
-	g.Expect(result.Structure.Root).To(Equal(dir))
+	_, err := territory.Show(dir)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("no cached territory"))
 }
 
 // Test Show returns the cached territory map.
@@ -261,15 +272,4 @@ func TestShow_ReturnsCache(t *testing.T) {
 	g.Expect(result.Map.Structure.Root).To(Equal(dir))
 	g.Expect(result.Map.Structure.Languages).To(ContainElement("go"))
 	g.Expect(result.Map.Packages.Count).To(Equal(3))
-}
-
-// Test Show errors when no cache exists.
-func TestShow_ErrorsWhenNoCache(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	dir := t.TempDir()
-
-	_, err := territory.Show(dir)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("no cached territory"))
 }

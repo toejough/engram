@@ -2,6 +2,7 @@ package screenshot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -14,6 +15,42 @@ import (
 	"strings"
 )
 
+// DiffOpts holds options for the diff operation.
+type DiffOpts struct {
+	HeatmapOutput string
+	DiffOutput    string
+	Threshold     float64 // SSIM threshold for cluster detection (default 0.9)
+}
+
+// DiffResult holds the complete result of a screenshot comparison.
+type DiffResult struct {
+	OverallSSIM float64   `json:"overall_ssim"`
+	Clusters    []Cluster `json:"clusters"`
+	Stats       DiffStats `json:"stats"`
+	DimMismatch bool      `json:"dimension_mismatch"`
+	Expected    ImageInfo `json:"expected"`
+	Actual      ImageInfo `json:"actual"`
+}
+
+// ToJSON returns the diff result as a JSON string.
+func (r DiffResult) ToJSON() (string, error) {
+	data, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
+// DiffStats holds intensity statistics for differences.
+type DiffStats struct {
+	Min    float64 `json:"min"`
+	Max    float64 `json:"max"`
+	Mean   float64 `json:"mean"`
+	Median float64 `json:"median"`
+	StdDev float64 `json:"stddev"`
+}
+
 // FileSystem provides file system operations for screenshot diffing.
 type FileSystem interface {
 	Open(path string) (io.ReadCloser, error)
@@ -22,17 +59,23 @@ type FileSystem interface {
 	WriteFile(path string, data []byte, perm os.FileMode) error
 }
 
+// ImageInfo holds basic image metadata.
+type ImageInfo struct {
+	Width  int `json:"width"`
+	Height int `json:"height"`
+}
+
 // RealFS implements FileSystem using the real file system.
 type RealFS struct{}
-
-// Open opens a file for reading.
-func (RealFS) Open(path string) (io.ReadCloser, error) {
-	return os.Open(path)
-}
 
 // Create creates a file for writing.
 func (RealFS) Create(path string) (io.WriteCloser, error) {
 	return os.Create(path)
+}
+
+// Open opens a file for reading.
+func (RealFS) Open(path string) (io.ReadCloser, error) {
+	return os.Open(path)
 }
 
 // Stat returns file information.
@@ -45,38 +88,6 @@ func (RealFS) WriteFile(path string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(path, data, perm)
 }
 
-// DiffResult holds the complete result of a screenshot comparison.
-type DiffResult struct {
-	OverallSSIM float64       `json:"overall_ssim"`
-	Clusters    []Cluster     `json:"clusters"`
-	Stats       DiffStats     `json:"stats"`
-	DimMismatch bool          `json:"dimension_mismatch"`
-	Expected    ImageInfo     `json:"expected"`
-	Actual      ImageInfo     `json:"actual"`
-}
-
-// ImageInfo holds basic image metadata.
-type ImageInfo struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-// DiffStats holds intensity statistics for differences.
-type DiffStats struct {
-	Min    float64 `json:"min"`
-	Max    float64 `json:"max"`
-	Mean   float64 `json:"mean"`
-	Median float64 `json:"median"`
-	StdDev float64 `json:"stddev"`
-}
-
-// DiffOpts holds options for the diff operation.
-type DiffOpts struct {
-	HeatmapOutput string
-	DiffOutput    string
-	Threshold     float64 // SSIM threshold for cluster detection (default 0.9)
-}
-
 // Diff compares two images and returns a detailed comparison result.
 func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffResult, error) {
 	img1, err := loadImage(expectedPath, fs)
@@ -87,6 +98,14 @@ func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffRe
 	img2, err := loadImage(actualPath, fs)
 	if err != nil {
 		return DiffResult{}, fmt.Errorf("failed to load actual image: %w", err)
+	}
+
+	if img1 == nil {
+		return DiffResult{}, errors.New("failed to decode expected image: nil result")
+	}
+
+	if img2 == nil {
+		return DiffResult{}, errors.New("failed to decode actual image: nil result")
 	}
 
 	b1, b2 := img1.Bounds(), img2.Bounds()
@@ -116,7 +135,9 @@ func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffRe
 	// Write heatmap if requested
 	if opts.HeatmapOutput != "" {
 		heatmap := RenderHeatmap(ssimResult)
-		if err := saveImage(opts.HeatmapOutput, heatmap, fs); err != nil {
+
+		err := saveImage(opts.HeatmapOutput, heatmap, fs)
+		if err != nil {
 			return DiffResult{}, fmt.Errorf("failed to save heatmap: %w", err)
 		}
 	}
@@ -124,7 +145,9 @@ func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffRe
 	// Write diff image with bounding boxes if requested
 	if opts.DiffOutput != "" {
 		diffImg := RenderDiffWithBoxes(img1, img2, result.Clusters)
-		if err := saveImage(opts.DiffOutput, diffImg, fs); err != nil {
+
+		err := saveImage(opts.DiffOutput, diffImg, fs)
+		if err != nil {
 			return DiffResult{}, fmt.Errorf("failed to save diff image: %w", err)
 		}
 	}
@@ -132,18 +155,9 @@ func Diff(expectedPath, actualPath string, opts DiffOpts, fs FileSystem) (DiffRe
 	return result, nil
 }
 
-// ToJSON returns the diff result as a JSON string.
-func (r DiffResult) ToJSON() (string, error) {
-	data, err := json.MarshalIndent(r, "", "  ")
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
 func computeStats(result SSIMResult) DiffStats {
 	var values []float64
+
 	halfWin := windowSize / 2
 
 	for y := halfWin; y < result.Height-halfWin; y++ {
@@ -159,6 +173,7 @@ func computeStats(result SSIMResult) DiffStats {
 	sort.Float64s(values)
 
 	var sum, sumSq float64
+
 	minVal := values[0]
 	maxVal := values[len(values)-1]
 
@@ -188,6 +203,7 @@ func loadImage(path string, fs FileSystem) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	ext := strings.ToLower(filepath.Ext(path))
@@ -207,6 +223,7 @@ func saveImage(path string, img image.Image, fs FileSystem) error {
 	if err != nil {
 		return err
 	}
+
 	defer func() { _ = f.Close() }()
 
 	ext := strings.ToLower(filepath.Ext(path))

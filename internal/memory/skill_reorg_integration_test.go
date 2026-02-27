@@ -18,46 +18,118 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// insertMemorySeqCounter ensures each test memory gets a distinct embedding.
-var insertMemorySeqCounter int
+// TestSkillReorganization_CreatesNewSkill verifies that reorganization
+// creates new skills for clusters that don't match existing skill themes.
+func TestSkillReorganization_CreatesNewSkill(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-// insertMemoryWithEmbedding inserts a memory entry with a unique embedding vector.
-// Each call produces a distinct vector so the dedup step won't merge them
-// (cosine sim < 0.95), while keeping vectors similar enough to cluster
-// (cosine sim > 0.6). Uses a block-based approach: each seq gets a unique
-// 96-dim block set to 1.0 over a shared 0.3 base.
-func insertMemoryWithEmbedding(g *WithT, db *sql.DB, content string) int64 {
-	insertMemorySeqCounter++
-	seq := insertMemorySeqCounter
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	skillsDir := filepath.Join(tempDir, "skills")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
 
-	fakeEmb := make([]float32, 384)
-	for i := range fakeEmb {
-		fakeEmb[i] = 0.3
+	// Open DB for direct inserts
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Add cluster of memories for a new theme
+	errorMemories := []string{
+		"error handling pattern workflow captures context",
+		"new error handling uses structured logging",
+		"error handling pattern workflow wraps errors",
+		"new error handling pattern ensures traceability",
 	}
-	// Each seq bumps a unique 96-dim block to 1.0
-	blockStart := ((seq - 1) % 4) * 96
-	for i := blockStart; i < blockStart+96 && i < 384; i++ {
-		fakeEmb[i] = 1.0
+	for _, msg := range errorMemories {
+		insertMemoryWithEmbedding(g, db, msg)
 	}
-	blob, err := sqlite_vec.SerializeFloat32(fakeEmb)
-	g.Expect(err).ToNot(HaveOccurred())
 
-	// Insert into vec_embeddings
-	result, err := db.Exec("INSERT INTO vec_embeddings(embedding) VALUES (?)", blob)
-	g.Expect(err).ToNot(HaveOccurred())
-	embID, err := result.LastInsertId()
-	g.Expect(err).ToNot(HaveOccurred())
+	// Create mock compiler
+	compiler := &mockSkillCompiler{
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
+			return fmt.Sprintf("# %s\n\nNew skill content", theme), nil
+		},
+	}
 
-	// Insert into embeddings with embedding_id
-	result, err = db.Exec(`
-		INSERT INTO embeddings (content, source, source_type, confidence, memory_type, embedding_id)
-		VALUES (?, 'test', 'internal', 1.0, 'observation', ?)
-	`, content, embID)
+	// Force reorganization with lower threshold for test
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:     memoryRoot,
+		SkillsDir:      skillsDir,
+		SkillCompiler:  compiler,
+		AutoApprove:    true,
+		ForceReorg:     true,
+		ReorgThreshold: 0.6,
+	})
 	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0))
 
-	memID, err := result.LastInsertId()
+	// Verify new skill created (db already open from earlier)
+	var count int
+	err = db.QueryRow("SELECT COUNT(*) FROM generated_skills WHERE pruned = 0").Scan(&count)
 	g.Expect(err).ToNot(HaveOccurred())
-	return memID
+	g.Expect(count).To(BeNumerically(">", 0), "Should create at least one new skill")
+
+	// Verify skill has fresh prior (Alpha=1, Beta=1)
+	var alpha, beta float64
+	err = db.QueryRow("SELECT alpha, beta FROM generated_skills WHERE pruned = 0 LIMIT 1").Scan(&alpha, &beta)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(alpha).To(Equal(1.0), "New skill should have Alpha=1")
+	g.Expect(beta).To(Equal(1.0), "New skill should have Beta=1")
+}
+
+// TestSkillReorganization_ForceReorgFlag verifies that ForceReorg=true
+// triggers reorganization regardless of elapsed time.
+func TestSkillReorganization_ForceReorgFlag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	skillsDir := filepath.Join(tempDir, "skills")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	// Set last_skill_reorg_at to 1 day ago (< 30 days)
+	oneDayAgo := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", oneDayAgo)).To(Succeed())
+
+	// Open DB for direct inserts
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Add cluster of similar memories
+	testMemories := []string{
+		"testing workflow requires red-green-refactor cycle",
+		"test workflow validates acceptance criteria first",
+		"testing workflow pattern uses property-based tests",
+		"test workflow ensures code coverage metrics",
+	}
+	for _, msg := range testMemories {
+		insertMemoryWithEmbedding(g, db, msg)
+	}
+
+	// Create mock compiler
+	compiler := &mockSkillCompiler{
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
+			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
+		},
+	}
+
+	// Run optimize with ForceReorg=true - SHOULD reorganize despite < 30 days
+	// Use lower threshold for test (0.6) so test memories can cluster
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:     memoryRoot,
+		SkillsDir:      skillsDir,
+		SkillCompiler:  compiler,
+		AutoApprove:    true,
+		ForceReorg:     true,
+		ReorgThreshold: 0.6,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0), "ForceReorg should trigger reorganization")
 }
 
 // ============================================================================
@@ -103,6 +175,80 @@ func TestSkillReorganization_NotTriggeredWithin30Days(t *testing.T) {
 	g.Expect(newTimestamp).To(Equal(twentyDaysAgo), "Timestamp should remain unchanged")
 
 	_ = dbPath // silence unused
+}
+
+// TestSkillReorganization_PrunesOrphanedSkills verifies that reorganization
+// soft-deletes skills whose themes no longer appear in any cluster.
+func TestSkillReorganization_PrunesOrphanedSkills(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	skillsDir := filepath.Join(tempDir, "skills")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	// Initialize DB
+	_, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:  memoryRoot,
+		SkillsDir:   skillsDir,
+		AutoApprove: true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Insert orphaned skill (no matching memories)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (
+			slug, theme, description, content, source_memory_ids,
+			alpha, beta, utility, retrieval_count, last_retrieved,
+			created_at, updated_at, pruned
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "orphan-skill", "Orphan Theme", "Orphaned", "# Orphan", "[]",
+		1.0, 1.0, 0.5, 0, nil, now, now, 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Add cluster of memories for DIFFERENT theme (not "orphan")
+	differentMemories := []string{
+		"database migration pattern requires version tracking",
+		"database migration workflow validates schema changes",
+		"database migration pattern ensures backward compatibility",
+		"database migration workflow pattern uses transactions",
+	}
+	for _, msg := range differentMemories {
+		insertMemoryWithEmbedding(g, db, msg)
+	}
+
+	// Create mock compiler
+	compiler := &mockSkillCompiler{
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
+			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
+		},
+	}
+
+	// Force reorganization with lower threshold for test
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:     memoryRoot,
+		SkillsDir:      skillsDir,
+		SkillCompiler:  compiler,
+		AutoApprove:    true,
+		ForceReorg:     true,
+		ReorgThreshold: 0.6,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0))
+
+	// Verify orphan skill pruned
+	var pruned int
+	err = db.QueryRow("SELECT pruned FROM generated_skills WHERE slug = ?", "orphan-skill").Scan(&pruned)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(pruned).To(Equal(1), "Orphan skill should be pruned")
 }
 
 // TestSkillReorganization_TriggeredAfter30Days verifies that reorganization
@@ -196,59 +342,6 @@ func TestSkillReorganization_TriggeredAfter30Days(t *testing.T) {
 	g.Expect(time.Since(parsedTime)).To(BeNumerically("<", 1*time.Minute), "Timestamp should be recent")
 }
 
-// TestSkillReorganization_ForceReorgFlag verifies that ForceReorg=true
-// triggers reorganization regardless of elapsed time.
-func TestSkillReorganization_ForceReorgFlag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	// Set last_skill_reorg_at to 1 day ago (< 30 days)
-	oneDayAgo := time.Now().UTC().Add(-24 * time.Hour).Format(time.RFC3339)
-	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_skill_reorg_at", oneDayAgo)).To(Succeed())
-
-	// Open DB for direct inserts
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Add cluster of similar memories
-	testMemories := []string{
-		"testing workflow requires red-green-refactor cycle",
-		"test workflow validates acceptance criteria first",
-		"testing workflow pattern uses property-based tests",
-		"test workflow ensures code coverage metrics",
-	}
-	for _, msg := range testMemories {
-		insertMemoryWithEmbedding(g, db, msg)
-	}
-
-	// Create mock compiler
-	compiler := &mockSkillCompiler{
-		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
-			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
-		},
-	}
-
-	// Run optimize with ForceReorg=true - SHOULD reorganize despite < 30 days
-	// Use lower threshold for test (0.6) so test memories can cluster
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:     memoryRoot,
-		SkillsDir:      skillsDir,
-		SkillCompiler:  compiler,
-		AutoApprove:    true,
-		ForceReorg:     true,
-		ReorgThreshold: 0.6,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0), "ForceReorg should trigger reorganization")
-}
-
 // TestSkillReorganization_UpdatesExistingSkill verifies that reorganization
 // updates existing skill content while preserving alpha/beta parameters.
 func TestSkillReorganization_UpdatesExistingSkill(t *testing.T) {
@@ -334,137 +427,46 @@ func TestSkillReorganization_UpdatesExistingSkill(t *testing.T) {
 	g.Expect(updatedBeta).To(Equal(originalBeta), "Beta should be preserved")
 }
 
-// TestSkillReorganization_CreatesNewSkill verifies that reorganization
-// creates new skills for clusters that don't match existing skill themes.
-func TestSkillReorganization_CreatesNewSkill(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+// unexported variables.
+var (
+	insertMemorySeqCounter int
+)
 
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+// insertMemoryWithEmbedding inserts a memory entry with a unique embedding vector.
+// Each call produces a distinct vector so the dedup step won't merge them
+// (cosine sim < 0.95), while keeping vectors similar enough to cluster
+// (cosine sim > 0.6). Uses a block-based approach: each seq gets a unique
+// 96-dim block set to 1.0 over a shared 0.3 base.
+func insertMemoryWithEmbedding(g *WithT, db *sql.DB, content string) int64 {
+	insertMemorySeqCounter++
+	seq := insertMemorySeqCounter
 
-	// Open DB for direct inserts
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Add cluster of memories for a new theme
-	errorMemories := []string{
-		"error handling pattern workflow captures context",
-		"new error handling uses structured logging",
-		"error handling pattern workflow wraps errors",
-		"new error handling pattern ensures traceability",
+	fakeEmb := make([]float32, 384)
+	for i := range fakeEmb {
+		fakeEmb[i] = 0.3
 	}
-	for _, msg := range errorMemories {
-		insertMemoryWithEmbedding(g, db, msg)
+	// Each seq bumps a unique 96-dim block to 1.0
+	blockStart := ((seq - 1) % 4) * 96
+	for i := blockStart; i < blockStart+96 && i < 384; i++ {
+		fakeEmb[i] = 1.0
 	}
-
-	// Create mock compiler
-	compiler := &mockSkillCompiler{
-		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
-			return fmt.Sprintf("# %s\n\nNew skill content", theme), nil
-		},
-	}
-
-	// Force reorganization with lower threshold for test
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:     memoryRoot,
-		SkillsDir:      skillsDir,
-		SkillCompiler:  compiler,
-		AutoApprove:    true,
-		ForceReorg:     true,
-		ReorgThreshold: 0.6,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0))
-
-	// Verify new skill created (db already open from earlier)
-	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM generated_skills WHERE pruned = 0").Scan(&count)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(count).To(BeNumerically(">", 0), "Should create at least one new skill")
-
-	// Verify skill has fresh prior (Alpha=1, Beta=1)
-	var alpha, beta float64
-	err = db.QueryRow("SELECT alpha, beta FROM generated_skills WHERE pruned = 0 LIMIT 1").Scan(&alpha, &beta)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(alpha).To(Equal(1.0), "New skill should have Alpha=1")
-	g.Expect(beta).To(Equal(1.0), "New skill should have Beta=1")
-}
-
-// TestSkillReorganization_PrunesOrphanedSkills verifies that reorganization
-// soft-deletes skills whose themes no longer appear in any cluster.
-func TestSkillReorganization_PrunesOrphanedSkills(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	// Initialize DB
-	_, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:  memoryRoot,
-		SkillsDir:   skillsDir,
-		AutoApprove: true,
-	})
+	blob, err := sqlite_vec.SerializeFloat32(fakeEmb)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Insert orphaned skill (no matching memories)
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
+	// Insert into vec_embeddings
+	result, err := db.Exec("INSERT INTO vec_embeddings(embedding) VALUES (?)", blob)
 	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = db.Exec(`
-		INSERT INTO generated_skills (
-			slug, theme, description, content, source_memory_ids,
-			alpha, beta, utility, retrieval_count, last_retrieved,
-			created_at, updated_at, pruned
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "orphan-skill", "Orphan Theme", "Orphaned", "# Orphan", "[]",
-		1.0, 1.0, 0.5, 0, nil, now, now, 0)
+	embID, err := result.LastInsertId()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Add cluster of memories for DIFFERENT theme (not "orphan")
-	differentMemories := []string{
-		"database migration pattern requires version tracking",
-		"database migration workflow validates schema changes",
-		"database migration pattern ensures backward compatibility",
-		"database migration workflow pattern uses transactions",
-	}
-	for _, msg := range differentMemories {
-		insertMemoryWithEmbedding(g, db, msg)
-	}
-
-	// Create mock compiler
-	compiler := &mockSkillCompiler{
-		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
-			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
-		},
-	}
-
-	// Force reorganization with lower threshold for test
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:     memoryRoot,
-		SkillsDir:      skillsDir,
-		SkillCompiler:  compiler,
-		AutoApprove:    true,
-		ForceReorg:     true,
-		ReorgThreshold: 0.6,
-	})
+	// Insert into embeddings with embedding_id
+	result, err = db.Exec(`
+		INSERT INTO embeddings (content, source, source_type, confidence, memory_type, embedding_id)
+		VALUES (?, 'test', 'internal', 1.0, 'observation', ?)
+	`, content, embID)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsReorganized).To(BeNumerically(">", 0))
 
-	// Verify orphan skill pruned
-	var pruned int
-	err = db.QueryRow("SELECT pruned FROM generated_skills WHERE slug = ?", "orphan-skill").Scan(&pruned)
+	memID, err := result.LastInsertId()
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(pruned).To(Equal(1), "Orphan skill should be pruned")
+	return memID
 }

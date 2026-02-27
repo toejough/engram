@@ -1,6 +1,7 @@
 package memory_test
 
 import (
+	"errors"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -9,40 +10,58 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// TEST: ParseResultFile parses valid TOML
-// Traces to: TASK-3 AC-2, AC-3, AC-7
-func TestParseResultFile_ValidTOML(t *testing.T) {
+// TEST: ParseResultFile allows empty decisions array
+// Traces to: TASK-3 AC-3
+func TestParseResultFile_EmptyDecisions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	validResult := `
+	emptyDecisions := `
 [status]
 result = "success"
 timestamp = "2026-02-04T10:45:00Z"
 
-[[decisions]]
-context = "Error handling strategy"
-choice = "Use wrapped errors with context"
-reason = "Provides clear error traces"
-alternatives = ["Sentinel errors", "Error codes"]
-
 [context]
 phase = "design"
-subphase = "review"
 task = "TASK-10"
 `
 
-	result, err := memory.ParseResultFile([]byte(validResult))
+	result, err := memory.ParseResultFile([]byte(emptyDecisions))
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).ToNot(BeNil())
-	g.Expect(result.Status.Result).To(Equal("success"))
-	g.Expect(result.Status.Timestamp).To(Equal("2026-02-04T10:45:00Z"))
-	g.Expect(result.Context.Phase).To(Equal("design"))
-	g.Expect(result.Context.Task).To(Equal("TASK-10"))
-	g.Expect(result.Decisions).To(HaveLen(1))
-	g.Expect(result.Decisions[0].Context).To(Equal("Error handling strategy"))
-	g.Expect(result.Decisions[0].Choice).To(Equal("Use wrapped errors with context"))
-	g.Expect(result.Decisions[0].Alternatives).To(ContainElements("Sentinel errors", "Error codes"))
+
+	if result == nil {
+		t.Fatal("ParseResultFile returned nil result")
+	}
+
+	g.Expect(result.Decisions).To(BeEmpty())
+}
+
+// TEST: ParseResultFile fails fast on first error
+// Traces to: TASK-3 AC-9
+func TestParseResultFile_FailsFastOnFirstError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Multiple missing fields - should fail on first one (status.result)
+	multipleErrors := `
+[context]
+phase = "design"
+`
+
+	result, err := memory.ParseResultFile([]byte(multipleErrors))
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(result).To(BeNil())
+
+	var schemaErr *memory.SchemaValidationError
+	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
+
+	schemaErr = func() *memory.SchemaValidationError {
+		target := &memory.SchemaValidationError{}
+		_ = errors.As(err, &target)
+
+		return target
+	}()
+	g.Expect(schemaErr.Field).To(Equal("status.result"))
 }
 
 // TEST: ParseResultFile returns error on invalid TOML
@@ -83,7 +102,12 @@ phase = "design"
 	var schemaErr *memory.SchemaValidationError
 	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
 
-	schemaErr = err.(*memory.SchemaValidationError)
+	schemaErr = func() *memory.SchemaValidationError {
+		target := &memory.SchemaValidationError{}
+		_ = errors.As(err, &target)
+
+		return target
+	}()
 	g.Expect(schemaErr.Field).To(Equal("status.result"))
 	g.Expect(schemaErr.Expected).To(ContainSubstring("non-empty string"))
 }
@@ -109,31 +133,13 @@ phase = "design"
 	var schemaErr *memory.SchemaValidationError
 	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
 
-	schemaErr = err.(*memory.SchemaValidationError)
+	schemaErr = func() *memory.SchemaValidationError {
+		target := &memory.SchemaValidationError{}
+		_ = errors.As(err, &target)
+
+		return target
+	}()
 	g.Expect(schemaErr.Field).To(Equal("status.timestamp"))
-}
-
-// TEST: ParseResultFile fails fast on first error
-// Traces to: TASK-3 AC-9
-func TestParseResultFile_FailsFastOnFirstError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Multiple missing fields - should fail on first one (status.result)
-	multipleErrors := `
-[context]
-phase = "design"
-`
-
-	result, err := memory.ParseResultFile([]byte(multipleErrors))
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(result).To(BeNil())
-
-	var schemaErr *memory.SchemaValidationError
-	g.Expect(err).To(BeAssignableToTypeOf(schemaErr))
-
-	schemaErr = err.(*memory.SchemaValidationError)
-	g.Expect(schemaErr.Field).To(Equal("status.result"))
 }
 
 // TEST: ParseResultFile handles multiple decisions
@@ -166,30 +172,19 @@ task = "TASK-10"
 
 	result, err := memory.ParseResultFile([]byte(multipleDecisions))
 	g.Expect(err).ToNot(HaveOccurred())
+
+	if result == nil {
+		t.Fatal("ParseResultFile returned nil result")
+	}
+
 	g.Expect(result.Decisions).To(HaveLen(2))
+
+	if len(result.Decisions) < 2 {
+		t.Fatalf("expected 2 decisions from ParseResultFile, got %d", len(result.Decisions))
+	}
+
 	g.Expect(result.Decisions[0].Context).To(Equal("First decision"))
 	g.Expect(result.Decisions[1].Context).To(Equal("Second decision"))
-}
-
-// TEST: ParseResultFile allows empty decisions array
-// Traces to: TASK-3 AC-3
-func TestParseResultFile_EmptyDecisions(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	emptyDecisions := `
-[status]
-result = "success"
-timestamp = "2026-02-04T10:45:00Z"
-
-[context]
-phase = "design"
-task = "TASK-10"
-`
-
-	result, err := memory.ParseResultFile([]byte(emptyDecisions))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Decisions).To(BeEmpty())
 }
 
 // Property test: valid result TOML always parses successfully
@@ -225,4 +220,50 @@ task = "` + task + `"
 		g.Expect(result.Status.Result).To(Equal(resultStatus))
 		g.Expect(result.Context.Phase).To(Equal(phase))
 	})
+}
+
+// TEST: ParseResultFile parses valid TOML
+// Traces to: TASK-3 AC-2, AC-3, AC-7
+func TestParseResultFile_ValidTOML(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	validResult := `
+[status]
+result = "success"
+timestamp = "2026-02-04T10:45:00Z"
+
+[[decisions]]
+context = "Error handling strategy"
+choice = "Use wrapped errors with context"
+reason = "Provides clear error traces"
+alternatives = ["Sentinel errors", "Error codes"]
+
+[context]
+phase = "design"
+subphase = "review"
+task = "TASK-10"
+`
+
+	result, err := memory.ParseResultFile([]byte(validResult))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeNil())
+
+	if result == nil {
+		t.Fatal("ParseResultFile returned nil result")
+	}
+
+	g.Expect(result.Status.Result).To(Equal("success"))
+	g.Expect(result.Status.Timestamp).To(Equal("2026-02-04T10:45:00Z"))
+	g.Expect(result.Context.Phase).To(Equal("design"))
+	g.Expect(result.Context.Task).To(Equal("TASK-10"))
+	g.Expect(result.Decisions).To(HaveLen(1))
+
+	if len(result.Decisions) < 1 {
+		t.Fatal("expected at least 1 decision from ParseResultFile")
+	}
+
+	g.Expect(result.Decisions[0].Context).To(Equal("Error handling strategy"))
+	g.Expect(result.Decisions[0].Choice).To(Equal("Use wrapped errors with context"))
+	g.Expect(result.Decisions[0].Alternatives).To(ContainElements("Sentinel errors", "Error codes"))
 }

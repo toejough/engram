@@ -1,4 +1,3 @@
-// llm_api_messages_test.go
 package memory_test
 
 import (
@@ -29,7 +28,7 @@ func TestCallAPIWithMessages_SendsSystemAndPrefill(t *testing.T) {
 	)
 
 	params := memory.APIMessageParams{
-		System:   "You are a test analyzer.",
+		System: "You are a test analyzer.",
 		Messages: []memory.APIMessage{
 			{Role: "user", Content: "Analyze this."},
 			{Role: "assistant", Content: "["},
@@ -58,6 +57,7 @@ func TestCallAPIWithMessages_SendsSystemAndPrefill(t *testing.T) {
 	if role, _ := msg1["role"].(string); role != "assistant" {
 		t.Errorf("second message role: want assistant, got %s", role)
 	}
+
 	if content, _ := msg1["content"].(string); content != "[" {
 		t.Errorf("assistant prefill: want [, got %s", content)
 	}

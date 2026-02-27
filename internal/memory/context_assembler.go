@@ -19,35 +19,43 @@ func (a *MemoryContextAssembler) AssembleContext(proposal MaintenanceProposal, a
 
 	// CLAUDE.md section
 	sb.WriteString("## CLAUDE.md (always loaded)\n")
+
 	claudemd := a.ClaudeMDContent
 	if applied && proposal.Tier == "claude-md" {
 		claudemd = a.applyToClaudeMD(proposal)
 	}
+
 	sb.WriteString(claudemd)
 	sb.WriteString("\n")
 
 	// Skills section
 	sb.WriteString("## Skills (matched by context)\n")
+
 	skills := a.SkillDescriptions
 	if applied && proposal.Tier == "skills" {
 		skills = a.applyToSkills(proposal)
 	}
+
 	if applied && proposal.Tier == "embeddings" && proposal.Action == "promote" {
 		skills = append(skills, proposal.Preview)
 	}
+
 	for _, s := range skills {
 		sb.WriteString("- ")
 		sb.WriteString(s)
 		sb.WriteString("\n")
 	}
+
 	sb.WriteString("\n")
 
 	// Embeddings section
 	sb.WriteString("## Memories (retrieved by similarity)\n")
+
 	embeddings := a.Embeddings
 	if applied && proposal.Tier == "embeddings" {
 		embeddings = a.applyToEmbeddings(proposal)
 	}
+
 	for _, e := range embeddings {
 		sb.WriteString("- ")
 		sb.WriteString(e)
@@ -55,6 +63,24 @@ func (a *MemoryContextAssembler) AssembleContext(proposal MaintenanceProposal, a
 	}
 
 	return sb.String()
+}
+
+func (a *MemoryContextAssembler) applyToClaudeMD(p MaintenanceProposal) string {
+	if p.Action == "demote" {
+		lines := strings.Split(a.ClaudeMDContent, "\n")
+
+		var result []string
+
+		for _, line := range lines {
+			if !strings.Contains(line, p.Target) {
+				result = append(result, line)
+			}
+		}
+
+		return strings.Join(result, "\n")
+	}
+
+	return a.ClaudeMDContent
 }
 
 func (a *MemoryContextAssembler) applyToEmbeddings(p MaintenanceProposal) []string {
@@ -70,6 +96,7 @@ func (a *MemoryContextAssembler) applyToEmbeddings(p MaintenanceProposal) []stri
 						result = append(result, e)
 					}
 				}
+
 				return result
 			}
 		}
@@ -82,9 +109,11 @@ func (a *MemoryContextAssembler) applyToEmbeddings(p MaintenanceProposal) []stri
 					result = append(result, e)
 				}
 			}
+
 			return result
 		}
 	}
+
 	return a.Embeddings
 }
 
@@ -92,19 +121,6 @@ func (a *MemoryContextAssembler) applyToSkills(p MaintenanceProposal) []string {
 	if p.Action == "promote" {
 		return append(a.SkillDescriptions, p.Preview)
 	}
-	return a.SkillDescriptions
-}
 
-func (a *MemoryContextAssembler) applyToClaudeMD(p MaintenanceProposal) string {
-	if p.Action == "demote" {
-		lines := strings.Split(a.ClaudeMDContent, "\n")
-		var result []string
-		for _, line := range lines {
-			if !strings.Contains(line, p.Target) {
-				result = append(result, line)
-			}
-		}
-		return strings.Join(result, "\n")
-	}
-	return a.ClaudeMDContent
+	return a.SkillDescriptions
 }

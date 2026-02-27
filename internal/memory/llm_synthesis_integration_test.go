@@ -16,6 +16,34 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TestGeneratePatternLLMFallsBackOnExtractorError verifies that when the extractor
+// returns an error, generatePatternLLM falls back to keyword-based generatePattern.
+func TestGeneratePatternLLMFallsBackOnExtractorError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	extractor := &memory.ClaudeCLIExtractor{
+		Model:   "haiku",
+		Timeout: 30 * time.Second,
+		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return nil, errors.New("LLM unavailable")
+		},
+	}
+
+	cluster := []memory.ClusterEntry{
+		{Content: "- 2026-02-09 10:00: always write tests first"},
+		{Content: "- 2026-02-09 11:00: write tests before code"},
+		{Content: "- 2026-02-09 12:00: write your tests before implementation"},
+	}
+
+	pattern := memory.GeneratePatternLLM(context.Background(), cluster, extractor)
+
+	// Fallback produces "Pattern observed across N memories" format
+	g.Expect(pattern.Synthesis).To(ContainSubstring("Pattern observed across"))
+	g.Expect(pattern.Occurrences).To(Equal(3))
+	g.Expect(pattern.Examples).ToNot(BeEmpty())
+}
+
 // ============================================================================
 // ISSUE-188 Task 6: LLM-driven pattern generation in synthesis
 // ============================================================================
@@ -76,32 +104,43 @@ func TestGeneratePatternLLMThemeTruncatesTo50Chars(t *testing.T) {
 	g.Expect(len(pattern.Theme)).To(BeNumerically("<=", 50))
 }
 
-// TestGeneratePatternLLMFallsBackOnExtractorError verifies that when the extractor
-// returns an error, generatePatternLLM falls back to keyword-based generatePattern.
-func TestGeneratePatternLLMFallsBackOnExtractorError(t *testing.T) {
+// TestOptimizeSynthesizeFallsBackWhenExtractorNil verifies that synthesis
+// works normally (keyword-based) when no extractor is provided.
+func TestOptimizeSynthesizeFallsBackWhenExtractorNil(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	extractor := &memory.ClaudeCLIExtractor{
-		Model:   "haiku",
-		Timeout: 30 * time.Second,
-		CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-			return nil, errors.New("LLM unavailable")
-		},
-	}
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
-	cluster := []memory.ClusterEntry{
-		{Content: "- 2026-02-09 10:00: always write tests first"},
-		{Content: "- 2026-02-09 11:00: write tests before code"},
-		{Content: "- 2026-02-09 12:00: write your tests before implementation"},
-	}
+	// Learn 3 related messages
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "always write tests before writing implementation code",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "write tests first then write the implementation code",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "write your tests before you write the implementation",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
 
-	pattern := memory.GeneratePatternLLM(context.Background(), cluster, extractor)
+	// Skip decay
+	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", time.Now().Format(time.RFC3339))).To(Succeed())
 
-	// Fallback produces "Pattern observed across N memories" format
-	g.Expect(pattern.Synthesis).To(ContainSubstring("Pattern observed across"))
-	g.Expect(pattern.Occurrences).To(Equal(3))
-	g.Expect(pattern.Examples).ToNot(BeEmpty())
+	// No extractor provided (nil)
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+		// Extractor is nil - should use keyword-based synthesis
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result).ToNot(BeNil())
 }
 
 // --- optimizeSynthesize LLM integration tests ---
@@ -156,45 +195,6 @@ func TestOptimizeSynthesizeUsesLLMWhenExtractorProvided(t *testing.T) {
 	if result.PatternsFound > 0 {
 		g.Expect(synthCalled).To(BeTrue(), "LLM extractor should be called when patterns are found")
 	}
-}
-
-// TestOptimizeSynthesizeFallsBackWhenExtractorNil verifies that synthesis
-// works normally (keyword-based) when no extractor is provided.
-func TestOptimizeSynthesizeFallsBackWhenExtractorNil(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Learn 3 related messages
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "always write tests before writing implementation code",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "write tests first then write the implementation code",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "write your tests before you write the implementation",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Skip decay
-	g.Expect(memory.SetMetadataForTest(memoryRoot, "last_optimized_at", time.Now().Format(time.RFC3339))).To(Succeed())
-
-	// No extractor provided (nil)
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-		// Extractor is nil - should use keyword-based synthesis
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).ToNot(BeNil())
 }
 
 // --- Property tests ---

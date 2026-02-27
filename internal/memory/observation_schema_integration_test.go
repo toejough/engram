@@ -13,6 +13,37 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TEST-1402: Observation columns have empty string defaults
+func TestObservationColumnDefaults(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Insert a row without specifying observation columns
+	_, err = db.Exec("INSERT INTO embeddings (content, source) VALUES ('test content', 'test')")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Read back the defaults
+	var obsType, concepts, principle, antiPattern, rationale, enrichedContent string
+	err = db.QueryRow(
+		"SELECT observation_type, concepts, principle, anti_pattern, rationale, enriched_content FROM embeddings WHERE content = 'test content'",
+	).Scan(&obsType, &concepts, &principle, &antiPattern, &rationale, &enrichedContent)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(obsType).To(Equal(""))
+	g.Expect(concepts).To(Equal(""))
+	g.Expect(principle).To(Equal(""))
+	g.Expect(antiPattern).To(Equal(""))
+	g.Expect(rationale).To(Equal(""))
+	g.Expect(enrichedContent).To(Equal(""))
+}
+
 // ============================================================================
 // Unit tests for observation column schema migrations (ISSUE-188)
 // ============================================================================
@@ -67,37 +98,6 @@ func TestObservationColumnsMigrationIdempotent(t *testing.T) {
 	g.Expect(columns).To(ContainElement("anti_pattern"))
 	g.Expect(columns).To(ContainElement("rationale"))
 	g.Expect(columns).To(ContainElement("enriched_content"))
-}
-
-// TEST-1402: Observation columns have empty string defaults
-func TestObservationColumnDefaults(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Insert a row without specifying observation columns
-	_, err = db.Exec("INSERT INTO embeddings (content, source) VALUES ('test content', 'test')")
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Read back the defaults
-	var obsType, concepts, principle, antiPattern, rationale, enrichedContent string
-	err = db.QueryRow(
-		"SELECT observation_type, concepts, principle, anti_pattern, rationale, enriched_content FROM embeddings WHERE content = 'test content'",
-	).Scan(&obsType, &concepts, &principle, &antiPattern, &rationale, &enrichedContent)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(obsType).To(Equal(""))
-	g.Expect(concepts).To(Equal(""))
-	g.Expect(principle).To(Equal(""))
-	g.Expect(antiPattern).To(Equal(""))
-	g.Expect(rationale).To(Equal(""))
-	g.Expect(enrichedContent).To(Equal(""))
 }
 
 // TEST-1403: Insert and read back observation fields

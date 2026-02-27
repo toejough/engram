@@ -2,13 +2,6 @@ package interview
 
 import "sort"
 
-const (
-	// Question count limits for different gap sizes
-	smallGapMaxQuestions  = 2
-	mediumGapMinQuestions = 3
-	mediumGapMaxQuestions = 5
-)
-
 // InterviewQuestion represents a question to ask the user with optional context.
 type InterviewQuestion struct {
 	ID       string   // Question identifier from KeyQuestion
@@ -43,6 +36,7 @@ func SelectQuestions(keyQuestions []KeyQuestion, gapAnalysis GapAnalysis, gather
 
 	// Filter key questions to only include unanswered ones
 	unansweredKeyQuestions := make([]KeyQuestion, 0)
+
 	for _, kq := range keyQuestions {
 		if unansweredSet[kq.ID] {
 			unansweredKeyQuestions = append(unansweredKeyQuestions, kq)
@@ -75,6 +69,14 @@ func SelectQuestions(keyQuestions []KeyQuestion, gapAnalysis GapAnalysis, gather
 	return result
 }
 
+// unexported constants.
+const (
+	mediumGapMaxQuestions = 5
+	mediumGapMinQuestions = 3
+	// Question count limits for different gap sizes
+	smallGapMaxQuestions = 2
+)
+
 // buildContext constructs a context string for a question based on gathered information.
 // It looks for context directly associated with the question ID, and also includes
 // any other relevant gathered context.
@@ -95,11 +97,29 @@ func buildContext(questionID string, gathered map[string]string) string {
 	return ""
 }
 
-// sortByPriority sorts questions in-place by priority: Critical > Important > Optional.
-func sortByPriority(questions []KeyQuestion) {
-	sort.Slice(questions, func(i, j int) bool {
-		return priorityValue(questions[i].Priority) > priorityValue(questions[j].Priority)
-	})
+// determineMaxQuestions returns the maximum number of questions to ask based on gap size.
+func determineMaxQuestions(gapSize GapSize, totalUnanswered int) int {
+	switch gapSize {
+	case GapSizeSmall:
+		// Small gap: 1-2 confirmation questions
+		if totalUnanswered <= smallGapMaxQuestions {
+			return totalUnanswered
+		}
+
+		return smallGapMaxQuestions
+	case GapSizeMedium:
+		// Medium gap: 3-5 clarification questions
+		if totalUnanswered <= mediumGapMaxQuestions {
+			return max(mediumGapMinQuestions, totalUnanswered)
+		}
+
+		return mediumGapMaxQuestions
+	case GapSizeLarge:
+		// Large gap: all unanswered questions (6+)
+		return totalUnanswered
+	default:
+		return 0
+	}
 }
 
 // priorityValue returns a numeric value for priority comparison.
@@ -116,33 +136,9 @@ func priorityValue(p Priority) int {
 	}
 }
 
-// determineMaxQuestions returns the maximum number of questions to ask based on gap size.
-func determineMaxQuestions(gapSize GapSize, totalUnanswered int) int {
-	switch gapSize {
-	case GapSizeSmall:
-		// Small gap: 1-2 confirmation questions
-		if totalUnanswered <= smallGapMaxQuestions {
-			return totalUnanswered
-		}
-		return smallGapMaxQuestions
-	case GapSizeMedium:
-		// Medium gap: 3-5 clarification questions
-		if totalUnanswered <= mediumGapMaxQuestions {
-			return max(mediumGapMinQuestions, totalUnanswered)
-		}
-		return mediumGapMaxQuestions
-	case GapSizeLarge:
-		// Large gap: all unanswered questions (6+)
-		return totalUnanswered
-	default:
-		return 0
-	}
-}
-
-// max returns the larger of two integers.
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
+// sortByPriority sorts questions in-place by priority: Critical > Important > Optional.
+func sortByPriority(questions []KeyQuestion) {
+	sort.Slice(questions, func(i, j int) bool {
+		return priorityValue(questions[i].Priority) > priorityValue(questions[j].Priority)
+	})
 }

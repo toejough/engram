@@ -31,23 +31,6 @@ func TestGetMetadataMissingKey(t *testing.T) {
 	g.Expect(val).To(Equal(""))
 }
 
-// TEST-1101: SetMetadata and GetMetadata round-trip
-func TestMetadataRoundTrip(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	err := memory.SetMetadataForTest(memoryRoot, "last_optimized_at", "2026-02-09T00:00:00Z")
-	g.Expect(err).ToNot(HaveOccurred())
-
-	val, err := memory.GetMetadataForTest(memoryRoot, "last_optimized_at")
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(val).To(Equal("2026-02-09T00:00:00Z"))
-}
-
 // TEST-1102: SetMetadata overwrites existing value
 func TestMetadataOverwrite(t *testing.T) {
 	t.Parallel()
@@ -66,4 +49,21 @@ func TestMetadataOverwrite(t *testing.T) {
 	val, err := memory.GetMetadataForTest(memoryRoot, "key1")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(val).To(Equal("value2"))
+}
+
+// TEST-1101: SetMetadata and GetMetadata round-trip
+func TestMetadataRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	err := memory.SetMetadataForTest(memoryRoot, "last_optimized_at", "2026-02-09T00:00:00Z")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	val, err := memory.GetMetadataForTest(memoryRoot, "last_optimized_at")
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(val).To(Equal("2026-02-09T00:00:00Z"))
 }

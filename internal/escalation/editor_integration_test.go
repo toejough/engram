@@ -34,37 +34,6 @@ func (m *MockExecutor) Run(name string, args ...string) error {
 	return nil
 }
 
-// TEST-215 traces: TASK-008
-// Test editor selection uses $EDITOR first
-func TestSelectEditor_EnvVar(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := func(key string) string {
-		if key == "EDITOR" {
-			return "code"
-		}
-		return ""
-	}
-
-	editor := escalation.SelectEditor(env)
-	g.Expect(editor).To(Equal("code"))
-}
-
-// TEST-216 traces: TASK-008
-// Test editor fallback to vim when $EDITOR not set
-func TestSelectEditor_Fallback(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	env := func(key string) string {
-		return ""
-	}
-
-	editor := escalation.SelectEditor(env)
-	g.Expect(editor).To(Equal("vim"))
-}
-
 // TEST-217 traces: TASK-008
 // Test OpenInEditor invokes editor command
 func TestOpenInEditor_InvokesCommand(t *testing.T) {
@@ -78,6 +47,25 @@ func TestOpenInEditor_InvokesCommand(t *testing.T) {
 	g.Expect(exec.Called).To(BeTrue())
 	g.Expect(exec.Command).To(Equal("vim"))
 	g.Expect(exec.Args).To(ContainElement("/tmp/escalations.md"))
+}
+
+// TEST-219 traces: TASK-008
+// Test ReviewEscalations handles editor error
+func TestReviewEscalations_EditorError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fs := &mockFS{files: make(map[string]string)}
+	exec := &MockExecutor{ShouldError: true, Err: &editorError{}}
+
+	escalations := []escalation.Escalation{
+		{ID: "ESC-001", Status: "pending"},
+	}
+
+	env := func(key string) string { return "vim" }
+
+	_, err := escalation.ReviewEscalations(escalations, "/tmp/escalations.md", env, exec, fs)
+	g.Expect(err).To(HaveOccurred())
 }
 
 // TEST-218 traces: TASK-008
@@ -142,23 +130,35 @@ Review each escalation and update the **Status** field:
 	g.Expect(result[0].Notes).To(Equal("Yes, use OAuth 2.0."))
 }
 
-// TEST-219 traces: TASK-008
-// Test ReviewEscalations handles editor error
-func TestReviewEscalations_EditorError(t *testing.T) {
+// TEST-215 traces: TASK-008
+// Test editor selection uses $EDITOR first
+func TestSelectEditor_EnvVar(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	fs := &mockFS{files: make(map[string]string)}
-	exec := &MockExecutor{ShouldError: true, Err: &editorError{}}
-
-	escalations := []escalation.Escalation{
-		{ID: "ESC-001", Status: "pending"},
+	env := func(key string) string {
+		if key == "EDITOR" {
+			return "code"
+		}
+		return ""
 	}
 
-	env := func(key string) string { return "vim" }
+	editor := escalation.SelectEditor(env)
+	g.Expect(editor).To(Equal("code"))
+}
 
-	_, err := escalation.ReviewEscalations(escalations, "/tmp/escalations.md", env, exec, fs)
-	g.Expect(err).To(HaveOccurred())
+// TEST-216 traces: TASK-008
+// Test editor fallback to vim when $EDITOR not set
+func TestSelectEditor_Fallback(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	env := func(key string) string {
+		return ""
+	}
+
+	editor := escalation.SelectEditor(env)
+	g.Expect(editor).To(Equal("vim"))
 }
 
 type editorError struct{}

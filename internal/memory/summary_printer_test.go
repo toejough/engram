@@ -8,6 +8,64 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+func TestPrintSessionSummary_EmptySession(t *testing.T) {
+	summary := memory.SessionSummary{
+		SessionID:   "empty-session",
+		ExtractedAt: time.Now(),
+		Learnings:   []memory.LearningItem{},
+	}
+
+	var output strings.Builder
+	memory.PrintSessionSummary(summary, &output)
+
+	result := output.String()
+
+	// Should still print header but indicate no learnings
+	if !strings.Contains(result, "Learning Summary") {
+		t.Errorf("Expected header even for empty session, got:\n%s", result)
+	}
+
+	if !strings.Contains(result, "No new learnings") && !strings.Contains(result, "0 items") {
+		t.Errorf("Expected indication of no learnings, got:\n%s", result)
+	}
+}
+
+func TestPrintSessionSummary_MultipleTypes(t *testing.T) {
+	summary := memory.SessionSummary{
+		SessionID:   "multi-type-session",
+		ExtractedAt: time.Now(),
+		Learnings: []memory.LearningItem{
+			{Type: "correction", Content: "Never use git checkout .", Confidence: 1.0},
+			{Type: "repeated-pattern", Content: "go test -tags sqlite_fts5", Confidence: 0.7},
+			{Type: "error-fix", Content: "Fixed timeout by increasing buffer", Confidence: 0.7},
+			{Type: "tool-usage-pattern", Content: "used targ successfully", Confidence: 0.5},
+		},
+	}
+
+	var output strings.Builder
+	memory.PrintSessionSummary(summary, &output)
+
+	result := output.String()
+
+	// All types should be represented
+	if !strings.Contains(result, "correction") {
+		t.Errorf("Expected correction type, got:\n%s", result)
+	}
+
+	if !strings.Contains(result, "pattern") || !strings.Contains(result, "repeated-pattern") {
+		t.Errorf("Expected pattern type, got:\n%s", result)
+	}
+
+	// All content should be present
+	if !strings.Contains(result, "Never use git checkout") {
+		t.Errorf("Expected correction content, got:\n%s", result)
+	}
+
+	if !strings.Contains(result, "go test -tags sqlite_fts5") {
+		t.Errorf("Expected pattern content, got:\n%s", result)
+	}
+}
+
 func TestPrintSessionSummary_WithLearnings(t *testing.T) {
 	summary := memory.SessionSummary{
 		SessionID:   "test-session-123",
@@ -66,28 +124,6 @@ func TestPrintSessionSummary_WithLearnings(t *testing.T) {
 	}
 }
 
-func TestPrintSessionSummary_EmptySession(t *testing.T) {
-	summary := memory.SessionSummary{
-		SessionID:   "empty-session",
-		ExtractedAt: time.Now(),
-		Learnings:   []memory.LearningItem{},
-	}
-
-	var output strings.Builder
-	memory.PrintSessionSummary(summary, &output)
-
-	result := output.String()
-
-	// Should still print header but indicate no learnings
-	if !strings.Contains(result, "Learning Summary") {
-		t.Errorf("Expected header even for empty session, got:\n%s", result)
-	}
-
-	if !strings.Contains(result, "No new learnings") && !strings.Contains(result, "0 items") {
-		t.Errorf("Expected indication of no learnings, got:\n%s", result)
-	}
-}
-
 func TestPrintSessionSummary_WithSkillCandidates(t *testing.T) {
 	summary := memory.SessionSummary{
 		SessionID:   "test-session",
@@ -115,41 +151,5 @@ func TestPrintSessionSummary_WithSkillCandidates(t *testing.T) {
 	// Verify optimization prompt
 	if !strings.Contains(result, "optimize") {
 		t.Errorf("Expected mention of optimize command, got:\n%s", result)
-	}
-}
-
-func TestPrintSessionSummary_MultipleTypes(t *testing.T) {
-	summary := memory.SessionSummary{
-		SessionID:   "multi-type-session",
-		ExtractedAt: time.Now(),
-		Learnings: []memory.LearningItem{
-			{Type: "correction", Content: "Never use git checkout .", Confidence: 1.0},
-			{Type: "repeated-pattern", Content: "go test -tags sqlite_fts5", Confidence: 0.7},
-			{Type: "error-fix", Content: "Fixed timeout by increasing buffer", Confidence: 0.7},
-			{Type: "tool-usage-pattern", Content: "used targ successfully", Confidence: 0.5},
-		},
-	}
-
-	var output strings.Builder
-	memory.PrintSessionSummary(summary, &output)
-
-	result := output.String()
-
-	// All types should be represented
-	if !strings.Contains(result, "correction") {
-		t.Errorf("Expected correction type, got:\n%s", result)
-	}
-
-	if !strings.Contains(result, "pattern") || !strings.Contains(result, "repeated-pattern") {
-		t.Errorf("Expected pattern type, got:\n%s", result)
-	}
-
-	// All content should be present
-	if !strings.Contains(result, "Never use git checkout") {
-		t.Errorf("Expected correction content, got:\n%s", result)
-	}
-
-	if !strings.Contains(result, "go test -tags sqlite_fts5") {
-		t.Errorf("Expected pattern content, got:\n%s", result)
 	}
 }

@@ -10,60 +10,30 @@ import (
 	"time"
 )
 
-// LogFile is the filename for the updates log.
-const LogFile = "updates.jsonl"
+// Exported constants.
+const (
+	LogFile = "updates.jsonl"
+)
 
-// FileSystem provides file system operations for logging.
-type FileSystem interface {
-	AppendFile(path string, data []byte) error
-	ReadFile(path string) ([]byte, error)
-	FileExists(path string) bool
-}
-
-// RealFS implements FileSystem using the real file system.
-type RealFS struct{}
-
-// AppendFile appends data to a file, creating it if it doesn't exist.
-func (RealFS) AppendFile(path string, data []byte) error {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return err
+// Exported variables.
+var (
+	ValidLevels = map[string]bool{
+		"verbose": true,
+		"status":  true,
+		"phase":   true,
 	}
-	defer func() { _ = f.Close() }()
-	_, err = f.Write(data)
-	return err
-}
-
-// ReadFile reads a file.
-func (RealFS) ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-// FileExists checks if a file exists.
-func (RealFS) FileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-// Valid levels.
-var ValidLevels = map[string]bool{
-	"verbose": true,
-	"status":  true,
-	"phase":   true,
-}
-
-// Valid subjects.
-var ValidSubjects = map[string]bool{
-	"thinking":     true,
-	"skill-result": true,
-	"skill-change": true,
-	"task-status":  true,
-	"alignment":    true,
-	"conflict":     true,
-	"lesson":       true,
-	"phase-change": true,
-	"phase-result": true,
-}
+	ValidSubjects = map[string]bool{
+		"thinking":     true,
+		"skill-result": true,
+		"skill-change": true,
+		"task-status":  true,
+		"alignment":    true,
+		"conflict":     true,
+		"lesson":       true,
+		"phase-change": true,
+		"phase-result": true,
+	}
+)
 
 // Entry is a single log entry.
 type Entry struct {
@@ -80,6 +50,47 @@ type Entry struct {
 	ContextEstimate int    `json:"context_estimate,omitempty"`
 }
 
+// FileSystem provides file system operations for logging.
+type FileSystem interface {
+	AppendFile(path string, data []byte) error
+	ReadFile(path string) ([]byte, error)
+	FileExists(path string) bool
+}
+
+// ReadOpts holds options for reading log entries.
+type ReadOpts struct {
+	Model   string // Filter by model (empty = all)
+	Session string // Filter by session (empty = all)
+}
+
+// RealFS implements FileSystem using the real file system.
+type RealFS struct{}
+
+// AppendFile appends data to a file, creating it if it doesn't exist.
+func (RealFS) AppendFile(path string, data []byte) error {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = f.Close() }()
+
+	_, err = f.Write(data)
+
+	return err
+}
+
+// FileExists checks if a file exists.
+func (RealFS) FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// ReadFile reads a file.
+func (RealFS) ReadFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}
+
 // WriteOpts holds optional fields for a log entry.
 type WriteOpts struct {
 	Task            string
@@ -91,10 +102,52 @@ type WriteOpts struct {
 	ContextEstimate int // Current context usage estimate (tokens)
 }
 
-// ReadOpts holds options for reading log entries.
-type ReadOpts struct {
-	Model   string // Filter by model (empty = all)
-	Session string // Filter by session (empty = all)
+// Read reads log entries from the log file with optional filtering.
+func Read(dir string, opts ReadOpts, fs FileSystem) ([]Entry, error) {
+	logPath := filepath.Join(dir, LogFile)
+
+	if !fs.FileExists(logPath) {
+		return []Entry{}, nil
+	}
+
+	content, err := fs.ReadFile(logPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read log file: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []Entry{}, nil
+	}
+
+	entries := make([]Entry, 0, len(lines))
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		var entry Entry
+
+		err := json.Unmarshal([]byte(line), &entry)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse log entry: %w", err)
+		}
+
+		// Apply model filter
+		if opts.Model != "" && entry.Model != opts.Model {
+			continue
+		}
+
+		// Apply session filter
+		if opts.Session != "" && entry.Session != opts.Session {
+			continue
+		}
+
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
 }
 
 // Write appends a structured JSONL entry to the log file.
@@ -148,50 +201,4 @@ func subjectKeys() []string {
 	}
 
 	return keys
-}
-
-// Read reads log entries from the log file with optional filtering.
-func Read(dir string, opts ReadOpts, fs FileSystem) ([]Entry, error) {
-	logPath := filepath.Join(dir, LogFile)
-
-	if !fs.FileExists(logPath) {
-		return []Entry{}, nil
-	}
-
-	content, err := fs.ReadFile(logPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read log file: %w", err)
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-	if len(lines) == 1 && lines[0] == "" {
-		return []Entry{}, nil
-	}
-
-	entries := make([]Entry, 0, len(lines))
-
-	for _, line := range lines {
-		if line == "" {
-			continue
-		}
-
-		var entry Entry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			return nil, fmt.Errorf("failed to parse log entry: %w", err)
-		}
-
-		// Apply model filter
-		if opts.Model != "" && entry.Model != opts.Model {
-			continue
-		}
-
-		// Apply session filter
-		if opts.Session != "" && entry.Session != opts.Session {
-			continue
-		}
-
-		entries = append(entries, entry)
-	}
-
-	return entries, nil
 }

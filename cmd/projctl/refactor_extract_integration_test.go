@@ -14,46 +14,44 @@ import (
 	"pgregory.net/rapid"
 )
 
-// TestRefactorExtractFunctionCommand tests the CLI interface for projctl refactor extract-function
-func TestRefactorExtractFunctionCommand(t *testing.T) {
+// TestExtractFunctionAtomicOnFailure tests rollback on failure
+func TestExtractFunctionAtomicOnFailure(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 
-	// Create a Go file with code to extract
-	testFile := filepath.Join(tempDir, "example.go")
-	err := os.WriteFile(testFile, []byte(`package example
+	testFile := filepath.Join(tempDir, "atomic.go")
+	originalContent := `package example
 
-func DoSomething(x, y int) int {
-	// Lines to extract
-	sum := x + y
-	result := sum * 2
-	return result
+func Simple() {
+	x := 1
+	y := 2
+	z := x + y
 }
-`), 0644)
+`
+	err := os.WriteFile(testFile, []byte(originalContent), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Initialize go.mod for LSP
+	// Initialize go.mod
 	modCmd := exec.Command("go", "mod", "init", "example")
 	modCmd.Dir = tempDir
-	_ = modCmd.Run()
+	err = modCmd.Run()
+	g.Expect(err).ToNot(HaveOccurred())
 
-	// Run the refactor extract-function command
+	// Try to extract with invalid line range (should fail)
 	cmd := exec.Command("projctl", "refactor", "extract-function",
 		"--file", testFile,
-		"--lines", "5-6",
-		"--name", "Calculate")
-	output, err := cmd.CombinedOutput()
+		"--lines", "10-20", // Lines don't exist
+		"--name", "Invalid")
+	_, err = cmd.CombinedOutput()
 
-	// Command should succeed
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(MatchRegexp(`Extracted function Calculate`))
+	g.Expect(err).To(HaveOccurred(), "Should fail with invalid line range")
 
-	// Verify file was updated
+	// Verify file is unchanged (atomic operation)
 	content, err := os.ReadFile(testFile)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("func Calculate"))
+	g.Expect(string(content)).To(Equal(originalContent), "File should be unchanged after failed extraction")
 }
 
 // TestExtractFunctionBasicExtraction tests extracting a simple code block
@@ -191,23 +189,19 @@ func Compute(x int) (int, error) {
 		"Should return int and error")
 }
 
-// TestExtractFunctionProducesCompilableCode tests that extracted code compiles
-func TestExtractFunctionProducesCompilableCode(t *testing.T) {
+// TestExtractFunctionInvalidFunctionName tests error handling for invalid names
+func TestExtractFunctionInvalidFunctionName(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 
-	testFile := filepath.Join(tempDir, "compilable.go")
+	testFile := filepath.Join(tempDir, "test.go")
 	err := os.WriteFile(testFile, []byte(`package example
 
-import "fmt"
-
-func Original(name string, count int) {
-	// Extract this block
-	for i := 0; i < count; i++ {
-		fmt.Printf("Hello %s #%d\n", name, i)
-	}
+func Foo() {
+	x := 1
+	y := 2
 }
 `), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -218,60 +212,28 @@ func Original(name string, count int) {
 	err = modCmd.Run()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Extract the for loop
-	cmd := exec.Command("projctl", "refactor", "extract-function",
-		"--file", testFile,
-		"--lines", "7-9",
-		"--name", "PrintGreetings")
-	output, err := cmd.CombinedOutput()
+	invalidNames := []string{
+		"123Invalid",   // starts with number
+		"invalid-name", // contains hyphen
+		"invalid name", // contains space
+		"break",        // Go keyword
+		"func",         // Go keyword
+	}
 
-	g.Expect(err).ToNot(HaveOccurred(), "Extract should succeed: %s", string(output))
+	for _, name := range invalidNames {
+		t.Run(name, func(t *testing.T) {
+			g := NewWithT(t)
 
-	// Verify the code compiles
-	buildCmd := exec.Command("go", "build", "./...")
-	buildCmd.Dir = tempDir
-	buildOutput, err := buildCmd.CombinedOutput()
-	g.Expect(err).ToNot(HaveOccurred(), "Extracted code should compile: %s", string(buildOutput))
-}
+			cmd := exec.Command("projctl", "refactor", "extract-function",
+				"--file", testFile,
+				"--lines", "4-5",
+				"--name", name)
+			output, err := cmd.CombinedOutput()
 
-// TestExtractFunctionAtomicOnFailure tests rollback on failure
-func TestExtractFunctionAtomicOnFailure(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	testFile := filepath.Join(tempDir, "atomic.go")
-	originalContent := `package example
-
-func Simple() {
-	x := 1
-	y := 2
-	z := x + y
-}
-`
-	err := os.WriteFile(testFile, []byte(originalContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Initialize go.mod
-	modCmd := exec.Command("go", "mod", "init", "example")
-	modCmd.Dir = tempDir
-	err = modCmd.Run()
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Try to extract with invalid line range (should fail)
-	cmd := exec.Command("projctl", "refactor", "extract-function",
-		"--file", testFile,
-		"--lines", "10-20", // Lines don't exist
-		"--name", "Invalid")
-	_, err = cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Should fail with invalid line range")
-
-	// Verify file is unchanged (atomic operation)
-	content, err := os.ReadFile(testFile)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal(originalContent), "File should be unchanged after failed extraction")
+			g.Expect(err).To(HaveOccurred(), "Should reject invalid name: %s", name)
+			g.Expect(string(output)).To(ContainSubstring("invalid function name"))
+		})
+	}
 }
 
 // TestExtractFunctionInvalidLineRange tests error handling for invalid line ranges
@@ -337,34 +299,22 @@ func Foo() int {
 	}
 }
 
-// TestExtractFunctionNonExistentFile tests error handling for non-existent files
-func TestExtractFunctionNonExistentFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cmd := exec.Command("projctl", "refactor", "extract-function",
-		"--file", "/nonexistent/file.go",
-		"--lines", "1-5",
-		"--name", "Test")
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(string(output)).To(ContainSubstring("file not found"))
-}
-
-// TestExtractFunctionInvalidFunctionName tests error handling for invalid names
-func TestExtractFunctionInvalidFunctionName(t *testing.T) {
+// TestExtractFunctionMultipleExtractions tests multiple extractions in same file
+func TestExtractFunctionMultipleExtractions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 
-	testFile := filepath.Join(tempDir, "test.go")
+	testFile := filepath.Join(tempDir, "multiple.go")
 	err := os.WriteFile(testFile, []byte(`package example
 
-func Foo() {
-	x := 1
-	y := 2
+func Complex(x, y int) int {
+	a := x * 2
+	b := y * 3
+	c := a + b
+	d := c * 4
+	return d
 }
 `), 0644)
 	g.Expect(err).ToNot(HaveOccurred())
@@ -375,28 +325,28 @@ func Foo() {
 	err = modCmd.Run()
 	g.Expect(err).ToNot(HaveOccurred())
 
-	invalidNames := []string{
-		"123Invalid",   // starts with number
-		"invalid-name", // contains hyphen
-		"invalid name", // contains space
-		"break",        // Go keyword
-		"func",         // Go keyword
-	}
+	// First extraction
+	cmd1 := exec.Command("projctl", "refactor", "extract-function",
+		"--file", testFile,
+		"--lines", "4-5",
+		"--name", "InitialCalc")
+	_, err = cmd1.CombinedOutput()
+	g.Expect(err).ToNot(HaveOccurred(), "First extraction should succeed")
 
-	for _, name := range invalidNames {
-		t.Run(name, func(t *testing.T) {
-			g := NewWithT(t)
+	// Second extraction (line numbers may have changed due to first extraction)
+	// We need to re-read the file to know the new structure
+	content, err := os.ReadFile(testFile)
+	g.Expect(err).ToNot(HaveOccurred())
 
-			cmd := exec.Command("projctl", "refactor", "extract-function",
-				"--file", testFile,
-				"--lines", "4-5",
-				"--name", name)
-			output, err := cmd.CombinedOutput()
+	// Verify both extractions exist
+	contentStr := string(content)
+	g.Expect(contentStr).To(ContainSubstring("func InitialCalc"))
 
-			g.Expect(err).To(HaveOccurred(), "Should reject invalid name: %s", name)
-			g.Expect(string(output)).To(ContainSubstring("invalid function name"))
-		})
-	}
+	// Verify code still compiles
+	buildCmd := exec.Command("go", "build", "./...")
+	buildCmd.Dir = tempDir
+	buildOutput, err := buildCmd.CombinedOutput()
+	g.Expect(err).ToNot(HaveOccurred(), "Code with multiple extractions should compile: %s", string(buildOutput))
 }
 
 // TestExtractFunctionNameConflict tests error handling when function name already exists
@@ -436,6 +386,21 @@ func Process() {
 
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(string(output)).To(ContainSubstring("function name conflict"))
+}
+
+// TestExtractFunctionNonExistentFile tests error handling for non-existent files
+func TestExtractFunctionNonExistentFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cmd := exec.Command("projctl", "refactor", "extract-function",
+		"--file", "/nonexistent/file.go",
+		"--lines", "1-5",
+		"--name", "Test")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(string(output)).To(ContainSubstring("file not found"))
 }
 
 // TestExtractFunctionPreservesFormatting tests that code formatting is preserved
@@ -481,6 +446,49 @@ func Verbose(name string) {
 	fmtOutput, err := fmtCmd.CombinedOutput()
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(string(fmtOutput)).To(BeEmpty(), "Code should be properly formatted")
+}
+
+// TestExtractFunctionProducesCompilableCode tests that extracted code compiles
+func TestExtractFunctionProducesCompilableCode(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	testFile := filepath.Join(tempDir, "compilable.go")
+	err := os.WriteFile(testFile, []byte(`package example
+
+import "fmt"
+
+func Original(name string, count int) {
+	// Extract this block
+	for i := 0; i < count; i++ {
+		fmt.Printf("Hello %s #%d\n", name, i)
+	}
+}
+`), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Initialize go.mod
+	modCmd := exec.Command("go", "mod", "init", "example")
+	modCmd.Dir = tempDir
+	err = modCmd.Run()
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Extract the for loop
+	cmd := exec.Command("projctl", "refactor", "extract-function",
+		"--file", testFile,
+		"--lines", "7-9",
+		"--name", "PrintGreetings")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Extract should succeed: %s", string(output))
+
+	// Verify the code compiles
+	buildCmd := exec.Command("go", "build", "./...")
+	buildCmd.Dir = tempDir
+	buildOutput, err := buildCmd.CombinedOutput()
+	g.Expect(err).ToNot(HaveOccurred(), "Extracted code should compile: %s", string(buildOutput))
 }
 
 // TestExtractFunctionPropertyBasedValidRanges tests property: valid line ranges produce valid extractions
@@ -559,56 +567,6 @@ func TestExtractFunctionPropertyBasedValidRanges(t *testing.T) {
 	})
 }
 
-// TestExtractFunctionMultipleExtractions tests multiple extractions in same file
-func TestExtractFunctionMultipleExtractions(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	testFile := filepath.Join(tempDir, "multiple.go")
-	err := os.WriteFile(testFile, []byte(`package example
-
-func Complex(x, y int) int {
-	a := x * 2
-	b := y * 3
-	c := a + b
-	d := c * 4
-	return d
-}
-`), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Initialize go.mod
-	modCmd := exec.Command("go", "mod", "init", "example")
-	modCmd.Dir = tempDir
-	err = modCmd.Run()
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// First extraction
-	cmd1 := exec.Command("projctl", "refactor", "extract-function",
-		"--file", testFile,
-		"--lines", "4-5",
-		"--name", "InitialCalc")
-	_, err = cmd1.CombinedOutput()
-	g.Expect(err).ToNot(HaveOccurred(), "First extraction should succeed")
-
-	// Second extraction (line numbers may have changed due to first extraction)
-	// We need to re-read the file to know the new structure
-	content, err := os.ReadFile(testFile)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify both extractions exist
-	contentStr := string(content)
-	g.Expect(contentStr).To(ContainSubstring("func InitialCalc"))
-
-	// Verify code still compiles
-	buildCmd := exec.Command("go", "build", "./...")
-	buildCmd.Dir = tempDir
-	buildOutput, err := buildCmd.CombinedOutput()
-	g.Expect(err).ToNot(HaveOccurred(), "Code with multiple extractions should compile: %s", string(buildOutput))
-}
-
 // TestExtractFunctionWithComments tests that comments are handled correctly
 func TestExtractFunctionWithComments(t *testing.T) {
 	t.Parallel()
@@ -653,4 +611,46 @@ func Process(x int) int {
 	// Comments should be preserved in extracted function
 	g.Expect(contentStr).To(ContainSubstring("This is important"))
 	g.Expect(contentStr).To(ContainSubstring("Add offset"))
+}
+
+// TestRefactorExtractFunctionCommand tests the CLI interface for projctl refactor extract-function
+func TestRefactorExtractFunctionCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+
+	// Create a Go file with code to extract
+	testFile := filepath.Join(tempDir, "example.go")
+	err := os.WriteFile(testFile, []byte(`package example
+
+func DoSomething(x, y int) int {
+	// Lines to extract
+	sum := x + y
+	result := sum * 2
+	return result
+}
+`), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Initialize go.mod for LSP
+	modCmd := exec.Command("go", "mod", "init", "example")
+	modCmd.Dir = tempDir
+	_ = modCmd.Run()
+
+	// Run the refactor extract-function command
+	cmd := exec.Command("projctl", "refactor", "extract-function",
+		"--file", testFile,
+		"--lines", "5-6",
+		"--name", "Calculate")
+	output, err := cmd.CombinedOutput()
+
+	// Command should succeed
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(MatchRegexp(`Extracted function Calculate`))
+
+	// Verify file was updated
+	content, err := os.ReadFile(testFile)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("func Calculate"))
 }

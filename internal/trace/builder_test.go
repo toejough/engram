@@ -9,6 +9,113 @@ import (
 	"github.com/toejough/projctl/internal/trace"
 )
 
+// TEST-136 traces: TASK-20
+// Test dangling edge creates warning
+func TestBuildGraph_DanglingEdge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{
+			ID:       "TASK-1",
+			Type:     trace.NodeTypeTASK,
+			Project:  "test-project",
+			Title:    "Task with missing target",
+			Status:   "active",
+			TracesTo: []string{"REQ-999"}, // Doesn't exist
+		},
+	}
+
+	graph, warnings, err := trace.BuildGraph(items)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(warnings) < 1 {
+		t.Fatal("expected at least 1 warning")
+	}
+
+	g.Expect(warnings).To(HaveLen(1))
+	g.Expect(warnings[0]).To(ContainSubstring("REQ-999"))
+
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
+
+	g.Expect(graph.Nodes).To(HaveLen(1))
+}
+
+// TEST-135 traces: TASK-20
+// Test duplicate node ID returns error
+func TestBuildGraph_DuplicateID(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{
+		{
+			ID:      "REQ-1",
+			Type:    trace.NodeTypeREQ,
+			Project: "test-project",
+			Title:   "First",
+			Status:  "active",
+		},
+		{
+			ID:      "REQ-1",
+			Type:    trace.NodeTypeREQ,
+			Project: "test-project",
+			Title:   "Duplicate",
+			Status:  "active",
+		},
+	}
+
+	_, _, err := trace.BuildGraph(items)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("duplicate"))
+}
+
+// TEST-137 traces: TASK-20
+// Test building empty graph
+func TestBuildGraph_Empty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	items := []*trace.TraceItem{}
+
+	graph, warnings, err := trace.BuildGraph(items)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(warnings).To(BeEmpty())
+
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
+
+	g.Expect(graph.Nodes).To(BeEmpty())
+}
+
+// TEST-138 traces: TASK-20
+// Property test: N items creates N nodes
+func TestBuildGraph_PropertyNodeCount(t *testing.T) {
+	t.Parallel()
+	rapid.Check(t, func(rt *rapid.T) {
+		g := NewWithT(t)
+
+		count := rapid.IntRange(1, 20).Draw(rt, "count")
+		items := make([]*trace.TraceItem, count)
+
+		for i := range count {
+			items[i] = &trace.TraceItem{
+				ID:      "REQ-" + zeroPad(i+1),
+				Type:    trace.NodeTypeREQ,
+				Project: "test-project",
+				Title:   "Requirement " + zeroPad(i+1),
+				Status:  "active",
+			}
+		}
+
+		graph, _, err := trace.BuildGraph(items)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(graph.Nodes).To(HaveLen(count))
+	})
+}
+
 // TEST-133 traces: TASK-20
 // Test building graph from single item
 func TestBuildGraph_SingleItem(t *testing.T) {
@@ -28,6 +135,11 @@ func TestBuildGraph_SingleItem(t *testing.T) {
 	graph, warnings, err := trace.BuildGraph(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(warnings).To(BeEmpty())
+
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
+
 	g.Expect(graph.Nodes).To(HaveLen(1))
 	g.Expect(graph.Nodes["REQ-1"]).ToNot(BeNil())
 }
@@ -59,122 +171,33 @@ func TestBuildGraph_WithEdges(t *testing.T) {
 	graph, warnings, err := trace.BuildGraph(items)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(warnings).To(BeEmpty())
+
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
+
 	g.Expect(graph.Nodes).To(HaveLen(2))
 	g.Expect(graph.Edges["TASK-1"]).To(HaveLen(1))
 }
 
-// TEST-135 traces: TASK-20
-// Test duplicate node ID returns error
-func TestBuildGraph_DuplicateID(t *testing.T) {
+// TEST-164 traces: TASK-26
+// Test ValidateGraph reports dangling as error
+func TestValidateGraph_DanglingRef(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	items := []*trace.TraceItem{
-		{
-			ID:      "REQ-1",
-			Type:    trace.NodeTypeREQ,
-			Project: "test-project",
-			Title:   "First",
-			Status:  "active",
-		},
-		{
-			ID:      "REQ-1",
-			Type:    trace.NodeTypeREQ,
-			Project: "test-project",
-			Title:   "Duplicate",
-			Status:  "active",
-		},
+		{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"REQ-999"}},
 	}
 
-	_, _, err := trace.BuildGraph(items)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("duplicate"))
-}
-
-// TEST-136 traces: TASK-20
-// Test dangling edge creates warning
-func TestBuildGraph_DanglingEdge(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []*trace.TraceItem{
-		{
-			ID:       "TASK-1",
-			Type:     trace.NodeTypeTASK,
-			Project:  "test-project",
-			Title:    "Task with missing target",
-			Status:   "active",
-			TracesTo: []string{"REQ-999"}, // Doesn't exist
-		},
+	graph, _, _ := trace.BuildGraph(items)
+	if graph == nil {
+		t.Fatal("graph is nil")
 	}
 
-	graph, warnings, err := trace.BuildGraph(items)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(warnings).To(HaveLen(1))
-	g.Expect(warnings[0]).To(ContainSubstring("REQ-999"))
-	g.Expect(graph.Nodes).To(HaveLen(1))
-}
-
-// TEST-137 traces: TASK-20
-// Test building empty graph
-func TestBuildGraph_Empty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []*trace.TraceItem{}
-
-	graph, warnings, err := trace.BuildGraph(items)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(warnings).To(BeEmpty())
-	g.Expect(graph.Nodes).To(BeEmpty())
-}
-
-// TEST-138 traces: TASK-20
-// Property test: N items creates N nodes
-func TestBuildGraph_PropertyNodeCount(t *testing.T) {
-	t.Parallel()
-	rapid.Check(t, func(rt *rapid.T) {
-		g := NewWithT(t)
-
-		count := rapid.IntRange(1, 20).Draw(rt, "count")
-		items := make([]*trace.TraceItem, count)
-
-		for i := 0; i < count; i++ {
-			items[i] = &trace.TraceItem{
-				ID:      "REQ-" + zeroPad(i+1),
-				Type:    trace.NodeTypeREQ,
-				Project: "test-project",
-				Title:   "Requirement " + zeroPad(i+1),
-				Status:  "active",
-			}
-		}
-
-		graph, _, err := trace.BuildGraph(items)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(graph.Nodes).To(HaveLen(count))
-	})
-}
-
-func zeroPad(n int) string {
-	if n < 10 {
-		return "00" + numStr(n)
-	}
-	if n < 100 {
-		return "0" + numStr(n)
-	}
-	return numStr(n)
-}
-
-func numStr(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	s := ""
-	for n > 0 {
-		s = string(rune('0'+n%10)) + s
-		n /= 10
-	}
-	return s
+	result := trace.ValidateGraph(graph)
+	g.Expect(result.Pass).To(BeFalse())
+	g.Expect(result.Errors).ToNot(BeEmpty())
 }
 
 // TEST-161 traces: TASK-26
@@ -189,7 +212,11 @@ func TestValidateGraph_Valid(t *testing.T) {
 		{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"ARCH-1"}},
 		{ID: "TEST-1", Type: trace.NodeTypeTEST, Project: "test", Title: "Test", Status: "active", Location: "test.go", Function: "TestX", TracesTo: []string{"TASK-1"}},
 	}
+
 	graph, _, _ := trace.BuildGraph(items)
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
 
 	result := trace.ValidateGraph(graph)
 	g.Expect(result.Pass).To(BeTrue())
@@ -222,25 +249,39 @@ func TestValidateGraph_WithWarnings(t *testing.T) {
 	items := []*trace.TraceItem{
 		{ID: "REQ-1", Type: trace.NodeTypeREQ, Project: "test", Title: "Req", Status: "active"},
 	}
+
 	graph, _, _ := trace.BuildGraph(items)
+	if graph == nil {
+		t.Fatal("graph is nil")
+	}
 
 	result := trace.ValidateGraph(graph)
 	g.Expect(result.Pass).To(BeTrue()) // Warnings don't fail
 	g.Expect(result.Warnings).ToNot(BeEmpty())
 }
 
-// TEST-164 traces: TASK-26
-// Test ValidateGraph reports dangling as error
-func TestValidateGraph_DanglingRef(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	items := []*trace.TraceItem{
-		{ID: "TASK-1", Type: trace.NodeTypeTASK, Project: "test", Title: "Task", Status: "active", TracesTo: []string{"REQ-999"}},
+func numStr(n int) string {
+	if n == 0 {
+		return "0"
 	}
-	graph, _, _ := trace.BuildGraph(items)
 
-	result := trace.ValidateGraph(graph)
-	g.Expect(result.Pass).To(BeFalse())
-	g.Expect(result.Errors).ToNot(BeEmpty())
+	s := ""
+	for n > 0 {
+		s = string(rune('0'+n%10)) + s
+		n /= 10
+	}
+
+	return s
+}
+
+func zeroPad(n int) string {
+	if n < 10 {
+		return "00" + numStr(n)
+	}
+
+	if n < 100 {
+		return "0" + numStr(n)
+	}
+
+	return numStr(n)
 }

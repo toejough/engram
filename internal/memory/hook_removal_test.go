@@ -11,28 +11,6 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// TestQueryResultsHasNoSkillsField verifies that QueryResults struct
-// does NOT have a Skills field (hook injection removed).
-func TestQueryResultsHasNoSkillsField(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	typ := reflect.TypeOf(memory.QueryResults{})
-	_, found := typ.FieldByName("Skills")
-	g.Expect(found).To(BeFalse(), "QueryResults should not have Skills field after hook removal")
-}
-
-// TestFormatMarkdownOptsHasNoSkillsField verifies that FormatMarkdownOpts
-// does NOT have a Skills field (hook injection removed).
-func TestFormatMarkdownOptsHasNoSkillsField(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	typ := reflect.TypeOf(memory.FormatMarkdownOpts{})
-	_, found := typ.FieldByName("Skills")
-	g.Expect(found).To(BeFalse(), "FormatMarkdownOpts should not have Skills field after hook removal")
-}
-
 // TestFormatMarkdownNoSkillsSection verifies that FormatMarkdown output
 // never contains "## Relevant Skills" section regardless of input.
 func TestFormatMarkdownNoSkillsSection(t *testing.T) {
@@ -57,4 +35,26 @@ func TestFormatMarkdownNoSkillsSection(t *testing.T) {
 
 	g.Expect(output).ToNot(ContainSubstring("## Relevant Skills"),
 		"FormatMarkdown output should never contain skills section after hook removal")
+}
+
+// TestFormatMarkdownOptsHasNoSkillsField verifies that FormatMarkdownOpts
+// does NOT have a Skills field (hook injection removed).
+func TestFormatMarkdownOptsHasNoSkillsField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	typ := reflect.TypeFor[memory.FormatMarkdownOpts]()
+	_, found := typ.FieldByName("Skills")
+	g.Expect(found).To(BeFalse(), "FormatMarkdownOpts should not have Skills field after hook removal")
+}
+
+// TestQueryResultsHasNoSkillsField verifies that QueryResults struct
+// does NOT have a Skills field (hook injection removed).
+func TestQueryResultsHasNoSkillsField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	typ := reflect.TypeFor[memory.QueryResults]()
+	_, found := typ.FieldByName("Skills")
+	g.Expect(found).To(BeFalse(), "QueryResults should not have Skills field after hook removal")
 }

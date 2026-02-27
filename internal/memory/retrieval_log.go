@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -20,6 +21,13 @@ type RetrievalLogEntry struct {
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
+// RetrievalLogFilter specifies criteria for filtering retrieval log entries.
+type RetrievalLogFilter struct {
+	Hook      string
+	SessionID string
+	Since     *time.Time
+}
+
 // RetrievalResult represents a single result from a retrieval query.
 type RetrievalResult struct {
 	ID      int64   `json:"id"`
@@ -28,37 +36,22 @@ type RetrievalResult struct {
 	Tier    string  `json:"tier"`
 }
 
-// RetrievalLogFilter specifies criteria for filtering retrieval log entries.
-type RetrievalLogFilter struct {
-	Hook      string
-	SessionID string
-	Since     *time.Time
-}
-
 // LogRetrieval appends a retrieval log entry as a JSON line to retrievals.jsonl.
 func LogRetrieval(memoryRoot string, entry RetrievalLogEntry) error {
 	if err := os.MkdirAll(memoryRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create memory directory: %w", err)
 	}
 
-	data, err := json.Marshal(entry)
-	if err != nil {
-		return fmt.Errorf("failed to marshal retrieval log entry: %w", err)
-	}
-	data = append(data, '\n')
-
 	logPath := filepath.Join(memoryRoot, "retrievals.jsonl")
+
 	f, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open retrievals log: %w", err)
 	}
-	defer f.Close()
 
-	if _, err := f.Write(data); err != nil {
-		return fmt.Errorf("failed to write retrieval log entry: %w", err)
-	}
+	defer func() { _ = f.Close() }()
 
-	return nil
+	return logRetrievalTo(f, entry)
 }
 
 // ReadRetrievalLogs reads retrieval log entries from retrievals.jsonl, applying optional filters.
@@ -70,11 +63,14 @@ func ReadRetrievalLogs(memoryRoot string, filter RetrievalLogFilter) ([]Retrieva
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
+
 		return nil, fmt.Errorf("failed to open retrievals log: %w", err)
 	}
-	defer f.Close()
+
+	defer func() { _ = f.Close() }()
 
 	var entries []RetrievalLogEntry
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Bytes()
@@ -83,7 +79,9 @@ func ReadRetrievalLogs(memoryRoot string, filter RetrievalLogFilter) ([]Retrieva
 		}
 
 		var entry RetrievalLogEntry
-		if err := json.Unmarshal(line, &entry); err != nil {
+
+		err := json.Unmarshal(line, &entry)
+		if err != nil {
 			continue
 		}
 
@@ -99,18 +97,38 @@ func ReadRetrievalLogs(memoryRoot string, filter RetrievalLogFilter) ([]Retrieva
 	return entries, nil
 }
 
+// logRetrievalTo marshals entry as JSON and writes it to w.
+// The caller owns the writer lifecycle (open/close).
+func logRetrievalTo(w io.WriteCloser, entry RetrievalLogEntry) error {
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("failed to marshal retrieval log entry: %w", err)
+	}
+
+	data = append(data, '\n')
+
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("failed to write retrieval log entry: %w", err)
+	}
+
+	return nil
+}
+
 func matchesRetrievalFilter(entry RetrievalLogEntry, filter RetrievalLogFilter) bool {
 	if filter.Hook != "" && entry.Hook != filter.Hook {
 		return false
 	}
+
 	if filter.SessionID != "" && entry.SessionID != filter.SessionID {
 		return false
 	}
+
 	if filter.Since != nil {
 		ts, err := time.Parse(time.RFC3339, entry.Timestamp)
 		if err != nil || ts.Before(*filter.Since) {
 			return false
 		}
 	}
+
 	return true
 }

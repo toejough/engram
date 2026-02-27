@@ -1,4 +1,3 @@
-// chunk.go
 package memory
 
 import "strings"
@@ -26,17 +25,14 @@ func ChunkText(text string, maxBytes int) []TextChunk {
 	if avgLineLen == 0 {
 		avgLineLen = 1
 	}
-	linesPerChunk := maxBytes / avgLineLen
-	if linesPerChunk < 1 {
-		linesPerChunk = 1
-	}
+
+	linesPerChunk := max(maxBytes/avgLineLen, 1)
 
 	var chunks []TextChunk
+
 	for i := 0; i < totalLines; i += linesPerChunk {
-		end := i + linesPerChunk
-		if end > totalLines {
-			end = totalLines
-		}
+		end := min(i+linesPerChunk, totalLines)
+
 		chunkLines := lines[i:end]
 		chunks = append(chunks, TextChunk{
 			Text:      strings.Join(chunkLines, "\n"),

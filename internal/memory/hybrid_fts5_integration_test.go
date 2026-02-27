@@ -13,6 +13,32 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
+// TEST: BM25Enabled is true when FTS5 is available
+func TestBM25EnabledWithFTS5(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	err = memory.Learn(memory.LearnOpts{
+		Message:    "test bm25 enabled flag",
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	results, err := memory.Query(memory.QueryOpts{
+		Text:       "bm25 enabled",
+		Limit:      3,
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(results.BM25Enabled).To(BeTrue())
+	g.Expect(results.UsedHybridSearch).To(BeTrue())
+}
+
 // TEST: FTS5 table created on init (requires sqlite_fts5 build tag)
 func TestFTS5TableCreatedOnInit(t *testing.T) {
 	t.Parallel()
@@ -69,30 +95,4 @@ func TestLearnPopulatesFTS5(t *testing.T) {
 	err = db.QueryRow("SELECT content FROM embeddings_fts WHERE embeddings_fts MATCH 'xylophoneUniqueWord'").Scan(&content)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(content).To(ContainSubstring("xylophoneUniqueWord"))
-}
-
-// TEST: BM25Enabled is true when FTS5 is available
-func TestBM25EnabledWithFTS5(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	err = memory.Learn(memory.LearnOpts{
-		Message:    "test bm25 enabled flag",
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	results, err := memory.Query(memory.QueryOpts{
-		Text:       "bm25 enabled",
-		Limit:      3,
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(results.BM25Enabled).To(BeTrue())
-	g.Expect(results.UsedHybridSearch).To(BeTrue())
 }

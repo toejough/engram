@@ -15,14 +15,19 @@ type MockFS struct {
 	Files map[string][]byte
 }
 
-var _ log.FileSystem = (*MockFS)(nil)
-
 func (m *MockFS) AppendFile(path string, data []byte) error {
 	if m.Files == nil {
 		m.Files = make(map[string][]byte)
 	}
+
 	m.Files[path] = append(m.Files[path], data...)
+
 	return nil
+}
+
+func (m *MockFS) FileExists(path string) bool {
+	_, exists := m.Files[path]
+	return exists
 }
 
 func (m *MockFS) ReadFile(path string) ([]byte, error) {
@@ -30,12 +35,8 @@ func (m *MockFS) ReadFile(path string) ([]byte, error) {
 	if !exists {
 		return nil, fmt.Errorf("file not found: %s", path)
 	}
-	return content, nil
-}
 
-func (m *MockFS) FileExists(path string) bool {
-	_, exists := m.Files[path]
-	return exists
+	return content, nil
 }
 
 // TEST-700 traces: TASK-065
@@ -156,3 +157,8 @@ func TestDefaultThresholds(t *testing.T) {
 	g.Expect(thresholds.Warning).To(Equal(80000))
 	g.Expect(thresholds.Limit).To(Equal(90000))
 }
+
+// unexported variables.
+var (
+	_ log.FileSystem = (*MockFS)(nil)
+)

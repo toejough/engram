@@ -7,100 +7,13 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-func TestScoreRetrievalRelevance_NoCorrection_IsRelevant(t *testing.T) {
-	// Setup: retrieval at T0, no subsequent corrections
-	retrieval := memory.RetrievalLogEntry{
-		Timestamp: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
-		Hook:      "SessionStart",
-		Query:     "git commit trailer format",
-		Results: []memory.RetrievalResult{
-			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
-		},
-	}
+func TestComputeAverageRetrievalPrecision_EmptyInput(t *testing.T) {
+	var scores []memory.RetrievalRelevance
 
-	var noCorrections []memory.ChangelogEntry
-	timeWindow := 10 * time.Minute
+	avg := memory.ComputeAverageRetrievalPrecision(scores)
 
-	scores := memory.ScoreRetrievalRelevance(retrieval, noCorrections, timeWindow)
-
-	if len(scores) != 1 {
-		t.Fatalf("expected 1 score, got %d", len(scores))
-	}
-	if !scores[0].Relevant {
-		t.Errorf("expected relevant=true when no corrections follow")
-	}
-	if scores[0].Precision != 1.0 {
-		t.Errorf("expected precision=1.0, got %f", scores[0].Precision)
-	}
-}
-
-func TestScoreRetrievalRelevance_CorrectionFollows_NotRelevant(t *testing.T) {
-	// Setup: retrieval at T0, correction at T0+2min on same topic
-	now := time.Now()
-	retrieval := memory.RetrievalLogEntry{
-		Timestamp: now.Format(time.RFC3339),
-		Hook:      "SessionStart",
-		Query:     "git commit trailer format",
-		Results: []memory.RetrievalResult{
-			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
-		},
-	}
-
-	corrections := []memory.ChangelogEntry{
-		{
-			Timestamp:      now.Add(2 * time.Minute),
-			Action:         "store_correction",
-			ContentSummary: "Use AI-Used trailer not Co-Authored-By",
-			DestinationTier: "embedding",
-		},
-	}
-	timeWindow := 10 * time.Minute
-
-	scores := memory.ScoreRetrievalRelevance(retrieval, corrections, timeWindow)
-
-	if len(scores) != 1 {
-		t.Fatalf("expected 1 score, got %d", len(scores))
-	}
-	if scores[0].Relevant {
-		t.Errorf("expected relevant=false when correction follows")
-	}
-	if scores[0].Precision != 0.0 {
-		t.Errorf("expected precision=0.0, got %f", scores[0].Precision)
-	}
-}
-
-func TestScoreRetrievalRelevance_CorrectionOutsideWindow_StillRelevant(t *testing.T) {
-	// Setup: retrieval at T0, correction at T0+15min (outside 10min window)
-	now := time.Now()
-	retrieval := memory.RetrievalLogEntry{
-		Timestamp: now.Format(time.RFC3339),
-		Hook:      "SessionStart",
-		Query:     "git commit trailer format",
-		Results: []memory.RetrievalResult{
-			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
-		},
-	}
-
-	corrections := []memory.ChangelogEntry{
-		{
-			Timestamp:      now.Add(15 * time.Minute),
-			Action:         "store_correction",
-			ContentSummary: "Use AI-Used trailer not Co-Authored-By",
-			DestinationTier: "embedding",
-		},
-	}
-	timeWindow := 10 * time.Minute
-
-	scores := memory.ScoreRetrievalRelevance(retrieval, corrections, timeWindow)
-
-	if len(scores) != 1 {
-		t.Fatalf("expected 1 score, got %d", len(scores))
-	}
-	if !scores[0].Relevant {
-		t.Errorf("expected relevant=true when correction outside time window")
-	}
-	if scores[0].Precision != 1.0 {
-		t.Errorf("expected precision=1.0, got %f", scores[0].Precision)
+	if avg != 0.0 {
+		t.Errorf("expected 0.0 for empty input, got %f", avg)
 	}
 }
 
@@ -120,12 +33,77 @@ func TestComputeAverageRetrievalPrecision_MixedScores(t *testing.T) {
 	}
 }
 
-func TestComputeAverageRetrievalPrecision_EmptyInput(t *testing.T) {
-	var scores []memory.RetrievalRelevance
-	avg := memory.ComputeAverageRetrievalPrecision(scores)
+func TestScoreRetrievalRelevance_CorrectionFollows_NotRelevant(t *testing.T) {
+	// Setup: retrieval at T0, correction at T0+2min on same topic
+	now := time.Now()
+	retrieval := memory.RetrievalLogEntry{
+		Timestamp: now.Format(time.RFC3339),
+		Hook:      "SessionStart",
+		Query:     "git commit trailer format",
+		Results: []memory.RetrievalResult{
+			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
+		},
+	}
 
-	if avg != 0.0 {
-		t.Errorf("expected 0.0 for empty input, got %f", avg)
+	corrections := []memory.ChangelogEntry{
+		{
+			Timestamp:       now.Add(2 * time.Minute),
+			Action:          "store_correction",
+			ContentSummary:  "Use AI-Used trailer not Co-Authored-By",
+			DestinationTier: "embedding",
+		},
+	}
+	timeWindow := 10 * time.Minute
+
+	scores := memory.ScoreRetrievalRelevance(retrieval, corrections, timeWindow)
+
+	if len(scores) != 1 {
+		t.Fatalf("expected 1 score, got %d", len(scores))
+	}
+
+	if scores[0].Relevant {
+		t.Errorf("expected relevant=false when correction follows")
+	}
+
+	if scores[0].Precision != 0.0 {
+		t.Errorf("expected precision=0.0, got %f", scores[0].Precision)
+	}
+}
+
+func TestScoreRetrievalRelevance_CorrectionOutsideWindow_StillRelevant(t *testing.T) {
+	// Setup: retrieval at T0, correction at T0+15min (outside 10min window)
+	now := time.Now()
+	retrieval := memory.RetrievalLogEntry{
+		Timestamp: now.Format(time.RFC3339),
+		Hook:      "SessionStart",
+		Query:     "git commit trailer format",
+		Results: []memory.RetrievalResult{
+			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
+		},
+	}
+
+	corrections := []memory.ChangelogEntry{
+		{
+			Timestamp:       now.Add(15 * time.Minute),
+			Action:          "store_correction",
+			ContentSummary:  "Use AI-Used trailer not Co-Authored-By",
+			DestinationTier: "embedding",
+		},
+	}
+	timeWindow := 10 * time.Minute
+
+	scores := memory.ScoreRetrievalRelevance(retrieval, corrections, timeWindow)
+
+	if len(scores) != 1 {
+		t.Fatalf("expected 1 score, got %d", len(scores))
+	}
+
+	if !scores[0].Relevant {
+		t.Errorf("expected relevant=true when correction outside time window")
+	}
+
+	if scores[0].Precision != 1.0 {
+		t.Errorf("expected precision=1.0, got %f", scores[0].Precision)
 	}
 }
 
@@ -138,11 +116,42 @@ func TestScoreRetrievalRelevance_EmptyResults(t *testing.T) {
 	}
 
 	var corrections []memory.ChangelogEntry
+
 	timeWindow := 10 * time.Minute
 
 	scores := memory.ScoreRetrievalRelevance(retrieval, corrections, timeWindow)
 
 	if len(scores) != 0 {
 		t.Errorf("expected 0 scores for empty results, got %d", len(scores))
+	}
+}
+
+func TestScoreRetrievalRelevance_NoCorrection_IsRelevant(t *testing.T) {
+	// Setup: retrieval at T0, no subsequent corrections
+	retrieval := memory.RetrievalLogEntry{
+		Timestamp: time.Now().Add(-5 * time.Minute).Format(time.RFC3339),
+		Hook:      "SessionStart",
+		Query:     "git commit trailer format",
+		Results: []memory.RetrievalResult{
+			{ID: 1, Content: "Use AI-Used trailer", Score: 0.95, Tier: "embedding"},
+		},
+	}
+
+	var noCorrections []memory.ChangelogEntry
+
+	timeWindow := 10 * time.Minute
+
+	scores := memory.ScoreRetrievalRelevance(retrieval, noCorrections, timeWindow)
+
+	if len(scores) != 1 {
+		t.Fatalf("expected 1 score, got %d", len(scores))
+	}
+
+	if !scores[0].Relevant {
+		t.Errorf("expected relevant=true when no corrections follow")
+	}
+
+	if scores[0].Precision != 1.0 {
+		t.Errorf("expected precision=1.0, got %f", scores[0].Precision)
 	}
 }

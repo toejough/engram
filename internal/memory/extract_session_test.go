@@ -111,93 +111,6 @@ func TestCorrectionRecurrence_DetectsRecurrentCorrection(t *testing.T) {
 	g.Expect(foundRecurrence).To(BeTrue(), "should log recurrence in changelog")
 }
 
-// TestCorrectionRecurrence_NoRecurrenceForNovelCorrection verifies that novel corrections
-// are not flagged as recurrent.
-func TestCorrectionRecurrence_NoRecurrenceForNovelCorrection(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, "memory")
-	err := os.MkdirAll(memoryDir, 0755)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Store a correction about a different topic
-	priorCorrection := "Use AI-Used trailer, not Co-Authored-By"
-	err = memory.Learn(memory.LearnOpts{
-		Message:    priorCorrection,
-		MemoryRoot: memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Extract a session with a different correction
-	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
-	transcript := []map[string]any{
-		{
-			"type": "assistant",
-			"message": map[string]any{
-				"role": "assistant",
-				"content": []any{
-					map[string]any{
-						"type": "text",
-						"text": "I'll use mage for tests",
-					},
-				},
-			},
-		},
-		{
-			"type": "user",
-			"message": map[string]any{
-				"role": "user",
-				"content": []any{
-					map[string]any{
-						"type": "text",
-						"text": "No, use targ for tests, not mage",
-					},
-				},
-			},
-		},
-	}
-
-	// Write transcript
-	f, err := os.Create(transcriptPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	for _, msg := range transcript {
-		data, _ := json.Marshal(msg)
-		_, _ = f.Write(data)
-		_, _ = f.Write([]byte("\n"))
-	}
-	f.Close()
-
-	// Extract session
-	result, err := memory.ExtractSession(memory.ExtractSessionOpts{
-		TranscriptPath: transcriptPath,
-		MemoryRoot:     memoryDir,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.Status).To(Equal("success"))
-
-	// Verify correction was extracted
-	g.Expect(result.Items).ToNot(BeEmpty())
-
-	// Verify NO changelog entry for recurrence
-	changelogPath := filepath.Join(memoryDir, "changelog.jsonl")
-	data, err := os.ReadFile(changelogPath)
-	if err != nil && !os.IsNotExist(err) {
-		t.Fatalf("unexpected error reading changelog: %v", err)
-	}
-
-	if len(data) > 0 {
-		lines := splitJSONLines(data)
-		for _, line := range lines {
-			var entry memory.ChangelogEntry
-			if err := json.Unmarshal(line, &entry); err == nil {
-				g.Expect(entry.Action).ToNot(Equal("correction_recurrence"), "should not flag novel correction as recurrent")
-			}
-		}
-	}
-}
-
 // TestCorrectionRecurrence_IncrementsRecurrenceCount verifies that recurrence_count
 // metadata is incremented when the same correction recurs.
 func TestCorrectionRecurrence_IncrementsRecurrenceCount(t *testing.T) {
@@ -321,6 +234,93 @@ func TestCorrectionRecurrence_IncrementsRecurrenceCount(t *testing.T) {
 		}
 	}
 	g.Expect(recurrenceCount).To(Equal(2), "should log 2 recurrence events")
+}
+
+// TestCorrectionRecurrence_NoRecurrenceForNovelCorrection verifies that novel corrections
+// are not flagged as recurrent.
+func TestCorrectionRecurrence_NoRecurrenceForNovelCorrection(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, "memory")
+	err := os.MkdirAll(memoryDir, 0755)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Store a correction about a different topic
+	priorCorrection := "Use AI-Used trailer, not Co-Authored-By"
+	err = memory.Learn(memory.LearnOpts{
+		Message:    priorCorrection,
+		MemoryRoot: memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Extract a session with a different correction
+	transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
+	transcript := []map[string]any{
+		{
+			"type": "assistant",
+			"message": map[string]any{
+				"role": "assistant",
+				"content": []any{
+					map[string]any{
+						"type": "text",
+						"text": "I'll use mage for tests",
+					},
+				},
+			},
+		},
+		{
+			"type": "user",
+			"message": map[string]any{
+				"role": "user",
+				"content": []any{
+					map[string]any{
+						"type": "text",
+						"text": "No, use targ for tests, not mage",
+					},
+				},
+			},
+		},
+	}
+
+	// Write transcript
+	f, err := os.Create(transcriptPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	for _, msg := range transcript {
+		data, _ := json.Marshal(msg)
+		_, _ = f.Write(data)
+		_, _ = f.Write([]byte("\n"))
+	}
+	f.Close()
+
+	// Extract session
+	result, err := memory.ExtractSession(memory.ExtractSessionOpts{
+		TranscriptPath: transcriptPath,
+		MemoryRoot:     memoryDir,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.Status).To(Equal("success"))
+
+	// Verify correction was extracted
+	g.Expect(result.Items).ToNot(BeEmpty())
+
+	// Verify NO changelog entry for recurrence
+	changelogPath := filepath.Join(memoryDir, "changelog.jsonl")
+	data, err := os.ReadFile(changelogPath)
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("unexpected error reading changelog: %v", err)
+	}
+
+	if len(data) > 0 {
+		lines := splitJSONLines(data)
+		for _, line := range lines {
+			var entry memory.ChangelogEntry
+			if err := json.Unmarshal(line, &entry); err == nil {
+				g.Expect(entry.Action).ToNot(Equal("correction_recurrence"), "should not flag novel correction as recurrent")
+			}
+		}
+	}
 }
 
 // splitJSONLines splits JSONL data into individual JSON objects.

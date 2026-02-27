@@ -7,13 +7,27 @@ import (
 
 // RetrievalRelevance represents the relevance score for a single retrieved result.
 type RetrievalRelevance struct {
-	RetrievalID  string    `json:"retrieval_id"`
-	RetrievedAt  time.Time `json:"retrieved_at"`
-	Query        string    `json:"query"`
-	ResultID     int64     `json:"result_id"`
-	ResultScore  float64   `json:"result_score"`
-	Relevant     bool      `json:"relevant"`
-	Precision    float64   `json:"precision"`
+	RetrievalID string    `json:"retrieval_id"`
+	RetrievedAt time.Time `json:"retrieved_at"`
+	Query       string    `json:"query"`
+	ResultID    int64     `json:"result_id"`
+	ResultScore float64   `json:"result_score"`
+	Relevant    bool      `json:"relevant"`
+	Precision   float64   `json:"precision"`
+}
+
+// ComputeAverageRetrievalPrecision computes the average precision across all scored retrievals.
+func ComputeAverageRetrievalPrecision(scores []RetrievalRelevance) float64 {
+	if len(scores) == 0 {
+		return 0.0
+	}
+
+	sum := 0.0
+	for _, score := range scores {
+		sum += score.Precision
+	}
+
+	return sum / float64(len(scores))
 }
 
 // ScoreRetrievalRelevance scores a retrieval by checking if corrections followed.
@@ -49,36 +63,40 @@ func ScoreRetrievalRelevance(retrieval RetrievalLogEntry, subsequentCorrections 
 			if topicsMatch(retrieval.Query, result.Content, correction.ContentSummary) {
 				relevant = false
 				precision = 0.0
+
 				break
 			}
 		}
 
 		scores = append(scores, RetrievalRelevance{
-			RetrievalID:  retrieval.SessionID, // Using session ID as retrieval identifier
-			RetrievedAt:  retrievedAt,
-			Query:        retrieval.Query,
-			ResultID:     result.ID,
-			ResultScore:  result.Score,
-			Relevant:     relevant,
-			Precision:    precision,
+			RetrievalID: retrieval.SessionID, // Using session ID as retrieval identifier
+			RetrievedAt: retrievedAt,
+			Query:       retrieval.Query,
+			ResultID:    result.ID,
+			ResultScore: result.Score,
+			Relevant:    relevant,
+			Precision:   precision,
 		})
 	}
 
 	return scores
 }
 
-// ComputeAverageRetrievalPrecision computes the average precision across all scored retrievals.
-func ComputeAverageRetrievalPrecision(scores []RetrievalRelevance) float64 {
-	if len(scores) == 0 {
-		return 0.0
+// extractSignificantWords extracts words longer than 3 characters.
+func extractSignificantWords(text string) []string {
+	words := strings.Fields(text)
+
+	var significant []string
+
+	for _, word := range words {
+		// Remove punctuation
+		word = strings.Trim(word, ".,!?;:\"'")
+		if len(word) > 3 {
+			significant = append(significant, word)
+		}
 	}
 
-	sum := 0.0
-	for _, score := range scores {
-		sum += score.Precision
-	}
-
-	return sum / float64(len(scores))
+	return significant
 }
 
 // topicsMatch determines if a correction relates to a retrieval query/result.
@@ -108,20 +126,4 @@ func topicsMatch(query, resultContent, correctionSummary string) bool {
 	}
 
 	return false
-}
-
-// extractSignificantWords extracts words longer than 3 characters.
-func extractSignificantWords(text string) []string {
-	words := strings.Fields(text)
-	var significant []string
-
-	for _, word := range words {
-		// Remove punctuation
-		word = strings.Trim(word, ".,!?;:\"'")
-		if len(word) > 3 {
-			significant = append(significant, word)
-		}
-	}
-
-	return significant
 }

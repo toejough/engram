@@ -50,46 +50,6 @@ func TestComputeViolationTrends_DecliningViolations(t *testing.T) {
 	}
 }
 
-func TestComputeViolationTrends_StableViolations(t *testing.T) {
-	now := time.Now()
-	periodDays := 7
-
-	// Create violations: 5 in old period, 5 in recent period (stable)
-	violations := []memory.ChangelogEntry{
-		// Old period (14-7 days ago): 5 violations
-		{Timestamp: now.Add(-14 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-13 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-11 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-9 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-8 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		// Recent period (last 7 days): 5 violations
-		{Timestamp: now.Add(-6 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-5 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-4 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-2 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-		{Timestamp: now.Add(-1 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
-	}
-
-	trends := memory.ComputeViolationTrends(violations, periodDays)
-
-	if len(trends) != 1 {
-		t.Fatalf("expected 1 trend, got %d", len(trends))
-	}
-
-	trend, ok := trends["use-targ"]
-	if !ok {
-		t.Fatal("expected trend for 'use-targ'")
-	}
-
-	if trend.Trending != "stable" {
-		t.Errorf("expected trending='stable', got %q", trend.Trending)
-	}
-
-	if trend.TotalViolations != 10 {
-		t.Errorf("expected total_violations=10, got %d", trend.TotalViolations)
-	}
-}
-
 func TestComputeViolationTrends_IncreasingViolations(t *testing.T) {
 	now := time.Now()
 	periodDays := 7
@@ -165,5 +125,45 @@ func TestComputeViolationTrends_SingleViolation(t *testing.T) {
 
 	if trend.TotalViolations != 1 {
 		t.Errorf("expected total_violations=1, got %d", trend.TotalViolations)
+	}
+}
+
+func TestComputeViolationTrends_StableViolations(t *testing.T) {
+	now := time.Now()
+	periodDays := 7
+
+	// Create violations: 5 in old period, 5 in recent period (stable)
+	violations := []memory.ChangelogEntry{
+		// Old period (14-7 days ago): 5 violations
+		{Timestamp: now.Add(-14 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-13 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-11 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-9 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-8 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		// Recent period (last 7 days): 5 violations
+		{Timestamp: now.Add(-6 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-5 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-4 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-2 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+		{Timestamp: now.Add(-1 * 24 * time.Hour), Action: "hook_violation", Metadata: map[string]string{"rule": "use-targ", "hook": "PostToolUse"}},
+	}
+
+	trends := memory.ComputeViolationTrends(violations, periodDays)
+
+	if len(trends) != 1 {
+		t.Fatalf("expected 1 trend, got %d", len(trends))
+	}
+
+	trend, ok := trends["use-targ"]
+	if !ok {
+		t.Fatal("expected trend for 'use-targ'")
+	}
+
+	if trend.Trending != "stable" {
+		t.Errorf("expected trending='stable', got %q", trend.Trending)
+	}
+
+	if trend.TotalViolations != 10 {
+		t.Errorf("expected total_violations=10, got %d", trend.TotalViolations)
 	}
 }

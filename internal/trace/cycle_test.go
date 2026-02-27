@@ -24,38 +24,6 @@ func TestDetectCycle_Acyclic(t *testing.T) {
 	g.Expect(path).To(BeEmpty())
 }
 
-// TEST-140 traces: TASK-21
-// Test detects simple cycle
-func TestDetectCycle_SimpleCycle(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ})
-	_ = graph.AddNode(&trace.Node{ID: "REQ-2", Type: trace.NodeTypeREQ})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "REQ-2"})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-2", To: "REQ-1"})
-
-	hasCycle, path := trace.DetectCycle(graph)
-	g.Expect(hasCycle).To(BeTrue())
-	g.Expect(path).To(HaveLen(2))
-}
-
-// TEST-141 traces: TASK-21
-// Test detects self-loop
-func TestDetectCycle_SelfLoop(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	graph := trace.NewGraph()
-	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ})
-	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "REQ-1"})
-
-	hasCycle, path := trace.DetectCycle(graph)
-	g.Expect(hasCycle).To(BeTrue())
-	g.Expect(path).To(ContainElement("REQ-1"))
-}
-
 // TEST-142 traces: TASK-21
 // Test diamond dependency is not a cycle
 func TestDetectCycle_Diamond(t *testing.T) {
@@ -108,4 +76,36 @@ func TestDetectCycle_LongerCycle(t *testing.T) {
 	hasCycle, path := trace.DetectCycle(graph)
 	g.Expect(hasCycle).To(BeTrue())
 	g.Expect(path).To(HaveLen(3))
+}
+
+// TEST-141 traces: TASK-21
+// Test detects self-loop
+func TestDetectCycle_SelfLoop(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "REQ-1"})
+
+	hasCycle, path := trace.DetectCycle(graph)
+	g.Expect(hasCycle).To(BeTrue())
+	g.Expect(path).To(ContainElement("REQ-1"))
+}
+
+// TEST-140 traces: TASK-21
+// Test detects simple cycle
+func TestDetectCycle_SimpleCycle(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	graph := trace.NewGraph()
+	_ = graph.AddNode(&trace.Node{ID: "REQ-1", Type: trace.NodeTypeREQ})
+	_ = graph.AddNode(&trace.Node{ID: "REQ-2", Type: trace.NodeTypeREQ})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-1", To: "REQ-2"})
+	_ = graph.AddEdge(&trace.Edge{From: "REQ-2", To: "REQ-1"})
+
+	hasCycle, path := trace.DetectCycle(graph)
+	g.Expect(hasCycle).To(BeTrue())
+	g.Expect(path).To(HaveLen(2))
 }

@@ -20,13 +20,8 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// ============================================================================
-// Unit tests for Optimize pipeline
-// traces: ISSUE-184
-// ============================================================================
-
-// TEST-1130: Calling optimize twice in <1hr doesn't double-decay
-func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
+// TEST-1134: With AutoApprove true, synthesis and promote execute without prompts
+func TestOptimizeAutoApprove(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -35,34 +30,12 @@ func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
-	// Learn something
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "optimize double decay test entry",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// First optimize
-	r1, err := memory.Optimize(memory.OptimizeOpts{
+	_, err := memory.Optimize(memory.OptimizeOpts{
 		MemoryRoot:   memoryRoot,
 		ClaudeMDPath: claudeMDPath,
 		AutoApprove:  true,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(r1.DecayApplied).To(BeTrue())
-
-	confAfterFirst := getConfidence(g, memoryRoot, "double decay")
-
-	// Second optimize immediately — decay should be skipped
-	r2, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(r2.DecayApplied).To(BeFalse())
-
-	confAfterSecond := getConfidence(g, memoryRoot, "double decay")
-	g.Expect(confAfterSecond).To(Equal(confAfterFirst), "Second optimize should not decay further")
 }
 
 // TEST-1132: Promoted entries with confidence < 0.3 are auto-demoted from CLAUDE.md
@@ -119,6 +92,39 @@ func TestOptimizeAutoDemote(t *testing.T) {
 	err = db2.QueryRow("SELECT promoted FROM embeddings WHERE content LIKE '%old promoted learning%'").Scan(&promoted)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(promoted).To(Equal(0))
+}
+
+// ============================================================================
+// Context Cancellation Tests
+// ============================================================================
+
+// TestOptimizeCancelledContext verifies that Optimize returns an error when
+// passed a cancelled context
+func TestOptimizeCancelledContext(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create a cancelled context
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	// Run optimize with cancelled context
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+		Context:      ctx,
+	})
+
+	// VERIFY: Should return context.Canceled error
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, context.Canceled)).To(BeTrue(), "Should return context.Canceled error")
+	g.Expect(result).To(BeNil(), "Should return nil result on cancellation")
 }
 
 // TEST-1133: Contradiction detection reduces confidence by 0.5 per contradicting memory
@@ -195,107 +201,98 @@ func TestOptimizeContradiction(t *testing.T) {
 	}
 }
 
-// TEST-1134: With AutoApprove true, synthesis and promote execute without prompts
-func TestOptimizeAutoApprove(t *testing.T) {
+// TEST-2003: Dry-run mode prints proposals without modification
+func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
-	_, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-}
+	// Create CLAUDE.md with a narrow learning
+	claudeContent := `## Promoted Learnings
 
-// TEST-1135: With ReviewFunc rejecting all, only automatic steps run
-func TestOptimizeReviewFuncRejectsAll(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+- 2025-01-15 14:30: For project foo-analyzer, always use --strict flag
+`
+	originalContent := claudeContent
+	g.Expect(os.WriteFile(claudeMDPath, []byte(claudeContent), 0644)).To(Succeed())
 
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Learn something
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "review rejection test",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	reviewCalled := false
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		ReviewFunc: func(action, description string) (bool, error) {
-			reviewCalled = true
-			return false, nil // Reject everything
+	// Mock LLM detector
+	detector := &mockLLMSpecificDetector{
+		detectFunc: func(_ context.Context, learning string) (bool, string, error) {
+			return true, "Specific to project", nil
 		},
+	}
+
+	// Dry-run: no AutoApprove, no ReviewFunc
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:       memoryRoot,
+		ClaudeMDPath:     claudeMDPath,
+		SkillsDir:        skillsDir,
+		SpecificDetector: detector,
+		AutoApprove:      false,
+		ReviewFunc:       nil, // Dry-run mode
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	// Automatic steps should still have run
-	g.Expect(result).ToNot(BeNil())
-	// Note: reviewCalled may or may not be true depending on whether there are candidates
-	_ = reviewCalled
+	g.Expect(result.ClaudeMDDemoted).To(Equal(0)) // Nothing actually demoted
+
+	// CLAUDE.md should be unchanged
+	content, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(Equal(originalContent))
+
+	// No skill files should be created
+	skillFiles, _ := filepath.Glob(filepath.Join(skillsDir, "*", "SKILL.md"))
+	g.Expect(len(skillFiles)).To(Equal(0))
 }
 
-// TEST-1136: Optimize on empty database runs without error
-func TestOptimizeEmptyDatabase(t *testing.T) {
+// TEST-2004: Keyword fallback when LLM unavailable
+func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
+	// Create CLAUDE.md with entries containing project names and file paths
+	claudeContent := `## Promoted Learnings
+
+- For projctl repository, always run mage check before commit
+- When editing /Users/joe/repos/projctl/internal/memory/optimize.go, follow Go conventions
+- Always write tests first
+`
+	g.Expect(os.WriteFile(claudeMDPath, []byte(claudeContent), 0644)).To(Succeed())
+
+	// Mock skill compiler
+	compiler := &mockSkillCompiler{
+		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
+			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
+		},
+	}
+
+	// No LLM detector provided — should fall back to keyword heuristics
 	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		SkillsDir:     skillsDir,
+		SkillCompiler: compiler,
+		AutoApprove:   true,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result).ToNot(BeNil())
-	g.Expect(result.EntriesDecayed).To(Equal(0))
-	g.Expect(result.EntriesPruned).To(Equal(0))
-}
+	g.Expect(result.ClaudeMDDemoted).To(BeNumerically(">=", 2)) // At least the two narrow entries
 
-// ============================================================================
-// TASK-2: optimizeDemoteClaudeMD tests
-// ============================================================================
-
-// mockLLMSpecificDetector provides test implementation for narrow/universal detection.
-type mockLLMSpecificDetector struct {
-	detectFunc func(ctx context.Context, learning string) (bool, string, error)
-}
-
-func (m *mockLLMSpecificDetector) CompileSkill(theme string, memories []string) (string, error) {
-	return "", fmt.Errorf("not implemented")
-}
-
-func (m *mockLLMSpecificDetector) Extract(message string) (*memory.Observation, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockLLMSpecificDetector) Decide(newMessage string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (m *mockLLMSpecificDetector) Synthesize(memories []string) (string, error) {
-	return "", fmt.Errorf("not implemented")
-}
-
-func (m *mockLLMSpecificDetector) IsNarrowLearning(ctx context.Context, learning string) (bool, string, error) {
-	if m.detectFunc != nil {
-		return m.detectFunc(ctx, learning)
-	}
-	return false, "LLM unavailable", fmt.Errorf("LLM unavailable")
+	// CLAUDE.md should only contain universal advice
+	content, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(ContainSubstring("Always write tests first"))
+	g.Expect(string(content)).ToNot(ContainSubstring("projctl"))
+	g.Expect(string(content)).ToNot(ContainSubstring("/Users/joe"))
 }
 
 // TEST-2001: Narrow learning is demoted to skill
@@ -400,56 +397,33 @@ func TestOptimizeDemoteClaudeMDUniversalLearning(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("clear commit messages"))
 }
 
-// TEST-2003: Dry-run mode prints proposals without modification
-func TestOptimizeDemoteClaudeMDDryRun(t *testing.T) {
+// TEST-1136: Optimize on empty database runs without error
+func TestOptimizeEmptyDatabase(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
 	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 
-	// Create CLAUDE.md with a narrow learning
-	claudeContent := `## Promoted Learnings
-
-- 2025-01-15 14:30: For project foo-analyzer, always use --strict flag
-`
-	originalContent := claudeContent
-	g.Expect(os.WriteFile(claudeMDPath, []byte(claudeContent), 0644)).To(Succeed())
-
-	// Mock LLM detector
-	detector := &mockLLMSpecificDetector{
-		detectFunc: func(_ context.Context, learning string) (bool, string, error) {
-			return true, "Specific to project", nil
-		},
-	}
-
-	// Dry-run: no AutoApprove, no ReviewFunc
 	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:       memoryRoot,
-		ClaudeMDPath:     claudeMDPath,
-		SkillsDir:        skillsDir,
-		SpecificDetector: detector,
-		AutoApprove:      false,
-		ReviewFunc:       nil, // Dry-run mode
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.ClaudeMDDemoted).To(Equal(0)) // Nothing actually demoted
-
-	// CLAUDE.md should be unchanged
-	content, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal(originalContent))
-
-	// No skill files should be created
-	skillFiles, _ := filepath.Glob(filepath.Join(skillsDir, "*", "SKILL.md"))
-	g.Expect(len(skillFiles)).To(Equal(0))
+	g.Expect(result).ToNot(BeNil())
+	g.Expect(result.EntriesDecayed).To(Equal(0))
+	g.Expect(result.EntriesPruned).To(Equal(0))
 }
 
-// TEST-2004: Keyword fallback when LLM unavailable
-func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
+// ============================================================================
+// TASK-4: End-to-End Pipeline Integration Test
+// ============================================================================
+
+// TEST-4001: Full pipeline executes: demotion + promotion with fixture data
+func TestOptimizePipelineEndToEnd(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -458,40 +432,281 @@ func TestOptimizeDemoteClaudeMDKeywordFallback(t *testing.T) {
 	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
 	skillsDir := filepath.Join(tempDir, "skills")
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
 
-	// Create CLAUDE.md with entries containing project names and file paths
+	// FIXTURE: CLAUDE.md with narrow learnings (for demotion)
 	claudeContent := `## Promoted Learnings
 
-- For projctl repository, always run mage check before commit
-- When editing /Users/joe/repos/projctl/internal/memory/optimize.go, follow Go conventions
-- Always write tests first
+- 2025-01-15: For projctl repository, always run mage check before commit
+- Always write tests first (universal pattern)
 `
 	g.Expect(os.WriteFile(claudeMDPath, []byte(claudeContent), 0644)).To(Succeed())
 
-	// Mock skill compiler
+	// FIXTURE: Create DB with high-utility skill (for promotion)
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Insert memories for skill sources
+	for i := 1; i <= 3; i++ {
+		_, err = db.Exec(`
+			INSERT INTO embeddings (content, source, source_type, confidence, memory_type)
+			VALUES (?, 'test', 'internal', 1.0, 'observation')
+		`, fmt.Sprintf("Memory entry %d about test-driven development", i))
+		g.Expect(err).ToNot(HaveOccurred())
+	}
+
+	// Insert high-utility skill
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (
+			slug, theme, description, content, source_memory_ids,
+			alpha, beta, utility, retrieval_count, last_retrieved,
+			created_at, updated_at, pruned
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "tdd-pattern", "Test-Driven Development Pattern", "TDD best practices", "# TDD Pattern\n\nAlways write tests first.", "[1,2,3]",
+		9.0, 1.0, 0.9, 15, now, now, now, 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Add usage history for 3+ projects
+	var skillID int64
+	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "tdd-pattern").Scan(&skillID)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS skill_usage (skill_id INTEGER, project TEXT, timestamp TEXT)`)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	for _, proj := range []string{"alpha", "beta", "gamma"} {
+		_, err = db.Exec("INSERT INTO skill_usage (skill_id, project, timestamp) VALUES (?, ?, ?)", skillID, proj, now)
+		g.Expect(err).ToNot(HaveOccurred())
+	}
+
+	// Mock compiler for both demotion and promotion
 	compiler := &mockSkillCompiler{
 		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
-			return fmt.Sprintf("# %s\n\nSkill content", theme), nil
+			return fmt.Sprintf("# %s\n\nSkill content for: %s", theme, strings.Join(memories, "; ")), nil
+		},
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
+			return "Write tests before implementation to catch bugs early", nil
 		},
 	}
 
-	// No LLM detector provided — should fall back to keyword heuristics
+	// RUN OPTIMIZE with thresholds configured to trigger actions
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:         memoryRoot,
+		ClaudeMDPath:       claudeMDPath,
+		SkillsDir:          skillsDir,
+		SkillCompiler:      compiler,
+		AutoApprove:        true,
+		MinSkillUtility:    0.8, // Should match our 0.9 utility skill
+		MinSkillConfidence: 0.8, // Should match our 9/(9+1) = 0.9 confidence
+		MinSkillProjects:   3,   // Should match our 3 projects
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// VERIFY: Demotion happened
+	g.Expect(result.ClaudeMDDemoted).To(BeNumerically(">=", 1), "Should demote narrow learning")
+
+	// VERIFY: Promotion happened
+	g.Expect(result.SkillsPromoted).To(BeNumerically(">=", 1), "Should promote high-utility skill")
+
+	// VERIFY: Skill file created with YAML frontmatter
+	skillFiles, err := filepath.Glob(filepath.Join(skillsDir, "*", "SKILL.md"))
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(len(skillFiles)).To(BeNumerically(">=", 1), "Should create skill file")
+
+	// Read a skill file and verify frontmatter
+	if len(skillFiles) > 0 {
+		skillContent, err := os.ReadFile(skillFiles[0])
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(string(skillContent)).To(ContainSubstring("---"), "Should have YAML frontmatter")
+	}
+
+	// VERIFY: CLAUDE.md modified correctly
+	claudeResult, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	claudeStr := string(claudeResult)
+
+	// Narrow entry removed
+	g.Expect(claudeStr).ToNot(ContainSubstring("projctl repository"))
+
+	// Synthesized principle added
+	g.Expect(claudeStr).To(ContainSubstring("Write tests before implementation"))
+
+	// VERIFY: DB state for promoted skill
+	var promoted int
+	var promotedAt string
+	err = db.QueryRow("SELECT claude_md_promoted, promoted_at FROM generated_skills WHERE slug = ?", "tdd-pattern").Scan(&promoted, &promotedAt)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(promoted).To(Equal(1))
+	g.Expect(promotedAt).ToNot(BeEmpty())
+
+	// VERIFY: DB state for demoted learning (check that skill was created with demoted flag)
+	var demotedCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM generated_skills WHERE demoted_from_claude_md != ''").Scan(&demotedCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(demotedCount).To(BeNumerically(">=", 1), "Should have skill with demoted_from_claude_md set")
+}
+
+// TEST-210-2: Enriched entry (principle != ”) IS promoted to CLAUDE.md
+func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create CLAUDE.md with Promoted Learnings section
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	// Seed DB with enriched entry (has principle)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Initialize the database schema
+	_, err = memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Insert enriched entry: high retrieval count, multiple projects, AND has principle
+	_, err = db.Exec(`
+		INSERT INTO embeddings (
+			content, source, source_type, confidence,
+			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
+			retrieval_count, projects_retrieved, promoted
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "Success ISSUE-180: TDD cycle completed successfully", "memory", "internal", 1.0,
+		"pattern", "reflection", "Always write tests before implementation", "Skip testing phase",
+		"Tests catch regressions early", "[pattern] Always write tests before implementation - Context: Tests catch regressions early",
+		10, "proj1,proj2,proj3", 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Run optimize
 	result, err := memory.Optimize(memory.OptimizeOpts{
 		MemoryRoot:    memoryRoot,
 		ClaudeMDPath:  claudeMDPath,
-		SkillsDir:     skillsDir,
-		SkillCompiler: compiler,
 		AutoApprove:   true,
+		MinRetrievals: 5,
+		MinProjects:   3,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.ClaudeMDDemoted).To(BeNumerically(">=", 2)) // At least the two narrow entries
 
-	// CLAUDE.md should only contain universal advice
+	// VERIFY: Enriched entry should be promoted
+	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
+	g.Expect(result.PromotionsApproved).To(BeNumerically(">=", 1), "Should promote enriched entry")
+
+	// VERIFY: CLAUDE.md should contain the principle (not the raw observation)
+	claudeContent, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	claudeStr := string(claudeContent)
+	g.Expect(claudeStr).To(ContainSubstring("Always write tests before implementation"))
+	// Should NOT promote the raw content
+	g.Expect(claudeStr).ToNot(ContainSubstring("Success ISSUE-180"))
+}
+
+// ============================================================================
+// ISSUE-210: Enrichment gate tests for promotion pipeline
+// Traces to: ISSUE-210
+// ============================================================================
+
+// TEST-210-1: Unenriched entry (principle = ”) is not promoted to CLAUDE.md
+func TestOptimizePromoteRejectsUnenriched(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Create CLAUDE.md with Promoted Learnings section
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	// Seed DB with unenriched entry (no principle, no enrichment)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Initialize the database schema
+	_, err = memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Insert unenriched entry: high retrieval count, multiple projects, but principle = ''
+	_, err = db.Exec(`
+		INSERT INTO embeddings (
+			content, source, source_type, confidence,
+			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
+			retrieval_count, projects_retrieved, promoted
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "Success ISSUE-170: TDD cycle executed cleanly", "memory", "internal", 1.0,
+		"", "", "", "", "", "", // All enrichment fields empty
+		10, "proj1,proj2,proj3", 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Run optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		AutoApprove:   true,
+		MinRetrievals: 5,
+		MinProjects:   3,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// VERIFY: Unenriched entry should NOT be promoted
+	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
+	g.Expect(result.PromotionsApproved).To(Equal(0), "Should not promote unenriched entry")
+
+	// VERIFY: CLAUDE.md should NOT contain the unenriched content
+	claudeContent, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(claudeContent)).ToNot(ContainSubstring("Success ISSUE-170"))
+}
+
+// TEST-3005: Dry-run mode (no SkillsDir) skips skill promotion
+func TestOptimizePromoteSkillsDryRun(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (
+			slug, theme, description, content, source_memory_ids,
+			alpha, beta, utility, retrieval_count, last_retrieved,
+			created_at, updated_at, pruned
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "dry-skill", "Dry Pattern", "Dry run", "# Dry", "[1,2,3]",
+		9.0, 1.0, 0.85, 10, now, now, now, 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Run optimize WITHOUT SkillsDir (dry-run mode)
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsPromoted).To(Equal(0))
+
+	// Verify CLAUDE.md unchanged
 	content, err := os.ReadFile(claudeMDPath)
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(ContainSubstring("Always write tests first"))
-	g.Expect(string(content)).ToNot(ContainSubstring("projctl"))
-	g.Expect(string(content)).ToNot(ContainSubstring("/Users/joe"))
+	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n"))
 }
 
 // ============================================================================
@@ -631,72 +846,6 @@ func TestOptimizePromoteSkillsLowUtility(t *testing.T) {
 	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n"))
 }
 
-// TEST-3003: Semantic deduplication skips when existing CLAUDE.md entry is similar
-func TestOptimizePromoteSkillsSemanticDedup(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	// Pre-populate CLAUDE.md with existing learning
-	existingLearning := "- Always apply test pattern when working with test scenarios\n"
-	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"+existingLearning), 0644)).To(Succeed())
-
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Insert high-utility skill
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = db.Exec(`
-		INSERT INTO generated_skills (
-			slug, theme, description, content, source_memory_ids,
-			alpha, beta, utility, retrieval_count, last_retrieved,
-			created_at, updated_at, pruned
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "dup-skill", "Test Pattern", "Duplicate", "# Dup Content", "[1,2,3]",
-		9.0, 1.0, 0.85, 10, now, now, now, 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Create usage history
-	var skillID int64
-	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "dup-skill").Scan(&skillID)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS skill_usage (skill_id INTEGER, project TEXT, timestamp TEXT)`)
-	for _, proj := range []string{"p1", "p2", "p3"} {
-		_, _ = db.Exec("INSERT INTO skill_usage (skill_id, project, timestamp) VALUES (?, ?, ?)", skillID, proj, now)
-	}
-
-	// Mock compiler returns nearly identical text
-	compiler := &mockSkillCompiler{
-		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
-			return "Always apply test pattern when working with test scenarios", nil
-		},
-	}
-
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:    memoryRoot,
-		ClaudeMDPath:  claudeMDPath,
-		SkillsDir:     skillsDir,
-		SkillCompiler: compiler,
-		AutoApprove:   true,
-		MinProjects:   3,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsPromoted).To(Equal(0), "Should skip due to semantic deduplication")
-
-	// Verify CLAUDE.md unchanged
-	content, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n" + existingLearning))
-}
-
 // TEST-3004: ReviewFunc rejection prevents promotion
 func TestOptimizePromoteSkillsReviewReject(t *testing.T) {
 	t.Parallel()
@@ -766,54 +915,8 @@ func TestOptimizePromoteSkillsReviewReject(t *testing.T) {
 	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n"))
 }
 
-// TEST-3005: Dry-run mode (no SkillsDir) skips skill promotion
-func TestOptimizePromoteSkillsDryRun(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
-
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	_, err = db.Exec(`
-		INSERT INTO generated_skills (
-			slug, theme, description, content, source_memory_ids,
-			alpha, beta, utility, retrieval_count, last_retrieved,
-			created_at, updated_at, pruned
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "dry-skill", "Dry Pattern", "Dry run", "# Dry", "[1,2,3]",
-		9.0, 1.0, 0.85, 10, now, now, now, 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Run optimize WITHOUT SkillsDir (dry-run mode)
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsPromoted).To(Equal(0))
-
-	// Verify CLAUDE.md unchanged
-	content, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n"))
-}
-
-// ============================================================================
-// TASK-4: End-to-End Pipeline Integration Test
-// ============================================================================
-
-// TEST-4001: Full pipeline executes: demotion + promotion with fixture data
-func TestOptimizePipelineEndToEnd(t *testing.T) {
+// TEST-3003: Semantic deduplication skips when existing CLAUDE.md entry is similar
+func TestOptimizePromoteSkillsSemanticDedup(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -824,27 +927,13 @@ func TestOptimizePipelineEndToEnd(t *testing.T) {
 	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
 	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
 
-	// FIXTURE: CLAUDE.md with narrow learnings (for demotion)
-	claudeContent := `## Promoted Learnings
+	// Pre-populate CLAUDE.md with existing learning
+	existingLearning := "- Always apply test pattern when working with test scenarios\n"
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"+existingLearning), 0644)).To(Succeed())
 
-- 2025-01-15: For projctl repository, always run mage check before commit
-- Always write tests first (universal pattern)
-`
-	g.Expect(os.WriteFile(claudeMDPath, []byte(claudeContent), 0644)).To(Succeed())
-
-	// FIXTURE: Create DB with high-utility skill (for promotion)
 	db, err := memory.InitDBForTest(memoryRoot)
 	g.Expect(err).ToNot(HaveOccurred())
 	defer func() { _ = db.Close() }()
-
-	// Insert memories for skill sources
-	for i := 1; i <= 3; i++ {
-		_, err = db.Exec(`
-			INSERT INTO embeddings (content, source, source_type, confidence, memory_type)
-			VALUES (?, 'test', 'internal', 1.0, 'observation')
-		`, fmt.Sprintf("Memory entry %d about test-driven development", i))
-		g.Expect(err).ToNot(HaveOccurred())
-	}
 
 	// Insert high-utility skill
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -854,128 +943,13 @@ func TestOptimizePipelineEndToEnd(t *testing.T) {
 			alpha, beta, utility, retrieval_count, last_retrieved,
 			created_at, updated_at, pruned
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "tdd-pattern", "Test-Driven Development Pattern", "TDD best practices", "# TDD Pattern\n\nAlways write tests first.", "[1,2,3]",
-		9.0, 1.0, 0.9, 15, now, now, now, 0)
+	`, "dup-skill", "Test Pattern", "Duplicate", "# Dup Content", "[1,2,3]",
+		9.0, 1.0, 0.85, 10, now, now, now, 0)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	// Add usage history for 3+ projects
+	// Create usage history
 	var skillID int64
-	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "tdd-pattern").Scan(&skillID)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS skill_usage (skill_id INTEGER, project TEXT, timestamp TEXT)`)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	for _, proj := range []string{"alpha", "beta", "gamma"} {
-		_, err = db.Exec("INSERT INTO skill_usage (skill_id, project, timestamp) VALUES (?, ?, ?)", skillID, proj, now)
-		g.Expect(err).ToNot(HaveOccurred())
-	}
-
-	// Mock compiler for both demotion and promotion
-	compiler := &mockSkillCompiler{
-		compileFunc: func(_ context.Context, theme string, memories []string) (string, error) {
-			return fmt.Sprintf("# %s\n\nSkill content for: %s", theme, strings.Join(memories, "; ")), nil
-		},
-		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
-			return "Write tests before implementation to catch bugs early", nil
-		},
-	}
-
-	// RUN OPTIMIZE with thresholds configured to trigger actions
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:         memoryRoot,
-		ClaudeMDPath:       claudeMDPath,
-		SkillsDir:          skillsDir,
-		SkillCompiler:      compiler,
-		AutoApprove:        true,
-		MinSkillUtility:    0.8, // Should match our 0.9 utility skill
-		MinSkillConfidence: 0.8, // Should match our 9/(9+1) = 0.9 confidence
-		MinSkillProjects:   3,   // Should match our 3 projects
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// VERIFY: Demotion happened
-	g.Expect(result.ClaudeMDDemoted).To(BeNumerically(">=", 1), "Should demote narrow learning")
-
-	// VERIFY: Promotion happened
-	g.Expect(result.SkillsPromoted).To(BeNumerically(">=", 1), "Should promote high-utility skill")
-
-	// VERIFY: Skill file created with YAML frontmatter
-	skillFiles, err := filepath.Glob(filepath.Join(skillsDir, "*", "SKILL.md"))
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(len(skillFiles)).To(BeNumerically(">=", 1), "Should create skill file")
-
-	// Read a skill file and verify frontmatter
-	if len(skillFiles) > 0 {
-		skillContent, err := os.ReadFile(skillFiles[0])
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(string(skillContent)).To(ContainSubstring("---"), "Should have YAML frontmatter")
-	}
-
-	// VERIFY: CLAUDE.md modified correctly
-	claudeResult, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	claudeStr := string(claudeResult)
-
-	// Narrow entry removed
-	g.Expect(claudeStr).ToNot(ContainSubstring("projctl repository"))
-
-	// Synthesized principle added
-	g.Expect(claudeStr).To(ContainSubstring("Write tests before implementation"))
-
-	// VERIFY: DB state for promoted skill
-	var promoted int
-	var promotedAt string
-	err = db.QueryRow("SELECT claude_md_promoted, promoted_at FROM generated_skills WHERE slug = ?", "tdd-pattern").Scan(&promoted, &promotedAt)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(promoted).To(Equal(1))
-	g.Expect(promotedAt).ToNot(BeEmpty())
-
-	// VERIFY: DB state for demoted learning (check that skill was created with demoted flag)
-	var demotedCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM generated_skills WHERE demoted_from_claude_md != ''").Scan(&demotedCount)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(demotedCount).To(BeNumerically(">=", 1), "Should have skill with demoted_from_claude_md set")
-}
-
-// ============================================================================
-// TASK-8: Automated Promotion/Demotion Thresholds
-// ============================================================================
-
-// TEST-8001: MinSkillUtility threshold filters promotion candidates
-func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
-
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	// Insert skill with utility 0.75 (below threshold 0.8)
-	_, err = db.Exec(`
-		INSERT INTO generated_skills (
-			slug, theme, description, content, source_memory_ids,
-			alpha, beta, utility, retrieval_count, last_retrieved,
-			created_at, updated_at, pruned
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "low-util-skill", "Low Utility", "Below threshold", "# Low", "[1,2,3]",
-		7.5, 2.5, 0.75, 10, now, now, now, 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Add project usage
-	var skillID int64
-	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "low-util-skill").Scan(&skillID)
+	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "dup-skill").Scan(&skillID)
 	g.Expect(err).ToNot(HaveOccurred())
 
 	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS skill_usage (skill_id INTEGER, project TEXT, timestamp TEXT)`)
@@ -983,25 +957,123 @@ func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
 		_, _ = db.Exec("INSERT INTO skill_usage (skill_id, project, timestamp) VALUES (?, ?, ?)", skillID, proj, now)
 	}
 
+	// Mock compiler returns nearly identical text
 	compiler := &mockSkillCompiler{
 		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
-			return "Test principle", nil
+			return "Always apply test pattern when working with test scenarios", nil
 		},
 	}
 
-	// Run with MinSkillUtility = 0.8 (should exclude 0.75)
 	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:         memoryRoot,
-		ClaudeMDPath:       claudeMDPath,
-		SkillsDir:          skillsDir,
-		SkillCompiler:      compiler,
-		AutoApprove:        true,
-		MinSkillUtility:    0.8,
-		MinSkillConfidence: 0.7,
-		MinSkillProjects:   3,
+		MemoryRoot:    memoryRoot,
+		ClaudeMDPath:  claudeMDPath,
+		SkillsDir:     skillsDir,
+		SkillCompiler: compiler,
+		AutoApprove:   true,
+		MinProjects:   3,
 	})
 	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsPromoted).To(Equal(0), "Should not promote skill below utility threshold")
+	g.Expect(result.SkillsPromoted).To(Equal(0), "Should skip due to semantic deduplication")
+
+	// Verify CLAUDE.md unchanged
+	content, err := os.ReadFile(claudeMDPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(string(content)).To(Equal("## Promoted Learnings\n\n" + existingLearning))
+}
+
+// TEST-1135: With ReviewFunc rejecting all, only automatic steps run
+func TestOptimizeReviewFuncRejectsAll(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Learn something
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "review rejection test",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	reviewCalled := false
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		ReviewFunc: func(action, description string) (bool, error) {
+			reviewCalled = true
+			return false, nil // Reject everything
+		},
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	// Automatic steps should still have run
+	g.Expect(result).ToNot(BeNil())
+	// Note: reviewCalled may or may not be true depending on whether there are candidates
+	_ = reviewCalled
+}
+
+// TEST-8004: AutoDemoteUtility threshold controls skill pruning
+func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	skillsDir := filepath.Join(tempDir, "skills")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Insert skill with utility 0.35 (below default 0.4) but above our custom 0.3
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (
+			slug, theme, description, content, source_memory_ids,
+			alpha, beta, utility, retrieval_count, last_retrieved,
+			created_at, updated_at, pruned
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "stale-skill", "Stale Pattern", "Low utility", "# Stale", "[1]",
+		1.0, 1.0, 0.35, 5, now, now, now, 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Create skill directory and file (mem- prefix matches prune path)
+	skillDir := filepath.Join(skillsDir, "mem-stale-skill")
+	g.Expect(os.MkdirAll(skillDir, 0755)).To(Succeed())
+	skillFilePath := filepath.Join(skillDir, "SKILL.md")
+	g.Expect(os.WriteFile(skillFilePath, []byte("# Stale Pattern\n\nTest"), 0644)).To(Succeed())
+
+	// Run optimize with AutoDemoteUtility = 0.3 (skill at 0.35 should NOT be pruned)
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:        memoryRoot,
+		SkillsDir:         skillsDir,
+		AutoApprove:       true,
+		AutoDemoteUtility: 0.3,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsPruned).To(Equal(0), "Should not prune skill above AutoDemoteUtility threshold")
+
+	// Verify skill file still exists
+	_, err = os.Stat(skillFilePath)
+	g.Expect(err).ToNot(HaveOccurred(), "Skill file should still exist")
+
+	// Run again with AutoDemoteUtility = 0.4 (skill at 0.35 should be pruned)
+	result, err = memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:        memoryRoot,
+		SkillsDir:         skillsDir,
+		AutoApprove:       true,
+		AutoDemoteUtility: 0.4,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsPruned).To(BeNumerically(">=", 1), "Should prune skill below AutoDemoteUtility threshold")
+
+	// Verify skill file deleted
+	_, err = os.Stat(skillFilePath)
+	g.Expect(os.IsNotExist(err)).To(BeTrue(), "Skill file should be deleted")
 }
 
 // TEST-8002: MinSkillConfidence threshold filters promotion candidates
@@ -1125,6 +1197,356 @@ func TestOptimizeThresholdMinSkillProjects(t *testing.T) {
 	})
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(result.SkillsPromoted).To(Equal(0), "Should not promote skill below projects threshold")
+}
+
+// ============================================================================
+// TASK-8: Automated Promotion/Demotion Thresholds
+// ============================================================================
+
+// TEST-8001: MinSkillUtility threshold filters promotion candidates
+func TestOptimizeThresholdMinSkillUtility(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	skillsDir := filepath.Join(tempDir, "skills")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
+
+	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
+
+	db, err := memory.InitDBForTest(memoryRoot)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// Insert skill with utility 0.75 (below threshold 0.8)
+	_, err = db.Exec(`
+		INSERT INTO generated_skills (
+			slug, theme, description, content, source_memory_ids,
+			alpha, beta, utility, retrieval_count, last_retrieved,
+			created_at, updated_at, pruned
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, "low-util-skill", "Low Utility", "Below threshold", "# Low", "[1,2,3]",
+		7.5, 2.5, 0.75, 10, now, now, now, 0)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Add project usage
+	var skillID int64
+	err = db.QueryRow("SELECT id FROM generated_skills WHERE slug = ?", "low-util-skill").Scan(&skillID)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS skill_usage (skill_id INTEGER, project TEXT, timestamp TEXT)`)
+	for _, proj := range []string{"p1", "p2", "p3"} {
+		_, _ = db.Exec("INSERT INTO skill_usage (skill_id, project, timestamp) VALUES (?, ?, ?)", skillID, proj, now)
+	}
+
+	compiler := &mockSkillCompiler{
+		synthesizeFunc: func(_ context.Context, memories []string) (string, error) {
+			return "Test principle", nil
+		},
+	}
+
+	// Run with MinSkillUtility = 0.8 (should exclude 0.75)
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:         memoryRoot,
+		ClaudeMDPath:       claudeMDPath,
+		SkillsDir:          skillsDir,
+		SkillCompiler:      compiler,
+		AutoApprove:        true,
+		MinSkillUtility:    0.8,
+		MinSkillConfidence: 0.7,
+		MinSkillProjects:   3,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.SkillsPromoted).To(Equal(0), "Should not promote skill below utility threshold")
+}
+
+// ============================================================================
+// Unit tests for Optimize pipeline
+// traces: ISSUE-184
+// ============================================================================
+
+// TEST-1130: Calling optimize twice in <1hr doesn't double-decay
+func TestOptimizeTwiceNoDoubleDedecay(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Learn something
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "optimize double decay test entry",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// First optimize
+	r1, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(r1.DecayApplied).To(BeTrue())
+
+	confAfterFirst := getConfidence(g, memoryRoot, "double decay")
+
+	// Second optimize immediately — decay should be skipped
+	r2, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(r2.DecayApplied).To(BeFalse())
+
+	confAfterSecond := getConfidence(g, memoryRoot, "double decay")
+	g.Expect(confAfterSecond).To(Equal(confAfterFirst), "Second optimize should not decay further")
+}
+
+// TEST-208-2: Purge keeps Learn() entries with empty enrichment columns
+func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Learn entries with empty observation_type and memory_type (but timestamp-prefixed)
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "Learn entry without enrichment",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Verify Learn entry has timestamp prefix
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	var content string
+	err = db.QueryRow("SELECT content FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&content)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(content).To(MatchRegexp(`^- \d{4}-\d{2}-\d{2} \d{2}:\d{2}:`), "Learn entry should have timestamp prefix")
+
+	// Run Optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify Learn entry survives even though it has empty enrichment columns
+	var learnCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&learnCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
+
+	// Verify LegacySessionPurged is 0 (no legacy entries to purge)
+	g.Expect(result.LegacySessionPurged).To(Equal(0), "Should not purge Learn entries")
+}
+
+// ============================================================================
+// ISSUE-208: Legacy session embedding purge tests
+// ============================================================================
+
+// TEST-208-1: Purge removes legacy session embeddings (no timestamp prefix)
+func TestPurgeLegacySessionEmbeddings(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with Learn() entries (timestamp-prefixed)
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "This is a Learn entry with timestamp",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Seed DB with raw session lines (legacy createEmbeddings behavior - no timestamp)
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	// Insert legacy session embedding without timestamp prefix
+	_, err = db.Exec(`
+		INSERT INTO embeddings (content, source, source_type, confidence, observation_type, memory_type)
+		VALUES (?, 'memory', 'internal', 1.0, '', '')
+	`, "Raw session line without timestamp prefix")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify both entries exist
+	var totalBefore int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&totalBefore)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(totalBefore).To(Equal(2), "Should have 2 entries before purge")
+
+	// Run Optimize to trigger purge
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.LegacySessionPurged).To(BeNumerically(">=", 1), "Should purge legacy session embedding")
+
+	// Verify legacy entry removed
+	var legacyCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content = ?", "Raw session line without timestamp prefix").Scan(&legacyCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(legacyCount).To(Equal(0), "Legacy entry should be purged")
+
+	// Verify Learn entry survives
+	var learnCount int
+	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: This is a Learn entry%'").Scan(&learnCount)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
+}
+
+// TEST-207-8: Property test - filter doesn't eat real content
+func TestSessionBoilerplatePropertyTest(t *testing.T) {
+	t.Parallel(
+	// Property: IsSessionBoilerplate returns false for random 20+ char alphanumeric strings
+	// that don't start with known boilerplate prefixes
+	)
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Generate a random alphabetic prefix (not #, *, -, .) followed by 20+ alphanumeric chars
+		prefix := rapid.StringMatching(`[a-zA-Z]`).Draw(rt, "prefix")
+		body := rapid.StringMatching(`[a-zA-Z0-9 ]{20,50}`).Draw(rt, "body")
+		randomStr := prefix + body
+
+		g := NewWithT(rt)
+		g.Expect(memory.IsSessionBoilerplate(randomStr)).To(BeFalse(),
+			"Random content should not be classified as boilerplate: %q", randomStr)
+	})
+}
+
+// TEST-207-7: Purge on empty DB is no-op
+func TestSessionBoilerplatePurgeEmptyDB(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Call Optimize on empty DB
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge anything from empty DB")
+}
+
+// ============================================================================
+// ISSUE-207: Session boilerplate filtering tests
+// ============================================================================
+
+// TEST-207-5: Purge removes existing boilerplate
+func TestSessionBoilerplatePurgeRemovesExisting(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with boilerplate entries
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "# Session Summary",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "**Project:** projctl",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Seed DB with real entry
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "Always use property-based testing for validation",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Verify boilerplate exists
+	boilerplateCount := countEmbeddings(g, memoryRoot, "# Session Summary")
+	g.Expect(boilerplateCount).To(BeNumerically(">=", 1))
+
+	// Call Optimize to trigger purge
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(result.BoilerplatePurged).To(BeNumerically(">", 0), "Should purge boilerplate entries")
+
+	// Verify boilerplate removed
+	afterCount := countEmbeddings(g, memoryRoot, "# Session Summary")
+	g.Expect(afterCount).To(Equal(0), "Boilerplate should be purged")
+
+	// Verify real content survives
+	realCount := countEmbeddings(g, memoryRoot, "property-based testing")
+	g.Expect(realCount).To(BeNumerically(">=", 1), "Real content should survive purge")
+}
+
+// TEST-207-6: Purge skips promoted entries
+func TestSessionBoilerplatePurgeSkipsPromoted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
+	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
+	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
+
+	// Seed DB with boilerplate
+	g.Expect(memory.Learn(memory.LearnOpts{
+		Message:    "# Session Summary",
+		MemoryRoot: memoryRoot,
+	})).To(Succeed())
+
+	// Mark as promoted in DB
+	dbPath := filepath.Join(memoryRoot, "embeddings.db")
+	db, err := sql.Open("sqlite3", dbPath)
+	g.Expect(err).ToNot(HaveOccurred())
+	defer func() { _ = db.Close() }()
+
+	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE content LIKE '%Session Summary%'")
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Call Optimize
+	result, err := memory.Optimize(memory.OptimizeOpts{
+		MemoryRoot:   memoryRoot,
+		ClaudeMDPath: claudeMDPath,
+		AutoApprove:  true,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify promoted boilerplate survives
+	survivedCount := countEmbeddings(g, memoryRoot, "Session Summary")
+	g.Expect(survivedCount).To(BeNumerically(">=", 1), "Promoted boilerplate should survive purge")
+
+	// Verify BoilerplatePurged is 0 (promoted entries excluded from purge)
+	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge promoted entries")
 }
 
 // ============================================================================
@@ -1327,456 +1749,34 @@ func TestSkillSplit(t *testing.T) {
 	g.Expect(beta).To(Equal(1.0), "Split skills should have Beta=1")
 }
 
-// TEST-8004: AutoDemoteUtility threshold controls skill pruning
-func TestOptimizeThresholdAutoDemoteUtility(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	skillsDir := filepath.Join(tempDir, "skills")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-	g.Expect(os.MkdirAll(skillsDir, 0755)).To(Succeed())
-
-	db, err := memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	// Insert skill with utility 0.35 (below default 0.4) but above our custom 0.3
-	_, err = db.Exec(`
-		INSERT INTO generated_skills (
-			slug, theme, description, content, source_memory_ids,
-			alpha, beta, utility, retrieval_count, last_retrieved,
-			created_at, updated_at, pruned
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "stale-skill", "Stale Pattern", "Low utility", "# Stale", "[1]",
-		1.0, 1.0, 0.35, 5, now, now, now, 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Create skill directory and file (mem- prefix matches prune path)
-	skillDir := filepath.Join(skillsDir, "mem-stale-skill")
-	g.Expect(os.MkdirAll(skillDir, 0755)).To(Succeed())
-	skillFilePath := filepath.Join(skillDir, "SKILL.md")
-	g.Expect(os.WriteFile(skillFilePath, []byte("# Stale Pattern\n\nTest"), 0644)).To(Succeed())
-
-	// Run optimize with AutoDemoteUtility = 0.3 (skill at 0.35 should NOT be pruned)
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:        memoryRoot,
-		SkillsDir:         skillsDir,
-		AutoApprove:       true,
-		AutoDemoteUtility: 0.3,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsPruned).To(Equal(0), "Should not prune skill above AutoDemoteUtility threshold")
-
-	// Verify skill file still exists
-	_, err = os.Stat(skillFilePath)
-	g.Expect(err).ToNot(HaveOccurred(), "Skill file should still exist")
-
-	// Run again with AutoDemoteUtility = 0.4 (skill at 0.35 should be pruned)
-	result, err = memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:        memoryRoot,
-		SkillsDir:         skillsDir,
-		AutoApprove:       true,
-		AutoDemoteUtility: 0.4,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.SkillsPruned).To(BeNumerically(">=", 1), "Should prune skill below AutoDemoteUtility threshold")
-
-	// Verify skill file deleted
-	_, err = os.Stat(skillFilePath)
-	g.Expect(os.IsNotExist(err)).To(BeTrue(), "Skill file should be deleted")
-}
-
 // ============================================================================
-// ISSUE-207: Session boilerplate filtering tests
+// TASK-2: optimizeDemoteClaudeMD tests
 // ============================================================================
 
-// TEST-207-5: Purge removes existing boilerplate
-func TestSessionBoilerplatePurgeRemovesExisting(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Seed DB with boilerplate entries
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "# Session Summary",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "**Project:** projctl",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Seed DB with real entry
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "Always use property-based testing for validation",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Verify boilerplate exists
-	boilerplateCount := countEmbeddings(g, memoryRoot, "# Session Summary")
-	g.Expect(boilerplateCount).To(BeNumerically(">=", 1))
-
-	// Call Optimize to trigger purge
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.BoilerplatePurged).To(BeNumerically(">", 0), "Should purge boilerplate entries")
-
-	// Verify boilerplate removed
-	afterCount := countEmbeddings(g, memoryRoot, "# Session Summary")
-	g.Expect(afterCount).To(Equal(0), "Boilerplate should be purged")
-
-	// Verify real content survives
-	realCount := countEmbeddings(g, memoryRoot, "property-based testing")
-	g.Expect(realCount).To(BeNumerically(">=", 1), "Real content should survive purge")
+// mockLLMSpecificDetector provides test implementation for narrow/universal detection.
+type mockLLMSpecificDetector struct {
+	detectFunc func(ctx context.Context, learning string) (bool, string, error)
 }
 
-// TEST-207-6: Purge skips promoted entries
-func TestSessionBoilerplatePurgeSkipsPromoted(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Seed DB with boilerplate
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "# Session Summary",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Mark as promoted in DB
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	_, err = db.Exec("UPDATE embeddings SET promoted = 1 WHERE content LIKE '%Session Summary%'")
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Call Optimize
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify promoted boilerplate survives
-	survivedCount := countEmbeddings(g, memoryRoot, "Session Summary")
-	g.Expect(survivedCount).To(BeNumerically(">=", 1), "Promoted boilerplate should survive purge")
-
-	// Verify BoilerplatePurged is 0 (promoted entries excluded from purge)
-	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge promoted entries")
+func (m *mockLLMSpecificDetector) CompileSkill(theme string, memories []string) (string, error) {
+	return "", fmt.Errorf("not implemented")
 }
 
-// TEST-207-7: Purge on empty DB is no-op
-func TestSessionBoilerplatePurgeEmptyDB(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Call Optimize on empty DB
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.BoilerplatePurged).To(Equal(0), "Should not purge anything from empty DB")
+func (m *mockLLMSpecificDetector) Decide(newMessage string, existing []memory.ExistingMemory) (*memory.IngestDecision, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
-// TEST-207-8: Property test - filter doesn't eat real content
-func TestSessionBoilerplatePropertyTest(t *testing.T) {
-	t.Parallel(
-	// Property: IsSessionBoilerplate returns false for random 20+ char alphanumeric strings
-	// that don't start with known boilerplate prefixes
-	)
-
-	rapid.Check(t, func(rt *rapid.T) {
-		// Generate a random alphabetic prefix (not #, *, -, .) followed by 20+ alphanumeric chars
-		prefix := rapid.StringMatching(`[a-zA-Z]`).Draw(rt, "prefix")
-		body := rapid.StringMatching(`[a-zA-Z0-9 ]{20,50}`).Draw(rt, "body")
-		randomStr := prefix + body
-
-		g := NewWithT(rt)
-		g.Expect(memory.IsSessionBoilerplate(randomStr)).To(BeFalse(),
-			"Random content should not be classified as boilerplate: %q", randomStr)
-	})
+func (m *mockLLMSpecificDetector) Extract(message string) (*memory.Observation, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
-// ============================================================================
-// ISSUE-208: Legacy session embedding purge tests
-// ============================================================================
-
-// TEST-208-1: Purge removes legacy session embeddings (no timestamp prefix)
-func TestPurgeLegacySessionEmbeddings(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Seed DB with Learn() entries (timestamp-prefixed)
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "This is a Learn entry with timestamp",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Seed DB with raw session lines (legacy createEmbeddings behavior - no timestamp)
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Insert legacy session embedding without timestamp prefix
-	_, err = db.Exec(`
-		INSERT INTO embeddings (content, source, source_type, confidence, observation_type, memory_type)
-		VALUES (?, 'memory', 'internal', 1.0, '', '')
-	`, "Raw session line without timestamp prefix")
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify both entries exist
-	var totalBefore int
-	err = db.QueryRow("SELECT COUNT(*) FROM embeddings").Scan(&totalBefore)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(totalBefore).To(Equal(2), "Should have 2 entries before purge")
-
-	// Run Optimize to trigger purge
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(result.LegacySessionPurged).To(BeNumerically(">=", 1), "Should purge legacy session embedding")
-
-	// Verify legacy entry removed
-	var legacyCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content = ?", "Raw session line without timestamp prefix").Scan(&legacyCount)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(legacyCount).To(Equal(0), "Legacy entry should be purged")
-
-	// Verify Learn entry survives
-	var learnCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: This is a Learn entry%'").Scan(&learnCount)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
+func (m *mockLLMSpecificDetector) IsNarrowLearning(ctx context.Context, learning string) (bool, string, error) {
+	if m.detectFunc != nil {
+		return m.detectFunc(ctx, learning)
+	}
+	return false, "LLM unavailable", fmt.Errorf("LLM unavailable")
 }
 
-// TEST-208-2: Purge keeps Learn() entries with empty enrichment columns
-func TestPurgeLegacyKeepsLearnEntries(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Learn entries with empty observation_type and memory_type (but timestamp-prefixed)
-	g.Expect(memory.Learn(memory.LearnOpts{
-		Message:    "Learn entry without enrichment",
-		MemoryRoot: memoryRoot,
-	})).To(Succeed())
-
-	// Verify Learn entry has timestamp prefix
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	var content string
-	err = db.QueryRow("SELECT content FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&content)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(content).To(MatchRegexp(`^- \d{4}-\d{2}-\d{2} \d{2}:\d{2}:`), "Learn entry should have timestamp prefix")
-
-	// Run Optimize
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify Learn entry survives even though it has empty enrichment columns
-	var learnCount int
-	err = db.QueryRow("SELECT COUNT(*) FROM embeddings WHERE content LIKE '- %: Learn entry%'").Scan(&learnCount)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(learnCount).To(BeNumerically(">=", 1), "Learn entry should survive purge")
-
-	// Verify LegacySessionPurged is 0 (no legacy entries to purge)
-	g.Expect(result.LegacySessionPurged).To(Equal(0), "Should not purge Learn entries")
-}
-
-// ============================================================================
-// ISSUE-210: Enrichment gate tests for promotion pipeline
-// Traces to: ISSUE-210
-// ============================================================================
-
-// TEST-210-1: Unenriched entry (principle = ”) is not promoted to CLAUDE.md
-func TestOptimizePromoteRejectsUnenriched(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Create CLAUDE.md with Promoted Learnings section
-	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
-
-	// Seed DB with unenriched entry (no principle, no enrichment)
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Initialize the database schema
-	_, err = memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Insert unenriched entry: high retrieval count, multiple projects, but principle = ''
-	_, err = db.Exec(`
-		INSERT INTO embeddings (
-			content, source, source_type, confidence,
-			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
-			retrieval_count, projects_retrieved, promoted
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "Success ISSUE-170: TDD cycle executed cleanly", "memory", "internal", 1.0,
-		"", "", "", "", "", "", // All enrichment fields empty
-		10, "proj1,proj2,proj3", 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Run optimize
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:    memoryRoot,
-		ClaudeMDPath:  claudeMDPath,
-		AutoApprove:   true,
-		MinRetrievals: 5,
-		MinProjects:   3,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// VERIFY: Unenriched entry should NOT be promoted
-	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
-	g.Expect(result.PromotionsApproved).To(Equal(0), "Should not promote unenriched entry")
-
-	// VERIFY: CLAUDE.md should NOT contain the unenriched content
-	claudeContent, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(string(claudeContent)).ToNot(ContainSubstring("Success ISSUE-170"))
-}
-
-// TEST-210-2: Enriched entry (principle != ”) IS promoted to CLAUDE.md
-func TestOptimizePromoteAcceptsEnriched(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Create CLAUDE.md with Promoted Learnings section
-	g.Expect(os.WriteFile(claudeMDPath, []byte("## Promoted Learnings\n\n"), 0644)).To(Succeed())
-
-	// Seed DB with enriched entry (has principle)
-	dbPath := filepath.Join(memoryRoot, "embeddings.db")
-	db, err := sql.Open("sqlite3", dbPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	defer func() { _ = db.Close() }()
-
-	// Initialize the database schema
-	_, err = memory.InitDBForTest(memoryRoot)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Insert enriched entry: high retrieval count, multiple projects, AND has principle
-	_, err = db.Exec(`
-		INSERT INTO embeddings (
-			content, source, source_type, confidence,
-			observation_type, memory_type, principle, anti_pattern, rationale, enriched_content,
-			retrieval_count, projects_retrieved, promoted
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, "Success ISSUE-180: TDD cycle completed successfully", "memory", "internal", 1.0,
-		"pattern", "reflection", "Always write tests before implementation", "Skip testing phase",
-		"Tests catch regressions early", "[pattern] Always write tests before implementation - Context: Tests catch regressions early",
-		10, "proj1,proj2,proj3", 0)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Run optimize
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:    memoryRoot,
-		ClaudeMDPath:  claudeMDPath,
-		AutoApprove:   true,
-		MinRetrievals: 5,
-		MinProjects:   3,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// VERIFY: Enriched entry should be promoted
-	g.Expect(result.PromotionCandidates).To(BeNumerically(">=", 1), "Should find candidate")
-	g.Expect(result.PromotionsApproved).To(BeNumerically(">=", 1), "Should promote enriched entry")
-
-	// VERIFY: CLAUDE.md should contain the principle (not the raw observation)
-	claudeContent, err := os.ReadFile(claudeMDPath)
-	g.Expect(err).ToNot(HaveOccurred())
-	claudeStr := string(claudeContent)
-	g.Expect(claudeStr).To(ContainSubstring("Always write tests before implementation"))
-	// Should NOT promote the raw content
-	g.Expect(claudeStr).ToNot(ContainSubstring("Success ISSUE-180"))
-}
-
-// ============================================================================
-// Context Cancellation Tests
-// ============================================================================
-
-// TestOptimizeCancelledContext verifies that Optimize returns an error when
-// passed a cancelled context
-func TestOptimizeCancelledContext(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryRoot := filepath.Join(tempDir, ".claude", "memory")
-	claudeMDPath := filepath.Join(tempDir, "CLAUDE.md")
-	g.Expect(os.MkdirAll(memoryRoot, 0755)).To(Succeed())
-
-	// Create a cancelled context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately
-
-	// Run optimize with cancelled context
-	result, err := memory.Optimize(memory.OptimizeOpts{
-		MemoryRoot:   memoryRoot,
-		ClaudeMDPath: claudeMDPath,
-		AutoApprove:  true,
-		Context:      ctx,
-	})
-
-	// VERIFY: Should return context.Canceled error
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, context.Canceled)).To(BeTrue(), "Should return context.Canceled error")
-	g.Expect(result).To(BeNil(), "Should return nil result on cancellation")
+func (m *mockLLMSpecificDetector) Synthesize(memories []string) (string, error) {
+	return "", fmt.Errorf("not implemented")
 }

@@ -12,6 +12,102 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// TEST: memory extract integration with result file end-to-end
+// Traces to: TASK-7 AC-12
+func TestMemoryExtractIntegrationResultFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	resultContent := `
+[status]
+result = "success"
+timestamp = "2026-02-04T10:45:00Z"
+
+[[decisions]]
+context = "Integration test decision"
+choice = "Use subprocess testing"
+reason = "Validates CLI end-to-end"
+alternatives = ["Unit tests only"]
+
+[context]
+phase = "design"
+task = "TASK-7"
+`
+	resultPath := filepath.Join(tempDir, "integration-result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	cmd := exec.Command("projctl", "memory", "extract",
+		"--result", resultPath,
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("Extracted"))
+	g.Expect(string(output)).To(ContainSubstring("decision"))
+}
+
+// TEST: memory extract fails when --result flag not provided
+// Traces to: TASK-7 AC-5, AC-15
+func TestMemoryExtractMissingResultFlag(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	cmd := exec.Command("projctl", "memory", "extract")
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).To(HaveOccurred(), "Should fail with no flags: %s", string(output))
+	g.Expect(string(output)).To(ContainSubstring("--result"))
+}
+
+// TEST: memory extract outputs TOML to stdout
+// Traces to: TASK-7 AC-11
+func TestMemoryExtractOutputsTOML(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	memoryDir := filepath.Join(tempDir, ".claude", "memory")
+
+	resultContent := `
+[status]
+result = "success"
+timestamp = "2026-02-04T10:30:00Z"
+
+[[decisions]]
+context = "Test TOML output"
+choice = "Test choice"
+reason = "Test reason"
+alternatives = []
+
+[context]
+phase = "design"
+task = "TASK-7"
+`
+	resultPath := filepath.Join(tempDir, "result.toml")
+	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	cmd := exec.Command("projctl", "memory", "extract",
+		"--result", resultPath,
+		"--memoryroot", memoryDir)
+	output, err := cmd.CombinedOutput()
+
+	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
+
+	// Output should contain TOML that can be parsed
+	// Look for TOML structure markers
+	outputStr := string(output)
+	g.Expect(outputStr).To(SatisfyAny(
+		ContainSubstring("[result]"),
+		ContainSubstring("status ="),
+		ContainSubstring("items_extracted ="),
+	))
+}
+
 // ============================================================================
 // Memory Extract CLI Tests (TASK-7)
 // ============================================================================
@@ -55,55 +151,27 @@ task = "TASK-10"
 	g.Expect(string(output)).To(ContainSubstring("1 decision"))
 }
 
-// TEST: memory extract fails when --result flag not provided
-// Traces to: TASK-7 AC-5, AC-15
-func TestMemoryExtractMissingResultFlag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	cmd := exec.Command("projctl", "memory", "extract")
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Should fail with no flags: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("--result"))
-}
-
-// TEST: memory extract shows success message with item count
-// Traces to: TASK-7 AC-7
-func TestMemoryExtractShowsSuccessMessage(t *testing.T) {
+// TEST: memory extract shows error in proper format
+// Traces to: TASK-7 AC-10
+func TestMemoryExtractShowsErrorFormat(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, ".claude", "memory")
 
-	resultContent := `
-[status]
-result = "success"
-timestamp = "2026-02-04T10:30:00Z"
-
-[[decisions]]
-context = "Test decision"
-choice = "Test choice"
-reason = "Test reason"
-alternatives = []
-
-[context]
-phase = "design"
-task = "TASK-7"
-`
-	resultPath := filepath.Join(tempDir, "result.toml")
-	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
+	// Non-existent file
 	cmd := exec.Command("projctl", "memory", "extract",
-		"--result", resultPath,
-		"--memoryroot", memoryDir)
+		"--result", filepath.Join(tempDir, "nonexistent.toml"))
 	output, err := cmd.CombinedOutput()
 
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	// Should show success with checkmark and item count
-	g.Expect(string(output)).To(MatchRegexp(`(?i)(Extracted|✓).*\d+.*items?`))
+	g.Expect(err).To(HaveOccurred(), "Should fail: %s", string(output))
+	// Error should be displayed (stderr or stdout)
+	outputStr := string(output)
+	g.Expect(outputStr).To(SatisfyAny(
+		ContainSubstring("Error"),
+		ContainSubstring("error"),
+		ContainSubstring("failed"),
+	))
 }
 
 // TEST: memory extract shows item breakdown
@@ -192,32 +260,9 @@ task = "TASK-7"
 	))
 }
 
-// TEST: memory extract shows error in proper format
-// Traces to: TASK-7 AC-10
-func TestMemoryExtractShowsErrorFormat(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-
-	// Non-existent file
-	cmd := exec.Command("projctl", "memory", "extract",
-		"--result", filepath.Join(tempDir, "nonexistent.toml"))
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).To(HaveOccurred(), "Should fail: %s", string(output))
-	// Error should be displayed (stderr or stdout)
-	outputStr := string(output)
-	g.Expect(outputStr).To(SatisfyAny(
-		ContainSubstring("Error"),
-		ContainSubstring("error"),
-		ContainSubstring("failed"),
-	))
-}
-
-// TEST: memory extract outputs TOML to stdout
-// Traces to: TASK-7 AC-11
-func TestMemoryExtractOutputsTOML(t *testing.T) {
+// TEST: memory extract shows success message with item count
+// Traces to: TASK-7 AC-7
+func TestMemoryExtractShowsSuccessMessage(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -230,7 +275,7 @@ result = "success"
 timestamp = "2026-02-04T10:30:00Z"
 
 [[decisions]]
-context = "Test TOML output"
+context = "Test decision"
 choice = "Test choice"
 reason = "Test reason"
 alternatives = []
@@ -249,15 +294,8 @@ task = "TASK-7"
 	output, err := cmd.CombinedOutput()
 
 	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-
-	// Output should contain TOML that can be parsed
-	// Look for TOML structure markers
-	outputStr := string(output)
-	g.Expect(outputStr).To(SatisfyAny(
-		ContainSubstring("[result]"),
-		ContainSubstring("status ="),
-		ContainSubstring("items_extracted ="),
-	))
+	// Should show success with checkmark and item count
+	g.Expect(string(output)).To(MatchRegexp(`(?i)(Extracted|✓).*\d+.*items?`))
 }
 
 // TEST: memory extract TOML output is machine-readable
@@ -311,42 +349,4 @@ task = "TASK-7"
 	g.Expect(err).ToNot(HaveOccurred(), "TOML should be parseable: %s", outputStr)
 	g.Expect(result.Result.Status).To(Equal("success"))
 	g.Expect(result.Result.ItemsExtracted).To(BeNumerically(">=", 1))
-}
-
-// TEST: memory extract integration with result file end-to-end
-// Traces to: TASK-7 AC-12
-func TestMemoryExtractIntegrationResultFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	memoryDir := filepath.Join(tempDir, ".claude", "memory")
-
-	resultContent := `
-[status]
-result = "success"
-timestamp = "2026-02-04T10:45:00Z"
-
-[[decisions]]
-context = "Integration test decision"
-choice = "Use subprocess testing"
-reason = "Validates CLI end-to-end"
-alternatives = ["Unit tests only"]
-
-[context]
-phase = "design"
-task = "TASK-7"
-`
-	resultPath := filepath.Join(tempDir, "integration-result.toml")
-	err := os.WriteFile(resultPath, []byte(resultContent), 0644)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	cmd := exec.Command("projctl", "memory", "extract",
-		"--result", resultPath,
-		"--memoryroot", memoryDir)
-	output, err := cmd.CombinedOutput()
-
-	g.Expect(err).ToNot(HaveOccurred(), "Command should succeed: %s", string(output))
-	g.Expect(string(output)).To(ContainSubstring("Extracted"))
-	g.Expect(string(output)).To(ContainSubstring("decision"))
 }

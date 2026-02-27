@@ -86,6 +86,24 @@ func TestMemoryExtractSessionDefaultsMemoryRoot(t *testing.T) {
 	g.Expect(args.MemoryRoot).To(Equal(""))
 }
 
+// TEST-1104: memoryExtractSession command handles missing transcript file
+// traces: TASK-1 AC-7
+func TestMemoryExtractSessionHandlesMissingTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	tempDir := t.TempDir()
+	transcriptPath := filepath.Join(tempDir, "nonexistent.jsonl")
+
+	args := memoryExtractSessionArgs{
+		TranscriptPath: transcriptPath,
+		MemoryRoot:     filepath.Join(tempDir, "memory"),
+	}
+
+	err := memoryExtractSession(args)
+	g.Expect(err).To(HaveOccurred())
+}
+
 // TEST-1103: memoryExtractSession command prints summary to stdout
 // traces: TASK-1 AC-8
 func TestMemoryExtractSessionPrintsSummary(t *testing.T) {
@@ -128,22 +146,4 @@ func TestMemoryExtractSessionPrintsSummary(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	// Note: actual stdout capture would require more complex test setup
 	// This test verifies command completes successfully
-}
-
-// TEST-1104: memoryExtractSession command handles missing transcript file
-// traces: TASK-1 AC-7
-func TestMemoryExtractSessionHandlesMissingTranscript(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	tempDir := t.TempDir()
-	transcriptPath := filepath.Join(tempDir, "nonexistent.jsonl")
-
-	args := memoryExtractSessionArgs{
-		TranscriptPath: transcriptPath,
-		MemoryRoot:     filepath.Join(tempDir, "memory"),
-	}
-
-	err := memoryExtractSession(args)
-	g.Expect(err).To(HaveOccurred())
 }

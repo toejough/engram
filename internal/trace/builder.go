@@ -5,16 +5,26 @@ import (
 	"strings"
 )
 
+// ValidationResult contains the results of graph validation.
+type ValidationResult struct {
+	Pass     bool     // True if validation passed (no errors)
+	Errors   []string // Validation errors (cause failure)
+	Warnings []string // Validation warnings (informational)
+}
+
 // BuildGraph constructs a Graph from a slice of TraceItems.
 // Returns the graph, any warnings (e.g., dangling edges), and error if build fails.
 func BuildGraph(items []*TraceItem) (*Graph, []string, error) {
 	graph := NewGraph()
+
 	var warnings []string
 
 	// First pass: add all nodes
 	for _, item := range items {
 		node := NodeFromItem(item)
-		if err := graph.AddNode(node); err != nil {
+
+		err := graph.AddNode(node)
+		if err != nil {
 			return nil, nil, fmt.Errorf("duplicate node ID: %s", item.ID)
 		}
 	}
@@ -26,6 +36,7 @@ func BuildGraph(items []*TraceItem) (*Graph, []string, error) {
 			if _, exists := graph.Nodes[edge.To]; !exists {
 				warnings = append(warnings, fmt.Sprintf("dangling edge: %s traces to non-existent %s", edge.From, edge.To))
 				graph.DanglingEdges = append(graph.DanglingEdges, edge)
+
 				continue
 			}
 			// Edge targets exist, safe to add
@@ -34,13 +45,6 @@ func BuildGraph(items []*TraceItem) (*Graph, []string, error) {
 	}
 
 	return graph, warnings, nil
-}
-
-// ValidationResult contains the results of graph validation.
-type ValidationResult struct {
-	Pass     bool     // True if validation passed (no errors)
-	Errors   []string // Validation errors (cause failure)
-	Warnings []string // Validation warnings (informational)
 }
 
 // ValidateGraph runs all validation checks on the graph.

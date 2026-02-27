@@ -13,68 +13,6 @@ import (
 )
 
 // ============================================================================
-// T002: writeSkillFile() — memory- prefix and memory. frontmatter name
-// ============================================================================
-
-func TestWriteSkillFileMemoryPrefix(t *testing.T) {
-	t.Run("creates memory-{slug} directory", func(t *testing.T) {
-		g := NewWithT(t)
-
-		skillsDir := t.TempDir()
-		skill := &memory.GeneratedSkill{
-			Slug:        "test-skill",
-			Theme:       "test skill",
-			Description: "Use when testing skill generation.",
-			Content:     "# Test\n\nContent here.",
-			Alpha:       1.0,
-			Beta:        1.0,
-		}
-
-		err := memory.WriteSkillFileForTest(skillsDir, skill)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Verify directory uses memory- prefix
-		expectedDir := filepath.Join(skillsDir, "memory-test-skill")
-		info, err := os.Stat(expectedDir)
-		g.Expect(err).ToNot(HaveOccurred())
-		g.Expect(info.IsDir()).To(BeTrue())
-
-		// Verify old mem- directory was NOT created
-		oldDir := filepath.Join(skillsDir, "mem-test-skill")
-		_, err = os.Stat(oldDir)
-		g.Expect(os.IsNotExist(err)).To(BeTrue())
-	})
-
-	t.Run("writes name: memory.{slug} in frontmatter", func(t *testing.T) {
-		g := NewWithT(t)
-
-		skillsDir := t.TempDir()
-		skill := &memory.GeneratedSkill{
-			Slug:        "my-skill",
-			Theme:       "my skill",
-			Description: "Use when doing things.",
-			Content:     "# My Skill\n\nContent.",
-			Alpha:       1.0,
-			Beta:        1.0,
-		}
-
-		err := memory.WriteSkillFileForTest(skillsDir, skill)
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Read the written file
-		content, err := os.ReadFile(filepath.Join(skillsDir, "memory-my-skill", "SKILL.md"))
-		g.Expect(err).ToNot(HaveOccurred())
-
-		// Verify name uses memory. prefix (dot separator)
-		g.Expect(string(content)).To(ContainSubstring("name: memory.my-skill"))
-		// Verify old mem: prefix is NOT present
-		g.Expect(string(content)).ToNot(ContainSubstring("name: mem:"))
-		// Verify generated flag still present
-		g.Expect(string(content)).To(ContainSubstring("generated: true"))
-	})
-}
-
-// ============================================================================
 // T006: generateTriggerDescription() — "Use when..." trigger descriptions
 // ============================================================================
 
@@ -144,13 +82,16 @@ func TestWriteSkillFileDescriptionCap(t *testing.T) {
 
 		// Find the description line in frontmatter
 		lines := strings.Split(string(content), "\n")
+
 		var descLine string
+
 		for _, line := range lines {
-			if strings.HasPrefix(line, "description: ") {
-				descLine = strings.TrimPrefix(line, "description: ")
+			if after, ok := strings.CutPrefix(line, "description: "); ok {
+				descLine = after
 				break
 			}
 		}
+
 		g.Expect(len(descLine)).To(BeNumerically("<=", 1024))
 	})
 
@@ -175,5 +116,67 @@ func TestWriteSkillFileDescriptionCap(t *testing.T) {
 
 		// Description with colon should be YAML-quoted
 		g.Expect(string(content)).To(ContainSubstring(`description: "Use when handling key: value pairs`))
+	})
+}
+
+// ============================================================================
+// T002: writeSkillFile() — memory- prefix and memory. frontmatter name
+// ============================================================================
+
+func TestWriteSkillFileMemoryPrefix(t *testing.T) {
+	t.Run("creates memory-{slug} directory", func(t *testing.T) {
+		g := NewWithT(t)
+
+		skillsDir := t.TempDir()
+		skill := &memory.GeneratedSkill{
+			Slug:        "test-skill",
+			Theme:       "test skill",
+			Description: "Use when testing skill generation.",
+			Content:     "# Test\n\nContent here.",
+			Alpha:       1.0,
+			Beta:        1.0,
+		}
+
+		err := memory.WriteSkillFileForTest(skillsDir, skill)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify directory uses memory- prefix
+		expectedDir := filepath.Join(skillsDir, "memory-test-skill")
+		info, err := os.Stat(expectedDir)
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(info.IsDir()).To(BeTrue())
+
+		// Verify old mem- directory was NOT created
+		oldDir := filepath.Join(skillsDir, "mem-test-skill")
+		_, err = os.Stat(oldDir)
+		g.Expect(os.IsNotExist(err)).To(BeTrue())
+	})
+
+	t.Run("writes name: memory.{slug} in frontmatter", func(t *testing.T) {
+		g := NewWithT(t)
+
+		skillsDir := t.TempDir()
+		skill := &memory.GeneratedSkill{
+			Slug:        "my-skill",
+			Theme:       "my skill",
+			Description: "Use when doing things.",
+			Content:     "# My Skill\n\nContent.",
+			Alpha:       1.0,
+			Beta:        1.0,
+		}
+
+		err := memory.WriteSkillFileForTest(skillsDir, skill)
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Read the written file
+		content, err := os.ReadFile(filepath.Join(skillsDir, "memory-my-skill", "SKILL.md"))
+		g.Expect(err).ToNot(HaveOccurred())
+
+		// Verify name uses memory. prefix (dot separator)
+		g.Expect(string(content)).To(ContainSubstring("name: memory.my-skill"))
+		// Verify old mem: prefix is NOT present
+		g.Expect(string(content)).ToNot(ContainSubstring("name: mem:"))
+		// Verify generated flag still present
+		g.Expect(string(content)).To(ContainSubstring("generated: true"))
 	})
 }

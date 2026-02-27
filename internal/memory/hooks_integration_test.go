@@ -328,6 +328,25 @@ func TestHooksShow_DisplaysCurrentConfig(t *testing.T) {
 	g.Expect(output).To(HaveKey("PreToolUse"))
 }
 
+// TestHooksShow_HandlesNonExistentFile tests that show handles missing settings file.
+func TestHooksShow_HandlesNonExistentFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Setup
+	tmpDir := t.TempDir()
+	settingsPath := filepath.Join(tmpDir, "settings.json")
+
+	// Execute
+	result, err := memory.ShowHooks(memory.ShowHooksOpts{
+		SettingsPath: settingsPath,
+	})
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Verify
+	g.Expect(result).To(Equal("{}"))
+}
+
 // TestHooksShow_ReturnsEmptyWhenNoHooks tests that show handles missing hooks gracefully.
 func TestHooksShow_ReturnsEmptyWhenNoHooks(t *testing.T) {
 	t.Parallel()
@@ -348,25 +367,6 @@ func TestHooksShow_ReturnsEmptyWhenNoHooks(t *testing.T) {
 	g.Expect(err).ToNot(HaveOccurred())
 	err = os.WriteFile(settingsPath, data, 0600)
 	g.Expect(err).ToNot(HaveOccurred())
-
-	// Execute
-	result, err := memory.ShowHooks(memory.ShowHooksOpts{
-		SettingsPath: settingsPath,
-	})
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Verify
-	g.Expect(result).To(Equal("{}"))
-}
-
-// TestHooksShow_HandlesNonExistentFile tests that show handles missing settings file.
-func TestHooksShow_HandlesNonExistentFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Setup
-	tmpDir := t.TempDir()
-	settingsPath := filepath.Join(tmpDir, "settings.json")
 
 	// Execute
 	result, err := memory.ShowHooks(memory.ShowHooksOpts{

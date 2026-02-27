@@ -12,28 +12,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// findProjectRoot walks up from current directory to find go.mod
-func findProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "", os.ErrNotExist
-		}
-		dir = parent
-	}
-}
-
-// TestProducerContracts verifies all producer SKILL.md files have valid Contract sections
-func TestProducerContracts(t *testing.T) {
+// TestContractFormat verifies contracts follow CONTRACT.md standard
+func TestContractFormat(t *testing.T) {
 	t.Parallel()
 	producers := []string{
 		"pm-interview-producer",
@@ -58,52 +38,41 @@ func TestProducerContracts(t *testing.T) {
 			g := NewWithT(t)
 
 			root, err := findProjectRoot()
-			g.Expect(err).ToNot(HaveOccurred(), "should find project root")
+			g.Expect(err).ToNot(HaveOccurred())
 
 			skillPath := filepath.Join(root, "skills", producer, "SKILL.md")
 			content, err := os.ReadFile(skillPath)
-			g.Expect(err).ToNot(HaveOccurred(), "should read SKILL.md for %s", producer)
+			g.Expect(err).ToNot(HaveOccurred())
 
-			contract := extractContract(t, g, string(content), producer)
+			// Verify Contract section exists
+			g.Expect(string(content)).To(ContainSubstring("## Contract"), "%s should have ## Contract section", producer)
 
-			// Verify contract has required sections
-			g.Expect(contract).To(HaveKey("outputs"), "%s contract should have outputs section", producer)
-			g.Expect(contract).To(HaveKey("traces_to"), "%s contract should have traces_to section", producer)
-			g.Expect(contract).To(HaveKey("checks"), "%s contract should have checks section", producer)
-
-			// Verify outputs structure
-			outputs, ok := contract["outputs"].([]interface{})
-			g.Expect(ok).To(BeTrue(), "%s outputs should be array", producer)
-			g.Expect(outputs).ToNot(BeEmpty(), "%s outputs should not be empty", producer)
-
-			for i, output := range outputs {
-				outputMap, ok := output.(map[string]interface{})
-				g.Expect(ok).To(BeTrue(), "%s output[%d] should be map", producer, i)
-				g.Expect(outputMap).To(HaveKey("path"), "%s output[%d] should have path", producer, i)
-				g.Expect(outputMap).To(HaveKey("id_format"), "%s output[%d] should have id_format", producer, i)
+			// Verify YAML code block exists after Contract section
+			lines := strings.Split(string(content), "\n")
+			contractIdx := -1
+			for i, line := range lines {
+				if strings.Contains(line, "## Contract") {
+					contractIdx = i
+					break
+				}
 			}
 
-			// Verify traces_to structure
-			traces, ok := contract["traces_to"].([]interface{})
-			g.Expect(ok).To(BeTrue(), "%s traces_to should be array", producer)
-			g.Expect(traces).ToNot(BeEmpty(), "%s traces_to should not be empty", producer)
+			g.Expect(contractIdx).To(BeNumerically(">=", 0), "%s should have Contract section", producer)
 
-			// Verify checks structure
-			checks, ok := contract["checks"].([]interface{})
-			g.Expect(ok).To(BeTrue(), "%s checks should be array", producer)
-			g.Expect(checks).ToNot(BeEmpty(), "%s checks should not be empty", producer)
-
-			for i, check := range checks {
-				checkMap, ok := check.(map[string]interface{})
-				g.Expect(ok).To(BeTrue(), "%s check[%d] should be map", producer, i)
-				g.Expect(checkMap).To(HaveKey("id"), "%s check[%d] should have id", producer, i)
-				g.Expect(checkMap).To(HaveKey("description"), "%s check[%d] should have description", producer, i)
-				g.Expect(checkMap).To(HaveKey("severity"), "%s check[%d] should have severity", producer, i)
-
-				// Verify severity is error or warning
-				severity, _ := checkMap["severity"].(string)
-				g.Expect(severity).To(Or(Equal("error"), Equal("warning")), "%s check[%d] severity should be error or warning", producer, i)
+			// Find YAML block after Contract section
+			foundYamlBlock := false
+			for i := contractIdx + 1; i < len(lines); i++ {
+				if strings.TrimSpace(lines[i]) == "```yaml" {
+					foundYamlBlock = true
+					break
+				}
+				// Stop if we hit another section
+				if strings.HasPrefix(lines[i], "## ") {
+					break
+				}
 			}
+
+			g.Expect(foundYamlBlock).To(BeTrue(), "%s should have ```yaml block after ## Contract", producer)
 		})
 	}
 }
@@ -208,8 +177,8 @@ func TestGapAnalysisIncorporated(t *testing.T) {
 	}
 }
 
-// TestContractFormat verifies contracts follow CONTRACT.md standard
-func TestContractFormat(t *testing.T) {
+// TestProducerContracts verifies all producer SKILL.md files have valid Contract sections
+func TestProducerContracts(t *testing.T) {
 	t.Parallel()
 	producers := []string{
 		"pm-interview-producer",
@@ -234,41 +203,52 @@ func TestContractFormat(t *testing.T) {
 			g := NewWithT(t)
 
 			root, err := findProjectRoot()
-			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(err).ToNot(HaveOccurred(), "should find project root")
 
 			skillPath := filepath.Join(root, "skills", producer, "SKILL.md")
 			content, err := os.ReadFile(skillPath)
-			g.Expect(err).ToNot(HaveOccurred())
+			g.Expect(err).ToNot(HaveOccurred(), "should read SKILL.md for %s", producer)
 
-			// Verify Contract section exists
-			g.Expect(string(content)).To(ContainSubstring("## Contract"), "%s should have ## Contract section", producer)
+			contract := extractContract(t, g, string(content), producer)
 
-			// Verify YAML code block exists after Contract section
-			lines := strings.Split(string(content), "\n")
-			contractIdx := -1
-			for i, line := range lines {
-				if strings.Contains(line, "## Contract") {
-					contractIdx = i
-					break
-				}
+			// Verify contract has required sections
+			g.Expect(contract).To(HaveKey("outputs"), "%s contract should have outputs section", producer)
+			g.Expect(contract).To(HaveKey("traces_to"), "%s contract should have traces_to section", producer)
+			g.Expect(contract).To(HaveKey("checks"), "%s contract should have checks section", producer)
+
+			// Verify outputs structure
+			outputs, ok := contract["outputs"].([]interface{})
+			g.Expect(ok).To(BeTrue(), "%s outputs should be array", producer)
+			g.Expect(outputs).ToNot(BeEmpty(), "%s outputs should not be empty", producer)
+
+			for i, output := range outputs {
+				outputMap, ok := output.(map[string]interface{})
+				g.Expect(ok).To(BeTrue(), "%s output[%d] should be map", producer, i)
+				g.Expect(outputMap).To(HaveKey("path"), "%s output[%d] should have path", producer, i)
+				g.Expect(outputMap).To(HaveKey("id_format"), "%s output[%d] should have id_format", producer, i)
 			}
 
-			g.Expect(contractIdx).To(BeNumerically(">=", 0), "%s should have Contract section", producer)
+			// Verify traces_to structure
+			traces, ok := contract["traces_to"].([]interface{})
+			g.Expect(ok).To(BeTrue(), "%s traces_to should be array", producer)
+			g.Expect(traces).ToNot(BeEmpty(), "%s traces_to should not be empty", producer)
 
-			// Find YAML block after Contract section
-			foundYamlBlock := false
-			for i := contractIdx + 1; i < len(lines); i++ {
-				if strings.TrimSpace(lines[i]) == "```yaml" {
-					foundYamlBlock = true
-					break
-				}
-				// Stop if we hit another section
-				if strings.HasPrefix(lines[i], "## ") {
-					break
-				}
+			// Verify checks structure
+			checks, ok := contract["checks"].([]interface{})
+			g.Expect(ok).To(BeTrue(), "%s checks should be array", producer)
+			g.Expect(checks).ToNot(BeEmpty(), "%s checks should not be empty", producer)
+
+			for i, check := range checks {
+				checkMap, ok := check.(map[string]interface{})
+				g.Expect(ok).To(BeTrue(), "%s check[%d] should be map", producer, i)
+				g.Expect(checkMap).To(HaveKey("id"), "%s check[%d] should have id", producer, i)
+				g.Expect(checkMap).To(HaveKey("description"), "%s check[%d] should have description", producer, i)
+				g.Expect(checkMap).To(HaveKey("severity"), "%s check[%d] should have severity", producer, i)
+
+				// Verify severity is error or warning
+				severity, _ := checkMap["severity"].(string)
+				g.Expect(severity).To(Or(Equal("error"), Equal("warning")), "%s check[%d] severity should be error or warning", producer, i)
 			}
-
-			g.Expect(foundYamlBlock).To(BeTrue(), "%s should have ```yaml block after ## Contract", producer)
 		})
 	}
 }
@@ -318,4 +298,24 @@ func extractContract(t *testing.T, g *WithT, content, producer string) map[strin
 	g.Expect(ok).To(BeTrue(), "%s should have contract: key at top level", producer)
 
 	return contract
+}
+
+// findProjectRoot walks up from current directory to find go.mod
+func findProjectRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", os.ErrNotExist
+		}
+		dir = parent
+	}
 }

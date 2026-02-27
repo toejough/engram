@@ -12,23 +12,6 @@ import (
 	"github.com/toejough/projctl/internal/memory"
 )
 
-// TEST: ExtractOpts struct exists with required fields
-// Traces to: TASK-1 AC-1, AC-2, AC-3
-func TestExtractOptsStructure(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	opts := memory.ExtractOpts{
-		FilePath:   "/path/to/file.toml",
-		MemoryRoot: "/path/to/memory",
-		ModelDir:   "/path/to/models",
-	}
-
-	g.Expect(opts.FilePath).To(Equal("/path/to/file.toml"))
-	g.Expect(opts.MemoryRoot).To(Equal("/path/to/memory"))
-	g.Expect(opts.ModelDir).To(Equal("/path/to/models"))
-}
-
 // TEST: ExtractOpts includes optional injection fields for testing
 // Traces to: TASK-1 AC-3
 func TestExtractOptsInjectionFields(t *testing.T) {
@@ -50,6 +33,23 @@ func TestExtractOptsInjectionFields(t *testing.T) {
 	data, err := opts.ReadFile("/test/path")
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(data).To(Equal([]byte("test data")))
+}
+
+// TEST: ExtractOpts struct exists with required fields
+// Traces to: TASK-1 AC-1, AC-2, AC-3
+func TestExtractOptsStructure(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	opts := memory.ExtractOpts{
+		FilePath:   "/path/to/file.toml",
+		MemoryRoot: "/path/to/memory",
+		ModelDir:   "/path/to/models",
+	}
+
+	g.Expect(opts.FilePath).To(Equal("/path/to/file.toml"))
+	g.Expect(opts.MemoryRoot).To(Equal("/path/to/memory"))
+	g.Expect(opts.ModelDir).To(Equal("/path/to/models"))
 }
 
 // TEST: ExtractResult struct includes required fields
@@ -84,78 +84,43 @@ func TestExtractResultStructure(t *testing.T) {
 	g.Expect(result.Items[1].Type).To(Equal("learning"))
 }
 
-// TEST: ResultFile struct matches result protocol schema
-// Traces to: TASK-1 AC-6
-func TestResultFileStructure(t *testing.T) {
+// TEST: ExtractedItem JSON serialization
+// Needed for potential JSON output
+func TestExtractedItemJSONSerialization(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	resultData := `
-[status]
-result = "success"
-timestamp = "2026-02-04T10:45:00Z"
+	item := memory.ExtractedItem{
+		Type:    "learning",
+		Context: "performance",
+		Content: "Index foreign keys for faster joins",
+	}
 
-[[decisions]]
-context = "Error handling strategy"
-choice = "Use wrapped errors with context"
-reason = "Provides clear error traces"
-alternatives = ["Sentinel errors", "Error codes"]
-
-[context]
-phase = "design"
-task = "TASK-10"
-`
-
-	var resultFile memory.ResultFile
-	err := toml.Unmarshal([]byte(resultData), &resultFile)
+	jsonData, err := json.Marshal(item)
 	g.Expect(err).ToNot(HaveOccurred())
 
-	g.Expect(resultFile.Status.Result).To(Equal("success"))
-	g.Expect(resultFile.Decisions).To(HaveLen(1))
-	g.Expect(resultFile.Decisions[0].Context).To(Equal("Error handling strategy"))
-	g.Expect(resultFile.Decisions[0].Alternatives).To(ContainElement("Sentinel errors"))
-	g.Expect(resultFile.Context.Phase).To(Equal("design"))
+	var decoded memory.ExtractedItem
+
+	err = json.Unmarshal(jsonData, &decoded)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(decoded).To(Equal(item))
 }
 
-// TEST: SchemaValidationError struct includes required fields
-// Traces to: TASK-1 AC-8
-func TestSchemaValidationErrorStructure(t *testing.T) {
+// TEST: ExtractedItem type structure
+// Traces to: TASK-1 AC-5
+func TestExtractedItemStructure(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	schemaErr := memory.SchemaValidationError{
-		Field:    "payload.decisions",
-		Expected: "array of objects",
-		Actual:   "string",
-		Line:     15,
+	item := memory.ExtractedItem{
+		Type:    "decision",
+		Context: "Database choice",
+		Content: "Use PostgreSQL for relational data",
 	}
 
-	g.Expect(schemaErr.Field).To(Equal("payload.decisions"))
-	g.Expect(schemaErr.Expected).To(Equal("array of objects"))
-	g.Expect(schemaErr.Actual).To(Equal("string"))
-	g.Expect(schemaErr.Line).To(Equal(15))
-}
-
-// TEST: SchemaValidationError implements error interface
-// Traces to: TASK-1 AC-9
-func TestSchemaValidationErrorImplementsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	schemaErr := memory.SchemaValidationError{
-		Field:    "payload.decisions",
-		Expected: "array",
-		Actual:   "string",
-		Line:     15,
-	}
-
-	// Should be able to use as error
-	var err error = &schemaErr
-	g.Expect(err).ToNot(BeNil())
-	g.Expect(err.Error()).To(ContainSubstring("payload.decisions"))
-	g.Expect(err.Error()).To(ContainSubstring("array"))
-	g.Expect(err.Error()).To(ContainSubstring("string"))
-	g.Expect(err.Error()).To(ContainSubstring("15"))
+	g.Expect(item.Type).To(Equal("decision"))
+	g.Expect(item.Context).To(Equal("Database choice"))
+	g.Expect(item.Content).To(Equal("Use PostgreSQL for relational data"))
 }
 
 // TEST: All types have godoc comments
@@ -186,6 +151,7 @@ alternatives = ["alt1", "alt2"]
 `, context, choice)
 
 		var resultFile memory.ResultFile
+
 		err := toml.Unmarshal([]byte(tomlData), &resultFile)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(resultFile.Decisions).To(HaveLen(1))
@@ -194,40 +160,77 @@ alternatives = ["alt1", "alt2"]
 	})
 }
 
-// TEST: ExtractedItem type structure
-// Traces to: TASK-1 AC-5
-func TestExtractedItemStructure(t *testing.T) {
+// TEST: ResultFile struct matches result protocol schema
+// Traces to: TASK-1 AC-6
+func TestResultFileStructure(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	item := memory.ExtractedItem{
-		Type:    "decision",
-		Context: "Database choice",
-		Content: "Use PostgreSQL for relational data",
-	}
+	resultData := `
+[status]
+result = "success"
+timestamp = "2026-02-04T10:45:00Z"
 
-	g.Expect(item.Type).To(Equal("decision"))
-	g.Expect(item.Context).To(Equal("Database choice"))
-	g.Expect(item.Content).To(Equal("Use PostgreSQL for relational data"))
+[[decisions]]
+context = "Error handling strategy"
+choice = "Use wrapped errors with context"
+reason = "Provides clear error traces"
+alternatives = ["Sentinel errors", "Error codes"]
+
+[context]
+phase = "design"
+task = "TASK-10"
+`
+
+	var resultFile memory.ResultFile
+
+	err := toml.Unmarshal([]byte(resultData), &resultFile)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	g.Expect(resultFile.Status.Result).To(Equal("success"))
+	g.Expect(resultFile.Decisions).To(HaveLen(1))
+	g.Expect(resultFile.Decisions[0].Context).To(Equal("Error handling strategy"))
+	g.Expect(resultFile.Decisions[0].Alternatives).To(ContainElement("Sentinel errors"))
+	g.Expect(resultFile.Context.Phase).To(Equal("design"))
 }
 
-// TEST: ExtractedItem JSON serialization
-// Needed for potential JSON output
-func TestExtractedItemJSONSerialization(t *testing.T) {
+// TEST: SchemaValidationError implements error interface
+// Traces to: TASK-1 AC-9
+func TestSchemaValidationErrorImplementsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	item := memory.ExtractedItem{
-		Type:    "learning",
-		Context: "performance",
-		Content: "Index foreign keys for faster joins",
+	schemaErr := memory.SchemaValidationError{
+		Field:    "payload.decisions",
+		Expected: "array",
+		Actual:   "string",
+		Line:     15,
 	}
 
-	jsonData, err := json.Marshal(item)
-	g.Expect(err).ToNot(HaveOccurred())
+	// Should be able to use as error
+	var err error = &schemaErr
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("payload.decisions"))
+	g.Expect(err.Error()).To(ContainSubstring("array"))
+	g.Expect(err.Error()).To(ContainSubstring("string"))
+	g.Expect(err.Error()).To(ContainSubstring("15"))
+}
 
-	var decoded memory.ExtractedItem
-	err = json.Unmarshal(jsonData, &decoded)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(decoded).To(Equal(item))
+// TEST: SchemaValidationError struct includes required fields
+// Traces to: TASK-1 AC-8
+func TestSchemaValidationErrorStructure(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	schemaErr := memory.SchemaValidationError{
+		Field:    "payload.decisions",
+		Expected: "array of objects",
+		Actual:   "string",
+		Line:     15,
+	}
+
+	g.Expect(schemaErr.Field).To(Equal("payload.decisions"))
+	g.Expect(schemaErr.Expected).To(Equal("array of objects"))
+	g.Expect(schemaErr.Actual).To(Equal("string"))
+	g.Expect(schemaErr.Line).To(Equal(15))
 }

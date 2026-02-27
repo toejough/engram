@@ -79,41 +79,6 @@ func TestMemoryHooksInstall_DefaultsToHomeDir(t *testing.T) {
 	g.Expect(expectedPath).To(BeAnExistingFile())
 }
 
-// TestMemoryHooksShow_DisplaysHooks tests that CLI show command works.
-func TestMemoryHooksShow_DisplaysHooks(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Setup
-	tmpDir := t.TempDir()
-	settingsPath := filepath.Join(tmpDir, "settings.json")
-
-	// Create settings with hooks
-	settings := map[string]any{
-		"hooks": map[string]any{
-			"Stop": []map[string]any{
-				{
-					"type":    "command",
-					"command": "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
-				},
-			},
-		},
-	}
-
-	data, err := json.MarshalIndent(settings, "", "  ")
-	g.Expect(err).ToNot(HaveOccurred())
-	err = os.WriteFile(settingsPath, data, 0600)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	// Execute - capture output by testing the function directly
-	args := memoryHooksShowArgs{
-		SettingsPath: settingsPath,
-	}
-	err = memoryHooksShow(args)
-	g.Expect(err).ToNot(HaveOccurred())
-	// Note: We can't easily capture stdout in unit tests, but we verify no error
-}
-
 // TestMemoryHooksShow_DefaultsToHomeDir tests that CLI defaults to ~/.claude/settings.json.
 func TestMemoryHooksShow_DefaultsToHomeDir(t *testing.T) {
 	g := NewWithT(t)
@@ -155,4 +120,39 @@ func TestMemoryHooksShow_DefaultsToHomeDir(t *testing.T) {
 	}
 	err = memoryHooksShow(args)
 	g.Expect(err).ToNot(HaveOccurred())
+}
+
+// TestMemoryHooksShow_DisplaysHooks tests that CLI show command works.
+func TestMemoryHooksShow_DisplaysHooks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Setup
+	tmpDir := t.TempDir()
+	settingsPath := filepath.Join(tmpDir, "settings.json")
+
+	// Create settings with hooks
+	settings := map[string]any{
+		"hooks": map[string]any{
+			"Stop": []map[string]any{
+				{
+					"type":    "command",
+					"command": "projctl memory extract-session --transcript $TRANSCRIPT_PATH &",
+				},
+			},
+		},
+	}
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	g.Expect(err).ToNot(HaveOccurred())
+	err = os.WriteFile(settingsPath, data, 0600)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	// Execute - capture output by testing the function directly
+	args := memoryHooksShowArgs{
+		SettingsPath: settingsPath,
+	}
+	err = memoryHooksShow(args)
+	g.Expect(err).ToNot(HaveOccurred())
+	// Note: We can't easily capture stdout in unit tests, but we verify no error
 }

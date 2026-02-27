@@ -13,14 +13,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-func fixedTime() time.Time {
-	return time.Date(2026, 1, 27, 12, 0, 0, 0, time.UTC)
-}
-
-func nowFunc() func() time.Time {
-	return func() time.Time { return fixedTime() }
-}
-
 // MockFS implements log.FileSystem for testing
 type MockFS struct {
 	Files map[string][]byte
@@ -30,8 +22,15 @@ func (m *MockFS) AppendFile(path string, data []byte) error {
 	if m.Files == nil {
 		m.Files = make(map[string][]byte)
 	}
+
 	m.Files[path] = append(m.Files[path], data...)
+
 	return nil
+}
+
+func (m *MockFS) FileExists(path string) bool {
+	_, exists := m.Files[path]
+	return exists
 }
 
 func (m *MockFS) ReadFile(path string) ([]byte, error) {
@@ -39,12 +38,69 @@ func (m *MockFS) ReadFile(path string) ([]byte, error) {
 	if !exists {
 		return nil, fmt.Errorf("file not found: %s", path)
 	}
+
 	return content, nil
 }
 
-func (m *MockFS) FileExists(path string) bool {
-	_, exists := m.Files[path]
-	return exists
+// TEST-412 traces: TASK-016
+// Test Read returns all entries when no filter.
+func TestRead_AllEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	// Write some entries
+	_ = log.Write("testdir", "status", "task-status", "first", log.WriteOpts{Task: "TASK-001"}, nowFunc(), fs)
+	_ = log.Write("testdir", "phase", "phase-change", "second", log.WriteOpts{}, nowFunc(), fs)
+
+	entries, err := log.Read("testdir", log.ReadOpts{}, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(HaveLen(2))
+
+	if len(entries) < 2 {
+		t.Fatal("expected at least 2 entries")
+	}
+
+	g.Expect(entries[0].Message).To(Equal("first"))
+	g.Expect(entries[1].Message).To(Equal("second"))
+}
+
+// TEST-413 traces: TASK-016
+// Test Read filters by model.
+func TestRead_FilterByModel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	// Write entries with different models
+	_ = log.Write("testdir", "status", "task-status", "haiku task", log.WriteOpts{Model: "haiku"}, nowFunc(), fs)
+	_ = log.Write("testdir", "status", "task-status", "sonnet task", log.WriteOpts{Model: "sonnet"}, nowFunc(), fs)
+	_ = log.Write("testdir", "status", "task-status", "opus task", log.WriteOpts{Model: "opus"}, nowFunc(), fs)
+	_ = log.Write("testdir", "status", "task-status", "no model", log.WriteOpts{}, nowFunc(), fs)
+
+	// Filter by haiku
+	entries, err := log.Read("testdir", log.ReadOpts{Model: "haiku"}, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(HaveLen(1))
+
+	if len(entries) < 1 {
+		t.Fatal("expected at least 1 entry")
+	}
+
+	g.Expect(entries[0].Message).To(Equal("haiku task"))
+	g.Expect(entries[0].Model).To(Equal("haiku"))
+}
+
+// TEST-414 traces: TASK-016
+// Test Read returns empty slice when log file missing.
+func TestRead_NoLogFile(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	entries, err := log.Read("testdir", log.ReadOpts{}, fs)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entries).To(BeEmpty())
 }
 
 func TestWrite(t *testing.T) {
@@ -62,7 +118,12 @@ func TestWrite(t *testing.T) {
 		content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
 		g.Expect(err).ToNot(HaveOccurred())
 
+		if len(content) < 1 {
+			t.Fatal("expected non-empty content")
+		}
+
 		var entry log.Entry
+
 		err = json.Unmarshal(content[:len(content)-1], &entry) // strip trailing newline
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(entry.Level).To(Equal("status"))
@@ -92,6 +153,7 @@ func TestWrite(t *testing.T) {
 		// Both lines should be valid JSON
 		for _, line := range lines {
 			var entry log.Entry
+
 			err := json.Unmarshal([]byte(line), &entry)
 			g.Expect(err).ToNot(HaveOccurred())
 		}
@@ -142,49 +204,9 @@ func TestWrite(t *testing.T) {
 	})
 }
 
-// TEST-410 traces: TASK-016
-// Test Write includes model field in entry.
-func TestWrite_ModelField(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	err := log.Write("testdir", "status", "task-status", "dispatched", log.WriteOpts{
-		Task:  "TASK-001",
-		Model: "haiku",
-	}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	var entry log.Entry
-	err = json.Unmarshal(content[:len(content)-1], &entry)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entry.Model).To(Equal("haiku"))
-}
-
-// TEST-411 traces: TASK-016
-// Test Write omits model when empty (backwards compatible).
-func TestWrite_ModelOmittedWhenEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	err := log.Write("testdir", "status", "task-status", "started", log.WriteOpts{
-		Task: "TASK-001",
-	}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	line := strings.TrimSpace(string(content))
-	g.Expect(line).ToNot(ContainSubstring(`"model"`))
-}
-
 func TestWriteProperty(t *testing.T) {
 	t.Parallel()
+
 	levels := make([]string, 0, len(log.ValidLevels))
 	for k := range log.ValidLevels {
 		levels = append(levels, k)
@@ -210,149 +232,13 @@ func TestWriteProperty(t *testing.T) {
 		g.Expect(err).ToNot(HaveOccurred())
 
 		var entry log.Entry
+
 		err = json.Unmarshal([]byte(strings.TrimSpace(string(content))), &entry)
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(entry.Level).To(Equal(level))
 		g.Expect(entry.Subject).To(Equal(subject))
 		g.Expect(entry.Message).To(Equal(message))
 	})
-}
-
-// TEST-412 traces: TASK-016
-// Test Read returns all entries when no filter.
-func TestRead_AllEntries(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	// Write some entries
-	_ = log.Write("testdir", "status", "task-status", "first", log.WriteOpts{Task: "TASK-001"}, nowFunc(), fs)
-	_ = log.Write("testdir", "phase", "phase-change", "second", log.WriteOpts{}, nowFunc(), fs)
-
-	entries, err := log.Read("testdir", log.ReadOpts{}, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entries).To(HaveLen(2))
-	g.Expect(entries[0].Message).To(Equal("first"))
-	g.Expect(entries[1].Message).To(Equal("second"))
-}
-
-// TEST-413 traces: TASK-016
-// Test Read filters by model.
-func TestRead_FilterByModel(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	// Write entries with different models
-	_ = log.Write("testdir", "status", "task-status", "haiku task", log.WriteOpts{Model: "haiku"}, nowFunc(), fs)
-	_ = log.Write("testdir", "status", "task-status", "sonnet task", log.WriteOpts{Model: "sonnet"}, nowFunc(), fs)
-	_ = log.Write("testdir", "status", "task-status", "opus task", log.WriteOpts{Model: "opus"}, nowFunc(), fs)
-	_ = log.Write("testdir", "status", "task-status", "no model", log.WriteOpts{}, nowFunc(), fs)
-
-	// Filter by haiku
-	entries, err := log.Read("testdir", log.ReadOpts{Model: "haiku"}, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entries).To(HaveLen(1))
-	g.Expect(entries[0].Message).To(Equal("haiku task"))
-	g.Expect(entries[0].Model).To(Equal("haiku"))
-}
-
-// TEST-414 traces: TASK-016
-// Test Read returns empty slice when log file missing.
-func TestRead_NoLogFile(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	entries, err := log.Read("testdir", log.ReadOpts{}, fs)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entries).To(BeEmpty())
-}
-
-// TEST-500 traces: TASK-027
-// Test Write calculates token estimate from message length.
-func TestWrite_TokenEstimate(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	// 40 characters / 4 = 10 tokens
-	message := "This is exactly forty characters long!!!"
-	g.Expect(len(message)).To(Equal(40))
-
-	err := log.Write("testdir", "status", "task-status", message, log.WriteOpts{}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	var entry log.Entry
-	err = json.Unmarshal(content[:len(content)-1], &entry)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entry.TokensEstimate).To(Equal(10))
-}
-
-// TEST-501 traces: TASK-027
-// Test Write uses explicit token override when provided.
-func TestWrite_TokenOverride(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	err := log.Write("testdir", "status", "task-status", "short", log.WriteOpts{
-		Tokens: 1000, // Override regardless of message length
-	}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	var entry log.Entry
-	err = json.Unmarshal(content[:len(content)-1], &entry)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entry.TokensEstimate).To(Equal(1000))
-}
-
-// TEST-502 traces: TASK-027
-// Test token estimate rounds up for partial tokens.
-func TestWrite_TokenEstimateRoundsUp(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	// 5 characters / 4 = 1.25, should round up to 2
-	message := "hello"
-	g.Expect(len(message)).To(Equal(5))
-
-	err := log.Write("testdir", "status", "task-status", message, log.WriteOpts{}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	var entry log.Entry
-	err = json.Unmarshal(content[:len(content)-1], &entry)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entry.TokensEstimate).To(Equal(2))
-}
-
-// TEST-503 traces: TASK-027
-// Test token estimate for empty message is zero.
-func TestWrite_TokenEstimateEmpty(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-	fs := &MockFS{}
-
-	err := log.Write("testdir", "status", "task-status", "", log.WriteOpts{}, nowFunc(), fs)
-	g.Expect(err).ToNot(HaveOccurred())
-
-	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
-	g.Expect(err).ToNot(HaveOccurred())
-
-	var entry log.Entry
-	err = json.Unmarshal(content[:len(content)-1], &entry)
-	g.Expect(err).ToNot(HaveOccurred())
-	g.Expect(entry.TokensEstimate).To(Equal(0))
 }
 
 // TEST-610 traces: TASK-061
@@ -370,7 +256,12 @@ func TestWrite_ContextEstimate(t *testing.T) {
 	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
 	g.Expect(err).ToNot(HaveOccurred())
 
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
 	var entry log.Entry
+
 	err = json.Unmarshal(content[:len(content)-1], &entry)
 	g.Expect(err).ToNot(HaveOccurred())
 	g.Expect(entry.ContextEstimate).To(Equal(45000))
@@ -391,4 +282,164 @@ func TestWrite_ContextEstimateOmittedWhenZero(t *testing.T) {
 
 	line := strings.TrimSpace(string(content))
 	g.Expect(line).ToNot(ContainSubstring(`"context_estimate"`))
+}
+
+// TEST-410 traces: TASK-016
+// Test Write includes model field in entry.
+func TestWrite_ModelField(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	err := log.Write("testdir", "status", "task-status", "dispatched", log.WriteOpts{
+		Task:  "TASK-001",
+		Model: "haiku",
+	}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
+	var entry log.Entry
+
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.Model).To(Equal("haiku"))
+}
+
+// TEST-411 traces: TASK-016
+// Test Write omits model when empty (backwards compatible).
+func TestWrite_ModelOmittedWhenEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	err := log.Write("testdir", "status", "task-status", "started", log.WriteOpts{
+		Task: "TASK-001",
+	}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	line := strings.TrimSpace(string(content))
+	g.Expect(line).ToNot(ContainSubstring(`"model"`))
+}
+
+// TEST-500 traces: TASK-027
+// Test Write calculates token estimate from message length.
+func TestWrite_TokenEstimate(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	// 40 characters / 4 = 10 tokens
+	message := "This is exactly forty characters long!!!"
+	g.Expect(message).To(HaveLen(40))
+
+	err := log.Write("testdir", "status", "task-status", message, log.WriteOpts{}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
+	var entry log.Entry
+
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(10))
+}
+
+// TEST-503 traces: TASK-027
+// Test token estimate for empty message is zero.
+func TestWrite_TokenEstimateEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	err := log.Write("testdir", "status", "task-status", "", log.WriteOpts{}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
+	var entry log.Entry
+
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(0))
+}
+
+// TEST-502 traces: TASK-027
+// Test token estimate rounds up for partial tokens.
+func TestWrite_TokenEstimateRoundsUp(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	// 5 characters / 4 = 1.25, should round up to 2
+	message := "hello"
+	g.Expect(message).To(HaveLen(5))
+
+	err := log.Write("testdir", "status", "task-status", message, log.WriteOpts{}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
+	var entry log.Entry
+
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(2))
+}
+
+// TEST-501 traces: TASK-027
+// Test Write uses explicit token override when provided.
+func TestWrite_TokenOverride(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	fs := &MockFS{}
+
+	err := log.Write("testdir", "status", "task-status", "short", log.WriteOpts{
+		Tokens: 1000, // Override regardless of message length
+	}, nowFunc(), fs)
+	g.Expect(err).ToNot(HaveOccurred())
+
+	content, err := fs.ReadFile(filepath.Join("testdir", log.LogFile))
+	g.Expect(err).ToNot(HaveOccurred())
+
+	if len(content) < 1 {
+		t.Fatal("expected non-empty content")
+	}
+
+	var entry log.Entry
+
+	err = json.Unmarshal(content[:len(content)-1], &entry)
+	g.Expect(err).ToNot(HaveOccurred())
+	g.Expect(entry.TokensEstimate).To(Equal(1000))
+}
+
+func fixedTime() time.Time {
+	return time.Date(2026, 1, 27, 12, 0, 0, 0, time.UTC)
+}
+
+func nowFunc() func() time.Time {
+	return func() time.Time { return fixedTime() }
 }
