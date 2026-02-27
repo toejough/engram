@@ -14,93 +14,95 @@ A diamond-topology model for organizing work from use cases to implementation. D
 ## The Diamond Model
 
 ```
-        UC                   Problem space: user goals
+        UC                   L1: user goals
        / \
-    REQ   DES              Peers: invariants / interaction model
+    REQ   DES              L2: invariants + interaction model (same layer)
        \ /
-       ARCH                  Solution space: system structure
+       ARCH                  L3: system structure (converges L2)
         |
-       TEST                  Implementation: verification (TDD red)
+       TEST                  L4: verification (TDD red)
         |
-       IMPL                  Implementation: code (TDD green + refactor)
+       IMPL                  L5: code (TDD green + refactor)
 ```
 
-Six layers. The top four form a diamond; the bottom two are linear.
+Five layers. REQ and DES are peer item types at the same layer (L2), both derived from UC. ARCH converges both. The bottom two are linear.
 
 ### Layer Descriptions
 
-**UC (Use Cases)** — User goals and interaction flows. The common ancestor from which REQ and DES independently derive. Discovers scope. Format: numbered UC-N entries with actor, starting state, end state, key interactions.
+**L1: UC (Use Cases)** — User goals and interaction flows. The common ancestor from which REQ and DES independently derive. Discovers scope. Format: numbered UC-N entries with actor, starting state, end state, key interactions.
 
-**REQ (Requirements)** — Atomic, testable invariants derived from UCs. Problem space: what must be true regardless of implementation. Traces to UC. Format: numbered REQ-N entries with acceptance criteria and verification tier.
+**L2: REQ + DES (Requirements and Design)** — Two peer item types at the same layer, both derived from UC. Grouped together — a single L2 group can contain both REQ-N and DES-N items. Consistency between REQ and DES items is handled by normal layer refactoring, not a special mechanism.
 
-**DES (Design)** — Interaction model and behavioral specification. Traces to UC (not to REQ — they are peers). Two passes:
-1. *Horizontal (UX coherence):* Study all UCs as a whole. Design interaction primitives that satisfy all of them coherently — unified feedback formats, proposal patterns, communication channels. The goal: one product, not N independent features.
-2. *Vertical (behavioral specification):* Walk each UC through those primitives as concrete scenarios — case studies, mock output, edge cases. Verify the primitives satisfy the UCs. If a primitive can't satisfy a UC, fix the primitive.
+- **REQ (Requirements)** — Atomic, testable invariants. Problem space: what must be true regardless of implementation. Traces to UC. Format: numbered REQ-N entries with acceptance criteria and verification tier.
+- **DES (Design)** — Interaction model and UX specification. Traces to UC (not to REQ — they are peers). Two passes:
+  1. *Horizontal (UX coherence):* Study all UCs as a whole. Design interaction primitives that satisfy all of them coherently — unified feedback formats, proposal patterns, communication channels. The goal: one product, not N independent features.
+  2. *Vertical (behavioral specification):* Walk each UC through those primitives as concrete scenarios — case studies, mock output, edge cases. Verify the primitives satisfy the UCs. If a primitive can't satisfy a UC, fix the primitive.
 
-**ARCH (Architecture)** — System structure. The convergence point: traces to REQ (primary derivation) with correspondence to DES (must support designed interactions). Component boundaries, data model, tech decisions, behavioral contracts, interaction protocols. Must be comprehensive enough to be the sole source for tests.
+**L3: ARCH (Architecture)** — System structure. The convergence point: must satisfy REQ invariants and support DES interactions. Component boundaries, data model, tech decisions, behavioral contracts, interaction protocols. Must be comprehensive enough to be the sole source for tests.
 
-**TEST (Tests)** — TDD red phase. Three test types, all derived from ARCH (which reflects REQ + DES):
+**L4: TEST (Tests)** — TDD red phase. Three test types, all derived from ARCH (which reflects REQ + DES):
 - *Property-based tests* verify invariants (trace through ARCH back to REQ)
 - *Example-based tests* verify scenarios (trace through ARCH back to DES)
 - *Integration tests* verify component boundaries (directly from ARCH)
 
-**IMPL (Implementation)** — TDD green + refactor. Code that makes tests pass.
+**L5: IMPL (Implementation)** — TDD green + refactor. Code that makes tests pass.
 
 ### Why a Diamond, Not a Chain
 
-REQ and DES are parallel derivations from UC — neither derives from the other.
+REQ and DES are parallel derivations from UC — neither derives from the other. They coexist at the same layer because they share the same parent (UC) and the same depth.
 
 - REQ decomposes user goals into testable invariants (system-facing)
 - DES designs a coherent interaction model satisfying user goals (user-facing)
 - Both trace to UC independently; both are needed before ARCH
+- A group at L2 can contain both REQ and DES items — grouping is per-layer, not per-item-type
 
 A linear chain (UC → REQ → DES → ARCH) would imply DES derives from REQ, creating a false dependency and wrong directionality (invariants don't dictate the interaction model). The diamond captures the actual relationships.
 
 ### Derivation and Consistency
 
-| Layer | Derives from | Consistency check against |
-|-------|-------------|--------------------------|
-| REQ | UC | DES (can't contradict interaction commitments) |
-| DES | UC | REQ (can't contradict invariants) |
-| ARCH | REQ (primary) + DES (correspondence) | — |
-| TEST | ARCH (which reflects REQ + DES) | — |
-| IMPL | TEST | — |
+| Layer | Derives from | Consistency |
+|-------|-------------|-------------|
+| L2 (REQ + DES) | UC | REQ and DES items checked against each other during layer refactoring |
+| L3 (ARCH) | L2 (both REQ and DES) | — |
+| L4 (TEST) | ARCH | — |
+| L5 (IMPL) | TEST | — |
 
-REQ and DES consistency is checked after both are complete, before descending to ARCH. This is the standard layer consistency check applied between diamond peers — not a separate mechanism.
+REQ/DES consistency is not a special mechanism — it's handled by normal layer refactoring at L2. When you refactor L2, all items at that layer (both REQ and DES) are checked for mutual consistency.
 
-## Bidirectional Signal Propagation
+## Traversal Algorithm
 
-The traversal algorithm uses two flags (`dirty` and `unsatisfiable`) to propagate signals through the diamond. This section explains the rationale and diamond-specific behavior.
+The traversal walks a tree of group nodes. Each node is a group of items within a layer, with a single parent node at the layer above. Groups are independent per-layer — there is no "Group A" that flows from L1 through L5. Each layer makes its own grouping decisions.
 
-### Why Two Signals
+### The RED → GREEN → REFACTOR Cycle
 
-| Signal | Direction | Flag | Purpose |
-|--------|-----------|------|---------|
-| **Derivation staleness** | Downward | `dirty` on children | Parent revised → children may be stale |
-| **Constraint discovery** | Upward | `unsatisfiable` on parent | Child can't satisfy parent → parent must adapt |
+At every layer, for every group, the work follows this cycle:
 
-Both flags are written on the impacted node by the discoverer. The traversal algorithm (see "Depth-First Traversal") defines what happens when the cursor arrives at a flagged node.
+**1. RED (assess gaps).** Compare the current layer's content against the parent group's specification (or the core project purpose at L1). Identify what's missing — items that need to be derived, gaps in coverage, stale content.
 
-### Diamond-Specific Propagation
+**2. GREEN (derive and fill).** Derive new items and interview to fill gaps. If during this work you discover the parent group is unsatisfiable — it demands something impossible or contradictory — mark the parent node `unsatisfiable` with a clear description of the constraint, and rise back up a layer immediately. Do NOT refactor — the layer may change once an ancestor absorbs.
 
-UC fans out: a UC change dirties both REQ and DES nodes. REQ or DES changes dirty ARCH nodes. ARCH dirties TEST. TEST dirties IMPL.
+**3. REFACTOR (whole layer).** Refactor the ENTIRE layer, not just the active group:
+- Whole-layer consistency check across all groups at this layer
+- At L2: REQ and DES items checked against each other (normal consistency, not a special mechanism)
+- Bidirectional satisfaction: does this layer satisfy exactly the layer above?
+- Ubiquitous language: same terms for same concepts across all layers
+- Surface lessons learned
+- If content of any group changes, dirty-mark its child nodes
 
-ARCH has two parents (REQ and DES groups). If ARCH can't satisfy a REQ, it marks the REQ group node `unsatisfiable`. If ARCH can't support a DES decision, it marks the DES group node `unsatisfiable`. These are independent upward paths.
+**4. (RE)GROUP.** Group items from the whole layer. Refactoring may have changed content enough to disrupt prior groupings. Present 2-3 grouping options with tradeoffs. Recommend one. User chooses.
 
-### Absorption-First Rule
+**5. DESCEND.** Pick the next incomplete group and descend to the next layer. Start the RED → GREEN → REFACTOR cycle there.
 
-Each node tries to absorb constraints locally before escalating. Most constraints resolve one layer up. Only fundamental impossibilities cascade. If propagation reaches UC and the use case is unsatisfiable, that's a scope cut — remove or revise the UC.
+Navigation when descending:
+- **Incomplete child groups exist:** Pick the next priority incomplete child and descend.
+- **No incomplete children:** Move to the next priority sibling group at this layer.
+- **No incomplete siblings:** Backtrack up to the parent and repeat the search.
 
-The escalation path: rise until something absorbs. Only refactor at the absorption point. Everything below gets dirtied from there. Everything above is untouched.
+### Groups Are Per-Layer
 
-**Examples:**
-- IMPL: "Hook model is synchronous" → marks ARCH node `unsatisfiable`. ARCH absorbs (revises to sync pipeline), dirties TEST and IMPL. Done.
-- IMPL: "Can't inject multiple reminders per hook" → ARCH can't absorb → marks DES node `unsatisfiable`. DES absorbs (feedback at next hook point), dirties ARCH. Done.
-- TEST: "Property X is computationally infeasible" → ARCH can't absorb → marks REQ node `unsatisfiable`. REQ absorbs (weakens invariant), dirties ARCH. Done.
+Every time you derive items at a new layer, you make a fresh grouping decision. A UC group (L1A) spawns L2 items. Those L2 items are grouped independently — the groups at L2 are whatever makes sense for L2's content. An L2 group's parent is the L1 group it was derived from, but L2A is NOT "the L2 portion of Group A." It's its own grouping decision.
 
-## Depth-First Traversal
-
-The traversal walks a tree of nodes depth-first, top-to-bottom, left-to-right. Each node is a group of items within a layer. The flags on each node determine what happens when the cursor arrives.
+A single L2 group can contain both REQ and DES items. Grouping is by dependency, domain, complexity, or risk — not by item type.
 
 ### Node States and Flags
 
@@ -113,70 +115,53 @@ Two flags can be set on a node by other nodes:
 
 Flags are written ON the impacted node BY whatever discovers the issue. No node reads another node's state to decide what to do — when the cursor arrives, everything it needs is on the node itself.
 
-### Algorithm
+### Handling Flags on Arrival
 
-The cursor visits nodes depth-first. On arrival at any node, check its state:
+When the cursor arrives at a node with flags, handle before normal work:
 
-**1. Node is `unsatisfiable`:**
+**Node is `unsatisfiable`:**
 - Try to absorb the constraint locally (revise this node's items).
-- **If absorbed:** Clear the flag. Refactor the whole layer. Dirty affected child nodes.
-- **If can't absorb:** Mark this node's parent `unsatisfiable` with the constraint. Rise to the parent immediately. Do NOT refactor this layer — it may change once an ancestor absorbs.
+- **If absorbed:** Clear the flag. Run the REFACTOR step for the whole layer. Dirty affected child nodes.
+- **If can't absorb:** Mark this node's parent `unsatisfiable` with the constraint. Rise immediately. Do NOT refactor — it may change once an ancestor absorbs.
 
-**2. Node is `dirty`:**
+**Node is `dirty`:**
 - Re-validate against the parent node.
 - **If still valid:** Clear the flag.
-- **If changed:** Clear the flag, apply changes. Refactor the whole layer. Dirty affected child nodes.
+- **If changed:** Clear the flag, apply changes. Run the REFACTOR step for the whole layer. Dirty affected child nodes.
 
-**3. Node is `pending`:**
-- Normal work: derive items at this layer, then group and prioritize.
-- **Grouping:** Present 2-3 ways to cluster items (by dependency, domain, complexity, risk) with tradeoffs. Recommend one. This recurs at every layer — never silently pick a grouping.
-- **Priority ordering:** Recommend which group to take first and why. The user chooses.
+**Node is `complete` + clean:**
+- Skip. Move to the next node per navigation rules.
 
-**4. Node is `complete` + clean:**
-- Skip. Move to the next node in depth-first order.
+### Absorption-First Rule
 
-### Refactoring
+Each node tries to absorb constraints locally before escalating. Most constraints resolve one layer up. Only fundamental impossibilities cascade. If propagation reaches UC and the use case is unsatisfiable, that's a scope cut — remove or revise the UC.
 
-Triggered by **any change** to a layer (absorption, re-derivation, or initial completion of work). Scope: the ENTIRE layer, not just the active group.
+The escalation path: rise until something absorbs. Only refactor at the absorption point. Everything below gets dirtied from there. Everything above is untouched.
 
-- Validate dirty nodes against refactored parents (clear if still valid, re-derive if not)
-- Whole-layer consistency check across all nodes at this layer
-- Bidirectional satisfaction: does this layer satisfy exactly the layer above?
-- For diamond peers (L2 ⟷ L3): cross-check consistency
-- Ubiquitous language: same terms for same concepts across all layers
-- Surface lessons learned
-- Dirty-mark child nodes of anything that changed
+**Examples:**
+- IMPL: "Hook model is synchronous" → marks ARCH node `unsatisfiable`. ARCH absorbs (revises to sync pipeline), dirties TEST and IMPL. Done.
+- IMPL: "Can't inject multiple reminders per hook" → ARCH can't absorb → marks L2 group `unsatisfiable`. DES item revised (feedback at next hook point), L2 refactored, dirties ARCH. Done.
+- TEST: "Property X is computationally infeasible" → ARCH can't absorb → marks L2 group `unsatisfiable`. REQ item revised (weakens invariant), L2 refactored, dirties ARCH. Done.
 
-### Descend and Backtrack
+### Diamond-Specific Propagation
 
-After completing work at a node (and refactoring if anything changed):
-1. **Descend** into the first pending/dirty child node.
-2. **On child completion:** The child marks this node `unsatisfiable` if it discovered a constraint. Cursor returns to this node, which processes its own flags per the algorithm above.
-3. **After processing flags:** Move to the next pending/dirty sibling (left-to-right).
-4. **When all children are complete and clean:** This node completes. Pop up to its parent.
+UC fans out: a UC change dirties L2 groups derived from it (which contain both REQ and DES items). L2 changes dirty ARCH groups. ARCH dirties TEST. TEST dirties IMPL.
+
+ARCH's parent is an L2 group (which contains both REQ and DES items). If ARCH can't satisfy the group, it marks that L2 group `unsatisfiable` — the L2 group then figures out whether the issue is a REQ item, a DES item, or both.
 
 ### Final Sweep
 
 After the entire tree is complete, walk depth-first to resolve any orphaned dirty flags. Expected: all clean (safety net only).
 
-### Process Ordering Through the Diamond
-
-REQ and DES can be done in either order after UC (both derive from UC). ARCH requires both. Typical flow per group:
-
-```
-UC (discover) → REQ (decompose) → DES (design) → REQ⟷DES check →
-ARCH (converge) → TEST (TDD red) → IMPL (TDD green + refactor)
-```
-
 ## Alignment Mechanisms
 
 1. **Ubiquitous language.** Same terms across all layers. If UC says "reconciliation," code has `reconcile()`. Grep-able when terminology changes at any layer.
 
-2. **Bidirectional traceability.** Each layer traces to its immediate parent(s). Parent covered by at least one child. In the diamond: REQ and DES trace to UC; ARCH traces to REQ and DES. If ARCH only makes sense by referencing UC directly, there's a missing REQ or DES entry.
+2. **Bidirectional traceability.** Each layer traces to its immediate parent(s). Parent covered by at least one child. REQ and DES trace to UC; ARCH traces to L2 (which contains both REQ and DES). If ARCH only makes sense by referencing UC directly, there's a missing REQ or DES entry.
 
-3. **Peer consistency.** REQ and DES checked against each other after both complete (standard consistency check applied between diamond peers).
+3. **Layer refactoring as consistency enforcement.** REQ/DES consistency, bidirectional satisfaction, and ubiquitous language are all checked during the REFACTOR step — a single mechanism applied uniformly at every layer, not special-case checks.
 
-4. **Flag-based propagation.** `dirty` (downward staleness) and `unsatisfiable` (upward constraints) flags are written on the impacted node. The traversal algorithm processes them on arrival. UC fans out; ARCH has two independent upward paths.
+4. **Flag-based propagation.** `dirty` (downward staleness) and `unsatisfiable` (upward constraints) flags are written on the impacted node. The traversal algorithm processes them on arrival. UC fans out; ARCH has one upward path to L2.
 
 ## Applying to a Project
 
@@ -192,13 +177,12 @@ Skip for: single-file fixes, clear requirements with known implementation, proto
 
 ### Getting Started
 
-1. **Write UCs.** Interview or discover use cases.
-2. **Group and prioritize.** Present 2-3 grouping options with tradeoffs. Recommend one. User chooses grouping and priority order.
-3. **Pick a group.** Take it through all layers before backtracking for the next.
-4. **Derive REQ and DES from UC** (either order). Check peer consistency.
-5. **Converge at ARCH.** Must satisfy REQ + support DES.
-6. **TDD.** Tests from ARCH, code to pass them.
-7. **Backtrack** for the next group.
+1. **Write UCs.** Interview or discover use cases. Refactor and group at L1.
+2. **Pick a group.** Descend to L2.
+3. **RED/GREEN/REFACTOR at L2.** Derive REQ and DES items from the parent UC group. Refactor the whole layer. Group L2 items (groups can mix REQ and DES).
+4. **Pick an L2 group, descend to ARCH.** Repeat the cycle.
+5. **Continue through TEST and IMPL.**
+6. **Backtrack** for the next incomplete group at any layer.
 
 ### State Persistence
 
@@ -208,13 +192,13 @@ The file has four sections:
 
 **`[project]`** — Project name and skill reference.
 
-**`[layers.L1]` through `[layers.L6]`** — Flat registry of all discovered items per layer. L1=UC, L2=REQ, L3=DES, L4=ARCH, L5=TEST, L6=IMPL. Items are added as they're derived.
+**`[layers.L1]` through `[layers.L5]`** — Flat registry of all discovered items per layer. L1=UC, L2=REQ+DES, L3=ARCH, L4=TEST, L5=IMPL. Items are added as they're derived.
 
-**`[tree.<node>]`** — Nodes are groups within layers. Each node has: `layer`, `parent` (the parent group node, omitted for root nodes), `items` (member IDs), `status` (pending/in_progress/refactoring/complete), `history` (what happened at this node and why). Optional flags: `dirty` (source reference string) and `unsatisfiable` (constraint string). Omit flags when clean.
+**`[tree.<node>]`** — Nodes are groups within layers. Each node has: `layer`, `parent` (the parent group node, omitted for root nodes), `items` (member IDs — can mix item types at L2), `status` (pending/in_progress/refactoring/complete), `history` (what happened at this node and why). Optional flags: `dirty` (source reference string) and `unsatisfiable` (constraint string). Omit flags when clean.
 
-Node naming: `L{layer}{letter}` — e.g., L1A, L2A, L3B. Layer number prevents false equivalence across layers. Groups at L2 are independent from groups at L1.
+Node naming: `L{layer}{letter}` — e.g., L1A, L2A, L3B. Layer number prevents false equivalence across layers. Groups at L2 are independent from groups at L1. A group is a per-layer decision, not a label that flows through layers.
 
-**`[cursor]`** — Current position: `node`, `mode` (descend/work/refactor/backtrack), `next_action` (concrete enough for a fresh session to start immediately), `context_files`.
+**`[cursor]`** — Current position: `node`, `mode` (work/refactor/backtrack), `next_action` (concrete enough for a fresh session to start immediately), `context_files`.
 
 Example:
 
@@ -227,7 +211,7 @@ skill = "specification-layers"
 items = ["UC-1", "UC-2", "UC-3"]
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3"]
+items = ["REQ-1", "REQ-2", "REQ-3", "DES-1", "DES-2"]
 
 [layers.L3]
 items = []
@@ -246,15 +230,22 @@ status = "pending"
 [tree.L2A]
 layer = "L2"
 parent = "L1A"
-items = ["REQ-1", "REQ-2", "REQ-3"]
+items = ["REQ-1", "REQ-2", "DES-1"]
 status = "complete"
 dirty = "L1A revised UC-1 scope"
-history = "Derived from UC-1 and UC-2."
+history = "Core invariants and interaction model. REQ-1/REQ-2 for storage guarantees, DES-1 for surfacing UX."
+
+[tree.L2B]
+layer = "L2"
+parent = "L1A"
+items = ["REQ-3", "DES-2"]
+status = "pending"
+history = "Evaluation requirements and feedback design."
 
 [cursor]
 node = "L2A"
 mode = "work"
-next_action = "Re-validate REQ-1 through REQ-3 against revised UC-1"
+next_action = "Re-validate REQ-1, REQ-2, DES-1 against revised UC-1"
 context_files = ["docs/use-cases.md", "docs/requirements.md"]
 ```
 
