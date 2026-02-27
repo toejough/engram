@@ -22,13 +22,13 @@ This prompt does not survive session boundaries. The ONLY things that persist ar
 ## Active Work: Memory System Rebuild
 
 When user says "continue", "resume", or similar without other context:
-1. Read `docs/rebuild/state.md` for current phase and next action
-2. Read `docs/rebuild/prompt.md` for full process instructions (especially the current phase section)
+1. Read `docs/state.md` for current phase and next action
+2. Read `docs/prompt.md` for full process instructions (especially the current phase section)
 3. Resume from the "Next Action" in state.md — do NOT ask "what would you like to work on?"
 4. Announce what phase you're in and what you're about to do
 
 Before ending any rebuild session or when user says "stop", "/exit", "/clear":
-1. Update `docs/rebuild/state.md` with: current phase, specific next action, context files, and session summary
+1. Update `docs/state.md` with: current phase, specific next action, context files, and session summary
 2. The next action must be concrete enough that a fresh session can start immediately without asking questions
 ```
 
@@ -39,15 +39,15 @@ If it's not there, add it. This is the anchor that makes "continue" work across 
 This work is organized as a state machine. You will progress through phases, and you may be interrupted at any point by /clear, /compact, or /exit. You must be able to resume from a "continue" message.
 
 **Phases:**
-1. LESSONS — Extract lessons from existing systems, produce `docs/rebuild/lessons.md`
-2. USE CASES — Interview the user to discover and document all use cases, produce `docs/rebuild/use-cases.md`
-3. REQUIREMENTS — Produce requirements with traceable IDs, produce `docs/rebuild/requirements.md`
-4. DESIGN — Interaction design: how users invoke the plugin, what they see, what hooks fire, how CLAUDE.md is managed. Includes CLI output mocks, hook interaction flows, skill interaction transcripts, and case study walkthroughs. Produce `docs/rebuild/design.md`
-5. ARCHITECTURE — System architecture: component boundaries, data flow, plugin structure, TF-IDF integration, hook design. Each decision traceable to requirements. Produce `docs/rebuild/architecture.md`
+1. LESSONS — Extract lessons from existing systems, produce `docs/lessons.md`
+2. USE CASES — Interview the user to discover and document all use cases, produce `docs/use-cases.md`
+3. REQUIREMENTS — Produce requirements with traceable IDs, produce `docs/requirements.md`
+4. DESIGN — Interaction design: how users invoke the plugin, what they see, what hooks fire, how CLAUDE.md is managed. Includes CLI output mocks, hook interaction flows, skill interaction transcripts, and case study walkthroughs. Produce `docs/design.md`
+5. ARCHITECTURE — System architecture: component boundaries, data flow, plugin structure, TF-IDF integration, hook design. Each decision traceable to requirements. Produce `docs/architecture.md`
 
 Design before architecture — you need to know how people interact with the system before deciding how to build it.
 
-**Persistence rule (write-ahead, not write-on-exit):** After every substantive interaction (phase transition, decision validated, interview question answered, understanding changed), immediately update `docs/rebuild/state.md`. Do NOT defer to session end — the session can die at any time (/exit, /clear, crash) and you will NOT get a chance to save. state.md must always reflect the current state. This file MUST contain:
+**Persistence rule (write-ahead, not write-on-exit):** After every substantive interaction (phase transition, decision validated, interview question answered, understanding changed), immediately update `docs/state.md`. Do NOT defer to session end — the session can die at any time (/exit, /clear, crash) and you will NOT get a chance to save. state.md must always reflect the current state. This file MUST contain:
 - **Current phase** — which phase and substep
 - **Next action** — specific enough that a fresh session with NO context can start immediately. Not "Phase 2 starting" but "Present seed use case categories and ask which apply." If mid-interview, include the last question asked and answer received.
 - **Context files** — which files to read to understand current state
@@ -56,7 +56,7 @@ Design before architecture — you need to know how people interact with the sys
 - **Open questions** — anything unresolved
 - **Artifacts produced** — with file paths
 
-When you receive "continue" as your first message, read `docs/rebuild/state.md` and `docs/rebuild/prompt.md`, then resume from the next action. Announce what phase you're in and what you're about to do. Do NOT ask what the user wants to work on.
+When you receive "continue" as your first message, read `docs/state.md` and `docs/prompt.md`, then resume from the next action. Announce what phase you're in and what you're about to do. Do NOT ask what the user wants to work on.
 
 **Lesson discovery:** Lessons don't only emerge in Phase 1. During every phase, actively check whether your current work reveals new lessons:
 - A design decision that contradicts or extends an existing lesson
@@ -64,20 +64,20 @@ When you receive "continue" as your first message, read `docs/rebuild/state.md` 
 - A user correction that exposes a blind spot in the existing lessons
 - An architecture trade-off that surfaces a new constraint
 
-When you discover a new lesson, append it to `docs/rebuild/lessons.md` immediately and note which phase surfaced it. Process and coordination lessons are equally important as technical lessons — do not merge them into technical principles or drop them.
+When you discover a new lesson, append it to `docs/lessons.md` immediately and note which phase surfaced it. Process and coordination lessons are equally important as technical lessons — do not merge them into technical principles or drop them.
 
 **Phase exit criteria:**
-- LESSONS: A `docs/rebuild/lessons.md` file exists capturing distilled lessons from existing systems, validated by the user. This is a living artifact — append new lessons as they emerge in later phases.
-- USE CASES: A `docs/rebuild/use-cases.md` file exists with numbered use cases, each validated by the user.
-- REQUIREMENTS: A `docs/rebuild/requirements.md` file exists with REQ-N IDs, each traceable to one or more use cases.
-- DESIGN: A `docs/rebuild/design.md` file exists with case study walkthroughs, hook interaction flows, CLAUDE.md management UX, skill interaction transcripts, and error/edge case interactions for each use case that involves user interaction. Validated by the user.
-- ARCHITECTURE: A `docs/rebuild/architecture.md` file exists with ARCH-N decisions, each traceable to requirements. Includes plugin structure, TF-IDF integration plan, and data model.
+- LESSONS: A `docs/lessons.md` file exists capturing distilled lessons from existing systems, validated by the user. This is a living artifact — append new lessons as they emerge in later phases.
+- USE CASES: A `docs/use-cases.md` file exists with numbered use cases, each validated by the user.
+- REQUIREMENTS: A `docs/requirements.md` file exists with REQ-N IDs, each traceable to one or more use cases.
+- DESIGN: A `docs/design.md` file exists with case study walkthroughs, hook interaction flows, CLAUDE.md management UX, skill interaction transcripts, and error/edge case interactions for each use case that involves user interaction. Validated by the user.
+- ARCHITECTURE: A `docs/architecture.md` file exists with ARCH-N decisions, each traceable to requirements. Includes plugin structure, TF-IDF integration plan, and data model.
 
 ---
 
 ## Lessons From Existing Systems
 
-These are hard-won lessons from building projctl (15+ features across memory, skills, speckit, orchestration, traceability) and traced (spec-driven development tool). Read these before doing anything. Append new lessons to `docs/rebuild/lessons.md` as they emerge.
+These are hard-won lessons from building projctl (15+ features across memory, skills, speckit, orchestration, traceability) and traced (spec-driven development tool). Read these before doing anything. Append new lessons to `docs/lessons.md` as they emerge.
 
 ### What worked
 
@@ -164,7 +164,7 @@ Read these files to understand the full history and nuance:
 - `docs/plans/2026-02-20-continuous-evaluation-memory-design.md` — Evaluation pipeline vision: surfacing_events table, Haiku filter, importance x impact matrix, leech diagnosis, RAGAS-adapted metrics, ACT-R enhancements
 - `.research-synthesis.md` — Comprehensive tier system research: what each tier optimizes for, current vs ideal state, model selection strategy, content quality recommendations
 - `~/repos/personal/traced/internal/tfidf/tfidf.go` — Pure Go TF-IDF reference implementation (~300 lines): Index, TopK, Tokenize, cosine similarity. No dependencies beyond stdlib. This is the pattern to follow.
-- `~/repos/personal/traced/docs/rebuild/prompt.md` — This prompt's structural template. The traced rebuild prompt follows the same 5-phase state machine pattern.
+- `~/repos/personal/traced/docs/prompt.md` — This prompt's structural template. The traced rebuild prompt follows the same 5-phase state machine pattern.
 - `skills/` directory — Skill architecture patterns: CONTRACT.md (YAML contracts with outputs/traces_to/checks), INTERVIEW-PATTERN.md (adaptive gap assessment), PRODUCER-TEMPLATE.md (GATHER->SYNTHESIZE->CLASSIFY->PRODUCE), project/SKILL.md (state-machine orchestration with team coordination)
 - `specs/015-continuous-eval-memory/` — Current feature spec, plan, data model, and contracts for the continuous evaluation pipeline that was in progress when the rebuild was decided
 
@@ -172,7 +172,7 @@ Read these files to understand the full history and nuance:
 
 ## Phase 1: Lessons
 
-Extract and validate lessons from the existing codebase and research documents. Read the source material above. Produce `docs/rebuild/lessons.md` capturing:
+Extract and validate lessons from the existing codebase and research documents. Read the source material above. Produce `docs/lessons.md` capturing:
 
 - What worked (with evidence from the codebase)
 - What failed (with specific examples and root causes)
@@ -213,7 +213,7 @@ Interview the user to discover all situations in which this memory system will b
 - For each confirmed use case, ask enough questions to fill the template above
 - After all use cases are captured, present the full list for validation
 - Ask: "Is anything missing? Any of these wrong?"
-- Write validated use cases to `docs/rebuild/use-cases.md`
+- Write validated use cases to `docs/use-cases.md`
 
 ---
 
@@ -228,7 +228,7 @@ Transform validated use cases into traceable requirements.
 - Acceptance criteria (how do you know it's satisfied)
 - Verification tier (deterministic / TF-IDF / haiku / sonnet / opus) — the cheapest tier that can confirm this requirement
 
-**Per-requirement checklist (apply to each REQ-N; see lessons #15-22 in `docs/rebuild/lessons.md` for full context):**
+**Per-requirement checklist (apply to each REQ-N; see lessons #15-22 in `docs/lessons.md` for full context):**
 - [ ] Could this be satisfied by a no-op or disconnected function? → Rewrite to demand end-to-end wiring (#16)
 - [ ] Are definitions using labels or observable conditions? → Replace labels with testable mechanisms (#15)
 - [ ] Does the UC text explicitly support this requirement? → If the UC is ambiguous, fix the UC first, then derive (#17)
@@ -244,7 +244,7 @@ Transform validated use cases into traceable requirements.
 - For each requirement, determine the cheapest verification tier that can confirm it
 - Apply the per-requirement checklist above before presenting each group
 - Present requirements to the user grouped by domain, one group at a time
-- After all groups validated, write to `docs/rebuild/requirements.md`
+- After all groups validated, write to `docs/requirements.md`
 - Cross-check: every UC-N must be referenced by at least one REQ-N. Every REQ-N must reference at least one UC-N. Report any gaps.
 
 ---
@@ -271,7 +271,7 @@ This is the most important phase. Design how users interact with the system befo
 - The user should never *need* to understand ACT-R activation or TF-IDF scoring to use the system — but the math should be accessible on demand. Default to surfacing the insight; show the scores, weights, and reasoning when the user asks or when diagnostic commands are run.
 - Hook latency budget: deterministic operations < 50ms, TF-IDF < 200ms, LLM calls only when the value clearly exceeds the cost.
 
-**Present each case study to the user for validation before moving to the next.** After all case studies are validated, write to `docs/rebuild/design.md`.
+**Present each case study to the user for validation before moving to the next.** After all case studies are validated, write to `docs/design.md`.
 
 **Cross-check:** Every design entry must trace to at least one REQ-N. If a design entry doesn't trace upward, either propose a new requirement to justify it or cut the design entry. Every REQ-N that involves user interaction must be addressed by at least one design entry. Report gaps in both directions.
 
@@ -304,7 +304,7 @@ Design the system that implements the validated design.
 
 **Process:**
 - Present decisions one at a time with alternatives and your recommendation
-- After all decisions validated, write to `docs/rebuild/architecture.md`
+- After all decisions validated, write to `docs/architecture.md`
 - **Bidirectional cross-check:** Every ARCH-N must trace to at least one REQ-N. If an architecture decision doesn't trace upward, either propose a new requirement to justify it or cut the decision. Every REQ-N that involves a technology choice, component boundary, or data model decision must be addressed by at least one ARCH-N. Report gaps in both directions. Requirements that map directly to implementation without needing an architecture decision may legitimately have no ARCH-N — only flag gaps where a decision is genuinely needed.
 
 ---
@@ -314,9 +314,9 @@ Design the system that implements the validated design.
 These apply across all phases.
 
 **Progress persistence:**
-- Update `docs/rebuild/state.md` after completing each phase and after any significant decision
+- Update `docs/state.md` after completing each phase and after any significant decision
 - When you receive "continue", read `state.md`, announce your phase and next step, and resume
-- Append new lessons to `docs/rebuild/lessons.md` whenever you discover something that should inform future phases
+- Append new lessons to `docs/lessons.md` whenever you discover something that should inform future phases
 
 **Interaction style:**
 - One question at a time

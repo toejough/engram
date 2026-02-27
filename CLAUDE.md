@@ -5,18 +5,18 @@ This repo is being rebuilt from scratch as a Claude Code plugin for self-correct
 ## Active Work
 
 When user says "continue", "resume", or similar without other context:
-1. Read `docs/rebuild/state.md` for current phase and next action
-2. Read `docs/rebuild/prompt.md` for full process instructions
+1. Read `docs/state.md` for current phase and next action
+2. Read `docs/prompt.md` for full process instructions
 3. Resume from the "Next Action" in state.md — do NOT ask "what would you like to work on?"
 4. Announce what phase you're in and what you're about to do
 
 State persistence (belt and suspenders):
-- **Write-ahead (primary):** After each substantive rebuild interaction (phase transition, decision made, interview question answered), update `docs/rebuild/state.md` with current phase, specific next action, context files, and session summary. The next action must be concrete enough that a fresh session can start immediately.
+- **Write-ahead (primary):** After each substantive rebuild interaction (phase transition, decision made, interview question answered), update `docs/state.md` with current phase, specific next action, context files, and session summary. The next action must be concrete enough that a fresh session can start immediately.
 - **Stop hook (safety net):** A Stop agent hook in `.claude/settings.local.json` infers the current phase from artifact file existence and updates state.md if it's stale.
 
 ## Process: Depth-First Vertical
 
-See `docs/rebuild/state.md` for the full process description. Key points:
+See `docs/state.md` for the full process description. Key points:
 - Group and prioritize at every layer (UC → REQ → DES/ARCH → Tests → Impl)
 - Refactor the ENTIRE current layer before descending
 - Dirty-mark descendants of changed nodes; resolve on visit
