@@ -8,13 +8,13 @@ skill = "specification-layers"
 items = ["UC-1", "UC-2", "UC-3", "UC-4", "UC-5", "UC-6", "UC-7", "UC-8", "UC-9", "UC-10", "UC-11", "UC-12", "UC-13", "UC-14"]
 
 [layers.L2] # REQ + DES
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "REQ-21"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "REQ-21", "REQ-22", "DES-1", "DES-2", "DES-3", "DES-4", "DES-5", "DES-6", "DES-7", "DES-8"]
 
 [layers.L3] # ARCH
-items = []
+items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8", "ARCH-9"]
 
 [layers.L4] # TEST
-items = []
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43"]
 
 [layers.L5] # IMPL
 items = []
@@ -48,21 +48,51 @@ history = "Infrastructure. Mostly independent."
 [tree.L2A]
 layer = "L2"
 parent = "L1A"
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-5", "REQ-6", "REQ-13", "REQ-14", "REQ-15", "REQ-18", "REQ-22", "DES-3", "DES-5", "DES-6", "DES-7", "DES-8"]
 status = "in_progress"
-history = "REQ-1 through REQ-18 validated and refactored. TF-IDF replaced with local similarity. REQ-4 expanded to full ranking behavior absorbing misplaced ACs from REQ-7. Cross-references unified. DES items not yet derived — layer incomplete."
+history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing. Regrouped from data-flow analysis. Priority 1 — write before read enables real UAT. L3A child created with 9 ARCH decisions."
 
 [tree.L2B]
+layer = "L2"
+parent = "L1A"
+items = ["REQ-4", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "DES-1", "DES-2"]
+status = "pending"
+history = "Read Path: ranking, per-hook retrieval, surfacing format, display. Priority 2 — builds on write path architecture."
+
+[tree.L2C]
+layer = "L2"
+parent = "L1A"
+items = ["REQ-16", "REQ-17", "DES-4"]
+status = "pending"
+history = "Feedback Loop: reclassification on correction, correction feedback, coexistence design. Priority 3 — bridges read and write."
+
+[tree.L2D]
 layer = "L2"
 parent = "L1C"
 items = ["REQ-19", "REQ-20", "REQ-21"]
 status = "pending"
 history = "Skill promotion requirements (UC-4). Written but not yet reviewed or refactored."
 
+[tree.L3A]
+layer = "L3"
+parent = "L2A"
+items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8", "ARCH-9"]
+status = "complete"
+history = "Write Path architecture. 9 ARCH decisions derived. Refactored: inter-ARCH consistency verified, bidirectional traceability clean, ubiquitous language aligned. Regrouped: kept as single group (9 items tightly coupled)."
+
+# Cursor
+
+[tree.L4A]
+layer = "L4"
+parent = "L3A"
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43"]
+status = "complete"
+history = "43 test specs written as Go test stubs across 7 packages: store (9), extract (9), correct (8), reconcile (5), catchup (4), audit (3), wiring+hooks (5). All compile. Bidirectional traceability verified. Single group — tests are tightly coupled to ARCH decisions. No REFACTOR issues found (consistent naming, package structure matches ARCH boundaries)."
+
 # Cursor
 
 [cursor]
-node = "L2A"
+node = "L4A"
 mode = "work"
-next_action = "RED phase at L2 for L1A (UC-1, UC-2, UC-3): assess DES gaps. REQ items are complete. DES items not yet derived. Run horizontal pass first — design unified interaction primitives across UC-1, UC-2, UC-3 (feedback formats, proposal patterns, communication channels). Then derive DES-N items through vertical pass (per-UC scenarios). After DES items exist, REFACTOR whole L2 layer (REQ/DES consistency), then REGROUP."
-context_files = ["docs/use-cases.md", "docs/requirements.md"]
+next_action = "DESCEND to L5 (IMPL) for L4A. TDD GREEN phase: implement code to make tests pass, one package at a time. Order: (1) audit — simplest, no deps, (2) store — foundation, (3) reconcile — shared component needs store, (4) corpus — pattern matching, (5) extract — uses all above, (6) correct — uses reconcile+corpus+store, (7) catchup — uses reconcile+corpus, (8) wiring — constructors, (9) hooks — shell scripts. For each package: implement types+interfaces, then make tests green, then refactor."
+context_files = ["docs/architecture.md", "docs/tests.md"]

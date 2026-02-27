@@ -240,6 +240,17 @@ When a skill is created from a memory, a CLAUDE.md pointer (a one-liner referenc
 
 ---
 
+## Auditability (UC-1, UC-2, UC-3)
+
+**REQ-22: All memory operations produce structured audit log entries.**
+Every memory operation (extraction, correction capture, surfacing, reclassification) must produce a structured log entry with timestamp, operation type, action, and operation-specific fields. The log is append-only, stored on disk, and is the system's record of its own decisions.
+
+- Traces to: UC-1, UC-2, UC-3
+- AC: (1) Every `extract`, `correct`, `surface`, and `reclass` operation writes a log entry. (2) Each entry includes RFC 3339 timestamp, operation, action, and relevant IDs. (3) Log is append-only and persists across sessions. (4) Rejected and skipped operations are logged with reasons.
+- Verification: deterministic (log entries present after operations)
+
+---
+
 ## Remaining Extraction
 
 Requirements for UC-5 through UC-14 have not yet been extracted. These will be addressed when their respective UC groups (B, C, D) become active.
