@@ -1,5 +1,5 @@
 [project]
-name = "projctl"
+name = "engram"
 skill = "specification-layers"
 
 # Layer registries: all discovered items per layer

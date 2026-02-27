@@ -1,8 +1,8 @@
 # Binaries
-/projctl
+/engram
 
 # Project state and context
-.projctl/
+.engram/
 context/
 context.test
 /state.toml

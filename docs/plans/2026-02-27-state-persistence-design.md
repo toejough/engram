@@ -14,7 +14,7 @@ TOML at `docs/state.toml`. Committed to git. Structured, parseable, clear header
 
 ```toml
 [project]
-name = "projctl"
+name = "engram"
 skill = "specification-layers"
 ```
 

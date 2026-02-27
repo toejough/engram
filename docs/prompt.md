@@ -4,7 +4,7 @@ You are rebuilding a memory management system from the ground up. The system's p
 
 This means actively proposing improvements to the agent's environment — suggesting updates to skills, CLAUDE.md files, hooks, rules, and deterministic tooling based on measured effectiveness. The system doesn't just retrieve memories; it identifies what's working, what's failing, and what should change.
 
-This replaces the existing projctl memory system — a Go library with ONNX embeddings, SQLite storage, and a 3-tier architecture (embeddings, skills, CLAUDE.md). The existing system has sophisticated plumbing for moving content between tiers but fails to measure whether surfaced memories actually help. You are designing one unified system that fixes the fundamental problems while preserving what worked.
+This replaces the old projctl memory system — a Go library with ONNX embeddings, SQLite storage, and a 3-tier architecture (embeddings, skills, CLAUDE.md). The existing system has sophisticated plumbing for moving content between tiers but fails to measure whether surfaced memories actually help. You are designing one unified system that fixes the fundamental problems while preserving what worked.
 
 **The core thesis:** Content quality matters more than mechanical sophistication. A memory surfaced 100 times and ignored every time looks identical to one surfaced 100 times and followed every time. The rebuild tracks impact — not just frequency — and uses that signal to self-correct.
 
@@ -69,7 +69,7 @@ When you discover a new lesson, append it to `docs/lessons.md` immediately and n
 
 ## Lessons From Existing Systems
 
-These are hard-won lessons from building projctl (15+ features across memory, skills, speckit, orchestration, traceability) and traced (spec-driven development tool). Read these before doing anything. Append new lessons to `docs/lessons.md` as they emerge.
+These are hard-won lessons from building the old projctl system (15+ features across memory, skills, speckit, orchestration, traceability) and traced (spec-driven development tool). Read these before doing anything. Append new lessons to `docs/lessons.md` as they emerge.
 
 ### What worked
 
@@ -122,7 +122,7 @@ Every lesson below should be evaluated against the problem statement: does it he
 
 7. **No impact tracking.** Retrieved often (importance) was tracked. Improved outcomes when retrieved (impact) was not. The entire tier movement system optimized for a single dimension — frequency — while the dimension that actually matters — effectiveness — was unmeasured.
 
-8. **Batch-only optimization.** Learning only happened when someone manually ran `projctl memory optimize`. Between optimize runs, the system accumulated noise without self-correcting. Continuous inline evaluation replaces periodic batch processing.
+8. **Batch-only optimization.** Learning only happened when someone manually ran `projctl memory optimize` (old CLI). Between optimize runs, the system accumulated noise without self-correcting. Continuous inline evaluation replaces periodic batch processing.
 
 9. **CLAUDE.md as append-only log.** Everything promoted landed in "## Promoted Learnings" as flat bullets. No section routing (commands vs gotchas vs architecture). No quality gate (is this actionable? specific? clear?). No size discipline (grew past 100-line budget repeatedly).
 

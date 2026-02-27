@@ -1,6 +1,6 @@
-# Memory System Rebuild
+# Engram
 
-This repo is being rebuilt from scratch as a Claude Code plugin for self-correcting LLM agent memory.
+Self-correcting memory for LLM agents. Measures impact, not just frequency — memories that don't improve outcomes get diagnosed and fixed.
 
 ## Active Work
 
