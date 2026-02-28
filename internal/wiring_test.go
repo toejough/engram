@@ -1,28 +1,55 @@
+//go:build integration
+
 package internal_test
 
 // Tests for ARCH-8: DI Wiring
-// Verifies no silent nil degradation — all dependencies must be provided.
-// Traces through ARCH-8 to REQ-6, CLAUDE.md DI principles
+// Integration tests — verifies no silent nil degradation.
+// Won't compile yet — RED phase.
 
-import "testing"
+import (
+	"testing"
 
-// T-39: Constructing an Extractor with nil for any required dependency
-// returns an error (not a silently degraded instance).
-// Traces: ARCH-8
+	"engram/internal/catchup"
+	"engram/internal/correct"
+	"engram/internal/extract"
+	"github.com/onsi/gomega"
+)
+
+// T-39: Constructing an Extractor with nil for any required dependency returns an error.
 func TestWiring_ExtractorHasAllDependencies(t *testing.T) {
-	t.Skip("RED: not implemented")
+	g := gomega.NewWithT(t)
+
+	_, err := extract.NewExtractor(extract.ExtractorConfig{})
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	errMsg := err.Error()
+	for _, dep := range []string{"Enricher", "Gate", "Classifier", "Reconciler", "Session", "Audit"} {
+		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
+	}
 }
 
-// T-40: Constructing a CorrectionDetector with nil for any required dependency
-// returns an error.
-// Traces: ARCH-8
+// T-40: Constructing a CorrectionDetector with nil for any required dependency returns an error.
 func TestWiring_CorrectionDetectorHasAllDependencies(t *testing.T) {
-	t.Skip("RED: not implemented")
+	g := gomega.NewWithT(t)
+
+	_, err := correct.NewDetector(correct.DetectorConfig{})
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	errMsg := err.Error()
+	for _, dep := range []string{"Corpus", "Recon", "Session", "Audit"} {
+		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
+	}
 }
 
-// T-41: Constructing a CatchupProcessor with nil for any required dependency
-// returns an error.
-// Traces: ARCH-8
+// T-41: Constructing a CatchupProcessor with nil for any required dependency returns an error.
 func TestWiring_CatchupProcessorHasAllDependencies(t *testing.T) {
-	t.Skip("RED: not implemented")
+	g := gomega.NewWithT(t)
+
+	_, err := catchup.NewProcessor(catchup.ProcessorConfig{})
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	errMsg := err.Error()
+	for _, dep := range []string{"Evaluator", "Reconciler", "Corpus", "Session", "Audit"} {
+		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
+	}
 }

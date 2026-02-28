@@ -20,9 +20,9 @@ A diamond-topology model for organizing work from use cases to implementation. D
        \ /
        ARCH                  L3: system structure (converges L2)
         |
-       TEST                  L4: verification (TDD red)
+    TEST LIST                L4: behavioral analysis (prose, PBT default)
         |
-       IMPL                  L5: code (TDD green + refactor)
+       IMPL                  L5: one-test-at-a-time TDD
 ```
 
 Five layers. REQ and DES are peer item types at the same layer (L2), both derived from UC. ARCH converges both. The bottom two are linear.
@@ -38,14 +38,110 @@ Five layers. REQ and DES are peer item types at the same layer (L2), both derive
   1. *Horizontal (UX coherence):* Study all UCs as a whole. Design interaction primitives that satisfy all of them coherently — unified feedback formats, proposal patterns, communication channels. The goal: one product, not N independent features.
   2. *Vertical (behavioral specification):* Walk each UC through those primitives as concrete scenarios — case studies, mock output, edge cases. Verify the primitives satisfy the UCs. If a primitive can't satisfy a UC, fix the primitive.
 
-**L3: ARCH (Architecture)** — System structure. The convergence point: must satisfy REQ invariants and support DES interactions. Component boundaries, data model, tech decisions, behavioral contracts, interaction protocols. Must be comprehensive enough to be the sole source for tests.
+**L3: ARCH (Architecture)** — System structure. The convergence point: must satisfy REQ invariants and support DES interactions. Component boundaries, data model, tech decisions, behavioral contracts, interaction protocols. Must be comprehensive enough to be the sole source for the test list.
 
-**L4: TEST (Tests)** — TDD red phase. Three test types, all derived from ARCH (which reflects REQ + DES):
-- *Property-based tests* verify invariants (trace through ARCH back to REQ)
-- *Example-based tests* verify scenarios (trace through ARCH back to DES)
-- *Integration tests* verify component boundaries (directly from ARCH)
+#### Verification Types
 
-**L5: IMPL (Implementation)** — TDD green + refactor. Code that makes tests pass.
+Every item that needs verification specifies its tier. Everything is testable — tiers differ in cost and run frequency:
+
+| Type | What it validates | Speed | When it runs |
+|------|------------------|-------|-------------|
+| **Unit** | Behavior — pure data in, data out | Fast | Always, no tags |
+| **Integration** | Wiring — data/action flows through actual production connections correctly. Not behavior of parts. | Slow | Tagged `integration`, only when explicitly asked |
+| **Linter** | Structure/content — code follows rules/standards. Not behavior. | Fast | During REFACTOR, always |
+| **LLM** | LLM behavior — validates that the LLM itself behaves as expected given inputs/outputs/tools. Needs a live LLM to execute. | Slow, expensive | Tagged `llm`, only when explicitly asked |
+
+Interview the user about what verification types exist in their project. Don't assume all four are needed.
+
+**L4: TEST LIST (Behavioral Analysis)** — Prose test list derived from ARCH. For each ARCH item, decompose into behavioral variants using Beck's "behavioral composition": break big behavior into pieces such that implementing and verifying those pieces implies the whole.
+
+**Format: BDD adapted for property-based testing.** Each test list entry is a series of Given/When/Then triplets. Each triplet represents one interaction boundary:
+
+- **Given** = always about setting up property-generated inputs (function args or mock response values)
+- **When** = always an external actor pushing those inputs into the function (test calling function, or mock responding)
+- **Then** = always validating the response from the function under test (function calling a mock, or function returning/panicking)
+
+**Actors are explicit** in When/Then — name who calls what. "test calls ReconcileRun," "ReconcileRun calls store.FindSimilar," "store.FindSimilar responds."
+
+**"any" means property-generated** (rapid generates it). Criteria after "any" constrain the generator or the assertion.
+
+**Default is property-based.** Example-based entries are explicitly justified (edge case, specific error condition, etc.).
+
+**Property type annotations** (optional, for clarity):
+- Round-trip, Ordering, Conservation, Idempotence, Invariant, Boundary, Equivalence
+
+**Each entry also carries:**
+- Verification type: `[unit | integration | linter | llm]`
+- ARCH trace: which ARCH item it verifies
+- I/O boundaries: which dependencies are mocked vs. wired real (relevant for mock triplets)
+
+**Example — property-based with mocks (T-27):**
+```
+T-27: Empty store creates new memory [unit, ARCH-3a]
+
+Given any Learning l, any context ctx
+When test calls ReconcileRun with (store, gate, l, ctx)
+Then ReconcileRun calls store.FindSimilar with (any ctx, matching l.Content, K > 0)
+
+Given empty results, nil error
+When store.FindSimilar responds with (empty results, nil error)
+Then ReconcileRun calls store.Create with (any ctx, non-nil Memory)
+
+Given nil error
+When store.Create responds with nil error
+Then ReconcileRun returns nil error
+```
+
+**Example — property-based, simple (T-10):**
+```
+T-10: Empty transcript produces no memories [unit, ARCH-2]
+
+Given any transcript t
+When test calls ExtractRun with (enricher, classifier, store, gate, ctx, t)
+Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+
+Given empty learnings, nil error
+When enricher.Enrich responds with (empty, nil)
+Then ExtractRun returns (nil error, any string)
+  And ExtractRun never calls classifier, store, or gate
+```
+
+**Example — example-based edge case (T-2):**
+```
+T-2: Create rejects empty confidence [unit, ARCH-1a]
+
+Given a Memory m with confidence = ""
+When test calls store.Create with (any ctx, m)
+Then store.Create returns non-nil error
+```
+
+**Example — pure implementation, no mocks (T-21):**
+```
+T-21: All 15 initial patterns match expected input [unit, ARCH-4a]
+
+Given each pattern from the initial corpus and its expected matching string
+When test calls corpus.Match with the input string
+Then corpus.Match returns a non-nil match
+```
+
+**L5: IMPL (Implementation)** — TDD with a strong preference for groups of 1 test. Rarely, a small group may make sense (e.g., tests that share setup infrastructure), but default to implementing one test at a time.
+
+For each test list entry (or small group) in priority order:
+
+1. **RED:** Write test(s) from the test list entry. They fail or don't compile. Expected FOR THE CURRENT TEST(S) ONLY — all previous tests still compile and pass.
+2. **GREEN:** Implement until they pass. If a user tool is specified for this layer, run it first — before manual/semantic analysis. All previous tests still pass.
+3. **REFACTOR:** If a user tool is specified for this layer, run it first — before manual/semantic analysis. Then do semantic consistency review. Fix everything.
+4. Next test list entry.
+
+If a test proves unsatisfiable during GREEN, mark the L4 test list node `unsatisfiable` and escalate. Don't modify the test at L5.
+
+#### Expected Failures During One-Test-at-a-Time TDD
+
+- **RED:** Current test(s) have compilation errors (references types that don't exist yet). Expected for the CURRENT TEST(S) ONLY. All previous tests compile and pass.
+- **GREEN:** Current test(s) pass. All previous tests pass.
+- **REFACTOR:** User tool passes (if specified). Semantic review complete.
+
+First test in a group has the most compilation noise (new packages, types). Diminishes rapidly.
 
 ### Why a Diamond, Not a Chain
 
@@ -60,12 +156,13 @@ A linear chain (UC → REQ → DES → ARCH) would imply DES derives from REQ, c
 
 ### Derivation and Consistency
 
-| Layer | Derives from | Consistency |
-|-------|-------------|-------------|
-| L2 (REQ + DES) | UC | REQ and DES items checked against each other during layer refactoring |
-| L3 (ARCH) | L2 (both REQ and DES) | — |
-| L4 (TEST) | ARCH | — |
-| L5 (IMPL) | TEST | — |
+| Layer | Derives from | Standards can enter | Consistency |
+|-------|-------------|-------------------|-------------|
+| L1 (UC) | Project purpose | Yes (user workflow prefs) | — |
+| L2 (REQ + DES) | UC | Yes (design language, org policies) | REQ/DES cross-checked in REFACTOR |
+| L3 (ARCH) | L2 (both REQ and DES) | Yes (tech stack, constraints) | — |
+| L4 (TEST LIST) | ARCH | Yes (testing methodology, coverage) | — |
+| L5 (IMPL) | TEST LIST | Yes (coding standards, tooling) | — |
 
 REQ/DES consistency is not a special mechanism — it's handled by normal layer refactoring at L2. When you refactor L2, all items at that layer (both REQ and DES) are checked for mutual consistency.
 
@@ -79,9 +176,9 @@ At every layer, for every group, the work follows this cycle:
 
 **1. RED (assess gaps).** Compare the current layer's content against the parent group's specification (or the core project purpose at L1). Identify what's missing — items that need to be derived, gaps in coverage, stale content.
 
-**2. GREEN (derive and fill).** Derive new items and interview to fill gaps. If during this work you discover the parent group is unsatisfiable — it demands something impossible or contradictory — mark the parent node `unsatisfiable` with a clear description of the constraint, and rise back up a layer immediately. Do NOT refactor — the layer may change once an ancestor absorbs.
+**2. GREEN (derive and fill).** Derive new items and interview to fill gaps. If a user tool is specified for this layer, run it first — before manual/semantic analysis. If during this work you discover the parent group is unsatisfiable — it demands something impossible or contradictory — mark the parent node `unsatisfiable` with a clear description of the constraint, and rise back up a layer immediately. Do NOT refactor — the layer may change once an ancestor absorbs.
 
-**3. REFACTOR (whole layer).** Refactor the ENTIRE layer, not just the active group:
+**3. REFACTOR (whole layer).** If a user tool is specified for this layer, run it first — before manual/semantic analysis. Then refactor the ENTIRE layer, not just the active group:
 - Whole-layer consistency check across all groups at this layer
 - At L2: REQ and DES items checked against each other (normal consistency, not a special mechanism)
 - Bidirectional satisfaction: does this layer satisfy exactly the layer above?
@@ -105,11 +202,39 @@ Navigation when descending:
 - **No incomplete children:** Move to the next priority sibling group at this layer.
 - **No incomplete siblings:** Backtrack up to the parent and repeat the search.
 
+### User Tools at Every Layer
+
+At each layer's GREEN and REFACTOR steps, the user may specify a command to run (e.g., `go test ./...`, `go vet`, a custom script). If a user tool is specified, run it FIRST — before any manual/semantic analysis. This applies at all layers, not just IMPL.
+
+**Discovering user tools.** When arriving at a new layer for the first time, explicitly:
+1. Research what deterministic tools might be relevant for this layer and this project's stack.
+2. Suggest options to the user (e.g., "For Go at IMPL, you might want `go test ./...` and `go vet`").
+3. Ask the user what tool(s) they want run at GREEN and REFACTOR for this layer.
+4. Record their answer in state.toml under the layer so it persists across sessions.
+
+Don't assume. Don't skip the question. Record the answer clearly even if it's "none."
+
 ### Groups Are Per-Layer
 
 Every time you derive items at a new layer, you make a fresh grouping decision. A UC group (L1A) spawns L2 items. Those L2 items are grouped independently — the groups at L2 are whatever makes sense for L2's content. An L2 group's parent is the L1 group it was derived from, but L2A is NOT "the L2 portion of Group A." It's its own grouping decision.
 
 A single L2 group can contain both REQ and DES items. Grouping is by dependency, domain, complexity, or risk — not by item type.
+
+### Layer Standards
+
+Layer standards are items at any layer that enter laterally from professional judgment, organizational defaults, or accumulated experience. They are NOT derived from the parent layer.
+
+**Key rules:**
+- Items tagged as `standard` (vs. implicit `derived`). Distinguishes purposeful injections from superfluous specs.
+- During REFACTOR: derived items must trace to parent. Standards don't — but MUST be consistent with derived items and each other. Conflicts must be resolved.
+- Standards propagate downward like any other item.
+- Items neither derived NOR marked standard = candidates for cutting (superfluous drift).
+
+**Examples by layer:**
+- L2: "Design language uses 4px corners" (DES standard), "All data ops auditable" (REQ standard from org policy)
+- L3: "Pure Go, no CGO" (tech constraint), "DI everywhere" (architecture standard), "imptest for mocking" (tooling standard)
+- L4: "Default to property-based testing" (methodology standard)
+- L5: "gofmt on all files" (coding standard)
 
 ### Node States and Flags
 
@@ -152,7 +277,7 @@ The escalation path: rise until something absorbs. Only refactor at the absorpti
 
 ### Diamond-Specific Propagation
 
-UC fans out: a UC change dirties L2 groups derived from it (which contain both REQ and DES items). L2 changes dirty ARCH groups. ARCH dirties TEST. TEST dirties IMPL.
+UC fans out: a UC change dirties L2 groups derived from it (which contain both REQ and DES items). L2 changes dirty ARCH groups. ARCH dirties TEST LIST. TEST LIST dirties IMPL.
 
 ARCH's parent is an L2 group (which contains both REQ and DES items). If ARCH can't satisfy the group, it marks that L2 group `unsatisfiable` — the L2 group then figures out whether the issue is a REQ item, a DES item, or both.
 
@@ -194,7 +319,9 @@ The file has four sections:
 
 **`[project]`** — Project name and skill reference.
 
-**`[layers.L1]` through `[layers.L5]`** — Flat registry of all discovered items per layer. L1=UC, L2=REQ+DES, L3=ARCH, L4=TEST, L5=IMPL. Items are added as they're derived.
+**`[layers.L1]` through `[layers.L5]`** — Flat registry of all discovered items per layer. L1=UC, L2=REQ+DES, L3=ARCH, L4=TEST LIST, L5=IMPL. Items are added as they're derived. Each item has an optional `source` field: `"derived"` (default, traces to parent) or `"standard"` (lateral injection from professional judgment). Standards include a `rationale`.
+
+Each layer can also specify `green_tool` and `refactor_tool` — commands to run at GREEN and REFACTOR steps before manual analysis.
 
 **`[tree.<node>]`** — Nodes are groups within layers. Each node has: `layer`, `parent` (the parent group node, omitted for root nodes), `items` (member IDs — can mix item types at L2), `status` (pending/in_progress/refactoring/complete), `history` (what happened at this node and why). Optional flags: `dirty` (source reference string) and `unsatisfiable` (constraint string). Omit flags when clean.
 
@@ -216,7 +343,18 @@ items = ["UC-1", "UC-2", "UC-3"]
 items = ["REQ-1", "REQ-2", "REQ-3", "DES-1", "DES-2"]
 
 [layers.L3]
+items = [
+  { id = "ARCH-1", source = "derived" },
+  { id = "ARCH-10", source = "standard", rationale = "DI prevents test coupling to I/O" },
+]
+
+[layers.L4]
 items = []
+
+[layers.L5]
+items = []
+green_tool = "go test -tags sqlite_fts5 ./internal/..."
+refactor_tool = "go vet ./internal/... && go test -tags sqlite_fts5 ./internal/..."
 
 [tree.L1A]
 layer = "L1"

@@ -20,15 +20,18 @@ Stage and commit changes with a properly formatted message.
    - Look for `.jj` directory — if jj repo, use `jj` commands, not `git`
 
 2. **Check state**
+
    ```bash
    git status
    git diff --staged
    git diff
    ```
+
    - If nothing to commit, report and stop
    - Note what's staged vs unstaged
 
 3. **Review recent commits for style**
+
    ```bash
    git log --oneline -5
    ```
@@ -41,10 +44,13 @@ Stage and commit changes with a properly formatted message.
 5. **Compose message**
 
    Format:
+
    ```
    <type>(scope): <description>
 
-   <Body if needed>
+   <why we made this commit. what is the motivation, what problem does it solve, how does it fit into the bigger
+   picture? What decisions were made that led to this commit? were any lessons learned that future developers should be
+   aware of? This section should provide context and rationale for the change, not just a summary of what was done.>
 
    AI-Used: [claude]
    ```
@@ -59,6 +65,7 @@ Stage and commit changes with a properly formatted message.
    | TDD Refactor | `refactor(scope): <cleanup>` |
 
 6. **Commit**
+
    ```bash
    git commit -m "$(cat <<'EOF'
    <message here>
