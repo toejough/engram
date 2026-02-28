@@ -5,6 +5,9 @@ description: |
   Triggers: plan specification layers, set up project layers, define spec structure, organize requirements and design, UC to implementation, specification process, layer model.
   Domains: specification, requirements, design, architecture, project-structure, traceability.
   Anti-patterns: NOT for single-file changes, NOT for quick fixes with known files/lines, NOT for research-only tasks.
+user-invocable: true
+references:
+  - .claude/skills/specification-layers-references/research-and-tradeoffs.md
 ---
 
 # Specification Layers
