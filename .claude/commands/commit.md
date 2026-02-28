@@ -56,4 +56,4 @@ TDD phases:
    )"
    ```
 
-Stage and create the commit. Do not use any other tools. Do not send any other text besides the tool calls.
+Use the Bash tool to stage and create the commit. Do not use any other tools. Do not send any other text besides the Bash tool calls.
