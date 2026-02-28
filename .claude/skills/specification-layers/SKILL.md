@@ -1,13 +1,7 @@
 ---
 name: specification-layers
 description: |
-  Core: Diamond-topology specification model for taking a project from use cases to working implementation with bidirectional signal propagation and alignment guarantees.
-  Triggers: plan specification layers, set up project layers, define spec structure, organize requirements and design, UC to implementation, specification process, layer model.
-  Domains: specification, requirements, design, architecture, project-structure, traceability.
-  Anti-patterns: NOT for single-file changes, NOT for quick fixes with known files/lines, NOT for research-only tasks.
-user-invocable: true
-references:
-  - .claude/skills/specification-layers-references/research-and-tradeoffs.md
+  This skill should be used when the user asks to "plan specification layers", "set up project layers", "define spec structure", "organize requirements and design", "UC to implementation", "specification process", "layer model", "continue" or "resume" (when docs/state.toml exists). Diamond-topology specification model for taking a project from use cases to working implementation with bidirectional signal propagation and alignment guarantees. NOT for single-file changes, NOT for quick fixes with known files/lines, NOT for research-only tasks.
 ---
 
 # Specification Layers
@@ -393,3 +387,10 @@ context_files = ["docs/use-cases.md", "docs/requirements.md"]
 ```
 
 When the user says "continue" or "resume", read `docs/state.toml` and resume from the cursor's `next_action`.
+
+## Additional Resources
+
+### Reference Files
+
+For research background, alternative topologies evaluated, and key design decisions with rationale:
+- **`references/research-and-tradeoffs.md`** - Framework analysis, rejected alternatives, and decision rationale
