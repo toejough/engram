@@ -52,15 +52,17 @@ FTS5 `rank` function provides BM25 scores. Combined with keyword overlap scoring
 
 ## ARCH-2: Go Binary Command Structure
 
-**Decision:** Single binary (`engram`) with subcommands, one per write-path operation:
+**Decision:** Single binary (`engram`) with subcommands:
 
 ```
+# Write path (L2A/L3A)
 engram extract --session <path>      # Stop hook: session-end learning extraction
 engram correct --message <text>      # UserPromptSubmit hook: inline correction detection
 engram catchup --session <path>      # Stop hook: missed correction catch-up
-```
 
-Read-path commands (`engram query`, `engram surface`) are out of scope until L2B reaches ARCH.
+# Read path (L2B/L3B)
+engram surface --hook <type> --query <text>  # All hooks: memory surfacing (ARCH-11)
+```
 
 **Rationale:** Each hook invocation is a short-lived process — the binary starts, does its work, exits. No daemon, no long-running process. Subcommands map 1:1 to hook entry points, making the hook scripts trivial shell wrappers. Shared infrastructure (DB, reconciler, audit log) is initialized per invocation in `cmd/engram/main.go`.
 
@@ -70,7 +72,7 @@ Read-path commands (`engram query`, `engram surface`) are out of scope until L2B
 
 **Output contract:** Stdout contains system reminder text (for hooks that surface to the agent) or is empty. Stderr is for fatal errors only. Audit log captures all operational detail. Exit 0 always — hook failures must not break Claude Code.
 
-**Traces to:** REQ-1 (Stop hook invocation), REQ-6 (Go binary), REQ-13 (correction detection), DES-6 (extraction flow), DES-8 (catch-up flow)
+**Traces to:** REQ-1 (Stop hook invocation), REQ-6 (Go binary), REQ-13 (correction detection), REQ-7/8/9 (surface subcommand), DES-6 (extraction flow), DES-8 (catch-up flow)
 
 ---
 
@@ -294,6 +296,8 @@ type MemoryStore interface {
     Create(ctx context.Context, m *Memory) error
     Update(ctx context.Context, m *Memory) error
     FindSimilar(ctx context.Context, query string, k int) ([]ScoredMemory, error)
+    Surface(ctx context.Context, query string, k int) ([]ScoredMemory, error)           // ARCH-11: frecency-ranked retrieval
+    IncrementSurfacing(ctx context.Context, ids []string) error                          // ARCH-11: update surfacing metadata
 }
 
 // Audit
@@ -395,6 +399,190 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 
 ---
 
+## ARCH-10: Frecency Ranking Algorithm
+
+**Decision:** Frecency is the harmonic mean of recency and impact, computed in SQL at query time:
+
+```
+frecency = 2.0 * recency * impact / (recency + impact)
+```
+
+**Recency signal:** Exponential decay from most recent activity:
+
+```
+recency = 1.0 / (1.0 + days_since_last_activity)
+last_activity = MAX(updated_at, last_surfaced_at, created_at)
+```
+
+When `last_surfaced_at` is NULL (never surfaced), falls back to `updated_at` or `created_at`. A memory updated today has recency ≈ 1.0; a memory last touched 30 days ago has recency ≈ 0.032.
+
+**Impact signal:** Stored as `impact_score` in the memories table (ARCH-1 schema). Defaults to 0.5 (neutral baseline). Updated by the evaluation pipeline (out of scope until L2C/L1B). During cold start, all memories share the same impact (0.5), so the harmonic mean simplifies to a function of recency alone — satisfying REQ-4 AC(2).
+
+**Confidence tiebreaker:** When frecency scores are equal, ORDER BY confidence: A=3 > B=2 > C=1.
+
+**SQL expression for surfacing queries:**
+
+```sql
+SELECT m.*,
+    2.0 * (1.0 / (1.0 + julianday('now') - julianday(
+        COALESCE(m.last_surfaced_at, m.updated_at, m.created_at)
+    ))) * m.impact_score / (
+        (1.0 / (1.0 + julianday('now') - julianday(
+            COALESCE(m.last_surfaced_at, m.updated_at, m.created_at)
+        ))) + m.impact_score
+    ) AS frecency
+FROM memories m
+JOIN memories_fts ON memories_fts.rowid = m.rowid
+WHERE memories_fts MATCH ?
+ORDER BY frecency DESC,
+    CASE m.confidence WHEN 'A' THEN 3 WHEN 'B' THEN 2 ELSE 1 END DESC
+LIMIT ?
+```
+
+FTS5 MATCH acts as a relevance filter (only text-relevant memories), while ORDER BY does frecency ranking. This differs from `FindSimilar` (ARCH-5) which uses `ORDER BY rank` (pure BM25).
+
+**Alternatives considered:**
+- Pure BM25 ranking for surfacing: Ignores recency and impact. A high-quality memory from 3 months ago that's never followed would rank alongside a fresh, proven memory. Rejected.
+- Weighted linear combination instead of harmonic mean: Harmonic mean naturally penalizes when either signal is low — a very recent but zero-impact memory doesn't dominate. Better behavior for our use case. Rejected linear.
+
+**Traces to:** REQ-4 (ranking formula), REQ-10 (no LLM — pure SQL computation)
+
+---
+
+## ARCH-11: Surfacing Pipeline Architecture
+
+**Decision:** `engram surface` subcommand with per-hook behavior, extending ARCH-2's command structure:
+
+```
+engram surface --hook <session-start|user-prompt|pre-tool-use> --query <text> --data-dir <path> [--budget K]
+```
+
+**Pipeline stages:**
+
+```go
+type SurfacePipeline struct {
+    Store     MemoryStore     // Surface method with frecency ranking
+    Formatter ReminderFormatter
+    AuditLog  AuditLog
+}
+
+func (p *SurfacePipeline) Run(ctx context.Context, hookType string, query string, budget int) (string, error) {
+    // 1. Store.Surface(ctx, query, budget): FTS5 MATCH + frecency ORDER BY + LIMIT
+    // 2. If no results: return "" (empty stdout, no system reminder)
+    // 3. Formatter.FormatSurfacing(memories, hookType): build system reminder text
+    //    - session-start, user-prompt: full format (DES-1 numbered list)
+    //    - pre-tool-use: compact single-line format (DES-1 variant)
+    // 4. AuditLog.Log: record surfacing event (hook, count, query_tokens, latency_ms)
+    // 5. Update surfacing metadata: increment surfacing_count, set last_surfaced_at
+    // 6. Return system reminder text to stdout
+}
+```
+
+**New store method:** `Surface(ctx, query, k)` distinct from `FindSimilar`:
+- `FindSimilar` (ARCH-5): FTS5 BM25 ranking, for reconciliation candidate retrieval
+- `Surface`: FTS5 match + frecency ranking (ARCH-10), for hook-time surfacing
+
+```go
+type MemoryStore interface {
+    // existing methods from ARCH-8...
+    Surface(ctx context.Context, query string, k int) ([]ScoredMemory, error)
+    IncrementSurfacing(ctx context.Context, ids []string) error
+}
+```
+
+**ReminderFormatter** builds DES-1 format:
+
+```go
+type ReminderFormatter interface {
+    FormatSurfacing(memories []ScoredMemory, hookType string) string
+}
+```
+
+- `session-start` / `user-prompt`: Full format with `<system-reminder source="engram">`, `[engram] N memories for this context:`, numbered entries with title, confidence, impact, body.
+- `pre-tool-use`: Compact single-line format: `[engram] <title> (<confidence>, <impact>)`
+- Returns empty string for zero results.
+
+**Default budgets per hook type (user-configurable via --budget flag):**
+
+| Hook type | Default K | Rationale |
+|-----------|----------|-----------|
+| session-start | 5 | Broad context, most room |
+| user-prompt | 3 | Task-scoped |
+| pre-tool-use | 1 | Latency-critical |
+
+**Surfacing metadata update:** After formatting results, the pipeline updates `surfacing_count` and `last_surfaced_at` for each surfaced memory. This feeds the frecency algorithm — memories that are surfaced frequently have higher recency, and the feedback loop with evaluation data (future L1B scope) will adjust their impact.
+
+**Alternatives considered:**
+- Reuse `FindSimilar` and re-rank in Go code: Extra allocation and sorting for something SQL handles natively. FTS5 MATCH filtering + SQL ORDER BY is a single query. Rejected.
+- Separate binary for surfacing: No code sharing with existing infrastructure (store, audit). The single-binary model (ARCH-2) already handles multiple subcommands. Rejected.
+
+**Traces to:** REQ-7 (SessionStart), REQ-8 (UserPromptSubmit), REQ-9 (PreToolUse), REQ-10 (no LLM), REQ-12 (system reminders), DES-1 (format), DES-2 (scenarios)
+
+---
+
+## ARCH-12: Read-Path Hook Integration
+
+**Decision:** Extend existing hook scripts (ARCH-9) with surfacing invocations. Add new hooks for SessionStart and PreToolUse.
+
+**SessionStart hook** (`hooks/session-start.sh`):
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENGRAM_BIN="${CLAUDE_PLUGIN_ROOT}/bin/engram"
+ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
+
+# Build project context query from available sources
+QUERY=""
+[ -f "${CLAUDE_PROJECT_DIR:-}/CLAUDE.md" ] && QUERY="$(cat "$CLAUDE_PROJECT_DIR/CLAUDE.md") "
+[ -f "${CLAUDE_PROJECT_DIR:-}/README.md" ] && QUERY="$QUERY$(cat "$CLAUDE_PROJECT_DIR/README.md") "
+QUERY="$QUERY${CLAUDE_PROJECT_DIR##*/}"
+
+# UC-2: Surface project-relevant memories
+"$ENGRAM_BIN" surface --hook session-start --query "$QUERY" --data-dir "$ENGRAM_DATA"
+```
+
+**UserPromptSubmit hook** (extended from ARCH-9):
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENGRAM_BIN="${CLAUDE_PLUGIN_ROOT}/bin/engram"
+ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
+
+# UC-3: Check for inline correction (DES-4: correction first)
+"$ENGRAM_BIN" correct --message "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+
+# UC-2: Surface relevant memories (DES-4: surfacing second)
+"$ENGRAM_BIN" surface --hook user-prompt --query "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+```
+
+Stdout from both commands concatenates naturally — correction feedback appears first, then surfaced memories, implementing DES-4's ordering without special logic.
+
+**PreToolUse hook** (`hooks/pre-tool-use.sh`):
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENGRAM_BIN="${CLAUDE_PLUGIN_ROOT}/bin/engram"
+ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
+
+# UC-2: Surface most relevant memory (compact format, budget=1)
+"$ENGRAM_BIN" surface --hook pre-tool-use --query "$CLAUDE_TOOL_INPUT" --data-dir "$ENGRAM_DATA"
+```
+
+**Environment variables:** `CLAUDE_PROJECT_DIR`, `CLAUDE_USER_MESSAGE`, `CLAUDE_TOOL_INPUT` are assumed names — exact variable names need verification against the Claude Code hook API (same caveat as ARCH-9).
+
+**Dual-duty UserPromptSubmit:** The hook runs two separate binary invocations. This is intentional — each invocation is independent (correction detection doesn't need surfacing results, and vice versa). Two short-lived processes are simpler than a combined mode, and the latency overhead of a second process start (~10-20ms) is acceptable for UserPromptSubmit (not the latency-critical path).
+
+**Alternatives considered:**
+- Combined `engram prompt --message <text>` that does both correction + surfacing: More complex, couples two independent operations, harder to test. The simple concatenation of two invocations gets the same result. Rejected.
+- Surfacing via stdin instead of --query: Less transparent for debugging. Explicit flags are easier to trace. Rejected.
+
+**Traces to:** REQ-7 (SessionStart hook), REQ-8 (UserPromptSubmit hook), REQ-9 (PreToolUse hook), DES-2 (per-hook scenarios), ARCH-9 (existing hook scripts)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2 (every ARCH traces to at least one L2 item)
@@ -402,7 +590,7 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | ARCH | L2 items |
 |------|----------|
 | ARCH-1 | REQ-2, REQ-3, REQ-5, REQ-6 |
-| ARCH-2 | REQ-1, REQ-6, REQ-13, DES-6, DES-8 |
+| ARCH-2 | REQ-1, REQ-6, REQ-7, REQ-8, REQ-9, REQ-13, DES-6, DES-8 |
 | ARCH-3 | REQ-1, REQ-2, REQ-3, REQ-5, REQ-18, REQ-22, DES-6 |
 | ARCH-4 | REQ-13, REQ-14, REQ-22, DES-3, DES-5 |
 | ARCH-5 | REQ-5, REQ-14 |
@@ -410,25 +598,36 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | ARCH-7 | REQ-22, DES-7 |
 | ARCH-8 | REQ-6 |
 | ARCH-9 | REQ-1, REQ-13, DES-6, DES-8 |
+| ARCH-10 | REQ-4, REQ-10 |
+| ARCH-11 | REQ-7, REQ-8, REQ-9, REQ-10, REQ-12, DES-1, DES-2 |
+| ARCH-12 | REQ-7, REQ-8, REQ-9, DES-2 |
 
-### L2 → ARCH (every L2A item covered by at least one ARCH)
+### L2 → ARCH (every L2 item covered by at least one ARCH)
 
 | L2 item | ARCH coverage |
 |---------|--------------|
 | REQ-1 | ARCH-2, ARCH-3, ARCH-9 |
 | REQ-2 | ARCH-1, ARCH-3 |
 | REQ-3 | ARCH-1, ARCH-3 |
+| REQ-4 | ARCH-10 |
 | REQ-5 | ARCH-1, ARCH-3, ARCH-5 |
 | REQ-6 | ARCH-1, ARCH-2, ARCH-8 |
+| REQ-7 | ARCH-2, ARCH-11, ARCH-12 |
+| REQ-8 | ARCH-2, ARCH-11, ARCH-12 |
+| REQ-9 | ARCH-2, ARCH-11, ARCH-12 |
+| REQ-10 | ARCH-10, ARCH-11 |
+| REQ-12 | ARCH-11 |
 | REQ-13 | ARCH-2, ARCH-4, ARCH-9 |
 | REQ-14 | ARCH-4, ARCH-5 |
 | REQ-15 | ARCH-6 |
 | REQ-18 | ARCH-3 |
 | REQ-22 | ARCH-3, ARCH-4, ARCH-7 |
+| DES-1 | ARCH-11 |
+| DES-2 | ARCH-11, ARCH-12 |
 | DES-3 | ARCH-4 |
 | DES-5 | ARCH-4 |
 | DES-6 | ARCH-2, ARCH-3, ARCH-9 |
 | DES-7 | ARCH-7 |
 | DES-8 | ARCH-2, ARCH-6, ARCH-9 |
 
-All L2A items have ARCH coverage. No orphaned ARCH decisions.
+All L2A and L2B items have ARCH coverage. No orphaned ARCH decisions.

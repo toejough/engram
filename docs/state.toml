@@ -2,30 +2,53 @@
 name = "engram"
 skill = "specification-layers"
 
-# Layer registries: all discovered items per layer
+# Layer registries
 
-[layers.L1] # UC
+[layers.L1]
 items = ["UC-1", "UC-2", "UC-3", "UC-4", "UC-5", "UC-6", "UC-7", "UC-8", "UC-9", "UC-10", "UC-11", "UC-12", "UC-13", "UC-14"]
+green_tool = "none"
+refactor_tool = "none"
 
-[layers.L2] # REQ + DES
+[layers.L2]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "REQ-21", "REQ-22", "DES-1", "DES-2", "DES-3", "DES-4", "DES-5", "DES-6", "DES-7", "DES-8"]
+green_tool = "none"
+refactor_tool = "none"
 
-[layers.L3] # ARCH
-items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8", "ARCH-9"]
+[layers.L3]
+items = [
+  { id = "ARCH-1", source = "derived" },
+  { id = "ARCH-2", source = "derived" },
+  { id = "ARCH-3", source = "derived" },
+  { id = "ARCH-4", source = "derived" },
+  { id = "ARCH-5", source = "derived" },
+  { id = "ARCH-6", source = "derived" },
+  { id = "ARCH-7", source = "derived" },
+  { id = "ARCH-8", source = "standard", rationale = "DI everywhere — all I/O through injected interfaces. From CLAUDE.md design principles, not derived from L2." },
+  { id = "ARCH-9", source = "derived" },
+  { id = "ARCH-10", source = "derived" },
+  { id = "ARCH-11", source = "derived" },
+  { id = "ARCH-12", source = "derived" },
+]
+green_tool = "none"
+refactor_tool = "none"
 
-[layers.L4] # TEST
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43"]
+[layers.L4]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
+green_tool = "none"
+refactor_tool = "none"
 
-[layers.L5] # IMPL
+[layers.L5]
 items = []
+green_tool = "targ test"
+refactor_tool = "targ check"
 
-# Tree: group nodes within layers
+# Tree nodes — L1
 
 [tree.L1A]
 layer = "L1"
 items = ["UC-1", "UC-2", "UC-3"]
 status = "complete"
-history = "Core Pipeline: write (UC-1), read (UC-2), correct (UC-3). Foundation for all other groups. 8 UC changes during refactor: removed premature TF-IDF constraint, added quality gate, unified reconciliation terminology, added ranking behavior to UC-2."
+history = "Core Pipeline: write (UC-1), read (UC-2), correct (UC-3). Foundation for all other groups."
 
 [tree.L1B]
 layer = "L1"
@@ -45,26 +68,28 @@ items = ["UC-11", "UC-13", "UC-14"]
 status = "pending"
 history = "Infrastructure. Mostly independent."
 
+# Tree nodes — L2
+
 [tree.L2A]
 layer = "L2"
 parent = "L1A"
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-5", "REQ-6", "REQ-13", "REQ-14", "REQ-15", "REQ-18", "REQ-22", "DES-3", "DES-5", "DES-6", "DES-7", "DES-8"]
-status = "in_progress"
-history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing. Regrouped from data-flow analysis. Priority 1 — write before read enables real UAT. L3A child created with 9 ARCH decisions."
+status = "complete"
+history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing."
 
 [tree.L2B]
 layer = "L2"
 parent = "L1A"
 items = ["REQ-4", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "DES-1", "DES-2"]
-status = "pending"
-history = "Read Path: ranking, per-hook retrieval, surfacing format, display. Priority 2 — builds on write path architecture."
+status = "complete"
+history = "Read Path: frecency ranking, per-hook retrieval, surfacing format, display."
 
 [tree.L2C]
 layer = "L2"
 parent = "L1A"
 items = ["REQ-16", "REQ-17", "DES-4"]
 status = "pending"
-history = "Feedback Loop: reclassification on correction, correction feedback, coexistence design. Priority 3 — bridges read and write."
+history = "Feedback Loop: reclassification on correction, correction feedback, coexistence design."
 
 [tree.L2D]
 layer = "L2"
@@ -73,26 +98,58 @@ items = ["REQ-19", "REQ-20", "REQ-21"]
 status = "pending"
 history = "Skill promotion requirements (UC-4). Written but not yet reviewed or refactored."
 
+# Tree nodes — L3
+
 [tree.L3A]
 layer = "L3"
 parent = "L2A"
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8", "ARCH-9"]
 status = "complete"
-history = "Write Path architecture. 9 ARCH decisions derived. Refactored: inter-ARCH consistency verified, bidirectional traceability clean, ubiquitous language aligned. Regrouped: kept as single group (9 items tightly coupled)."
+history = "Write Path architecture. 9 ARCH decisions. Refactored: inter-ARCH consistency verified, bidirectional traceability clean, ubiquitous language aligned."
 
-# Cursor
+[tree.L3B]
+layer = "L3"
+parent = "L2B"
+items = ["ARCH-10", "ARCH-11", "ARCH-12"]
+status = "complete"
+history = "Read Path architecture. Frecency ranking (ARCH-10), surfacing pipeline (ARCH-11), hook integration (ARCH-12). Updated ARCH-2 and ARCH-8 during L3-wide refactor."
+
+# Tree nodes — L4
 
 [tree.L4A]
 layer = "L4"
 parent = "L3A"
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43"]
 status = "complete"
-history = "43 tests with real assertions across 8 packages: store (9), extract (9), correct (8), reconcile (5), catchup (4), audit (3), wiring (3), hooks (2). Audit tests GREEN (already implemented). All others RED: store/reconcile/wiring won't compile (missing constructors), extract/correct/catchup/hooks fail on stub returns. Tests ARE the spec — no separate test spec doc needed."
+history = "43 BDD test specs for Write Path. Refactored: T-11/T-17 constraints tightened, traceability expanded."
+
+[tree.L4B]
+layer = "L4"
+parent = "L3B"
+items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
+status = "complete"
+history = "15 BDD test specs for Read Path. Store frecency (T-44..T-48), formatter (T-49..T-52), pipeline (T-53..T-54), hook scripts (T-55..T-57), wiring (T-58). L4-wide refactor clean."
+
+# Tree nodes — L5
+
+[tree.L5A]
+layer = "L5"
+parent = "L4A"
+items = ["T-36", "T-37", "T-38", "T-21", "T-42", "T-43", "T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-27", "T-28", "T-29", "T-30", "T-31", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-22", "T-23", "T-24", "T-25", "T-26", "T-32", "T-33", "T-34", "T-35", "T-39", "T-40", "T-41"]
+status = "complete"
+history = "All 43 tests green across 8 packages: audit(3), corpus(1), hooks(2), store(9), reconcile(5), extract(9), correct(7), catchup(4), wiring(3)."
+
+[tree.L5B]
+layer = "L5"
+parent = "L4B"
+items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
+status = "complete"
+history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfacing(4), surface.Run pipeline(2), hook scripts SessionStart/UserPromptSubmit+surface/PreToolUse(3), wiring(1)."
 
 # Cursor
 
 [cursor]
-node = "L4A"
-mode = "work"
-next_action = "DESCEND to L5 (IMPL) for L4A. TDD GREEN phase: implement code to make tests pass, one package at a time. Order: (1) audit — simplest, no deps, (2) store — foundation, (3) reconcile — shared component needs store, (4) corpus — pattern matching, (5) extract — uses all above, (6) correct — uses reconcile+corpus+store, (7) catchup — uses reconcile+corpus, (8) wiring — constructors, (9) hooks — shell scripts. For each package: implement types+interfaces, then make tests green, then refactor."
-context_files = ["docs/architecture.md", "docs/tests.md"]
+node = "L5B"
+mode = "backtrack"
+next_action = "L5B complete. Backtrack: L1A fully implemented (L5A+L5B). Navigate to next incomplete sibling at L1: L1B (Evaluation & Quadrant Actions) or L1D (Infrastructure). Present grouping/priority options."
+context_files = ["docs/state.toml", "docs/use-cases.md"]
