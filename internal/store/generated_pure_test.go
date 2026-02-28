@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"engram/internal/store"
-
 	. "github.com/onsi/gomega"
 	_ "modernc.org/sqlite"
 	"pgregory.net/rapid"
+
+	"engram/internal/store"
 )
 
 type mockDB struct {
@@ -513,7 +513,10 @@ func TestUpdate_FTSDeleteError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
-	mock := &mockDB{execErr: errors.New("fts boom"), failOnExec: 2} // fail on FTS delete (2nd ExecContext after New)
+	mock := &mockDB{
+		execErr:    errors.New("fts boom"),
+		failOnExec: 2,
+	} // fail on FTS delete (2nd ExecContext after New)
 	s, err := store.New(mock)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -531,7 +534,10 @@ func TestUpdate_SQLError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
-	mock := &mockDB{execErr: errors.New("sql boom"), failOnExec: 3} // fail on UPDATE (3rd ExecContext)
+	mock := &mockDB{
+		execErr:    errors.New("sql boom"),
+		failOnExec: 3,
+	} // fail on UPDATE (3rd ExecContext)
 	s, err := store.New(mock)
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -549,7 +555,10 @@ func TestUpdate_FTSReinsertError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
-	mock := &mockDB{execErr: errors.New("reinsert boom"), failOnExec: 4} // fail on FTS reinsert (4th ExecContext)
+	mock := &mockDB{
+		execErr:    errors.New("reinsert boom"),
+		failOnExec: 4,
+	} // fail on FTS reinsert (4th ExecContext)
 	s, err := store.New(mock)
 	g.Expect(err).NotTo(HaveOccurred())
 

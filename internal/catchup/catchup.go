@@ -124,7 +124,12 @@ func Run(
 		candidates = append(candidates, CandidatePattern{Regex: correction.Phrase})
 		auditLines = append(
 			auditLines,
-			fmt.Sprintf("catchup %s: %q phrase=%q", result.Action, learning.Title, correction.Phrase),
+			fmt.Sprintf(
+				"catchup %s: %q phrase=%q",
+				result.Action,
+				learning.Title,
+				correction.Phrase,
+			),
 		)
 	}
 

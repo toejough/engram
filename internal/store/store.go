@@ -183,7 +183,11 @@ func (s *SQLiteStore) IncrementSurfacing(ctx context.Context, ids []string) erro
 }
 
 // Surface returns memories ranked by frecency (recency and frequency weighted by impact score).
-func (s *SQLiteStore) Surface(ctx context.Context, query string, limit int) ([]ScoredMemory, error) {
+func (s *SQLiteStore) Surface(
+	ctx context.Context,
+	query string,
+	limit int,
+) ([]ScoredMemory, error) {
 	ftsQuery := ToFTS5Query(query)
 
 	rows, err := s.db.QueryContext(ctx, `
