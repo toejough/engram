@@ -43,6 +43,7 @@ text = 'dot-imports'
 files = ['$all', '!$test']
 allow = [
 	'$gostd',
+	'engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/bmatcuk/doublestar/v4',
@@ -58,6 +59,7 @@ allow = [
 files = ['$test']
 allow = [
 	'$gostd',
+	'engram',
 	'github.com/BurntSushi/toml',
 	'github.com/akedrou/textdiff',
 	'github.com/charmbracelet/lipgloss',
@@ -66,6 +68,7 @@ allow = [
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
 	'github.com/toejough/testredundancy',
+	'modernc.org/sqlite',
 	'pgregory.net/rapid',
 ]
 
@@ -112,6 +115,8 @@ ignore-names = [
 	'st',
 	'd',
 	'h',
+	'id',
+	'db',
 ]
 
 [linters.settings.unused]

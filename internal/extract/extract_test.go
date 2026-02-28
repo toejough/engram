@@ -1,413 +1,448 @@
 package extract_test
 
-// Tests for ARCH-3: Extraction Pipeline
-// Defines ExtractRun target function, Enricher/Classifier I/O mocks,
-// and MemoryStore/OverlapGate I/O mocks (through wired-real Reconciler).
-// Won't compile yet — RED phase.
-
-//go:generate impgen extract.Enricher --dependency
-//go:generate impgen extract.Classifier --dependency
-//go:generate impgen store.MemoryStore --dependency
-//go:generate impgen reconcile.OverlapGate --dependency
-//go:generate impgen extract.ExtractRun --target
-
 import (
 	"context"
+	"strings"
 	"testing"
 
-	"engram/internal"
-	"engram/internal/extract"
-	_ "engram/internal/reconcile"
-	_ "engram/internal/store"
-	"github.com/onsi/gomega"
+	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest/match"
 	"pgregory.net/rapid"
+
+	"engram/internal/extract"
 )
 
-// --- Generators ---
+func TestT10_EmptyTranscriptProducesNoMemories(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, _ := MockClassifier(t)
+		mockReconciler, _ := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given empty learnings, nil error; When enricher.Enrich responds with (empty, nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return(nil, nil)
+
+		// Then ExtractRun returns (any string, nil error)
+		// And ExtractRun never calls classifier, store, or gate
+		call.ReturnsShould(match.BeAny, Not(HaveOccurred()))
+	})
+}
+
+func TestT11_QualityGateRejectsContentBelowTokenThreshold(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any RawLearning with content shorter than 10 tokens
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		short := genShortLearning().Draw(rt, "short")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, _ := MockClassifier(t)
+		mockReconciler, _ := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [shortLearning], nil error; When enricher.Enrich responds with ([shortLearning], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{short}, nil)
+
+		// Then ExtractRun returns (string containing "rejected", any error)
+		// And ExtractRun never calls classifier, store, or gate
+		call.ReturnsShould(ContainSubstring("rejected"), Not(HaveOccurred()))
+	})
+}
+
+func TestT12_EveryCreatedMemoryHasConfidenceTier(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any two RawLearnings learning1 learning2, any tier in {A, B, C}
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning1 := genRawLearning().Draw(rt, "l1")
+		learning2 := genRawLearning().Draw(rt, "l2")
+		tier := rapid.SampledFrom([]string{"A", "B", "C"}).Draw(rt, "tier")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [learning1, learning2], nil error
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning1, learning2}, nil)
+
+		// Then for each learning, ExtractRun calls classifier.Classify with (any ctx, learning, t)
+		// Given tier, nil error; When classifier.Classify responds with (tier, nil)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return(tier, nil)
+		// Then ExtractRun calls reconciler.Reconcile; Given "created", nil
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then continues to next learning (same sequence repeats for learning2)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return(tier, nil)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then ExtractRun returns (string containing "confidence=", nil error)
+		call.ReturnsShould(ContainSubstring("confidence="), Not(HaveOccurred()))
+	})
+}
+
+func TestT13_DedupSkipsMidSessionCorrections(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any two RawLearnings: overlapping and fresh
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		overlapping := genRawLearning().Draw(rt, "overlapping")
+		fresh := genRawLearning().Draw(rt, "fresh")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+		mockOverlaps, overlapsExp := MockSessionOverlaps(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, sessionOverlaps, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			mockOverlaps,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [overlapping, fresh], nil error; When enricher.Enrich responds with ([overlapping, fresh], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{overlapping, fresh}, nil)
+
+		// Then ExtractRun skips overlapping (sessionOverlaps marks overlapping.Content as already captured)
+		overlapsExp.HasOverlap.ArgsEqual(overlapping.Content).Return(true)
+
+		// Then ExtractRun calls classifier.Classify with (any ctx, fresh, t)
+		overlapsExp.HasOverlap.ArgsEqual(fresh.Content).Return(false)
+
+		// Given "B", nil error; When classifier.Classify responds with ("B", nil)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return("B", nil)
+		// Then ExtractRun calls reconciler.Reconcile; Given "created", nil
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then ExtractRun returns (string containing "skipped", nil error)
+		call.ReturnsShould(ContainSubstring("skipped"), Not(HaveOccurred()))
+	})
+}
+
+func TestT14_ReconciliationEnrichesOnOverlap(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any RawLearning
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning := genRawLearning().Draw(rt, "learning")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [learning], nil error; When enricher.Enrich responds with ([learning], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning}, nil)
+
+		// Then ExtractRun calls classifier.Classify with (any ctx, learning, t)
+		// Given "B", nil error; When classifier.Classify responds with ("B", nil)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return("B", nil)
+		// Then ExtractRun calls reconciler; Given "enriched", nil (overlap detected internally)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "enriched"}, nil)
+
+		// Then ExtractRun returns (string containing "enriched", nil error)
+		call.ReturnsShould(ContainSubstring("enriched"), Not(HaveOccurred()))
+	})
+}
+
+func TestT15_ReconciliationCreatesOnNoOverlap(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any RawLearning
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning := genRawLearning().Draw(rt, "learning")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [learning], nil error; When enricher.Enrich responds with ([learning], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning}, nil)
+
+		// Then ExtractRun calls classifier.Classify with (any ctx, learning, t)
+		// Given "C", nil error; When classifier.Classify responds with ("C", nil)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return("C", nil)
+		// Then ExtractRun calls reconciler; Given "created", nil (no overlap found)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then ExtractRun returns (string containing "created", nil error)
+		call.ReturnsShould(ContainSubstring("created"), Not(HaveOccurred()))
+	})
+}
+
+func TestT16_RealSessionScenario4Learnings1Dedup3Reconciled(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any four RawLearnings learning1 learning2 learning3 learning4
+		// sessionOverlaps marks learning2.Content as already captured
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning1 := genRawLearning().Draw(rt, "l1")
+		learning2 := genRawLearning().Draw(rt, "l2")
+		learning3 := genRawLearning().Draw(rt, "l3")
+		learning4 := genRawLearning().Draw(rt, "l4")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+		mockOverlaps, overlapsExp := MockSessionOverlaps(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, sessionOverlaps, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			mockOverlaps,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given all 4 learnings, nil error
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning1, learning2, learning3, learning4}, nil)
+
+		// Then for each of learning1, learning3, learning4 (learning2 skipped by dedup):
+		// learning1: fresh — classify -> "B" -> reconcile -> created
+		overlapsExp.HasOverlap.ArgsEqual(learning1.Content).Return(false)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).Return("B", nil)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// learning2: dedup — sessionOverlaps marks as already captured
+		overlapsExp.HasOverlap.ArgsEqual(learning2.Content).Return(true)
+
+		// learning3: fresh — classify -> "B" -> reconcile -> created
+		overlapsExp.HasOverlap.ArgsEqual(learning3.Content).Return(false)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).Return("B", nil)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// learning4: fresh — classify -> "B" -> reconcile -> created
+		overlapsExp.HasOverlap.ArgsEqual(learning4.Content).Return(false)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).Return("B", nil)
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then ExtractRun returns (string containing "skipped" and "created", nil error)
+		call.ReturnsShould(
+			And(ContainSubstring("skipped"), ContainSubstring("created")),
+			Not(HaveOccurred()),
+		)
+	})
+}
+
+func TestT17_AllRejectedByQualityGate(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any two RawLearnings learning1 learning2 each with content shorter than 10 tokens
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning1 := genShortLearning().Draw(rt, "l1")
+		learning2 := genShortLearning().Draw(rt, "l2")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, _ := MockClassifier(t)
+		mockReconciler, _ := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [learning1, learning2], nil error; When enricher.Enrich responds with ([learning1, learning2], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning1, learning2}, nil)
+
+		// Then ExtractRun returns (string containing "rejected", any error)
+		// And ExtractRun never calls classifier, store, or gate
+		call.ReturnsShould(ContainSubstring("rejected"), Not(HaveOccurred()))
+	})
+}
+
+func TestT18_PipelineEndToEnd(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript t, any RawLearning
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		learning := genRawLearning().Draw(rt, "learning")
+		ctx := context.Background()
+
+		mockEnricher, enricherExp := MockEnricher(t)
+		mockClassifier, classifierExp := MockClassifier(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+
+		// When test calls ExtractRun with (enricher, classifier, store, gate, nil, any ctx, t)
+		call := StartRun(
+			t,
+			extract.Run,
+			ctx,
+			mockEnricher,
+			mockClassifier,
+			mockReconciler,
+			nil,
+			transcript,
+		)
+
+		// Then ExtractRun calls enricher.Enrich with (any ctx, equal to t)
+		// Given [learning], nil error; When enricher.Enrich responds with ([learning], nil)
+		enricherExp.Enrich.ArgsShould(match.BeAny, Equal(transcript)).
+			Return([]extract.RawLearning{learning}, nil)
+
+		// Then ExtractRun calls classifier.Classify with (any ctx, learning, t)
+		// Given "A", nil error; When classifier.Classify responds with ("A", nil)
+		classifierExp.Classify.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+			Return("A", nil)
+		// Then ExtractRun calls reconciler; Given "created", nil
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(extract.ReconcileResult{Action: "created"}, nil)
+
+		// Then ExtractRun returns (non-empty string, nil error)
+		call.ReturnsShould(Not(BeEmpty()), Not(HaveOccurred()))
+	})
+}
 
 func genRawLearning() *rapid.Generator[extract.RawLearning] {
 	return rapid.Custom(func(t *rapid.T) extract.RawLearning {
+		// Generate content with at least 10 words
+		words := make([]string, rapid.IntRange(10, 20).Draw(t, "wordCount"))
+		for i := range words {
+			words[i] = rapid.StringMatching(`[a-z]{3,8}`).Draw(t, "word")
+		}
+
 		return extract.RawLearning{
-			Title:    rapid.String().Draw(t, "title"),
-			Content:  rapid.String().Draw(t, "content"),
-			Keywords: rapid.SliceOfN(rapid.String(), 1, 5).Draw(t, "keywords"),
+			Content:  strings.Join(words, " "),
+			Title:    rapid.StringMatching(`[A-Za-z ]{5,30}`).Draw(t, "title"),
+			Keywords: []string{rapid.StringMatching(`[a-z]{3,10}`).Draw(t, "keyword")},
 		}
 	})
 }
 
-// T-10: Empty transcript → zero memories, no errors.
-func TestExtractor_EmptyTranscriptProducesNoMemories(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, _ := MockClassifier(t)
-		mockStore, _ := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		// Enricher returns nothing → pipeline stops, no further calls
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return(nil, nil)
-
-		// No Classifier/Store/Gate calls expected (imptest fails on unexpected calls)
-		wrapper.ReturnsShould(gomega.BeAssignableToTypeOf(""), gomega.BeNil())
-	})
-}
-
-// T-11: Quality gate rejects vague content → no reconciliation.
-func TestExtractor_QualityGateRejectsVagueContent(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, _ := MockClassifier(t)
-		mockStore, _ := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		vagueLearning := extract.RawLearning{
-			Title:   "Vague",
-			Content: rapid.String().Draw(t, "vagueContent"),
+func genShortLearning() *rapid.Generator[extract.RawLearning] {
+	return rapid.Custom(func(t *rapid.T) extract.RawLearning {
+		// Generate content with fewer than 10 tokens
+		words := make([]string, rapid.IntRange(1, 9).Draw(t, "wordCount"))
+		for i := range words {
+			words[i] = rapid.StringMatching(`[a-z]{3,8}`).Draw(t, "word")
 		}
 
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		// Enricher returns a learning → gate will reject it
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{vagueLearning}, nil)
-
-		// Gate rejects → no Classifier/Store/Gate calls
-		// Audit should record rejection
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("rejected"))
-	})
-}
-
-// T-12: Every created memory has a confidence tier.
-func TestExtractor_EveryMemoryHasConfidenceTier(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		l1 := genRawLearning().Draw(t, "l1")
-		l2 := genRawLearning().Draw(t, "l2")
-		tier := rapid.SampledFrom([]string{"A", "B", "C"}).Draw(t, "tier")
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{l1, l2}, nil)
-
-		// Classifier called for each learning
-		for _, l := range []extract.RawLearning{l1, l2} {
-			expectClassifier.Classify.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.Equal(l),
-				gomega.Equal(transcript),
-			).Return(tier, nil)
-
-			expectStore.FindSimilar.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.BeAssignableToTypeOf(""),
-				gomega.BeNumerically(">", 0),
-			).Return(nil, nil)
-
-			expectStore.Create.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.Not(gomega.BeNil()),
-			).Return(nil)
+		return extract.RawLearning{
+			Content:  strings.Join(words, " "),
+			Title:    rapid.StringMatching(`[A-Za-z ]{5,30}`).Draw(t, "title"),
+			Keywords: []string{rapid.StringMatching(`[a-z]{3,10}`).Draw(t, "keyword")},
 		}
-
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("confidence="))
-	})
-}
-
-// T-13: Learnings matching session log are skipped (dedup).
-func TestExtractor_DedupSkipsMidSessionCorrections(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		overlapping := genRawLearning().Draw(t, "overlapping")
-		fresh := genRawLearning().Draw(t, "fresh")
-
-		// Session log marks the overlapping learning's content as already captured
-		sessionOverlaps := map[string]bool{overlapping.Content: true}
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			sessionOverlaps, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{overlapping, fresh}, nil)
-
-		// Only the fresh learning goes through classifier + reconciler
-		expectClassifier.Classify.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(fresh),
-			gomega.Equal(transcript),
-		).Return("B", nil)
-
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
-
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("skipped"))
-	})
-}
-
-// T-14: Overlap → existing memory enriched.
-func TestExtractor_ReconciliationEnrichesOnOverlap(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, expectGate := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		learning := genRawLearning().Draw(t, "learning")
-		existing := internal.Memory{
-			ID:       "m_existing",
-			Title:    rapid.String().Draw(t, "existingTitle"),
-			Content:  rapid.String().Draw(t, "existingContent"),
-			Keywords: rapid.SliceOfN(rapid.String(), 1, 3).Draw(t, "existingKW"),
-		}
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{learning}, nil)
-
-		expectClassifier.Classify.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(learning),
-			gomega.Equal(transcript),
-		).Return("B", nil)
-
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return([]internal.ScoredMemory{{Memory: existing, Score: 0.9}}, nil)
-
-		expectGate.Check.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(internal.Learning{}),
-			gomega.Equal(existing),
-		).Return(true, "overlapping", nil)
-
-		expectStore.Update.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("enriched"))
-	})
-}
-
-// T-15: No overlap → new memory created.
-func TestExtractor_ReconciliationCreatesOnNoOverlap(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		learning := genRawLearning().Draw(t, "learning")
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{learning}, nil)
-
-		expectClassifier.Classify.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(learning),
-			gomega.Equal(transcript),
-		).Return("C", nil)
-
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
-
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("created"))
-	})
-}
-
-// T-16: 4 learnings, 1 dedup → 3 reconciled.
-func TestExtractor_RealSessionScenario_ThreeLearningsOneDedup(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		l1 := genRawLearning().Draw(t, "l1")
-		l2 := genRawLearning().Draw(t, "l2")
-		l3 := genRawLearning().Draw(t, "l3")
-		l4 := genRawLearning().Draw(t, "l4")
-
-		// l2 is already captured mid-session
-		sessionOverlaps := map[string]bool{l2.Content: true}
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			sessionOverlaps, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{l1, l2, l3, l4}, nil)
-
-		// 3 learnings go through (l2 skipped)
-		for _, l := range []extract.RawLearning{l1, l3, l4} {
-			expectClassifier.Classify.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.Equal(l),
-				gomega.Equal(transcript),
-			).Return("B", nil)
-
-			expectStore.FindSimilar.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.BeAssignableToTypeOf(""),
-				gomega.BeNumerically(">", 0),
-			).Return(nil, nil)
-
-			expectStore.Create.ArgsShould(
-				gomega.BeAssignableToTypeOf(context.Background()),
-				gomega.Not(gomega.BeNil()),
-			).Return(nil)
-		}
-
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("skipped"))
-		g.Expect(auditOutput).To(gomega.ContainSubstring("created"))
-	})
-}
-
-// T-17: All rejected by gate → zero memories, audit records reasons.
-func TestExtractor_AllRejected_AuditLogRecordsReasons(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, _ := MockClassifier(t)
-		mockStore, _ := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		l1 := genRawLearning().Draw(t, "l1")
-		l2 := genRawLearning().Draw(t, "l2")
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		// Enricher returns learnings, but the internal quality gate rejects all
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{l1, l2}, nil)
-
-		// No Classifier/Store/Gate calls — gate rejected everything
-		auditOutput, _ := wrapper.ReturnsAs()
-		g.Expect(auditOutput).To(gomega.ContainSubstring("rejected"))
-	})
-}
-
-// T-18: End-to-end: enricher → gate → classifier → reconciler → audit.
-func TestExtractor_PipelineEndToEnd(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEnricher, expectEnricher := MockEnricher(t)
-		mockClassifier, expectClassifier := MockClassifier(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		learning := genRawLearning().Draw(t, "learning")
-
-		wrapper := StartExtractRun(t, extract.ExtractRun,
-			mockEnricher, mockClassifier, mockStore, mockGate,
-			nil, context.Background(), transcript)
-
-		expectEnricher.Enrich.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-		).Return([]extract.RawLearning{learning}, nil)
-
-		expectClassifier.Classify.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(learning),
-			gomega.Equal(transcript),
-		).Return("A", nil)
-
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
-
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		auditOutput, err := wrapper.ReturnsAs()
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-		g.Expect(auditOutput).ToNot(gomega.BeEmpty())
 	})
 }

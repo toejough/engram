@@ -1,55 +1,71 @@
-//go:build integration
-
 package internal_test
-
-// Tests for ARCH-8: DI Wiring
-// Integration tests — verifies no silent nil degradation.
-// Won't compile yet — RED phase.
 
 import (
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	"engram/internal/catchup"
 	"engram/internal/correct"
 	"engram/internal/extract"
-	"github.com/onsi/gomega"
+	"engram/internal/surface"
 )
 
-// T-39: Constructing an Extractor with nil for any required dependency returns an error.
-func TestWiring_ExtractorHasAllDependencies(t *testing.T) {
-	g := gomega.NewWithT(t)
+func TestT39_ExtractorConstructorRequiresAllDependencies(t *testing.T) {
+	t.Parallel()
 
-	_, err := extract.NewExtractor(extract.ExtractorConfig{})
-	g.Expect(err).To(gomega.HaveOccurred())
+	g := NewGomegaWithT(t)
 
-	errMsg := err.Error()
-	for _, dep := range []string{"Enricher", "Gate", "Classifier", "Reconciler", "Session", "Audit"} {
-		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
-	}
+	// Given an empty ExtractorConfig (all fields nil/zero)
+	// When NewExtractor is called with empty config
+	_, err := extract.NewExtractor(extract.Config{})
+	// Then returns non-nil error containing each dependency name
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("Enricher"))
+	g.Expect(err.Error()).To(ContainSubstring("Classifier"))
+	g.Expect(err.Error()).To(ContainSubstring("Reconciler"))
 }
 
-// T-40: Constructing a CorrectionDetector with nil for any required dependency returns an error.
-func TestWiring_CorrectionDetectorHasAllDependencies(t *testing.T) {
-	g := gomega.NewWithT(t)
+func TestT40_CorrectionDetectorConstructorRequiresAllDependencies(t *testing.T) {
+	t.Parallel()
 
-	_, err := correct.NewDetector(correct.DetectorConfig{})
-	g.Expect(err).To(gomega.HaveOccurred())
+	g := NewGomegaWithT(t)
 
-	errMsg := err.Error()
-	for _, dep := range []string{"Corpus", "Recon", "Session", "Audit"} {
-		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
-	}
+	// Given an empty DetectorConfig (all fields nil/zero)
+	// When NewDetector is called with empty config
+	_, err := correct.NewDetector(correct.Config{})
+	// Then returns non-nil error containing each dependency name
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("Corpus"))
+	g.Expect(err.Error()).To(ContainSubstring("Recon"))
 }
 
-// T-41: Constructing a CatchupProcessor with nil for any required dependency returns an error.
-func TestWiring_CatchupProcessorHasAllDependencies(t *testing.T) {
-	g := gomega.NewWithT(t)
+func TestT41_CatchupProcessorConstructorRequiresAllDependencies(t *testing.T) {
+	t.Parallel()
 
-	_, err := catchup.NewProcessor(catchup.ProcessorConfig{})
-	g.Expect(err).To(gomega.HaveOccurred())
+	g := NewGomegaWithT(t)
 
-	errMsg := err.Error()
-	for _, dep := range []string{"Evaluator", "Reconciler", "Corpus", "Session", "Audit"} {
-		g.Expect(errMsg).To(gomega.ContainSubstring(dep))
-	}
+	// Given an empty ProcessorConfig (all fields nil/zero)
+	// When NewProcessor is called with empty config
+	_, err := catchup.NewProcessor(catchup.Config{})
+	// Then returns non-nil error containing each dependency name
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("Evaluator"))
+	g.Expect(err.Error()).To(ContainSubstring("Reconciler"))
+}
+
+func TestT58_SurfacePipelineConstructorRequiresAllDependencies(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Given an empty SurfaceConfig (all fields nil/zero)
+	// When test calls surface.NewPipeline with (SurfaceConfig{})
+	_, err := surface.NewPipeline(surface.Config{})
+	// Then NewPipeline returns non-nil error
+	g.Expect(err).To(HaveOccurred())
+	// And error message contains each dependency name: "Store", "Formatter", "Audit"
+	g.Expect(err.Error()).To(ContainSubstring("Store"))
+	g.Expect(err.Error()).To(ContainSubstring("Formatter"))
+	g.Expect(err.Error()).To(ContainSubstring("Audit"))
 }

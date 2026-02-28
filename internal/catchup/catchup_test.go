@@ -1,184 +1,166 @@
 package catchup_test
 
-// Tests for ARCH-6: Session-End Catch-Up Processor
-// Defines CatchupRun target function with Evaluator/MemoryStore/OverlapGate I/O mocks.
-// Pure deps wired internally: Reconciler, PatternCorpus, SessionLog, audit.Logger.
-// Won't compile yet — RED phase.
-
-//go:generate impgen catchup.Evaluator --dependency
-//go:generate impgen store.MemoryStore --dependency
-//go:generate impgen reconcile.OverlapGate --dependency
-//go:generate impgen catchup.CatchupRun --target
-
 import (
 	"context"
 	"testing"
 
-	"engram/internal"
-	"engram/internal/catchup"
-	_ "engram/internal/reconcile"
-	_ "engram/internal/store"
-	"github.com/onsi/gomega"
+	. "github.com/onsi/gomega"
+	"github.com/toejough/imptest/match"
 	"pgregory.net/rapid"
+
+	"engram/internal/catchup"
 )
 
-// T-32: When the evaluator finds no missed corrections, no new memories are created.
-func TestCatchupProcessor_NoMissedCorrections_NoNewMemories(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		mockEvaluator, expectEvaluator := MockEvaluator(t)
-		mockStore, _ := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
+func TestT32_NoMissedCorrectionsNoNewMemories(t *testing.T) {
+	t.Parallel()
 
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		capturedEvents := []internal.CorrectionEvent{}
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript, empty capturedEvents
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		ctx := context.Background()
 
-		wrapper := StartCatchupRun(t, catchup.CatchupRun,
-			mockEvaluator, mockStore, mockGate, capturedEvents,
-			context.Background(), transcript)
+		mockEval, evalExp := MockEvaluator(t)
+		mockReconciler, _ := MockReconciler(t)
 
-		// Evaluator finds nothing missed
-		expectEvaluator.FindMissed.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-			gomega.Equal(capturedEvents),
-		).Return(nil, nil)
+		// When CatchupRun is called
+		call := StartRun(t, catchup.Run, ctx, mockEval, mockReconciler, nil, transcript)
 
-		// CatchupRun returns (candidates, auditOutput, error)
-		wrapper.ReturnsShould(
-			gomega.BeEmpty(),              // no candidates added
-			gomega.BeAssignableToTypeOf(""), // audit output
-			gomega.BeNil(),                // no error
-		)
+		// Then evaluator.FindMissed called; Given nil missed, nil error
+		evalExp.FindMissed.ArgsShould(match.BeAny, Equal(transcript), match.BeAny).
+			Return(nil, nil)
+
+		// Then CatchupRun returns empty candidates, nil error
+		call.ReturnsShould(BeEmpty(), match.BeAny, Not(HaveOccurred()))
 	})
 }
 
-// T-33: A missed correction goes through the reconciler and produces a memory.
-func TestCatchupProcessor_MissedCorrectionReconciled(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		mockEvaluator, expectEvaluator := MockEvaluator(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
+func TestT33_MissedCorrectionReconciled(t *testing.T) {
+	t.Parallel()
 
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-
-		wrapper := StartCatchupRun(t, catchup.CatchupRun,
-			mockEvaluator, mockStore, mockGate, nil,
-			context.Background(), transcript)
-
-		// Evaluator finds one missed correction
-		expectEvaluator.FindMissed.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-			gomega.BeAssignableToTypeOf([]internal.CorrectionEvent{}),
-		).Return([]internal.MissedCorrection{
-			{Content: "you didn't shut them down", Context: "teammate cleanup", Phrase: `\byou didn't\b`},
-		}, nil)
-
-		// Reconciler (wired real) calls FindSimilar → Create
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
-
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		wrapper.ReturnsShould(
-			gomega.Not(gomega.BeEmpty()), // candidates added
-			gomega.Not(gomega.BeEmpty()), // audit output
-			gomega.BeNil(),              // no error
-		)
-	})
-}
-
-// T-34: A correction phrase from a missed correction is appended to the corpus as a candidate.
-func TestCatchupProcessor_NewPatternAddedAsCandidate(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEvaluator, expectEvaluator := MockEvaluator(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		phrase := rapid.String().Draw(t, "phrase")
-
-		wrapper := StartCatchupRun(t, catchup.CatchupRun,
-			mockEvaluator, mockStore, mockGate, nil,
-			context.Background(), transcript)
-
-		expectEvaluator.FindMissed.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-			gomega.BeAssignableToTypeOf([]internal.CorrectionEvent{}),
-		).Return([]internal.MissedCorrection{
-			{Content: "missed correction", Context: "context", Phrase: phrase},
-		}, nil)
-
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
-
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
-
-		candidates, _, err := wrapper.ReturnsAs()
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-		g.Expect(candidates).To(gomega.HaveLen(1))
-		g.Expect(candidates[0].Regex).To(gomega.Equal(phrase))
-	})
-}
-
-// T-35: Full scenario — missed correction → memory + candidate pattern + audit.
-func TestCatchupProcessor_CorpusGrowth_Scenario(t *testing.T) {
-	rapid.Check(t, func(t *rapid.T) {
-		g := gomega.NewWithT(t)
-		mockEvaluator, expectEvaluator := MockEvaluator(t)
-		mockStore, expectStore := MockMemoryStore(t)
-		mockGate, _ := MockOverlapGate(t)
-
-		transcript := rapid.SliceOf(rapid.Byte()).Draw(t, "transcript")
-		capturedEvents := []internal.CorrectionEvent{
-			{MemoryID: "m_other", Pattern: `^no,`, Message: "no, use bun"},
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		ctx := context.Background()
+		missedCorrection := catchup.MissedCorrection{
+			Content: rapid.StringMatching(`[A-Za-z ]{10,50}`).Draw(rt, "content"),
+			Context: rapid.StringMatching(`[A-Za-z ]{5,30}`).Draw(rt, "context"),
+			Phrase:  rapid.StringMatching(`\\b[a-z]+\\b`).Draw(rt, "phrase"),
 		}
 
-		wrapper := StartCatchupRun(t, catchup.CatchupRun,
-			mockEvaluator, mockStore, mockGate, capturedEvents,
-			context.Background(), transcript)
+		mockEval, evalExp := MockEvaluator(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
 
-		expectEvaluator.FindMissed.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Equal(transcript),
-			gomega.Equal(capturedEvents),
-		).Return([]internal.MissedCorrection{
+		// When CatchupRun is called
+		call := StartRun(t, catchup.Run, ctx, mockEval, mockReconciler, nil, transcript)
+
+		// Then evaluator.FindMissed called; Given one MissedCorrection, nil error
+		evalExp.FindMissed.ArgsShould(match.BeAny, Equal(transcript), match.BeAny).
+			Return([]catchup.MissedCorrection{missedCorrection}, nil)
+
+		// Then reconciler.Reconcile called; Given "created" result, nil error
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(catchup.ReconcileResult{Action: "created", MemoryID: "m_0001"}, nil)
+
+		// Then CatchupRun returns non-empty candidates, non-empty audit, nil error
+		call.ReturnsShould(Not(BeEmpty()), Not(BeEmpty()), Not(HaveOccurred()))
+	})
+}
+
+func TestT34_NewPatternAddedAsCandidate(t *testing.T) {
+	t.Parallel()
+
+	rapid.Check(t, func(rt *rapid.T) {
+		// Given any transcript, any phrase
+		transcript := []byte(rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(rt, "transcript"))
+		phrase := rapid.StringMatching(`\\b[a-z]+\\b`).Draw(rt, "phrase")
+		ctx := context.Background()
+
+		missedCorrection := catchup.MissedCorrection{
+			Content: "missed correction",
+			Context: "context",
+			Phrase:  phrase,
+		}
+
+		mockEval, evalExp := MockEvaluator(t)
+		mockReconciler, reconcilerExp := MockReconciler(t)
+
+		// When CatchupRun is called
+		call := StartRun(t, catchup.Run, ctx, mockEval, mockReconciler, nil, transcript)
+
+		// Then evaluator.FindMissed called; Given [{missed correction, context, phrase}], nil error
+		evalExp.FindMissed.ArgsShould(match.BeAny, Equal(transcript), match.BeAny).
+			Return([]catchup.MissedCorrection{missedCorrection}, nil)
+
+		// Then reconciler.Reconcile called; Given "created" result, nil error
+		reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+			Return(catchup.ReconcileResult{Action: "created"}, nil)
+
+		// Then candidates has len 1, candidates[0].Regex equals phrase, nil error
+		call.ReturnsShould(
+			And(HaveLen(1), ContainElement(HaveField("Regex", Equal(phrase)))),
+			match.BeAny,
+			Not(HaveOccurred()),
+		)
+	})
+}
+
+func TestT35_FullScenarioMissedCorrectionMemoryCandidateAudit(t *testing.T) {
+	t.Parallel()
+
+	// Given any transcript, capturedEvents = [{m_other, ^no,, "no, use bun"}]
+	ctx := context.Background()
+	transcript := []byte("session transcript with orphaned teammates discussion")
+	captured := []catchup.CapturedEvent{
+		{MemoryID: "m_other", Pattern: `^no,`, Message: "no, use bun"},
+	}
+
+	mockEval, evalExp := MockEvaluator(t)
+	mockReconciler, reconcilerExp := MockReconciler(t)
+
+	// When CatchupRun is called with captured events
+	call := StartRun(t, catchup.Run, ctx, mockEval, mockReconciler, captured, transcript)
+
+	// Then evaluator.FindMissed called with transcript and capturedEvents; Given missed correction, nil error
+	evalExp.FindMissed.ArgsShould(match.BeAny, Equal(transcript), Equal(captured)).
+		Return([]catchup.MissedCorrection{
 			{
-				Content: "you didn't shut them down before ending",
-				Context: "user corrected about orphaned teammates",
+				Content: "you didn't shut them down",
+				Context: "orphaned teammates",
 				Phrase:  `\byou didn't\b`,
 			},
 		}, nil)
 
-		expectStore.FindSimilar.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.BeAssignableToTypeOf(""),
-			gomega.BeNumerically(">", 0),
-		).Return(nil, nil)
+	// Then reconciler.Reconcile called; Given "created" result, nil error
+	reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+		Return(catchup.ReconcileResult{Action: "created", MemoryID: "m_0010"}, nil)
 
-		expectStore.Create.ArgsShould(
-			gomega.BeAssignableToTypeOf(context.Background()),
-			gomega.Not(gomega.BeNil()),
-		).Return(nil)
+	// Then candidates[0].Regex equals `\byou didn't\b`, audit non-empty, nil error
+	call.ReturnsShould(
+		And(HaveLen(1), ContainElement(HaveField("Regex", Equal(`\byou didn't\b`)))),
+		Not(BeEmpty()),
+		Not(HaveOccurred()),
+	)
+}
 
-		candidates, auditOutput, err := wrapper.ReturnsAs()
-		g.Expect(err).ToNot(gomega.HaveOccurred())
-		g.Expect(candidates).To(gomega.HaveLen(1))
-		g.Expect(candidates[0].Regex).To(gomega.Equal(`\byou didn't\b`))
-		g.Expect(auditOutput).ToNot(gomega.BeEmpty())
-	})
+func TestT36_LongContentTruncatedInTitle(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	transcript := []byte("session transcript")
+	longContent := "one two three four five six seven eight nine ten eleven twelve"
+
+	mockEval, evalExp := MockEvaluator(t)
+	mockReconciler, reconcilerExp := MockReconciler(t)
+
+	call := StartRun(t, catchup.Run, ctx, mockEval, mockReconciler, nil, transcript)
+
+	evalExp.FindMissed.ArgsShould(match.BeAny, Equal(transcript), match.BeAny).
+		Return([]catchup.MissedCorrection{
+			{Content: longContent, Context: "ctx", Phrase: "pattern"},
+		}, nil)
+
+	reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+		Return(catchup.ReconcileResult{Action: "created"}, nil)
+
+	call.ReturnsShould(HaveLen(1), Not(BeEmpty()), Not(HaveOccurred()))
 }

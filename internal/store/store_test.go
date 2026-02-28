@@ -2,252 +2,536 @@
 
 package store_test
 
-// Tests for ARCH-1: Memory Storage (SQLite + FTS5)
-// Integration tests — real SQLite, no mocks.
-// Won't compile yet — RED phase.
-
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"engram/internal"
 	"engram/internal/store"
-	"github.com/onsi/gomega"
+
+	. "github.com/onsi/gomega"
+	_ "modernc.org/sqlite"
+	"pgregory.net/rapid"
 )
 
-var testTime = time.Date(2026, 2, 27, 16, 30, 0, 0, time.UTC)
+func TestT1_CreatePopulatesAllMetadataFields(t *testing.T) {
+	t.Parallel()
 
-func newTestStore(t *testing.T) store.MemoryStore {
-	t.Helper()
-	s, err := store.NewSQLite(t.TempDir() + "/test.db")
-	gomega.NewWithT(t).Expect(err).ToNot(gomega.HaveOccurred())
-	t.Cleanup(func() { s.Close() })
-	return s
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	rapid.Check(t, func(t *rapid.T) {
+		// Given any Memory m with all metadata fields populated
+		m := genMemory().Draw(t, "memory")
+
+		// When test calls store.Create with (any ctx, m)
+		err := s.Create(ctx, &m)
+		// Then store.Create returns nil error
+		g.Expect(err).NotTo(HaveOccurred())
+
+		// When test calls store.Get with (any ctx, m.ID)
+		got, err := s.Get(ctx, m.ID)
+		// Then store.Get returns (Memory got, nil error)
+		g.Expect(err).NotTo(HaveOccurred())
+		// And got matches m on all metadata fields
+		g.Expect(got.ObservationType).To(Equal(m.ObservationType))
+		g.Expect(got.Concepts).To(Equal(m.Concepts))
+		g.Expect(got.Principle).To(Equal(m.Principle))
+		g.Expect(got.AntiPattern).To(Equal(m.AntiPattern))
+		g.Expect(got.Rationale).To(Equal(m.Rationale))
+		g.Expect(got.EnrichedContent).To(Equal(m.EnrichedContent))
+		g.Expect(got.Keywords).To(Equal(m.Keywords))
+	})
 }
 
-func testMemory(id, title string) *internal.Memory {
-	return &internal.Memory{
-		ID:              id,
-		Title:           title,
-		Content:         "Test content for " + title,
-		ObservationType: "correction",
-		Concepts:        []string{"testing", "go"},
-		Principle:       "test principle",
-		AntiPattern:     "test anti-pattern",
-		Rationale:       "test rationale",
-		EnrichedContent: "enriched test content",
-		Keywords:        []string{"test", "keyword"},
-		Confidence:      "A",
-		ImpactScore:     0.5,
-		CreatedAt:       testTime,
-		UpdatedAt:       testTime,
+func TestT2_CreateRejectsEmptyConfidence(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given a Memory m with Confidence = ""
+	m := store.Memory{
+		ID:         "m_00000001",
+		Title:      "test",
+		Content:    "test content",
+		Confidence: "",
+		CreatedAt:  time.Now().UTC(),
+		UpdatedAt:  time.Now().UTC(),
 	}
+	// When test calls store.Create with (any ctx, m)
+	err := s.Create(ctx, &m)
+	// Then store.Create returns non-nil error
+	g.Expect(err).To(HaveOccurred())
 }
 
-// T-1: Every created memory has all 6 metadata fields populated and retrievable.
-func TestMemoryStore_CreatePopulatesAllMetadataFields(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT3_FindSimilarReturnsScoredCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
 
-	m := testMemory("m_0001", "Test memory")
-	err := s.Create(ctx, m)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
+	// Given two memories in store: m1 with git content, m2 with DI content
+	m1 := store.Memory{
+		ID: "m_00000001", Title: "Git staging", Content: "Always use git add with specific file paths",
+		Keywords: []string{"git", "staging", "add"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	m2 := store.Memory{
+		ID: "m_00000002", Title: "DI", Content: "All file access through injected interfaces",
+		Keywords: []string{"dependency-injection", "interfaces"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m1)).To(Succeed())
+	g.Expect(s.Create(ctx, &m2)).To(Succeed())
 
-	got, err := s.Get(ctx, "m_0001")
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-
-	g.Expect(got.ObservationType).To(gomega.Equal("correction"))
-	g.Expect(got.Concepts).To(gomega.Equal([]string{"testing", "go"}))
-	g.Expect(got.Principle).To(gomega.Equal("test principle"))
-	g.Expect(got.AntiPattern).To(gomega.Equal("test anti-pattern"))
-	g.Expect(got.Rationale).To(gomega.Equal("test rationale"))
-	g.Expect(got.EnrichedContent).To(gomega.Equal("enriched test content"))
-	g.Expect(got.Keywords).To(gomega.Equal([]string{"test", "keyword"}))
-}
-
-// T-2: Creating a memory without a confidence tier (A/B/C) fails.
-func TestMemoryStore_ConfidenceTierIsRequired(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	m := testMemory("m_0001", "No confidence")
-	m.Confidence = ""
-
-	err := s.Create(ctx, m)
-	g.Expect(err).To(gomega.HaveOccurred())
-}
-
-// T-3: FindSimilar returns results with BM25 scores, ordered highest first.
-func TestMemoryStore_FindSimilarReturnsScoredCandidates(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	m1 := testMemory("m_0001", "Use git add specific files")
-	m1.Content = "Always use git add with specific file paths, never git add -A"
-	m1.Keywords = []string{"git", "staging", "add", "specific-files"}
-
-	m2 := testMemory("m_0002", "DI pattern in internal")
-	m2.Content = "All file access through injected interfaces"
-	m2.Keywords = []string{"dependency-injection", "interfaces", "internal"}
-
-	g.Expect(s.Create(ctx, m1)).To(gomega.Succeed())
-	g.Expect(s.Create(ctx, m2)).To(gomega.Succeed())
-
+	// When test calls store.FindSimilar with (any ctx, "git staging add files", 5)
 	results, err := s.FindSimilar(ctx, "git staging add files", 5)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(results).ToNot(gomega.BeEmpty())
-
-	// First result should be the git-related memory
-	g.Expect(results[0].Memory.ID).To(gomega.Equal("m_0001"))
-
-	// Scores should be descending
+	// Then store.FindSimilar returns (results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And results is non-empty
+	g.Expect(results).NotTo(BeEmpty())
+	// And results[0].Memory.ID equals m1.ID
+	g.Expect(results[0].Memory.ID).To(Equal(m1.ID))
+	// And scores are in descending order
 	for i := 1; i < len(results); i++ {
-		g.Expect(results[i].Score).To(gomega.BeNumerically("<=", results[i-1].Score))
+		g.Expect(results[i-1].Score).To(BeNumerically(">=", results[i].Score))
 	}
 }
 
-// T-4: FindSimilar never returns more than K results.
-func TestMemoryStore_FindSimilarRespectsK(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
-	ctx := context.Background()
+func TestT44_SurfaceReturnsFrecencyRankedResults(t *testing.T) {
+	t.Parallel()
 
-	for i := 0; i < 5; i++ {
-		m := testMemory("m_"+string(rune('a'+i)), "Testing memory")
-		m.Content = "This is about testing and go test commands"
-		m.Keywords = []string{"testing", "go", "test"}
-		g.Expect(s.Create(ctx, m)).To(gomega.Succeed())
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given three memories with overlapping content matching query:
+	// m1: created 1 day ago, impact_score = 0.9 (high frecency)
+	m1 := store.Memory{
+		ID: "m_00000101", Title: "Recent high", Content: "memory about testing patterns",
+		Keywords: []string{"testing", "patterns"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.9,
+		CreatedAt: now.Add(-24 * time.Hour), UpdatedAt: now.Add(-24 * time.Hour),
+	}
+	// m2: created 30 days ago, impact_score = 0.9 (harmonic mean penalizes old)
+	m2 := store.Memory{
+		ID: "m_00000102", Title: "Old high", Content: "memory about testing patterns too",
+		Keywords: []string{"testing", "patterns"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.9,
+		CreatedAt: now.Add(-30 * 24 * time.Hour), UpdatedAt: now.Add(-30 * 24 * time.Hour),
+	}
+	// m3: created 1 day ago, impact_score = 0.1 (harmonic mean penalizes low impact)
+	m3 := store.Memory{
+		ID: "m_00000103", Title: "Recent low", Content: "memory about testing patterns also",
+		Keywords: []string{"testing", "patterns"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.1,
+		CreatedAt: now.Add(-24 * time.Hour), UpdatedAt: now.Add(-24 * time.Hour),
 	}
 
-	results, err := s.FindSimilar(ctx, "testing go", 2)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(len(results)).To(gomega.BeNumerically("<=", 2))
+	g.Expect(s.Create(ctx, &m1)).To(Succeed())
+	g.Expect(s.Create(ctx, &m2)).To(Succeed())
+	g.Expect(s.Create(ctx, &m3)).To(Succeed())
+
+	// When test calls store.Surface with (any ctx, matching query, 5)
+	results, err := s.Surface(ctx, "testing patterns", 5)
+	// Then store.Surface returns (results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And results are non-empty
+	g.Expect(results).NotTo(BeEmpty())
+	// And results[0].Memory.ID equals m1.ID
+	g.Expect(results[0].Memory.ID).To(Equal(m1.ID))
+	// And results are in descending frecency order
+	for i := 1; i < len(results); i++ {
+		g.Expect(results[i-1].Score).To(BeNumerically(">=", results[i].Score))
+	}
 }
 
-// T-5: Updating a memory changes updated_at but preserves created_at.
-func TestMemoryStore_UpdatePreservesCreatedAt(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT45_ColdStartRankingEqualsRecency(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
 
-	m := testMemory("m_0001", "Original")
-	g.Expect(s.Create(ctx, m)).To(gomega.Succeed())
+	// Given three memories all with default impact_score = 0.5, different creation times
+	m1 := store.Memory{
+		ID: "m_00000201", Title: "Most recent", Content: "memory about build tools",
+		Keywords: []string{"build", "tools"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.5,
+		CreatedAt: now.Add(-24 * time.Hour), UpdatedAt: now.Add(-24 * time.Hour),
+	}
+	m2 := store.Memory{
+		ID: "m_00000202", Title: "Week old", Content: "memory about build tools usage",
+		Keywords: []string{"build", "tools"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.5,
+		CreatedAt: now.Add(-7 * 24 * time.Hour), UpdatedAt: now.Add(-7 * 24 * time.Hour),
+	}
+	m3 := store.Memory{
+		ID: "m_00000203", Title: "Month old", Content: "memory about build tools guide",
+		Keywords: []string{"build", "tools"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.5,
+		CreatedAt: now.Add(-30 * 24 * time.Hour), UpdatedAt: now.Add(-30 * 24 * time.Hour),
+	}
 
-	m.Title = "Updated"
-	m.UpdatedAt = testTime.Add(time.Hour)
-	g.Expect(s.Update(ctx, m)).To(gomega.Succeed())
+	g.Expect(s.Create(ctx, &m1)).To(Succeed())
+	g.Expect(s.Create(ctx, &m2)).To(Succeed())
+	g.Expect(s.Create(ctx, &m3)).To(Succeed())
 
-	got, err := s.Get(ctx, "m_0001")
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(got.Title).To(gomega.Equal("Updated"))
-	g.Expect(got.CreatedAt).To(gomega.BeTemporally("==", testTime))
-	g.Expect(got.UpdatedAt).To(gomega.BeTemporally("==", testTime.Add(time.Hour)))
+	// When test calls store.Surface with (any ctx, matching query, 5)
+	results, err := s.Surface(ctx, "build tools", 5)
+	// Then store.Surface returns (results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(len(results)).To(BeNumerically(">=", 3))
+	// And results ordered: m1, m2, m3 (most recent first)
+	g.Expect(results[0].Memory.ID).To(Equal(m1.ID))
+	g.Expect(results[1].Memory.ID).To(Equal(m2.ID))
+	g.Expect(results[2].Memory.ID).To(Equal(m3.ID))
 }
 
-// T-6: Enriching a memory increments its enrichment_count by 1.
-func TestMemoryStore_EnrichmentIncrementsCount(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT46_ConfidenceTiebreakerWhenFrecencyTied(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
 
-	m := testMemory("m_0001", "Original")
-	m.EnrichmentCount = 0
-	g.Expect(s.Create(ctx, m)).To(gomega.Succeed())
+	// Given two memories with identical created_at, updated_at, impact_score
+	// m1: confidence = "A"
+	m1 := store.Memory{
+		ID: "m_00000301", Title: "High confidence", Content: "memory about DI patterns",
+		Keywords: []string{"dependency", "injection"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.7,
+		CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
+	}
+	// m2: confidence = "B"
+	m2 := store.Memory{
+		ID: "m_00000302", Title: "Low confidence", Content: "memory about DI patterns too",
+		Keywords: []string{"dependency", "injection"}, Confidence: "B",
+		Concepts: []string{}, ImpactScore: 0.7,
+		CreatedAt: now.Add(-48 * time.Hour), UpdatedAt: now.Add(-48 * time.Hour),
+	}
 
-	m.EnrichmentCount = 1
-	m.UpdatedAt = testTime.Add(time.Hour)
-	g.Expect(s.Update(ctx, m)).To(gomega.Succeed())
+	g.Expect(s.Create(ctx, &m1)).To(Succeed())
+	g.Expect(s.Create(ctx, &m2)).To(Succeed())
 
-	got, err := s.Get(ctx, "m_0001")
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(got.EnrichmentCount).To(gomega.Equal(1))
+	// When test calls store.Surface with (any ctx, matching query, 5)
+	results, err := s.Surface(ctx, "dependency injection", 5)
+	// Then store.Surface returns (results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(len(results)).To(BeNumerically(">=", 2))
+	// And results[0].Memory.ID equals m1.ID (A > B tiebreaker)
+	g.Expect(results[0].Memory.ID).To(Equal(m1.ID))
 }
 
-// T-7: Memories whose keywords contain query terms rank above content-only matches.
-func TestMemoryStore_FindSimilarRanksKeywordMatchesHigher(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT47_SurfaceRespectsKLimit(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given more than K memories in store with overlapping content
+	for i := range 10 {
+		m := store.Memory{
+			ID: fmt.Sprintf("m_%08x", 0x400+i), Title: "surface limit test",
+			Content:  "common surfacing content for limit testing",
+			Keywords: []string{"surface", "limit"}, Confidence: "B",
+			Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+		}
+		g.Expect(s.Create(ctx, &m)).To(Succeed())
+	}
+
+	rapid.Check(t, func(t *rapid.T) {
+		// Given any K in [1,5]
+		k := rapid.IntRange(1, 5).Draw(t, "k")
+		// When test calls store.Surface with (any ctx, any matching query, K)
+		results, err := s.Surface(ctx, "common surfacing content", k)
+		// Then store.Surface returns (results, nil error)
+		g.Expect(err).NotTo(HaveOccurred())
+		// And len(results) <= K
+		g.Expect(len(results)).To(BeNumerically("<=", k))
+	})
+}
+
+func TestT48_IncrementSurfacingUpdatesMetadata(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given a Memory m in store with SurfacingCount = 0 and LastSurfacedAt = ""
+	m := store.Memory{
+		ID: "m_00000501", Title: "Surfacing test", Content: "test content",
+		Keywords: []string{"test"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+		SurfacingCount: 0,
+	}
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
+
+	// Verify initial state
+	got, err := s.Get(ctx, m.ID)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(got.SurfacingCount).To(Equal(0))
+	g.Expect(got.LastSurfacedAt).To(BeNil())
+
+	// When test calls store.IncrementSurfacing with (any ctx, [m.ID])
+	err = s.IncrementSurfacing(ctx, []string{m.ID})
+	// Then store.IncrementSurfacing returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.Get with (any ctx, m.ID)
+	got, err = s.Get(ctx, m.ID)
+	// Then store.Get returns (Memory got, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And got.SurfacingCount equals 1
+	g.Expect(got.SurfacingCount).To(Equal(1))
+	// And got.LastSurfacedAt is non-empty
+	g.Expect(got.LastSurfacedAt).NotTo(BeNil())
+}
+
+func TestT4_FindSimilarRespectsKLimit(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given more than K memories in store with overlapping content
+	for i := range 15 {
+		m := store.Memory{
+			ID: fmt.Sprintf("m_%08x", i), Title: "testing memory",
+			Content:  "common overlapping content for testing purposes",
+			Keywords: []string{"test", "overlap"}, Confidence: "B",
+			Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+		}
+		g.Expect(s.Create(ctx, &m)).To(Succeed())
+	}
+
+	rapid.Check(t, func(t *rapid.T) {
+		// Given any K in [1,10]
+		k := rapid.IntRange(1, 10).Draw(t, "k")
+		// When test calls store.FindSimilar with (any ctx, any matching query, K)
+		results, err := s.FindSimilar(ctx, "common overlapping content", k)
+		// Then store.FindSimilar returns (results, nil error)
+		g.Expect(err).NotTo(HaveOccurred())
+		// And len(results) <= K
+		g.Expect(len(results)).To(BeNumerically("<=", k))
+	})
+}
+
+func TestT5_UpdatePreservesCreatedAt(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
 
-	m1 := testMemory("m_kw", "Use targ build system")
-	m1.Content = "This project uses a build tool"
-	m1.Keywords = []string{"targ", "build", "test"}
+	rapid.Check(t, func(t *rapid.T) {
+		// Given any Memory m created in store at time T1
+		m := genMemory().Draw(t, "memory")
+		g.Expect(s.Create(ctx, &m)).To(Succeed())
 
-	m2 := testMemory("m_ct", "Build tool note")
-	m2.Content = "Remember to use targ for building and testing"
-	m2.Keywords = []string{"build", "tool"}
+		// When test calls store.Update with (any ctx, m with UpdatedAt = T2 where T2 > T1)
+		t2 := m.CreatedAt.Add(time.Hour)
+		m.UpdatedAt = t2
+		// Then store.Update returns nil error
+		g.Expect(s.Update(ctx, &m)).To(Succeed())
 
-	g.Expect(s.Create(ctx, m1)).To(gomega.Succeed())
-	g.Expect(s.Create(ctx, m2)).To(gomega.Succeed())
+		// When test calls store.Get with (any ctx, m.ID)
+		got, err := s.Get(ctx, m.ID)
+		// Then store.Get returns (Memory got, nil error)
+		g.Expect(err).NotTo(HaveOccurred())
+		// And got.CreatedAt equals T1
+		g.Expect(got.CreatedAt).To(Equal(m.CreatedAt))
+		// And got.UpdatedAt equals T2
+		g.Expect(got.UpdatedAt).To(Equal(t2))
+	})
+}
 
+func TestT6_EnrichmentIncrementsCount(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	rapid.Check(t, func(t *rapid.T) {
+		// Given any Memory m in store with EnrichmentCount = N
+		m := genMemory().Draw(t, "memory")
+		n := rapid.IntRange(0, 10).Draw(t, "initial_count")
+		m.EnrichmentCount = n
+		g.Expect(s.Create(ctx, &m)).To(Succeed())
+
+		// When test calls store.Update with (any ctx, m with EnrichmentCount = N+1)
+		m.EnrichmentCount = n + 1
+		// Then store.Update returns nil error
+		g.Expect(s.Update(ctx, &m)).To(Succeed())
+
+		// When test calls store.Get with (any ctx, m.ID)
+		got, err := s.Get(ctx, m.ID)
+		// Then store.Get returns (Memory got, nil error)
+		g.Expect(err).NotTo(HaveOccurred())
+		// And got.EnrichmentCount equals N+1
+		g.Expect(got.EnrichmentCount).To(Equal(n + 1))
+	})
+}
+
+func TestT7_FindSimilarRanksKeywordMatchesHigher(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given two memories: m1 with keywords ["targ","build","test"], m2 with keywords ["build","tool"]
+	m1 := store.Memory{
+		ID: "m_00000001", Title: "Build tool", Content: "This project uses a build tool",
+		Keywords: []string{"targ", "build", "test"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	m2 := store.Memory{
+		ID: "m_00000002", Title: "Building", Content: "Remember to use targ for building and testing",
+		Keywords: []string{"build", "tool"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m1)).To(Succeed())
+	g.Expect(s.Create(ctx, &m2)).To(Succeed())
+
+	// When test calls store.FindSimilar with (any ctx, "targ", 5)
 	results, err := s.FindSimilar(ctx, "targ", 5)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(len(results)).To(gomega.BeNumerically(">=", 2))
-	g.Expect(results[0].Memory.ID).To(gomega.Equal("m_kw"))
+	// Then store.FindSimilar returns (results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And len(results) >= 2
+	g.Expect(len(results)).To(BeNumerically(">=", 2))
+	// And results[0].Memory.ID equals m1.ID (keyword match ranked higher)
+	g.Expect(results[0].Memory.ID).To(Equal(m1.ID))
 }
 
-// T-8: FTS5 index syncs with table on insert, update, and delete.
-func TestMemoryStore_FTS5IndexSyncsWithTable(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT8_FTS5IndexSyncsWithTable(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
 
-	m := testMemory("m_0001", "Findable memory")
-	m.Keywords = []string{"unique-keyword-xyz"}
-	g.Expect(s.Create(ctx, m)).To(gomega.Succeed())
+	// Given a Memory m in store with keywords ["unique-keyword-xyz"]
+	m := store.Memory{
+		ID: "m_00000001", Title: "Unique test", Content: "something",
+		Keywords: []string{"unique-keyword-xyz"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
 
-	// Should be findable after insert
+	// When test calls store.FindSimilar with (any ctx, "unique-keyword-xyz", 5)
 	results, err := s.FindSimilar(ctx, "unique-keyword-xyz", 5)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(results).ToNot(gomega.BeEmpty())
+	// Then store.FindSimilar returns (non-empty results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(results).NotTo(BeEmpty())
 
-	// Update keywords
+	// When test calls store.Update with (any ctx, m with keywords = ["different-keyword-abc"])
 	m.Keywords = []string{"different-keyword-abc"}
-	m.UpdatedAt = testTime.Add(time.Hour)
-	g.Expect(s.Update(ctx, m)).To(gomega.Succeed())
+	// Then store.Update returns nil error
+	g.Expect(s.Update(ctx, &m)).To(Succeed())
 
-	// Old keyword should not match
+	// When test calls store.FindSimilar with (any ctx, "unique-keyword-xyz", 5)
 	results, err = s.FindSimilar(ctx, "unique-keyword-xyz", 5)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(results).To(gomega.BeEmpty())
+	// Then store.FindSimilar returns (empty results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(results).To(BeEmpty())
 
-	// New keyword should match
+	// When test calls store.FindSimilar with (any ctx, "different-keyword-abc", 5)
 	results, err = s.FindSimilar(ctx, "different-keyword-abc", 5)
-	g.Expect(err).ToNot(gomega.HaveOccurred())
-	g.Expect(results).ToNot(gomega.BeEmpty())
+	// Then store.FindSimilar returns (non-empty results, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(results).NotTo(BeEmpty())
 }
 
-// T-9: Multiple concurrent FindSimilar calls don't conflict.
-func TestMemoryStore_ConcurrentReads(t *testing.T) {
-	g := gomega.NewWithT(t)
-	s := newTestStore(t)
+func TestT9_ConcurrentReadsDontConflict(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
 	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
 
-	m := testMemory("m_0001", "Concurrent test")
-	m.Keywords = []string{"concurrent", "test"}
-	g.Expect(s.Create(ctx, m)).To(gomega.Succeed())
+	// Given a Memory m in store
+	m := store.Memory{
+		ID: "m_00000001", Title: "Concurrent test", Content: "test content for concurrency",
+		Keywords: []string{"concurrent"}, Confidence: "A",
+		Concepts: []string{}, CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
 
+	// When 10 goroutines concurrently call store.FindSimilar with (any ctx, any query, 5)
 	var wg sync.WaitGroup
-	errs := make(chan error, 10)
-	for i := 0; i < 10; i++ {
+	errs := make([]error, 10)
+	for i := range 10 {
 		wg.Add(1)
-		go func() {
+		go func(idx int) {
 			defer wg.Done()
-			_, err := s.FindSimilar(ctx, "concurrent test", 5)
-			if err != nil {
-				errs <- err
-			}
-		}()
+			_, errs[idx] = s.FindSimilar(ctx, "test content", 5)
+		}(i)
 	}
 	wg.Wait()
-	close(errs)
-
-	for err := range errs {
-		g.Expect(err).ToNot(gomega.HaveOccurred())
+	// Then all calls return nil error
+	for _, err := range errs {
+		g.Expect(err).NotTo(HaveOccurred())
 	}
+}
+
+func genMemory() *rapid.Generator[store.Memory] {
+	return rapid.Custom(func(t *rapid.T) store.Memory {
+		now := time.Now().UTC().Truncate(time.Second)
+		id := rapid.StringMatching(`m_[0-9a-f]{8}`).Draw(t, "id")
+		return store.Memory{
+			ID:              id,
+			Title:           rapid.StringMatching(`[A-Za-z ]{5,30}`).Draw(t, "title"),
+			Content:         rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(t, "content"),
+			ObservationType: rapid.SampledFrom([]string{"pattern", "preference", "anti-pattern"}).Draw(t, "obs_type"),
+			Concepts:        []string{rapid.StringMatching(`[a-z]{3,10}`).Draw(t, "concept")},
+			Principle:       rapid.StringMatching(`[A-Za-z ]{5,50}`).Draw(t, "principle"),
+			AntiPattern:     rapid.StringMatching(`[A-Za-z ]{5,50}`).Draw(t, "anti_pattern"),
+			Rationale:       rapid.StringMatching(`[A-Za-z ]{5,50}`).Draw(t, "rationale"),
+			EnrichedContent: rapid.StringMatching(`[A-Za-z ]{10,100}`).Draw(t, "enriched"),
+			Keywords:        []string{rapid.StringMatching(`[a-z]{3,10}`).Draw(t, "keyword")},
+			Confidence:      rapid.SampledFrom([]string{"A", "B", "C"}).Draw(t, "confidence"),
+			EnrichmentCount: 0,
+			ImpactScore:     0.5,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+	})
+}
+
+func setupDB(t *testing.T) *store.SQLiteStore {
+	t.Helper()
+	// Use a unique file URI with shared cache for concurrent access support.
+	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	s, err := store.New(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

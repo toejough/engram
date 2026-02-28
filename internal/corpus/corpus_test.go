@@ -1,20 +1,27 @@
 package corpus_test
 
-// Tests for correction pattern corpus (pure implementation, no I/O).
-// T-21 moved here from correct_test.go.
-// Won't compile yet — RED phase.
-
 import (
 	"testing"
 
+	. "github.com/onsi/gomega"
+
 	"engram/internal/corpus"
-	"github.com/onsi/gomega"
 )
 
-// T-21: Each of the 15 initial patterns matches expected input.
-func TestCorpus_AllFifteenPatternsMatch(t *testing.T) {
-	g := gomega.NewWithT(t)
+func TestMatch_NoMatch(t *testing.T) {
+	t.Parallel()
 
+	g := NewGomegaWithT(t)
+	patterns := corpus.New(corpus.DefaultPatterns())
+	g.Expect(patterns.Match("perfectly normal message")).To(BeNil())
+}
+
+func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Given each pattern from the initial corpus and its expected matching string
 	cases := []struct {
 		pattern string
 		input   string
@@ -36,14 +43,17 @@ func TestCorpus_AllFifteenPatternsMatch(t *testing.T) {
 		{`\bincorrect`, "that's incorrect"},
 	}
 
+	patterns := corpus.New(corpus.DefaultPatterns())
+
 	for _, tc := range cases {
 		t.Run(tc.pattern, func(t *testing.T) {
-			c, err := corpus.NewRegex([]corpus.Pattern{{Regex: tc.pattern, Label: tc.pattern}})
-			g.Expect(err).ToNot(gomega.HaveOccurred())
+			t.Parallel()
 
-			m, err := c.Match(tc.input)
-			g.Expect(err).ToNot(gomega.HaveOccurred())
-			g.Expect(m).ToNot(gomega.BeNil(), "pattern %q did not match %q", tc.pattern, tc.input)
+			g = NewGomegaWithT(t)
+			// When test calls corpus.Match with the input string
+			m := patterns.Match(tc.input)
+			// Then corpus.Match returns a non-nil match
+			g.Expect(m).NotTo(BeNil(), "pattern %q should match %q", tc.pattern, tc.input)
 		})
 	}
 }

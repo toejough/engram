@@ -1,107 +1,122 @@
 package audit_test
 
-// Tests for ARCH-7: Audit Logging (pure implementation, no I/O mocks).
-// Won't compile yet — RED phase.
-
 import (
 	"bytes"
 	"strings"
 	"testing"
 	"time"
 
+	. "github.com/onsi/gomega"
+
 	"engram/internal/audit"
-	"github.com/onsi/gomega"
 )
 
-var testTime = time.Date(2026, 2, 27, 16, 30, 0, 0, time.UTC)
+func TestT36_EntryHasTimestampOperationAndAction(t *testing.T) {
+	t.Parallel()
 
-// T-36: Every audit entry contains a timestamp, operation, and action field.
-func TestAuditLog_EntryHasTimestampOperationAction(t *testing.T) {
-	g := gomega.NewWithT(t)
+	g := NewGomegaWithT(t)
+
+	// Given an audit.Logger writing to a bytes.Buffer
 	var buf bytes.Buffer
+
 	log := audit.NewLogger(&buf)
 
+	// When log.Log called with timestamp, operation, action, and fields
+	timestamp := time.Date(2026, 2, 27, 16, 30, 0, 0, time.UTC)
 	err := log.Log(audit.Entry{
-		Timestamp: testTime,
+		Timestamp: timestamp,
 		Operation: "extract",
 		Action:    "created",
 		Fields:    map[string]string{"memory_id": "m_7f3a"},
 	})
-	g.Expect(err).ToNot(gomega.HaveOccurred())
 
-	line := buf.String()
-	g.Expect(line).To(gomega.ContainSubstring("2026-02-27T16:30:00Z"))
-	g.Expect(line).To(gomega.ContainSubstring("extract"))
-	g.Expect(line).To(gomega.ContainSubstring("created"))
+	// Then nil error, buffer contains timestamp, operation, and action
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("2026-02-27T16:30:00Z"))
+	g.Expect(output).To(ContainSubstring("extract"))
+	g.Expect(output).To(ContainSubstring("created"))
 }
 
-// T-37: Writing an entry does not modify any prior entries in the log file.
-func TestAuditLog_AppendOnly(t *testing.T) {
-	g := gomega.NewWithT(t)
-	var buf bytes.Buffer
-	log := audit.NewLogger(&buf)
+func TestT37_AppendOnlyNewEntriesDontModifyPrior(t *testing.T) {
+	t.Parallel()
 
-	_ = log.Log(audit.Entry{
-		Timestamp: testTime,
+	g := NewGomegaWithT(t)
+
+	// Given an audit.Logger writing to a bytes.Buffer
+	var buf bytes.Buffer
+
+	log := audit.NewLogger(&buf)
+	timestamp := time.Date(2026, 2, 27, 16, 30, 0, 0, time.UTC)
+
+	// When log.Log called with first entry
+	err := log.Log(audit.Entry{
+		Timestamp: timestamp,
 		Operation: "extract",
 		Action:    "created",
-		Fields:    map[string]string{"memory_id": "m_0001"},
+		Fields:    map[string]string{"memory_id": "m_7f3a"},
 	})
+	// Then buffer contains first entry text
+	g.Expect(err).NotTo(HaveOccurred())
+
 	first := buf.String()
 
-	_ = log.Log(audit.Entry{
-		Timestamp: testTime.Add(time.Second),
+	// When log.Log called with second entry
+	err = log.Log(audit.Entry{
+		Timestamp: timestamp.Add(time.Minute),
 		Operation: "correct",
 		Action:    "enriched",
-		Fields:    map[string]string{"memory_id": "m_0002"},
+		Fields:    map[string]string{"memory_id": "m_aa11"},
 	})
-	combined := buf.String()
+	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(combined).To(gomega.HavePrefix(first))
-
-	lines := strings.Split(strings.TrimSpace(combined), "\n")
-	g.Expect(lines).To(gomega.HaveLen(2))
+	// Then buffer starts with first entry text (prefix preserved), contains exactly 2 lines
+	output := buf.String()
+	g.Expect(output).To(HavePrefix(first))
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	g.Expect(lines).To(HaveLen(2))
 }
 
-// T-38: Output line matches DES-7 key-value format.
-func TestAuditLog_FormatMatchesDES7(t *testing.T) {
-	g := gomega.NewWithT(t)
-	var buf bytes.Buffer
-	log := audit.NewLogger(&buf)
+func TestT38_FormatMatchesDES7KeyValueSpec(t *testing.T) {
+	t.Parallel()
 
-	_ = log.Log(audit.Entry{
-		Timestamp: testTime,
+	g := NewGomegaWithT(t)
+
+	// Given an audit.Logger writing to a bytes.Buffer
+	var buf bytes.Buffer
+
+	log := audit.NewLogger(&buf)
+	timestamp := time.Date(2026, 2, 27, 16, 30, 0, 0, time.UTC)
+
+	// When log.Log called with timestamp, operation, action, and key-value fields
+	err := log.Log(audit.Entry{
+		Timestamp: timestamp,
 		Operation: "extract",
 		Action:    "created",
-		Fields: map[string]string{
-			"memory_id":  "m_7f3a",
-			"confidence": "B",
-		},
+		Fields:    map[string]string{"memory_id": "m_7f3a", "confidence": "B"},
 	})
+	g.Expect(err).NotTo(HaveOccurred())
 
+	// Then format is: <RFC3339> <operation> <action> <key=value pairs>
 	line := strings.TrimSpace(buf.String())
+	parts := strings.Fields(line)
+	g.Expect(parts[0]).To(Equal("2026-02-27T16:30:00Z"))
+	g.Expect(parts[1]).To(Equal("extract"))
+	g.Expect(parts[2]).To(Equal("created"))
+	g.Expect(line).To(ContainSubstring(`memory_id="m_7f3a"`))
+	g.Expect(line).To(ContainSubstring(`confidence="B"`))
 
-	// Must start with RFC3339 timestamp
-	g.Expect(line).To(gomega.HavePrefix("2026-02-27T16:30:00Z"))
-
-	// Must contain operation and action after timestamp
-	parts := strings.SplitN(line, " ", 4)
-	g.Expect(parts).To(gomega.HaveLen(4))
-	g.Expect(parts[1]).To(gomega.Equal("extract"))
-	g.Expect(parts[2]).To(gomega.Equal("created"))
-
-	// Must contain key=value fields
-	g.Expect(line).To(gomega.ContainSubstring("memory_id=m_7f3a"))
-	g.Expect(line).To(gomega.ContainSubstring("confidence=B"))
-
-	// Values with spaces must be quoted
+	// When log.Log called with fields containing spaces
 	buf.Reset()
-	_ = log.Log(audit.Entry{
-		Timestamp: testTime,
+
+	err = log.Log(audit.Entry{
+		Timestamp: timestamp,
 		Operation: "extract",
-		Action:    "rejected",
+		Action:    "created",
 		Fields:    map[string]string{"content": "Always check things carefully"},
 	})
-	line2 := buf.String()
-	g.Expect(line2).To(gomega.ContainSubstring(`content="Always check things carefully"`))
+	g.Expect(err).NotTo(HaveOccurred())
+	// Then values containing spaces are quoted
+	g.Expect(buf.String()).To(ContainSubstring(`content="Always check things carefully"`))
 }
