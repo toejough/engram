@@ -12,6 +12,8 @@ When user says "continue", "resume", or similar without other context:
 
 State persistence (write-ahead): After each substantive interaction (node transition, decision made, flag set/cleared), immediately update `docs/state.toml`. Do not defer to session end. See the specification-layers skill for the TOML format.
 
+**Context preservation:** During long sessions, before context approaches limits, write a brief `docs/session-context.md` capturing: (a) constraints discovered this session, (b) patterns/workarounds found, (c) what's been tried and failed.
+
 ## Process: Depth-First Tree Traversal
 
 See the specification-layers skill for the full model. Key points:
@@ -28,3 +30,35 @@ See the specification-layers skill for the full model. Key points:
 - **Plugin form factor:** Hooks, skills, CLAUDE.md management, Go binary for computation.
 - **Test hard-to-test code by refactoring for DI**, not by writing integration tests around I/O.
 - **Content quality > mechanical sophistication.** Measure impact, not just frequency.
+- **Test categorization:** Unit tests verify business logic via DI + mocks (imptest). Integration tests verify wiring of thin I/O wrappers with real dependencies. If a function has business logic AND I/O, refactor to separate them — don't write an integration test around the whole thing.
+
+## Code Quality
+
+- **Use `targ` for all build/test/check operations** — NEVER run `go test`, `go vet`, `go build` directly
+  - Tests: `targ test`
+  - Lint + coverage: `targ check`
+  - Build: `targ build`
+  - Don't reverse-engineer targ's behavior — treat it as a black box
+- When `targ check` reports a failure, assume there are MORE failures behind it — run repeatedly until fully clean
+- Minimal code that solves the problem — don't over-engineer
+- Use `make([]T, 0, capacity)` when size is known
+
+## Nilaway + Gomega Compatibility
+
+nilaway doesn't recognize gomega assertions as nil guards. Required patterns:
+- After `g.Expect(err).NotTo(HaveOccurred())`, add `if err != nil { return }` before accessing values
+- Use `g.Expect(err).To(MatchError(...))` instead of `err.Error()`
+- Add explicit nil guards before field access on pointers
+- For test helpers returning `(*T, error)`, nil-check the pointer after asserting no error
+
+## Known Model Defaults to Avoid
+
+Generate code that passes linters on first commit:
+- Name constants instead of magic numbers: `const maxRetries = 3`, not bare `3`
+- Descriptive variable names: `memory`, `pattern`, `score` — not `m`, `p`, `s`
+- Wrap errors with context: `fmt.Errorf("finding similar: %w", err)` not bare `return err`
+- Use sentinel errors: `var ErrNotFound = errors.New(...)` not inline `fmt.Errorf(...)`
+- Add `t.Parallel()` to every test and subtest (with no shared mutable state)
+- Use `http.NewRequestWithContext` not `http.Get`
+- Use `crypto/rand` not `math/rand`
+- Line length under 120 chars
