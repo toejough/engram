@@ -171,7 +171,7 @@ history = "All 14 tests green. store surfacing log (T-59..T-62, 4), store Decrea
 # Cursor
 
 [cursor]
-node = "L5C"
-mode = "commit"
-next_action = "L5C complete (14 tests T-59..T-72 all green, targ check clean). Commit implementation. L2C fully traversed — ascend to check L1A usability gate."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+node = "L1A"
+mode = "red"
+next_action = "L2C fully traversed (REQ-16 implemented). Reassess L1A usability gate: reclassification gap closed. Remaining gaps: LLM client stubs (extract/catchup), session log persistence — both blocked on L1B (UC-7..UC-10). Check if L1A can be marked complete or if more L2 work needed."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md"]
