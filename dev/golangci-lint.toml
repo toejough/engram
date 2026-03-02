@@ -53,6 +53,7 @@ allow = [
 	'github.com/toejough/imptest',
 	'github.com/toejough/targ',
 	'golang.org/x/tools/go/packages',
+	'modernc.org/sqlite',
 ]
 
 [linters.settings.depguard.rules.test]

@@ -11,6 +11,11 @@ import (
 	"time"
 )
 
+// Exported variables.
+var (
+	ErrNotFound = errors.New("store: not found")
+)
+
 // DB abstracts database operations for dependency injection.
 type DB interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -54,6 +59,16 @@ func New(db DB) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+// ClearSessionSurfacings removes all entries from the session surfacing log.
+func (s *SQLiteStore) ClearSessionSurfacings(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM session_surfacings`)
+	if err != nil {
+		return fmt.Errorf("store: clear session surfacings: %w", err)
+	}
+
+	return nil
+}
+
 // Create inserts a new memory into the store.
 func (s *SQLiteStore) Create(ctx context.Context, m *Memory) error {
 	if m.Confidence == "" {
@@ -86,6 +101,34 @@ func (s *SQLiteStore) Create(ctx context.Context, m *Memory) error {
 	)
 	if err != nil {
 		return fmt.Errorf("store: fts insert: %w", err)
+	}
+
+	return nil
+}
+
+// DecreaseImpact applies multiplicative decay to a memory's impact score.
+// The new score is impact_score * factor, floored at 0.0.
+// Returns ErrNotFound if the memory ID does not exist.
+func (s *SQLiteStore) DecreaseImpact(ctx context.Context, memoryID string, factor float64) error {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE memories SET impact_score = MAX(0.0, impact_score * ?) WHERE id = ?`,
+		factor, memoryID,
+	)
+	if err != nil {
+		return fmt.Errorf("store: decrease impact: %w", err)
+	}
+
+	if result == nil {
+		return errNilResult
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("store: decrease impact rows: %w", err)
+	}
+
+	if affected == 0 {
+		return fmt.Errorf("%w: %s", ErrNotFound, memoryID)
 	}
 
 	return nil
@@ -166,6 +209,41 @@ func (s *SQLiteStore) Get(ctx context.Context, id string) (*Memory, error) {
 	return &m, nil
 }
 
+// GetSessionSurfacings returns unique memory IDs from the session surfacing log.
+func (s *SQLiteStore) GetSessionSurfacings(ctx context.Context) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT memory_id FROM session_surfacings`)
+	if err != nil {
+		return nil, fmt.Errorf("store: get session surfacings: %w", err)
+	}
+
+	defer func() { _ = rows.Close() }()
+
+	var ids []string
+
+	for rows.Next() {
+		var id string
+
+		err = rows.Scan(&id)
+		if err != nil {
+			return nil, fmt.Errorf("store: scan surfacing: %w", err)
+		}
+
+		ids = append(ids, id)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("store: surfacing rows: %w", err)
+	}
+
+	if ids == nil {
+		ids = make([]string, 0)
+	}
+
+	return ids, nil
+}
+
 // IncrementSurfacing increments the surfacing count and updates last surfaced time for memories by ID.
 func (s *SQLiteStore) IncrementSurfacing(ctx context.Context, ids []string) error {
 	if len(ids) == 0 {
@@ -177,6 +255,27 @@ func (s *SQLiteStore) IncrementSurfacing(ctx context.Context, ids []string) erro
 	_, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("store: increment surfacing: %w", err)
+	}
+
+	return nil
+}
+
+// RecordSurfacing records memory IDs in the session surfacing log.
+func (s *SQLiteStore) RecordSurfacing(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	for _, id := range ids {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO session_surfacings (memory_id, surfaced_at) VALUES (?, ?)`,
+			id, now,
+		)
+		if err != nil {
+			return fmt.Errorf("store: record surfacing: %w", err)
+		}
 	}
 
 	return nil
@@ -377,12 +476,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
     title, content, keywords, enriched_content,
     content='memories', content_rowid='rowid'
 );
+
+CREATE TABLE IF NOT EXISTS session_surfacings (
+    memory_id TEXT NOT NULL,
+    surfaced_at TEXT NOT NULL
+);
 `
 )
 
 // unexported variables.
 var (
 	errEmptyConfidence = errors.New("store: confidence must not be empty")
+	errNilResult       = errors.New("store: decrease impact: nil result")
 )
 
 // marshalFields serializes Concepts and Keywords to JSON.

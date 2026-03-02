@@ -21,12 +21,13 @@ func TestT19_NoMatchReturnsEmpty(t *testing.T) {
 		ctx := context.Background()
 
 		mockReconciler, _ := MockReconciler(t)
-		// When test calls DetectCorrection with (store, gate, nil, any ctx, message)
+		// When test calls DetectCorrection with (store, gate, nil, nil reclassifier, any ctx, message)
 		call := StartDetectCorrection(
 			t,
 			correct.DetectCorrection,
 			ctx,
 			mockReconciler,
+			nil,
 			nil,
 			message,
 		)
@@ -43,13 +44,14 @@ func TestT20_MatchTriggersReconciliation(t *testing.T) {
 
 	// Given patterns including `^no,`
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "no, use specific files not git add -A")
+	// When test calls DetectCorrection with (store, gate, patterns, nil reclassifier, message)
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"no, use specific files not git add -A",
 	)
 
@@ -68,13 +70,13 @@ func TestT22_CorrectionRecordedToSessionLog(t *testing.T) {
 
 	// Given patterns including `^no,`
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "no, that's not right")
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"no, that's not right",
 	)
 
@@ -91,15 +93,14 @@ func TestT23_EnrichedExistingMemoryReminderSaysEnriched(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Given patterns including `^no,`, existing Memory with Title "Use git add specific files"
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "no, don't use git add -A")
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"no, don't use git add -A",
 	)
 
@@ -125,15 +126,14 @@ func TestT24_CreatedNewMemoryReminderSaysCreated(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Given patterns including `^wait`
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "wait, this project uses bun not npm")
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"wait, this project uses bun not npm",
 	)
 
@@ -150,15 +150,14 @@ func TestT25_FalsePositiveCapturedAnyway(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Given patterns including `\bremember\s+(that|to)` — false positive per DES-5
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "remember to run tests before committing")
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"remember to run tests before committing",
 	)
 
@@ -175,15 +174,14 @@ func TestT26_EndToEndCorrectionDetection(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Given patterns including `^no,`
 	mockReconciler, reconcilerExp := MockReconciler(t)
-	// When test calls DetectCorrection with (store, gate, patterns, any ctx, "no, use targ test not go test")
 	call := StartDetectCorrection(
 		t,
 		correct.DetectCorrection,
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"no, use targ test not go test",
 	)
 
@@ -207,6 +205,7 @@ func TestT27_LongMessageTitleTruncated(t *testing.T) {
 		ctx,
 		mockReconciler,
 		defaultPatterns(),
+		nil,
 		"no, you should use specific file paths instead of git add dash capital A for staging",
 	)
 
@@ -214,6 +213,63 @@ func TestT27_LongMessageTitleTruncated(t *testing.T) {
 		Return(correct.ReconcileResult{Action: "created", MemoryID: "m_0006"}, nil)
 
 	call.ReturnsShould(Not(BeEmpty()), HaveLen(1), Not(BeEmpty()), Not(HaveOccurred()))
+}
+
+// T-69: DetectCorrection triggers reclassification on match
+func TestT69_DetectCorrectionTriggersReclassificationOnMatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	mockReconciler, reconcilerExp := MockReconciler(t)
+	mockReclassifier, reclassifierExp := MockReclassifier(t)
+
+	// Given a message matching a correction pattern and a reclassifier
+	call := StartDetectCorrection(
+		t,
+		correct.DetectCorrection,
+		ctx,
+		mockReconciler,
+		defaultPatterns(),
+		mockReclassifier,
+		"no, use targ not go test directly",
+	)
+
+	// Reconcile called first
+	reconcilerExp.Reconcile.ArgsShould(match.BeAny, match.BeAny).
+		Return(correct.ReconcileResult{Action: "created", MemoryID: "m_0007"}, nil)
+
+	// Then reclassifier.Reclassify is called
+	reclassifierExp.Reclassify.ArgsShould(match.BeAny).
+		Return(2, nil)
+
+	// Then returns (non-empty reminder, recordings, auditStr, nil error)
+	call.ReturnsShould(Not(BeEmpty()), HaveLen(1), Not(BeEmpty()), Not(HaveOccurred()))
+}
+
+// T-70: DetectCorrection skips reclassification on no match
+func TestT70_DetectCorrectionSkipsReclassificationOnNoMatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	mockReconciler, _ := MockReconciler(t)
+	mockReclassifier, _ := MockReclassifier(t)
+
+	// Given a message NOT matching any correction pattern
+	call := StartDetectCorrection(
+		t,
+		correct.DetectCorrection,
+		ctx,
+		mockReconciler,
+		defaultPatterns(),
+		mockReclassifier,
+		"This is a normal message with no correction",
+	)
+
+	// Then returns ("", nil recordings, "", nil error)
+	// Reclassifier.Reclassify is never called (no mock expectations set)
+	call.ReturnsShould(BeEmpty(), BeEmpty(), match.BeAny, Not(HaveOccurred()))
 }
 
 func defaultPatterns() *corpus.Corpus {

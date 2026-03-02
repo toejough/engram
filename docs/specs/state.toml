@@ -39,7 +39,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -89,8 +89,8 @@ history = "Read Path: frecency ranking, per-hook retrieval, surfacing format, di
 layer = "L2"
 parent = "L1A"
 items = ["REQ-16"]
-status = "pending"
-history = "Feedback Loop: immediate reclassification on correction. REQ-17 moved to L2A (implemented), DES-4 moved to L2B (implemented). REQ-16 remains — no reclassification logic in code."
+status = "complete"
+history = "Feedback Loop: immediate reclassification on correction. REQ-17 moved to L2A (implemented), DES-4 moved to L2B (implemented). REQ-16 fully implemented: session surfacing log, multiplicative decay, correct/surface pipeline integration."
 
 [tree.L2D]
 layer = "L2"
@@ -161,10 +161,17 @@ items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52",
 status = "complete"
 history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfacing(4), surface.Run pipeline(2), hook scripts SessionStart/UserPromptSubmit+surface/PreToolUse(3), wiring(1)."
 
+[tree.L5C]
+layer = "L5"
+parent = "L4C"
+items = ["T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+status = "complete"
+history = "All 14 tests green. store surfacing log (T-59..T-62, 4), store DecreaseImpact (T-63..T-65, 3), reclassify.Run (T-66..T-68, 3), correct.DetectCorrection reclassifier integration (T-69..T-70, 2), surface.Run RecordSurfacing/ClearSessionSurfacings (T-71..T-72, 2). New packages: reclassify. Extended: store, correct, surface."
+
 # Cursor
 
 [cursor]
-node = "L4C"
-mode = "descend"
-next_action = "L4C complete (14 test specs T-59..T-72). Descend to L5C: implement tests one at a time via TDD. Start with store methods (T-59..T-65), then reclassify logic (T-66..T-68), then integration (T-69..T-72)."
+node = "L5C"
+mode = "commit"
+next_action = "L5C complete (14 tests T-59..T-72 all green, targ check clean). Commit implementation. L2C fully traversed — ascend to check L1A usability gate."
 context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]

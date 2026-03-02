@@ -19,8 +19,6 @@ func TestMatch_NoMatch(t *testing.T) {
 func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
 	t.Parallel()
 
-	g := NewGomegaWithT(t)
-
 	// Given each pattern from the initial corpus and its expected matching string
 	cases := []struct {
 		pattern string
@@ -49,7 +47,7 @@ func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
 		t.Run(tc.pattern, func(t *testing.T) {
 			t.Parallel()
 
-			g = NewGomegaWithT(t)
+			g := NewGomegaWithT(t)
 			// When test calls corpus.Match with the input string
 			m := patterns.Match(tc.input)
 			// Then corpus.Match returns a non-nil match

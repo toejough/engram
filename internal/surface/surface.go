@@ -57,6 +57,8 @@ func NewPipeline(cfg Config) (*Pipeline, error) {
 type Store interface {
 	Surface(ctx context.Context, query string, k int) ([]store.ScoredMemory, error)
 	IncrementSurfacing(ctx context.Context, ids []string) error
+	RecordSurfacing(ctx context.Context, ids []string) error
+	ClearSessionSurfacings(ctx context.Context) error
 }
 
 // Run surfaces memories for a query and returns formatted output.
@@ -69,6 +71,13 @@ func Run(
 	query string,
 	budget int,
 ) (string, error) {
+	if hookType == "session-start" {
+		err := st.ClearSessionSurfacings(ctx)
+		if err != nil {
+			return "", fmt.Errorf("surface: clear session surfacings: %w", err)
+		}
+	}
+
 	memories, err := st.Surface(ctx, query, budget)
 	if err != nil {
 		return "", fmt.Errorf("surface: query: %w", err)
@@ -88,6 +97,11 @@ func Run(
 	err = st.IncrementSurfacing(ctx, ids)
 	if err != nil {
 		return "", fmt.Errorf("surface: increment: %w", err)
+	}
+
+	err = st.RecordSurfacing(ctx, ids)
+	if err != nil {
+		return "", fmt.Errorf("surface: record surfacing: %w", err)
 	}
 
 	err = auditLog.Log(audit.Entry{

@@ -334,6 +334,27 @@ func TestT4_FindSimilarRespectsKLimit(t *testing.T) {
 	})
 }
 
+func TestT59_RecordSurfacingInsertsMemoryIDs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given an empty store with session_surfacings table
+	// When test calls store.RecordSurfacing with (any ctx, ["m_aaa", "m_bbb"])
+	err := s.RecordSurfacing(ctx, []string{"m_aaa", "m_bbb"})
+	// Then store.RecordSurfacing returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.GetSessionSurfacings with (any ctx)
+	ids, err := s.GetSessionSurfacings(ctx)
+	// Then store.GetSessionSurfacings returns (ids, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And ids contains "m_aaa" and "m_bbb"
+	g.Expect(ids).To(ContainElements("m_aaa", "m_bbb"))
+}
+
 func TestT5_UpdatePreservesCreatedAt(t *testing.T) {
 	t.Parallel()
 
@@ -361,6 +382,150 @@ func TestT5_UpdatePreservesCreatedAt(t *testing.T) {
 		// And got.UpdatedAt equals T2
 		g.Expect(got.UpdatedAt).To(Equal(t2))
 	})
+}
+
+func TestT60_GetSessionSurfacingsReturnsUniqueIDs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given a store with session_surfacings containing two rows for "m_aaa"
+	err := s.RecordSurfacing(ctx, []string{"m_aaa"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = s.RecordSurfacing(ctx, []string{"m_aaa"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.GetSessionSurfacings with (any ctx)
+	ids, err := s.GetSessionSurfacings(ctx)
+	// Then store.GetSessionSurfacings returns (ids, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And ids contains "m_aaa" exactly once
+	g.Expect(ids).To(HaveLen(1))
+	g.Expect(ids).To(ContainElement("m_aaa"))
+}
+
+func TestT61_ClearSessionSurfacingsEmptiesTable(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given a store with session_surfacings containing ["m_aaa", "m_bbb"]
+	err := s.RecordSurfacing(ctx, []string{"m_aaa", "m_bbb"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.ClearSessionSurfacings with (any ctx)
+	err = s.ClearSessionSurfacings(ctx)
+	// Then store.ClearSessionSurfacings returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.GetSessionSurfacings with (any ctx)
+	ids, err := s.GetSessionSurfacings(ctx)
+	// Then store.GetSessionSurfacings returns (ids, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And len(ids) equals 0
+	g.Expect(ids).To(HaveLen(0))
+}
+
+func TestT62_GetSessionSurfacingsEmptyReturnsEmptySlice(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given an empty store with session_surfacings table
+	// When test calls store.GetSessionSurfacings with (any ctx)
+	ids, err := s.GetSessionSurfacings(ctx)
+	// Then store.GetSessionSurfacings returns (ids, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	// And len(ids) equals 0
+	g.Expect(ids).To(HaveLen(0))
+}
+
+func TestT63_DecreaseImpactAppliesMultiplicativeDecay(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given a Memory m in store with impact_score = 0.9
+	m := store.Memory{
+		ID: "m_00000901", Title: "Impact test", Content: "test content for impact",
+		Keywords: []string{"test"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.9,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
+
+	// When test calls store.DecreaseImpact with (any ctx, m.ID, 0.8)
+	err := s.DecreaseImpact(ctx, m.ID, 0.8)
+	// Then store.DecreaseImpact returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.Get with (any ctx, m.ID)
+	got, err := s.Get(ctx, m.ID)
+	// Then store.Get returns (Memory got, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	// And got.ImpactScore is approximately 0.72 (0.9 * 0.8)
+	g.Expect(got.ImpactScore).To(BeNumerically("~", 0.72, 0.001))
+}
+
+func TestT64_DecreaseImpactFloorsAtZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+
+	// Given a Memory m in store with impact_score = 0.05
+	m := store.Memory{
+		ID: "m_00000902", Title: "Floor test", Content: "test content for floor",
+		Keywords: []string{"test"}, Confidence: "A",
+		Concepts: []string{}, ImpactScore: 0.05,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
+
+	// When test calls store.DecreaseImpact with (any ctx, m.ID, 0.8)
+	err := s.DecreaseImpact(ctx, m.ID, 0.8)
+	// Then store.DecreaseImpact returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.Get with (any ctx, m.ID)
+	got, err := s.Get(ctx, m.ID)
+	// Then store.Get returns (Memory got, nil error)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	// And got.ImpactScore >= 0.0
+	g.Expect(got.ImpactScore).To(BeNumerically(">=", 0.0))
+}
+
+func TestT65_DecreaseImpactNonexistentReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given an empty store
+	// When test calls store.DecreaseImpact with (any ctx, "m_nonexistent", 0.8)
+	err := s.DecreaseImpact(ctx, "m_nonexistent", 0.8)
+	// Then store.DecreaseImpact returns non-nil error
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("not found")))
 }
 
 func TestT6_EnrichmentIncrementsCount(t *testing.T) {

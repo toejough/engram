@@ -44,6 +44,11 @@ type Learning struct {
 	Title    string
 }
 
+// Reclassifier reclassifies surfaced memories on correction detection (ARCH-13).
+type Reclassifier interface {
+	Reclassify(ctx context.Context) (int, error)
+}
+
 // ReconcileResult contains the outcome of a reconciliation.
 type ReconcileResult struct {
 	Action   string
@@ -63,10 +68,13 @@ type Recording struct {
 }
 
 // DetectCorrection detects and records user corrections in a message.
+// If reclassifier is non-nil, it is invoked after a successful reconciliation
+// to decrease impact scores for memories surfaced before this correction (ARCH-13).
 func DetectCorrection(
 	ctx context.Context,
 	reconciler Reconciler,
 	patterns *corpus.Corpus,
+	reclassifier Reclassifier,
 	message string,
 ) (reminder string, recordings []Recording, auditStr string, err error) {
 	if patterns == nil {
@@ -87,6 +95,13 @@ func DetectCorrection(
 	result, err := reconciler.Reconcile(ctx, learning)
 	if err != nil {
 		return "", nil, "", fmt.Errorf("correct: reconcile: %w", err)
+	}
+
+	if reclassifier != nil {
+		_, err = reclassifier.Reclassify(ctx)
+		if err != nil {
+			return "", nil, "", fmt.Errorf("correct: reclassify: %w", err)
+		}
 	}
 
 	rec := Recording{MemoryID: result.MemoryID, Content: message}

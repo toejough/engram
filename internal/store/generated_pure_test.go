@@ -678,3 +678,134 @@ func TestSurface_MultipleResults(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(results).To(HaveLen(3))
 }
+
+func TestRecordSurfacing_ExecError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	mock := &mockDB{execErr: errors.New("exec boom"), failOnExec: 2}
+	s, err := store.New(mock)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if s == nil {
+		t.Fatal("unexpected nil store")
+	}
+
+	err = s.RecordSurfacing(context.Background(), []string{"m_001"})
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("record surfacing")))
+}
+
+func TestGetSessionSurfacings_Success(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	m := testMemory("m_gs01")
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
+	g.Expect(s.RecordSurfacing(ctx, []string{"m_gs01"})).To(Succeed())
+
+	ids, err := s.GetSessionSurfacings(ctx)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ids).To(ConsistOf("m_gs01"))
+}
+
+func TestGetSessionSurfacings_Empty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupTestStore(t)
+
+	ids, err := s.GetSessionSurfacings(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ids).To(BeEmpty())
+	g.Expect(ids).NotTo(BeNil())
+}
+
+func TestGetSessionSurfacings_QueryError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	mock := &mockDB{queryErr: errors.New("query boom"), failOnQuery: 1}
+	s, err := store.New(mock)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if s == nil {
+		t.Fatal("unexpected nil store")
+	}
+
+	_, err = s.GetSessionSurfacings(context.Background())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("get session surfacings")))
+}
+
+func TestClearSessionSurfacings_ExecError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	mock := &mockDB{execErr: errors.New("exec boom"), failOnExec: 2}
+	s, err := store.New(mock)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if s == nil {
+		t.Fatal("unexpected nil store")
+	}
+
+	err = s.ClearSessionSurfacings(context.Background())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("clear session surfacings")))
+}
+
+func TestDecreaseImpact_Success(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	m := testMemory("m_di01")
+	m.ImpactScore = 1.0
+	g.Expect(s.Create(ctx, &m)).To(Succeed())
+
+	err := s.DecreaseImpact(ctx, "m_di01", 0.8)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := s.Get(ctx, "m_di01")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if got == nil {
+		t.Fatal("unexpected nil memory")
+	}
+
+	g.Expect(got.ImpactScore).To(BeNumerically("~", 0.8, 0.01))
+}
+
+func TestDecreaseImpact_NotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupTestStore(t)
+
+	err := s.DecreaseImpact(context.Background(), "m_nonexistent", 0.8)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("not found")))
+}
+
+func TestDecreaseImpact_ExecError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	mock := &mockDB{execErr: errors.New("exec boom"), failOnExec: 2}
+	s, err := store.New(mock)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if s == nil {
+		t.Fatal("unexpected nil store")
+	}
+
+	err = s.DecreaseImpact(context.Background(), "m_001", 0.8)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("decrease impact")))
+}

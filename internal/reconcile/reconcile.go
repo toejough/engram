@@ -88,7 +88,8 @@ func Run(ctx context.Context, s Store, gate OverlapGate, k int, learning Learnin
 
 // unexported constants.
 const (
-	idBitmask = 0xFFFFFFFF
+	defaultConfidence = "C"
+	idBitmask         = 0xFFFFFFFF
 )
 
 func joinKeywords(kws []string) string {
@@ -117,11 +118,12 @@ func newMemory(learning Learning) store.Memory {
 	now := time.Now().UTC()
 
 	return store.Memory{
-		ID:        fmt.Sprintf("m_%08x", now.UnixNano()&idBitmask),
-		Title:     learning.Title,
-		Content:   learning.Content,
-		Keywords:  learning.Keywords,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:         fmt.Sprintf("m_%08x", now.UnixNano()&idBitmask),
+		Title:      learning.Title,
+		Content:    learning.Content,
+		Keywords:   learning.Keywords,
+		Confidence: defaultConfidence,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 }

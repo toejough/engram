@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/onsi/gomega v1.39.1
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
-	github.com/toejough/targ v0.0.0-20260227040602-875a8b10ebbd
+	github.com/toejough/targ v0.0.0-20260301021722-10e525b7f079
 	modernc.org/sqlite v1.46.1
 	pgregory.net/rapid v1.2.0
 )

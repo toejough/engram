@@ -29,6 +29,8 @@ func TestRun_AuditLogError(t *testing.T) {
 		Return("formatted")
 	storeExp.IncrementSurfacing.ArgsShould(match.BeAny, match.BeAny).
 		Return(nil)
+	storeExp.RecordSurfacing.ArgsShould(match.BeAny, match.BeAny).
+		Return(nil)
 	auditExp.Log.ArgsShould(match.BeAny).
 		Return(errors.New("audit error"))
 	call.ReturnsShould(match.BeAny, HaveOccurred())
@@ -72,7 +74,6 @@ func TestRun_SurfaceQueryError(t *testing.T) {
 func TestT53_EmptyResultReturnsEmptyString(t *testing.T) {
 	t.Parallel()
 
-	// Given any query, any hook type, any budget
 	_ = NewGomegaWithT(t)
 	ctx := context.Background()
 
@@ -80,7 +81,6 @@ func TestT53_EmptyResultReturnsEmptyString(t *testing.T) {
 	mockFormatter, _ := MockFormatter(t)
 	mockAudit, _ := MockAuditLog(t)
 
-	// When SurfaceRun is called
 	call := StartRun(
 		t,
 		surface.Run,
@@ -93,18 +93,21 @@ func TestT53_EmptyResultReturnsEmptyString(t *testing.T) {
 		5,
 	)
 
-	// Then store.Surface called; Given empty results, nil error
+	// ClearSessionSurfacings called first (session-start hook)
+	storeExp.ClearSessionSurfacings.ArgsShould(match.BeAny).
+		Return(nil)
+
+	// store.Surface returns empty
 	storeExp.Surface.ArgsShould(match.BeAny, Equal("some query"), Equal(5)).
 		Return([]store.ScoredMemory(nil), nil)
 
-	// Then SurfaceRun returns "", nil error (never calls formatter, audit, or IncrementSurfacing)
+	// SurfaceRun returns "", nil error
 	call.ReturnsShould(Equal(""), Not(HaveOccurred()))
 }
 
 func TestT54_SurfacingPipelineEndToEnd(t *testing.T) {
 	t.Parallel()
 
-	// Given any query, any hookType, any budget
 	g := NewGomegaWithT(t)
 	ctx := context.Background()
 
@@ -122,7 +125,6 @@ func TestT54_SurfacingPipelineEndToEnd(t *testing.T) {
 	mockFormatter, fmtExp := MockFormatter(t)
 	mockAudit, auditExp := MockAuditLog(t)
 
-	// When SurfaceRun is called
 	call := StartRun(
 		t,
 		surface.Run,
@@ -135,28 +137,119 @@ func TestT54_SurfacingPipelineEndToEnd(t *testing.T) {
 		3,
 	)
 
-	// Then store.Surface called; Given [sm1], nil error
 	storeExp.Surface.ArgsShould(match.BeAny, Equal("test query"), Equal(3)).
 		Return([]store.ScoredMemory{scored}, nil)
 
-	// Then formatter.FormatSurfacing called; Given formatted string
 	fmtExp.FormatSurfacing.ArgsShould(Equal([]store.ScoredMemory{scored}), Equal("user-prompt")).
 		Return(`<system-reminder source="engram">formatted</system-reminder>`)
 
-	// Then store.IncrementSurfacing called with memory IDs; Given nil error
 	storeExp.IncrementSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_test001"})).
 		Return(nil)
 
-	// Then audit.Log called with surface/returned entry; Given nil error
+	storeExp.RecordSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_test001"})).
+		Return(nil)
+
 	auditExp.Log.ArgsShould(match.BeAny).
 		Return(nil)
 
-	// Then SurfaceRun returns formatted string, nil error
 	call.ReturnsShould(
 		Equal(`<system-reminder source="engram">formatted</system-reminder>`),
 		Not(HaveOccurred()),
 	)
 
-	// Suppress unused variable warnings
 	_ = g
+}
+
+// T-71: Surface pipeline records surfaced memory IDs
+func TestT71_SurfacePipelineRecordsSurfacedMemoryIDs(t *testing.T) {
+	t.Parallel()
+
+	_ = NewGomegaWithT(t)
+	ctx := context.Background()
+
+	scored1 := store.ScoredMemory{Memory: store.Memory{ID: "m_aaa"}, Score: 0.9}
+	scored2 := store.ScoredMemory{Memory: store.Memory{ID: "m_bbb"}, Score: 0.7}
+
+	mockStore, storeExp := MockStore(t)
+	mockFormatter, fmtExp := MockFormatter(t)
+	mockAudit, auditExp := MockAuditLog(t)
+
+	// user-prompt hook — no ClearSessionSurfacings
+	call := StartRun(
+		t,
+		surface.Run,
+		ctx,
+		mockStore,
+		mockFormatter,
+		mockAudit,
+		"user-prompt",
+		"query",
+		3,
+	)
+
+	storeExp.Surface.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+		Return([]store.ScoredMemory{scored1, scored2}, nil)
+
+	fmtExp.FormatSurfacing.ArgsShould(match.BeAny, match.BeAny).
+		Return("formatted output")
+
+	storeExp.IncrementSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_aaa", "m_bbb"})).
+		Return(nil)
+
+	// RecordSurfacing called with the 2 surfaced memory IDs
+	storeExp.RecordSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_aaa", "m_bbb"})).
+		Return(nil)
+
+	auditExp.Log.ArgsShould(match.BeAny).
+		Return(nil)
+
+	call.ReturnsShould(Equal("formatted output"), Not(HaveOccurred()))
+}
+
+// T-72: Session-start surface clears surfacing log before surfacing
+func TestT72_SessionStartClearsSurfacingLogBeforeSurfacing(t *testing.T) {
+	t.Parallel()
+
+	_ = NewGomegaWithT(t)
+	ctx := context.Background()
+
+	scored := store.ScoredMemory{Memory: store.Memory{ID: "m_ccc"}, Score: 0.8}
+
+	mockStore, storeExp := MockStore(t)
+	mockFormatter, fmtExp := MockFormatter(t)
+	mockAudit, auditExp := MockAuditLog(t)
+
+	call := StartRun(
+		t,
+		surface.Run,
+		ctx,
+		mockStore,
+		mockFormatter,
+		mockAudit,
+		"session-start",
+		"query",
+		5,
+	)
+
+	// ClearSessionSurfacings called FIRST (before Surface)
+	storeExp.ClearSessionSurfacings.ArgsShould(match.BeAny).
+		Return(nil)
+
+	storeExp.Surface.ArgsShould(match.BeAny, match.BeAny, match.BeAny).
+		Return([]store.ScoredMemory{scored}, nil)
+
+	fmtExp.FormatSurfacing.ArgsShould(match.BeAny, match.BeAny).
+		Return("session output")
+
+	storeExp.IncrementSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_ccc"})).
+		Return(nil)
+
+	// RecordSurfacing called with the surfaced memory ID
+	storeExp.RecordSurfacing.ArgsShould(match.BeAny, Equal([]string{"m_ccc"})).
+		Return(nil)
+
+	auditExp.Log.ArgsShould(match.BeAny).
+		Return(nil)
+
+	call.ReturnsShould(Equal("session output"), Not(HaveOccurred()))
 }
