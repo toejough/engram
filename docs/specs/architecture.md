@@ -285,7 +285,7 @@ type AuditEntry struct {
 
 ## ARCH-8: DI Interfaces and Wiring
 
-**Decision:** All I/O through injected interfaces. Library code in `internal/` never imports `os`, `database/sql`, `net/http`, or any I/O package directly.
+**Decision:** All I/O through injected interfaces. Library code in `internal/` never imports `os`, `database/sql`, `net/http`, or any I/O package directly. **Exception:** `internal/cli/` is the composition root (wiring layer), not library code — it imports I/O packages to construct real implementations and dispatch subcommands.
 
 **Core interfaces:**
 
@@ -332,23 +332,21 @@ type Clock interface {
 }
 ```
 
-**Wiring:** `cmd/engram/main.go` constructs real implementations:
+**Wiring:** `internal/cli/cli.go` is the composition root. `cmd/engram/main.go` is a thin entry point that delegates to `cli.Run(os.Args)`:
 
 ```go
+// cmd/engram/main.go — thin entry point
 func main() {
-    db := sqlite.Open(dataDir + "/engram.db")
-    store := sqlite.NewMemoryStore(db)
-    audit := file.NewAuditLog(dataDir + "/audit.log")
-    corpus := file.NewPatternCorpus(dataDir + "/patterns.json")
-    sessionLog := file.NewSessionLog(dataDir + "/session.log")
-    llm := anthropic.NewClient(apiKey)
-    clock := realclock.New()
-
-    // subcommand dispatch...
+    err := cli.Run(os.Args)
+    if err != nil { fmt.Fprintln(os.Stderr, err) }
 }
+
+// internal/cli/cli.go — composition root
+// Opens DB, audit log, pattern corpus per subcommand invocation.
+// Constructs real implementations and wires them together.
 ```
 
-`internal/` packages receive interfaces only. Tests use in-memory fakes.
+`internal/` packages (except `internal/cli/`) receive interfaces only. Tests use in-memory fakes.
 
 **Alternatives considered:**
 - Fewer interfaces (combine Store + AuditLog + SessionLog): Different responsibilities, different backing stores. Keep separate for testability. Rejected.
@@ -592,7 +590,7 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | ARCH-1 | REQ-2, REQ-3, REQ-5, REQ-6 |
 | ARCH-2 | REQ-1, REQ-6, REQ-7, REQ-8, REQ-9, REQ-13, DES-6, DES-8 |
 | ARCH-3 | REQ-1, REQ-2, REQ-3, REQ-5, REQ-18, REQ-22, DES-6 |
-| ARCH-4 | REQ-13, REQ-14, REQ-22, DES-3, DES-5 |
+| ARCH-4 | REQ-13, REQ-14, REQ-17, REQ-22, DES-3, DES-5 |
 | ARCH-5 | REQ-5, REQ-14 |
 | ARCH-6 | REQ-15, DES-8 |
 | ARCH-7 | REQ-22, DES-7 |
@@ -600,7 +598,7 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | ARCH-9 | REQ-1, REQ-13, DES-6, DES-8 |
 | ARCH-10 | REQ-4, REQ-10 |
 | ARCH-11 | REQ-7, REQ-8, REQ-9, REQ-10, REQ-12, DES-1, DES-2 |
-| ARCH-12 | REQ-7, REQ-8, REQ-9, DES-2 |
+| ARCH-12 | REQ-7, REQ-8, REQ-9, DES-2, DES-4 |
 
 ### L2 → ARCH (every L2 item covered by at least one ARCH)
 
@@ -624,10 +622,12 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | REQ-22 | ARCH-3, ARCH-4, ARCH-7 |
 | DES-1 | ARCH-11 |
 | DES-2 | ARCH-11, ARCH-12 |
+| REQ-17 | ARCH-4 |
 | DES-3 | ARCH-4 |
+| DES-4 | ARCH-12 |
 | DES-5 | ARCH-4 |
 | DES-6 | ARCH-2, ARCH-3, ARCH-9 |
 | DES-7 | ARCH-7 |
 | DES-8 | ARCH-2, ARCH-6, ARCH-9 |
 
-All L2A and L2B items have ARCH coverage. No orphaned ARCH decisions.
+All L2A and L2B items have ARCH coverage (including REQ-17 and DES-4, absorbed from L2C). No orphaned ARCH decisions. L2C (REQ-16) and L2D (REQ-19..21) are pending — no ARCH coverage yet.

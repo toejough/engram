@@ -1,6 +1,6 @@
 [project]
 name = "engram"
-skill = "specification-layers"
+skill = "specwalk"
 
 # Layer registries
 
@@ -38,7 +38,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = []
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -73,23 +73,23 @@ history = "Infrastructure. Mostly independent."
 [tree.L2A]
 layer = "L2"
 parent = "L1A"
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-5", "REQ-6", "REQ-13", "REQ-14", "REQ-15", "REQ-18", "REQ-22", "DES-3", "DES-5", "DES-6", "DES-7", "DES-8"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-5", "REQ-6", "REQ-13", "REQ-14", "REQ-15", "REQ-17", "REQ-18", "REQ-22", "DES-3", "DES-5", "DES-6", "DES-7", "DES-8"]
 status = "complete"
-history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing."
+history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing. REQ-17 absorbed from L2C — correction feedback already implemented in correct.DetectCorrection."
 
 [tree.L2B]
 layer = "L2"
 parent = "L1A"
-items = ["REQ-4", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "DES-1", "DES-2"]
+items = ["REQ-4", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "DES-1", "DES-2", "DES-4"]
 status = "complete"
-history = "Read Path: frecency ranking, per-hook retrieval, surfacing format, display."
+history = "Read Path: frecency ranking, per-hook retrieval, surfacing format, display. DES-4 absorbed from L2C — correction-before-surfacing ordering already implemented in hooks and verified by T-56."
 
 [tree.L2C]
 layer = "L2"
 parent = "L1A"
-items = ["REQ-16", "REQ-17", "DES-4"]
+items = ["REQ-16"]
 status = "pending"
-history = "Feedback Loop: reclassification on correction, correction feedback, coexistence design."
+history = "Feedback Loop: immediate reclassification on correction. REQ-17 moved to L2A (implemented), DES-4 moved to L2B (implemented). REQ-16 remains — no reclassification logic in code."
 
 [tree.L2D]
 layer = "L2"
@@ -149,7 +149,7 @@ history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfac
 # Cursor
 
 [cursor]
-node = "L5B"
-mode = "backtrack"
-next_action = "L5B complete. Backtrack: L1A fully implemented (L5A+L5B). Navigate to next incomplete sibling at L1: L1B (Evaluation & Quadrant Actions) or L1D (Infrastructure). Present grouping/priority options."
-context_files = ["docs/state.toml", "docs/use-cases.md"]
+node = "L2C"
+mode = "work"
+next_action = "L1A NOT fully implemented. Remaining gaps under L1A: (1) REQ-16 reclassification — L2C pending, needs L3→L5 traversal. (2) LLM client wiring — extract and catchup CLI stubs return errors (no Enricher/Classifier/OverlapGate/Evaluator implementations). noOpGate means REQ-14 enrichment is dead in production. (3) Session log persistence — recordings discarded in runCorrect, REQ-18 dedup non-functional. Unit tests pass with mocks but usability gate for L1A is NOT satisfied. Address these before backtracking to L1B/L1D."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/architecture.md"]

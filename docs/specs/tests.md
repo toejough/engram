@@ -904,6 +904,9 @@ Every L2A REQ item verified:
 - REQ-18 → T-13, T-22
 - REQ-22 → T-36..T-38
 
+Every L2A REQ item verified (continued):
+- REQ-17 → T-23, T-24 (correction feedback reminder format — "Enriched:"/"Created:" in system reminder)
+
 Every L2B REQ/DES item verified:
 - REQ-4 → T-44..T-46
 - REQ-7 → T-54, T-55
@@ -913,6 +916,7 @@ Every L2B REQ/DES item verified:
 - REQ-12 → T-49, T-50, T-52
 - DES-1 → T-49, T-50, T-51, T-52
 - DES-2 → T-55, T-56, T-57
+- DES-4 → T-56 (correction before surfacing ordering in UserPromptSubmit hook)
 
 Every L2A DES item verified:
 - DES-3 → T-23, T-24, T-31
