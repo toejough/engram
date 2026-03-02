@@ -34,7 +34,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -138,6 +138,13 @@ items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52",
 status = "complete"
 history = "15 BDD test specs for Read Path. Store frecency (T-44..T-48), formatter (T-49..T-52), pipeline (T-53..T-54), hook scripts (T-55..T-57), wiring (T-58). L4-wide refactor clean."
 
+[tree.L4C]
+layer = "L4"
+parent = "L3C"
+items = ["T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+status = "complete"
+history = "14 BDD test specs for reclassification. Store surfacing log (T-59..T-62), DecreaseImpact (T-63..T-65), reclassify logic (T-66..T-68), correct integration (T-69..T-70), surface integration (T-71..T-72)."
+
 # Tree nodes — L5
 
 [tree.L5A]
@@ -157,7 +164,7 @@ history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfac
 # Cursor
 
 [cursor]
-node = "L3C"
+node = "L4C"
 mode = "descend"
-next_action = "L3C complete (ARCH-13 derived). Descend to L4C: derive BDD test specs for reclassification pipeline — session surfacing log (store methods), impact decay, integration with correct pipeline, session-start clearing."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "L4C complete (14 test specs T-59..T-72). Descend to L5C: implement tests one at a time via TDD. Start with store methods (T-59..T-65), then reclassify logic (T-66..T-68), then integration (T-69..T-72)."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]

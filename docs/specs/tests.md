@@ -867,13 +867,163 @@ Then NewPipeline returns non-nil error
 
 ---
 
+## ARCH-13: Reclassification on Correction
+
+### Store: Session Surfacing Log
+
+#### T-59: RecordSurfacing inserts memory IDs [integration, ARCH-13]
+Example-based: specific IDs recorded and retrievable.
+
+Given an empty store with session_surfacings table
+When test calls store.RecordSurfacing with (any ctx, ["m_aaa", "m_bbb"])
+Then store.RecordSurfacing returns nil error
+
+When test calls store.GetSessionSurfacings with (any ctx)
+Then store.GetSessionSurfacings returns (ids, nil error)
+  And ids contains "m_aaa" and "m_bbb"
+
+#### T-60: GetSessionSurfacings returns unique IDs [integration, ARCH-13]
+Example-based: same memory surfaced twice, returned once.
+
+Given a store with session_surfacings containing two rows for "m_aaa"
+  (surfaced in session-start and user-prompt hooks)
+When test calls store.GetSessionSurfacings with (any ctx)
+Then store.GetSessionSurfacings returns (ids, nil error)
+  And ids contains "m_aaa" exactly once
+
+#### T-61: ClearSessionSurfacings empties the table [integration, ARCH-13]
+Example-based: clear after recording.
+
+Given a store with session_surfacings containing ["m_aaa", "m_bbb"]
+When test calls store.ClearSessionSurfacings with (any ctx)
+Then store.ClearSessionSurfacings returns nil error
+
+When test calls store.GetSessionSurfacings with (any ctx)
+Then store.GetSessionSurfacings returns (ids, nil error)
+  And len(ids) equals 0
+
+#### T-62: GetSessionSurfacings on empty table returns empty slice [integration, ARCH-13]
+Example-based: no surfacing data.
+
+Given an empty store with session_surfacings table
+When test calls store.GetSessionSurfacings with (any ctx)
+Then store.GetSessionSurfacings returns (ids, nil error)
+  And len(ids) equals 0
+
+### Store: DecreaseImpact
+
+#### T-63: DecreaseImpact applies multiplicative decay [integration, ARCH-13]
+Example-based: specific impact score before and after.
+
+Given a Memory m in store with impact_score = 0.9
+When test calls store.DecreaseImpact with (any ctx, m.ID, 0.8)
+Then store.DecreaseImpact returns nil error
+
+When test calls store.Get with (any ctx, m.ID)
+Then store.Get returns (Memory got, nil error)
+  And got.ImpactScore is approximately 0.72 (0.9 * 0.8)
+
+#### T-64: DecreaseImpact floors at 0.0 [integration, ARCH-13]
+Example-based: very low impact score does not go negative.
+
+Given a Memory m in store with impact_score = 0.05
+When test calls store.DecreaseImpact with (any ctx, m.ID, 0.8)
+Then store.DecreaseImpact returns nil error
+
+When test calls store.Get with (any ctx, m.ID)
+Then store.Get returns (Memory got, nil error)
+  And got.ImpactScore >= 0.0
+
+#### T-65: DecreaseImpact for nonexistent memory returns error [integration, ARCH-13]
+Example-based: missing ID.
+
+Given an empty store
+When test calls store.DecreaseImpact with (any ctx, "m_nonexistent", 0.8)
+Then store.DecreaseImpact returns non-nil error
+
+### Reclassification Logic
+
+#### T-66: Reclassify decreases impact for all surfaced memories [unit, ARCH-13]
+Example-based: two surfaced memories, both reclassified.
+
+Given a mock store where:
+  GetSessionSurfacings returns (["m_aaa", "m_bbb"], nil)
+  DecreaseImpact returns nil for any call
+And a mock audit logger
+When test calls reclassify.Run with (any ctx, store, audit, 0.8)
+Then reclassify.Run returns (2, nil error)
+  And store.DecreaseImpact was called with ("m_aaa", 0.8)
+  And store.DecreaseImpact was called with ("m_bbb", 0.8)
+  And audit.Log was called twice with Operation "reclass" and Action "decreased"
+
+#### T-67: Reclassify with no surfaced memories is a no-op [unit, ARCH-13]
+Example-based: empty surfacing log.
+
+Given a mock store where:
+  GetSessionSurfacings returns ([], nil)
+And a mock audit logger
+When test calls reclassify.Run with (any ctx, store, audit, 0.8)
+Then reclassify.Run returns (0, nil error)
+  And store.DecreaseImpact was never called
+  And audit.Log was never called
+
+#### T-68: Reclassify propagates store errors [unit, ARCH-13]
+Example-based: GetSessionSurfacings failure.
+
+Given a mock store where:
+  GetSessionSurfacings returns (nil, someError)
+When test calls reclassify.Run with (any ctx, store, audit, 0.8)
+Then reclassify.Run returns (0, error wrapping someError)
+
+### Integration with Correct Pipeline
+
+#### T-69: DetectCorrection triggers reclassification on match [unit, ARCH-13/ARCH-4]
+Example-based: correction detected, reclassification invoked.
+
+Given a mock Reconciler, corpus with patterns, and a mock Reclassifier
+  And a message matching a correction pattern
+When test calls correct.DetectCorrection with (any ctx, reconciler, corpus, reclassifier, message)
+Then correct.DetectCorrection returns (non-empty reminder, recordings, auditStr, nil error)
+  And reclassifier.Reclassify was called once
+
+#### T-70: DetectCorrection skips reclassification on no match [unit, ARCH-13/ARCH-4]
+Example-based: no correction, no reclassification.
+
+Given a mock Reconciler, corpus with patterns, and a mock Reclassifier
+  And a message NOT matching any correction pattern
+When test calls correct.DetectCorrection with (any ctx, reconciler, corpus, reclassifier, message)
+Then correct.DetectCorrection returns ("", nil recordings, "", nil error)
+  And reclassifier.Reclassify was never called
+
+### Surface Pipeline Integration
+
+#### T-71: Surface pipeline records surfaced memory IDs [unit, ARCH-13/ARCH-11]
+Example-based: surfacing triggers RecordSurfacing.
+
+Given a mock store returning 2 scored memories from Surface
+  And a mock formatter and audit logger
+When test calls surface.Run with (any ctx, store, formatter, audit, "user-prompt", "query", 3)
+Then surface.Run returns (non-empty output, nil error)
+  And store.RecordSurfacing was called with the 2 surfaced memory IDs
+
+#### T-72: Session-start surface clears surfacing log before surfacing [unit, ARCH-13/ARCH-11]
+Example-based: session-start hook clears then records.
+
+Given a mock store returning 1 scored memory from Surface
+  And a mock formatter and audit logger
+When test calls surface.Run with (any ctx, store, formatter, audit, "session-start", "query", 5)
+Then store.ClearSessionSurfacings was called before store.Surface
+  And store.RecordSurfacing was called with the surfaced memory ID
+
+---
+
 ## Summary
 
 - Property-based: 23 tests (T-1, T-4, T-5, T-6, T-10..T-19, T-27..T-34, T-47)
-- Example-based: 35 tests (T-2, T-3, T-7..T-9, T-20..T-26, T-35..T-46, T-48..T-58)
-- Unit: 41 tests (T-10..T-38, T-42..T-43, T-49..T-57)
-- Integration: 17 tests (T-1..T-9, T-39..T-41, T-44..T-48, T-58)
-- Total: 58 tests
+- Example-based: 49 tests (T-2, T-3, T-7..T-9, T-20..T-26, T-35..T-46, T-48..T-72)
+- Unit: 48 tests (T-10..T-38, T-42..T-43, T-49..T-57, T-66..T-72)
+- Integration: 24 tests (T-1..T-9, T-39..T-41, T-44..T-48, T-58..T-65)
+- Total: 72 tests
 
 ## Bidirectional Traceability
 
@@ -891,6 +1041,7 @@ Every ARCH decision has at least one test:
 - ARCH-10 → T-44..T-48
 - ARCH-11 → T-48..T-54, T-58
 - ARCH-12 → T-55..T-57
+- ARCH-13 → T-59..T-72
 
 Every L2A REQ item verified:
 - REQ-1 → T-10, T-18, T-42
@@ -917,6 +1068,9 @@ Every L2B REQ/DES item verified:
 - DES-1 → T-49, T-50, T-51, T-52
 - DES-2 → T-55, T-56, T-57
 - DES-4 → T-56 (correction before surfacing ordering in UserPromptSubmit hook)
+
+Every L2C REQ item verified:
+- REQ-16 → T-59..T-72 (session surfacing log, impact decay, reclassification on correction)
 
 Every L2A DES item verified:
 - DES-3 → T-23, T-24, T-31
