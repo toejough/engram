@@ -581,6 +581,70 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 
 ---
 
+## ARCH-13: Reclassification on Correction
+
+**Decision:** When a correction is detected (ARCH-4), the system reads the session surfacing log to identify memories surfaced before the correction, then decreases their `impact_score` via multiplicative decay.
+
+**Session surfacing log:** A SQLite table in the existing database (ARCH-1):
+
+```sql
+CREATE TABLE IF NOT EXISTS session_surfacings (
+    memory_id TEXT NOT NULL,
+    surfaced_at TEXT NOT NULL
+);
+```
+
+The table has no primary key constraint — the same memory can be surfaced multiple times per session (different hooks). The table is cleared at session start and populated by the surfacing pipeline.
+
+**Reclassification logic:**
+
+```go
+type Reclassifier struct {
+    Store    MemoryStore  // GetSessionSurfacings + DecreaseImpact
+    AuditLog AuditLog
+}
+
+func (r *Reclassifier) Reclassify(ctx context.Context) (int, error) {
+    // 1. Store.GetSessionSurfacings(ctx): read all memory IDs from session_surfacings
+    // 2. For each unique memory ID:
+    //    a. Store.DecreaseImpact(ctx, id, decayFactor)
+    //       impact_score = impact_score * decayFactor (floor at 0.0)
+    // 3. AuditLog.Log: entry per reclassified memory
+    //    {Operation: "reclass", Action: "decreased", Fields: {memory_id, old_score, new_score}}
+    // 4. Return count of reclassified memories
+}
+```
+
+**Impact score decay:** Multiplicative: `impact_score *= 0.8` per reclassification event. Each correction reduces impact by 20%. Floor at 0.0. Multiplicative decay means high-impact memories lose more absolute value but the same relative proportion — matching the self-correction model where frecency does the rest over time.
+
+**New store methods:**
+
+```go
+type MemoryStore interface {
+    // existing methods...
+    RecordSurfacing(ctx context.Context, memoryIDs []string) error
+    GetSessionSurfacings(ctx context.Context) ([]string, error)
+    ClearSessionSurfacings(ctx context.Context) error
+    DecreaseImpact(ctx context.Context, memoryID string, factor float64) error
+}
+```
+
+**Integration points:**
+- `surface.Run` (ARCH-11) → calls `Store.RecordSurfacing` after surfacing memories
+- `correct.DetectCorrection` (ARCH-4) → calls `Reclassifier.Reclassify` after correction detected
+- Session-start surface invocation → calls `Store.ClearSessionSurfacings` before surfacing (when `--hook session-start`)
+
+**Scope:** Reclassification applies to memories managed by engram. Skills, CLAUDE.md entries, and other artifacts surfaced by external systems are outside engram's scope. The "(or should have been surfaced)" aspect of UC-3 is deferred — only actually-surfaced memories are reclassified.
+
+**Alternatives considered:**
+- File-based surfacing log (JSONL): Extra file to manage, harder to query, another failure mode. The DB is already open. Rejected.
+- Query audit log for surfacing events: ARCH-7 audit log is write-only by design ("primarily for human debugging, not programmatic queries"). Adding read capability would violate that decision. Rejected.
+- Additive decay (-0.1): Treats high-impact and low-impact memories identically. A high-impact memory that caused a mistake should lose more absolute value. Multiplicative is more principled. Rejected.
+
+**Traces to:** REQ-16 (reclassification on correction), REQ-22 (audit logging of reclassification events)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2 (every ARCH traces to at least one L2 item)
@@ -599,6 +663,7 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | ARCH-10 | REQ-4, REQ-10 |
 | ARCH-11 | REQ-7, REQ-8, REQ-9, REQ-10, REQ-12, DES-1, DES-2 |
 | ARCH-12 | REQ-7, REQ-8, REQ-9, DES-2, DES-4 |
+| ARCH-13 | REQ-16, REQ-22 |
 
 ### L2 → ARCH (every L2 item covered by at least one ARCH)
 
@@ -629,5 +694,6 @@ ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
 | DES-6 | ARCH-2, ARCH-3, ARCH-9 |
 | DES-7 | ARCH-7 |
 | DES-8 | ARCH-2, ARCH-6, ARCH-9 |
+| REQ-16 | ARCH-13 |
 
-All L2A and L2B items have ARCH coverage (including REQ-17 and DES-4, absorbed from L2C). No orphaned ARCH decisions. L2C (REQ-16) and L2D (REQ-19..21) are pending — no ARCH coverage yet.
+All L2A, L2B, and L2C items have ARCH coverage. L2D (REQ-19..21) is pending — no ARCH coverage yet.

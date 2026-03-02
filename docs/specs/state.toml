@@ -28,6 +28,7 @@ items = [
   { id = "ARCH-10", source = "derived" },
   { id = "ARCH-11", source = "derived" },
   { id = "ARCH-12", source = "derived" },
+  { id = "ARCH-13", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -114,6 +115,13 @@ items = ["ARCH-10", "ARCH-11", "ARCH-12"]
 status = "complete"
 history = "Read Path architecture. Frecency ranking (ARCH-10), surfacing pipeline (ARCH-11), hook integration (ARCH-12). Updated ARCH-2 and ARCH-8 during L3-wide refactor."
 
+[tree.L3C]
+layer = "L3"
+parent = "L2C"
+items = ["ARCH-13"]
+status = "complete"
+history = "Reclassification architecture. ARCH-13: session surfacing log (SQLite table), multiplicative impact decay (0.8x), integration with correct pipeline (ARCH-4) and surface pipeline (ARCH-11)."
+
 # Tree nodes — L4
 
 [tree.L4A]
@@ -149,7 +157,7 @@ history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfac
 # Cursor
 
 [cursor]
-node = "L2C"
-mode = "work"
-next_action = "L1A NOT fully implemented. Remaining gaps under L1A: (1) REQ-16 reclassification — L2C pending, needs L3→L5 traversal. (2) LLM client wiring — extract and catchup CLI stubs return errors (no Enricher/Classifier/OverlapGate/Evaluator implementations). noOpGate means REQ-14 enrichment is dead in production. (3) Session log persistence — recordings discarded in runCorrect, REQ-18 dedup non-functional. Unit tests pass with mocks but usability gate for L1A is NOT satisfied. Address these before backtracking to L1B/L1D."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/architecture.md"]
+node = "L3C"
+mode = "descend"
+next_action = "L3C complete (ARCH-13 derived). Descend to L4C: derive BDD test specs for reclassification pipeline — session surfacing log (store methods), impact decay, integration with correct pipeline, session-start clearing."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
