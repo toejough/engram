@@ -193,7 +193,7 @@ func TestT26_EndToEndCorrectionDetection(t *testing.T) {
 	call.ReturnsShould(Not(BeEmpty()), HaveLen(1), Not(BeEmpty()), Not(HaveOccurred()))
 }
 
-func TestT27_LongMessageTitleTruncated(t *testing.T) {
+func TestLongMessageTitleTruncated(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()

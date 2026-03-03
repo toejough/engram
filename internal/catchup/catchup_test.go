@@ -142,7 +142,7 @@ func TestT35_FullScenarioMissedCorrectionMemoryCandidateAudit(t *testing.T) {
 	)
 }
 
-func TestT36_LongContentTruncatedInTitle(t *testing.T) {
+func TestLongContentTruncatedInTitle(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
