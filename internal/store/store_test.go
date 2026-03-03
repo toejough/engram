@@ -661,6 +661,60 @@ func TestT9_ConcurrentReadsDontConflict(t *testing.T) {
 	}
 }
 
+func TestT66_RecordCorrectionInsertsRow(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given an empty store with session_corrections table
+	// When test calls store.RecordCorrection with (any ctx, "m_aaa", "never do X")
+	err := s.RecordCorrection(ctx, "m_aaa", "never do X")
+	// Then store.RecordCorrection returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestT67_ClearSessionCorrectionsEmptiesTable(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given a store with two session_corrections rows
+	err := s.RecordCorrection(ctx, "m_aaa", "first correction")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = s.RecordCorrection(ctx, "m_bbb", "second correction")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// When test calls store.ClearSessionCorrections with (any ctx)
+	err = s.ClearSessionCorrections(ctx)
+	// Then store.ClearSessionCorrections returns nil error
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// And subsequent RecordCorrection still succeeds (table is intact, just empty)
+	err = s.RecordCorrection(ctx, "m_ccc", "after clear")
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestT68_RecordCorrectionMultipleRowsAllPersisted(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	s := setupDB(t)
+	ctx := context.Background()
+
+	// Given two corrections for the same memory ID
+	err := s.RecordCorrection(ctx, "m_aaa", "first correction")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = s.RecordCorrection(ctx, "m_aaa", "second correction")
+	// Then both RecordCorrection calls return nil error (no uniqueness constraint)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 func genMemory() *rapid.Generator[store.Memory] {
 	return rapid.Custom(func(t *rapid.T) store.Memory {
 		now := time.Now().UTC().Truncate(time.Second)

@@ -59,11 +59,36 @@ func New(db DB) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+// ClearSessionCorrections removes all entries from the session corrections log.
+func (s *SQLiteStore) ClearSessionCorrections(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM session_corrections`)
+	if err != nil {
+		return fmt.Errorf("store: clear session corrections: %w", err)
+	}
+
+	return nil
+}
+
 // ClearSessionSurfacings removes all entries from the session surfacing log.
 func (s *SQLiteStore) ClearSessionSurfacings(ctx context.Context) error {
 	_, err := s.db.ExecContext(ctx, `DELETE FROM session_surfacings`)
 	if err != nil {
 		return fmt.Errorf("store: clear session surfacings: %w", err)
+	}
+
+	return nil
+}
+
+// RecordCorrection records a correction in the session corrections log.
+func (s *SQLiteStore) RecordCorrection(ctx context.Context, memoryID string, content string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO session_corrections (memory_id, content, corrected_at) VALUES (?, ?, ?)`,
+		memoryID, content, now,
+	)
+	if err != nil {
+		return fmt.Errorf("store: record correction: %w", err)
 	}
 
 	return nil
@@ -480,6 +505,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
 CREATE TABLE IF NOT EXISTS session_surfacings (
     memory_id TEXT NOT NULL,
     surfaced_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS session_corrections (
+    memory_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    corrected_at TEXT NOT NULL
 );
 `
 )
