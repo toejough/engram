@@ -14,6 +14,7 @@ import (
 	"engram/internal/audit"
 	"engram/internal/corpus"
 	"engram/internal/correct"
+	"engram/internal/reclassify"
 	"engram/internal/reconcile"
 	"engram/internal/store"
 	"engram/internal/surface"
@@ -46,6 +47,7 @@ func Run(args []string) error {
 // unexported constants.
 const (
 	defaultCandidateCount     = 3
+	defaultDecayFactor        = 0.8
 	defaultPreToolUseBudget   = 1
 	defaultSessionStartBudget = 5
 	defaultUserPromptBudget   = 3
@@ -132,6 +134,17 @@ func (r *stubReconciler) Reconcile(
 		MemoryID: result.MemoryID,
 		Title:    result.Title,
 	}, err
+}
+
+// reclassifierAdapter wraps the reclassify package for correct.DetectCorrection (ARCH-13).
+// Decreases impact scores for memories surfaced before a correction using multiplicative decay.
+type reclassifierAdapter struct {
+	store *store.SQLiteStore
+	audit *audit.Logger
+}
+
+func (r *reclassifierAdapter) Reclassify(ctx context.Context) (int, error) {
+	return reclassify.Run(ctx, r.store, r.audit, defaultDecayFactor)
 }
 
 func coalesce(values ...string) string {
@@ -238,12 +251,13 @@ func runCorrect(args []string) error {
 	ctx := context.Background()
 	patterns := corpus.New(corpus.DefaultPatterns())
 	recon := &stubReconciler{store: openedDeps.store}
+	reclass := &reclassifierAdapter{store: openedDeps.store, audit: openedDeps.audit}
 
 	reminder, recordings, auditStr, err := correct.DetectCorrection(
 		ctx,
 		recon,
 		patterns,
-		nil,
+		reclass,
 		*message,
 	)
 	if err != nil {
@@ -254,7 +268,11 @@ func runCorrect(args []string) error {
 		_ = openedDeps.audit.Log(audit.Entry{Operation: "correct", Action: auditStr})
 	}
 
-	_ = recordings // session log not yet implemented
+	for _, rec := range recordings {
+		if recErr := openedDeps.store.RecordCorrection(ctx, rec.MemoryID, rec.Content); recErr != nil {
+			return fmt.Errorf("correct: record correction: %w", recErr)
+		}
+	}
 
 	if reminder != "" {
 		fmt.Print(reminder)
