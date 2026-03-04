@@ -156,6 +156,10 @@ func Run(args []string) error {
 
 `internal/cli/` is the only package that imports I/O packages. All other `internal/` packages receive interfaces.
 
+**Data directory convention:** `${CLAUDE_PLUGIN_ROOT}/data` — the hook script sets this via the `--data-dir` flag. Memory TOML files are written to `<data-dir>/memories/`.
+
+**Plugin manifest:** `plugin.json` at repo root registers the `UserPromptSubmit` hook pointing to `hooks/user-prompt-submit.sh`. The hook script handles OAuth token retrieval from Keychain before invoking the binary.
+
 **Traces to:** REQ-6 (Go binary CLI), DES-3 (hook wiring), ARCH-1 (pipeline)
 
 ---

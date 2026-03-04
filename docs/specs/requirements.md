@@ -107,11 +107,11 @@ Format rules:
 
 ## DES-3: Hook wiring — UserPromptSubmit
 
-The UserPromptSubmit hook script invokes:
+The UserPromptSubmit hook is registered in `plugin.json` and invokes `hooks/user-prompt-submit.sh`:
 ```bash
-engram correct --message "$PROMPT" --data-dir "$DATA_DIR"
+"$ENGRAM_BIN" correct --message "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
 ```
 
-Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
+The hook script reads the OAuth token from the Claude Code Keychain via `security find-generic-password` and exports it as `ENGRAM_API_TOKEN`. Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
 
 - Traces to: UC-3 (hook wiring)

@@ -1,6 +1,9 @@
 package hooks_test
 
 import (
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -8,6 +11,19 @@ import (
 
 	"engram/internal/hooks"
 )
+
+// repoRoot returns the engram repository root by walking up from the test file.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to determine test file path")
+	}
+
+	// Walk up from internal/hooks/hooks_test.go -> repo root
+	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+}
 
 func TestT42_StopHookInvokesExtractAndCatchup(t *testing.T) {
 	t.Parallel()
@@ -85,4 +101,32 @@ func TestT57_PreToolUseHookInvokesSurface(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("CLAUDE_TOOL_INPUT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
 	g.Expect(script).To(ContainSubstring("bin/engram"))
+}
+
+// TestDES3_StaticHookScriptMatchesGenerated verifies the static hook script at
+// hooks/user-prompt-submit.sh references the expected commands and variables (DES-3).
+func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// DES-3: hook script invokes engram correct with user message and plugin root paths.
+	g.Expect(script).To(ContainSubstring("correct"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
 }

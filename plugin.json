@@ -1,0 +1,17 @@
+{
+  "name": "engram",
+  "description": "Self-correcting memory for LLM agents — detects corrections and remembers them as structured TOML files.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/user-prompt-submit.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

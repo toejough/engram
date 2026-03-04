@@ -28,12 +28,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -73,9 +73,9 @@ history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML wr
 layer = "L4"
 name = "Remember & Correct Tests"
 parents = ["L3A"]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19"]
 status = "complete"
-history = "16 BDD test specs across 6 ARCH boundaries. T-14/T-17 removed (issue #20, degraded path deleted)."
+history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21)."
 
 # Tree nodes — L5
 
@@ -107,9 +107,9 @@ history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b.
 layer = "L5"
 name = "Pipeline + CLI Wiring"
 parents = ["L4A"]
-items = ["T-15", "T-16", "T-18", "T-19"]
+items = ["T-15", "T-16", "DES-3", "T-18", "T-19"]
 status = "complete"
-history = "4-stage Corrector pipeline, CLI correct subcommand. T-17 removed (issue #20). T-18 updated to test missing API key error."
+history = "4-stage Corrector pipeline, CLI correct subcommand, hook wiring test. DES-3 added (issue #21). T-18 updated to test missing token error."
 
 # Cursor
 

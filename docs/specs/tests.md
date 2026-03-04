@@ -166,6 +166,16 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 - Traces to: ARCH-6, REQ-6
 
+### DES-3: Static hook script matches expected content
+
+**Given** the static hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** it references `correct`, `bin/engram`, `CLAUDE_USER_MESSAGE`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
+
+- Traces to: ARCH-6, DES-3
+
+---
+
 ### T-19: `correct` with non-matching message produces empty stdout
 
 **Given** `engram correct --message "hello world" --data-dir <tmpdir>`,
