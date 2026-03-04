@@ -27,7 +27,7 @@ type MemoryWriter interface {
 
 // Renderer formats an enriched memory as a system reminder string (ARCH-5).
 type Renderer interface {
-	Render(mem *memory.Enriched, filePath string, degraded bool) string
+	Render(mem *memory.Enriched, filePath string) string
 }
 
 // Corrector orchestrates the four-stage Remember & Correct pipeline.
@@ -74,7 +74,7 @@ func (c *Corrector) Run(ctx context.Context, message string) (string, error) {
 		return "", fmt.Errorf("correct: write: %w", err)
 	}
 
-	reminder := c.renderer.Render(enriched, filePath, enriched.Degraded)
+	reminder := c.renderer.Render(enriched, filePath)
 
 	return reminder, nil
 }

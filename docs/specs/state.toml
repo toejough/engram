@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "DES-1", "DES-2", "DES-3"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "DES-1", "DES-3"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -28,12 +28,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -53,9 +53,9 @@ gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all othe
 layer = "L2"
 name = "Remember & Correct Requirements"
 parents = ["L1A"]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "DES-1", "DES-2", "DES-3"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "DES-1", "DES-3"]
 status = "complete"
-history = "7 REQs + 3 DES items. Detection, enrichment, file writing, feedback, degradation, CLI, confidence, hook wiring."
+history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20)."
 
 # Tree nodes — L3
 
@@ -73,9 +73,9 @@ history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML wr
 layer = "L4"
 name = "Remember & Correct Tests"
 parents = ["L3A"]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19"]
 status = "complete"
-history = "19 BDD test specs across 6 ARCH boundaries. Complete."
+history = "16 BDD test specs across 6 ARCH boundaries. T-14/T-17 removed (issue #20, degraded path deleted)."
 
 # Tree nodes — L5
 
@@ -83,9 +83,9 @@ history = "19 BDD test specs across 6 ARCH boundaries. Complete."
 layer = "L5"
 name = "Pattern Matching + Renderer"
 parents = ["L4A"]
-items = ["T-1", "T-2", "T-3", "T-4", "T-13", "T-14"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-13"]
 status = "complete"
-history = "Corpus confidence tiers, shared memory types, system reminder renderer. Commit 8a0f77b."
+history = "Corpus confidence tiers, shared memory types, system reminder renderer. T-14 removed (issue #20)."
 
 [tree.L5B]
 layer = "L5"
@@ -107,9 +107,9 @@ history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b.
 layer = "L5"
 name = "Pipeline + CLI Wiring"
 parents = ["L4A"]
-items = ["T-15", "T-16", "T-17", "T-18", "T-19"]
+items = ["T-15", "T-16", "T-18", "T-19"]
 status = "complete"
-history = "4-stage Corrector pipeline, CLI correct subcommand, type reconciliation. Commit d3bda87."
+history = "4-stage Corrector pipeline, CLI correct subcommand. T-17 removed (issue #20). T-18 updated to test missing API key error."
 
 # Cursor
 

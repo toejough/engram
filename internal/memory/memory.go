@@ -22,7 +22,6 @@ type Enriched struct {
 	Rationale       string
 	FilenameSummary string
 	Confidence      string
-	Degraded        bool // true when LLM enrichment was unavailable
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }

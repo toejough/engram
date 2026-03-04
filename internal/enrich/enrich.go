@@ -1,6 +1,4 @@
 // Package enrich enriches pattern-matched messages into structured memories via the Anthropic API.
-// If no API key is provided, or if the API returns unparseable JSON, a degraded memory is
-// returned without making any network call.
 package enrich
 
 import (
@@ -28,8 +26,7 @@ type LLMEnricher struct {
 	client HTTPDoer
 }
 
-// New creates an LLMEnricher. Pass an empty apiKey to always use the degraded path.
-// Pass http.DefaultClient as client in production.
+// New creates an LLMEnricher. Pass http.DefaultClient as client in production.
 func New(apiKey string, client HTTPDoer) *LLMEnricher {
 	return &LLMEnricher{
 		apiKey: apiKey,
@@ -38,12 +35,10 @@ func New(apiKey string, client HTTPDoer) *LLMEnricher {
 }
 
 const (
-	anthropicAPIURL          = "https://api.anthropic.com/v1/messages"
-	anthropicModel           = "claude-haiku-4-5-20251001"
-	anthropicVersion         = "2023-06-01"
-	maxResponseTokens        = 1024
-	maxTitleLength           = 60
-	filenameSummaryWordCount = 5
+	anthropicAPIURL   = "https://api.anthropic.com/v1/messages"
+	anthropicModel    = "claude-haiku-4-5-20251001"
+	anthropicVersion  = "2023-06-01"
+	maxResponseTokens = 1024
 )
 
 // systemPrompt returns the system prompt instructing the LLM to extract structured memory fields.
@@ -108,24 +103,27 @@ type llmMemoryJSON struct {
 	FilenameSummary string   `json:"filename_summary"`
 }
 
-var errEmptyAPIResponse = errors.New("API response contained no content blocks")
+var (
+	errEmptyAPIResponse = errors.New("API response contained no content blocks")
 
-// Enrich enriches a message into a structured memory.
-// If apiKey is empty or the LLM response cannot be parsed, a degraded memory is returned.
-// Degraded memories have no enrichment fields but never return an error.
+	// ErrNoAPIKey is returned when no API key is configured.
+	ErrNoAPIKey = errors.New("no API key configured")
+)
+
+// Enrich enriches a message into a structured memory via the Anthropic API.
+// Returns ErrNoAPIKey if no API key is configured.
 func (e *LLMEnricher) Enrich(
 	ctx context.Context,
 	message string,
 	match *memory.PatternMatch,
 ) (*memory.Enriched, error) {
 	if e.apiKey == "" {
-		return degradedMemory(message, match), nil
+		return nil, ErrNoAPIKey
 	}
 
 	mem, err := e.callLLM(ctx, message, match)
 	if err != nil {
-		// Intentional: degrade gracefully on LLM failure (REQ-5, ARCH-3).
-		return degradedMemory(message, match), nil //nolint:nilerr
+		return nil, fmt.Errorf("enrichment: %w", err)
 	}
 
 	return mem, nil
@@ -227,43 +225,3 @@ func parseLLMResponse(resp *http.Response, match *memory.PatternMatch) (*memory.
 	}, nil
 }
 
-// degradedMemory returns a minimal Enriched without making any API call.
-func degradedMemory(message string, match *memory.PatternMatch) *memory.Enriched {
-	now := time.Now()
-
-	return &memory.Enriched{
-		Title:           truncateAtWordBoundary(message, maxTitleLength),
-		Content:         message,
-		ObservationType: match.Label,
-		FilenameSummary: firstNWords(message, filenameSummaryWordCount),
-		Confidence:      match.Confidence,
-		Degraded:        true,
-		CreatedAt:       now,
-		UpdatedAt:       now,
-	}
-}
-
-// truncateAtWordBoundary truncates text to at most maxLen characters, ending at a word boundary.
-func truncateAtWordBoundary(text string, maxLen int) string {
-	if len(text) <= maxLen {
-		return text
-	}
-
-	truncated := text[:maxLen]
-
-	if lastSpace := strings.LastIndex(truncated, " "); lastSpace > 0 {
-		return truncated[:lastSpace]
-	}
-
-	return truncated
-}
-
-// firstNWords returns the first n words of text joined by spaces.
-func firstNWords(text string, count int) string {
-	words := strings.Fields(text)
-	if len(words) <= count {
-		return strings.Join(words, " ")
-	}
-
-	return strings.Join(words[:count], " ")
-}

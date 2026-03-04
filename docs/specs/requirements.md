@@ -36,7 +36,7 @@ Initial pattern corpus (15 patterns):
 When a pattern match is detected, a single API call to claude-haiku-4-5-20251001 takes the user's message and produces structured memory fields as JSON: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, and a 3-5 word filename summary.
 
 - Traces to: UC-3 (LLM enrichment)
-- AC: (1) API call uses claude-haiku-4-5-20251001. (2) Response is parsed as JSON with all required fields. (3) Invalid or unparseable responses are handled gracefully (fall back to degraded memory per REQ-5).
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) Response is parsed as JSON with all required fields. (3) Invalid or unparseable responses return an error.
 - Verification: deterministic (JSON schema validation of LLM response)
 
 ---
@@ -58,16 +58,6 @@ After a memory file is created, the system outputs a system reminder to stdout c
 - Traces to: UC-3 (feedback)
 - AC: (1) Stdout contains a system reminder when a memory is created. (2) Reminder includes the memory title, observation type, and file path. (3) Format uses `[engram]` prefix.
 - Verification: deterministic (stdout content check)
-
----
-
-## REQ-5: Graceful degradation without API key
-
-If no `ANTHROPIC_API_KEY` environment variable is set, the system creates a degraded memory: raw message as content, minimal metadata (observation_type from pattern label, confidence from detection context), filename from first few words of the message. A warning is logged to stderr. The system does not error.
-
-- Traces to: UC-3 (graceful degradation)
-- AC: (1) No API key → degraded memory written (not an error). (2) Degraded memory has: title (first ~60 chars of message), content (full message), observation_type (from pattern label), confidence, timestamps. (3) Warning printed to stderr. (4) Exit 0.
-- Verification: deterministic (file created without API key, stderr warning present)
 
 ---
 
@@ -112,23 +102,6 @@ Format rules:
 - Concise — appears in the same hook response
 
 - Traces to: UC-3 (feedback)
-
----
-
-## DES-2: Degraded memory feedback format
-
-When a degraded memory is created (no API key):
-
-```
-<system-reminder source="engram">
-[engram] Memory captured (degraded — no API key).
-  Created: "<title>"
-  File: <file_path>
-  Note: Set ANTHROPIC_API_KEY for enriched memories.
-</system-reminder>
-```
-
-- Traces to: UC-3 (graceful degradation, feedback)
 
 ---
 

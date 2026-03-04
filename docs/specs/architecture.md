@@ -29,7 +29,7 @@ func (c *Corrector) Run(ctx context.Context, message string) (string, error) {
 
 Four stages, each independently testable via DI. The pipeline is the composition root's responsibility to wire.
 
-**Traces to:** REQ-1 (detection), REQ-2 (enrichment), REQ-3 (file writing), REQ-4 (feedback), REQ-5 (degradation), REQ-6 (Go binary)
+**Traces to:** REQ-1 (detection), REQ-2 (enrichment), REQ-3 (file writing), REQ-4 (feedback), REQ-6 (Go binary)
 
 ---
 
@@ -82,11 +82,9 @@ type EnrichedMemory struct {
 }
 ```
 
-Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001` with a system prompt instructing JSON output of the structured fields. API key from `ANTHROPIC_API_KEY` env var.
+Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001` with a system prompt instructing JSON output of the structured fields. API key from `ANTHROPIC_API_KEY` env var. Returns `ErrNoAPIKey` if no API key is configured; returns an error if the LLM response cannot be parsed.
 
-**Degraded path (REQ-5):** If no API key, return an `EnrichedMemory` with: Title = first ~60 chars of message, Content = full message, ObservationType = match.Label, other fields empty, FilenameSummary = first 3-5 words. The `Enricher` implementation checks for the API key and branches internally — no separate interface needed.
-
-**Traces to:** REQ-2 (LLM enrichment), REQ-5 (degradation), REQ-7 (confidence from match)
+**Traces to:** REQ-2 (LLM enrichment), REQ-7 (confidence from match)
 
 ---
 
@@ -112,21 +110,19 @@ Implementation:
 
 ## ARCH-5: System Reminder Renderer
 
-**Decision:** Format the system reminder text per DES-1 and DES-2:
+**Decision:** Format the system reminder text per DES-1:
 
 ```go
 type Renderer interface {
-    Render(memory *EnrichedMemory, filePath string, degraded bool) string
+    Render(memory *EnrichedMemory, filePath string) string
 }
 ```
 
-Two formats:
-- Normal (DES-1): `[engram] Memory captured.` + Created/Type/File
-- Degraded (DES-2): `[engram] Memory captured (degraded — no API key).` + Created/File/Note
+Format (DES-1): `[engram] Memory captured.` + Created/Type/File
 
 Returns empty string if no memory was created (shouldn't happen if called after Writer).
 
-**Traces to:** REQ-4 (feedback), DES-1 (normal format), DES-2 (degraded format)
+**Traces to:** REQ-4 (feedback), DES-1 (normal format)
 
 ---
 
@@ -189,11 +185,11 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 
 | ARCH | L2 items |
 |------|----------|
-| ARCH-1 | REQ-1, REQ-2, REQ-3, REQ-4, REQ-5, REQ-6 |
+| ARCH-1 | REQ-1, REQ-2, REQ-3, REQ-4, REQ-6 |
 | ARCH-2 | REQ-1, REQ-7 |
-| ARCH-3 | REQ-2, REQ-5, REQ-7 |
+| ARCH-3 | REQ-2, REQ-7 |
 | ARCH-4 | REQ-3 |
-| ARCH-5 | REQ-4, DES-1, DES-2 |
+| ARCH-5 | REQ-4, DES-1 |
 | ARCH-6 | REQ-6, DES-3 |
 | ARCH-7 | REQ-6 |
 
@@ -205,11 +201,9 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 | REQ-2 | ARCH-1, ARCH-3 |
 | REQ-3 | ARCH-1, ARCH-4 |
 | REQ-4 | ARCH-1, ARCH-5 |
-| REQ-5 | ARCH-1, ARCH-3 |
 | REQ-6 | ARCH-1, ARCH-6, ARCH-7 |
 | REQ-7 | ARCH-2, ARCH-3 |
 | DES-1 | ARCH-5 |
-| DES-2 | ARCH-5 |
 | DES-3 | ARCH-6 |
 
 All L2 items have ARCH coverage.

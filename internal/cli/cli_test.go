@@ -11,13 +11,15 @@ import (
 	"engram/internal/cli"
 )
 
-// T-18: `correct` subcommand runs pipeline
-func TestT18_CorrectSubcommandRunsPipeline(t *testing.T) {
-	t.Parallel()
-
+// T-18: `correct` subcommand with no API key returns error
+func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
 	g := NewGomegaWithT(t)
 
 	dataDir := filepath.Join(t.TempDir(), "data")
+
+	// Ensure no API key is set.
+	t.Setenv("ANTHROPIC_API_KEY", "")
 
 	var buf bytes.Buffer
 
@@ -26,23 +28,11 @@ func TestT18_CorrectSubcommandRunsPipeline(t *testing.T) {
 		"--message", "remember to use targ",
 		"--data-dir", dataDir,
 	}, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(err).To(HaveOccurred())
 
-	// Verify a TOML file was created in <dataDir>/memories/
-	memoriesDir := filepath.Join(dataDir, "memories")
-	entries, readErr := os.ReadDir(memoriesDir)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("no API key"))
 	}
-
-	g.Expect(entries).NotTo(BeEmpty())
-	g.Expect(entries[0].Name()).To(HaveSuffix(".toml"))
-
-	// Verify stdout contains a system reminder
-	g.Expect(buf.String()).To(ContainSubstring("[engram]"))
-	g.Expect(buf.String()).To(ContainSubstring("Memory captured"))
 }
 
 // T-19: `correct` with non-matching message produces empty stdout

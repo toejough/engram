@@ -76,15 +76,13 @@ func (f *fakeWriter) Write(_ *memory.Enriched, _ string) (string, error) {
 
 // fakeRenderer is a test double for correct.Renderer.
 type fakeRenderer struct {
-	output   string
-	called   bool
-	degraded bool
-	record   *callRecord
+	output string
+	called bool
+	record *callRecord
 }
 
-func (f *fakeRenderer) Render(_ *memory.Enriched, _ string, degraded bool) string {
+func (f *fakeRenderer) Render(_ *memory.Enriched, _ string) string {
 	f.called = true
-	f.degraded = degraded
 
 	if f.record != nil {
 		f.record.record("render")
@@ -167,54 +165,4 @@ func TestT16_NoMatchPipelineShortCircuits(t *testing.T) {
 	g.Expect(enricher.called).To(BeFalse())
 	g.Expect(writer.called).To(BeFalse())
 	g.Expect(renderer.called).To(BeFalse())
-}
-
-// T-17: Pipeline with degraded enrichment
-func TestT17_PipelineWithDegradedEnrichment(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-	now := time.Now()
-
-	matcher := &fakePatternMatcher{
-		match: &memory.PatternMatch{
-			Pattern:    `\bremember\s+(that|to)`,
-			Label:      "reminder",
-			Confidence: "A",
-		},
-	}
-
-	enricher := &fakeEnricher{
-		mem: &memory.Enriched{
-			Title:           "remember to use targ for all build operations",
-			Content:         "remember to use targ for all build operations",
-			ObservationType: "reminder",
-			FilenameSummary: "remember to use targ",
-			Confidence:      "A",
-			Degraded:        true,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		},
-	}
-
-	writer := &fakeWriter{
-		path: "/tmp/memories/remember-to-use-targ.toml",
-	}
-
-	degradedText := "<system-reminder source=\"engram\">\n" +
-		"[engram] Memory captured (degraded \u2014 no API key).\n" +
-		"</system-reminder>\n"
-	renderer := &fakeRenderer{
-		output: degradedText,
-	}
-
-	corrector := correct.New(matcher, enricher, writer, renderer, "/tmp")
-	result, err := corrector.Run(context.Background(), "remember to use targ for all build operations")
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result).To(ContainSubstring("degraded"))
-	g.Expect(enricher.called).To(BeTrue())
-	g.Expect(writer.called).To(BeTrue())
-	g.Expect(renderer.called).To(BeTrue())
-	g.Expect(renderer.degraded).To(BeTrue())
 }

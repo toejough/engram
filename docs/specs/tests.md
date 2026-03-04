@@ -58,21 +58,21 @@ Uses fake HTTP transport returning canned JSON.
 
 - Traces to: ARCH-3, REQ-2
 
-### T-6: Enrichment without API key produces degraded memory
+### T-6: Enrichment without API key returns error
 
 **Given** a message and pattern match but no API key,
 **When** Enrich is called,
-**Then** an EnrichedMemory is returned with: title = first ~60 chars, content = full message, observation_type = match label, enrichment fields empty, filename_summary = first 3-5 words.
+**Then** ErrNoAPIKey is returned and no HTTP call is made.
 
-- Traces to: ARCH-3, REQ-5
+- Traces to: ARCH-3, REQ-2
 
-### T-7: Invalid LLM response falls back to degraded memory
+### T-7: Invalid LLM response returns error
 
 **Given** a message and pattern match, and the LLM returns invalid JSON,
 **When** Enrich is called,
-**Then** a degraded EnrichedMemory is returned (same as no API key).
+**Then** an error is returned (not a degraded memory).
 
-- Traces to: ARCH-3, REQ-2, REQ-5
+- Traces to: ARCH-3, REQ-2
 
 ---
 
@@ -124,21 +124,13 @@ Property-based: generate filename summaries, verify slug format.
 
 ## System Reminder Renderer (ARCH-5)
 
-### T-13: Normal memory produces DES-1 format
+### T-13: Memory produces DES-1 format
 
-**Given** a normal (non-degraded) EnrichedMemory and file path,
-**When** Render is called with degraded=false,
+**Given** an EnrichedMemory and file path,
+**When** Render is called,
 **Then** output matches DES-1 format: `[engram] Memory captured.` header, Created/Type/File fields.
 
 - Traces to: ARCH-5, REQ-4, DES-1
-
-### T-14: Degraded memory produces DES-2 format
-
-**Given** a degraded EnrichedMemory and file path,
-**When** Render is called with degraded=true,
-**Then** output matches DES-2 format: `[engram] Memory captured (degraded — no API key).` header, Created/File/Note fields.
-
-- Traces to: ARCH-5, REQ-4, DES-2
 
 ---
 
@@ -162,27 +154,17 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 - Traces to: ARCH-1, REQ-1
 
-### T-17: Pipeline with degraded enrichment
-
-**Given** a matching message and an enricher that returns a degraded memory,
-**When** Run is called,
-**Then** Writer and Renderer still execute, producing a degraded memory file and DES-2 format feedback.
-
-- Traces to: ARCH-1, REQ-5
-
 ---
 
 ## CLI Wiring (ARCH-6)
 
-### T-18: `correct` subcommand runs pipeline
+### T-18: `correct` subcommand without API key returns error
 
-**Given** `engram correct --message "remember to use targ" --data-dir <tmpdir>`,
+**Given** `engram correct --message "remember to use targ" --data-dir <tmpdir>` with no API key set,
 **When** Run is called,
-**Then** a TOML file is created in `<tmpdir>/memories/` and stdout contains a system reminder.
+**Then** an error containing "no API key" is returned.
 
-Integration-style: uses real PatternMatcher, fake Enricher (no real API call), real Writer, real Renderer.
-
-- Traces to: ARCH-6, REQ-6, DES-3
+- Traces to: ARCH-6, REQ-6
 
 ### T-19: `correct` with non-matching message produces empty stdout
 

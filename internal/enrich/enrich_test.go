@@ -105,15 +105,14 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 	g.Expect(mem.Rationale).To(Equal("Targ provides consistent test runner behavior"))
 	g.Expect(mem.FilenameSummary).To(Equal("remember use targ builds"))
 	g.Expect(mem.Confidence).To(Equal("A"))
-	g.Expect(mem.Degraded).To(BeFalse())
 	g.Expect(mem.CreatedAt).To(BeTemporally(">=", before))
 	g.Expect(mem.CreatedAt).To(BeTemporally("<=", after))
 	g.Expect(mem.UpdatedAt).To(Equal(mem.CreatedAt))
 }
 
-// TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory verifies that an empty API key
-// causes a degraded memory to be returned without making any HTTP call.
-func TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory(t *testing.T) {
+// TestT6_EnrichmentWithoutAPIKeyReturnsError verifies that an empty API key
+// causes ErrNoAPIKey to be returned without making any HTTP call.
+func TestT6_EnrichmentWithoutAPIKeyReturnsError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -121,51 +120,24 @@ func TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory(t *testing.T) {
 	doer := &fakeHTTPDoer{} // response is nil — would panic if called
 	enricher := enrich.New("", doer)
 
-	message := "remember to use targ for all build operations and not go test directly ever please"
 	match := &memory.PatternMatch{
 		Pattern:    `\bremember\s+(that|to)`,
 		Label:      "reminder",
 		Confidence: "A",
 	}
 
-	mem, err := enricher.Enrich(context.Background(), message, match)
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
 
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(mem).NotTo(BeNil())
-
-	if mem == nil {
-		return
-	}
+	g.Expect(err).To(MatchError(enrich.ErrNoAPIKey))
+	g.Expect(mem).To(BeNil())
 
 	// No HTTP call must be made.
 	g.Expect(doer.called).To(BeFalse())
-
-	// Degraded memory has content and label from match, but no enrichment fields.
-	g.Expect(mem.Content).To(Equal(message))
-	g.Expect(mem.ObservationType).To(Equal("reminder"))
-	g.Expect(mem.Confidence).To(Equal("A"))
-	g.Expect(mem.Degraded).To(BeTrue())
-
-	// Title is first ~60 chars, truncated at a word boundary.
-	g.Expect(len(mem.Title)).To(BeNumerically("<=", 60))
-	g.Expect(mem.Title).NotTo(BeEmpty())
-
-	// Enrichment fields are empty.
-	g.Expect(mem.Concepts).To(BeEmpty())
-	g.Expect(mem.Keywords).To(BeEmpty())
-	g.Expect(mem.Principle).To(BeEmpty())
-	g.Expect(mem.AntiPattern).To(BeEmpty())
-	g.Expect(mem.Rationale).To(BeEmpty())
 }
 
-// TestT7_InvalidLLMResponseFallsBackToDegraded verifies that an unparseable HTTP
-// response body causes the enricher to fall back to a degraded memory.
-func TestT7_InvalidLLMResponseFallsBackToDegraded(t *testing.T) {
+// TestT7_InvalidLLMResponseReturnsError verifies that an unparseable HTTP
+// response body causes the enricher to return an error.
+func TestT7_InvalidLLMResponseReturnsError(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -179,35 +151,18 @@ func TestT7_InvalidLLMResponseFallsBackToDegraded(t *testing.T) {
 
 	enricher := enrich.New("test-api-key", doer)
 
-	message := "remember to use targ"
 	match := &memory.PatternMatch{
 		Pattern:    `\bremember\s+(that|to)`,
 		Label:      "reminder",
 		Confidence: "A",
 	}
 
-	mem, err := enricher.Enrich(context.Background(), message, match)
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
 
-	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
 
 	if err != nil {
-		return
+		g.Expect(err.Error()).To(ContainSubstring("enrichment"))
 	}
-
-	g.Expect(mem).NotTo(BeNil())
-
-	if mem == nil {
-		return
-	}
-
-	// Falls back to degraded: no enrichment fields, only basics.
-	g.Expect(mem.Content).To(Equal(message))
-	g.Expect(mem.ObservationType).To(Equal("reminder"))
-	g.Expect(mem.Confidence).To(Equal("A"))
-	g.Expect(mem.Degraded).To(BeTrue())
-	g.Expect(mem.Concepts).To(BeEmpty())
-	g.Expect(mem.Keywords).To(BeEmpty())
-	g.Expect(mem.Principle).To(BeEmpty())
-	g.Expect(mem.AntiPattern).To(BeEmpty())
-	g.Expect(mem.Rationale).To(BeEmpty())
 }
