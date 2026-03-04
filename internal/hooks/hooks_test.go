@@ -37,50 +37,15 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
 }
 
-// TestT20_SessionStartHookScriptExists verifies the static hook script at
-// hooks/session-start.sh references go build and the expected paths (ARCH-8, REQ-8).
-func TestT20_SessionStartHookScriptExists(t *testing.T) {
+// TestT20_PluginManifestExists verifies .claude-plugin/plugin.json exists with
+// the correct name and description.
+func TestT20_PluginManifestExists(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	root := repoRoot(t)
-	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
-
-	info, err := os.Stat(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Verify executable permission
-	g.Expect(info.Mode().Perm() & 0o111).NotTo(BeZero())
-
-	content, err := os.ReadFile(scriptPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	script := string(content)
-
-	g.Expect(script).To(ContainSubstring("go build"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
-	g.Expect(script).To(ContainSubstring("cmd/engram"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
-}
-
-// TestT21_PluginJSONHasSessionStartHook verifies plugin.json contains a
-// SessionStart hook entry pointing to hooks/session-start.sh (ARCH-8, REQ-8).
-func TestT21_PluginJSONHasSessionStartHook(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	root := repoRoot(t)
-	manifestPath := filepath.Join(root, "plugin.json")
+	manifestPath := filepath.Join(root, ".claude-plugin", "plugin.json")
 
 	content, err := os.ReadFile(manifestPath)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -91,8 +56,31 @@ func TestT21_PluginJSONHasSessionStartHook(t *testing.T) {
 
 	manifest := string(content)
 
-	g.Expect(manifest).To(ContainSubstring("SessionStart"))
-	g.Expect(manifest).To(ContainSubstring("session-start.sh"))
+	g.Expect(manifest).To(ContainSubstring(`"name": "engram"`))
+	g.Expect(manifest).To(ContainSubstring(`"description"`))
+}
+
+// TestT21_HooksJSONHasUserPromptSubmit verifies hooks/hooks.json contains a
+// UserPromptSubmit hook entry pointing to user-prompt-submit.sh.
+func TestT21_HooksJSONHasUserPromptSubmit(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+
+	content, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	hooksJSON := string(content)
+
+	g.Expect(hooksJSON).To(ContainSubstring("UserPromptSubmit"))
+	g.Expect(hooksJSON).To(ContainSubstring("user-prompt-submit.sh"))
 }
 
 // TestT22_UserPromptSubmitHookCrossPlatformToken verifies the static hook script at
