@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENGRAM_BIN="${CLAUDE_PLUGIN_ROOT}/bin/engram"
-ENGRAM_DATA="${CLAUDE_PLUGIN_ROOT}/data"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+ENGRAM_HOME="${HOME}/.claude/engram"
+ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
+ENGRAM_DATA="${ENGRAM_HOME}/data"
+
+# Build if missing
+if [[ ! -x "$ENGRAM_BIN" ]]; then
+    mkdir -p "${ENGRAM_HOME}/bin"
+    cd "$PLUGIN_ROOT"
+    go build -o "$ENGRAM_BIN" ./cmd/engram/ 2>/dev/null || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
+fi
 
 # Platform-aware OAuth token retrieval (DES-3)
 TOKEN=""
