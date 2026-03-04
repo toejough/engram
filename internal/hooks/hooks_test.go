@@ -31,11 +31,13 @@ func TestT43_UserPromptSubmitHookInvokesCorrect(t *testing.T) {
 
 	// When hooks.UserPromptSubmitScript() is called
 	script := hooks.UserPromptSubmitScript()
-	// Then returned string contains "engram correct", user message var, and strict mode
+	// Then returned string contains "engram correct", user message var, strict mode, and Keychain lookup
 	g.Expect(script).To(ContainSubstring("correct"))
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
+	g.Expect(script).To(ContainSubstring("security find-generic-password"))
 }
 
 func TestT55_SessionStartHookInvokesSurface(t *testing.T) {

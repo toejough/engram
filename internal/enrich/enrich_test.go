@@ -17,12 +17,15 @@ import (
 
 // fakeHTTPDoer is a test double for enrich.HTTPDoer that returns a canned response.
 type fakeHTTPDoer struct {
-	response *http.Response
-	called   bool
+	response    *http.Response
+	called      bool
+	lastRequest *http.Request
 }
 
-func (f *fakeHTTPDoer) Do(_ *http.Request) (*http.Response, error) {
+func (f *fakeHTTPDoer) Do(req *http.Request) (*http.Response, error) {
 	f.called = true
+	f.lastRequest = req
+
 	return f.response, nil
 }
 
@@ -108,6 +111,15 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 	g.Expect(mem.CreatedAt).To(BeTemporally(">=", before))
 	g.Expect(mem.CreatedAt).To(BeTemporally("<=", after))
 	g.Expect(mem.UpdatedAt).To(Equal(mem.CreatedAt))
+
+	// Verify Bearer auth header (not X-Api-Key).
+	g.Expect(doer.lastRequest).NotTo(BeNil())
+
+	if doer.lastRequest != nil {
+		g.Expect(doer.lastRequest.Header.Get("Authorization")).To(Equal("Bearer test-api-key"))
+		g.Expect(doer.lastRequest.Header.Get("X-Api-Key")).To(BeEmpty())
+		g.Expect(doer.lastRequest.Header.Get("Anthropic-Beta")).To(Equal("oauth-2025-04-20"))
+	}
 }
 
 // TestT6_EnrichmentWithoutAPIKeyReturnsError verifies that an empty API key
@@ -128,7 +140,7 @@ func TestT6_EnrichmentWithoutAPIKeyReturnsError(t *testing.T) {
 
 	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
 
-	g.Expect(err).To(MatchError(enrich.ErrNoAPIKey))
+	g.Expect(err).To(MatchError(enrich.ErrNoToken))
 	g.Expect(mem).To(BeNil())
 
 	// No HTTP call must be made.

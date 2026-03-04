@@ -48,21 +48,21 @@ Property-based: generate messages for each non-remember pattern.
 
 ## LLM Enrichment (ARCH-3)
 
-### T-5: Enrichment with API key produces all structured fields
+### T-5: Enrichment with token produces all structured fields
 
-**Given** a message, pattern match, and a valid API key,
+**Given** a message, pattern match, and a valid OAuth token,
 **When** Enrich is called,
-**Then** an EnrichedMemory is returned with all fields populated: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary, confidence, timestamps.
+**Then** an EnrichedMemory is returned with all fields populated: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary, confidence, timestamps. The HTTP request uses `Authorization: Bearer` header (not `X-Api-Key`).
 
 Uses fake HTTP transport returning canned JSON.
 
 - Traces to: ARCH-3, REQ-2
 
-### T-6: Enrichment without API key returns error
+### T-6: Enrichment without token returns error
 
-**Given** a message and pattern match but no API key,
+**Given** a message and pattern match but no token,
 **When** Enrich is called,
-**Then** ErrNoAPIKey is returned and no HTTP call is made.
+**Then** ErrNoToken is returned and no HTTP call is made.
 
 - Traces to: ARCH-3, REQ-2
 
@@ -158,11 +158,11 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 ## CLI Wiring (ARCH-6)
 
-### T-18: `correct` subcommand without API key returns error
+### T-18: `correct` subcommand without token returns error
 
-**Given** `engram correct --message "remember to use targ" --data-dir <tmpdir>` with no API key set,
+**Given** `engram correct --message "remember to use targ" --data-dir <tmpdir>` with no `ENGRAM_API_TOKEN` set,
 **When** Run is called,
-**Then** an error containing "no API key" is returned.
+**Then** an error containing "no API token" is returned.
 
 - Traces to: ARCH-6, REQ-6
 

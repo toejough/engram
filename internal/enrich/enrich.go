@@ -22,14 +22,14 @@ type HTTPDoer interface {
 
 // LLMEnricher uses the Anthropic API to enrich memories into structured form.
 type LLMEnricher struct {
-	apiKey string
+	token  string
 	client HTTPDoer
 }
 
 // New creates an LLMEnricher. Pass http.DefaultClient as client in production.
-func New(apiKey string, client HTTPDoer) *LLMEnricher {
+func New(token string, client HTTPDoer) *LLMEnricher {
 	return &LLMEnricher{
-		apiKey: apiKey,
+		token:  token,
 		client: client,
 	}
 }
@@ -106,8 +106,8 @@ type llmMemoryJSON struct {
 var (
 	errEmptyAPIResponse = errors.New("API response contained no content blocks")
 
-	// ErrNoAPIKey is returned when no API key is configured.
-	ErrNoAPIKey = errors.New("no API key configured")
+	// ErrNoToken is returned when no API token is configured.
+	ErrNoToken = errors.New("no API token configured")
 )
 
 // Enrich enriches a message into a structured memory via the Anthropic API.
@@ -117,8 +117,8 @@ func (e *LLMEnricher) Enrich(
 	message string,
 	match *memory.PatternMatch,
 ) (*memory.Enriched, error) {
-	if e.apiKey == "" {
-		return nil, ErrNoAPIKey
+	if e.token == "" {
+		return nil, ErrNoToken
 	}
 
 	mem, err := e.callLLM(ctx, message, match)
@@ -171,8 +171,9 @@ func (e *LLMEnricher) sendRequest(
 		return nil, fmt.Errorf("creating HTTP request: %w", err)
 	}
 
-	req.Header.Set("X-Api-Key", e.apiKey)
+	req.Header.Set("Authorization", "Bearer "+e.token)
 	req.Header.Set("Anthropic-Version", anthropicVersion)
+	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := e.client.Do(req)

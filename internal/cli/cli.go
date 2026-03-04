@@ -79,8 +79,8 @@ func runCorrect(args []string, stdout io.Writer) error {
 	}
 
 	matcher := &corpusAdapter{corpus: corpus.New(corpus.DefaultPatterns())}
-	apiKey := os.Getenv("ANTHROPIC_API_KEY")
-	enricher := enrich.New(apiKey, &http.Client{})
+	token := os.Getenv("ENGRAM_API_TOKEN")
+	enricher := enrich.New(token, &http.Client{})
 	writer := tomlwriter.New()
 	renderer := render.New()
 

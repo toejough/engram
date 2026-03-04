@@ -82,7 +82,7 @@ type EnrichedMemory struct {
 }
 ```
 
-Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001` with a system prompt instructing JSON output of the structured fields. API key from `ANTHROPIC_API_KEY` env var. Returns `ErrNoAPIKey` if no API key is configured; returns an error if the LLM response cannot be parsed.
+Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001` with a system prompt instructing JSON output of the structured fields. OAuth token from `ENGRAM_API_TOKEN` env var, sent as `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`. The hook script reads the token from the Claude Code Keychain via `security find-generic-password`. Returns `ErrNoToken` if no token is configured; returns an error if the LLM response cannot be parsed.
 
 **Traces to:** REQ-2 (LLM enrichment), REQ-7 (confidence from match)
 

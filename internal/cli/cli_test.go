@@ -18,8 +18,8 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 
 	dataDir := filepath.Join(t.TempDir(), "data")
 
-	// Ensure no API key is set.
-	t.Setenv("ANTHROPIC_API_KEY", "")
+	// Ensure no API token is set.
+	t.Setenv("ENGRAM_API_TOKEN", "")
 
 	var buf bytes.Buffer
 
@@ -31,7 +31,7 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("no API key"))
+		g.Expect(err.Error()).To(ContainSubstring("no API token"))
 	}
 }
 
