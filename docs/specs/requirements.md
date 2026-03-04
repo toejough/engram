@@ -112,6 +112,40 @@ The UserPromptSubmit hook is registered in `plugin.json` and invokes `hooks/user
 "$ENGRAM_BIN" correct --message "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
 ```
 
-The hook script reads the OAuth token from the Claude Code Keychain via `security find-generic-password` and exports it as `ENGRAM_API_TOKEN`. Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
+Token retrieval is platform-aware:
+- **macOS:** Attempt to read OAuth token from Claude Code Keychain via `security find-generic-password`. On failure, fall back to `ENGRAM_API_TOKEN` env var.
+- **Non-macOS (Linux, etc.):** Use `ENGRAM_API_TOKEN` env var directly.
+
+The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds. Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
 
 - Traces to: UC-3 (hook wiring)
+
+---
+
+## REQ-8: Binary build mechanism
+
+The plugin self-builds via a `SessionStart` hook that runs `go build` to produce the binary at `${CLAUDE_PLUGIN_ROOT}/bin/engram`. The hook is registered in `plugin.json` alongside the existing `UserPromptSubmit` hook.
+
+Build command: `cd "${CLAUDE_PLUGIN_ROOT}" && go build -o bin/engram ./cmd/engram/`
+
+- Build requires Go toolchain on `PATH`.
+- `bin/` is gitignored (binary not committed).
+- Go's build cache makes repeated builds fast (sub-second no-op if source unchanged).
+- Build failure logs to stderr but does not fail the session (exit 0 always).
+- Traces to: UC-3 (binary must exist for UserPromptSubmit hook to work)
+- AC: (1) `SessionStart` hook in `plugin.json` triggers build. (2) Binary is produced at `bin/engram`. (3) Build failure does not break Claude Code session. (4) `bin/` is in `.gitignore`.
+
+---
+
+## DES-4: Plugin installation and setup UX
+
+Installation steps for a user:
+
+1. **Prerequisites:** Go toolchain installed and on `PATH`.
+2. **Clone:** `git clone` the engram repo.
+3. **Register:** `claude --plugin-dir /path/to/engram` (development mode).
+4. **Verify:** Start a Claude Code session. The `SessionStart` hook auto-builds the binary. Then send a message like "remember to always use targ" — a memory TOML file should be created.
+
+No manual build step required — the `SessionStart` hook handles it (REQ-8). README documents these steps.
+
+- Traces to: UC-3 (user must be able to install and exercise the plugin)

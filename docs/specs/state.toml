@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "DES-1", "DES-3"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -53,9 +53,9 @@ gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all othe
 layer = "L2"
 name = "Remember & Correct Requirements"
 parents = ["L1A"]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "DES-1", "DES-3"]
-status = "complete"
-history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20)."
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
+status = "in_progress"
+history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token)."
 
 # Tree nodes — L3
 
@@ -65,6 +65,7 @@ name = "Remember & Correct Architecture"
 parents = ["L2A"]
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7"]
 status = "complete"
+dirty = { source = "L2A", reason = "Issue #22: new REQ-8 (build), DES-4 (installation), DES-3 update (cross-platform token) need ARCH coverage" }
 history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard."
 
 # Tree nodes — L4
@@ -75,6 +76,7 @@ name = "Remember & Correct Tests"
 parents = ["L3A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19"]
 status = "complete"
+dirty = { source = "L3A", reason = "Propagated from L2A — new ARCH items need test coverage" }
 history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21)."
 
 # Tree nodes — L5
@@ -114,7 +116,7 @@ history = "4-stage Corrector pipeline, CLI correct subcommand, hook wiring test.
 # Cursor
 
 [cursor]
-node = "L1A"
-mode = "complete"
-next_action = "UC-3 fully implemented. All layers L1-L5 complete, 19 tests passing, lint clean."
-context_files = ["docs/specs/state.toml"]
+node = "L2A"
+mode = "green"
+next_action = "L2A reopened for issue #22 deployment path. REQ-8, DES-3 update, DES-4 written. Proceed to REFACTOR then COMMIT, then descend to L3A (dirty)."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
