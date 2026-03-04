@@ -183,3 +183,43 @@ Uses fakes for all four DI interfaces. Verifies call order.
 **Then** stdout is empty and no file is created.
 
 - Traces to: ARCH-6, REQ-6
+
+---
+
+## Build Automation (ARCH-8)
+
+### T-20: SessionStart hook script exists and references go build
+
+**Given** the static hook script at `hooks/session-start.sh`,
+**When** its content is read,
+**Then** it references `go build`, `bin/engram`, `cmd/engram`, and `CLAUDE_PLUGIN_ROOT`. It is executable.
+
+- Traces to: ARCH-8, REQ-8
+
+### T-21: SessionStart hook is registered in plugin.json
+
+**Given** the plugin manifest at `plugin.json`,
+**When** its content is parsed,
+**Then** it contains a `SessionStart` hook entry pointing to `hooks/session-start.sh`.
+
+- Traces to: ARCH-8, REQ-8, ARCH-6
+
+---
+
+## Cross-Platform Token (ARCH-6 update)
+
+### T-22: UserPromptSubmit hook script has platform-aware token retrieval
+
+**Given** the static hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** it checks `uname` for platform, attempts Keychain on macOS, and falls back to `ENGRAM_API_TOKEN` env var. It does not hard-fail if Keychain is unavailable.
+
+- Traces to: ARCH-6, DES-3, REQ-8
+
+### T-23: bin/ is in .gitignore
+
+**Given** the `.gitignore` file at the repo root,
+**When** its content is read,
+**Then** it contains an entry that ignores the `bin/` directory.
+
+- Traces to: ARCH-8, REQ-8
