@@ -5,41 +5,27 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-1", "UC-2", "UC-3", "UC-4", "UC-5", "UC-6", "UC-7", "UC-8", "UC-9", "UC-10", "UC-11", "UC-12", "UC-13", "UC-14"]
+items = ["UC-3"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "REQ-13", "REQ-14", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "REQ-21", "REQ-22", "DES-1", "DES-2", "DES-3", "DES-4", "DES-5", "DES-6", "DES-7", "DES-8"]
+items = []
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L3]
-items = [
-  { id = "ARCH-1", source = "derived" },
-  { id = "ARCH-2", source = "derived" },
-  { id = "ARCH-3", source = "derived" },
-  { id = "ARCH-4", source = "derived" },
-  { id = "ARCH-5", source = "derived" },
-  { id = "ARCH-6", source = "derived" },
-  { id = "ARCH-7", source = "derived" },
-  { id = "ARCH-8", source = "standard", rationale = "DI everywhere — all I/O through injected interfaces. From CLAUDE.md design principles, not derived from L2." },
-  { id = "ARCH-9", source = "derived" },
-  { id = "ARCH-10", source = "derived" },
-  { id = "ARCH-11", source = "derived" },
-  { id = "ARCH-12", source = "derived" },
-  { id = "ARCH-13", source = "derived" },
-]
+items = []
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+items = []
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+items = []
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -47,131 +33,16 @@ refactor_tool = "targ check"
 
 [tree.L1A]
 layer = "L1"
-items = ["UC-1", "UC-2", "UC-3"]
+name = "Remember & Correct"
+items = ["UC-3"]
 status = "in_progress"
-history = "Core Pipeline: write (UC-1), read (UC-2), correct (UC-3). Foundation for all other groups."
-
-[tree.L1B]
-layer = "L1"
-items = ["UC-7", "UC-8", "UC-9", "UC-10"]
-status = "pending"
-history = "Evaluation & Quadrant Actions. Depends on Group A signals."
-
-[tree.L1C]
-layer = "L1"
-items = ["UC-4", "UC-5", "UC-6", "UC-12"]
-status = "pending"
-history = "Promotion & Lifecycle. Depends on Group B evaluation data."
-
-[tree.L1D]
-layer = "L1"
-items = ["UC-11", "UC-13", "UC-14"]
-status = "pending"
-history = "Infrastructure. Mostly independent."
-
-# Tree nodes — L2
-
-[tree.L2A]
-layer = "L2"
-parent = "L1A"
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-5", "REQ-6", "REQ-13", "REQ-14", "REQ-15", "REQ-17", "REQ-18", "REQ-22", "DES-3", "DES-5", "DES-6", "DES-7", "DES-8"]
-status = "complete"
-history = "Write Path: extraction (UC-1), correction capture (UC-3), reconciliation, deduplication, auditing. REQ-17 absorbed from L2C — correction feedback already implemented in correct.DetectCorrection."
-
-[tree.L2B]
-layer = "L2"
-parent = "L1A"
-items = ["REQ-4", "REQ-7", "REQ-8", "REQ-9", "REQ-10", "REQ-12", "DES-1", "DES-2", "DES-4"]
-status = "complete"
-history = "Read Path: frecency ranking, per-hook retrieval, surfacing format, display. DES-4 absorbed from L2C — correction-before-surfacing ordering already implemented in hooks and verified by T-56."
-
-[tree.L2C]
-layer = "L2"
-parent = "L1A"
-items = ["REQ-16"]
-status = "complete"
-history = "Feedback Loop: immediate reclassification on correction. REQ-17 moved to L2A (implemented), DES-4 moved to L2B (implemented). REQ-16 fully implemented: session surfacing log, multiplicative decay, correct/surface pipeline integration."
-
-[tree.L2D]
-layer = "L2"
-parent = "L1C"
-items = ["REQ-19", "REQ-20", "REQ-21"]
-status = "pending"
-history = "Skill promotion requirements (UC-4). Written but not yet reviewed or refactored."
-
-# Tree nodes — L3
-
-[tree.L3A]
-layer = "L3"
-parent = "L2A"
-items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8", "ARCH-9"]
-status = "complete"
-history = "Write Path architecture. 9 ARCH decisions. Refactored: inter-ARCH consistency verified, bidirectional traceability clean, ubiquitous language aligned."
-
-[tree.L3B]
-layer = "L3"
-parent = "L2B"
-items = ["ARCH-10", "ARCH-11", "ARCH-12"]
-status = "complete"
-history = "Read Path architecture. Frecency ranking (ARCH-10), surfacing pipeline (ARCH-11), hook integration (ARCH-12). Updated ARCH-2 and ARCH-8 during L3-wide refactor."
-
-[tree.L3C]
-layer = "L3"
-parent = "L2C"
-items = ["ARCH-13"]
-status = "complete"
-history = "Reclassification architecture. ARCH-13: session surfacing log (SQLite table), multiplicative impact decay (0.8x), integration with correct pipeline (ARCH-4) and surface pipeline (ARCH-11)."
-
-# Tree nodes — L4
-
-[tree.L4A]
-layer = "L4"
-parent = "L3A"
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43"]
-status = "complete"
-history = "43 BDD test specs for Write Path. Refactored: T-11/T-17 constraints tightened, traceability expanded."
-
-[tree.L4B]
-layer = "L4"
-parent = "L3B"
-items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
-status = "complete"
-history = "15 BDD test specs for Read Path. Store frecency (T-44..T-48), formatter (T-49..T-52), pipeline (T-53..T-54), hook scripts (T-55..T-57), wiring (T-58). L4-wide refactor clean."
-
-[tree.L4C]
-layer = "L4"
-parent = "L3C"
-items = ["T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
-status = "complete"
-history = "14 BDD test specs for reclassification. Store surfacing log (T-59..T-62), DecreaseImpact (T-63..T-65), reclassify logic (T-66..T-68), correct integration (T-69..T-70), surface integration (T-71..T-72)."
-
-# Tree nodes — L5
-
-[tree.L5A]
-layer = "L5"
-parent = "L4A"
-items = ["T-36", "T-37", "T-38", "T-21", "T-42", "T-43", "T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-27", "T-28", "T-29", "T-30", "T-31", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19", "T-20", "T-22", "T-23", "T-24", "T-25", "T-26", "T-32", "T-33", "T-34", "T-35", "T-39", "T-40", "T-41"]
-status = "complete"
-history = "All 43 tests green across 8 packages: audit(3), corpus(1), hooks(2), store(9), reconcile(5), extract(9), correct(7), catchup(4), wiring(3)."
-
-[tree.L5B]
-layer = "L5"
-parent = "L4B"
-items = ["T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58"]
-status = "complete"
-history = "All 15 tests green. store.Surface/IncrementSurfacing(5), FormatSurfacing(4), surface.Run pipeline(2), hook scripts SessionStart/UserPromptSubmit+surface/PreToolUse(3), wiring(1)."
-
-[tree.L5C]
-layer = "L5"
-parent = "L4C"
-items = ["T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
-status = "complete"
-history = "All 14 tests green. store surfacing log (T-59..T-62, 4), store DecreaseImpact (T-63..T-65, 3), reclassify.Run (T-66..T-68, 3), correct.DetectCorrection reclassifier integration (T-69..T-70, 2), surface.Run RecordSurfacing/ClearSessionSurfacings (T-71..T-72, 2). New packages: reclassify. Extended: store, correct, surface."
+history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. Previous L2-L5 tree archived."
+gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
 
 # Cursor
 
 [cursor]
 node = "L1A"
-mode = "red"
-next_action = "Wire reclassifier and session log recording in cli.go (issues #12, #13). Then reassess L1A usability gate."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "internal/cli/cli.go"]
+mode = "green"
+next_action = "COMMIT L1A rewrite, then descend to L2 to derive requirements and design for new UC-3."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
