@@ -34,7 +34,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -112,10 +112,18 @@ items = ["T-15", "T-16", "DES-3", "T-18", "T-19"]
 status = "complete"
 history = "4-stage Corrector pipeline, CLI correct subcommand, hook wiring test. DES-3 added (issue #21). T-18 updated to test missing token error."
 
+[tree.L5E]
+layer = "L5"
+name = "Deployment Path"
+parents = ["L4A"]
+items = ["T-20", "T-21", "T-22", "T-23"]
+status = "complete"
+history = "Issue #22: SessionStart build hook, plugin.json update, cross-platform token, gitignore. All 4 tests passing."
+
 # Cursor
 
 [cursor]
-node = "L4A"
+node = "L5E"
 mode = "complete"
-next_action = "L4A dirty flag resolved. T-20..T-23 added. Proceed to L5 — implement new tests."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
+next_action = "L5E complete. All layers L1-L5 complete again. Issue #22 resolved — plugin is now buildable and installable."
+context_files = ["docs/specs/state.toml"]

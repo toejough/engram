@@ -1,5 +1,6 @@
 # Binaries
 /engram
+bin/
 
 # Project state and context
 .engram/
