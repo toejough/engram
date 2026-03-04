@@ -3,6 +3,7 @@ module engram
 go 1.25.6
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/onsi/gomega v1.39.1
 	github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e
 	github.com/toejough/targ v0.0.0-20260301021722-10e525b7f079
@@ -11,7 +12,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/akedrou/textdiff v0.1.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.9.2 // indirect
