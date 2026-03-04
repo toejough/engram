@@ -42,12 +42,6 @@ type Pattern struct {
 	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
 
-// confidenceTierA is the confidence tier for explicit remember patterns.
-const confidenceTierA = "A"
-
-// confidenceTierB is the confidence tier for all other correction patterns.
-const confidenceTierB = "B"
-
 // DefaultPatterns returns built-in correction patterns for detecting user feedback signals.
 func DefaultPatterns() []Pattern {
 	raw := []struct {
@@ -84,3 +78,9 @@ func DefaultPatterns() []Pattern {
 
 	return patterns
 }
+
+// unexported constants.
+const (
+	confidenceTierA = "A"
+	confidenceTierB = "B"
+)

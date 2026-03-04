@@ -11,6 +11,51 @@ import (
 	"engram/internal/cli"
 )
 
+func TestRun_CorrectMissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	err := cli.Run([]string{"engram", "correct"}, &buf)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--message"))
+	}
+}
+
+func TestRun_NoArgs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	err := cli.Run([]string{"engram"}, &buf)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("usage"))
+	}
+}
+
+func TestRun_UnknownCommand(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	err := cli.Run([]string{"engram", "bogus"}, &buf)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
+	}
+}
+
 // T-18: `correct` subcommand with no API key returns error
 func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
@@ -59,49 +104,4 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 	_, statErr := os.Stat(memoriesDir)
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
-}
-
-func TestRun_CorrectMissingFlags(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var buf bytes.Buffer
-
-	err := cli.Run([]string{"engram", "correct"}, &buf)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--message"))
-	}
-}
-
-func TestRun_NoArgs(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var buf bytes.Buffer
-
-	err := cli.Run([]string{"engram"}, &buf)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("usage"))
-	}
-}
-
-func TestRun_UnknownCommand(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var buf bytes.Buffer
-
-	err := cli.Run([]string{"engram", "bogus"}, &buf)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("unknown command"))
-	}
 }

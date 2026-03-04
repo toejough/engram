@@ -12,97 +12,6 @@ import (
 	"engram/internal/hooks"
 )
 
-// repoRoot returns the engram repository root by walking up from the test file.
-func repoRoot(t *testing.T) string {
-	t.Helper()
-
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("unable to determine test file path")
-	}
-
-	// Walk up from internal/hooks/hooks_test.go -> repo root
-	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
-}
-
-func TestT42_StopHookInvokesExtractAndCatchup(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// When hooks.StopScript() is called
-	script := hooks.StopScript()
-	// Then returned string contains "engram extract", "engram catchup", transcript var, and strict mode
-	g.Expect(script).To(ContainSubstring("extract"))
-	g.Expect(script).To(ContainSubstring("catchup"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_SESSION_TRANSCRIPT"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-}
-
-func TestT43_UserPromptSubmitHookInvokesCorrect(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// When hooks.UserPromptSubmitScript() is called
-	script := hooks.UserPromptSubmitScript()
-	// Then returned string contains "engram correct", user message var, strict mode, and Keychain lookup
-	g.Expect(script).To(ContainSubstring("correct"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
-	g.Expect(script).To(ContainSubstring("security find-generic-password"))
-}
-
-func TestT55_SessionStartHookInvokesSurface(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// When test calls hooks.SessionStartScript()
-	script := hooks.SessionStartScript()
-	// Then returned string contains "surface", "--hook session-start", "CLAUDE_PROJECT_DIR", strict mode, and binary path
-	g.Expect(script).To(ContainSubstring("surface"))
-	g.Expect(script).To(ContainSubstring("--hook session-start"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_PROJECT_DIR"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
-}
-
-func TestT56_UserPromptSubmitHookInvokesCorrectAndSurface(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// When test calls hooks.UserPromptSubmitScript()
-	script := hooks.UserPromptSubmitScript()
-	// Then returned string contains "correct", "surface", "--hook user-prompt", "CLAUDE_USER_MESSAGE"
-	g.Expect(script).To(ContainSubstring("correct"))
-	g.Expect(script).To(ContainSubstring("surface"))
-	g.Expect(script).To(ContainSubstring("--hook user-prompt"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
-	// And index of "correct" < index of "surface" (correction first per DES-4)
-	g.Expect(strings.Index(script, "correct")).
-		To(BeNumerically("<", strings.Index(script, "surface")))
-}
-
-func TestT57_PreToolUseHookInvokesSurface(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// When test calls hooks.PreToolUseScript()
-	script := hooks.PreToolUseScript()
-	// Then returned string contains "surface", "--hook pre-tool-use", "CLAUDE_TOOL_INPUT", strict mode, and binary path
-	g.Expect(script).To(ContainSubstring("surface"))
-	g.Expect(script).To(ContainSubstring("--hook pre-tool-use"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_TOOL_INPUT"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
-}
-
 // TestDES3_StaticHookScriptMatchesGenerated verifies the static hook script at
 // hooks/user-prompt-submit.sh references the expected commands and variables (DES-3).
 func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
@@ -234,4 +143,95 @@ func TestT23_BinDirInGitignore(t *testing.T) {
 	}
 
 	g.Expect(string(content)).To(ContainSubstring("bin/"))
+}
+
+func TestT42_StopHookInvokesExtractAndCatchup(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// When hooks.StopScript() is called
+	script := hooks.StopScript()
+	// Then returned string contains "engram extract", "engram catchup", transcript var, and strict mode
+	g.Expect(script).To(ContainSubstring("extract"))
+	g.Expect(script).To(ContainSubstring("catchup"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_SESSION_TRANSCRIPT"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+}
+
+func TestT43_UserPromptSubmitHookInvokesCorrect(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// When hooks.UserPromptSubmitScript() is called
+	script := hooks.UserPromptSubmitScript()
+	// Then returned string contains "engram correct", user message var, strict mode, and Keychain lookup
+	g.Expect(script).To(ContainSubstring("correct"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
+	g.Expect(script).To(ContainSubstring("security find-generic-password"))
+}
+
+func TestT55_SessionStartHookInvokesSurface(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// When test calls hooks.SessionStartScript()
+	script := hooks.SessionStartScript()
+	// Then returned string contains "surface", "--hook session-start", "CLAUDE_PROJECT_DIR", strict mode, and binary path
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--hook session-start"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_PROJECT_DIR"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+}
+
+func TestT56_UserPromptSubmitHookInvokesCorrectAndSurface(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// When test calls hooks.UserPromptSubmitScript()
+	script := hooks.UserPromptSubmitScript()
+	// Then returned string contains "correct", "surface", "--hook user-prompt", "CLAUDE_USER_MESSAGE"
+	g.Expect(script).To(ContainSubstring("correct"))
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--hook user-prompt"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
+	// And index of "correct" < index of "surface" (correction first per DES-4)
+	g.Expect(strings.Index(script, "correct")).
+		To(BeNumerically("<", strings.Index(script, "surface")))
+}
+
+func TestT57_PreToolUseHookInvokesSurface(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// When test calls hooks.PreToolUseScript()
+	script := hooks.PreToolUseScript()
+	// Then returned string contains "surface", "--hook pre-tool-use", "CLAUDE_TOOL_INPUT", strict mode, and binary path
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--hook pre-tool-use"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_TOOL_INPUT"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+}
+
+// repoRoot returns the engram repository root by walking up from the test file.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("unable to determine test file path")
+	}
+
+	// Walk up from internal/hooks/hooks_test.go -> repo root
+	return filepath.Dir(filepath.Dir(filepath.Dir(filename)))
 }

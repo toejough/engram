@@ -10,26 +10,6 @@ import (
 	"engram/internal/memory"
 )
 
-// PatternMatcher detects correction patterns in user messages (ARCH-2).
-type PatternMatcher interface {
-	Match(message string) *memory.PatternMatch
-}
-
-// Enricher enriches a pattern match into a structured memory (ARCH-3).
-type Enricher interface {
-	Enrich(ctx context.Context, message string, match *memory.PatternMatch) (*memory.Enriched, error)
-}
-
-// MemoryWriter writes an enriched memory to persistent storage (ARCH-4).
-type MemoryWriter interface {
-	Write(mem *memory.Enriched, dataDir string) (string, error)
-}
-
-// Renderer formats an enriched memory as a system reminder string (ARCH-5).
-type Renderer interface {
-	Render(mem *memory.Enriched, filePath string) string
-}
-
 // Corrector orchestrates the four-stage Remember & Correct pipeline.
 type Corrector struct {
 	matcher  PatternMatcher
@@ -77,4 +57,28 @@ func (c *Corrector) Run(ctx context.Context, message string) (string, error) {
 	reminder := c.renderer.Render(enriched, filePath)
 
 	return reminder, nil
+}
+
+// Enricher enriches a pattern match into a structured memory (ARCH-3).
+type Enricher interface {
+	Enrich(
+		ctx context.Context,
+		message string,
+		match *memory.PatternMatch,
+	) (*memory.Enriched, error)
+}
+
+// MemoryWriter writes an enriched memory to persistent storage (ARCH-4).
+type MemoryWriter interface {
+	Write(mem *memory.Enriched, dataDir string) (string, error)
+}
+
+// PatternMatcher detects correction patterns in user messages (ARCH-2).
+type PatternMatcher interface {
+	Match(message string) *memory.PatternMatch
+}
+
+// Renderer formats an enriched memory as a system reminder string (ARCH-5).
+type Renderer interface {
+	Render(mem *memory.Enriched, filePath string) string
 }

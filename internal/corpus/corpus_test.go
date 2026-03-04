@@ -17,46 +17,6 @@ func TestMatch_NoMatch(t *testing.T) {
 	g.Expect(patterns.Match("perfectly normal message")).To(BeNil())
 }
 
-func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
-	t.Parallel()
-
-	// Given each pattern from the initial corpus and its expected matching string
-	cases := []struct {
-		pattern string
-		input   string
-	}{
-		{`^no,`, "no, use specific files"},
-		{`^wait`, "wait, that's wrong"},
-		{`^hold on`, "hold on, let me check"},
-		{`\bwrong\b`, "that's wrong"},
-		{`\bdon't\s+\w+`, "don't use that"},
-		{`\bstop\s+\w+ing`, "stop deleting files"},
-		{`\btry again`, "try again with the right path"},
-		{`\bgo back`, "go back to the previous version"},
-		{`\bthat's not`, "that's not what I meant"},
-		{`^actually,`, "actually, use bun instead"},
-		{`\bremember\s+(that|to)`, "remember to run tests"},
-		{`\bstart over`, "start over from scratch"},
-		{`\bpre-?existing`, "that's a pre-existing issue"},
-		{`\byou're still`, "you're still making that mistake"},
-		{`\bincorrect`, "that's incorrect"},
-	}
-
-	patterns := corpus.New(corpus.DefaultPatterns())
-
-	for _, tc := range cases {
-		t.Run(tc.pattern, func(t *testing.T) {
-			t.Parallel()
-
-			g := NewGomegaWithT(t)
-			// When test calls corpus.Match with the input string
-			m := patterns.Match(tc.input)
-			// Then corpus.Match returns a non-nil match
-			g.Expect(m).NotTo(BeNil(), "pattern %q should match %q", tc.pattern, tc.input)
-		})
-	}
-}
-
 // T-1: All 15 correction patterns match when embedded in messages with arbitrary context.
 // Property: adding digit-only prefix/suffix to known-matching text does not prevent a match.
 func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
@@ -103,13 +63,54 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 					// Anchored patterns must appear at the start of the string.
 					message = tc.matchText + " " + suffix
 				} else {
-					prefix := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).Draw(rt, "prefix")
+					prefix := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).
+						Draw(rt, "prefix")
 					message = prefix + " " + tc.matchText + " " + suffix
 				}
 
 				result := matcher.Match(message)
 				g.Expect(result).NotTo(BeNil(), "pattern %q should match in %q", tc.label, message)
 			})
+		})
+	}
+}
+
+func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
+	t.Parallel()
+
+	// Given each pattern from the initial corpus and its expected matching string
+	cases := []struct {
+		pattern string
+		input   string
+	}{
+		{`^no,`, "no, use specific files"},
+		{`^wait`, "wait, that's wrong"},
+		{`^hold on`, "hold on, let me check"},
+		{`\bwrong\b`, "that's wrong"},
+		{`\bdon't\s+\w+`, "don't use that"},
+		{`\bstop\s+\w+ing`, "stop deleting files"},
+		{`\btry again`, "try again with the right path"},
+		{`\bgo back`, "go back to the previous version"},
+		{`\bthat's not`, "that's not what I meant"},
+		{`^actually,`, "actually, use bun instead"},
+		{`\bremember\s+(that|to)`, "remember to run tests"},
+		{`\bstart over`, "start over from scratch"},
+		{`\bpre-?existing`, "that's a pre-existing issue"},
+		{`\byou're still`, "you're still making that mistake"},
+		{`\bincorrect`, "that's incorrect"},
+	}
+
+	patterns := corpus.New(corpus.DefaultPatterns())
+
+	for _, tc := range cases {
+		t.Run(tc.pattern, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+			// When test calls corpus.Match with the input string
+			m := patterns.Match(tc.input)
+			// Then corpus.Match returns a non-nil match
+			g.Expect(m).NotTo(BeNil(), "pattern %q should match %q", tc.pattern, tc.input)
 		})
 	}
 }
@@ -153,7 +154,8 @@ func TestT3_RememberPatternProducesConfidenceA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Confidence).To(Equal("A"), "remember pattern should produce Confidence A for %q", message)
+		g.Expect(result.Confidence).
+			To(Equal("A"), "remember pattern should produce Confidence A for %q", message)
 	}
 }
 
@@ -201,7 +203,8 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 				if tc.anchored {
 					message = tc.matchText + " " + suffix
 				} else {
-					prefix := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).Draw(rt, "prefix")
+					prefix := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).
+						Draw(rt, "prefix")
 					message = prefix + " " + tc.matchText + " " + suffix
 				}
 

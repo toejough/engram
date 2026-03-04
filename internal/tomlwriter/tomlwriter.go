@@ -14,45 +14,28 @@ import (
 	"engram/internal/memory"
 )
 
+// Option configures a Writer.
+type Option func(*Writer)
+
 // Writer writes enriched memories to TOML files.
-type Writer struct{}
-
-// New creates a Writer.
-func New() *Writer {
-	return &Writer{}
+// I/O operations are injected for testability (ARCH-7).
+type Writer struct {
+	createTemp func(dir, pattern string) (*os.File, error)
+	rename     func(oldpath, newpath string) error
 }
 
-// tomlRecord is the on-disk TOML representation with snake_case field names.
-type tomlRecord struct {
-	Title           string   `toml:"title"`
-	Content         string   `toml:"content"`
-	ObservationType string   `toml:"observation_type"`
-	Concepts        []string `toml:"concepts"`
-	Keywords        []string `toml:"keywords"`
-	Principle       string   `toml:"principle"`
-	AntiPattern     string   `toml:"anti_pattern"`
-	Rationale       string   `toml:"rationale"`
-	Confidence      string   `toml:"confidence"`
-	CreatedAt       string   `toml:"created_at"`
-	UpdatedAt       string   `toml:"updated_at"`
-}
-
-const memoriesDirPerm = 0o750
-
-var nonAlphanumericRun = regexp.MustCompile(`[^a-z0-9]+`)
-
-// slugify converts a filename summary to a lowercase hyphen-separated slug.
-// Returns "memory" if the result would otherwise be empty.
-func slugify(summary string) string {
-	lower := strings.ToLower(summary)
-	slug := nonAlphanumericRun.ReplaceAllString(lower, "-")
-	slug = strings.Trim(slug, "-")
-
-	if slug == "" {
-		return "memory"
+// New creates a Writer with real file system operations.
+func New(opts ...Option) *Writer {
+	w := &Writer{
+		createTemp: os.CreateTemp,
+		rename:     os.Rename,
 	}
 
-	return slug
+	for _, opt := range opts {
+		opt(w)
+	}
+
+	return w
 }
 
 // Write writes mem as a TOML file under <dataDir>/memories/<slug>.toml.
@@ -98,7 +81,7 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 		UpdatedAt:       mem.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 
-	writeErr := writeAtomic(memoriesDir, finalPath, record)
+	writeErr := w.writeAtomic(memoriesDir, finalPath, record)
 	if writeErr != nil {
 		return "", writeErr
 	}
@@ -106,29 +89,10 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 	return finalPath, nil
 }
 
-// availablePath returns the first available file path for slug in memoriesDir.
-// Tries <slug>.toml, then <slug>-2.toml, <slug>-3.toml, etc.
-func availablePath(memoriesDir, slug string) (string, error) {
-	candidate := filepath.Join(memoriesDir, slug+".toml")
-
-	for suffix := 2; ; suffix++ {
-		_, statErr := os.Stat(candidate)
-		if os.IsNotExist(statErr) {
-			return candidate, nil
-		}
-
-		if statErr != nil {
-			return "", fmt.Errorf("tomlwriter: stat %s: %w", candidate, statErr)
-		}
-
-		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
-	}
-}
-
 // writeAtomic writes record as TOML to finalPath using a temp file and rename.
 // Paths are constructed internally via filepath.Join — no user-controlled input.
-func writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
-	tempFile, err := os.CreateTemp(memoriesDir, ".tmp-*")
+func (w *Writer) writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
+	tempFile, err := w.createTemp(memoriesDir, ".tmp-*")
 	if err != nil {
 		return fmt.Errorf("tomlwriter: create temp file: %w", err)
 	}
@@ -150,11 +114,79 @@ func writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
 		return fmt.Errorf("tomlwriter: close temp file: %w", closeErr)
 	}
 
-	renameErr := os.Rename(tempPath, cleanFinal) //nolint:gosec // safe: internal paths
+	renameErr := w.rename(tempPath, cleanFinal)
 	if renameErr != nil {
 		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
 		return fmt.Errorf("tomlwriter: rename to final path: %w", renameErr)
 	}
 
 	return nil
+}
+
+// WithCreateTemp overrides the temp file creation function.
+func WithCreateTemp(fn func(dir, pattern string) (*os.File, error)) Option {
+	return func(w *Writer) { w.createTemp = fn }
+}
+
+// WithRename overrides the file rename function.
+func WithRename(fn func(oldpath, newpath string) error) Option {
+	return func(w *Writer) { w.rename = fn }
+}
+
+// unexported constants.
+const (
+	memoriesDirPerm = 0o750
+)
+
+// unexported variables.
+var (
+	nonAlphanumericRun = regexp.MustCompile(`[^a-z0-9]+`)
+)
+
+// tomlRecord is the on-disk TOML representation with snake_case field names.
+type tomlRecord struct {
+	Title           string   `toml:"title"`
+	Content         string   `toml:"content"`
+	ObservationType string   `toml:"observation_type"`
+	Concepts        []string `toml:"concepts"`
+	Keywords        []string `toml:"keywords"`
+	Principle       string   `toml:"principle"`
+	AntiPattern     string   `toml:"anti_pattern"`
+	Rationale       string   `toml:"rationale"`
+	Confidence      string   `toml:"confidence"`
+	CreatedAt       string   `toml:"created_at"`
+	UpdatedAt       string   `toml:"updated_at"`
+}
+
+// availablePath returns the first available file path for slug in memoriesDir.
+// Tries <slug>.toml, then <slug>-2.toml, <slug>-3.toml, etc.
+func availablePath(memoriesDir, slug string) (string, error) {
+	candidate := filepath.Join(memoriesDir, slug+".toml")
+
+	for suffix := 2; ; suffix++ {
+		_, statErr := os.Stat(candidate)
+		if os.IsNotExist(statErr) {
+			return candidate, nil
+		}
+
+		if statErr != nil {
+			return "", fmt.Errorf("tomlwriter: stat %s: %w", candidate, statErr)
+		}
+
+		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
+	}
+}
+
+// slugify converts a filename summary to a lowercase hyphen-separated slug.
+// Returns "memory" if the result would otherwise be empty.
+func slugify(summary string) string {
+	lower := strings.ToLower(summary)
+	slug := nonAlphanumericRun.ReplaceAllString(lower, "-")
+	slug = strings.Trim(slug, "-")
+
+	if slug == "" {
+		return "memory"
+	}
+
+	return slug
 }

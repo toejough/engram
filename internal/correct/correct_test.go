@@ -11,86 +11,6 @@ import (
 	"engram/internal/memory"
 )
 
-// callRecord tracks which pipeline stages were called and in what order.
-type callRecord struct {
-	calls []string
-}
-
-func (r *callRecord) record(name string) {
-	r.calls = append(r.calls, name)
-}
-
-// fakePatternMatcher is a test double for correct.PatternMatcher.
-type fakePatternMatcher struct {
-	match  *memory.PatternMatch
-	record *callRecord
-}
-
-func (f *fakePatternMatcher) Match(_ string) *memory.PatternMatch {
-	if f.record != nil {
-		f.record.record("match")
-	}
-
-	return f.match
-}
-
-// fakeEnricher is a test double for correct.Enricher.
-type fakeEnricher struct {
-	mem    *memory.Enriched
-	err    error
-	called bool
-	record *callRecord
-}
-
-func (f *fakeEnricher) Enrich(
-	_ context.Context,
-	_ string,
-	_ *memory.PatternMatch,
-) (*memory.Enriched, error) {
-	f.called = true
-
-	if f.record != nil {
-		f.record.record("enrich")
-	}
-
-	return f.mem, f.err
-}
-
-// fakeWriter is a test double for correct.MemoryWriter.
-type fakeWriter struct {
-	path   string
-	err    error
-	called bool
-	record *callRecord
-}
-
-func (f *fakeWriter) Write(_ *memory.Enriched, _ string) (string, error) {
-	f.called = true
-
-	if f.record != nil {
-		f.record.record("write")
-	}
-
-	return f.path, f.err
-}
-
-// fakeRenderer is a test double for correct.Renderer.
-type fakeRenderer struct {
-	output string
-	called bool
-	record *callRecord
-}
-
-func (f *fakeRenderer) Render(_ *memory.Enriched, _ string) string {
-	f.called = true
-
-	if f.record != nil {
-		f.record.record("render")
-	}
-
-	return f.output
-}
-
 // T-15: Full pipeline — match → enrich → write → render
 func TestT15_FullPipelineMatchEnrichWriteRender(t *testing.T) {
 	t.Parallel()
@@ -165,4 +85,84 @@ func TestT16_NoMatchPipelineShortCircuits(t *testing.T) {
 	g.Expect(enricher.called).To(BeFalse())
 	g.Expect(writer.called).To(BeFalse())
 	g.Expect(renderer.called).To(BeFalse())
+}
+
+// callRecord tracks which pipeline stages were called and in what order.
+type callRecord struct {
+	calls []string
+}
+
+func (r *callRecord) record(name string) {
+	r.calls = append(r.calls, name)
+}
+
+// fakeEnricher is a test double for correct.Enricher.
+type fakeEnricher struct {
+	mem    *memory.Enriched
+	err    error
+	called bool
+	record *callRecord
+}
+
+func (f *fakeEnricher) Enrich(
+	_ context.Context,
+	_ string,
+	_ *memory.PatternMatch,
+) (*memory.Enriched, error) {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("enrich")
+	}
+
+	return f.mem, f.err
+}
+
+// fakePatternMatcher is a test double for correct.PatternMatcher.
+type fakePatternMatcher struct {
+	match  *memory.PatternMatch
+	record *callRecord
+}
+
+func (f *fakePatternMatcher) Match(_ string) *memory.PatternMatch {
+	if f.record != nil {
+		f.record.record("match")
+	}
+
+	return f.match
+}
+
+// fakeRenderer is a test double for correct.Renderer.
+type fakeRenderer struct {
+	output string
+	called bool
+	record *callRecord
+}
+
+func (f *fakeRenderer) Render(_ *memory.Enriched, _ string) string {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("render")
+	}
+
+	return f.output
+}
+
+// fakeWriter is a test double for correct.MemoryWriter.
+type fakeWriter struct {
+	path   string
+	err    error
+	called bool
+	record *callRecord
+}
+
+func (f *fakeWriter) Write(_ *memory.Enriched, _ string) (string, error) {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("write")
+	}
+
+	return f.path, f.err
 }

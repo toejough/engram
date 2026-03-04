@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	"engram/internal/correct"
 	"engram/internal/corpus"
+	"engram/internal/correct"
 	"engram/internal/enrich"
 	"engram/internal/memory"
 	"engram/internal/render"
@@ -36,8 +36,12 @@ func Run(args []string, stdout io.Writer) error {
 	}
 }
 
-const minArgs = 2
+// unexported constants.
+const (
+	minArgs = 2
+)
 
+// unexported variables.
 var (
 	errCorrectMissingFlags = errors.New("correct: --message and --data-dir required")
 	errUnknownCommand      = errors.New("unknown command")

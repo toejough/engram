@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
@@ -15,18 +16,153 @@ import (
 	"engram/internal/memory"
 )
 
-// fakeHTTPDoer is a test double for enrich.HTTPDoer that returns a canned response.
-type fakeHTTPDoer struct {
-	response    *http.Response
-	called      bool
-	lastRequest *http.Request
+// TestEnrichmentBodyReadErrorReturnsError verifies that an error reading
+// the response body propagates as an enrichment error.
+func TestEnrichmentBodyReadErrorReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(&failingReader{}),
+		},
+	}
+
+	enricher := enrich.New("test-api-key", doer)
+
+	match := &memory.PatternMatch{
+		Pattern:    `\bremember\s+(that|to)`,
+		Label:      "reminder",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("enrichment"))
+	}
 }
 
-func (f *fakeHTTPDoer) Do(req *http.Request) (*http.Response, error) {
-	f.called = true
-	f.lastRequest = req
+// TestEnrichmentEmptyContentBlocksReturnsError verifies that a valid API
+// response with no content blocks returns an error.
+func TestEnrichmentEmptyContentBlocksReturnsError(t *testing.T) {
+	t.Parallel()
 
-	return f.response, nil
+	g := NewGomegaWithT(t)
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"content":[]}`)),
+		},
+	}
+
+	enricher := enrich.New("test-api-key", doer)
+
+	match := &memory.PatternMatch{
+		Pattern:    `\bremember\s+(that|to)`,
+		Label:      "reminder",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("enrichment"))
+	}
+}
+
+// TestEnrichmentHTTPErrorReturnsError verifies that an HTTP transport failure
+// propagates as an enrichment error without panic.
+func TestEnrichmentHTTPErrorReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	networkErr := errors.New("connection refused")
+	doer := &fakeHTTPDoer{err: networkErr}
+	enricher := enrich.New("test-api-key", doer)
+
+	match := &memory.PatternMatch{
+		Pattern:    `\bremember\s+(that|to)`,
+		Label:      "reminder",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("Anthropic API"))
+	}
+
+	g.Expect(doer.called).To(BeTrue())
+}
+
+// TestEnrichmentInvalidLLMJSONReturnsError verifies that a valid API envelope
+// containing invalid JSON in the LLM text field returns an error.
+func TestEnrichmentInvalidLLMJSONReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	apiBody := `{"content":[{"type":"text","text":"not json"}]}`
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewBufferString(apiBody)),
+		},
+	}
+
+	enricher := enrich.New("test-api-key", doer)
+
+	match := &memory.PatternMatch{
+		Pattern:    `\bremember\s+(that|to)`,
+		Label:      "reminder",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("enrichment"))
+	}
+}
+
+// TestEnrichmentNilResponseReturnsError verifies that a nil HTTP response
+// (without transport error) returns ErrNilResponse.
+func TestEnrichmentNilResponseReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	doer := &fakeHTTPDoer{response: nil, err: nil}
+	enricher := enrich.New("test-api-key", doer)
+
+	match := &memory.PatternMatch{
+		Pattern:    `\bremember\s+(that|to)`,
+		Label:      "reminder",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ", match)
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(mem).To(BeNil())
 }
 
 // TestT5_EnrichmentWithAPIKeyProducesAllFields verifies that a valid API key and a
@@ -83,7 +219,11 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 	}
 
 	before := time.Now()
-	mem, err := enricher.Enrich(context.Background(), "remember to use targ for all build operations", match)
+	mem, err := enricher.Enrich(
+		context.Background(),
+		"remember to use targ for all build operations",
+		match,
+	)
 	after := time.Now()
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -177,4 +317,26 @@ func TestT7_InvalidLLMResponseReturnsError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("enrichment"))
 	}
+}
+
+// failingReader is an io.Reader that always returns an error.
+type failingReader struct{}
+
+func (f *failingReader) Read([]byte) (int, error) {
+	return 0, errors.New("read failure")
+}
+
+// fakeHTTPDoer is a test double for enrich.HTTPDoer that returns a canned response.
+type fakeHTTPDoer struct {
+	response    *http.Response
+	err         error
+	called      bool
+	lastRequest *http.Request
+}
+
+func (f *fakeHTTPDoer) Do(req *http.Request) (*http.Response, error) {
+	f.called = true
+	f.lastRequest = req
+
+	return f.response, f.err
 }

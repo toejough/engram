@@ -3,13 +3,6 @@ package memory
 
 import "time"
 
-// PatternMatch holds the result of pattern matching against a user message.
-type PatternMatch struct {
-	Pattern    string
-	Label      string
-	Confidence string // "A" for remember patterns, "B" for correction patterns
-}
-
 // Enriched holds all structured fields of an enriched memory.
 type Enriched struct {
 	Title           string
@@ -24,4 +17,11 @@ type Enriched struct {
 	Confidence      string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
+}
+
+// PatternMatch holds the result of pattern matching against a user message.
+type PatternMatch struct {
+	Pattern    string
+	Label      string
+	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
