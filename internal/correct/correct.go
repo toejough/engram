@@ -1,141 +1,80 @@
-// Package correct detects user corrections in messages and records them as memories.
+// Package correct implements the Remember & Correct pipeline (ARCH-1).
+// It detects correction patterns, enriches them via LLM, writes TOML files,
+// and renders system reminder feedback.
 package correct
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
-	"engram/internal/corpus"
+	"engram/internal/memory"
 )
 
-// Config contains dependencies for the Detector.
-type Config struct {
-	Reconciler Reconciler
-	Corpus     *corpus.Corpus
+// PatternMatcher detects correction patterns in user messages (ARCH-2).
+type PatternMatcher interface {
+	Match(message string) *memory.PatternMatch
 }
 
-// Detector detects user corrections in messages.
-type Detector struct{}
+// Enricher enriches a pattern match into a structured memory (ARCH-3).
+type Enricher interface {
+	Enrich(ctx context.Context, message string, match *memory.PatternMatch) (*memory.Enriched, error)
+}
 
-// NewDetector creates a new Detector with the provided config.
-func NewDetector(cfg Config) (*Detector, error) {
-	var missing []string
-	if cfg.Reconciler == nil {
-		missing = append(missing, "Recon")
+// MemoryWriter writes an enriched memory to persistent storage (ARCH-4).
+type MemoryWriter interface {
+	Write(mem *memory.Enriched, dataDir string) (string, error)
+}
+
+// Renderer formats an enriched memory as a system reminder string (ARCH-5).
+type Renderer interface {
+	Render(mem *memory.Enriched, filePath string, degraded bool) string
+}
+
+// Corrector orchestrates the four-stage Remember & Correct pipeline.
+type Corrector struct {
+	matcher  PatternMatcher
+	enricher Enricher
+	writer   MemoryWriter
+	renderer Renderer
+	dataDir  string
+}
+
+// New creates a Corrector wired with all four pipeline stages.
+func New(
+	matcher PatternMatcher,
+	enricher Enricher,
+	writer MemoryWriter,
+	renderer Renderer,
+	dataDir string,
+) *Corrector {
+	return &Corrector{
+		matcher:  matcher,
+		enricher: enricher,
+		writer:   writer,
+		renderer: renderer,
+		dataDir:  dataDir,
+	}
+}
+
+// Run executes the correction pipeline for a single message.
+// Returns a system reminder string, or empty string if no pattern matched.
+func (c *Corrector) Run(ctx context.Context, message string) (string, error) {
+	match := c.matcher.Match(message)
+	if match == nil {
+		return "", nil
 	}
 
-	if cfg.Corpus == nil {
-		missing = append(missing, "Corpus")
-	}
-
-	if len(missing) > 0 {
-		return nil, fmt.Errorf("%w: %s", errMissingDeps, strings.Join(missing, ", "))
-	}
-
-	return &Detector{}, nil
-}
-
-// Learning represents a correction to be learned from.
-type Learning struct {
-	Content  string
-	Keywords []string
-	Title    string
-}
-
-// Reclassifier reclassifies surfaced memories on correction detection (ARCH-13).
-type Reclassifier interface {
-	Reclassify(ctx context.Context) (int, error)
-}
-
-// ReconcileResult contains the outcome of a reconciliation.
-type ReconcileResult struct {
-	Action   string
-	MemoryID string
-	Title    string
-}
-
-// Reconciler reconciles corrections into memory.
-type Reconciler interface {
-	Reconcile(ctx context.Context, l Learning) (ReconcileResult, error)
-}
-
-// Recording records a correction as a memory.
-type Recording struct {
-	MemoryID string
-	Content  string
-}
-
-// DetectCorrection detects and records user corrections in a message.
-// If reclassifier is non-nil, it is invoked after a successful reconciliation
-// to decrease impact scores for memories surfaced before this correction (ARCH-13).
-func DetectCorrection(
-	ctx context.Context,
-	reconciler Reconciler,
-	patterns *corpus.Corpus,
-	reclassifier Reclassifier,
-	message string,
-) (reminder string, recordings []Recording, auditStr string, err error) {
-	if patterns == nil {
-		return "", nil, "", nil
-	}
-
-	m := patterns.Match(message)
-	if m == nil {
-		return "", nil, "", nil
-	}
-
-	learning := Learning{
-		Content:  message,
-		Keywords: []string{m.Pattern.Label},
-		Title:    summarize(message),
-	}
-
-	result, err := reconciler.Reconcile(ctx, learning)
+	enriched, err := c.enricher.Enrich(ctx, message, match)
 	if err != nil {
-		return "", nil, "", fmt.Errorf("correct: reconcile: %w", err)
+		return "", fmt.Errorf("correct: enrich: %w", err)
 	}
 
-	if reclassifier != nil {
-		_, err = reclassifier.Reclassify(ctx)
-		if err != nil {
-			return "", nil, "", fmt.Errorf("correct: reclassify: %w", err)
-		}
+	filePath, err := c.writer.Write(enriched, c.dataDir)
+	if err != nil {
+		return "", fmt.Errorf("correct: write: %w", err)
 	}
 
-	rec := Recording{MemoryID: result.MemoryID, Content: message}
+	reminder := c.renderer.Render(enriched, filePath, enriched.Degraded)
 
-	var audit strings.Builder
-
-	fmt.Fprintf(&audit, "%s: %q pattern=%s", result.Action, learning.Title, m.Pattern.Label)
-
-	var rem strings.Builder
-
-	if result.Action == "enriched" {
-		fmt.Fprintf(&rem, "Correction captured. Enriched: %s", result.Title)
-	} else {
-		fmt.Fprintf(&rem, "Correction captured. Created: %s", learning.Title)
-	}
-
-	return rem.String(), []Recording{rec}, audit.String(), nil
-}
-
-// unexported constants.
-const (
-	maxTitleWords = 8
-)
-
-// unexported variables.
-var (
-	errMissingDeps = errors.New("correct: missing dependencies")
-)
-
-func summarize(message string) string {
-	words := strings.Fields(message)
-	if len(words) > maxTitleWords {
-		words = words[:maxTitleWords]
-	}
-
-	return strings.Join(words, " ")
+	return reminder, nil
 }

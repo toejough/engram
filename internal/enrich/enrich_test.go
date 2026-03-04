@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/enrich"
+	"engram/internal/memory"
 )
 
 // fakeHTTPDoer is a test double for enrich.HTTPDoer that returns a canned response.
@@ -26,13 +27,12 @@ func (f *fakeHTTPDoer) Do(_ *http.Request) (*http.Response, error) {
 }
 
 // TestT5_EnrichmentWithAPIKeyProducesAllFields verifies that a valid API key and a
-// well-formed LLM response result in an EnrichedMemory with all structured fields set.
+// well-formed LLM response result in an Enriched with all structured fields set.
 func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	// Build the inner LLM JSON payload that the fake "LLM" returns.
 	llmPayload := map[string]any{
 		"title":            "Remember to Use Targ",
 		"content":          "remember to use targ for all build operations",
@@ -47,11 +47,11 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 
 	llmJSON, err := json.Marshal(llmPayload)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
-	// Wrap it in a valid Anthropic API response envelope.
 	apiEnvelope := map[string]any{
 		"content": []map[string]any{
 			{"type": "text", "text": string(llmJSON)},
@@ -60,6 +60,7 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 
 	apiJSON, err := json.Marshal(apiEnvelope)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -72,39 +73,42 @@ func TestT5_EnrichmentWithAPIKeyProducesAllFields(t *testing.T) {
 	}
 
 	enricher := enrich.New("test-api-key", doer)
-	match := &enrich.PatternMatch{
+	match := &memory.PatternMatch{
 		Pattern:    `\bremember\s+(that|to)`,
 		Label:      "reminder",
 		Confidence: "A",
 	}
 
 	before := time.Now()
-	memory, err := enricher.Enrich(context.Background(), "remember to use targ for all build operations", match)
+	mem, err := enricher.Enrich(context.Background(), "remember to use targ for all build operations", match)
 	after := time.Now()
 
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
-	g.Expect(memory).NotTo(BeNil())
-	if memory == nil {
+	g.Expect(mem).NotTo(BeNil())
+
+	if mem == nil {
 		return
 	}
 
-	g.Expect(memory.Title).To(Equal("Remember to Use Targ"))
-	g.Expect(memory.Content).To(Equal("remember to use targ for all build operations"))
-	g.Expect(memory.ObservationType).To(Equal("reminder"))
-	g.Expect(memory.Concepts).To(ConsistOf("build-tools", "testing"))
-	g.Expect(memory.Keywords).To(ConsistOf("targ", "build", "test"))
-	g.Expect(memory.Principle).To(Equal("Use targ for all build operations"))
-	g.Expect(memory.AntiPattern).To(Equal("Running go test directly"))
-	g.Expect(memory.Rationale).To(Equal("Targ provides consistent test runner behavior"))
-	g.Expect(memory.FilenameSummary).To(Equal("remember use targ builds"))
-	g.Expect(memory.Confidence).To(Equal("A"))
-	g.Expect(memory.CreatedAt).To(BeTemporally(">=", before))
-	g.Expect(memory.CreatedAt).To(BeTemporally("<=", after))
-	g.Expect(memory.UpdatedAt).To(Equal(memory.CreatedAt))
+	g.Expect(mem.Title).To(Equal("Remember to Use Targ"))
+	g.Expect(mem.Content).To(Equal("remember to use targ for all build operations"))
+	g.Expect(mem.ObservationType).To(Equal("reminder"))
+	g.Expect(mem.Concepts).To(ConsistOf("build-tools", "testing"))
+	g.Expect(mem.Keywords).To(ConsistOf("targ", "build", "test"))
+	g.Expect(mem.Principle).To(Equal("Use targ for all build operations"))
+	g.Expect(mem.AntiPattern).To(Equal("Running go test directly"))
+	g.Expect(mem.Rationale).To(Equal("Targ provides consistent test runner behavior"))
+	g.Expect(mem.FilenameSummary).To(Equal("remember use targ builds"))
+	g.Expect(mem.Confidence).To(Equal("A"))
+	g.Expect(mem.Degraded).To(BeFalse())
+	g.Expect(mem.CreatedAt).To(BeTemporally(">=", before))
+	g.Expect(mem.CreatedAt).To(BeTemporally("<=", after))
+	g.Expect(mem.UpdatedAt).To(Equal(mem.CreatedAt))
 }
 
 // TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory verifies that an empty API key
@@ -118,21 +122,23 @@ func TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory(t *testing.T) {
 	enricher := enrich.New("", doer)
 
 	message := "remember to use targ for all build operations and not go test directly ever please"
-	match := &enrich.PatternMatch{
+	match := &memory.PatternMatch{
 		Pattern:    `\bremember\s+(that|to)`,
 		Label:      "reminder",
 		Confidence: "A",
 	}
 
-	memory, err := enricher.Enrich(context.Background(), message, match)
+	mem, err := enricher.Enrich(context.Background(), message, match)
 
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
-	g.Expect(memory).NotTo(BeNil())
-	if memory == nil {
+	g.Expect(mem).NotTo(BeNil())
+
+	if mem == nil {
 		return
 	}
 
@@ -140,20 +146,21 @@ func TestT6_EnrichmentWithoutAPIKeyProducesDegradedMemory(t *testing.T) {
 	g.Expect(doer.called).To(BeFalse())
 
 	// Degraded memory has content and label from match, but no enrichment fields.
-	g.Expect(memory.Content).To(Equal(message))
-	g.Expect(memory.ObservationType).To(Equal("reminder"))
-	g.Expect(memory.Confidence).To(Equal("A"))
+	g.Expect(mem.Content).To(Equal(message))
+	g.Expect(mem.ObservationType).To(Equal("reminder"))
+	g.Expect(mem.Confidence).To(Equal("A"))
+	g.Expect(mem.Degraded).To(BeTrue())
 
 	// Title is first ~60 chars, truncated at a word boundary.
-	g.Expect(len(memory.Title)).To(BeNumerically("<=", 60))
-	g.Expect(memory.Title).NotTo(BeEmpty())
+	g.Expect(len(mem.Title)).To(BeNumerically("<=", 60))
+	g.Expect(mem.Title).NotTo(BeEmpty())
 
 	// Enrichment fields are empty.
-	g.Expect(memory.Concepts).To(BeEmpty())
-	g.Expect(memory.Keywords).To(BeEmpty())
-	g.Expect(memory.Principle).To(BeEmpty())
-	g.Expect(memory.AntiPattern).To(BeEmpty())
-	g.Expect(memory.Rationale).To(BeEmpty())
+	g.Expect(mem.Concepts).To(BeEmpty())
+	g.Expect(mem.Keywords).To(BeEmpty())
+	g.Expect(mem.Principle).To(BeEmpty())
+	g.Expect(mem.AntiPattern).To(BeEmpty())
+	g.Expect(mem.Rationale).To(BeEmpty())
 }
 
 // TestT7_InvalidLLMResponseFallsBackToDegraded verifies that an unparseable HTTP
@@ -173,31 +180,34 @@ func TestT7_InvalidLLMResponseFallsBackToDegraded(t *testing.T) {
 	enricher := enrich.New("test-api-key", doer)
 
 	message := "remember to use targ"
-	match := &enrich.PatternMatch{
+	match := &memory.PatternMatch{
 		Pattern:    `\bremember\s+(that|to)`,
 		Label:      "reminder",
 		Confidence: "A",
 	}
 
-	memory, err := enricher.Enrich(context.Background(), message, match)
+	mem, err := enricher.Enrich(context.Background(), message, match)
 
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
-	g.Expect(memory).NotTo(BeNil())
-	if memory == nil {
+	g.Expect(mem).NotTo(BeNil())
+
+	if mem == nil {
 		return
 	}
 
 	// Falls back to degraded: no enrichment fields, only basics.
-	g.Expect(memory.Content).To(Equal(message))
-	g.Expect(memory.ObservationType).To(Equal("reminder"))
-	g.Expect(memory.Confidence).To(Equal("A"))
-	g.Expect(memory.Concepts).To(BeEmpty())
-	g.Expect(memory.Keywords).To(BeEmpty())
-	g.Expect(memory.Principle).To(BeEmpty())
-	g.Expect(memory.AntiPattern).To(BeEmpty())
-	g.Expect(memory.Rationale).To(BeEmpty())
+	g.Expect(mem.Content).To(Equal(message))
+	g.Expect(mem.ObservationType).To(Equal("reminder"))
+	g.Expect(mem.Confidence).To(Equal("A"))
+	g.Expect(mem.Degraded).To(BeTrue())
+	g.Expect(mem.Concepts).To(BeEmpty())
+	g.Expect(mem.Keywords).To(BeEmpty())
+	g.Expect(mem.Principle).To(BeEmpty())
+	g.Expect(mem.AntiPattern).To(BeEmpty())
+	g.Expect(mem.Rationale).To(BeEmpty())
 }

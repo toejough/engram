@@ -7,44 +7,19 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"engram/internal/memory"
 )
 
 // HTTPDoer is the interface for making HTTP requests. Wire http.DefaultClient in production.
 type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
-}
-
-// PatternMatch holds a matched correction pattern and its metadata.
-type PatternMatch struct {
-	Pattern    string
-	Label      string
-	Confidence string // "A" for remember patterns, "B" for correction patterns
-}
-
-// EnrichedMemory is a structured memory extracted from a user message.
-type EnrichedMemory struct {
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string
-	Rationale       string
-	FilenameSummary string // 3-5 words for slug
-	Confidence      string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-// Enricher enriches a pattern match into a structured memory.
-type Enricher interface {
-	Enrich(ctx context.Context, message string, match *PatternMatch) (*EnrichedMemory, error)
 }
 
 // LLMEnricher uses the Anthropic API to enrich memories into structured form.
@@ -71,7 +46,9 @@ const (
 	filenameSummaryWordCount = 5
 )
 
-var enrichmentSystemPrompt = strings.TrimSpace(`
+// systemPrompt returns the system prompt instructing the LLM to extract structured memory fields.
+func systemPrompt() string {
+	return strings.TrimSpace(`
 You are a memory extraction assistant. Given a user correction message and its category,
 extract structured information and return ONLY a JSON object — no markdown, no explanation.
 
@@ -87,8 +64,11 @@ Return a JSON object with these exact fields:
   "rationale": "Why this principle matters",
   "filename_summary": "three to five words"
 }`)
+}
 
 // anthropicRequest is the request body for the Anthropic messages API.
+//
+//nolint:tagliatelle // Anthropic API requires snake_case JSON field names.
 type anthropicRequest struct {
 	Model     string             `json:"model"`
 	MaxTokens int                `json:"max_tokens"`
@@ -114,6 +94,8 @@ type anthropicContentBlock struct {
 }
 
 // llmMemoryJSON is the JSON structure the LLM is instructed to return.
+//
+//nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type llmMemoryJSON struct {
 	Title           string   `json:"title"`
 	Content         string   `json:"content"`
@@ -126,27 +108,53 @@ type llmMemoryJSON struct {
 	FilenameSummary string   `json:"filename_summary"`
 }
 
+var errEmptyAPIResponse = errors.New("API response contained no content blocks")
+
 // Enrich enriches a message into a structured memory.
 // If apiKey is empty or the LLM response cannot be parsed, a degraded memory is returned.
 // Degraded memories have no enrichment fields but never return an error.
-func (e *LLMEnricher) Enrich(ctx context.Context, message string, match *PatternMatch) (*EnrichedMemory, error) {
+func (e *LLMEnricher) Enrich(
+	ctx context.Context,
+	message string,
+	match *memory.PatternMatch,
+) (*memory.Enriched, error) {
 	if e.apiKey == "" {
 		return degradedMemory(message, match), nil
 	}
 
-	memory, err := e.callLLM(ctx, message, match)
+	mem, err := e.callLLM(ctx, message, match)
 	if err != nil {
-		return degradedMemory(message, match), nil
+		// Intentional: degrade gracefully on LLM failure (REQ-5, ARCH-3).
+		return degradedMemory(message, match), nil //nolint:nilerr
 	}
 
-	return memory, nil
+	return mem, nil
 }
 
-func (e *LLMEnricher) callLLM(ctx context.Context, message string, match *PatternMatch) (*EnrichedMemory, error) {
+func (e *LLMEnricher) callLLM(
+	ctx context.Context,
+	message string,
+	match *memory.PatternMatch,
+) (*memory.Enriched, error) {
+	resp, err := e.sendRequest(ctx, message, match)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = resp.Body.Close() }()
+
+	return parseLLMResponse(resp, match)
+}
+
+func (e *LLMEnricher) sendRequest(
+	ctx context.Context,
+	message string,
+	match *memory.PatternMatch,
+) (*http.Response, error) {
 	reqBody := anthropicRequest{
 		Model:     anthropicModel,
 		MaxTokens: maxResponseTokens,
-		System:    enrichmentSystemPrompt,
+		System:    systemPrompt(),
 		Messages: []anthropicMessage{
 			{
 				Role:    "user",
@@ -165,39 +173,45 @@ func (e *LLMEnricher) callLLM(ctx context.Context, message string, match *Patter
 		return nil, fmt.Errorf("creating HTTP request: %w", err)
 	}
 
-	req.Header.Set("x-api-key", e.apiKey)
-	req.Header.Set("anthropic-version", anthropicVersion)
-	req.Header.Set("content-type", "application/json")
+	req.Header.Set("X-Api-Key", e.apiKey)
+	req.Header.Set("Anthropic-Version", anthropicVersion)
+	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := e.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("calling Anthropic API: %w", err)
 	}
 
-	defer resp.Body.Close()
+	return resp, nil
+}
 
+func parseLLMResponse(resp *http.Response, match *memory.PatternMatch) (*memory.Enriched, error) {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body: %w", err)
 	}
 
 	var apiResp anthropicResponse
-	if err := json.Unmarshal(body, &apiResp); err != nil {
+
+	err = json.Unmarshal(body, &apiResp)
+	if err != nil {
 		return nil, fmt.Errorf("parsing API response JSON: %w", err)
 	}
 
 	if len(apiResp.Content) == 0 {
-		return nil, fmt.Errorf("API response contained no content blocks")
+		return nil, errEmptyAPIResponse
 	}
 
 	var llmData llmMemoryJSON
-	if err := json.Unmarshal([]byte(apiResp.Content[0].Text), &llmData); err != nil {
+
+	err = json.Unmarshal([]byte(apiResp.Content[0].Text), &llmData)
+	if err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON output: %w", err)
 	}
 
 	now := time.Now()
 
-	return &EnrichedMemory{
+	return &memory.Enriched{
 		Title:           llmData.Title,
 		Content:         llmData.Content,
 		ObservationType: llmData.ObservationType,
@@ -213,16 +227,17 @@ func (e *LLMEnricher) callLLM(ctx context.Context, message string, match *Patter
 	}, nil
 }
 
-// degradedMemory returns a minimal EnrichedMemory without making any API call.
-func degradedMemory(message string, match *PatternMatch) *EnrichedMemory {
+// degradedMemory returns a minimal Enriched without making any API call.
+func degradedMemory(message string, match *memory.PatternMatch) *memory.Enriched {
 	now := time.Now()
 
-	return &EnrichedMemory{
+	return &memory.Enriched{
 		Title:           truncateAtWordBoundary(message, maxTitleLength),
 		Content:         message,
 		ObservationType: match.Label,
 		FilenameSummary: firstNWords(message, filenameSummaryWordCount),
 		Confidence:      match.Confidence,
+		Degraded:        true,
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}

@@ -10,30 +10,11 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+
+	"engram/internal/memory"
 )
 
-// EnrichedMemory holds the structured data to persist as a TOML memory file.
-type EnrichedMemory struct {
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string
-	Rationale       string
-	FilenameSummary string // 3-5 words used to generate the slug
-	Confidence      string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-// MemoryWriter writes enriched memories to TOML files.
-type MemoryWriter interface {
-	Write(memory *EnrichedMemory, dataDir string) (string, error)
-}
-
-// Writer implements MemoryWriter.
+// Writer writes enriched memories to TOML files.
 type Writer struct{}
 
 // New creates a Writer.
@@ -56,6 +37,8 @@ type tomlRecord struct {
 	UpdatedAt       string   `toml:"updated_at"`
 }
 
+const memoriesDirPerm = 0o750
+
 var nonAlphanumericRun = regexp.MustCompile(`[^a-z0-9]+`)
 
 // slugify converts a filename summary to a lowercase hyphen-separated slug.
@@ -72,49 +55,52 @@ func slugify(summary string) string {
 	return slug
 }
 
-// Write writes memory as a TOML file under <dataDir>/memories/<slug>.toml.
+// Write writes mem as a TOML file under <dataDir>/memories/<slug>.toml.
 // If the slug path is already taken, it appends -2, -3, etc. until a free name is found.
 // The file is written atomically via a temp file and rename.
 // Returns the absolute path of the written file.
-func (w *Writer) Write(memory *EnrichedMemory, dataDir string) (string, error) {
+func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 	memoriesDir := filepath.Join(dataDir, "memories")
-	if err := os.MkdirAll(memoriesDir, 0o755); err != nil {
-		return "", fmt.Errorf("tomlwriter: create memories dir: %w", err)
+
+	mkdirErr := os.MkdirAll(memoriesDir, memoriesDirPerm)
+	if mkdirErr != nil {
+		return "", fmt.Errorf("tomlwriter: create memories dir: %w", mkdirErr)
 	}
 
-	slug := slugify(memory.FilenameSummary)
+	slug := slugify(mem.FilenameSummary)
 
 	finalPath, err := availablePath(memoriesDir, slug)
 	if err != nil {
 		return "", err
 	}
 
-	concepts := memory.Concepts
+	concepts := mem.Concepts
 	if concepts == nil {
 		concepts = make([]string, 0)
 	}
 
-	keywords := memory.Keywords
+	keywords := mem.Keywords
 	if keywords == nil {
 		keywords = make([]string, 0)
 	}
 
 	record := tomlRecord{
-		Title:           memory.Title,
-		Content:         memory.Content,
-		ObservationType: memory.ObservationType,
+		Title:           mem.Title,
+		Content:         mem.Content,
+		ObservationType: mem.ObservationType,
 		Concepts:        concepts,
 		Keywords:        keywords,
-		Principle:       memory.Principle,
-		AntiPattern:     memory.AntiPattern,
-		Rationale:       memory.Rationale,
-		Confidence:      memory.Confidence,
-		CreatedAt:       memory.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:       memory.UpdatedAt.UTC().Format(time.RFC3339),
+		Principle:       mem.Principle,
+		AntiPattern:     mem.AntiPattern,
+		Rationale:       mem.Rationale,
+		Confidence:      mem.Confidence,
+		CreatedAt:       mem.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:       mem.UpdatedAt.UTC().Format(time.RFC3339),
 	}
 
-	if err := writeAtomic(memoriesDir, finalPath, record); err != nil {
-		return "", err
+	writeErr := writeAtomic(memoriesDir, finalPath, record)
+	if writeErr != nil {
+		return "", writeErr
 	}
 
 	return finalPath, nil
@@ -140,30 +126,33 @@ func availablePath(memoriesDir, slug string) (string, error) {
 }
 
 // writeAtomic writes record as TOML to finalPath using a temp file and rename.
+// Paths are constructed internally via filepath.Join — no user-controlled input.
 func writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
 	tempFile, err := os.CreateTemp(memoriesDir, ".tmp-*")
 	if err != nil {
 		return fmt.Errorf("tomlwriter: create temp file: %w", err)
 	}
 
-	tempPath := tempFile.Name()
+	tempPath := filepath.Clean(tempFile.Name())
+	cleanFinal := filepath.Clean(finalPath)
 
-	if encodeErr := toml.NewEncoder(tempFile).Encode(record); encodeErr != nil {
-		tempFile.Close()
-		os.Remove(tempPath)
+	encodeErr := toml.NewEncoder(tempFile).Encode(record)
+	if encodeErr != nil {
+		_ = tempFile.Close()
+		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
 
 		return fmt.Errorf("tomlwriter: encode TOML: %w", encodeErr)
 	}
 
-	if closeErr := tempFile.Close(); closeErr != nil {
-		os.Remove(tempPath)
-
+	closeErr := tempFile.Close()
+	if closeErr != nil {
+		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
 		return fmt.Errorf("tomlwriter: close temp file: %w", closeErr)
 	}
 
-	if renameErr := os.Rename(tempPath, finalPath); renameErr != nil {
-		os.Remove(tempPath)
-
+	renameErr := os.Rename(tempPath, cleanFinal) //nolint:gosec // safe: internal paths
+	if renameErr != nil {
+		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
 		return fmt.Errorf("tomlwriter: rename to final path: %w", renameErr)
 	}
 

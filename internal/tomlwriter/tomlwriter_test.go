@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"pgregory.net/rapid"
 
+	"engram/internal/memory"
 	"engram/internal/tomlwriter"
 )
 
@@ -22,7 +23,7 @@ func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 	dataDir := t.TempDir()
 	created := time.Date(2026, 3, 3, 18, 0, 0, 0, time.UTC)
 
-	memory := &tomlwriter.EnrichedMemory{
+	mem := &memory.Enriched{
 		Title:           "Use targ test not go test",
 		Content:         "This project uses the targ build system...",
 		ObservationType: "correction",
@@ -38,7 +39,7 @@ func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 	}
 
 	writer := tomlwriter.New()
-	filePath, err := writer.Write(memory, dataDir)
+	filePath, err := writer.Write(mem, dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -75,15 +76,15 @@ func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 		return
 	}
 
-	g.Expect(parsed.Title).To(Equal(memory.Title))
-	g.Expect(parsed.Content).To(Equal(memory.Content))
-	g.Expect(parsed.ObservationType).To(Equal(memory.ObservationType))
-	g.Expect(parsed.Concepts).To(Equal(memory.Concepts))
-	g.Expect(parsed.Keywords).To(Equal(memory.Keywords))
-	g.Expect(parsed.Principle).To(Equal(memory.Principle))
-	g.Expect(parsed.AntiPattern).To(Equal(memory.AntiPattern))
-	g.Expect(parsed.Rationale).To(Equal(memory.Rationale))
-	g.Expect(parsed.Confidence).To(Equal(memory.Confidence))
+	g.Expect(parsed.Title).To(Equal(mem.Title))
+	g.Expect(parsed.Content).To(Equal(mem.Content))
+	g.Expect(parsed.ObservationType).To(Equal(mem.ObservationType))
+	g.Expect(parsed.Concepts).To(Equal(mem.Concepts))
+	g.Expect(parsed.Keywords).To(Equal(mem.Keywords))
+	g.Expect(parsed.Principle).To(Equal(mem.Principle))
+	g.Expect(parsed.AntiPattern).To(Equal(mem.AntiPattern))
+	g.Expect(parsed.Rationale).To(Equal(mem.Rationale))
+	g.Expect(parsed.Confidence).To(Equal(mem.Confidence))
 	g.Expect(parsed.CreatedAt).To(Equal(created.Format(time.RFC3339)))
 	g.Expect(parsed.UpdatedAt).To(Equal(created.Format(time.RFC3339)))
 }
@@ -96,14 +97,14 @@ func TestT9_FilenameSlugIsHyphenatedLowercaseWords(t *testing.T) {
 
 		g := NewGomegaWithT(t)
 
-		memory := &tomlwriter.EnrichedMemory{
+		mem := &memory.Enriched{
 			FilenameSummary: "Use Targ Not Go Test",
 			CreatedAt:       time.Now(),
 			UpdatedAt:       time.Now(),
 		}
 
 		writer := tomlwriter.New()
-		filePath, err := writer.Write(memory, t.TempDir())
+		filePath, err := writer.Write(mem, t.TempDir())
 		g.Expect(err).NotTo(HaveOccurred())
 
 		if err != nil {
@@ -125,23 +126,16 @@ func TestT9_FilenameSlugIsHyphenatedLowercaseWords(t *testing.T) {
 				rapid.RuneFrom([]rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 -_")),
 			).Draw(rt, "summary")
 
-			dataDir, mkdirErr := os.MkdirTemp("", "engram-tomlwriter-*")
-			g.Expect(mkdirErr).NotTo(HaveOccurred())
+			dataDir := t.TempDir()
 
-			if mkdirErr != nil {
-				return
-			}
-
-			rt.Cleanup(func() { os.RemoveAll(dataDir) })
-
-			memory := &tomlwriter.EnrichedMemory{
+			mem := &memory.Enriched{
 				FilenameSummary: summary,
 				CreatedAt:       time.Now(),
 				UpdatedAt:       time.Now(),
 			}
 
 			writer := tomlwriter.New()
-			filePath, writeErr := writer.Write(memory, dataDir)
+			filePath, writeErr := writer.Write(mem, dataDir)
 			g.Expect(writeErr).NotTo(HaveOccurred())
 
 			if writeErr != nil {
@@ -164,7 +158,7 @@ func TestT10_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 	g := NewGomegaWithT(t)
 	dataDir := t.TempDir()
 
-	memory := &tomlwriter.EnrichedMemory{
+	mem := &memory.Enriched{
 		FilenameSummary: "use targ not go test",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
@@ -172,7 +166,7 @@ func TestT10_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 
 	writer := tomlwriter.New()
 
-	firstPath, err := writer.Write(memory, dataDir)
+	firstPath, err := writer.Write(mem, dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -181,7 +175,7 @@ func TestT10_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 
 	g.Expect(filepath.Base(firstPath)).To(Equal("use-targ-not-go-test.toml"))
 
-	secondPath, err := writer.Write(memory, dataDir)
+	secondPath, err := writer.Write(mem, dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -198,14 +192,14 @@ func TestT11_WriteIsAtomic(t *testing.T) {
 	g := NewGomegaWithT(t)
 	dataDir := t.TempDir()
 
-	memory := &tomlwriter.EnrichedMemory{
+	mem := &memory.Enriched{
 		FilenameSummary: "atomic write test memory",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
 	writer := tomlwriter.New()
-	filePath, err := writer.Write(memory, dataDir)
+	filePath, err := writer.Write(mem, dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -240,14 +234,14 @@ func TestT12_MemoriesDirectoryCreatedIfMissing(t *testing.T) {
 	_, preStatErr := os.Stat(memoriesDir)
 	g.Expect(os.IsNotExist(preStatErr)).To(BeTrue())
 
-	memory := &tomlwriter.EnrichedMemory{
+	mem := &memory.Enriched{
 		FilenameSummary: "dir creation test memory",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
 
 	writer := tomlwriter.New()
-	filePath, err := writer.Write(memory, dataDir)
+	filePath, err := writer.Write(mem, dataDir)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {

@@ -6,7 +6,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/catchup"
-	"engram/internal/correct"
 	"engram/internal/extract"
 	"engram/internal/surface"
 )
@@ -24,20 +23,6 @@ func TestT39_ExtractorConstructorRequiresAllDependencies(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("Enricher"))
 	g.Expect(err.Error()).To(ContainSubstring("Classifier"))
 	g.Expect(err.Error()).To(ContainSubstring("Reconciler"))
-}
-
-func TestT40_CorrectionDetectorConstructorRequiresAllDependencies(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// Given an empty DetectorConfig (all fields nil/zero)
-	// When NewDetector is called with empty config
-	_, err := correct.NewDetector(correct.Config{})
-	// Then returns non-nil error containing each dependency name
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("Corpus"))
-	g.Expect(err.Error()).To(ContainSubstring("Recon"))
 }
 
 func TestT41_CatchupProcessorConstructorRequiresAllDependencies(t *testing.T) {
