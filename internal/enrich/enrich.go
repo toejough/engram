@@ -199,7 +199,9 @@ func parseLLMResponse(resp *http.Response, match *memory.PatternMatch) (*memory.
 
 	var llmData llmMemoryJSON
 
-	err = json.Unmarshal([]byte(apiResp.Content[0].Text), &llmData)
+	llmText := stripMarkdownFence(apiResp.Content[0].Text)
+
+	err = json.Unmarshal([]byte(llmText), &llmData)
 	if err != nil {
 		return nil, fmt.Errorf("parsing LLM JSON output: %w", err)
 	}
@@ -220,6 +222,30 @@ func parseLLMResponse(resp *http.Response, match *memory.PatternMatch) (*memory.
 		CreatedAt:       now,
 		UpdatedAt:       now,
 	}, nil
+}
+
+// stripMarkdownFence removes markdown code fences (```json ... ```) that LLMs
+// sometimes wrap around JSON output despite being told not to.
+func stripMarkdownFence(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if !strings.HasPrefix(trimmed, "```") {
+		return text
+	}
+
+	// Remove opening fence (```json or ```)
+	firstNewline := strings.Index(trimmed, "\n")
+	if firstNewline < 0 {
+		return text
+	}
+
+	trimmed = trimmed[firstNewline+1:]
+
+	// Remove closing fence
+	if idx := strings.LastIndex(trimmed, "```"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+
+	return strings.TrimSpace(trimmed)
 }
 
 // systemPrompt returns the system prompt instructing the LLM to extract structured memory fields.

@@ -143,6 +143,79 @@ func TestEnrichmentInvalidLLMJSONReturnsError(t *testing.T) {
 	}
 }
 
+// TestEnrichmentMarkdownFencedJSONIsParsed verifies that LLM responses wrapped
+// in markdown code fences (```json ... ```) are parsed successfully.
+func TestEnrichmentMarkdownFencedJSONIsParsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	llmPayload := map[string]any{
+		"title":            "Give Self-Consistent Responses",
+		"content":          "do not contradict yourself",
+		"observation_type": "correction",
+		"concepts":         []string{"consistency"},
+		"keywords":         []string{"summary", "contradiction"},
+		"principle":        "Review findings before summarizing",
+		"anti_pattern":     "Saying everything is fine then listing problems",
+		"rationale":        "Contradictions waste the user's time",
+		"filename_summary": "self consistent responses",
+	}
+
+	llmJSON, err := json.Marshal(llmPayload)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Wrap in markdown code fence like Haiku often does
+	fencedJSON := "```json\n" + string(llmJSON) + "\n```"
+
+	apiEnvelope := map[string]any{
+		"content": []map[string]any{
+			{"type": "text", "text": fencedJSON},
+		},
+	}
+
+	apiJSON, err := json.Marshal(apiEnvelope)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(apiJSON)),
+		},
+	}
+
+	enricher := enrich.New("test-api-key", doer)
+	match := &memory.PatternMatch{
+		Pattern:    `\bno\b`,
+		Label:      "correction",
+		Confidence: "A",
+	}
+
+	mem, err := enricher.Enrich(context.Background(), "do not contradict yourself", match)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(mem).NotTo(BeNil())
+
+	if mem == nil {
+		return
+	}
+
+	g.Expect(mem.Title).To(Equal("Give Self-Consistent Responses"))
+	g.Expect(mem.Principle).To(Equal("Review findings before summarizing"))
+}
+
 // TestEnrichmentNilResponseReturnsError verifies that a nil HTTP response
 // (without transport error) returns ErrNilResponse.
 func TestEnrichmentNilResponseReturnsError(t *testing.T) {
