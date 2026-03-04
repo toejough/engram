@@ -33,7 +33,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = []
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -43,8 +43,8 @@ refactor_tool = "targ check"
 layer = "L1"
 name = "Remember & Correct"
 items = ["UC-3"]
-status = "in_progress"
-history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18."
+status = "complete"
+history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. L5 implementation complete: all 19 tests passing, lint clean."
 gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
 
 # Tree nodes — L2
@@ -74,13 +74,47 @@ layer = "L4"
 name = "Remember & Correct Tests"
 parents = ["L3A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
-status = "in_progress"
-history = "19 BDD test specs across 6 ARCH boundaries: pattern matching (T-1..T-4), enrichment (T-5..T-7), TOML writer (T-8..T-12), renderer (T-13..T-14), pipeline (T-15..T-17), CLI wiring (T-18..T-19)."
+status = "complete"
+history = "19 BDD test specs across 6 ARCH boundaries. Complete."
+
+# Tree nodes — L5
+
+[tree.L5A]
+layer = "L5"
+name = "Pattern Matching + Renderer"
+parents = ["L4A"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-13", "T-14"]
+status = "complete"
+history = "Corpus confidence tiers, shared memory types, system reminder renderer. Commit 8a0f77b."
+
+[tree.L5B]
+layer = "L5"
+name = "LLM Enrichment"
+parents = ["L4A"]
+items = ["T-5", "T-6", "T-7"]
+status = "complete"
+history = "Anthropic API enrichment with degraded fallback. Commit 58fb79d."
+
+[tree.L5C]
+layer = "L5"
+name = "TOML Writer"
+parents = ["L4A"]
+items = ["T-8", "T-9", "T-10", "T-11", "T-12"]
+status = "complete"
+history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b."
+
+[tree.L5D]
+layer = "L5"
+name = "Pipeline + CLI Wiring"
+parents = ["L4A"]
+items = ["T-15", "T-16", "T-17", "T-18", "T-19"]
+status = "complete"
+history = "4-stage Corrector pipeline, CLI correct subcommand, type reconciliation. Commit d3bda87."
 
 # Cursor
 
 [cursor]
-node = "L4A"
-mode = "green"
-next_action = "REFACTOR L4 — completeness invariant, bidirectional coverage. Then REGROUP, COMMIT, descend to L5."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+node = "L1A"
+mode = "complete"
+next_action = "UC-3 fully implemented. All layers L1-L5 complete, 19 tests passing, lint clean."
+context_files = ["docs/specs/state.toml"]
