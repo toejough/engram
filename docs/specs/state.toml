@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = []
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "DES-1", "DES-2", "DES-3"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -36,13 +36,23 @@ layer = "L1"
 name = "Remember & Correct"
 items = ["UC-3"]
 status = "in_progress"
-history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. Previous L2-L5 tree archived."
+history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18."
 gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
+
+# Tree nodes — L2
+
+[tree.L2A]
+layer = "L2"
+name = "Remember & Correct Requirements"
+parents = ["L1A"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-5", "REQ-6", "REQ-7", "DES-1", "DES-2", "DES-3"]
+status = "in_progress"
+history = "Fresh derivation from rewritten UC-3. 7 REQs + 3 DES items covering: detection, enrichment, file writing, feedback, degradation, CLI, confidence, hook wiring."
 
 # Cursor
 
 [cursor]
-node = "L1A"
+node = "L2A"
 mode = "green"
-next_action = "COMMIT L1A rewrite, then descend to L2 to derive requirements and design for new UC-3."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
+next_action = "REFACTOR L2 — bidirectional coverage check, consistency, then REGROUP and COMMIT."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md"]
