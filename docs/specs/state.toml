@@ -28,7 +28,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = []
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -64,13 +64,23 @@ layer = "L3"
 name = "Remember & Correct Architecture"
 parents = ["L2A"]
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7"]
+status = "complete"
+history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard."
+
+# Tree nodes — L4
+
+[tree.L4A]
+layer = "L4"
+name = "Remember & Correct Tests"
+parents = ["L3A"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-14", "T-15", "T-16", "T-17", "T-18", "T-19"]
 status = "in_progress"
-history = "7 ARCH decisions: pipeline (ARCH-1), pattern matching (ARCH-2), LLM enrichment (ARCH-3), TOML writer (ARCH-4), renderer (ARCH-5), CLI wiring (ARCH-6), DI standard (ARCH-7)."
+history = "19 BDD test specs across 6 ARCH boundaries: pattern matching (T-1..T-4), enrichment (T-5..T-7), TOML writer (T-8..T-12), renderer (T-13..T-14), pipeline (T-15..T-17), CLI wiring (T-18..T-19)."
 
 # Cursor
 
 [cursor]
-node = "L3A"
+node = "L4A"
 mode = "green"
-next_action = "REFACTOR L3 — bidirectional coverage, consistency. Then REGROUP, COMMIT, descend to L4."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/requirements.md"]
+next_action = "REFACTOR L4 — completeness invariant, bidirectional coverage. Then REGROUP, COMMIT, descend to L5."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
