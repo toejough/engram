@@ -23,6 +23,7 @@ items = [
   { id = "ARCH-5", source = "derived" },
   { id = "ARCH-6", source = "derived" },
   { id = "ARCH-7", source = "standard", rationale = "DI everywhere — all I/O through injected interfaces. From CLAUDE.md design principles." },
+  { id = "ARCH-8", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -54,7 +55,7 @@ layer = "L2"
 name = "Remember & Correct Requirements"
 parents = ["L1A"]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
-status = "in_progress"
+status = "complete"
 history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token)."
 
 # Tree nodes — L3
@@ -63,10 +64,9 @@ history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, 
 layer = "L3"
 name = "Remember & Correct Architecture"
 parents = ["L2A"]
-items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7"]
-status = "complete"
-dirty = { source = "L2A", reason = "Issue #22: new REQ-8 (build), DES-4 (installation), DES-3 update (cross-platform token) need ARCH coverage" }
-history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard."
+items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8"]
+status = "in_progress"
+history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation)."
 
 # Tree nodes — L4
 
@@ -116,7 +116,7 @@ history = "4-stage Corrector pipeline, CLI correct subcommand, hook wiring test.
 # Cursor
 
 [cursor]
-node = "L2A"
+node = "L3A"
 mode = "green"
-next_action = "L2A reopened for issue #22 deployment path. REQ-8, DES-3 update, DES-4 written. Proceed to REFACTOR then COMMIT, then descend to L3A (dirty)."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+next_action = "L3A dirty flag resolved. ARCH-6 updated, ARCH-8 added. Proceed to REFACTOR, COMMIT, then descend to L4A (dirty)."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]

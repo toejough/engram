@@ -158,9 +158,22 @@ func Run(args []string) error {
 
 **Data directory convention:** `${CLAUDE_PLUGIN_ROOT}/data` — the hook script sets this via the `--data-dir` flag. Memory TOML files are written to `<data-dir>/memories/`.
 
-**Plugin manifest:** `plugin.json` at repo root registers the `UserPromptSubmit` hook pointing to `hooks/user-prompt-submit.sh`. The hook script handles OAuth token retrieval from Keychain before invoking the binary.
+**Plugin manifest:** `plugin.json` at repo root registers two hooks:
+1. `SessionStart` → `hooks/session-start.sh` (builds binary, see ARCH-8)
+2. `UserPromptSubmit` → `hooks/user-prompt-submit.sh` (runs correction pipeline)
 
-**Traces to:** REQ-6 (Go binary CLI), DES-3 (hook wiring), ARCH-1 (pipeline)
+**Hook script token retrieval (cross-platform):**
+```bash
+# macOS: try Keychain first
+if [[ "$(uname)" == "Darwin" ]]; then
+    TOKEN=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null \
+        | python3 -c "import sys,json; print(json.load(sys.stdin)['claudeAiOauth']['accessToken'])" 2>/dev/null) || true
+fi
+# Fallback: use ENGRAM_API_TOKEN env var if set, or Keychain result
+export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
+```
+
+**Traces to:** REQ-6 (Go binary CLI), REQ-8 (build mechanism), DES-3 (hook wiring, cross-platform token), DES-4 (installation), ARCH-1 (pipeline)
 
 ---
 
@@ -183,6 +196,28 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 
 ---
 
+## ARCH-8: Build Automation via SessionStart Hook
+
+**Decision:** A `SessionStart` hook script builds the Go binary on every session start:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd "${CLAUDE_PLUGIN_ROOT}"
+go build -o bin/engram ./cmd/engram/ 2>/dev/null || echo "[engram] Warning: build failed. Is Go installed?" >&2
+```
+
+Design choices:
+- **Always build:** Go's build cache makes this a sub-second no-op when source is unchanged. Simpler than staleness checks.
+- **Silent success:** No stdout on success (stdout from hooks becomes system reminders). Errors go to stderr.
+- **Graceful failure:** Build failure logs a warning but exits 0 — a broken build must not break the Claude Code session. The `UserPromptSubmit` hook will fail separately with a clear error if the binary doesn't exist.
+- **Binary location:** `${CLAUDE_PLUGIN_ROOT}/bin/engram` — matches the path referenced by `hooks/user-prompt-submit.sh`.
+- **`.gitignore`:** `bin/` directory is gitignored. The binary is a build artifact, not committed.
+
+**Traces to:** REQ-8 (build mechanism), DES-4 (installation UX — auto-build means no manual build step)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -194,8 +229,9 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 | ARCH-3 | REQ-2, REQ-7 |
 | ARCH-4 | REQ-3 |
 | ARCH-5 | REQ-4, DES-1 |
-| ARCH-6 | REQ-6, DES-3 |
+| ARCH-6 | REQ-6, REQ-8, DES-3, DES-4 |
 | ARCH-7 | REQ-6 |
+| ARCH-8 | REQ-8, DES-4 |
 
 ### L2 → ARCH
 
@@ -207,7 +243,9 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 | REQ-4 | ARCH-1, ARCH-5 |
 | REQ-6 | ARCH-1, ARCH-6, ARCH-7 |
 | REQ-7 | ARCH-2, ARCH-3 |
+| REQ-8 | ARCH-6, ARCH-8 |
 | DES-1 | ARCH-5 |
 | DES-3 | ARCH-6 |
+| DES-4 | ARCH-6, ARCH-8 |
 
 All L2 items have ARCH coverage.
