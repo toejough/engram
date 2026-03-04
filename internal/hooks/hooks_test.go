@@ -31,7 +31,8 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	// DES-3: hook script invokes engram correct with user message and plugin root paths.
 	g.Expect(script).To(ContainSubstring("correct"))
 	g.Expect(script).To(ContainSubstring("bin/engram"))
-	g.Expect(script).To(ContainSubstring("CLAUDE_USER_MESSAGE"))
+	g.Expect(script).To(ContainSubstring("jq"))
+	g.Expect(script).To(ContainSubstring(".prompt"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))

@@ -20,5 +20,10 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
 
+# Read user prompt from stdin JSON (Claude Code passes {"prompt": "..."} on stdin)
+USER_MESSAGE="$(jq -r '.prompt // empty')"
+
 # UC-3: Check for inline correction
-"$ENGRAM_BIN" correct --message "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+if [[ -n "$USER_MESSAGE" ]]; then
+    "$ENGRAM_BIN" correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+fi
