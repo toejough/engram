@@ -278,40 +278,6 @@ Design choices:
 
 ---
 
-## ARCH-11: LLM Judgment for Tool Enforcement
-
-**Decision:** Single LLM call per matched memory (from pre-filter) to determine if anti-pattern is violated.
-
-```go
-type ToolEnforcer interface {
-    JudgeViolation(ctx context.Context, toolName, toolInput string,
-        memory *Memory, token string) (violated bool, err error)
-}
-```
-
-Implementation:
-- For each memory passed by pre-filter, construct a prompt for haiku:
-  ```
-  Tool call: <toolName> with input <toolInput>
-
-  Memory principle: <principle>
-  Memory anti_pattern: <anti_pattern>
-
-  Is the anti_pattern being violated?
-  ```
-- Parse haiku response as JSON: `{"violated": true/false}`.
-- If any memory reports violated → block the tool call.
-- If multiple memories match → collect all judgment calls, any violation blocks.
-
-Design choices:
-- **Haiku only:** Fast model for latency-critical PreToolUse hook.
-- **Structured prompt:** Explicit principle/anti_pattern fields guide the judgment.
-- **No cascade:** Each judgment is independent. No context bleeding between memories.
-
-**Traces to:** REQ-12 (LLM judgment)
-
----
-
 ## ARCH-12: Surface Subcommand and Mode Routing
 
 **Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
@@ -323,14 +289,15 @@ engram surface --mode <session-start|prompt|tool> --data-dir <path> [mode-specif
 Routing:
 - `--mode session-start`: Call MemoryRetriever.ListMemories, sort by UpdatedAt desc, take top 20, emit DES-5 format.
 - `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
-- `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, ToolEnforcer for each match, emit DES-7 format or block.
+- `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, emit DES-7 advisory format (no LLM judgment).
 
 Design choices:
 - **Unified entry point:** One surface subcommand, mode-specific logic inside.
 - **Hook scripts call surface:** SessionStart/UserPromptSubmit/PreToolUse hooks invoke `engram surface --mode ...`.
+- **Advisory only (no blocking):** PreToolUse tool mode surfaces matching memories as advisory via system-reminder. Agent exercises judgment with full session context. No LLM call, no blocking decision from the Go binary.
 - **JSON tool input:** PreToolUse hook passes full tool call as JSON (tool name + argument struct).
 
-**Traces to:** REQ-14 (surface subcommand), REQ-9/10/11/12 (mode implementations)
+**Traces to:** REQ-14 (surface subcommand), REQ-9/10/11 (mode implementations)
 
 ---
 
@@ -341,12 +308,12 @@ Design choices:
 Hook flow:
 - **SessionStart:** After build step, call `engram surface --mode session-start`. Stdout becomes system reminder.
 - **UserPromptSubmit:** After `engram correct`, also call `engram surface --mode prompt --message "$PROMPT"`. Concatenate both outputs to stdout.
-- **PreToolUse:** New hook script calls `engram surface --mode tool --tool-name <name> --tool-input <json>`. If output starts with `{"decision": "block"`, return block decision. Otherwise allow.
+- **PreToolUse:** New hook script calls `engram surface --mode tool --tool-name <name> --tool-input <json>`. Output is a system-reminder advisory (or empty if no matches). Tool call is always allowed.
 
 Design choices:
 - **Extend, don't replace:** SessionStart and UserPromptSubmit keep their existing UC-3 behavior; surfacing is added.
-- **PreToolUse is new:** Requires hook registration in `hooks/hooks.json` + new shell script.
-- **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher, ToolEnforcer). Scripts just invoke and return output.
+- **PreToolUse is advisory only:** Hook script receives system-reminder text from `engram surface --mode tool`. No blocking decision from binary. Tool call always allowed; hook may emit advisory text to stdout.
+- **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher). Scripts just invoke and return output.
 
 **Traces to:** DES-8 (hook wiring)
 
@@ -502,10 +469,9 @@ Design choices:
 | ARCH-6 | REQ-6, REQ-8, DES-3, DES-4 |
 | ARCH-7 | REQ-6 |
 | ARCH-8 | REQ-8, DES-4 |
-| ARCH-9 | REQ-9, REQ-10, REQ-11, REQ-12 |
+| ARCH-9 | REQ-9, REQ-10, REQ-11 |
 | ARCH-10 | REQ-11 |
-| ARCH-11 | REQ-12 |
-| ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11, REQ-12 |
+| ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11 |
 | ARCH-13 | DES-8 |
 | ARCH-14 | REQ-15, REQ-17, REQ-3, REQ-20 |
 | ARCH-15 | REQ-15, REQ-16, REQ-18 |
@@ -530,12 +496,10 @@ Design choices:
 | REQ-9 | ARCH-9, ARCH-12 |
 | REQ-10 | ARCH-9, ARCH-12 |
 | REQ-11 | ARCH-9, ARCH-10, ARCH-12 |
-| REQ-12 | ARCH-9, ARCH-11, ARCH-12 |
-| REQ-13 | (implemented in REQ-12 degradation) |
 | REQ-14 | ARCH-12 |
 | DES-5 | ARCH-9, ARCH-12 |
 | DES-6 | ARCH-9, ARCH-12 |
-| DES-7 | ARCH-11, ARCH-12 |
+| DES-7 | ARCH-12 |
 | DES-8 | ARCH-13 |
 | REQ-15 | ARCH-14, ARCH-15 |
 | REQ-16 | ARCH-15 |

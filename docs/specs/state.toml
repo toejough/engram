@@ -26,7 +26,6 @@ items = [
   { id = "ARCH-8", source = "derived" },
   { id = "ARCH-9", source = "derived" },
   { id = "ARCH-10", source = "derived" },
-  { id = "ARCH-11", source = "derived" },
   { id = "ARCH-12", source = "derived" },
   { id = "ARCH-13", source = "derived" },
   { id = "ARCH-14", source = "derived" },
@@ -112,9 +111,9 @@ history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML wr
 layer = "L3"
 name = "Hook-Time Surfacing & Enforcement Architecture"
 parents = ["L2B"]
-items = ["ARCH-9", "ARCH-10", "ARCH-11", "ARCH-12", "ARCH-13"]
+items = ["ARCH-9", "ARCH-10", "ARCH-12", "ARCH-13"]
 status = "complete"
-history = "5 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), LLM judgment (ARCH-11), surface subcommand routing (ARCH-12), hook script wiring (ARCH-13)."
+history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), surface subcommand routing (ARCH-12 rewritten per issue #34), hook script wiring (ARCH-13 rewritten). Issue #34: ARCH-11 (LLM judgment) removed; PreToolUse now advisory only (system-reminder, no blocking)."
 
 [tree.L3C]
 layer = "L3"
