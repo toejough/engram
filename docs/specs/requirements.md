@@ -8,7 +8,9 @@ Requirements and design items derived from UC-3 (Remember & Correct).
 
 When a user message is submitted (UserPromptSubmit hook), the system runs it against a correction pattern corpus. If a pattern matches, the message is flagged for LLM enrichment and memory creation.
 
-Initial pattern corpus (15 patterns):
+Pattern corpus (25 patterns across 2 tiers):
+
+**Original patterns (15):**
 1. `^no,` — direct negation
 2. `^wait` — interruption
 3. `^hold on` — interruption
@@ -25,8 +27,20 @@ Initial pattern corpus (15 patterns):
 14. `\byou're still` — persistent error
 15. `\bincorrect` — explicit wrongness
 
+**Expanded patterns (10, issue #23):**
+16. `\bfrom\s+now\s+on\b` — standing instruction (tier A)
+17. `\byou\s+should\s+have\b` — retrospective correction
+18. `\byou\s+(forgot|overlooked)\s+to\b` — omission feedback
+19. `\byou\s+missed\b` — omission (broad)
+20. `\bI\s+(told|already\s+told)\s+you\b` — repeated instruction
+21. `\bI\s+already\s+(said|asked|mentioned)\b` — repeated request
+22. `\brather\s+than\b` — contrast/preference
+23. `\bnot\s+\w+,?\s+(but|instead)\b` — contrast correction
+24. `\bthat's\s+not\s+what\s+I\b` — explicit rejection
+25. `\bnext\s+time\b` — prospective correction
+
 - Traces to: UC-3 (detection)
-- AC: (1) Pattern corpus is embedded in the binary with at least the 15 patterns above. (2) Pattern matching runs on every invocation of `engram correct`. (3) On match, LLM enrichment is triggered. (4) On no match, empty stdout (no system reminder).
+- AC: (1) Pattern corpus is embedded in the binary with at least the 25 patterns above. (2) Pattern matching runs on every invocation of `engram correct`. (3) On match, LLM enrichment is triggered. (4) On no match, empty stdout (no system reminder).
 - Verification: deterministic (pattern match)
 
 ---
@@ -107,10 +121,13 @@ Format rules:
 
 ## DES-3: Hook wiring — UserPromptSubmit
 
-The UserPromptSubmit hook is registered in `plugin.json` and invokes `hooks/user-prompt-submit.sh`:
+The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt from stdin JSON (`{"prompt": "..."}` via `jq -r '.prompt // empty'`) and passes it to the binary:
 ```bash
-"$ENGRAM_BIN" correct --message "$CLAUDE_USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+USER_MESSAGE="$(jq -r '.prompt // empty')"
+"$ENGRAM_BIN" correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
 ```
+
+The hook also self-builds the binary if missing (`go build -o "$ENGRAM_BIN" ./cmd/engram/`).
 
 Token retrieval is platform-aware:
 - **macOS:** Attempt to read OAuth token from Claude Code Keychain via `security find-generic-password`. On failure, fall back to `ENGRAM_API_TOKEN` env var.
@@ -124,16 +141,16 @@ The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds. Stdout from 
 
 ## REQ-8: Binary build mechanism
 
-The plugin self-builds via a `SessionStart` hook that runs `go build` to produce the binary at `${CLAUDE_PLUGIN_ROOT}/bin/engram`. The hook is registered in `plugin.json` alongside the existing `UserPromptSubmit` hook.
+The UserPromptSubmit hook self-builds the binary on first invocation if missing. Build produces `~/.claude/engram/bin/engram`.
 
-Build command: `cd "${CLAUDE_PLUGIN_ROOT}" && go build -o bin/engram ./cmd/engram/`
+Build command: `go build -o "$ENGRAM_BIN" ./cmd/engram/`
 
 - Build requires Go toolchain on `PATH`.
 - `bin/` is gitignored (binary not committed).
 - Go's build cache makes repeated builds fast (sub-second no-op if source unchanged).
-- Build failure logs to stderr but does not fail the session (exit 0 always).
+- Build failure logs to stderr but does not fail the hook (exit 0 always).
 - Traces to: UC-3 (binary must exist for UserPromptSubmit hook to work)
-- AC: (1) `SessionStart` hook in `plugin.json` triggers build. (2) Binary is produced at `bin/engram`. (3) Build failure does not break Claude Code session. (4) `bin/` is in `.gitignore`.
+- AC: (1) UserPromptSubmit hook builds binary if missing. (2) Binary is produced at `~/.claude/engram/bin/engram`. (3) Build failure does not break Claude Code session. (4) `bin/` is in `.gitignore`.
 
 ---
 

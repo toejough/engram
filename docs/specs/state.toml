@@ -56,7 +56,7 @@ name = "Remember & Correct Requirements"
 parents = ["L1A"]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
 status = "complete"
-history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token)."
+history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit."
 
 # Tree nodes — L3
 

@@ -17,7 +17,7 @@ func TestMatch_NoMatch(t *testing.T) {
 	g.Expect(patterns.Match("perfectly normal message")).To(BeNil())
 }
 
-// T-1: All 15 correction patterns match when embedded in messages with arbitrary context.
+// T-1: All 25 correction patterns match when embedded in messages with arbitrary context.
 // Property: adding digit-only prefix/suffix to known-matching text does not prevent a match.
 func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 	t.Parallel()
@@ -44,6 +44,16 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 		{"that is a pre-existing issue", "preexisting", false},
 		{"you're still wrong", "persistence", false},
 		{"that is incorrect behavior", "incorrect", false},
+		{"from now on, always use targ", "standing-instruction", false},
+		{"you should have checked first", "retrospective", false},
+		{"you forgot to run the tests", "omission", false},
+		{"you missed the edge case", "missed", false},
+		{"I told you to use targ", "repeated-instruction", false},
+		{"I already asked for tests", "repeated-request", false},
+		{"rather than guessing, read the docs", "preference", false},
+		{"not this, but that", "contrast", false},
+		{"that's not what I asked for", "rejection", false},
+		{"next time, check the tests first", "prospective", false},
 	}
 
 	matcher := corpus.New(corpus.DefaultPatterns())
@@ -75,10 +85,10 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 	}
 }
 
-func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
+func TestT21_All25PatternsMatchExpectedInput(t *testing.T) {
 	t.Parallel()
 
-	// Given each pattern from the initial corpus and its expected matching string
+	// Given each pattern from the corpus and its expected matching string
 	cases := []struct {
 		pattern string
 		input   string
@@ -98,6 +108,16 @@ func TestT21_All15InitialPatternsMatchExpectedInput(t *testing.T) {
 		{`\bpre-?existing`, "that's a pre-existing issue"},
 		{`\byou're still`, "you're still making that mistake"},
 		{`\bincorrect`, "that's incorrect"},
+		{`\bfrom\s+now\s+on\b`, "from now on, always use targ"},
+		{`\byou\s+should\s+have\b`, "you should have checked first"},
+		{`\byou\s+(?:forgot|overlooked)\s+to\b`, "you forgot to run the tests"},
+		{`\byou\s+missed\b`, "you missed the edge case"},
+		{`\bI\s+(?:told|already\s+told)\s+you\b`, "I told you to use targ"},
+		{`\bI\s+already\s+(?:said|asked|mentioned)\b`, "I already asked for tests"},
+		{`\brather\s+than\b`, "rather than guessing, read the docs"},
+		{`\bnot\s+\w+,?\s+(?:but|instead)\b`, "not this, but that"},
+		{`\bthat's\s+not\s+what\s+I\b`, "that's not what I asked for"},
+		{`\bnext\s+time\b`, "next time, check the tests first"},
 	}
 
 	patterns := corpus.New(corpus.DefaultPatterns())
@@ -125,7 +145,7 @@ func TestT2_NonMatchingMessageReturnsNil(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewGomegaWithT(t)
 
-		// Digit-only strings cannot match any of the 15 word-based patterns.
+		// Digit-only strings cannot match any of the 25 word-based patterns.
 		message := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).Draw(rt, "message")
 
 		result := matcher.Match(message)
@@ -144,6 +164,7 @@ func TestT3_RememberPatternProducesConfidenceA(t *testing.T) {
 		"remember to run tests",
 		"remember that targ is the build tool",
 		"please remember to commit with the right trailer",
+		"from now on, always use targ",
 	}
 
 	for _, message := range cases {
@@ -170,7 +191,7 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 		anchored  bool
 	}
 
-	// All patterns except "remember" (label "reminder")
+	// All patterns except "remember" (label "reminder") and "from now on" (standing-instruction, tier A)
 	cases := []patternCase{
 		{"no, use specific files", "direct-negation", true},
 		{"wait, that is wrong", "interruption", true},
@@ -186,6 +207,15 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 		{"that is a pre-existing issue", "preexisting", false},
 		{"you're still wrong", "persistence", false},
 		{"that is incorrect behavior", "incorrect", false},
+		{"you should have checked first", "retrospective", false},
+		{"you forgot to run the tests", "omission", false},
+		{"you missed the edge case", "missed", false},
+		{"I told you to use targ", "repeated-instruction", false},
+		{"I already asked for tests", "repeated-request", false},
+		{"rather than guessing, read the docs", "preference", false},
+		{"not this, but that", "contrast", false},
+		{"that's not what I asked for", "rejection", false},
+		{"next time, check the tests first", "prospective", false},
 	}
 
 	matcher := corpus.New(corpus.DefaultPatterns())

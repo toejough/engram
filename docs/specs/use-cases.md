@@ -11,7 +11,7 @@
 **Actor:** System (Go binary triggered by UserPromptSubmit hook).
 
 **Key interactions:**
-- **Detection (UserPromptSubmit):** Deterministic pattern matcher checks the user's prompt for correction/remember signals (~15 patterns covering ~85% of explicit corrections: `^no,`, `^wait`, `^hold on`, `\bwrong\b`, `\bdon't\s+[verb]`, `\bstop\s+[verb]ing`, `\btry again`, `\bgo back`, `\bthat's not`, `^actually,`, `\bremember\s+(that|to)`, `\bstart over`, `\bpre-?existing`, `\byou're still`, `\bincorrect`). On match → LLM enrichment.
+- **Detection (UserPromptSubmit):** Deterministic pattern matcher checks the user's prompt for correction/remember signals (25 patterns across 7 categories: direct corrections, interruptions, prohibitions, negations, re-teaching, omission feedback, standing instructions, retrospective corrections, repeated instructions, contrast/preference, rejection, and prospective corrections). On match → LLM enrichment.
 - **LLM enrichment:** A single API call (claude-haiku-4-5-20251001) takes the user's message and produces structured memory fields as JSON: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, and a 3-5 word filename summary. The Go code parses the JSON response and writes TOML.
 - **TOML file output:** Memory written to `<data-dir>/memories/<slug>.toml` where slug is the slugified filename summary (3-5 hyphenated words). Example:
 

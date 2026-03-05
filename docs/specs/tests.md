@@ -8,7 +8,7 @@ Behavioral test list for UC-3 (Remember & Correct). BDD Given/When/Then format. 
 
 ### T-1: Correction pattern matches
 
-**Given** a message matching any of the 15 correction patterns,
+**Given** a message matching any of the 25 correction patterns,
 **When** Match is called,
 **Then** a PatternMatch is returned with the matched pattern's label.
 
@@ -26,9 +26,9 @@ Property-based: generate arbitrary strings that don't contain any pattern.
 
 - Traces to: ARCH-2, REQ-1
 
-### T-3: Remember patterns produce confidence A
+### T-3: Remember/standing-instruction patterns produce confidence A
 
-**Given** a message matching `\bremember\s+(that|to)`,
+**Given** a message matching `\bremember\s+(that|to)` or `\bfrom\s+now\s+on\b`,
 **When** Match is called,
 **Then** PatternMatch.Confidence is "A".
 
@@ -170,7 +170,7 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 **Given** the static hook script at `hooks/user-prompt-submit.sh`,
 **When** its content is read,
-**Then** it references `correct`, `bin/engram`, `CLAUDE_USER_MESSAGE`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
+**Then** it references `correct`, `bin/engram`, `jq`, `.prompt`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
 
 - Traces to: ARCH-6, DES-3
 
@@ -188,19 +188,19 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 ## Build Automation (ARCH-8)
 
-### T-20: SessionStart hook script exists and references go build
+### T-20: Plugin manifest exists
 
-**Given** the static hook script at `hooks/session-start.sh`,
+**Given** the plugin manifest at `.claude-plugin/plugin.json`,
 **When** its content is read,
-**Then** it references `go build`, `bin/engram`, `cmd/engram`, and `CLAUDE_PLUGIN_ROOT`. It is executable.
+**Then** it contains `"name": "engram"` and a `"description"` field.
 
 - Traces to: ARCH-8, REQ-8
 
-### T-21: SessionStart hook is registered in plugin.json
+### T-21: Hooks JSON has UserPromptSubmit
 
-**Given** the plugin manifest at `plugin.json`,
-**When** its content is parsed,
-**Then** it contains a `SessionStart` hook entry pointing to `hooks/session-start.sh`.
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `UserPromptSubmit` entry pointing to `user-prompt-submit.sh`.
 
 - Traces to: ARCH-8, REQ-8, ARCH-6
 

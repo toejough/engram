@@ -64,6 +64,16 @@ func DefaultPatterns() []Pattern {
 		{`(?i)\bpre-?existing`, "preexisting", confidenceTierB},
 		{`(?i)\byou're still`, "persistence", confidenceTierB},
 		{`(?i)\bincorrect`, "incorrect", confidenceTierB},
+		{`(?i)\bfrom\s+now\s+on\b`, "standing-instruction", confidenceTierA},
+		{`(?i)\byou\s+should\s+have\b`, "retrospective", confidenceTierB},
+		{`(?i)\byou\s+(?:forgot|overlooked)\s+to\b`, "omission", confidenceTierB},
+		{`(?i)\byou\s+missed\b`, "missed", confidenceTierB},
+		{`(?i)\bI\s+(?:told|already\s+told)\s+you\b`, "repeated-instruction", confidenceTierB},
+		{`(?i)\bI\s+already\s+(?:said|asked|mentioned)\b`, "repeated-request", confidenceTierB},
+		{`(?i)\brather\s+than\b`, "preference", confidenceTierB},
+		{`(?i)\bnot\s+\w+,?\s+(?:but|instead)\b`, "contrast", confidenceTierB},
+		{`(?i)\bthat's\s+not\s+what\s+I\b`, "rejection", confidenceTierB},
+		{`(?i)\bnext\s+time\b`, "prospective", confidenceTierB},
 	}
 
 	patterns := make([]Pattern, 0, len(raw))
