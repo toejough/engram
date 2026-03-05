@@ -8,7 +8,7 @@ Requirements and design items derived from UC-3 (Remember & Correct).
 
 When a user message is submitted (UserPromptSubmit hook), the system runs it against a correction pattern corpus. If a pattern matches, the message is flagged for LLM enrichment and memory creation.
 
-Pattern corpus (25 patterns across 2 tiers):
+Pattern corpus (40 patterns across 2 tiers):
 
 **Original patterns (15):**
 1. `^no,` — direct negation
@@ -39,8 +39,35 @@ Pattern corpus (25 patterns across 2 tiers):
 24. `\bthat's\s+not\s+what\s+I\b` — explicit rejection
 25. `\bnext\s+time\b` — prospective correction
 
+**New patterns (15, issue #24):**
+
+*Scope / Over-engineering:*
+26. `\bjust\s+wanted\b` — scope complaint ("I just wanted X")
+27. `\bover-?engineer` — explicit over-engineering complaint
+28. `\bI\s+only\s+asked\b` — scope restriction ("I only asked for X")
+
+*Quality Complaints:*
+29. `\bdoes(?:n't| not)\s+work\b` — broken output ("doesn't work")
+30. `\bit(?:'s| is)\s+broken\b` — broken output ("it's broken")
+31. `\bnot\s+working\b` — broken output ("not working")
+
+*Style / Convention:*
+32. `\bwe\s+use\b` — team convention signal ("we use X")
+33. `\bthe\s+convention\b` — explicit convention reference
+34. `\bin\s+this\s+(?:project|repo|codebase)\b` — project-scoped norm
+
+*Permission Boundaries:*
+35. `\bleave\s+\w+\s+alone\b` — hands-off signal ("leave X alone")
+36. `\bhands\s+off\b` — prohibition signal
+37. `\boff\s+limits\b` — prohibition signal
+
+*Confusion / Misunderstanding:*
+38. `\byou\s+misunderstood\b` — explicit misunderstanding
+39. `\bno,?\s+I\s+mean\b` — clarification after misparse ("no I mean...")
+40. `\bmisinterpreted\b` — explicit misinterpretation
+
 - Traces to: UC-3 (detection)
-- AC: (1) Pattern corpus is embedded in the binary with at least the 25 patterns above. (2) Pattern matching runs on every invocation of `engram correct`. (3) On match, LLM enrichment is triggered. (4) On no match, empty stdout (no system reminder).
+- AC: (1) Pattern corpus is embedded in the binary with at least the 40 patterns above. (2) Pattern matching runs on every invocation of `engram correct`. (3) On match, LLM enrichment is triggered. (4) On no match, empty stdout (no system reminder).
 - Verification: deterministic (pattern match)
 
 ---

@@ -55,8 +55,8 @@ layer = "L2"
 name = "Remember & Correct Requirements"
 parents = ["L1A"]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
-status = "complete"
-history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit."
+status = "in_progress"
+history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit. Issue #24: re-entry to expand REQ-1 from 25 to ~40 patterns (6 new categories)."
 
 # Tree nodes — L3
 
@@ -66,6 +66,7 @@ name = "Remember & Correct Architecture"
 parents = ["L2A"]
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8"]
 status = "complete"
+dirty = { source = "L2A", reason = "REQ-1 pattern count changing from 25 to ~40 — ARCH-2 text references pattern count" }
 history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation)."
 
 # Tree nodes — L4
@@ -76,6 +77,7 @@ name = "Remember & Correct Tests"
 parents = ["L3A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
 status = "complete"
+dirty = { source = "L2A", reason = "REQ-1 pattern count changing — T-1/T-4 test specs reference pattern count" }
 history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21). Issue #22: added T-20 (SessionStart hook), T-21 (plugin.json SessionStart), T-22 (cross-platform token), T-23 (bin/ gitignore)."
 
 # Tree nodes — L5
@@ -86,6 +88,7 @@ name = "Pattern Matching + Renderer"
 parents = ["L4A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-13"]
 status = "complete"
+dirty = { source = "L4A", reason = "T-1/T-4 test specs changing — implementation needs new pattern test cases" }
 history = "Corpus confidence tiers, shared memory types, system reminder renderer. T-14 removed (issue #20)."
 
 [tree.L5B]
@@ -123,7 +126,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L1A"
-mode = "complete"
-next_action = "UC-3 fully implemented and deployable. All layers L1-L5 complete, 23 tests passing, vet clean. Issue #22 resolved."
-context_files = ["docs/specs/state.toml"]
+node = "L2A"
+mode = "in_progress"
+next_action = "Post-completion re-entry for issue #24: expand REQ-1 pattern corpus from 25 to ~40 patterns. RED phase at L2A."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md", "internal/corpus/corpus.go"]
