@@ -54,7 +54,7 @@ layer = "L1"
 name = "Remember & Correct"
 items = ["UC-3"]
 status = "complete"
-history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. L5 implementation complete: all 19 tests passing, lint clean."
+history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. L5 implementation complete: all 19 tests passing, lint clean. Issue #35: UC-3 rewritten — corpus replaced with unified LLM classifier, fast-path keywords, transcript context, no graceful degradation (closes #32)."
 gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
 
 [tree.L1B]
@@ -69,7 +69,7 @@ layer = "L1"
 name = "Session Learning"
 items = ["UC-1"]
 status = "complete"
-history = "Activated from deferred list (issue #18). Rewritten: flat TOML files (not SQLite), PreCompact + SessionEnd triggers (not just Stop), confidence tier C, quality gate, dedup against UC-3, no graceful degradation (issue #32 filed for UC-3 alignment). All L5 nodes complete, all tests passing, lint clean."
+history = "Activated from deferred list (issue #18). Rewritten: flat TOML files (not SQLite), PreCompact + SessionEnd triggers (not just Stop), confidence tier C, quality gate, dedup against UC-3, no graceful degradation (issue #32 filed for UC-3 alignment). All L5 nodes complete, all tests passing, lint clean. Issue #35: UC-1 updated — unified A/B/C tier criteria (not just tier C), anti-pattern gating aligned with UC-3."
 
 # Tree nodes — L2
 
@@ -79,6 +79,7 @@ name = "Remember & Correct Requirements"
 parents = ["L1A"]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
 status = "complete"
+dirty = { source = "L1A", reason = "Issue #35: UC-3 detection replaced corpus with unified LLM classifier. REQ-1 (detection), REQ-2 (enrichment), DES-1 (feedback) need revision." }
 history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit. Issue #24: REQ-1 expanded from 25 to 40 patterns (6 new categories)."
 
 [tree.L2B]
@@ -95,6 +96,7 @@ name = "Session Learning Requirements"
 parents = ["L1C"]
 items = ["REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
 status = "complete"
+dirty = { source = "L1C", reason = "Issue #35: UC-1 now uses unified A/B/C tier criteria (not just tier C). REQ-15 (extraction) needs revision for tier classification." }
 history = "6 REQs + 2 DES items derived from UC-1. LLM extraction (REQ-15), quality gate (REQ-16), deduplication (REQ-17), fail-loud no-token (REQ-18), idempotency (REQ-19), CLI learn subcommand (REQ-20), hook wiring (DES-9), feedback format (DES-10). Updated REQ-7 to include tier C."
 
 # Tree nodes — L3
@@ -252,7 +254,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L1C"
-mode = "complete"
-next_action = "Tree complete. All 3 UCs (UC-3, UC-2, UC-1) implemented. Usability gate passed. All tests green, lint clean."
-context_files = ["docs/specs/state.toml"]
+node = "L2A"
+mode = "in_progress"
+next_action = "Post-completion re-entry (issue #35). L1 UCs updated. L2A dirty — revise REQ-1 (detection→classifier), REQ-2 (enrichment→unified call), DES-1 (feedback), add REQ for transcript context. Then L2C dirty."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md"]
