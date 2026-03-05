@@ -173,6 +173,7 @@ name = "TOML Writer"
 parents = ["L4A"]
 items = ["T-8", "T-9", "T-10", "T-11", "T-12"]
 status = "complete"
+dirty = { source = "ARCH-7", reason = "Issue #31: os.MkdirAll, os.Stat, os.Remove called directly in tomlwriter.go. Must inject as function types like existing createTemp/rename pattern." }
 history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b. Issue #35: no code changes — ClassifiedMemory.ToEnriched() maintains writer compatibility. Tier written via Confidence field."
 
 [tree.L5D]
@@ -199,6 +200,7 @@ name = "Memory Retrieval"
 parents = ["L4B"]
 items = ["T-24", "T-25", "T-26"]
 status = "complete"
+dirty = { source = "ARCH-7", reason = "Issue #31: os.ReadDir, toml.DecodeFile, fmt.Fprintf(os.Stderr) called directly in retrieve.go. Must inject ReadDir/ReadFile function types and remove stderr logging." }
 history = "T-24/25/26 passing. Memory retrieval from TOML files with DI."
 
 [tree.L5G]
@@ -252,7 +254,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L5L"
-mode = "complete"
-next_action = "Issue #35 complete — all L5 dirty flags cleared. Unified LLM classifier implemented (UC-3: L5A-E), tier classification in extraction implemented (UC-1: L5J-L). All tests passing, targ check clean. Run usability gate, then close issue #35."
-context_files = ["docs/specs/state.toml"]
+node = "L5C"
+mode = "in_progress"
+next_action = "Post-completion re-entry for issue #31. L5C (tomlwriter) and L5F (retrieve) dirty — inject remaining I/O as function types per ARCH-7. TDD cycle: update tests for DI, then refactor implementations."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]
