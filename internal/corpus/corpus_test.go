@@ -9,6 +9,28 @@ import (
 	"engram/internal/corpus"
 )
 
+// TestDefaultPatterns_Entries verifies every entry returned by DefaultPatterns has a compiled
+// regex, a non-empty label, and a valid confidence tier. This exercises the full loop body.
+func TestDefaultPatterns_Entries(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	patterns := corpus.DefaultPatterns()
+
+	g.Expect(patterns).NotTo(BeEmpty())
+
+	for _, pattern := range patterns {
+		t.Run(pattern.Label, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+			g.Expect(pattern.Regex).NotTo(BeNil())
+			g.Expect(pattern.Label).NotTo(BeEmpty())
+			g.Expect(pattern.Confidence).To(Or(Equal("A"), Equal("B")))
+		})
+	}
+}
+
 func TestMatch_NoMatch(t *testing.T) {
 	t.Parallel()
 
