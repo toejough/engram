@@ -24,6 +24,11 @@ items = [
   { id = "ARCH-6", source = "derived" },
   { id = "ARCH-7", source = "standard", rationale = "DI everywhere — all I/O through injected interfaces. From CLAUDE.md design principles." },
   { id = "ARCH-8", source = "derived" },
+  { id = "ARCH-9", source = "derived" },
+  { id = "ARCH-10", source = "derived" },
+  { id = "ARCH-11", source = "derived" },
+  { id = "ARCH-12", source = "derived" },
+  { id = "ARCH-13", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -83,6 +88,14 @@ items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "
 status = "complete"
 history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation). Issue #24: ARCH-2 count updated 15→40."
 
+[tree.L3B]
+layer = "L3"
+name = "Hook-Time Surfacing & Enforcement Architecture"
+parents = ["L2B"]
+items = ["ARCH-9", "ARCH-10", "ARCH-11", "ARCH-12", "ARCH-13"]
+status = "in_progress"
+history = "5 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), LLM judgment (ARCH-11), surface subcommand routing (ARCH-12), hook script wiring (ARCH-13)."
+
 # Tree nodes — L4
 
 [tree.L4A]
@@ -138,7 +151,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L2B"
+node = "L3B"
 mode = "in_progress"
-next_action = "L2B complete. Descend to L3 — derive ARCH items from UC-2 requirements."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md", "docs/specs/architecture.md"]
+next_action = "L3B complete. Descend to L4 — derive test specs from ARCH-9 through ARCH-13."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]

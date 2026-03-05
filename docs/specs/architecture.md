@@ -1,6 +1,6 @@
 # Architecture
 
-System architecture for UC-3 (Remember & Correct). Each ARCH decision traces to L2 items.
+System architecture for UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing & Enforcement). Each ARCH decision traces to L2 items.
 
 ---
 
@@ -218,6 +218,140 @@ Design choices:
 
 ---
 
+## UC-2 Architecture
+
+---
+
+## ARCH-9: Memory Storage and Retrieval
+
+**Decision:** Memories are stored as individual TOML files in `<data-dir>/memories/`. Retrieval happens by scanning and parsing all files at query time (no database).
+
+```go
+type MemoryRetriever interface {
+    ListMemories(ctx context.Context, dataDir string) ([]*Memory, error)
+    FindByKeywords(keywords []string, memories []*Memory) []*Memory
+}
+
+type Memory struct {
+    Title       string
+    Content     string
+    Concepts    []string
+    Keywords    []string
+    AntiPattern string // for PreToolUse enforcement
+    Principle   string
+    UpdatedAt   time.Time
+    FilePath    string
+}
+```
+
+Design choices:
+- **No database:** Each TOML file is a Memory record. Scan all files in the memories directory on each retrieval. For small corpora (hundreds of memories), scanning is faster than database setup/teardown.
+- **File-based discovery:** `ioutil.ReadDir(memdir)` + parse each `.toml` file. Errors on individual files are logged but don't block other memories.
+- **Sorting:** `sort.Slice` on Memory structs (sort by UpdatedAt for SessionStart, no sorting for keyword matches).
+
+**Traces to:** REQ-9 (SessionStart needs file listing), REQ-10 (UserPromptSubmit needs all memories for keyword match), REQ-11/12 (PreToolUse scans all memories)
+
+---
+
+## ARCH-10: Keyword Pre-Filter for PreToolUse
+
+**Decision:** Fast, deterministic keyword matching on tool input before LLM judgment.
+
+```go
+type KeywordMatcher interface {
+    MatchMemories(toolName, toolInput string, memories []*Memory) []*Memory
+}
+```
+
+Implementation:
+- For each memory with non-empty `anti_pattern`, extract its `keywords` array.
+- For each keyword, check if it appears as a whole word in `toolName` or `toolInput` (case-insensitive).
+- A memory matches if at least one of its keywords matches.
+- Return all matching memories.
+
+Design choices:
+- **Whole-word matching:** Regex `\b<keyword>\b` (case-insensitive). Avoids false positives like "commit" matching "recommit".
+- **No fuzzy matching:** Deterministic, predictable behavior. User learns that `keywords` drive pre-filter.
+- **Fast:** Runs on every PreToolUse. Regex compilation cached per memory on first access.
+
+**Traces to:** REQ-11 (keyword pre-filter for PreToolUse)
+
+---
+
+## ARCH-11: LLM Judgment for Tool Enforcement
+
+**Decision:** Single LLM call per matched memory (from pre-filter) to determine if anti-pattern is violated.
+
+```go
+type ToolEnforcer interface {
+    JudgeViolation(ctx context.Context, toolName, toolInput string,
+        memory *Memory, token string) (violated bool, err error)
+}
+```
+
+Implementation:
+- For each memory passed by pre-filter, construct a prompt for haiku:
+  ```
+  Tool call: <toolName> with input <toolInput>
+
+  Memory principle: <principle>
+  Memory anti_pattern: <anti_pattern>
+
+  Is the anti_pattern being violated?
+  ```
+- Parse haiku response as JSON: `{"violated": true/false}`.
+- If any memory reports violated → block the tool call.
+- If multiple memories match → collect all judgment calls, any violation blocks.
+
+Design choices:
+- **Haiku only:** Fast model for latency-critical PreToolUse hook.
+- **Structured prompt:** Explicit principle/anti_pattern fields guide the judgment.
+- **No cascade:** Each judgment is independent. No context bleeding between memories.
+
+**Traces to:** REQ-12 (LLM judgment)
+
+---
+
+## ARCH-12: Surface Subcommand and Mode Routing
+
+**Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
+
+```bash
+engram surface --mode <session-start|prompt|tool> --data-dir <path> [mode-specific flags]
+```
+
+Routing:
+- `--mode session-start`: Call MemoryRetriever.ListMemories, sort by UpdatedAt desc, take top 20, emit DES-5 format.
+- `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
+- `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, ToolEnforcer for each match, emit DES-7 format or block.
+
+Design choices:
+- **Unified entry point:** One surface subcommand, mode-specific logic inside.
+- **Hook scripts call surface:** SessionStart/UserPromptSubmit/PreToolUse hooks invoke `engram surface --mode ...`.
+- **JSON tool input:** PreToolUse hook passes full tool call as JSON (tool name + argument struct).
+
+**Traces to:** REQ-14 (surface subcommand), REQ-9/10/11/12 (mode implementations)
+
+---
+
+## ARCH-13: Hook Script Integration
+
+**Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended. New PreToolUse hook added.
+
+Hook flow:
+- **SessionStart:** After build step, call `engram surface --mode session-start`. Stdout becomes system reminder.
+- **UserPromptSubmit:** After `engram correct`, also call `engram surface --mode prompt --message "$PROMPT"`. Concatenate both outputs to stdout.
+- **PreToolUse:** New hook script calls `engram surface --mode tool --tool-name <name> --tool-input <json>`. If output starts with `{"decision": "block"`, return block decision. Otherwise allow.
+
+Design choices:
+- **Extend, don't replace:** SessionStart and UserPromptSubmit keep their existing UC-3 behavior; surfacing is added.
+- **PreToolUse is new:** Requires hook registration in `hooks/hooks.json` + new shell script.
+- **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher, ToolEnforcer). Scripts just invoke and return output.
+
+**Traces to:** DES-8 (hook wiring)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -232,6 +366,11 @@ Design choices:
 | ARCH-6 | REQ-6, REQ-8, DES-3, DES-4 |
 | ARCH-7 | REQ-6 |
 | ARCH-8 | REQ-8, DES-4 |
+| ARCH-9 | REQ-9, REQ-10, REQ-11, REQ-12 |
+| ARCH-10 | REQ-11 |
+| ARCH-11 | REQ-12 |
+| ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11, REQ-12 |
+| ARCH-13 | DES-8 |
 
 ### L2 → ARCH
 
@@ -247,5 +386,15 @@ Design choices:
 | DES-1 | ARCH-5 |
 | DES-3 | ARCH-6 |
 | DES-4 | ARCH-6, ARCH-8 |
+| REQ-9 | ARCH-9, ARCH-12 |
+| REQ-10 | ARCH-9, ARCH-12 |
+| REQ-11 | ARCH-9, ARCH-10, ARCH-12 |
+| REQ-12 | ARCH-9, ARCH-11, ARCH-12 |
+| REQ-13 | (implemented in REQ-12 degradation) |
+| REQ-14 | ARCH-12 |
+| DES-5 | ARCH-9, ARCH-12 |
+| DES-6 | ARCH-9, ARCH-12 |
+| DES-7 | ARCH-11, ARCH-12 |
+| DES-8 | ARCH-13 |
 
 All L2 items have ARCH coverage.
