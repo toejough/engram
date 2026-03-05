@@ -6,85 +6,90 @@ System architecture for UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing 
 
 ## ARCH-1: Pipeline Architecture
 
-**Decision:** Linear pipeline of injected stages:
+**Decision:** Three-stage pipeline with fast-path bypass:
 
 ```go
 type Corrector struct {
-    Corpus   PatternMatcher  // deterministic: message → match or nil
-    Enricher Enricher        // LLM: message → EnrichedMemory (or degraded)
-    Writer   MemoryWriter    // file I/O: EnrichedMemory → file path
-    Renderer Renderer        // format: EnrichedMemory + path → system reminder text
+    Classifier Classifier    // fast-path check + LLM: message + context → ClassifiedMemory or nil
+    Writer     MemoryWriter  // file I/O: ClassifiedMemory → file path
+    Renderer   Renderer      // format: ClassifiedMemory + path → system reminder text
 }
 
-func (c *Corrector) Run(ctx context.Context, message string) (string, error) {
-    // 1. Corpus.Match(message): check patterns, return match or nil
-    // 2. If no match: return "" (empty stdout)
-    // 3. Enricher.Enrich(ctx, message, match): LLM call → EnrichedMemory
-    //    (falls back to degraded memory if no API key)
-    // 4. Writer.Write(memory): write TOML file, return file path
-    // 5. Renderer.Render(memory, path): build system reminder text
-    // 6. Return system reminder text
-}
-```
-
-Four stages, each independently testable via DI. The pipeline is the composition root's responsibility to wire.
-
-**Traces to:** REQ-1 (detection), REQ-2 (enrichment), REQ-3 (file writing), REQ-4 (feedback), REQ-6 (Go binary)
-
----
-
-## ARCH-2: Pattern Matching
-
-**Decision:** Compiled regex patterns, embedded in the binary:
-
-```go
-type PatternMatcher interface {
-    Match(message string) *PatternMatch
-}
-
-type PatternMatch struct {
-    Pattern    string // the regex that matched
-    Label      string // human-readable label (e.g., "direct-negation")
-    Confidence string // "A" for remember patterns, "B" for correction patterns
+func (c *Corrector) Run(ctx context.Context, message, transcriptPath string) (string, error) {
+    // 1. Classifier.Classify(ctx, message, transcriptPath): fast-path or LLM → ClassifiedMemory or nil
+    //    - Fast-path: "remember"/"always"/"never" → tier A, skip LLM classifier
+    //    - LLM: single call classifies (A/B/C/null) + enriches structured fields
+    //    - null tier → return "" (no signal)
+    // 2. Writer.Write(memory, dataDir): write TOML file, return file path
+    // 3. Renderer.Render(memory, path): build system reminder text with tier
+    // 4. Return system reminder text
 }
 ```
 
-The 40 patterns from REQ-1 are compiled at init time. `Match` returns the first match (sequential scan) or nil. Pattern order doesn't matter for correctness — any match triggers enrichment.
+Three stages, each independently testable via DI. The Classifier replaces the old Corpus+Enricher stages — classification and enrichment happen in a single LLM call.
 
-Confidence assignment per REQ-7: `\bremember\s+(that|to)` and `\bfrom\s+now\s+on\b` → "A", all others → "B".
-
-**Traces to:** REQ-1 (pattern matching), REQ-7 (confidence tiers)
+**Traces to:** REQ-1 (detection/classification), REQ-2 (unified LLM call), REQ-3 (file writing), REQ-4 (feedback), REQ-6 (Go binary)
 
 ---
 
-## ARCH-3: LLM Enrichment via Anthropic API
+## ARCH-2: Unified Classifier (Fast-Path + LLM)
 
-**Decision:** Direct HTTP client to `api.anthropic.com/v1/messages`:
+**Decision:** Two-stage detection: deterministic fast-path, then LLM classifier.
 
 ```go
-type Enricher interface {
-    Enrich(ctx context.Context, message string, match *PatternMatch) (*EnrichedMemory, error)
+type Classifier interface {
+    Classify(ctx context.Context, message, transcriptContext string) (*ClassifiedMemory, error)
 }
 
-type EnrichedMemory struct {
+type ClassifiedMemory struct {
+    Tier            string   // "A", "B", or "C"
     Title           string
     Content         string
     ObservationType string
     Concepts        []string
     Keywords        []string
     Principle       string
-    AntiPattern     string
+    AntiPattern     string   // tier-gated: required for A, optional for B, empty for C
     Rationale       string
-    FilenameSummary string // 3-5 words for slug
-    Confidence      string
+    FilenameSummary string
+    Confidence      string   // same as Tier
     CreatedAt       time.Time
     UpdatedAt       time.Time
 }
 ```
 
-Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001` with a system prompt instructing JSON output of the structured fields. OAuth token from `ENGRAM_API_TOKEN` env var, sent as `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`. The hook script reads the token from the Claude Code Keychain via `security find-generic-password`. Returns `ErrNoToken` if no token is configured; returns an error if the LLM response cannot be parsed.
+Implementation:
+1. **Fast-path check:** Case-insensitive check for keywords `remember`, `always`, `never` in the message. If found → tier A, proceed to enrichment LLM call (or inline the enrichment in the classifier).
+2. **LLM classifier:** For non-fast-path messages, a single API call (claude-haiku-4-5-20251001) receives the message + transcript context and returns JSON with `tier` (A/B/C/null) plus all structured fields.
+3. **Null → nil return:** If classifier returns null tier, return nil (no signal detected).
+4. **Anti-pattern gating:** Per REQ-7, `anti_pattern` field is populated only for tier A (always) and tier B (when generalizable, LLM decides). Tier C → empty string.
 
-**Traces to:** REQ-2 (LLM enrichment), REQ-7 (confidence from match)
+**Traces to:** REQ-1 (fast-path + classifier), REQ-2 (unified LLM call), REQ-7 (tier criteria + anti-pattern gating)
+
+---
+
+## ARCH-3: Transcript Context Reader
+
+**Decision:** Read recent transcript context from the session transcript file for the unified classifier.
+
+```go
+type TranscriptReader interface {
+    ReadRecent(transcriptPath string, maxTokens int) (string, error)
+}
+```
+
+Implementation:
+1. Open the file at `transcriptPath` (provided via hook JSON input).
+2. Read the file content.
+3. If content exceeds `maxTokens` (~2000), take the tail (most recent portion).
+4. Return the recent context string.
+5. If file is missing or unreadable → return empty string (non-fatal, context is advisory).
+
+The CLI layer reads `transcript_path` from the hook JSON stdin and passes it to the Corrector pipeline. The Classifier (ARCH-2) includes this context in its LLM prompt.
+
+**Authentication:** OAuth token from `ENGRAM_API_TOKEN` env var, sent as `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`. The hook script reads the token from the Claude Code Keychain via `security find-generic-password`. Returns `ErrNoToken` if no token is configured; returns an error if the LLM response cannot be parsed.
+
+**Traces to:** REQ-X (transcript context reading), REQ-2 (unified LLM call context)
 
 ---
 
@@ -110,19 +115,19 @@ Implementation:
 
 ## ARCH-5: System Reminder Renderer
 
-**Decision:** Format the system reminder text per DES-1:
+**Decision:** Format the system reminder text per DES-1, including tier:
 
 ```go
 type Renderer interface {
-    Render(memory *EnrichedMemory, filePath string) string
+    Render(memory *ClassifiedMemory, filePath string) string
 }
 ```
 
-Format (DES-1): `[engram] Memory captured.` + Created/Type/File
+Format (DES-1): `[engram] Memory captured (tier A).` + Created/Type/File
 
 Returns empty string if no memory was created (shouldn't happen if called after Writer).
 
-**Traces to:** REQ-4 (feedback), DES-1 (normal format)
+**Traces to:** REQ-4 (feedback with tier), DES-1 (format with tier)
 
 ---
 
@@ -141,15 +146,18 @@ func main() {
 // internal/cli/cli.go — composition root
 func Run(args []string) error {
     // Parse: engram correct --message <text> --data-dir <path>
+    // Read transcript_path from hook JSON stdin
     // Construct real implementations:
-    //   corpus := corpus.New()          // compiled patterns
-    //   enricher := enrich.New(apiKey)  // Anthropic client (or degraded)
-    //   writer := tomlwriter.New()      // file writer
-    //   renderer := render.New()        // reminder formatter
+    //   classifier := classify.New(apiKey, httpClient)  // fast-path + LLM classifier
+    //   reader := transcript.New()                       // transcript context reader
+    //   writer := tomlwriter.New()                       // file writer
+    //   renderer := render.New()                          // reminder formatter
+    // Read transcript context:
+    //   context := reader.ReadRecent(transcriptPath, 2000)
     // Wire pipeline:
-    //   corrector := correct.New(corpus, enricher, writer, renderer)
+    //   corrector := correct.New(classifier, writer, renderer)
     // Run:
-    //   output, err := corrector.Run(ctx, message)
+    //   output, err := corrector.Run(ctx, message, transcriptPath)
     //   fmt.Print(output)
 }
 ```
@@ -185,10 +193,10 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 
 | Interface | Responsibility | Real Implementation | Test Double |
 |-----------|---------------|-------------------|-------------|
-| PatternMatcher | Regex matching | Compiled patterns | Fake returning canned match |
-| Enricher | LLM API call | HTTP client to Anthropic | Fake returning canned EnrichedMemory |
+| Classifier | Fast-path + LLM classify+enrich | HTTP client to Anthropic | Fake returning canned ClassifiedMemory |
+| TranscriptReader | Read recent transcript context | File reader | Fake returning canned string |
 | MemoryWriter | File I/O | TOML file writer | In-memory recorder |
-| Renderer | Text formatting | Template renderer | Fake returning canned string |
+| Renderer | Text formatting with tier | Template renderer | Fake returning canned string |
 
 `internal/` packages (except `internal/cli/`) never import `os`, `net/http`, or any I/O package.
 
@@ -350,9 +358,9 @@ Four stages, each independently testable via DI. Reuses MemoryRetriever (ARCH-9)
 
 ---
 
-## ARCH-15: Transcript Extraction via LLM
+## ARCH-15: Transcript Extraction via LLM with Unified Tier Criteria
 
-**Decision:** Single LLM call to extract multiple learnings from a session transcript.
+**Decision:** Single LLM call to extract multiple learnings from a session transcript, classifying each using the same A/B/C tier criteria as the real-time classifier (ARCH-2).
 
 ```go
 type TranscriptExtractor interface {
@@ -360,13 +368,14 @@ type TranscriptExtractor interface {
 }
 
 type CandidateLearning struct {
+    Tier            string   // "A", "B", or "C"
     Title           string
     Content         string
     ObservationType string
     Concepts        []string
     Keywords        []string
     Principle       string
-    AntiPattern     string
+    AntiPattern     string   // tier-gated: required for A, optional for B, empty for C
     Rationale       string
     FilenameSummary string
 }
@@ -374,13 +383,15 @@ type CandidateLearning struct {
 
 Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001`. The system prompt:
 1. Instructs the LLM to review the transcript and extract actionable learnings.
-2. Defines the JSON array output format (each element has all CandidateLearning fields).
-3. Embeds the quality gate (REQ-16): explicitly reject mechanical patterns, vague generalizations, and overly narrow observations.
-4. Instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
+2. Defines the JSON array output format (each element has all CandidateLearning fields, including `tier`).
+3. Includes the same A/B/C tier definitions as the real-time classifier: A = explicit instruction, B = teachable correction, C = contextual fact.
+4. Embeds anti-pattern gating: A → always generate anti_pattern, B → when generalizable, C → never.
+5. Embeds the quality gate (REQ-16): explicitly reject mechanical patterns, vague generalizations, and overly narrow observations.
+6. Instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
 
 Returns `ErrNoToken` if no token is configured (REQ-18 — fail loud). Returns an error if the LLM response cannot be parsed. Returns empty slice if LLM finds no learnings worth extracting.
 
-**Traces to:** REQ-15 (LLM extraction), REQ-16 (quality gate), REQ-18 (fail loud)
+**Traces to:** REQ-15 (LLM extraction with tier classification), REQ-16 (quality gate), REQ-7 (unified tier criteria + anti-pattern gating), REQ-18 (fail loud)
 
 ---
 
@@ -462,8 +473,8 @@ Design choices:
 | ARCH | L2 items |
 |------|----------|
 | ARCH-1 | REQ-1, REQ-2, REQ-3, REQ-4, REQ-6 |
-| ARCH-2 | REQ-1, REQ-7 |
-| ARCH-3 | REQ-2, REQ-7 |
+| ARCH-2 | REQ-1, REQ-2, REQ-7 |
+| ARCH-3 | REQ-X, REQ-2 |
 | ARCH-4 | REQ-3 |
 | ARCH-5 | REQ-4, DES-1 |
 | ARCH-6 | REQ-6, REQ-8, DES-3, DES-4 |
@@ -474,7 +485,7 @@ Design choices:
 | ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11 |
 | ARCH-13 | DES-8 |
 | ARCH-14 | REQ-15, REQ-17, REQ-3, REQ-20 |
-| ARCH-15 | REQ-15, REQ-16, REQ-18 |
+| ARCH-15 | REQ-15, REQ-16, REQ-7, REQ-18 |
 | ARCH-16 | REQ-17, REQ-19 |
 | ARCH-17 | REQ-20, DES-10 |
 | ARCH-18 | DES-9, REQ-19 |
@@ -484,11 +495,12 @@ Design choices:
 | L2 item | ARCH coverage |
 |---------|--------------|
 | REQ-1 | ARCH-1, ARCH-2 |
-| REQ-2 | ARCH-1, ARCH-3 |
+| REQ-2 | ARCH-1, ARCH-2, ARCH-3 |
+| REQ-X | ARCH-3 |
 | REQ-3 | ARCH-1, ARCH-4, ARCH-14 |
 | REQ-4 | ARCH-1, ARCH-5 |
 | REQ-6 | ARCH-1, ARCH-6, ARCH-7 |
-| REQ-7 | ARCH-2, ARCH-3 |
+| REQ-7 | ARCH-2, ARCH-15 |
 | REQ-8 | ARCH-6, ARCH-8 |
 | DES-1 | ARCH-5 |
 | DES-3 | ARCH-6 |

@@ -105,8 +105,7 @@ name = "Remember & Correct Architecture"
 parents = ["L2A"]
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8"]
 status = "complete"
-dirty = { source = "L2A", reason = "Issue #35: REQ-1/REQ-2 rewritten — corpus replaced with fast-path keywords + unified LLM classifier. ARCH-1/ARCH-2 (pipeline, pattern matching) need revision." }
-history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation). Issue #24: ARCH-2 count updated 15→40."
+history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation). Issue #24: ARCH-2 count updated 15→40. Issue #35: ARCH-1 rewritten (3-stage pipeline: Classifier→Writer→Renderer). ARCH-2 rewritten (fast-path keywords + unified LLM classifier). ARCH-3 rewritten (transcript context reader). ARCH-5 updated (tier in feedback). ARCH-6/7 updated (new pipeline wiring, DI table)."
 
 [tree.L3B]
 layer = "L3"
@@ -122,8 +121,7 @@ name = "Session Learning Architecture"
 parents = ["L2C"]
 items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18"]
 status = "complete"
-dirty = { source = "L2C", reason = "Issue #35: ARCH-15 (transcript extraction) now classifies using A/B/C tiers + anti-pattern gating (not just tier C)." }
-history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter)."
+history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter). Issue #35: ARCH-15 updated — extraction classifies with A/B/C tiers, anti-pattern gating, traces to REQ-7."
 
 # Tree nodes — L4
 
@@ -264,7 +262,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L2C"
+node = "L4A"
 mode = "in_progress"
-next_action = "L2A complete (corpus → unified classifier, new REQ-X for transcript, tier-aware feedback/anti-patterns). L2C dirty — revise REQ-15 (A/B/C tier classification), DES-10 (tier breakdown feedback)."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+next_action = "L3A/L3C complete. L4A dirty — revise test specs for new classifier pipeline (T-1..T-7 for corpus→classifier, T-13 renderer tier, T-15/16 pipeline + CLI). Then L4C dirty for extraction tier tests."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
