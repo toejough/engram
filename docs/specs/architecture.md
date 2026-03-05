@@ -49,9 +49,9 @@ type PatternMatch struct {
 }
 ```
 
-The 15 patterns from REQ-1 are compiled at init time. `Match` returns the first match (sequential scan) or nil. Pattern order doesn't matter for correctness — any match triggers enrichment.
+The 40 patterns from REQ-1 are compiled at init time. `Match` returns the first match (sequential scan) or nil. Pattern order doesn't matter for correctness — any match triggers enrichment.
 
-Confidence assignment per REQ-7: `\bremember\s+(that|to)` → "A", all others → "B".
+Confidence assignment per REQ-7: `\bremember\s+(that|to)` and `\bfrom\s+now\s+on\b` → "A", all others → "B".
 
 **Traces to:** REQ-1 (pattern matching), REQ-7 (confidence tiers)
 
