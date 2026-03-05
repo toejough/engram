@@ -68,8 +68,8 @@ history = "Activated from deferred list (issue #18). Rewritten with two-pass Pre
 layer = "L1"
 name = "Session Learning"
 items = ["UC-1"]
-status = "in_progress"
-history = "Activated from deferred list (issue #18). Rewritten: flat TOML files (not SQLite), PreCompact + SessionEnd triggers (not just Stop), confidence tier C, quality gate, dedup against UC-3, no graceful degradation (issue #32 filed for UC-3 alignment)."
+status = "complete"
+history = "Activated from deferred list (issue #18). Rewritten: flat TOML files (not SQLite), PreCompact + SessionEnd triggers (not just Stop), confidence tier C, quality gate, dedup against UC-3, no graceful degradation (issue #32 filed for UC-3 alignment). All L5 nodes complete, all tests passing, lint clean."
 
 # Tree nodes — L2
 
@@ -253,6 +253,6 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 
 [cursor]
 node = "L1C"
-mode = "work"
-next_action = "UC-1 Session Learning tree complete — all L5 nodes (L5J/K/L) done. Mark L1C complete."
+mode = "complete"
+next_action = "Tree complete. All 3 UCs (UC-3, UC-2, UC-1) implemented. Usability gate passed. All tests green, lint clean."
 context_files = ["docs/specs/state.toml"]
