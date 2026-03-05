@@ -162,6 +162,7 @@ type anthropicResponse struct {
 //
 //nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type llmCandidateLearningJSON struct {
+	Tier            string   `json:"tier"`
 	Title           string   `json:"title"`
 	Content         string   `json:"content"`
 	ObservationType string   `json:"observation_type"`
@@ -203,6 +204,7 @@ func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
 
 	for _, item := range llmItems {
 		learnings = append(learnings, memory.CandidateLearning{
+			Tier:            item.Tier,
 			Title:           item.Title,
 			Content:         item.Content,
 			ObservationType: item.ObservationType,
@@ -261,16 +263,27 @@ EXTRACT only high-signal learnings such as:
 - working solutions to previously unsolved problems
 - implicit preferences the user expressed through their corrections
 
+TIER CLASSIFICATION — classify each learning into exactly one tier:
+- A = explicit instruction: the user directly told the AI to do or not do something (e.g., "always use targ", "never run go test directly")
+- B = teachable correction: the user corrected the AI's behavior in a way that generalizes (e.g., fixing an approach the AI should learn from)
+- C = contextual fact: a discovered constraint, architectural decision, or environmental fact (e.g., "this project uses SQLite")
+
+ANTI-PATTERN GATING — populate the anti_pattern field based on tier:
+- Tier A: ALWAYS generate anti_pattern (the inverse of the explicit instruction)
+- Tier B: generate anti_pattern ONLY when the correction is generalizable (use your judgment)
+- Tier C: ALWAYS leave anti_pattern as empty string ""
+
 Return a JSON array of objects, each with these exact fields:
 [
   {
+    "tier": "A, B, or C",
     "title": "Short title (5-10 words) summarizing the learning",
     "content": "The full learning verbatim or paraphrased from transcript",
     "observation_type": "One of: correction, architectural, constraint, solution, preference",
     "concepts": ["key", "concepts"],
     "keywords": ["searchable", "keywords"],
     "principle": "The positive rule or principle to follow",
-    "anti_pattern": "The negative pattern or mistake to avoid",
+    "anti_pattern": "The negative pattern or mistake to avoid (tier-gated, see rules above)",
     "rationale": "Why this principle matters",
     "filename_summary": "three to five words"
   }
