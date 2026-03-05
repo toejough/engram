@@ -9,27 +9,47 @@ import (
 	"engram/internal/render"
 )
 
-// T-13: Normal memory produces DES-1 format.
-func TestT13_NormalMemoryProducesDES1Format(t *testing.T) {
+// T-13: Memory produces DES-1 format with tier.
+func TestT13_MemoryProducesDES1FormatWithTier(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	renderer := render.New()
-	mem := &memory.Enriched{
+	classified := &memory.ClassifiedMemory{
+		Tier:            "A",
 		Title:           "Use targ not go test",
 		ObservationType: "reminder",
 	}
 	filePath := "memories/use-targ-not-go-test.toml"
 
-	result := renderer.Render(mem, filePath)
+	result := renderer.Render(classified, filePath)
 
 	expected := "<system-reminder source=\"engram\">\n" +
-		"[engram] Memory captured.\n" +
+		"[engram] Memory captured (tier A).\n" +
 		"  Created: \"Use targ not go test\"\n" +
 		"  Type: reminder\n" +
 		"  File: memories/use-targ-not-go-test.toml\n" +
 		"</system-reminder>\n"
 
 	g.Expect(result).To(Equal(expected))
+}
+
+// TestT13b_TierBOutput verifies tier B format.
+func TestT13b_TierBOutput(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	renderer := render.New()
+	classified := &memory.ClassifiedMemory{
+		Tier:            "B",
+		Title:           "Check tests before commit",
+		ObservationType: "correction",
+	}
+
+	result := renderer.Render(classified, "memories/check-tests.toml")
+
+	g.Expect(result).To(ContainSubstring("(tier B)"))
+	g.Expect(result).To(ContainSubstring("Check tests before commit"))
 }

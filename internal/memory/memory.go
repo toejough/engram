@@ -18,33 +18,10 @@ type CandidateLearning struct {
 	FilenameSummary string
 }
 
-// Enriched holds all structured fields of an enriched memory.
-type Enriched struct {
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string
-	Rationale       string
-	FilenameSummary string
-	Confidence      string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-}
-
-// PatternMatch holds the result of pattern matching against a user message.
-type PatternMatch struct {
-	Pattern    string
-	Label      string
-	Confidence string // "A" for remember patterns, "B" for correction patterns
-}
-
 // ClassifiedMemory holds the output of the unified classifier (ARCH-2).
 // Combines classification (tier) and enrichment (structured fields) in one step.
 type ClassifiedMemory struct {
-	Tier            string   // "A", "B", or "C"
+	Tier            string // "A", "B", or "C"
 	Title           string
 	Content         string
 	ObservationType string
@@ -74,6 +51,29 @@ func (cm *ClassifiedMemory) ToEnriched() *Enriched {
 		CreatedAt:       cm.CreatedAt,
 		UpdatedAt:       cm.UpdatedAt,
 	}
+}
+
+// Enriched holds all structured fields of an enriched memory.
+type Enriched struct {
+	Title           string
+	Content         string
+	ObservationType string
+	Concepts        []string
+	Keywords        []string
+	Principle       string
+	AntiPattern     string
+	Rationale       string
+	FilenameSummary string
+	Confidence      string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+// PatternMatch holds the result of pattern matching against a user message.
+type PatternMatch struct {
+	Pattern    string
+	Label      string
+	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
 
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
