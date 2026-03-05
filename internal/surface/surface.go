@@ -215,8 +215,8 @@ const (
 
 // matchToolMemories returns memories with non-empty anti_pattern that have at least
 // one keyword matching in toolName or toolInput (ARCH-10).
-func matchToolMemories(toolName, toolInput string, memories []*memory.Stored) []*memory.Stored {
-	lowerInput := strings.ToLower(toolName + " " + toolInput)
+func matchToolMemories(_, toolInput string, memories []*memory.Stored) []*memory.Stored {
+	lowerInput := strings.ToLower(toolInput)
 
 	result := make([]*memory.Stored, 0)
 

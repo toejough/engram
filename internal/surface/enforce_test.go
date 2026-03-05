@@ -280,6 +280,86 @@ func TestT39_LLMTimeoutGracefulDegradation(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("[engram] Warning: enforcement skipped"))
 }
 
+// TestToolInputKeywordStillMatches verifies that keywords matching in the
+// tool input continue to trigger enforcement even after removing tool-name matching.
+func TestToolInputKeywordStillMatches(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Prefer Fish",
+			FilePath:    "prefer-fish.toml",
+			AntiPattern: "writing bash scripts",
+			Keywords:    []string{"bash"},
+			Principle:   "use fish instead of bash",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	enforcer := &fakeEnforcer{violated: true}
+	s := surface.New(retriever, enforcer, nil)
+
+	var buf bytes.Buffer
+
+	// Keyword "bash" appears in tool input "cat script.bash".
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `cat script.bash`,
+		Token:     "test-token",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(enforcer.called).To(BeTrue())
+	g.Expect(buf.String()).To(ContainSubstring(`"decision": "block"`))
+}
+
+// TestToolNameOnlyKeywordDoesNotMatch verifies that keywords matching only the
+// tool name (not toolInput) do not trigger enforcement. Tool-level blocking
+// should be done via Claude Code config, not memory keywords.
+func TestToolNameOnlyKeywordDoesNotMatch(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Prefer Fish",
+			FilePath:    "prefer-fish.toml",
+			AntiPattern: "writing bash scripts",
+			Keywords:    []string{"bash"},
+			Principle:   "use fish instead of bash",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	enforcer := &fakeEnforcer{violated: true}
+	s := surface.New(retriever, enforcer, nil)
+
+	var buf bytes.Buffer
+
+	// Keyword "bash" matches tool name "Bash" but NOT the tool input.
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `ls -la /tmp`,
+		Token:     "test-token",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(enforcer.called).To(BeFalse())
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
 // fakeEnforcer is a test double for surface.ToolEnforcer.
 type fakeEnforcer struct {
 	violated bool
