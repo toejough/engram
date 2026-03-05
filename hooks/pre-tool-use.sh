@@ -30,15 +30,12 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
 
-# Read user prompt from stdin JSON (Claude Code passes {"prompt": "..."} on stdin)
-USER_MESSAGE="$(jq -r '.prompt // empty')"
+# Read tool name and input from stdin JSON
+STDIN_JSON="$(cat)"
+TOOL_NAME="$(echo "$STDIN_JSON" | jq -r '.tool_name // empty')"
+TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 
-# UC-3: Check for inline correction
-if [[ -n "$USER_MESSAGE" ]]; then
-    "$ENGRAM_BIN" correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
-fi
-
-# UC-2: Surface relevant memories
-if [[ -n "$USER_MESSAGE" ]]; then
-    "$ENGRAM_BIN" surface --mode prompt --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+# UC-2: Surface relevant memories before tool use
+if [[ -n "$TOOL_NAME" ]]; then
+    "$ENGRAM_BIN" surface --mode tool --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" --data-dir "$ENGRAM_DATA"
 fi

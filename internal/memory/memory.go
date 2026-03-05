@@ -25,3 +25,15 @@ type PatternMatch struct {
 	Label      string
 	Confidence string // "A" for remember patterns, "B" for correction patterns
 }
+
+// Stored represents a memory read back from a TOML file on disk (ARCH-9).
+type Stored struct {
+	Title       string
+	Content     string
+	Concepts    []string
+	Keywords    []string
+	AntiPattern string
+	Principle   string
+	UpdatedAt   time.Time
+	FilePath    string
+}

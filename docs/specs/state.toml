@@ -57,7 +57,7 @@ gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all othe
 layer = "L1"
 name = "Hook-Time Surfacing & Enforcement"
 items = ["UC-2"]
-status = "in_progress"
+status = "complete"
 history = "Activated from deferred list (issue #18). Rewritten with two-pass PreToolUse enforcement (keyword pre-filter + LLM judgment), plus passive SessionStart/UserPromptSubmit surfacing."
 
 # Tree nodes — L2
@@ -75,7 +75,7 @@ layer = "L2"
 name = "Hook-Time Surfacing & Enforcement Requirements"
 parents = ["L1B"]
 items = ["REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
-status = "in_progress"
+status = "complete"
 history = "6 REQs + 4 DES items derived from UC-2. SessionStart surfacing (REQ-9/DES-5), UserPromptSubmit surfacing (REQ-10/DES-6), PreToolUse enforcement two-pass (REQ-11/REQ-12/DES-7), graceful degradation (REQ-13), CLI surface subcommand (REQ-14), hook wiring (DES-8)."
 
 # Tree nodes — L3
@@ -93,7 +93,7 @@ layer = "L3"
 name = "Hook-Time Surfacing & Enforcement Architecture"
 parents = ["L2B"]
 items = ["ARCH-9", "ARCH-10", "ARCH-11", "ARCH-12", "ARCH-13"]
-status = "in_progress"
+status = "complete"
 history = "5 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), LLM judgment (ARCH-11), surface subcommand routing (ARCH-12), hook script wiring (ARCH-13)."
 
 # Tree nodes — L4
@@ -111,7 +111,7 @@ layer = "L4"
 name = "Hook-Time Surfacing & Enforcement Tests"
 parents = ["L3B"]
 items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
-status = "in_progress"
+status = "complete"
 history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), LLM judgment (T-36/37/38/39), surface routing (T-40/41/42), hook scripts (T-43/44/45/46)."
 
 # Tree nodes — L5
@@ -156,10 +156,44 @@ items = ["T-20", "T-21", "T-22", "T-23"]
 status = "complete"
 history = "Issue #22: SessionStart build hook, plugin.json update, cross-platform token, gitignore. All 4 tests passing."
 
+# Tree nodes — L5 (UC-2)
+
+[tree.L5F]
+layer = "L5"
+name = "Memory Retrieval"
+parents = ["L4B"]
+items = ["T-24", "T-25", "T-26"]
+status = "complete"
+history = "T-24/25/26 passing. Memory retrieval from TOML files with DI."
+
+[tree.L5G]
+layer = "L5"
+name = "SessionStart Surfacing"
+parents = ["L5F"]
+items = ["T-27", "T-28", "T-29", "T-40", "T-43"]
+status = "complete"
+history = "T-27/28/29, T-40, T-43 passing. SessionStart surfacing, DES-5 format, CLI routing, hook script."
+
+[tree.L5H]
+layer = "L5"
+name = "Keyword Surfacing + Pre-Filter"
+parents = ["L5F"]
+items = ["T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-41", "T-44"]
+status = "complete"
+history = "T-30/31/32, T-33/34/35, T-41, T-44 passing. Keyword surfacing + pre-filter, CLI routing, hook extension."
+
+[tree.L5I]
+layer = "L5"
+name = "PreToolUse Enforcement"
+parents = ["L5H"]
+items = ["T-36", "T-37", "T-38", "T-39", "T-42", "T-45", "T-46"]
+status = "complete"
+history = "T-36/37/38/39, T-42, T-45/46 passing. LLM judgment, tool mode routing, hook scripts."
+
 # Cursor
 
 [cursor]
-node = "L4B"
-mode = "in_progress"
-next_action = "L4B complete. Descend to L5 — implement tests via TDD. REGROUP for exercisable vertical slices."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
+node = "L1B"
+mode = "complete"
+next_action = "UC-2 implementation complete. All L5 slices passing."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]

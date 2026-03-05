@@ -12,9 +12,12 @@ import (
 
 	"engram/internal/corpus"
 	"engram/internal/correct"
+	"engram/internal/enforce"
 	"engram/internal/enrich"
 	"engram/internal/memory"
 	"engram/internal/render"
+	"engram/internal/retrieve"
+	"engram/internal/surface"
 	"engram/internal/tomlwriter"
 )
 
@@ -31,6 +34,8 @@ func Run(args []string, stdout io.Writer) error {
 	switch cmd {
 	case "correct":
 		return runCorrect(subArgs, stdout)
+	case "surface":
+		return runSurface(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -44,8 +49,9 @@ const (
 // unexported variables.
 var (
 	errCorrectMissingFlags = errors.New("correct: --message and --data-dir required")
+	errSurfaceMissingFlags = errors.New("surface: --mode and --data-dir required")
 	errUnknownCommand      = errors.New("unknown command")
-	errUsage               = errors.New("usage: engram correct [flags]")
+	errUsage               = errors.New("usage: engram <correct|surface> [flags]")
 )
 
 // corpusAdapter adapts *corpus.Corpus to satisfy correct.PatternMatcher.
@@ -101,4 +107,40 @@ func runCorrect(args []string, stdout io.Writer) error {
 	}
 
 	return nil
+}
+
+func runSurface(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	mode := fs.String("mode", "", "surface mode: session-start, prompt, tool")
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	message := fs.String("message", "", "user message (prompt mode)")
+	toolName := fs.String("tool-name", "", "tool name (tool mode)")
+	toolInput := fs.String("tool-input", "", "tool input JSON (tool mode)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("surface: %w", parseErr)
+	}
+
+	if *mode == "" || *dataDir == "" {
+		return errSurfaceMissingFlags
+	}
+
+	token := os.Getenv("ENGRAM_API_TOKEN")
+	retriever := retrieve.New()
+	enforcer := enforce.New(&http.Client{})
+
+	surfacer := surface.New(retriever, enforcer, os.Stderr)
+	ctx := context.Background()
+
+	return surfacer.Run(ctx, stdout, surface.Options{
+		Mode:      *mode,
+		DataDir:   *dataDir,
+		Message:   *message,
+		ToolName:  *toolName,
+		ToolInput: *toolInput,
+		Token:     token,
+	})
 }

@@ -131,6 +131,107 @@ func TestT23_BinDirInGitignore(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("bin/"))
 }
 
+// TestT43_SessionStartHookSurfaces verifies hooks/session-start.sh calls
+// engram surface with --mode session-start (T-43).
+func TestT43_SessionStartHookSurfaces(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--mode session-start"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+}
+
+// TestT44_UserPromptSubmitHookSurfaces verifies hooks/user-prompt-submit.sh
+// calls both engram correct and engram surface --mode prompt (T-44).
+func TestT44_UserPromptSubmitHookSurfaces(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	g.Expect(script).To(ContainSubstring("correct"))
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--mode prompt"))
+}
+
+// TestT45_HooksJSONHasPreToolUse verifies hooks/hooks.json contains a
+// PreToolUse hook entry pointing to pre-tool-use.sh (T-45).
+func TestT45_HooksJSONHasPreToolUse(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+
+	content, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	hooksJSON := string(content)
+
+	g.Expect(hooksJSON).To(ContainSubstring("PreToolUse"))
+	g.Expect(hooksJSON).To(ContainSubstring("pre-tool-use.sh"))
+}
+
+// TestT46_PreToolUseHookReadsSdin verifies hooks/pre-tool-use.sh reads stdin
+// JSON and calls engram surface --mode tool (T-46).
+func TestT46_PreToolUseHookSurfaces(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	g.Expect(script).To(ContainSubstring("jq"))
+	g.Expect(script).To(ContainSubstring(".tool_name"))
+	g.Expect(script).To(ContainSubstring(".tool_input"))
+	g.Expect(script).To(ContainSubstring("surface"))
+	g.Expect(script).To(ContainSubstring("--mode tool"))
+	g.Expect(script).To(ContainSubstring("--tool-name"))
+	g.Expect(script).To(ContainSubstring("--tool-input"))
+}
+
 // repoRoot returns the engram repository root by walking up from the test file.
 func repoRoot(t *testing.T) string {
 	t.Helper()
