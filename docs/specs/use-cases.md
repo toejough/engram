@@ -42,7 +42,7 @@ updated_at = "2026-03-03T18:00:00Z"
 
 **Starting state:** The memory store contains TOML files written by UC-3. A hook fires (SessionStart, UserPromptSubmit, or PreToolUse).
 
-**End state:** Relevant memories are surfaced as system reminders (SessionStart, UserPromptSubmit), or a tool call is blocked with a corrective message when it violates a memory's anti-pattern (PreToolUse).
+**End state:** Relevant memories are surfaced as system reminders at all three hook points (SessionStart, UserPromptSubmit, PreToolUse). The agent uses these advisories with full session context to exercise judgment.
 
 **Actor:** System (hook scripts invoke Go binary for retrieval and enforcement).
 
@@ -52,12 +52,11 @@ updated_at = "2026-03-03T18:00:00Z"
 
 - **UserPromptSubmit — passive surfacing:** Keyword/concept match the user's message against memory `keywords` and `concepts` fields. Surface matching memories as a system reminder alongside the existing UC-3 correction detection. No blocking — informational only. The reminder lists each matched memory's title, file path, and which keywords matched.
 
-- **PreToolUse — two-pass enforcement:**
+- **PreToolUse — advisory surfacing:**
   1. **Keyword pre-filter (fast, no LLM):** Scan memory TOML files. For each memory with an `anti_pattern` field, check if any of its `keywords` appear in the tool name or tool input. Most tool calls won't match → zero overhead.
-  2. **LLM judgment (haiku, candidates only):** For memories that pass the keyword pre-filter, make a single LLM call: "Given this tool call (tool name, arguments) and this memory (principle, anti_pattern), is the anti-pattern being violated?" The LLM can distinguish context — e.g., `/commit` skill calling `git commit` is fine, agent hand-rolling `git commit` is a violation.
-  3. **Decision:** If the LLM says violated → return `{"decision": "block", "reason": "<principle from memory>"}` including the memory title and file path so the user can review or edit the rule. Otherwise → allow silently.
+  2. **Advisory output:** For memories that pass the keyword pre-filter, emit a `<system-reminder>` listing each matched memory's title, principle, and file path. No blocking, no LLM call. Claude exercises judgment with full session context — better accuracy than haiku judging in isolation.
 
-- **Graceful degradation with notification:** If no API token is configured or the LLM call times out, allow the tool call but emit a stderr warning: `[engram] Warning: enforcement skipped (no token / timeout). Tool call allowed.` Never block when we can't judge.
+- **No graceful degradation needed:** No LLM calls in the PreToolUse path means no API token requirement and no timeout failure mode.
 
 - **Pure Go, no CGO:** Same constraint as UC-3. Keyword matching is string operations on TOML files.
 

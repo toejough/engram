@@ -20,7 +20,7 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram", "correct"}, &stdout, &stderr, strings.NewReader(""), nil)
+	err := cli.Run([]string{"engram", "correct"}, &stdout, &stderr, strings.NewReader(""))
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -35,7 +35,7 @@ func TestRun_NoArgs(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram"}, &stdout, &stderr, strings.NewReader(""), nil)
+	err := cli.Run([]string{"engram"}, &stdout, &stderr, strings.NewReader(""))
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -50,7 +50,7 @@ func TestRun_UnknownCommand(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram", "bogus"}, &stdout, &stderr, strings.NewReader(""), nil)
+	err := cli.Run([]string{"engram", "bogus"}, &stdout, &stderr, strings.NewReader(""))
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -73,7 +73,7 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 		"engram", "correct",
 		"--message", "remember to use targ",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -95,7 +95,7 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 		"engram", "correct",
 		"--message", "hello world",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(stdout.String()).To(BeEmpty())
@@ -139,7 +139,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		"engram", "surface",
 		"--mode", "session-start",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -187,7 +187,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		"--mode", "prompt",
 		"--message", "I want to commit this",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -201,7 +201,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	g.Expect(output).To(ContainSubstring("commit"))
 }
 
-// T-42: Mode tool routes to enforcement pipeline
+// T-42: Mode tool routes to advisory surfacing (not blocking enforcement)
 func TestT42_SurfaceToolRouting(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
 	g := NewGomegaWithT(t)
@@ -238,10 +238,12 @@ updated_at = "2025-01-01T00:00:00Z"
 		"--tool-name", "Bash",
 		"--tool-input", `{"command": "git commit -m fix"}`,
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(BeEmpty())
+	// Tool mode should emit advisory (now non-empty).
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
 }
 
 // T-61: RenderLearnResult with learnings emits DES-10 format with file list.
@@ -283,7 +285,7 @@ func TestT62_LearnWithoutTokenEmitsErrorToStderr(t *testing.T) {
 	err := cli.Run([]string{
 		"engram", "learn",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader("some transcript"), nil)
+	}, &stdout, &stderr, strings.NewReader("some transcript"))
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stderr.String()).To(ContainSubstring("session learning skipped"))
@@ -300,7 +302,7 @@ func TestT62b_LearnMissingDataDir(t *testing.T) {
 
 	err := cli.Run([]string{
 		"engram", "learn",
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 
 	g.Expect(err).To(HaveOccurred())
 
@@ -320,7 +322,7 @@ func TestT62c_LearnInvalidFlag(t *testing.T) {
 	err := cli.Run([]string{
 		"engram", "learn",
 		"--unknown-flag",
-	}, &stdout, &stderr, strings.NewReader(""), nil)
+	}, &stdout, &stderr, strings.NewReader(""))
 
 	g.Expect(err).To(HaveOccurred())
 }
@@ -339,7 +341,7 @@ func TestT62d_LearnWithTokenAndAPIFailureReturnsError(t *testing.T) {
 	err := cli.Run([]string{
 		"engram", "learn",
 		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader("transcript content"), nil)
+	}, &stdout, &stderr, strings.NewReader("transcript content"))
 
 	// The extractor will fail (no real API), so we expect an error.
 	g.Expect(err).To(HaveOccurred())

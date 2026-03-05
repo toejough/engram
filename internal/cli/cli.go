@@ -14,7 +14,6 @@ import (
 	"engram/internal/corpus"
 	"engram/internal/correct"
 	"engram/internal/dedup"
-	"engram/internal/enforce"
 	"engram/internal/enrich"
 	"engram/internal/extract"
 	"engram/internal/learn"
@@ -54,7 +53,6 @@ func Run(
 	args []string,
 	stdout, stderr io.Writer,
 	stdin io.Reader,
-	blockStore surface.BlockHashStore,
 ) error {
 	if len(args) < minArgs {
 		return errUsage
@@ -67,7 +65,7 @@ func Run(
 	case "correct":
 		return runCorrect(subArgs, stdout)
 	case "surface":
-		return runSurface(subArgs, stdout, blockStore)
+		return runSurface(subArgs, stdout)
 	case "learn":
 		return runLearn(subArgs, stderr, stdin)
 	default:
@@ -194,7 +192,7 @@ func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 	return nil
 }
 
-func runSurface(args []string, stdout io.Writer, blockStore surface.BlockHashStore) error {
+func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -213,10 +211,8 @@ func runSurface(args []string, stdout io.Writer, blockStore surface.BlockHashSto
 		return errSurfaceMissingFlags
 	}
 
-	token := os.Getenv("ENGRAM_API_TOKEN")
 	retriever := retrieve.New()
-	enforcer := enforce.New(&http.Client{})
-	surfacer := surface.New(retriever, enforcer, blockStore, os.Stderr)
+	surfacer := surface.New(retriever)
 	ctx := context.Background()
 
 	return surfacer.Run(ctx, stdout, surface.Options{
@@ -225,6 +221,5 @@ func runSurface(args []string, stdout io.Writer, blockStore surface.BlockHashSto
 		Message:   *message,
 		ToolName:  *toolName,
 		ToolInput: *toolInput,
-		Token:     token,
 	})
 }

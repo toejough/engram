@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// ARCH-6: Exit 0 always — hook failures must not break Claude Code.
-	err := cli.Run(os.Args, os.Stdout, os.Stderr, os.Stdin, newHashStore(os.Getenv("ENGRAM_DATA")))
+	err := cli.Run(os.Args, os.Stdout, os.Stderr, os.Stdin)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}

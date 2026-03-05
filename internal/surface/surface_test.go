@@ -30,7 +30,7 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -80,7 +80,7 @@ func TestT28_SessionStartSurfacesAll(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -109,7 +109,7 @@ func TestT29_SessionStartNoMemories(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -142,7 +142,7 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -180,7 +180,7 @@ func TestT31_NoKeywordMatchProducesEmpty(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -209,7 +209,7 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	// Case-insensitive: "COMMIT" should match keyword "commit".
 	var buf1 bytes.Buffer
@@ -236,6 +236,94 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	g.Expect(buf2.String()).To(BeEmpty())
 }
 
+// T-42: Tool mode surfaces matching memories as advisory
+func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "always use /commit for commits",
+		},
+		{
+			Title:       "Use targ test",
+			FilePath:    "use-targ.toml",
+			AntiPattern: "running go test directly",
+			Keywords:    []string{"test", "go"},
+			Principle:   "use targ test instead of go test",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	// Tool input contains keyword "commit" → both memories should not match
+	// (only "Use /commit" has keyword in input).
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `git commit -m 'fix'`,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	// Should emit system-reminder advisory format.
+	g.Expect(output).To(ContainSubstring("<system-reminder source=\"engram\">"))
+	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
+	g.Expect(output).To(ContainSubstring("Use /commit"))
+	g.Expect(output).To(ContainSubstring("always use /commit for commits"))
+	g.Expect(output).To(ContainSubstring("use-commit.toml"))
+	// "Use targ test" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
+	g.Expect(output).NotTo(ContainSubstring("Use targ test"))
+	g.Expect(output).To(ContainSubstring("</system-reminder>"))
+}
+
+// T-45: Tool mode with no matching memories produces empty output
+func TestT45_ToolModeNoMatchProducesEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit for commits",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	// Tool input contains no matching keywords.
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Read",
+		ToolInput: `/path/to/file.go`,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
 func TestUnknownModeReturnsError(t *testing.T) {
 	t.Parallel()
@@ -243,7 +331,7 @@ func TestUnknownModeReturnsError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	s := surface.New(retriever, nil, nil, nil)
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
