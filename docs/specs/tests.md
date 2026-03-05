@@ -8,7 +8,7 @@ Behavioral test list for UC-3 (Remember & Correct). BDD Given/When/Then format. 
 
 ### T-1: Correction pattern matches
 
-**Given** a message matching any of the 25 correction patterns,
+**Given** a message matching any of the 40 correction patterns,
 **When** Match is called,
 **Then** a PatternMatch is returned with the matched pattern's label.
 
