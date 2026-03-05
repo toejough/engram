@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3"]
+items = ["UC-3", "UC-2"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -47,6 +47,13 @@ items = ["UC-3"]
 status = "complete"
 history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. L5 implementation complete: all 19 tests passing, lint clean."
 gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
+
+[tree.L1B]
+layer = "L1"
+name = "Hook-Time Surfacing & Enforcement"
+items = ["UC-2"]
+status = "in_progress"
+history = "Activated from deferred list (issue #18). Rewritten with two-pass PreToolUse enforcement (keyword pre-filter + LLM judgment), plus passive SessionStart/UserPromptSubmit surfacing."
 
 # Tree nodes — L2
 
@@ -123,7 +130,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L1A"
-mode = "complete"
-next_action = "Issue #24 complete. All layers L1-L5 complete, 40 patterns, all tests passing, lint clean."
-context_files = ["docs/specs/state.toml"]
+node = "L1B"
+mode = "in_progress"
+next_action = "UC-2 activated. L1 REFACTOR phase — check UC-2/UC-3 consistency, then REGROUP L1."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
