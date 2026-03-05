@@ -131,8 +131,7 @@ name = "Remember & Correct Tests"
 parents = ["L3A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
 status = "complete"
-dirty = { source = "L3A", reason = "Issue #35: corpus replaced with unified LLM classifier. Tests for pattern matching (T-1+) and enrichment pipeline need revision for new classifier logic." }
-history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21). Issue #22: added T-20 (SessionStart hook), T-21 (plugin.json SessionStart), T-22 (cross-platform token), T-23 (bin/ gitignore). Issue #24: T-1 updated to reference 40 patterns."
+history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21). Issue #22: added T-20 (SessionStart hook), T-21 (plugin.json SessionStart), T-22 (cross-platform token), T-23 (bin/ gitignore). Issue #24: T-1 updated to reference 40 patterns. Issue #35: T-1..T-4 rewritten for unified LLM classifier (fast-path keywords, tier classification, anti-pattern gating). T-5..T-7 rewritten (transcript context reading). T-13 updated (tier in renderer feedback). T-15/16 updated (new 3-stage pipeline). DES-3 updated (transcript_path in hook). T-18 updated (transcript context reading verification)."
 
 [tree.L4B]
 layer = "L4"
@@ -148,8 +147,7 @@ name = "Session Learning Tests"
 parents = ["L3C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
 status = "complete"
-dirty = { source = "L3C", reason = "Issue #35: extraction tests now verify A/B/C tier classification and anti-pattern gating." }
-history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage."
+history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation."
 
 # Tree nodes — L5
 
@@ -262,7 +260,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L4A"
+node = "L5A"
 mode = "in_progress"
-next_action = "L3A/L3C complete. L4A dirty — revise test specs for new classifier pipeline (T-1..T-7 for corpus→classifier, T-13 renderer tier, T-15/16 pipeline + CLI). Then L4C dirty for extraction tier tests."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "L1-L4 spec complete (UC/REQ/ARCH/TEST updated for unified classifier). L5A/L5B/L5C/L5D/L5E marked dirty — implementation TDD cycle (RED: run tests, GREEN: write code, REFACTOR: clean up). Start with L5A (classifier implementation)."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]

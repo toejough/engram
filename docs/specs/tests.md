@@ -4,75 +4,79 @@ Behavioral test list for UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing
 
 ---
 
-## Pattern Matching (ARCH-2)
+## Unified Classifier (ARCH-2)
 
-### T-1: Correction pattern matches
+### T-1: Fast-path keywords trigger tier-A classification
 
-**Given** a message matching any of the 40 correction patterns,
-**When** Match is called,
-**Then** a PatternMatch is returned with the matched pattern's label.
+**Given** a message containing one of the three fast-path keywords (`remember`, `always`, `never`),
+**When** Classify is called with the message,
+**Then** a ClassifiedMemory is returned with Tier "A" and all structured fields populated.
 
-Property-based: generate messages containing each pattern. All must match.
+Fast-path check should be case-insensitive, whole-word matching.
+
+- Traces to: ARCH-2, REQ-1, REQ-7
+
+### T-2: Non-signal message returns nil
+
+**Given** a message that is casual conversation with no learning signal (e.g., "hold on", "try again"),
+**When** Classify is called and the LLM returns tier `null`,
+**Then** nil is returned and no memory is created.
+
+Uses fake LLM returning `{"tier": null}`.
 
 - Traces to: ARCH-2, REQ-1
 
-### T-2: Non-matching message returns nil
+### T-3: LLM classifier returns tier A (explicit instruction)
 
-**Given** a message containing no correction/remember patterns,
-**When** Match is called,
-**Then** nil is returned.
+**Given** a message with a learning signal (explicit instruction that isn't a fast-path keyword, e.g., "Use fish shell exclusively in this project"),
+**When** Classify is called,
+**Then** the LLM returns ClassifiedMemory with Tier "A" and anti_pattern is populated.
 
-Property-based: generate arbitrary strings that don't contain any pattern.
+Uses fake LLM returning tier A with anti-pattern.
 
-- Traces to: ARCH-2, REQ-1
+- Traces to: ARCH-2, REQ-2, REQ-7
 
-### T-3: Remember/standing-instruction patterns produce confidence A
+### T-4: LLM classifier returns tier B/C with tier-gated anti-pattern
 
-**Given** a message matching `\bremember\s+(that|to)` or `\bfrom\s+now\s+on\b`,
-**When** Match is called,
-**Then** PatternMatch.Confidence is "A".
+**Given** messages classifying as tier B (teachable correction) or tier C (contextual fact),
+**When** Classify is called,
+**Then** tier B generates anti_pattern when generalizable (LLM decides), tier C generates empty anti_pattern.
 
-- Traces to: ARCH-2, REQ-7
+Uses fake LLM returning appropriate tiers and anti-pattern values.
 
-### T-4: Correction patterns produce confidence B
-
-**Given** a message matching any correction pattern except "remember",
-**When** Match is called,
-**Then** PatternMatch.Confidence is "B".
-
-Property-based: generate messages for each non-remember pattern.
-
-- Traces to: ARCH-2, REQ-7
+- Traces to: ARCH-2, REQ-2, REQ-7
 
 ---
 
-## LLM Enrichment (ARCH-3)
+## Transcript Context Reading (ARCH-3)
 
-### T-5: Enrichment with token produces all structured fields
+### T-5: ReadRecent reads recent transcript portion (~2000 tokens)
 
-**Given** a message, pattern match, and a valid OAuth token,
-**When** Enrich is called,
-**Then** an EnrichedMemory is returned with all fields populated: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary, confidence, timestamps. The HTTP request uses `Authorization: Bearer` header (not `X-Api-Key`).
+**Given** a transcript file with 5000 tokens,
+**When** ReadRecent is called with maxTokens=2000,
+**Then** the last ~2000 tokens are returned (tail of the file).
 
-Uses fake HTTP transport returning canned JSON.
+Uses file I/O with DI injection for testability.
 
-- Traces to: ARCH-3, REQ-2
+- Traces to: ARCH-3, REQ-X
 
-### T-6: Enrichment without token returns error
+### T-6: ReadRecent with missing file returns empty string (non-fatal)
 
-**Given** a message and pattern match but no token,
-**When** Enrich is called,
-**Then** ErrNoToken is returned and no HTTP call is made.
+**Given** a transcript_path pointing to a non-existent file,
+**When** ReadRecent is called,
+**Then** an empty string is returned (non-fatal, context is advisory).
 
-- Traces to: ARCH-3, REQ-2
+- Traces to: ARCH-3, REQ-X
 
-### T-7: Invalid LLM response returns error
+### T-7: Classifier includes transcript context in LLM call
 
-**Given** a message and pattern match, and the LLM returns invalid JSON,
-**When** Enrich is called,
-**Then** an error is returned (not a degraded memory).
+**Given** a message and recent transcript context,
+**When** Classify is called,
+**Then** the LLM prompt includes both the message and the recent context, improving classification accuracy.
 
-- Traces to: ARCH-3, REQ-2
+Verifies that context is passed to the LLM call (fake HTTP transport or mock LLM).
+
+- Traces to: ARCH-2, ARCH-3, REQ-2, REQ-X
 
 ---
 
@@ -124,11 +128,11 @@ Property-based: generate filename summaries, verify slug format.
 
 ## System Reminder Renderer (ARCH-5)
 
-### T-13: Memory produces DES-1 format
+### T-13: Memory produces DES-1 format with tier
 
-**Given** an EnrichedMemory and file path,
+**Given** a ClassifiedMemory with Tier "A" or "B" and file path,
 **When** Render is called,
-**Then** output matches DES-1 format: `[engram] Memory captured.` header, Created/Type/File fields.
+**Then** output matches DES-1 format: `[engram] Memory captured (tier A).` header, Created/Type/File fields.
 
 - Traces to: ARCH-5, REQ-4, DES-1
 
@@ -136,21 +140,21 @@ Property-based: generate filename summaries, verify slug format.
 
 ## Pipeline (ARCH-1)
 
-### T-15: Full pipeline — match → enrich → write → render
+### T-15: Full pipeline — classify → write → render
 
-**Given** a message matching a pattern, with all pipeline stages wired,
-**When** Run is called,
-**Then** the stages execute in order and a system reminder string is returned.
+**Given** a message with a learning signal and transcript context, with all pipeline stages wired,
+**When** Run is called (with message and transcript_path),
+**Then** the Classifier, Writer, and Renderer execute in order and a system reminder string is returned.
 
-Uses fakes for all four DI interfaces. Verifies call order.
+Uses fakes for all three DI interfaces. Verifies call order and that transcript context is passed to Classifier.
 
 - Traces to: ARCH-1, REQ-1, REQ-2, REQ-3, REQ-4
 
-### T-16: No match — pipeline short-circuits
+### T-16: No signal — pipeline short-circuits
 
-**Given** a message that doesn't match any pattern,
+**Given** a message with no learning signal (null classification),
 **When** Run is called,
-**Then** empty string is returned and Enricher/Writer/Renderer are never called.
+**Then** empty string is returned and Writer/Renderer are never called.
 
 - Traces to: ARCH-1, REQ-1
 
@@ -158,28 +162,28 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 ## CLI Wiring (ARCH-6)
 
-### T-18: `correct` subcommand without token returns error
+### T-18: `correct` subcommand reads transcript_path from hook JSON
 
-**Given** `engram correct --message "remember to use targ" --data-dir <tmpdir>` with no `ENGRAM_API_TOKEN` set,
-**When** Run is called,
-**Then** an error containing "no API token" is returned.
+**Given** hook JSON input with `.prompt` and `.transcript_path` fields,
+**When** the CLI parses stdin and invokes Corrector.Run with both message and transcript_path,
+**Then** the Classifier receives transcript context and classifies with full session awareness.
 
-- Traces to: ARCH-6, REQ-6
+- Traces to: ARCH-6, REQ-6, REQ-X
 
-### DES-3: Static hook script matches expected content
+### DES-3: Static hook script reads transcript context
 
 **Given** the static hook script at `hooks/user-prompt-submit.sh`,
 **When** its content is read,
-**Then** it references `correct`, `bin/engram`, `jq`, `.prompt`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
+**Then** it references `correct`, `bin/engram`, `jq`, `.prompt`, `.transcript_path`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
 
-- Traces to: ARCH-6, DES-3
+- Traces to: ARCH-6, DES-3, REQ-X
 
 ---
 
-### T-19: `correct` with non-matching message produces empty stdout
+### T-19: `correct` with no signal produces empty stdout
 
 **Given** `engram correct --message "hello world" --data-dir <tmpdir>`,
-**When** Run is called,
+**When** Run is called and the Classifier returns nil (no signal),
 **Then** stdout is empty and no file is created.
 
 - Traces to: ARCH-6, REQ-6
@@ -408,15 +412,15 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 ## Transcript Extraction (ARCH-15)
 
-### T-47: Extraction with token produces CandidateLearnings with all fields
+### T-47: Extraction with tier classification and anti-pattern gating
 
 **Given** a transcript string and a valid OAuth token,
 **When** test calls Extract,
-**Then** Extract returns a non-empty slice of CandidateLearning, each with all fields populated: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary. The HTTP request uses `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`.
+**Then** Extract returns a non-empty slice of CandidateLearning, each with all fields populated including `tier` (A/B/C) and tier-gated `anti_pattern`. Tier A always has anti_pattern, tier B sometimes (LLM decides), tier C has empty anti_pattern. The HTTP request uses `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`.
 
-Uses fake HTTP transport returning canned JSON array.
+Uses fake HTTP transport returning canned JSON array with tier and anti-pattern values.
 
-- Traces to: ARCH-15, REQ-15
+- Traces to: ARCH-15, REQ-15, REQ-7
 - Verification: unit
 
 ### T-48: Extraction without token returns ErrNoToken
