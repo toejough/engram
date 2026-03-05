@@ -246,12 +246,13 @@ layer = "L5"
 name = "Hook Script Wiring"
 parents = ["L5K"]
 items = ["T-65", "T-66", "T-67", "T-68"]
-status = "pending"
+status = "complete"
+history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in hooks.json, scripts read transcript from stdin JSON and pipe to engram learn. All lint clean."
 
 # Cursor
 
 [cursor]
-node = "L5L"
+node = "L1C"
 mode = "work"
-next_action = "Begin L5L TDD — implement hook script wiring (T-65–68)."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+next_action = "UC-1 Session Learning tree complete — all L5 nodes (L5J/K/L) done. Mark L1C complete."
+context_files = ["docs/specs/state.toml"]

@@ -232,6 +232,118 @@ func TestT46_PreToolUseHookSurfaces(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("--tool-input"))
 }
 
+// TestT65_HooksJSONHasPreCompact verifies hooks/hooks.json contains a
+// PreCompact hook entry pointing to pre-compact.sh (T-65).
+func TestT65_HooksJSONHasPreCompact(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+
+	content, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	hooksJSON := string(content)
+
+	g.Expect(hooksJSON).To(ContainSubstring("PreCompact"))
+	g.Expect(hooksJSON).To(ContainSubstring("pre-compact.sh"))
+}
+
+// TestT66_HooksJSONHasSessionEnd verifies hooks/hooks.json contains a
+// SessionEnd hook entry pointing to session-end.sh (T-66).
+func TestT66_HooksJSONHasSessionEnd(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+
+	content, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	hooksJSON := string(content)
+
+	g.Expect(hooksJSON).To(ContainSubstring("SessionEnd"))
+	g.Expect(hooksJSON).To(ContainSubstring("session-end.sh"))
+}
+
+// TestT67_PreCompactHookReadsTranscript verifies hooks/pre-compact.sh reads
+// transcript from stdin JSON, retrieves OAuth token, and calls engram learn (T-67).
+func TestT67_PreCompactHookReadsTranscript(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "pre-compact.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must read stdin JSON for transcript
+	g.Expect(script).To(ContainSubstring("jq"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	// Must retrieve OAuth token (DES-3 pattern)
+	g.Expect(script).To(ContainSubstring("uname"))
+	g.Expect(script).To(ContainSubstring("Darwin"))
+	g.Expect(script).To(ContainSubstring("security find-generic-password"))
+	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
+	// Must call engram learn with --data-dir
+	g.Expect(script).To(ContainSubstring("learn"))
+	g.Expect(script).To(ContainSubstring("--data-dir"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+}
+
+// TestT68_SessionEndHookReadsTranscript verifies hooks/session-end.sh reads
+// transcript from stdin JSON, retrieves OAuth token, and calls engram learn (T-68).
+func TestT68_SessionEndHookReadsTranscript(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-end.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must read stdin JSON for transcript
+	g.Expect(script).To(ContainSubstring("jq"))
+	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	// Must retrieve OAuth token (DES-3 pattern)
+	g.Expect(script).To(ContainSubstring("uname"))
+	g.Expect(script).To(ContainSubstring("Darwin"))
+	g.Expect(script).To(ContainSubstring("security find-generic-password"))
+	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
+	// Must call engram learn with --data-dir
+	g.Expect(script).To(ContainSubstring("learn"))
+	g.Expect(script).To(ContainSubstring("--data-dir"))
+	g.Expect(script).To(ContainSubstring("bin/engram"))
+}
+
 // repoRoot returns the engram repository root by walking up from the test file.
 func repoRoot(t *testing.T) string {
 	t.Helper()
