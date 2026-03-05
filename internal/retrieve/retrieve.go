@@ -15,20 +15,26 @@ import (
 )
 
 // Retriever reads memory TOML files from a data directory.
-type Retriever struct{}
+type Retriever struct {
+	readDir  func(string) ([]os.DirEntry, error)
+	readFile func(string) ([]byte, error)
+}
 
-// New creates a Retriever.
+// New creates a Retriever with default I/O wired to the real filesystem.
 func New() *Retriever {
-	return &Retriever{}
+	return &Retriever{
+		readDir:  os.ReadDir,
+		readFile: os.ReadFile,
+	}
 }
 
 // ListMemories reads all .toml files from <dataDir>/memories/,
 // parses them into Stored structs, and returns them sorted by UpdatedAt descending.
-// Unparseable files are skipped (logged to stderr).
+// Unparseable files are skipped silently.
 func (r *Retriever) ListMemories(_ context.Context, dataDir string) ([]*memory.Stored, error) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 
-	entries, err := os.ReadDir(memoriesDir)
+	entries, err := r.readDir(memoriesDir)
 	if err != nil {
 		return nil, fmt.Errorf("retrieve: read memories dir: %w", err)
 	}
@@ -42,9 +48,8 @@ func (r *Retriever) ListMemories(_ context.Context, dataDir string) ([]*memory.S
 
 		filePath := filepath.Join(memoriesDir, entry.Name())
 
-		mem, parseErr := parseMemoryFile(filePath)
+		mem, parseErr := r.parseMemoryFile(filePath)
 		if parseErr != nil {
-			fmt.Fprintf(os.Stderr, "[engram] Warning: skipping %s: %v\n", entry.Name(), parseErr)
 			continue
 		}
 
@@ -71,10 +76,15 @@ type tomlRecord struct {
 	UpdatedAt   string   `toml:"updated_at"`
 }
 
-func parseMemoryFile(filePath string) (*memory.Stored, error) {
+func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
+	data, err := r.readFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("reading file: %w", err)
+	}
+
 	var record tomlRecord
 
-	_, err := toml.DecodeFile(filePath, &record)
+	_, err = toml.Decode(string(data), &record)
 	if err != nil {
 		return nil, fmt.Errorf("decoding TOML: %w", err)
 	}
