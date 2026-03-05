@@ -33,6 +33,7 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 	g.Expect(script).To(ContainSubstring("jq"))
 	g.Expect(script).To(ContainSubstring(".prompt"))
+	g.Expect(script).To(ContainSubstring(".transcript_path"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))

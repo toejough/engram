@@ -13,6 +13,26 @@ import (
 	"engram/internal/learn"
 )
 
+// TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
+func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	result := &learn.Result{
+		CreatedPaths: []string{"/data/test.toml"},
+		TierCounts:   map[string]int{"A": 0},
+	}
+
+	cli.RenderLearnResult(&buf, result)
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("[engram] Extracted 1 learnings"))
+	g.Expect(output).To(ContainSubstring(`"test.toml"`))
+}
+
 func TestRun_CorrectMissingFlags(t *testing.T) {
 	t.Parallel()
 

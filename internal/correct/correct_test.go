@@ -11,25 +11,17 @@ import (
 	"engram/internal/memory"
 )
 
-// T-15: Full pipeline — match → enrich → write → render
-func TestT15_FullPipelineMatchEnrichWriteRender(t *testing.T) {
+// T-15: Full pipeline — classify → write → render
+func TestT15_FullPipelineClassifyWriteRender(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 	recorder := &callRecord{}
 	now := time.Now()
 
-	matcher := &fakePatternMatcher{
-		match: &memory.PatternMatch{
-			Pattern:    `\bremember\s+(that|to)`,
-			Label:      "reminder",
-			Confidence: "A",
-		},
-		record: recorder,
-	}
-
-	enricher := &fakeEnricher{
-		mem: &memory.Enriched{
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
 			Title:           "Use Targ for Builds",
 			Content:         "remember to use targ",
 			ObservationType: "reminder",
@@ -37,7 +29,6 @@ func TestT15_FullPipelineMatchEnrichWriteRender(t *testing.T) {
 			Keywords:        []string{"targ"},
 			Principle:       "Use targ for all builds",
 			FilenameSummary: "use targ for builds",
-			Confidence:      "A",
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		},
@@ -49,40 +40,42 @@ func TestT15_FullPipelineMatchEnrichWriteRender(t *testing.T) {
 		record: recorder,
 	}
 
-	reminderText := "<system-reminder source=\"engram\">\n[engram] Memory captured.\n</system-reminder>\n"
+	reminderText := "<system-reminder source=\"engram\">\n" +
+		"[engram] Memory captured (tier A).\n</system-reminder>\n"
 	renderer := &fakeRenderer{
 		output: reminderText,
 		record: recorder,
 	}
 
-	corrector := correct.New(matcher, enricher, writer, renderer, "/tmp")
-	result, err := corrector.Run(context.Background(), "remember to use targ")
+	corrector := correct.New(classifier, writer, renderer, "/tmp")
+	result, err := corrector.Run(
+		context.Background(), "remember to use targ", "",
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(result).To(ContainSubstring("[engram] Memory captured."))
-	g.Expect(enricher.called).To(BeTrue())
+	g.Expect(result).To(ContainSubstring("[engram] Memory captured"))
 	g.Expect(writer.called).To(BeTrue())
 	g.Expect(renderer.called).To(BeTrue())
-	g.Expect(recorder.calls).To(Equal([]string{"match", "enrich", "write", "render"}))
+	g.Expect(recorder.calls).To(Equal([]string{
+		"classify", "write", "render",
+	}))
 }
 
-// T-16: No match — pipeline short-circuits
-func TestT16_NoMatchPipelineShortCircuits(t *testing.T) {
+// T-16: No signal — pipeline short-circuits
+func TestT16_NoSignalPipelineShortCircuits(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	matcher := &fakePatternMatcher{match: nil}
-	enricher := &fakeEnricher{}
+	classifier := &fakeClassifier{result: nil}
 	writer := &fakeWriter{}
 	renderer := &fakeRenderer{}
 
-	corrector := correct.New(matcher, enricher, writer, renderer, "/tmp")
-	result, err := corrector.Run(context.Background(), "hello world")
+	corrector := correct.New(classifier, writer, renderer, "/tmp")
+	result, err := corrector.Run(context.Background(), "hello world", "")
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(result).To(BeEmpty())
-	g.Expect(enricher.called).To(BeFalse())
 	g.Expect(writer.called).To(BeFalse())
 	g.Expect(renderer.called).To(BeFalse())
 }
@@ -96,40 +89,22 @@ func (r *callRecord) record(name string) {
 	r.calls = append(r.calls, name)
 }
 
-// fakeEnricher is a test double for correct.Enricher.
-type fakeEnricher struct {
-	mem    *memory.Enriched
+// fakeClassifier is a test double for correct.Classifier.
+type fakeClassifier struct {
+	result *memory.ClassifiedMemory
 	err    error
-	called bool
 	record *callRecord
 }
 
-func (f *fakeEnricher) Enrich(
+func (f *fakeClassifier) Classify(
 	_ context.Context,
-	_ string,
-	_ *memory.PatternMatch,
-) (*memory.Enriched, error) {
-	f.called = true
-
+	_, _ string,
+) (*memory.ClassifiedMemory, error) {
 	if f.record != nil {
-		f.record.record("enrich")
+		f.record.record("classify")
 	}
 
-	return f.mem, f.err
-}
-
-// fakePatternMatcher is a test double for correct.PatternMatcher.
-type fakePatternMatcher struct {
-	match  *memory.PatternMatch
-	record *callRecord
-}
-
-func (f *fakePatternMatcher) Match(_ string) *memory.PatternMatch {
-	if f.record != nil {
-		f.record.record("match")
-	}
-
-	return f.match
+	return f.result, f.err
 }
 
 // fakeRenderer is a test double for correct.Renderer.
@@ -139,7 +114,10 @@ type fakeRenderer struct {
 	record *callRecord
 }
 
-func (f *fakeRenderer) Render(_ *memory.Enriched, _ string) string {
+func (f *fakeRenderer) Render(
+	_ *memory.ClassifiedMemory,
+	_ string,
+) string {
 	f.called = true
 
 	if f.record != nil {
@@ -157,7 +135,10 @@ type fakeWriter struct {
 	record *callRecord
 }
 
-func (f *fakeWriter) Write(_ *memory.Enriched, _ string) (string, error) {
+func (f *fakeWriter) Write(
+	_ *memory.Enriched,
+	_ string,
+) (string, error) {
 	f.called = true
 
 	if f.record != nil {

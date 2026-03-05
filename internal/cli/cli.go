@@ -12,17 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 
-	"engram/internal/corpus"
+	"engram/internal/classify"
 	"engram/internal/correct"
 	"engram/internal/dedup"
-	"engram/internal/enrich"
 	"engram/internal/extract"
 	"engram/internal/learn"
-	"engram/internal/memory"
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	"engram/internal/surface"
 	"engram/internal/tomlwriter"
+	"engram/internal/transcript"
 )
 
 // RenderLearnResult writes DES-10 feedback for a learn result to w.
@@ -47,29 +46,12 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 	}
 
 	if result.SkippedCount > 0 {
-		_, _ = fmt.Fprintf(w, "[engram] Skipped %d duplicates.\n", result.SkippedCount)
+		_, _ = fmt.Fprintf(
+			w,
+			"[engram] Skipped %d duplicates.\n",
+			result.SkippedCount,
+		)
 	}
-}
-
-// formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
-func formatTierBreakdown(counts map[string]int) string {
-	if len(counts) == 0 {
-		return ""
-	}
-
-	parts := make([]string, 0, len(counts))
-
-	for _, tier := range []string{"A", "B", "C"} {
-		if count, ok := counts[tier]; ok && count > 0 {
-			parts = append(parts, fmt.Sprintf("%s: %d", tier, count))
-		}
-	}
-
-	if len(parts) == 0 {
-		return ""
-	}
-
-	return "(" + strings.Join(parts, ", ") + ")"
 }
 
 // Run dispatches to the appropriate subcommand based on args.
@@ -100,42 +82,61 @@ func Run(
 
 // unexported constants.
 const (
-	minArgs = 2
+	maxTranscriptTok = 2000
+	minArgs          = 2
 )
 
 // unexported variables.
 var (
-	errCorrectMissingFlags = errors.New("correct: --message and --data-dir required")
+	errCorrectMissingFlags = errors.New(
+		"correct: --message and --data-dir required",
+	)
 	errLearnMissingFlags   = errors.New("learn: --data-dir required")
-	errSurfaceMissingFlags = errors.New("surface: --mode and --data-dir required")
-	errUnknownCommand      = errors.New("unknown command")
-	errUsage               = errors.New("usage: engram <correct|surface|learn> [flags]")
+	errSurfaceMissingFlags = errors.New(
+		"surface: --mode and --data-dir required",
+	)
+	errUnknownCommand = errors.New("unknown command")
+	errUsage          = errors.New(
+		"usage: engram <correct|surface|learn> [flags]",
+	)
 )
 
-// corpusAdapter adapts *corpus.Corpus to satisfy correct.PatternMatcher.
-type corpusAdapter struct {
-	corpus *corpus.Corpus
-}
-
-func (a *corpusAdapter) Match(message string) *memory.PatternMatch {
-	m := a.corpus.Match(message)
-	if m == nil {
-		return nil
+// formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
+func formatTierBreakdown(counts map[string]int) string {
+	if len(counts) == 0 {
+		return ""
 	}
 
-	return &memory.PatternMatch{
-		Pattern:    m.Pattern.Regex.String(),
-		Label:      m.Pattern.Label,
-		Confidence: m.Confidence,
+	parts := make([]string, 0, len(counts))
+
+	for _, tier := range []string{"A", "B", "C"} {
+		if count, ok := counts[tier]; ok && count > 0 {
+			parts = append(
+				parts,
+				fmt.Sprintf("%s: %d", tier, count),
+			)
+		}
 	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "(" + strings.Join(parts, ", ") + ")"
 }
 
-func runCorrect(args []string, stdout io.Writer) error {
+func runCorrect(
+	args []string,
+	stdout io.Writer,
+) error {
 	fs := flag.NewFlagSet("correct", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	message := fs.String("message", "", "user message text")
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	transcriptPath := fs.String(
+		"transcript-path", "", "path to session transcript",
+	)
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -146,16 +147,22 @@ func runCorrect(args []string, stdout io.Writer) error {
 		return errCorrectMissingFlags
 	}
 
-	matcher := &corpusAdapter{corpus: corpus.New(corpus.DefaultPatterns())}
+	// Read transcript context if available (os.ReadFile wired at the edge)
+	reader := transcript.New(os.ReadFile)
+
+	transcriptCtx, _ := reader.ReadRecent(
+		*transcriptPath, maxTranscriptTok,
+	)
+
 	token := os.Getenv("ENGRAM_API_TOKEN")
-	enricher := enrich.New(token, &http.Client{})
+	classifier := classify.New(token, &http.Client{})
 	writer := tomlwriter.New()
 	renderer := render.New()
 
-	corrector := correct.New(matcher, enricher, writer, renderer, *dataDir)
+	corrector := correct.New(classifier, writer, renderer, *dataDir)
 	ctx := context.Background()
 
-	output, err := corrector.Run(ctx, *message)
+	output, err := corrector.Run(ctx, *message, transcriptCtx)
 	if err != nil {
 		return fmt.Errorf("correct: %w", err)
 	}
@@ -167,7 +174,11 @@ func runCorrect(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
+func runLearn(
+	args []string,
+	stderr io.Writer,
+	stdin io.Reader,
+) error {
 	fs := flag.NewFlagSet("learn", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -186,7 +197,8 @@ func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 	if token == "" {
 		_, _ = fmt.Fprintln(
 			stderr,
-			"[engram] Error: session learning skipped — no API token configured",
+			"[engram] Error: session learning skipped"+
+				" — no API token configured",
 		)
 
 		return nil
@@ -197,17 +209,19 @@ func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 		return fmt.Errorf("learn: reading stdin: %w", err)
 	}
 
-	transcript := string(transcriptBytes)
+	transcriptText := string(transcriptBytes)
 
 	extractor := extract.New(token, &http.Client{})
 	retriever := retrieve.New()
 	deduplicator := dedup.New()
 	writer := tomlwriter.New()
 
-	learner := learn.New(extractor, retriever, deduplicator, writer, *dataDir)
+	learner := learn.New(
+		extractor, retriever, deduplicator, writer, *dataDir,
+	)
 	ctx := context.Background()
 
-	result, err := learner.Run(ctx, transcript)
+	result, err := learner.Run(ctx, transcriptText)
 	if err != nil {
 		return fmt.Errorf("learn: %w", err)
 	}
@@ -221,11 +235,15 @@ func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	mode := fs.String("mode", "", "surface mode: session-start, prompt, tool")
+	mode := fs.String(
+		"mode", "", "surface mode: session-start, prompt, tool",
+	)
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
 	toolName := fs.String("tool-name", "", "tool name (tool mode)")
-	toolInput := fs.String("tool-input", "", "tool input JSON (tool mode)")
+	toolInput := fs.String(
+		"tool-input", "", "tool input JSON (tool mode)",
+	)
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
