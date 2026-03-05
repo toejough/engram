@@ -1,6 +1,6 @@
 # Requirements
 
-Requirements and design items derived from UC-3 (Remember & Correct).
+Requirements and design items derived from UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing & Enforcement).
 
 ---
 
@@ -193,3 +193,139 @@ Installation steps for a user:
 No manual build step required — the `SessionStart` hook handles it (REQ-8). README documents these steps.
 
 - Traces to: UC-3 (user must be able to install and exercise the plugin)
+
+---
+
+# UC-2 Requirements and Design
+
+---
+
+## REQ-9: SessionStart surfacing — top 20 by recency
+
+When a session starts (SessionStart hook), the system reads all memory TOML files from the data directory, sorts by `updated_at` descending, and surfaces the top 20 as a system reminder.
+
+- Traces to: UC-2 (SessionStart surfacing)
+- AC: (1) All `.toml` files in `<data-dir>/memories/` are read and parsed. (2) Sorted by `updated_at` descending. (3) Top 20 are included in the system reminder. (4) Each entry shows title and file path. (5) If fewer than 20 memories exist, all are surfaced. (6) If no memories exist, no reminder is emitted (empty stdout).
+- Verification: deterministic (file listing, sort, count)
+
+---
+
+## REQ-10: UserPromptSubmit surfacing — keyword match
+
+When a user message is submitted (UserPromptSubmit hook), the system matches the message against memory `keywords` and `concepts` fields. Memories with at least one keyword or concept appearing in the message are surfaced as a system reminder.
+
+- Traces to: UC-2 (UserPromptSubmit surfacing)
+- AC: (1) Each memory's `keywords` and `concepts` arrays are checked for whole-word matches in the user message (case-insensitive). (2) Matching memories are surfaced with title, file path, and which keywords matched. (3) If no memories match, no surfacing reminder is emitted. (4) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
+- Verification: deterministic (keyword presence check)
+
+---
+
+## REQ-11: PreToolUse keyword pre-filter
+
+When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates.
+
+- Traces to: UC-2 (PreToolUse enforcement, pass 1)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned. (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are passed to the LLM judgment stage. (4) If no memories match, the tool call is allowed with no overhead (no LLM call, no output).
+- Verification: deterministic (keyword presence check)
+
+---
+
+## REQ-12: PreToolUse LLM judgment
+
+For each memory that passes the keyword pre-filter (REQ-11), the system makes a single LLM call (claude-haiku-4-5-20251001) to determine whether the tool call violates the memory's anti-pattern.
+
+- Traces to: UC-2 (PreToolUse enforcement, pass 2)
+- AC: (1) LLM receives: tool name, tool input, memory principle, memory anti_pattern. (2) LLM returns a structured JSON decision: `{"violated": true/false, "reasoning": "..."}`. (3) If violated → the tool call is blocked. (4) If not violated → the tool call is allowed silently. (5) If multiple memories match the pre-filter, each gets a separate judgment call; any violation blocks.
+- Verification: deterministic (JSON schema of LLM response)
+
+---
+
+## REQ-13: Graceful degradation with notification
+
+If no API token is configured or the LLM judgment call times out, the system allows the tool call and emits a stderr warning.
+
+- Traces to: UC-2 (graceful degradation)
+- AC: (1) Missing token → allow tool call, emit `[engram] Warning: enforcement skipped (no API token). Tool call allowed.` to stderr. (2) LLM timeout → allow tool call, emit `[engram] Warning: enforcement skipped (timeout). Tool call allowed.` to stderr. (3) Never block when judgment is unavailable.
+- Verification: deterministic (stderr output check)
+
+---
+
+## REQ-14: Go binary `surface` subcommand
+
+The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt|tool> --data-dir <path>`. Mode-specific flags: `--message <text>` for prompt mode, `--tool-name <name> --tool-input <json>` for tool mode.
+
+- Traces to: UC-2 (CLI entry point)
+- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) `engram surface --mode tool --tool-name <name> --tool-input <json> --data-dir <path>` runs PreToolUse enforcement. (4) Exit 0 always — errors logged to stderr.
+- Verification: deterministic (subcommand runs, correct mode dispatch)
+
+---
+
+## DES-5: SessionStart surfacing reminder format
+
+When memories are surfaced at session start, the agent sees:
+
+```
+<system-reminder source="engram">
+[engram] Loaded N memories.
+  - "<title1>" (file1.toml)
+  - "<title2>" (file2.toml)
+  ...
+</system-reminder>
+```
+
+Format rules:
+- Header: `[engram] Loaded N memories.` where N is the count
+- Each memory: title in quotes, file path in parentheses
+- Ordered by recency (most recent first)
+- If no memories, no output
+
+- Traces to: UC-2 (SessionStart feedback)
+
+---
+
+## DES-6: UserPromptSubmit surfacing reminder format
+
+When memories match the user's message, the agent sees:
+
+```
+<system-reminder source="engram">
+[engram] Relevant memories:
+  - "<title1>" (file1.toml) [matched: keyword1, keyword2]
+  - "<title2>" (file2.toml) [matched: concept1]
+</system-reminder>
+```
+
+Format rules:
+- Header: `[engram] Relevant memories:`
+- Each memory: title, file path, matched keywords/concepts in brackets
+- If no matches, no output
+- Appears alongside any UC-3 correction output (concatenated)
+
+- Traces to: UC-2 (UserPromptSubmit feedback)
+
+---
+
+## DES-7: PreToolUse block response format
+
+When a tool call is blocked, the hook returns:
+
+```json
+{"decision": "block", "reason": "[engram] Blocked: \"<title>\" — <principle>. Memory file: <file_path>"}
+```
+
+Format rules:
+- `decision` is `"block"` (Claude Code PreToolUse protocol)
+- `reason` includes `[engram]` prefix, memory title in quotes, the principle, and the file path
+- If no violation, no output (allow silently)
+
+- Traces to: UC-2 (PreToolUse enforcement feedback)
+
+---
+
+## DES-8: Hook wiring — SessionStart and PreToolUse
+
+SessionStart hook (`hooks/session-start.sh`) is extended to call `engram surface --mode session-start` after the existing build step. PreToolUse hook is registered in `hooks/hooks.json` and invokes `hooks/pre-tool-use.sh`, which reads the tool call from stdin JSON and calls `engram surface --mode tool`.
+
+UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) is extended to also call `engram surface --mode prompt` alongside the existing `engram correct` call. Both outputs are concatenated to stdout.
+
+- Traces to: UC-2 (hook wiring)

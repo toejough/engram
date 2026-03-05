@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -64,6 +64,14 @@ parents = ["L1A"]
 items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
 status = "complete"
 history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit. Issue #24: REQ-1 expanded from 25 to 40 patterns (6 new categories)."
+
+[tree.L2B]
+layer = "L2"
+name = "Hook-Time Surfacing & Enforcement Requirements"
+parents = ["L1B"]
+items = ["REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
+status = "in_progress"
+history = "6 REQs + 4 DES items derived from UC-2. SessionStart surfacing (REQ-9/DES-5), UserPromptSubmit surfacing (REQ-10/DES-6), PreToolUse enforcement two-pass (REQ-11/REQ-12/DES-7), graceful degradation (REQ-13), CLI surface subcommand (REQ-14), hook wiring (DES-8)."
 
 # Tree nodes — L3
 
@@ -130,7 +138,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L1B"
+node = "L2B"
 mode = "in_progress"
-next_action = "UC-2 activated. L1 REFACTOR phase — check UC-2/UC-3 consistency, then REGROUP L1."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
+next_action = "L2B complete. Descend to L3 — derive ARCH items from UC-2 requirements."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md", "docs/specs/architecture.md"]
