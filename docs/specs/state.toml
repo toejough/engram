@@ -86,8 +86,7 @@ name = "Pattern Matching + Renderer"
 parents = ["L4A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-13"]
 status = "complete"
-dirty = { source = "L4A", reason = "T-1/T-4 test specs changing — implementation needs new pattern test cases" }
-history = "Corpus confidence tiers, shared memory types, system reminder renderer. T-14 removed (issue #20)."
+history = "Corpus confidence tiers, shared memory types, system reminder renderer. T-14 removed (issue #20). Issue #24: 15 new patterns added, all tests passing."
 
 [tree.L5B]
 layer = "L5"
@@ -124,7 +123,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L5A"
-mode = "in_progress"
-next_action = "L5A dirty: implement 15 new patterns in corpus.go and add test cases in corpus_test.go. TDD cycle."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md", "internal/corpus/corpus.go", "internal/corpus/corpus_test.go"]
+node = "L1A"
+mode = "complete"
+next_action = "Issue #24 complete. All layers L1-L5 complete, 40 patterns, all tests passing, lint clean."
+context_files = ["docs/specs/state.toml"]

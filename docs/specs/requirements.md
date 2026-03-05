@@ -57,7 +57,7 @@ Pattern corpus (40 patterns across 2 tiers):
 34. `\bin\s+this\s+(?:project|repo|codebase)\b` — project-scoped norm
 
 *Permission Boundaries:*
-35. `\bleave\s+\w+\s+alone\b` — hands-off signal ("leave X alone")
+35. `\bleave\s+\w+\s+alone\b` — hands-off signal ("leave it alone")
 36. `\bhands\s+off\b` — prohibition signal
 37. `\boff\s+limits\b` — prohibition signal
 
