@@ -1,6 +1,6 @@
 # Tests
 
-Behavioral test list for UC-3 (Remember & Correct). BDD Given/When/Then format. Default property-based via rapid; example-based justified inline.
+Behavioral test list for UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing & Enforcement). BDD Given/When/Then format. Default property-based via rapid; example-based justified inline.
 
 ---
 
@@ -223,3 +223,223 @@ Uses fakes for all four DI interfaces. Verifies call order.
 **Then** it contains an entry that ignores the `bin/` directory.
 
 - Traces to: ARCH-8, REQ-8
+
+---
+
+# UC-2 Tests
+
+## Memory Retrieval (ARCH-9)
+
+### T-24: ListMemories returns all TOML files sorted by updated_at
+
+**Given** a data directory with 3 memory TOML files with different `updated_at` timestamps,
+**When** ListMemories is called,
+**Then** all 3 memories are returned, sorted by `updated_at` descending (most recent first), with Title, Keywords, Concepts, AntiPattern, Principle, and FilePath populated.
+
+- Traces to: ARCH-9, REQ-9
+
+### T-25: ListMemories returns empty slice when no memories exist
+
+**Given** a data directory with an empty `memories/` subdirectory,
+**When** ListMemories is called,
+**Then** an empty slice is returned (no error).
+
+- Traces to: ARCH-9, REQ-9
+
+### T-26: ListMemories skips unparseable files
+
+**Given** a data directory with 2 valid TOML files and 1 invalid file,
+**When** ListMemories is called,
+**Then** 2 memories are returned and the invalid file is logged to stderr but does not cause an error.
+
+- Traces to: ARCH-9, REQ-9
+
+---
+
+## SessionStart Surfacing (ARCH-9, ARCH-12)
+
+### T-27: SessionStart surfaces top 20 by recency
+
+**Given** a data directory with 25 memory files,
+**When** surface is called with mode session-start,
+**Then** output contains exactly 20 memory entries in DES-5 format, ordered by `updated_at` descending.
+
+- Traces to: ARCH-9, ARCH-12, REQ-9, DES-5
+
+### T-28: SessionStart with fewer than 20 memories surfaces all
+
+**Given** a data directory with 3 memory files,
+**When** surface is called with mode session-start,
+**Then** output contains all 3 entries in DES-5 format.
+
+- Traces to: ARCH-9, ARCH-12, REQ-9, DES-5
+
+### T-29: SessionStart with no memories produces empty output
+
+**Given** a data directory with no memory files,
+**When** surface is called with mode session-start,
+**Then** stdout is empty.
+
+- Traces to: ARCH-9, ARCH-12, REQ-9
+
+---
+
+## UserPromptSubmit Surfacing (ARCH-9, ARCH-10, ARCH-12)
+
+### T-30: Keyword match surfaces relevant memories
+
+**Given** memories with keywords ["commit", "git"] and ["targ", "build"], and a user message containing "commit",
+**When** surface is called with mode prompt,
+**Then** only the memory with keyword "commit" is surfaced in DES-6 format, showing which keyword matched.
+
+- Traces to: ARCH-9, ARCH-12, REQ-10, DES-6
+
+### T-31: No keyword match produces empty output
+
+**Given** memories with keywords ["commit", "git"] and a user message "hello world",
+**When** surface is called with mode prompt,
+**Then** stdout is empty.
+
+- Traces to: ARCH-9, ARCH-12, REQ-10
+
+### T-32: Keyword matching is case-insensitive and whole-word
+
+**Given** a memory with keyword "commit" and a user message "COMMIT this change",
+**When** surface is called with mode prompt,
+**Then** the memory is surfaced (case-insensitive match). But a message "recommit" does NOT match (whole-word boundary).
+
+- Traces to: ARCH-10, REQ-10
+
+---
+
+## PreToolUse Keyword Pre-Filter (ARCH-10)
+
+### T-33: Pre-filter matches memory keywords in tool input
+
+**Given** a memory with anti_pattern "manual git commit" and keywords ["commit", "git"], and a tool call {name: "Bash", input: "git commit -m 'fix'"},
+**When** MatchMemories is called,
+**Then** the memory is returned as a candidate (keyword "commit" matched in tool input).
+
+- Traces to: ARCH-10, REQ-11
+
+### T-34: Pre-filter skips memories without anti_pattern
+
+**Given** a memory with empty anti_pattern and keywords ["commit"], and a tool call containing "commit",
+**When** MatchMemories is called,
+**Then** the memory is NOT returned (no anti_pattern = not a candidate for enforcement).
+
+- Traces to: ARCH-10, REQ-11
+
+### T-35: Pre-filter returns empty when no keywords match
+
+**Given** a memory with anti_pattern and keywords ["commit", "git"], and a tool call {name: "Read", input: "/path/to/file.go"},
+**When** MatchMemories is called,
+**Then** empty slice is returned (no keyword overlap).
+
+- Traces to: ARCH-10, REQ-11
+
+---
+
+## PreToolUse LLM Judgment (ARCH-11)
+
+### T-36: Violated anti-pattern returns violated=true
+
+**Given** a memory with principle "use /commit" and anti_pattern "manual git commit", and a tool call {name: "Bash", input: "git commit -m 'fix'"}, and the LLM returns `{"violated": true}`,
+**When** JudgeViolation is called,
+**Then** violated is true.
+
+Uses fake HTTP transport returning canned JSON.
+
+- Traces to: ARCH-11, REQ-12
+
+### T-37: Non-violated anti-pattern returns violated=false
+
+**Given** a memory with principle "use /commit" and anti_pattern "manual git commit", and a tool call {name: "Bash", input: "git commit -m 'fix'"}, and the LLM returns `{"violated": false}`,
+**When** JudgeViolation is called,
+**Then** violated is false.
+
+Uses fake HTTP transport returning canned JSON.
+
+- Traces to: ARCH-11, REQ-12
+
+### T-38: Missing token returns error (not violated)
+
+**Given** no API token configured,
+**When** JudgeViolation is called,
+**Then** an error is returned and violated is false (graceful degradation — never block without judgment).
+
+- Traces to: ARCH-11, REQ-13
+
+### T-39: LLM timeout returns error (not violated)
+
+**Given** a valid token but the LLM call times out,
+**When** JudgeViolation is called,
+**Then** an error is returned and violated is false (graceful degradation).
+
+Uses fake HTTP transport that hangs past deadline.
+
+- Traces to: ARCH-11, REQ-13
+
+---
+
+## Surface Subcommand Routing (ARCH-12)
+
+### T-40: Mode session-start routes to SessionStart surfacing
+
+**Given** the surface subcommand with `--mode session-start --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories and produces DES-5 format output.
+
+- Traces to: ARCH-12, REQ-14
+
+### T-41: Mode prompt routes to keyword surfacing
+
+**Given** the surface subcommand with `--mode prompt --message "commit" --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories, matches keywords, and produces DES-6 format output.
+
+- Traces to: ARCH-12, REQ-14
+
+### T-42: Mode tool routes to enforcement pipeline
+
+**Given** the surface subcommand with `--mode tool --tool-name Bash --tool-input '{"command":"git commit"}' --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories, runs pre-filter, runs LLM judgment on candidates, and produces DES-7 block format or empty output.
+
+- Traces to: ARCH-12, REQ-14
+
+---
+
+## Hook Script Integration (ARCH-13)
+
+### T-43: SessionStart hook calls surface after build
+
+**Given** the session-start hook script,
+**When** its content is read,
+**Then** it calls `engram surface --mode session-start` after the build step.
+
+- Traces to: ARCH-13, DES-8
+
+### T-44: UserPromptSubmit hook calls both correct and surface
+
+**Given** the user-prompt-submit hook script,
+**When** its content is read,
+**Then** it calls both `engram correct` and `engram surface --mode prompt`, concatenating their outputs.
+
+- Traces to: ARCH-13, DES-8
+
+### T-45: PreToolUse hook registered in hooks.json
+
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `PreToolUse` entry pointing to a hook script.
+
+- Traces to: ARCH-13, DES-8
+
+### T-46: PreToolUse hook script calls surface with tool mode
+
+**Given** the pre-tool-use hook script,
+**When** its content is read,
+**Then** it reads tool call from stdin JSON and calls `engram surface --mode tool` with tool-name and tool-input flags.
+
+- Traces to: ARCH-13, DES-8

@@ -34,12 +34,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -106,6 +106,14 @@ items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", 
 status = "complete"
 history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21). Issue #22: added T-20 (SessionStart hook), T-21 (plugin.json SessionStart), T-22 (cross-platform token), T-23 (bin/ gitignore). Issue #24: T-1 updated to reference 40 patterns."
 
+[tree.L4B]
+layer = "L4"
+name = "Hook-Time Surfacing & Enforcement Tests"
+parents = ["L3B"]
+items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
+status = "in_progress"
+history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), LLM judgment (T-36/37/38/39), surface routing (T-40/41/42), hook scripts (T-43/44/45/46)."
+
 # Tree nodes — L5
 
 [tree.L5A]
@@ -151,7 +159,7 @@ history = "Issue #22: SessionStart build hook, plugin.json update, cross-platfor
 # Cursor
 
 [cursor]
-node = "L3B"
+node = "L4B"
 mode = "in_progress"
-next_action = "L3B complete. Descend to L4 — derive test specs from ARCH-9 through ARCH-13."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "L4B complete. Descend to L5 — implement tests via TDD. REGROUP for exercisable vertical slices."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
