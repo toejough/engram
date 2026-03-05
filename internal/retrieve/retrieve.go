@@ -63,19 +63,6 @@ func (r *Retriever) ListMemories(_ context.Context, dataDir string) ([]*memory.S
 	return memories, nil
 }
 
-// tomlRecord mirrors the on-disk TOML format for reading.
-//
-
-type tomlRecord struct {
-	Title       string   `toml:"title"`
-	Content     string   `toml:"content"`
-	Concepts    []string `toml:"concepts"`
-	Keywords    []string `toml:"keywords"`
-	AntiPattern string   `toml:"anti_pattern"`
-	Principle   string   `toml:"principle"`
-	UpdatedAt   string   `toml:"updated_at"`
-}
-
 func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 	data, err := r.readFile(filePath)
 	if err != nil {
@@ -104,4 +91,17 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		UpdatedAt:   updatedAt,
 		FilePath:    filePath,
 	}, nil
+}
+
+// tomlRecord mirrors the on-disk TOML format for reading.
+//
+
+type tomlRecord struct {
+	Title       string   `toml:"title"`
+	Content     string   `toml:"content"`
+	Concepts    []string `toml:"concepts"`
+	Keywords    []string `toml:"keywords"`
+	AntiPattern string   `toml:"anti_pattern"`
+	Principle   string   `toml:"principle"`
+	UpdatedAt   string   `toml:"updated_at"`
 }

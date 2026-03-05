@@ -173,8 +173,7 @@ name = "TOML Writer"
 parents = ["L4A"]
 items = ["T-8", "T-9", "T-10", "T-11", "T-12"]
 status = "complete"
-dirty = { source = "ARCH-7", reason = "Issue #31: os.MkdirAll, os.Stat, os.Remove called directly in tomlwriter.go. Must inject as function types like existing createTemp/rename pattern." }
-history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b. Issue #35: no code changes — ClassifiedMemory.ToEnriched() maintains writer compatibility. Tier written via Confidence field."
+history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b. Issue #35: no code changes — ClassifiedMemory.ToEnriched() maintains writer compatibility. Tier written via Confidence field. Issue #31: injected os.MkdirAll, os.Stat, os.Remove as function options (WithMkdirAll, WithStat, WithRemove). availablePath converted to receiver method for DI access."
 
 [tree.L5D]
 layer = "L5"
@@ -200,8 +199,7 @@ name = "Memory Retrieval"
 parents = ["L4B"]
 items = ["T-24", "T-25", "T-26"]
 status = "complete"
-dirty = { source = "ARCH-7", reason = "Issue #31: os.ReadDir, toml.DecodeFile, fmt.Fprintf(os.Stderr) called directly in retrieve.go. Must inject ReadDir/ReadFile function types and remove stderr logging." }
-history = "T-24/25/26 passing. Memory retrieval from TOML files with DI."
+history = "T-24/25/26 passing. Memory retrieval from TOML files with DI. Issue #31: injected readDir/readFile function types, replaced toml.DecodeFile with readFile+toml.Decode, removed stderr logging (anti-pattern in library). parseMemoryFile converted to receiver method."
 
 [tree.L5G]
 layer = "L5"
@@ -254,7 +252,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L5C"
-mode = "in_progress"
-next_action = "Post-completion re-entry for issue #31. L5C (tomlwriter) and L5F (retrieve) dirty — inject remaining I/O as function types per ARCH-7. TDD cycle: update tests for DI, then refactor implementations."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]
+node = "L5L"
+mode = "complete"
+next_action = "Issue #31 resolved — ARCH-7 DI standard enforced in tomlwriter and retrieve. All internal/ packages now use injected I/O."
+context_files = ["docs/specs/state.toml"]
