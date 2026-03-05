@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"engram/internal/corpus"
 	"engram/internal/correct"
@@ -31,10 +32,13 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 		return
 	}
 
+	tierBreakdown := formatTierBreakdown(result.TierCounts)
+
 	_, _ = fmt.Fprintf(
 		w,
-		"[engram] Extracted %d learnings from session.\n",
+		"[engram] Extracted %d learnings from session. %s\n",
 		len(result.CreatedPaths),
+		tierBreakdown,
 	)
 
 	for _, path := range result.CreatedPaths {
@@ -45,6 +49,27 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 	if result.SkippedCount > 0 {
 		_, _ = fmt.Fprintf(w, "[engram] Skipped %d duplicates.\n", result.SkippedCount)
 	}
+}
+
+// formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
+func formatTierBreakdown(counts map[string]int) string {
+	if len(counts) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(counts))
+
+	for _, tier := range []string{"A", "B", "C"} {
+		if count, ok := counts[tier]; ok && count > 0 {
+			parts = append(parts, fmt.Sprintf("%s: %d", tier, count))
+		}
+	}
+
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return "(" + strings.Join(parts, ", ") + ")"
 }
 
 // Run dispatches to the appropriate subcommand based on args.

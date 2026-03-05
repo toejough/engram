@@ -190,14 +190,26 @@ func TestT59_AllCandidatesFiltered_NoFilesWritten(t *testing.T) {
 	g.Expect(writer.called).To(BeFalse())
 }
 
-// T-60: Written memories have confidence tier C
-func TestT60_WrittenMemories_HaveConfidenceC(t *testing.T) {
+// T-60: Written memories use tier from extraction (not hardcoded "C")
+func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	candidates := []memory.CandidateLearning{
-		{Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+		{Tier: "A", Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+		{
+			Tier:            "B",
+			Title:           "DI pattern",
+			Content:         "use DI everywhere",
+			FilenameSummary: "di-pattern",
+		},
+		{
+			Tier:            "C",
+			Title:           "Uses SQLite",
+			Content:         "project uses sqlite",
+			FilenameSummary: "uses-sqlite",
+		},
 	}
 
 	extractor := &fakeExtractor{candidates: candidates}
@@ -205,7 +217,9 @@ func TestT60_WrittenMemories_HaveConfidenceC(t *testing.T) {
 	deduplicator := &fakeDeduplicator{surviving: candidates}
 	writer := &fakeWriter{
 		paths: map[string]string{
-			"use-targ": "/tmp/memories/use-targ.toml",
+			"use-targ":    "/tmp/memories/use-targ.toml",
+			"di-pattern":  "/tmp/memories/di-pattern.toml",
+			"uses-sqlite": "/tmp/memories/uses-sqlite.toml",
 		},
 	}
 
@@ -226,15 +240,22 @@ func TestT60_WrittenMemories_HaveConfidenceC(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.CreatedPaths).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(HaveLen(3))
 
-	g.Expect(writer.received).To(HaveLen(1))
-	written := writer.received[0]
-	g.Expect(written.Confidence).To(Equal("C"))
-	g.Expect(written.CreatedAt).To(BeTemporally(">=", before))
-	g.Expect(written.CreatedAt).To(BeTemporally("<=", after))
-	g.Expect(written.UpdatedAt).To(BeTemporally(">=", before))
-	g.Expect(written.UpdatedAt).To(BeTemporally("<=", after))
+	g.Expect(writer.received).To(HaveLen(3))
+
+	// Tier A candidate → Confidence "A".
+	g.Expect(writer.received[0].Confidence).To(Equal("A"))
+	// Tier B candidate → Confidence "B".
+	g.Expect(writer.received[1].Confidence).To(Equal("B"))
+	// Tier C candidate → Confidence "C".
+	g.Expect(writer.received[2].Confidence).To(Equal("C"))
+
+	// Timestamps still valid.
+	g.Expect(writer.received[0].CreatedAt).To(BeTemporally(">=", before))
+	g.Expect(writer.received[0].CreatedAt).To(BeTemporally("<=", after))
+	g.Expect(writer.received[0].UpdatedAt).To(BeTemporally(">=", before))
+	g.Expect(writer.received[0].UpdatedAt).To(BeTemporally("<=", after))
 }
 
 // callRecord tracks which pipeline stages were called and in what order.

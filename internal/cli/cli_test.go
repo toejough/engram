@@ -246,7 +246,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
 }
 
-// T-61: RenderLearnResult with learnings emits DES-10 format with file list.
+// T-61: RenderLearnResult with learnings emits DES-10 format with tier breakdown.
 func TestT61_RenderLearnResult_WithLearnings(t *testing.T) {
 	t.Parallel()
 
@@ -260,12 +260,15 @@ func TestT61_RenderLearnResult_WithLearnings(t *testing.T) {
 			"/data/di-everywhere.toml",
 		},
 		SkippedCount: 0,
+		TierCounts:   map[string]int{"A": 1, "B": 1},
 	}
 
 	cli.RenderLearnResult(&buf, result)
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Extracted 2 learnings from session."))
+	g.Expect(output).To(ContainSubstring("A: 1"))
+	g.Expect(output).To(ContainSubstring("B: 1"))
 	g.Expect(output).To(ContainSubstring(`"use-targ-for-builds.toml"`))
 	g.Expect(output).To(ContainSubstring(`"di-everywhere.toml"`))
 	g.Expect(output).NotTo(ContainSubstring("Skipped"))
@@ -347,7 +350,7 @@ func TestT62d_LearnWithTokenAndAPIFailureReturnsError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// T-63: RenderLearnResult with learnings and duplicates emits full DES-10 format.
+// T-63: RenderLearnResult with learnings and duplicates emits full DES-10 format with tier breakdown.
 func TestT63_RenderLearnResult_WithLearningsAndSkipped(t *testing.T) {
 	t.Parallel()
 
@@ -360,12 +363,14 @@ func TestT63_RenderLearnResult_WithLearningsAndSkipped(t *testing.T) {
 			"/data/use-targ-for-builds.toml",
 		},
 		SkippedCount: 3,
+		TierCounts:   map[string]int{"C": 1},
 	}
 
 	cli.RenderLearnResult(&buf, result)
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Extracted 1 learnings from session."))
+	g.Expect(output).To(ContainSubstring("C: 1"))
 	g.Expect(output).To(ContainSubstring(`"use-targ-for-builds.toml"`))
 	g.Expect(output).To(ContainSubstring("[engram] Skipped 3 duplicates."))
 }

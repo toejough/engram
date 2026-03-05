@@ -1,7 +1,7 @@
 // Package learn implements the Session Learning pipeline (ARCH-14).
 // It extracts candidate learnings from a session transcript, deduplicates
 // them against existing memories, and writes surviving candidates as memories
-// with confidence tier C.
+// using the tier classified by the LLM extractor.
 package learn
 
 import (
@@ -67,6 +67,7 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 	skippedCount := len(candidates) - len(surviving)
 
 	createdPaths := make([]string, 0, len(surviving))
+	tierCounts := make(map[string]int)
 
 	now := time.Now()
 
@@ -81,7 +82,7 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 			AntiPattern:     candidate.AntiPattern,
 			Rationale:       candidate.Rationale,
 			FilenameSummary: candidate.FilenameSummary,
-			Confidence:      "C",
+			Confidence:      candidate.Tier,
 			CreatedAt:       now,
 			UpdatedAt:       now,
 		}
@@ -92,11 +93,13 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 		}
 
 		createdPaths = append(createdPaths, filePath)
+		tierCounts[candidate.Tier]++
 	}
 
 	return &Result{
 		CreatedPaths: createdPaths,
 		SkippedCount: skippedCount,
+		TierCounts:   tierCounts,
 	}, nil
 }
 
@@ -112,8 +115,9 @@ type MemoryWriter interface {
 
 // Result holds the output of a learning run for feedback rendering.
 type Result struct {
-	CreatedPaths []string // file paths of created memories
-	SkippedCount int      // number of candidates filtered by dedup
+	CreatedPaths []string       // file paths of created memories
+	SkippedCount int            // number of candidates filtered by dedup
+	TierCounts   map[string]int // count of created memories per tier (A/B/C)
 }
 
 // TranscriptExtractor extracts candidate learnings from a session transcript.
