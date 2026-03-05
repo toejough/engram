@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
+	"engram/internal/learn"
 )
 
 func TestRun_CorrectMissingFlags(t *testing.T) {
@@ -16,9 +18,9 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram", "correct"}, &buf, nil)
+	err := cli.Run([]string{"engram", "correct"}, &stdout, &stderr, strings.NewReader(""), nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -31,9 +33,9 @@ func TestRun_NoArgs(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram"}, &buf, nil)
+	err := cli.Run([]string{"engram"}, &stdout, &stderr, strings.NewReader(""), nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -46,9 +48,9 @@ func TestRun_UnknownCommand(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
-	err := cli.Run([]string{"engram", "bogus"}, &buf, nil)
+	err := cli.Run([]string{"engram", "bogus"}, &stdout, &stderr, strings.NewReader(""), nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -56,23 +58,22 @@ func TestRun_UnknownCommand(t *testing.T) {
 	}
 }
 
-// T-18: `correct` subcommand with no API key returns error
+// T-18: correct subcommand with no API key returns error
 func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
 	g := NewGomegaWithT(t)
 
 	dataDir := filepath.Join(t.TempDir(), "data")
 
-	// Ensure no API token is set.
 	t.Setenv("ENGRAM_API_TOKEN", "")
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	err := cli.Run([]string{
 		"engram", "correct",
 		"--message", "remember to use targ",
 		"--data-dir", dataDir,
-	}, &buf, nil)
+	}, &stdout, &stderr, strings.NewReader(""), nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -80,7 +81,7 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	}
 }
 
-// T-19: `correct` with non-matching message produces empty stdout
+// T-19: correct with non-matching message produces empty stdout
 func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 	t.Parallel()
 
@@ -88,19 +89,17 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 
 	dataDir := filepath.Join(t.TempDir(), "data")
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	err := cli.Run([]string{
 		"engram", "correct",
 		"--message", "hello world",
 		"--data-dir", dataDir,
-	}, &buf, nil)
+	}, &stdout, &stderr, strings.NewReader(""), nil)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	// Verify stdout is empty
-	g.Expect(buf.String()).To(BeEmpty())
+	g.Expect(stdout.String()).To(BeEmpty())
 
-	// Verify no memories directory was created
 	memoriesDir := filepath.Join(dataDir, "memories")
 	_, statErr := os.Stat(memoriesDir)
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
@@ -121,7 +120,7 @@ func TestT40_SurfaceSessionStartRouting(t *testing.T) {
 		return
 	}
 
-	writeMemoryTOML(t, memoriesDir, "test-memory.toml", `title = "Test Memory"
+	writeTestTOML(t, memoriesDir, "test-memory.toml", `title = "Test Memory"
 content = "test"
 observation_type = "correction"
 concepts = []
@@ -134,13 +133,13 @@ created_at = "2025-01-01T00:00:00Z"
 updated_at = "2025-01-01T00:00:00Z"
 `)
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	err = cli.Run([]string{
 		"engram", "surface",
 		"--mode", "session-start",
 		"--data-dir", dataDir,
-	}, &buf, nil)
+	}, &stdout, &stderr, strings.NewReader(""), nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -148,7 +147,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		return
 	}
 
-	output := buf.String()
+	output := stdout.String()
 	g.Expect(output).To(ContainSubstring("[engram] Loaded 1 memories."))
 	g.Expect(output).To(ContainSubstring("Test Memory"))
 }
@@ -168,7 +167,7 @@ func TestT41_SurfacePromptRouting(t *testing.T) {
 		return
 	}
 
-	writeMemoryTOML(t, memoriesDir, "commit-rules.toml", `title = "Commit Rules"
+	writeTestTOML(t, memoriesDir, "commit-rules.toml", `title = "Commit Rules"
 content = "use /commit"
 observation_type = "correction"
 concepts = []
@@ -181,14 +180,14 @@ created_at = "2025-01-01T00:00:00Z"
 updated_at = "2025-01-01T00:00:00Z"
 `)
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	err = cli.Run([]string{
 		"engram", "surface",
 		"--mode", "prompt",
 		"--message", "I want to commit this",
 		"--data-dir", dataDir,
-	}, &buf, nil)
+	}, &stdout, &stderr, strings.NewReader(""), nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -196,7 +195,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		return
 	}
 
-	output := buf.String()
+	output := stdout.String()
 	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
 	g.Expect(output).To(ContainSubstring("Commit Rules"))
 	g.Expect(output).To(ContainSubstring("commit"))
@@ -216,7 +215,7 @@ func TestT42_SurfaceToolRouting(t *testing.T) {
 		return
 	}
 
-	writeMemoryTOML(t, memoriesDir, "commit-rules.toml", `title = "Commit Rules"
+	writeTestTOML(t, memoriesDir, "commit-rules.toml", `title = "Commit Rules"
 content = "use /commit"
 observation_type = "correction"
 concepts = []
@@ -229,10 +228,9 @@ created_at = "2025-01-01T00:00:00Z"
 updated_at = "2025-01-01T00:00:00Z"
 `)
 
-	// Without API token, enforcement should degrade gracefully.
 	t.Setenv("ENGRAM_API_TOKEN", "")
 
-	var buf bytes.Buffer
+	var stdout, stderr bytes.Buffer
 
 	err = cli.Run([]string{
 		"engram", "surface",
@@ -240,20 +238,158 @@ updated_at = "2025-01-01T00:00:00Z"
 		"--tool-name", "Bash",
 		"--tool-input", `{"command": "git commit -m fix"}`,
 		"--data-dir", dataDir,
-	}, &buf, nil)
+	}, &stdout, &stderr, strings.NewReader(""), nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
-	// With no token, enforcement is skipped — tool allowed silently.
-	g.Expect(buf.String()).To(BeEmpty())
+	g.Expect(stdout.String()).To(BeEmpty())
 }
 
-func writeMemoryTOML(t *testing.T, dir, filename, content string) {
+// T-61: RenderLearnResult with learnings emits DES-10 format with file list.
+func TestT61_RenderLearnResult_WithLearnings(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	result := &learn.Result{
+		CreatedPaths: []string{
+			"/data/use-targ-for-builds.toml",
+			"/data/di-everywhere.toml",
+		},
+		SkippedCount: 0,
+	}
+
+	cli.RenderLearnResult(&buf, result)
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("[engram] Extracted 2 learnings from session."))
+	g.Expect(output).To(ContainSubstring(`"use-targ-for-builds.toml"`))
+	g.Expect(output).To(ContainSubstring(`"di-everywhere.toml"`))
+	g.Expect(output).NotTo(ContainSubstring("Skipped"))
+}
+
+// T-62: learn without token emits error to stderr, returns nil (exit 0).
+func TestT62_LearnWithoutTokenEmitsErrorToStderr(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+		"--data-dir", dataDir,
+	}, &stdout, &stderr, strings.NewReader("some transcript"), nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderr.String()).To(ContainSubstring("session learning skipped"))
+	g.Expect(stderr.String()).To(ContainSubstring("no API token"))
+}
+
+// T-62b: learn with missing --data-dir returns error.
+func TestT62b_LearnMissingDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+	}, &stdout, &stderr, strings.NewReader(""), nil)
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// T-62c: learn with invalid flag returns error.
+func TestT62c_LearnInvalidFlag(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+		"--unknown-flag",
+	}, &stdout, &stderr, strings.NewReader(""), nil)
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// T-62d: learn with token but API failure returns error (covers post-token pipeline path).
+func TestT62d_LearnWithTokenAndAPIFailureReturnsError(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token-for-coverage")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+		"--data-dir", dataDir,
+	}, &stdout, &stderr, strings.NewReader("transcript content"), nil)
+
+	// The extractor will fail (no real API), so we expect an error.
+	g.Expect(err).To(HaveOccurred())
+}
+
+// T-63: RenderLearnResult with learnings and duplicates emits full DES-10 format.
+func TestT63_RenderLearnResult_WithLearningsAndSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	result := &learn.Result{
+		CreatedPaths: []string{
+			"/data/use-targ-for-builds.toml",
+		},
+		SkippedCount: 3,
+	}
+
+	cli.RenderLearnResult(&buf, result)
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("[engram] Extracted 1 learnings from session."))
+	g.Expect(output).To(ContainSubstring(`"use-targ-for-builds.toml"`))
+	g.Expect(output).To(ContainSubstring("[engram] Skipped 3 duplicates."))
+}
+
+// T-64: RenderLearnResult with zero learnings emits DES-10 empty format.
+func TestT64_RenderLearnResult_NoLearnings(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var buf bytes.Buffer
+
+	result := &learn.Result{}
+
+	cli.RenderLearnResult(&buf, result)
+
+	g.Expect(buf.String()).To(Equal("[engram] No new learnings extracted.\n"))
+}
+
+func writeTestTOML(t *testing.T, dir, filename, content string) {
 	t.Helper()
 
 	path := filepath.Join(dir, filename)
 
 	err := os.WriteFile(path, []byte(content), 0o640)
 	if err != nil {
-		t.Fatalf("writeMemoryTOML: %v", err)
+		t.Fatalf("writeTestTOML: %v", err)
 	}
 }

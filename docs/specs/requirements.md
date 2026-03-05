@@ -220,33 +220,13 @@ When a user message is submitted (UserPromptSubmit hook), the system matches the
 
 ---
 
-## REQ-11: PreToolUse keyword pre-filter
+## REQ-11: PreToolUse keyword pre-filter and advisory surfacing
 
-When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates.
+When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates. Matching memories are surfaced as an advisory system reminder for the agent to evaluate with full session context.
 
-- Traces to: UC-2 (PreToolUse enforcement, pass 1)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned. (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are passed to the LLM judgment stage. (4) If no memories match, the tool call is allowed with no overhead (no LLM call, no output).
+- Traces to: UC-2 (PreToolUse advisory surfacing)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned. (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are surfaced as a system reminder with title, principle, and file path. (4) If no memories match, no output is emitted (zero overhead — no LLM call, no advisory). (5) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
 - Verification: deterministic (keyword presence check)
-
----
-
-## REQ-12: PreToolUse LLM judgment
-
-For each memory that passes the keyword pre-filter (REQ-11), the system makes a single LLM call (claude-haiku-4-5-20251001) to determine whether the tool call violates the memory's anti-pattern.
-
-- Traces to: UC-2 (PreToolUse enforcement, pass 2)
-- AC: (1) LLM receives: tool name, tool input, memory principle, memory anti_pattern. (2) LLM returns a structured JSON decision: `{"violated": true/false, "reasoning": "..."}`. (3) If violated → the tool call is blocked. (4) If not violated → the tool call is allowed silently. (5) If multiple memories match the pre-filter, each gets a separate judgment call; any violation blocks.
-- Verification: deterministic (JSON schema of LLM response)
-
----
-
-## REQ-13: Graceful degradation with notification
-
-If no API token is configured or the LLM judgment call times out, the system allows the tool call and emits a stderr warning.
-
-- Traces to: UC-2 (graceful degradation)
-- AC: (1) Missing token → allow tool call, emit `[engram] Warning: enforcement skipped (no API token). Tool call allowed.` to stderr. (2) LLM timeout → allow tool call, emit `[engram] Warning: enforcement skipped (timeout). Tool call allowed.` to stderr. (3) Never block when judgment is unavailable.
-- Verification: deterministic (stderr output check)
 
 ---
 
@@ -305,20 +285,25 @@ Format rules:
 
 ---
 
-## DES-7: PreToolUse block response format
+## DES-7: PreToolUse advisory reminder format
 
-When a tool call is blocked, the hook returns:
+When memories match a tool call's keyword filter, the hook returns a system reminder:
 
-```json
-{"decision": "block", "reason": "[engram] Blocked: \"<title>\" — <principle>. Memory file: <file_path>"}
+```
+<system-reminder source="engram">
+[engram] Tool call advisory:
+  - "<title1>" — <principle1> (file1.toml)
+  - "<title2>" — <principle2> (file2.toml)
+</system-reminder>
 ```
 
 Format rules:
-- `decision` is `"block"` (Claude Code PreToolUse protocol)
-- `reason` includes `[engram]` prefix, memory title in quotes, the principle, and the file path
-- If no violation, no output (allow silently)
+- Header: `[engram] Tool call advisory:`
+- Each memory: title in quotes, principle, file path in parentheses
+- If no matches, no output (tool call allowed silently)
+- The agent exercises judgment with full session context — not a block, an advisory for consideration
 
-- Traces to: UC-2 (PreToolUse enforcement feedback)
+- Traces to: UC-2 (PreToolUse advisory surfacing)
 
 ---
 

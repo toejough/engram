@@ -3,6 +3,20 @@ package memory
 
 import "time"
 
+// CandidateLearning holds a learning extracted from a session transcript (ARCH-15).
+// The Learner pipeline sets Confidence and timestamps before writing.
+type CandidateLearning struct {
+	Title           string
+	Content         string
+	ObservationType string
+	Concepts        []string
+	Keywords        []string
+	Principle       string
+	AntiPattern     string
+	Rationale       string
+	FilenameSummary string
+}
+
 // Enriched holds all structured fields of an enriched memory.
 type Enriched struct {
 	Title           string
