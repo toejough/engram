@@ -443,3 +443,267 @@ Uses fake HTTP transport that hangs past deadline.
 **Then** it reads tool call from stdin JSON and calls `engram surface --mode tool` with tool-name and tool-input flags.
 
 - Traces to: ARCH-13, DES-8
+
+---
+
+# UC-1 Tests
+
+## Transcript Extraction (ARCH-15)
+
+### T-47: Extraction with token produces CandidateLearnings with all fields
+
+**Given** a transcript string and a valid OAuth token,
+**When** test calls Extract,
+**Then** Extract returns a non-empty slice of CandidateLearning, each with all fields populated: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary. The HTTP request uses `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`.
+
+Uses fake HTTP transport returning canned JSON array.
+
+- Traces to: ARCH-15, REQ-15
+- Verification: unit
+
+### T-48: Extraction without token returns ErrNoToken
+
+**Given** a transcript string but no token configured,
+**When** test calls Extract,
+**Then** ErrNoToken is returned and no HTTP call is made.
+
+- Traces to: ARCH-15, REQ-18
+- Verification: unit
+
+### T-49: Invalid LLM response returns error
+
+**Given** a transcript and valid token, and the LLM returns invalid JSON,
+**When** test calls Extract,
+**Then** an error is returned (not an empty slice).
+
+Uses fake HTTP transport returning malformed JSON.
+
+- Traces to: ARCH-15, REQ-15
+- Verification: unit
+
+### T-50: Empty extraction returns empty slice
+
+**Given** a transcript and valid token, and the LLM returns an empty JSON array `[]`,
+**When** test calls Extract,
+**Then** an empty slice is returned (no error). No downstream stages are invoked.
+
+Uses fake HTTP transport returning `[]`.
+
+- Traces to: ARCH-15, REQ-15
+- Verification: unit
+
+### T-51: Quality gate is embedded in extraction prompt
+
+**Given** the system prompt sent by the TranscriptExtractor implementation,
+**When** the prompt content is inspected,
+**Then** it explicitly instructs rejection of: (1) mechanical patterns, (2) vague generalizations, (3) overly narrow observations. It instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
+
+Example-based: verifies prompt content, not LLM behavior.
+
+- Traces to: ARCH-15, REQ-16
+- Verification: unit
+
+---
+
+## Deduplication (ARCH-16)
+
+### T-52: Candidate with >50% keyword overlap is filtered
+
+**Given** a candidate with keywords ["commit", "git", "push"] and an existing memory with keywords ["commit", "git", "branch"],
+**When** test calls Filter,
+**Then** the candidate is excluded (2/3 = 66% overlap > 50%).
+
+- Traces to: ARCH-16, REQ-17
+- Verification: unit
+
+### T-53: Candidate with ≤50% keyword overlap survives
+
+**Given** a candidate with keywords ["commit", "git", "targ", "build"] and an existing memory with keywords ["commit", "test"],
+**When** test calls Filter,
+**Then** the candidate survives (1/4 = 25% overlap ≤ 50%).
+
+- Traces to: ARCH-16, REQ-17
+- Verification: unit
+
+### T-54: No existing memories — all candidates survive
+
+**Given** 3 candidates and an empty existing memories slice,
+**When** test calls Filter,
+**Then** all 3 candidates are returned.
+
+- Traces to: ARCH-16, REQ-17
+- Verification: unit
+
+### T-55: Candidate with empty keywords is never filtered
+
+**Given** a candidate with empty keywords array and existing memories with keywords,
+**When** test calls Filter,
+**Then** the candidate survives (0/0 overlap, division by zero handled as 0%).
+
+- Traces to: ARCH-16, REQ-17
+- Verification: unit
+
+### T-56: Idempotency — second run deduplicates against first run's output
+
+**Given** 3 candidates, the first run writes 2 (one deduped), then the same 3 candidates are submitted again with the 2 written files now existing,
+**When** test calls Filter for the second run,
+**Then** the 2 previously-written candidates are filtered, at most 1 survives (the one that was originally deduped if it doesn't overlap with the new memories either).
+
+Property: Idempotence — running the pipeline twice produces no more files than running it once.
+
+- Traces to: ARCH-16, REQ-19
+- Verification: unit
+
+---
+
+## Learner Pipeline (ARCH-14)
+
+### T-57: Full pipeline — extract → dedup → write returns file paths
+
+**Given** a transcript, with Extractor returning 3 candidates, Retriever returning 1 existing memory, Deduplicator filtering 1 candidate, and Writer succeeding for the remaining 2,
+**When** test calls Learner.Run,
+**Then** Run returns 2 file paths. Stages execute in order: Extract → ListMemories → Filter → Write (×2).
+
+Uses fakes for all four DI interfaces. Verifies call order.
+
+- Traces to: ARCH-14, REQ-15, REQ-17, REQ-20
+- Verification: unit
+
+### T-58: No learnings extracted — pipeline short-circuits
+
+**Given** a transcript, with Extractor returning an empty slice,
+**When** test calls Learner.Run,
+**Then** Run returns an empty slice. Retriever, Deduplicator, and Writer are never called.
+
+- Traces to: ARCH-14, REQ-15
+- Verification: unit
+
+### T-59: All candidates filtered — no files written
+
+**Given** a transcript, with Extractor returning 2 candidates, Retriever returning existing memories, and Deduplicator filtering all candidates,
+**When** test calls Learner.Run,
+**Then** Run returns an empty slice. Writer is never called.
+
+- Traces to: ARCH-14, REQ-17
+- Verification: unit
+
+### T-60: Written memories have confidence tier C
+
+**Given** a transcript, with Extractor returning candidates (no confidence field set),
+**When** test calls Learner.Run,
+**Then** every memory passed to Writer has Confidence = "C".
+
+- Traces to: ARCH-14, REQ-7
+- Verification: unit
+
+---
+
+## CLI Learn Subcommand (ARCH-17)
+
+### T-61: learn subcommand reads transcript from stdin and runs pipeline
+
+**Given** `engram learn --data-dir <tmpdir>` with a transcript piped to stdin and a valid token,
+**When** Run is called,
+**Then** the pipeline executes (Extractor receives the transcript content). Output to stderr matches DES-10 format with created file paths.
+
+Uses fakes for pipeline stages.
+
+- Traces to: ARCH-17, REQ-20, DES-10
+- Verification: unit
+
+### T-62: learn without token emits error to stderr
+
+**Given** `engram learn --data-dir <tmpdir>` with no `ENGRAM_API_TOKEN` set,
+**When** Run is called,
+**Then** stderr contains `[engram] Error: session learning skipped — no API token configured`. No files are created. Exit 0.
+
+- Traces to: ARCH-17, REQ-18
+- Verification: unit
+
+### T-63: learn with extracted learnings emits DES-10 format
+
+**Given** a pipeline that extracts 2 learnings and skips 1 duplicate,
+**When** learn completes,
+**Then** stderr contains: `[engram] Extracted 2 learnings from session.` followed by title/path lines, then `[engram] Skipped 1 duplicates.`
+
+- Traces to: ARCH-17, DES-10
+- Verification: unit
+
+### T-64: learn with no learnings emits DES-10 empty format
+
+**Given** a pipeline that extracts 0 learnings (or all are deduped),
+**When** learn completes,
+**Then** stderr contains: `[engram] No new learnings extracted.`
+
+- Traces to: ARCH-17, DES-10
+- Verification: unit
+
+---
+
+## Hook Script Integration (ARCH-18)
+
+### T-65: hooks.json registers PreCompact hook
+
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `PreCompact` entry pointing to a hook script.
+
+- Traces to: ARCH-18, DES-9
+- Verification: linter
+
+### T-66: hooks.json registers SessionEnd hook
+
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `SessionEnd` entry pointing to a hook script.
+
+- Traces to: ARCH-18, DES-9
+- Verification: linter
+
+### T-67: PreCompact hook script reads transcript and calls engram learn
+
+**Given** the PreCompact hook script,
+**When** its content is read,
+**Then** it reads transcript from stdin JSON, retrieves the OAuth token (platform-aware per DES-3), and pipes the transcript to `engram learn --data-dir`. It exits 0 always.
+
+- Traces to: ARCH-18, DES-9
+- Verification: linter
+
+### T-68: SessionEnd hook script reads transcript and calls engram learn
+
+**Given** the SessionEnd hook script,
+**When** its content is read,
+**Then** it reads transcript from stdin JSON, retrieves the OAuth token (platform-aware per DES-3), and pipes the transcript to `engram learn --data-dir`. It exits 0 always.
+
+- Traces to: ARCH-18, DES-9
+- Verification: linter
+
+---
+
+## UC-1 Bidirectional Traceability
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-14 | T-57, T-58, T-59, T-60 |
+| ARCH-15 | T-47, T-48, T-49, T-50, T-51 |
+| ARCH-16 | T-52, T-53, T-54, T-55, T-56 |
+| ARCH-17 | T-61, T-62, T-63, T-64 |
+| ARCH-18 | T-65, T-66, T-67, T-68 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-15 | T-47, T-49, T-50, T-57, T-58 |
+| REQ-16 | T-51 |
+| REQ-17 | T-52, T-53, T-54, T-55, T-57, T-59 |
+| REQ-18 | T-48, T-62 |
+| REQ-19 | T-56 |
+| REQ-20 | T-57, T-61 |
+| REQ-7 | T-60 |
+| DES-9 | T-65, T-66, T-67, T-68 |
+| DES-10 | T-61, T-63, T-64 |
+
+All L2C items have test coverage. All ARCH-14–18 items have test coverage.

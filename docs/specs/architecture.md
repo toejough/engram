@@ -352,6 +352,142 @@ Design choices:
 
 ---
 
+## UC-1 Architecture
+
+---
+
+## ARCH-14: Session Learner Pipeline
+
+**Decision:** Linear pipeline of injected stages, similar to ARCH-1 but for transcript extraction:
+
+```go
+type Learner struct {
+    Extractor   TranscriptExtractor  // LLM: transcript → []CandidateLearning
+    Retriever   MemoryRetriever      // file I/O: data-dir → existing memories (ARCH-9 reuse)
+    Deduplicator Deduplicator        // keyword overlap: candidates × existing → filtered candidates
+    Writer      MemoryWriter         // file I/O: CandidateLearning → file path (ARCH-4 reuse)
+}
+
+func (l *Learner) Run(ctx context.Context, transcript string, dataDir string) ([]string, error) {
+    // 1. Extractor.Extract(ctx, transcript): LLM call → []CandidateLearning
+    // 2. Retriever.ListMemories(ctx, dataDir): read existing memory files
+    // 3. Deduplicator.Filter(candidates, existing): remove duplicates by keyword overlap
+    // 4. For each surviving candidate: Writer.Write(candidate, dataDir) → file path
+    // 5. Return list of created file paths (for stderr feedback)
+}
+```
+
+Four stages, each independently testable via DI. Reuses MemoryRetriever (ARCH-9) and MemoryWriter (ARCH-4).
+
+**Traces to:** REQ-15 (extraction), REQ-17 (dedup), REQ-3 (file writing via ARCH-4), REQ-20 (CLI entry)
+
+---
+
+## ARCH-15: Transcript Extraction via LLM
+
+**Decision:** Single LLM call to extract multiple learnings from a session transcript.
+
+```go
+type TranscriptExtractor interface {
+    Extract(ctx context.Context, transcript string) ([]CandidateLearning, error)
+}
+
+type CandidateLearning struct {
+    Title           string
+    Content         string
+    ObservationType string
+    Concepts        []string
+    Keywords        []string
+    Principle       string
+    AntiPattern     string
+    Rationale       string
+    FilenameSummary string
+}
+```
+
+Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001`. The system prompt:
+1. Instructs the LLM to review the transcript and extract actionable learnings.
+2. Defines the JSON array output format (each element has all CandidateLearning fields).
+3. Embeds the quality gate (REQ-16): explicitly reject mechanical patterns, vague generalizations, and overly narrow observations.
+4. Instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
+
+Returns `ErrNoToken` if no token is configured (REQ-18 — fail loud). Returns an error if the LLM response cannot be parsed. Returns empty slice if LLM finds no learnings worth extracting.
+
+**Traces to:** REQ-15 (LLM extraction), REQ-16 (quality gate), REQ-18 (fail loud)
+
+---
+
+## ARCH-16: Deduplication via Keyword Overlap
+
+**Decision:** Compare candidate keywords against existing memory keywords. Skip candidates with >50% overlap.
+
+```go
+type Deduplicator interface {
+    Filter(candidates []CandidateLearning, existing []*Memory) []CandidateLearning
+}
+```
+
+Implementation:
+1. For each candidate, compute its keyword set.
+2. For each existing memory, compute its keyword set.
+3. For each candidate-memory pair, compute `|intersection| / |candidate keywords|`.
+4. If any existing memory has >50% overlap with the candidate, skip the candidate.
+5. Return surviving candidates.
+
+Design choices:
+- **50% threshold:** Balances dedup aggressiveness. Too low → over-dedup (useful nuances lost). Too high → duplicates slip through.
+- **Keyword-only:** No semantic similarity — keeps it deterministic and LLM-free at dedup time.
+- **Candidate vs existing direction:** Overlap measured against the candidate's keywords, not the existing memory's. A candidate with 3 keywords where 2 match an existing memory with 20 keywords = 66% overlap → skipped.
+
+**Traces to:** REQ-17 (deduplication), REQ-19 (idempotency — file-based dedup covers multi-trigger)
+
+---
+
+## ARCH-17: CLI Learn Subcommand
+
+**Decision:** Extend the engram binary with a `learn` subcommand. Transcript read from stdin.
+
+```bash
+engram learn --data-dir <path> < transcript.txt
+```
+
+Routing in `internal/cli/`:
+- Parse args for `learn` subcommand with `--data-dir` flag.
+- Read transcript from stdin (buffered read to EOF).
+- Construct Learner pipeline (ARCH-14): wire Extractor, Retriever, Deduplicator, Writer.
+- Run pipeline, collect created file paths.
+- Emit DES-10 format to stderr.
+
+Design choices:
+- **Stdin for transcript:** Command-line length limits make flags impractical for full transcripts.
+- **Stderr for feedback:** Session may be ending (SessionEnd hook). Stdout is reserved for hook protocol.
+
+**Traces to:** REQ-20 (CLI learn subcommand), DES-10 (feedback format)
+
+---
+
+## ARCH-18: Hook Script Integration for PreCompact and SessionEnd
+
+**Decision:** Two new hook scripts invoke `engram learn`. Registered in `hooks/hooks.json`.
+
+Hook flow:
+- **PreCompact:** `hooks/pre-compact.sh` reads the transcript from stdin JSON, pipes to `engram learn --data-dir <path>`. Stderr feedback visible in logs.
+- **SessionEnd:** `hooks/session-end.sh` reads the transcript from stdin JSON, pipes to `engram learn --data-dir <path>`. Stderr feedback visible in logs.
+
+Both scripts:
+1. Extract transcript from stdin JSON payload (field name per hook event).
+2. Use same token retrieval as DES-3 (macOS Keychain fallback to env var).
+3. Pipe transcript to `engram learn --data-dir "$ENGRAM_DATA"`.
+4. Exit 0 always.
+
+Design choices:
+- **Two separate scripts:** Although identical in logic, separate scripts allow future divergence (e.g., PreCompact might pass only the about-to-be-compacted portion).
+- **Same binary:** Both invoke the same `engram learn` subcommand.
+
+**Traces to:** DES-9 (hook wiring), REQ-19 (idempotency — second invocation deduplicates against first)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -371,6 +507,11 @@ Design choices:
 | ARCH-11 | REQ-12 |
 | ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11, REQ-12 |
 | ARCH-13 | DES-8 |
+| ARCH-14 | REQ-15, REQ-17, REQ-3, REQ-20 |
+| ARCH-15 | REQ-15, REQ-16, REQ-18 |
+| ARCH-16 | REQ-17, REQ-19 |
+| ARCH-17 | REQ-20, DES-10 |
+| ARCH-18 | DES-9, REQ-19 |
 
 ### L2 → ARCH
 
@@ -378,7 +519,7 @@ Design choices:
 |---------|--------------|
 | REQ-1 | ARCH-1, ARCH-2 |
 | REQ-2 | ARCH-1, ARCH-3 |
-| REQ-3 | ARCH-1, ARCH-4 |
+| REQ-3 | ARCH-1, ARCH-4, ARCH-14 |
 | REQ-4 | ARCH-1, ARCH-5 |
 | REQ-6 | ARCH-1, ARCH-6, ARCH-7 |
 | REQ-7 | ARCH-2, ARCH-3 |
@@ -396,5 +537,13 @@ Design choices:
 | DES-6 | ARCH-9, ARCH-12 |
 | DES-7 | ARCH-11, ARCH-12 |
 | DES-8 | ARCH-13 |
+| REQ-15 | ARCH-14, ARCH-15 |
+| REQ-16 | ARCH-15 |
+| REQ-17 | ARCH-14, ARCH-16 |
+| REQ-18 | ARCH-15 |
+| REQ-19 | ARCH-16, ARCH-18 |
+| REQ-20 | ARCH-14, ARCH-17 |
+| DES-9 | ARCH-18 |
+| DES-10 | ARCH-17 |
 
 All L2 items have ARCH coverage.

@@ -29,17 +29,22 @@ items = [
   { id = "ARCH-11", source = "derived" },
   { id = "ARCH-12", source = "derived" },
   { id = "ARCH-13", source = "derived" },
+  { id = "ARCH-14", source = "derived" },
+  { id = "ARCH-15", source = "derived" },
+  { id = "ARCH-16", source = "derived" },
+  { id = "ARCH-17", source = "derived" },
+  { id = "ARCH-18", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -90,7 +95,7 @@ layer = "L2"
 name = "Session Learning Requirements"
 parents = ["L1C"]
 items = ["REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
-status = "in_progress"
+status = "complete"
 history = "6 REQs + 2 DES items derived from UC-1. LLM extraction (REQ-15), quality gate (REQ-16), deduplication (REQ-17), fail-loud no-token (REQ-18), idempotency (REQ-19), CLI learn subcommand (REQ-20), hook wiring (DES-9), feedback format (DES-10). Updated REQ-7 to include tier C."
 
 # Tree nodes — L3
@@ -111,6 +116,14 @@ items = ["ARCH-9", "ARCH-10", "ARCH-11", "ARCH-12", "ARCH-13"]
 status = "complete"
 history = "5 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), LLM judgment (ARCH-11), surface subcommand routing (ARCH-12), hook script wiring (ARCH-13)."
 
+[tree.L3C]
+layer = "L3"
+name = "Session Learning Architecture"
+parents = ["L2C"]
+items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18"]
+status = "complete"
+history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter)."
+
 # Tree nodes — L4
 
 [tree.L4A]
@@ -128,6 +141,14 @@ parents = ["L3B"]
 items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-36", "T-37", "T-38", "T-39", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
 status = "complete"
 history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), LLM judgment (T-36/37/38/39), surface routing (T-40/41/42), hook scripts (T-43/44/45/46)."
+
+[tree.L4C]
+layer = "L4"
+name = "Session Learning Tests"
+parents = ["L3C"]
+items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
+status = "complete"
+history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage."
 
 # Tree nodes — L5
 
@@ -208,7 +229,7 @@ history = "T-36/37/38/39, T-42, T-45/46 passing. LLM judgment, tool mode routing
 # Cursor
 
 [cursor]
-node = "L2C"
+node = "L4C"
 mode = "work"
-next_action = "L2C complete. Descend to L3 — derive architecture for UC-1."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+next_action = "L4C complete. Descend to L5 — implement UC-1 session learning via TDD."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
