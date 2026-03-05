@@ -29,17 +29,25 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 	}
 
 	cases := []patternCase{
-		{"no, use specific files", "direct-negation", true},
+		{"no. do it this way", "direct-negation", true},
 		{"wait, that is wrong", "interruption", true},
 		{"hold on a moment", "pause", true},
 		{"that is wrong here", "wrong", false},
 		{"don't do that", "dont", false},
+		{"do not use that approach", "do-not", false},
+		{"you should not do that", "should-not", false},
+		{"you must not delete it", "must-not", false},
 		{"stop deleting files", "stop", false},
 		{"try again please", "retry", false},
 		{"go back to start", "revert", false},
 		{"that's not correct", "negation", false},
 		{"actually, use bun instead", "correction", true},
 		{"remember to run tests", "reminder", false},
+		{"remember: always use DI", "reminder", false},
+		{"you can't do that here", "you-cant", false},
+		{"you cannot use that", "you-cannot", false},
+		{"that won't work here", "that-wont", false},
+		{"that will not compile", "that-will-not", false},
 		{"start over from scratch", "restart", false},
 		{"that is a pre-existing issue", "preexisting", false},
 		{"you're still wrong", "persistence", false},
@@ -108,17 +116,24 @@ func TestT21_All40PatternsMatchExpectedInput(t *testing.T) {
 		pattern string
 		input   string
 	}{
-		{`^no,`, "no, use specific files"},
+		{`^no[.,;!]`, "no. do it this way"},
 		{`^wait`, "wait, that's wrong"},
 		{`^hold on`, "hold on, let me check"},
 		{`\bwrong\b`, "that's wrong"},
 		{`\bdon't\s+\w+`, "don't use that"},
+		{`\bdo\s+not\s+\w+`, "do not use that approach"},
+		{`\bshould\s+not\b`, "you should not do that"},
+		{`\bmust\s+not\b`, "you must not delete it"},
 		{`\bstop\s+\w+ing`, "stop deleting files"},
 		{`\btry again`, "try again with the right path"},
 		{`\bgo back`, "go back to the previous version"},
 		{`\bthat's not`, "that's not what I meant"},
 		{`^actually,`, "actually, use bun instead"},
-		{`\bremember\s+(that|to)`, "remember to run tests"},
+		{`\bremember[\s:,]`, "remember to run tests"},
+		{`\byou\s+can'?t\b`, "you can't do that here"},
+		{`\byou\s+cannot\b`, "you cannot use that"},
+		{`\bthat\s+won'?t\b`, "that won't work here"},
+		{`\bthat\s+will\s+not\b`, "that will not compile"},
 		{`\bstart over`, "start over from scratch"},
 		{`\bpre-?existing`, "that's a pre-existing issue"},
 		{`\byou're still`, "you're still making that mistake"},
@@ -194,6 +209,8 @@ func TestT3_RememberPatternProducesConfidenceA(t *testing.T) {
 		"remember to run tests",
 		"remember that targ is the build tool",
 		"please remember to commit with the right trailer",
+		"remember: always use DI",
+		"remember, no I/O in internal",
 		"from now on, always use targ",
 	}
 
@@ -223,11 +240,14 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 
 	// All patterns except "remember" (label "reminder") and "from now on" (standing-instruction, tier A)
 	cases := []patternCase{
-		{"no, use specific files", "direct-negation", true},
+		{"no. do it this way", "direct-negation", true},
 		{"wait, that is wrong", "interruption", true},
 		{"hold on a moment", "pause", true},
 		{"that is wrong here", "wrong", false},
 		{"don't do that", "dont", false},
+		{"do not use that approach", "do-not", false},
+		{"you should not do that", "should-not", false},
+		{"you must not delete it", "must-not", false},
 		{"stop deleting files", "stop", false},
 		{"try again please", "retry", false},
 		{"go back to start", "revert", false},
@@ -261,6 +281,10 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 		{"you misunderstood the requirement", "misunderstood", false},
 		{"no, I mean the other function", "clarification", false},
 		{"you misinterpreted my request", "misinterpreted", false},
+		{"you can't do that here", "you-cant", false},
+		{"you cannot use that", "you-cannot", false},
+		{"that won't work here", "that-wont", false},
+		{"that will not compile", "that-will-not", false},
 	}
 
 	matcher := corpus.New(corpus.DefaultPatterns())
