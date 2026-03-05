@@ -77,10 +77,9 @@ history = "Activated from deferred list (issue #18). Rewritten: flat TOML files 
 layer = "L2"
 name = "Remember & Correct Requirements"
 parents = ["L1A"]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4"]
 status = "complete"
-dirty = { source = "L1A", reason = "Issue #35: UC-3 detection replaced corpus with unified LLM classifier. REQ-1 (detection), REQ-2 (enrichment), DES-1 (feedback) need revision." }
-history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit. Issue #24: REQ-1 expanded from 25 to 40 patterns (6 new categories)."
+history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, CLI, confidence, hook wiring. REQ-5/DES-2 removed (issue #20). Issue #22: reopened for deployment path — added REQ-8 (build mechanism), DES-4 (installation UX), updated DES-3 (cross-platform token). Issue #23: REQ-1 expanded from 15 to 25 patterns. DES-3/REQ-8 updated to reflect stdin JSON and self-build in UserPromptSubmit. Issue #24: REQ-1 expanded from 25 to 40 patterns (6 new categories). Issue #35: REQ-1/REQ-2 rewritten — fast-path keywords + unified LLM classifier (single call classifies+enriches). Added REQ-X (transcript context). Updated REQ-4/DES-1 (feedback includes tier), REQ-7 (unified A/B/C criteria), DES-3 (transcript_path reading), REQ-11 (tier-aware anti-pattern filtering)."
 
 [tree.L2B]
 layer = "L2"
@@ -96,8 +95,7 @@ name = "Session Learning Requirements"
 parents = ["L1C"]
 items = ["REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
 status = "complete"
-dirty = { source = "L1C", reason = "Issue #35: UC-1 now uses unified A/B/C tier criteria (not just tier C). REQ-15 (extraction) needs revision for tier classification." }
-history = "6 REQs + 2 DES items derived from UC-1. LLM extraction (REQ-15), quality gate (REQ-16), deduplication (REQ-17), fail-loud no-token (REQ-18), idempotency (REQ-19), CLI learn subcommand (REQ-20), hook wiring (DES-9), feedback format (DES-10). Updated REQ-7 to include tier C."
+history = "6 REQs + 2 DES items derived from UC-1. LLM extraction (REQ-15), quality gate (REQ-16), deduplication (REQ-17), fail-loud no-token (REQ-18), idempotency (REQ-19), CLI learn subcommand (REQ-20), hook wiring (DES-9), feedback format (DES-10). Updated REQ-7 to include tier C. Issue #35: REQ-15 updated — extraction classifies using same A/B/C criteria as UC-3 (not just tier C). REQ-18 error message aligned. DES-10 feedback format updated to show tier breakdown."
 
 # Tree nodes — L3
 
@@ -107,6 +105,7 @@ name = "Remember & Correct Architecture"
 parents = ["L2A"]
 items = ["ARCH-1", "ARCH-2", "ARCH-3", "ARCH-4", "ARCH-5", "ARCH-6", "ARCH-7", "ARCH-8"]
 status = "complete"
+dirty = { source = "L2A", reason = "Issue #35: REQ-1/REQ-2 rewritten — corpus replaced with fast-path keywords + unified LLM classifier. ARCH-1/ARCH-2 (pipeline, pattern matching) need revision." }
 history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML writer, renderer, CLI wiring, DI standard. Issue #22: updated ARCH-6 (cross-platform token, SessionStart hook, plugin manifest), added ARCH-8 (build automation). Issue #24: ARCH-2 count updated 15→40."
 
 [tree.L3B]
@@ -123,6 +122,7 @@ name = "Session Learning Architecture"
 parents = ["L2C"]
 items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18"]
 status = "complete"
+dirty = { source = "L2C", reason = "Issue #35: ARCH-15 (transcript extraction) now classifies using A/B/C tiers + anti-pattern gating (not just tier C)." }
 history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter)."
 
 # Tree nodes — L4
@@ -133,6 +133,7 @@ name = "Remember & Correct Tests"
 parents = ["L3A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23"]
 status = "complete"
+dirty = { source = "L3A", reason = "Issue #35: corpus replaced with unified LLM classifier. Tests for pattern matching (T-1+) and enrichment pipeline need revision for new classifier logic." }
 history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test added (issue #21). Issue #22: added T-20 (SessionStart hook), T-21 (plugin.json SessionStart), T-22 (cross-platform token), T-23 (bin/ gitignore). Issue #24: T-1 updated to reference 40 patterns."
 
 [tree.L4B]
@@ -149,6 +150,7 @@ name = "Session Learning Tests"
 parents = ["L3C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
 status = "complete"
+dirty = { source = "L3C", reason = "Issue #35: extraction tests now verify A/B/C tier classification and anti-pattern gating." }
 history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage."
 
 # Tree nodes — L5
@@ -159,6 +161,7 @@ name = "Pattern Matching + Renderer"
 parents = ["L4A"]
 items = ["T-1", "T-2", "T-3", "T-4", "T-13"]
 status = "complete"
+dirty = { source = "L4A", reason = "Issue #35: pattern matching replaced with unified LLM classifier (fast-path keywords + single call). Tests refocused on tier assignment + enrichment." }
 history = "Corpus confidence tiers, shared memory types, system reminder renderer. T-14 removed (issue #20). Issue #24: 15 new patterns added, all tests passing."
 
 [tree.L5B]
@@ -167,6 +170,7 @@ name = "LLM Enrichment"
 parents = ["L4A"]
 items = ["T-5", "T-6", "T-7"]
 status = "complete"
+dirty = { source = "L4A", reason = "Issue #35: enrichment now unified with classification in single LLM call. Tests updated to reflect single-call behavior, no degraded fallback." }
 history = "Anthropic API enrichment with degraded fallback. Commit 58fb79d."
 
 [tree.L5C]
@@ -175,6 +179,7 @@ name = "TOML Writer"
 parents = ["L4A"]
 items = ["T-8", "T-9", "T-10", "T-11", "T-12"]
 status = "complete"
+dirty = { source = "L4A", reason = "Issue #35: TOML format updated to include tier field from unified classifier. Tests verify tier-aware anti-pattern gating." }
 history = "Atomic TOML file writer with slugification and dedup. Commit 5821d1b."
 
 [tree.L5D]
@@ -183,6 +188,7 @@ name = "Pipeline + CLI Wiring"
 parents = ["L4A"]
 items = ["T-15", "T-16", "DES-3", "T-18", "T-19"]
 status = "complete"
+dirty = { source = "L4A", reason = "Issue #35: pipeline now has unified classifier stage. Hook wiring reads transcript_path from JSON (DES-3). Tests verify new pipeline + context reading." }
 history = "4-stage Corrector pipeline, CLI correct subcommand, hook wiring test. DES-3 added (issue #21). T-18 updated to test missing token error."
 
 [tree.L5E]
@@ -191,6 +197,7 @@ name = "Deployment Path"
 parents = ["L4A"]
 items = ["T-20", "T-21", "T-22", "T-23"]
 status = "complete"
+dirty = { source = "L4A", reason = "Issue #35: plugin.json may need updates for new classifier/transcript_path behavior. Tests verify deployment path with updated binary." }
 history = "Issue #22: SessionStart build hook, plugin.json update, cross-platform token, gitignore. All 4 tests passing."
 
 # Tree nodes — L5 (UC-2)
@@ -233,6 +240,7 @@ name = "Transcript Extraction + Dedup"
 parents = ["L4C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56"]
 status = "complete"
+dirty = { source = "L4C", reason = "Issue #35: extraction now classifies learnings as A/B/C and gates anti-pattern generation by tier. Tests verify tier classification accuracy." }
 history = "T-47/48/49/50/51 passing (extract). T-52/53/54/55/56 passing (dedup). All lint clean, coverage above thresholds."
 
 [tree.L5K]
@@ -241,6 +249,7 @@ name = "Learner Pipeline + CLI"
 parents = ["L5J"]
 items = ["T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64"]
 status = "complete"
+dirty = { source = "L5J", reason = "Issue #35: pipeline now classifies learnings A/B/C. Feedback format (DES-10) updated to show tier breakdown. Tests verify new behavior." }
 history = "T-57/58/59/60 passing (learn pipeline). T-61/62/63/64 passing (CLI learn + DES-10 feedback). runLearn coverage 88.9%. All lint clean."
 
 [tree.L5L]
@@ -249,12 +258,13 @@ name = "Hook Script Wiring"
 parents = ["L5K"]
 items = ["T-65", "T-66", "T-67", "T-68"]
 status = "complete"
+dirty = { source = "L5K", reason = "Issue #35: no direct changes to hook scripts, but tests verify end-to-end with new classifier/tier behavior." }
 history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in hooks.json, scripts read transcript from stdin JSON and pipe to engram learn. All lint clean."
 
 # Cursor
 
 [cursor]
-node = "L2A"
+node = "L2C"
 mode = "in_progress"
-next_action = "Post-completion re-entry (issue #35). L1 UCs updated. L2A dirty — revise REQ-1 (detection→classifier), REQ-2 (enrichment→unified call), DES-1 (feedback), add REQ for transcript context. Then L2C dirty."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md"]
+next_action = "L2A complete (corpus → unified classifier, new REQ-X for transcript, tier-aware feedback/anti-patterns). L2C dirty — revise REQ-15 (A/B/C tier classification), DES-10 (tier breakdown feedback)."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]

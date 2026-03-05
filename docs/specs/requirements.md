@@ -4,81 +4,56 @@ Requirements and design items derived from UC-3 (Remember & Correct) and UC-2 (H
 
 ---
 
-## REQ-1: Inline detection via deterministic pattern matching
+## REQ-1: Fast-path keyword detection + unified LLM classifier
 
-When a user message is submitted (UserPromptSubmit hook), the system runs it against a correction pattern corpus. If a pattern matches, the message is flagged for LLM enrichment and memory creation.
+When a user message is submitted (UserPromptSubmit hook), the system uses a two-stage detection:
 
-Pattern corpus (40 patterns across 2 tiers):
+**Stage 1: Fast-path (no LLM).** Three keywords trigger immediate tier-A classification:
+- `remember` — explicit instruction to remember
+- `always` — standing instruction for future behavior
+- `never` — standing prohibition for future behavior
 
-**Original patterns (15):**
-1. `^no,` — direct negation
-2. `^wait` — interruption
-3. `^hold on` — interruption
-4. `\bwrong\b` — explicit wrongness
-5. `\bdon't\s+\w+` — prohibition (don't + verb)
-6. `\bstop\s+\w+ing` — cease action (stop + gerund)
-7. `\btry again` — retry request
-8. `\bgo back` — reversal request
-9. `\bthat's not` — negation of output
-10. `^actually,` — correction opener
-11. `\bremember\s+(that|to)` — re-teaching
-12. `\bstart over` — full reset
-13. `\bpre-?existing` — flagging prior state
-14. `\byou're still` — persistent error
-15. `\bincorrect` — explicit wrongness
+Fast-path messages skip the classifier LLM call and proceed directly to enrichment.
 
-**Expanded patterns (10, issue #23):**
-16. `\bfrom\s+now\s+on\b` — standing instruction (tier A)
-17. `\byou\s+should\s+have\b` — retrospective correction
-18. `\byou\s+(forgot|overlooked)\s+to\b` — omission feedback
-19. `\byou\s+missed\b` — omission (broad)
-20. `\bI\s+(told|already\s+told)\s+you\b` — repeated instruction
-21. `\bI\s+already\s+(said|asked|mentioned)\b` — repeated request
-22. `\brather\s+than\b` — contrast/preference
-23. `\bnot\s+\w+,?\s+(but|instead)\b` — contrast correction
-24. `\bthat's\s+not\s+what\s+I\b` — explicit rejection
-25. `\bnext\s+time\b` — prospective correction
+**Stage 2: Unified LLM classifier (everything else).** For messages without fast-path keywords, a single API call to claude-haiku-4-5-20251001 classifies the signal tier (A/B/C/null) and extracts structured memory fields in one call. Returns JSON with `tier` field: `"A"` (explicit instruction), `"B"` (teachable correction), `"C"` (contextual fact), or `null` (not a signal).
 
-**New patterns (15, issue #24):**
+Null classification → skip entirely, no file created.
 
-*Scope / Over-engineering:*
-26. `\bjust\s+wanted\b` — scope complaint ("I just wanted X")
-27. `\bover-?engineer` — explicit over-engineering complaint
-28. `\bI\s+only\s+asked\b` — scope restriction ("I only asked for X")
-
-*Quality Complaints:*
-29. `\bdoes(?:n't| not)\s+work\b` — broken output ("doesn't work")
-30. `\bit(?:'s| is)\s+broken\b` — broken output ("it's broken")
-31. `\bnot\s+working\b` — broken output ("not working")
-
-*Style / Convention:*
-32. `\bwe\s+use\b` — team convention signal ("we use X")
-33. `\bthe\s+convention\b` — explicit convention reference
-34. `\bin\s+this\s+(?:project|repo|codebase)\b` — project-scoped norm
-
-*Permission Boundaries:*
-35. `\bleave\s+\w+\s+alone\b` — hands-off signal ("leave it alone")
-36. `\bhands\s+off\b` — prohibition signal
-37. `\boff\s+limits\b` — prohibition signal
-
-*Confusion / Misunderstanding:*
-38. `\byou\s+misunderstood\b` — explicit misunderstanding
-39. `\bno,?\s+I\s+mean\b` — clarification after misparse ("no I mean...")
-40. `\bmisinterpreted\b` — explicit misinterpretation
-
-- Traces to: UC-3 (detection)
-- AC: (1) Pattern corpus is embedded in the binary with at least the 40 patterns above. (2) Pattern matching runs on every invocation of `engram correct`. (3) On match, LLM enrichment is triggered. (4) On no match, empty stdout (no system reminder).
-- Verification: deterministic (pattern match)
+- Traces to: UC-3 (detection + classification)
+- AC: (1) Fast-path keywords are checked first; if present, tier-A classification is immediate. (2) Other messages invoke the unified classifier LLM. (3) Classifier returns `tier` field (A/B/C/null). (4) Null tier → no file created, no system reminder. (5) A/B/C tier → proceed to enrichment and write.
+- Verification: deterministic (keyword presence check, JSON schema validation)
 
 ---
 
-## REQ-2: LLM enrichment produces structured memory fields
+## REQ-2: Unified LLM call classifies and enriches
 
-When a pattern match is detected, a single API call to claude-haiku-4-5-20251001 takes the user's message and produces structured memory fields as JSON: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, and a 3-5 word filename summary.
+For messages without fast-path keywords, a single API call to claude-haiku-4-5-20251001 receives the user message plus recent transcript context (~2000 tokens). The call returns JSON with both classification and structured memory fields:
 
-- Traces to: UC-3 (LLM enrichment)
-- AC: (1) API call uses claude-haiku-4-5-20251001. (2) Response is parsed as JSON with all required fields. (3) Invalid or unparseable responses return an error.
+**Response fields:**
+- `tier` — `"A"`, `"B"`, `"C"`, or `null` (required)
+- `title` — 5-10 word summary
+- `content` — Full message verbatim
+- `observation_type` — Category label
+- `concepts` — Key concept tags
+- `keywords` — Searchable keywords
+- `principle` — Positive rule to follow
+- `anti_pattern` — Anti-pattern value (tier-gated: required for A, optional for B, empty for C)
+- `rationale` — Why this matters
+- `filename_summary` — 3-5 words for slug generation
+
+- Traces to: UC-3 (unified LLM classification + enrichment)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) Input includes user message + recent transcript context (REQ-X, see below). (3) Response is parsed as JSON with all required fields. (4) `tier` field drives downstream behavior (null → skip, A/B/C → write). (5) Invalid or unparseable responses return an error.
 - Verification: deterministic (JSON schema validation of LLM response)
+
+---
+
+## REQ-X: Transcript context reading for unified classifier
+
+The unified LLM classifier (REQ-2) receives recent session context to improve classification accuracy. When the UserPromptSubmit hook invokes `engram correct`, the hook JSON input includes a `transcript_path` field pointing to the current session transcript. The Go binary reads the last ~2000 tokens from this file and includes them in the classifier LLM call.
+
+- Traces to: UC-3 (unified LLM classifier context)
+- AC: (1) Hook input JSON includes `transcript_path` field (available in UserPromptSubmit hook). (2) Go binary reads `transcript_path` file. (3) Extracts recent portion (~2000 tokens, or entire file if shorter). (4) Includes recent context in the classifier LLM prompt. (5) Missing or unreadable transcript_path → proceed without context (non-fatal, context is advisory).
+- Verification: deterministic (file read, token counting)
 
 ---
 
@@ -94,11 +69,11 @@ The enriched memory is written to `<data-dir>/memories/<slug>.toml` where slug i
 
 ## REQ-4: System reminder feedback on memory creation
 
-After a memory file is created, the system outputs a system reminder to stdout confirming: what was detected, the memory title, key fields, and the file path.
+After a memory file is created, the system outputs a system reminder to stdout confirming: the tier classification, the memory title, key fields, and the file path.
 
 - Traces to: UC-3 (feedback)
-- AC: (1) Stdout contains a system reminder when a memory is created. (2) Reminder includes the memory title, observation type, and file path. (3) Format uses `[engram]` prefix.
-- Verification: deterministic (stdout content check)
+- AC: (1) Stdout contains a system reminder when a memory is created. (2) Reminder includes the memory tier (A/B/C), title, observation type, and file path. (3) Format uses `[engram]` prefix. (4) Null classification → no output (no file created).
+- Verification: deterministic (stdout content check, tier accuracy)
 
 ---
 
@@ -112,13 +87,23 @@ The system is implemented as a Go binary (`engram`) with a `correct` subcommand:
 
 ---
 
-## REQ-7: Confidence tier assignment
+## REQ-7: Unified A/B/C confidence tier criteria
 
-Each memory is assigned a confidence tier: A (user explicitly stated — "remember X" patterns), B (user correction — "no, do Y" patterns), or C (agent-inferred post-session — extracted by LLM from transcript, user never saw the extraction). The tier is determined by the source: UC-3 pattern matching produces A or B, UC-1 session extraction always produces C.
+All memories (real-time and post-session) use identical tier criteria:
 
-- Traces to: UC-3 (confidence tiers), UC-1 (confidence tier C)
-- AC: (1) Patterns `\bremember\s+(that|to)` and `\bfrom\s+now\s+on\b` produce confidence A. (2) All other correction patterns produce confidence B. (3) Session-extracted learnings (UC-1) produce confidence C. (4) Confidence is written to the TOML file.
-- Verification: deterministic (tier matches source)
+| Tier | What | Anti-pattern | Example |
+|------|------|-------------|---------|
+| **A** | Explicit instruction | Always generated | "Remember: always use fish", "from now on use targ" |
+| **B** | Teachable correction | When generalizable (LLM decides) | "No, use targ — don't run raw go test" |
+| **C** | Contextual fact | Never generated | "The port is 3001", architectural decision |
+
+Fast-path keywords (`remember`, `always`, `never`) produce tier A immediately. The unified classifier (REQ-2) assigns A/B/C based on signal content. UC-1 extraction uses the same criteria.
+
+Anti-pattern generation is tier-gated: A always generates `anti_pattern`, B generates it when the correction implies a generalizable pattern (LLM decides), C never generates `anti_pattern`.
+
+- Traces to: UC-3 (confidence tiers, anti-pattern gating), UC-1 (tier assignment, anti-pattern gating)
+- AC: (1) Fast-path keywords → tier A. (2) Classifier output `tier` field determines memory tier. (3) UC-1 extraction classifies using same criteria. (4) `anti_pattern` field populated only for A and (sometimes) B, never for C. (5) Tier is written to the TOML `confidence` field.
+- Verification: deterministic (tier assignment, anti-pattern presence matches tier)
 
 ---
 
@@ -128,7 +113,7 @@ When a memory is created, the agent sees:
 
 ```
 <system-reminder source="engram">
-[engram] Memory captured.
+[engram] Memory captured (tier A).
   Created: "<title>"
   Type: <observation_type>
   File: <file_path>
@@ -136,25 +121,26 @@ When a memory is created, the agent sees:
 ```
 
 Format rules:
-- Header: `[engram] Memory captured.`
+- Header: `[engram] Memory captured (tier <tier>).` where tier is A/B/C
 - Action: `Created:` with memory title in quotes
 - Type: the observation_type field
 - File: relative path to the TOML file
 - Concise — appears in the same hook response
 
-- Traces to: UC-3 (feedback)
+- Traces to: UC-3 (feedback, tier classification)
 
 ---
 
 ## DES-3: Hook wiring — UserPromptSubmit
 
-The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt from stdin JSON (`{"prompt": "..."}` via `jq -r '.prompt // empty'`) and passes it to the binary:
+The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt and transcript path from stdin JSON:
 ```bash
 USER_MESSAGE="$(jq -r '.prompt // empty')"
+TRANSCRIPT_PATH="$(jq -r '.transcript_path // empty')"
 "$ENGRAM_BIN" correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
 ```
 
-The hook also self-builds the binary if missing (`go build -o "$ENGRAM_BIN" ./cmd/engram/`).
+The `transcript_path` field is available in the UserPromptSubmit hook JSON input and is read by the Go binary for context (REQ-X). The hook also self-builds the binary if missing (`go build -o "$ENGRAM_BIN" ./cmd/engram/`).
 
 Token retrieval is platform-aware:
 - **macOS:** Attempt to read OAuth token from Claude Code Keychain via `security find-generic-password`. On failure, fall back to `ENGRAM_API_TOKEN` env var.
@@ -162,7 +148,7 @@ Token retrieval is platform-aware:
 
 The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds. Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
 
-- Traces to: UC-3 (hook wiring)
+- Traces to: UC-3 (hook wiring, transcript context reading)
 
 ---
 
@@ -222,11 +208,11 @@ When a user message is submitted (UserPromptSubmit hook), the system matches the
 
 ## REQ-11: PreToolUse keyword pre-filter and advisory surfacing
 
-When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates. Matching memories are surfaced as an advisory system reminder for the agent to evaluate with full session context.
+When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates (tier A always, tier B when generalizable per REQ-7 — tier C memories never have anti-patterns). Matching memories are surfaced as an advisory system reminder for the agent to evaluate with full session context.
 
-- Traces to: UC-2 (PreToolUse advisory surfacing)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned. (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are surfaced as a system reminder with title, principle, and file path. (4) If no memories match, no output is emitted (zero overhead — no LLM call, no advisory). (5) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
-- Verification: deterministic (keyword presence check)
+- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned (tier A always, tier B sometimes, tier C never per REQ-7). (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are surfaced as a system reminder with title, principle, and file path. (4) If no memories match, no output is emitted (zero overhead — no LLM call, no advisory). (5) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
+- Verification: deterministic (keyword presence check, tier-aware anti-pattern filtering)
 
 ---
 
@@ -287,23 +273,23 @@ Format rules:
 
 ## DES-7: PreToolUse advisory reminder format
 
-When memories match a tool call's keyword filter, the hook returns a system reminder:
+When memories match a tool call's keyword filter, the hook returns a system reminder. Note: only tier A and B memories (with anti-patterns per REQ-7) can match; tier C contextual facts have no anti-patterns and do not appear.
 
 ```
 <system-reminder source="engram">
 [engram] Tool call advisory:
-  - "<title1>" — <principle1> (file1.toml)
-  - "<title2>" — <principle2> (file2.toml)
+  - "<title1>" — <principle1> (file1.toml) [tier A]
+  - "<title2>" — <principle2> (file2.toml) [tier B]
 </system-reminder>
 ```
 
 Format rules:
 - Header: `[engram] Tool call advisory:`
-- Each memory: title in quotes, principle, file path in parentheses
+- Each memory: title in quotes, principle, file path and tier in brackets
 - If no matches, no output (tool call allowed silently)
 - The agent exercises judgment with full session context — not a block, an advisory for consideration
 
-- Traces to: UC-2 (PreToolUse advisory surfacing)
+- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware filtering)
 
 ---
 
@@ -321,13 +307,18 @@ UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) is extended to also call `
 
 ---
 
-## REQ-15: LLM session transcript extraction
+## REQ-15: LLM session transcript extraction with unified tier criteria
 
-When a PreCompact or SessionEnd hook fires, the system sends the session transcript to an LLM (claude-haiku-4-5-20251001) which extracts a list of candidate learnings. Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary.
+When a PreCompact or SessionEnd hook fires, the system sends the session transcript to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
 
-- Traces to: UC-1 (LLM extraction)
-- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes the full transcript (or the portion about to be compacted for PreCompact). (3) Response is parsed as a JSON array of candidate objects, each with all required fields. (4) Invalid or unparseable responses return an error. (5) The LLM extracts: missed corrections, architectural decisions, discovered constraints, working solutions, and implicit preferences.
-- Verification: deterministic (JSON schema validation of LLM response)
+The LLM extracts:
+- Explicit instructions the real-time classifier missed (tier A)
+- Teachable corrections with generalizable principles (tier B)
+- Contextual facts: architectural decisions, discovered constraints, working solutions, implicit preferences (tier C)
+
+- Traces to: UC-1 (LLM extraction, tier classification, anti-pattern gating)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes the full transcript (or the portion about to be compacted for PreCompact). (3) Response is parsed as a JSON array of candidate objects, each with required fields plus `tier` field (A/B/C). (4) Invalid or unparseable responses return an error. (5) Anti-pattern field is populated per REQ-7: required for A, optional for B, empty for C. (6) The LLM applies quality gate (REQ-16) and tier assignment simultaneously.
+- Verification: deterministic (JSON schema validation, tier assignment accuracy)
 
 ---
 
@@ -353,10 +344,10 @@ Before writing each candidate learning, the system checks existing TOML files in
 
 ## REQ-18: Fail loudly when no API token
 
-If no API token is configured, the system emits a loud stderr warning and does not create any memory files. No degraded memories are ever written.
+If no API token is configured, the system emits a loud stderr error and does not create any memory files. No degraded memories are ever written.
 
 - Traces to: UC-1 (no graceful degradation)
-- AC: (1) Missing API token → emit `[engram] Error: session learning skipped — no API token configured` to stderr. (2) No TOML files are created. (3) Exit 0 (don't break the hook chain). (4) See also issue #32 for aligning UC-3.
+- AC: (1) Missing API token → emit `[engram] Error: session learning skipped — no API token configured` to stderr. (2) No TOML files are created. (3) Exit 0 (don't break the hook chain). (4) Aligned with UC-3 (see REQ-1, no graceful degradation for classifier).
 - Verification: deterministic (stderr check, no files created)
 
 ---
@@ -396,17 +387,18 @@ The hook reads the transcript from the stdin JSON payload (field depends on hook
 When learnings are extracted, the system emits to stderr (not stdout, since the session may be ending):
 
 ```
-[engram] Extracted N learnings from session.
-  - "<title1>" (file1.toml)
-  - "<title2>" (file2.toml)
+[engram] Extracted N learnings from session (A: 2, B: 1, C: 3).
+  - "<title1>" [A] (file1.toml)
+  - "<title2>" [B] (file2.toml)
+  - "<title3>" [C] (file3.toml)
   ...
 [engram] Skipped M duplicates.
 ```
 
 Format rules:
-- Header: `[engram] Extracted N learnings from session.`
-- Each learning: title in quotes, file path in parentheses
+- Header: `[engram] Extracted N learnings from session (A: X, B: Y, C: Z).` with tier breakdown
+- Each learning: title in quotes, tier in brackets, file path in parentheses
 - Duplicate count: only if M > 0
 - If zero learnings after dedup, emit: `[engram] No new learnings extracted.`
 
-- Traces to: UC-1 (feedback)
+- Traces to: UC-1 (feedback, tier classification)
