@@ -17,7 +17,7 @@ func TestMatch_NoMatch(t *testing.T) {
 	g.Expect(patterns.Match("perfectly normal message")).To(BeNil())
 }
 
-// T-1: All 25 correction patterns match when embedded in messages with arbitrary context.
+// T-1: All 40 correction patterns match when embedded in messages with arbitrary context.
 // Property: adding digit-only prefix/suffix to known-matching text does not prevent a match.
 func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 	t.Parallel()
@@ -54,6 +54,21 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 		{"not this, but that", "contrast", false},
 		{"that's not what I asked for", "rejection", false},
 		{"next time, check the tests first", "prospective", false},
+		{"I just wanted a simple fix", "scope-complaint", false},
+		{"this is over-engineered", "over-engineering", false},
+		{"I only asked for a bug fix", "scope-restriction", false},
+		{"this doesn't work at all", "broken-output", false},
+		{"it's broken now", "broken", false},
+		{"the build is not working", "not-working", false},
+		{"we use targ for builds", "convention", false},
+		{"the convention is snake_case", "convention-reference", false},
+		{"in this project we use DI", "project-norm", false},
+		{"leave it alone", "hands-off", false},
+		{"hands off the config", "hands-off-explicit", false},
+		{"that module is off limits", "off-limits", false},
+		{"you misunderstood the requirement", "misunderstood", false},
+		{"no, I mean the other function", "clarification", false},
+		{"you misinterpreted my request", "misinterpreted", false},
 	}
 
 	matcher := corpus.New(corpus.DefaultPatterns())
@@ -85,7 +100,7 @@ func TestT1_CorrectionPatternMatchesWithContext(t *testing.T) {
 	}
 }
 
-func TestT21_All25PatternsMatchExpectedInput(t *testing.T) {
+func TestT21_All40PatternsMatchExpectedInput(t *testing.T) {
 	t.Parallel()
 
 	// Given each pattern from the corpus and its expected matching string
@@ -118,6 +133,21 @@ func TestT21_All25PatternsMatchExpectedInput(t *testing.T) {
 		{`\bnot\s+\w+,?\s+(?:but|instead)\b`, "not this, but that"},
 		{`\bthat's\s+not\s+what\s+I\b`, "that's not what I asked for"},
 		{`\bnext\s+time\b`, "next time, check the tests first"},
+		{`\bjust\s+wanted\b`, "I just wanted a simple fix"},
+		{`\bover-?engineer`, "this is over-engineered"},
+		{`\bI\s+only\s+asked\b`, "I only asked for a bug fix"},
+		{`\bdoes(?:n't| not)\s+work\b`, "this doesn't work at all"},
+		{`\bit(?:'s| is)\s+broken\b`, "it's broken now"},
+		{`\bnot\s+working\b`, "the build is not working"},
+		{`\bwe\s+use\b`, "we use targ for builds"},
+		{`\bthe\s+convention\b`, "the convention is snake_case"},
+		{`\bin\s+this\s+(?:project|repo|codebase)\b`, "in this project we use DI"},
+		{`\bleave\s+\w+\s+alone\b`, "leave it alone"},
+		{`\bhands\s+off\b`, "hands off the config"},
+		{`\boff\s+limits\b`, "that module is off limits"},
+		{`\byou\s+misunderstood\b`, "you misunderstood the requirement"},
+		{`\bno,?\s+I\s+mean\b`, "no, I mean the other function"},
+		{`\bmisinterpreted\b`, "you misinterpreted my request"},
 	}
 
 	patterns := corpus.New(corpus.DefaultPatterns())
@@ -145,7 +175,7 @@ func TestT2_NonMatchingMessageReturnsNil(t *testing.T) {
 	rapid.Check(t, func(rt *rapid.T) {
 		g := NewGomegaWithT(t)
 
-		// Digit-only strings cannot match any of the 25 word-based patterns.
+		// Digit-only strings cannot match any of the 40 word-based patterns.
 		message := rapid.StringOf(rapid.RuneFrom([]rune("0123456789"))).Draw(rt, "message")
 
 		result := matcher.Match(message)
@@ -216,6 +246,21 @@ func TestT4_CorrectionPatternsProduceConfidenceB(t *testing.T) {
 		{"not this, but that", "contrast", false},
 		{"that's not what I asked for", "rejection", false},
 		{"next time, check the tests first", "prospective", false},
+		{"I just wanted a simple fix", "scope-complaint", false},
+		{"this is over-engineered", "over-engineering", false},
+		{"I only asked for a bug fix", "scope-restriction", false},
+		{"this doesn't work at all", "broken-output", false},
+		{"it's broken now", "broken", false},
+		{"the build is not working", "not-working", false},
+		{"we use targ for builds", "convention", false},
+		{"the convention is snake_case", "convention-reference", false},
+		{"in this project we use DI", "project-norm", false},
+		{"leave it alone", "hands-off", false},
+		{"hands off the config", "hands-off-explicit", false},
+		{"that module is off limits", "off-limits", false},
+		{"you misunderstood the requirement", "misunderstood", false},
+		{"no, I mean the other function", "clarification", false},
+		{"you misinterpreted my request", "misinterpreted", false},
 	}
 
 	matcher := corpus.New(corpus.DefaultPatterns())

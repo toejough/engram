@@ -74,6 +74,26 @@ func DefaultPatterns() []Pattern {
 		{`(?i)\bnot\s+\w+,?\s+(?:but|instead)\b`, "contrast", confidenceTierB},
 		{`(?i)\bthat's\s+not\s+what\s+I\b`, "rejection", confidenceTierB},
 		{`(?i)\bnext\s+time\b`, "prospective", confidenceTierB},
+		// Scope / Over-engineering (issue #24)
+		{`(?i)\bjust\s+wanted\b`, "scope-complaint", confidenceTierB},
+		{`(?i)\bover-?engineer`, "over-engineering", confidenceTierB},
+		{`(?i)\bI\s+only\s+asked\b`, "scope-restriction", confidenceTierB},
+		// Quality Complaints (issue #24)
+		{`(?i)\bdoes(?:n't| not)\s+work\b`, "broken-output", confidenceTierB},
+		{`(?i)\bit(?:'s| is)\s+broken\b`, "broken", confidenceTierB},
+		{`(?i)\bnot\s+working\b`, "not-working", confidenceTierB},
+		// Style / Convention (issue #24)
+		{`(?i)\bwe\s+use\b`, "convention", confidenceTierB},
+		{`(?i)\bthe\s+convention\b`, "convention-reference", confidenceTierB},
+		{`(?i)\bin\s+this\s+(?:project|repo|codebase)\b`, "project-norm", confidenceTierB},
+		// Permission Boundaries (issue #24)
+		{`(?i)\bleave\s+\w+\s+alone\b`, "hands-off", confidenceTierB},
+		{`(?i)\bhands\s+off\b`, "hands-off-explicit", confidenceTierB},
+		{`(?i)\boff\s+limits\b`, "off-limits", confidenceTierB},
+		// Confusion / Misunderstanding (issue #24)
+		{`(?i)\byou\s+misunderstood\b`, "misunderstood", confidenceTierB},
+		{`(?i)\bno,?\s+I\s+mean\b`, "clarification", confidenceTierB},
+		{`(?i)\bmisinterpreted\b`, "misinterpreted", confidenceTierB},
 	}
 
 	patterns := make([]Pattern, 0, len(raw))
