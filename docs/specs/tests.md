@@ -340,48 +340,6 @@ Uses fakes for all four DI interfaces. Verifies call order.
 
 ---
 
-## PreToolUse LLM Judgment (ARCH-11)
-
-### T-36: Violated anti-pattern returns violated=true
-
-**Given** a memory with principle "use /commit" and anti_pattern "manual git commit", and a tool call {name: "Bash", input: "git commit -m 'fix'"}, and the LLM returns `{"violated": true}`,
-**When** JudgeViolation is called,
-**Then** violated is true.
-
-Uses fake HTTP transport returning canned JSON.
-
-- Traces to: ARCH-11, REQ-12
-
-### T-37: Non-violated anti-pattern returns violated=false
-
-**Given** a memory with principle "use /commit" and anti_pattern "manual git commit", and a tool call {name: "Bash", input: "git commit -m 'fix'"}, and the LLM returns `{"violated": false}`,
-**When** JudgeViolation is called,
-**Then** violated is false.
-
-Uses fake HTTP transport returning canned JSON.
-
-- Traces to: ARCH-11, REQ-12
-
-### T-38: Missing token returns error (not violated)
-
-**Given** no API token configured,
-**When** JudgeViolation is called,
-**Then** an error is returned and violated is false (graceful degradation — never block without judgment).
-
-- Traces to: ARCH-11, REQ-13
-
-### T-39: LLM timeout returns error (not violated)
-
-**Given** a valid token but the LLM call times out,
-**When** JudgeViolation is called,
-**Then** an error is returned and violated is false (graceful degradation).
-
-Uses fake HTTP transport that hangs past deadline.
-
-- Traces to: ARCH-11, REQ-13
-
----
-
 ## Surface Subcommand Routing (ARCH-12)
 
 ### T-40: Mode session-start routes to SessionStart surfacing
@@ -400,11 +358,11 @@ Uses fake HTTP transport that hangs past deadline.
 
 - Traces to: ARCH-12, REQ-14
 
-### T-42: Mode tool routes to enforcement pipeline
+### T-42: Mode tool routes to advisory surfacing
 
 **Given** the surface subcommand with `--mode tool --tool-name Bash --tool-input '{"command":"git commit"}' --data-dir <tmpdir>`,
 **When** Run is called,
-**Then** it reads memories, runs pre-filter, runs LLM judgment on candidates, and produces DES-7 block format or empty output.
+**Then** it reads memories, runs pre-filter, emits system-reminder advisory with matching memories (title, principle, file path) or no output if no matches.
 
 - Traces to: ARCH-12, REQ-14
 
