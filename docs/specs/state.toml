@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2"]
+items = ["UC-3", "UC-2", "UC-1"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -59,6 +59,13 @@ name = "Hook-Time Surfacing & Enforcement"
 items = ["UC-2"]
 status = "complete"
 history = "Activated from deferred list (issue #18). Rewritten with two-pass PreToolUse enforcement (keyword pre-filter + LLM judgment), plus passive SessionStart/UserPromptSubmit surfacing."
+
+[tree.L1C]
+layer = "L1"
+name = "Session Learning"
+items = ["UC-1"]
+status = "in_progress"
+history = "Activated from deferred list (issue #18). Rewritten: flat TOML files (not SQLite), PreCompact + SessionEnd triggers (not just Stop), confidence tier C, quality gate, dedup against UC-3, no graceful degradation (issue #32 filed for UC-3 alignment)."
 
 # Tree nodes — L2
 
@@ -193,7 +200,7 @@ history = "T-36/37/38/39, T-42, T-45/46 passing. LLM judgment, tool mode routing
 # Cursor
 
 [cursor]
-node = "L1B"
-mode = "complete"
-next_action = "UC-2 implementation complete. All L5 slices passing."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+node = "L1C"
+mode = "work"
+next_action = "L1C GREEN complete (UC-1 written). Proceed to REFACTOR (whole L1 layer review), then REGROUP."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]

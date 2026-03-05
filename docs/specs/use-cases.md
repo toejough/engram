@@ -67,4 +67,43 @@ updated_at = "2026-03-03T18:00:00Z"
 
 ---
 
-Deferred UCs (UC-1, UC-4 through UC-14) are archived in issue #18 for review.
+## UC-1: Session Learning
+
+**Description:** At context compaction and session end, review the session transcript with an LLM to extract learnings that weren't captured by real-time correction detection (UC-3). Write them as enriched TOML memory files.
+
+**Starting state:** A session is active and a PreCompact or SessionEnd hook fires. The transcript contains corrections the pattern matcher missed, architectural decisions, discovered constraints, working solutions, and implicit patterns.
+
+**End state:** New enriched TOML memory files exist for learnings not already captured by UC-3. No duplicates of existing memories.
+
+**Actor:** System (Go binary triggered by PreCompact and SessionEnd hooks).
+
+**Key interactions:**
+
+- **Trigger — PreCompact + SessionEnd:** Fires on both events. PreCompact captures learnings before context window compression loses transcript detail. SessionEnd captures end-of-session learnings regardless of how the session ends (user quit, timeout, error). Both triggers invoke the same extraction pipeline.
+
+- **LLM extraction:** A single API call (claude-haiku-4-5-20251001) receives the session transcript (or the portion about to be compacted for PreCompact) and produces a list of candidate learnings. Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary.
+
+- **Extraction scope:** The LLM looks for:
+  - Corrections the pattern matcher missed (~15% — observational corrections like "you didn't shut them down" that lack imperative language)
+  - Architectural decisions made during the session
+  - Discovered constraints (e.g., "targ's reorder step modifies files after tests run")
+  - Working solutions and patterns that proved effective
+  - Implicit preferences the user demonstrated but didn't explicitly state
+
+- **Quality gate:** Extracted memories must be specific and actionable. The LLM prompt instructs rejection of: mechanical patterns (e.g., "ran tests before committing"), vague generalizations (e.g., "code should be clean"), and observations that are project-specific but too narrow to be useful again.
+
+- **Deduplication against existing memories:** Before writing each candidate, check existing TOML files in the memories directory. Compare by keyword overlap and semantic similarity (via the LLM). If a candidate substantially overlaps an existing memory, skip it. UC-3 mid-session captures take priority — session-end extraction never duplicates what was already captured.
+
+- **Confidence tier C:** All session-extracted learnings are tier C ("agent-inferred post-session — user never saw the extraction, zero validation"). This is the lowest confidence tier, below A (user explicitly stated) and B (user correction). Tier C memories may be surfaced with lower priority and are candidates for pruning if never validated.
+
+- **No graceful degradation:** If no API token is configured, emit a loud stderr warning (`[engram] Error: session learning skipped — no API token configured`) and do not create any memory files. Never write degraded memories. See also issue #32 for aligning UC-3 to this policy.
+
+- **TOML file output:** Same format and directory as UC-3. Memory written to `<data-dir>/memories/<slug>.toml`. The `confidence = "C"` field distinguishes session-extracted from real-time-captured memories.
+
+- **Idempotency:** If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
+
+- **Pure Go, no CGO:** Same constraint as UC-3.
+
+---
+
+Deferred UCs (UC-4 through UC-14) are archived in issue #18 for review.
