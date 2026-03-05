@@ -114,11 +114,11 @@ The system is implemented as a Go binary (`engram`) with a `correct` subcommand:
 
 ## REQ-7: Confidence tier assignment
 
-Each memory is assigned a confidence tier: A (user explicitly stated — "remember X" patterns) or B (user correction — "no, do Y" patterns). The tier is determined by which pattern matched.
+Each memory is assigned a confidence tier: A (user explicitly stated — "remember X" patterns), B (user correction — "no, do Y" patterns), or C (agent-inferred post-session — extracted by LLM from transcript, user never saw the extraction). The tier is determined by the source: UC-3 pattern matching produces A or B, UC-1 session extraction always produces C.
 
-- Traces to: UC-3 (confidence tiers)
-- AC: (1) Patterns `\bremember\s+(that|to)` produce confidence A. (2) All other correction patterns produce confidence B. (3) Confidence is written to the TOML file.
-- Verification: deterministic (tier matches pattern type)
+- Traces to: UC-3 (confidence tiers), UC-1 (confidence tier C)
+- AC: (1) Patterns `\bremember\s+(that|to)` and `\bfrom\s+now\s+on\b` produce confidence A. (2) All other correction patterns produce confidence B. (3) Session-extracted learnings (UC-1) produce confidence C. (4) Confidence is written to the TOML file.
+- Verification: deterministic (tier matches source)
 
 ---
 
@@ -329,3 +329,99 @@ SessionStart hook (`hooks/session-start.sh`) is extended to call `engram surface
 UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) is extended to also call `engram surface --mode prompt` alongside the existing `engram correct` call. Both outputs are concatenated to stdout.
 
 - Traces to: UC-2 (hook wiring)
+
+---
+
+# UC-1 Requirements and Design
+
+---
+
+## REQ-15: LLM session transcript extraction
+
+When a PreCompact or SessionEnd hook fires, the system sends the session transcript to an LLM (claude-haiku-4-5-20251001) which extracts a list of candidate learnings. Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern, rationale, filename_summary.
+
+- Traces to: UC-1 (LLM extraction)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes the full transcript (or the portion about to be compacted for PreCompact). (3) Response is parsed as a JSON array of candidate objects, each with all required fields. (4) Invalid or unparseable responses return an error. (5) The LLM extracts: missed corrections, architectural decisions, discovered constraints, working solutions, and implicit preferences.
+- Verification: deterministic (JSON schema validation of LLM response)
+
+---
+
+## REQ-16: Quality gate for extracted learnings
+
+The LLM extraction prompt instructs rejection of low-quality candidates. Mechanical patterns (e.g., "ran tests before committing"), vague generalizations (e.g., "code should be clean"), and observations too narrow to be useful again are excluded from the candidate list.
+
+- Traces to: UC-1 (quality gate)
+- AC: (1) The system prompt explicitly instructs the LLM to reject mechanical patterns, vague generalizations, and overly narrow observations. (2) Only specific, actionable learnings with clear principles or anti-patterns are included. (3) The quality gate is embedded in the prompt, not a separate filtering step.
+- Verification: LLM judgment (quality is prompt-enforced, verified via behavioral tests)
+
+---
+
+## REQ-17: Deduplication against existing memories
+
+Before writing each candidate learning, the system checks existing TOML files in the memories directory. Candidates that substantially overlap an existing memory (by keyword overlap) are skipped. UC-3 mid-session captures take priority — session-end extraction never duplicates what was already captured.
+
+- Traces to: UC-1 (deduplication)
+- AC: (1) All existing `.toml` files in `<data-dir>/memories/` are read before writing. (2) For each candidate, keywords are compared against existing memories' keywords. (3) If keyword overlap exceeds a threshold (>50% of candidate's keywords match an existing memory's keywords), the candidate is skipped. (4) Deduplication is logged to stderr. (5) If zero candidates survive dedup, no files are written and no error is emitted.
+- Verification: deterministic (keyword overlap calculation)
+
+---
+
+## REQ-18: Fail loudly when no API token
+
+If no API token is configured, the system emits a loud stderr warning and does not create any memory files. No degraded memories are ever written.
+
+- Traces to: UC-1 (no graceful degradation)
+- AC: (1) Missing API token → emit `[engram] Error: session learning skipped — no API token configured` to stderr. (2) No TOML files are created. (3) Exit 0 (don't break the hook chain). (4) See also issue #32 for aligning UC-3.
+- Verification: deterministic (stderr check, no files created)
+
+---
+
+## REQ-19: Idempotency across multiple triggers
+
+If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
+
+- Traces to: UC-1 (idempotency)
+- AC: (1) Each invocation reads existing memory files before writing (REQ-17 dedup covers this). (2) Memories written by a prior invocation in the same session are treated as existing memories for dedup. (3) No special session tracking is needed — file-based dedup is sufficient.
+- Verification: deterministic (run twice, check no duplicates)
+
+---
+
+## REQ-20: CLI `learn` subcommand
+
+The system adds a `learn` subcommand to the engram binary: `engram learn --data-dir <path>`. The transcript is read from stdin (not a flag) to avoid command-line length limits.
+
+- Traces to: UC-1 (CLI entry point)
+- AC: (1) `engram learn --data-dir <path>` reads transcript from stdin. (2) Runs the extraction → dedup → write pipeline. (3) Exit 0 always — errors logged to stderr. (4) Pure Go, no CGO.
+- Verification: deterministic (subcommand runs, correct pipeline)
+
+---
+
+## DES-9: Hook wiring — PreCompact and SessionEnd
+
+PreCompact hook (`hooks/pre-compact.sh`) and SessionEnd hook (`hooks/session-end.sh`) are registered in `hooks/hooks.json`. Both invoke the same pipeline: read the transcript from stdin, pass to `engram learn --data-dir <path>`.
+
+The hook reads the transcript from the stdin JSON payload (field depends on hook event — `transcript` or `conversation`). Token retrieval uses the same platform-aware mechanism as DES-3 (macOS Keychain fallback to env var).
+
+- Traces to: UC-1 (hook wiring)
+
+---
+
+## DES-10: Session learning feedback format
+
+When learnings are extracted, the system emits to stderr (not stdout, since the session may be ending):
+
+```
+[engram] Extracted N learnings from session.
+  - "<title1>" (file1.toml)
+  - "<title2>" (file2.toml)
+  ...
+[engram] Skipped M duplicates.
+```
+
+Format rules:
+- Header: `[engram] Extracted N learnings from session.`
+- Each learning: title in quotes, file path in parentheses
+- Duplicate count: only if M > 0
+- If zero learnings after dedup, emit: `[engram] No new learnings extracted.`
+
+- Traces to: UC-1 (feedback)

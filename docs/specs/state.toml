@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
+items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -84,6 +84,14 @@ parents = ["L1B"]
 items = ["REQ-9", "REQ-10", "REQ-11", "REQ-12", "REQ-13", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
 status = "complete"
 history = "6 REQs + 4 DES items derived from UC-2. SessionStart surfacing (REQ-9/DES-5), UserPromptSubmit surfacing (REQ-10/DES-6), PreToolUse enforcement two-pass (REQ-11/REQ-12/DES-7), graceful degradation (REQ-13), CLI surface subcommand (REQ-14), hook wiring (DES-8)."
+
+[tree.L2C]
+layer = "L2"
+name = "Session Learning Requirements"
+parents = ["L1C"]
+items = ["REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
+status = "in_progress"
+history = "6 REQs + 2 DES items derived from UC-1. LLM extraction (REQ-15), quality gate (REQ-16), deduplication (REQ-17), fail-loud no-token (REQ-18), idempotency (REQ-19), CLI learn subcommand (REQ-20), hook wiring (DES-9), feedback format (DES-10). Updated REQ-7 to include tier C."
 
 # Tree nodes — L3
 
@@ -200,7 +208,7 @@ history = "T-36/37/38/39, T-42, T-45/46 passing. LLM judgment, tool mode routing
 # Cursor
 
 [cursor]
-node = "L1C"
+node = "L2C"
 mode = "work"
-next_action = "L1C GREEN complete (UC-1 written). Proceed to REFACTOR (whole L1 layer review), then REGROUP."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
+next_action = "L2C complete. Descend to L3 — derive architecture for UC-1."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
