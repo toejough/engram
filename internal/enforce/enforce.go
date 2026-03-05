@@ -139,12 +139,16 @@ type anthropicResponse struct {
 }
 
 type judgmentResponse struct {
-	Violated bool `json:"violated"`
+	Violated bool   `json:"violated"`
+	Reason   string `json:"reason"`
 }
 
 func buildPrompt(toolName, toolInput string, mem *memory.Stored) string {
 	return fmt.Sprintf(
-		"Tool call: %s with input %s\n\nMemory principle: %s\nMemory anti_pattern: %s\n\nIs the anti_pattern being violated?",
+		"Tool: %s\nInput: %s\n\nPrinciple: %s\nAnti-pattern: %s\n\n"+
+			"Does this tool call PERFORM the anti-pattern? "+
+			"Text that merely mentions the concept is not a violation. "+
+			"Default to {\"violated\": false} when uncertain.",
 		toolName,
 		toolInput,
 		mem.Principle,
@@ -203,9 +207,22 @@ func stripMarkdownFence(text string) string {
 
 func systemPrompt() string {
 	return strings.TrimSpace(`
-You are a tool call validator. Given a tool call and a memory's principle and anti_pattern,
-determine whether the tool call violates the anti_pattern.
+You are a tool call validator. Determine whether a tool call PERFORMS
+an anti-pattern behavior. Text that merely mentions a concept is NOT
+a violation. Default to {"violated": false} when uncertain.
 
-Return ONLY a JSON object: {"violated": true} or {"violated": false}
-No explanation, no markdown fences.`)
+<examples>
+<example>
+Tool: Bash, Input: targ test
+Anti-pattern: Bypassing targ by running raw go test
+{"violated": false, "reason": "user IS using targ"}
+</example>
+<example>
+Tool: Bash, Input: git commit -m 'fix'
+Anti-pattern: Hand-rolling commits without /commit
+{"violated": true, "reason": "running git commit directly"}
+</example>
+</examples>
+
+Return ONLY: {"violated": true/false, "reason": "brief explanation"}`)
 }

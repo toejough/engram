@@ -4,6 +4,8 @@ package surface
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -25,6 +27,14 @@ var (
 	ErrUnknownMode = errors.New("surface: unknown mode")
 )
 
+// BlockHashStore persists the hash of the last blocked tool call, enabling
+// a repeat-to-confirm override: if the same call is made again, it is allowed.
+type BlockHashStore interface {
+	LastHash(ctx context.Context) (string, error)
+	SaveHash(ctx context.Context, hash string) error
+	ClearHash(ctx context.Context) error
+}
+
 // MemoryRetriever lists stored memories from disk (ARCH-9).
 type MemoryRetriever interface {
 	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
@@ -42,18 +52,25 @@ type Options struct {
 
 // Surfacer orchestrates memory surfacing and enforcement.
 type Surfacer struct {
-	retriever MemoryRetriever
-	enforcer  ToolEnforcer
-	stderr    io.Writer
+	retriever  MemoryRetriever
+	enforcer   ToolEnforcer
+	blockStore BlockHashStore
+	stderr     io.Writer
 }
 
-// New creates a Surfacer. The enforcer may be nil if tool mode is not used.
-// The stderr writer may be nil (defaults to no warnings).
-func New(retriever MemoryRetriever, enforcer ToolEnforcer, stderr io.Writer) *Surfacer {
+// New creates a Surfacer. The enforcer and blockStore may be nil if tool
+// mode is not used. The stderr writer may be nil (defaults to no warnings).
+func New(
+	retriever MemoryRetriever,
+	enforcer ToolEnforcer,
+	blockStore BlockHashStore,
+	stderr io.Writer,
+) *Surfacer {
 	return &Surfacer{
-		retriever: retriever,
-		enforcer:  enforcer,
-		stderr:    stderr,
+		retriever:  retriever,
+		enforcer:   enforcer,
+		blockStore: blockStore,
+		stderr:     stderr,
 	}
 }
 
@@ -69,6 +86,58 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
+}
+
+// isRepeatOverride checks if this exact call was blocked last time and clears
+// the hash to allow it through (repeat-to-confirm pattern).
+func (s *Surfacer) isRepeatOverride(ctx context.Context, callHash string) bool {
+	if s.blockStore == nil {
+		return false
+	}
+
+	lastHash, err := s.blockStore.LastHash(ctx)
+	if err == nil && lastHash == callHash {
+		_ = s.blockStore.ClearHash(ctx)
+
+		return true
+	}
+
+	return false
+}
+
+// judgeCandidates runs LLM judgment on each candidate memory, blocking on
+// the first violation found.
+func (s *Surfacer) judgeCandidates(
+	ctx context.Context, w io.Writer, opts Options,
+	candidates []*memory.Stored, callHash string,
+) error {
+	for _, mem := range candidates {
+		violated, judgeErr := s.enforcer.JudgeViolation(
+			ctx, opts.ToolName, opts.ToolInput, mem, opts.Token)
+		if judgeErr != nil {
+			s.warnEnforcementSkipped(judgeErr)
+
+			continue
+		}
+
+		if violated {
+			if s.blockStore != nil {
+				_ = s.blockStore.SaveHash(ctx, callHash)
+			}
+
+			_, _ = fmt.Fprintf(
+				w,
+				`{"decision": "block", "reason": "[engram] Blocked: \"%s\" — %s. Repeat to override. Memory file: %s"}`,
+				mem.Title,
+				mem.Principle,
+				mem.FilePath,
+			)
+
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (s *Surfacer) runPrompt(ctx context.Context, w io.Writer, dataDir, message string) error {
@@ -158,48 +227,28 @@ func (s *Surfacer) runTool(ctx context.Context, w io.Writer, opts Options) error
 		return fmt.Errorf("surface: %w", err)
 	}
 
-	// Pre-filter: only memories with anti_pattern and keyword match.
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
-
-	if len(candidates) == 0 {
+	if len(candidates) == 0 || s.enforcer == nil {
 		return nil
 	}
 
-	if s.enforcer == nil {
+	callHash := toolCallHash(opts.ToolName, opts.ToolInput)
+	if s.isRepeatOverride(ctx, callHash) {
 		return nil
 	}
 
-	// LLM judgment for each candidate.
-	for _, mem := range candidates {
-		violated, judgeErr := s.enforcer.JudgeViolation(
-			ctx, opts.ToolName, opts.ToolInput, mem, opts.Token)
-		if judgeErr != nil {
-			if s.stderr != nil {
-				_, _ = fmt.Fprintf(
-					s.stderr,
-					"[engram] Warning: enforcement skipped (%v). Tool call allowed.\n",
-					judgeErr,
-				)
-			}
+	return s.judgeCandidates(ctx, w, opts, candidates, callHash)
+}
 
-			continue
-		}
-
-		if violated {
-			// DES-7: block response format.
-			_, _ = fmt.Fprintf(
-				w,
-				`{"decision": "block", "reason": "[engram] Blocked: \"%s\" — %s. Memory file: %s"}`,
-				mem.Title,
-				mem.Principle,
-				mem.FilePath,
-			)
-
-			return nil
-		}
+// warnEnforcementSkipped writes a warning to stderr when enforcement fails.
+func (s *Surfacer) warnEnforcementSkipped(err error) {
+	if s.stderr != nil {
+		_, _ = fmt.Fprintf(
+			s.stderr,
+			"[engram] Warning: enforcement skipped (%v). Tool call allowed.\n",
+			err,
+		)
 	}
-
-	return nil
 }
 
 // ToolEnforcer judges whether a tool call violates a memory's anti-pattern (ARCH-11).
@@ -248,4 +297,10 @@ func matchesWholeWord(text, keyword string) bool {
 	}
 
 	return matched
+}
+
+// toolCallHash returns a deterministic hash of a tool call for repeat detection.
+func toolCallHash(toolName, toolInput string) string {
+	h := sha256.Sum256([]byte(toolName + "\x00" + toolInput))
+	return hex.EncodeToString(h[:16])
 }

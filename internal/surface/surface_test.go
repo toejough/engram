@@ -30,7 +30,7 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -80,7 +80,7 @@ func TestT28_SessionStartSurfacesAll(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -109,7 +109,7 @@ func TestT29_SessionStartNoMemories(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -142,7 +142,7 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -180,7 +180,7 @@ func TestT31_NoKeywordMatchProducesEmpty(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -209,7 +209,7 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	// Case-insensitive: "COMMIT" should match keyword "commit".
 	var buf1 bytes.Buffer
@@ -243,7 +243,7 @@ func TestUnknownModeReturnsError(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	s := surface.New(retriever, nil, nil)
+	s := surface.New(retriever, nil, nil, nil)
 
 	var buf bytes.Buffer
 

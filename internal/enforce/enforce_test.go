@@ -78,7 +78,8 @@ func TestJudgeViolation_MarkdownFenceNoClosing(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// Fence with no closing backticks — stripped up to the newline only.
-	body := `{"content": [{"type": "text", "text": "` + "```json\\n{\\\"violated\\\": false}" + `"}]}`
+	fenced := "```json\\n{\\\"violated\\\": false, \\\"reason\\\": \\\"not violated\\\"}"
+	body := `{"content": [{"type": "text", "text": "` + fenced + `"}]}`
 	client := &fakeHTTPClient{
 		response: makeResponse(body), //nolint:bodyclose // closed by JudgeViolation
 	}
@@ -107,7 +108,8 @@ func TestJudgeViolation_MarkdownFencedResponse(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	// LLM occasionally wraps JSON in a markdown code fence — stripMarkdownFence handles this.
-	body := `{"content": [{"type": "text", "text": "` + "```json\\n{\\\"violated\\\": true}\\n```" + `"}]}`
+	fenced := "```json\\n{\\\"violated\\\": true, \\\"reason\\\": \\\"direct violation\\\"}\\n```"
+	body := `{"content": [{"type": "text", "text": "` + fenced + `"}]}`
 	client := &fakeHTTPClient{
 		response: makeResponse(body), //nolint:bodyclose // closed by JudgeViolation
 	}
@@ -152,7 +154,7 @@ func TestJudgeViolation_NotViolated(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	resp := makeResponse( //nolint:bodyclose // closed by JudgeViolation
-		`{"content": [{"type": "text", "text": "{\"violated\": false}"}]}`,
+		`{"content": [{"type": "text", "text": "{\"violated\": false, \"reason\": \"not a violation\"}"}]}`,
 	)
 	client := &fakeHTTPClient{response: resp}
 
@@ -195,7 +197,7 @@ func TestJudgeViolation_Violated(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	resp := makeResponse( //nolint:bodyclose // closed by JudgeViolation
-		`{"content": [{"type": "text", "text": "{\"violated\": true}"}]}`,
+		`{"content": [{"type": "text", "text": "{\"violated\": true, \"reason\": \"direct violation detected\"}"}]}`,
 	)
 	client := &fakeHTTPClient{response: resp}
 

@@ -18,7 +18,7 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := cli.Run([]string{"engram", "correct"}, &buf)
+	err := cli.Run([]string{"engram", "correct"}, &buf, nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -33,7 +33,7 @@ func TestRun_NoArgs(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := cli.Run([]string{"engram"}, &buf)
+	err := cli.Run([]string{"engram"}, &buf, nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -48,7 +48,7 @@ func TestRun_UnknownCommand(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	err := cli.Run([]string{"engram", "bogus"}, &buf)
+	err := cli.Run([]string{"engram", "bogus"}, &buf, nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -72,7 +72,7 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 		"engram", "correct",
 		"--message", "remember to use targ",
 		"--data-dir", dataDir,
-	}, &buf)
+	}, &buf, nil)
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
@@ -94,7 +94,7 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 		"engram", "correct",
 		"--message", "hello world",
 		"--data-dir", dataDir,
-	}, &buf)
+	}, &buf, nil)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	// Verify stdout is empty
@@ -140,7 +140,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		"engram", "surface",
 		"--mode", "session-start",
 		"--data-dir", dataDir,
-	}, &buf)
+	}, &buf, nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -188,7 +188,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		"--mode", "prompt",
 		"--message", "I want to commit this",
 		"--data-dir", dataDir,
-	}, &buf)
+	}, &buf, nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -240,7 +240,7 @@ updated_at = "2025-01-01T00:00:00Z"
 		"--tool-name", "Bash",
 		"--tool-input", `{"command": "git commit -m fix"}`,
 		"--data-dir", dataDir,
-	}, &buf)
+	}, &buf, nil)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	// With no token, enforcement is skipped — tool allowed silently.

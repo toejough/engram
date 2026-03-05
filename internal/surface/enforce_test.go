@@ -12,6 +12,107 @@ import (
 	"engram/internal/surface"
 )
 
+// TestRepeatToConfirm_DifferentCallDoesNotOverride verifies that a different
+// tool call after a block does NOT get the repeat-to-confirm pass.
+func TestRepeatToConfirm_DifferentCallDoesNotOverride(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit"},
+			Principle:   "use /commit for commits",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	enforcer := &fakeEnforcer{violated: true}
+	blockStore := &fakeBlockHashStore{}
+	s := surface.New(retriever, enforcer, blockStore, nil)
+
+	// First call: blocks.
+	var buf1 bytes.Buffer
+
+	err := s.Run(context.Background(), &buf1, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `git commit -m 'fix'`,
+		Token:     "test-token",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf1.String()).To(ContainSubstring(`"decision": "block"`))
+
+	// Second call with DIFFERENT input: should still block.
+	var buf2 bytes.Buffer
+
+	err = s.Run(context.Background(), &buf2, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `git commit -m 'different message'`,
+		Token:     "test-token",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf2.String()).To(ContainSubstring(`"decision": "block"`))
+}
+
+// TestRepeatToConfirm_FirstCallBlocks verifies that a violated tool call
+// blocks and saves the hash, then a repeated identical call is allowed.
+func TestRepeatToConfirm_FirstCallBlocks(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit"},
+			Principle:   "use /commit for commits",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	enforcer := &fakeEnforcer{violated: true}
+	blockStore := &fakeBlockHashStore{}
+	s := surface.New(retriever, enforcer, blockStore, nil)
+
+	opts := surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `git commit -m 'fix'`,
+		Token:     "test-token",
+	}
+
+	// First call: should block and save hash.
+	var buf1 bytes.Buffer
+
+	err := s.Run(context.Background(), &buf1, opts)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf1.String()).To(ContainSubstring(`"decision": "block"`))
+	g.Expect(buf1.String()).To(ContainSubstring("Repeat to override."))
+	g.Expect(blockStore.saved).NotTo(BeEmpty())
+
+	// Second call (identical): should be allowed via repeat-to-confirm.
+	var buf2 bytes.Buffer
+
+	err = s.Run(context.Background(), &buf2, opts)
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf2.String()).To(BeEmpty())
+	g.Expect(blockStore.cleared).To(BeTrue())
+}
+
 // T-33: Pre-filter matches memory keywords in tool input
 func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 	t.Parallel()
@@ -30,7 +131,7 @@ func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -70,7 +171,7 @@ func TestT34_PreFilterSkipsWithoutAntiPattern(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -106,7 +207,7 @@ func TestT35_PreFilterNoKeywordMatch(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -142,7 +243,7 @@ func TestT36_ViolatedAntiPatternBlocks(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -185,7 +286,7 @@ func TestT37_NonViolatedAllowsSilently(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: false}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -222,7 +323,7 @@ func TestT38_MissingTokenGracefulDegradation(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	s := surface.New(retriever, enforcer, &stderr)
+	s := surface.New(retriever, enforcer, nil, &stderr)
 
 	var buf bytes.Buffer
 
@@ -263,7 +364,7 @@ func TestT39_LLMTimeoutGracefulDegradation(t *testing.T) {
 
 	var stderr bytes.Buffer
 
-	s := surface.New(retriever, enforcer, &stderr)
+	s := surface.New(retriever, enforcer, nil, &stderr)
 
 	var buf bytes.Buffer
 
@@ -299,7 +400,7 @@ func TestToolInputKeywordStillMatches(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -342,7 +443,7 @@ func TestToolNameOnlyKeywordDoesNotMatch(t *testing.T) {
 
 	retriever := &fakeRetriever{memories: memories}
 	enforcer := &fakeEnforcer{violated: true}
-	s := surface.New(retriever, enforcer, nil)
+	s := surface.New(retriever, enforcer, nil, nil)
 
 	var buf bytes.Buffer
 
@@ -358,6 +459,34 @@ func TestToolNameOnlyKeywordDoesNotMatch(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(enforcer.called).To(BeFalse())
 	g.Expect(buf.String()).To(BeEmpty())
+}
+
+// fakeBlockHashStore is a test double for surface.BlockHashStore.
+type fakeBlockHashStore struct {
+	saved   string
+	cleared bool
+}
+
+func (f *fakeBlockHashStore) ClearHash(_ context.Context) error {
+	f.saved = ""
+	f.cleared = true
+
+	return nil
+}
+
+func (f *fakeBlockHashStore) LastHash(_ context.Context) (string, error) {
+	if f.saved == "" {
+		return "", nil
+	}
+
+	return f.saved, nil
+}
+
+func (f *fakeBlockHashStore) SaveHash(_ context.Context, hash string) error {
+	f.saved = hash
+	f.cleared = false
+
+	return nil
 }
 
 // fakeEnforcer is a test double for surface.ToolEnforcer.

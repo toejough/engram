@@ -23,7 +23,7 @@ import (
 
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
-func Run(args []string, stdout io.Writer) error {
+func Run(args []string, stdout io.Writer, blockStore surface.BlockHashStore) error {
 	if len(args) < minArgs {
 		return errUsage
 	}
@@ -35,7 +35,7 @@ func Run(args []string, stdout io.Writer) error {
 	case "correct":
 		return runCorrect(subArgs, stdout)
 	case "surface":
-		return runSurface(subArgs, stdout)
+		return runSurface(subArgs, stdout, blockStore)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -109,7 +109,7 @@ func runCorrect(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func runSurface(args []string, stdout io.Writer) error {
+func runSurface(args []string, stdout io.Writer, blockStore surface.BlockHashStore) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -131,8 +131,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	token := os.Getenv("ENGRAM_API_TOKEN")
 	retriever := retrieve.New()
 	enforcer := enforce.New(&http.Client{})
-
-	surfacer := surface.New(retriever, enforcer, os.Stderr)
+	surfacer := surface.New(retriever, enforcer, blockStore, os.Stderr)
 	ctx := context.Background()
 
 	return surfacer.Run(ctx, stdout, surface.Options{
