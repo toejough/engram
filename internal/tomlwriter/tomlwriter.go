@@ -22,6 +22,9 @@ type Option func(*Writer)
 type Writer struct {
 	createTemp func(dir, pattern string) (*os.File, error)
 	rename     func(oldpath, newpath string) error
+	mkdirAll   func(path string, perm os.FileMode) error
+	stat       func(name string) (os.FileInfo, error)
+	remove     func(name string) error
 }
 
 // New creates a Writer with real file system operations.
@@ -29,6 +32,9 @@ func New(opts ...Option) *Writer {
 	w := &Writer{
 		createTemp: os.CreateTemp,
 		rename:     os.Rename,
+		mkdirAll:   os.MkdirAll,
+		stat:       os.Stat,
+		remove:     os.Remove,
 	}
 
 	for _, opt := range opts {
@@ -45,14 +51,14 @@ func New(opts ...Option) *Writer {
 func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 
-	mkdirErr := os.MkdirAll(memoriesDir, memoriesDirPerm)
+	mkdirErr := w.mkdirAll(memoriesDir, memoriesDirPerm)
 	if mkdirErr != nil {
 		return "", fmt.Errorf("tomlwriter: create memories dir: %w", mkdirErr)
 	}
 
 	slug := slugify(mem.FilenameSummary)
 
-	finalPath, err := availablePath(memoriesDir, slug)
+	finalPath, err := w.availablePath(memoriesDir, slug)
 	if err != nil {
 		return "", err
 	}
@@ -89,6 +95,25 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 	return finalPath, nil
 }
 
+// availablePath returns the first available file path for slug in memoriesDir.
+// Tries <slug>.toml, then <slug>-2.toml, <slug>-3.toml, etc.
+func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
+	candidate := filepath.Join(memoriesDir, slug+".toml")
+
+	for suffix := 2; ; suffix++ {
+		_, statErr := w.stat(candidate)
+		if os.IsNotExist(statErr) {
+			return candidate, nil
+		}
+
+		if statErr != nil {
+			return "", fmt.Errorf("tomlwriter: stat %s: %w", candidate, statErr)
+		}
+
+		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
+	}
+}
+
 // writeAtomic writes record as TOML to finalPath using a temp file and rename.
 // Paths are constructed internally via filepath.Join — no user-controlled input.
 func (w *Writer) writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
@@ -103,20 +128,20 @@ func (w *Writer) writeAtomic(memoriesDir, finalPath string, record tomlRecord) e
 	encodeErr := toml.NewEncoder(tempFile).Encode(record)
 	if encodeErr != nil {
 		_ = tempFile.Close()
-		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
+		_ = w.remove(tempPath)
 
 		return fmt.Errorf("tomlwriter: encode TOML: %w", encodeErr)
 	}
 
 	closeErr := tempFile.Close()
 	if closeErr != nil {
-		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
+		_ = w.remove(tempPath)
 		return fmt.Errorf("tomlwriter: close temp file: %w", closeErr)
 	}
 
 	renameErr := w.rename(tempPath, cleanFinal)
 	if renameErr != nil {
-		_ = os.Remove(tempPath) //nolint:gosec // safe: tempPath from CreateTemp
+		_ = w.remove(tempPath)
 		return fmt.Errorf("tomlwriter: rename to final path: %w", renameErr)
 	}
 
@@ -128,9 +153,24 @@ func WithCreateTemp(fn func(dir, pattern string) (*os.File, error)) Option {
 	return func(w *Writer) { w.createTemp = fn }
 }
 
+// WithMkdirAll overrides the directory creation function.
+func WithMkdirAll(fn func(path string, perm os.FileMode) error) Option {
+	return func(w *Writer) { w.mkdirAll = fn }
+}
+
+// WithRemove overrides the file removal function.
+func WithRemove(fn func(name string) error) Option {
+	return func(w *Writer) { w.remove = fn }
+}
+
 // WithRename overrides the file rename function.
 func WithRename(fn func(oldpath, newpath string) error) Option {
 	return func(w *Writer) { w.rename = fn }
+}
+
+// WithStat overrides the file stat function.
+func WithStat(fn func(name string) (os.FileInfo, error)) Option {
+	return func(w *Writer) { w.stat = fn }
 }
 
 // unexported constants.
@@ -156,25 +196,6 @@ type tomlRecord struct {
 	Confidence      string   `toml:"confidence"`
 	CreatedAt       string   `toml:"created_at"`
 	UpdatedAt       string   `toml:"updated_at"`
-}
-
-// availablePath returns the first available file path for slug in memoriesDir.
-// Tries <slug>.toml, then <slug>-2.toml, <slug>-3.toml, etc.
-func availablePath(memoriesDir, slug string) (string, error) {
-	candidate := filepath.Join(memoriesDir, slug+".toml")
-
-	for suffix := 2; ; suffix++ {
-		_, statErr := os.Stat(candidate)
-		if os.IsNotExist(statErr) {
-			return candidate, nil
-		}
-
-		if statErr != nil {
-			return "", fmt.Errorf("tomlwriter: stat %s: %w", candidate, statErr)
-		}
-
-		candidate = filepath.Join(memoriesDir, fmt.Sprintf("%s-%d.toml", slug, suffix))
-	}
 }
 
 // slugify converts a filename summary to a lowercase hyphen-separated slug.

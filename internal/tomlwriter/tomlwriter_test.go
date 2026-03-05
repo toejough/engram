@@ -264,6 +264,98 @@ func TestT9_FilenameSlugIsHyphenatedLowercaseWords(t *testing.T) {
 	})
 }
 
+// TestWithMkdirAllError verifies that an injected mkdirAll failure propagates.
+func TestWithMkdirAllError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	writer := tomlwriter.New(
+		tomlwriter.WithMkdirAll(func(string, os.FileMode) error {
+			return errors.New("permission denied")
+		}),
+	)
+
+	mem := &memory.Enriched{
+		FilenameSummary: "mkdirall error test",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	_, writeErr := writer.Write(mem, t.TempDir())
+	g.Expect(writeErr).To(HaveOccurred())
+
+	if writeErr != nil {
+		g.Expect(writeErr.Error()).To(ContainSubstring("create memories dir"))
+	}
+}
+
+// TestWithRemoveIsWired verifies that the injected remove function is called
+// during cleanup when encoding fails.
+func TestWithRemoveIsWired(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	removeCalled := false
+
+	writer := tomlwriter.New(
+		tomlwriter.WithCreateTemp(func(dir, pattern string) (*os.File, error) {
+			f, err := os.CreateTemp(dir, pattern)
+			if err != nil {
+				return nil, err
+			}
+
+			_ = f.Close()
+
+			return f, nil
+		}),
+		tomlwriter.WithRemove(func(string) error {
+			removeCalled = true
+			return nil
+		}),
+	)
+
+	mem := &memory.Enriched{
+		FilenameSummary: "remove wired test",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	_, writeErr := writer.Write(mem, t.TempDir())
+	g.Expect(writeErr).To(HaveOccurred())
+
+	if writeErr != nil {
+		g.Expect(removeCalled).To(BeTrue())
+	}
+}
+
+// TestWithStatError verifies that an injected stat failure propagates.
+func TestWithStatError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	writer := tomlwriter.New(
+		tomlwriter.WithStat(func(string) (os.FileInfo, error) {
+			return nil, errors.New("stat failed")
+		}),
+	)
+
+	mem := &memory.Enriched{
+		FilenameSummary: "stat error test",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	_, writeErr := writer.Write(mem, t.TempDir())
+	g.Expect(writeErr).To(HaveOccurred())
+
+	if writeErr != nil {
+		g.Expect(writeErr.Error()).To(ContainSubstring("stat"))
+	}
+}
+
 // TestWriteAtomicCreateTempError verifies that a CreateTemp failure
 // propagates as a "create temp file" error.
 func TestWriteAtomicCreateTempError(t *testing.T) {
