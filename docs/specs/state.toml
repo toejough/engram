@@ -226,10 +226,31 @@ items = ["T-36", "T-37", "T-38", "T-39", "T-42", "T-45", "T-46"]
 status = "complete"
 history = "T-36/37/38/39, T-42, T-45/46 passing. LLM judgment, tool mode routing, hook scripts."
 
+[tree.L5J]
+layer = "L5"
+name = "Transcript Extraction + Dedup"
+parents = ["L4C"]
+items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56"]
+status = "pending"
+
+[tree.L5K]
+layer = "L5"
+name = "Learner Pipeline + CLI"
+parents = ["L5J"]
+items = ["T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64"]
+status = "pending"
+
+[tree.L5L]
+layer = "L5"
+name = "Hook Script Wiring"
+parents = ["L5K"]
+items = ["T-65", "T-66", "T-67", "T-68"]
+status = "pending"
+
 # Cursor
 
 [cursor]
-node = "L4C"
+node = "L5J"
 mode = "work"
-next_action = "L4C complete. Descend to L5 — implement UC-1 session learning via TDD."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
+next_action = "Begin L5J TDD — implement transcript extraction (T-47–51) and deduplication (T-52–56)."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
