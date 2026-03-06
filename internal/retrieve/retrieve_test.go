@@ -2,6 +2,7 @@ package retrieve_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,65 +155,126 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 	g.Expect(memories[1].Title).To(Equal("Valid One"))
 }
 
+// T-82: Tracking fields are populated from TOML
+func TestT82_TrackingFieldsPopulated(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeTestTOML(t, memoriesDir, "tracked.toml", tomlContent{
+		Title:             "Tracked Memory",
+		Keywords:          []string{"track"},
+		UpdatedAt:         "2026-03-01T00:00:00Z",
+		SurfacedCount:     5,
+		LastSurfaced:      "2026-03-01T00:00:00Z",
+		SurfacingContexts: []string{"prompt", "tool"},
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].SurfacedCount).To(Equal(5))
+	g.Expect(memories[0].LastSurfaced).To(Equal(time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)))
+	g.Expect(memories[0].SurfacingContexts).To(Equal([]string{"prompt", "tool"}))
+}
+
+// T-83: Missing tracking fields default to zero values
+func TestT83_MissingTrackingFieldsDefaultToZero(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Existing format with no tracking fields.
+	writeTestTOML(t, memoriesDir, "legacy.toml", tomlContent{
+		Title:     "Legacy Memory",
+		Keywords:  []string{"old"},
+		UpdatedAt: "2025-06-01T00:00:00Z",
+	})
+
+	r := retrieve.New()
+	memories, err := r.ListMemories(context.Background(), dataDir)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(memories).To(HaveLen(1))
+	g.Expect(memories[0].SurfacedCount).To(Equal(0))
+	g.Expect(memories[0].LastSurfaced).To(Equal(time.Time{}))
+	g.Expect(memories[0].SurfacingContexts).To(BeEmpty())
+}
+
 // tomlContent is a test helper for writing memory TOML files.
 type tomlContent struct {
-	Title       string
-	Keywords    []string
-	Concepts    []string
-	AntiPattern string
-	UpdatedAt   string
-	Principle   string
+	Title             string
+	Keywords          []string
+	Concepts          []string
+	AntiPattern       string
+	UpdatedAt         string
+	Principle         string
+	SurfacedCount     int
+	LastSurfaced      string
+	SurfacingContexts []string
+}
+
+// formatTOMLStringArray formats a string slice as a TOML array literal.
+func formatTOMLStringArray(items []string) string {
+	if len(items) == 0 {
+		return "[]"
+	}
+
+	var sb strings.Builder
+
+	sb.WriteString("[")
+
+	for i, item := range items {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+
+		sb.WriteString(`"` + item + `"`)
+	}
+
+	sb.WriteString("]")
+
+	return sb.String()
 }
 
 func writeTestTOML(t *testing.T, dir, filename string, tc tomlContent) {
 	t.Helper()
 
-	keywords := "[]"
-	if len(tc.Keywords) > 0 {
-		keywords = `["` + tc.Keywords[0] + `"]`
-		if len(tc.Keywords) > 1 {
-			keywords = "["
-
-			var keywordsSb168 strings.Builder
-
-			for i, k := range tc.Keywords {
-				if i > 0 {
-					keywordsSb168.WriteString(", ")
-				}
-
-				keywordsSb168.WriteString(`"` + k + `"`)
-			}
-
-			keywords += keywordsSb168.String()
-
-			keywords += "]"
-		}
-	}
-
-	concepts := "[]"
-	if len(tc.Concepts) > 0 {
-		concepts = "["
-
-		var conceptsSb181 strings.Builder
-
-		for i, c := range tc.Concepts {
-			if i > 0 {
-				conceptsSb181.WriteString(", ")
-			}
-
-			conceptsSb181.WriteString(`"` + c + `"`)
-		}
-
-		concepts += conceptsSb181.String()
-
-		concepts += "]"
-	}
-
 	content := `title = "` + tc.Title + `"
 content = "test content"
 observation_type = "correction"
-concepts = ` + concepts + `
-keywords = ` + keywords + `
+concepts = ` + formatTOMLStringArray(tc.Concepts) + `
+keywords = ` + formatTOMLStringArray(tc.Keywords) + `
 principle = "` + tc.Principle + `"
 anti_pattern = "` + tc.AntiPattern + `"
 rationale = "test rationale"
@@ -220,6 +282,18 @@ confidence = "B"
 created_at = "2025-01-01T00:00:00Z"
 updated_at = "` + tc.UpdatedAt + `"
 `
+
+	if tc.SurfacedCount > 0 {
+		content += fmt.Sprintf("surfaced_count = %d\n", tc.SurfacedCount)
+	}
+
+	if tc.LastSurfaced != "" {
+		content += `last_surfaced = "` + tc.LastSurfaced + `"` + "\n"
+	}
+
+	if len(tc.SurfacingContexts) > 0 {
+		content += "surfacing_contexts = " + formatTOMLStringArray(tc.SurfacingContexts) + "\n"
+	}
 
 	path := filepath.Join(dir, filename)
 

@@ -81,15 +81,27 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		return nil, fmt.Errorf("parsing updated_at: %w", err)
 	}
 
+	var lastSurfaced time.Time
+
+	if record.LastSurfaced != "" {
+		lastSurfaced, err = time.Parse(time.RFC3339, record.LastSurfaced)
+		if err != nil {
+			return nil, fmt.Errorf("parsing last_surfaced: %w", err)
+		}
+	}
+
 	return &memory.Stored{
-		Title:       record.Title,
-		Content:     record.Content,
-		Concepts:    record.Concepts,
-		Keywords:    record.Keywords,
-		AntiPattern: record.AntiPattern,
-		Principle:   record.Principle,
-		UpdatedAt:   updatedAt,
-		FilePath:    filePath,
+		Title:             record.Title,
+		Content:           record.Content,
+		Concepts:          record.Concepts,
+		Keywords:          record.Keywords,
+		AntiPattern:       record.AntiPattern,
+		Principle:         record.Principle,
+		UpdatedAt:         updatedAt,
+		FilePath:          filePath,
+		SurfacedCount:     record.SurfacedCount,
+		LastSurfaced:      lastSurfaced,
+		SurfacingContexts: record.SurfacingContexts,
 	}, nil
 }
 
@@ -97,11 +109,14 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 //
 
 type tomlRecord struct {
-	Title       string   `toml:"title"`
-	Content     string   `toml:"content"`
-	Concepts    []string `toml:"concepts"`
-	Keywords    []string `toml:"keywords"`
-	AntiPattern string   `toml:"anti_pattern"`
-	Principle   string   `toml:"principle"`
-	UpdatedAt   string   `toml:"updated_at"`
+	Title             string   `toml:"title"`
+	Content           string   `toml:"content"`
+	Concepts          []string `toml:"concepts"`
+	Keywords          []string `toml:"keywords"`
+	AntiPattern       string   `toml:"anti_pattern"`
+	Principle         string   `toml:"principle"`
+	UpdatedAt         string   `toml:"updated_at"`
+	SurfacedCount     int      `toml:"surfaced_count"`
+	LastSurfaced      string   `toml:"last_surfaced"`
+	SurfacingContexts []string `toml:"surfacing_contexts"`
 }

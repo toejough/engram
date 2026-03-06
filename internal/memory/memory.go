@@ -78,12 +78,15 @@ type PatternMatch struct {
 
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
 type Stored struct {
-	Title       string
-	Content     string
-	Concepts    []string
-	Keywords    []string
-	AntiPattern string
-	Principle   string
-	UpdatedAt   time.Time
-	FilePath    string
+	Title             string
+	Content           string
+	Concepts          []string
+	Keywords          []string
+	AntiPattern       string
+	Principle         string
+	UpdatedAt         time.Time
+	FilePath          string
+	SurfacedCount     int
+	LastSurfaced      time.Time
+	SurfacingContexts []string
 }
