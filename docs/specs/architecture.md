@@ -1,6 +1,6 @@
 # Architecture
 
-System architecture for UC-3 (Remember & Correct) and UC-2 (Hook-Time Surfacing & Enforcement). Each ARCH decision traces to L2 items.
+System architecture for UC-3 (Remember & Correct), UC-2 (Hook-Time Surfacing & Enforcement), and UC-15 (Automatic Outcome Signal). Each ARCH decision traces to L2 items.
 
 ---
 
@@ -603,6 +603,130 @@ All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithR
 
 ---
 
+## ARCH-22: Surfacing Log Infrastructure
+
+**Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (SessionStart, UserPromptSubmit, PreToolUse). The evaluate pass reads this log to determine which memories were surfaced, then clears it.
+
+```go
+type SurfacingLogger interface {
+    LogSurfacing(filePath string, mode string, timestamp time.Time) error
+    ReadAndClear(filePath string) ([]SurfacingEvent, error)
+}
+
+type SurfacingEvent struct {
+    MemoryPath string
+    Mode       string    // "session-start", "prompt", "tool"
+    SurfacedAt time.Time
+}
+```
+
+Implementation:
+1. File path: `<data-dir>/surfacing-log.jsonl`
+2. Append mode: each surfacing event appends one line per matched memory
+3. Format: JSONL with memory_path, mode, surfaced_at (RFC 3339)
+4. Read-and-clear: evaluate reads all lines, parses, returns slice, then removes file
+5. Append errors are fire-and-forget (ARCH-6 exit-0 contract)
+
+**Traces to:** REQ-26 (surfacing log write/read), DES-11 (JSONL format)
+
+---
+
+## ARCH-23: Outcome Evaluation Pipeline
+
+**Decision:** Three-stage pipeline for outcome evaluation: read surfacing log → send to LLM for classification → write evaluation results.
+
+```go
+type Evaluator struct {
+    SurfacingLogger  SurfacingLogger  // read surfacing log
+    MemoryRetriever  MemoryRetriever  // fetch surfaced memory details
+    LLMEvaluator     LLMEvaluator     // classify outcomes
+    EvaluationWriter EvaluationWriter // write evaluation log
+}
+
+func (e *Evaluator) Evaluate(ctx context.Context, transcript string, dataDir string) error {
+    // 1. Read surfacing log
+    // 2. Fetch each surfaced memory's TOML
+    // 3. Send transcript + surfaced memories to LLM
+    // 4. Classify each outcome (followed/contradicted/ignored)
+    // 5. Write evaluation log file
+}
+
+type Outcome struct {
+    MemoryPath string // file path to the memory
+    Outcome    string // "followed", "contradicted", "ignored"
+    Evidence   string // brief LLM explanation
+    EvaluatedAt time.Time
+}
+```
+
+Implementation:
+1. LLM call uses claude-haiku-4-5-20251001
+2. Input: full transcript + list of surfaced memories (title, principle, anti_pattern, content)
+3. Output: JSON array with one entry per surfaced memory
+4. Each memory gets exactly one outcome classification
+5. Evidence field captures LLM's reasoning
+
+**Traces to:** REQ-27 (LLM evaluation), REQ-28 (evaluation log write), DES-12 (LLM prompt design), DES-13 (evaluation log schema)
+
+---
+
+## ARCH-24: Effectiveness Aggregation (Read Path)
+
+**Decision:** Compute effectiveness on-the-fly from evaluation logs when surfacing. Pure computation, no caching in TOML.
+
+```go
+type EffectivenessComputer interface {
+    Aggregate(evalDir string) map[string]EffectivenessStat
+}
+
+type EffectivenessStat struct {
+    FollowedCount      int
+    ContradictedCount  int
+    IgnoredCount       int
+    EffectivenessScore float64 // followed / (followed + contradicted + ignored) * 100
+}
+```
+
+Implementation:
+1. Read all `.jsonl` files in `<data-dir>/evaluations/`
+2. Parse each line and group by memory_path
+3. Aggregate counts: followed, contradicted, ignored per memory
+4. Compute effectiveness percentage: `followed / (followed + contradicted + ignored) * 100`
+5. Return map of memory_path → EffectivenessStat
+6. Missing evaluations directory → empty map (no error)
+7. Malformed lines skipped
+
+Usage: When UC-2 surfaces memories, call Aggregate, then append effectiveness annotation to each memory's output line.
+
+**Traces to:** REQ-29 (effectiveness aggregation), REQ-30 (effectiveness annotations)
+
+---
+
+## ARCH-25: Hook Integration — evaluate Subcommand
+
+**Decision:** Thin CLI wrapper for the Evaluator pipeline. Same pattern as correct/learn: reads transcript from stdin, invokes Evaluator, outputs summary.
+
+```go
+func runEvaluate(ctx context.Context, dataDir string, in io.Reader, out io.Writer) error {
+    // 1. Read transcript from stdin
+    // 2. Create Evaluator with DI
+    // 3. Call Evaluator.Evaluate(ctx, transcript, dataDir)
+    // 4. Format and output evaluation summary to stdout
+    // 5. Exit 0 always — errors logged to stderr per ARCH-6
+}
+```
+
+Implementation:
+1. CLI: `engram evaluate --data-dir <path>`
+2. Reads transcript from stdin (same as learn)
+3. Outputs summary to stdout for hook to reshape into systemMessage
+4. Requires API token (same mechanism as correct/learn; emit error if missing)
+5. Exit code: always 0 (ARCH-6 contract)
+
+**Traces to:** REQ-32 (evaluate CLI subcommand), DES-15 (hook wiring)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -629,6 +753,10 @@ All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithR
 | ARCH-19 | REQ-21, REQ-22 |
 | ARCH-20 | REQ-22, ARCH-6, ARCH-7 |
 | ARCH-21 | REQ-23, REQ-24, REQ-25 |
+| ARCH-22 | REQ-26, DES-11 |
+| ARCH-23 | REQ-27, REQ-28, DES-12, DES-13 |
+| ARCH-24 | REQ-29, REQ-30 |
+| ARCH-25 | REQ-32, DES-15 |
 
 ### L2 → ARCH
 
@@ -666,5 +794,19 @@ All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithR
 | REQ-20 | ARCH-14, ARCH-17 |
 | DES-9 | ARCH-18 |
 | DES-10 | ARCH-17 |
+| REQ-26 | ARCH-22 |
+| DES-11 | ARCH-22 |
+| REQ-27 | ARCH-23 |
+| DES-12 | ARCH-23 |
+| REQ-28 | ARCH-23 |
+| DES-13 | ARCH-23 |
+| REQ-29 | ARCH-24 |
+| REQ-30 | ARCH-24 |
+| DES-14 | ARCH-24 |
+| REQ-31 | ARCH-25 |
+| DES-15 | ARCH-25 |
+| REQ-32 | ARCH-25 |
+| REQ-33 | ARCH-15 |
+| REQ-34 | ARCH-16 |
 
 All L2 items have ARCH coverage.

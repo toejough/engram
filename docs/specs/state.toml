@@ -36,6 +36,10 @@ items = [
   { id = "ARCH-19", source = "derived" },
   { id = "ARCH-20", source = "derived" },
   { id = "ARCH-21", source = "derived" },
+  { id = "ARCH-22", source = "derived" },
+  { id = "ARCH-23", source = "derived" },
+  { id = "ARCH-24", source = "derived" },
+  { id = "ARCH-25", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -116,6 +120,14 @@ status = "complete"
 history = "9 REQs + 5 DES items derived from UC-15. Surfacing log write/read (REQ-26/DES-11), LLM evaluation (REQ-27/DES-12), evaluation log (REQ-28/DES-13), effectiveness aggregation (REQ-29), annotations (REQ-30/DES-14), SessionEnd summary (REQ-31/DES-15), CLI evaluate (REQ-32), no degradation (REQ-33), idempotency (REQ-34)."
 
 # Tree nodes — L3
+
+[tree.L3D]
+layer = "L3"
+name = "Automatic Outcome Signal Architecture"
+parents = ["L2D"]
+items = ["ARCH-22", "ARCH-23", "ARCH-24", "ARCH-25"]
+status = "complete"
+history = "4 ARCH decisions derived from UC-15. Surfacing log infrastructure (ARCH-22), outcome evaluation pipeline (ARCH-23), effectiveness aggregation on-the-fly (ARCH-24), hook integration evaluate CLI (ARCH-25)."
 
 [tree.L3A]
 layer = "L3"
@@ -338,7 +350,7 @@ history = "Issue #49: UserPromptSubmit hook puts creation output in systemMessag
 # Cursor
 
 [cursor]
-node = "L2D"
+node = "L3D"
 mode = "in_progress"
-next_action = "L2D complete. Descend to L3: derive ARCH items from UC-15 requirements."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md", "docs/specs/architecture.md"]
+next_action = "L3D complete. Descend to L4: derive test specs from UC-15 architecture."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
