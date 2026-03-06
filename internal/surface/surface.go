@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -144,12 +143,17 @@ func (s *Surfacer) runPrompt(
 		promptMems = append(promptMems, m.mem)
 	}
 
-	names := memoryNames(promptMems)
-	summary := fmt.Sprintf("[engram] %d relevant memories: %s",
-		len(matches), strings.Join(names, ", "))
+	var summaryBuf strings.Builder
+
+	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d relevant memories:\n", len(matches))
+
+	for _, match := range matches {
+		_, _ = fmt.Fprintf(&summaryBuf, "  - \"%s\" (%s) [matched: %s]\n",
+			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "))
+	}
 
 	return Result{
-		Summary: summary,
+		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: buf.String(),
 	}, promptMems, nil
 }
@@ -211,24 +215,27 @@ func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, []*memory
 		return Result{}, nil, nil
 	}
 
-	var buf strings.Builder
+	var (
+		summaryBuf strings.Builder
+		contextBuf strings.Builder
+	)
 
-	summary := fmt.Sprintf("[engram] %d tool advisories: %s",
-		len(candidates), strings.Join(memoryNames(candidates), ", "))
-
-	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&buf, "[engram] Tool call advisory:\n")
+	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d tool advisories:\n", len(candidates))
+	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
 
 	for _, mem := range candidates {
-		_, _ = fmt.Fprintf(&buf, "  - \"%s\" — %s (%s)\n",
+		line := fmt.Sprintf("  - \"%s\" — %s (%s)\n",
 			mem.Title, mem.Principle, mem.FilePath)
+		_, _ = fmt.Fprint(&summaryBuf, line)
+		_, _ = fmt.Fprint(&contextBuf, line)
 	}
 
-	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
+	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
 
 	return Result{
-		Summary: summary,
-		Context: buf.String(),
+		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
+		Context: contextBuf.String(),
 	}, candidates, nil
 }
 
@@ -333,18 +340,6 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []*memory
 func matchesWholeWord(text, keyword string) bool {
 	re := regexp.MustCompile(`\b` + regexp.QuoteMeta(keyword) + `\b`)
 	return re.MatchString(text)
-}
-
-// memoryNames returns the basenames (without extension) of memory file paths.
-func memoryNames(memories []*memory.Stored) []string {
-	names := make([]string, 0, len(memories))
-	for _, mem := range memories {
-		name := filepath.Base(mem.FilePath)
-		name = strings.TrimSuffix(name, filepath.Ext(name))
-		names = append(names, name)
-	}
-
-	return names
 }
 
 // writeCreationSection appends the creation report to summary and context buffers.

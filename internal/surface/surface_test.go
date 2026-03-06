@@ -519,8 +519,9 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 		return
 	}
 
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories:"))
 	g.Expect(result.Summary).
-		To(ContainSubstring("[engram] 1 relevant memories: commit-conventions"))
+		To(ContainSubstring("\"Commit Conventions\" (commit-conventions.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
 }
 
@@ -568,7 +569,9 @@ func TestT71_ToolJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories: use-commit"))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories:"))
+	g.Expect(result.Summary).
+		To(ContainSubstring("\"Use /commit\" — always use /commit for commits (use-commit.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("Use /commit"))
 	g.Expect(result.Context).To(ContainSubstring("always use /commit for commits"))
 }
