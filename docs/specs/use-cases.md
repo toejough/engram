@@ -70,7 +70,7 @@ updated_at = "2026-03-03T18:00:00Z"
 
 **Starting state:** The memory store contains TOML files written by UC-3. A hook fires (SessionStart, UserPromptSubmit, or PreToolUse).
 
-**End state:** Relevant memories are surfaced as system reminders at all three hook points (SessionStart, UserPromptSubmit, PreToolUse). The agent uses these advisories with full session context to exercise judgment.
+**End state:** Relevant memories are surfaced as system reminders at all three hook points (SessionStart, UserPromptSubmit, PreToolUse). The agent uses these advisories with full session context to exercise judgment. Each surfacing event is recorded in the memory's TOML file (count, timestamp, context type) for effectiveness measurement.
 
 **Actor:** System (hook scripts invoke Go binary for retrieval and surfacing).
 
@@ -88,9 +88,14 @@ updated_at = "2026-03-03T18:00:00Z"
 
 - **Pure Go, no CGO:** Same constraint as UC-3. Keyword matching is string operations on TOML files.
 
-- **Memory format unchanged:** Reads the same TOML files UC-3 writes. The `keywords`, `anti_pattern`, and `principle` fields already exist and drive the matching/enforcement.
+- **Memory format extended for instrumentation:** Reads the same TOML files UC-3 writes. The `keywords`, `anti_pattern`, and `principle` fields already exist and drive the matching/enforcement. Three new optional fields are added to the TOML format for surfacing instrumentation:
+  - `surfaced_count` (int) — incremented each time the memory is surfaced
+  - `last_surfaced` (RFC 3339 timestamp) — updated to the current time on each surfacing event
+  - `surfacing_contexts` (string array) — bounded list of recent context types (`session-start`, `prompt`, `tool`), capped at 10 entries
 
-- **Ranking deferred:** Frecency (recency × impact) ranking is deferred until UC-6 provides evaluation/impact signals. See issue #18 comment for details.
+- **Surfacing instrumentation:** After each surfacing mode determines which memories matched, the system updates each matched memory's TOML file in-place with the new tracking fields. This is fire-and-forget: instrumentation errors are logged to stderr but never fail the surfacing operation (ARCH-6 exit-0 contract). The data collected here is the foundation for Phase 2 (outcome signals) and Phase 3 (effectiveness diagnosis).
+
+- **Ranking deferred:** Frecency (recency × impact) ranking is deferred until surfacing instrumentation (this phase) and outcome signals (Phase 2) provide the data. See issue #18 comment and docs/plans/memory-effectiveness-plan.md for details.
 
 ---
 
