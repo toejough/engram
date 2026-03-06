@@ -251,10 +251,36 @@ items = ["T-65", "T-66", "T-67", "T-68"]
 status = "complete"
 history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in hooks.json, scripts read transcript from stdin JSON and pipe to engram learn. All lint clean. Issue #35: no changes needed — tier classification happens inside binary."
 
+# Tree nodes — L5 (UC-2 instrumentation, issue #46)
+
+[tree.L5M]
+layer = "L5"
+name = "Tracking Logic + Recorder"
+parents = ["L4B"]
+items = ["T-73", "T-74", "T-75", "T-76", "T-77", "T-78"]
+status = "pending"
+history = "Issue #46: new internal/track/ package. ComputeUpdate pure logic + Recorder with DI for atomic TOML updates."
+
+[tree.L5N]
+layer = "L5"
+name = "Surfacer ↔ Tracker Integration"
+parents = ["L5M", "L5O"]
+items = ["T-79", "T-80", "T-81"]
+status = "pending"
+history = "Issue #46: optional MemoryTracker interface in Surfacer. Refactor mode handlers to return matched memories. Fire-and-forget error handling. CLI wiring."
+
+[tree.L5O]
+layer = "L5"
+name = "Retrieval Tracking Fields"
+parents = ["L4B"]
+items = ["T-82", "T-83"]
+status = "pending"
+history = "Issue #46: extend memory.Stored with SurfacedCount, LastSurfaced, SurfacingContexts. Extend retrieve tomlRecord to read new fields."
+
 # Cursor
 
 [cursor]
-node = "L5I"
-mode = "complete"
-next_action = "Post-completion re-entry for audit findings: issue #25 (JSON format output) spec coverage propagated L2→L3→L4→L5. T-60 spec aligned with issue #35 tier-from-extraction. REQ-X added to layer registry. All nodes remain complete."
-context_files = ["docs/specs/state.toml"]
+node = "L5O"
+mode = "in_progress"
+next_action = "Implement T-82/T-83: extend memory.Stored and retrieve.tomlRecord with tracking fields. TDD red/green/refactor."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
