@@ -50,7 +50,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -355,10 +355,44 @@ items = ["T-98", "T-99"]
 status = "complete"
 history = "Issue #49: UserPromptSubmit hook puts creation output in systemMessage. SessionStart hook puts creation report summary in systemMessage. Both hooks combine creation + surface output when both present. T-98/99 passing, lint clean."
 
+# Tree nodes — L5 (UC-15 Automatic Outcome Signal)
+
+[tree.L5U]
+layer = "L5"
+name = "Surfacing Log"
+parents = ["L4D"]
+items = ["T-101", "T-102", "T-103", "T-104", "T-105", "T-121"]
+status = "complete"
+history = "Issue #47: internal/surfacinglog/ package with Logger.LogSurfacing/ReadAndClear. JSONL write/read with DI (WithAppendFile, WithReadFile, WithRemoveFile). Fire-and-forget per ARCH-6. Surfacer integration via SurfacingEventLogger interface. T-101..T-105, T-121 passing, lint clean."
+
+[tree.L5V]
+layer = "L5"
+name = "Outcome Evaluation Pipeline"
+parents = ["L4D"]
+items = ["T-106", "T-107", "T-108", "T-109", "T-110", "T-111"]
+status = "complete"
+history = "Issue #47: internal/evaluate/ package with Evaluator.Evaluate. Reads surfacing log, calls claude-haiku-4-5-20251001 to classify each surfaced memory (followed/contradicted/ignored), writes per-session evaluation log to evaluations/<timestamp>.jsonl. Full DI pattern. T-106..T-111 passing, lint clean."
+
+[tree.L5W]
+layer = "L5"
+name = "Effectiveness Aggregation"
+parents = ["L4D"]
+items = ["T-112", "T-113", "T-114", "T-115", "T-116"]
+status = "complete"
+history = "Issue #47: internal/effectiveness/ package with Computer.Aggregate. Reads all evaluation log files, groups by memory_path, computes FollowedCount/ContradictedCount/IgnoredCount/EffectivenessScore. Missing directory returns empty map. Malformed lines skipped. T-112..T-116 passing, lint clean."
+
+[tree.L5X]
+layer = "L5"
+name = "CLI Evaluate + Hook Wiring + Surfacer Integration"
+parents = ["L5U", "L5V", "L5W"]
+items = ["T-117", "T-118", "T-119", "T-120"]
+status = "complete"
+history = "Issue #47: CLI evaluate subcommand (engram evaluate --data-dir), RunLearn DI refactor (eliminated hanging real-HTTP tests), surfacer integration with SurfacingLogger + EffectivenessComputer, evaluate calls in session-end/pre-compact hooks. T-117..T-120 passing, targ check-full clean."
+
 # Cursor
 
 [cursor]
-node = "L4D"
-mode = "in_progress"
-next_action = "L4D complete. Descend to L5: implement UC-15 tests via /work-on."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+node = "L5X"
+mode = "complete"
+next_action = "L5D complete. UC-15 Automatic Outcome Signal fully implemented. Run usability gate."
+context_files = ["docs/specs/state.toml"]
