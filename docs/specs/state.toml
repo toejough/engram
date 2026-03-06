@@ -394,5 +394,5 @@ history = "Issue #47: CLI evaluate subcommand (engram evaluate --data-dir), RunL
 [cursor]
 node = "L5X"
 mode = "complete"
-next_action = "L5D complete. UC-15 Automatic Outcome Signal fully implemented. Run usability gate."
+next_action = "Usability gate passed. All 4 UCs complete and exercisable. Next: triage issue #54 or pick next UC from backlog."
 context_files = ["docs/specs/state.toml"]
