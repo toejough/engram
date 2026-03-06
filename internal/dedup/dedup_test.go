@@ -9,7 +9,7 @@ import (
 	"engram/internal/memory"
 )
 
-func TestFilter_EmptyKeywords_NeverFiltered(t *testing.T) {
+func TestT55_EmptyKeywordsNeverFiltered(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -28,7 +28,7 @@ func TestFilter_EmptyKeywords_NeverFiltered(t *testing.T) {
 	g.Expect(result).To(HaveLen(1))
 }
 
-func TestFilter_HighOverlap_FiltersCandidate(t *testing.T) {
+func TestT52_HighOverlapFiltersCandidate(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -47,7 +47,7 @@ func TestFilter_HighOverlap_FiltersCandidate(t *testing.T) {
 	g.Expect(result).To(BeEmpty())
 }
 
-func TestFilter_Idempotency_SecondRunDeduplicatesAgainstFirst(t *testing.T) {
+func TestT56_IdempotencySecondRunDeduplicatesAgainstFirst(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -70,7 +70,7 @@ func TestFilter_Idempotency_SecondRunDeduplicatesAgainstFirst(t *testing.T) {
 	g.Expect(secondPass).To(BeEmpty())
 }
 
-func TestFilter_LowOverlap_KeepsCandidate(t *testing.T) {
+func TestT53_LowOverlapKeepsCandidate(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -89,7 +89,7 @@ func TestFilter_LowOverlap_KeepsCandidate(t *testing.T) {
 	g.Expect(result).To(HaveLen(1))
 }
 
-func TestFilter_NoExistingMemories_AllCandidatesSurvive(t *testing.T) {
+func TestT54_NoExistingMemoriesAllCandidatesSurvive(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
