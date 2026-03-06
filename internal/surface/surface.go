@@ -34,11 +34,6 @@ type CreationLogReader interface {
 	ReadAndClear(dataDir string) ([]LogEntry, error)
 }
 
-// SurfacingEventLogger logs individual memory surfacing events (ARCH-22).
-type SurfacingEventLogger interface {
-	LogSurfacing(memoryPath string, mode string, timestamp time.Time) error
-}
-
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -274,6 +269,11 @@ func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error 
 
 // SurfacerOption configures a Surfacer.
 type SurfacerOption func(*Surfacer)
+
+// SurfacingEventLogger logs individual memory surfacing events (ARCH-22).
+type SurfacingEventLogger interface {
+	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
+}
 
 // WithLogReader sets the creation log reader for session-start mode.
 func WithLogReader(reader CreationLogReader) SurfacerOption {

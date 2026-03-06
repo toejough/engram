@@ -12,15 +12,6 @@ import (
 	"engram/internal/effectiveness"
 )
 
-// evalLine builds a minimal evaluation log JSON line for testing.
-func evalLine(memoryPath, outcome string) string {
-	return fmt.Sprintf(
-		`{"memory_path":%q,"outcome":%q,"evidence":"x","evaluated_at":"2024-01-01T00:00:00Z"}`,
-		memoryPath,
-		outcome,
-	)
-}
-
 // T-112: Aggregate computes effectiveness from evaluation logs.
 func TestComputer_Aggregate_ComputesEffectiveness(t *testing.T) {
 	t.Parallel()
@@ -97,6 +88,42 @@ func TestComputer_Aggregate_MissingDirReturnsEmpty(t *testing.T) {
 	g.Expect(stats).To(gomega.BeEmpty())
 }
 
+// processFile: lines with empty memory_path are silently skipped.
+func TestComputer_Aggregate_SkipsEmptyMemoryPath(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const memD = "memories/mem-d.toml"
+
+	content := strings.Join([]string{
+		`{"memory_path":"","outcome":"followed","evidence":"x","evaluated_at":"2024-01-01T00:00:00Z"}`,
+		evalLine(memD, "followed"),
+	}, "\n")
+
+	files := map[string]string{"session.jsonl": content}
+	dirEntries := fakeDirEntries(files)
+
+	computer := effectiveness.New("/eval",
+		effectiveness.WithReadDir(func(string) ([]os.DirEntry, error) {
+			return dirEntries, nil
+		}),
+		effectiveness.WithReadFile(func(string) ([]byte, error) {
+			return []byte(content), nil
+		}),
+	)
+
+	stats, err := computer.Aggregate()
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stats).To(gomega.HaveKey(memD))
+	g.Expect(stats).NotTo(gomega.HaveKey(""))
+	g.Expect(stats[memD].FollowedCount).To(gomega.Equal(1))
+}
+
 // T-114: Aggregate skips malformed JSONL lines.
 func TestComputer_Aggregate_SkipsMalformedLines(t *testing.T) {
 	t.Parallel()
@@ -142,12 +169,52 @@ func TestComputer_Aggregate_SkipsMalformedLines(t *testing.T) {
 	g.Expect(stat.ContradictedCount).To(gomega.Equal(0))
 }
 
+// processFile: unreadable file is silently skipped, others processed normally.
+func TestComputer_Aggregate_SkipsUnreadableFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const memC = "memories/mem-c.toml"
+
+	files := map[string]string{
+		"bad.jsonl":  "does not matter",
+		"good.jsonl": evalLine(memC, "followed"),
+	}
+
+	dirEntries := fakeDirEntries(files)
+
+	computer := effectiveness.New("/eval",
+		effectiveness.WithReadDir(func(string) ([]os.DirEntry, error) {
+			return dirEntries, nil
+		}),
+		effectiveness.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/eval/bad.jsonl" {
+				return nil, errors.New("permission denied")
+			}
+
+			return []byte(files["good.jsonl"]), nil
+		}),
+	)
+
+	stats, err := computer.Aggregate()
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stats).To(gomega.HaveKey(memC))
+}
+
+// unexported variables.
+var (
+	errNotImplemented = errors.New("not implemented")
+)
+
 // fakeDirEntry implements os.DirEntry for testing.
 type fakeDirEntry struct {
 	name string
 }
-
-var errNotImplemented = errors.New("not implemented")
 
 func (f fakeDirEntry) Info() (os.FileInfo, error) { return nil, errNotImplemented }
 
@@ -156,6 +223,15 @@ func (f fakeDirEntry) IsDir() bool { return false }
 func (f fakeDirEntry) Name() string { return f.name }
 
 func (f fakeDirEntry) Type() os.FileMode { return 0 }
+
+// evalLine builds a minimal evaluation log JSON line for testing.
+func evalLine(memoryPath, outcome string) string {
+	return fmt.Sprintf(
+		`{"memory_path":%q,"outcome":%q,"evidence":"x","evaluated_at":"2024-01-01T00:00:00Z"}`,
+		memoryPath,
+		outcome,
+	)
+}
 
 func fakeDirEntries(files map[string]string) []os.DirEntry {
 	entries := make([]os.DirEntry, 0, len(files))

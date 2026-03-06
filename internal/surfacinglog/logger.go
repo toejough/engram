@@ -10,18 +10,6 @@ import (
 	"time"
 )
 
-const logFilename = "surfacing-log.jsonl"
-
-// SurfacingEvent represents a single memory surfacing event.
-type SurfacingEvent struct {
-	MemoryPath string    `json:"memory_path"`
-	Mode       string    `json:"mode"`
-	SurfacedAt time.Time `json:"surfaced_at"`
-}
-
-// Option configures a Logger.
-type Option func(*Logger)
-
 // Logger records and retrieves surfacing events.
 type Logger struct {
 	dataDir    string
@@ -34,8 +22,27 @@ type Logger struct {
 // Defaults use real os.* functions.
 func New(dataDir string, opts ...Option) *Logger {
 	logger := &Logger{
-		dataDir:    dataDir,
-		appendFile: appendFileDefault,
+		dataDir: dataDir,
+		appendFile: func(name string, data []byte, perm os.FileMode) error {
+			//nolint:gosec // G304: name is an internal path constructed from dataDir + logFilename.
+			file, openErr := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
+			if openErr != nil {
+				return fmt.Errorf("opening log file: %w", openErr)
+			}
+
+			_, writeErr := file.Write(data)
+			closeErr := file.Close()
+
+			if writeErr != nil {
+				return fmt.Errorf("writing log file: %w", writeErr)
+			}
+
+			if closeErr != nil {
+				return fmt.Errorf("closing log file: %w", closeErr)
+			}
+
+			return nil
+		},
 		readFile:   os.ReadFile,
 		removeFile: os.Remove,
 	}
@@ -64,7 +71,8 @@ func (l *Logger) LogSurfacing(memoryPath, mode string, timestamp time.Time) erro
 
 	path := l.dataDir + "/" + logFilename
 
-	if appendErr := l.appendFile(path, line, 0o644); appendErr != nil {
+	appendErr := l.appendFile(path, line, logFilePerm)
+	if appendErr != nil {
 		return fmt.Errorf("appending surfacing log: %w", appendErr)
 	}
 
@@ -96,18 +104,33 @@ func (l *Logger) ReadAndClear() ([]SurfacingEvent, error) {
 		}
 
 		var event SurfacingEvent
-		if jsonErr := json.Unmarshal([]byte(line), &event); jsonErr != nil {
+
+		jsonErr := json.Unmarshal([]byte(line), &event)
+		if jsonErr != nil {
 			continue // skip malformed lines
 		}
 
 		events = append(events, event)
 	}
 
-	if removeErr := l.removeFile(path); removeErr != nil {
+	removeErr := l.removeFile(path)
+	if removeErr != nil {
 		return nil, fmt.Errorf("removing surfacing log: %w", removeErr)
 	}
 
 	return events, nil
+}
+
+// Option configures a Logger.
+type Option func(*Logger)
+
+// SurfacingEvent represents a single memory surfacing event.
+//
+//nolint:tagliatelle // spec requires snake_case JSON field names.
+type SurfacingEvent struct {
+	MemoryPath string    `json:"memory_path"`
+	Mode       string    `json:"mode"`
+	SurfacedAt time.Time `json:"surfaced_at"`
 }
 
 // WithAppendFile injects a file append function into a Logger.
@@ -125,19 +148,8 @@ func WithRemoveFile(fn func(name string) error) Option {
 	return func(l *Logger) { l.removeFile = fn }
 }
 
-// appendFileDefault appends data to the named file, creating it if it doesn't exist.
-func appendFileDefault(name string, data []byte, perm os.FileMode) error {
-	file, err := os.OpenFile(name, os.O_APPEND|os.O_CREATE|os.O_WRONLY, perm)
-	if err != nil {
-		return err
-	}
-
-	_, writeErr := file.Write(data)
-	closeErr := file.Close()
-
-	if writeErr != nil {
-		return writeErr
-	}
-
-	return closeErr
-}
+// unexported constants.
+const (
+	logFilePerm = os.FileMode(0o644)
+	logFilename = "surfacing-log.jsonl"
+)

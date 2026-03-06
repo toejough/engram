@@ -3,6 +3,7 @@ package surfacinglog_test
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,18 +13,96 @@ import (
 	"engram/internal/surfacinglog"
 )
 
+// Integration test: default appendFile returns error when path is invalid.
+func TestNew_DefaultAppendFile_OpenFileError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	// /dev/null is not a directory, so /dev/null/surfacing-log.jsonl cannot be created.
+	logger := surfacinglog.New("/dev/null")
+
+	err := logger.LogSurfacing("mem/foo.toml", "prompt", time.Now())
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("opening log file")))
+}
+
+// Integration test: default appendFile wires real filesystem correctly.
+func TestNew_DefaultAppendFile_WritesToRealFile(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	dir := t.TempDir()
+	logger := surfacinglog.New(dir)
+	ts := time.Date(2024, 6, 15, 12, 0, 0, 0, time.UTC)
+
+	err := logger.LogSurfacing("mem/foo.toml", "prompt", ts)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(filepath.Join(dir, "surfacing-log.jsonl"))
+	g.Expect(readErr).NotTo(gomega.HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(gomega.ContainSubstring(`"memory_path":"mem/foo.toml"`))
+	g.Expect(string(data)).To(gomega.HaveSuffix("\n"))
+}
+
+// ReadAndClear returns error when file cannot be read (non-ErrNotExist).
+func TestReadAndClear_ReadError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	logger := surfacinglog.New("/data",
+		surfacinglog.WithReadFile(func(string) ([]byte, error) {
+			return nil, errors.New("permission denied")
+		}),
+		surfacinglog.WithRemoveFile(func(string) error { return nil }),
+	)
+
+	_, err := logger.ReadAndClear()
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
+// ReadAndClear returns error when file cannot be removed after reading.
+func TestReadAndClear_RemoveError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	const content = `{"memory_path":"mem/a.toml","mode":"prompt","surfaced_at":"2024-01-01T00:00:00Z"}` + "\n"
+
+	logger := surfacinglog.New("/data",
+		surfacinglog.WithReadFile(func(string) ([]byte, error) {
+			return []byte(content), nil
+		}),
+		surfacinglog.WithRemoveFile(func(string) error {
+			return errors.New("remove failed")
+		}),
+	)
+
+	_, err := logger.ReadAndClear()
+	g.Expect(err).To(gomega.HaveOccurred())
+}
+
 // T-101: Surfacing log append writes JSONL entry.
 func TestT101_LogSurfacing_WritesJSONLEntry(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	var appendedPath string
-	var appendedData []byte
+	var (
+		appendedPath string
+		appendedData []byte
+	)
 
 	logger := surfacinglog.New("/data",
 		surfacinglog.WithAppendFile(func(name string, data []byte, _ os.FileMode) error {
 			appendedPath = name
 			appendedData = data
+
 			return nil
 		}),
 	)
@@ -71,6 +150,11 @@ func TestT102_LogSurfacing_MultipleCallsMultipleLines(t *testing.T) {
 	}
 
 	g.Expect(lines).To(gomega.HaveLen(3))
+
+	if len(lines) < 3 {
+		return
+	}
+
 	g.Expect(lines[0]).To(gomega.ContainSubstring(`"memory_path":"mem/a.toml"`))
 	g.Expect(lines[1]).To(gomega.ContainSubstring(`"memory_path":"mem/b.toml"`))
 	g.Expect(lines[2]).To(gomega.ContainSubstring(`"memory_path":"mem/c.toml"`))

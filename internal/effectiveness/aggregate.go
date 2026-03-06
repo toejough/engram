@@ -17,31 +17,6 @@ type Computer struct {
 	readFile func(string) ([]byte, error)
 }
 
-// Option configures a Computer.
-type Option func(*Computer)
-
-// Stat holds aggregated effectiveness counts for a single memory.
-type Stat struct {
-	FollowedCount      int
-	ContradictedCount  int
-	IgnoredCount       int
-	EffectivenessScore float64 // followed / (followed + contradicted + ignored) * 100
-}
-
-// WithReadDir injects a directory reader for testing.
-func WithReadDir(fn func(string) ([]os.DirEntry, error)) Option {
-	return func(c *Computer) {
-		c.readDir = fn
-	}
-}
-
-// WithReadFile injects a file reader for testing.
-func WithReadFile(fn func(string) ([]byte, error)) Option {
-	return func(c *Computer) {
-		c.readFile = fn
-	}
-}
-
 // New creates a Computer that reads .jsonl files from evalDir.
 func New(evalDir string, opts ...Option) *Computer {
 	computer := &Computer{
@@ -54,14 +29,6 @@ func New(evalDir string, opts ...Option) *Computer {
 	}
 
 	return computer
-}
-
-// evalEntry is the JSON structure of a single evaluation log line.
-//
-//nolint:tagliatelle // external log format uses snake_case field names
-type evalEntry struct {
-	MemoryPath string `json:"memory_path"`
-	Outcome    string `json:"outcome"`
 }
 
 // Aggregate reads all .jsonl files in evalDir and returns per-memory stats.
@@ -104,7 +71,9 @@ func (c *Computer) processFile(filePath string, counts map[string]*Stat) {
 		}
 
 		var logEntry evalEntry
-		if jsonErr := json.Unmarshal([]byte(line), &logEntry); jsonErr != nil {
+
+		jsonErr := json.Unmarshal([]byte(line), &logEntry)
+		if jsonErr != nil {
 			continue // skip malformed lines
 		}
 
@@ -114,6 +83,39 @@ func (c *Computer) processFile(filePath string, counts map[string]*Stat) {
 
 		applyOutcome(counts, logEntry.MemoryPath, logEntry.Outcome)
 	}
+}
+
+// Option configures a Computer.
+type Option func(*Computer)
+
+// Stat holds aggregated effectiveness counts for a single memory.
+type Stat struct {
+	FollowedCount      int
+	ContradictedCount  int
+	IgnoredCount       int
+	EffectivenessScore float64 // followed / (followed + contradicted + ignored) * 100
+}
+
+// WithReadDir injects a directory reader for testing.
+func WithReadDir(fn func(string) ([]os.DirEntry, error)) Option {
+	return func(c *Computer) {
+		c.readDir = fn
+	}
+}
+
+// WithReadFile injects a file reader for testing.
+func WithReadFile(fn func(string) ([]byte, error)) Option {
+	return func(c *Computer) {
+		c.readFile = fn
+	}
+}
+
+// evalEntry is the JSON structure of a single evaluation log line.
+//
+//nolint:tagliatelle // external log format uses snake_case field names
+type evalEntry struct {
+	MemoryPath string `json:"memory_path"`
+	Outcome    string `json:"outcome"`
 }
 
 // applyOutcome increments the appropriate counter for a memory path.
