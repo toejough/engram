@@ -67,13 +67,15 @@ The enriched memory is written to `<data-dir>/memories/<slug>.toml` where slug i
 
 ---
 
-## REQ-4: System reminder feedback on memory creation
+## REQ-4: System reminder feedback on memory creation — user-visible
 
-After a memory file is created, the system outputs a system reminder to stdout confirming: the tier classification, the memory title, key fields, and the file path.
+After a memory file is created, the system outputs creation feedback that is visible to the user via the hook's `systemMessage` field. The feedback confirms: the tier classification, the memory title, and the file path.
 
-- Traces to: UC-3 (feedback)
-- AC: (1) Stdout contains a system reminder when a memory is created. (2) Reminder includes the memory tier (A/B/C), title, observation type, and file path. (3) Format uses `[engram]` prefix. (4) Null classification → no output (no file created).
-- Verification: deterministic (stdout content check, tier accuracy)
+When surface matches also exist in the same hook invocation, creation feedback and surface summary are both included in `systemMessage` so the user sees both. Creation feedback is never buried in `additionalContext` (model-only context).
+
+- Traces to: UC-3 (feedback, user visibility)
+- AC: (1) Memory creation always outputs feedback. (2) Feedback goes into the hook's `systemMessage` field for user visibility. (3) When surface matches co-occur, both creation and surface summary appear in `systemMessage`. (4) Feedback includes memory tier (A/B/C), title, and file path. (5) Format uses `[engram]` prefix. (6) Null classification → no output (no file created).
+- Verification: deterministic (hook output field check, user visibility confirmation)
 
 ---
 
@@ -133,12 +135,10 @@ Format rules:
 
 ## DES-3: Hook wiring — UserPromptSubmit
 
-The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt and transcript path from stdin JSON:
-```bash
-USER_MESSAGE="$(jq -r '.prompt // empty')"
-TRANSCRIPT_PATH="$(jq -r '.transcript_path // empty')"
-"$ENGRAM_BIN" correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
-```
+The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt and transcript path from stdin JSON, and invokes two independent operations:
+
+1. **Correction (UC-3):** `engram correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"`
+2. **Surfacing (UC-2):** `engram surface --mode prompt --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --format json`
 
 The `transcript_path` field is available in the UserPromptSubmit hook JSON input and is read by the Go binary for context (REQ-X). The hook also self-builds the binary if missing (`go build -o "$ENGRAM_BIN" ./cmd/engram/`).
 
@@ -146,9 +146,18 @@ Token retrieval is platform-aware:
 - **macOS:** Attempt to read OAuth token from Claude Code Keychain via `security find-generic-password`. On failure, fall back to `ENGRAM_API_TOKEN` env var.
 - **Non-macOS (Linux, etc.):** Use `ENGRAM_API_TOKEN` env var directly.
 
-The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds. Stdout from the binary becomes the system reminder. Empty stdout = no reminder.
+The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds.
 
-- Traces to: UC-3 (hook wiring, transcript context reading)
+**Hook output JSON:**
+- If surface matches exist: `{systemMessage: (<surface_summary> + "\n" + <creation_output>), additionalContext: <surface_context>}`
+  - User sees both creation feedback AND surface summary in one message.
+  - Surfaced memory details go to model context for analysis.
+- If only creation exists (no surface matches): `{systemMessage: <creation_output>, additionalContext: ""}`
+- If neither creation nor surface matches: `{}` (empty output)
+
+Creation feedback must always appear in `systemMessage` (user-visible), never relegated to `additionalContext`.
+
+- Traces to: UC-3 (hook wiring, transcript context reading, user-visible creation feedback)
 
 ---
 
@@ -228,25 +237,38 @@ The system adds a `surface` subcommand to the engram binary: `engram surface --m
 
 ## DES-5: SessionStart surfacing reminder format
 
-When memories are surfaced at session start, the agent sees:
+When memories are surfaced at session start, the output includes two sections:
+
+1. **Creation report (if creation log exists):** Before surfacing recency-based memories, the system reports memories created in prior sessions:
 
 ```
 <system-reminder source="engram">
-[engram] Loaded N memories.
-  - "<title1>" (file1.toml)
-  - "<title2>" (file2.toml)
+[engram] Created N memories since last session:
+  - "<title1>" [A] (file1.toml)
+  - "<title2>" [B] (file2.toml)
+</system-reminder>
+```
+
+2. **Recency surfacing:** Then the top 20 by recency:
+
+```
+<system-reminder source="engram">
+[engram] Loaded M memories.
+  - "<title3>" (file3.toml)
+  - "<title4>" (file4.toml)
   ...
 </system-reminder>
 ```
 
 Format rules:
-- Header: `[engram] Loaded N memories.` where N is the count
-- Each memory: title in quotes, file path in parentheses
-- Ordered by recency (most recent first)
-- If no memories, no output
-- With `--format json`: wrapped in `{"summary": "[engram] Loaded N memories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}` for Claude Code visibility.
+- Creation report: "Created N memories since last session:" with title, tier, file path for each
+- Recency report: "Loaded M memories." with title and file path for each
+- Ordered by recency (most recent first) for recency section
+- If no creation log exists, skip creation report
+- If no memories exist for recency section, emit only creation report (if present)
+- With `--format json`: wrap both sections in `{"summary": "[engram] ...", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}` for Claude Code visibility.
 
-- Traces to: UC-2 (SessionStart feedback)
+- Traces to: UC-2 (SessionStart feedback, creation visibility)
 
 ---
 
@@ -337,6 +359,44 @@ All existing fields are preserved on round-trip — the update must not drop or 
 
 ---
 
+## REQ-23: Creation log format for deferred visibility
+
+PreCompact and SessionEnd hooks cannot output to the user (no hook output mechanism). Instead, UC-1 learning logs creation events to `<data-dir>/creation-log.jsonl` in JSONL format (one JSON object per line). Each log entry contains:
+
+```json
+{
+  "timestamp": "2026-03-06T12:34:56Z",
+  "title": "Memory title",
+  "tier": "A",
+  "filename": "memory-filename.toml"
+}
+```
+
+One entry per memory created. The log file is created if missing, appended to if exists. Fire-and-forget: creation log write failures are logged to stderr but don't fail the learn operation (ARCH-6 exit-0 contract).
+
+- Traces to: UC-1 (creation visibility, deferred reporting)
+- AC: (1) Each memory created by UC-1 appends one JSONL line to `creation-log.jsonl`. (2) Entry includes timestamp (RFC 3339), title, tier (A/B/C), and filename. (3) File is appended-to, created if missing. (4) Appends are atomic (temp write + rename to avoid corruption). (5) Write errors are logged to stderr, don't fail the operation.
+- Verification: deterministic (JSONL format validation, file content check)
+
+---
+
+## REQ-24: SessionStart creation report — read and clear creation log
+
+When a session starts (SessionStart hook), before surfacing the top 20 memories by recency, the system checks for a creation log (`<data-dir>/creation-log.jsonl`). If it exists:
+
+1. Read all entries from the log
+2. Format them as a report: "N memories created since last session: [titles and tiers]"
+3. Include the report in the hook's `systemMessage` so the user sees what was learned
+4. Delete the creation log after successful reporting
+
+Fire-and-forget: log read/delete errors are logged to stderr but don't fail the SessionStart operation (ARCH-6 exit-0 contract).
+
+- Traces to: UC-2 (SessionStart surfacing, creation visibility)
+- AC: (1) SessionStart checks for `creation-log.jsonl`. (2) If present, reads all JSONL entries. (3) Formats a report: "N memories created since last session: [list]". (4) Includes report in `systemMessage` alongside the recency surfacing. (5) Deletes the log after reporting. (6) If no log exists, no report is included. (7) Read/delete errors logged to stderr, don't fail the operation.
+- Verification: deterministic (log parsing, report format, file deletion)
+
+---
+
 # UC-1 Requirements and Design
 
 ---
@@ -403,6 +463,16 @@ The system adds a `learn` subcommand to the engram binary: `engram learn --data-
 - Traces to: UC-1 (CLI entry point)
 - AC: (1) `engram learn --data-dir <path>` reads transcript from stdin. (2) Runs the extraction → dedup → write pipeline. (3) Exit 0 always — errors logged to stderr. (4) Pure Go, no CGO.
 - Verification: deterministic (subcommand runs, correct pipeline)
+
+---
+
+## REQ-25: Creation log write for deferred visibility
+
+During UC-1 learning (PreCompact/SessionEnd), each memory file successfully written is also logged to `<data-dir>/creation-log.jsonl` (see REQ-23 for format). Logging happens after the TOML file is written. See REQ-23 for JSONL format and fire-and-forget error handling.
+
+- Traces to: UC-1 (creation visibility, deferred reporting)
+- AC: (1) For each memory file written, append one JSONL line to `creation-log.jsonl`. (2) Entry includes timestamp (RFC 3339), memory title, tier (A/B/C), and filename. (3) Appends are atomic (temp write + rename). (4) Write errors logged to stderr, don't fail the learning operation. (5) Creation log enables deferred visibility at next SessionStart (REQ-24).
+- Verification: deterministic (JSONL format check, file append success)
 
 ---
 
