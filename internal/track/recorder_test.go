@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -22,45 +21,31 @@ func TestT76_RecordSurfacingNoExistingTracking(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "memory.toml")
-	err := os.WriteFile(filePath, []byte(baseTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	capture := &writeCapture{}
 
 	fixedNow := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
-	recorder := track.NewRecorder(track.WithNow(func() time.Time { return fixedNow }))
+	recorder := track.NewRecorder(
+		track.WithNow(func() time.Time { return fixedNow }),
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(baseTOML), nil
+		}),
+		track.WithCreateTemp(capture.createTemp(t)),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
+	)
 
 	memories := []*memory.Stored{
-		{FilePath: filePath},
+		{FilePath: "/fake/memory.toml"},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "session-start")
+	err := recorder.RecordSurfacing(context.Background(), memories, "session-start")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	// Read back and verify.
-	data, err := os.ReadFile(filePath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var record fullTOMLRecord
-
-	_, err = toml.Decode(string(data), &record)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	record := capture.decodeTOML(g)
 
 	// Tracking fields updated.
 	g.Expect(record.SurfacedCount).To(Equal(1))
@@ -87,52 +72,39 @@ func TestT77_RecordSurfacingWithExistingTracking(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "memory.toml")
-	existingTOML := baseTOML + `surfaced_count = 3
-last_surfaced = "2026-02-01T00:00:00Z"
-surfacing_contexts = ["prompt", "tool", "session-start"]
-`
-	err := os.WriteFile(filePath, []byte(existingTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
+	capture := &writeCapture{}
 
-	if err != nil {
-		return
-	}
+	existingTOML := baseTOML + "surfaced_count = 3\n" +
+		"last_surfaced = \"2026-02-01T00:00:00Z\"\n" +
+		"surfacing_contexts = [\"prompt\", \"tool\", \"session-start\"]\n"
 
 	fixedNow := time.Date(2026, 3, 5, 14, 0, 0, 0, time.UTC)
-	recorder := track.NewRecorder(track.WithNow(func() time.Time { return fixedNow }))
+	recorder := track.NewRecorder(
+		track.WithNow(func() time.Time { return fixedNow }),
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(existingTOML), nil
+		}),
+		track.WithCreateTemp(capture.createTemp(t)),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
+	)
 
 	memories := []*memory.Stored{
 		{
-			FilePath:          filePath,
+			FilePath:          "/fake/memory.toml",
 			SurfacedCount:     3,
 			SurfacingContexts: []string{"prompt", "tool", "session-start"},
 		},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "tool")
+	err := recorder.RecordSurfacing(context.Background(), memories, "tool")
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	data, err := os.ReadFile(filePath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var record fullTOMLRecord
-
-	_, err = toml.Decode(string(data), &record)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	record := capture.decodeTOML(g)
 
 	g.Expect(record.SurfacedCount).To(Equal(4))
 	g.Expect(record.LastSurfaced).To(Equal("2026-03-05T14:00:00Z"))
@@ -147,61 +119,38 @@ func TestT78_PartialFailureContinues(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-
-	// Second memory has a valid file.
-	validPath := filepath.Join(dir, "valid.toml")
-	err := os.WriteFile(validPath, []byte(baseTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
+	capture := &writeCapture{}
 
 	fixedNow := time.Date(2026, 3, 5, 16, 0, 0, 0, time.UTC)
 
-	failRead := func(path string) ([]byte, error) {
+	readFile := func(path string) ([]byte, error) {
 		if path == "/nonexistent/bad.toml" {
 			return nil, errors.New("file not found")
 		}
 
-		return os.ReadFile(path)
+		return []byte(baseTOML), nil
 	}
 
 	recorder := track.NewRecorder(
 		track.WithNow(func() time.Time { return fixedNow }),
-		track.WithReadFile(failRead),
-		track.WithCreateTemp(os.CreateTemp),
-		track.WithRename(os.Rename),
-		track.WithRemove(os.Remove),
+		track.WithReadFile(readFile),
+		track.WithCreateTemp(capture.createTemp(t)),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
 	)
 
 	memories := []*memory.Stored{
 		{FilePath: "/nonexistent/bad.toml"},
-		{FilePath: validPath},
+		{FilePath: "/fake/valid.toml"},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
 
 	// Should return an error for the first memory but still process the second.
 	g.Expect(err).To(HaveOccurred())
 
 	// Second file should be updated.
-	data, readErr := os.ReadFile(validPath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	var record fullTOMLRecord
-
-	_, decodeErr := toml.Decode(string(data), &record)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-
-	if decodeErr != nil {
-		return
-	}
+	record := capture.decodeTOML(g)
 
 	g.Expect(record.SurfacedCount).To(Equal(1))
 	g.Expect(record.LastSurfaced).To(Equal("2026-03-05T16:00:00Z"))
@@ -215,28 +164,22 @@ func TestWriteAtomicCreateTempFailure(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "memory.toml")
-	err := os.WriteFile(filePath, []byte(baseTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	failCreateTemp := func(_, _ string) (*os.File, error) {
-		return nil, errors.New("disk full")
-	}
-
 	recorder := track.NewRecorder(
-		track.WithCreateTemp(failCreateTemp),
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(baseTOML), nil
+		}),
+		track.WithCreateTemp(func(_, _ string) (*os.File, error) {
+			return nil, errors.New("disk full")
+		}),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
 	)
 
 	memories := []*memory.Stored{
-		{FilePath: filePath},
+		{FilePath: "/fake/memory.toml"},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("disk full"))
 }
@@ -248,37 +191,30 @@ func TestWriteAtomicEncodeFailure(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "memory.toml")
-	err := os.WriteFile(filePath, []byte(baseTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// createTemp returns a file that's already closed, so encoding will fail.
-	failCreateTemp := func(tmpDir, pattern string) (*os.File, error) {
-		f, createErr := os.CreateTemp(tmpDir, pattern)
-		if createErr != nil {
-			return nil, createErr
-		}
-
-		// Close immediately so the encoder write fails.
-		_ = f.Close()
-
-		return f, nil
-	}
-
 	recorder := track.NewRecorder(
-		track.WithCreateTemp(failCreateTemp),
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(baseTOML), nil
+		}),
+		track.WithCreateTemp(func(_, pattern string) (*os.File, error) {
+			f, createErr := os.CreateTemp(t.TempDir(), pattern)
+			if createErr != nil {
+				return nil, createErr
+			}
+
+			// Close immediately so the encoder write fails.
+			_ = f.Close()
+
+			return f, nil
+		}),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
 	)
 
 	memories := []*memory.Stored{
-		{FilePath: filePath},
+		{FilePath: "/fake/memory.toml"},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
 	g.Expect(err).To(HaveOccurred())
 }
 
@@ -289,37 +225,30 @@ func TestWriteAtomicRenameFailure(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "memory.toml")
-	err := os.WriteFile(filePath, []byte(baseTOML), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	failRename := func(_, _ string) error {
-		return errors.New("permission denied")
-	}
-
 	var removedPath string
 
-	trackRemove := func(path string) error {
-		removedPath = path
-
-		return os.Remove(path)
-	}
-
 	recorder := track.NewRecorder(
-		track.WithRename(failRename),
-		track.WithRemove(trackRemove),
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(baseTOML), nil
+		}),
+		track.WithCreateTemp(func(_, pattern string) (*os.File, error) {
+			return os.CreateTemp(t.TempDir(), pattern)
+		}),
+		track.WithRename(func(_, _ string) error {
+			return errors.New("permission denied")
+		}),
+		track.WithRemove(func(path string) error {
+			removedPath = path
+
+			return nil
+		}),
 	)
 
 	memories := []*memory.Stored{
-		{FilePath: filePath},
+		{FilePath: "/fake/memory.toml"},
 	}
 
-	err = recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("permission denied"))
 
@@ -327,20 +256,82 @@ func TestWriteAtomicRenameFailure(t *testing.T) {
 	g.Expect(removedPath).NotTo(BeEmpty())
 }
 
+// TestEmptyFilePathSkipped verifies that memories with empty FilePath are skipped.
+func TestEmptyFilePathSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	readCalled := false
+
+	recorder := track.NewRecorder(
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			readCalled = true
+
+			return nil, errors.New("should not be called")
+		}),
+	)
+
+	memories := []*memory.Stored{
+		{FilePath: ""},
+	}
+
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(readCalled).To(BeFalse())
+}
+
+// writeCapture tracks the temp file path so its content can be read back
+// after the recorder closes it. This avoids real filesystem I/O for setup
+// and verification — only the createTemp DI seam uses a real temp file.
+type writeCapture struct {
+	tmpPath string
+}
+
+func (w *writeCapture) createTemp(
+	t *testing.T,
+) func(string, string) (*os.File, error) {
+	t.Helper()
+
+	return func(_, pattern string) (*os.File, error) {
+		f, err := os.CreateTemp(t.TempDir(), pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		w.tmpPath = f.Name()
+
+		return f, nil
+	}
+}
+
+func (w *writeCapture) decodeTOML(g Gomega) fullTOMLRecord {
+	g.Expect(w.tmpPath).NotTo(BeEmpty(), "no temp file was written")
+
+	data, err := os.ReadFile(w.tmpPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var record fullTOMLRecord
+
+	_, decodeErr := toml.Decode(string(data), &record)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	return record
+}
+
 // unexported constants.
 const (
-	baseTOML = `title = "Test Memory"
-content = "some content"
-observation_type = "correction"
-concepts = ["testing"]
-keywords = ["test"]
-principle = "test principle"
-anti_pattern = "test anti-pattern"
-rationale = "test rationale"
-confidence = "B"
-created_at = "2025-01-01T00:00:00Z"
-updated_at = "2025-06-01T00:00:00Z"
-`
+	baseTOML = "title = \"Test Memory\"\n" +
+		"content = \"some content\"\n" +
+		"observation_type = \"correction\"\n" +
+		"concepts = [\"testing\"]\n" +
+		"keywords = [\"test\"]\n" +
+		"principle = \"test principle\"\n" +
+		"anti_pattern = \"test anti-pattern\"\n" +
+		"rationale = \"test rationale\"\n" +
+		"confidence = \"B\"\n" +
+		"created_at = \"2025-01-01T00:00:00Z\"\n" +
+		"updated_at = \"2025-06-01T00:00:00Z\"\n"
 )
 
 // fullTOMLRecord mirrors all TOML fields for test verification.
