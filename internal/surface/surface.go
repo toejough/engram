@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -151,7 +152,13 @@ func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Resu
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	summary := fmt.Sprintf("[engram] %d relevant memories.", len(matches))
+	promptMems := make([]*memory.Stored, 0, len(matches))
+	for _, m := range matches {
+		promptMems = append(promptMems, m.mem)
+	}
+	names := memoryNames(promptMems)
+	summary := fmt.Sprintf("[engram] %d relevant memories: %s",
+		len(matches), strings.Join(names, ", "))
 
 	return Result{
 		Summary: summary,
@@ -178,7 +185,8 @@ func (s *Surfacer) runSessionStart(ctx context.Context, dataDir string) (Result,
 
 	var buf strings.Builder
 
-	summary := fmt.Sprintf("[engram] Loaded %d memories.", count)
+	summary := fmt.Sprintf("[engram] Loaded %d memories: %s",
+		count, strings.Join(memoryNames(memories), ", "))
 
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
 	_, _ = fmt.Fprintf(&buf, "%s\n", summary)
@@ -208,7 +216,8 @@ func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, error) {
 
 	var buf strings.Builder
 
-	summary := fmt.Sprintf("[engram] %d tool advisories.", len(candidates))
+	summary := fmt.Sprintf("[engram] %d tool advisories: %s",
+		len(candidates), strings.Join(memoryNames(candidates), ", "))
 
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
 	_, _ = fmt.Fprintf(&buf, "[engram] Tool call advisory:\n")
@@ -230,6 +239,17 @@ func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, error) {
 const (
 	sessionStartLimit = 20
 )
+
+// memoryNames returns the basenames (without extension) of memory file paths.
+func memoryNames(memories []*memory.Stored) []string {
+	names := make([]string, 0, len(memories))
+	for _, mem := range memories {
+		name := filepath.Base(mem.FilePath)
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+		names = append(names, name)
+	}
+	return names
+}
 
 // matchToolMemories returns memories with non-empty anti_pattern that have at least
 // one keyword matching in toolName or toolInput (ARCH-10).

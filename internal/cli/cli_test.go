@@ -223,7 +223,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 1 memories."))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 1 memories:"))
 	g.Expect(output).To(ContainSubstring("Test Memory"))
 }
 

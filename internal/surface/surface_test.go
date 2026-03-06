@@ -47,7 +47,7 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories."))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories:"))
 
 	// Most recent (index 24) should appear, oldest (index 0-4) should not.
 	g.Expect(output).To(ContainSubstring(memTitle(24)))
@@ -97,7 +97,7 @@ func TestT28_SessionStartSurfacesAll(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 3 memories:"))
 	g.Expect(output).To(ContainSubstring("First"))
 	g.Expect(output).To(ContainSubstring("Second"))
 	g.Expect(output).To(ContainSubstring("Third"))
@@ -471,7 +471,7 @@ func TestT69_SessionStartJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories:"))
 	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
 	g.Expect(result.Context).To(ContainSubstring("First"))
 }
@@ -517,7 +517,7 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories."))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories: commit-conventions"))
 	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
 }
 
@@ -565,7 +565,7 @@ func TestT71_ToolJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories."))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories: use-commit"))
 	g.Expect(result.Context).To(ContainSubstring("Use /commit"))
 	g.Expect(result.Context).To(ContainSubstring("always use /commit for commits"))
 }
