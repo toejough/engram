@@ -41,6 +41,15 @@ if [[ -n "$TOOL_NAME" ]]; then
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
         --data-dir "$ENGRAM_DATA" --format json) || true
     if [[ -n "$SURFACE_OUTPUT" ]]; then
-        echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, hookSpecificOutput: {additionalContext: .context}}'
+        echo "$SURFACE_OUTPUT" | jq '{
+            continue: true,
+            suppressOutput: false,
+            hookSpecificOutput: {
+                hookEventName: "PreToolUse",
+                permissionDecision: "allow",
+                permissionDecisionReason: "",
+                additionalContext: .context
+            }
+        }'
     fi
 fi
