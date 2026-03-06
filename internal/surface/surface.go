@@ -33,6 +33,11 @@ type MemoryRetriever interface {
 	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
 }
 
+// MemoryTracker records surfacing events for instrumentation (ARCH-19).
+type MemoryTracker interface {
+	RecordSurfacing(ctx context.Context, memories []*memory.Stored, mode string) error
+}
+
 // Options configures a surface invocation.
 type Options struct {
 	Mode      string
@@ -52,29 +57,37 @@ type Result struct {
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
 	retriever MemoryRetriever
+	tracker   MemoryTracker
 }
 
 // New creates a Surfacer.
-func New(retriever MemoryRetriever) *Surfacer {
-	return &Surfacer{
+func New(retriever MemoryRetriever, opts ...SurfacerOption) *Surfacer {
+	s := &Surfacer{
 		retriever: retriever,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 // Run executes the surface subcommand, writing output to w.
 func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	var (
-		result Result
-		err    error
+		result  Result
+		matched []*memory.Stored
+		err     error
 	)
 
 	switch opts.Mode {
 	case ModeSessionStart:
-		result, err = s.runSessionStart(ctx, opts.DataDir)
+		result, matched, err = s.runSessionStart(ctx, opts.DataDir)
 	case ModePrompt:
-		result, err = s.runPrompt(ctx, opts.DataDir, opts.Message)
+		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message)
 	case ModeTool:
-		result, err = s.runTool(ctx, opts)
+		result, matched, err = s.runTool(ctx, opts)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -83,28 +96,20 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		return err
 	}
 
-	if result.Context == "" {
-		return nil
+	if s.tracker != nil && len(matched) > 0 {
+		_ = s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
 	}
 
-	if opts.Format == FormatJSON {
-		encodeErr := json.NewEncoder(w).Encode(result)
-		if encodeErr != nil {
-			return fmt.Errorf("surface: encoding JSON: %w", encodeErr)
-		}
-
-		return nil
-	}
-
-	_, _ = fmt.Fprint(w, result.Context)
-
-	return nil
+	return s.writeResult(w, result, opts.Format)
 }
 
-func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Result, error) {
+func (s *Surfacer) runPrompt(
+	ctx context.Context,
+	dataDir, message string,
+) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return Result{}, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	type matchResult struct {
@@ -137,7 +142,7 @@ func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Resu
 	}
 
 	if len(matches) == 0 {
-		return Result{}, nil
+		return Result{}, nil, nil
 	}
 
 	var buf strings.Builder
@@ -156,6 +161,7 @@ func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Resu
 	for _, m := range matches {
 		promptMems = append(promptMems, m.mem)
 	}
+
 	names := memoryNames(promptMems)
 	summary := fmt.Sprintf("[engram] %d relevant memories: %s",
 		len(matches), strings.Join(names, ", "))
@@ -163,17 +169,20 @@ func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Resu
 	return Result{
 		Summary: summary,
 		Context: buf.String(),
-	}, nil
+	}, promptMems, nil
 }
 
-func (s *Surfacer) runSessionStart(ctx context.Context, dataDir string) (Result, error) {
+func (s *Surfacer) runSessionStart(
+	ctx context.Context,
+	dataDir string,
+) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return Result{}, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	if len(memories) == 0 {
-		return Result{}, nil
+		return Result{}, nil, nil
 	}
 
 	// Take top N by recency (already sorted by retriever).
@@ -200,18 +209,18 @@ func (s *Surfacer) runSessionStart(ctx context.Context, dataDir string) (Result,
 	return Result{
 		Summary: summary,
 		Context: buf.String(),
-	}, nil
+	}, memories, nil
 }
 
-func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, error) {
+func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
-		return Result{}, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
 	if len(candidates) == 0 {
-		return Result{}, nil
+		return Result{}, nil, nil
 	}
 
 	var buf strings.Builder
@@ -232,24 +241,40 @@ func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, error) {
 	return Result{
 		Summary: summary,
 		Context: buf.String(),
-	}, nil
+	}, candidates, nil
+}
+
+func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
+	if result.Context == "" {
+		return nil
+	}
+
+	if format == FormatJSON {
+		encodeErr := json.NewEncoder(w).Encode(result)
+		if encodeErr != nil {
+			return fmt.Errorf("surface: encoding JSON: %w", encodeErr)
+		}
+
+		return nil
+	}
+
+	_, _ = fmt.Fprint(w, result.Context)
+
+	return nil
+}
+
+// SurfacerOption configures a Surfacer.
+type SurfacerOption func(*Surfacer)
+
+// WithTracker sets the memory tracker for surfacing instrumentation.
+func WithTracker(tracker MemoryTracker) SurfacerOption {
+	return func(s *Surfacer) { s.tracker = tracker }
 }
 
 // unexported constants.
 const (
 	sessionStartLimit = 20
 )
-
-// memoryNames returns the basenames (without extension) of memory file paths.
-func memoryNames(memories []*memory.Stored) []string {
-	names := make([]string, 0, len(memories))
-	for _, mem := range memories {
-		name := filepath.Base(mem.FilePath)
-		name = strings.TrimSuffix(name, filepath.Ext(name))
-		names = append(names, name)
-	}
-	return names
-}
 
 // matchToolMemories returns memories with non-empty anti_pattern that have at least
 // one keyword matching in toolName or toolInput (ARCH-10).
@@ -286,4 +311,16 @@ func matchesWholeWord(text, keyword string) bool {
 	}
 
 	return matched
+}
+
+// memoryNames returns the basenames (without extension) of memory file paths.
+func memoryNames(memories []*memory.Stored) []string {
+	names := make([]string, 0, len(memories))
+	for _, mem := range memories {
+		name := filepath.Base(mem.FilePath)
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+		names = append(names, name)
+	}
+
+	return names
 }

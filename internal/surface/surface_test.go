@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -517,7 +518,8 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories: commit-conventions"))
+	g.Expect(result.Summary).
+		To(ContainSubstring("[engram] 1 relevant memories: commit-conventions"))
 	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
 }
 
@@ -591,6 +593,117 @@ func TestT72_NoMatchJSONFormat(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
+// T-79: Tracker receives matched memories on prompt mode
+func TestT79_TrackerReceivesMatchedMemories(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:    "Commit Conventions",
+			FilePath: "commit-conventions.toml",
+			Keywords: []string{"commit"},
+		},
+		{
+			Title:    "Build Tools",
+			FilePath: "build-tools.toml",
+			Keywords: []string{"targ"},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	tracker := &fakeTracker{}
+	s := surface.New(retriever, surface.WithTracker(tracker))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this change",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(tracker.calls).To(HaveLen(1))
+	g.Expect(tracker.calls[0].mode).To(Equal(surface.ModePrompt))
+	g.Expect(tracker.calls[0].memories).To(HaveLen(1))
+	g.Expect(tracker.calls[0].memories[0].Title).To(Equal("Commit Conventions"))
+}
+
+// T-80: Tracker error does not affect surfacing output
+func TestT80_TrackerErrorDoesNotAffectOutput(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "First",
+			FilePath:  "first.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	tracker := &fakeTracker{err: errTrackerFail}
+	s := surface.New(retriever, surface.WithTracker(tracker))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	// Run should succeed despite tracker error.
+	g.Expect(err).NotTo(HaveOccurred())
+	// Output should still be produced.
+	g.Expect(buf.String()).NotTo(BeEmpty())
+	g.Expect(buf.String()).To(ContainSubstring("First"))
+}
+
+// T-81: No tracker (nil) produces correct output (backward compat)
+func TestT81_NoTrackerBackwardCompatible(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:    "Commit Conventions",
+			FilePath: "commit-conventions.toml",
+			Keywords: []string{"commit"},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	// No WithTracker option — tracker is nil.
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this change",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("Commit Conventions"))
+}
+
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
 func TestUnknownModeReturnsError(t *testing.T) {
 	t.Parallel()
@@ -611,6 +724,11 @@ func TestUnknownModeReturnsError(t *testing.T) {
 	g.Expect(err).To(MatchError(surface.ErrUnknownMode))
 }
 
+// unexported variables.
+var (
+	errTrackerFail = errors.New("tracker failure")
+)
+
 // fakeRetriever is a test double for surface.MemoryRetriever.
 type fakeRetriever struct {
 	memories []*memory.Stored
@@ -619,6 +737,27 @@ type fakeRetriever struct {
 
 func (f *fakeRetriever) ListMemories(_ context.Context, _ string) ([]*memory.Stored, error) {
 	return f.memories, f.err
+}
+
+// fakeTracker is a test double for surface.MemoryTracker.
+type fakeTracker struct {
+	calls []trackerCall
+	err   error
+}
+
+func (f *fakeTracker) RecordSurfacing(
+	_ context.Context,
+	memories []*memory.Stored,
+	mode string,
+) error {
+	f.calls = append(f.calls, trackerCall{memories: memories, mode: mode})
+
+	return f.err
+}
+
+type trackerCall struct {
+	memories []*memory.Stored
+	mode     string
 }
 
 func memPath(i int) string {

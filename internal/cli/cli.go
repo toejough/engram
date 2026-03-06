@@ -21,6 +21,7 @@ import (
 	"engram/internal/retrieve"
 	"engram/internal/surface"
 	"engram/internal/tomlwriter"
+	"engram/internal/track"
 	"engram/internal/transcript"
 )
 
@@ -256,7 +257,8 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	retriever := retrieve.New()
-	surfacer := surface.New(retriever)
+	recorder := track.NewRecorder()
+	surfacer := surface.New(retriever, surface.WithTracker(recorder))
 	ctx := context.Background()
 
 	return surfacer.Run(ctx, stdout, surface.Options{
