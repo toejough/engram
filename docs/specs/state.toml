@@ -41,12 +41,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -140,17 +140,17 @@ history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test ad
 layer = "L4"
 name = "Hook-Time Surfacing & Enforcement Tests"
 parents = ["L3B"]
-items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
+items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-98", "T-99"]
 status = "complete"
-history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking). Issue #25: added T-69/70/71/72 (JSON format output for session-start, prompt, tool, no-match). Updated T-43/T-44 for --format json and systemMessage/additionalContext reshaping. Issue #46: added T-73/74/75 (tracking logic), T-76/77/78 (recorder), T-79/80/81 (surfacer↔tracker integration), T-82/83 (retrieval tracking fields)."
+history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking). Issue #25: added T-69/70/71/72 (JSON format output for session-start, prompt, tool, no-match). Updated T-43/T-44 for --format json and systemMessage/additionalContext reshaping. Issue #46: added T-73/74/75 (tracking logic), T-76/77/78 (recorder), T-79/80/81 (surfacer↔tracker integration), T-82/83 (retrieval tracking fields). Issue #49: added T-84/85/86/87 (creation log writer), T-88/89/90/91 (creation log reader), T-92/93/94 (SessionStart creation report), T-98/99 (hook script creation visibility)."
 
 [tree.L4C]
 layer = "L4"
 name = "Session Learning Tests"
 parents = ["L3C"]
-items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
+items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-95", "T-96", "T-97"]
 status = "complete"
-history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation. Audit: T-60 spec updated — 'Written memories use tier from extraction' (not hardcoded C), aligning spec with issue #35 code change."
+history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation. Audit: T-60 spec updated — 'Written memories use tier from extraction' (not hardcoded C), aligning spec with issue #35 code change. Issue #49: added T-95/96/97 (learner pipeline creation logging via optional CreationLogger)."
 
 # Tree nodes — L5
 
@@ -281,7 +281,7 @@ history = "Issue #46: extended memory.Stored with SurfacedCount (int), LastSurfa
 # Cursor
 
 [cursor]
-node = "L4B"
-mode = "in_progress"
-next_action = "RED: derive test specs for issue #49 — creation log writer (ARCH-21), creation log reader at SessionStart (ARCH-12/21), learner creation logging (ARCH-14), UserPromptSubmit hook output combining (ARCH-13/DES-3)."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
+node = "L5P"
+mode = "pending"
+next_action = "REGROUP L5 for issue #49 tests, then implement via TDD. 16 new tests: T-84..T-99 across 4 ARCH boundaries (ARCH-21, ARCH-12, ARCH-14, ARCH-13)."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]

@@ -562,6 +562,186 @@ Example-based: verifying backward compatibility.
 
 ---
 
+## Creation Log Writer (ARCH-21)
+
+### T-84: Append creates new log file when none exists
+
+**Given** a data directory with no `creation-log.jsonl` file (readFile returns os.ErrNotExist),
+**When** `LogWriter.Append` is called with a LogEntry `{Timestamp: "2026-03-06T12:00:00Z", Title: "Use targ test", Tier: "A", Filename: "use-targ-test.toml"}`,
+**Then** writeFile is called with content containing exactly one JSON line matching the entry, and the file path is `<data-dir>/creation-log.jsonl`.
+
+Example-based: verifying file creation and JSONL format.
+
+- Traces to: ARCH-21, REQ-23
+
+### T-85: Append appends to existing log file
+
+**Given** a data directory with an existing `creation-log.jsonl` containing one JSON line,
+**When** `LogWriter.Append` is called with a new LogEntry,
+**Then** writeFile is called with content containing two JSON lines: the original line preserved, and the new entry appended.
+
+Example-based: verifying append-not-overwrite behavior.
+
+- Traces to: ARCH-21, REQ-23
+
+### T-86: Append sets timestamp from injected clock when empty
+
+**Given** a LogEntry with empty Timestamp and a LogWriter with `now` returning `2026-03-06T15:00:00Z`,
+**When** `Append` is called,
+**Then** the written JSON line has `timestamp` set to `"2026-03-06T15:00:00Z"`.
+
+Example-based: verifying DI clock injection.
+
+- Traces to: ARCH-21, REQ-23
+
+### T-87: Append write error is returned (caller decides fire-and-forget)
+
+**Given** a LogWriter whose writeFile returns an error,
+**When** `Append` is called,
+**Then** an error is returned. The caller (Learner pipeline) handles fire-and-forget policy.
+
+Example-based: verifying error propagation to caller boundary.
+
+- Traces to: ARCH-21, REQ-23
+
+---
+
+## Creation Log Reader (ARCH-21)
+
+### T-88: ReadAndClear returns entries and removes file
+
+**Given** a `creation-log.jsonl` with 3 JSON lines,
+**When** `LogReader.ReadAndClear` is called,
+**Then** 3 LogEntry values are returned with correct fields parsed, and removeFile is called with the log file path.
+
+Example-based: verifying read + delete behavior.
+
+- Traces to: ARCH-21, REQ-24
+
+### T-89: ReadAndClear with missing file returns empty slice
+
+**Given** no `creation-log.jsonl` exists (readFile returns os.ErrNotExist),
+**When** `ReadAndClear` is called,
+**Then** an empty slice is returned (no error). removeFile is not called.
+
+Example-based: verifying graceful handling of no log.
+
+- Traces to: ARCH-21, REQ-24
+
+### T-90: ReadAndClear skips malformed lines
+
+**Given** a `creation-log.jsonl` with 3 lines where the second line is invalid JSON,
+**When** `ReadAndClear` is called,
+**Then** 2 valid LogEntry values are returned (malformed line skipped). removeFile is still called.
+
+Example-based: verifying resilience to corruption.
+
+- Traces to: ARCH-21, REQ-24
+
+### T-91: ReadAndClear read error returns error
+
+**Given** a readFile that returns a non-ErrNotExist error,
+**When** `ReadAndClear` is called,
+**Then** an error is returned. removeFile is not called.
+
+Example-based: verifying error propagation for unexpected read failures.
+
+- Traces to: ARCH-21, REQ-24
+
+---
+
+## SessionStart Creation Report (ARCH-12 update)
+
+### T-92: SessionStart includes creation report before recency surfacing
+
+**Given** a creation log with 2 entries and 3 memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the JSON `summary` includes both "[engram] Created 2 memories since last session:" and "[engram] Loaded 3 memories." The `context` includes both the creation report system-reminder block (with titles, tiers, filenames) and the recency surfacing system-reminder block.
+
+Example-based: verifying combined output with both sections.
+
+- Traces to: ARCH-12, ARCH-21, REQ-24, DES-5
+
+### T-93: SessionStart with no creation log produces recency-only output
+
+**Given** no creation log exists and 3 memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the output is identical to existing behavior (recency surfacing only, no creation report section).
+
+Example-based: verifying backward compatibility.
+
+- Traces to: ARCH-12, ARCH-21, REQ-24, DES-5
+
+### T-94: SessionStart with creation log but no memories produces creation-only output
+
+**Given** a creation log with 1 entry but no memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the JSON `summary` includes "[engram] Created 1 memories since last session:" but no recency section. The creation log is cleared after reading.
+
+Example-based: verifying creation-only path.
+
+- Traces to: ARCH-12, ARCH-21, REQ-24, DES-5
+
+---
+
+## Learner Pipeline Creation Logging (ARCH-14 update)
+
+### T-95: Learner calls CreationLogger after each successful write
+
+**Given** a Learner with a fake CreationLogger, Extractor returning 2 candidates, Deduplicator passing both, and Writer succeeding for both,
+**When** `Learner.Run` is called,
+**Then** CreationLogger.Append is called twice, once per written memory, with LogEntry containing the memory's title, tier, and filename.
+
+Example-based: verifying integration wiring.
+
+- Traces to: ARCH-14, REQ-25
+
+### T-96: Learner with nil CreationLogger skips logging (backward compatible)
+
+**Given** a Learner with nil CreationLogger, Extractor returning 1 candidate, and Writer succeeding,
+**When** `Learner.Run` is called,
+**Then** Run completes successfully with 1 file path returned. No panic from nil CreationLogger.
+
+Example-based: verifying backward compatibility.
+
+- Traces to: ARCH-14, REQ-25
+
+### T-97: Learner creation log error does not fail the pipeline
+
+**Given** a Learner with a CreationLogger that returns an error,
+**When** `Learner.Run` is called with 1 candidate that passes dedup,
+**Then** Run returns 1 file path (write succeeded). The CreationLogger error is swallowed (fire-and-forget).
+
+Example-based: verifying fire-and-forget per ARCH-6.
+
+- Traces to: ARCH-14, REQ-25, ARCH-6
+
+---
+
+## Hook Script Creation Visibility (ARCH-13 update)
+
+### T-98: UserPromptSubmit hook puts creation in systemMessage
+
+**Given** the user-prompt-submit hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** creation output from `engram correct` is placed in `systemMessage` (not `additionalContext`). When surface matches also exist, both creation and surface summary appear in `systemMessage`.
+
+Updates T-44 to verify creation goes to systemMessage.
+
+- Traces to: ARCH-13, DES-3, REQ-4
+
+### T-99: SessionStart hook puts creation report in systemMessage
+
+**Given** the session-start hook script at `hooks/session-start.sh`,
+**When** its content is read,
+**Then** it calls `engram surface --mode session-start --format json` and reshapes the output so that both the creation report summary and recency summary appear in `systemMessage`.
+
+Updates T-43 to verify creation report visibility.
+
+- Traces to: ARCH-13, DES-5, REQ-24
+
+---
+
 # UC-1 Tests
 
 ## Transcript Extraction (ARCH-15)
@@ -802,7 +982,7 @@ Uses fakes for pipeline stages.
 
 | ARCH | Tests |
 |------|-------|
-| ARCH-14 | T-57, T-58, T-59, T-60 |
+| ARCH-14 | T-57, T-58, T-59, T-60, T-95, T-96, T-97 |
 | ARCH-15 | T-47, T-48, T-49, T-50, T-51 |
 | ARCH-16 | T-52, T-53, T-54, T-55, T-56 |
 | ARCH-17 | T-61, T-62, T-63, T-64 |
@@ -821,5 +1001,32 @@ Uses fakes for pipeline stages.
 | REQ-7 | T-60 |
 | DES-9 | T-65, T-66, T-67, T-68 |
 | DES-10 | T-61, T-63, T-64 |
+| REQ-25 | T-95, T-96, T-97 |
 
 All L2C items have test coverage. All ARCH-14–18 items have test coverage.
+
+---
+
+## Creation Visibility Bidirectional Traceability (Issue #49)
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-21 | T-84, T-85, T-86, T-87, T-88, T-89, T-90, T-91 |
+| ARCH-12 (update) | T-92, T-93, T-94 |
+| ARCH-14 (update) | T-95, T-96, T-97 |
+| ARCH-13 (update) | T-98, T-99 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-23 | T-84, T-85, T-86, T-87 |
+| REQ-24 | T-88, T-89, T-90, T-91, T-92, T-93, T-94, T-99 |
+| REQ-25 | T-95, T-96, T-97 |
+| REQ-4 | T-98 |
+| DES-3 | T-98 |
+| DES-5 | T-92, T-93, T-94, T-99 |
+
+All issue #49 L2 items (REQ-23, REQ-24, REQ-25, REQ-4 update, DES-3 update, DES-5 update) have test coverage. All ARCH items (ARCH-21, ARCH-12/13/14 updates) have test coverage.
