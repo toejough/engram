@@ -255,6 +255,8 @@ QUALITY GATE — reject the following:
 - mechanical patterns (e.g., "always add t.Parallel()")
 - vague generalizations (e.g., "use good practices")
 - overly narrow observations tied to a single insignificant detail
+- ephemeral context that does not generalize across sessions (e.g., current task status,
+  one-off session state, transient observations that only apply to this specific moment)
 
 EXTRACT only high-signal learnings such as:
 - missed corrections the AI should have caught

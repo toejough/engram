@@ -446,6 +446,53 @@ func TestT7_ClassifierIncludesTranscriptContext(t *testing.T) {
 	g.Expect(string(body)).To(ContainSubstring(transcriptCtx))
 }
 
+// T-8: Ephemeral session state messages return nil
+func TestT8_EphemeralSessionStateReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	ephemeralMessages := []string{
+		"we're currently working on issue 50",
+		"the current task is almost done",
+		"I'm in the middle of refactoring extract.go right now",
+		"this session we've been focused on the classify package",
+	}
+
+	for _, msg := range ephemeralMessages {
+		t.Run(msg, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+
+			// LLM returns null tier for ephemeral context
+			llmResp := llmClassifyResponse{Tier: ""}
+			doer := newFakeDoer(t, g, llmResp)
+			classifier := classify.New("test-token", doer)
+
+			result, err := classifier.Classify(context.Background(), msg, "")
+			g.Expect(err).NotTo(HaveOccurred())
+			g.Expect(result).To(BeNil())
+		})
+	}
+}
+
+// T-9: Transient one-off observations return nil
+func TestT9_TransientOneOffObservationReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// A transient observation that only applies to this moment
+	msg := "the build just finished successfully"
+
+	llmResp := llmClassifyResponse{Tier: ""}
+	doer := newFakeDoer(t, g, llmResp)
+	classifier := classify.New("test-token", doer)
+
+	result, err := classifier.Classify(context.Background(), msg, "")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result).To(BeNil())
+}
+
 // fakeHTTPDoer is a test double for classify.HTTPDoer.
 type fakeHTTPDoer struct {
 	response    *http.Response

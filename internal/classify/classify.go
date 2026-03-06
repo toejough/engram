@@ -329,7 +329,9 @@ Classify the message into one of these tiers:
 - Tier C (contextual fact): Facts about the project, environment, or preferences that provide
   useful context. Anti-pattern is EMPTY.
 - null: No learning signal detected. The message is casual conversation, a simple command,
-  or a question with no implicit preference.
+  a question with no implicit preference, or ephemeral context that does not generalize
+  (e.g., current task status, one-off session state, transient observations that apply only
+  to this specific moment and would not be useful in a future session).
 
 Return ONLY a JSON object — no markdown, no explanation:
 {
