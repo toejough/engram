@@ -38,3 +38,8 @@ TRANSCRIPT="$(echo "$STDIN_JSON" | jq -r '.transcript // .conversation // empty'
 if [[ -n "$TRANSCRIPT" ]]; then
     echo "$TRANSCRIPT" | "$ENGRAM_BIN" learn --data-dir "$ENGRAM_DATA" || true
 fi
+
+# UC-15: Evaluate outcome of surfaced memories
+if [[ -n "$TRANSCRIPT" ]]; then
+    echo "$TRANSCRIPT" | "$ENGRAM_BIN" evaluate --data-dir "$ENGRAM_DATA" || true
+fi

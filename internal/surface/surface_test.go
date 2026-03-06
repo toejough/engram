@@ -47,6 +47,79 @@ func TestT100_ToolModeNoMatchProducesEmpty(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
+// T-115: Effectiveness annotation rendered when data exists
+func TestT115_EffectivenessAnnotationRendered(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha Memory",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	eff := &fakeEffectivenessComputer{
+		stats: map[string]surface.EffectivenessStat{
+			"alpha.toml": {SurfacedCount: 5, EffectivenessScore: 80.0},
+		},
+	}
+
+	s := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(ContainSubstring("(surfaced 5 times, followed 80%)"))
+}
+
+// T-116: No annotation when no evaluation data exists
+func TestT116_NoAnnotationWhenNoEvalData(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Beta Memory",
+			FilePath:  "beta.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	// No WithEffectiveness option — no annotation expected.
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).NotTo(ContainSubstring("surfaced"))
+}
+
 // T-121: Surfacer writes surfacing log during surfacing events.
 func TestT121_SurfacerWritesSurfacingLog(t *testing.T) {
 	t.Parallel()
@@ -944,6 +1017,16 @@ func TestUnknownModeReturnsError(t *testing.T) {
 var (
 	errTrackerFail = errors.New("tracker failure")
 )
+
+// fakeEffectivenessComputer is a test double for surface.EffectivenessComputer.
+type fakeEffectivenessComputer struct {
+	stats map[string]surface.EffectivenessStat
+	err   error
+}
+
+func (f *fakeEffectivenessComputer) Aggregate() (map[string]surface.EffectivenessStat, error) {
+	return f.stats, f.err
+}
 
 // fakeLogReader is a test double for surface.CreationLogReader.
 type fakeLogReader struct {

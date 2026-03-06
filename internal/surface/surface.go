@@ -34,6 +34,17 @@ type CreationLogReader interface {
 	ReadAndClear(dataDir string) ([]LogEntry, error)
 }
 
+// EffectivenessComputer provides per-memory effectiveness aggregates (ARCH-24).
+type EffectivenessComputer interface {
+	Aggregate() (map[string]EffectivenessStat, error)
+}
+
+// EffectivenessStat holds aggregated effectiveness data for a single memory.
+type EffectivenessStat struct {
+	SurfacedCount      int
+	EffectivenessScore float64 // followed% (0–100)
+}
+
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -65,10 +76,11 @@ type Result struct {
 
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
-	retriever       MemoryRetriever
-	tracker         MemoryTracker
-	logReader       CreationLogReader
-	surfacingLogger SurfacingEventLogger
+	retriever             MemoryRetriever
+	tracker               MemoryTracker
+	logReader             CreationLogReader
+	surfacingLogger       SurfacingEventLogger
+	effectivenessComputer EffectivenessComputer
 }
 
 // New creates a Surfacer.
@@ -85,7 +97,19 @@ func New(retriever MemoryRetriever, opts ...SurfacerOption) *Surfacer {
 }
 
 // Run executes the surface subcommand, writing output to w.
+//
+//nolint:cyclop // orchestration function: routes modes, logs events, writes result — inherent branching
 func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
+	// Fetch effectiveness data upfront (fire-and-forget on error per ARCH-6).
+	var effectiveness map[string]EffectivenessStat
+
+	if s.effectivenessComputer != nil {
+		effData, effErr := s.effectivenessComputer.Aggregate()
+		if effErr == nil {
+			effectiveness = effData
+		}
+	}
+
 	var (
 		result  Result
 		matched []*memory.Stored
@@ -94,11 +118,11 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 
 	switch opts.Mode {
 	case ModeSessionStart:
-		result, matched, err = s.runSessionStart(ctx, opts.DataDir)
+		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness)
 	case ModePrompt:
-		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message)
+		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness)
 	case ModeTool:
-		result, matched, err = s.runTool(ctx, opts)
+		result, matched, err = s.runTool(ctx, opts, effectiveness)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -124,6 +148,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message string,
+	effectiveness map[string]EffectivenessStat,
 ) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
@@ -141,8 +166,9 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&buf, "[engram] Relevant memories:\n")
 
 	for _, match := range matches {
-		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s) [matched: %s]\n",
-			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "))
+		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
+		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s) [matched: %s]%s\n",
+			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "), annotation)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
@@ -157,8 +183,9 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d relevant memories:\n", len(matches))
 
 	for _, match := range matches {
-		_, _ = fmt.Fprintf(&summaryBuf, "  - \"%s\" (%s) [matched: %s]\n",
-			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "))
+		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
+		_, _ = fmt.Fprintf(&summaryBuf, "  - \"%s\" (%s) [matched: %s]%s\n",
+			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "), annotation)
 	}
 
 	return Result{
@@ -170,6 +197,7 @@ func (s *Surfacer) runPrompt(
 func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
+	effectiveness map[string]EffectivenessStat,
 ) (Result, []*memory.Stored, error) {
 	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
 	var logEntries []LogEntry
@@ -205,7 +233,7 @@ func (s *Surfacer) runSessionStart(
 	)
 
 	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
-	writeRecencySection(&summaryBuf, &contextBuf, memories[:count])
+	writeRecencySection(&summaryBuf, &contextBuf, memories[:count], effectiveness)
 
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
@@ -213,7 +241,11 @@ func (s *Surfacer) runSessionStart(
 	}, memories, nil
 }
 
-func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, []*memory.Stored, error) {
+func (s *Surfacer) runTool(
+	ctx context.Context,
+	opts Options,
+	effectiveness map[string]EffectivenessStat,
+) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
@@ -234,8 +266,9 @@ func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, []*memory
 	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
 
 	for _, mem := range candidates {
-		line := fmt.Sprintf("  - \"%s\" — %s (%s)\n",
-			mem.Title, mem.Principle, mem.FilePath)
+		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
+		line := fmt.Sprintf("  - \"%s\" — %s (%s)%s\n",
+			mem.Title, mem.Principle, mem.FilePath, annotation)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
 	}
@@ -275,6 +308,11 @@ type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
+// WithEffectiveness sets the effectiveness computer for memory annotations (ARCH-24).
+func WithEffectiveness(computer EffectivenessComputer) SurfacerOption {
+	return func(s *Surfacer) { s.effectivenessComputer = computer }
+}
+
 // WithLogReader sets the creation log reader for session-start mode.
 func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
@@ -299,6 +337,28 @@ const (
 type promptMatch struct {
 	mem      *memory.Stored
 	keywords []string
+}
+
+// formatEffectivenessAnnotation returns a formatted annotation for a memory path,
+// or "" when no effectiveness data exists for that path.
+func formatEffectivenessAnnotation(
+	filePath string,
+	effectiveness map[string]EffectivenessStat,
+) string {
+	if effectiveness == nil {
+		return ""
+	}
+
+	stat, ok := effectiveness[filePath]
+	if !ok {
+		return ""
+	}
+
+	return fmt.Sprintf(
+		" (surfaced %d times, followed %d%%)",
+		stat.SurfacedCount,
+		int(stat.EffectivenessScore),
+	)
 }
 
 // matchPromptMemories returns memories with keyword or concept matches against message.
@@ -388,7 +448,11 @@ func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []Log
 }
 
 // writeRecencySection appends the recency surfacing section to summary and context buffers.
-func writeRecencySection(summaryBuf, contextBuf *strings.Builder, memories []*memory.Stored) {
+func writeRecencySection(
+	summaryBuf, contextBuf *strings.Builder,
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) {
 	if len(memories) == 0 {
 		return
 	}
@@ -400,7 +464,8 @@ func writeRecencySection(summaryBuf, contextBuf *strings.Builder, memories []*me
 	_, _ = fmt.Fprintf(contextBuf, "%s\n", recencySummary)
 
 	for _, mem := range memories {
-		memLine := fmt.Sprintf("  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
+		memLine := fmt.Sprintf("  - \"%s\" (%s)%s\n", mem.Title, mem.FilePath, annotation)
 		_, _ = fmt.Fprint(summaryBuf, memLine)
 		_, _ = fmt.Fprint(contextBuf, memLine)
 	}
