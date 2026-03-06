@@ -45,7 +45,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -154,6 +154,14 @@ status = "complete"
 history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter). Issue #35: ARCH-15 updated — extraction classifies with A/B/C tiers, anti-pattern gating, traces to REQ-7. Issue #49: ARCH-14 updated — optional CreationLogger interface added to Learner pipeline for deferred visibility (REQ-25)."
 
 # Tree nodes — L4
+
+[tree.L4D]
+layer = "L4"
+name = "Automatic Outcome Signal Tests"
+parents = ["L3D"]
+items = ["T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121"]
+status = "complete"
+history = "21 BDD test specs across 4 ARCH boundaries: surfacing log write/read (T-101..T-105, ARCH-22), evaluation pipeline (T-106..T-111, ARCH-23), effectiveness aggregation (T-112..T-116, ARCH-24), CLI/hook integration (T-117..T-121, ARCH-25). Full bidirectional traceability to all UC-15 L2 items."
 
 [tree.L4A]
 layer = "L4"
@@ -350,7 +358,7 @@ history = "Issue #49: UserPromptSubmit hook puts creation output in systemMessag
 # Cursor
 
 [cursor]
-node = "L3D"
+node = "L4D"
 mode = "in_progress"
-next_action = "L3D complete. Descend to L4: derive test specs from UC-15 architecture."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "L4D complete. Descend to L5: implement UC-15 tests via /work-on."
+context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]

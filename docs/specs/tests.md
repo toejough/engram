@@ -1040,3 +1040,233 @@ All L2C items have test coverage. All ARCH-14–18 items have test coverage.
 | DES-5 | T-92, T-93, T-94, T-99 |
 
 All issue #49 L2 items (REQ-23, REQ-24, REQ-25, REQ-4 update, DES-3 update, DES-5 update) have test coverage. All ARCH items (ARCH-21, ARCH-12/13/14 updates) have test coverage.
+
+---
+
+## Surfacing Log Infrastructure (ARCH-22)
+
+### T-101: Surfacing log append writes JSONL entry
+
+**Given** a SurfacingLogger with an injected write function,
+**When** LogSurfacing is called with a memory path, mode "prompt", and timestamp,
+**Then** a single JSONL line is appended to surfacing-log.jsonl with memory_path, mode, and surfaced_at (RFC 3339).
+
+Uses DI-injected file append function.
+
+- Traces to: ARCH-22, REQ-26, DES-11
+
+### T-102: Surfacing log append for multiple memories in one event
+
+**Given** a surfacing event that matches 3 memories,
+**When** LogSurfacing is called once per matched memory,
+**Then** surfacing-log.jsonl contains 3 JSONL lines, one per memory, all with the same mode and timestamp.
+
+- Traces to: ARCH-22, REQ-26
+
+### T-103: Surfacing log append error is fire-and-forget
+
+**Given** a SurfacingLogger with an injected write function that returns an error,
+**When** LogSurfacing is called,
+**Then** the error is returned to the caller (surfacer swallows it per ARCH-6).
+
+- Traces to: ARCH-22, REQ-26
+
+### T-104: Surfacing log read-and-clear returns events and removes file
+
+**Given** a surfacing-log.jsonl with 5 entries,
+**When** ReadAndClear is called,
+**Then** it returns 5 SurfacingEvent structs with correct fields, and the file is removed.
+
+Uses DI-injected read and remove functions.
+
+- Traces to: ARCH-22, REQ-26
+
+### T-105: Surfacing log read-and-clear with missing file returns empty slice
+
+**Given** no surfacing-log.jsonl exists,
+**When** ReadAndClear is called,
+**Then** it returns an empty slice and no error.
+
+- Traces to: ARCH-22, REQ-26, REQ-34
+
+---
+
+## Outcome Evaluation Pipeline (ARCH-23)
+
+### T-106: Evaluator classifies surfaced memories via LLM
+
+**Given** a surfacing log with 2 entries, each memory's TOML loaded, and a transcript,
+**When** Evaluate is called,
+**Then** the LLM receives the full transcript + 2 memory summaries and returns outcomes for each.
+
+Uses fake LLM returning `[{"memory_path": "...", "outcome": "followed", "evidence": "..."}, ...]`.
+
+- Traces to: ARCH-23, REQ-27, DES-12
+
+### T-107: Evaluator handles empty surfacing log — no LLM call, no output
+
+**Given** an empty surfacing log (or missing file),
+**When** Evaluate is called,
+**Then** no LLM call is made, no evaluation log is written, and no error is returned.
+
+- Traces to: ARCH-23, REQ-27, REQ-34
+
+### T-108: Evaluator writes per-session evaluation log
+
+**Given** the LLM returns outcomes for 3 surfaced memories,
+**When** Evaluate completes,
+**Then** a JSONL file is created at `<data-dir>/evaluations/<timestamp>.jsonl` with 3 lines, each containing memory_path, outcome, evidence, evaluated_at.
+
+Uses DI-injected write function. Timestamp in filename has colons replaced by hyphens.
+
+- Traces to: ARCH-23, REQ-28, DES-13
+
+### T-109: Evaluator creates evaluations directory if missing
+
+**Given** no `<data-dir>/evaluations/` directory exists,
+**When** Evaluate writes results,
+**Then** the directory is created before writing the file.
+
+- Traces to: ARCH-23, REQ-28
+
+### T-110: Evaluator with unparseable LLM response returns error
+
+**Given** an LLM that returns invalid JSON,
+**When** Evaluate is called,
+**Then** an error is returned and no evaluation log is written.
+
+- Traces to: ARCH-23, REQ-27
+
+### T-111: Evaluator clears surfacing log after reading
+
+**Given** a surfacing-log.jsonl with entries,
+**When** Evaluate reads the log,
+**Then** the surfacing log file is removed (ensuring idempotency for second trigger).
+
+- Traces to: ARCH-23, REQ-26, REQ-34
+
+---
+
+## Effectiveness Aggregation (ARCH-24)
+
+### T-112: Aggregate computes effectiveness from evaluation logs
+
+**Given** an evaluations directory with 3 session files, where memory A was evaluated 5 times (3 followed, 1 contradicted, 1 ignored),
+**When** Aggregate is called,
+**Then** memory A's stat shows FollowedCount=3, ContradictedCount=1, IgnoredCount=1, EffectivenessScore=60.0.
+
+Uses DI-injected directory reader and file reader.
+
+- Traces to: ARCH-24, REQ-29
+
+### T-113: Aggregate with missing evaluations directory returns empty map
+
+**Given** no evaluations directory exists,
+**When** Aggregate is called,
+**Then** an empty map is returned and no error.
+
+- Traces to: ARCH-24, REQ-29
+
+### T-114: Aggregate skips malformed JSONL lines
+
+**Given** an evaluation log with 3 valid lines and 1 malformed line,
+**When** Aggregate is called,
+**Then** 3 outcomes are aggregated and the malformed line is skipped.
+
+- Traces to: ARCH-24, REQ-29
+
+### T-115: Effectiveness annotation rendered when data exists
+
+**Given** a surfaced memory with aggregated stats (surfaced 5 times, followed 80%),
+**When** the surfacer formats output,
+**Then** the annotation "(surfaced 5 times, followed 80%)" is appended to the memory's line.
+
+- Traces to: ARCH-24, REQ-30, DES-14
+
+### T-116: No annotation when no evaluation data exists
+
+**Given** a surfaced memory with no evaluation log entries,
+**When** the surfacer formats output,
+**Then** no annotation is appended (backward compatible output).
+
+- Traces to: ARCH-24, REQ-30, DES-14
+
+---
+
+## Hook Integration — evaluate CLI (ARCH-25)
+
+### T-117: evaluate subcommand runs full pipeline
+
+**Given** a data directory with a surfacing log and memory TOML files,
+**When** `runEvaluate` is called with transcript on stdin,
+**Then** evaluation log is written and summary output is produced on stdout.
+
+Uses DI-injected dependencies. Verifies end-to-end wiring.
+
+- Traces to: ARCH-25, REQ-32
+
+### T-118: evaluate without API token emits error and exits 0
+
+**Given** no API token configured,
+**When** `runEvaluate` is called,
+**Then** stderr contains `[engram] Error: evaluation skipped — no API token configured` and no evaluation log is created.
+
+- Traces to: ARCH-25, REQ-33
+
+### T-119: evaluate summary output format
+
+**Given** an evaluation with 3 memories: 2 followed, 1 ignored,
+**When** the evaluation summary is rendered,
+**Then** stdout contains `[engram] Evaluated 3 memories: 2 followed, 0 contradicted, 1 ignored.`
+
+- Traces to: ARCH-25, REQ-31
+
+### T-120: Hook scripts invoke engram evaluate after learn
+
+**Given** the PreCompact and SessionEnd hook scripts,
+**When** the script content is examined,
+**Then** `engram evaluate` is invoked after `engram learn`, with `--data-dir` and transcript piped via stdin.
+
+- Traces to: ARCH-25, DES-15
+
+### T-121: Surfacer writes surfacing log during surfacing events
+
+**Given** a Surfacer with an injected SurfacingLogger,
+**When** SessionStart, Prompt, or Tool mode surfaces memories,
+**Then** each matched memory is logged via SurfacingLogger.LogSurfacing with correct mode.
+
+- Traces to: ARCH-22, REQ-26
+
+---
+
+## UC-15 Bidirectional Traceability
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-22 | T-101, T-102, T-103, T-104, T-105, T-121 |
+| ARCH-23 | T-106, T-107, T-108, T-109, T-110, T-111 |
+| ARCH-24 | T-112, T-113, T-114, T-115, T-116 |
+| ARCH-25 | T-117, T-118, T-119, T-120 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-26 | T-101, T-102, T-103, T-104, T-105, T-111, T-121 |
+| DES-11 | T-101 |
+| REQ-27 | T-106, T-107, T-110 |
+| DES-12 | T-106 |
+| REQ-28 | T-108, T-109 |
+| DES-13 | T-108 |
+| REQ-29 | T-112, T-113, T-114 |
+| REQ-30 | T-115, T-116 |
+| DES-14 | T-115, T-116 |
+| REQ-31 | T-119 |
+| DES-15 | T-120 |
+| REQ-32 | T-117 |
+| REQ-33 | T-118 |
+| REQ-34 | T-105, T-107, T-111 |
+
+All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
