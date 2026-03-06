@@ -33,6 +33,8 @@ items = [
   { id = "ARCH-16", source = "derived" },
   { id = "ARCH-17", source = "derived" },
   { id = "ARCH-18", source = "derived" },
+  { id = "ARCH-19", source = "derived" },
+  { id = "ARCH-20", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -111,9 +113,9 @@ history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML wr
 layer = "L3"
 name = "Hook-Time Surfacing & Enforcement Architecture"
 parents = ["L2B"]
-items = ["ARCH-9", "ARCH-10", "ARCH-12", "ARCH-13"]
+items = ["ARCH-9", "ARCH-10", "ARCH-12", "ARCH-13", "ARCH-19", "ARCH-20"]
 status = "complete"
-history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), surface subcommand routing (ARCH-12 rewritten per issue #34), hook script wiring (ARCH-13 rewritten). Issue #34: ARCH-11 (LLM judgment) removed; PreToolUse now advisory only (system-reminder, no blocking)."
+history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), surface subcommand routing (ARCH-12 rewritten per issue #34), hook script wiring (ARCH-13 rewritten). Issue #34: ARCH-11 (LLM judgment) removed; PreToolUse now advisory only (system-reminder, no blocking). Issue #46: added ARCH-19 (tracking logic + recorder with DI) and ARCH-20 (surfacer↔tracker integration via optional MemoryTracker interface). ARCH-9 Memory struct extended with tracking fields."
 
 [tree.L3C]
 layer = "L3"

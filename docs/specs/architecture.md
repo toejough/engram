@@ -241,14 +241,17 @@ type MemoryRetriever interface {
 }
 
 type Memory struct {
-    Title       string
-    Content     string
-    Concepts    []string
-    Keywords    []string
-    AntiPattern string // for PreToolUse enforcement
-    Principle   string
-    UpdatedAt   time.Time
-    FilePath    string
+    Title             string
+    Content           string
+    Concepts          []string
+    Keywords          []string
+    AntiPattern       string // for PreToolUse enforcement
+    Principle         string
+    UpdatedAt         time.Time
+    FilePath          string
+    SurfacedCount     int       // instrumentation: total surfacing events
+    LastSurfaced      time.Time // instrumentation: most recent surfacing
+    SurfacingContexts []string  // instrumentation: recent context types (max 10)
 }
 ```
 
@@ -329,6 +332,75 @@ Design choices:
 - **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher). Scripts just invoke and return output.
 
 **Traces to:** DES-8 (hook wiring)
+
+---
+
+## ARCH-19: Surfacing Instrumentation — Tracking Logic and Recorder
+
+**Decision:** Separate pure tracking logic from I/O-performing recorder, both in `internal/track/`.
+
+**Pure tracking logic (`ComputeUpdate`):**
+
+```go
+const MaxContextEntries = 10
+
+type SurfacingUpdate struct {
+    SurfacedCount     int
+    LastSurfaced      time.Time
+    SurfacingContexts []string
+}
+
+func ComputeUpdate(current *memory.Stored, mode string, now time.Time) SurfacingUpdate
+```
+
+Business logic only: increment count, set timestamp, append mode with FIFO eviction at 10. No I/O.
+
+**Recorder (`Recorder`):**
+
+```go
+type Recorder struct {
+    readFile   func(string) ([]byte, error)
+    createTemp func(dir, pattern string) (*os.File, error)
+    rename     func(oldpath, newpath string) error
+    remove     func(name string) error
+    now        func() time.Time
+}
+
+func (r *Recorder) RecordSurfacing(ctx context.Context, memories []*memory.Stored, mode string) error
+```
+
+For each memory: read existing TOML → decode full record (all fields) → apply `ComputeUpdate` → re-encode → write atomically (temp + rename). Errors on individual memories are collected but don't stop processing others. Uses the same `tomlRecord` field set as `tomlwriter` plus the three tracking fields to ensure round-trip fidelity.
+
+All I/O is injected via functional options (`WithReadFile`, `WithCreateTemp`, `WithRename`, `WithRemove`, `WithNow`). Default: real `os.*` functions and `time.Now`.
+
+**Traces to:** REQ-21 (tracking fields), REQ-22 (in-place TOML update)
+
+---
+
+## ARCH-20: Surfacer ↔ Tracker Integration
+
+**Decision:** Optional `MemoryTracker` interface injected into the Surfacer.
+
+```go
+// In surface package
+type MemoryTracker interface {
+    RecordSurfacing(ctx context.Context, memories []*memory.Stored, mode string) error
+}
+```
+
+The Surfacer accepts an optional tracker via `WithTracker` functional option. After each mode handler determines matched memories, the surfacer calls `tracker.RecordSurfacing(ctx, matched, mode)`. If the tracker is nil, no tracking occurs (backward compatible).
+
+**Refactor required:** The three mode handlers (`runSessionStart`, `runPrompt`, `runTool`) currently return `Result` directly. They need to also return the matched `[]*memory.Stored` so the surfacer can pass them to the tracker. Internal refactor only — no public API change.
+
+**Error handling:** Tracker errors are logged to stderr and swallowed — they never propagate to the caller (ARCH-6 exit-0 contract). This keeps surfacing instrumentation fire-and-forget.
+
+**CLI wiring** (in `internal/cli/cli.go`):
+```go
+recorder := track.NewRecorder()
+surfacer := surface.New(retriever, surface.WithTracker(recorder))
+```
+
+**Traces to:** REQ-22 (in-place TOML update on surfacing), ARCH-6 (exit-0 contract), ARCH-7 (DI boundary interfaces)
 
 ---
 
@@ -485,7 +557,7 @@ Design choices:
 | ARCH-6 | REQ-6, REQ-8, DES-3, DES-4 |
 | ARCH-7 | REQ-6 |
 | ARCH-8 | REQ-8, DES-4 |
-| ARCH-9 | REQ-9, REQ-10, REQ-11 |
+| ARCH-9 | REQ-9, REQ-10, REQ-11, REQ-21 |
 | ARCH-10 | REQ-11 |
 | ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11 |
 | ARCH-13 | DES-8 |
@@ -494,6 +566,8 @@ Design choices:
 | ARCH-16 | REQ-17, REQ-19 |
 | ARCH-17 | REQ-20, DES-10 |
 | ARCH-18 | DES-9, REQ-19 |
+| ARCH-19 | REQ-21, REQ-22 |
+| ARCH-20 | REQ-22, ARCH-6, ARCH-7 |
 
 ### L2 → ARCH
 
@@ -518,6 +592,8 @@ Design choices:
 | DES-6 | ARCH-9, ARCH-12 |
 | DES-7 | ARCH-12 |
 | DES-8 | ARCH-13 |
+| REQ-21 | ARCH-9, ARCH-19 |
+| REQ-22 | ARCH-19, ARCH-20 |
 | REQ-15 | ARCH-14, ARCH-15 |
 | REQ-16 | ARCH-15 |
 | REQ-17 | ARCH-14, ARCH-16 |
