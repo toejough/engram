@@ -39,6 +39,7 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
 }
 
+// T-20: Plugin manifest exists
 // TestT20_PluginManifestExists verifies .claude-plugin/plugin.json exists with
 // the correct name and description.
 func TestT20_PluginManifestExists(t *testing.T) {
@@ -62,6 +63,7 @@ func TestT20_PluginManifestExists(t *testing.T) {
 	g.Expect(manifest).To(ContainSubstring(`"description"`))
 }
 
+// T-21: Hooks JSON has UserPromptSubmit
 // TestT21_HooksJSONHasUserPromptSubmit verifies hooks/hooks.json contains a
 // UserPromptSubmit hook entry pointing to user-prompt-submit.sh.
 func TestT21_HooksJSONHasUserPromptSubmit(t *testing.T) {
@@ -85,6 +87,7 @@ func TestT21_HooksJSONHasUserPromptSubmit(t *testing.T) {
 	g.Expect(hooksJSON).To(ContainSubstring("user-prompt-submit.sh"))
 }
 
+// T-22: UserPromptSubmit hook script has platform-aware token retrieval
 // TestT22_UserPromptSubmitHookCrossPlatformToken verifies the static hook script at
 // hooks/user-prompt-submit.sh has platform-aware token retrieval (ARCH-6, DES-3).
 func TestT22_UserPromptSubmitHookCrossPlatformToken(t *testing.T) {
@@ -113,6 +116,7 @@ func TestT22_UserPromptSubmitHookCrossPlatformToken(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
 }
 
+// T-23: bin/ is in .gitignore
 // TestT23_BinDirInGitignore verifies that the bin/ directory is gitignored (ARCH-8, REQ-8).
 func TestT23_BinDirInGitignore(t *testing.T) {
 	t.Parallel()

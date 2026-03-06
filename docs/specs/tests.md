@@ -730,6 +730,16 @@ Updates T-44 to verify creation goes to systemMessage.
 
 - Traces to: ARCH-13, DES-3, REQ-4
 
+### T-100: Tool mode with no matching memories produces empty output
+
+**Given** memories exist but none have keywords matching the tool input,
+**When** surface is called with mode tool and a tool input containing no matching keywords,
+**Then** stdout is empty (no advisory emitted).
+
+- Traces to: ARCH-12, ARCH-10, REQ-11
+
+---
+
 ### T-99: SessionStart hook puts creation report in systemMessage
 
 **Given** the session-start hook script at `hooks/session-start.sh`,
@@ -920,7 +930,7 @@ Uses fakes for pipeline stages.
 
 **Given** a pipeline that extracts 2 learnings and skips 1 duplicate,
 **When** learn completes,
-**Then** stderr contains: `[engram] Extracted 2 learnings from session.` followed by title/path lines, then `[engram] Skipped 1 duplicates.`
+**Then** stderr contains: `[engram] Extracted 2 learnings from session.` followed by title/path lines with tier breakdown `(A: X, B: Y, C: Z)`, then `[engram] Skipped 1 duplicates.`
 
 - Traces to: ARCH-17, DES-10
 - Verification: unit

@@ -4,4 +4,4 @@ Interaction model and UX specification derived from UC-3 (Remember & Correct). P
 
 ---
 
-*To be derived at L2 traversal.*
+DES items are co-located with their parent REQs in `docs/specs/requirements.md` for traceability. Each DES item appears immediately after the REQ it refines, keeping design decisions and requirements in context together.

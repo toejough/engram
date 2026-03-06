@@ -14,6 +14,39 @@ import (
 	"engram/internal/surface"
 )
 
+// T-100: Tool mode with no matching memories produces empty output
+func TestT100_ToolModeNoMatchProducesEmpty(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit for commits",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	// Tool input contains no matching keywords.
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Read",
+		ToolInput: `/path/to/file.go`,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
 // T-27: SessionStart surfaces top 20 by recency
 func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	t.Parallel()
@@ -397,39 +430,6 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	// "Use targ test" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
 	g.Expect(output).NotTo(ContainSubstring("Use targ test"))
 	g.Expect(output).To(ContainSubstring("</system-reminder>"))
-}
-
-// T-45: Tool mode with no matching memories produces empty output
-func TestT45_ToolModeNoMatchProducesEmpty(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:       "Use /commit",
-			FilePath:    "use-commit.toml",
-			AntiPattern: "manual git commit",
-			Keywords:    []string{"commit", "git"},
-			Principle:   "use /commit for commits",
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	// Tool input contains no matching keywords.
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:      surface.ModeTool,
-		DataDir:   "/tmp/data",
-		ToolName:  "Read",
-		ToolInput: `/path/to/file.go`,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(BeEmpty())
 }
 
 // TestT69_SessionStartJSONFormat verifies JSON output for session-start mode.

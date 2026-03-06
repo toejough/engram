@@ -17,6 +17,7 @@ import (
 	"engram/internal/tomlwriter"
 )
 
+// T-10: Duplicate filename gets numeric suffix
 func TestT10_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 	t.Parallel()
 
@@ -51,6 +52,7 @@ func TestT10_DuplicateFilenameGetsNumericSuffix(t *testing.T) {
 	g.Expect(secondPath).NotTo(Equal(firstPath))
 }
 
+// T-11: Write is atomic (temp file + rename)
 func TestT11_WriteIsAtomic(t *testing.T) {
 	t.Parallel()
 
@@ -89,6 +91,7 @@ func TestT11_WriteIsAtomic(t *testing.T) {
 	g.Expect(statErr).NotTo(HaveOccurred())
 }
 
+// T-12: Memories directory is created if missing
 func TestT12_MemoriesDirectoryCreatedIfMissing(t *testing.T) {
 	t.Parallel()
 
@@ -126,6 +129,7 @@ func TestT12_MemoriesDirectoryCreatedIfMissing(t *testing.T) {
 	g.Expect(fileStatErr).NotTo(HaveOccurred())
 }
 
+// T-8: Write creates TOML file with all fields
 func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 	t.Parallel()
 
@@ -199,6 +203,7 @@ func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 	g.Expect(parsed.UpdatedAt).To(Equal(created.Format(time.RFC3339)))
 }
 
+// T-9: Filename slug is 3-5 hyphenated lowercase words
 func TestT9_FilenameSlugIsHyphenatedLowercaseWords(t *testing.T) {
 	t.Parallel()
 
