@@ -218,10 +218,10 @@ When a tool call is about to execute (PreToolUse hook), the system scans memory 
 
 ## REQ-14: Go binary `surface` subcommand
 
-The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt|tool> --data-dir <path>`. Mode-specific flags: `--message <text>` for prompt mode, `--tool-name <name> --tool-input <json>` for tool mode.
+The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format json]`. Mode-specific flags: `--message <text>` for prompt mode, `--tool-name <name> --tool-input <json>` for tool mode. The `--format json` flag outputs a JSON object with `summary` (brief human-readable message) and `context` (full system-reminder XML) instead of raw XML.
 
 - Traces to: UC-2 (CLI entry point)
-- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) `engram surface --mode tool --tool-name <name> --tool-input <json> --data-dir <path>` runs PreToolUse enforcement. (4) Exit 0 always — errors logged to stderr.
+- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) `engram surface --mode tool --tool-name <name> --tool-input <json> --data-dir <path>` runs PreToolUse enforcement. (4) Exit 0 always — errors logged to stderr. (5) `--format json` outputs `{"summary": "...", "context": "..."}` instead of raw XML. (6) No matches produce empty stdout regardless of format.
 - Verification: deterministic (subcommand runs, correct mode dispatch)
 
 ---
@@ -244,6 +244,7 @@ Format rules:
 - Each memory: title in quotes, file path in parentheses
 - Ordered by recency (most recent first)
 - If no memories, no output
+- With `--format json`: wrapped in `{"summary": "[engram] Loaded N memories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}` for Claude Code visibility.
 
 - Traces to: UC-2 (SessionStart feedback)
 
@@ -265,7 +266,7 @@ Format rules:
 - Header: `[engram] Relevant memories:`
 - Each memory: title, file path, matched keywords/concepts in brackets
 - If no matches, no output
-- Appears alongside any UC-3 correction output (concatenated)
+- With `--format json`: wrapped in `{"summary": "[engram] N relevant memories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}`, merging any UC-3 correction output into additionalContext.
 
 - Traces to: UC-2 (UserPromptSubmit feedback)
 
@@ -288,6 +289,7 @@ Format rules:
 - Each memory: title in quotes, principle, file path and tier in brackets
 - If no matches, no output (tool call allowed silently)
 - The agent exercises judgment with full session context — not a block, an advisory for consideration
+- With `--format json`: wrapped in `{"summary": "[engram] N tool advisories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}` per PreToolUse hook API.
 
 - Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware filtering)
 
@@ -295,9 +297,9 @@ Format rules:
 
 ## DES-8: Hook wiring — SessionStart and PreToolUse
 
-SessionStart hook (`hooks/session-start.sh`) is extended to call `engram surface --mode session-start` after the existing build step. PreToolUse hook is registered in `hooks/hooks.json` and invokes `hooks/pre-tool-use.sh`, which reads the tool call from stdin JSON and calls `engram surface --mode tool`.
+SessionStart hook (`hooks/session-start.sh`) calls `engram surface --mode session-start --format json` after the existing build step, then reshapes into `{systemMessage, additionalContext}`. PreToolUse hook (`hooks/pre-tool-use.sh`) reads the tool call from stdin JSON, calls `engram surface --mode tool --format json`, and reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}`.
 
-UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) is extended to also call `engram surface --mode prompt` alongside the existing `engram correct` call. Both outputs are concatenated to stdout.
+UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) captures `engram correct` output and `engram surface --mode prompt --format json` output separately, then combines into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
 
 - Traces to: UC-2 (hook wiring)
 

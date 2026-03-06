@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -38,12 +38,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -137,9 +137,9 @@ history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test ad
 layer = "L4"
 name = "Hook-Time Surfacing & Enforcement Tests"
 parents = ["L3B"]
-items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46"]
+items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-69", "T-70", "T-71", "T-72"]
 status = "complete"
-history = "19 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking)."
+history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking). Issue #25: added T-69/70/71/72 (JSON format output for session-start, prompt, tool, no-match). Updated T-43/T-44 for --format json and systemMessage/additionalContext reshaping."
 
 [tree.L4C]
 layer = "L4"
@@ -147,7 +147,7 @@ name = "Session Learning Tests"
 parents = ["L3C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68"]
 status = "complete"
-history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation."
+history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation. Audit: T-60 spec updated — 'Written memories use tier from extraction' (not hardcoded C), aligning spec with issue #35 code change."
 
 # Tree nodes — L5
 
@@ -205,25 +205,25 @@ history = "T-24/25/26 passing. Memory retrieval from TOML files with DI. Issue #
 layer = "L5"
 name = "SessionStart Surfacing"
 parents = ["L5F"]
-items = ["T-27", "T-28", "T-29", "T-40", "T-43"]
+items = ["T-27", "T-28", "T-29", "T-40", "T-43", "T-69"]
 status = "complete"
-history = "T-27/28/29, T-40, T-43 passing. SessionStart surfacing, DES-5 format, CLI routing, hook script."
+history = "T-27/28/29, T-40, T-43 passing. SessionStart surfacing, DES-5 format, CLI routing, hook script. Issue #25: added T-69 (JSON format), updated T-43 (--format json + systemMessage/additionalContext reshaping)."
 
 [tree.L5H]
 layer = "L5"
 name = "Keyword Surfacing + Pre-Filter"
 parents = ["L5F"]
-items = ["T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-41", "T-44"]
+items = ["T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-41", "T-44", "T-70"]
 status = "complete"
-history = "T-30/31/32, T-33/34/35, T-41, T-44 passing. Keyword surfacing + pre-filter, CLI routing, hook extension."
+history = "T-30/31/32, T-33/34/35, T-41, T-44 passing. Keyword surfacing + pre-filter, CLI routing, hook extension. Issue #25: added T-70 (prompt JSON format), updated T-44 (--format json + combined correct/surface JSON output)."
 
 [tree.L5I]
 layer = "L5"
 name = "PreToolUse Advisory Surfacing"
 parents = ["L5H"]
-items = ["T-42", "T-45", "T-46"]
+items = ["T-42", "T-45", "T-46", "T-71", "T-72"]
 status = "complete"
-history = "T-42, T-45/46 passing. Tool mode routing, advisory surfacing (system-reminder), hook scripts. Issue #34: removed LLM judgment tests (T-36/37/38/39), changed PreToolUse from blocking enforcement to advisory-only."
+history = "T-42, T-45/46 passing. Tool mode routing, advisory surfacing (system-reminder), hook scripts. Issue #34: removed LLM judgment tests (T-36/37/38/39), changed PreToolUse from blocking enforcement to advisory-only. Issue #25: added T-71 (tool JSON format), T-72 (no-match JSON produces empty output)."
 
 [tree.L5J]
 layer = "L5"
@@ -252,7 +252,7 @@ history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in 
 # Cursor
 
 [cursor]
-node = "L5L"
+node = "L5I"
 mode = "complete"
-next_action = "Issue #31 resolved — ARCH-7 DI standard enforced in tomlwriter and retrieve. All internal/ packages now use injected I/O."
+next_action = "Post-completion re-entry for audit findings: issue #25 (JSON format output) spec coverage propagated L2→L3→L4→L5. T-60 spec aligned with issue #35 tier-from-extraction. REQ-X added to layer registry. All nodes remain complete."
 context_files = ["docs/specs/state.toml"]

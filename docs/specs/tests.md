@@ -370,6 +370,38 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 - Traces to: ARCH-12, REQ-14
 
+### T-69: SessionStart JSON format produces summary and context
+
+**Given** memories exist and the surface subcommand is called with `--mode session-start --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] Loaded 1 memories."`) and `context` (the full `<system-reminder>` XML block).
+
+- Traces to: ARCH-12, REQ-14, DES-5
+
+### T-70: Prompt JSON format produces summary and context
+
+**Given** a memory with keyword "commit" and the surface subcommand is called with `--mode prompt --message "commit" --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 relevant memories."`) and `context` (the full `<system-reminder>` XML block).
+
+- Traces to: ARCH-12, REQ-14, DES-6
+
+### T-71: Tool JSON format produces summary and context
+
+**Given** a memory with anti_pattern and matching keywords, and the surface subcommand is called with `--mode tool --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 tool advisories."`) and `context` (the full `<system-reminder>` XML block).
+
+- Traces to: ARCH-12, REQ-14, DES-7
+
+### T-72: No-match JSON format produces empty output
+
+**Given** no memories exist and the surface subcommand is called with `--mode session-start --format json`,
+**When** Run completes,
+**Then** stdout is empty (not an empty JSON object).
+
+- Traces to: ARCH-12, REQ-14
+
 ---
 
 ## Hook Script Integration (ARCH-13)
@@ -378,7 +410,7 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 **Given** the session-start hook script,
 **When** its content is read,
-**Then** it calls `engram surface --mode session-start` after the build step.
+**Then** it calls `engram surface --mode session-start --format json` after the build step, and reshapes the JSON output into `{systemMessage, additionalContext}` format for Claude Code.
 
 - Traces to: ARCH-13, DES-8
 
@@ -386,7 +418,7 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 **Given** the user-prompt-submit hook script,
 **When** its content is read,
-**Then** it calls both `engram correct` and `engram surface --mode prompt`, concatenating their outputs.
+**Then** it calls `engram correct` (capturing output) and `engram surface --mode prompt --format json`, combining both into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
 
 - Traces to: ARCH-13, DES-8
 
@@ -549,11 +581,11 @@ Uses fakes for all four DI interfaces. Verifies call order.
 - Traces to: ARCH-14, REQ-17
 - Verification: unit
 
-### T-60: Written memories have confidence tier C
+### T-60: Written memories use tier from extraction
 
-**Given** a transcript, with Extractor returning candidates (no confidence field set),
+**Given** a transcript, with Extractor returning candidates with Tier = "B",
 **When** test calls Learner.Run,
-**Then** every memory passed to Writer has Confidence = "C".
+**Then** every memory passed to Writer has Confidence matching the candidate's Tier (not hardcoded "C").
 
 - Traces to: ARCH-14, REQ-7
 - Verification: unit

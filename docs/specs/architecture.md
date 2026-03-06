@@ -291,7 +291,7 @@ Design choices:
 **Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
 
 ```bash
-engram surface --mode <session-start|prompt|tool> --data-dir <path> [mode-specific flags]
+engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format json] [mode-specific flags]
 ```
 
 Routing:
@@ -299,9 +299,14 @@ Routing:
 - `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
 - `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, emit DES-7 advisory format (no LLM judgment).
 
+Output format:
+- **Default (no --format):** Writes `<system-reminder>` XML directly to stdout (backward compatible).
+- **`--format json`:** Returns a JSON object `{"summary": "<brief message>", "context": "<system-reminder XML>"}`. Summary is a human-readable one-liner (e.g., `"[engram] Loaded 20 memories."`). Context is the full XML block.
+- **No matches:** Empty stdout regardless of format (not an empty JSON object).
+
 Design choices:
 - **Unified entry point:** One surface subcommand, mode-specific logic inside.
-- **Hook scripts call surface:** SessionStart/UserPromptSubmit/PreToolUse hooks invoke `engram surface --mode ...`.
+- **Hook scripts call surface with JSON format:** Hooks invoke `engram surface --mode ... --format json`, then reshape into hook-specific JSON with `systemMessage` (user-visible) and `additionalContext` (model context). PreToolUse nests `additionalContext` under `hookSpecificOutput` per Claude Code hook API.
 - **Advisory only (no blocking):** PreToolUse tool mode surfaces matching memories as advisory via system-reminder. Agent exercises judgment with full session context. No LLM call, no blocking decision from the Go binary.
 - **JSON tool input:** PreToolUse hook passes full tool call as JSON (tool name + argument struct).
 
