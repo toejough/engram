@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -59,6 +59,13 @@ items = ["UC-3"]
 status = "complete"
 history = "Rewritten per issue #17: flat TOML files + LLM enrichment. All other UCs deferred to issue #18. L5 implementation complete: all 19 tests passing, lint clean. Issue #35: UC-3 rewritten — corpus replaced with unified LLM classifier, fast-path keywords, transcript context, no graceful degradation (closes #32)."
 gates = { regroup_proposal = "completed: radical regroup — UC-3 only, all other UCs deferred to issue #18" }
+
+[tree.L1D]
+layer = "L1"
+name = "Automatic Outcome Signal"
+items = ["UC-15"]
+status = "complete"
+history = "Issue #47. Phase 2 of memory effectiveness plan. Surfacing log for session scope, separate engram evaluate subcommand, per-session evaluation logs, on-the-fly effectiveness aggregation, full transcript LLM evaluation."
 
 [tree.L1B]
 layer = "L1"
@@ -323,7 +330,7 @@ history = "Issue #49: UserPromptSubmit hook puts creation output in systemMessag
 # Cursor
 
 [cursor]
-node = "L5T"
-mode = "complete"
-next_action = "All L5 nodes complete for issue #49. Full spec tree (L1–L5) is complete for UC-1, UC-2, UC-3. Ready for spec-audit to verify alignment."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
+node = "L1D"
+mode = "in_progress"
+next_action = "L1D complete. Descend to L2: derive REQ + DES items from UC-15."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "docs/specs/design.md"]

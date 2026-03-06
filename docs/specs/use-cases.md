@@ -148,4 +148,46 @@ updated_at = "2026-03-03T18:00:00Z"
 
 ---
 
+## UC-15: Automatic Outcome Signal
+
+**Description:** At context compaction and session end, automatically assess whether memories surfaced during the session were followed, contradicted, or ignored by reviewing the transcript. Write per-session evaluation results to a log file. When surfacing memories in future sessions, compute and display effectiveness annotations from evaluation history.
+
+**Starting state:** A session is active. Memories were surfaced via UC-2 hooks (SessionStart, UserPromptSubmit, PreToolUse). A surfacing log file records which memories were surfaced and in what context. A PreCompact or SessionEnd hook fires.
+
+**End state:** A per-session evaluation log file exists with outcome classifications for each surfaced memory. Future surfacing events display effectiveness annotations ("surfaced N times, followed M%") computed on-the-fly from evaluation logs.
+
+**Actor:** System (Go binary triggered by PreCompact and SessionEnd hooks, after `engram learn`).
+
+**Key interactions:**
+
+- **Surfacing log (written by UC-2, read by UC-15):** During each surfacing event, write an entry to `<data-dir>/surfacing-log.jsonl` recording the memory file path, mode (session-start/prompt/tool), and timestamp. This is the session-scoped record of what was surfaced. The evaluate pass reads and clears this log.
+
+- **Evaluation pass (new `engram evaluate` subcommand):** After `engram learn` completes in the PreCompact/SessionEnd hook, invoke `engram evaluate`. The evaluator:
+  1. Reads the surfacing log to determine which memories were surfaced this session
+  2. Reads each surfaced memory's TOML file to get its content, principle, and anti-pattern
+  3. Sends the full transcript + surfaced memory list to an LLM (claude-haiku-4-5-20251001)
+  4. The LLM classifies each surfaced memory's outcome: `followed` (agent acted consistently with the memory), `contradicted` (agent acted against the memory), or `ignored` (memory was surfaced but not relevant to any decision in the session)
+  5. Writes results to a per-session evaluation log file at `<data-dir>/evaluations/<timestamp>.jsonl`
+
+- **Per-session evaluation log format:** Each line is a JSON object:
+  ```json
+  {"memory_path": "...", "outcome": "followed|contradicted|ignored", "evidence": "brief LLM explanation", "evaluated_at": "RFC3339"}
+  ```
+  The session identity is implicit from the file. No unbounded growth — each session produces one small file.
+
+- **Effectiveness annotations (read path):** When UC-2 surfaces memories, compute effectiveness on-the-fly by reading all evaluation log files in `<data-dir>/evaluations/`. For each surfaced memory, aggregate outcomes across sessions and display: "(surfaced N times, followed M%)". This adds no LLM cost — pure file reads and arithmetic.
+
+- **Visibility:**
+  - **SessionEnd summary:** The evaluate pass outputs a summary of outcomes for the current session (e.g., "3 memories surfaced: 2 followed, 1 ignored") via hook `systemMessage` so the user sees it.
+  - **Inline annotations:** When memories surface in future sessions, effectiveness context appears alongside the memory: title, principle, and "(surfaced 5 times, followed 80%)".
+  - **CLI `engram review`:** Shows per-memory effectiveness stats aggregated from all evaluation logs. Deferred to a later issue if scope is too large.
+
+- **No graceful degradation:** If no API token is configured, emit a loud stderr error and skip evaluation. Never write degraded evaluations.
+
+- **Idempotency:** If both PreCompact and SessionEnd fire, the second evaluate invocation reads an empty surfacing log (cleared by the first) and produces no evaluation file.
+
+- **Pure Go, no CGO:** Same constraint as UC-1/2/3.
+
+---
+
 Deferred UCs (UC-4 through UC-14) are archived in issue #18 for review.
