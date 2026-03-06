@@ -305,6 +305,38 @@ UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) captures `engram correct` 
 
 ---
 
+## REQ-21: Per-memory surfacing instrumentation fields
+
+Each memory TOML file supports three optional tracking fields updated during surface events:
+
+- `surfaced_count` (int) — total number of times this memory has been surfaced. Defaults to 0 if absent.
+- `last_surfaced` (string, RFC 3339) — timestamp of the most recent surfacing event. Defaults to zero time if absent.
+- `surfacing_contexts` (string array) — bounded list (max 10) of recent context types. Each entry is the surface mode that triggered the event: `session-start`, `prompt`, or `tool`. When the list exceeds 10 entries, the oldest are dropped.
+
+These fields are read during retrieval (alongside existing fields) and written back during surface events. They are purely additive — existing memories without these fields work unchanged (zero/empty defaults).
+
+- Traces to: UC-2 (surfacing instrumentation)
+- AC: (1) `surfaced_count` is an integer, defaults to 0 when absent. (2) `last_surfaced` is RFC 3339, defaults to zero time when absent. (3) `surfacing_contexts` is a string array, max 10 entries, FIFO eviction. (4) Fields are optional — memories without them parse and function normally. (5) Fields round-trip through TOML read/write without data loss.
+- Verification: deterministic (TOML parse, field presence, value bounds)
+
+---
+
+## REQ-22: In-place TOML update on surfacing events
+
+After each surfacing mode (session-start, prompt, tool) determines which memories matched, the system updates each matched memory's TOML file in-place:
+
+1. Read the existing TOML file (full content, all fields).
+2. Compute updated tracking fields: increment `surfaced_count`, set `last_surfaced` to current time, append mode to `surfacing_contexts` (with FIFO eviction at 10).
+3. Write the updated TOML file atomically (temp file + rename).
+
+All existing fields are preserved on round-trip — the update must not drop or modify any field other than the three tracking fields.
+
+- Traces to: UC-2 (surfacing instrumentation, fire-and-forget)
+- AC: (1) After surfacing, each matched memory's TOML file is updated with new tracking values. (2) Existing fields (title, content, keywords, etc.) are preserved exactly. (3) Writes are atomic (temp file + rename). (4) Instrumentation errors are logged to stderr but never fail the surface operation (ARCH-6 exit-0 contract). (5) If no memories match, no TOML updates occur.
+- Verification: deterministic (file content before/after, field preservation, error isolation)
+
+---
+
 # UC-1 Requirements and Design
 
 ---

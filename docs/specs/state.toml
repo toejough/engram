@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -85,9 +85,9 @@ history = "6 REQs + 2 DES items. Detection, enrichment, file writing, feedback, 
 layer = "L2"
 name = "Hook-Time Surfacing & Enforcement Requirements"
 parents = ["L1B"]
-items = ["REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8"]
+items = ["REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22"]
 status = "complete"
-history = "6 REQs + 4 DES items derived from UC-2. SessionStart surfacing (REQ-9/DES-5), UserPromptSubmit surfacing (REQ-10/DES-6), PreToolUse advisory surfacing (REQ-11/DES-7 rewritten per issue #34), CLI surface subcommand (REQ-14), hook wiring (DES-8). Issue #34: REQ-12 (LLM judgment) and REQ-13 (graceful degradation) removed; PreToolUse now advisory only (system-reminder, no blocking)."
+history = "6 REQs + 4 DES items derived from UC-2. SessionStart surfacing (REQ-9/DES-5), UserPromptSubmit surfacing (REQ-10/DES-6), PreToolUse advisory surfacing (REQ-11/DES-7 rewritten per issue #34), CLI surface subcommand (REQ-14), hook wiring (DES-8). Issue #34: REQ-12 (LLM judgment) and REQ-13 (graceful degradation) removed; PreToolUse now advisory only (system-reminder, no blocking). Issue #46: added REQ-21 (instrumentation fields) and REQ-22 (in-place TOML update on surfacing)."
 
 [tree.L2C]
 layer = "L2"
