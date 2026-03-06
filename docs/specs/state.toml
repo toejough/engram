@@ -258,29 +258,29 @@ layer = "L5"
 name = "Tracking Logic + Recorder"
 parents = ["L4B"]
 items = ["T-73", "T-74", "T-75", "T-76", "T-77", "T-78"]
-status = "pending"
-history = "Issue #46: new internal/track/ package. ComputeUpdate pure logic + Recorder with DI for atomic TOML updates."
+status = "complete"
+history = "Issue #46: new internal/track/ package with ComputeUpdate pure logic + Recorder with DI (WithReadFile, WithCreateTemp, WithRename, WithRemove, WithNow). Atomic TOML updates via temp→rename pattern. T-73/74/75 (tracking logic), T-76/77/78 (recorder) passing. All lint clean."
 
 [tree.L5N]
 layer = "L5"
 name = "Surfacer ↔ Tracker Integration"
 parents = ["L5M", "L5O"]
 items = ["T-79", "T-80", "T-81"]
-status = "pending"
-history = "Issue #46: optional MemoryTracker interface in Surfacer. Refactor mode handlers to return matched memories. Fire-and-forget error handling. CLI wiring."
+status = "complete"
+history = "Issue #46: optional MemoryTracker interface in Surfacer, refactored mode handlers to return matched memories. Fire-and-forget error handling (errors swallowed, always exit 0 per ARCH-6). CLI wiring in runSurface: recorder := track.NewRecorder(); surface.New(retriever, surface.WithTracker(recorder)). T-79/80/81 passing. Refactored matchesWholeWord (MustCompile instead of MatchString) and extracted matchPromptMemories helper to fix cyclop complexity. All tests passing, lint clean."
 
 [tree.L5O]
 layer = "L5"
 name = "Retrieval Tracking Fields"
 parents = ["L4B"]
 items = ["T-82", "T-83"]
-status = "pending"
-history = "Issue #46: extend memory.Stored with SurfacedCount, LastSurfaced, SurfacingContexts. Extend retrieve tomlRecord to read new fields."
+status = "complete"
+history = "Issue #46: extended memory.Stored with SurfacedCount (int), LastSurfaced (time.Time), SurfacingContexts ([]string). Extended retrieve.tomlRecord with tracking fields and parseMemoryFile now parses LastSurfaced with time.Parse(time.RFC3339, ...) — empty string = zero time. T-82/T-83 passing."
 
 # Cursor
 
 [cursor]
-node = "L5O"
-mode = "in_progress"
-next_action = "Implement T-82/T-83: extend memory.Stored and retrieve.tomlRecord with tracking fields. TDD red/green/refactor."
-context_files = ["docs/specs/state.toml", "docs/specs/tests.md"]
+node = "L5N"
+mode = "complete"
+next_action = "Usability gate: verify UC-2 build → install → exercise → observe path for surfacing instrumentation."
+context_files = ["docs/specs/state.toml"]
