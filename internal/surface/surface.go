@@ -4,6 +4,7 @@ package surface
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 
 // Exported constants.
 const (
+	FormatJSON       = "json"
 	ModePrompt       = "prompt"
 	ModeSessionStart = "session-start"
 	ModeTool         = "tool"
@@ -37,6 +39,13 @@ type Options struct {
 	Message   string // for prompt mode
 	ToolName  string // for tool mode
 	ToolInput string // for tool mode
+	Format    string // output format: "" (plain) or "json"
+}
+
+// Result holds the structured output of a surface invocation.
+type Result struct {
+	Summary string `json:"summary"`
+	Context string `json:"context"`
 }
 
 // Surfacer orchestrates memory surfacing.
@@ -53,22 +62,48 @@ func New(retriever MemoryRetriever) *Surfacer {
 
 // Run executes the surface subcommand, writing output to w.
 func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
+	var (
+		result Result
+		err    error
+	)
+
 	switch opts.Mode {
 	case ModeSessionStart:
-		return s.runSessionStart(ctx, w, opts.DataDir)
+		result, err = s.runSessionStart(ctx, opts.DataDir)
 	case ModePrompt:
-		return s.runPrompt(ctx, w, opts.DataDir, opts.Message)
+		result, err = s.runPrompt(ctx, opts.DataDir, opts.Message)
 	case ModeTool:
-		return s.runTool(ctx, w, opts)
+		result, err = s.runTool(ctx, opts)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	if result.Context == "" {
+		return nil
+	}
+
+	if opts.Format == FormatJSON {
+		encodeErr := json.NewEncoder(w).Encode(result)
+		if encodeErr != nil {
+			return fmt.Errorf("surface: encoding JSON: %w", encodeErr)
+		}
+
+		return nil
+	}
+
+	_, _ = fmt.Fprint(w, result.Context)
+
+	return nil
 }
 
-func (s *Surfacer) runPrompt(ctx context.Context, w io.Writer, dataDir, message string) error {
+func (s *Surfacer) runPrompt(ctx context.Context, dataDir, message string) (Result, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return fmt.Errorf("surface: %w", err)
+		return Result{}, fmt.Errorf("surface: %w", err)
 	}
 
 	type matchResult struct {
@@ -101,30 +136,37 @@ func (s *Surfacer) runPrompt(ctx context.Context, w io.Writer, dataDir, message 
 	}
 
 	if len(matches) == 0 {
-		return nil
+		return Result{}, nil
 	}
 
-	_, _ = fmt.Fprintf(w, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(w, "[engram] Relevant memories:\n")
+	var buf strings.Builder
 
-	for _, m := range matches {
-		_, _ = fmt.Fprintf(w, "  - \"%s\" (%s) [matched: %s]\n",
-			m.mem.Title, m.mem.FilePath, strings.Join(m.keywords, ", "))
+	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&buf, "[engram] Relevant memories:\n")
+
+	for _, match := range matches {
+		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s) [matched: %s]\n",
+			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "))
 	}
 
-	_, _ = fmt.Fprintf(w, "</system-reminder>\n")
+	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	return nil
+	summary := fmt.Sprintf("[engram] %d relevant memories.", len(matches))
+
+	return Result{
+		Summary: summary,
+		Context: buf.String(),
+	}, nil
 }
 
-func (s *Surfacer) runSessionStart(ctx context.Context, w io.Writer, dataDir string) error {
+func (s *Surfacer) runSessionStart(ctx context.Context, dataDir string) (Result, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return fmt.Errorf("surface: %w", err)
+		return Result{}, fmt.Errorf("surface: %w", err)
 	}
 
 	if len(memories) == 0 {
-		return nil
+		return Result{}, nil
 	}
 
 	// Take top N by recency (already sorted by retriever).
@@ -134,40 +176,54 @@ func (s *Surfacer) runSessionStart(ctx context.Context, w io.Writer, dataDir str
 		memories = memories[:count]
 	}
 
-	_, _ = fmt.Fprintf(w, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(w, "[engram] Loaded %d memories.\n", count)
+	var buf strings.Builder
+
+	summary := fmt.Sprintf("[engram] Loaded %d memories.", count)
+
+	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&buf, "%s\n", summary)
 
 	for _, mem := range memories {
-		_, _ = fmt.Fprintf(w, "  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
 	}
 
-	_, _ = fmt.Fprintf(w, "</system-reminder>\n")
+	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	return nil
+	return Result{
+		Summary: summary,
+		Context: buf.String(),
+	}, nil
 }
 
-func (s *Surfacer) runTool(ctx context.Context, w io.Writer, opts Options) error {
+func (s *Surfacer) runTool(ctx context.Context, opts Options) (Result, error) {
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
-		return fmt.Errorf("surface: %w", err)
+		return Result{}, fmt.Errorf("surface: %w", err)
 	}
 
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
 	if len(candidates) == 0 {
-		return nil
+		return Result{}, nil
 	}
 
-	_, _ = fmt.Fprintf(w, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(w, "[engram] Tool call advisory:\n")
+	var buf strings.Builder
+
+	summary := fmt.Sprintf("[engram] %d tool advisories.", len(candidates))
+
+	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&buf, "[engram] Tool call advisory:\n")
 
 	for _, mem := range candidates {
-		_, _ = fmt.Fprintf(w, "  - \"%s\" — %s (%s)\n",
+		_, _ = fmt.Fprintf(&buf, "  - \"%s\" — %s (%s)\n",
 			mem.Title, mem.Principle, mem.FilePath)
 	}
 
-	_, _ = fmt.Fprintf(w, "</system-reminder>\n")
+	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	return nil
+	return Result{
+		Summary: summary,
+		Context: buf.String(),
+	}, nil
 }
 
 // unexported constants.

@@ -47,12 +47,29 @@ if [[ -n "$TRANSCRIPT_PATH" ]]; then
     CORRECT_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 fi
 
+# Capture correct output to avoid mixing plain text + JSON on stdout
+CORRECT_OUTPUT=""
 if [[ -n "$USER_MESSAGE" ]]; then
-    "$ENGRAM_BIN" "${CORRECT_ARGS[@]}"
+    CORRECT_OUTPUT=$("$ENGRAM_BIN" "${CORRECT_ARGS[@]}") || true
 fi
 
 # UC-2: Surface relevant memories
+SURFACE_OUTPUT=""
 if [[ -n "$USER_MESSAGE" ]]; then
-    "$ENGRAM_BIN" surface --mode prompt \
-        --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"
+    SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode prompt \
+        --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --format json) || true
+fi
+
+# Combine into single JSON output
+if [[ -n "$SURFACE_OUTPUT" ]]; then
+    if [[ -n "$CORRECT_OUTPUT" ]]; then
+        # Prepend correct output to additionalContext
+        echo "$SURFACE_OUTPUT" | jq --arg correct "$CORRECT_OUTPUT" \
+            '{systemMessage: .summary, additionalContext: ($correct + "\n" + .context)}'
+    else
+        echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, additionalContext: .context}'
+    fi
+elif [[ -n "$CORRECT_OUTPUT" ]]; then
+    # Only correct output, no surface matches — pass through as plain text
+    echo "$CORRECT_OUTPUT"
 fi

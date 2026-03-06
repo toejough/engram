@@ -3,6 +3,7 @@ package surface_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -11,6 +12,117 @@ import (
 	"engram/internal/memory"
 	"engram/internal/surface"
 )
+
+// TestNoMatchJSONFormat verifies no output when no matches in JSON mode.
+func TestNoMatchJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
+// TestPromptJSONFormat verifies JSON output for prompt mode.
+func TestPromptJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:    "Commit Conventions",
+			FilePath: "commit-conventions.toml",
+			Keywords: []string{"commit"},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories."))
+	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
+}
+
+// TestSessionStartJSONFormat verifies JSON output for session-start mode.
+func TestSessionStartJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "First",
+			FilePath:  "first.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
+	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
+	g.Expect(result.Context).To(ContainSubstring("First"))
+}
 
 // T-27: SessionStart surfaces top 20 by recency
 func TestT27_SessionStartSurfacesTop20(t *testing.T) {
@@ -322,6 +434,55 @@ func TestT45_ToolModeNoMatchProducesEmpty(t *testing.T) {
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(buf.String()).To(BeEmpty())
+}
+
+// TestToolJSONFormat verifies JSON output for tool mode.
+func TestToolJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Use /commit",
+			FilePath:    "use-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit"},
+			Principle:   "always use /commit for commits",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: `git commit -m 'fix'`,
+		Format:    surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories."))
+	g.Expect(result.Context).To(ContainSubstring("Use /commit"))
+	g.Expect(result.Context).To(ContainSubstring("always use /commit for commits"))
 }
 
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.

@@ -244,6 +244,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	toolInput := fs.String(
 		"tool-input", "", "tool input JSON (tool mode)",
 	)
+	format := fs.String("format", "", "output format: json")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -264,5 +265,6 @@ func runSurface(args []string, stdout io.Writer) error {
 		Message:   *message,
 		ToolName:  *toolName,
 		ToolInput: *toolInput,
+		Format:    *format,
 	})
 }

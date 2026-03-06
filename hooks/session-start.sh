@@ -24,4 +24,7 @@ if [[ "$NEEDS_BUILD" == "true" ]]; then
 fi
 
 # UC-2: Surface relevant memories at session start
-"$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA"
+SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
+if [[ -n "$SURFACE_OUTPUT" ]]; then
+    echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, additionalContext: .context}'
+fi

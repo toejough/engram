@@ -37,5 +37,10 @@ TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 
 # UC-2: Surface relevant memories before tool use
 if [[ -n "$TOOL_NAME" ]]; then
-    "$ENGRAM_BIN" surface --mode tool --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" --data-dir "$ENGRAM_DATA"
+    SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode tool \
+        --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
+        --data-dir "$ENGRAM_DATA" --format json) || true
+    if [[ -n "$SURFACE_OUTPUT" ]]; then
+        echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, hookSpecificOutput: {additionalContext: .context}}'
+    fi
 fi
