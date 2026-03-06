@@ -958,6 +958,58 @@ func memPath(i int) string {
 	return "memory-" + string(rune('a'+i%26)) + ".toml"
 }
 
+// T-121: Surfacer writes surfacing log during surfacing events.
+func TestT121_SurfacerWritesSurfacingLog(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{Title: "Alpha", FilePath: "mem/alpha.toml", Keywords: []string{"alpha"}},
+		{Title: "Beta", FilePath: "mem/beta.toml", Keywords: []string{"beta"}},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	logger := &fakeSurfacingLogger{}
+
+	s := surface.New(retriever, surface.WithSurfacingLogger(logger))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/data",
+		Message: "alpha beta",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(logger.calls).To(HaveLen(2))
+	g.Expect(logger.calls[0].memoryPath).To(Equal("mem/alpha.toml"))
+	g.Expect(logger.calls[0].mode).To(Equal(surface.ModePrompt))
+	g.Expect(logger.calls[1].memoryPath).To(Equal("mem/beta.toml"))
+	g.Expect(logger.calls[1].mode).To(Equal(surface.ModePrompt))
+}
+
+// fakeSurfacingLogger is a test double for surface.SurfacingEventLogger.
+type fakeSurfacingLogger struct {
+	calls []surfacingLogCall
+}
+
+type surfacingLogCall struct {
+	memoryPath string
+	mode       string
+}
+
+func (f *fakeSurfacingLogger) LogSurfacing(memoryPath, mode string, _ time.Time) error {
+	f.calls = append(f.calls, surfacingLogCall{memoryPath: memoryPath, mode: mode})
+	return nil
+}
+
 // --- Helpers ---
 
 func memTitle(i int) string {

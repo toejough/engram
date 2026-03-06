@@ -10,6 +10,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"time"
 
 	"engram/internal/creationlog"
 	"engram/internal/memory"
@@ -31,6 +32,11 @@ var (
 // CreationLogReader reads and clears the creation log (ARCH-12).
 type CreationLogReader interface {
 	ReadAndClear(dataDir string) ([]LogEntry, error)
+}
+
+// SurfacingEventLogger logs individual memory surfacing events (ARCH-22).
+type SurfacingEventLogger interface {
+	LogSurfacing(memoryPath string, mode string, timestamp time.Time) error
 }
 
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
@@ -64,9 +70,10 @@ type Result struct {
 
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
-	retriever MemoryRetriever
-	tracker   MemoryTracker
-	logReader CreationLogReader
+	retriever       MemoryRetriever
+	tracker         MemoryTracker
+	logReader       CreationLogReader
+	surfacingLogger SurfacingEventLogger
 }
 
 // New creates a Surfacer.
@@ -107,6 +114,13 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 
 	if s.tracker != nil && len(matched) > 0 {
 		_ = s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
+	}
+
+	if s.surfacingLogger != nil {
+		now := time.Now()
+		for _, mem := range matched {
+			_ = s.surfacingLogger.LogSurfacing(mem.FilePath, opts.Mode, now)
+		}
 	}
 
 	return s.writeResult(w, result, opts.Format)
@@ -264,6 +278,11 @@ type SurfacerOption func(*Surfacer)
 // WithLogReader sets the creation log reader for session-start mode.
 func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
+}
+
+// WithSurfacingLogger sets the surfacing event logger (ARCH-22).
+func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
+	return func(s *Surfacer) { s.surfacingLogger = logger }
 }
 
 // WithTracker sets the memory tracker for surfacing instrumentation.
