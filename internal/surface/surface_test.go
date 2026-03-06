@@ -193,11 +193,11 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories."))
 
-	// Most recent (index 24) should appear, oldest (index 0-4) should not.
-	g.Expect(output).To(ContainSubstring(memTitle(24)))
-	g.Expect(output).To(ContainSubstring(memTitle(5)))
-	g.Expect(output).NotTo(ContainSubstring(memTitle(4)))
-	g.Expect(output).NotTo(ContainSubstring(memTitle(0)))
+	// Most recent (index 24) should appear by slug, oldest (index 0-4) should not.
+	g.Expect(output).To(ContainSubstring(memSlug(24)))
+	g.Expect(output).To(ContainSubstring(memSlug(5)))
+	g.Expect(output).NotTo(ContainSubstring(memSlug(4)))
+	g.Expect(output).NotTo(ContainSubstring(memSlug(0)))
 }
 
 // T-28: SessionStart with fewer than 20 memories surfaces all
@@ -242,9 +242,9 @@ func TestT28_SessionStartSurfacesAll(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Loaded 3 memories."))
-	g.Expect(output).To(ContainSubstring("First"))
-	g.Expect(output).To(ContainSubstring("Second"))
-	g.Expect(output).To(ContainSubstring("Third"))
+	g.Expect(output).To(ContainSubstring("first"))
+	g.Expect(output).To(ContainSubstring("second"))
+	g.Expect(output).To(ContainSubstring("third"))
 }
 
 // T-29: SessionStart with no memories produces empty output
@@ -305,9 +305,8 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
-	g.Expect(output).To(ContainSubstring("Commit Conventions"))
-	g.Expect(output).To(ContainSubstring("commit"))
-	g.Expect(output).NotTo(ContainSubstring("Build Tools"))
+	g.Expect(output).To(ContainSubstring("commit-conventions (matched: commit)"))
+	g.Expect(output).NotTo(ContainSubstring("build-tools"))
 }
 
 // T-31: No keyword match produces empty output
@@ -366,7 +365,7 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf1.String()).To(ContainSubstring("Commit Rules"))
+	g.Expect(buf1.String()).To(ContainSubstring("commit-rules (matched: commit)"))
 
 	// Whole-word: "recommit" should NOT match keyword "commit".
 	var buf2 bytes.Buffer
@@ -416,9 +415,8 @@ func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 	}
 
 	output := buf.String()
-	// Memory should appear because keyword "commit" matched in tool input.
-	g.Expect(output).To(ContainSubstring("Manual git commit"))
-	g.Expect(output).To(ContainSubstring("use /commit skill instead"))
+	// Memory should appear because keywords "commit" and "git" matched in tool input.
+	g.Expect(output).To(ContainSubstring("manual-git-commit (matched: commit, git)"))
 }
 
 // T-34: Pre-filter skips memories without anti_pattern
@@ -534,11 +532,9 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	// Should emit system-reminder advisory format.
 	g.Expect(output).To(ContainSubstring("<system-reminder source=\"engram\">"))
 	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
-	g.Expect(output).To(ContainSubstring("Use /commit"))
-	g.Expect(output).To(ContainSubstring("always use /commit for commits"))
-	g.Expect(output).To(ContainSubstring("use-commit.toml"))
-	// "Use targ test" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
-	g.Expect(output).NotTo(ContainSubstring("Use targ test"))
+	g.Expect(output).To(ContainSubstring("use-commit (matched: commit, git)"))
+	// "use-targ" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
+	g.Expect(output).NotTo(ContainSubstring("use-targ"))
 	g.Expect(output).To(ContainSubstring("</system-reminder>"))
 }
 
@@ -583,9 +579,9 @@ func TestT69_SessionStartJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
-	g.Expect(result.Summary).To(ContainSubstring("\"First\" (first.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("first"))
 	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
-	g.Expect(result.Context).To(ContainSubstring("First"))
+	g.Expect(result.Context).To(ContainSubstring("first"))
 }
 
 // TestT70_PromptJSONFormat verifies JSON output for prompt mode.
@@ -630,9 +626,8 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories:"))
-	g.Expect(result.Summary).
-		To(ContainSubstring("\"Commit Conventions\" (commit-conventions.toml)"))
-	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
+	g.Expect(result.Summary).To(ContainSubstring("commit-conventions (matched: commit)"))
+	g.Expect(result.Context).To(ContainSubstring("commit-conventions (matched: commit)"))
 }
 
 // TestT71_ToolJSONFormat verifies JSON output for tool mode.
@@ -680,10 +675,8 @@ func TestT71_ToolJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories:"))
-	g.Expect(result.Summary).
-		To(ContainSubstring("\"Use /commit\" — always use /commit for commits (use-commit.toml)"))
-	g.Expect(result.Context).To(ContainSubstring("Use /commit"))
-	g.Expect(result.Context).To(ContainSubstring("always use /commit for commits"))
+	g.Expect(result.Summary).To(ContainSubstring("use-commit (matched: commit)"))
+	g.Expect(result.Context).To(ContainSubstring("use-commit (matched: commit)"))
 }
 
 // TestT72_NoMatchJSONFormat verifies no output when no matches in JSON mode.
@@ -779,7 +772,7 @@ func TestT80_TrackerErrorDoesNotAffectOutput(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	// Output should still be produced.
 	g.Expect(buf.String()).NotTo(BeEmpty())
-	g.Expect(buf.String()).To(ContainSubstring("First"))
+	g.Expect(buf.String()).To(ContainSubstring("first"))
 }
 
 // T-81: No tracker (nil) produces correct output (backward compat)
@@ -815,7 +808,7 @@ func TestT81_NoTrackerBackwardCompatible(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("Commit Conventions"))
+	g.Expect(output).To(ContainSubstring("commit-conventions (matched: commit)"))
 }
 
 // T-92: SessionStart includes creation report before recency surfacing
@@ -878,12 +871,12 @@ func TestT92_SessionStartIncludesCreationReport(t *testing.T) {
 	g.Expect(result.Summary).To(ContainSubstring("\"New Memory One\" [A] (new-memory-one.toml)"))
 	g.Expect(result.Summary).To(ContainSubstring("\"New Memory Two\" [B] (new-memory-two.toml)"))
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
-	g.Expect(result.Summary).To(ContainSubstring("\"Alpha\" (alpha.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("alpha"))
 	g.Expect(result.Context).To(ContainSubstring("Created 2 memories since last session:"))
 	g.Expect(result.Context).To(ContainSubstring("\"New Memory One\" [A] (new-memory-one.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("\"New Memory Two\" [B] (new-memory-two.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("[engram] Loaded 3 memories."))
-	g.Expect(result.Context).To(ContainSubstring("Alpha"))
+	g.Expect(result.Context).To(ContainSubstring("alpha"))
 	g.Expect(logReader.dataDirUsed).To(Equal("/tmp/data"))
 	g.Expect(logReader.cleared).To(BeTrue())
 }
@@ -941,11 +934,11 @@ func TestT93_SessionStartNoCreationLogReturnsRecencyOnly(t *testing.T) {
 
 	g.Expect(result.Summary).NotTo(ContainSubstring("Created"))
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
-	g.Expect(result.Summary).To(ContainSubstring("\"Alpha\" (alpha.toml)"))
-	g.Expect(result.Summary).To(ContainSubstring("\"Beta\" (beta.toml)"))
-	g.Expect(result.Summary).To(ContainSubstring("\"Gamma\" (gamma.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("alpha"))
+	g.Expect(result.Summary).To(ContainSubstring("beta"))
+	g.Expect(result.Summary).To(ContainSubstring("gamma"))
 	g.Expect(result.Context).NotTo(ContainSubstring("Created"))
-	g.Expect(result.Context).To(ContainSubstring("Alpha"))
+	g.Expect(result.Context).To(ContainSubstring("alpha"))
 }
 
 // T-94: SessionStart with creation log but no memories produces creation-only output
@@ -1091,6 +1084,10 @@ type trackerCall struct {
 
 func memPath(i int) string {
 	return "memory-" + string(rune('a'+i%26)) + ".toml"
+}
+
+func memSlug(i int) string {
+	return "memory-" + string(rune('a'+i%26))
 }
 
 // --- Helpers ---

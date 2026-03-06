@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -167,8 +168,8 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s) [matched: %s]%s\n",
-			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "), annotation)
+		_, _ = fmt.Fprintf(&buf, "  - %s (matched: %s)%s\n",
+			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
@@ -184,8 +185,8 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&summaryBuf, "  - \"%s\" (%s) [matched: %s]%s\n",
-			match.mem.Title, match.mem.FilePath, strings.Join(match.keywords, ", "), annotation)
+		_, _ = fmt.Fprintf(&summaryBuf, "  - %s (matched: %s)%s\n",
+			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
 	}
 
 	return Result{
@@ -265,10 +266,13 @@ func (s *Surfacer) runTool(
 	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
 	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
 
-	for _, mem := range candidates {
-		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
-		line := fmt.Sprintf("  - \"%s\" — %s (%s)%s\n",
-			mem.Title, mem.Principle, mem.FilePath, annotation)
+	toolMems := make([]*memory.Stored, 0, len(candidates))
+
+	for _, match := range candidates {
+		toolMems = append(toolMems, match.mem)
+		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
+		line := fmt.Sprintf("  - %s (matched: %s)%s\n",
+			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
 	}
@@ -278,7 +282,7 @@ func (s *Surfacer) runTool(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: contextBuf.String(),
-	}, candidates, nil
+	}, toolMems, nil
 }
 
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
@@ -339,6 +343,17 @@ type promptMatch struct {
 	keywords []string
 }
 
+// toolMatch holds a memory and its matched keywords for tool mode.
+type toolMatch struct {
+	mem      *memory.Stored
+	keywords []string
+}
+
+// filenameSlug strips directory path and .toml extension from a memory file path.
+func filenameSlug(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), ".toml")
+}
+
 // formatEffectivenessAnnotation returns a formatted annotation for a memory path,
 // or "" when no effectiveness data exists for that path.
 func formatEffectivenessAnnotation(
@@ -392,22 +407,26 @@ func matchPromptMemories(message string, memories []*memory.Stored) []promptMatc
 
 // matchToolMemories returns memories with non-empty anti_pattern that have at least
 // one keyword matching in toolName or toolInput (ARCH-10).
-func matchToolMemories(_, toolInput string, memories []*memory.Stored) []*memory.Stored {
+func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMatch {
 	lowerInput := strings.ToLower(toolInput)
 
-	result := make([]*memory.Stored, 0)
+	result := make([]toolMatch, 0)
 
 	for _, mem := range memories {
 		if mem.AntiPattern == "" {
 			continue
 		}
 
+		var matched []string
+
 		for _, kw := range mem.Keywords {
 			if matchesWholeWord(lowerInput, strings.ToLower(kw)) {
-				result = append(result, mem)
-
-				break
+				matched = append(matched, kw)
 			}
+		}
+
+		if len(matched) > 0 {
+			result = append(result, toolMatch{mem: mem, keywords: matched})
 		}
 	}
 
@@ -465,7 +484,7 @@ func writeRecencySection(
 
 	for _, mem := range memories {
 		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
-		memLine := fmt.Sprintf("  - \"%s\" (%s)%s\n", mem.Title, mem.FilePath, annotation)
+		memLine := fmt.Sprintf("  - %s%s\n", filenameSlug(mem.FilePath), annotation)
 		_, _ = fmt.Fprint(summaryBuf, memLine)
 		_, _ = fmt.Fprint(contextBuf, memLine)
 	}

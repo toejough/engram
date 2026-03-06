@@ -647,7 +647,7 @@ updated_at = "2025-01-01T00:00:00Z"
 
 	output := stdout.String()
 	g.Expect(output).To(ContainSubstring("[engram] Loaded 1 memories."))
-	g.Expect(output).To(ContainSubstring("Test Memory"))
+	g.Expect(output).To(ContainSubstring("test-memory"))
 }
 
 // T-41: Mode prompt routes to keyword surfacing
@@ -695,8 +695,7 @@ updated_at = "2025-01-01T00:00:00Z"
 
 	output := stdout.String()
 	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
-	g.Expect(output).To(ContainSubstring("Commit Rules"))
-	g.Expect(output).To(ContainSubstring("commit"))
+	g.Expect(output).To(ContainSubstring("commit-rules (matched: commit)"))
 }
 
 // T-42: Mode tool routes to advisory surfacing (not blocking enforcement)
