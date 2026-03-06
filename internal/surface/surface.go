@@ -112,35 +112,7 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	type matchResult struct {
-		mem      *memory.Stored
-		keywords []string
-	}
-
-	var matches []matchResult
-
-	lowerMessage := strings.ToLower(message)
-
-	for _, mem := range memories {
-		var matched []string
-
-		for _, kw := range mem.Keywords {
-			if matchesWholeWord(lowerMessage, strings.ToLower(kw)) {
-				matched = append(matched, kw)
-			}
-		}
-
-		for _, concept := range mem.Concepts {
-			if matchesWholeWord(lowerMessage, strings.ToLower(concept)) {
-				matched = append(matched, concept)
-			}
-		}
-
-		if len(matched) > 0 {
-			matches = append(matches, matchResult{mem: mem, keywords: matched})
-		}
-	}
-
+	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
 		return Result{}, nil, nil
 	}
@@ -276,6 +248,41 @@ const (
 	sessionStartLimit = 20
 )
 
+// promptMatch holds a memory and its matched keywords/concepts for prompt mode.
+type promptMatch struct {
+	mem      *memory.Stored
+	keywords []string
+}
+
+// matchPromptMemories returns memories with keyword or concept matches against message.
+func matchPromptMemories(message string, memories []*memory.Stored) []promptMatch {
+	lowerMessage := strings.ToLower(message)
+
+	var matches []promptMatch
+
+	for _, mem := range memories {
+		var matched []string
+
+		for _, kw := range mem.Keywords {
+			if matchesWholeWord(lowerMessage, strings.ToLower(kw)) {
+				matched = append(matched, kw)
+			}
+		}
+
+		for _, concept := range mem.Concepts {
+			if matchesWholeWord(lowerMessage, strings.ToLower(concept)) {
+				matched = append(matched, concept)
+			}
+		}
+
+		if len(matched) > 0 {
+			matches = append(matches, promptMatch{mem: mem, keywords: matched})
+		}
+	}
+
+	return matches
+}
+
 // matchToolMemories returns memories with non-empty anti_pattern that have at least
 // one keyword matching in toolName or toolInput (ARCH-10).
 func matchToolMemories(_, toolInput string, memories []*memory.Stored) []*memory.Stored {
@@ -301,16 +308,10 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []*memory
 }
 
 // matchesWholeWord checks if keyword appears as a whole word in text (case-insensitive).
-// Uses \b word boundary regex.
+// Uses \b word boundary regex. QuoteMeta guarantees valid patterns.
 func matchesWholeWord(text, keyword string) bool {
-	pattern := `\b` + regexp.QuoteMeta(keyword) + `\b`
-
-	matched, err := regexp.MatchString(pattern, text)
-	if err != nil {
-		return false
-	}
-
-	return matched
+	re := regexp.MustCompile(`\b` + regexp.QuoteMeta(keyword) + `\b`)
+	return re.MatchString(text)
 }
 
 // memoryNames returns the basenames (without extension) of memory file paths.
