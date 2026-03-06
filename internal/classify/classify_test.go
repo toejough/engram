@@ -158,6 +158,79 @@ func TestClassify_NoTokenReturnsError(t *testing.T) {
 	g.Expect(doer.called).To(BeFalse())
 }
 
+// TestFastPath_SystemReminderBlocksExcluded verifies that keywords inside
+// <system-reminder> blocks do not trigger fast-path classification.
+func TestFastPath_SystemReminderBlocksExcluded(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		message string
+	}{
+		{
+			name: "always in system-reminder",
+			message: "<system-reminder source=\"engram\">\n" +
+				"[engram] Tool call advisory:\n" +
+				"  - \"Always use targ\" — Use targ for all builds\n" +
+				"</system-reminder>\n" +
+				"what's the status?",
+		},
+		{
+			name: "never in system-reminder",
+			message: "<system-reminder source=\"engram\">\n" +
+				"  - \"Never delete memory files\"\n" +
+				"</system-reminder>\n" +
+				"how's it going?",
+		},
+		{
+			name: "remember in system-reminder",
+			message: "<system-reminder>\n" +
+				"Remember: always use targ for builds\n" +
+				"</system-reminder>\n" +
+				"run the tests",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewGomegaWithT(t)
+
+			// LLM returns null tier — user's actual message has no signal
+			llmResp := llmClassifyResponse{Tier: ""}
+			doer := newFakeDoer(t, g, llmResp)
+			classifier := classify.New("test-token", doer)
+
+			result, err := classifier.Classify(context.Background(), tc.message, "")
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
+
+			// No fast-path: LLM returned null → result is nil
+			g.Expect(result).To(BeNil())
+
+			// Confirm fast-path note was NOT injected into the LLM request body
+			g.Expect(doer.lastRequest).NotTo(BeNil())
+
+			if doer.lastRequest == nil {
+				return
+			}
+
+			body, readErr := io.ReadAll(doer.lastRequest.Body)
+			g.Expect(readErr).NotTo(HaveOccurred())
+
+			if readErr != nil {
+				return
+			}
+
+			g.Expect(string(body)).NotTo(ContainSubstring("fast-path keyword"))
+		})
+	}
+}
+
 // TestFastPath_WholeWordBoundaries verifies keywords embedded in other words
 // do not trigger fast-path (exercises isWordChar for all character classes).
 func TestFastPath_WholeWordBoundaries(t *testing.T) {

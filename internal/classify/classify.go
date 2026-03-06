@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -70,7 +71,7 @@ func (c *LLMClassifier) callLLM(
 	message, transcriptContext string,
 	isFastPath bool,
 ) (*memory.ClassifiedMemory, error) {
-	userContent := buildUserContent(message, transcriptContext, isFastPath)
+	userContent := buildUserContent(stripSystemReminders(message), transcriptContext, isFastPath)
 
 	reqBody := anthropicRequest{
 		Model:     anthropicModel,
@@ -127,6 +128,8 @@ const (
 var (
 	errEmptyResponse = errors.New("API response contained no content blocks")
 	errNilResponse   = errors.New("calling Anthropic API: nil response")
+	// systemReminderRE matches <system-reminder>...</system-reminder> blocks including attributes.
+	systemReminderRE = regexp.MustCompile(`(?s)<system-reminder[^>]*>.*?</system-reminder>`)
 )
 
 // anthropicContentBlock is a content block in an Anthropic API response.
@@ -195,9 +198,11 @@ func buildUserContent(message, transcriptContext string, isFastPath bool) string
 }
 
 // containsFastPathKeyword checks for case-insensitive whole-word matches
-// of "remember", "always", or "never" in the message.
+// of "remember", "always", or "never" in the message, excluding system-reminder blocks.
 func containsFastPathKeyword(message string) bool {
-	lower := strings.ToLower(message)
+	cleaned := stripSystemReminders(message)
+	lower := strings.ToLower(cleaned)
+
 	for _, kw := range []string{"remember", "always", "never"} {
 		if containsWholeWord(lower, kw) {
 			return true
@@ -313,6 +318,12 @@ func stripMarkdownFence(text string) string {
 	}
 
 	return strings.TrimSpace(trimmed)
+}
+
+// stripSystemReminders removes <system-reminder>...</system-reminder> blocks from message
+// so that engram's own surfaced advisories do not influence fast-path detection or LLM input.
+func stripSystemReminders(message string) string {
+	return systemReminderRE.ReplaceAllString(message, "")
 }
 
 // systemPrompt returns the system prompt for classification.
