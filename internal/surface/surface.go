@@ -360,13 +360,14 @@ func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []Log
 	_, _ = fmt.Fprintf(contextBuf, "%s\n", creationSummary)
 
 	for _, entry := range entries {
-		_, _ = fmt.Fprintf(
-			contextBuf,
+		entryLine := fmt.Sprintf(
 			"  - \"%s\" [%s] (%s)\n",
 			entry.Title,
 			entry.Tier,
 			entry.Filename,
 		)
+		_, _ = fmt.Fprint(summaryBuf, entryLine)
+		_, _ = fmt.Fprint(contextBuf, entryLine)
 	}
 
 	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")
@@ -380,12 +381,14 @@ func writeRecencySection(summaryBuf, contextBuf *strings.Builder, memories []*me
 
 	recencySummary := fmt.Sprintf("[engram] Loaded %d memories.", len(memories))
 
-	_, _ = fmt.Fprintf(summaryBuf, "%s", recencySummary)
+	_, _ = fmt.Fprintf(summaryBuf, "%s\n", recencySummary)
 	_, _ = fmt.Fprintf(contextBuf, "<system-reminder source=\"engram\">\n")
 	_, _ = fmt.Fprintf(contextBuf, "%s\n", recencySummary)
 
 	for _, mem := range memories {
-		_, _ = fmt.Fprintf(contextBuf, "  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+		memLine := fmt.Sprintf("  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+		_, _ = fmt.Fprint(summaryBuf, memLine)
+		_, _ = fmt.Fprint(contextBuf, memLine)
 	}
 
 	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")

@@ -473,6 +473,7 @@ func TestT69_SessionStartJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
+	g.Expect(result.Summary).To(ContainSubstring("\"First\" (first.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
 	g.Expect(result.Context).To(ContainSubstring("First"))
 }
@@ -761,7 +762,10 @@ func TestT92_SessionStartIncludesCreationReport(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Created 2 memories since last session:"))
+	g.Expect(result.Summary).To(ContainSubstring("\"New Memory One\" [A] (new-memory-one.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("\"New Memory Two\" [B] (new-memory-two.toml)"))
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(result.Summary).To(ContainSubstring("\"Alpha\" (alpha.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("Created 2 memories since last session:"))
 	g.Expect(result.Context).To(ContainSubstring("\"New Memory One\" [A] (new-memory-one.toml)"))
 	g.Expect(result.Context).To(ContainSubstring("\"New Memory Two\" [B] (new-memory-two.toml)"))
@@ -824,6 +828,9 @@ func TestT93_SessionStartNoCreationLogReturnsRecencyOnly(t *testing.T) {
 
 	g.Expect(result.Summary).NotTo(ContainSubstring("Created"))
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(result.Summary).To(ContainSubstring("\"Alpha\" (alpha.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("\"Beta\" (beta.toml)"))
+	g.Expect(result.Summary).To(ContainSubstring("\"Gamma\" (gamma.toml)"))
 	g.Expect(result.Context).NotTo(ContainSubstring("Created"))
 	g.Expect(result.Context).To(ContainSubstring("Alpha"))
 }
@@ -866,6 +873,7 @@ func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T)
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] Created 1 memories since last session:"))
+	g.Expect(result.Summary).To(ContainSubstring("\"Solo Memory\" [C] (solo-memory.toml)"))
 	g.Expect(result.Summary).NotTo(ContainSubstring("Loaded"))
 	g.Expect(result.Context).To(ContainSubstring("\"Solo Memory\" [C] (solo-memory.toml)"))
 	g.Expect(result.Context).NotTo(ContainSubstring("Loaded"))
