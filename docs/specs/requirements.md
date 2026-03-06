@@ -506,3 +506,196 @@ Format rules:
 - If zero learnings after dedup, emit: `[engram] No new learnings extracted.`
 
 - Traces to: UC-1 (feedback, tier classification)
+
+---
+
+## REQ-26: Surfacing log — write during surfacing, read-and-clear during evaluate
+
+During each surfacing event (SessionStart, UserPromptSubmit, PreToolUse), the surfacer appends an entry to `<data-dir>/surfacing-log.jsonl` recording which memories were surfaced. The evaluate pass reads this file to determine what was surfaced during the session, then clears it.
+
+- Traces to: UC-15 (surfacing log, session-scoped record)
+- AC: (1) Each surfacing event appends one entry per matched memory to surfacing-log.jsonl. (2) Entry includes memory file path, surfacing mode, and timestamp. (3) Evaluate pass reads all entries and clears the file. (4) Missing file → empty list (no error). (5) Write errors are fire-and-forget (ARCH-6 exit-0 contract). (6) Read-and-clear is atomic — no partial reads.
+- Verification: deterministic (file write/read, JSON parse)
+
+---
+
+## DES-11: Surfacing log JSONL format
+
+Each line in `<data-dir>/surfacing-log.jsonl`:
+
+```json
+{"memory_path": "/path/to/memory.toml", "mode": "prompt", "surfaced_at": "2026-03-06T10:00:00Z"}
+```
+
+Fields:
+- `memory_path` (string) — absolute path to the memory TOML file
+- `mode` (string) — one of `session-start`, `prompt`, `tool`
+- `surfaced_at` (string) — RFC 3339 timestamp
+
+File is append-only within a session, read-and-cleared by `engram evaluate`.
+
+- Traces to: UC-15 (surfacing log format), REQ-26
+
+---
+
+## REQ-27: LLM evaluation of surfaced memories against transcript
+
+The evaluate pass sends the full session transcript plus the list of surfaced memories (with their content, principle, and anti-pattern) to an LLM (claude-haiku-4-5-20251001). The LLM classifies each surfaced memory's outcome:
+
+- **followed** — the agent acted consistently with the memory's principle
+- **contradicted** — the agent acted against the memory's principle or repeated the anti-pattern
+- **ignored** — the memory was surfaced but not relevant to any decision in the session
+
+The LLM provides brief evidence for each classification.
+
+- Traces to: UC-15 (evaluation pass, outcome classification)
+- AC: (1) LLM receives full transcript + surfaced memory list. (2) Each surfaced memory gets exactly one outcome: followed, contradicted, or ignored. (3) Each outcome includes a brief evidence string. (4) LLM response is parsed as JSON. (5) Invalid/unparseable responses return an error.
+- Verification: deterministic (JSON schema validation of LLM response)
+
+---
+
+## DES-12: Evaluation LLM prompt design
+
+The evaluation prompt includes:
+
+**System prompt:** You are evaluating whether an AI agent followed, contradicted, or ignored specific memory advisories during a session. For each memory, classify the outcome based on the agent's actual behavior in the transcript.
+
+**User prompt structure:**
+1. List of surfaced memories, each with: title, principle, anti_pattern (if any), content
+2. Full session transcript
+3. Instruction: For each memory, return JSON with outcome and evidence
+
+**Response format:** JSON array of objects, one per surfaced memory:
+```json
+[
+  {"memory_path": "...", "outcome": "followed", "evidence": "Agent used targ test instead of go test at lines 45, 89"},
+  {"memory_path": "...", "outcome": "ignored", "evidence": "Memory about fish shell was not relevant to this session's tasks"}
+]
+```
+
+- Traces to: UC-15 (evaluation LLM), REQ-27
+
+---
+
+## REQ-28: Per-session evaluation log write
+
+After the LLM classifies outcomes, write results to a per-session evaluation log file at `<data-dir>/evaluations/<timestamp>.jsonl`. Each line is one evaluated memory's outcome. The timestamp in the filename is RFC 3339 with colons replaced by hyphens for filesystem compatibility.
+
+- Traces to: UC-15 (evaluation log, per-session storage)
+- AC: (1) Evaluation directory is created if missing. (2) One file per evaluate invocation, named by timestamp. (3) Each line is valid JSON with memory_path, outcome, evidence, evaluated_at. (4) File write is atomic (temp + rename). (5) Empty surfacing log → no evaluation file created.
+- Verification: deterministic (file exists, JSON parses, fields present)
+
+---
+
+## DES-13: Evaluation log JSONL schema and file naming
+
+File path: `<data-dir>/evaluations/2026-03-06T10-00-00Z.jsonl`
+
+Each line:
+```json
+{"memory_path": "/path/to/memory.toml", "outcome": "followed", "evidence": "brief explanation", "evaluated_at": "2026-03-06T10:00:00Z"}
+```
+
+Fields:
+- `memory_path` (string) — absolute path to the evaluated memory TOML file
+- `outcome` (string) — one of `followed`, `contradicted`, `ignored`
+- `evidence` (string) — brief LLM explanation of the classification
+- `evaluated_at` (string) — RFC 3339 timestamp
+
+Session identity is implicit from the file. File naming: RFC 3339 timestamp with colons replaced by hyphens.
+
+- Traces to: UC-15 (evaluation log format), REQ-28
+
+---
+
+## REQ-29: Effectiveness aggregation from evaluation logs
+
+When surfacing memories (UC-2), compute effectiveness on-the-fly by reading all evaluation log files in `<data-dir>/evaluations/`. For each surfaced memory, aggregate outcomes across all sessions: count of followed, contradicted, ignored. Compute effectiveness percentage as `followed / (followed + contradicted + ignored) * 100`.
+
+- Traces to: UC-15 (effectiveness annotations, read path)
+- AC: (1) Read all `.jsonl` files in evaluations directory. (2) Parse each line and group by memory_path. (3) Compute per-memory totals: followed_count, contradicted_count, ignored_count. (4) Compute effectiveness percentage. (5) Missing evaluations directory → empty stats (no error). (6) Malformed lines skipped.
+- Verification: deterministic (file reads, arithmetic)
+
+---
+
+## REQ-30: Effectiveness annotations during surfacing
+
+When UC-2 surfaces memories, include effectiveness annotations for memories that have evaluation data. Format: "(surfaced N times, followed M%)" appended to the memory's surfacing output.
+
+- Traces to: UC-15 (effectiveness visibility, inline annotations)
+- AC: (1) Annotations appear when evaluation data exists for a surfaced memory. (2) Memories with no evaluation data show no annotation (backward compatible). (3) Format is "(surfaced N times, followed M%)" where N is total evaluations and M is effectiveness percentage. (4) Annotations appear in all surfacing modes (session-start, prompt, tool).
+- Verification: deterministic (output format check)
+
+---
+
+## DES-14: Effectiveness annotation format and placement
+
+Annotations are appended to each surfaced memory's line in the system reminder:
+
+```
+- "Use targ test not go test" — Use project-specific build tools (surfaced 5 times, followed 80%)
+```
+
+When no evaluation data exists for a memory, the annotation is omitted entirely — no "(surfaced 0 times)".
+
+The annotation uses the total evaluation count (not surfaced_count from tracking) as N, and effectiveness percentage as M. This ensures the numbers reflect outcome data, not just surfacing events.
+
+- Traces to: UC-15 (inline annotations UX), REQ-30
+
+---
+
+## REQ-31: SessionEnd evaluation summary — user-visible
+
+After the evaluate pass completes, output a summary to the hook's `systemMessage` field so the user sees it. The summary reports the number of memories evaluated and the outcome breakdown.
+
+- Traces to: UC-15 (SessionEnd visibility)
+- AC: (1) Summary appears in hook `systemMessage` for user visibility. (2) Format shows total evaluated, followed count, contradicted count, ignored count. (3) If no memories were surfaced (empty surfacing log), no summary output. (4) Summary appears after learn output in the hook script.
+- Verification: deterministic (hook output check)
+
+---
+
+## DES-15: Hook wiring — evaluate in PreCompact and SessionEnd
+
+The PreCompact and SessionEnd hook scripts are extended to invoke `engram evaluate` after `engram learn`:
+
+```bash
+# UC-1: Extract learnings
+$ENGRAM_BIN learn --data-dir "$ENGRAM_DATA" < transcript
+
+# UC-15: Evaluate memory effectiveness
+$ENGRAM_BIN evaluate --data-dir "$ENGRAM_DATA" < transcript
+```
+
+The evaluate subcommand reads the transcript from stdin (same as learn) and the surfacing log from the data directory. Output goes to stdout for the hook to reshape into `systemMessage`.
+
+- Traces to: UC-15 (hook integration), REQ-31
+
+---
+
+## REQ-32: CLI `evaluate` subcommand
+
+Go binary `engram` with an `evaluate` subcommand: `engram evaluate --data-dir <path>`. Reads transcript from stdin. Pure Go, no CGO.
+
+- Traces to: UC-15 (CLI entry point)
+- AC: (1) Binary accepts `evaluate` subcommand. (2) `--data-dir` flag specifies the data directory. (3) Reads transcript from stdin. (4) Exit 0 always — errors logged to stderr, never propagated as exit codes (ARCH-6). (5) Requires API token (same mechanism as correct/learn).
+- Verification: deterministic (subcommand runs, exit code)
+
+---
+
+## REQ-33: No graceful degradation for evaluate
+
+If no API token is configured, emit a loud stderr error (`[engram] Error: evaluation skipped — no API token configured`) and skip evaluation entirely. Never write degraded evaluations.
+
+- Traces to: UC-15 (no degradation, same pattern as REQ-18)
+- AC: (1) Missing token → stderr error + exit 0. (2) No evaluation log file created. (3) Error message includes `[engram] Error:` prefix.
+- Verification: deterministic (error message check)
+
+---
+
+## REQ-34: Idempotency for evaluate across multiple triggers
+
+If both PreCompact and SessionEnd fire in the same session, the second evaluate invocation reads an empty surfacing log (cleared by the first) and produces no evaluation file. No duplicate evaluations.
+
+- Traces to: UC-15 (idempotency, same pattern as REQ-19)
+- AC: (1) First evaluate reads and clears surfacing log. (2) Second evaluate finds empty/missing log → no evaluation produced. (3) No duplicate entries in evaluation logs.
+- Verification: deterministic (file state check)
