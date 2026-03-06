@@ -14,6 +14,31 @@ import (
 	"engram/internal/track"
 )
 
+// TestEmptyFilePathSkipped verifies that memories with empty FilePath are skipped.
+func TestEmptyFilePathSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	readCalled := false
+
+	recorder := track.NewRecorder(
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			readCalled = true
+
+			return nil, errors.New("should not be called")
+		}),
+	)
+
+	memories := []*memory.Stored{
+		{FilePath: ""},
+	}
+
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(readCalled).To(BeFalse())
+}
+
 // T-76: No tracking fields → after RecordSurfacing, file has surfaced_count=1
 // and all original fields preserved.
 func TestT76_RecordSurfacingNoExistingTracking(t *testing.T) {
@@ -256,29 +281,37 @@ func TestWriteAtomicRenameFailure(t *testing.T) {
 	g.Expect(removedPath).NotTo(BeEmpty())
 }
 
-// TestEmptyFilePathSkipped verifies that memories with empty FilePath are skipped.
-func TestEmptyFilePathSkipped(t *testing.T) {
-	t.Parallel()
+// unexported constants.
+const (
+	baseTOML = "title = \"Test Memory\"\n" +
+		"content = \"some content\"\n" +
+		"observation_type = \"correction\"\n" +
+		"concepts = [\"testing\"]\n" +
+		"keywords = [\"test\"]\n" +
+		"principle = \"test principle\"\n" +
+		"anti_pattern = \"test anti-pattern\"\n" +
+		"rationale = \"test rationale\"\n" +
+		"confidence = \"B\"\n" +
+		"created_at = \"2025-01-01T00:00:00Z\"\n" +
+		"updated_at = \"2025-06-01T00:00:00Z\"\n"
+)
 
-	g := NewGomegaWithT(t)
-
-	readCalled := false
-
-	recorder := track.NewRecorder(
-		track.WithReadFile(func(_ string) ([]byte, error) {
-			readCalled = true
-
-			return nil, errors.New("should not be called")
-		}),
-	)
-
-	memories := []*memory.Stored{
-		{FilePath: ""},
-	}
-
-	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(readCalled).To(BeFalse())
+// fullTOMLRecord mirrors all TOML fields for test verification.
+type fullTOMLRecord struct {
+	Title             string   `toml:"title"`
+	Content           string   `toml:"content"`
+	ObservationType   string   `toml:"observation_type"`
+	Concepts          []string `toml:"concepts"`
+	Keywords          []string `toml:"keywords"`
+	Principle         string   `toml:"principle"`
+	AntiPattern       string   `toml:"anti_pattern"`
+	Rationale         string   `toml:"rationale"`
+	Confidence        string   `toml:"confidence"`
+	CreatedAt         string   `toml:"created_at"`
+	UpdatedAt         string   `toml:"updated_at"`
+	SurfacedCount     int      `toml:"surfaced_count"`
+	LastSurfaced      string   `toml:"last_surfaced"`
+	SurfacingContexts []string `toml:"surfacing_contexts"`
 }
 
 // writeCapture tracks the temp file path so its content can be read back
@@ -317,37 +350,4 @@ func (w *writeCapture) decodeTOML(g Gomega) fullTOMLRecord {
 	g.Expect(decodeErr).NotTo(HaveOccurred())
 
 	return record
-}
-
-// unexported constants.
-const (
-	baseTOML = "title = \"Test Memory\"\n" +
-		"content = \"some content\"\n" +
-		"observation_type = \"correction\"\n" +
-		"concepts = [\"testing\"]\n" +
-		"keywords = [\"test\"]\n" +
-		"principle = \"test principle\"\n" +
-		"anti_pattern = \"test anti-pattern\"\n" +
-		"rationale = \"test rationale\"\n" +
-		"confidence = \"B\"\n" +
-		"created_at = \"2025-01-01T00:00:00Z\"\n" +
-		"updated_at = \"2025-06-01T00:00:00Z\"\n"
-)
-
-// fullTOMLRecord mirrors all TOML fields for test verification.
-type fullTOMLRecord struct {
-	Title             string   `toml:"title"`
-	Content           string   `toml:"content"`
-	ObservationType   string   `toml:"observation_type"`
-	Concepts          []string `toml:"concepts"`
-	Keywords          []string `toml:"keywords"`
-	Principle         string   `toml:"principle"`
-	AntiPattern       string   `toml:"anti_pattern"`
-	Rationale         string   `toml:"rationale"`
-	Confidence        string   `toml:"confidence"`
-	CreatedAt         string   `toml:"created_at"`
-	UpdatedAt         string   `toml:"updated_at"`
-	SurfacedCount     int      `toml:"surfaced_count"`
-	LastSurfaced      string   `toml:"last_surfaced"`
-	SurfacingContexts []string `toml:"surfacing_contexts"`
 }
