@@ -8,6 +8,7 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/creationlog"
 	"engram/internal/learn"
 	"engram/internal/memory"
 )
@@ -236,6 +237,141 @@ func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 	g.Expect(writer.received[0].UpdatedAt).To(BeTemporally("<=", after))
 }
 
+// T-95: Learner calls CreationLogger after each successful write
+func TestT95_CreationLogger_CalledAfterEachWrite(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{Tier: "A", Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+		{
+			Tier:            "B",
+			Title:           "DI pattern",
+			Content:         "use DI everywhere",
+			FilenameSummary: "di-pattern",
+		},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ":   "/tmp/memories/use-targ.toml",
+			"di-pattern": "/tmp/memories/di-pattern.toml",
+		},
+	}
+	logger := &fakeCreationLogger{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetCreationLogger(logger)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(HaveLen(2))
+	g.Expect(logger.entries).To(HaveLen(2))
+
+	g.Expect(logger.entries[0].Title).To(Equal("Use targ"))
+	g.Expect(logger.entries[0].Tier).To(Equal("A"))
+	g.Expect(logger.entries[0].Filename).To(Equal("use-targ.toml"))
+
+	g.Expect(logger.entries[1].Title).To(Equal("DI pattern"))
+	g.Expect(logger.entries[1].Tier).To(Equal("B"))
+	g.Expect(logger.entries[1].Filename).To(Equal("di-pattern.toml"))
+}
+
+// T-96: Learner with nil CreationLogger skips logging (backward compatible)
+func TestT96_NilCreationLogger_NoPanic(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{Tier: "A", Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	// No SetCreationLogger call — logger is nil
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+}
+
+// T-97: Learner creation log error does not fail the pipeline
+func TestT97_CreationLoggerError_PipelineSucceeds(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{Tier: "A", Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+	logger := &fakeCreationLogger{err: errors.New("log append failed")}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetCreationLogger(logger)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+}
+
 // Write error — pipeline returns error
 func TestWriteError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -265,6 +401,17 @@ type callRecord struct {
 
 func (r *callRecord) record(name string) {
 	r.calls = append(r.calls, name)
+}
+
+// fakeCreationLogger is a test double for learn.CreationLogger.
+type fakeCreationLogger struct {
+	entries []creationlog.LogEntry
+	err     error
+}
+
+func (f *fakeCreationLogger) Append(entry creationlog.LogEntry, _ string) error {
+	f.entries = append(f.entries, entry)
+	return f.err
 }
 
 // fakeDeduplicator is a test double for learn.Deduplicator.

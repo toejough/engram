@@ -14,6 +14,7 @@ import (
 
 	"engram/internal/classify"
 	"engram/internal/correct"
+	"engram/internal/creationlog"
 	"engram/internal/dedup"
 	"engram/internal/extract"
 	"engram/internal/learn"
@@ -220,6 +221,8 @@ func runLearn(
 	learner := learn.New(
 		extractor, retriever, deduplicator, writer, *dataDir,
 	)
+	learner.SetCreationLogger(creationlog.NewLogWriter())
+
 	ctx := context.Background()
 
 	result, err := learner.Run(ctx, transcriptText)
@@ -258,7 +261,12 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	retriever := retrieve.New()
 	recorder := track.NewRecorder()
-	surfacer := surface.New(retriever, surface.WithTracker(recorder))
+	logReader := creationlog.NewLogReader()
+	surfacer := surface.New(
+		retriever,
+		surface.WithTracker(recorder),
+		surface.WithLogReader(logReader),
+	)
 	ctx := context.Background()
 
 	return surfacer.Run(ctx, stdout, surface.Options{

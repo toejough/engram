@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 
+	"engram/internal/creationlog"
 	"engram/internal/memory"
 )
 
@@ -27,6 +28,14 @@ const (
 var (
 	ErrUnknownMode = errors.New("surface: unknown mode")
 )
+
+// CreationLogReader reads and clears the creation log (ARCH-12).
+type CreationLogReader interface {
+	ReadAndClear(dataDir string) ([]LogEntry, error)
+}
+
+// LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
+type LogEntry = creationlog.LogEntry
 
 // MemoryRetriever lists stored memories from disk (ARCH-9).
 type MemoryRetriever interface {
@@ -58,6 +67,7 @@ type Result struct {
 type Surfacer struct {
 	retriever MemoryRetriever
 	tracker   MemoryTracker
+	logReader CreationLogReader
 }
 
 // New creates a Surfacer.
@@ -148,13 +158,20 @@ func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
 ) (Result, []*memory.Stored, error) {
+	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
+	var logEntries []LogEntry
+
+	if s.logReader != nil {
+		entries, logErr := s.logReader.ReadAndClear(dataDir)
+		if logErr == nil {
+			logEntries = entries
+		}
+	}
+
+	// Step 2: List memories for recency surfacing.
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
-	}
-
-	if len(memories) == 0 {
-		return Result{}, nil, nil
 	}
 
 	// Take top N by recency (already sorted by retriever).
@@ -164,23 +181,22 @@ func (s *Surfacer) runSessionStart(
 		memories = memories[:count]
 	}
 
-	var buf strings.Builder
-
-	summary := fmt.Sprintf("[engram] Loaded %d memories: %s",
-		count, strings.Join(memoryNames(memories), ", "))
-
-	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&buf, "%s\n", summary)
-
-	for _, mem := range memories {
-		_, _ = fmt.Fprintf(&buf, "  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+	// Nothing to surface at all.
+	if len(logEntries) == 0 && count == 0 {
+		return Result{}, nil, nil
 	}
 
-	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
+	var (
+		summaryBuf strings.Builder
+		contextBuf strings.Builder
+	)
+
+	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
+	writeRecencySection(&summaryBuf, &contextBuf, memories[:count])
 
 	return Result{
-		Summary: summary,
-		Context: buf.String(),
+		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
+		Context: contextBuf.String(),
 	}, memories, nil
 }
 
@@ -237,6 +253,11 @@ func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error 
 
 // SurfacerOption configures a Surfacer.
 type SurfacerOption func(*Surfacer)
+
+// WithLogReader sets the creation log reader for session-start mode.
+func WithLogReader(reader CreationLogReader) SurfacerOption {
+	return func(s *Surfacer) { s.logReader = reader }
+}
 
 // WithTracker sets the memory tracker for surfacing instrumentation.
 func WithTracker(tracker MemoryTracker) SurfacerOption {
@@ -324,4 +345,48 @@ func memoryNames(memories []*memory.Stored) []string {
 	}
 
 	return names
+}
+
+// writeCreationSection appends the creation report to summary and context buffers.
+func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []LogEntry) {
+	if len(entries) == 0 {
+		return
+	}
+
+	creationSummary := fmt.Sprintf("[engram] Created %d memories since last session:", len(entries))
+
+	_, _ = fmt.Fprintf(summaryBuf, "%s\n", creationSummary)
+	_, _ = fmt.Fprintf(contextBuf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(contextBuf, "%s\n", creationSummary)
+
+	for _, entry := range entries {
+		_, _ = fmt.Fprintf(
+			contextBuf,
+			"  - \"%s\" [%s] (%s)\n",
+			entry.Title,
+			entry.Tier,
+			entry.Filename,
+		)
+	}
+
+	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")
+}
+
+// writeRecencySection appends the recency surfacing section to summary and context buffers.
+func writeRecencySection(summaryBuf, contextBuf *strings.Builder, memories []*memory.Stored) {
+	if len(memories) == 0 {
+		return
+	}
+
+	recencySummary := fmt.Sprintf("[engram] Loaded %d memories.", len(memories))
+
+	_, _ = fmt.Fprintf(summaryBuf, "%s", recencySummary)
+	_, _ = fmt.Fprintf(contextBuf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(contextBuf, "%s\n", recencySummary)
+
+	for _, mem := range memories {
+		_, _ = fmt.Fprintf(contextBuf, "  - \"%s\" (%s)\n", mem.Title, mem.FilePath)
+	}
+
+	_, _ = fmt.Fprintf(contextBuf, "</system-reminder>\n")
 }

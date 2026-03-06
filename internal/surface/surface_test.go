@@ -48,7 +48,7 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories:"))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories."))
 
 	// Most recent (index 24) should appear, oldest (index 0-4) should not.
 	g.Expect(output).To(ContainSubstring(memTitle(24)))
@@ -98,7 +98,7 @@ func TestT28_SessionStartSurfacesAll(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 3 memories:"))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 3 memories."))
 	g.Expect(output).To(ContainSubstring("First"))
 	g.Expect(output).To(ContainSubstring("Second"))
 	g.Expect(output).To(ContainSubstring("Third"))
@@ -472,7 +472,7 @@ func TestT69_SessionStartJSONFormat(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories:"))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
 	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
 	g.Expect(result.Context).To(ContainSubstring("First"))
 }
@@ -704,6 +704,174 @@ func TestT81_NoTrackerBackwardCompatible(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("Commit Conventions"))
 }
 
+// T-92: SessionStart includes creation report before recency surfacing
+func TestT92_SessionStartIncludesCreationReport(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Beta",
+			FilePath:  "beta.toml",
+			UpdatedAt: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Gamma",
+			FilePath:  "gamma.toml",
+			UpdatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	logEntries := []surface.LogEntry{
+		{Title: "New Memory One", Tier: "A", Filename: "new-memory-one.toml"},
+		{Title: "New Memory Two", Tier: "B", Filename: "new-memory-two.toml"},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	logReader := &fakeLogReader{entries: logEntries}
+	s := surface.New(retriever, surface.WithLogReader(logReader))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Created 2 memories since last session:"))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(result.Context).To(ContainSubstring("Created 2 memories since last session:"))
+	g.Expect(result.Context).To(ContainSubstring("\"New Memory One\" [A] (new-memory-one.toml)"))
+	g.Expect(result.Context).To(ContainSubstring("\"New Memory Two\" [B] (new-memory-two.toml)"))
+	g.Expect(result.Context).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(result.Context).To(ContainSubstring("Alpha"))
+	g.Expect(logReader.dataDirUsed).To(Equal("/tmp/data"))
+	g.Expect(logReader.cleared).To(BeTrue())
+}
+
+// T-93: SessionStart with no creation log produces recency-only output (backward compat)
+func TestT93_SessionStartNoCreationLogReturnsRecencyOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Beta",
+			FilePath:  "beta.toml",
+			UpdatedAt: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Gamma",
+			FilePath:  "gamma.toml",
+			UpdatedAt: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	// No WithLogReader — logReader is nil (backward compatible).
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).NotTo(ContainSubstring("Created"))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 3 memories."))
+	g.Expect(result.Context).NotTo(ContainSubstring("Created"))
+	g.Expect(result.Context).To(ContainSubstring("Alpha"))
+}
+
+// T-94: SessionStart with creation log but no memories produces creation-only output
+func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	logEntries := []surface.LogEntry{
+		{Title: "Solo Memory", Tier: "C", Filename: "solo-memory.toml"},
+	}
+
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	logReader := &fakeLogReader{entries: logEntries}
+	s := surface.New(retriever, surface.WithLogReader(logReader))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Created 1 memories since last session:"))
+	g.Expect(result.Summary).NotTo(ContainSubstring("Loaded"))
+	g.Expect(result.Context).To(ContainSubstring("\"Solo Memory\" [C] (solo-memory.toml)"))
+	g.Expect(result.Context).NotTo(ContainSubstring("Loaded"))
+	g.Expect(logReader.cleared).To(BeTrue())
+}
+
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
 func TestUnknownModeReturnsError(t *testing.T) {
 	t.Parallel()
@@ -728,6 +896,21 @@ func TestUnknownModeReturnsError(t *testing.T) {
 var (
 	errTrackerFail = errors.New("tracker failure")
 )
+
+// fakeLogReader is a test double for surface.CreationLogReader.
+type fakeLogReader struct {
+	entries     []surface.LogEntry
+	err         error
+	dataDirUsed string
+	cleared     bool
+}
+
+func (f *fakeLogReader) ReadAndClear(dataDir string) ([]surface.LogEntry, error) {
+	f.dataDirUsed = dataDir
+	f.cleared = true
+
+	return f.entries, f.err
+}
 
 // fakeRetriever is a test double for surface.MemoryRetriever.
 type fakeRetriever struct {

@@ -345,6 +345,61 @@ func TestT68_SessionEndHookReadsTranscript(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 }
 
+// TestT98_UserPromptSubmitCreationInSystemMessage verifies hooks/user-prompt-submit.sh
+// places creation output from engram correct into systemMessage (not additionalContext) (T-98).
+func TestT98_UserPromptSubmitCreationInSystemMessage(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// When surface + correct both exist: systemMessage must contain surface summary AND correct output.
+	// The jq expression must build systemMessage from surface summary + correct output.
+	g.Expect(script).To(ContainSubstring("systemMessage: (.summary + "))
+	// Correct output must NOT be put into additionalContext alone — it goes in systemMessage.
+	g.Expect(script).NotTo(ContainSubstring("additionalContext: ($correct +"))
+	// When only correct output (no surface): must emit JSON with systemMessage, not bare plain text.
+	g.Expect(script).To(ContainSubstring(`{systemMessage: $correct`))
+}
+
+// TestT99_SessionStartCreationInSystemMessage verifies hooks/session-start.sh
+// places both creation report summary and recency summary into systemMessage (T-99).
+func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "session-start.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must call surface with --mode session-start --format json.
+	g.Expect(script).To(ContainSubstring("--mode session-start"))
+	g.Expect(script).To(ContainSubstring("--format json"))
+	// Must reshape so summary goes to systemMessage.
+	g.Expect(script).To(ContainSubstring("systemMessage: .summary"))
+	g.Expect(script).To(ContainSubstring("additionalContext: .context"))
+}
+
 // repoRoot returns the engram repository root by walking up from the test file.
 func repoRoot(t *testing.T) string {
 	t.Helper()

@@ -63,13 +63,13 @@ fi
 # Combine into single JSON output
 if [[ -n "$SURFACE_OUTPUT" ]]; then
     if [[ -n "$CORRECT_OUTPUT" ]]; then
-        # Prepend correct output to additionalContext
+        # Creation feedback goes in systemMessage alongside surface summary
         echo "$SURFACE_OUTPUT" | jq --arg correct "$CORRECT_OUTPUT" \
-            '{systemMessage: .summary, additionalContext: ($correct + "\n" + .context)}'
+            '{systemMessage: (.summary + "\n" + $correct), additionalContext: .context}'
     else
         echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, additionalContext: .context}'
     fi
 elif [[ -n "$CORRECT_OUTPUT" ]]; then
-    # Only correct output, no surface matches — pass through as plain text
-    echo "$CORRECT_OUTPUT"
+    # Only correct output, no surface matches — emit as JSON with systemMessage
+    jq -n --arg correct "$CORRECT_OUTPUT" '{systemMessage: $correct, additionalContext: ""}'
 fi

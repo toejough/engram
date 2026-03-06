@@ -7,10 +7,19 @@ package learn
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"time"
 
+	"engram/internal/creationlog"
 	"engram/internal/memory"
 )
+
+// CreationLogger records memory creation events for deferred visibility.
+type CreationLogger interface {
+	Append(entry creationlog.LogEntry, dataDir string) error
+}
 
 // Deduplicator filters candidates that are already represented in existing memories.
 type Deduplicator interface {
@@ -22,11 +31,13 @@ type Deduplicator interface {
 
 // Learner orchestrates the four-stage Session Learning pipeline.
 type Learner struct {
-	extractor    TranscriptExtractor
-	retriever    MemoryRetriever
-	deduplicator Deduplicator
-	writer       MemoryWriter
-	dataDir      string
+	extractor      TranscriptExtractor
+	retriever      MemoryRetriever
+	deduplicator   Deduplicator
+	writer         MemoryWriter
+	dataDir        string
+	creationLogger CreationLogger // optional: log creation events for deferred visibility
+	stderr         io.Writer
 }
 
 // New creates a Learner wired with all pipeline stages.
@@ -43,6 +54,7 @@ func New(
 		deduplicator: deduplicator,
 		writer:       writer,
 		dataDir:      dataDir,
+		stderr:       os.Stderr,
 	}
 }
 
@@ -68,28 +80,12 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 
 	createdPaths := make([]string, 0, len(surviving))
 	tierCounts := make(map[string]int)
-
 	now := time.Now()
 
 	for _, candidate := range surviving {
-		enriched := &memory.Enriched{
-			Title:           candidate.Title,
-			Content:         candidate.Content,
-			ObservationType: candidate.ObservationType,
-			Concepts:        candidate.Concepts,
-			Keywords:        candidate.Keywords,
-			Principle:       candidate.Principle,
-			AntiPattern:     candidate.AntiPattern,
-			Rationale:       candidate.Rationale,
-			FilenameSummary: candidate.FilenameSummary,
-			Confidence:      candidate.Tier,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		}
-
-		filePath, err := l.writer.Write(enriched, l.dataDir)
+		filePath, err := l.writeCandidate(candidate, now)
 		if err != nil {
-			return nil, fmt.Errorf("learn: write: %w", err)
+			return nil, err
 		}
 
 		createdPaths = append(createdPaths, filePath)
@@ -101,6 +97,52 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 		SkippedCount: skippedCount,
 		TierCounts:   tierCounts,
 	}, nil
+}
+
+// SetCreationLogger attaches an optional CreationLogger to the Learner.
+func (l *Learner) SetCreationLogger(logger CreationLogger) {
+	l.creationLogger = logger
+}
+
+// writeCandidate enriches and writes a single candidate, then logs its creation.
+func (l *Learner) writeCandidate(
+	candidate memory.CandidateLearning,
+	now time.Time,
+) (string, error) {
+	enriched := &memory.Enriched{
+		Title:           candidate.Title,
+		Content:         candidate.Content,
+		ObservationType: candidate.ObservationType,
+		Concepts:        candidate.Concepts,
+		Keywords:        candidate.Keywords,
+		Principle:       candidate.Principle,
+		AntiPattern:     candidate.AntiPattern,
+		Rationale:       candidate.Rationale,
+		FilenameSummary: candidate.FilenameSummary,
+		Confidence:      candidate.Tier,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	}
+
+	filePath, err := l.writer.Write(enriched, l.dataDir)
+	if err != nil {
+		return "", fmt.Errorf("learn: write: %w", err)
+	}
+
+	if l.creationLogger != nil {
+		entry := creationlog.LogEntry{
+			Title:    candidate.Title,
+			Tier:     candidate.Tier,
+			Filename: filepath.Base(filePath),
+		}
+
+		logErr := l.creationLogger.Append(entry, l.dataDir)
+		if logErr != nil {
+			_, _ = fmt.Fprintf(l.stderr, "learn: creation log: %v\n", logErr)
+		}
+	}
+
+	return filePath, nil
 }
 
 // MemoryRetriever lists existing memories from the data directory.
