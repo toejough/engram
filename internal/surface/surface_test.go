@@ -13,117 +13,6 @@ import (
 	"engram/internal/surface"
 )
 
-// TestNoMatchJSONFormat verifies no output when no matches in JSON mode.
-func TestNoMatchJSONFormat(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	surfacer := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := surfacer.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-		Format:  surface.FormatJSON,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(BeEmpty())
-}
-
-// TestPromptJSONFormat verifies JSON output for prompt mode.
-func TestPromptJSONFormat(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:    "Commit Conventions",
-			FilePath: "commit-conventions.toml",
-			Keywords: []string{"commit"},
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	surfacer := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := surfacer.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModePrompt,
-		DataDir: "/tmp/data",
-		Message: "I want to commit this",
-		Format:  surface.FormatJSON,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var result surface.Result
-
-	decodeErr := json.Unmarshal(buf.Bytes(), &result)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-
-	if decodeErr != nil {
-		return
-	}
-
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories."))
-	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
-}
-
-// TestSessionStartJSONFormat verifies JSON output for session-start mode.
-func TestSessionStartJSONFormat(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:     "First",
-			FilePath:  "first.toml",
-			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	surfacer := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := surfacer.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-		Format:  surface.FormatJSON,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var result surface.Result
-
-	decodeErr := json.Unmarshal(buf.Bytes(), &result)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-
-	if decodeErr != nil {
-		return
-	}
-
-	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
-	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
-	g.Expect(result.Context).To(ContainSubstring("First"))
-}
-
 // T-27: SessionStart surfaces top 20 by recency
 func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	t.Parallel()
@@ -348,6 +237,112 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	g.Expect(buf2.String()).To(BeEmpty())
 }
 
+// T-33: Pre-filter matches memory keywords in tool input
+func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Manual git commit",
+			FilePath:    "manual-git-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill instead",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix'",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	// Memory should appear because keyword "commit" matched in tool input.
+	g.Expect(output).To(ContainSubstring("Manual git commit"))
+	g.Expect(output).To(ContainSubstring("use /commit skill instead"))
+}
+
+// T-34: Pre-filter skips memories without anti_pattern
+func TestT34_PreFilterSkipsMemoriesWithoutAntiPattern(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Commit Notes",
+			FilePath:    "commit-notes.toml",
+			AntiPattern: "", // empty — not an enforcement candidate
+			Keywords:    []string{"commit"},
+			Principle:   "some principle",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix'",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	// No anti_pattern means no advisory should be emitted.
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
+// T-35: Pre-filter returns empty when no keywords match
+func TestT35_PreFilterReturnsEmptyWhenNoKeywordsMatch(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Manual git commit",
+			FilePath:    "manual-git-commit.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill instead",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Read",
+		ToolInput: "/path/to/file.go",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	// No keyword overlap — output should be empty.
+	g.Expect(buf.String()).To(BeEmpty())
+}
+
 // T-42: Tool mode surfaces matching memories as advisory
 func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	t.Parallel()
@@ -436,8 +431,98 @@ func TestT45_ToolModeNoMatchProducesEmpty(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
-// TestToolJSONFormat verifies JSON output for tool mode.
-func TestToolJSONFormat(t *testing.T) {
+// TestT69_SessionStartJSONFormat verifies JSON output for session-start mode.
+func TestT69_SessionStartJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "First",
+			FilePath:  "first.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] Loaded 1 memories."))
+	g.Expect(result.Context).To(ContainSubstring("<system-reminder"))
+	g.Expect(result.Context).To(ContainSubstring("First"))
+}
+
+// TestT70_PromptJSONFormat verifies JSON output for prompt mode.
+func TestT70_PromptJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:    "Commit Conventions",
+			FilePath: "commit-conventions.toml",
+			Keywords: []string{"commit"},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories."))
+	g.Expect(result.Context).To(ContainSubstring("Commit Conventions"))
+}
+
+// TestT71_ToolJSONFormat verifies JSON output for tool mode.
+func TestT71_ToolJSONFormat(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -483,6 +568,27 @@ func TestToolJSONFormat(t *testing.T) {
 	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories."))
 	g.Expect(result.Context).To(ContainSubstring("Use /commit"))
 	g.Expect(result.Context).To(ContainSubstring("always use /commit for commits"))
+}
+
+// TestT72_NoMatchJSONFormat verifies no output when no matches in JSON mode.
+func TestT72_NoMatchJSONFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	surfacer := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := surfacer.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+		Format:  surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(BeEmpty())
 }
 
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.

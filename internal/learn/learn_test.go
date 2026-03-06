@@ -12,6 +12,46 @@ import (
 	"engram/internal/memory"
 )
 
+// Extract error — pipeline returns error
+func TestExtractError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	extractor := &fakeExtractor{err: errors.New("LLM unavailable")}
+	retriever := &fakeRetriever{}
+	deduplicator := &fakeDeduplicator{}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).To(MatchError(ContainSubstring("LLM unavailable")))
+	g.Expect(result).To(BeNil())
+}
+
+// ListMemories error — pipeline returns error
+func TestListMemoriesError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{err: errors.New("disk read failed")}
+	deduplicator := &fakeDeduplicator{}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).To(MatchError(ContainSubstring("disk read failed")))
+	g.Expect(result).To(BeNil())
+}
+
 // T-57: Full pipeline — extract → dedup → write returns file paths
 func TestT57_FullPipeline_ExtractDedupWrite(t *testing.T) {
 	t.Parallel()
@@ -56,68 +96,6 @@ func TestT57_FullPipeline_ExtractDedupWrite(t *testing.T) {
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
 	g.Expect(result.SkippedCount).To(Equal(1))
 	g.Expect(recorder.calls).To(Equal([]string{"extract", "list", "filter", "write"}))
-}
-
-// T-57e: Extract error — pipeline returns error
-func TestT57e_ExtractError_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	extractor := &fakeExtractor{err: errors.New("LLM unavailable")}
-	retriever := &fakeRetriever{}
-	deduplicator := &fakeDeduplicator{}
-	writer := &fakeWriter{}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).To(MatchError(ContainSubstring("LLM unavailable")))
-	g.Expect(result).To(BeNil())
-}
-
-// T-57f: ListMemories error — pipeline returns error
-func TestT57f_ListMemoriesError_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	candidates := []memory.CandidateLearning{
-		{Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
-	}
-
-	extractor := &fakeExtractor{candidates: candidates}
-	retriever := &fakeRetriever{err: errors.New("disk read failed")}
-	deduplicator := &fakeDeduplicator{}
-	writer := &fakeWriter{}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).To(MatchError(ContainSubstring("disk read failed")))
-	g.Expect(result).To(BeNil())
-}
-
-// T-57g: Write error — pipeline returns error
-func TestT57g_WriteError_ReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	candidates := []memory.CandidateLearning{
-		{Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
-	}
-
-	extractor := &fakeExtractor{candidates: candidates}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{surviving: candidates}
-	writer := &fakeWriter{err: errors.New("disk write failed")}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).To(MatchError(ContainSubstring("disk write failed")))
-	g.Expect(result).To(BeNil())
 }
 
 // T-58: No learnings extracted — pipeline short-circuits
@@ -256,6 +234,28 @@ func TestT60_WrittenMemories_UseTierFromExtraction(t *testing.T) {
 	g.Expect(writer.received[0].CreatedAt).To(BeTemporally("<=", after))
 	g.Expect(writer.received[0].UpdatedAt).To(BeTemporally(">=", before))
 	g.Expect(writer.received[0].UpdatedAt).To(BeTemporally("<=", after))
+}
+
+// Write error — pipeline returns error
+func TestWriteError_ReturnsError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ"},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{err: errors.New("disk write failed")}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).To(MatchError(ContainSubstring("disk write failed")))
+	g.Expect(result).To(BeNil())
 }
 
 // callRecord tracks which pipeline stages were called and in what order.

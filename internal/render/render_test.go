@@ -35,8 +35,8 @@ func TestT13_MemoryProducesDES1FormatWithTier(t *testing.T) {
 	g.Expect(result).To(Equal(expected))
 }
 
-// TestT13b_TierBOutput verifies tier B format.
-func TestT13b_TierBOutput(t *testing.T) {
+// TestTierBOutput verifies tier B format.
+func TestTierBOutput(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)

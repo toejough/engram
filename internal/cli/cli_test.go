@@ -13,6 +13,61 @@ import (
 	"engram/internal/learn"
 )
 
+// learn with invalid flag returns error.
+func TestLearnInvalidFlag(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+		"--unknown-flag",
+	}, &stdout, &stderr, strings.NewReader(""))
+
+	g.Expect(err).To(HaveOccurred())
+}
+
+// learn with missing --data-dir returns error.
+func TestLearnMissingDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+	}, &stdout, &stderr, strings.NewReader(""))
+
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// learn with token but API failure returns error (covers post-token pipeline path).
+func TestLearnWithTokenAndAPIFailureReturnsError(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token-for-coverage")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "learn",
+		"--data-dir", dataDir,
+	}, &stdout, &stderr, strings.NewReader("transcript content"))
+
+	// The extractor will fail (no real API), so we expect an error.
+	g.Expect(err).To(HaveOccurred())
+}
+
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
 func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
 	t.Parallel()
@@ -313,61 +368,6 @@ func TestT62_LearnWithoutTokenEmitsErrorToStderr(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(stderr.String()).To(ContainSubstring("session learning skipped"))
 	g.Expect(stderr.String()).To(ContainSubstring("no API token"))
-}
-
-// T-62b: learn with missing --data-dir returns error.
-func TestT62b_LearnMissingDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run([]string{
-		"engram", "learn",
-	}, &stdout, &stderr, strings.NewReader(""))
-
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
-// T-62c: learn with invalid flag returns error.
-func TestT62c_LearnInvalidFlag(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run([]string{
-		"engram", "learn",
-		"--unknown-flag",
-	}, &stdout, &stderr, strings.NewReader(""))
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-// T-62d: learn with token but API failure returns error (covers post-token pipeline path).
-func TestT62d_LearnWithTokenAndAPIFailureReturnsError(t *testing.T) {
-	// Cannot use t.Parallel() — t.Setenv mutates process environment.
-	g := NewGomegaWithT(t)
-
-	t.Setenv("ENGRAM_API_TOKEN", "fake-token-for-coverage")
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run([]string{
-		"engram", "learn",
-		"--data-dir", dataDir,
-	}, &stdout, &stderr, strings.NewReader("transcript content"))
-
-	// The extractor will fail (no real API), so we expect an error.
-	g.Expect(err).To(HaveOccurred())
 }
 
 // T-63: RenderLearnResult with learnings and duplicates emits full DES-10 format with tier breakdown.

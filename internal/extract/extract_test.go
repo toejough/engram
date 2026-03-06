@@ -89,6 +89,56 @@ func TestNilResponseReturnsError(t *testing.T) {
 	g.Expect(learnings).To(BeNil())
 }
 
+// TestSystemPromptIncludesTierDefinitions verifies that the system prompt
+// contains A/B/C tier definitions and anti-pattern gating rules.
+func TestSystemPromptIncludesTierDefinitions(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body: io.NopCloser(
+				bytes.NewBufferString(`{"content":[{"type":"text","text":"[]"}]}`),
+			),
+		},
+	}
+
+	extractor := extract.New("test-api-key", doer)
+
+	_, err := extractor.Extract(context.Background(), "some transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(doer.lastRequest).NotTo(BeNil())
+
+	if doer.lastRequest == nil {
+		return
+	}
+
+	reqBody, readErr := io.ReadAll(doer.lastRequest.Body)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	reqBodyStr := string(reqBody)
+
+	// System prompt must include tier definitions.
+	g.Expect(reqBodyStr).To(ContainSubstring("tier"))
+	g.Expect(reqBodyStr).To(ContainSubstring("explicit instruction"))
+	g.Expect(reqBodyStr).To(ContainSubstring("teachable correction"))
+	g.Expect(reqBodyStr).To(ContainSubstring("contextual fact"))
+
+	// System prompt must include anti-pattern gating rules.
+	g.Expect(reqBodyStr).To(ContainSubstring("anti_pattern"))
+}
+
 // TestT47_ExtractionWithTokenProducesCandidateLearnings verifies that a valid API
 // token and well-formed LLM response produce CandidateLearnings with all fields set.
 func TestT47_ExtractionWithTokenProducesCandidateLearnings(t *testing.T) {
@@ -168,76 +218,6 @@ func TestT47_ExtractionWithTokenProducesCandidateLearnings(t *testing.T) {
 		g.Expect(doer.lastRequest.Header.Get("X-Api-Key")).To(BeEmpty())
 		g.Expect(doer.lastRequest.Header.Get("Anthropic-Beta")).To(Equal("oauth-2025-04-20"))
 	}
-}
-
-// TestT47b_TierGatedAntiPattern verifies that tier A always has anti_pattern,
-// and tier C has empty anti_pattern per ARCH-15 anti-pattern gating rules.
-func TestT47b_TierGatedAntiPattern(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	llmArray := []map[string]any{
-		{
-			"title":            "Always use DI",
-			"content":          "explicit instruction to use DI",
-			"observation_type": "correction",
-			"concepts":         []string{"di"},
-			"keywords":         []string{"di", "inject"},
-			"principle":        "Use dependency injection",
-			"anti_pattern":     "Direct I/O in internal/",
-			"rationale":        "Testability",
-			"filename_summary": "use di everywhere",
-			"tier":             "A",
-		},
-		{
-			"title":            "Project uses SQLite",
-			"content":          "contextual fact about database",
-			"observation_type": "constraint",
-			"concepts":         []string{"database"},
-			"keywords":         []string{"sqlite"},
-			"principle":        "Use SQLite for storage",
-			"anti_pattern":     "",
-			"rationale":        "Embedded database",
-			"filename_summary": "project uses sqlite",
-			"tier":             "C",
-		},
-	}
-
-	llmJSON, err := json.Marshal(llmArray)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	apiJSON := buildAPIResponse(t, g, string(llmJSON))
-
-	doer := &fakeHTTPDoer{
-		response: &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(bytes.NewReader(apiJSON)),
-		},
-	}
-
-	extractor := extract.New("test-api-key", doer)
-	learnings, extractErr := extractor.Extract(context.Background(), "some transcript")
-
-	g.Expect(extractErr).NotTo(HaveOccurred())
-
-	if extractErr != nil {
-		return
-	}
-
-	g.Expect(learnings).To(HaveLen(2))
-
-	// Tier A always has anti_pattern.
-	g.Expect(learnings[0].Tier).To(Equal("A"))
-	g.Expect(learnings[0].AntiPattern).NotTo(BeEmpty())
-
-	// Tier C has empty anti_pattern.
-	g.Expect(learnings[1].Tier).To(Equal("C"))
-	g.Expect(learnings[1].AntiPattern).To(BeEmpty())
 }
 
 // TestT48_ExtractionWithoutTokenReturnsErrNoToken verifies that an empty API token
@@ -384,54 +364,74 @@ func TestT51_QualityGateInSystemPrompt(t *testing.T) {
 	g.Expect(reqBodyStr).To(ContainSubstring("JSON array"))
 }
 
-// TestT51b_SystemPromptIncludesTierDefinitions verifies that the system prompt
-// contains A/B/C tier definitions and anti-pattern gating rules.
-func TestT51b_SystemPromptIncludesTierDefinitions(t *testing.T) {
+// TestTierGatedAntiPattern verifies that tier A always has anti_pattern,
+// and tier C has empty anti_pattern per ARCH-15 anti-pattern gating rules.
+func TestTierGatedAntiPattern(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	doer := &fakeHTTPDoer{
-		response: &http.Response{
-			StatusCode: http.StatusOK,
-			Body: io.NopCloser(
-				bytes.NewBufferString(`{"content":[{"type":"text","text":"[]"}]}`),
-			),
+	llmArray := []map[string]any{
+		{
+			"title":            "Always use DI",
+			"content":          "explicit instruction to use DI",
+			"observation_type": "correction",
+			"concepts":         []string{"di"},
+			"keywords":         []string{"di", "inject"},
+			"principle":        "Use dependency injection",
+			"anti_pattern":     "Direct I/O in internal/",
+			"rationale":        "Testability",
+			"filename_summary": "use di everywhere",
+			"tier":             "A",
+		},
+		{
+			"title":            "Project uses SQLite",
+			"content":          "contextual fact about database",
+			"observation_type": "constraint",
+			"concepts":         []string{"database"},
+			"keywords":         []string{"sqlite"},
+			"principle":        "Use SQLite for storage",
+			"anti_pattern":     "",
+			"rationale":        "Embedded database",
+			"filename_summary": "project uses sqlite",
+			"tier":             "C",
 		},
 	}
 
-	extractor := extract.New("test-api-key", doer)
-
-	_, err := extractor.Extract(context.Background(), "some transcript")
+	llmJSON, err := json.Marshal(llmArray)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
-	g.Expect(doer.lastRequest).NotTo(BeNil())
+	apiJSON := buildAPIResponse(t, g, string(llmJSON))
 
-	if doer.lastRequest == nil {
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(apiJSON)),
+		},
+	}
+
+	extractor := extract.New("test-api-key", doer)
+	learnings, extractErr := extractor.Extract(context.Background(), "some transcript")
+
+	g.Expect(extractErr).NotTo(HaveOccurred())
+
+	if extractErr != nil {
 		return
 	}
 
-	reqBody, readErr := io.ReadAll(doer.lastRequest.Body)
-	g.Expect(readErr).NotTo(HaveOccurred())
+	g.Expect(learnings).To(HaveLen(2))
 
-	if readErr != nil {
-		return
-	}
+	// Tier A always has anti_pattern.
+	g.Expect(learnings[0].Tier).To(Equal("A"))
+	g.Expect(learnings[0].AntiPattern).NotTo(BeEmpty())
 
-	reqBodyStr := string(reqBody)
-
-	// System prompt must include tier definitions.
-	g.Expect(reqBodyStr).To(ContainSubstring("tier"))
-	g.Expect(reqBodyStr).To(ContainSubstring("explicit instruction"))
-	g.Expect(reqBodyStr).To(ContainSubstring("teachable correction"))
-	g.Expect(reqBodyStr).To(ContainSubstring("contextual fact"))
-
-	// System prompt must include anti-pattern gating rules.
-	g.Expect(reqBodyStr).To(ContainSubstring("anti_pattern"))
+	// Tier C has empty anti_pattern.
+	g.Expect(learnings[1].Tier).To(Equal("C"))
+	g.Expect(learnings[1].AntiPattern).To(BeEmpty())
 }
 
 // fakeHTTPDoer is a test double for extract.HTTPDoer that returns a canned response.
