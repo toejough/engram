@@ -35,6 +35,7 @@ items = [
   { id = "ARCH-18", source = "derived" },
   { id = "ARCH-19", source = "derived" },
   { id = "ARCH-20", source = "derived" },
+  { id = "ARCH-21", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -113,9 +114,9 @@ history = "7 ARCH decisions: pipeline, pattern matching, LLM enrichment, TOML wr
 layer = "L3"
 name = "Hook-Time Surfacing & Enforcement Architecture"
 parents = ["L2B"]
-items = ["ARCH-9", "ARCH-10", "ARCH-12", "ARCH-13", "ARCH-19", "ARCH-20"]
+items = ["ARCH-9", "ARCH-10", "ARCH-12", "ARCH-13", "ARCH-19", "ARCH-20", "ARCH-21"]
 status = "complete"
-history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), surface subcommand routing (ARCH-12 rewritten per issue #34), hook script wiring (ARCH-13 rewritten). Issue #34: ARCH-11 (LLM judgment) removed; PreToolUse now advisory only (system-reminder, no blocking). Issue #46: added ARCH-19 (tracking logic + recorder with DI) and ARCH-20 (surfacer↔tracker integration via optional MemoryTracker interface). ARCH-9 Memory struct extended with tracking fields."
+history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), keyword pre-filter (ARCH-10), surface subcommand routing (ARCH-12 rewritten per issue #34), hook script wiring (ARCH-13 rewritten). Issue #34: ARCH-11 (LLM judgment) removed; PreToolUse now advisory only (system-reminder, no blocking). Issue #46: added ARCH-19 (tracking logic + recorder with DI) and ARCH-20 (surfacer↔tracker integration via optional MemoryTracker interface). ARCH-9 Memory struct extended with tracking fields. Issue #49: added ARCH-21 (creation log reader/writer with DI). Updated ARCH-12 (session-start reads creation log), ARCH-13 (hook scripts put creation in systemMessage)."
 
 [tree.L3C]
 layer = "L3"
@@ -123,7 +124,7 @@ name = "Session Learning Architecture"
 parents = ["L2C"]
 items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18"]
 status = "complete"
-history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter). Issue #35: ARCH-15 updated — extraction classifies with A/B/C tiers, anti-pattern gating, traces to REQ-7."
+history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter). Issue #35: ARCH-15 updated — extraction classifies with A/B/C tiers, anti-pattern gating, traces to REQ-7. Issue #49: ARCH-14 updated — optional CreationLogger interface added to Learner pipeline for deferred visibility (REQ-25)."
 
 # Tree nodes — L4
 
@@ -280,7 +281,7 @@ history = "Issue #46: extended memory.Stored with SurfacedCount (int), LastSurfa
 # Cursor
 
 [cursor]
-node = "L5N"
-mode = "complete"
-next_action = "Usability gate: verify UC-2 build → install → exercise → observe path for surfacing instrumentation."
-context_files = ["docs/specs/state.toml"]
+node = "L4B"
+mode = "in_progress"
+next_action = "RED: derive test specs for issue #49 — creation log writer (ARCH-21), creation log reader at SessionStart (ARCH-12/21), learner creation logging (ARCH-14), UserPromptSubmit hook output combining (ARCH-13/DES-3)."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/tests.md"]

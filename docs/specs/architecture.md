@@ -298,7 +298,7 @@ engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format js
 ```
 
 Routing:
-- `--mode session-start`: Call MemoryRetriever.ListMemories, sort by UpdatedAt desc, take top 20, emit DES-5 format.
+- `--mode session-start`: Read creation log (ARCH-21 LogReader.ReadAndClear) → emit creation report if entries exist. Then call MemoryRetriever.ListMemories, sort by UpdatedAt desc, take top 20, emit DES-5 format. Both sections combined in output.
 - `--mode prompt --message <text>`: Call MemoryRetriever.ListMemories, KeywordMatcher on message, emit DES-6 format.
 - `--mode tool --tool-name <name> --tool-input <json>`: Call MemoryRetriever.ListMemories, KeywordMatcher, emit DES-7 advisory format (no LLM judgment).
 
@@ -322,16 +322,16 @@ Design choices:
 **Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended. New PreToolUse hook added.
 
 Hook flow:
-- **SessionStart:** After build step, call `engram surface --mode session-start`. Stdout becomes system reminder.
-- **UserPromptSubmit:** After `engram correct`, also call `engram surface --mode prompt --message "$PROMPT"`. Concatenate both outputs to stdout.
-- **PreToolUse:** New hook script calls `engram surface --mode tool --tool-name <name> --tool-input <json>`. Output is a system-reminder advisory (or empty if no matches). Tool call is always allowed.
+- **SessionStart:** After build step, call `engram surface --mode session-start --format json`. Reshape into `{systemMessage, additionalContext}`. Creation report (from creation log, if any) is included in `systemMessage`.
+- **UserPromptSubmit:** Run `engram correct` and `engram surface --mode prompt --format json` independently. Combine into `{systemMessage: (<surface_summary> + "\n" + <creation_output>), additionalContext: <surface_context>}`. Creation feedback always goes in `systemMessage` (user-visible), never in `additionalContext`.
+- **PreToolUse:** Hook script calls `engram surface --mode tool --format json`. Reshape into `{continue: true, hookSpecificOutput: {additionalContext}}`. Tool call is always allowed.
 
 Design choices:
-- **Extend, don't replace:** SessionStart and UserPromptSubmit keep their existing UC-3 behavior; surfacing is added.
-- **PreToolUse is advisory only:** Hook script receives system-reminder text from `engram surface --mode tool`. No blocking decision from binary. Tool call always allowed; hook may emit advisory text to stdout.
-- **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher). Scripts just invoke and return output.
+- **Creation always in systemMessage:** The user must see memory creation events. Whether creation happens alone or alongside surface matches, the creation output goes into `systemMessage`.
+- **PreToolUse is advisory only:** Hook script receives system-reminder text from `engram surface --mode tool`. No blocking decision from binary.
+- **Hook scripts are thin wrappers:** All logic in Go binary (MemoryRetriever, KeywordMatcher, CreationLog). Scripts just invoke and reshape output.
 
-**Traces to:** DES-8 (hook wiring)
+**Traces to:** DES-8 (hook wiring), DES-3 (UserPromptSubmit creation + surface combining), DES-5 (SessionStart creation report)
 
 ---
 
@@ -413,25 +413,32 @@ surfacer := surface.New(retriever, surface.WithTracker(recorder))
 **Decision:** Linear pipeline of injected stages, similar to ARCH-1 but for transcript extraction:
 
 ```go
+type CreationLogger interface {
+    Append(entry LogEntry, dataDir string) error
+}
+
 type Learner struct {
-    Extractor   TranscriptExtractor  // LLM: transcript → []CandidateLearning
-    Retriever   MemoryRetriever      // file I/O: data-dir → existing memories (ARCH-9 reuse)
-    Deduplicator Deduplicator        // keyword overlap: candidates × existing → filtered candidates
-    Writer      MemoryWriter         // file I/O: CandidateLearning → file path (ARCH-4 reuse)
+    Extractor      TranscriptExtractor  // LLM: transcript → []CandidateLearning
+    Retriever      MemoryRetriever      // file I/O: data-dir → existing memories (ARCH-9 reuse)
+    Deduplicator   Deduplicator         // keyword overlap: candidates × existing → filtered candidates
+    Writer         MemoryWriter         // file I/O: CandidateLearning → file path (ARCH-4 reuse)
+    CreationLogger CreationLogger       // optional: log creation events for deferred visibility (ARCH-21)
 }
 
 func (l *Learner) Run(ctx context.Context, transcript string, dataDir string) ([]string, error) {
     // 1. Extractor.Extract(ctx, transcript): LLM call → []CandidateLearning
     // 2. Retriever.ListMemories(ctx, dataDir): read existing memory files
     // 3. Deduplicator.Filter(candidates, existing): remove duplicates by keyword overlap
-    // 4. For each surviving candidate: Writer.Write(candidate, dataDir) → file path
+    // 4. For each surviving candidate:
+    //    a. Writer.Write(candidate, dataDir) → file path
+    //    b. CreationLogger.Append({timestamp, title, tier, filename}, dataDir) — fire-and-forget
     // 5. Return list of created file paths (for stderr feedback)
 }
 ```
 
-Four stages, each independently testable via DI. Reuses MemoryRetriever (ARCH-9) and MemoryWriter (ARCH-4).
+Five stages (four existing + optional creation logger), each independently testable via DI. Reuses MemoryRetriever (ARCH-9) and MemoryWriter (ARCH-4). CreationLogger is optional — if nil, no creation log is written (backward compatible).
 
-**Traces to:** REQ-15 (extraction), REQ-17 (dedup), REQ-3 (file writing via ARCH-4), REQ-20 (CLI entry)
+**Traces to:** REQ-15 (extraction), REQ-17 (dedup), REQ-3 (file writing via ARCH-4), REQ-20 (CLI entry), REQ-25 (creation log write)
 
 ---
 
@@ -543,6 +550,59 @@ Design choices:
 
 ---
 
+## ARCH-21: Creation Log — Deferred Visibility for UC-1
+
+**Decision:** New `internal/creationlog/` package for JSONL creation log read/write with full DI.
+
+**Writer (used by UC-1 Learner pipeline):**
+
+```go
+type LogWriter struct {
+    readFile  func(string) ([]byte, error)
+    writeFile func(string, []byte, os.FileMode) error
+    now       func() time.Time
+}
+
+type LogEntry struct {
+    Timestamp string `json:"timestamp"` // RFC 3339
+    Title     string `json:"title"`
+    Tier      string `json:"tier"`       // A/B/C
+    Filename  string `json:"filename"`   // e.g. "use-targ-test.toml"
+}
+
+func (w *LogWriter) Append(entry LogEntry, dataDir string) error
+```
+
+Implementation:
+1. Read existing `<data-dir>/creation-log.jsonl` (or empty if missing).
+2. Append new JSON line.
+3. Write atomically (write full content to temp file, rename).
+4. Fire-and-forget: errors logged to stderr, never fail the caller (ARCH-6 exit-0 contract).
+
+**Reader (used by SessionStart surfacing):**
+
+```go
+type LogReader struct {
+    readFile   func(string) ([]byte, error)
+    removeFile func(string) error
+}
+
+func (r *LogReader) ReadAndClear(dataDir string) ([]LogEntry, error)
+```
+
+Implementation:
+1. Read `<data-dir>/creation-log.jsonl`.
+2. Parse each line as JSON → `LogEntry`.
+3. Delete the file after successful read.
+4. Return entries (or empty slice if file missing).
+5. Read/delete errors logged to stderr, non-fatal.
+
+All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithRemoveFile`, `WithNow`). Default: real `os.*` functions and `time.Now`.
+
+**Traces to:** REQ-23 (creation log format), REQ-24 (read and clear at SessionStart), REQ-25 (write during learn)
+
+---
+
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -559,15 +619,16 @@ Design choices:
 | ARCH-8 | REQ-8, DES-4 |
 | ARCH-9 | REQ-9, REQ-10, REQ-11, REQ-21 |
 | ARCH-10 | REQ-11 |
-| ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11 |
-| ARCH-13 | DES-8 |
-| ARCH-14 | REQ-15, REQ-17, REQ-3, REQ-20 |
+| ARCH-12 | REQ-14, REQ-9, REQ-10, REQ-11, REQ-24 |
+| ARCH-13 | DES-8, DES-3, DES-5 |
+| ARCH-14 | REQ-15, REQ-17, REQ-3, REQ-20, REQ-25 |
 | ARCH-15 | REQ-15, REQ-16, REQ-7, REQ-18 |
 | ARCH-16 | REQ-17, REQ-19 |
 | ARCH-17 | REQ-20, DES-10 |
 | ARCH-18 | DES-9, REQ-19 |
 | ARCH-19 | REQ-21, REQ-22 |
 | ARCH-20 | REQ-22, ARCH-6, ARCH-7 |
+| ARCH-21 | REQ-23, REQ-24, REQ-25 |
 
 ### L2 → ARCH
 
@@ -577,22 +638,25 @@ Design choices:
 | REQ-2 | ARCH-1, ARCH-2, ARCH-3 |
 | REQ-X | ARCH-3 |
 | REQ-3 | ARCH-1, ARCH-4, ARCH-14 |
-| REQ-4 | ARCH-1, ARCH-5 |
+| REQ-4 | ARCH-1, ARCH-5, ARCH-13 |
 | REQ-6 | ARCH-1, ARCH-6, ARCH-7 |
 | REQ-7 | ARCH-2, ARCH-15 |
 | REQ-8 | ARCH-6, ARCH-8 |
 | DES-1 | ARCH-5 |
-| DES-3 | ARCH-6 |
+| DES-3 | ARCH-6, ARCH-13 |
 | DES-4 | ARCH-6, ARCH-8 |
 | REQ-9 | ARCH-9, ARCH-12 |
 | REQ-10 | ARCH-9, ARCH-12 |
 | REQ-11 | ARCH-9, ARCH-10, ARCH-12 |
 | REQ-14 | ARCH-12 |
-| DES-5 | ARCH-9, ARCH-12 |
+| DES-5 | ARCH-9, ARCH-12, ARCH-13, ARCH-21 |
 | DES-6 | ARCH-9, ARCH-12 |
 | DES-7 | ARCH-12 |
 | DES-8 | ARCH-13 |
 | REQ-21 | ARCH-9, ARCH-19 |
+| REQ-23 | ARCH-21 |
+| REQ-24 | ARCH-12, ARCH-21 |
+| REQ-25 | ARCH-14, ARCH-21 |
 | REQ-22 | ARCH-19, ARCH-20 |
 | REQ-15 | ARCH-14, ARCH-15 |
 | REQ-16 | ARCH-15 |
