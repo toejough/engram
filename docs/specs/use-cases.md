@@ -56,7 +56,7 @@ created_at = "2026-03-03T18:00:00Z"
 updated_at = "2026-03-03T18:00:00Z"
 ```
 
-- **Feedback:** System reminder injected showing: the tier classification, the memory file created, key fields captured, and the file path.
+- **Feedback (user-visible):** Memory creation is reported in the hook's `systemMessage` output so the user sees it in their terminal. Shows: the tier classification, the memory title, and the file path. This must appear in `systemMessage` regardless of whether surface matches co-occur — creation visibility is never buried in model-only context.
 
 - **No graceful degradation:** If no API token is configured, emit a loud stderr error (`[engram] Error: memory capture skipped — no API token configured`) and create no file. Never write degraded memories. (Closes #32.)
 
@@ -76,7 +76,7 @@ updated_at = "2026-03-03T18:00:00Z"
 
 **Key interactions:**
 
-- **SessionStart — passive surfacing:** Surface the top 20 memories by recency as a system reminder. No matching needed — recency is the only signal. Provides context priming at session start. The reminder lists each surfaced memory's title and file path so the user can inspect or edit them.
+- **SessionStart — passive surfacing:** Surface the top 20 memories by recency as a system reminder. No matching needed — recency is the only signal. Provides context priming at session start. The reminder lists each surfaced memory's title and file path so the user can inspect or edit them. Additionally, if a creation log exists (`<data-dir>/creation-log.jsonl`), report the memories created during prior sessions (by UC-1 at PreCompact/SessionEnd) in the `systemMessage` so the user sees what was learned. Clear the log after reporting.
 
 - **UserPromptSubmit — passive surfacing:** Keyword/concept match the user's message against memory `keywords` and `concepts` fields. Surface matching memories as a system reminder alongside the existing UC-3 correction detection. No blocking — informational only. The reminder lists each matched memory's title, file path, and which keywords matched.
 
@@ -139,6 +139,8 @@ updated_at = "2026-03-03T18:00:00Z"
 - **No graceful degradation:** If no API token is configured, emit a loud stderr error (`[engram] Error: session learning skipped — no API token configured`) and do not create any memory files. Never write degraded memories.
 
 - **TOML file output:** Same format and directory as UC-3. Memory written to `<data-dir>/memories/<slug>.toml`. The `confidence` field reflects the classified tier (A, B, or C).
+
+- **Creation visibility (deferred):** PreCompact and SessionEnd hooks have no output mechanism to show the user what was created. Instead, creation events are logged to a file (`<data-dir>/creation-log.jsonl`) with timestamp, title, tier, and file path. UC-2's SessionStart surfacing reports these at the start of the next session so the user sees what was learned. The log is cleared after successful reporting.
 
 - **Idempotency:** If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
 
