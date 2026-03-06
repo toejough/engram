@@ -40,12 +40,12 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
 green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
 green_tool = "targ test"
 refactor_tool = "targ check"
 
@@ -139,9 +139,9 @@ history = "17 BDD test specs across 6 ARCH boundaries. DES-3 hook wiring test ad
 layer = "L4"
 name = "Hook-Time Surfacing & Enforcement Tests"
 parents = ["L3B"]
-items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-69", "T-70", "T-71", "T-72"]
+items = ["T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83"]
 status = "complete"
-history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking). Issue #25: added T-69/70/71/72 (JSON format output for session-start, prompt, tool, no-match). Updated T-43/T-44 for --format json and systemMessage/additionalContext reshaping."
+history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25/26), SessionStart surfacing (T-27/28/29), UserPromptSubmit surfacing (T-30/31/32), PreToolUse pre-filter (T-33/34/35), surface routing (T-40/41/42), hook scripts (T-43/44/45/46). Issue #34: removed 4 LLM judgment tests (T-36/37/38/39), changed T-42 to advisory surfacing (system-reminder, no blocking). Issue #25: added T-69/70/71/72 (JSON format output for session-start, prompt, tool, no-match). Updated T-43/T-44 for --format json and systemMessage/additionalContext reshaping. Issue #46: added T-73/74/75 (tracking logic), T-76/77/78 (recorder), T-79/80/81 (surfacer↔tracker integration), T-82/83 (retrieval tracking fields)."
 
 [tree.L4C]
 layer = "L4"

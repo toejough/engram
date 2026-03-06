@@ -440,6 +440,128 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 ---
 
+## Surfacing Instrumentation — Tracking Logic (ARCH-19)
+
+### T-73: ComputeUpdate increments count and sets timestamp
+
+**Given** a memory with `SurfacedCount` 0 and zero `LastSurfaced`,
+**When** `ComputeUpdate` is called with mode `"prompt"` and a fixed `now` time,
+**Then** the returned `SurfacingUpdate` has `SurfacedCount` 1, `LastSurfaced` equal to `now`, and `SurfacingContexts` `["prompt"]`.
+
+Example-based: verifying exact field values for the simplest case.
+
+- Traces to: ARCH-19, REQ-21
+
+### T-74: ComputeUpdate appends to existing contexts
+
+**Given** a memory with `SurfacedCount` 5 and `SurfacingContexts` `["session-start", "prompt", "tool"]`,
+**When** `ComputeUpdate` is called with mode `"prompt"`,
+**Then** the returned update has `SurfacedCount` 6 and `SurfacingContexts` `["session-start", "prompt", "tool", "prompt"]`.
+
+Example-based: verifying append behavior.
+
+- Traces to: ARCH-19, REQ-21
+
+### T-75: ComputeUpdate enforces max 10 context entries
+
+**Given** a memory with `SurfacingContexts` containing exactly 10 entries,
+**When** `ComputeUpdate` is called with mode `"tool"`,
+**Then** the returned update has 10 entries with the oldest dropped and `"tool"` appended at the end.
+
+Example-based: boundary condition for FIFO eviction.
+
+- Traces to: ARCH-19, REQ-21
+
+### T-76: Recorder updates TOML file with tracking fields
+
+**Given** a memory TOML file with existing content fields (title, keywords, etc.) and no tracking fields,
+**When** `RecordSurfacing` is called with that memory and mode `"session-start"`,
+**Then** the TOML file is rewritten with all original fields preserved plus `surfaced_count = 1`, `last_surfaced` set to current time, and `surfacing_contexts = ["session-start"]`.
+
+Example-based: verifying round-trip fidelity and field addition.
+
+- Traces to: ARCH-19, REQ-22
+
+### T-77: Recorder preserves existing tracking fields on update
+
+**Given** a memory TOML file with `surfaced_count = 3`, `last_surfaced = "2026-03-01T00:00:00Z"`, and `surfacing_contexts = ["prompt", "tool", "prompt"]`,
+**When** `RecordSurfacing` is called with mode `"session-start"`,
+**Then** the file has `surfaced_count = 4`, `last_surfaced` updated to current time, and `surfacing_contexts = ["prompt", "tool", "prompt", "session-start"]`.
+
+Example-based: verifying increment behavior on existing tracking state.
+
+- Traces to: ARCH-19, REQ-22
+
+### T-78: Recorder skips memory on read error and continues
+
+**Given** two memories where the first has an unreadable file path and the second is valid,
+**When** `RecordSurfacing` is called with both,
+**Then** the first is skipped (no panic, no abort), and the second is successfully updated.
+
+Example-based: verifying error isolation per REQ-22 AC-4.
+
+- Traces to: ARCH-19, REQ-22
+
+---
+
+## Surfacer ↔ Tracker Integration (ARCH-20)
+
+### T-79: Surfacer calls tracker with matched memories and mode
+
+**Given** a Surfacer with a fake tracker and a retriever returning memories that match a prompt keyword,
+**When** `Run` is called with mode `"prompt"`,
+**Then** the tracker's `RecordSurfacing` is called with the matched memories and mode `"prompt"`.
+
+Example-based: verifying integration wiring.
+
+- Traces to: ARCH-20, REQ-22
+
+### T-80: Surfacer tracker errors do not propagate
+
+**Given** a Surfacer with a tracker that returns an error,
+**When** `Run` is called with mode `"session-start"`,
+**Then** `Run` returns nil (no error), and the surfacing output is still produced.
+
+Example-based: verifying fire-and-forget per ARCH-6.
+
+- Traces to: ARCH-20, REQ-22, ARCH-6
+
+### T-81: Surfacer with nil tracker produces same output as before
+
+**Given** a Surfacer without a tracker (nil),
+**When** `Run` is called with mode `"prompt"`,
+**Then** the output is identical to the existing behavior (backward compatible).
+
+Example-based: verifying no regression.
+
+- Traces to: ARCH-20
+
+---
+
+## Memory Retrieval — Tracking Fields (ARCH-9)
+
+### T-82: ListMemories reads tracking fields from TOML
+
+**Given** a memory TOML file with `surfaced_count = 5`, `last_surfaced = "2026-03-01T00:00:00Z"`, and `surfacing_contexts = ["prompt", "tool"]`,
+**When** `ListMemories` parses the file,
+**Then** the returned `Stored` has `SurfacedCount` 5, `LastSurfaced` equal to the parsed timestamp, and `SurfacingContexts` `["prompt", "tool"]`.
+
+Example-based: verifying field parsing.
+
+- Traces to: ARCH-9, REQ-21
+
+### T-83: ListMemories defaults tracking fields when absent
+
+**Given** a memory TOML file with no tracking fields (existing format),
+**When** `ListMemories` parses the file,
+**Then** the returned `Stored` has `SurfacedCount` 0, zero `LastSurfaced`, and empty `SurfacingContexts`.
+
+Example-based: verifying backward compatibility.
+
+- Traces to: ARCH-9, REQ-21
+
+---
+
 # UC-1 Tests
 
 ## Transcript Extraction (ARCH-15)
