@@ -278,10 +278,52 @@ items = ["T-82", "T-83"]
 status = "complete"
 history = "Issue #46: extended memory.Stored with SurfacedCount (int), LastSurfaced (time.Time), SurfacingContexts ([]string). Extended retrieve.tomlRecord with tracking fields and parseMemoryFile now parses LastSurfaced with time.Parse(time.RFC3339, ...) — empty string = zero time. T-82/T-83 passing."
 
+# Tree nodes — L5 (issue #49 creation visibility)
+
+[tree.L5P]
+layer = "L5"
+name = "Creation Log Writer"
+parents = ["L4B", "L4C"]
+items = ["T-84", "T-85", "T-86", "T-87"]
+status = "complete"
+history = "Issue #49: internal/creationlog/ package with LogWriter (Append method). JSONL format at <data-dir>/creation-log.jsonl. DI via WithReadFile, WithWriteFile, WithNow. Auto-sets timestamp from injected clock. Write errors propagated to caller. T-84/85/86/87 passing, lint clean."
+
+[tree.L5Q]
+layer = "L5"
+name = "Creation Log Reader"
+parents = ["L5P"]
+items = ["T-88", "T-89", "T-90", "T-91"]
+status = "complete"
+history = "Issue #49: LogReader with ReadAndClear method. Reads JSONL lines, parses to LogEntry, deletes file after read. Missing file returns empty slice. Malformed lines skipped. DI via WithReaderReadFile, WithRemoveFile. T-88/89/90/91 passing, lint clean."
+
+[tree.L5R]
+layer = "L5"
+name = "SessionStart Creation Report"
+parents = ["L5Q"]
+items = ["T-92", "T-93", "T-94"]
+status = "complete"
+history = "Issue #49: surface.Surfacer extended with optional CreationLogReader. SessionStart mode reads and clears creation log before recency surfacing. Combined output with creation report + recency sections. Backward compatible when no log exists. T-92/93/94 passing, lint clean."
+
+[tree.L5S]
+layer = "L5"
+name = "Learner Creation Logging"
+parents = ["L5P"]
+items = ["T-95", "T-96", "T-97"]
+status = "complete"
+history = "Issue #49: Learner.SetCreationLogger() wires optional CreationLogger. After each successful write, appends LogEntry with title/tier/filename. Nil logger skips (backward compatible). Logger errors fire-and-forget per ARCH-6. T-95/96/97 passing, lint clean."
+
+[tree.L5T]
+layer = "L5"
+name = "Hook Script Creation Visibility"
+parents = ["L5R", "L5S"]
+items = ["T-98", "T-99"]
+status = "complete"
+history = "Issue #49: UserPromptSubmit hook puts creation output in systemMessage. SessionStart hook puts creation report summary in systemMessage. Both hooks combine creation + surface output when both present. T-98/99 passing, lint clean."
+
 # Cursor
 
 [cursor]
-node = "L5P"
-mode = "pending"
-next_action = "REGROUP L5 for issue #49 tests, then implement via TDD. 16 new tests: T-84..T-99 across 4 ARCH boundaries (ARCH-21, ARCH-12, ARCH-14, ARCH-13)."
+node = "L5T"
+mode = "complete"
+next_action = "All L5 nodes complete for issue #49. Full spec tree (L1–L5) is complete for UC-1, UC-2, UC-3. Ready for spec-audit to verify alignment."
 context_files = ["docs/specs/state.toml", "docs/specs/tests.md", "docs/specs/architecture.md"]
