@@ -51,8 +51,11 @@ if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
         --data-dir "$ENGRAM_DATA" || true
 fi
 
-# UC-1: Extract learnings from session transcript
-if [[ -n "$TRANSCRIPT" ]]; then
+# UC-1: Extract learnings from session transcript (incremental)
+if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
+    "$ENGRAM_BIN" learn --transcript-path "$TRANSCRIPT_PATH" \
+        --session-id "$SESSION_ID" --data-dir "$ENGRAM_DATA" || true
+elif [[ -n "$TRANSCRIPT" ]]; then
     echo "$TRANSCRIPT" | "$ENGRAM_BIN" learn --data-dir "$ENGRAM_DATA" || true
 fi
 

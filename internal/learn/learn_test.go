@@ -438,10 +438,13 @@ func (f *fakeDeduplicator) Filter(
 type fakeExtractor struct {
 	candidates []memory.CandidateLearning
 	err        error
+	called     bool
 	record     *callRecord
 }
 
 func (f *fakeExtractor) Extract(_ context.Context, _ string) ([]memory.CandidateLearning, error) {
+	f.called = true
+
 	if f.record != nil {
 		f.record.record("extract")
 	}

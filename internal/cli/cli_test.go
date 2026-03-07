@@ -133,6 +133,89 @@ func TestCallAnthropicAPIErrorPaths(t *testing.T) {
 	)
 }
 
+// Incremental learn path: --transcript-path + --session-id reads delta from file.
+func TestLearnIncrementalPath(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	transcriptPath := filepath.Join(dataDir, "transcript.jsonl")
+
+	// Write a transcript file with some content.
+	err := os.WriteFile(
+		transcriptPath,
+		[]byte(`{"role":"user","content":"hello"}`+"\n"),
+		0o644,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Fake HTTP doer returns empty learnings.
+	fakeDoer := &fakeHTTPDoer{
+		statusCode: http.StatusOK,
+		body:       `{"content":[{"type":"text","text":"[]"}]}`,
+	}
+
+	var stderr bytes.Buffer
+
+	runErr := cli.RunLearn(
+		[]string{
+			"--data-dir", dataDir,
+			"--transcript-path", transcriptPath,
+			"--session-id", "test-session",
+		},
+		"fake-token",
+		&stderr,
+		strings.NewReader(""),
+		fakeDoer,
+	)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	g.Expect(stderr.String()).To(ContainSubstring("[engram]"))
+
+	// Verify offset file was created.
+	offsetPath := filepath.Join(dataDir, "learn-offset.json")
+	_, statErr := os.Stat(offsetPath)
+	g.Expect(statErr).NotTo(HaveOccurred())
+
+	// Append more content so second run has new delta to process.
+	appendFile, appendErr := os.OpenFile(
+		transcriptPath, os.O_APPEND|os.O_WRONLY, 0o644,
+	)
+	g.Expect(appendErr).NotTo(HaveOccurred())
+
+	if appendErr != nil {
+		return
+	}
+
+	_, _ = appendFile.WriteString(`{"role":"user","content":"world"}` + "\n")
+	_ = appendFile.Close()
+
+	// Second run: offset file exists, exercises osOffsetStore.Read + Write.
+	var stderr2 bytes.Buffer
+
+	runErr = cli.RunLearn(
+		[]string{
+			"--data-dir", dataDir,
+			"--transcript-path", transcriptPath,
+			"--session-id", "test-session",
+		},
+		"fake-token",
+		&stderr2,
+		strings.NewReader(""),
+		fakeDoer,
+	)
+	g.Expect(runErr).NotTo(HaveOccurred())
+}
+
 // learn with invalid flag returns error.
 func TestLearnInvalidFlag(t *testing.T) {
 	t.Parallel()

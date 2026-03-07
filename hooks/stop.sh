@@ -31,3 +31,9 @@ if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
         --session-id "$SESSION_ID" \
         --data-dir "$ENGRAM_DATA" || true
 fi
+
+# UC-1: Extract learnings (synchronous — last chance before exit)
+if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
+    "$ENGRAM_BIN" learn --transcript-path "$TRANSCRIPT_PATH" \
+        --session-id "$SESSION_ID" --data-dir "$ENGRAM_DATA" || true
+fi

@@ -197,6 +197,10 @@ func RunLearn(
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	transcriptPath := fs.String(
+		"transcript-path", "", "path to session transcript",
+	)
+	sessionID := fs.String("session-id", "", "session identifier")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -217,13 +221,6 @@ func RunLearn(
 		return nil
 	}
 
-	transcriptBytes, err := io.ReadAll(stdin)
-	if err != nil {
-		return fmt.Errorf("learn: reading stdin: %w", err)
-	}
-
-	transcriptText := string(transcriptBytes)
-
 	if httpClient == nil {
 		httpClient = &http.Client{}
 	}
@@ -240,7 +237,20 @@ func RunLearn(
 
 	ctx := context.Background()
 
-	result, err := learner.Run(ctx, transcriptText)
+	// Incremental mode: read delta from transcript file.
+	if *transcriptPath != "" && *sessionID != "" {
+		return runIncrementalLearn(
+			ctx, learner, *transcriptPath, *sessionID, *dataDir, stderr,
+		)
+	}
+
+	// Stdin mode: read full transcript from stdin (backward compatible).
+	transcriptBytes, err := io.ReadAll(stdin)
+	if err != nil {
+		return fmt.Errorf("learn: reading stdin: %w", err)
+	}
+
+	result, err := learner.Run(ctx, string(transcriptBytes))
 	if err != nil {
 		return fmt.Errorf("learn: %w", err)
 	}
@@ -416,6 +426,36 @@ func (w *osFileWriter) Write(path string, content []byte) error {
 	const filePerms = 0o644
 
 	return os.WriteFile(path, content, filePerms) //nolint:wrapcheck // thin I/O adapter
+}
+
+// osOffsetStore implements learn.OffsetStore using the filesystem.
+type osOffsetStore struct{}
+
+func (s *osOffsetStore) Read(path string) (learn.Offset, error) {
+	data, err := os.ReadFile(path) //nolint:gosec // thin I/O adapter
+	if err != nil {
+		return learn.Offset{}, fmt.Errorf("reading offset: %w", err)
+	}
+
+	var offset learn.Offset
+
+	unmarshalErr := json.Unmarshal(data, &offset)
+	if unmarshalErr != nil {
+		return learn.Offset{}, fmt.Errorf("parsing offset: %w", unmarshalErr)
+	}
+
+	return offset, nil
+}
+
+func (s *osOffsetStore) Write(path string, offset learn.Offset) error {
+	data, err := json.Marshal(offset)
+	if err != nil {
+		return fmt.Errorf("marshaling offset: %w", err)
+	}
+
+	const filePerms = 0o644
+
+	return os.WriteFile(path, data, filePerms) //nolint:wrapcheck // thin I/O adapter
 }
 
 type osRenamer struct{}
@@ -656,6 +696,36 @@ func runCorrect(
 
 func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 	return RunEvaluate(args, os.Getenv("ENGRAM_API_TOKEN"), stdout, stderr, stdin)
+}
+
+// runIncrementalLearn creates an IncrementalLearner and runs it.
+func runIncrementalLearn(
+	ctx context.Context,
+	learner *learn.Learner,
+	transcriptPath, sessionID, dataDir string,
+	stderr io.Writer,
+) error {
+	reader := &osFileReader{}
+	delta := sessionctx.NewDeltaReader(reader)
+	offsetStore := &osOffsetStore{}
+	offsetPath := filepath.Join(dataDir, "learn-offset.json")
+
+	inc := learn.NewIncrementalLearner(
+		learner, delta, sessionctx.Strip, offsetStore, stderr,
+	)
+
+	result, err := inc.RunIncremental(
+		ctx, transcriptPath, sessionID, offsetPath,
+	)
+	if err != nil {
+		return fmt.Errorf("learn: incremental: %w", err)
+	}
+
+	if result != nil {
+		RenderLearnResult(stderr, result)
+	}
+
+	return nil
 }
 
 func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
