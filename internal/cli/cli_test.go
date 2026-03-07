@@ -240,6 +240,30 @@ func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
 	g.Expect(output).To(ContainSubstring(`"test.toml"`))
 }
 
+// TestReviewDispatchedViaRun verifies the "review" subcommand is wired in cli.Run.
+func TestReviewDispatchedViaRun(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "review", "--data-dir", dataDir},
+		&stdout,
+		&stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("[engram] No evaluation data found."))
+}
+
 // runEvaluate covered via cli.Run with empty token (no-token path).
 func TestRunEvaluateNoToken(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
@@ -556,6 +580,161 @@ principle = "Use table-driven tests"
 	g.Expect(stdout.String()).To(ContainSubstring("followed"))
 }
 
+// T-129: Review with data outputs all four DES-16 sections.
+func TestT129_ReviewOutputsAllSections(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// mem-a: surfaced=10, 4 followed + 1 ignored = 80% effectiveness, 5 evals → Working.
+	// mem-b: surfaced=2, 1 followed + 4 ignored = 20% effectiveness, 5 evals → Noise + flagged.
+	// mem-c: surfaced=5, no evals → InsufficientData.
+	// Median of tracking [2,5,10] = 5. mem-a (10) above median, mem-b (2) below.
+	memA := writeReviewMemoryTOML(t, memDir, "mem-a.toml", 10)
+	memB := writeReviewMemoryTOML(t, memDir, "mem-b.toml", 2)
+	writeReviewMemoryTOML(t, memDir, "mem-c.toml", 5)
+
+	writeReviewEvalLog(t, evalDir, "a.jsonl", memA,
+		[]string{"followed", "followed", "followed", "followed", "ignored"})
+	writeReviewEvalLog(t, evalDir, "b.jsonl", memB,
+		[]string{"followed", "ignored", "ignored", "ignored", "ignored"})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("[engram] Memory Effectiveness Review"))
+	g.Expect(output).To(ContainSubstring("Total: 3 memories"))
+	g.Expect(output).To(ContainSubstring("Quadrant Summary:"))
+	g.Expect(output).To(ContainSubstring("Flagged for action"))
+	g.Expect(output).To(ContainSubstring("Insufficient data"))
+}
+
+// T-130: Review with no evaluations directory outputs no-data message.
+func TestT130_ReviewNoEvalDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir() // no evaluations subdir
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("[engram] No evaluation data found."))
+}
+
+// T-131: Review without --data-dir outputs usage error.
+func TestT131_ReviewMissingDataDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{}, &stdout)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("data-dir"))
+}
+
+// T-132: Flagged memories sorted by effectiveness ascending (worst first).
+func TestT132_ReviewFlaggedSortedByEffectiveness(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// All have surfaced=5, median=5, none > 5 → all below/equal median → Noise + flagged.
+	// Effectiveness: mem-x=10% (1/10), mem-y=20% (1/5), mem-z=33% (2/6).
+	memX := writeReviewMemoryTOML(t, memDir, "mem-x.toml", 5)
+	memY := writeReviewMemoryTOML(t, memDir, "mem-y.toml", 5)
+	memZ := writeReviewMemoryTOML(t, memDir, "mem-z.toml", 5)
+
+	writeReviewEvalLog(t, evalDir, "x.jsonl", memX,
+		[]string{
+			"followed", "ignored", "ignored", "ignored", "ignored",
+			"ignored", "ignored", "ignored", "ignored", "ignored",
+		}) // 1/10 = 10%
+	writeReviewEvalLog(t, evalDir, "y.jsonl", memY,
+		[]string{"followed", "ignored", "ignored", "ignored", "ignored"}) // 1/5 = 20%
+	writeReviewEvalLog(t, evalDir, "z.jsonl", memZ,
+		[]string{"followed", "followed", "ignored", "ignored", "ignored", "ignored"}) // 2/6 = 33%
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	posX := strings.Index(output, "mem-x")
+	posY := strings.Index(output, "mem-y")
+	posZ := strings.Index(output, "mem-z")
+
+	g.Expect(posX).To(BeNumerically("<", posY), "mem-x (10%%) should appear before mem-y (20%%)")
+	g.Expect(posY).To(BeNumerically("<", posZ), "mem-y (20%%) should appear before mem-z (33%%)")
+}
+
+// T-133: Insufficient-data section omitted when all memories have 5+ evaluations.
+func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	memA := writeReviewMemoryTOML(t, memDir, "mem-a.toml", 10)
+	memB := writeReviewMemoryTOML(t, memDir, "mem-b.toml", 2)
+	writeReviewEvalLog(t, evalDir, "a.jsonl", memA,
+		[]string{"followed", "followed", "followed", "followed", "followed"}) // 100%
+	writeReviewEvalLog(t, evalDir, "b.jsonl", memB,
+		[]string{"followed", "followed", "followed", "followed", "followed"}) // 100%
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient data"))
+}
+
 // T-18: correct subcommand with no API key returns error
 func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
@@ -857,6 +1036,39 @@ func (f *fakeHTTPDoer) Do(_ *http.Request) (*http.Response, error) {
 		StatusCode: f.statusCode,
 		Body:       io.NopCloser(strings.NewReader(f.body)),
 	}, nil
+}
+
+// writeReviewEvalLog writes evaluation log entries for a memory to a .jsonl file.
+func writeReviewEvalLog(tb testing.TB, evalDir, filename, memPath string, outcomes []string) {
+	tb.Helper()
+
+	lines := make([]string, 0, len(outcomes))
+	for _, outcome := range outcomes {
+		lines = append(lines, fmt.Sprintf(`{"memory_path":%q,"outcome":%q}`, memPath, outcome))
+	}
+
+	path := filepath.Join(evalDir, filename)
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o640); err != nil {
+		tb.Fatalf("writeReviewEvalLog: %v", err)
+	}
+}
+
+// writeReviewMemoryTOML creates a minimal memory TOML file and returns its full path.
+func writeReviewMemoryTOML(tb testing.TB, dir, filename string, surfacedCount int) string {
+	tb.Helper()
+
+	path := filepath.Join(dir, filename)
+	content := fmt.Sprintf(
+		"title = %q\ncontent = \"Some content\"\nupdated_at = \"2024-01-01T00:00:00Z\"\nsurfaced_count = %d\n",
+		filename,
+		surfacedCount,
+	)
+
+	if err := os.WriteFile(path, []byte(content), 0o640); err != nil {
+		tb.Fatalf("writeReviewMemoryTOML: %v", err)
+	}
+
+	return path
 }
 
 func writeTestTOML(t *testing.T, dir, filename, content string) {

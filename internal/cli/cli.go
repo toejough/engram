@@ -24,6 +24,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/render"
 	"engram/internal/retrieve"
+	reviewpkg "engram/internal/review"
 	"engram/internal/surface"
 	"engram/internal/surfacinglog"
 	"engram/internal/tomlwriter"
@@ -110,6 +111,8 @@ func Run(
 		return runCorrect(subArgs, stdout)
 	case "evaluate":
 		return runEvaluate(subArgs, stdout, stderr, stdin)
+	case "review":
+		return runReview(subArgs, stdout)
 	case "surface":
 		return runSurface(subArgs, stdout)
 	case "learn":
@@ -243,6 +246,44 @@ func RunLearn(
 	return nil
 }
 
+// RunReview implements the review subcommand: aggregates effectiveness stats,
+// retrieves memory tracking data, classifies memories, and renders the matrix.
+func RunReview(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("review", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("review: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errReviewMissingFlags
+	}
+
+	evalDir := filepath.Join(*dataDir, "evaluations")
+
+	stats, err := effectiveness.New(evalDir).Aggregate()
+	if err != nil {
+		return fmt.Errorf("review: aggregating effectiveness: %w", err)
+	}
+
+	if len(stats) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No evaluation data found.")
+
+		return nil
+	}
+
+	tracking := buildTrackingMap(*dataDir)
+
+	classified := reviewpkg.Classify(stats, tracking)
+	reviewpkg.Render(classified, stdout)
+
+	return nil
+}
+
 // unexported constants.
 const (
 	anthropicVersion  = "2023-06-01"
@@ -260,12 +301,13 @@ var (
 	errLearnMissingFlags    = errors.New("learn: --data-dir required")
 	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
 	errNoContentBlocks      = errors.New("API response contained no content blocks")
+	errReviewMissingFlags   = errors.New("review: --data-dir required")
 	errSurfaceMissingFlags  = errors.New(
 		"surface: --mode and --data-dir required",
 	)
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
-		"usage: engram <correct|surface|learn|evaluate> [flags]",
+		"usage: engram <correct|surface|learn|evaluate|review> [flags]",
 	)
 )
 
@@ -318,6 +360,26 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	}
 
 	return result, nil
+}
+
+// buildTrackingMap retrieves memories and builds a path→TrackingData map.
+// Returns empty map if memories cannot be read.
+func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
+	retriever := retrieve.New()
+	ctx := context.Background()
+
+	memories, err := retriever.ListMemories(ctx, dataDir)
+	if err != nil {
+		return map[string]reviewpkg.TrackingData{}
+	}
+
+	tracking := make(map[string]reviewpkg.TrackingData, len(memories))
+
+	for _, mem := range memories {
+		tracking[mem.FilePath] = reviewpkg.TrackingData{SurfacedCount: mem.SurfacedCount}
+	}
+
+	return tracking
 }
 
 // callAnthropicAPI makes a single call to the Anthropic messages API and returns the text response.
@@ -475,6 +537,10 @@ func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error
 
 func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 	return RunLearn(args, os.Getenv("ENGRAM_API_TOKEN"), stderr, stdin, nil)
+}
+
+func runReview(args []string, stdout io.Writer) error {
+	return RunReview(args, stdout)
 }
 
 func runSurface(args []string, stdout io.Writer) error {
