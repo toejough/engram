@@ -232,4 +232,46 @@ updated_at = "2026-03-03T18:00:00Z"
 
 ---
 
-Deferred UCs (UC-4 through UC-14, excluding UC-6) are archived in issue #18 for review.
+## UC-14: Structured Session Continuity
+
+**Description:** Incrementally maintain a task-focused working summary that survives session boundaries (`/clear`, `/exit`, context compaction). Piggyback on existing Haiku API calls to minimize latency. Automatically restore the summary at session start.
+
+**Starting state:** A session is active. The UserPromptSubmit hook already calls Haiku for memory classification (UC-3). A transcript JSONL file exists at `transcript_path`.
+
+**End state:** A human-readable session context file exists at `.claude/engram/session-context.md` containing a task-focused working summary. On next SessionStart, the summary is injected as `additionalContext`.
+
+**Actor:** System (Go binary triggered by UserPromptSubmit and SessionStart hooks).
+
+**Key interactions:**
+
+- **Incremental context update (piggybacked on UserPromptSubmit):** Each time the UserPromptSubmit hook fires, a parallel Haiku call runs concurrently with the existing `correct` classification:
+  1. Read transcript from `transcript_path`, starting from the byte offset watermark stored in the context file
+  2. Strip low-value content: tool results, base64/binary, repeated schemas. Keep: user messages, assistant text, tool names, errors
+  3. If the stripped delta is non-empty, send `{previous_summary + stripped_delta}` to Haiku with prompt: "Update this task-focused working summary. Focus on what's being worked on, decisions made, progress, and open questions. Not a dissertation — just what's relevant."
+  4. Write updated summary to `.claude/engram/session-context.md`
+
+- **Final flush (PreCompact):** Same pipeline as UserPromptSubmit, ensures any remaining transcript delta is captured before context compaction.
+
+- **Restore on SessionStart:** If `.claude/engram/session-context.md` exists, read it and inject contents as `additionalContext`. Always load regardless of age — user can delete the file to clear it.
+
+- **Context file format:** Plain markdown with HTML comment metadata (invisible when rendered). User can read, edit, or `rm` it.
+
+```markdown
+<!-- engram session context | updated: 2026-03-07T03:15:00Z | offset: 34521 | session: abc123 -->
+
+Working on session continuity for engram (#45)...
+```
+
+- **Summary scope:** Task-focused only — what's being worked on, decisions made, progress, and open questions. NOT discovered constraints or patterns (those are captured as memories by UC-3).
+
+- **No hard size limit:** Haiku decides what's relevant. Natural summarization keeps it concise.
+
+- **No graceful degradation:** If no API token, skip the context update silently (the `correct` call already emits the loud error). Never write a degraded summary.
+
+- **File location:** `.claude/engram/session-context.md` — local to the project, visible in the file tree, easily deletable by the user.
+
+- **Pure Go, no CGO.**
+
+---
+
+Deferred UCs (UC-4 through UC-13, excluding UC-6) are archived in issue #18 for review.

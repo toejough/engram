@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -440,8 +440,15 @@ items = ["UC-6"]
 status = "complete"
 history = "Issue #39. Rewritten from skill-specific to general memory effectiveness review. 2x2 matrix (working/leech/hidden gem/noise), threshold flagging (utility < 0.4 after 5+ evals), effectiveness annotations during surfacing, engram review CLI. Foundation for #40-43."
 
+[tree.L1F]
+layer = "L1"
+name = "Structured Session Continuity"
+items = ["UC-14"]
+status = "in_progress"
+history = "Issue #45. Incremental context summarization piggybacked on existing UserPromptSubmit Haiku calls. Transcript delta stripping, watermark tracking, automatic SessionStart restore."
+
 [cursor]
-node = "L5Z"
-mode = "complete"
-next_action = "UC-6 complete. Usability gate passed: engram review works with real data, no-data path clean, all exit 0."
+node = "L1F"
+mode = "in_progress"
+next_action = "L1F RED→GREEN complete (UC-14 written). REFACTOR: check whole L1 layer for consistency, then REGROUP, COMMIT, DESCEND to L2."
 context_files = ["docs/specs/state.toml"]
