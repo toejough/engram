@@ -1270,3 +1270,127 @@ Uses DI-injected dependencies. Verifies end-to-end wiring.
 | REQ-34 | T-105, T-107, T-111 |
 
 All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
+
+---
+
+# UC-6: Memory Effectiveness Review
+
+---
+
+## Matrix Classifier (ARCH-26)
+
+### T-122: Correct quadrant assignment based on median + effectiveness threshold
+
+- **Given** 6 memories: 3 with surfaced_count above median and effectiveness >= 50% (Working), 1 with surfaced_count below median and effectiveness >= 50% (Hidden Gem), 1 with surfaced_count above median and effectiveness < 50% (Leech), 1 with surfaced_count below median and effectiveness < 50% (Noise). All have 5+ evaluations.
+- **When** Classify is called
+- **Then** each memory is assigned the correct quadrant: Working, Hidden Gem, Leech, or Noise
+- **Traces to:** REQ-35 (matrix classification)
+- **Type:** example-based (specific quadrant assignments need deterministic verification)
+
+### T-123: Memories with fewer than 5 evaluations classified as InsufficientData
+
+- **Given** a memory with 3 total evaluations (followed + contradicted + ignored)
+- **When** Classify is called
+- **Then** the memory's Quadrant is InsufficientData and Flagged is false
+- **Traces to:** REQ-35 (insufficient data exclusion)
+- **Type:** example-based
+
+### T-124: Memory with 5+ evaluations and effectiveness < 40% is flagged
+
+- **Given** a memory with 6 evaluations and effectiveness score 33%
+- **When** Classify is called
+- **Then** Flagged is true
+- **Traces to:** REQ-36 (threshold flagging)
+- **Type:** example-based
+
+### T-125: Memory with effectiveness exactly 40% is not flagged
+
+- **Given** a memory with 5 evaluations and effectiveness score exactly 40%
+- **When** Classify is called
+- **Then** Flagged is false
+- **Traces to:** REQ-36 (threshold boundary — strictly less than 40%)
+- **Type:** example-based (boundary condition)
+
+### T-126: Memory with effectiveness exactly 50% classified as high follow-through
+
+- **Given** a memory with 10 evaluations and effectiveness score exactly 50%
+- **When** Classify is called
+- **Then** the memory is in a high follow-through quadrant (Working or Hidden Gem depending on surfacing frequency)
+- **Traces to:** REQ-35 (follow-through threshold — >= 50%)
+- **Type:** example-based (boundary condition)
+
+### T-127: Empty input produces empty output
+
+- **Given** empty effectiveness and tracking maps
+- **When** Classify is called
+- **Then** result is an empty slice
+- **Traces to:** REQ-35 (edge case)
+- **Type:** example-based
+
+### T-128: Memories with tracking data but no evaluations classified as InsufficientData
+
+- **Given** 3 memories with surfaced_count > 0 but zero evaluations
+- **When** Classify is called
+- **Then** all are classified as InsufficientData with Flagged false
+- **Traces to:** REQ-35 (insufficient data — zero evaluations)
+- **Type:** example-based
+
+---
+
+## Review CLI (ARCH-27)
+
+### T-129: Review with data outputs all four DES-16 sections
+
+- **Given** evaluation logs and tracking data exist with memories across all four quadrants
+- **When** `engram review --data-dir <path>` is run (via RunReview with injected I/O)
+- **Then** stdout contains: summary line, quadrant table, flagged list, insufficient-data list
+- **Traces to:** REQ-38 (review CLI output), DES-16 (output format)
+- **Type:** example-based (format verification)
+
+### T-130: Review with no evaluation directory outputs no-data message
+
+- **Given** data-dir exists but evaluations subdirectory does not
+- **When** `engram review --data-dir <path>` is run
+- **Then** stdout contains "[engram] No evaluation data found." and exit 0
+- **Traces to:** REQ-39 (no-data behavior — missing directory)
+- **Type:** example-based
+
+### T-131: Review without --data-dir outputs usage error
+
+- **Given** no --data-dir argument provided
+- **When** `engram review` is run
+- **Then** output contains usage error message and exit 0
+- **Traces to:** REQ-38 (--data-dir required)
+- **Type:** example-based
+
+### T-132: Flagged memories sorted by effectiveness ascending
+
+- **Given** 3 flagged memories with effectiveness scores 33%, 20%, 10%
+- **When** review is run
+- **Then** flagged section lists them in order: 10%, 20%, 33%
+- **Traces to:** REQ-38 (sorted by effectiveness ascending)
+- **Type:** example-based
+
+### T-133: Insufficient-data section omitted when all memories have 5+ evaluations
+
+- **Given** all memories have 5+ evaluations
+- **When** review is run
+- **Then** "Insufficient data" section does not appear in output
+- **Traces to:** REQ-38 (section omitted when empty)
+- **Type:** example-based
+
+---
+
+## L2 → Test Traceability (UC-6)
+
+| L2 Item | Test Coverage |
+|---------|--------------|
+| REQ-35 | T-122, T-123, T-126, T-127, T-128 |
+| REQ-36 | T-124, T-125 |
+| REQ-37 | Already covered by T-115 (existing UC-15 annotation test) |
+| DES-17 | Already covered by T-115 (existing UC-15 annotation format) |
+| REQ-38 | T-129, T-131, T-132, T-133 |
+| DES-16 | T-129 |
+| REQ-39 | T-130 |
+
+All UC-6 L2 items have test coverage. All ARCH-26..27 items have test coverage.
