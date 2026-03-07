@@ -482,12 +482,12 @@ history = "27 test cases derived from ARCH-28..34 in BDD format. TranscriptDelta
 layer = "L5"
 name = "Session Continuity Implementation"
 parents = ["L4A"]
-items = []
-status = "pending"
-history = "L5 (IMPL) layer: TDD with sonnet executor teams. Red/Green/Refactor for each test T-134..160, one per iteration minimum. Implementation targets: (1) TranscriptDeltaReader: internal/context/delta.go (2) ContentStripper: internal/context/strip.go (3) ContextSummarizer: internal/context/summarize.go (4) SessionContextFile I/O: internal/context/file.go (5) ContextUpdateOrchestrator: internal/context/orchest.go (6) CLI wiring: cmd/engram/context-update.go (7) Hook integration: hooks/*.sh scripts. All via DI interfaces in internal/context/interfaces.go."
+items = ["T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160"]
+status = "complete"
+history = "All T-134..160 tests implemented via TDD. internal/context/ package: DeltaReader (delta.go), ContentStripper (strip.go), ContextSummarizer (summarize.go), SessionContextFile (file.go), ContextOrchestrator (orchestrate.go). CLI context-update wired in internal/cli/cli.go. Hook integration in hooks/*.sh (UserPromptSubmit background, PreCompact synchronous, SessionStart restore). All tests passing, targ check clean, usability gate verified (build → install → exercise → observe). Commit a40b958."
 
 [cursor]
 node = "L5A"
-mode = "pending"
-next_action = "L5A pending (no items yet). RED phase: assess test framework, mock infrastructure, Go workspace structure. Prepare for executor team handoff via /work-on."
+mode = "complete"
+next_action = "Tree complete: all UC-1..6, UC-14 (UC-2..5 deferred per issue #18). Usability gate final verification: each UC has build → install → exercise → observe path. UC-14 verified: context file created (OBSERVE), restored on SessionStart (next session). Ready for long-term maintenance."
 context_files = ["docs/specs/state.toml"]
