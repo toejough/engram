@@ -190,4 +190,46 @@ updated_at = "2026-03-03T18:00:00Z"
 
 ---
 
-Deferred UCs (UC-4 through UC-14) are archived in issue #18 for review.
+## UC-6: Memory Effectiveness Review
+
+**Description:** Classify memories into a 2x2 effectiveness matrix (working/leech/hidden gem/noise) based on surfacing frequency and outcome signals. Flag memories for action when effectiveness drops below threshold. Display effectiveness annotations when memories surface. Provide a CLI review command for the full matrix.
+
+**Starting state:** Memories exist with surfacing instrumentation (UC-2) and evaluation history (UC-15). Evaluation log files in `<data-dir>/evaluations/` contain per-session outcome classifications.
+
+**End state:** Each memory is classified into one of four quadrants. Memories below the effectiveness threshold are flagged for action. Surfacing events include effectiveness annotations. The `engram review` command displays the full matrix.
+
+**Actor:** System (Go binary, `engram review` CLI + effectiveness annotations wired into UC-2 surfacing).
+
+**Key interactions:**
+
+- **2x2 matrix classification:** Combine two signals per memory:
+  - **Surfacing frequency** from tracking fields: `surfaced_count` (high = above median, low = at or below median across all memories)
+  - **Follow-through rate** from evaluation aggregation: `EffectivenessScore` (high = >= 50%, low = < 50%)
+
+  |  | Often Surfaced | Rarely Surfaced |
+  |--|---|---|
+  | **High Follow-Through** | **Working** — maintain | **Hidden Gem** — broaden triggers |
+  | **Low Follow-Through** | **Leech** — diagnose and fix | **Noise** — prune candidate |
+
+  Memories with fewer than 5 evaluations are classified as **insufficient data** — no quadrant assignment, no action flagged.
+
+- **Threshold flagging:** Flag a memory for action when: (a) it has 5+ evaluations, AND (b) its effectiveness score is below 40%. Flagged memories are reported in `engram review` output with their quadrant and stats. This implements the CLAUDE.md rule: "Pruned when utility < 0.4 after 5+ retrievals."
+
+- **Effectiveness annotations (surfacing path):** When UC-2 surfaces memories, annotate each with effectiveness context if evaluation data exists: "(surfaced N times, followed M%)". Computed on-the-fly from evaluation logs — no LLM, no pre-computation. Fire-and-forget: annotation failures never break surfacing (ARCH-6 exit-0). Memories with no evaluation history show no annotation.
+
+- **`engram review` CLI command:** New subcommand that reads tracking data + evaluation logs and outputs:
+  1. Per-quadrant summary (count of memories in each quadrant)
+  2. Flagged memories with stats (name, quadrant, surfaced count, effectiveness score, evaluation count)
+  3. Insufficient-data memories (name, surfaced count, evaluation count)
+
+  Output is human-readable text to stdout. Machine-readable `--format json` deferred unless needed by downstream UCs.
+
+- **No graceful degradation:** If evaluation directory is missing or empty, `engram review` reports "no evaluation data" and exits 0. No degraded classifications.
+
+- **No LLM calls:** All classification is pure arithmetic on existing data. Zero API cost.
+
+- **Pure Go, no CGO.**
+
+---
+
+Deferred UCs (UC-4 through UC-14, excluding UC-6) are archived in issue #18 for review.

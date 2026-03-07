@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -391,8 +391,15 @@ history = "Issue #47: CLI evaluate subcommand (engram evaluate --data-dir), RunL
 
 # Cursor
 
+[tree.L1E]
+layer = "L1"
+name = "Memory Effectiveness Review"
+items = ["UC-6"]
+status = "complete"
+history = "Issue #39. Rewritten from skill-specific to general memory effectiveness review. 2x2 matrix (working/leech/hidden gem/noise), threshold flagging (utility < 0.4 after 5+ evals), effectiveness annotations during surfacing, engram review CLI. Foundation for #40-43."
+
 [cursor]
-node = "L5X"
-mode = "complete"
-next_action = "Usability gate passed. All 4 UCs complete and exercisable. Next: triage issue #54 or pick next UC from backlog."
-context_files = ["docs/specs/state.toml"]
+node = "L1E"
+mode = "green"
+next_action = "L1E GREEN complete. REFACTOR L1 layer, then REGROUP, then DESCEND to L2."
+context_files = ["docs/specs/use-cases.md", "docs/specs/state.toml"]
