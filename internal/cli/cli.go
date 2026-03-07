@@ -415,7 +415,7 @@ func callAnthropicAPI(
 	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := client.Do( //nolint:gosec // G704: AnthropicAPIURL is a controlled, test-overridable endpoint
+	resp, err := client.Do(
 		req,
 	)
 	if err != nil {

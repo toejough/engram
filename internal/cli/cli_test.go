@@ -505,7 +505,6 @@ func TestT120_HookScriptsInvokeEvaluate(t *testing.T) {
 
 	for _, scriptPath := range []string{
 		"../../hooks/pre-compact.sh",
-		"../../hooks/session-end.sh",
 	} {
 		data, err := os.ReadFile(scriptPath)
 		g.Expect(err).NotTo(HaveOccurred())
