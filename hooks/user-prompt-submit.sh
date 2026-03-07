@@ -60,13 +60,15 @@ if [[ -n "$USER_MESSAGE" ]]; then
         --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --format json) || true
 fi
 
-# UC-14: Update session context (background — don't block)
+# UC-14: Update session context (background — detached so hook runner
+# can't kill it when the parent process group exits)
 SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
 if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
-    "$ENGRAM_BIN" context-update \
+    nohup "$ENGRAM_BIN" context-update \
         --transcript-path "$TRANSCRIPT_PATH" \
         --session-id "$SESSION_ID" \
-        --data-dir "$ENGRAM_DATA" &
+        --data-dir "$ENGRAM_DATA" </dev/null >/dev/null 2>&1 &
+    disown
 fi
 
 # Combine into single JSON output
