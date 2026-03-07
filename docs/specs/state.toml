@@ -398,16 +398,16 @@ layer = "L5"
 name = "Matrix Classifier"
 parents = ["L4E"]
 items = ["T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128"]
-status = "pending"
-history = ""
+status = "complete"
+history = "internal/review/ package with Classify pure function (median split + 50% threshold + 40% flagging) and Render (DES-16 format). All T-122..T-128 passing, 100% coverage on all functions except computeMedian (90%)."
 
 [tree.L5Z]
 layer = "L5"
 name = "Review CLI Wiring"
 parents = ["L5Y"]
 items = ["T-129", "T-130", "T-131", "T-132", "T-133"]
-status = "pending"
-history = ""
+status = "complete"
+history = "RunReview in internal/cli wires effectiveness.Aggregate + retrieve tracking → review.Classify → review.Render → stdout. No-data path, usage error, exit 0 always. T-129..T-133 passing, targ check clean."
 
 [tree.L4E]
 layer = "L4"
@@ -441,7 +441,7 @@ status = "complete"
 history = "Issue #39. Rewritten from skill-specific to general memory effectiveness review. 2x2 matrix (working/leech/hidden gem/noise), threshold flagging (utility < 0.4 after 5+ evals), effectiveness annotations during surfacing, engram review CLI. Foundation for #40-43."
 
 [cursor]
-node = "L5Y"
-mode = "pending"
-next_action = "Implement L5Y (Matrix Classifier, T-122..T-128) via /work-on. Then L5Z (Review CLI, T-129..T-133)."
-context_files = ["docs/specs/tests.md", "docs/specs/architecture.md", "docs/specs/state.toml"]
+node = "L5Z"
+mode = "complete"
+next_action = "UC-6 complete. Usability gate passed: engram review works with real data, no-data path clean, all exit 0."
+context_files = ["docs/specs/state.toml"]
