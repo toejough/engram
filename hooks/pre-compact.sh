@@ -42,6 +42,15 @@ if [[ -z "$TRANSCRIPT" ]]; then
     echo "[engram] Warning: no transcript available — learn/evaluate skipped" >&2
 fi
 
+# UC-14: Final session context flush (synchronous — last chance)
+SESSION_ID="$(echo "$STDIN_JSON" | jq -r '.session_id // empty')"
+if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
+    "$ENGRAM_BIN" context-update \
+        --transcript-path "$TRANSCRIPT_PATH" \
+        --session-id "$SESSION_ID" \
+        --data-dir "$ENGRAM_DATA" || true
+fi
+
 # UC-1: Extract learnings from session transcript
 if [[ -n "$TRANSCRIPT" ]]; then
     echo "$TRANSCRIPT" | "$ENGRAM_BIN" learn --data-dir "$ENGRAM_DATA" || true

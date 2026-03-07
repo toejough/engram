@@ -26,12 +26,25 @@ fi
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
+# UC-14: Restore session context
+CONTEXT_FILE="${ENGRAM_DATA}/session-context.md"
+SESSION_CONTEXT=""
+if [[ -f "$CONTEXT_FILE" ]]; then
+    # Extract summary (skip HTML comment on first line)
+    SESSION_CONTEXT=$(tail -n +3 "$CONTEXT_FILE")
+fi
+
 # Static guidance for mid-turn message capture (issue #54)
 MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
 
 if [[ -n "$SURFACE_OUTPUT" ]]; then
-    echo "$SURFACE_OUTPUT" | jq --arg note "$MIDTURN_NOTE" \
-        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note)}'
+    echo "$SURFACE_OUTPUT" | jq \
+        --arg note "$MIDTURN_NOTE" \
+        --arg ctx "$SESSION_CONTEXT" \
+        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end))}'
 else
-    jq -n --arg note "$MIDTURN_NOTE" '{additionalContext: $note}'
+    jq -n \
+        --arg note "$MIDTURN_NOTE" \
+        --arg ctx "$SESSION_CONTEXT" \
+        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end))}'
 fi

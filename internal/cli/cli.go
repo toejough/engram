@@ -13,8 +13,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"engram/internal/classify"
+	sessionctx "engram/internal/context"
 	"engram/internal/correct"
 	"engram/internal/creationlog"
 	"engram/internal/dedup"
@@ -117,6 +119,8 @@ func Run(
 		return runSurface(subArgs, stdout)
 	case "learn":
 		return runLearn(subArgs, stderr, stdin)
+	case "context-update":
+		return runContextUpdate(subArgs)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -286,14 +290,23 @@ func RunReview(args []string, stdout io.Writer) error {
 
 // unexported constants.
 const (
-	anthropicVersion  = "2023-06-01"
+	anthropicVersion           = "2023-06-01"
+	contextSummarizationPrompt = "Update this task-focused working summary. " +
+		"Focus on what's being worked on, decisions made, progress, and open questions. " +
+		"Not a dissertation — just what's relevant for resuming work. " +
+		"Do NOT include discovered constraints or patterns (those are captured as memories)."
 	evaluateMaxTokens = 1024
+	haikuModel        = "claude-haiku-4-5-20251001"
 	maxTranscriptTok  = 2000
 	minArgs           = 2
 )
 
 // unexported variables.
 var (
+	errContextUpdateMissingFlags = errors.New(
+		"context-update: --transcript-path, --session-id," +
+			" and --data-dir required",
+	)
 	errCorrectMissingFlags = errors.New(
 		"correct: --message and --data-dir required",
 	)
@@ -307,7 +320,8 @@ var (
 	)
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
-		"usage: engram <correct|surface|learn|evaluate|review> [flags]",
+		"usage: engram <correct|surface|learn|evaluate" +
+			"|review|context-update> [flags]",
 	)
 )
 
@@ -360,6 +374,60 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	}
 
 	return result, nil
+}
+
+// haikuClientAdapter implements sessionctx.HaikuClient using the Anthropic API.
+type haikuClientAdapter struct {
+	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+}
+
+func (h *haikuClientAdapter) Summarize(
+	ctx context.Context,
+	previousSummary, delta string,
+) (string, error) {
+	userPrompt := delta
+	if previousSummary != "" {
+		userPrompt = "Previous summary:\n" + previousSummary +
+			"\n\nNew transcript:\n" + delta
+	}
+
+	return h.caller(ctx, haikuModel, contextSummarizationPrompt, userPrompt)
+}
+
+type osDirCreator struct{}
+
+func (d *osDirCreator) MkdirAll(path string) error {
+	const dirPerms = 0o755
+
+	return os.MkdirAll(path, dirPerms) //nolint:wrapcheck // thin I/O adapter
+}
+
+// I/O adapters for context package DI interfaces.
+
+type osFileReader struct{}
+
+func (r *osFileReader) Read(path string) ([]byte, error) {
+	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
+}
+
+type osFileWriter struct{}
+
+func (w *osFileWriter) Write(path string, content []byte) error {
+	const filePerms = 0o644
+
+	return os.WriteFile(path, content, filePerms) //nolint:wrapcheck // thin I/O adapter
+}
+
+type osRenamer struct{}
+
+func (r *osRenamer) Rename(oldpath, newpath string) error {
+	return os.Rename(oldpath, newpath) //nolint:wrapcheck // thin I/O adapter
+}
+
+type realTimestamper struct{}
+
+func (t *realTimestamper) Now() time.Time {
+	return time.Now()
 }
 
 // buildTrackingMap retrieves memories and builds a path→TrackingData map.
@@ -415,9 +483,7 @@ func callAnthropicAPI(
 	req.Header.Set("Anthropic-Beta", "oauth-2025-04-20")
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := client.Do(
-		req,
-	)
+	resp, err := client.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("calling Anthropic API: %w", err)
 	}
@@ -480,6 +546,63 @@ func makeAnthropicCaller(
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
 	}
+}
+
+func runContextUpdate(args []string) error {
+	fs := flag.NewFlagSet("context-update", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	transcriptPath := fs.String(
+		"transcript-path", "", "path to session transcript",
+	)
+	sessionID := fs.String("session-id", "", "session identifier")
+	dataDir := fs.String("data-dir", "", "path to data directory")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("context-update: %w", parseErr)
+	}
+
+	if *transcriptPath == "" || *sessionID == "" || *dataDir == "" {
+		return errContextUpdateMissingFlags
+	}
+
+	contextFilePath := filepath.Join(
+		*dataDir, "session-context.md",
+	)
+
+	reader := &osFileReader{}
+	writer := &osFileWriter{}
+	dirCreator := &osDirCreator{}
+	renamer := &osRenamer{}
+	clock := &realTimestamper{}
+
+	delta := sessionctx.NewDeltaReader(reader)
+
+	token := os.Getenv("ENGRAM_API_TOKEN")
+
+	var haikuClient sessionctx.HaikuClient
+	if token != "" {
+		haikuClient = &haikuClientAdapter{
+			caller: makeAnthropicCaller(token),
+		}
+	}
+
+	summarizer := sessionctx.NewSummarizer(haikuClient)
+	file := sessionctx.NewSessionFile(
+		reader, writer, dirCreator, renamer, clock,
+	)
+
+	orchestrator := sessionctx.NewOrchestrator(
+		delta, summarizer, file,
+	)
+
+	return orchestrator.Update(
+		context.Background(),
+		*transcriptPath,
+		*sessionID,
+		contextFilePath,
+	)
 }
 
 func runCorrect(
