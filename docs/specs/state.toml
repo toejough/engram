@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34", "REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -391,6 +391,14 @@ history = "Issue #47: CLI evaluate subcommand (engram evaluate --data-dir), RunL
 
 # Cursor
 
+[tree.L2E]
+layer = "L2"
+name = "Memory Effectiveness Review Requirements"
+parents = ["L1E"]
+items = ["REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17"]
+status = "complete"
+history = "5 REQs + 2 DES items derived from UC-6. Matrix classification (REQ-35), threshold flagging (REQ-36), effectiveness annotations (REQ-37/DES-17), review CLI (REQ-38/DES-16), no-data behavior (REQ-39)."
+
 [tree.L1E]
 layer = "L1"
 name = "Memory Effectiveness Review"
@@ -399,7 +407,7 @@ status = "complete"
 history = "Issue #39. Rewritten from skill-specific to general memory effectiveness review. 2x2 matrix (working/leech/hidden gem/noise), threshold flagging (utility < 0.4 after 5+ evals), effectiveness annotations during surfacing, engram review CLI. Foundation for #40-43."
 
 [cursor]
-node = "L1E"
+node = "L2E"
 mode = "green"
-next_action = "L1E GREEN complete. REFACTOR L1 layer, then REGROUP, then DESCEND to L2."
-context_files = ["docs/specs/use-cases.md", "docs/specs/state.toml"]
+next_action = "L2E GREEN complete. REFACTOR L2, REGROUP, DESCEND to L3."
+context_files = ["docs/specs/requirements.md", "docs/specs/state.toml"]

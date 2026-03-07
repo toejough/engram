@@ -699,3 +699,135 @@ If both PreCompact and SessionEnd fire in the same session, the second evaluate 
 - Traces to: UC-15 (idempotency, same pattern as REQ-19)
 - AC: (1) First evaluate reads and clears surfacing log. (2) Second evaluate finds empty/missing log → no evaluation produced. (3) No duplicate entries in evaluation logs.
 - Verification: deterministic (file state check)
+
+---
+
+# UC-6: Memory Effectiveness Review
+
+---
+
+## REQ-35: Matrix classification
+
+Classify each memory into one of four quadrants by combining two signals:
+
+1. **Surfacing frequency:** Read `surfaced_count` from each memory's TOML tracking fields. Compute the median across all memories. Above median = "often surfaced", at or below median = "rarely surfaced".
+2. **Follow-through rate:** Read `EffectivenessScore` from evaluation aggregation. >= 50% = "high follow-through", < 50% = "low follow-through".
+
+Resulting quadrants:
+
+|  | Often Surfaced | Rarely Surfaced |
+|--|---|---|
+| **High Follow-Through** | Working | Hidden Gem |
+| **Low Follow-Through** | Leech | Noise |
+
+Memories with fewer than 5 total evaluations (followed + contradicted + ignored) are classified as **insufficient data** — excluded from quadrant assignment and threshold flagging.
+
+- Traces to: UC-6 (2x2 matrix classification)
+- AC: (1) Median computed across all memories with tracking data. (2) Four quadrants assigned correctly. (3) Memories with <5 evaluations classified as insufficient data. (4) Memories with zero surfacing data classified as insufficient data.
+- Verification: deterministic (arithmetic on known inputs)
+
+---
+
+## REQ-36: Threshold flagging
+
+Flag a memory for action when both conditions are met:
+1. It has 5 or more total evaluations (followed + contradicted + ignored)
+2. Its effectiveness score is below 40%
+
+Flagged memories include their quadrant assignment (leech or noise — working and hidden gem memories cannot have <40% effectiveness by definition since the high follow-through threshold is 50%).
+
+- Traces to: UC-6 (threshold flagging), CLAUDE.md ("Pruned when utility < 0.4 after 5+ retrievals")
+- AC: (1) Only memories with 5+ evaluations can be flagged. (2) Threshold is strictly less than 40%. (3) Flagged memories include quadrant. (4) Memories at exactly 40% are not flagged.
+- Verification: deterministic (threshold arithmetic)
+
+---
+
+## REQ-37: Effectiveness annotations during surfacing
+
+When UC-2 surfaces memories (any mode: session-start, prompt, tool), annotate each surfaced memory with effectiveness context if evaluation data exists:
+
+Format: `(surfaced N times, followed M%)`
+
+Where N is the total evaluation count (followed + contradicted + ignored) and M is the effectiveness score rounded to the nearest integer.
+
+Computed on-the-fly by reading evaluation log files. Fire-and-forget: if reading evaluation data fails, omit the annotation silently (ARCH-6 exit-0 contract). Memories with no evaluation history show no annotation.
+
+- Traces to: UC-6 (effectiveness annotations), UC-2 (surfacing output)
+- AC: (1) Annotation appears after memory title in surfacing output. (2) N = total evaluations, M = effectiveness score %. (3) Missing/empty evaluations → no annotation (not "(surfaced 0 times, followed 0%)"). (4) Read failure → annotation omitted, surfacing succeeds.
+- Verification: deterministic (format check + error path)
+
+---
+
+## DES-17: Annotation format
+
+Effectiveness annotations are appended to the memory identifier line in surfacing output. Example:
+
+```
+  - use-targ-not-go-test (matched: test, go) (surfaced 8 times, followed 75%)
+  - always-use-fish-shell (matched: shell) (surfaced 3 times, followed 100%)
+  - port-is-3001 (matched: port)
+```
+
+The third memory has no evaluation data, so no annotation appears. Annotation is parenthesized and follows the keyword match parenthetical.
+
+- Traces to: REQ-37 (effectiveness annotations), UC-2 (surfacing output format)
+
+---
+
+## REQ-38: `engram review` CLI command
+
+New subcommand `engram review --data-dir <path>` that reads memory tracking data and evaluation logs, then outputs the effectiveness matrix.
+
+Output sections (in order):
+1. **Summary line:** Total memories, total with sufficient data, total flagged.
+2. **Per-quadrant table:** Count of memories in each quadrant.
+3. **Flagged memories:** Name, quadrant, surfaced count, effectiveness score, evaluation count. Sorted by effectiveness score ascending (worst first).
+4. **Insufficient-data list:** Name, surfaced count, evaluation count. Only shown if such memories exist.
+
+Exit 0 always. `--data-dir` is required.
+
+- Traces to: UC-6 (`engram review` CLI)
+- AC: (1) All four sections present when data exists. (2) Flagged sorted by effectiveness ascending. (3) Missing `--data-dir` → usage error, exit 0. (4) Insufficient-data section omitted when all memories have 5+ evaluations.
+- Verification: deterministic (output format check)
+
+---
+
+## DES-16: Review output format
+
+Human-readable text output for `engram review`:
+
+```
+[engram] Memory Effectiveness Review
+  Total: 25 memories, 18 with sufficient data, 3 flagged
+
+  Quadrant Summary:
+    Working:    8  (often surfaced, high follow-through)
+    Hidden Gem: 4  (rarely surfaced, high follow-through)
+    Leech:      2  (often surfaced, low follow-through)
+    Noise:      4  (rarely surfaced, low follow-through)
+
+  Flagged for action (effectiveness < 40%, 5+ evaluations):
+    eye-mouth-caps-topology    Leech    surfaced: 12  effectiveness: 17%  evaluations: 6
+    medial-axis-constraints    Noise    surfaced: 2   effectiveness: 25%  evaluations: 8
+    junction-sector-coverage   Noise    surfaced: 1   effectiveness: 33%  evaluations: 9
+
+  Insufficient data (< 5 evaluations):
+    new-memory-recent          surfaced: 3  evaluations: 1
+    another-new-memory         surfaced: 0  evaluations: 0
+```
+
+No evaluation data at all → single line: `[engram] No evaluation data found.`
+
+- Traces to: REQ-38 (`engram review` output)
+
+---
+
+## REQ-39: No-data behavior
+
+When the evaluation directory is missing or contains zero `.jsonl` files, `engram review` outputs `[engram] No evaluation data found.` and exits 0. No quadrant classification attempted.
+
+When tracking data exists but evaluation data does not, all memories are classified as insufficient data.
+
+- Traces to: UC-6 (no graceful degradation)
+- AC: (1) Missing eval dir → no-data message, exit 0. (2) Empty eval dir → no-data message, exit 0. (3) Tracking data without eval data → all insufficient. (4) No crash or panic on missing data.
+- Verification: deterministic (file absence check)
