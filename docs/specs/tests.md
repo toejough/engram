@@ -1381,6 +1381,226 @@ All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
 
 ---
 
+## Session Continuity Components (UC-14: ARCH-28 through ARCH-34)
+
+### T-134: TranscriptDeltaReader reads from offset 0
+
+- **Given** a transcript JSONL file with 10 lines
+- **When** TranscriptDeltaReader.Read is called with offset 0
+- **Then** all 10 lines are returned and new offset equals file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (file I/O via DI injection)
+
+### T-135: TranscriptDeltaReader reads from mid-file offset
+
+- **Given** a transcript JSONL file with 10 lines, each 100 bytes
+- **When** TranscriptDeltaReader.Read is called with offset 500 (byte 5, line 5)
+- **Then** lines 6-10 are returned and new offset equals file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (byte offset calculation)
+
+### T-136: TranscriptDeltaReader resets to 0 when file is shorter than offset
+
+- **Given** a transcript file is 1000 bytes and stored offset is 2000
+- **When** TranscriptDeltaReader.Read is called with offset 2000
+- **Then** entire file (1000 bytes) is returned and new offset is file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (watermark reset on rotation)
+
+### T-137: TranscriptDeltaReader returns empty delta for empty file
+
+- **Given** a transcript file is empty
+- **When** TranscriptDeltaReader.Read is called
+- **Then** empty line array is returned and new offset is 0
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based
+
+### T-138: ContentStripper removes tool result blocks
+
+- **Given** JSONL lines with toolResult role blocks
+- **When** ContentStripper.Strip is called
+- **Then** tool result blocks are omitted from output
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based (role-based filtering)
+
+### T-139: ContentStripper replaces base64 strings
+
+- **Given** JSONL lines with base64-encoded strings >100 chars
+- **When** ContentStripper.Strip is called
+- **Then** base64 strings are replaced with `[base64 removed]`
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** property-based (generate base64 strings, verify replacement)
+
+### T-140: ContentStripper truncates oversized content blocks
+
+- **Given** JSONL lines with content blocks >2000 characters
+- **When** ContentStripper.Strip is called
+- **Then** oversized blocks are truncated with `[truncated]` suffix
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based (size threshold validation)
+
+### T-141: ContentStripper preserves user messages
+
+- **Given** JSONL lines with role=user messages
+- **When** ContentStripper.Strip is called
+- **Then** user messages are preserved verbatim
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+
+### T-142: ContentStripper preserves assistant text
+
+- **Given** JSONL lines with role=assistant text messages
+- **When** ContentStripper.Strip is called
+- **Then** assistant text messages are preserved verbatim
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+
+### T-143: ContentStripper preserves tool names, removes tool results
+
+- **Given** JSONL lines with toolUse (with name/command) and toolResult blocks
+- **When** ContentStripper.Strip is called
+- **Then** tool names and commands are preserved, tool results are omitted
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+
+### T-144: ContextSummarizer returns previous summary on empty delta
+
+- **Given** a previous summary "Current task: foo" and empty stripped delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** previous summary is returned unchanged (no API call)
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+
+### T-145: ContextSummarizer updates summary on non-empty delta
+
+- **Given** a previous summary and a non-empty stripped delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** HaikuClient is called with combined context and updated summary is returned
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+
+### T-146: ContextSummarizer creates new summary from delta without previous
+
+- **Given** an empty previous summary and a non-empty delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** HaikuClient is called with delta only and new summary is returned
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+
+### T-147: ContextSummarizer skips API call when token is empty
+
+- **Given** an empty API token and a non-empty delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** no API call is made and previous summary is returned unchanged
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based
+
+### T-148: ContextSummarizer returns previous summary on API error
+
+- **Given** a previous summary and a mocked HaikuClient that returns error
+- **When** ContextSummarizer.Summarize is called
+- **Then** previous summary is returned unchanged (error is silent)
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+
+### T-149: SessionContextFile parses HTML metadata
+
+- **Given** a context file with HTML comment: `<!-- engram session context | updated: 2026-03-07T00:00:00Z | offset: 1000 | session: abc123 -->`
+- **When** SessionContextFile.Read is called
+- **Then** metadata is parsed into (offset: 1000, sessionID: "abc123")
+- **Traces to:** ARCH-31, REQ-42
+- **Type:** example-based (string parsing)
+
+### T-150: SessionContextFile extracts markdown summary
+
+- **Given** a context file with HTML comment on first line, blank line, then markdown summary
+- **When** SessionContextFile.Read is called
+- **Then** markdown summary is returned (HTML comment excluded)
+- **Traces to:** ARCH-31, REQ-45
+- **Type:** example-based
+
+### T-151: SessionContextFile writes atomically
+
+- **Given** a SessionContext struct and a target file path
+- **When** SessionContextFile.Write is called
+- **Then** file is written atomically (via temp file + rename) and `.claude/engram/` directory is created if missing
+- **Traces to:** ARCH-31, REQ-44
+- **Type:** example-based (file I/O via DI injection)
+
+### T-152: SessionContextFile creates directory if missing
+
+- **Given** `.claude/engram/` directory does not exist
+- **When** SessionContextFile.Write is called
+- **Then** directory is created with all required parent directories
+- **Traces to:** ARCH-31, REQ-44
+- **Type:** example-based
+
+### T-153: SessionContextFile returns empty on missing file
+
+- **Given** context file does not exist
+- **When** SessionContextFile.Read is called
+- **Then** ("", 0, "") is returned (empty summary, offset 0, empty session ID)
+- **Traces to:** ARCH-31, REQ-45
+- **Type:** example-based
+
+### T-154: ContextUpdateOrchestrator exits 0 on missing transcript file
+
+- **Given** --transcript-path pointing to non-existent file
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** exit code 0, no context file written
+- **Traces to:** ARCH-32, REQ-40
+- **Type:** example-based (fire-and-forget error handling)
+
+### T-155: ContextUpdateOrchestrator skips API call on empty delta
+
+- **Given** a transcript file with no new content (delta empty)
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** ContextSummarizer is not called, context file is not written, exit 0
+- **Traces to:** ARCH-32, REQ-41
+- **Type:** example-based
+
+### T-156: ContextUpdateOrchestrator writes file with updated watermark
+
+- **Given** a transcript file with new lines and existing context file with old offset
+- **When** ContextUpdateOrchestrator.Run is called with non-empty delta
+- **Then** context file is written with updated byte offset (watermark) in metadata
+- **Traces to:** ARCH-32, REQ-42, REQ-44
+- **Type:** example-based
+
+### T-157: ContextUpdateOrchestrator exits 0 on API error
+
+- **Given** a mocked ContextSummarizer that returns error
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** error is silent, context file is not written, exit 0
+- **Traces to:** ARCH-32, REQ-43
+- **Type:** example-based
+
+### T-158: Hook integration — UserPromptSubmit launches context-update in background
+
+- **Given** UserPromptSubmit hook is triggered
+- **When** hook script runs
+- **Then** `engram context-update` is spawned in background (trailing `&`) and correct/surface output is returned immediately (hook doesn't wait)
+- **Traces to:** ARCH-33, DES-18
+- **Type:** example-based (hook script execution)
+
+### T-159: Hook integration — PreCompact calls context-update synchronously
+
+- **Given** PreCompact hook is triggered
+- **When** hook script runs
+- **Then** `engram context-update` is called synchronously (no `&`) and waits for completion before returning
+- **Traces to:** ARCH-33, DES-19
+- **Type:** example-based (hook script execution)
+
+### T-160: Hook integration — SessionStart reads and injects context
+
+- **Given** context file exists at `.claude/engram/session-context.md` with summary "Task: foo"
+- **When** SessionStart hook runs
+- **Then** summary is read and injected into hook JSON output additionalContext field, labeled as session resumption context
+- **Traces to:** ARCH-33, DES-22, REQ-45
+- **Type:** example-based (hook script JSON generation)
+
+---
+
 ## L2 → Test Traceability (UC-6)
 
 | L2 Item | Test Coverage |
