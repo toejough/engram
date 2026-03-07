@@ -948,3 +948,91 @@ The SessionStart hook script reads `.claude/engram/session-context.md` (if it ex
 
 - Traces to: UC-14 (restore on SessionStart), REQ-45
 - AC: (1) Context file exists → summary appears in additionalContext. (2) No file → additionalContext contains only memory context (existing behavior). (3) Context is clearly labeled so the model knows it's a session resumption summary.
+
+---
+
+# UC-14 Architecture Layer (ARCH)
+
+---
+
+## ARCH-28: TranscriptDeltaReader component
+
+Reads transcript JSONL file from a given byte offset (watermark) to end-of-file, handling watermark reset when file is shorter than the stored offset (session boundary or file rotation).
+
+- Traces to: REQ-40 (transcript delta extraction)
+- Responsibilities: (1) Open transcript file at given path. (2) Seek to byte offset. (3) Read lines to EOF. (4) If file size < offset, reset to 0 and re-read entire file. (5) Return (raw lines, new byte offset after read).
+- Behavioral contract: Deterministic file I/O; no errors on missing file (return empty delta, offset 0 per ARCH-32 fire-and-forget).
+
+---
+
+## ARCH-29: ContentStripper component
+
+Removes low-value content from raw transcript JSONL lines and retains high-value content.
+
+- Traces to: REQ-41 (low-value content stripping)
+- Responsibilities: (1) Parse each JSONL line to extract role and content blocks. (2) Strip tool result content blocks (toolResult role). (3) Replace base64-encoded strings (>100 chars of `[A-Za-z0-9+/=]`) with `[base64 removed]`. (4) Truncate content blocks >2000 chars with `[truncated]`. (5) Retain user messages, assistant text messages, tool use names/commands, error messages.
+- Behavioral contract: Lossless on high-value content; destructive on low-value content. Output is valid JSONL or plain text for Haiku summarization.
+
+---
+
+## ARCH-30: ContextSummarizer component
+
+Calls Haiku API to produce an updated task-focused working summary from previous summary and stripped transcript delta.
+
+- Traces to: REQ-43 (context summarization via Haiku)
+- Responsibilities: (1) Accept previous summary (possibly empty string), stripped delta (possibly empty). (2) If delta empty, return previous summary unchanged. (3) If delta non-empty, call Haiku API with prompt and system message (mocked in tests). (4) Return Haiku response. (5) On API error, return previous summary unchanged. (6) On empty token, return previous summary unchanged.
+- Behavioral contract: Fire-and-forget (no errors thrown; degradation is silent return of previous state). Always returns a valid summary string (possibly empty).
+- DI injection: HaikuClient interface for API calls, Timestamper interface for logging/audit.
+
+---
+
+## ARCH-31: SessionContextFile data structure and I/O
+
+Encapsulates the context file format and read/write operations.
+
+- Traces to: REQ-42 (watermark tracking), REQ-44 (context file write), REQ-45 (context file read/restore), DES-20 (file format spec)
+- Data structure: SessionContext struct with fields: Timestamp (RFC3339), Offset (int64), SessionID (string), Summary (string).
+- File format: HTML comment line with pipe-delimited metadata, blank line, markdown summary.
+- Responsibilities: (1) Parse HTML comment to extract metadata. (2) Extract markdown summary (skip HTML comment). (3) Write context file atomically (temp + rename). (4) Create `.claude/engram/` directory if missing.
+- Behavioral contract: ReadSessionContext returns (summary, offset, sessionID); WriteSessionContext is atomic (no partial writes). Missing file on read returns ("", 0, ""). File overwrite is total (no merge).
+- DI injection: FileReader, FileWriter interfaces for testability.
+
+---
+
+## ARCH-32: ContextUpdateOrchestrator
+
+Orchestrates the full incremental context update pipeline.
+
+- Traces to: DES-21 (CLI context-update subcommand), REQ-40–REQ-44
+- Responsibilities: (1) Accept CLI flags: --transcript-path, --session-id, --data-dir. (2) Read watermark from context file (or 0 if missing). (3) Extract transcript delta from ARCH-28. (4) Check session ID mismatch: if current session ID ≠ stored session ID, reset offset to 0. (5) Strip content via ARCH-29. (6) If delta non-empty, summarize via ARCH-30. (7) Write updated context file via ARCH-31 with new offset. (8) Exit 0 always (fire-and-forget per ARCH-6).
+- Behavioral contract: No error output on missing transcript file, empty delta, or API error. All errors are silent (logged but not surfaced). Exit code always 0.
+- Entry point: CLI binary, invoked by UserPromptSubmit hook (background) and PreCompact hook (synchronous).
+
+---
+
+## ARCH-33: Hook integration wiring
+
+Specifies how context updates are triggered and how context is restored.
+
+- Traces to: DES-18 (UserPromptSubmit pipeline), DES-19 (PreCompact flush), DES-22 (SessionStart injection)
+- UserPromptSubmit hook: Spawn `engram context-update --transcript-path <path> --session-id <id> --data-dir <dir>` in background (trailing `&`). Return output from existing correct/surface calls immediately (don't wait).
+- PreCompact hook: Call `engram context-update` synchronously with same flags. Wait for completion (60s timeout available per hook config).
+- SessionStart hook: Read context file (if exists) via ARCH-31. Extract summary and inject as `additionalContext` in hook JSON output. Annotate clearly so the model knows this is a session resumption summary.
+- Behavioral contract: Hooks remain responsive; background calls don't block. SessionStart always succeeds (missing file → no injection, no error).
+
+---
+
+## ARCH-34: Dependency injection interfaces for testability
+
+Specifies interfaces for all external I/O to enable unit testing without mocks.
+
+- Traces to: ARCH-28 through ARCH-33 (all components use DI)
+- Interfaces:
+  - **FileReader:** Read(path string) (content []byte, err error)
+  - **FileWriter:** Write(path string, content []byte) error (atomic via temp + rename)
+  - **Timestamper:** Now() time.Time (for RFC3339 metadata)
+  - **HaikuClient:** Summarize(ctx context.Context, previousSummary, delta string) (string, error)
+- Contract: All business logic in internal/ uses these interfaces. Real implementations (os.*, http.*, time) wired only at edges (cmd/ for CLI, root-level for hook integration).
+- Testing: Mock implementations injected in imptest; real I/O tested sparingly in integration tests.
+
+---

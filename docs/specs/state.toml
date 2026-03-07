@@ -42,6 +42,13 @@ items = [
   { id = "ARCH-25", source = "derived" },
   { id = "ARCH-26", source = "derived" },
   { id = "ARCH-27", source = "derived" },
+  { id = "ARCH-28", source = "derived" },
+  { id = "ARCH-29", source = "derived" },
+  { id = "ARCH-30", source = "derived" },
+  { id = "ARCH-31", source = "derived" },
+  { id = "ARCH-32", source = "derived" },
+  { id = "ARCH-33", source = "derived" },
+  { id = "ARCH-34", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -455,8 +462,16 @@ items = ["REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "DES-18", "
 status = "complete"
 history = "6 REQs + 5 DES items derived from UC-14. Transcript delta extraction (REQ-40), content stripping (REQ-41), watermark tracking (REQ-42), Haiku summarization (REQ-43), context file write (REQ-44), context file read/restore (REQ-45), UserPromptSubmit pipeline (DES-18), PreCompact flush (DES-19), file format (DES-20), CLI context-update (DES-21), SessionStart injection (DES-22). REFACTOR verified REQ/DES alignment and UC coverage. REGROUP applied exercisability check: single group of 11 items independently exercisable via UserPromptSubmit hook and SessionStart restore."
 
+[tree.L3A]
+layer = "L3"
+name = "Session Continuity Architecture"
+parents = ["L2F"]
+items = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
+status = "in_progress"
+history = "7 ARCH items derived from REQ-40..45 and DES-18..22. TranscriptDeltaReader (ARCH-28), ContentStripper (ARCH-29), ContextSummarizer (ARCH-30), SessionContextFile I/O (ARCH-31), ContextUpdateOrchestrator (ARCH-32), Hook integration wiring (ARCH-33), DI interfaces for testability (ARCH-34). Converges incremental context update pipeline with component boundaries, data structures, behavioral contracts, and DI-everywhere principle."
+
 [cursor]
-node = "L2F"
-mode = "complete"
-next_action = "L2F complete. DESCEND: create L3A to derive ARCH items converging REQ-40..45 and DES-18..22."
+node = "L3A"
+mode = "in_progress"
+next_action = "L3A GREEN complete (7 items derived). REFACTOR L3 layer, REGROUP, COMMIT, DESCEND to L4."
 context_files = ["docs/specs/state.toml"]
