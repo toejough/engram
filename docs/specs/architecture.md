@@ -809,4 +809,108 @@ Implementation:
 | REQ-33 | ARCH-15 |
 | REQ-34 | ARCH-16 |
 
-All L2 items have ARCH coverage.
+---
+
+# UC-6: Memory Effectiveness Review
+
+---
+
+## ARCH-26: Matrix Classifier
+
+**Decision:** New `internal/review/` package with a pure classification function.
+
+**Interface:**
+
+```go
+// ClassifiedMemory holds a memory's quadrant assignment and stats.
+type ClassifiedMemory struct {
+    Name               string
+    Quadrant           Quadrant // Working, HiddenGem, Leech, Noise, InsufficientData
+    SurfacedCount      int
+    EffectivenessScore float64
+    EvaluationCount    int
+    Flagged            bool
+}
+
+// Quadrant represents a position in the 2x2 effectiveness matrix.
+type Quadrant string
+
+const (
+    Working          Quadrant = "Working"
+    HiddenGem        Quadrant = "Hidden Gem"
+    Leech            Quadrant = "Leech"
+    Noise            Quadrant = "Noise"
+    InsufficientData Quadrant = "Insufficient Data"
+)
+
+// Classify takes effectiveness stats and tracking data, returns classified memories.
+func Classify(
+    effectiveness map[string]effectiveness.Stat,
+    tracking map[string]TrackingData,
+) []ClassifiedMemory
+```
+
+**Algorithm:**
+1. Merge effectiveness + tracking maps by memory path (union of keys).
+2. Compute median surfaced count across all memories with tracking data.
+3. For each memory:
+   - Total evaluations = Followed + Contradicted + Ignored
+   - If total < 5 → InsufficientData, Flagged = false
+   - Else: assign quadrant by (surfaced > median) × (effectiveness >= 50%)
+   - Flagged = total >= 5 AND effectiveness < 40%
+4. Sort by: Flagged desc, then EffectivenessScore asc.
+
+**DI:** Pure function. No I/O. Receives pre-aggregated data from callers.
+
+**Traces to:** REQ-35 (matrix classification), REQ-36 (threshold flagging)
+
+---
+
+## ARCH-27: Review CLI Wiring
+
+**Decision:** New `review` subcommand in `internal/cli/cli.go`, following existing subcommand pattern.
+
+**Wiring:**
+
+```
+engram review --data-dir <path>
+    │
+    ├── effectiveness.New(evalDir).Aggregate()  → map[string]Stat
+    ├── retrieve.New(memDir).All()              → []memory.Stored (for tracking fields)
+    │
+    ├── review.Classify(stats, tracking)        → []ClassifiedMemory
+    └── review.Render(classified, stdout)       → human-readable output per DES-16
+```
+
+**New dependencies:**
+- `internal/review/` — Classify + Render functions
+- Reuses existing `internal/effectiveness/` and `internal/retrieve/`
+
+**retrieve.Retriever extension:** Need to expose tracking fields (SurfacedCount) from retrieved memories. The `memory.Stored` type already has `SurfacedCount`, `LastSurfaced`, `SurfacingContexts` fields (from issue #46, ARCH-20). The review CLI reads these via the existing retriever.
+
+**DI table (new entries):**
+
+| Interface/Function | Production impl | Test impl |
+|---|---|---|
+| `review.Classify` | Pure function | Direct call with test data |
+| `review.Render` | Pure function → io.Writer | Write to bytes.Buffer |
+| `effectiveness.Computer` | File-reading aggregator | Injected readDir/readFile |
+| `retrieve.Retriever` | File-reading retriever | Injected readDir/readFile |
+
+**Traces to:** REQ-38 (review CLI), REQ-39 (no-data behavior), DES-16 (output format)
+
+---
+
+## L2 → ARCH Traceability (UC-6)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-35 | ARCH-26 |
+| REQ-36 | ARCH-26 |
+| REQ-37 | ARCH-24 (existing — effectiveness annotations already wired) |
+| DES-17 | ARCH-24 (existing — formatEffectivenessAnnotation already implemented) |
+| REQ-38 | ARCH-27 |
+| DES-16 | ARCH-27 |
+| REQ-39 | ARCH-27 |
+
+All UC-6 L2 items have ARCH coverage.

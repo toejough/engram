@@ -40,6 +40,8 @@ items = [
   { id = "ARCH-23", source = "derived" },
   { id = "ARCH-24", source = "derived" },
   { id = "ARCH-25", source = "derived" },
+  { id = "ARCH-26", source = "derived" },
+  { id = "ARCH-27", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -391,6 +393,14 @@ history = "Issue #47: CLI evaluate subcommand (engram evaluate --data-dir), RunL
 
 # Cursor
 
+[tree.L3E]
+layer = "L3"
+name = "Memory Effectiveness Review Architecture"
+parents = ["L2E"]
+items = ["ARCH-26", "ARCH-27"]
+status = "complete"
+history = "2 ARCH decisions derived from UC-6. Matrix classifier pure function in internal/review/ (ARCH-26), review CLI wiring reusing existing effectiveness + retrieve packages (ARCH-27). REQ-37/DES-17 already satisfied by existing ARCH-24 effectiveness annotations."
+
 [tree.L2E]
 layer = "L2"
 name = "Memory Effectiveness Review Requirements"
@@ -407,7 +417,7 @@ status = "complete"
 history = "Issue #39. Rewritten from skill-specific to general memory effectiveness review. 2x2 matrix (working/leech/hidden gem/noise), threshold flagging (utility < 0.4 after 5+ evals), effectiveness annotations during surfacing, engram review CLI. Foundation for #40-43."
 
 [cursor]
-node = "L2E"
+node = "L3E"
 mode = "green"
-next_action = "L2E GREEN complete. REFACTOR L2, REGROUP, DESCEND to L3."
-context_files = ["docs/specs/requirements.md", "docs/specs/state.toml"]
+next_action = "L3E GREEN complete. REFACTOR L3, REGROUP, DESCEND to L4."
+context_files = ["docs/specs/architecture.md", "docs/specs/state.toml"]
