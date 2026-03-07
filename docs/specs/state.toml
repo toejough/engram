@@ -452,11 +452,11 @@ layer = "L2"
 name = "Session Continuity Requirements"
 parents = ["L1F"]
 items = ["REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "DES-18", "DES-19", "DES-20", "DES-21", "DES-22"]
-status = "in_progress"
-history = "6 REQs + 5 DES items derived from UC-14. Transcript delta extraction (REQ-40), content stripping (REQ-41), watermark tracking (REQ-42), Haiku summarization (REQ-43), context file write (REQ-44), context file read/restore (REQ-45), UserPromptSubmit pipeline (DES-18), PreCompact flush (DES-19), file format (DES-20), CLI context-update (DES-21), SessionStart injection (DES-22)."
+status = "complete"
+history = "6 REQs + 5 DES items derived from UC-14. Transcript delta extraction (REQ-40), content stripping (REQ-41), watermark tracking (REQ-42), Haiku summarization (REQ-43), context file write (REQ-44), context file read/restore (REQ-45), UserPromptSubmit pipeline (DES-18), PreCompact flush (DES-19), file format (DES-20), CLI context-update (DES-21), SessionStart injection (DES-22). REFACTOR verified REQ/DES alignment and UC coverage. REGROUP applied exercisability check: single group of 11 items independently exercisable via UserPromptSubmit hook and SessionStart restore."
 
 [cursor]
 node = "L2F"
-mode = "in_progress"
-next_action = "L2F GREEN complete (11 items derived). REFACTOR L2 layer, REGROUP, COMMIT, DESCEND to L3."
+mode = "complete"
+next_action = "L2F complete. DESCEND: create L3A to derive ARCH items converging REQ-40..45 and DES-18..22."
 context_files = ["docs/specs/state.toml"]
