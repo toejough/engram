@@ -30,9 +30,17 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
 
-# Read transcript from stdin JSON and pipe to engram learn
+# Read transcript from file path provided in stdin JSON
 STDIN_JSON="$(cat)"
-TRANSCRIPT="$(echo "$STDIN_JSON" | jq -r '.transcript // .conversation // empty')"
+TRANSCRIPT_PATH="$(echo "$STDIN_JSON" | jq -r '.transcript_path // empty')"
+TRANSCRIPT=""
+if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
+    TRANSCRIPT="$(cat "$TRANSCRIPT_PATH")"
+fi
+
+if [[ -z "$TRANSCRIPT" ]]; then
+    echo "[engram] Warning: no transcript available — learn/evaluate skipped" >&2
+fi
 
 # UC-1: Extract learnings from session transcript
 if [[ -n "$TRANSCRIPT" ]]; then

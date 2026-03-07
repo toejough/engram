@@ -305,6 +305,11 @@ func TestT67_PreCompactHookReadsTranscript(t *testing.T) {
 	// Must read stdin JSON for transcript
 	g.Expect(script).To(ContainSubstring("jq"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	// Must use transcript_path, not inline transcript content
+	g.Expect(script).To(ContainSubstring(".transcript_path"))
+	g.Expect(script).NotTo(ContainSubstring(".transcript //"))
+	// Must warn when no transcript available
+	g.Expect(script).To(ContainSubstring("no transcript available"))
 	// Must retrieve OAuth token (DES-3 pattern)
 	g.Expect(script).To(ContainSubstring("uname"))
 	g.Expect(script).To(ContainSubstring("Darwin"))
@@ -338,6 +343,11 @@ func TestT68_SessionEndHookReadsTranscript(t *testing.T) {
 	// Must read stdin JSON for transcript
 	g.Expect(script).To(ContainSubstring("jq"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	// Must use transcript_path, not inline transcript content
+	g.Expect(script).To(ContainSubstring(".transcript_path"))
+	g.Expect(script).NotTo(ContainSubstring(".transcript //"))
+	// Must warn when no transcript available
+	g.Expect(script).To(ContainSubstring("no transcript available"))
 	// Must retrieve OAuth token (DES-3 pattern)
 	g.Expect(script).To(ContainSubstring("uname"))
 	g.Expect(script).To(ContainSubstring("Darwin"))
