@@ -25,6 +25,13 @@ fi
 
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
+
+# Static guidance for mid-turn message capture (issue #54)
+MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
+
 if [[ -n "$SURFACE_OUTPUT" ]]; then
-    echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, additionalContext: .context}'
+    echo "$SURFACE_OUTPUT" | jq --arg note "$MIDTURN_NOTE" \
+        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note)}'
+else
+    jq -n --arg note "$MIDTURN_NOTE" '{additionalContext: $note}'
 fi
