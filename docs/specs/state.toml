@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34", "REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34", "REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17", "REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "DES-18", "DES-19", "DES-20", "DES-21", "DES-22"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -444,11 +444,19 @@ history = "Issue #39. Rewritten from skill-specific to general memory effectiven
 layer = "L1"
 name = "Structured Session Continuity"
 items = ["UC-14"]
-status = "in_progress"
+status = "complete"
 history = "Issue #45. Incremental context summarization piggybacked on existing UserPromptSubmit Haiku calls. Transcript delta stripping, watermark tracking, automatic SessionStart restore."
 
+[tree.L2F]
+layer = "L2"
+name = "Session Continuity Requirements"
+parents = ["L1F"]
+items = ["REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "DES-18", "DES-19", "DES-20", "DES-21", "DES-22"]
+status = "in_progress"
+history = "6 REQs + 5 DES items derived from UC-14. Transcript delta extraction (REQ-40), content stripping (REQ-41), watermark tracking (REQ-42), Haiku summarization (REQ-43), context file write (REQ-44), context file read/restore (REQ-45), UserPromptSubmit pipeline (DES-18), PreCompact flush (DES-19), file format (DES-20), CLI context-update (DES-21), SessionStart injection (DES-22)."
+
 [cursor]
-node = "L1F"
+node = "L2F"
 mode = "in_progress"
-next_action = "L1F RED→GREEN complete (UC-14 written). REFACTOR: check whole L1 layer for consistency, then REGROUP, COMMIT, DESCEND to L2."
+next_action = "L2F GREEN complete (11 items derived). REFACTOR L2 layer, REGROUP, COMMIT, DESCEND to L3."
 context_files = ["docs/specs/state.toml"]

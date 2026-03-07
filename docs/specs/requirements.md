@@ -831,3 +831,120 @@ When tracking data exists but evaluation data does not, all memories are classif
 - Traces to: UC-6 (no graceful degradation)
 - AC: (1) Missing eval dir → no-data message, exit 0. (2) Empty eval dir → no-data message, exit 0. (3) Tracking data without eval data → all insufficient. (4) No crash or panic on missing data.
 - Verification: deterministic (file absence check)
+
+---
+
+# UC-14: Structured Session Continuity
+
+---
+
+## REQ-40: Transcript delta extraction
+
+Read the transcript JSONL file from a given byte offset (watermark) to end-of-file. Return the raw lines from the offset onward and the new byte offset (file size after read). If the file is shorter than the watermark (new session, file rotated), reset to offset 0 and read the entire file.
+
+- Traces to: UC-14 (incremental context update step 1)
+- AC: (1) Reading from offset 0 returns full file. (2) Reading from mid-file offset returns only new lines. (3) File shorter than watermark resets to 0. (4) Empty file returns empty delta and offset 0.
+- Verification: deterministic (byte offset math)
+
+---
+
+## REQ-41: Low-value content stripping
+
+Given raw transcript JSONL lines, strip low-value content and retain high-value content. Strip: tool result content blocks, base64-encoded data, content blocks longer than 2000 characters. Retain: user messages (role=user), assistant text messages (role=assistant), tool use names and commands (not full results), error messages.
+
+- Traces to: UC-14 (incremental context update step 2)
+- AC: (1) Tool result blocks are removed. (2) Base64 strings (>100 chars of `[A-Za-z0-9+/=]`) are replaced with `[base64 removed]`. (3) Content blocks >2000 chars are truncated with `[truncated]`. (4) User messages preserved verbatim. (5) Assistant text preserved. (6) Tool names preserved, tool results stripped.
+- Verification: deterministic (string processing)
+
+---
+
+## REQ-42: Watermark tracking
+
+The byte offset watermark and session ID are persisted in the context file's HTML comment metadata. On each update, the new offset is written. On SessionStart, if the session ID differs from the stored one, the watermark resets to 0 (new session = new transcript file).
+
+- Traces to: UC-14 (incremental context update step 1, context file format)
+- AC: (1) Metadata is parseable from HTML comment. (2) Offset updates after each write. (3) Session ID mismatch resets offset to 0. (4) Missing file = offset 0, empty session ID.
+- Verification: deterministic (metadata parsing)
+
+---
+
+## REQ-43: Context summarization via Haiku
+
+Given a previous summary (possibly empty) and a stripped transcript delta, call claude-haiku-4-5-20251001 to produce an updated task-focused working summary. The prompt instructs: focus on what's being worked on, decisions made, progress, and open questions. No constraints/patterns (those are memories). If the API token is empty, skip silently and return the previous summary unchanged. If the API call fails, return the previous summary unchanged (no degraded output).
+
+- Traces to: UC-14 (incremental context update step 3, no graceful degradation)
+- AC: (1) Empty previous summary + delta → new summary. (2) Existing summary + delta → updated summary. (3) Empty delta → no API call, return previous summary. (4) Empty token → no API call, return previous summary. (5) API error → return previous summary.
+- Verification: API call requires mock in tests
+
+---
+
+## REQ-44: Context file write
+
+Write the session context to `.claude/engram/session-context.md` atomically (temp + rename). Format: HTML comment with metadata (updated timestamp, byte offset, session ID) followed by the summary as plain markdown. Create `.claude/engram/` directory if missing.
+
+- Traces to: UC-14 (context file format, file location)
+- AC: (1) File contains HTML comment header with metadata fields. (2) Summary follows as plain markdown. (3) Directory created if missing. (4) Atomic write (temp file + rename). (5) Existing file overwritten completely.
+- Verification: deterministic (file format check)
+
+---
+
+## REQ-45: Context file read and restore
+
+On SessionStart, read `.claude/engram/session-context.md` if it exists. Extract the markdown summary (skip HTML comment). Return the summary for injection as `additionalContext`. Missing file returns empty string (no error). Always load regardless of file age.
+
+- Traces to: UC-14 (restore on SessionStart)
+- AC: (1) Existing file → summary extracted. (2) Missing file → empty string, no error. (3) HTML comment metadata is not included in the returned summary. (4) File age is irrelevant — always loaded.
+- Verification: deterministic (file read + parse)
+
+---
+
+## DES-18: UserPromptSubmit context-update pipeline
+
+The UserPromptSubmit hook script launches `engram context-update` in parallel (background) with the existing `engram correct` + `engram surface` calls. The context-update call receives `--transcript-path`, `--session-id`, and `--data-dir` flags. It runs concurrently — the hook does not wait for it before returning output from correct/surface.
+
+- Traces to: UC-14 (piggybacked on UserPromptSubmit)
+- AC: (1) context-update runs in background (trailing `&`). (2) Hook still returns correct/surface output promptly. (3) context-update receives transcript path and session ID from hook JSON stdin.
+
+---
+
+## DES-19: PreCompact final flush
+
+The PreCompact hook script calls `engram context-update` with the same flags as UserPromptSubmit. This is a synchronous call (not background) since PreCompact has a 60s timeout and this is the last chance before compaction.
+
+- Traces to: UC-14 (final flush)
+- AC: (1) context-update called synchronously. (2) Same pipeline as UserPromptSubmit (delta + strip + summarize + write).
+
+---
+
+## DES-20: Context file format specification
+
+The context file at `.claude/engram/session-context.md` has this format:
+
+```markdown
+<!-- engram session context | updated: <RFC3339> | offset: <int> | session: <id> -->
+
+<summary markdown>
+```
+
+The HTML comment is a single line. Metadata fields are pipe-delimited key-value pairs. The summary follows after a blank line.
+
+- Traces to: UC-14 (context file format)
+- AC: (1) First line is HTML comment with required fields. (2) Fields parseable by simple string splitting. (3) Summary is valid markdown. (4) Human-readable when opened in any text editor.
+
+---
+
+## DES-21: CLI context-update subcommand
+
+New `engram context-update` subcommand. Flags: `--transcript-path` (required), `--session-id` (required), `--data-dir` (required). Pipeline: read watermark from context file → extract delta from transcript → strip low-value content → if delta non-empty, summarize via Haiku → write context file with updated watermark. Exit 0 always (fire-and-forget per ARCH-6).
+
+- Traces to: UC-14 (CLI wiring), REQ-40 through REQ-44
+- AC: (1) Missing transcript file → exit 0, no context file written. (2) Empty delta → exit 0, context file unchanged. (3) Successful update → context file written with new watermark. (4) API error → exit 0, context file unchanged.
+
+---
+
+## DES-22: SessionStart context injection
+
+The SessionStart hook script reads `.claude/engram/session-context.md` (if it exists) and includes the summary in the `additionalContext` field of its JSON output, alongside the existing memory surfacing context. If the file doesn't exist, no context is injected (no error).
+
+- Traces to: UC-14 (restore on SessionStart), REQ-45
+- AC: (1) Context file exists → summary appears in additionalContext. (2) No file → additionalContext contains only memory context (existing behavior). (3) Context is clearly labeled so the model knows it's a session resumption summary.
