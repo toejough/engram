@@ -467,11 +467,11 @@ layer = "L3"
 name = "Session Continuity Architecture"
 parents = ["L2F"]
 items = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
-status = "in_progress"
-history = "7 ARCH items derived from REQ-40..45 and DES-18..22. TranscriptDeltaReader (ARCH-28), ContentStripper (ARCH-29), ContextSummarizer (ARCH-30), SessionContextFile I/O (ARCH-31), ContextUpdateOrchestrator (ARCH-32), Hook integration wiring (ARCH-33), DI interfaces for testability (ARCH-34). Converges incremental context update pipeline with component boundaries, data structures, behavioral contracts, and DI-everywhere principle."
+status = "complete"
+history = "7 ARCH items derived from REQ-40..45 and DES-18..22. TranscriptDeltaReader (ARCH-28), ContentStripper (ARCH-29), ContextSummarizer (ARCH-30), SessionContextFile I/O (ARCH-31), ContextUpdateOrchestrator (ARCH-32), Hook integration wiring (ARCH-33), DI interfaces for testability (ARCH-34). Converges incremental context update pipeline with component boundaries, data structures, behavioral contracts, and DI-everywhere principle. REFACTOR verified all 11 L2 items have convergence coverage. REGROUP applied exercisability check: single group of 7 items independently exercisable via CLI context-update trigger and SessionStart restore."
 
 [cursor]
 node = "L3A"
-mode = "in_progress"
-next_action = "L3A GREEN complete (7 items derived). REFACTOR L3 layer, REGROUP, COMMIT, DESCEND to L4."
+mode = "complete"
+next_action = "L3A complete. DESCEND: create L4A to derive test list from ARCH-28..34."
 context_files = ["docs/specs/state.toml"]
