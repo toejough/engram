@@ -475,11 +475,11 @@ layer = "L4"
 name = "Session Continuity Test List"
 parents = ["L3A"]
 items = ["T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160"]
-status = "in_progress"
-history = "27 test cases derived from ARCH-28..34 in BDD format. TranscriptDeltaReader (T-134..137), ContentStripper (T-138..143), ContextSummarizer (T-144..148), SessionContextFile (T-149..153), ContextUpdateOrchestrator (T-154..157), Hook integration wiring (T-158..160). All tests include Given/When/Then, traces to ARCH/REQ/DES items, and type (example-based or property-based with justification)."
+status = "complete"
+history = "27 test cases derived from ARCH-28..34 in BDD format. TranscriptDeltaReader (T-134..137), ContentStripper (T-138..143), ContextSummarizer (T-144..148), SessionContextFile (T-149..153), ContextUpdateOrchestrator (T-154..157), Hook integration wiring (T-158..160). All tests include Given/When/Then, traces to ARCH/REQ/DES items, and type (example-based or property-based with justification). REFACTOR verified full coverage of ARCH-28..34 and traceability to architecture. REGROUP applied exercisability check: single group of 27 tests independently exercisable via targ test targeting context-update package."
 
 [cursor]
 node = "L4A"
-mode = "in_progress"
-next_action = "L4A GREEN complete (27 tests derived). REFACTOR L4 layer, REGROUP, COMMIT, DESCEND to L5."
+mode = "complete"
+next_action = "L4A complete. DESCEND: create L5A for TDD implementation of context-update CLI and hooks."
 context_files = ["docs/specs/state.toml"]
