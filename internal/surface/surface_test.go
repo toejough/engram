@@ -1634,6 +1634,55 @@ func memPath(i int) string {
 	return "memory-" + string(rune('a'+i%26)) + ".toml"
 }
 
+// T-235: Retired memories not surfaced (surface-side verification).
+func TestT235_RetiredMemoriesNotSurfaced(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Active rule",
+			FilePath:    "active.toml",
+			AntiPattern: "bad pattern",
+			Keywords:    []string{"lint", "check"},
+			Principle:   "always lint",
+			Content:     "always run lint check",
+		},
+		{
+			Title:       "Retired rule",
+			FilePath:    "retired.toml",
+			AntiPattern: "old pattern",
+			Keywords:    []string{"lint", "check"},
+			Principle:   "old lint rule",
+			Content:     "always run old lint check",
+			RetiredBy:   ".git/hooks/pre-commit",
+			RetiredAt:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "lint check",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Only active memory should appear; retired memory is filtered out.
+	output := buf.String()
+	if output != "" {
+		g.Expect(output).To(ContainSubstring("active"))
+		g.Expect(output).NotTo(ContainSubstring("retired"))
+	}
+}
+
 func memSlug(i int) string {
 	return "memory-" + string(rune('a'+i%26))
 }

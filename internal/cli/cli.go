@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"engram/internal/audit"
+	"engram/internal/automate"
 	"engram/internal/classify"
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
@@ -116,6 +117,8 @@ func Run(
 	switch cmd {
 	case "audit":
 		return runAudit(subArgs, stdout, stderr, stdin)
+	case "automate":
+		return runAutomate(subArgs, stdout)
 	case "correct":
 		return runCorrect(subArgs, stdout)
 	case "evaluate":
@@ -690,6 +693,48 @@ func makeAnthropicCaller(
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
 	}
+}
+
+func runAutomate(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("automate", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("automate: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errors.New("automate: --data-dir is required")
+	}
+
+	retriever := retrieve.New()
+
+	automator := &automate.Automator{
+		MemoryLoader: func(dir string) ([]automate.Memory, error) {
+			stored, err := retriever.ListMemories(context.Background(), dir)
+			if err != nil {
+				return nil, err
+			}
+
+			return automate.MemoriesFromStored(stored), nil
+		},
+		// LLMCaller is nil — no API token wiring yet (T-237 path).
+	}
+
+	proposals, err := automator.Run(context.Background(), *dataDir)
+	if err != nil {
+		return err
+	}
+
+	encodeErr := json.NewEncoder(stdout).Encode(proposals)
+	if encodeErr != nil {
+		return fmt.Errorf("automate: encoding JSON: %w", encodeErr)
+	}
+
+	return nil
 }
 
 func runAudit(args []string, stdout, stderr io.Writer, stdin io.Reader) error {

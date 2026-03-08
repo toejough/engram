@@ -173,6 +173,8 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
+	memories = filterRetired(memories)
+
 	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
 		return Result{}, nil, nil
@@ -252,6 +254,8 @@ func (s *Surfacer) runSessionStart(
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
+	memories = filterRetired(memories)
+
 	// Sort by frecency activation descending (replaces pure recency ordering).
 	sortByActivation(memories, scorer)
 
@@ -291,6 +295,8 @@ func (s *Surfacer) runTool(
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
+
+	memories = filterRetired(memories)
 
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
 	if len(candidates) == 0 {
@@ -388,6 +394,19 @@ func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
 // WithTracker sets the memory tracker for surfacing instrumentation.
 func WithTracker(tracker MemoryTracker) SurfacerOption {
 	return func(s *Surfacer) { s.tracker = tracker }
+}
+
+// filterRetired removes memories with a non-empty RetiredBy field (ARCH-51, REQ-89).
+func filterRetired(memories []*memory.Stored) []*memory.Stored {
+	result := make([]*memory.Stored, 0, len(memories))
+
+	for _, mem := range memories {
+		if mem.RetiredBy == "" {
+			result = append(result, mem)
+		}
+	}
+
+	return result
 }
 
 // unexported constants.

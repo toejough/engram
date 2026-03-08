@@ -90,6 +90,15 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		}
 	}
 
+	var retiredAt time.Time
+
+	if record.RetiredAt != "" {
+		retiredAt, err = time.Parse(time.RFC3339, record.RetiredAt)
+		if err != nil {
+			return nil, fmt.Errorf("parsing retired_at: %w", err)
+		}
+	}
+
 	return &memory.Stored{
 		Title:             record.Title,
 		Content:           record.Content,
@@ -102,6 +111,8 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		SurfacedCount:     record.SurfacedCount,
 		LastSurfaced:      lastSurfaced,
 		SurfacingContexts: record.SurfacingContexts,
+		RetiredBy:         record.RetiredBy,
+		RetiredAt:         retiredAt,
 	}, nil
 }
 
@@ -119,4 +130,6 @@ type tomlRecord struct {
 	SurfacedCount     int      `toml:"surfaced_count"`
 	LastSurfaced      string   `toml:"last_surfaced"`
 	SurfacingContexts []string `toml:"surfacing_contexts"`
+	RetiredBy         string   `toml:"retired_by"`
+	RetiredAt         string   `toml:"retired_at"`
 }

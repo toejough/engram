@@ -89,4 +89,6 @@ type Stored struct {
 	SurfacedCount     int
 	LastSurfaced      time.Time
 	SurfacingContexts []string
+	RetiredBy         string    // automation install path that replaced this memory (ARCH-51)
+	RetiredAt         time.Time // when the memory was retired
 }
