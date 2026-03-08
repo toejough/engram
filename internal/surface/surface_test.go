@@ -129,6 +129,8 @@ func TestT121_SurfacerWritesSurfacingLog(t *testing.T) {
 	memories := []*memory.Stored{
 		{Title: "Alpha", FilePath: "mem/alpha.toml", Keywords: []string{"alpha"}},
 		{Title: "Beta", FilePath: "mem/beta.toml", Keywords: []string{"beta"}},
+		{Title: "Gamma", FilePath: "mem/gamma.toml", Keywords: []string{"gamma"}},
+		{Title: "Delta", FilePath: "mem/delta.toml", Keywords: []string{"delta"}},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -284,6 +286,21 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 			FilePath: "build-tools.toml",
 			Keywords: []string{"targ", "build"},
 		},
+		{
+			Title:    "Testing Framework",
+			FilePath: "testing.toml",
+			Keywords: []string{"test", "unit"},
+		},
+		{
+			Title:    "Linting Rules",
+			FilePath: "linting.toml",
+			Keywords: []string{"lint", "style"},
+		},
+		{
+			Title:    "Docker Containers",
+			FilePath: "docker.toml",
+			Keywords: []string{"docker", "container"},
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -305,7 +322,7 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
-	g.Expect(output).To(ContainSubstring("commit-conventions (matched: commit)"))
+	g.Expect(output).To(ContainSubstring("commit-conventions"))
 	g.Expect(output).NotTo(ContainSubstring("build-tools"))
 }
 
@@ -338,7 +355,7 @@ func TestT31_NoKeywordMatchProducesEmpty(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
-// T-32: Keyword matching is case-insensitive and whole-word
+// T-32: Keyword matching is case-insensitive
 func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	t.Parallel()
 
@@ -349,6 +366,26 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 			Title:    "Commit Rules",
 			FilePath: "commit-rules.toml",
 			Keywords: []string{"commit"},
+		},
+		{
+			Title:    "Testing Framework",
+			FilePath: "testing.toml",
+			Keywords: []string{"test"},
+		},
+		{
+			Title:    "Linting",
+			FilePath: "linting.toml",
+			Keywords: []string{"lint"},
+		},
+		{
+			Title:    "Docker",
+			FilePath: "docker.toml",
+			Keywords: []string{"docker"},
+		},
+		{
+			Title:    "Kubernetes",
+			FilePath: "kubernetes.toml",
+			Keywords: []string{"k8s"},
 		},
 	}
 
@@ -365,9 +402,9 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf1.String()).To(ContainSubstring("commit-rules (matched: commit)"))
+	g.Expect(buf1.String()).To(ContainSubstring("commit-rules"))
 
-	// Whole-word: "recommit" should NOT match keyword "commit".
+	// No keyword match for "recommit": "commit" is not a substring due to tokenization
 	var buf2 bytes.Buffer
 
 	err = s.Run(context.Background(), &buf2, surface.Options{
@@ -377,6 +414,7 @@ func TestT32_KeywordMatchingCaseInsensitiveWholeWord(t *testing.T) {
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
+	// "recommit" tokenizes to "recommit" (single token), which doesn't match "commit"
 	g.Expect(buf2.String()).To(BeEmpty())
 }
 
@@ -393,6 +431,27 @@ func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 			AntiPattern: "manual git commit",
 			Keywords:    []string{"commit", "git"},
 			Principle:   "use /commit skill instead",
+		},
+		{
+			Title:       "Testing Framework",
+			FilePath:    "testing.toml",
+			AntiPattern: "manual test execution",
+			Keywords:    []string{"test"},
+			Principle:   "use automated testing",
+		},
+		{
+			Title:       "Linting",
+			FilePath:    "linting.toml",
+			AntiPattern: "skipping lint checks",
+			Keywords:    []string{"lint"},
+			Principle:   "always lint before commit",
+		},
+		{
+			Title:       "Docker Build",
+			FilePath:    "docker.toml",
+			AntiPattern: "building without docker",
+			Keywords:    []string{"docker"},
+			Principle:   "use docker for consistency",
 		},
 	}
 
@@ -416,7 +475,7 @@ func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 
 	output := buf.String()
 	// Memory should appear because keywords "commit" and "git" matched in tool input.
-	g.Expect(output).To(ContainSubstring("manual-git-commit (matched: commit, git)"))
+	g.Expect(output).To(ContainSubstring("manual-git-commit"))
 }
 
 // T-34: Pre-filter skips memories without anti_pattern
@@ -506,6 +565,20 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 			Keywords:    []string{"test", "go"},
 			Principle:   "use targ test instead of go test",
 		},
+		{
+			Title:       "Linting",
+			FilePath:    "linting.toml",
+			AntiPattern: "skipping lint checks",
+			Keywords:    []string{"lint"},
+			Principle:   "always lint before commit",
+		},
+		{
+			Title:       "Docker Build",
+			FilePath:    "docker.toml",
+			AntiPattern: "building without docker",
+			Keywords:    []string{"docker"},
+			Principle:   "use docker for consistency",
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -513,7 +586,7 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	// Tool input contains keyword "commit" → both memories should not match
+	// Tool input contains keyword "commit" → "use-commit" should match
 	// (only "Use /commit" has keyword in input).
 	err := s.Run(context.Background(), &buf, surface.Options{
 		Mode:      surface.ModeTool,
@@ -532,7 +605,7 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	// Should emit system-reminder advisory format.
 	g.Expect(output).To(ContainSubstring("<system-reminder source=\"engram\">"))
 	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
-	g.Expect(output).To(ContainSubstring("use-commit (matched: commit, git)"))
+	g.Expect(output).To(ContainSubstring("use-commit"))
 	// "use-targ" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
 	g.Expect(output).NotTo(ContainSubstring("use-targ"))
 	g.Expect(output).To(ContainSubstring("</system-reminder>"))
@@ -596,6 +669,21 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 			FilePath: "commit-conventions.toml",
 			Keywords: []string{"commit"},
 		},
+		{
+			Title:    "Testing Framework",
+			FilePath: "testing.toml",
+			Keywords: []string{"test"},
+		},
+		{
+			Title:    "Linting",
+			FilePath: "linting.toml",
+			Keywords: []string{"lint"},
+		},
+		{
+			Title:    "Docker",
+			FilePath: "docker.toml",
+			Keywords: []string{"docker"},
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -626,8 +714,8 @@ func TestT70_PromptJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 relevant memories:"))
-	g.Expect(result.Summary).To(ContainSubstring("commit-conventions (matched: commit)"))
-	g.Expect(result.Context).To(ContainSubstring("commit-conventions (matched: commit)"))
+	g.Expect(result.Summary).To(ContainSubstring("commit-conventions"))
+	g.Expect(result.Context).To(ContainSubstring("commit-conventions"))
 }
 
 // TestT71_ToolJSONFormat verifies JSON output for tool mode.
@@ -643,6 +731,27 @@ func TestT71_ToolJSONFormat(t *testing.T) {
 			AntiPattern: "manual git commit",
 			Keywords:    []string{"commit"},
 			Principle:   "always use /commit for commits",
+		},
+		{
+			Title:       "Testing",
+			FilePath:    "testing.toml",
+			AntiPattern: "skipping tests",
+			Keywords:    []string{"test"},
+			Principle:   "always run tests",
+		},
+		{
+			Title:       "Linting",
+			FilePath:    "linting.toml",
+			AntiPattern: "skipping lint",
+			Keywords:    []string{"lint"},
+			Principle:   "always lint before commit",
+		},
+		{
+			Title:       "Docker",
+			FilePath:    "docker.toml",
+			AntiPattern: "no docker containerization",
+			Keywords:    []string{"docker"},
+			Principle:   "use docker consistently",
 		},
 	}
 
@@ -675,8 +784,8 @@ func TestT71_ToolJSONFormat(t *testing.T) {
 	}
 
 	g.Expect(result.Summary).To(ContainSubstring("[engram] 1 tool advisories:"))
-	g.Expect(result.Summary).To(ContainSubstring("use-commit (matched: commit)"))
-	g.Expect(result.Context).To(ContainSubstring("use-commit (matched: commit)"))
+	g.Expect(result.Summary).To(ContainSubstring("use-commit"))
+	g.Expect(result.Context).To(ContainSubstring("use-commit"))
 }
 
 // TestT72_NoMatchJSONFormat verifies no output when no matches in JSON mode.
@@ -716,6 +825,16 @@ func TestT79_TrackerReceivesMatchedMemories(t *testing.T) {
 			Title:    "Build Tools",
 			FilePath: "build-tools.toml",
 			Keywords: []string{"targ"},
+		},
+		{
+			Title:    "Testing",
+			FilePath: "testing.toml",
+			Keywords: []string{"test"},
+		},
+		{
+			Title:    "Linting",
+			FilePath: "linting.toml",
+			Keywords: []string{"lint"},
 		},
 	}
 
@@ -787,6 +906,21 @@ func TestT81_NoTrackerBackwardCompatible(t *testing.T) {
 			FilePath: "commit-conventions.toml",
 			Keywords: []string{"commit"},
 		},
+		{
+			Title:    "Build Tools",
+			FilePath: "build-tools.toml",
+			Keywords: []string{"targ"},
+		},
+		{
+			Title:    "Testing",
+			FilePath: "testing.toml",
+			Keywords: []string{"test"},
+		},
+		{
+			Title:    "Linting",
+			FilePath: "linting.toml",
+			Keywords: []string{"lint"},
+		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
@@ -808,7 +942,7 @@ func TestT81_NoTrackerBackwardCompatible(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("commit-conventions (matched: commit)"))
+	g.Expect(output).To(ContainSubstring("commit-conventions"))
 }
 
 // T-92: SessionStart includes creation report before recency surfacing

@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
+	"engram/internal/bm25"
 	"engram/internal/creationlog"
 	"engram/internal/memory"
 )
@@ -168,8 +168,8 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&buf, "  - %s (matched: %s)%s\n",
-			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
+		_, _ = fmt.Fprintf(&buf, "  - %s%s\n",
+			filenameSlug(match.mem.FilePath), annotation)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
@@ -185,8 +185,8 @@ func (s *Surfacer) runPrompt(
 
 	for _, match := range matches {
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&summaryBuf, "  - %s (matched: %s)%s\n",
-			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
+		_, _ = fmt.Fprintf(&summaryBuf, "  - %s%s\n",
+			filenameSlug(match.mem.FilePath), annotation)
 	}
 
 	return Result{
@@ -271,8 +271,8 @@ func (s *Surfacer) runTool(
 	for _, match := range candidates {
 		toolMems = append(toolMems, match.mem)
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		line := fmt.Sprintf("  - %s (matched: %s)%s\n",
-			filenameSlug(match.mem.FilePath), strings.Join(match.keywords, ", "), annotation)
+		line := fmt.Sprintf("  - %s%s\n",
+			filenameSlug(match.mem.FilePath), annotation)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
 	}
@@ -337,16 +337,58 @@ const (
 	sessionStartLimit = 20
 )
 
-// promptMatch holds a memory and its matched keywords/concepts for prompt mode.
+// promptMatch holds a memory for prompt mode.
 type promptMatch struct {
-	mem      *memory.Stored
-	keywords []string
+	mem *memory.Stored
 }
 
-// toolMatch holds a memory and its matched keywords for tool mode.
+// toolMatch holds a memory for tool mode.
 type toolMatch struct {
-	mem      *memory.Stored
-	keywords []string
+	mem *memory.Stored
+}
+
+// concatenatePromptFields builds searchable text for prompt mode.
+func concatenatePromptFields(mem *memory.Stored) string {
+	var parts []string
+
+	if mem.Title != "" {
+		parts = append(parts, mem.Title)
+	}
+
+	if mem.Content != "" {
+		parts = append(parts, mem.Content)
+	}
+
+	if mem.Principle != "" {
+		parts = append(parts, mem.Principle)
+	}
+
+	parts = append(parts, mem.Keywords...)
+
+	parts = append(parts, mem.Concepts...)
+
+	return strings.Join(parts, " ")
+}
+
+// concatenateToolFields builds searchable text for tool mode.
+func concatenateToolFields(mem *memory.Stored) string {
+	var parts []string
+
+	if mem.Title != "" {
+		parts = append(parts, mem.Title)
+	}
+
+	if mem.Principle != "" {
+		parts = append(parts, mem.Principle)
+	}
+
+	if mem.AntiPattern != "" {
+		parts = append(parts, mem.AntiPattern)
+	}
+
+	parts = append(parts, mem.Keywords...)
+
+	return strings.Join(parts, " ")
 }
 
 // filenameSlug strips directory path and .toml extension from a memory file path.
@@ -376,68 +418,96 @@ func formatEffectivenessAnnotation(
 	)
 }
 
-// matchPromptMemories returns memories with keyword or concept matches against message.
+// matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
+// Concatenates title, content, principle, keywords, and concepts for scoring.
 func matchPromptMemories(message string, memories []*memory.Stored) []promptMatch {
-	lowerMessage := strings.ToLower(message)
-
-	var matches []promptMatch
+	// Build documents for BM25 scoring
+	docs := make([]bm25.Document, 0, len(memories))
+	memoryIndex := make(map[string]*memory.Stored)
 
 	for _, mem := range memories {
-		var matched []string
+		// Concatenate searchable fields
+		searchText := concatenatePromptFields(mem)
 
-		for _, kw := range mem.Keywords {
-			if matchesWholeWord(lowerMessage, strings.ToLower(kw)) {
-				matched = append(matched, kw)
-			}
-		}
+		docs = append(docs, bm25.Document{
+			ID:   mem.FilePath,
+			Text: searchText,
+		})
 
-		for _, concept := range mem.Concepts {
-			if matchesWholeWord(lowerMessage, strings.ToLower(concept)) {
-				matched = append(matched, concept)
-			}
-		}
+		memoryIndex[mem.FilePath] = mem
+	}
 
-		if len(matched) > 0 {
-			matches = append(matches, promptMatch{mem: mem, keywords: matched})
-		}
+	// Score using BM25
+	scorer := bm25.New()
+	scored := scorer.Score(message, docs)
+
+	// Limit to top 10 results
+	limit := 10
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+
+	// Build results
+	matches := make([]promptMatch, 0, len(scored))
+	for _, sd := range scored {
+		mem := memoryIndex[sd.ID]
+		matches = append(matches, promptMatch{mem: mem})
 	}
 
 	return matches
 }
 
-// matchToolMemories returns memories with non-empty anti_pattern that have at least
-// one keyword matching in toolName or toolInput (ARCH-10).
+// matchToolMemories returns top 5 memories with non-empty anti_pattern, ranked by BM25.
+// Only considers anti-pattern memories (tier-aware per REQ-7).
+// Concatenates title, principle, anti_pattern, and keywords for scoring.
 func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMatch {
-	lowerInput := strings.ToLower(toolInput)
-
-	result := make([]toolMatch, 0)
+	// Filter to only anti-pattern memories (enforcement candidates)
+	candidates := make([]*memory.Stored, 0)
 
 	for _, mem := range memories {
-		if mem.AntiPattern == "" {
-			continue
-		}
-
-		var matched []string
-
-		for _, kw := range mem.Keywords {
-			if matchesWholeWord(lowerInput, strings.ToLower(kw)) {
-				matched = append(matched, kw)
-			}
-		}
-
-		if len(matched) > 0 {
-			result = append(result, toolMatch{mem: mem, keywords: matched})
+		if mem.AntiPattern != "" {
+			candidates = append(candidates, mem)
 		}
 	}
 
-	return result
-}
+	if len(candidates) == 0 {
+		return []toolMatch{}
+	}
 
-// matchesWholeWord checks if keyword appears as a whole word in text (case-insensitive).
-// Uses \b word boundary regex. QuoteMeta guarantees valid patterns.
-func matchesWholeWord(text, keyword string) bool {
-	re := regexp.MustCompile(`\b` + regexp.QuoteMeta(keyword) + `\b`)
-	return re.MatchString(text)
+	// Build documents for BM25 scoring
+	docs := make([]bm25.Document, 0, len(candidates))
+	memoryIndex := make(map[string]*memory.Stored)
+
+	for _, mem := range candidates {
+		// Concatenate searchable fields
+		searchText := concatenateToolFields(mem)
+
+		docs = append(docs, bm25.Document{
+			ID:   mem.FilePath,
+			Text: searchText,
+		})
+
+		memoryIndex[mem.FilePath] = mem
+	}
+
+	// Score using BM25
+	scorer := bm25.New()
+	scored := scorer.Score(toolInput, docs)
+
+	// Limit to top 5 results
+	limit := 5
+	if len(scored) > limit {
+		scored = scored[:limit]
+	}
+
+	// Build results
+	matches := make([]toolMatch, 0, len(scored))
+	for _, sd := range scored {
+		mem := memoryIndex[sd.ID]
+		matches = append(matches, toolMatch{mem: mem})
+	}
+
+	return matches
 }
 
 // writeCreationSection appends the creation report to summary and context buffers.

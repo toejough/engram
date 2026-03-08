@@ -1148,6 +1148,33 @@ created_at = "2025-01-01T00:00:00Z"
 updated_at = "2025-01-01T00:00:00Z"
 `)
 
+	// Add more memories so "commit" is not 100% of the corpus
+	writeTestTOML(t, memoriesDir, "testing.toml", `title = "Testing Framework"
+content = "use automated testing"
+observation_type = "observation"
+concepts = []
+keywords = ["test"]
+principle = "always run tests"
+anti_pattern = ""
+rationale = ""
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
+	writeTestTOML(t, memoriesDir, "linting.toml", `title = "Linting"
+content = "run linters before commits"
+observation_type = "observation"
+concepts = []
+keywords = ["lint"]
+principle = "always lint"
+anti_pattern = ""
+rationale = ""
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
 	var stdout, stderr bytes.Buffer
 
 	err = cli.Run([]string{
@@ -1165,7 +1192,7 @@ updated_at = "2025-01-01T00:00:00Z"
 
 	output := stdout.String()
 	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
-	g.Expect(output).To(ContainSubstring("commit-rules (matched: commit)"))
+	g.Expect(output).To(ContainSubstring("commit-rules"))
 }
 
 // T-42: Mode tool routes to advisory surfacing (not blocking enforcement)
@@ -1189,6 +1216,46 @@ concepts = []
 keywords = ["commit"]
 principle = "use /commit for commits"
 anti_pattern = "manual git commit"
+rationale = ""
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
+	// Add more anti-pattern memories so "commit" is not 50% of the corpus
+	writeTestTOML(t, memoriesDir, "testing.toml", `title = "Testing"
+content = "run tests before commit"
+observation_type = "observation"
+concepts = []
+keywords = ["test"]
+principle = "always test"
+anti_pattern = "skipping tests"
+rationale = ""
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
+	writeTestTOML(t, memoriesDir, "linting.toml", `title = "Linting"
+content = "run linters before commits"
+observation_type = "observation"
+concepts = []
+keywords = ["lint"]
+principle = "always lint"
+anti_pattern = "skipping lint checks"
+rationale = ""
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
+	writeTestTOML(t, memoriesDir, "docker.toml", `title = "Docker"
+content = "use docker for consistency"
+observation_type = "observation"
+concepts = []
+keywords = ["docker"]
+principle = "always use docker"
+anti_pattern = "building without docker"
 rationale = ""
 confidence = "B"
 created_at = "2025-01-01T00:00:00Z"
