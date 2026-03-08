@@ -494,16 +494,16 @@ layer = "L5"
 name = "Proposal Generator"
 parents = ["L4G"]
 items = ["T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178"]
-status = "in_progress"
-history = ""
+status = "complete"
+history = "internal/maintain/ package: Generator with quadrant-specific handlers (Working staleness, Leech LLM rewrite, HiddenGem LLM broaden, Noise deterministic removal). DI LLM caller (nil = skip). T-171..T-178 passing, targ check clean."
 
 [tree.L5AB]
 layer = "L5"
 name = "Maintain CLI Wiring"
 parents = ["L5AA"]
 items = ["T-179", "T-180", "T-181"]
-status = "pending"
-history = ""
+status = "complete"
+history = "RunMaintain in internal/cli wires effectiveness.Aggregate + buildTrackingMap + review.Classify + buildMemoryMap → maintain.Generate → JSON stdout. No-data path outputs []. No-token skips LLM quadrants. T-179..T-181 passing, targ check clean. Usability gate verified."
 
 [tree.L4G]
 layer = "L4"
@@ -537,7 +537,7 @@ status = "complete"
 history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-47), staleness detection (REQ-48), leech diagnosis (REQ-49/DES-24), hidden gem broadening (REQ-50/DES-25), noise removal (REQ-51), fire-and-forget (REQ-52), CLI (REQ-53), output format (DES-23), no-data (REQ-54)."
 
 [cursor]
-node = "L5AA"
-mode = "in_progress"
-next_action = "L5 TDD: implement T-171..T-178 (proposal generator) then T-179..T-181 (CLI wiring)."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+node = "L1G"
+mode = "complete"
+next_action = "UC-16 tree complete. All L5 nodes passing, usability gate verified."
+context_files = ["docs/specs/state.toml"]
