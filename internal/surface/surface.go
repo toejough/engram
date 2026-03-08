@@ -84,6 +84,7 @@ type Surfacer struct {
 	logReader             CreationLogReader
 	surfacingLogger       SurfacingEventLogger
 	effectivenessComputer EffectivenessComputer
+	budgetConfig          *BudgetConfig
 }
 
 // New creates a Surfacer.
@@ -183,6 +184,16 @@ func (s *Surfacer) runPrompt(
 	// Limit to top promptLimit results.
 	if len(matches) > promptLimit {
 		matches = matches[:promptLimit]
+	}
+
+	// Apply token budget cap (ARCH-40).
+	if s.budgetConfig != nil {
+		budget := s.budgetConfig.ForMode(ModePrompt)
+		matches = applyPromptBudget(matches, budget)
+	}
+
+	if len(matches) == 0 {
+		return Result{}, nil, nil
 	}
 
 	var buf strings.Builder
@@ -292,6 +303,16 @@ func (s *Surfacer) runTool(
 	// Limit to top toolLimit results.
 	if len(candidates) > toolLimit {
 		candidates = candidates[:toolLimit]
+	}
+
+	// Apply token budget cap (ARCH-40).
+	if s.budgetConfig != nil {
+		budget := s.budgetConfig.ForMode(ModeTool)
+		candidates = applyToolBudget(candidates, budget)
+	}
+
+	if len(candidates) == 0 {
+		return Result{}, nil, nil
 	}
 
 	var (

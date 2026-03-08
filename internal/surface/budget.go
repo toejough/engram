@@ -1,0 +1,119 @@
+package surface
+
+import "engram/internal/memory"
+
+// BudgetConfig holds per-hook token budget caps (ARCH-40).
+type BudgetConfig struct {
+	SessionStart     int
+	UserPromptSubmit int
+	PreToolUse       int
+	PostToolUse      int
+	Stop             int
+}
+
+// BudgetConfigReader loads budget configuration from persistent storage.
+type BudgetConfigReader interface {
+	ReadBudgetConfig() (BudgetConfig, error)
+}
+
+// Default budget caps per hook type.
+const (
+	DefaultSessionStartBudget     = 800
+	DefaultUserPromptSubmitBudget = 300
+	DefaultPreToolUseBudget       = 200
+	DefaultPostToolUseBudget      = 100
+	DefaultStopBudget             = 500
+)
+
+// DefaultBudgetConfig returns the default budget configuration.
+func DefaultBudgetConfig() BudgetConfig {
+	return BudgetConfig{
+		SessionStart:     DefaultSessionStartBudget,
+		UserPromptSubmit: DefaultUserPromptSubmitBudget,
+		PreToolUse:       DefaultPreToolUseBudget,
+		PostToolUse:      DefaultPostToolUseBudget,
+		Stop:             DefaultStopBudget,
+	}
+}
+
+// ForMode returns the token budget for a given surface mode.
+func (c BudgetConfig) ForMode(mode string) int {
+	switch mode {
+	case ModeSessionStart:
+		return c.SessionStart
+	case ModePrompt:
+		return c.UserPromptSubmit
+	case ModeTool:
+		return c.PreToolUse
+	default:
+		return 0
+	}
+}
+
+// EstimateTokens returns the estimated token count for text using len/4 truncation.
+func EstimateTokens(text string) int {
+	return len(text) / estimateTokensDivisor
+}
+
+// EstimateMemoryTokens estimates the token cost of a memory for prompt mode.
+func EstimateMemoryTokens(mem *memory.Stored) int {
+	return EstimateTokens(concatenatePromptFields(mem))
+}
+
+// EstimateToolMemoryTokens estimates the token cost of a memory for tool mode.
+func EstimateToolMemoryTokens(mem *memory.Stored) int {
+	return EstimateTokens(concatenateToolFields(mem))
+}
+
+// WithBudgetConfig sets the budget configuration for a Surfacer.
+func WithBudgetConfig(config BudgetConfig) SurfacerOption {
+	return func(s *Surfacer) { s.budgetConfig = &config }
+}
+
+// applyPromptBudget returns the prefix of matches that fits within the token budget.
+// Budget of 0 means unlimited.
+func applyPromptBudget(matches []promptMatch, budget int) []promptMatch {
+	if budget <= 0 {
+		return matches
+	}
+
+	accumulated := 0
+	result := make([]promptMatch, 0, len(matches))
+
+	for _, match := range matches {
+		tokens := EstimateMemoryTokens(match.mem)
+		if accumulated+tokens > budget {
+			break
+		}
+
+		accumulated += tokens
+		result = append(result, match)
+	}
+
+	return result
+}
+
+// applyToolBudget returns the prefix of matches that fits within the token budget.
+// Budget of 0 means unlimited.
+func applyToolBudget(matches []toolMatch, budget int) []toolMatch {
+	if budget <= 0 {
+		return matches
+	}
+
+	accumulated := 0
+	result := make([]toolMatch, 0, len(matches))
+
+	for _, match := range matches {
+		tokens := EstimateToolMemoryTokens(match.mem)
+		if accumulated+tokens > budget {
+			break
+		}
+
+		accumulated += tokens
+		result = append(result, match)
+	}
+
+	return result
+}
+
+const estimateTokensDivisor = 4
