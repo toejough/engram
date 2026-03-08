@@ -161,9 +161,9 @@ history = "4 ARCH decisions derived from UC-2 L2B. Memory retrieval (ARCH-9), ke
 layer = "L3"
 name = "Session Learning Architecture"
 parents = ["L2C"]
-items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18"]
-status = "complete"
-history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), transcript extraction (ARCH-15), keyword dedup (ARCH-16), CLI learn subcommand (ARCH-17), hook wiring for PreCompact/SessionEnd (ARCH-18). Reuses ARCH-9 (MemoryRetriever) and ARCH-4 (MemoryWriter). Issue #35: ARCH-15 updated — extraction classifies with A/B/C tiers, anti-pattern gating, traces to REQ-7. Issue #49: ARCH-14 updated — optional CreationLogger interface added to Learner pipeline for deferred visibility (REQ-25)."
+items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18", "ARCH-38", "ARCH-39"]
+status = "pending"
+history = "UC-1 revision: incremental extraction with offset tracking. ARCH-14 updated (input is stripped delta, not full transcript). ARCH-15 updated (extraction from delta with Strip preprocessing). ARCH-17 updated (CLI flags: --transcript-path, --session-id instead of stdin). ARCH-18 updated (hook wiring passes transcript_path/session_id, Stop hook added). New ARCH-38 (LearnOffset infrastructure, JSON persistence, atomic updates). New ARCH-39 (IncrementalLearner orchestrator, handles delta reading, stripping, learning, offset updates, session boundary detection). Reuses DeltaReader/Strip from ARCH-28/29 (UC-14 session continuity), MemoryRetriever from ARCH-9, MemoryWriter from ARCH-4."
 
 # Tree nodes — L4
 
@@ -195,9 +195,9 @@ history = "23 BDD test specs across 5 ARCH boundaries: memory retrieval (T-24/25
 layer = "L4"
 name = "Session Learning Tests"
 parents = ["L3C"]
-items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-95", "T-96", "T-97"]
-status = "complete"
-history = "22 BDD test specs across 5 ARCH boundaries: transcript extraction (T-47/48/49/50/51), deduplication (T-52/53/54/55/56), learner pipeline (T-57/58/59/60), CLI learn (T-61/62/63/64), hook scripts (T-65/66/67/68). All L2C items have test coverage. Issue #35: T-47 updated to verify A/B/C tier classification and tier-gated anti-pattern generation. Audit: T-60 spec updated — 'Written memories use tier from extraction' (not hardcoded C), aligning spec with issue #35 code change. Issue #49: added T-95/96/97 (learner pipeline creation logging via optional CreationLogger)."
+items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-95", "T-96", "T-97", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189"]
+status = "green"
+history = "UC-1 revision: incremental extraction with offset tracking. Existing T-47..T-97 tests cover Learner pipeline (ARCH-14) behavior — these remain valid. New tests added: T-182/183 (offset read/write, persistence), T-184 (delta reading with offset), T-185 (strip preprocessing), T-186/187/188 (IncrementalLearner orchestration — session ID handling, empty delta, offset updates), T-189 (CLI flag parsing). L2C requirements coverage: REQ-15 (T-47,49,50,184,185), REQ-16 (T-51,57), REQ-17 (T-52-56), REQ-18 (T-48,62), REQ-19 (T-186), REQ-20 (T-61-64,189), REQ-25 (T-95-97), REQ-26 (T-182,183,186), REQ-27 (T-185), DES-9 (T-65-68,188), DES-10 (T-57-64)."
 
 # Tree nodes — L5
 
@@ -298,6 +298,32 @@ parents = ["L5K"]
 items = ["T-65", "T-66", "T-67", "T-68"]
 status = "complete"
 history = "T-65/66/67/68 passing. PreCompact and SessionEnd hooks registered in hooks.json, scripts read transcript from stdin JSON and pipe to engram learn. All lint clean. Issue #35: no changes needed — tier classification happens inside binary."
+
+# Tree nodes — L5 (UC-1 revision, incremental extraction)
+
+[tree.L5CC]
+layer = "L5"
+name = "LearnOffset Infrastructure"
+parents = ["L4C"]
+items = ["T-182", "T-183"]
+status = "pending"
+history = "UC-1 revision: new internal/learn/offset.go package. LearnOffset struct + OffsetStore interface for persistent byte-offset tracking per session. JSON file at <data-dir>/learn-offset.json. DI via WithReadFile, WithWriteFile. Atomic writes (temp → rename). T-182/183 pending implementation."
+
+[tree.L5CD]
+layer = "L5"
+name = "IncrementalLearner Orchestrator"
+parents = ["L5CC"]
+items = ["T-184", "T-185", "T-186", "T-187", "T-188"]
+status = "pending"
+history = "UC-1 revision: new internal/learn/incremental.go package. IncrementalLearner struct orchestrating delta extraction: offset lookup → delta reading (reuses DeltaReader from ARCH-28) → strip preprocessing (reuses Strip from ARCH-29) → learner pipeline → offset update. Handles session ID change (reset to 0), empty delta (skip extraction), atomic offset writes. T-184..T-188 pending implementation."
+
+[tree.L5CE]
+layer = "L5"
+name = "CLI and Hook Modifications for Incremental"
+parents = ["L5CD"]
+items = ["T-189"]
+status = "pending"
+history = "UC-1 revision: modify internal/cli/cli.go learn command to accept --transcript-path and --session-id flags instead of stdin. Wire IncrementalLearner. Modify hooks (pre-compact.sh, stop.sh) to pass transcript_path and session_id. T-189 pending implementation."
 
 # Tree nodes — L5 (UC-2 instrumentation, issue #46)
 
@@ -537,7 +563,7 @@ status = "complete"
 history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-47), staleness detection (REQ-48), leech diagnosis (REQ-49/DES-24), hidden gem broadening (REQ-50/DES-25), noise removal (REQ-51), fire-and-forget (REQ-52), CLI (REQ-53), output format (DES-23), no-data (REQ-54)."
 
 [cursor]
-node = "L1G"
-mode = "complete"
-next_action = "UC-16 tree complete. All L5 nodes passing, usability gate verified."
-context_files = ["docs/specs/state.toml"]
+node = "L1C"
+mode = "in_progress"
+next_action = "UC-1 revision: incremental extraction with delta tracking. L2-L5 re-entry."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]

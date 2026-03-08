@@ -401,18 +401,18 @@ Fire-and-forget: log read/delete errors are logged to stderr but don't fail the 
 
 ---
 
-## REQ-15: LLM session transcript extraction with unified tier criteria
+## REQ-15: LLM extraction from transcript delta with unified tier criteria
 
-When a PreCompact or SessionEnd hook fires, the system sends the session transcript to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
+When a PreCompact or Stop hook fires, the system extracts only the new transcript content since the last extraction (delta), preprocesses it with Strip (removing low-value content), and sends the cleaned delta to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
 
-The LLM extracts:
+The LLM extracts from the delta:
 - Explicit instructions the real-time classifier missed (tier A)
 - Teachable corrections with generalizable principles (tier B)
 - Contextual facts: architectural decisions, discovered constraints, working solutions, implicit preferences (tier C)
 
-- Traces to: UC-1 (LLM extraction, tier classification, anti-pattern gating)
-- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes the full transcript (or the portion about to be compacted for PreCompact). (3) Response is parsed as a JSON array of candidate objects, each with required fields plus `tier` field (A/B/C). (4) Invalid or unparseable responses return an error. (5) Anti-pattern field is populated per REQ-7: required for A, optional for B, empty for C. (6) The LLM applies quality gate (REQ-16) and tier assignment simultaneously.
-- Verification: deterministic (JSON schema validation, tier assignment accuracy)
+- Traces to: UC-1 (incremental LLM extraction, tier classification, anti-pattern gating)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes only the stripped transcript delta (new content since last extraction), not the full transcript. (3) Delta is obtained by reading transcript file from byte offset (REQ-26). (4) Delta is preprocessed with Strip to remove noise (tool results, base64, repeated schemas). (5) Response is parsed as a JSON array of candidate objects, each with required fields plus `tier` field (A/B/C). (6) Invalid or unparseable responses return an error. (7) Anti-pattern field is populated per REQ-7: required for A, optional for B, empty for C. (8) The LLM applies quality gate (REQ-16) and tier assignment simultaneously.
+- Verification: deterministic (JSON schema validation, tier assignment accuracy, delta size < full transcript)
 
 ---
 
@@ -456,13 +456,13 @@ If both PreCompact and SessionEnd fire in the same session, the second invocatio
 
 ---
 
-## REQ-20: CLI `learn` subcommand
+## REQ-20: CLI `learn` subcommand with delta tracking
 
-The system adds a `learn` subcommand to the engram binary: `engram learn --data-dir <path>`. The transcript is read from stdin (not a flag) to avoid command-line length limits.
+The system adds a `learn` subcommand to the engram binary: `engram learn --data-dir <path> --transcript-path <transcript_file> --session-id <id>`. Transcript is read from file (not stdin) to enable incremental offset tracking.
 
-- Traces to: UC-1 (CLI entry point)
-- AC: (1) `engram learn --data-dir <path>` reads transcript from stdin. (2) Runs the extraction → dedup → write pipeline. (3) Exit 0 always — errors logged to stderr. (4) Pure Go, no CGO.
-- Verification: deterministic (subcommand runs, correct pipeline)
+- Traces to: UC-1 (CLI entry point, incremental learning)
+- AC: (1) `engram learn --data-dir <path> --transcript-path <file> --session-id <id>` reads transcript from file. (2) Looks up learn offset for the session ID (REQ-26). (3) If session ID differs from stored session, resets offset to 0. (4) Reads transcript delta from byte offset. (5) If delta is empty, skips extraction (no API call). (6) If delta has content, preprocesses with Strip (REQ-27) and sends to LLM. (7) Updates offset after extraction. (8) Runs the extraction → dedup → write pipeline. (9) Exit 0 always — errors logged to stderr. (10) Pure Go, no CGO.
+- Verification: deterministic (subcommand runs, delta extraction, offset persistence)
 
 ---
 
@@ -476,13 +476,35 @@ During UC-1 learning (PreCompact/SessionEnd), each memory file successfully writ
 
 ---
 
-## DES-9: Hook wiring — PreCompact and SessionEnd
+## REQ-26: Offset tracking for incremental extraction
 
-PreCompact hook (`hooks/pre-compact.sh`) and SessionEnd hook (`hooks/session-end.sh`) are registered in `hooks/hooks.json`. Both invoke the same pipeline: read the transcript from stdin, pass to `engram learn --data-dir <path>`.
+The system tracks the byte offset of the last extraction point per session to enable incremental transcript reading. Offset is stored in `<data-dir>/learn-offset.json` as a JSON object mapping session_id → byte_offset.
 
-The hook reads the transcript from the stdin JSON payload (field depends on hook event — `transcript` or `conversation`). Token retrieval uses the same platform-aware mechanism as DES-3 (macOS Keychain fallback to env var).
+- Traces to: UC-1 (incremental learning, delta computation)
+- AC: (1) Offset file is created if missing. (2) On each learn invocation, read offset for the provided session_id. (3) If session_id is not in the map, treat as new session: set offset to 0. (4) After extraction completes, update offset to current file end position. (5) File updates are atomic (temp write + rename). (6) Write errors logged to stderr, don't fail the learning operation. (7) Empty offset map or missing file → treat all sessions as new (offset 0).
+- Verification: deterministic (JSON parsing, offset arithmetic, file atomicity)
 
-- Traces to: UC-1 (hook wiring)
+---
+
+## REQ-27: Transcript preprocessing with Strip
+
+Before sending transcript delta to the LLM, the system preprocesses the content using Strip operation to remove low-value content and reduce token usage.
+
+- Traces to: UC-1 (incremental learning, token efficiency)
+- AC: (1) Strip removes tool results, base64/binary content, and repeated schemas. (2) Preserves user messages, assistant text, tool names, and error messages. (3) Applies same Strip logic used in UC-14 (context continuity, REQ-41). (4) Stripped delta is sent to LLM, not original delta. (5) Stripped size << original size (typically 80-90% reduction). (6) Strip errors logged to stderr, don't fail the operation.
+- Verification: deterministic (content presence/absence check, size comparison)
+
+---
+
+## DES-9: Hook wiring — PreCompact and Stop
+
+PreCompact hook (`hooks/pre-compact.sh`) and Stop hook (`hooks/stop.sh`) are registered in `hooks/hooks.json`. Both invoke the same pipeline: extract transcript_path and session_id from stdin JSON, pass to `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`.
+
+The hook reads transcript_path and session_id from the stdin JSON payload. Token retrieval uses the same platform-aware mechanism as DES-3 (macOS Keychain fallback to env var).
+
+Both hooks are synchronous (not async) — they must complete before context compaction or session termination. Fire-and-forget error handling (ARCH-6): errors logged to stderr, exit 0 always.
+
+- Traces to: UC-1 (incremental hook wiring)
 
 ---
 

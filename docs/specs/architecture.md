@@ -467,15 +467,15 @@ type CreationLogger interface {
 }
 
 type Learner struct {
-    Extractor      TranscriptExtractor  // LLM: transcript → []CandidateLearning
+    Extractor      TranscriptExtractor  // LLM: stripped delta → []CandidateLearning
     Retriever      MemoryRetriever      // file I/O: data-dir → existing memories (ARCH-9 reuse)
     Deduplicator   Deduplicator         // keyword overlap: candidates × existing → filtered candidates
     Writer         MemoryWriter         // file I/O: CandidateLearning → file path (ARCH-4 reuse)
     CreationLogger CreationLogger       // optional: log creation events for deferred visibility (ARCH-21)
 }
 
-func (l *Learner) Run(ctx context.Context, transcript string, dataDir string) ([]string, error) {
-    // 1. Extractor.Extract(ctx, transcript): LLM call → []CandidateLearning
+func (l *Learner) Run(ctx context.Context, strippedDelta string, dataDir string) ([]string, error) {
+    // 1. Extractor.Extract(ctx, strippedDelta): LLM call on delta (not full transcript) → []CandidateLearning
     // 2. Retriever.ListMemories(ctx, dataDir): read existing memory files
     // 3. Deduplicator.Filter(candidates, existing): remove duplicates by keyword overlap
     // 4. For each surviving candidate:
@@ -485,19 +485,19 @@ func (l *Learner) Run(ctx context.Context, transcript string, dataDir string) ([
 }
 ```
 
-Five stages (four existing + optional creation logger), each independently testable via DI. Reuses MemoryRetriever (ARCH-9) and MemoryWriter (ARCH-4). CreationLogger is optional — if nil, no creation log is written (backward compatible).
+Five stages (four existing + optional creation logger), each independently testable via DI. Reuses MemoryRetriever (ARCH-9) and MemoryWriter (ARCH-4). CreationLogger is optional — if nil, no creation log is written (backward compatible). Input is now stripped delta (not full transcript) per ARCH-31.
 
-**Traces to:** REQ-15 (extraction), REQ-17 (dedup), REQ-3 (file writing via ARCH-4), REQ-20 (CLI entry), REQ-25 (creation log write)
+**Traces to:** REQ-15 (delta extraction), REQ-17 (dedup), REQ-3 (file writing via ARCH-4), REQ-20 (CLI entry), REQ-25 (creation log write)
 
 ---
 
-## ARCH-15: Transcript Extraction via LLM with Unified Tier Criteria
+## ARCH-15: Transcript Delta Extraction via LLM with Unified Tier Criteria
 
-**Decision:** Single LLM call to extract multiple learnings from a session transcript, classifying each using the same A/B/C tier criteria as the real-time classifier (ARCH-2).
+**Decision:** Single LLM call to extract multiple learnings from the stripped transcript delta (not full transcript), classifying each using the same A/B/C tier criteria as the real-time classifier (ARCH-2).
 
 ```go
 type TranscriptExtractor interface {
-    Extract(ctx context.Context, transcript string) ([]CandidateLearning, error)
+    Extract(ctx context.Context, strippedDelta string) ([]CandidateLearning, error)
 }
 
 type CandidateLearning struct {
@@ -515,16 +515,16 @@ type CandidateLearning struct {
 ```
 
 Implementation sends a single `messages` API call to `claude-haiku-4-5-20251001`. The system prompt:
-1. Instructs the LLM to review the transcript and extract actionable learnings.
+1. Instructs the LLM to review the **delta** (new content since last extraction) and extract actionable learnings.
 2. Defines the JSON array output format (each element has all CandidateLearning fields, including `tier`).
 3. Includes the same A/B/C tier definitions as the real-time classifier: A = explicit instruction, B = teachable correction, C = contextual fact.
 4. Embeds anti-pattern gating: A → always generate anti_pattern, B → when generalizable, C → never.
 5. Embeds the quality gate (REQ-16): explicitly reject mechanical patterns, vague generalizations, and overly narrow observations.
 6. Instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
 
-Returns `ErrNoToken` if no token is configured (REQ-18 — fail loud). Returns an error if the LLM response cannot be parsed. Returns empty slice if LLM finds no learnings worth extracting.
+Input is the stripped transcript delta (low-value content removed per REQ-27). Returns `ErrNoToken` if no token is configured (REQ-18 — fail loud). Returns an error if the LLM response cannot be parsed. Returns empty slice if LLM finds no learnings worth extracting.
 
-**Traces to:** REQ-15 (LLM extraction with tier classification), REQ-16 (quality gate), REQ-7 (unified tier criteria + anti-pattern gating), REQ-18 (fail loud)
+**Traces to:** REQ-15 (delta extraction with tier classification), REQ-16 (quality gate), REQ-7 (unified tier criteria + anti-pattern gating), REQ-18 (fail loud), REQ-27 (preprocessing)
 
 ---
 
@@ -554,48 +554,53 @@ Design choices:
 
 ---
 
-## ARCH-17: CLI Learn Subcommand
+## ARCH-17: CLI Learn Subcommand with Incremental Offset Tracking
 
-**Decision:** Extend the engram binary with a `learn` subcommand. Transcript read from stdin.
+**Decision:** Extend the engram binary with a `learn` subcommand that reads transcript from file and tracks extraction offset per session.
 
 ```bash
-engram learn --data-dir <path> < transcript.txt
+engram learn --data-dir <path> --transcript-path <file> --session-id <id>
 ```
 
 Routing in `internal/cli/`:
-- Parse args for `learn` subcommand with `--data-dir` flag.
-- Read transcript from stdin (buffered read to EOF).
-- Construct Learner pipeline (ARCH-14): wire Extractor, Retriever, Deduplicator, Writer.
-- Run pipeline, collect created file paths.
+- Parse args for `learn` subcommand with `--data-dir`, `--transcript-path`, `--session-id` flags.
+- Construct IncrementalLearner (ARCH-39) which handles:
+  1. Offset lookup and session ID validation
+  2. Transcript delta reading from file
+  3. Preprocessing (Strip)
+  4. Learner pipeline execution (ARCH-14)
+  5. Offset update
 - Emit DES-10 format to stderr.
 
 Design choices:
-- **Stdin for transcript:** Command-line length limits make flags impractical for full transcripts.
-- **Stderr for feedback:** Session may be ending (SessionEnd hook). Stdout is reserved for hook protocol.
+- **File path for transcript:** Enables offset tracking across multiple invocations.
+- **Session ID:** Distinguishes separate sessions — new session ID resets offset to 0.
+- **Stderr for feedback:** Session may be ending (Stop hook). Stdout is reserved for hook protocol.
 
-**Traces to:** REQ-20 (CLI learn subcommand), DES-10 (feedback format)
+**Traces to:** REQ-20 (CLI learn subcommand), REQ-26 (offset tracking), REQ-27 (preprocessing), DES-10 (feedback format)
 
 ---
 
-## ARCH-18: Hook Script Integration for PreCompact and SessionEnd
+## ARCH-18: Hook Script Integration for PreCompact and Stop
 
-**Decision:** Two new hook scripts invoke `engram learn`. Registered in `hooks/hooks.json`.
+**Decision:** Two new hook scripts invoke `engram learn` with incremental offset tracking. Registered in `hooks/hooks.json`.
 
 Hook flow:
-- **PreCompact:** `hooks/pre-compact.sh` reads the transcript from stdin JSON, pipes to `engram learn --data-dir <path>`. Stderr feedback visible in logs.
-- **SessionEnd:** `hooks/session-end.sh` reads the transcript from stdin JSON, pipes to `engram learn --data-dir <path>`. Stderr feedback visible in logs.
+- **PreCompact:** `hooks/pre-compact.sh` extracts transcript_path and session_id from stdin JSON, invokes `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`. Stderr feedback visible in logs.
+- **Stop:** `hooks/stop.sh` extracts transcript_path and session_id from stdin JSON, invokes `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`. Stderr feedback visible in logs.
 
 Both scripts:
-1. Extract transcript from stdin JSON payload (field name per hook event).
+1. Extract transcript_path and session_id from stdin JSON payload.
 2. Use same token retrieval as DES-3 (macOS Keychain fallback to env var).
-3. Pipe transcript to `engram learn --data-dir "$ENGRAM_DATA"`.
-4. Exit 0 always.
+3. Invoke `engram learn --data-dir "$ENGRAM_DATA" --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"`.
+4. Exit 0 always (synchronous, fire-and-forget per ARCH-6).
 
 Design choices:
-- **Two separate scripts:** Although identical in logic, separate scripts allow future divergence (e.g., PreCompact might pass only the about-to-be-compacted portion).
+- **Two separate scripts:** Allow future divergence if needed.
+- **Synchronous execution:** Both hooks must complete before context compaction (PreCompact) or session termination (Stop).
 - **Same binary:** Both invoke the same `engram learn` subcommand.
 
-**Traces to:** DES-9 (hook wiring), REQ-19 (idempotency — second invocation deduplicates against first)
+**Traces to:** DES-9 (hook wiring), REQ-19 (idempotency — multiple extractions in same session deduplicate), REQ-26 (offset tracking)
 
 ---
 
@@ -1032,6 +1037,83 @@ func (g *Generator) Generate(
 **No API key behavior:** If `ANTHROPIC_API_KEY` is empty, create generator without LLM caller. Generator skips leech/hidden-gem proposals (REQ-53).
 
 **Traces to:** REQ-53, REQ-54, DES-23
+
+---
+
+## ARCH-38: Learn Offset Tracking Infrastructure
+
+**Decision:** New `internal/learn/offset.go` package for persistent offset tracking per session.
+
+```go
+type OffsetStore interface {
+    ReadOffset(sessionID string) (int64, error)
+    WriteOffset(sessionID string, offset int64) error
+}
+
+type LearnOffset struct {
+    // maps session_id -> byte_offset
+}
+```
+
+Implementation uses JSON file at `<data-dir>/learn-offset.json`:
+```json
+{
+    "session-123": 5432,
+    "session-456": 8901
+}
+```
+
+Atomicity: write to temp file, then rename to final path. DI interfaces WithReadFile, WithWriteFile for testability.
+
+**Design choices:**
+- **Per-session tracking:** Different sessions can be processed independently.
+- **JSON format:** Human-readable, easy to inspect for debugging.
+- **Atomic writes:** Prevent corruption from concurrent writes.
+- **New session detection:** If session_id not in map, treat as new session (offset = 0).
+
+**Traces to:** REQ-26 (offset tracking), REQ-27 (delta computation), UC-1 incremental learning
+
+---
+
+## ARCH-39: IncrementalLearner Orchestrator
+
+**Decision:** New `internal/learn/incremental.go` package that orchestrates incremental extraction: delta reading → stripping → learning → offset update.
+
+```go
+type IncrementalLearner struct {
+    TranscriptPath  string
+    SessionID       string
+    DataDir         string
+    OffsetStore     OffsetStore
+    DeltaReader     DeltaReader       // from internal/context (ARCH-28 reuse for UC-14)
+    Stripper        Stripper          // from internal/context (ARCH-29 reuse for UC-14)
+    Learner         Learner           // ARCH-14 pipeline
+}
+
+func (il *IncrementalLearner) Run(ctx context.Context) ([]string, error) {
+    // 1. il.OffsetStore.ReadOffset(il.SessionID) → currentOffset
+    // 2. If currentOffset offset not found, set to 0 (new session)
+    // 3. il.DeltaReader.ReadDelta(il.TranscriptPath, currentOffset) → delta
+    // 4. If delta is empty, return [] (skip extraction)
+    // 5. il.Stripper.Strip(delta) → strippedDelta
+    // 6. il.Learner.Run(ctx, strippedDelta, il.DataDir) → createdPaths
+    // 7. il.OffsetStore.WriteOffset(il.SessionID, newFileSize) — atomic update
+    // 8. return createdPaths
+}
+```
+
+**Reuses:**
+- `DeltaReader` from `internal/context` (ARCH-28, UC-14)
+- `Stripper` from `internal/context` (ARCH-29, UC-14)
+- `Learner` from `internal/learn` (ARCH-14, UC-1)
+
+**Design choices:**
+- **Session boundary handling:** Detects new sessions by session_id. Resets offset to 0 on new session.
+- **Empty delta optimization:** Skips API call if delta is empty (no cost for idle periods).
+- **Atomic offset update:** Offset written after extraction completes successfully.
+- **Fire-and-forget errors:** Offset write errors logged to stderr, don't fail learning operation (ARCH-6).
+
+**Traces to:** REQ-26 (offset tracking), REQ-27 (preprocessing), UC-1 incremental extraction
 
 ---
 

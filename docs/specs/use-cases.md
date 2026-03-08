@@ -101,19 +101,28 @@ updated_at = "2026-03-03T18:00:00Z"
 
 ## UC-1: Session Learning
 
-**Description:** At context compaction and session end, review the session transcript with an LLM to extract learnings that weren't captured by real-time correction detection (UC-3). Write them as enriched TOML memory files.
+**Description:** Incrementally extract learnings from session transcript deltas rather than full transcripts. Extract at context compaction (PreCompact) and session end (Stop/SessionEnd) using only the new transcript content since the last extraction. Write enriched TOML memory files for learnings not captured by real-time correction (UC-3).
 
-**Starting state:** A session is active and a PreCompact or SessionEnd hook fires. The transcript contains learning signals the real-time classifier missed, architectural decisions, discovered constraints, working solutions, and implicit patterns.
+**Starting state:** A session is active and a PreCompact or Stop hook fires. The transcript has accumulated since the last extraction. Engram tracks the byte offset of the last extraction point per session. If this is a new session (session ID changed), the offset is reset to 0.
 
-**End state:** New enriched TOML memory files exist for learnings not already captured by UC-3. No duplicates of existing memories. Each learning classified as A/B/C using the same tier criteria as real-time capture.
+**End state:** New enriched TOML memory files exist for learnings not already captured by UC-3. No duplicates of existing memories. Each learning classified as A/B/C using the same tier criteria as real-time capture. The extraction offset is updated for the next extraction in this session.
 
-**Actor:** System (Go binary triggered by PreCompact and SessionEnd hooks).
+**Actor:** System (Go binary triggered by PreCompact and Stop/SessionEnd hooks).
 
 **Key interactions:**
 
-- **Trigger — PreCompact + SessionEnd:** Fires on both events. PreCompact captures learnings before context window compression loses transcript detail. SessionEnd captures end-of-session learnings regardless of how the session ends (user quit, timeout, error). Both triggers invoke the same extraction pipeline.
+- **Trigger — PreCompact + Stop:** Fires on both events. PreCompact captures learnings before context window compression. Stop/SessionEnd captures end-of-session learnings regardless of how the session ends. Both triggers invoke the same incremental extraction pipeline.
 
-- **LLM extraction with unified tier criteria:** A single API call (claude-haiku-4-5-20251001) receives the session transcript (or the portion about to be compacted for PreCompact) and produces a list of candidate learnings. Each candidate is classified using the same A/B/C tier criteria as UC-3's real-time classifier:
+- **Incremental extraction with offset tracking:** The `engram learn` subcommand accepts `--transcript-path` and `--session-id` flags. On each invocation:
+  1. Read the learn offset from persistent storage (e.g., `<data-dir>/learn-offset.json`). Key by session ID.
+  2. If session ID differs from the stored session, reset offset to 0 (new session detected).
+  3. Read the transcript file from `--transcript-path` starting at the byte offset.
+  4. If the delta is empty, skip extraction (no API call, no cost for idle periods).
+  5. If the delta has content, preprocess it with the Strip operation (remove low-value content: tool results, base64/binary, repeated schemas) to reduce tokens sent to the LLM.
+  6. Send the stripped delta (not full transcript) to the LLM for extraction.
+  7. Update the offset to the current file end position.
+
+- **LLM extraction with unified tier criteria:** A single API call (claude-haiku-4-5-20251001) receives the stripped transcript delta and produces a list of candidate learnings. Each candidate is classified using the same A/B/C tier criteria as UC-3's real-time classifier:
 
   | Tier | What | Anti-pattern | Example |
   |------|------|-------------|---------|
@@ -132,7 +141,7 @@ updated_at = "2026-03-03T18:00:00Z"
 
 - **Quality gate:** Extracted memories must be specific and actionable. The LLM prompt instructs rejection of: mechanical patterns (e.g., "ran tests before committing"), vague generalizations (e.g., "code should be clean"), and observations that are project-specific but too narrow to be useful again.
 
-- **Deduplication against existing memories:** Before writing each candidate, check existing TOML files in the memories directory. Compare by keyword overlap and semantic similarity (via the LLM). If a candidate substantially overlaps an existing memory, skip it. UC-3 mid-session captures take priority — session-end extraction never duplicates what was already captured.
+- **Deduplication against existing memories:** Before writing each candidate, check existing TOML files in the memories directory. Compare by keyword overlap. If a candidate substantially overlaps an existing memory (>50% keyword match), skip it. UC-3 mid-session captures take priority — session-end extraction never duplicates what was already captured.
 
 - **Confidence tiers:** Session-extracted learnings are classified as A, B, or C using the same criteria as UC-3. Most will be tier C (contextual facts, discovered constraints), but the LLM may identify missed tier-A or tier-B signals. Anti-pattern generation follows the same tier gating: A always, B when generalizable, C never.
 
@@ -140,9 +149,11 @@ updated_at = "2026-03-03T18:00:00Z"
 
 - **TOML file output:** Same format and directory as UC-3. Memory written to `<data-dir>/memories/<slug>.toml`. The `confidence` field reflects the classified tier (A, B, or C).
 
-- **Creation visibility (deferred):** PreCompact and SessionEnd hooks have no output mechanism to show the user what was created. Instead, creation events are logged to a file (`<data-dir>/creation-log.jsonl`) with timestamp, title, tier, and file path. UC-2's SessionStart surfacing reports these at the start of the next session so the user sees what was learned. The log is cleared after successful reporting.
+- **Creation visibility (deferred):** PreCompact and Stop/SessionEnd hooks have no output mechanism to show the user what was created. Instead, creation events are logged to a file (`<data-dir>/creation-log.jsonl`) with timestamp, title, tier, and file path. UC-2's SessionStart surfacing reports these at the start of the next session so the user sees what was learned. The log is cleared after successful reporting.
 
-- **Idempotency:** If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
+- **Idempotency:** If both PreCompact and Stop fire in the same session, each invocation extracts from its own transcript delta (determined by byte offset). Multiple PreCompact events in a long session each process only the new content since the previous PreCompact. Dedup handles any overlap across multiple extractions in the same session.
+
+- **Session boundary handling:** When a new session starts (session ID changes), the learn offset resets to 0. This prevents loss of learnings at session boundaries — the next PreCompact or Stop in the new session will extract from the beginning of the new transcript.
 
 - **Pure Go, no CGO:** Same constraint as UC-3.
 

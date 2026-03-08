@@ -1837,3 +1837,102 @@ All UC-6 L2 items have test coverage. All ARCH-26..27 items have test coverage.
 | DES-25 | T-174 |
 
 All UC-16 L2 items have test coverage. All ARCH-36..37 items have test coverage.
+
+---
+
+## Learn Offset Infrastructure (ARCH-38)
+
+### T-182: Offset read returns stored value for session ID
+
+**Given** an offset file with `{"session-123": 5432}`,
+**When** test calls ReadOffset("session-123"),
+**Then** 5432 is returned.
+
+- Traces to: ARCH-38, REQ-26
+- Verification: unit
+
+### T-183: Offset write persists to JSON file atomically
+
+**Given** no existing offset file,
+**When** test calls WriteOffset("session-456", 8901),
+**Then** the offset file exists at `<data-dir>/learn-offset.json` containing `{"session-456": 8901}`. Write is atomic (temp file → rename).
+
+When called again with a different session, offset map is updated atomically (existing entries preserved).
+
+- Traces to: ARCH-38, REQ-26
+- Verification: unit
+
+---
+
+## IncrementalLearner Orchestrator (ARCH-39)
+
+### T-184: Delta reading with byte offset
+
+**Given** a transcript file and a stored byte offset for the session,
+**When** IncrementalLearner.Run calls DeltaReader.ReadDelta(transcript_path, offset),
+**Then** only the new content from offset to file end is returned. Offset is from `internal/context` (ARCH-28 reuse).
+
+- Traces to: ARCH-39, REQ-26, REQ-27
+- Verification: unit (mock DeltaReader)
+
+### T-185: Strip preprocessing on delta before extraction
+
+**Given** a delta containing tool results, base64, and repeated schemas,
+**When** IncrementalLearner.Run preprocesses the delta,
+**Then** Strip removes low-value content. Stripped delta is sent to Learner, not original. Stripping uses `internal/context` Strip (ARCH-29 reuse).
+
+- Traces to: ARCH-39, REQ-27
+- Verification: unit (mock Stripper)
+
+### T-186: Incremental extraction with matching session ID
+
+**Given** IncrementalLearner with session_id="session-123" and a stored offset for "session-123",
+**When** IncrementalLearner.Run is called,
+**Then** it reads the stored offset, computes delta from that offset, and runs extraction. Offset is updated to new file end after extraction.
+
+- Traces to: ARCH-39, REQ-26, REQ-19
+- Verification: unit (mock DeltaReader, Stripper, Learner, OffsetStore)
+
+### T-187: New session ID resets offset to 0
+
+**Given** IncrementalLearner with session_id="new-session" which is not in the offset map,
+**When** IncrementalLearner.Run is called,
+**Then** offset is treated as 0 (start from beginning of file). Delta is read from file start. After extraction, new session_id is stored in offset map.
+
+- Traces to: ARCH-39, REQ-26, REQ-19
+- Verification: unit
+
+### T-188: Empty delta skips extraction
+
+**Given** IncrementalLearner with a transcript file where current offset is already at file end (delta is empty),
+**When** IncrementalLearner.Run is called,
+**Then** extraction is skipped (no API call, no cost). Empty slice is returned. Offset is not updated.
+
+- Traces to: ARCH-39, REQ-26 (cost optimization)
+- Verification: unit
+
+---
+
+## CLI with Incremental Flags (ARCH-17)
+
+### T-189: learn subcommand with --transcript-path and --session-id flags
+
+**Given** the `engram learn` subcommand,
+**When** called with `--data-dir <path> --transcript-path <file> --session-id <id>`,
+**Then** argument parsing succeeds. IncrementalLearner is constructed with the provided paths and session ID. The pipeline runs and exits 0.
+
+When flags are missing, usage error is returned.
+
+- Traces to: ARCH-17, REQ-20, REQ-26
+- Verification: unit (mock IncrementalLearner)
+
+---
+
+Coverage update:
+- REQ-26: T-182, T-183, T-186, T-187, T-189
+- REQ-27: T-185
+- ARCH-38: T-182, T-183
+- ARCH-39: T-184, T-185, T-186, T-187, T-188
+- ARCH-17: T-189
+
+All UC-1 L2 items have incremental test coverage.
