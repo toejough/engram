@@ -1575,13 +1575,13 @@ All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
 - **Traces to:** ARCH-32, REQ-43
 - **Type:** example-based
 
-### T-158: Hook integration — UserPromptSubmit launches context-update in background
+### T-158: Hook integration — context-update runs as separate async hook
 
-- **Given** UserPromptSubmit hook is triggered
-- **When** hook script runs
-- **Then** `engram context-update` is spawned in background (trailing `&`) and correct/surface output is returned immediately (hook doesn't wait)
+- **Given** UserPromptSubmit hooks are configured in hooks.json
+- **When** hooks.json is inspected
+- **Then** there are two UserPromptSubmit entries: (1) synchronous entry running `user-prompt-submit.sh` (correct + surface), (2) async entry (`"async": true`) running `user-prompt-submit-async.sh` (context-update only). The synchronous script does not contain nohup/disown or background spawning of context-update.
 - **Traces to:** ARCH-33, DES-18
-- **Type:** example-based (hook script execution)
+- **Type:** example-based (hook configuration verification)
 
 ### T-159: Hook integration — PreCompact calls context-update synchronously
 

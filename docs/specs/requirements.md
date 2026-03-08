@@ -900,10 +900,10 @@ On SessionStart, read `.claude/engram/session-context.md` if it exists. Extract 
 
 ## DES-18: UserPromptSubmit context-update pipeline
 
-The UserPromptSubmit hook script launches `engram context-update` in parallel (background) with the existing `engram correct` + `engram surface` calls. The context-update call receives `--transcript-path`, `--session-id`, and `--data-dir` flags. It runs concurrently — the hook does not wait for it before returning output from correct/surface.
+Context-update runs as a separate async hook entry in hooks.json (`"async": true`), not inside the synchronous UserPromptSubmit script. A dedicated script (`user-prompt-submit-async.sh`) handles only context-update. The existing `user-prompt-submit.sh` handles correct + surface synchronously.
 
 - Traces to: UC-14 (piggybacked on UserPromptSubmit)
-- AC: (1) context-update runs in background (trailing `&`). (2) Hook still returns correct/surface output promptly. (3) context-update receives transcript path and session ID from hook JSON stdin.
+- AC: (1) context-update runs via separate async hook entry (not nohup/disown). (2) Synchronous hook still returns correct/surface output promptly. (3) context-update receives transcript path and session ID from hook JSON stdin.
 
 ---
 
@@ -1015,7 +1015,7 @@ Orchestrates the full incremental context update pipeline.
 Specifies how context updates are triggered and how context is restored.
 
 - Traces to: DES-18 (UserPromptSubmit pipeline), DES-19 (PreCompact flush), DES-22 (SessionStart injection)
-- UserPromptSubmit hook: Spawn `engram context-update --transcript-path <path> --session-id <id> --data-dir <dir>` in background (trailing `&`). Return output from existing correct/surface calls immediately (don't wait).
+- UserPromptSubmit hook: Context-update runs as a separate async hook entry (`"async": true` in hooks.json) via `user-prompt-submit-async.sh`. The synchronous `user-prompt-submit.sh` handles correct/surface only.
 - PreCompact hook: Call `engram context-update` synchronously with same flags. Wait for completion (60s timeout available per hook config).
 - SessionStart hook: Read context file (if exists) via ARCH-31. Extract summary and inject as `additionalContext` in hook JSON output. Annotate clearly so the model knows this is a session resumption summary.
 - Behavioral contract: Hooks remain responsive; background calls don't block. SessionStart always succeeds (missing file → no injection, no error).
