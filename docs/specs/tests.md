@@ -1710,3 +1710,130 @@ All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
 | REQ-39 | T-130 |
 
 All UC-6 L2 items have test coverage. All ARCH-26..27 items have test coverage.
+
+---
+
+## Proposal Generator (ARCH-36)
+
+### T-171: Working memory within staleness threshold produces no proposal
+
+**Given** a classified memory in the Working quadrant with `updated_at` less than 90 days ago,
+**When** Generate is called,
+**Then** no proposal is produced for that memory.
+
+- Traces to: ARCH-36, REQ-48
+- Type: example-based (boundary: 89 days = no proposal)
+
+### T-172: Working memory beyond staleness threshold produces review proposal
+
+**Given** a classified memory in the Working quadrant with `updated_at` more than 90 days ago,
+**When** Generate is called,
+**Then** a proposal with `action: "review_staleness"` is produced, including the memory's age in days.
+
+- Traces to: ARCH-36, REQ-48
+- Type: example-based (boundary: 91 days = proposal)
+
+### T-173: Leech memory produces LLM-powered rewrite proposal
+
+**Given** a classified memory in the Leech quadrant,
+**When** Generate is called with a working LLM caller,
+**Then** a proposal with `action: "rewrite"` is produced containing LLM-proposed field changes (keywords, principle, etc.).
+
+- Traces to: ARCH-36, REQ-49, DES-24
+- Type: example-based (verify LLM called with memory content + stats, response parsed into proposal)
+
+### T-174: Hidden gem memory produces LLM-powered broadening proposal
+
+**Given** a classified memory in the Hidden Gem quadrant,
+**When** Generate is called with a working LLM caller,
+**Then** a proposal with `action: "broaden_keywords"` is produced containing proposed keyword additions.
+
+- Traces to: ARCH-36, REQ-50, DES-25
+- Type: example-based (verify LLM called, response parsed)
+
+### T-175: Noise memory produces removal proposal with evidence
+
+**Given** a classified memory in the Noise quadrant with surfaced_count=2, effectiveness_score=15.0, evaluation_count=8,
+**When** Generate is called,
+**Then** a proposal with `action: "remove"` is produced with evidence fields matching the stats.
+
+- Traces to: ARCH-36, REQ-51
+- Type: example-based (verify evidence fields match input stats)
+
+### T-176: Insufficient-data memory produces no proposal
+
+**Given** a classified memory with quadrant InsufficientData,
+**When** Generate is called,
+**Then** no proposal is produced for that memory.
+
+- Traces to: ARCH-36, REQ-47
+- Type: example-based (filter check)
+
+### T-177: LLM failure for one memory does not block others
+
+**Given** two leech memories where the LLM caller fails for the first but succeeds for the second,
+**When** Generate is called,
+**Then** one proposal is returned (for the second memory). The first memory's proposal is omitted.
+
+- Traces to: ARCH-36, REQ-52
+- Type: example-based (fire-and-forget error handling)
+
+### T-178: No LLM caller skips leech and hidden gem proposals
+
+**Given** classified memories including leech and hidden gem entries, but no LLM caller configured,
+**When** Generate is called,
+**Then** only working staleness and noise removal proposals are produced. Leech and hidden gem proposals are skipped.
+
+- Traces to: ARCH-36, REQ-53
+- Type: example-based (nil LLM caller behavior)
+
+---
+
+## Maintain CLI Wiring (ARCH-37)
+
+### T-179: maintain subcommand produces JSON proposals to stdout
+
+**Given** a data directory with memories, surfacing logs, and evaluation logs,
+**When** `RunMaintain` is called with `--data-dir`,
+**Then** stdout contains a JSON array of proposals, each with memory_path, quadrant, diagnosis, action, and details fields.
+
+- Traces to: ARCH-37, REQ-53, DES-23
+- Type: example-based (end-to-end CLI wiring)
+
+### T-180: maintain with no evaluation data produces empty array
+
+**Given** a data directory with memories but no evaluation directory,
+**When** `RunMaintain` is called,
+**Then** stdout contains `[]` and the command exits without error.
+
+- Traces to: ARCH-37, REQ-54
+- Type: example-based (no-data behavior)
+
+### T-181: maintain without API key skips LLM proposals
+
+**Given** a data directory with leech and noise memories, but no ANTHROPIC_API_KEY,
+**When** `RunMaintain` is called,
+**Then** only noise/working proposals appear in output. Leech/hidden-gem proposals are absent.
+
+- Traces to: ARCH-37, REQ-53
+- Type: example-based (graceful degradation without API key)
+
+---
+
+## L2 → Test Traceability (UC-16)
+
+| L2 Item | Test Coverage |
+|---------|--------------|
+| REQ-47 | T-176 |
+| REQ-48 | T-171, T-172 |
+| REQ-49 | T-173 |
+| REQ-50 | T-174 |
+| REQ-51 | T-175 |
+| REQ-52 | T-177 |
+| REQ-53 | T-178, T-179, T-181 |
+| REQ-54 | T-180 |
+| DES-23 | T-179 |
+| DES-24 | T-173 |
+| DES-25 | T-174 |
+
+All UC-16 L2 items have test coverage. All ARCH-36..37 items have test coverage.

@@ -57,7 +57,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-161", "T-162", "T-163", "T-164", "T-165", "T-166", "T-167", "T-168", "T-169", "T-170"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-161", "T-162", "T-163", "T-164", "T-165", "T-166", "T-167", "T-168", "T-169", "T-170", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -489,6 +489,14 @@ items = ["T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141",
 status = "complete"
 history = "All T-134..160 tests implemented via TDD. internal/context/ package: DeltaReader (delta.go), ContentStripper (strip.go), ContextSummarizer (summarize.go), SessionContextFile (file.go), ContextOrchestrator (orchestrate.go). CLI context-update wired in internal/cli/cli.go. Hook integration in hooks/*.sh (UserPromptSubmit background, PreCompact synchronous, SessionStart restore). All tests passing, targ check clean, usability gate verified (build → install → exercise → observe). Commit a40b958."
 
+[tree.L4G]
+layer = "L4"
+name = "Memory Maintenance Tests"
+parents = ["L3G"]
+items = ["T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181"]
+status = "complete"
+history = "11 BDD test specs across 2 ARCH boundaries: proposal generator (T-171..T-178, ARCH-36), CLI wiring (T-179..T-181, ARCH-37). Full bidirectional traceability to all UC-16 L2 items."
+
 [tree.L3G]
 layer = "L3"
 name = "Memory Maintenance Architecture"
@@ -513,7 +521,7 @@ status = "complete"
 history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-47), staleness detection (REQ-48), leech diagnosis (REQ-49/DES-24), hidden gem broadening (REQ-50/DES-25), noise removal (REQ-51), fire-and-forget (REQ-52), CLI (REQ-53), output format (DES-23), no-data (REQ-54)."
 
 [cursor]
-node = "L3G"
+node = "L4G"
 mode = "complete"
-next_action = "L3 complete. Descend to L4 (TEST LIST) to derive test cases from ARCH-36/37."
+next_action = "L4 complete. Descend to L5 (IMPL) for TDD implementation of T-171..T-181."
 context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
