@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,6 +158,220 @@ func TestT121_SurfacerWritesSurfacingLog(t *testing.T) {
 	g.Expect(logger.calls[0].mode).To(Equal(surface.ModePrompt))
 	g.Expect(logger.calls[1].memoryPath).To(Equal("mem/beta.toml"))
 	g.Expect(logger.calls[1].mode).To(Equal(surface.ModePrompt))
+}
+
+// T-163: Tool mode frecency re-ranking with multiple anti-pattern candidates.
+func TestT163_ToolModeFrecencyReRanking(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Now()
+
+	// Two anti-pattern memories, both matching "commit" in tool input.
+	memLowFrecency := &memory.Stored{
+		Title:             "Old Commit Rule",
+		FilePath:          "old-commit-rule.toml",
+		AntiPattern:       "manual git commit",
+		Keywords:          []string{"commit"},
+		Principle:         "use /commit skill",
+		UpdatedAt:         now.Add(-30 * 24 * time.Hour),
+		SurfacedCount:     1,
+		LastSurfaced:      now.Add(-720 * time.Hour),
+		SurfacingContexts: []string{"tool"},
+	}
+
+	memHighFrecency := &memory.Stored{
+		Title:             "Recent Commit Rule",
+		FilePath:          "recent-commit-rule.toml",
+		AntiPattern:       "direct git commit",
+		Keywords:          []string{"commit", "git"},
+		Principle:         "always use /commit",
+		UpdatedAt:         now.Add(-48 * time.Hour),
+		SurfacedCount:     10,
+		LastSurfaced:      now.Add(-1 * time.Hour),
+		SurfacingContexts: []string{"tool", "prompt", "session-start"},
+	}
+
+	// Anti-pattern fillers that DON'T match "commit"/"git" — needed for BM25
+	// IDF contrast. BM25 IDF = log((N-df+0.5)/(df+0.5)), which is 0 when
+	// df = N/2. We need df/N < 0.5 so IDF > 0 for "commit"/"git".
+	fillers := make([]*memory.Stored, 0, 3)
+	for _, name := range []string{"formatting", "naming", "logging"} {
+		fillers = append(fillers, &memory.Stored{
+			Title:       name + " rule",
+			FilePath:    name + "-rule.toml",
+			AntiPattern: name + " violation",
+			Keywords:    []string{name},
+			Principle:   "follow " + name + " standards",
+		})
+	}
+
+	// Retriever returns low-frecency first.
+	allMems := make([]*memory.Stored, 0, 2+len(fillers))
+	allMems = append(allMems, memLowFrecency, memHighFrecency)
+	allMems = append(allMems, fillers...)
+	retriever := &fakeRetriever{memories: allMems}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix'",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+
+	// High-frecency memory should appear before low-frecency in output.
+	idxHigh := strings.Index(output, "recent-commit-rule")
+	idxLow := strings.Index(output, "old-commit-rule")
+
+	g.Expect(idxHigh).To(BeNumerically(">=", 0))
+	g.Expect(idxLow).To(BeNumerically(">=", 0))
+	g.Expect(idxHigh).To(BeNumerically("<", idxLow),
+		"high-frecency tool memory should rank above low-frecency")
+}
+
+// T-169/T-171: SessionStart uses frecency ranking (not just recency).
+func TestT169_SessionStartUsesFrecencyRanking(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Now()
+
+	// Memory A: old UpdatedAt, but high surfacing activity (should rank higher by frecency).
+	memA := &memory.Stored{
+		Title:             "Frequently Used",
+		FilePath:          "frequently-used.toml",
+		UpdatedAt:         now.Add(-30 * 24 * time.Hour), // 30 days ago
+		SurfacedCount:     15,
+		LastSurfaced:      now.Add(-1 * time.Hour),
+		SurfacingContexts: []string{"session-start", "prompt", "tool"},
+	}
+
+	// Memory B: recent UpdatedAt, but never surfaced (should rank lower by frecency).
+	memB := &memory.Stored{
+		Title:             "Recently Created",
+		FilePath:          "recently-created.toml",
+		UpdatedAt:         now.Add(-2 * time.Hour),
+		SurfacedCount:     0,
+		LastSurfaced:      time.Time{}, // never surfaced
+		SurfacingContexts: nil,
+	}
+
+	// Retriever returns B before A (sorted by UpdatedAt desc — B is more recent).
+	retriever := &fakeRetriever{memories: []*memory.Stored{memB, memA}}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+
+	// Frecency should reorder: "frequently-used" before "recently-created".
+	idxA := strings.Index(output, "frequently-used")
+	idxB := strings.Index(output, "recently-created")
+
+	g.Expect(idxA).To(BeNumerically(">=", 0), "frequently-used should appear in output")
+	g.Expect(idxB).To(BeNumerically(">=", 0), "recently-created should appear in output")
+	g.Expect(idxA).To(BeNumerically("<", idxB),
+		"high-frecency memory should appear before never-surfaced memory")
+}
+
+// T-170B: Prompt mode frecency re-ranking with multiple BM25 matches.
+func TestT170B_PromptModeFrecencyReRanking(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	now := time.Now()
+
+	// Two memories both matching "testing" in the prompt.
+	memLowFrecency := &memory.Stored{
+		Title:             "Old Testing Guide",
+		FilePath:          "old-testing.toml",
+		Keywords:          []string{"testing", "unit"},
+		Principle:         "write tests first",
+		Content:           "Testing guide for unit tests",
+		UpdatedAt:         now.Add(-30 * 24 * time.Hour),
+		SurfacedCount:     1,
+		LastSurfaced:      now.Add(-720 * time.Hour),
+		SurfacingContexts: []string{"prompt"},
+	}
+
+	memHighFrecency := &memory.Stored{
+		Title:             "Recent Testing Guide",
+		FilePath:          "recent-testing.toml",
+		Keywords:          []string{"testing", "integration"},
+		Principle:         "test everything",
+		Content:           "Testing guide for integration tests",
+		UpdatedAt:         now.Add(-48 * time.Hour),
+		SurfacedCount:     15,
+		LastSurfaced:      now.Add(-1 * time.Hour),
+		SurfacingContexts: []string{"prompt", "tool", "session-start"},
+	}
+
+	// Non-matching fillers for IDF contrast.
+	fillers := make([]*memory.Stored, 0, 3)
+	for _, name := range []string{"deploy", "config", "logging"} {
+		fillers = append(fillers, &memory.Stored{
+			Title:    name + " guide",
+			FilePath: name + ".toml",
+			Keywords: []string{name},
+			Content:  name + " documentation",
+		})
+	}
+
+	allMems := make([]*memory.Stored, 0, 2+len(fillers))
+	allMems = append(allMems, memLowFrecency, memHighFrecency)
+	allMems = append(allMems, fillers...)
+	retriever := &fakeRetriever{memories: allMems}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "how do I write testing for my code",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+
+	// High-frecency memory should appear before low-frecency in output.
+	idxHigh := strings.Index(output, "recent-testing")
+	idxLow := strings.Index(output, "old-testing")
+
+	g.Expect(idxHigh).To(BeNumerically(">=", 0), "recent-testing should appear in output")
+	g.Expect(idxLow).To(BeNumerically(">=", 0), "old-testing should appear in output")
+	g.Expect(idxHigh).To(BeNumerically("<", idxLow),
+		"high-frecency prompt memory should rank above low-frecency")
 }
 
 // T-27: SessionStart surfaces top 20 by recency

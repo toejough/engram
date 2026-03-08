@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"engram/internal/bm25"
 	"engram/internal/creationlog"
+	"engram/internal/frecency"
 	"engram/internal/memory"
 )
 
@@ -111,6 +113,19 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
+	// Create frecency scorer with current time and effectiveness data (ARCH-35).
+	var frecencyEff map[string]frecency.EffectivenessStat
+	if effectiveness != nil {
+		frecencyEff = make(map[string]frecency.EffectivenessStat, len(effectiveness))
+		for path, stat := range effectiveness {
+			frecencyEff[path] = frecency.EffectivenessStat{
+				EffectivenessScore: stat.EffectivenessScore,
+			}
+		}
+	}
+
+	scorer := frecency.New(time.Now(), frecencyEff)
+
 	var (
 		result  Result
 		matched []*memory.Stored
@@ -119,11 +134,11 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 
 	switch opts.Mode {
 	case ModeSessionStart:
-		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness)
+		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness, scorer)
 	case ModePrompt:
-		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness)
+		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness, scorer)
 	case ModeTool:
-		result, matched, err = s.runTool(ctx, opts, effectiveness)
+		result, matched, err = s.runTool(ctx, opts, effectiveness, scorer)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -150,6 +165,7 @@ func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message string,
 	effectiveness map[string]EffectivenessStat,
+	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
@@ -159,6 +175,14 @@ func (s *Surfacer) runPrompt(
 	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
 		return Result{}, nil, nil
+	}
+
+	// Re-rank by frecency activation (ARCH-35).
+	sortPromptMatchesByActivation(matches, scorer)
+
+	// Limit to top promptLimit results.
+	if len(matches) > promptLimit {
+		matches = matches[:promptLimit]
 	}
 
 	var buf strings.Builder
@@ -199,6 +223,7 @@ func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
 	effectiveness map[string]EffectivenessStat,
+	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, error) {
 	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
 	var logEntries []LogEntry
@@ -210,13 +235,16 @@ func (s *Surfacer) runSessionStart(
 		}
 	}
 
-	// Step 2: List memories for recency surfacing.
+	// Step 2: List memories for frecency surfacing (ARCH-35).
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	// Take top N by recency (already sorted by retriever).
+	// Sort by frecency activation descending (replaces pure recency ordering).
+	sortByActivation(memories, scorer)
+
+	// Take top N by frecency.
 	count := len(memories)
 	if count > sessionStartLimit {
 		count = sessionStartLimit
@@ -246,6 +274,7 @@ func (s *Surfacer) runTool(
 	ctx context.Context,
 	opts Options,
 	effectiveness map[string]EffectivenessStat,
+	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, error) {
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
@@ -255,6 +284,14 @@ func (s *Surfacer) runTool(
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
 	if len(candidates) == 0 {
 		return Result{}, nil, nil
+	}
+
+	// Re-rank by frecency activation (ARCH-35).
+	sortToolMatchesByActivation(candidates, scorer)
+
+	// Limit to top toolLimit results.
+	if len(candidates) > toolLimit {
+		candidates = candidates[:toolLimit]
 	}
 
 	var (
@@ -334,7 +371,9 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
+	promptLimit       = 10
 	sessionStartLimit = 20
+	toolLimit         = 5
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -508,6 +547,41 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	}
 
 	return matches
+}
+
+// sortByActivation sorts memories by frecency activation descending.
+func sortByActivation(memories []*memory.Stored, scorer *frecency.Scorer) {
+	sort.SliceStable(memories, func(i, j int) bool {
+		return scorer.Activation(toFrecencyInput(memories[i])) >
+			scorer.Activation(toFrecencyInput(memories[j]))
+	})
+}
+
+// sortPromptMatchesByActivation sorts prompt matches by frecency activation descending.
+func sortPromptMatchesByActivation(matches []promptMatch, scorer *frecency.Scorer) {
+	sort.SliceStable(matches, func(i, j int) bool {
+		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
+			scorer.Activation(toFrecencyInput(matches[j].mem))
+	})
+}
+
+// sortToolMatchesByActivation sorts tool matches by frecency activation descending.
+func sortToolMatchesByActivation(matches []toolMatch, scorer *frecency.Scorer) {
+	sort.SliceStable(matches, func(i, j int) bool {
+		return scorer.Activation(toFrecencyInput(matches[i].mem)) >
+			scorer.Activation(toFrecencyInput(matches[j].mem))
+	})
+}
+
+// toFrecencyInput converts a stored memory to a frecency input.
+func toFrecencyInput(mem *memory.Stored) frecency.Input {
+	return frecency.Input{
+		SurfacedCount:     mem.SurfacedCount,
+		LastSurfaced:      mem.LastSurfaced,
+		UpdatedAt:         mem.UpdatedAt,
+		SurfacingContexts: mem.SurfacingContexts,
+		FilePath:          mem.FilePath,
+	}
 }
 
 // writeCreationSection appends the creation report to summary and context buffers.
