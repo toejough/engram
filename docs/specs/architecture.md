@@ -964,3 +964,91 @@ engram review --data-dir <path>
 | REQ-39 | ARCH-27 |
 
 All UC-6 L2 items have ARCH coverage.
+
+---
+
+## ARCH-36: Maintain Proposal Generator
+
+**Decision:** New `internal/maintain/` package with a `Generator` struct that orchestrates proposal generation across all four quadrants.
+
+**Component:** `maintain.Generator`
+
+```go
+type Generator struct {
+    llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+    now       func() time.Time
+}
+
+type Proposal struct {
+    MemoryPath  string          `json:"memory_path"`
+    Quadrant    string          `json:"quadrant"`
+    Diagnosis   string          `json:"diagnosis"`
+    Action      string          `json:"action"`
+    Details     json.RawMessage `json:"details"`
+}
+
+func (g *Generator) Generate(
+    ctx context.Context,
+    classified []review.ClassifiedMemory,
+    memories map[string]*memory.Stored,
+) []Proposal
+```
+
+**Behavioral contracts:**
+- Iterates classified memories, dispatches to quadrant-specific handlers
+- Skips `InsufficientData` memories (REQ-47)
+- Working: deterministic staleness check (REQ-48)
+- Leech: LLM call per memory (REQ-49)
+- Hidden gem: LLM call per memory (REQ-50)
+- Noise: deterministic evidence assembly (REQ-51)
+- LLM failures omit that proposal, don't block others (REQ-52)
+- Returns slice of Proposals (may be empty)
+
+**DI table:**
+
+| Interface/Function | Production impl | Test impl |
+|---|---|---|
+| `llmCaller` | `makeAnthropicCaller(token)` | Fake returning canned JSON |
+| `now` | `time.Now` | Fixed time |
+
+**Traces to:** REQ-47, REQ-48, REQ-49, REQ-50, REQ-51, REQ-52, DES-24, DES-25
+
+---
+
+## ARCH-37: Maintain CLI Wiring
+
+**Decision:** New `RunMaintain` function in `internal/cli/cli.go` following the established pattern (RunReview, RunEvaluate).
+
+**Wiring flow:**
+1. Parse `--data-dir` flag
+2. Aggregate effectiveness: `effectiveness.New(evalDir).Aggregate()`
+3. Build tracking map: `buildTrackingMap(dataDir)` (reuse from RunReview)
+4. Classify: `review.Classify(stats, tracking)`
+5. Build memory lookup: `listMemories → map[filePath]*memory.Stored`
+6. Create generator: `maintain.New(opts...)` with LLM caller from API key
+7. Generate proposals: `generator.Generate(ctx, classified, memoryMap)`
+8. Encode JSON to stdout
+
+**No API key behavior:** If `ANTHROPIC_API_KEY` is empty, create generator without LLM caller. Generator skips leech/hidden-gem proposals (REQ-53).
+
+**Traces to:** REQ-53, REQ-54, DES-23
+
+---
+
+## L2 → ARCH Traceability (UC-16)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-47 | ARCH-36 |
+| REQ-48 | ARCH-36 |
+| REQ-49 | ARCH-36 |
+| REQ-50 | ARCH-36 |
+| REQ-51 | ARCH-36 |
+| REQ-52 | ARCH-36 |
+| DES-24 | ARCH-36 |
+| DES-25 | ARCH-36 |
+| REQ-53 | ARCH-37 |
+| REQ-54 | ARCH-37 |
+| DES-23 | ARCH-37 |
+
+All UC-16 L2 items have ARCH coverage.

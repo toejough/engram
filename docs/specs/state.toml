@@ -50,6 +50,8 @@ items = [
   { id = "ARCH-33", source = "derived" },
   { id = "ARCH-34", source = "derived" },
   { id = "ARCH-35", source = "derived" },
+  { id = "ARCH-36", source = "derived" },
+  { id = "ARCH-37", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -487,6 +489,14 @@ items = ["T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141",
 status = "complete"
 history = "All T-134..160 tests implemented via TDD. internal/context/ package: DeltaReader (delta.go), ContentStripper (strip.go), ContextSummarizer (summarize.go), SessionContextFile (file.go), ContextOrchestrator (orchestrate.go). CLI context-update wired in internal/cli/cli.go. Hook integration in hooks/*.sh (UserPromptSubmit background, PreCompact synchronous, SessionStart restore). All tests passing, targ check clean, usability gate verified (build → install → exercise → observe). Commit a40b958."
 
+[tree.L3G]
+layer = "L3"
+name = "Memory Maintenance Architecture"
+parents = ["L2G"]
+items = ["ARCH-36", "ARCH-37"]
+status = "complete"
+history = "2 ARCH decisions: proposal generator (ARCH-36) in internal/maintain/ with quadrant-specific handlers and DI LLM caller, CLI wiring (ARCH-37) reusing buildTrackingMap + review.Classify. Full L2 traceability."
+
 [tree.L1G]
 layer = "L1"
 name = "Unified Memory Maintenance"
@@ -503,7 +513,7 @@ status = "complete"
 history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-47), staleness detection (REQ-48), leech diagnosis (REQ-49/DES-24), hidden gem broadening (REQ-50/DES-25), noise removal (REQ-51), fire-and-forget (REQ-52), CLI (REQ-53), output format (DES-23), no-data (REQ-54)."
 
 [cursor]
-node = "L2G"
+node = "L3G"
 mode = "complete"
-next_action = "L2 complete. Descend to L3 (ARCH) to converge REQ + DES."
+next_action = "L3 complete. Descend to L4 (TEST LIST) to derive test cases from ARCH-36/37."
 context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
