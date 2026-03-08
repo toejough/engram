@@ -2348,3 +2348,161 @@ All UC-17 & UC-19 L2 items have test coverage.
 | REQ-79 | T-223 |
 
 All UC-18 & UC-20 L2 items have test coverage.
+
+---
+
+## Escalation Engine (ARCH-50)
+
+### T-224: Default escalation level is advisory
+
+**Given** a leech memory with no escalation_level field,
+**When** EscalationEngine.Analyze processes it,
+**Then** current_level is treated as "advisory" and escalation proposes "emphasized_advisory".
+
+- Traces to: ARCH-50, REQ-80
+- Verification: unit
+
+### T-225: Escalation proposes next level with predicted impact
+
+**Given** a leech memory at "advisory" with effectiveness 0.15, and 3 other memories that escalated to "emphasized_advisory" with average +10% improvement,
+**When** EscalationEngine.Analyze runs,
+**Then** proposal has proposed_level="emphasized_advisory", predicted_impact="+10% follow rate".
+
+- Traces to: ARCH-50, REQ-81
+- Verification: unit (mock effectiveness data)
+
+### T-226: De-escalation when post-escalation effectiveness drops
+
+**Given** a memory at "emphasized_advisory" with escalation_history showing pre-escalation effectiveness 0.20 and post-escalation effectiveness 0.15 for 3 consecutive cycles,
+**When** EscalationEngine.Analyze runs,
+**Then** proposal has proposal_type="de_escalate", proposed_level="advisory".
+
+- Traces to: ARCH-50, REQ-82
+- Verification: unit (mock escalation history)
+
+### T-227: Dimension routing to automation candidate
+
+**Given** a leech memory containing "always run targ test before committing" (mechanical pattern),
+**When** EscalationEngine.Analyze runs dimension routing,
+**Then** proposal has proposal_type="route_automation" instead of "escalate".
+
+- Traces to: ARCH-50, REQ-83
+- Verification: unit (keyword matching)
+
+### T-228: Escalation level written to TOML on confirmation
+
+**Given** a confirmed escalation proposal,
+**When** the memory TOML is updated,
+**Then** `escalation_level` field is set to proposed level, and escalation_history has a new entry with level, since (timestamp), and effectiveness.
+
+- Traces to: ARCH-50, REQ-84, DES-30
+- Verification: unit (mock memory writer, verify TOML fields)
+
+### T-229: Escalation proposal format matches DES-31
+
+**Given** a leech memory eligible for escalation,
+**When** EscalationEngine.Analyze produces a proposal,
+**Then** JSON includes: memory_path, proposal_type, current_level, proposed_level, rationale, predicted_impact.
+
+- Traces to: ARCH-50, REQ-81, DES-31
+- Verification: unit (JSON schema validation)
+
+---
+
+## Automation Generator Pipeline (ARCH-51)
+
+### T-230: Pattern recognition identifies mechanical candidates
+
+**Given** 5 memories: 2 with mechanical patterns ("always X before Y", "never use Z"), 3 without,
+**When** Automator.Run scans for candidates,
+**Then** 2 candidates are identified with pattern score ≥2.
+
+- Traces to: ARCH-51, REQ-86
+- Verification: unit (mock memory loader)
+
+### T-231: LLM generates automation for mechanical candidate
+
+**Given** a mechanical candidate memory,
+**When** Automator.Run calls Haiku,
+**Then** response includes automation_type, code, description, test_command, install_path.
+
+- Traces to: ARCH-51, REQ-87, DES-32
+- Verification: unit (mock LLM caller)
+
+### T-232: Verification passes on exit 0
+
+**Given** generated automation with a test_command,
+**When** test_command exits 0,
+**Then** proposal is marked verified=true.
+
+- Traces to: ARCH-51, REQ-88
+- Verification: unit (mock RunCommand returning 0)
+
+### T-233: Verification fails on non-zero exit
+
+**Given** generated automation with a test_command,
+**When** test_command exits 1,
+**Then** proposal is marked verified=false, automation is not installed.
+
+- Traces to: ARCH-51, REQ-88
+- Verification: unit (mock RunCommand returning 1)
+
+### T-234: Retirement sets retired_by field
+
+**Given** a confirmed and verified automation proposal,
+**When** memory TOML is updated,
+**Then** `retired_by` field is set to automation install_path, `retired_at` timestamp is set.
+
+- Traces to: ARCH-51, REQ-89
+- Verification: unit (mock memory writer)
+
+### T-235: Retired memories not surfaced
+
+**Given** a memory with non-empty `retired_by` field,
+**When** UC-2 surface matching runs,
+**Then** the memory is excluded from results.
+
+- Traces to: ARCH-51, REQ-89
+- Verification: unit (verify surface filtering)
+
+### T-236: CLI engram automate outputs JSON proposals
+
+**Given** `engram automate --data-dir <path>`,
+**When** command runs,
+**Then** output is JSON array of AutomationProposal objects. Exit 0.
+
+- Traces to: ARCH-51, REQ-90
+- Verification: unit (mock automator)
+
+### T-237: No API token skips generation, outputs candidates
+
+**Given** no API token set,
+**When** `engram automate` runs,
+**Then** pattern recognition outputs candidates with `generated: false, skipped_reason: "no API token"`. Exit 0.
+
+- Traces to: ARCH-51, REQ-91
+- Verification: unit
+
+---
+
+## Coverage Summary (UC-21 & UC-22)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-80 | T-224 |
+| DES-30 | T-228 |
+| REQ-81 | T-225, T-229 |
+| DES-31 | T-229 |
+| REQ-82 | T-226 |
+| REQ-83 | T-227 |
+| REQ-84 | T-228 |
+| REQ-85 | T-228 |
+| REQ-86 | T-230 |
+| REQ-87 | T-231 |
+| DES-32 | T-231 |
+| REQ-88 | T-232, T-233 |
+| REQ-89 | T-234, T-235 |
+| REQ-90 | T-236 |
+| REQ-91 | T-237 |
+
+All UC-21 & UC-22 L2 items have test coverage.

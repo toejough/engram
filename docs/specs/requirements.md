@@ -1690,3 +1690,181 @@ If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposa
 - Verification: deterministic (error condition handling)
 
 ---
+
+## UC-21: Enforcement Escalation Ladder — Requirements
+
+---
+
+## REQ-80: Five escalation levels
+
+Each leech memory has an escalation level: (1) advisory — surfaced as system reminder, (2) emphasized advisory — surfaced with warning prefix, (3) PostToolUse reminder — targeted reminder after relevant file edits (UC-18), (4) PreToolUse block — blocks tool execution until acknowledged, (5) automation candidate — flagged for UC-22 extraction.
+
+- Traces to: UC-21 (escalation levels)
+- AC: (1) Five named levels in order. (2) Each level has a defined enforcement mechanism. (3) Default level for all memories is "advisory". (4) Level stored in memory TOML file. (5) Levels are ordinal (can compare for escalation/de-escalation).
+- Verification: deterministic (enum validation)
+
+---
+
+## DES-30: Escalation level TOML schema
+
+Memory TOML files gain an optional `escalation_level` field:
+
+```toml
+escalation_level = "advisory"  # default
+escalation_history = [
+  { level = "advisory", since = "2026-01-01T00:00:00Z", effectiveness = 0.15 },
+  { level = "emphasized_advisory", since = "2026-02-01T00:00:00Z", effectiveness = 0.25 }
+]
+```
+
+- Traces to: REQ-80 (escalation levels), REQ-84 (TOML storage)
+
+---
+
+## REQ-81: Escalation proposals in maintain output
+
+When `engram maintain` detects a leech memory, it generates an escalation proposal alongside the existing content-rewrite proposal. The proposal includes: current level, proposed level, rationale, and predicted effectiveness improvement based on data from other memories at the proposed level.
+
+- Traces to: UC-21 (escalation proposals)
+- AC: (1) Maintain output includes escalation proposals for leech memories. (2) Proposal has: memory_path, current_level, proposed_level, rationale, predicted_impact. (3) Predicted impact based on average effectiveness delta for memories that previously escalated to the proposed level. (4) If no historical data, predicted impact = "unknown".
+- Verification: deterministic (proposal format, effectiveness lookup)
+
+---
+
+## DES-31: Escalation proposal format
+
+```json
+{
+  "memory_path": "memories/example.toml",
+  "proposal_type": "escalate",
+  "current_level": "advisory",
+  "proposed_level": "emphasized_advisory",
+  "rationale": "Surfaced 20 times, followed 15%. Content rewrite attempted, no improvement.",
+  "predicted_impact": "+10% follow rate based on 3 similar memories"
+}
+```
+
+- Traces to: REQ-81 (proposal format)
+
+---
+
+## REQ-82: De-escalation detection
+
+If a memory at an elevated enforcement level shows increasing contradictions (compliance rate drops after escalation), propose de-escalation back one level. De-escalation is proposed when post-escalation effectiveness < pre-escalation effectiveness for ≥3 evaluation cycles.
+
+- Traces to: UC-21 (de-escalation)
+- AC: (1) Track pre/post escalation effectiveness from escalation_history. (2) If post < pre for ≥3 cycles → de-escalation proposal. (3) Proposal includes evidence (before/after effectiveness values). (4) De-escalation drops one level (not to bottom).
+- Verification: deterministic (effectiveness comparison, cycle counting)
+
+---
+
+## REQ-83: Dimension routing before escalation
+
+Before proposing enforcement escalation, check whether the instruction should instead become: (a) automation via UC-22 (if instruction is mechanical), (b) a rule file (if instruction is file-type-specific), or (c) a CLAUDE.md entry (if instruction is universal). Only escalate enforcement for instructions requiring LLM judgment.
+
+- Traces to: UC-21 (dimension routing)
+- AC: (1) For each leech, check if instruction contains mechanical patterns ("always X", "never Y", format rules). (2) Mechanical → propose automation (UC-22 candidate). (3) File-type-specific → propose rule file. (4) Universal → propose CLAUDE.md entry. (5) Only remaining = escalate enforcement. (6) Routing classification is deterministic (keyword-based, no LLM).
+- Verification: deterministic (keyword matching)
+
+---
+
+## REQ-84: Escalation level stored per memory in TOML
+
+The `escalation_level` field is written to each memory's TOML file when escalation or de-escalation is confirmed. The `escalation_history` array tracks all level changes with timestamps and effectiveness at time of change.
+
+- Traces to: UC-21 (tracking)
+- AC: (1) Field name is `escalation_level`. (2) Default value is "advisory" (omitted when default). (3) History is append-only array. (4) Each entry has: level, since (ISO 8601), effectiveness (float). (5) TOML file remains valid and hand-editable after update.
+- Verification: deterministic (TOML write, field validation)
+
+---
+
+## REQ-85: User confirmation for each escalation step
+
+Every escalation and de-escalation requires explicit user confirmation before the TOML file is updated. The proposal is presented; the user confirms or skips. Skipped proposals are logged but not acted on.
+
+- Traces to: UC-21 (user confirmation)
+- AC: (1) Proposals are presented in maintain output (JSON). (2) User confirms via maintain command interaction. (3) Only confirmed proposals update TOML. (4) Skipped proposals logged to maintain log.
+- Verification: deterministic (confirmation tracking)
+
+---
+
+## UC-22: Mechanical Instruction Extraction — Requirements
+
+---
+
+## REQ-86: Pattern recognition for mechanical instructions
+
+Analyze leech/noise memories for mechanical patterns: "always X before Y", "never X when Z", "format as...", naming conventions, ordering rules. Classification is deterministic (keyword-based, no LLM).
+
+- Traces to: UC-22 (pattern recognition)
+- AC: (1) Scan memory content for mechanical keywords: "always", "never", "before", "after", "format", "name", "convention". (2) Score each memory for mechanical-ness (count of mechanical patterns). (3) Score ≥2 → mechanical candidate. (4) Output: list of candidates with patterns found.
+- Verification: deterministic (keyword counting)
+
+---
+
+## REQ-87: LLM generator for automation
+
+For mechanical candidates, invoke Haiku to generate deterministic automation: shell scripts, pre-commit hooks, or rule definitions. Generated code must be self-contained and testable.
+
+- Traces to: UC-22 (generator)
+- AC: (1) Haiku call with memory content + instruction type. (2) Output: JSON with automation_type (script/hook/rule), code, description, test_command. (3) Generated code is syntactically valid (shell/Go). (4) Invalid LLM responses are logged and skipped.
+- Verification: deterministic (LLM output parsing, syntax check)
+
+---
+
+## DES-32: Automation output format
+
+```json
+{
+  "memory_path": "memories/example.toml",
+  "automation_type": "pre_commit_hook",
+  "code": "#!/bin/bash\n# Verify X before Y\n...",
+  "description": "Enforces X-before-Y ordering in commits",
+  "test_command": "echo 'test input' | ./hooks/pre-commit-check.sh",
+  "install_path": ".git/hooks/pre-commit-check.sh"
+}
+```
+
+- Traces to: REQ-87 (generator output)
+
+---
+
+## REQ-88: Verification of generated automation
+
+Generated automation must pass a test (dry-run) before the instruction is retired. The test_command from the LLM output is executed with sample input. If it fails, the automation is not installed and the proposal is rejected.
+
+- Traces to: UC-22 (verification)
+- AC: (1) Execute test_command in a sandboxed environment. (2) Exit 0 → pass, non-zero → fail. (3) Pass → automation is installed to install_path. (4) Fail → automation rejected, error logged, memory unchanged.
+- Verification: deterministic (exit code check)
+
+---
+
+## REQ-89: Instruction retirement with retired_by field
+
+Once automation is verified and user confirms, the memory gains a `retired_by` field pointing to the automation file path. Retired memories are no longer surfaced by UC-2.
+
+- Traces to: UC-22 (retirement)
+- AC: (1) TOML file updated with `retired_by = "<automation_path>"`. (2) `retired_at` timestamp added. (3) UC-2 surface logic skips memories with non-empty `retired_by`. (4) Memory file is NOT deleted (preserved for audit trail).
+- Verification: deterministic (TOML field check, surfacing filter)
+
+---
+
+## REQ-90: CLI command `engram automate`
+
+New subcommand: `engram automate --data-dir <path>`. Scans for mechanical candidates, generates automation, verifies, and presents proposals. User confirms each.
+
+- Traces to: UC-22 (CLI command)
+- AC: (1) Subcommand registered. (2) Output is JSON array of automation proposals. (3) Exit 0 always. (4) Proposals include verification status.
+- Verification: deterministic (CLI registration, JSON output)
+
+---
+
+## REQ-91: No graceful degradation for automate
+
+If no API token, skip LLM generation. Pattern recognition still identifies mechanical candidates and outputs them as ungenerated candidates. Output includes `skipped_reason` for generation step.
+
+- Traces to: UC-22 (error handling)
+- AC: (1) Missing token → skip REQ-87. (2) REQ-86 (pattern recognition) still runs. (3) Candidates output with `{"generated": false, "skipped_reason": "no API token"}`. (4) Exit 0.
+- Verification: deterministic (error condition)
+
+---

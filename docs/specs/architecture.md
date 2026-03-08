@@ -1500,3 +1500,111 @@ func (a *Auditor) Run(ctx context.Context) (*AuditReport, error) {
 | REQ-79 | ARCH-49 |
 
 All UC-18 & UC-20 L2 items have ARCH coverage.
+
+---
+
+## ARCH-50: Escalation Engine
+
+**Decision:** Extend `engram maintain` with an escalation engine that analyzes leech memories and proposes graduated enforcement changes. Integrates with UC-18 (PostToolUse reminders) and UC-22 (automation candidates).
+
+```go
+// internal/maintain/escalation.go
+type EscalationEngine struct {
+    EffData        map[string][]EvalRecord  // effectiveness history
+    MemoryLoader   func(path string) (*Memory, error)
+    MemoryWriter   func(path string, memory *Memory) error
+}
+
+type EscalationProposal struct {
+    MemoryPath     string
+    ProposalType   string  // "escalate", "de_escalate", "route_automation", "route_rule"
+    CurrentLevel   string
+    ProposedLevel  string
+    Rationale      string
+    PredictedImpact string
+}
+
+func (e *EscalationEngine) Analyze(leeches []Memory) ([]EscalationProposal, error) {
+    // 1. For each leech memory:
+    //    a. Dimension routing: check mechanical patterns → route to automation/rule
+    //    b. If not routable: check escalation_history for de-escalation signal
+    //    c. If post-escalation effectiveness < pre for ≥3 cycles → de-escalate
+    //    d. Otherwise: propose escalation to next level
+    //    e. Compute predicted impact from historical data
+    // 2. Return proposals (user confirms separately)
+}
+```
+
+**Design choices:**
+- **Dimension routing first:** Before escalating enforcement, check if instruction should become automation or rule. Prevents unnecessary enforcement complexity.
+- **De-escalation threshold:** 3 cycles prevents noise from triggering premature de-escalation.
+- **Predicted impact:** Based on average effectiveness delta for memories at the proposed level. "Unknown" if no historical data.
+- **TOML schema:** escalation_level field + escalation_history array are optional (default = advisory).
+
+**Traces to:** REQ-80 (levels), REQ-81 (proposals), REQ-82 (de-escalation), REQ-83 (routing), REQ-84 (TOML), REQ-85 (confirmation)
+
+---
+
+## ARCH-51: Automation Generator Pipeline
+
+**Decision:** New `engram automate` command with pipeline: pattern recognition → LLM generation → verification → retirement.
+
+```go
+// internal/automate/automate.go
+type Automator struct {
+    MemoryLoader  func(dataDir string) ([]Memory, error)
+    LLMCaller     func(ctx context.Context, prompt string) (string, error)  // nil = skip
+    RunCommand    func(cmd string) (int, string, error)  // for verification
+    MemoryWriter  func(path string, memory *Memory) error
+}
+
+type AutomationProposal struct {
+    MemoryPath     string
+    AutomationType string  // "script", "pre_commit_hook", "rule"
+    Code           string
+    Description    string
+    TestCommand    string
+    InstallPath    string
+    Verified       bool
+    SkippedReason  string  // "no API token" if LLM skipped
+}
+
+func (a *Automator) Run(ctx context.Context, dataDir string) ([]AutomationProposal, error) {
+    // 1. Load memories, filter for mechanical candidates (keyword scoring ≥2)
+    // 2. If LLMCaller != nil: generate automation for each candidate
+    // 3. For generated automation: run test_command, mark verified/failed
+    // 4. Return proposals (user confirms installation + retirement separately)
+}
+```
+
+**Design choices:**
+- **Keyword-based pattern recognition:** Deterministic, no LLM. Keywords: "always", "never", "before", "after", "format", "convention".
+- **Sandboxed verification:** test_command is run but output is captured, not executed in production.
+- **Retirement is separate:** User must confirm both automation installation and memory retirement.
+- **Preserved memories:** Retired memories aren't deleted — `retired_by` field makes them invisible to surfacing.
+
+**Traces to:** REQ-86 (pattern recognition), REQ-87 (generator), REQ-88 (verification), REQ-89 (retirement), REQ-90 (CLI), REQ-91 (error handling)
+
+---
+
+## L2 → ARCH Traceability (UC-21 & UC-22)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-80 | ARCH-50 |
+| DES-30 | ARCH-50 |
+| REQ-81 | ARCH-50 |
+| DES-31 | ARCH-50 |
+| REQ-82 | ARCH-50 |
+| REQ-83 | ARCH-50 |
+| REQ-84 | ARCH-50 |
+| REQ-85 | ARCH-50 |
+| REQ-86 | ARCH-51 |
+| REQ-87 | ARCH-51 |
+| DES-32 | ARCH-51 |
+| REQ-88 | ARCH-51 |
+| REQ-89 | ARCH-51 |
+| REQ-90 | ARCH-51 |
+| REQ-91 | ARCH-51 |
+
+All UC-21 & UC-22 L2 items have ARCH coverage.

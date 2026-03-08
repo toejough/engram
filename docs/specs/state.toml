@@ -163,6 +163,22 @@ items = ["REQ-72", "REQ-73", "REQ-74", "DES-29", "REQ-75", "REQ-76", "REQ-77", "
 status = "complete"
 history = "8 REQs + 1 DES item derived from UC-20. Cross-source scanning (REQ-72), dedup (REQ-73), quality diagnosis (REQ-74/DES-29), refinement (REQ-75), gap analysis (REQ-76), skill decomposition (REQ-77), CLI (REQ-78), error handling (REQ-79)."
 
+[tree.L2G5]
+layer = "L2"
+name = "Enforcement Escalation Ladder Requirements"
+parents = ["L1K"]
+items = ["REQ-80", "DES-30", "REQ-81", "DES-31", "REQ-82", "REQ-83", "REQ-84", "REQ-85"]
+status = "complete"
+history = "6 REQs + 2 DES items derived from UC-21. Escalation levels (REQ-80/DES-30), proposals (REQ-81/DES-31), de-escalation (REQ-82), dimension routing (REQ-83), TOML storage (REQ-84), user confirmation (REQ-85)."
+
+[tree.L2G6]
+layer = "L2"
+name = "Mechanical Instruction Extraction Requirements"
+parents = ["L1M"]
+items = ["REQ-86", "REQ-87", "DES-32", "REQ-88", "REQ-89", "REQ-90", "REQ-91"]
+status = "complete"
+history = "6 REQs + 1 DES item derived from UC-22. Pattern recognition (REQ-86), LLM generator (REQ-87/DES-32), verification (REQ-88), retirement (REQ-89), CLI (REQ-90), error handling (REQ-91)."
+
 # Tree nodes — L3
 
 [tree.L3D]
@@ -229,6 +245,22 @@ items = ["ARCH-48", "ARCH-49"]
 status = "complete"
 history = "2 ARCH decisions: cross-source scanner (ARCH-48), instruct audit pipeline (ARCH-49)."
 
+[tree.L3G5]
+layer = "L3"
+name = "Enforcement Escalation Architecture"
+parents = ["L2G5"]
+items = ["ARCH-50"]
+status = "complete"
+history = "1 ARCH decision: escalation engine with dimension routing, de-escalation, predicted impact (ARCH-50)."
+
+[tree.L3G6]
+layer = "L3"
+name = "Automation Generator Architecture"
+parents = ["L2G6"]
+items = ["ARCH-51"]
+status = "complete"
+history = "1 ARCH decision: automation generator pipeline with pattern recognition, LLM generation, verification, retirement (ARCH-51)."
+
 # Tree nodes — L4
 
 [tree.L4D]
@@ -294,6 +326,22 @@ parents = ["L3G4"]
 items = ["T-215", "T-216", "T-217", "T-218", "T-219", "T-220", "T-221", "T-222", "T-223"]
 status = "complete"
 history = "9 BDD test specs across 2 ARCH boundaries: scanner (T-215/216, ARCH-48), audit pipeline (T-217..T-223, ARCH-49)."
+
+[tree.L4G5]
+layer = "L4"
+name = "Enforcement Escalation Tests"
+parents = ["L3G5"]
+items = ["T-224", "T-225", "T-226", "T-227", "T-228", "T-229"]
+status = "complete"
+history = "6 BDD test specs: default level (T-224), escalation with impact (T-225), de-escalation (T-226), dimension routing (T-227), TOML write (T-228), proposal format (T-229)."
+
+[tree.L4G6]
+layer = "L4"
+name = "Automation Generator Tests"
+parents = ["L3G6"]
+items = ["T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237"]
+status = "complete"
+history = "8 BDD test specs: pattern recognition (T-230), LLM generation (T-231), verification pass/fail (T-232/233), retirement (T-234/235), CLI (T-236), no token (T-237)."
 
 # Tree nodes — L5
 
@@ -658,6 +706,22 @@ parents = ["L4G4"]
 items = ["T-215", "T-216", "T-217", "T-218", "T-219", "T-220", "T-221", "T-222", "T-223"]
 status = "pending"
 history = "L5 pending. Implementation: internal/instruct/scanner.go, internal/instruct/audit.go, CLI instruct audit subcommand."
+
+[tree.L5G5]
+layer = "L5"
+name = "Escalation Engine Implementation"
+parents = ["L4G5"]
+items = ["T-224", "T-225", "T-226", "T-227", "T-228", "T-229"]
+status = "pending"
+history = "L5 pending. Blocked by UC-18 (L5G3). Implementation: internal/maintain/escalation.go, extend maintain CLI."
+
+[tree.L5G6]
+layer = "L5"
+name = "Automation Generator Implementation"
+parents = ["L4G6"]
+items = ["T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237"]
+status = "pending"
+history = "L5 pending. Blocked by UC-21 (L5G5). Implementation: internal/automate/automate.go, CLI automate subcommand."
 
 [tree.L4G]
 layer = "L4"
