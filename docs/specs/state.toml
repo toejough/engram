@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -561,6 +561,48 @@ parents = ["L1G"]
 items = ["REQ-47", "REQ-48", "REQ-49", "REQ-50", "REQ-51", "REQ-52", "REQ-53", "REQ-54", "DES-23", "DES-24", "DES-25"]
 status = "complete"
 history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-47), staleness detection (REQ-48), leech diagnosis (REQ-49/DES-24), hidden gem broadening (REQ-50/DES-25), noise removal (REQ-51), fire-and-forget (REQ-52), CLI (REQ-53), output format (DES-23), no-data (REQ-54)."
+
+[tree.L1H]
+layer = "L1"
+name = "Context Budget Management"
+items = ["UC-17"]
+status = "pending"
+history = "Issue #67. Track and cap total context injection across all engram hook points. Prioritize high-effectiveness memories within budget."
+
+[tree.L1I]
+layer = "L1"
+name = "PostToolUse Proactive Reminders"
+items = ["UC-18"]
+status = "pending"
+history = "Issue #68. After model writes/edits tracked files, inject targeted reminder about commonly-violated instructions."
+
+[tree.L1J]
+layer = "L1"
+name = "Stop Session Audit"
+items = ["UC-19"]
+status = "pending"
+history = "Issue #69. At session end, run lightweight audit checking whether high-priority instructions were followed."
+
+[tree.L1K]
+layer = "L1"
+name = "Instruction Quality, Deduplication & Gap Analysis"
+items = ["UC-20"]
+status = "pending"
+history = "Issue #70. Cross-reference all instruction sources to identify duplicates, quality problems, and gaps."
+
+[tree.L1L]
+layer = "L1"
+name = "Enforcement Escalation Ladder"
+items = ["UC-21"]
+status = "pending"
+history = "Issue #71. Graduated escalation from advisory to blocking enforcement for leech memories. Replaces issue #44."
+
+[tree.L1M]
+layer = "L1"
+name = "Mechanical Instruction Extraction"
+items = ["UC-22"]
+status = "pending"
+history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
 
 [cursor]
 node = "L1C"

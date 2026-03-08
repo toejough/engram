@@ -329,4 +329,146 @@ Working on session continuity for engram (#45)...
 
 ---
 
+## UC-17: Context Budget Management
+
+**Description:** Track and cap total context injection across all engram hook points. Prioritize high-effectiveness memories within budget. Token estimation for all context output, configurable per-hook budget caps, and priority allocation by effectiveness × relevance.
+
+**Starting state:** Engram injects context at multiple hook points (SessionStart, UserPromptSubmit, PreToolUse). Memory count is growing, and total context injection is unbounded.
+
+**End state:** Each hook point has a configurable token budget cap. Memories are sorted by effectiveness × relevance and filled until budget is reached. Budget utilization is reported in `engram review` output. Warnings are emitted when a hook consistently hits its cap.
+
+**Actor:** System (Go binary, extends existing surface logic with token counting and cutoff).
+
+**Key interactions:**
+
+- **Token estimation:** `len(text) / 4` as conservative estimator for English text with code snippets. No real tokenizer needed — soft caps, not hard limits.
+- **Per-hook caps:** Configurable defaults: SessionStart 800 tokens, UserPromptSubmit 300 tokens, PreToolUse 200 tokens, PostToolUse 100 tokens, Stop audit 500 tokens.
+- **Priority allocation:** Sort surfaced memories by effectiveness score × relevance score. Fill until budget reached, skip remainder.
+- **Budget reporting:** `engram review` includes budget utilization per hook point.
+- **Budget warnings:** When a hook hits its cap on >50% of invocations, warn in review output.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-2 (surface), UC-6 (effectiveness)
+
+---
+
+## UC-18: PostToolUse Proactive Reminders
+
+**Description:** After the model writes or edits tracked files, inject a targeted reminder about commonly-violated instructions relevant to that file type. Pattern-based trigger configuration maps file patterns to reminder sets sourced from the instruction registry.
+
+**Starting state:** The model has just completed a Write or Edit tool call on a tracked file. Relevant instructions exist in memories, CLAUDE.md, or skills.
+
+**End state:** A targeted reminder (≤100 tokens) is injected as a system reminder if relevant instructions match the file pattern. Effectiveness of reminders is tracked. Reminders are suppressed if the model already complied before the reminder.
+
+**Actor:** System (PostToolUse hook script + Go binary for matching).
+
+**Key interactions:**
+
+- **New PostToolUse hook:** Registered in `hooks/hooks.json`. Fires after Write/Edit tool calls.
+- **Pattern-based triggers:** Configuration maps file glob patterns to instruction sets (e.g., `*.go` → Go-specific conventions, skill files → pressure-test reminder).
+- **Reminder sourcing:** Match against memories with anti-patterns, CLAUDE.md entries, and skill instructions.
+- **Budget-capped:** Each reminder ≤100 tokens. Single targeted reminder per invocation, not a memory dump.
+- **Suppression logic:** If transcript shows the model already performed the required action, suppress the reminder.
+- **Effectiveness tracking:** Did the model comply after the reminder? Fed into evaluation pipeline.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-17 (budget), UC-2 (surface infrastructure)
+
+---
+
+## UC-19: Stop Session Audit
+
+**Description:** At session end, run a lightweight audit that checks whether high-priority instructions were followed during the session. Produces an audit report and feeds results into the effectiveness pipeline.
+
+**Starting state:** A session is ending (Stop hook fires). Memories were surfaced during the session. The surfacing log and transcript are available.
+
+**End state:** An audit report exists at `<data-dir>/audits/<timestamp>.json` with compliance checks for high-priority instructions. Results feed into the evaluate pipeline.
+
+**Actor:** System (Go binary triggered by Stop hook, after learn and before context-update).
+
+**Key interactions:**
+
+- **Enhanced Stop hook:** Audit phase runs after `engram learn` and `engram evaluate`, before context-update.
+- **Audit scope:** High-priority memories surfaced during the session + their outcomes. For skills invoked during the session, verify critical steps were performed.
+- **LLM assessment:** Single Haiku call to assess compliance against the instruction set using the transcript.
+- **Audit report:** Written to `<data-dir>/audits/<timestamp>.json` with per-instruction compliance status, evidence, and recommendations.
+- **Integration with effectiveness:** Audit results feed into the evaluate pipeline as additional outcome signals.
+- **No graceful degradation:** If no API token, emit stderr error and skip audit.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-15 (evaluate infrastructure), UC-2 (surfacing log)
+
+---
+
+## UC-20: Instruction Quality, Deduplication & Gap Analysis
+
+**Description:** Cross-reference all instruction sources (CLAUDE.md, engram memories, rules, skills) to identify duplicates, quality problems, and gaps. Extends UC-16's memory-specific refinement to all instruction sources with deeper content diagnosis.
+
+**Starting state:** Instructions exist across multiple sources: CLAUDE.md, engram memories, skills, and rules. Some instructions overlap, some are poorly framed, and some gaps exist where violations occur without corresponding instructions.
+
+**End state:** An `engram instruct audit` command reports duplicates across sources, quality diagnoses for low-effectiveness instructions, refinement proposals, and gap analysis. Proposals are actionable: diffs for CLAUDE.md/skills/rules, maintain-compatible proposals for memories.
+
+**Actor:** Developer via `engram instruct audit` CLI command.
+
+**Key interactions:**
+
+- **Cross-source deduplication:** Scan for overlapping instructions across CLAUDE.md, memories, rules, and skills. Recommend which source to keep based on effectiveness data and salience hierarchy (CLAUDE.md > rules > memories).
+- **Quality diagnosis (LLM):** For low-effectiveness instructions, diagnose root cause: too abstract, framing mismatch, missing trigger conditions, too narrow, too verbose.
+- **Refinement proposals:** Generate rewritten versions with rationale. Memory proposals are maintain-compatible. CLAUDE.md/skills/rules proposals are diff suggestions.
+- **Gap analysis:** Compare instruction anti-patterns against observed tool actions to find common violation patterns with no corresponding instruction.
+- **Skill decomposition:** For skills with low per-line effectiveness, identify followed vs. ignored lines. Propose extraction or compression.
+- **No graceful degradation:** If no API token, skip LLM diagnosis. Deduplication and gap analysis still run.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-6 (review), UC-16 (maintain), UC-17 (budget — needed to measure context cost)
+
+---
+
+## UC-21: Enforcement Escalation Ladder
+
+**Description:** When maintain detects a leech memory (frequently surfaced, rarely followed), propose graduated escalation from advisory to blocking enforcement. Replaces the binary advisory→blocking jump with a measured ladder. Includes de-escalation when blocking causes harm.
+
+**Starting state:** UC-16 maintain has identified leech memories. Some memories remain ineffective despite content rewrites.
+
+**End state:** Each leech memory has an escalation level stored in its TOML file. Maintain proposals include escalation/de-escalation recommendations with predicted impact. User confirms each step.
+
+**Actor:** Developer via `engram maintain` CLI command (extended).
+
+**Key interactions:**
+
+- **Escalation levels:** advisory → emphasized advisory → PostToolUse reminder → PreToolUse block → deterministic automation candidate.
+- **Escalation proposals:** Each level change is a maintain proposal with rationale and predicted impact based on effectiveness data at current level.
+- **De-escalation:** If a blocking enforcement causes new compliance problems (measured by contradictions increasing), propose reverting to a lower level.
+- **Dimension routing:** Before escalating enforcement, check whether the instruction should instead become automation (UC-22) or a rule. Escalation is only for instructions requiring LLM judgment.
+- **Tracking:** Escalation level stored per memory in TOML. Effectiveness tracked per escalation level to measure impact of each step.
+- **User confirmation:** Every escalation/de-escalation requires explicit user confirmation.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse)
+
+---
+
+## UC-22: Mechanical Instruction Extraction
+
+**Description:** Identify instructions that are purely mechanical (no judgment required) and generate deterministic automation to replace them. Provides a resolution path beyond "rewrite the memory" for leech/noise instructions.
+
+**Starting state:** Leech or noise memories exist that contain mechanical rules (e.g., "always X before Y", "never X when Z", format conventions). UC-21 escalation has identified these as automation candidates.
+
+**End state:** Deterministic automation (shell scripts, pre-commit hooks, or rule definitions) replaces mechanical instructions. Automation passes verification before the instruction is retired. Retired memories contain a pointer to the automation that replaced them.
+
+**Actor:** Developer via `engram automate` CLI command.
+
+**Key interactions:**
+
+- **Pattern recognition:** Analyze leech/noise memories for mechanical patterns: "always X before Y", "never X when Z", "format as...", naming conventions.
+- **Generator (LLM):** Produce shell scripts, pre-commit hooks, or rule definitions that deterministically enforce the instruction.
+- **Verification:** Generated automation must pass a test (dry-run against recent transcript or sample inputs) before replacing the instruction.
+- **Instruction retirement:** Once automation is verified and user confirms, memory gets a `retired_by` field pointing to the automation file path. Memory is no longer surfaced.
+- **No graceful degradation:** If no API token, skip generation. Pattern recognition still identifies candidates.
+- **Pure Go, no CGO.**
+
+**Dependencies:** UC-21 (escalation — identifies automation candidates)
+
+---
+
 Deferred UCs (UC-4 through UC-13, excluding UC-6) are archived in issue #18 for review.

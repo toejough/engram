@@ -371,9 +371,10 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
+	minRelevanceScore = 0.01
 	promptLimit       = 10
-	sessionStartLimit = 20
-	toolLimit         = 5
+	sessionStartLimit = 10
+	toolLimit         = 3
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -457,7 +458,7 @@ func formatEffectivenessAnnotation(
 	)
 }
 
-// matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
+// matchPromptMemories returns top memories ranked by BM25 relevance to message.
 // Concatenates title, content, principle, keywords, and concepts for scoring.
 func matchPromptMemories(message string, memories []*memory.Stored) []promptMatch {
 	// Build documents for BM25 scoring
@@ -480,23 +481,26 @@ func matchPromptMemories(message string, memories []*memory.Stored) []promptMatc
 	scorer := bm25.New()
 	scored := scorer.Score(message, docs)
 
-	// Limit to top 10 results
-	limit := 10
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-
-	// Build results
+	// Build results, filtering by relevance floor.
 	matches := make([]promptMatch, 0, len(scored))
 	for _, sd := range scored {
+		if sd.Score < minRelevanceScore {
+			continue
+		}
+
 		mem := memoryIndex[sd.ID]
 		matches = append(matches, promptMatch{mem: mem})
+	}
+
+	// Limit to top promptLimit results.
+	if len(matches) > promptLimit {
+		matches = matches[:promptLimit]
 	}
 
 	return matches
 }
 
-// matchToolMemories returns top 5 memories with non-empty anti_pattern, ranked by BM25.
+// matchToolMemories returns top memories with non-empty anti_pattern, ranked by BM25.
 // Only considers anti-pattern memories (tier-aware per REQ-7).
 // Concatenates title, principle, anti_pattern, and keywords for scoring.
 func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMatch {
@@ -533,17 +537,20 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	scorer := bm25.New()
 	scored := scorer.Score(toolInput, docs)
 
-	// Limit to top 5 results
-	limit := 5
-	if len(scored) > limit {
-		scored = scored[:limit]
-	}
-
-	// Build results
+	// Build results, filtering by relevance floor.
 	matches := make([]toolMatch, 0, len(scored))
 	for _, sd := range scored {
+		if sd.Score < minRelevanceScore {
+			continue
+		}
+
 		mem := memoryIndex[sd.ID]
 		matches = append(matches, toolMatch{mem: mem})
+	}
+
+	// Limit to top toolLimit results.
+	if len(matches) > toolLimit {
+		matches = matches[:toolLimit]
 	}
 
 	return matches

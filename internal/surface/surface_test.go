@@ -374,15 +374,15 @@ func TestT170B_PromptModeFrecencyReRanking(t *testing.T) {
 		"high-frecency prompt memory should rank above low-frecency")
 }
 
-// T-27: SessionStart surfaces top 20 by recency
-func TestT27_SessionStartSurfacesTop20(t *testing.T) {
+// T-27: SessionStart surfaces top 10 by frecency
+func TestT27_SessionStartSurfacesTop10(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	// Create 25 memories in descending order (retriever contract: sorted by UpdatedAt desc).
-	memories := make([]*memory.Stored, 0, 25)
-	for i := 24; i >= 0; i-- {
+	// Create 15 memories in descending order (retriever contract: sorted by UpdatedAt desc).
+	memories := make([]*memory.Stored, 0, 15)
+	for i := 14; i >= 0; i-- {
 		memories = append(memories, &memory.Stored{
 			Title:    memTitle(i),
 			FilePath: memPath(i),
@@ -408,10 +408,10 @@ func TestT27_SessionStartSurfacesTop20(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 20 memories."))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 10 memories."))
 
-	// Most recent (index 24) should appear by slug, oldest (index 0-4) should not.
-	g.Expect(output).To(ContainSubstring(memSlug(24)))
+	// Most recent (index 14) should appear by slug, oldest (index 0-4) should not.
+	g.Expect(output).To(ContainSubstring(memSlug(14)))
 	g.Expect(output).To(ContainSubstring(memSlug(5)))
 	g.Expect(output).NotTo(ContainSubstring(memSlug(4)))
 	g.Expect(output).NotTo(ContainSubstring(memSlug(0)))
@@ -1333,6 +1333,137 @@ func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T)
 	g.Expect(result.Context).To(ContainSubstring("\"Solo Memory\" [C] (solo-memory.toml)"))
 	g.Expect(result.Context).NotTo(ContainSubstring("Loaded"))
 	g.Expect(logReader.cleared).To(BeTrue())
+}
+
+// QW-1: Tool mode limits to top 3 results.
+func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Create 5 anti-pattern memories all matching "code".
+	memories := make([]*memory.Stored, 0, 5)
+	for i := range 5 {
+		memories = append(memories, &memory.Stored{
+			Title:       memTitle(i),
+			FilePath:    memPath(i),
+			AntiPattern: "bad code practice",
+			Keywords:    []string{"code"},
+			Principle:   "write good code",
+		})
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "code review this",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("[engram] 3 tool advisories:"))
+}
+
+// QW-2: BM25 relevance floor filters low-scoring memories.
+func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Memory with keywords that barely match the query (low BM25 score).
+	memories := []*memory.Stored{
+		{
+			Title:    "Exact Match",
+			FilePath: "exact-match.toml",
+			Keywords: []string{"deploy", "production"},
+			Content:  "deploy to production safely",
+		},
+		{
+			Title:    "Irrelevant Memory",
+			FilePath: "irrelevant.toml",
+			Keywords: []string{"banana", "fruit"},
+			Content:  "banana smoothie recipe for healthy eating",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "deploy to production",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	// "exact-match" should appear, "irrelevant" should not (score below floor).
+	g.Expect(output).To(ContainSubstring("exact-match"))
+	g.Expect(output).NotTo(ContainSubstring("irrelevant"))
+}
+
+// QW-2: Tool mode relevance floor filters low-scoring memories.
+func TestQW2_ToolRelevanceFloorFiltersLowScoring(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Commit Rule",
+			FilePath:    "commit-rule.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit",
+		},
+		{
+			Title:       "Banana Rule",
+			FilePath:    "banana-rule.toml",
+			AntiPattern: "eating bananas at desk",
+			Keywords:    []string{"banana", "fruit"},
+			Principle:   "no food at desk",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix'",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("commit-rule"))
+	g.Expect(output).NotTo(ContainSubstring("banana-rule"))
 }
 
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
