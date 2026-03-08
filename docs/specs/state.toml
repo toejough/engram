@@ -799,5 +799,5 @@ history = "Issue #72. Identify mechanical instructions and generate deterministi
 [cursor]
 node = "TREE_COMPLETE"
 mode = "complete"
-next_action = "All UC-17..22 L1-L5 complete. Usability gate findings: UC-17 (budget) ✅, UC-18 (reminders) ✅, UC-19 (audit) ✅, UC-20 (instruct) ✅, UC-22 (automation) ✅. UC-21 (escalation engine) logic complete + tested but ARCH-50 wiring incomplete (not integrated into maintain CLI). Escalation engine is a library component; integration is post-completion work."
+next_action = "All UC-17..22 L1-L5 complete and exercisable. FINAL USABILITY GATE PASS: UC-17 (surface budgets) ✅, UC-18 (PostToolUse reminders) ✅, UC-19 (Stop audit) ✅, UC-20 (instruct audit) ✅, UC-21 (escalation in maintain) ✅, UC-22 (automate) ✅. UC-21 wiring complete (commit e04e162). All 6 UCs now callable and produce output."
 context_files = ["docs/specs/state.toml"]
