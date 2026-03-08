@@ -1055,3 +1055,116 @@ Specifies interfaces for all external I/O to enable unit testing without mocks.
 - Testing: Mock implementations injected in imptest; real I/O tested sparingly in integration tests.
 
 ---
+
+## REQ-47: Quadrant partitioning for maintenance
+
+When `engram maintain` runs, it reuses the existing `review.Classify` function (REQ-35 median split, REQ-36 threshold flagging) to partition memories into quadrants. No new classification logic. Only memories with 5+ evaluations are actionable — insufficient-data memories are excluded from proposals.
+
+- Traces to: UC-16 (quadrant partitioning)
+- AC: Maintain produces proposals only for memories classified into Working/Leech/Hidden Gem/Noise. Insufficient-data memories produce no proposals.
+
+---
+
+## REQ-48: Working quadrant — staleness detection
+
+For memories in the Working quadrant, detect staleness based on `updated_at` age. A memory is stale if `updated_at` is older than a configurable threshold (default: 90 days). Stale working memories get a "review staleness" proposal. Non-stale working memories get no proposal (they're fine).
+
+- Traces to: UC-16 (working quadrant), issue #40
+- AC: Working memories older than the staleness threshold produce a proposal with `action: "review_staleness"`. Working memories within threshold produce no proposal.
+
+---
+
+## REQ-49: Leech quadrant — LLM-powered root cause diagnosis
+
+For memories in the Leech quadrant (often surfaced, low follow-through), call Haiku to diagnose root cause and propose fixes. The LLM receives the memory's content (title, principle, anti_pattern, keywords, content) plus effectiveness stats (surfaced count, follow rate). The LLM proposes specific field-level changes: rewritten content, adjusted keywords, or tier change.
+
+- Traces to: UC-16 (leech quadrant), issue #41
+- AC: Each leech memory produces a proposal with `action: "rewrite"` containing specific TOML field changes proposed by the LLM.
+
+---
+
+## REQ-50: Hidden gem quadrant — LLM-powered keyword broadening
+
+For memories in the Hidden Gem quadrant (high follow-through, rarely surfaced), call Haiku to propose expanded keywords and concepts. The LLM receives the memory's content plus stats, and proposes additional keywords/concepts to broaden surfacing triggers.
+
+- Traces to: UC-16 (hidden gem quadrant), issue #42
+- AC: Each hidden gem memory produces a proposal with `action: "broaden_keywords"` containing proposed keyword additions.
+
+---
+
+## REQ-51: Noise quadrant — removal proposal with evidence
+
+For memories in the Noise quadrant (rarely surfaced, low follow-through), generate a deterministic removal proposal. No LLM needed — the evidence is the stats themselves: surfacing count, follow rate, age, evaluation count. The proposal includes all evidence for user review.
+
+- Traces to: UC-16 (noise quadrant), issue #43
+- AC: Each noise memory produces a proposal with `action: "remove"` and evidence fields (surfaced_count, effectiveness_score, evaluation_count, age_days).
+
+---
+
+## REQ-52: Fire-and-forget proposal generation
+
+Individual proposal failures (LLM timeout, parse error) must not block other proposals. Failed proposals are omitted from output. The maintain command always exits 0. Errors logged to stderr.
+
+- Traces to: UC-16 (fire-and-forget), ARCH-6
+- AC: If the LLM call for one leech memory fails, other proposals (including other leech memories) still appear in output.
+
+---
+
+## REQ-53: `engram maintain` CLI subcommand
+
+New CLI subcommand: `engram maintain --data-dir <path>`. Reads effectiveness data and memory tracking, generates proposals, writes JSON to stdout. Requires `ANTHROPIC_API_KEY` for leech/hidden-gem LLM calls. If no API key and there are leech/hidden-gem memories, those proposals are skipped (not an error).
+
+- Traces to: UC-16 (CLI command)
+- AC: `engram maintain --data-dir /path` outputs JSON array of proposals to stdout. Missing API key skips LLM proposals but still outputs working/noise proposals.
+
+---
+
+## DES-23: Proposal output format
+
+Output is a JSON array of proposal objects. Each proposal has:
+
+```json
+{
+  "memory_path": "path/to/memory.toml",
+  "quadrant": "leech",
+  "diagnosis": "Surfaced 15 times but only followed 20%. Keywords may be too broad.",
+  "action": "rewrite",
+  "details": {
+    "proposed_keywords": ["new", "keywords"],
+    "proposed_principle": "Reworded principle",
+    "rationale": "Why this change helps"
+  }
+}
+```
+
+Action types: `review_staleness`, `rewrite`, `broaden_keywords`, `remove`.
+Details vary by action type.
+
+- Traces to: UC-16 (output format)
+
+---
+
+## DES-24: LLM prompt design for leech diagnosis
+
+System prompt instructs Haiku to analyze a memory's content and effectiveness stats, diagnose why it's being ignored, and propose specific TOML field changes. User prompt includes the full memory content and stats. Output format: JSON with proposed field changes.
+
+- Traces to: REQ-49 (leech diagnosis)
+
+---
+
+## DES-25: LLM prompt design for hidden gem broadening
+
+System prompt instructs Haiku to analyze a memory's content and propose additional keywords/concepts that would broaden its surfacing triggers. User prompt includes the full memory content, current keywords, and stats. Output format: JSON with proposed keyword additions.
+
+- Traces to: REQ-50 (hidden gem broadening)
+
+---
+
+## REQ-54: No-data behavior for maintain
+
+If no memories have 5+ evaluations, `engram maintain` outputs an empty JSON array `[]` and exits 0. No error message, no degraded output.
+
+- Traces to: UC-16 (no-data behavior)
+- AC: Empty evaluation directory → `[]` output, exit 0.
+
+---
