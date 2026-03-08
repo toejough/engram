@@ -195,33 +195,33 @@ No manual build step required — the `SessionStart` hook handles it (REQ-8). RE
 
 ---
 
-## REQ-9: SessionStart surfacing — top 20 by recency
+## REQ-9: SessionStart surfacing — top 20 by frecency
 
-When a session starts (SessionStart hook), the system reads all memory TOML files from the data directory, sorts by `updated_at` descending, and surfaces the top 20 as a system reminder.
+When a session starts (SessionStart hook), the system reads all memory TOML files from the data directory, ranks them by frecency activation score (ACT-R model), and surfaces the top 20 as a system reminder.
 
 - Traces to: UC-2 (SessionStart surfacing)
-- AC: (1) All `.toml` files in `<data-dir>/memories/` are read and parsed. (2) Sorted by `updated_at` descending. (3) Top 20 are included in the system reminder. (4) Each entry shows title and file path. (5) If fewer than 20 memories exist, all are surfaced. (6) If no memories exist, no reminder is emitted (empty stdout).
-- Verification: deterministic (file listing, sort, count)
+- AC: (1) All `.toml` files in `<data-dir>/memories/` are read and parsed. (2) Frecency activation score computed per memory using ACT-R formula (REQ-46). (3) Sorted by activation score descending. (4) Top 20 are included in the system reminder. (5) If fewer than 20 memories exist, all are surfaced. (6) If no memories exist, no reminder is emitted (empty stdout). (7) Memories with no surfacing history fall back to updated_at for recency component.
+- Verification: deterministic (file listing, frecency scoring, sort, count)
 
 ---
 
-## REQ-10: UserPromptSubmit surfacing — BM25 ranking
+## REQ-10: UserPromptSubmit surfacing — BM25 + frecency ranking
 
-When a user message is submitted (UserPromptSubmit hook), the system ranks all memories using BM25 (Best Matching 25) scoring and surfaces the top 10 results as a system reminder.
+When a user message is submitted (UserPromptSubmit hook), the system ranks all memories using BM25 scoring, then re-ranks the top candidates by frecency activation score, and surfaces the top 10 results as a system reminder.
 
 - Traces to: UC-2 (UserPromptSubmit surfacing)
-- AC: (1) BM25 index is built per call from concatenated text fields (title, content, principle, keywords, concepts). (2) User message is scored against each memory. (3) Memories are ranked by relevance score descending. (4) Top 10 ranked results (or fewer if fewer than 10 memories exist) are surfaced with title and file path. (5) If no memories exist or all scores are zero, no surfacing reminder is emitted. (6) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
-- Verification: probabilistic (BM25 scoring is deterministic within a session, but ranking changes with message input)
+- AC: (1) BM25 index is built per call from concatenated text fields (title, content, principle, keywords, concepts). (2) User message is scored against each memory. (3) BM25 top candidates are selected. (4) Candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 10 ranked results (or fewer if fewer than 10 memories exist) are surfaced with title and file path. (6) If no memories exist or all scores are zero, no surfacing reminder is emitted. (7) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
+- Verification: probabilistic (BM25 + frecency scoring, ranking changes with message input and memory usage history)
 
 ---
 
-## REQ-11: PreToolUse advisory surfacing — BM25 ranking on anti-pattern candidates
+## REQ-11: PreToolUse advisory surfacing — BM25 + frecency ranking on anti-pattern candidates
 
-When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, and surfaces the top 5 results as an advisory system reminder.
+When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 5 results as an advisory system reminder.
 
 - Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) Top 5 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path. (5) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (6) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
-- Verification: probabilistic (BM25 scoring within session, ranking changes with tool input)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) BM25 top candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 5 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path. (6) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (7) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
+- Verification: probabilistic (BM25 + frecency scoring, ranking changes with tool input and usage history)
 
 ---
 
@@ -895,6 +895,25 @@ On SessionStart, read `.claude/engram/session-context.md` if it exists. Extract 
 - Traces to: UC-14 (restore on SessionStart)
 - AC: (1) Existing file → summary extracted. (2) Missing file → empty string, no error. (3) HTML comment metadata is not included in the returned summary. (4) File age is irrelevant — always loaded.
 - Verification: deterministic (file read + parse)
+
+---
+
+## REQ-46: Frecency activation scoring (ACT-R model)
+
+Each memory has a frecency activation score computed from four components:
+
+1. **Frequency:** `log(1 + surfaced_count)` — logarithmic scaling prevents high-frequency memories from dominating.
+2. **Recency:** `1 / (1 + hours_since_last_surfaced)` — time decay based on hours since last surfacing event. If never surfaced, uses `updated_at` as fallback.
+3. **Spread:** `log(1 + len(surfacing_contexts))` — diversity of contexts the memory was surfaced in. More contexts = more broadly useful.
+4. **Effectiveness:** `max(0.1, effectiveness_score / 100)` — from UC-15 evaluations. Defaults to 0.5 when no evaluation data exists (neutral). Floor of 0.1 prevents zero-multiplication.
+
+**Combined activation:** `frequency × recency × spread × effectiveness`
+
+For combined BM25 + frecency ranking (prompt/tool modes): `bm25_score × (1 + activation)` — the `(1 + activation)` factor boosts BM25 scores by frecency without allowing frecency alone to override BM25 relevance (BM25 of zero stays zero).
+
+- Traces to: UC-2 (surfacing ranking)
+- AC: (1) Activation score computed from all four components. (2) Never-surfaced memories use updated_at for recency, 0 for frequency/spread, default effectiveness. (3) Combined score preserves BM25 relevance as primary signal. (4) All components are non-negative.
+- Verification: deterministic (pure math on stored fields + effectiveness data)
 
 ---
 

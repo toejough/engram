@@ -373,6 +373,64 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 ---
 
+## Frecency Activation Scoring (ARCH-35)
+
+### T-165: Frecency activation computation — all components present
+
+**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["session-start","prompt","tool"], and effectiveness score of 80%,
+**When** Activation is computed,
+**Then** the result combines: log(11) × 1/(1+2) × log(4) × 0.8. All four components are multiplied together to produce a positive activation score.
+
+- Traces to: ARCH-35, REQ-46
+- Type: example-based (verify formula components)
+
+### T-166: Frecency activation — never-surfaced memory uses UpdatedAt fallback
+
+**Given** a memory with SurfacedCount=0, LastSurfaced=zero time, UpdatedAt=24h ago, empty SurfacingContexts, no effectiveness data,
+**When** Activation is computed,
+**Then** frequency=log(1)=0, so activation is 0.0 (frequency of zero dominates). This ensures never-surfaced memories rank below actively-used ones.
+
+- Traces to: ARCH-35, REQ-46
+- Type: example-based (fallback behavior for new memories)
+
+### T-167: Frecency activation — effectiveness defaults to 0.5 when no data
+
+**Given** a memory with surfacing history but no evaluation data (effectiveness map has no entry for this memory),
+**When** Activation is computed,
+**Then** effectiveness component uses default 0.5 (neutral — neither boosted nor penalized).
+
+- Traces to: ARCH-35, REQ-46
+- Type: example-based (default effectiveness)
+
+### T-168: Combined BM25 + frecency score preserves BM25 zero
+
+**Given** a memory with high frecency activation but BM25 score of 0.0,
+**When** CombinedScore is computed,
+**Then** combined score is 0.0 (BM25 of zero stays zero regardless of frecency). Frecency cannot promote irrelevant memories.
+
+- Traces to: ARCH-35, REQ-46, REQ-10
+- Type: example-based (multiplicative combination)
+
+### T-169: SessionStart uses pure frecency ranking
+
+**Given** 25 memories with varying surfacing history and effectiveness data,
+**When** surface is called with mode session-start,
+**Then** memories are ranked by pure frecency activation score (not BM25). Top 20 are surfaced. Higher frequency + recency + spread + effectiveness = higher rank.
+
+- Traces to: ARCH-35, REQ-9
+- Type: example-based (SessionStart frecency ranking)
+
+### T-170: Prompt mode re-ranks BM25 top-N by combined score
+
+**Given** 3 memories with BM25 scores [10.0, 8.0, 6.0] and frecency activations [0.1, 0.5, 0.3],
+**When** surface is called with mode prompt,
+**Then** combined scores are [10×1.1=11.0, 8×1.5=12.0, 6×1.3=7.8]. Memory 2 re-ranks to top position because its frecency boost overcomes its lower BM25 score.
+
+- Traces to: ARCH-35, REQ-10
+- Type: example-based (frecency re-ranking changes BM25 order)
+
+---
+
 ## Surface Subcommand Routing (ARCH-12)
 
 ### T-40: Mode session-start routes to SessionStart surfacing

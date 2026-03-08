@@ -286,11 +286,55 @@ Implementation:
 - Zero results: If no candidates exist or all scores are zero, return empty (zero overhead, no advisory).
 
 Design choices:
-- **Whole-word matching:** Regex `\b<keyword>\b` (case-insensitive). Avoids false positives like "commit" matching "recommit".
-- **No fuzzy matching:** Deterministic, predictable behavior. User learns that `keywords` drive pre-filter.
-- **Fast:** Runs on every PreToolUse. Regex compilation cached per memory on first access.
+- **BM25 ranking:** Same scoring algorithm as prompt mode, applied to the filtered candidate set. No regex matching.
+- **Fast:** Runs on every PreToolUse. BM25 index built per call from small candidate set (anti-pattern memories only).
 
-**Traces to:** REQ-11 (keyword pre-filter for PreToolUse)
+**Traces to:** REQ-11 (BM25 + frecency ranking for PreToolUse)
+
+---
+
+## ARCH-35: Frecency Activation Scorer
+
+**Decision:** Pure function that computes ACT-R frecency activation scores for memories. Used in all three surfacing modes.
+
+```go
+type FrecencyScorer struct {
+    now            time.Time
+    effectiveness  map[string]EffectivenessStat
+}
+
+type ActivationInput struct {
+    SurfacedCount     int
+    LastSurfaced      time.Time
+    UpdatedAt         time.Time // fallback for never-surfaced
+    SurfacingContexts []string
+    FilePath          string    // key for effectiveness lookup
+}
+
+func (f *FrecencyScorer) Activation(input ActivationInput) float64 {
+    // Returns: frequency × recency × spread × effectiveness
+}
+
+func (f *FrecencyScorer) CombinedScore(bm25Score float64, input ActivationInput) float64 {
+    // Returns: bm25Score × (1 + Activation(input))
+}
+```
+
+Implementation:
+- **Frequency:** `log(1 + surfacedCount)` — never-surfaced = log(1) = 0, capped at reasonable value
+- **Recency:** `1 / (1 + hoursSinceLastSurfaced)` — uses LastSurfaced if set, else UpdatedAt
+- **Spread:** `log(1 + len(surfacingContexts))` — diversity of contexts
+- **Effectiveness:** `max(0.1, effectivenessScore/100)` — defaults to 0.5 when no data
+- **Combined:** For BM25 modes: `bm25Score × (1 + activation)`. For SessionStart: pure activation.
+
+Design choices:
+- **Pure function:** No I/O, no side effects. Injected time and effectiveness data.
+- **Logarithmic scaling:** Prevents high-frequency or high-spread memories from dominating.
+- **Time decay:** Recent usage boosts ranking; old memories decay but never reach zero.
+- **Effectiveness floor:** 0.1 prevents zero-multiplication from penalizing never-evaluated memories.
+- **Default effectiveness 0.5:** Neutral — neither boosted nor penalized when no evaluation data exists.
+
+**Traces to:** REQ-46 (frecency formula), REQ-9 (SessionStart frecency), REQ-10 (prompt BM25 + frecency), REQ-11 (tool BM25 + frecency)
 
 ---
 
