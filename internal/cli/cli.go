@@ -419,7 +419,7 @@ var (
 	errAuditMissingFlags  = errors.New("audit: --data-dir required")
 	errUsage              = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|remind|instruct|context-update> [flags]",
+			"|review|maintain|remind|instruct|automate|context-update> [flags]",
 	)
 )
 
