@@ -605,7 +605,7 @@ status = "pending"
 history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
 
 [cursor]
-node = "L1C"
-mode = "complete"
-next_action = "UC-1 tree complete. Incremental extraction with offset tracking implemented and verified. All layers passing tests."
-context_files = ["docs/specs/state.toml"]
+node = "L1H"
+mode = "in_progress"
+next_action = "L1 REGROUP complete (6 groups, 1:1 UC-to-group, user confirmed). Descending to L2 for UC-17 (G1) and UC-19 (G2) in parallel — both have all L1 deps satisfied."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
