@@ -579,6 +579,22 @@ items = ["T-179", "T-180", "T-181"]
 status = "complete"
 history = "RunMaintain in internal/cli wires effectiveness.Aggregate + buildTrackingMap + review.Classify + buildMemoryMap → maintain.Generate → JSON stdout. No-data path outputs []. No-token skips LLM quadrants. T-179..T-181 passing, targ check clean. Usability gate verified."
 
+[tree.L5G1]
+layer = "L5"
+name = "Budget Enforcement + Reporting Implementation"
+parents = ["L4G1"]
+items = ["T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196"]
+status = "pending"
+history = "L5 RED pending. Implementation plan: (1) estimateTokens function in surface.go (pure func), (2) BudgetConfig struct loaded from config.toml, (3) modify matchPromptMemories/matchToolMemories to enforce caps via token accumulation, (4) update review command output with budget table, (5) cap_hit_rate computation and warning detection."
+
+[tree.L5G2]
+layer = "L5"
+name = "Stop Hook Audit Command Implementation"
+parents = ["L4G2"]
+items = ["T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206"]
+status = "pending"
+history = "L5 RED pending. Implementation plan: (1) new cmd/engram/audit.go with runAudit function, (2) audit scope parsing from surfacing logs + effectiveness data, (3) Haiku LLM compliance assessment, (4) audit report JSON writing to audits/ directory, (5) InjectAuditResults function to feed results into effectiveness pipeline, (6) Stop hook wiring in hooks/stop.sh."
+
 [tree.L4G]
 layer = "L4"
 name = "Memory Maintenance Tests"
