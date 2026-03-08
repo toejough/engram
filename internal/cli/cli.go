@@ -338,6 +338,28 @@ func RunMaintain(
 	generator := maintain.New(allOpts...)
 	proposals := generator.Generate(ctx, classified, memoryMap)
 
+	// UC-21: Run escalation engine on leech memories (ARCH-50).
+	leeches := buildEscalationMemories(classified, memoryMap)
+	if len(leeches) > 0 {
+		engine := maintain.NewEscalationEngine(maintain.EffData{}, nil)
+
+		escalations, escErr := engine.Analyze(leeches)
+		if escErr == nil {
+			for idx := range escalations {
+				escJSON, marshalErr := maintain.MarshalProposal(escalations[idx])
+				if marshalErr == nil {
+					proposals = append(proposals, maintain.Proposal{
+						MemoryPath: escalations[idx].MemoryPath,
+						Quadrant:   string(reviewpkg.Leech),
+						Diagnosis:  escalations[idx].Rationale,
+						Action:     "escalation_" + escalations[idx].ProposalType,
+						Details:    escJSON,
+					})
+				}
+			}
+		}
+	}
+
 	//nolint:wrapcheck // thin JSON encoding at CLI boundary
 	return json.NewEncoder(stdout).Encode(proposals)
 }
@@ -595,6 +617,35 @@ func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
 	}
 
 	return tracking
+}
+
+// buildEscalationMemories extracts leech memories for the escalation engine (UC-21, ARCH-50).
+func buildEscalationMemories(
+	classified []reviewpkg.ClassifiedMemory,
+	memoryMap map[string]*memory.Stored,
+) []maintain.EscalationMemory {
+	leeches := make([]maintain.EscalationMemory, 0)
+
+	for _, cm := range classified {
+		if cm.Quadrant != reviewpkg.Leech {
+			continue
+		}
+
+		stored := memoryMap[cm.Name]
+		content := ""
+
+		if stored != nil {
+			content = stored.Content
+		}
+
+		leeches = append(leeches, maintain.EscalationMemory{
+			Path:          cm.Name,
+			Content:       content,
+			Effectiveness: cm.EffectivenessScore,
+		})
+	}
+
+	return leeches
 }
 
 // callAnthropicAPI makes a single call to the Anthropic messages API and returns the text response.
