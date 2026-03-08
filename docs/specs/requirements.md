@@ -1190,3 +1190,291 @@ If no memories have 5+ evaluations, `engram maintain` outputs an empty JSON arra
 - AC: Empty evaluation directory → `[]` output, exit 0.
 
 ---
+
+## UC-17: Context Budget Management — Requirements
+
+---
+
+## REQ-55: Token estimation formula
+
+Token estimation uses the formula: `len(text) / 4` as a conservative estimator for English text with code snippets. This formula is applied consistently at every surfacing point (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop hooks).
+
+- Traces to: UC-17 (token estimation)
+- AC: (1) All context strings are tokenized using `len(text) / 4`. (2) Formula is applied uniformly across all hook points. (3) Fractional tokens are truncated (floor). (4) Empty strings → 0 tokens. (5) Formula is documented in code comments.
+- Verification: deterministic (arithmetic, string length)
+
+---
+
+## DES-16: Token estimation implementation in surface.go
+
+Token estimation is implemented as a pure function in `internal/surface/surface.go`: `func estimateTokens(text string) int { return len(text) / 4 }`. This function is called for each surfaced memory before adding it to the output. The function signature is exported for testing purposes.
+
+- Traces to: REQ-55 (token estimation)
+
+---
+
+## REQ-56: Per-hook budget caps
+
+Each hook point has a configurable token budget cap. Default values are: SessionStart 800 tokens, UserPromptSubmit 300 tokens, PreToolUse 200 tokens, PostToolUse 100 tokens, Stop audit 500 tokens. Caps are configurable via a config file or environment variables. If a cap is not set, the default is used.
+
+- Traces to: UC-17 (per-hook budget)
+- AC: (1) Each hook has a named cap (sessionStartBudget, userPromptBudget, preToolBudget, postToolBudget, stopBudget). (2) Caps default to the specified values. (3) Caps can be overridden via config file or env var with structured naming (e.g., `ENGRAM_BUDGET_SESSION_START=1000`). (4) Invalid cap values (non-positive) fall back to default. (5) Cap values are logged at startup.
+- Verification: deterministic (config parsing, value validation)
+
+---
+
+## DES-17: Budget cap configuration UX
+
+Budget caps are configured in `<data-dir>/config.toml` under a `[budget]` section. Default config is generated on first run if missing. Config file format:
+
+```toml
+[budget]
+session_start = 800
+user_prompt = 300
+pre_tool = 200
+post_tool = 100
+stop_audit = 500
+```
+
+Users can edit the file to adjust caps. Invalid or missing values fall back to defaults. `engram review` displays the current caps in the output.
+
+- Traces to: REQ-56 (per-hook budget)
+
+---
+
+## REQ-57: Priority allocation by effectiveness × relevance
+
+When surfacing memories for a hook, the system sorts by `effectiveness_score × relevance_score` in descending order. Memories are filled into the output until the remaining budget is exhausted. Memories that don't fit are silently skipped.
+
+- Traces to: UC-17 (priority allocation)
+- AC: (1) Memories are sorted by (effectiveness × relevance) in descending order before filling. (2) Effectiveness score is the aggregated score from UC-6. (3) Relevance score is the BM25 score computed by UC-2. (4) Memories are added in order until remaining budget < estimated tokens for next memory. (5) Skipped memories are not logged (silent cutoff for performance).
+- Verification: deterministic (sorting, arithmetic)
+
+---
+
+## DES-18: Priority sorting in matchPromptMemories and matchToolMemories
+
+In `internal/surface/surface.go`, both `matchPromptMemories` and `matchToolMemories` functions are updated to:
+1. Compute `effectiveness × relevance` for each memory
+2. Sort by this score in descending order
+3. Apply budget limit by counting tokens and stopping when budget is exhausted
+
+The sorting is applied before the top-N limit is applied. Budget enforcement takes precedence over top-N limits.
+
+- Traces to: REQ-57 (priority allocation)
+
+---
+
+## REQ-58: Budget reporting in engram review
+
+The `engram review` command outputs budget utilization metrics for each hook point. Metrics include: hook name, current cap, total tokens surfaced, utilization percentage, and warning status (see REQ-59).
+
+- Traces to: UC-17 (budget reporting)
+- AC: (1) `engram review` output includes a budget summary section. (2) For each hook: name, cap, surfaced tokens, percentage utilization. (3) Percentage is computed as (surfaced tokens / cap) × 100. (4) If no surfacing occurred for a hook, tokens = 0, percentage = 0%. (5) Output is human-readable, one hook per line.
+- Verification: deterministic (output format, arithmetic)
+
+---
+
+## DES-19: Budget reporting format in review output
+
+`engram review` output includes a `[Budget Utilization]` section with a table format:
+
+```
+[Budget Utilization]
+Hook                Budget   Surfaced   Utilization   Warning
+SessionStart        800      720        90%            —
+UserPromptSubmit    300      280        93%            ⚠ Frequently capped
+PreToolUse          200      200        100%           ⚠ Consistently capped
+PostToolUse         100      0          0%             —
+StopAudit           500      350        70%            —
+```
+
+The "Warning" column shows warnings (see REQ-59). The table is written to the review output in plaintext format.
+
+- Traces to: REQ-58 (budget reporting)
+
+---
+
+## REQ-59: Budget warning detection
+
+When a hook's surfacing exceeds its budget cap on >50% of invocations during a session, a warning is emitted in `engram review` output. Warnings are non-fatal and advisory.
+
+- Traces to: UC-17 (budget warnings)
+- AC: (1) The surfacing logger (REQ-51, UC-2) records hook name, cap, and actual tokens for each invocation. (2) At review time, compute the percentage of invocations where (actual tokens > cap). (3) If percentage > 50%, emit warning: "Hook X is hitting its budget cap on Z% of invocations. Consider increasing its cap or reviewing memory quality." (4) Warning format: starts with `⚠` symbol. (5) Warnings are written to the "Warning" column in budget reporting table.
+- Verification: deterministic (statistical counting, threshold check)
+
+---
+
+## DES-20: Budget warning computation in review
+
+In the review command output, after loading all surfacing logs for the session, compute cap hit rates per hook:
+
+```
+cap_hits[hook] = count(invocations where tokens_surfaced > cap)
+cap_hit_rate[hook] = cap_hits[hook] / total_invocations[hook]
+```
+
+If `cap_hit_rate[hook] > 0.5`, include a warning in the budget table. Warning format: `⚠ Hitting cap on Z% of invocations` (where Z is cap_hit_rate × 100, rounded to nearest integer).
+
+- Traces to: REQ-59 (budget warning detection)
+
+---
+
+## UC-19: Stop Session Audit — Requirements
+
+---
+
+## REQ-60: Stop hook audit phase timing
+
+The Stop hook executes in this order:
+1. `engram learn` (incremental learning)
+2. `engram evaluate` (update effectiveness scores)
+3. `engram audit` (run session audit) ← NEW
+4. `engram context-update` (refresh context embeddings)
+
+The audit phase runs after effectiveness evaluation and before context update. This allows audit results to feed into the next session's effectiveness pipeline.
+
+- Traces to: UC-19 (stop hook timing)
+- AC: (1) Stop hook script invokes `engram audit` after `engram evaluate` and before `engram context-update`. (2) If audit fails (e.g., no API token), audit phase is skipped and other phases continue. (3) Hook script order is documented in `hooks/stop.sh`.
+- Verification: deterministic (script execution order)
+
+---
+
+## DES-21: Stop hook script phase ordering
+
+The `hooks/stop.sh` script is updated to invoke `engram audit` as a new phase. Pseudo-code order:
+
+```bash
+engram learn --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"
+engram evaluate --data-dir "$DATA_DIR"
+engram audit --data-dir "$DATA_DIR" --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+engram context-update --data-dir "$DATA_DIR"
+```
+
+Each phase's errors are logged but do not block subsequent phases (fire-and-forget pattern).
+
+- Traces to: REQ-60 (stop hook timing)
+
+---
+
+## REQ-61: Audit scope definition
+
+The audit scope includes: all high-priority memories surfaced during the session (determined by effectiveness tier), their outcomes (was the memory followed? did it change behavior?), and for skills invoked during the session, verification of critical steps.
+
+- Traces to: UC-19 (audit scope)
+- AC: (1) High-priority = effectiveness tier ≥ threshold (default: top 20% by effectiveness score). (2) Surfacing log (from UC-2) is read to extract surfaced memory IDs and timestamps. (3) For each surfaced memory, look up its content and effectiveness score. (4) For skills invoked (skill names from transcript), identify critical steps from skill instructions. (5) Compile scope as a list of (memory_id or skill_name, outcome_evidence).
+- Verification: deterministic (scoring, log parsing, threshold check)
+
+---
+
+## DES-22: Audit scope parsing from session data
+
+The audit command parses session data from:
+1. Surfacing log: `<data-dir>/logs/surfacing-<session-id>.json` — contains surfaced memory IDs, hook names, timestamps
+2. Effectiveness data: `<data-dir>/evaluate/effectiveness.json` — contains effectiveness scores
+3. Transcript: passed as argument to audit command — contains transcript text to search for skill invocations and instruction compliance
+
+Scope is compiled as JSON: `[{memory_id, effectiveness_score, surfaced_count}, ...]`
+
+- Traces to: REQ-61 (audit scope)
+
+---
+
+## REQ-62: LLM compliance assessment
+
+A single Haiku API call receives the audit scope (memories + outcomes) and the session transcript. The LLM assesses whether high-priority instructions were followed during the session. Response format: JSON array of compliance assessments.
+
+- Traces to: UC-19 (LLM assessment)
+- AC: (1) LLM call uses claude-haiku-4-5-20251001. (2) System prompt instructs Haiku to check instruction compliance. (3) User prompt includes: audit scope (JSON), session transcript excerpt (if feasible). (4) Response format: JSON array with one object per instruction: `{instruction, compliant: bool, evidence: string}`. (5) Invalid responses are logged and omitted from audit report.
+- Verification: deterministic (LLM API call, JSON parsing)
+
+---
+
+## DES-23: Compliance assessment prompt structure
+
+System prompt for Haiku:
+
+```
+You are auditing a session for compliance with high-priority instructions. You will be given:
+- A list of instructions that were surfaced during the session (high-priority memories)
+- The transcript of the session
+
+For each instruction, determine whether the model complied:
+- If the instruction was followed, answer "compliant: true"
+- If the instruction was violated, answer "compliant: false"
+- In both cases, provide evidence from the transcript
+
+Output JSON format:
+[
+  {"instruction": "...", "compliant": true/false, "evidence": "..."},
+  ...
+]
+```
+
+User prompt includes scope JSON and relevant transcript excerpts.
+
+- Traces to: REQ-62 (LLM compliance assessment)
+
+---
+
+## REQ-63: Audit report format
+
+The audit report is written to `<data-dir>/audits/<timestamp>.json`. Format: JSON object with metadata and results.
+
+```json
+{
+  "session_id": "...",
+  "timestamp": "2026-03-08T15:30:00Z",
+  "total_instructions_audited": 12,
+  "compliant": 10,
+  "non_compliant": 2,
+  "results": [
+    {
+      "instruction": "...",
+      "compliant": true,
+      "evidence": "..."
+    },
+    ...
+  ]
+}
+```
+
+- Traces to: UC-19 (audit report)
+- AC: (1) File is written to `audits/` subdirectory with ISO 8601 timestamp as filename. (2) JSON structure includes metadata and results array. (3) Compliance count matches sum of compliant/non_compliant results. (4) All required fields are present. (5) File is valid JSON.
+- Verification: deterministic (file exists, JSON parses, fields present)
+
+---
+
+## REQ-64: Audit results feed into effectiveness pipeline
+
+Audit results (compliance/non-compliance) are fed into the effectiveness evaluation pipeline as an additional outcome signal. Non-compliance with a surfaced memory lowers its effectiveness score in future evaluations.
+
+- Traces to: UC-19 (integration with effectiveness)
+- AC: (1) After audit report is written, audit results are parsed. (2) For each non-compliant instruction, look up its memory ID in the effectiveness data. (3) Add a negative outcome signal to that memory's effectiveness history. (4) Next `engram evaluate` run includes this signal in aggregation. (5) Non-compliance lowers effectiveness score (e.g., reduces follow rate or adds penalty).
+- Verification: deterministic (outcome signal recording, effectiveness aggregation)
+
+---
+
+## DES-24: Effectiveness signal injection for audit results
+
+In `internal/evaluate/evaluate.go`, add a function `InjectAuditResults(auditReport)` that:
+1. Parses audit report JSON
+2. For each non_compliant result, looks up memory ID in effectiveness registry
+3. Adds a negative outcome signal (outcome_type = "audit_non_compliance", timestamp = audit timestamp)
+4. Saves updated effectiveness data
+
+This function is called by the audit command before the audit report is written.
+
+- Traces to: REQ-64 (effectiveness integration)
+
+---
+
+## REQ-65: No graceful degradation on API token failure
+
+If the Haiku API call fails due to missing or invalid API token, the audit phase emits an error to stderr and skips the audit (no report written). The error message is non-fatal; other Stop hook phases continue.
+
+- Traces to: UC-19 (error handling)
+- AC: (1) Audit command detects missing/invalid token at runtime. (2) Error is logged to stderr: "audit: API token missing or invalid, skipping audit". (3) Exit code is 1 for the audit command only (fire-and-forget pattern in hook script ignores exit code). (4) No audit report is written. (5) Other hook phases continue.
+- Verification: deterministic (error condition handling)
+
+---

@@ -1936,3 +1936,219 @@ Coverage update:
 - ARCH-17: T-189
 
 All UC-1 L2 items have incremental test coverage.
+
+---
+
+## Token Estimation (ARCH-40)
+
+### T-190: Token estimation formula computes len(text) / 4
+
+**Given** a text string of known length,
+**When** estimateTokens is called,
+**Then** the returned token count is exactly len(text) / 4 (truncated).
+
+Examples: len=100 → 25 tokens, len=99 → 24 tokens (floor).
+
+- Traces to: ARCH-40, REQ-55
+- Verification: unit
+
+---
+
+## Budget Enforcement (ARCH-40)
+
+### T-191: matchPromptMemories respects budget cap
+
+**Given** a surfacing request with budget cap of 200 tokens and 5 memories totaling 500 tokens,
+**When** matchPromptMemories is called,
+**Then** memories are returned in priority order (effectiveness × relevance) until tokens would exceed 200. Remaining memories are omitted.
+
+- Traces to: ARCH-40, REQ-57
+- Verification: unit (mock memories with scores and token counts)
+
+### T-192: matchToolMemories respects budget cap
+
+**Given** a pre-tool surfacing request with budget cap of 100 tokens and 10 memories,
+**When** matchToolMemories is called,
+**Then** memories are sorted by (effectiveness × relevance) and filled until budget exhausted. Budget is hard cap (no overfill).
+
+- Traces to: ARCH-40, REQ-57
+- Verification: unit
+
+### T-193: Budget cap configuration loads from config.toml
+
+**Given** a config file with custom budget values (e.g., SessionStart = 1000),
+**When** surface command loads config,
+**Then** the custom value is used. If config is missing, defaults are used.
+
+- Traces to: ARCH-40, REQ-56
+- Verification: unit (mock config file I/O)
+
+---
+
+## Budget Reporting (ARCH-41)
+
+### T-194: engram review outputs budget utilization table
+
+**Given** a session with multiple hook invocations and surfacing logs,
+**When** `engram review` is called,
+**Then** output includes a [Budget Utilization] section with columns: Hook, Budget, Surfaced, Utilization %, Warning.
+
+- Traces to: ARCH-41, REQ-58
+- Verification: integration (load real surfacing logs, check output format)
+
+### T-195: Budget warning triggers at >50% cap hit rate
+
+**Given** surfacing logs showing 6 out of 10 SessionStart invocations exceed budget cap,
+**When** `engram review` computes cap hit rate,
+**Then** the warning is raised: "⚠ Hitting cap on 60% of invocations" for SessionStart hook.
+
+- Traces to: ARCH-41, REQ-59
+- Verification: unit (mock surfacing log with synthetic cap hits)
+
+### T-196: Budget reporting with zero utilization
+
+**Given** a hook that was never invoked during the session,
+**When** `engram review` reports budget stats,
+**Then** that hook shows 0 tokens surfaced, 0% utilization, no warning.
+
+- Traces to: ARCH-41, REQ-58
+- Verification: unit
+
+---
+
+## Stop Hook Audit Phase (ARCH-42)
+
+### T-197: Stop hook invokes engram audit after engram evaluate
+
+**Given** the Stop hook with all 4 phases configured,
+**When** the hook executes,
+**Then** phases execute in order: learn → evaluate → audit → context-update. Audit phase runs after effectiveness update.
+
+- Traces to: ARCH-42, REQ-60
+- Verification: integration (mock hook script execution)
+
+### T-198: Audit phase is skipped if Haiku API token is missing
+
+**Given** ANTHROPIC_API_KEY env var is unset,
+**When** `engram audit` is invoked,
+**Then** error is logged to stderr: "API token missing or invalid, skipping audit". Exit code 1. No audit report is written.
+
+- Traces to: ARCH-42, REQ-65
+- Verification: unit (mock Haiku API failure)
+
+---
+
+## Audit Scope Parsing (ARCH-43)
+
+### T-199: Audit scope extracts high-priority memories from surfacing log
+
+**Given** a surfacing log with 20 memories and effectiveness data,
+**When** audit command builds scope,
+**Then** only top 20% by effectiveness score are included in scope (e.g., 4 memories if 20 total).
+
+- Traces to: ARCH-43, REQ-61
+- Verification: unit (mock logs + effectiveness data)
+
+### T-200: Audit scope parsing reads transcript for compliance check
+
+**Given** transcript path and audit command,
+**When** scope is built,
+**Then** transcript excerpt (if feasible) is available for LLM compliance assessment.
+
+- Traces to: ARCH-43, REQ-61
+- Verification: unit (mock file I/O)
+
+---
+
+## LLM Compliance Assessment (ARCH-43)
+
+### T-201: Haiku compliance assessment returns JSON with instruction compliance
+
+**Given** audit scope and session transcript,
+**When** Haiku LLM is called with compliance assessment prompt,
+**Then** response is JSON array: `[{instruction, compliant: true/false, evidence: "..."}, ...]`
+
+- Traces to: ARCH-43, REQ-62
+- Verification: integration (real Haiku API with test transcript; verify JSON parsing)
+
+### T-202: Non-compliant instruction lowers follow rate signal
+
+**Given** Haiku returns compliance status for a surfaced instruction,
+**When** non-compliance is detected,
+**Then** instruction ID is recorded as outcome signal for downstream effectiveness calculation.
+
+- Traces to: ARCH-43, REQ-62
+- Verification: unit (mock Haiku response)
+
+---
+
+## Audit Report Writing (ARCH-43)
+
+### T-203: Audit report written to audits/<timestamp>.json
+
+**Given** completed audit with compliance results,
+**When** audit command finishes,
+**Then** report file is written to `<data-dir>/audits/<timestamp>.json` with ISO 8601 timestamp.
+
+- Traces to: ARCH-43, REQ-63
+- Verification: unit (verify file exists, JSON parses, timestamp is valid)
+
+### T-204: Audit report includes metadata and results
+
+**Given** audit results from Haiku,
+**When** report is written,
+**Then** JSON includes: session_id, timestamp, total_instructions_audited, compliant (count), non_compliant (count), results array.
+
+- Traces to: ARCH-43, REQ-63
+- Verification: unit (mock audit results, verify JSON structure)
+
+---
+
+## Effectiveness Signal Injection (ARCH-44)
+
+### T-205: Non-compliance results are injected into effectiveness history
+
+**Given** audit report with non_compliant results,
+**When** InjectAuditResults is called,
+**Then** for each non-compliant instruction, a negative outcome signal is added to that memory's effectiveness data.
+
+- Traces to: ARCH-44, REQ-64
+- Verification: unit (mock audit report, verify effectiveness data is updated)
+
+### T-206: Skipped injection on missing memory ID (non-fatal)
+
+**Given** audit report with instruction ID that doesn't exist in effectiveness registry,
+**When** InjectAuditResults processes that result,
+**Then** signal is skipped (non-fatal). Processing continues for other results.
+
+- Traces to: ARCH-44, REQ-64
+- Verification: unit (mock audit result with invalid memory ID)
+
+---
+
+## Coverage Summary (UC-17 & UC-19)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-55 | T-190 |
+| DES-16 | T-190 |
+| REQ-56 | T-193 |
+| DES-17 | T-193 |
+| REQ-57 | T-191, T-192 |
+| DES-18 | T-191, T-192 |
+| REQ-58 | T-194, T-196 |
+| DES-19 | T-194, T-196 |
+| REQ-59 | T-195 |
+| DES-20 | T-195 |
+| REQ-60 | T-197 |
+| DES-21 | T-197 |
+| REQ-61 | T-199, T-200 |
+| DES-22 | T-199, T-200 |
+| REQ-62 | T-201, T-202 |
+| DES-23 | T-201, T-202 |
+| REQ-63 | T-203, T-204 |
+| REQ-64 | T-205, T-206 |
+| DES-24 | T-205, T-206 |
+| REQ-65 | T-198 |
+
+All UC-17 & UC-19 L2 items have test coverage.

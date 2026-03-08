@@ -1117,6 +1117,188 @@ func (il *IncrementalLearner) Run(ctx context.Context) ([]string, error) {
 
 ---
 
+## ARCH-40: Token Estimation and Budget Enforcement
+
+**Decision:** Token estimation is a pure stateless function. Budget configuration is loaded at startup and stored in a Configuration struct. Budget enforcement happens in surface.go's matching functions.
+
+```go
+// Token estimation: pure function, called for each memory before adding to output
+func estimateTokens(text string) int {
+    return len(text) / 4
+}
+
+// Budget configuration: loaded from config.toml or env vars
+type BudgetConfig struct {
+    SessionStartBudget  int  // default 800
+    UserPromptBudget    int  // default 300
+    PreToolBudget       int  // default 200
+    PostToolBudget      int  // default 100
+    StopBudget          int  // default 500
+}
+
+// In matchPromptMemories and matchToolMemories:
+// 1. Sort memories by (effectiveness × relevance)
+// 2. Accumulate tokens for each memory: tokens += estimateTokens(memory.Content)
+// 3. Stop adding when tokens + nextMemoryTokens > budget
+// 4. Remaining memories are silently skipped
+```
+
+**Design choices:**
+- **Token estimation:** Formula `len(text) / 4` is conservative and avoids external tokenizer dependencies.
+- **Budget configuration:** Loaded from `<data-dir>/config.toml` with fallback to defaults. Config is immutable after loading.
+- **Priority sorting:** `effectiveness × relevance` combines historical quality (effectiveness) with query relevance (BM25).
+- **Budget is hard cap:** Once budget is exhausted, no more memories are added. No spilling over.
+- **Silent cutoff:** Memories that don't fit are not logged to preserve performance.
+
+**Traces to:** REQ-55 (token estimation), REQ-56 (budget caps), REQ-57 (priority allocation)
+
+---
+
+## ARCH-41: Budget Reporting and Warning Detection
+
+**Decision:** Budget statistics are computed during `engram review` by analyzing surfacing logs for the session. Warnings are raised when cap hit rate exceeds 50%.
+
+```go
+// In engram review command:
+// 1. Load surfacing logs for session: <data-dir>/logs/surfacing-<session-id>.json
+// 2. For each hook, count: total_invocations, cap_hits (invocations where tokens > budget)
+// 3. Compute cap_hit_rate = cap_hits / total_invocations
+// 4. For each hook, output budget table row with utilization % and warning if cap_hit_rate > 0.5
+
+type BudgetStats struct {
+    Hook           string
+    Budget         int
+    TokensSurfaced int
+    Utilization    float64  // percentage
+    CapHitRate     float64  // percentage
+    Warning        bool     // true if > 50%
+}
+```
+
+**Design choices:**
+- **Surfacing log structure:** Each invocation records {hook, budget_cap, tokens_surfaced, timestamp}.
+- **Warning threshold:** 50% means the hook is hitting budget on more than half of invocations. This is a signal to review memory quality or increase budget.
+- **Reporting format:** Human-readable table with hook names, caps, utilization %, and warning indicator.
+- **No retroactive changes:** Reporting is advisory only; budgets aren't auto-adjusted.
+
+**Traces to:** REQ-58 (budget reporting), REQ-59 (warning detection)
+
+---
+
+## ARCH-42: Stop Hook Audit Phase
+
+**Decision:** Stop hook is expanded to a 4-phase pipeline with audit as the 3rd phase. New `engram audit` command is invoked between `engram evaluate` and `engram context-update`.
+
+```bash
+# hooks/stop.sh phase ordering:
+engram learn --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"  # Phase 1
+engram evaluate --data-dir "$DATA_DIR"                                       # Phase 2
+engram audit --data-dir "$DATA_DIR" --timestamp "$(date ...)"               # Phase 3 (NEW)
+engram context-update --data-dir "$DATA_DIR"                                 # Phase 4
+
+# Each phase runs; errors are logged but don't block next phase (fire-and-forget)
+```
+
+**Design choices:**
+- **Audit timing:** After effectiveness evaluation (so audit can access updated scores) and before context-update (so audit results don't affect next session's initialization).
+- **Fire-and-forget errors:** If audit fails (e.g., no API token), error is logged to stderr but other phases continue.
+- **Single audit per session:** One `engram audit` call per Stop hook invocation.
+
+**Traces to:** REQ-60 (stop hook timing)
+
+---
+
+## ARCH-43: Audit Command Structure
+
+**Decision:** New CLI subcommand `engram audit --data-dir <path> --timestamp <iso8601>`. Reads session data (surfacing logs, effectiveness data, transcript), invokes Haiku for compliance assessment, writes audit report, and injects results into effectiveness pipeline.
+
+```go
+// cmd/engram/audit.go
+func runAudit(ctx context.Context, dataDir, timestamp string) error {
+    // 1. Parse surfacing logs: extract high-priority memories from session
+    // 2. Load effectiveness data: get effectiveness scores for those memories
+    // 3. Read transcript (passed via stdin or file path)
+    // 4. Build audit scope JSON: [{memory_id, effectiveness_score, ...}, ...]
+    // 5. Call Haiku with scope + transcript: get compliance assessments
+    // 6. Write audit report: <data-dir>/audits/<timestamp>.json
+    // 7. Inject results into effectiveness: call evaluate.InjectAuditResults(report)
+    // 8. Return error if API fails; log to stderr, exit 1 (fire-and-forget in hook)
+}
+```
+
+**Command signature:**
+```bash
+engram audit --data-dir <path> --timestamp <iso8601> [--transcript-path <path>|--transcript-stdin]
+```
+
+**Design choices:**
+- **Audit scope:** Only high-priority memories (top 20% by effectiveness score) are included in scope.
+- **LLM call:** Single Haiku call assesses compliance across all scope items.
+- **Atomic report write:** Report is written to `audits/<timestamp>.json` after LLM assessment succeeds.
+- **Effectiveness injection:** After report write, results are injected into effectiveness data as outcome signals.
+
+**Traces to:** REQ-61 (scope), REQ-62 (LLM assessment), REQ-63 (report format)
+
+---
+
+## ARCH-44: Effectiveness Signal Injection from Audit Results
+
+**Decision:** After audit report is written, compliance results are fed into the effectiveness evaluation pipeline as negative outcome signals for non-compliant memories.
+
+```go
+// internal/evaluate/evaluate.go
+func InjectAuditResults(auditReport *AuditReport) error {
+    // 1. Parse audit report JSON
+    // 2. For each non_compliant result:
+    //    - Look up memory ID in effectiveness registry
+    //    - Add negative outcome: {outcome_type: "audit_non_compliance", timestamp: audit_timestamp, outcome_value: -1}
+    //    - Save updated effectiveness data
+    // 3. Return nil (errors logged to stderr, non-fatal)
+}
+
+type OutcomeSignal struct {
+    OutcomeType string    // "audit_non_compliance"
+    Timestamp   time.Time
+    Value       int       // -1 for non-compliance
+    Evidence    string    // from audit report
+}
+```
+
+**Design choices:**
+- **Negative signal:** Non-compliance lowers the memory's follow rate in future effectiveness aggregations.
+- **Signal strength:** -1 per violation (proportional to frequency of violations in evaluations).
+- **No lookup failure:** If memory ID doesn't exist in effectiveness data, signal is skipped (non-fatal).
+- **Permanent record:** Audit results persist in effectiveness history for visibility into long-term patterns.
+
+**Traces to:** REQ-64 (effectiveness integration)
+
+---
+
+## ARCH-45: Audit Error Handling (No Graceful Degradation)
+
+**Decision:** If Haiku API call fails (missing/invalid token), audit phase emits error to stderr and skips the audit. No report is written. Other Stop hook phases continue.
+
+```go
+// In runAudit:
+if token := os.Getenv("ANTHROPIC_API_KEY"); token == "" {
+    fmt.Fprintf(os.Stderr, "audit: API token missing or invalid, skipping audit\n")
+    return ErrMissingToken  // exit code 1
+}
+
+// Hook script ignores exit code (fire-and-forget pattern)
+// Other phases continue even if audit fails
+```
+
+**Design choices:**
+- **Fail-open:** If audit can't run, the system continues without degradation.
+- **Error is visible:** stderr message indicates the audit was skipped.
+- **No partial reports:** If LLM call fails mid-assessment, no report is written (atomic behavior).
+- **Hook resilience:** Stop hook continues even if one phase fails.
+
+**Traces to:** REQ-65 (error handling)
+
+---
+
 ## L2 → ARCH Traceability (UC-16)
 
 | L2 Item | ARCH Coverage |
@@ -1134,3 +1316,32 @@ func (il *IncrementalLearner) Run(ctx context.Context) ([]string, error) {
 | DES-23 | ARCH-37 |
 
 All UC-16 L2 items have ARCH coverage.
+
+---
+
+## L2 → ARCH Traceability (UC-17 & UC-19)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-55 | ARCH-40 |
+| DES-16 | ARCH-40 |
+| REQ-56 | ARCH-40 |
+| DES-17 | ARCH-40 |
+| REQ-57 | ARCH-40 |
+| DES-18 | ARCH-40 |
+| REQ-58 | ARCH-41 |
+| DES-19 | ARCH-41 |
+| REQ-59 | ARCH-41 |
+| DES-20 | ARCH-41 |
+| REQ-60 | ARCH-42 |
+| DES-21 | ARCH-42 |
+| REQ-61 | ARCH-43 |
+| DES-22 | ARCH-43 |
+| REQ-62 | ARCH-43 |
+| DES-23 | ARCH-43 |
+| REQ-63 | ARCH-43 |
+| REQ-64 | ARCH-44 |
+| DES-24 | ARCH-44 |
+| REQ-65 | ARCH-45 |
+
+All UC-17 & UC-19 L2 items have ARCH coverage.

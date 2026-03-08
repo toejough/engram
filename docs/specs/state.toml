@@ -131,6 +131,22 @@ items = ["REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "
 status = "complete"
 history = "9 REQs + 5 DES items derived from UC-15. Surfacing log write/read (REQ-26/DES-11), LLM evaluation (REQ-27/DES-12), evaluation log (REQ-28/DES-13), effectiveness aggregation (REQ-29), annotations (REQ-30/DES-14), SessionEnd summary (REQ-31/DES-15), CLI evaluate (REQ-32), no degradation (REQ-33), idempotency (REQ-34)."
 
+[tree.L2G1]
+layer = "L2"
+name = "Context Budget Management Requirements"
+parents = ["L1H"]
+items = ["REQ-55", "DES-16", "REQ-56", "DES-17", "REQ-57", "DES-18", "REQ-58", "DES-19", "REQ-59", "DES-20"]
+status = "in_progress"
+history = "L2 RED complete. 5 REQs + 5 DES items derived from UC-17. Token estimation (REQ-55/DES-16), per-hook budget caps (REQ-56/DES-17), priority allocation by effectiveness×relevance (REQ-57/DES-18), budget reporting in review (REQ-58/DES-19), budget warning detection (REQ-59/DES-20)."
+
+[tree.L2G2]
+layer = "L2"
+name = "Stop Session Audit Requirements"
+parents = ["L1H"]
+items = ["REQ-60", "DES-21", "REQ-61", "DES-22", "REQ-62", "DES-23", "REQ-63", "REQ-64", "DES-24", "REQ-65"]
+status = "in_progress"
+history = "L2 RED complete. 6 REQs + 4 DES items derived from UC-19. Stop hook timing (REQ-60/DES-21), audit scope definition (REQ-61/DES-22), LLM compliance assessment (REQ-62/DES-23), audit report format (REQ-63), effectiveness integration (REQ-64/DES-24), error handling (REQ-65)."
+
 # Tree nodes — L3
 
 [tree.L3D]
@@ -165,6 +181,22 @@ items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18", "ARCH-38", "ARCH
 status = "complete"
 history = "UC-1 revision: incremental extraction with offset tracking. ARCH-14 updated (input is stripped delta, not full transcript). ARCH-15 updated (extraction from delta with Strip preprocessing). ARCH-17 updated (CLI flags: --transcript-path, --session-id). ARCH-18 updated (hook wiring passes transcript_path/session_id, Stop hook added). New ARCH-38 (LearnOffset infrastructure), new ARCH-39 (IncrementalLearner orchestrator). All items derived from L2C and converge on incremental extraction behavior. Reuses DeltaReader/Strip (ARCH-28/29), MemoryRetriever (ARCH-9), MemoryWriter (ARCH-4)."
 
+[tree.L3G1]
+layer = "L3"
+name = "Context Budget Management Architecture"
+parents = ["L2G1"]
+items = ["ARCH-40", "ARCH-41"]
+status = "in_progress"
+history = "L3 RED complete. 2 ARCH decisions derived from UC-17 L2G1. Token estimation + budget enforcement (ARCH-40), budget reporting + warning detection (ARCH-41)."
+
+[tree.L3G2]
+layer = "L3"
+name = "Stop Session Audit Architecture"
+parents = ["L2G2"]
+items = ["ARCH-42", "ARCH-43", "ARCH-44", "ARCH-45"]
+status = "in_progress"
+history = "L3 RED complete. 4 ARCH decisions derived from UC-19 L2G2. Stop hook audit phase (ARCH-42), audit command structure (ARCH-43), effectiveness signal injection (ARCH-44), error handling (ARCH-45)."
+
 # Tree nodes — L4
 
 [tree.L4D]
@@ -198,6 +230,22 @@ parents = ["L3C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-95", "T-96", "T-97", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189"]
 status = "complete"
 history = "UC-1 revision: incremental extraction with offset tracking. Existing T-47..T-97 tests cover Learner pipeline (ARCH-14) behavior — all passing. New tests T-182/183 (offset read/write, persistence), T-184 (delta reading with offset), T-185 (strip preprocessing), T-186/187/188 (IncrementalLearner orchestration — session ID handling, empty delta, offset updates), T-189 (CLI flag parsing). All tests passing, targ check clean. Commit ceb31af (implementation) + de2a004 (spec revision)."
+
+[tree.L4G1]
+layer = "L4"
+name = "Context Budget Management Tests"
+parents = ["L3G1"]
+items = ["T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196"]
+status = "in_progress"
+history = "L4 RED complete. 7 BDD test specs across 2 ARCH boundaries: token estimation (T-190), budget enforcement (T-191/192/193), budget reporting (T-194/195/196)."
+
+[tree.L4G2]
+layer = "L4"
+name = "Stop Session Audit Tests"
+parents = ["L3G2"]
+items = ["T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206"]
+status = "in_progress"
+history = "L4 RED complete. 10 BDD test specs across 4 ARCH boundaries: stop hook audit phase (T-197/198), audit scope parsing (T-199/200), LLM compliance assessment (T-201/202), audit report writing (T-203/204), effectiveness integration (T-205/206)."
 
 # Tree nodes — L5
 
@@ -605,7 +653,7 @@ status = "pending"
 history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
 
 [cursor]
-node = "L1H"
+node = "L4G1"
 mode = "in_progress"
-next_action = "L1 REGROUP complete (6 groups, 1:1 UC-to-group, user confirmed). Descending to L2 for UC-17 (G1) and UC-19 (G2) in parallel — both have all L1 deps satisfied."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
+next_action = "L2-L4 RED→GREEN complete for UC-17 (G1) and UC-19 (G2). Both groups have full spec coverage: L2 (10+10 REQ/DES), L3 (2+4 ARCH), L4 (7+10 TEST). Descending to L5 IMPL — code implementation via teammates for both groups in parallel."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "docs/specs/architecture.md", "docs/specs/tests.md"]
