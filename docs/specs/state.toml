@@ -136,16 +136,16 @@ layer = "L2"
 name = "Context Budget Management Requirements"
 parents = ["L1H"]
 items = ["REQ-55", "DES-16", "REQ-56", "DES-17", "REQ-57", "DES-18", "REQ-58", "DES-19", "REQ-59", "DES-20"]
-status = "in_progress"
-history = "L2 RED complete. 5 REQs + 5 DES items derived from UC-17. Token estimation (REQ-55/DES-16), per-hook budget caps (REQ-56/DES-17), priority allocation by effectiveness×relevance (REQ-57/DES-18), budget reporting in review (REQ-58/DES-19), budget warning detection (REQ-59/DES-20)."
+status = "complete"
+history = "5 REQs + 5 DES items derived from UC-17. Token estimation (REQ-55/DES-16), per-hook budget caps (REQ-56/DES-17), priority allocation (REQ-57/DES-18), budget reporting (REQ-58/DES-19), warning detection (REQ-59/DES-20). L5 complete, validator PASS."
 
 [tree.L2G2]
 layer = "L2"
 name = "Stop Session Audit Requirements"
 parents = ["L1H"]
 items = ["REQ-60", "DES-21", "REQ-61", "DES-22", "REQ-62", "DES-23", "REQ-63", "REQ-64", "DES-24", "REQ-65"]
-status = "in_progress"
-history = "L2 RED complete. 6 REQs + 4 DES items derived from UC-19. Stop hook timing (REQ-60/DES-21), audit scope definition (REQ-61/DES-22), LLM compliance assessment (REQ-62/DES-23), audit report format (REQ-63), effectiveness integration (REQ-64/DES-24), error handling (REQ-65)."
+status = "complete"
+history = "6 REQs + 4 DES items derived from UC-19. Stop hook timing (REQ-60/DES-21), audit scope (REQ-61/DES-22), LLM compliance (REQ-62/DES-23), audit report (REQ-63), effectiveness integration (REQ-64/DES-24), error handling (REQ-65). L5 complete, validator PASS."
 
 # Tree nodes — L3
 
@@ -186,16 +186,16 @@ layer = "L3"
 name = "Context Budget Management Architecture"
 parents = ["L2G1"]
 items = ["ARCH-40", "ARCH-41"]
-status = "in_progress"
-history = "L3 RED complete. 2 ARCH decisions derived from UC-17 L2G1. Token estimation + budget enforcement (ARCH-40), budget reporting + warning detection (ARCH-41)."
+status = "complete"
+history = "2 ARCH decisions: token estimation + budget enforcement (ARCH-40), budget reporting + warning detection (ARCH-41). L5 complete."
 
 [tree.L3G2]
 layer = "L3"
 name = "Stop Session Audit Architecture"
 parents = ["L2G2"]
 items = ["ARCH-42", "ARCH-43", "ARCH-44", "ARCH-45"]
-status = "in_progress"
-history = "L3 RED complete. 4 ARCH decisions derived from UC-19 L2G2. Stop hook audit phase (ARCH-42), audit command structure (ARCH-43), effectiveness signal injection (ARCH-44), error handling (ARCH-45)."
+status = "complete"
+history = "4 ARCH decisions: stop hook audit phase (ARCH-42), audit command (ARCH-43), effectiveness injection (ARCH-44), error handling (ARCH-45). L5 complete."
 
 # Tree nodes — L4
 
@@ -236,16 +236,16 @@ layer = "L4"
 name = "Context Budget Management Tests"
 parents = ["L3G1"]
 items = ["T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196"]
-status = "in_progress"
-history = "L4 RED complete. 7 BDD test specs across 2 ARCH boundaries: token estimation (T-190), budget enforcement (T-191/192/193), budget reporting (T-194/195/196)."
+status = "complete"
+history = "7 BDD test specs: token estimation (T-190), budget enforcement (T-191/192/193), budget reporting (T-194/195/196). All passing."
 
 [tree.L4G2]
 layer = "L4"
 name = "Stop Session Audit Tests"
 parents = ["L3G2"]
 items = ["T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206"]
-status = "in_progress"
-history = "L4 RED complete. 10 BDD test specs across 4 ARCH boundaries: stop hook audit phase (T-197/198), audit scope parsing (T-199/200), LLM compliance assessment (T-201/202), audit report writing (T-203/204), effectiveness integration (T-205/206)."
+status = "complete"
+history = "10 BDD test specs: stop hook phase (T-197/198), scope parsing (T-199/200), LLM compliance (T-201/202), report writing (T-203/204), effectiveness integration (T-205/206). All passing."
 
 # Tree nodes — L5
 
@@ -584,16 +584,16 @@ layer = "L5"
 name = "Budget Enforcement + Reporting Implementation"
 parents = ["L4G1"]
 items = ["T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196"]
-status = "pending"
-history = "L5 RED pending. Implementation plan: (1) estimateTokens function in surface.go (pure func), (2) BudgetConfig struct loaded from config.toml, (3) modify matchPromptMemories/matchToolMemories to enforce caps via token accumulation, (4) update review command output with budget table, (5) cap_hit_rate computation and warning detection."
+status = "complete"
+history = "EstimateTokens (len/4), BudgetConfig with defaults, WithBudgetConfig DI option, applyPromptBudget/applyToolBudget enforcement in surface.go, RenderBudget table in review/budget.go, warning detection >50% cap hit rate. All T-190..T-196 passing. Validator PASS. Commit 094d92d."
 
 [tree.L5G2]
 layer = "L5"
 name = "Stop Hook Audit Command Implementation"
 parents = ["L4G2"]
 items = ["T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206"]
-status = "pending"
-history = "L5 RED pending. Implementation plan: (1) new cmd/engram/audit.go with runAudit function, (2) audit scope parsing from surfacing logs + effectiveness data, (3) Haiku LLM compliance assessment, (4) audit report JSON writing to audits/ directory, (5) InjectAuditResults function to feed results into effectiveness pipeline, (6) Stop hook wiring in hooks/stop.sh."
+status = "complete"
+history = "Auditor with full DI (readFile, writeFile, mkdirAll, llmCaller, now). Scope building top 20%, Haiku compliance assessment, report writing to audits/<timestamp>.json, effectiveness injection for non-compliant. CLI audit subcommand, hooks/stop.sh 4-phase pipeline. All T-198..T-206 passing. Validator PASS. Commit dfb5b72."
 
 [tree.L4G]
 layer = "L4"
@@ -669,7 +669,7 @@ status = "pending"
 history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
 
 [cursor]
-node = "L4G1"
+node = "L1I"
 mode = "in_progress"
-next_action = "L2-L4 RED→GREEN complete for UC-17 (G1) and UC-19 (G2). Both groups have full spec coverage: L2 (10+10 REQ/DES), L3 (2+4 ARCH), L4 (7+10 TEST). Descending to L5 IMPL — code implementation via teammates for both groups in parallel."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "UC-17 (G1) and UC-19 (G2) trees complete (L2-L5, validators PASS). Next: UC-18 (G3, PostToolUse Reminders) — depends on UC-17, now satisfied. UC-20 (G4) also unblocked. Trace both through L2-L5 in parallel."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
