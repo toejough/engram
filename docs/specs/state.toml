@@ -162,8 +162,8 @@ layer = "L3"
 name = "Session Learning Architecture"
 parents = ["L2C"]
 items = ["ARCH-14", "ARCH-15", "ARCH-16", "ARCH-17", "ARCH-18", "ARCH-38", "ARCH-39"]
-status = "pending"
-history = "UC-1 revision: incremental extraction with offset tracking. ARCH-14 updated (input is stripped delta, not full transcript). ARCH-15 updated (extraction from delta with Strip preprocessing). ARCH-17 updated (CLI flags: --transcript-path, --session-id instead of stdin). ARCH-18 updated (hook wiring passes transcript_path/session_id, Stop hook added). New ARCH-38 (LearnOffset infrastructure, JSON persistence, atomic updates). New ARCH-39 (IncrementalLearner orchestrator, handles delta reading, stripping, learning, offset updates, session boundary detection). Reuses DeltaReader/Strip from ARCH-28/29 (UC-14 session continuity), MemoryRetriever from ARCH-9, MemoryWriter from ARCH-4."
+status = "complete"
+history = "UC-1 revision: incremental extraction with offset tracking. ARCH-14 updated (input is stripped delta, not full transcript). ARCH-15 updated (extraction from delta with Strip preprocessing). ARCH-17 updated (CLI flags: --transcript-path, --session-id). ARCH-18 updated (hook wiring passes transcript_path/session_id, Stop hook added). New ARCH-38 (LearnOffset infrastructure), new ARCH-39 (IncrementalLearner orchestrator). All items derived from L2C and converge on incremental extraction behavior. Reuses DeltaReader/Strip (ARCH-28/29), MemoryRetriever (ARCH-9), MemoryWriter (ARCH-4)."
 
 # Tree nodes — L4
 
@@ -196,8 +196,8 @@ layer = "L4"
 name = "Session Learning Tests"
 parents = ["L3C"]
 items = ["T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-95", "T-96", "T-97", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189"]
-status = "green"
-history = "UC-1 revision: incremental extraction with offset tracking. Existing T-47..T-97 tests cover Learner pipeline (ARCH-14) behavior — these remain valid. New tests added: T-182/183 (offset read/write, persistence), T-184 (delta reading with offset), T-185 (strip preprocessing), T-186/187/188 (IncrementalLearner orchestration — session ID handling, empty delta, offset updates), T-189 (CLI flag parsing). L2C requirements coverage: REQ-15 (T-47,49,50,184,185), REQ-16 (T-51,57), REQ-17 (T-52-56), REQ-18 (T-48,62), REQ-19 (T-186), REQ-20 (T-61-64,189), REQ-25 (T-95-97), REQ-26 (T-182,183,186), REQ-27 (T-185), DES-9 (T-65-68,188), DES-10 (T-57-64)."
+status = "complete"
+history = "UC-1 revision: incremental extraction with offset tracking. Existing T-47..T-97 tests cover Learner pipeline (ARCH-14) behavior — all passing. New tests T-182/183 (offset read/write, persistence), T-184 (delta reading with offset), T-185 (strip preprocessing), T-186/187/188 (IncrementalLearner orchestration — session ID handling, empty delta, offset updates), T-189 (CLI flag parsing). All tests passing, targ check clean. Commit ceb31af (implementation) + de2a004 (spec revision)."
 
 # Tree nodes — L5
 
@@ -306,24 +306,24 @@ layer = "L5"
 name = "LearnOffset Infrastructure"
 parents = ["L4C"]
 items = ["T-182", "T-183"]
-status = "pending"
-history = "UC-1 revision: new internal/learn/offset.go package. LearnOffset struct + OffsetStore interface for persistent byte-offset tracking per session. JSON file at <data-dir>/learn-offset.json. DI via WithReadFile, WithWriteFile. Atomic writes (temp → rename). T-182/183 pending implementation."
+status = "complete"
+history = "UC-1 revision: internal/learn/offset.go with Offset struct (Offset int64, SessionID string) + OffsetStore interface (Read/Write methods). osOffsetStore implementation in cli.go: JSON marshaling/unmarshaling at <data-dir>/learn-offset.json. T-182/183 passing. Commit ceb31af."
 
 [tree.L5CD]
 layer = "L5"
 name = "IncrementalLearner Orchestrator"
 parents = ["L5CC"]
 items = ["T-184", "T-185", "T-186", "T-187", "T-188"]
-status = "pending"
-history = "UC-1 revision: new internal/learn/incremental.go package. IncrementalLearner struct orchestrating delta extraction: offset lookup → delta reading (reuses DeltaReader from ARCH-28) → strip preprocessing (reuses Strip from ARCH-29) → learner pipeline → offset update. Handles session ID change (reset to 0), empty delta (skip extraction), atomic offset writes. T-184..T-188 pending implementation."
+status = "complete"
+history = "UC-1 revision: internal/learn/incremental.go with IncrementalLearner struct. RunIncremental orchestrates: offset lookup (reset to 0 on new session ID) → delta reading via DeltaReader (from ARCH-28) → strip preprocessing via StripFunc (from ARCH-29) → learner pipeline → offset update (atomic). Fire-and-forget error handling to stderr. Handles empty delta (skips extraction, no API cost). T-184..T-188 passing. Commit ceb31af."
 
 [tree.L5CE]
 layer = "L5"
 name = "CLI and Hook Modifications for Incremental"
 parents = ["L5CD"]
 items = ["T-189"]
-status = "pending"
-history = "UC-1 revision: modify internal/cli/cli.go learn command to accept --transcript-path and --session-id flags instead of stdin. Wire IncrementalLearner. Modify hooks (pre-compact.sh, stop.sh) to pass transcript_path and session_id. T-189 pending implementation."
+status = "complete"
+history = "UC-1 revision: internal/cli/cli.go RunLearn modified to accept --transcript-path, --session-id flags. runIncrementalLearn wires DeltaReader, osOffsetStore, IncrementalLearner. hooks/pre-compact.sh and hooks/stop.sh updated to pass TRANSCRIPT_PATH and SESSION_ID. T-189 passing. Commit ceb31af."
 
 # Tree nodes — L5 (UC-2 instrumentation, issue #46)
 
@@ -564,6 +564,6 @@ history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-4
 
 [cursor]
 node = "L1C"
-mode = "in_progress"
-next_action = "UC-1 revision: incremental extraction with delta tracking. L2-L5 re-entry."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+mode = "complete"
+next_action = "UC-1 tree complete. Incremental extraction with offset tracking implemented and verified. All layers passing tests."
+context_files = ["docs/specs/state.toml"]
