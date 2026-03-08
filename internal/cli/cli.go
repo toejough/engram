@@ -24,6 +24,8 @@ import (
 	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/learn"
+	"engram/internal/maintain"
+	"engram/internal/memory"
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -115,6 +117,8 @@ func Run(
 		return runEvaluate(subArgs, stdout, stderr, stdin)
 	case "review":
 		return runReview(subArgs, stdout)
+	case "maintain":
+		return runMaintain(subArgs, stdout)
 	case "surface":
 		return runSurface(subArgs, stdout)
 	case "learn":
@@ -264,6 +268,68 @@ func RunLearn(
 	return nil
 }
 
+// RunMaintain implements the maintain subcommand: generates maintenance
+// proposals as a JSON array on stdout. token controls LLM availability
+// for leech/hidden-gem proposals; empty string skips them.
+func RunMaintain(
+	args []string,
+	token string,
+	stdout io.Writer,
+	opts ...maintain.Option,
+) error {
+	fs := flag.NewFlagSet("maintain", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("maintain: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errMaintainMissingFlags
+	}
+
+	evalDir := filepath.Join(*dataDir, "evaluations")
+
+	stats, err := effectiveness.New(evalDir).Aggregate()
+	if err != nil {
+		return fmt.Errorf(
+			"maintain: aggregating effectiveness: %w", err,
+		)
+	}
+
+	if len(stats) == 0 {
+		_, _ = fmt.Fprint(stdout, "[]\n")
+
+		return nil
+	}
+
+	tracking := buildTrackingMap(*dataDir)
+	classified := reviewpkg.Classify(stats, tracking)
+
+	memoryMap, listErr := buildMemoryMap(*dataDir)
+	if listErr != nil {
+		return fmt.Errorf("maintain: %w", listErr)
+	}
+
+	allOpts := make([]maintain.Option, 0, len(opts)+1)
+	if token != "" {
+		allOpts = append(allOpts,
+			maintain.WithLLMCaller(makeAnthropicCaller(token)))
+	}
+
+	allOpts = append(allOpts, opts...)
+
+	ctx := context.Background()
+	generator := maintain.New(allOpts...)
+	proposals := generator.Generate(ctx, classified, memoryMap)
+
+	//nolint:wrapcheck // thin JSON encoding at CLI boundary
+	return json.NewEncoder(stdout).Encode(proposals)
+}
+
 // RunReview implements the review subcommand: aggregates effectiveness stats,
 // retrieves memory tracking data, classifies memories, and renders the matrix.
 func RunReview(args []string, stdout io.Writer) error {
@@ -326,6 +392,7 @@ var (
 	)
 	errEvaluateMissingFlags = errors.New("evaluate: --data-dir required")
 	errLearnMissingFlags    = errors.New("learn: --data-dir required")
+	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
 	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
 	errNoContentBlocks      = errors.New("API response contained no content blocks")
 	errReviewMissingFlags   = errors.New("review: --data-dir required")
@@ -335,7 +402,7 @@ var (
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
 		"usage: engram <correct|surface|learn|evaluate" +
-			"|review|context-update> [flags]",
+			"|review|maintain|context-update> [flags]",
 	)
 )
 
@@ -476,6 +543,25 @@ func (t *realTimestamper) Now() time.Time {
 
 // buildTrackingMap retrieves memories and builds a path→TrackingData map.
 // Returns empty map if memories cannot be read.
+func buildMemoryMap(
+	dataDir string,
+) (map[string]*memory.Stored, error) {
+	retriever := retrieve.New()
+	ctx := context.Background()
+
+	memories, err := retriever.ListMemories(ctx, dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("listing memories: %w", err)
+	}
+
+	memMap := make(map[string]*memory.Stored, len(memories))
+	for _, mem := range memories {
+		memMap[mem.FilePath] = mem
+	}
+
+	return memMap, nil
+}
+
 func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
 	retriever := retrieve.New()
 	ctx := context.Background()
@@ -734,6 +820,10 @@ func runIncrementalLearn(
 
 func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 	return RunLearn(args, os.Getenv("ENGRAM_API_TOKEN"), stderr, stdin, nil)
+}
+
+func runMaintain(args []string, stdout io.Writer) error {
+	return RunMaintain(args, os.Getenv("ENGRAM_API_TOKEN"), stdout)
 }
 
 func runReview(args []string, stdout io.Writer) error {

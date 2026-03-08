@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -301,6 +302,47 @@ func TestLearnSuccessPath(t *testing.T) {
 	}
 
 	g.Expect(stderr.String()).To(ContainSubstring("[engram] No new learnings extracted."))
+}
+
+// TestMaintainDispatchedViaRun verifies "maintain" is in dispatch.
+func TestMaintainDispatchedViaRun(t *testing.T) {
+	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "maintain", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(strings.TrimSpace(stdout.String())).To(Equal("[]"))
+}
+
+// TestMaintainMissingDataDir verifies missing --data-dir returns error.
+func TestMaintainMissingDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{}, "", &stdout)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("data-dir"))
+	}
 }
 
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
@@ -1024,6 +1066,173 @@ anti_pattern = ""`), 0o644)
 	g.Expect(capturedPrompt).To(ContainSubstring("please help me"))
 	g.Expect(capturedPrompt).To(ContainSubstring("sure, I can help"))
 	g.Expect(capturedPrompt).NotTo(ContainSubstring("huge tool output that should be stripped"))
+}
+
+// T-179: maintain subcommand produces JSON proposals to stdout.
+func TestT179_MaintainProducesJSONProposals(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// Create a noise memory: low surfacing, all ignored.
+	noiseMem := writeReviewMemoryTOML(
+		t, memDir, "noise-mem.toml", 1,
+	)
+	writeReviewEvalLog(t, evalDir, "noise.jsonl", noiseMem,
+		[]string{"ignored", "ignored", "ignored", "ignored", "ignored"})
+
+	// Create a working memory: high surfacing, all followed.
+	workingMem := writeReviewMemoryTOML(
+		t, memDir, "working-mem.toml", 10,
+	)
+	writeReviewEvalLog(t, evalDir, "working.jsonl", workingMem,
+		[]string{
+			"followed", "followed", "followed",
+			"followed", "followed",
+		})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"", // no token — only noise/working proposals
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Parse output as JSON array.
+	var proposals []map[string]any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+
+	if jsonErr != nil {
+		return
+	}
+
+	// Verify each proposal has required DES-23 fields.
+	for _, proposal := range proposals {
+		g.Expect(proposal).To(HaveKey("memory_path"))
+		g.Expect(proposal).To(HaveKey("quadrant"))
+		g.Expect(proposal).To(HaveKey("diagnosis"))
+		g.Expect(proposal).To(HaveKey("action"))
+		g.Expect(proposal).To(HaveKey("details"))
+	}
+}
+
+// T-180: maintain with no evaluation data produces empty array.
+func TestT180_MaintainNoEvalDataProducesEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	writeReviewMemoryTOML(t, memDir, "some-mem.toml", 5)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"",
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(strings.TrimSpace(stdout.String())).To(Equal("[]"))
+}
+
+// T-181: maintain without API key skips LLM proposals.
+func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// Leech: high surfacing, all contradicted → low effectiveness.
+	leechMem := writeReviewMemoryTOML(
+		t, memDir, "leech-mem.toml", 10,
+	)
+	writeReviewEvalLog(t, evalDir, "leech.jsonl", leechMem,
+		[]string{
+			"contradicted", "contradicted", "contradicted",
+			"contradicted", "contradicted",
+		})
+
+	// Noise: low surfacing, all ignored → low effectiveness.
+	noiseMem := writeReviewMemoryTOML(
+		t, memDir, "noise-mem.toml", 1,
+	)
+	writeReviewEvalLog(t, evalDir, "noise.jsonl", noiseMem,
+		[]string{
+			"ignored", "ignored", "ignored",
+			"ignored", "ignored",
+		})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"", // no token
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var proposals []map[string]any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+
+	if jsonErr != nil {
+		return
+	}
+
+	// Only noise proposal should appear; leech requires LLM.
+	for _, proposal := range proposals {
+		g.Expect(proposal["quadrant"]).NotTo(Equal("Leech"),
+			"leech proposals should be absent without API key")
+		g.Expect(proposal["quadrant"]).NotTo(Equal("Hidden Gem"),
+			"hidden gem proposals absent without API key")
+	}
+
+	// Should have exactly one noise proposal.
+	noiseCount := 0
+
+	for _, proposal := range proposals {
+		if proposal["quadrant"] == "Noise" {
+			noiseCount++
+		}
+	}
+
+	g.Expect(noiseCount).To(Equal(1))
 }
 
 // T-18: correct subcommand with no API key returns error
