@@ -1341,15 +1341,35 @@ func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// Create 5 anti-pattern memories all matching "code".
-	memories := make([]*memory.Stored, 0, 5)
+	// 5 anti-pattern memories matching "commit" + 8 non-matching fillers for IDF contrast.
+	memories := make([]*memory.Stored, 0, 13)
 	for i := range 5 {
 		memories = append(memories, &memory.Stored{
 			Title:       memTitle(i),
 			FilePath:    memPath(i),
-			AntiPattern: "bad code practice",
-			Keywords:    []string{"code"},
-			Principle:   "write good code",
+			AntiPattern: "manual commit violation",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill",
+		})
+	}
+
+	fillerNames := []string{
+		"logging",
+		"testing",
+		"deploy",
+		"config",
+		"monitoring",
+		"caching",
+		"auth",
+		"docs",
+	}
+	for _, name := range fillerNames {
+		memories = append(memories, &memory.Stored{
+			Title:       name + " rule",
+			FilePath:    name + "-rule.toml",
+			AntiPattern: name + " violation",
+			Keywords:    []string{name},
+			Principle:   name + " standards",
 		})
 	}
 
@@ -1362,7 +1382,8 @@ func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
 		Mode:      surface.ModeTool,
 		DataDir:   "/tmp/data",
 		ToolName:  "Bash",
-		ToolInput: "code review this",
+		ToolInput: "git commit -m 'fix bug'",
+		Format:    surface.FormatJSON,
 	})
 
 	g.Expect(err).NotTo(HaveOccurred())
@@ -1371,8 +1392,16 @@ func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
 		return
 	}
 
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] 3 tool advisories:"))
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 3 tool advisories:"))
 }
 
 // QW-2: BM25 relevance floor filters low-scoring memories.
@@ -1381,7 +1410,7 @@ func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	// Memory with keywords that barely match the query (low BM25 score).
+	// Need enough docs for IDF contrast (df/N < 0.5 so IDF > 0).
 	memories := []*memory.Stored{
 		{
 			Title:    "Exact Match",
@@ -1394,6 +1423,24 @@ func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
 			FilePath: "irrelevant.toml",
 			Keywords: []string{"banana", "fruit"},
 			Content:  "banana smoothie recipe for healthy eating",
+		},
+		{
+			Title:    "Filler A",
+			FilePath: "filler-a.toml",
+			Keywords: []string{"logging"},
+			Content:  "logging best practices",
+		},
+		{
+			Title:    "Filler B",
+			FilePath: "filler-b.toml",
+			Keywords: []string{"testing"},
+			Content:  "testing strategies",
+		},
+		{
+			Title:    "Filler C",
+			FilePath: "filler-c.toml",
+			Keywords: []string{"monitoring"},
+			Content:  "monitoring dashboards",
 		},
 	}
 
@@ -1440,6 +1487,27 @@ func TestQW2_ToolRelevanceFloorFiltersLowScoring(t *testing.T) {
 			AntiPattern: "eating bananas at desk",
 			Keywords:    []string{"banana", "fruit"},
 			Principle:   "no food at desk",
+		},
+		{
+			Title:       "Filler A",
+			FilePath:    "filler-a.toml",
+			AntiPattern: "logging without context",
+			Keywords:    []string{"logging"},
+			Principle:   "always log with context",
+		},
+		{
+			Title:       "Filler B",
+			FilePath:    "filler-b.toml",
+			AntiPattern: "skipping monitoring",
+			Keywords:    []string{"monitoring"},
+			Principle:   "monitor everything",
+		},
+		{
+			Title:       "Filler C",
+			FilePath:    "filler-c.toml",
+			AntiPattern: "ignoring alerts",
+			Keywords:    []string{"alerts"},
+			Principle:   "respond to alerts",
 		},
 	}
 
