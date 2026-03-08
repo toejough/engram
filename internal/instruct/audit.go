@@ -1,0 +1,383 @@
+package instruct
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"math"
+	"sort"
+	"strings"
+)
+
+// AuditReport is the full output of the instruction quality audit pipeline.
+type AuditReport struct {
+	Duplicates []DuplicatePair  `json:"duplicates"`
+	Diagnoses  json.RawMessage  `json:"diagnoses"`
+	Proposals  json.RawMessage  `json:"proposals"`
+	Gaps       []GapCandidate   `json:"gaps"`
+	Skills     []SkillLineIssue `json:"skills"`
+}
+
+// DuplicatePair reports two instructions with >80% keyword overlap.
+type DuplicatePair struct {
+	PathA      string  `json:"path_a"`
+	PathB      string  `json:"path_b"`
+	Overlap    float64 `json:"overlap"`
+	KeepSource string  `json:"keep_source"`
+}
+
+// Diagnosis is the LLM output for a low-effectiveness instruction.
+type Diagnosis struct {
+	Path       string `json:"path"`
+	Diagnosis  string `json:"diagnosis"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// RefinementProposal is a maintain-compatible proposal for fixing an instruction.
+type RefinementProposal struct {
+	Path       string `json:"path"`
+	Action     string `json:"action"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// GapCandidate is a violation pattern not covered by existing instructions.
+type GapCandidate struct {
+	Pattern        string `json:"pattern"`
+	ViolationCount int    `json:"violation_count"`
+	Example        string `json:"example"`
+}
+
+// SkillLineIssue flags a low-effectiveness line in a skill file.
+type SkillLineIssue struct {
+	Path       string  `json:"path"`
+	LineNumber int     `json:"line_number"`
+	Content    string  `json:"content"`
+	FollowRate float64 `json:"follow_rate"`
+}
+
+// SkippedSection indicates an audit section was skipped.
+type SkippedSection struct {
+	SkippedReason string `json:"skipped_reason"`
+}
+
+const (
+	dupThreshold         = 0.80
+	bottomPercentile     = 0.20
+	lowFollowRatePercent = 20.0
+	diagnosisPrompt      = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
+		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
+		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
+	haikuModel = "claude-haiku-4-5-20251001"
+)
+
+// Auditor runs the instruction quality audit pipeline.
+type Auditor struct {
+	Scanner   *Scanner
+	LLMCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+	EvalData  []EvalRecord
+}
+
+// EvalRecord represents a single evaluation outcome for gap analysis.
+type EvalRecord struct {
+	MemoryPath string `json:"memory_path"`
+	Outcome    string `json:"outcome"`
+	Pattern    string `json:"pattern"`
+	Example    string `json:"example"`
+}
+
+// PerLineEffectiveness maps "path:line" to follow rate percentage.
+type PerLineEffectiveness map[string]float64
+
+// Run executes the full audit pipeline.
+//
+//nolint:funlen,cyclop // orchestration function: sequential pipeline steps
+func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditReport, error) {
+	items, err := a.Scanner.ScanAll(dataDir, projectDir)
+	if err != nil {
+		return nil, fmt.Errorf("scanning instructions: %w", err)
+	}
+
+	report := &AuditReport{}
+
+	// Step 1: Deduplication (always runs)
+	report.Duplicates = findDuplicates(items)
+
+	// Step 2: Diagnosis (requires LLM)
+	if a.LLMCaller == nil {
+		skipped, marshalErr := json.Marshal(SkippedSection{SkippedReason: "no API token"})
+		if marshalErr != nil {
+			return nil, fmt.Errorf("marshaling skipped section: %w", marshalErr)
+		}
+
+		report.Diagnoses = skipped
+		report.Proposals = skipped
+	} else {
+		diagnoses, diagErr := a.diagnoseBottom(ctx, items)
+		if diagErr != nil {
+			return nil, fmt.Errorf("diagnosing instructions: %w", diagErr)
+		}
+
+		diagJSON, marshalErr := json.Marshal(diagnoses)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("marshaling diagnoses: %w", marshalErr)
+		}
+
+		report.Diagnoses = diagJSON
+
+		// Step 3: Proposals from diagnoses
+		proposals := buildProposals(diagnoses)
+
+		propJSON, marshalErr := json.Marshal(proposals)
+		if marshalErr != nil {
+			return nil, fmt.Errorf("marshaling proposals: %w", marshalErr)
+		}
+
+		report.Proposals = propJSON
+	}
+
+	// Step 4: Gap analysis (always runs)
+	report.Gaps = a.findGaps(items)
+
+	// Step 5: Skill decomposition (always runs)
+	report.Skills = a.findSkillIssues(items)
+
+	return report, nil
+}
+
+// findDuplicates detects instruction pairs with >80% keyword overlap.
+func findDuplicates(items []InstructionItem) []DuplicatePair {
+	pairs := make([]DuplicatePair, 0)
+
+	for i := range len(items) {
+		kwA := extractKeywords(items[i].Content)
+
+		for j := i + 1; j < len(items); j++ {
+			kwB := extractKeywords(items[j].Content)
+			overlap := keywordOverlap(kwA, kwB)
+
+			if overlap > dupThreshold {
+				keep := items[i].Path
+				if salienceRank[items[j].Source] < salienceRank[items[i].Source] {
+					keep = items[j].Path
+				}
+
+				pairs = append(pairs, DuplicatePair{
+					PathA:      items[i].Path,
+					PathB:      items[j].Path,
+					Overlap:    overlap,
+					KeepSource: keep,
+				})
+			}
+		}
+	}
+
+	return pairs
+}
+
+// diagnosisResponse is the expected JSON from the LLM.
+type diagnosisResponse struct {
+	Diagnosis  string `json:"diagnosis"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// diagnoseBottom sends the bottom 20% (by effectiveness) to the LLM for diagnosis.
+func (a *Auditor) diagnoseBottom(
+	ctx context.Context,
+	items []InstructionItem,
+) ([]Diagnosis, error) {
+	if len(items) == 0 {
+		return []Diagnosis{}, nil
+	}
+
+	// Filter to items with effectiveness data (score > 0 means data exists)
+	scored := make([]InstructionItem, 0, len(items))
+
+	for _, item := range items {
+		scored = append(scored, item)
+	}
+
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].EffectivenessScore < scored[j].EffectivenessScore
+	})
+
+	bottomCount := int(math.Ceil(float64(len(scored)) * bottomPercentile))
+	bottom := scored[:bottomCount]
+
+	diagnoses := make([]Diagnosis, 0, bottomCount)
+
+	for _, item := range bottom {
+		userPrompt := fmt.Sprintf(
+			"Instruction source: %s\nPath: %s\nContent:\n%s",
+			item.Source, item.Path, item.Content,
+		)
+
+		resp, err := a.LLMCaller(ctx, haikuModel, diagnosisPrompt, userPrompt)
+		if err != nil {
+			return nil, fmt.Errorf("calling LLM for %s: %w", item.Path, err)
+		}
+
+		var parsed diagnosisResponse
+
+		if unmarshalErr := json.Unmarshal([]byte(resp), &parsed); unmarshalErr != nil {
+			return nil, fmt.Errorf("parsing LLM response for %s: %w", item.Path, unmarshalErr)
+		}
+
+		diagnoses = append(diagnoses, Diagnosis{
+			Path:       item.Path,
+			Diagnosis:  parsed.Diagnosis,
+			RootCause:  parsed.RootCause,
+			Suggestion: parsed.Suggestion,
+		})
+	}
+
+	return diagnoses, nil
+}
+
+// buildProposals converts diagnoses into maintain-compatible proposals.
+func buildProposals(diagnoses []Diagnosis) []RefinementProposal {
+	proposals := make([]RefinementProposal, 0, len(diagnoses))
+
+	for _, diag := range diagnoses {
+		proposals = append(proposals, RefinementProposal{
+			Path:       diag.Path,
+			Action:     "rewrite",
+			RootCause:  diag.RootCause,
+			Suggestion: diag.Suggestion,
+		})
+	}
+
+	return proposals
+}
+
+// findGaps finds contradicted evaluation patterns not covered by existing instructions.
+func (a *Auditor) findGaps(items []InstructionItem) []GapCandidate {
+	gaps := make([]GapCandidate, 0)
+
+	if len(a.EvalData) == 0 {
+		return gaps
+	}
+
+	// Build set of covered memory paths
+	covered := make(map[string]bool, len(items))
+	for _, item := range items {
+		covered[item.Path] = true
+	}
+
+	// Group contradictions by pattern
+	type patternInfo struct {
+		count   int
+		example string
+	}
+
+	patternMap := make(map[string]*patternInfo)
+
+	for _, rec := range a.EvalData {
+		if rec.Outcome != "contradicted" {
+			continue
+		}
+
+		if covered[rec.MemoryPath] {
+			continue
+		}
+
+		info, exists := patternMap[rec.Pattern]
+		if !exists {
+			info = &patternInfo{example: rec.Example}
+			patternMap[rec.Pattern] = info
+		}
+
+		info.count++
+	}
+
+	for pattern, info := range patternMap {
+		gaps = append(gaps, GapCandidate{
+			Pattern:        pattern,
+			ViolationCount: info.count,
+			Example:        info.example,
+		})
+	}
+
+	sort.Slice(gaps, func(i, j int) bool {
+		return gaps[i].ViolationCount > gaps[j].ViolationCount
+	})
+
+	return gaps
+}
+
+// findSkillIssues identifies skill file lines with low follow rates.
+func (a *Auditor) findSkillIssues(items []InstructionItem) []SkillLineIssue {
+	issues := make([]SkillLineIssue, 0)
+
+	if a.Scanner.EffData == nil {
+		return issues
+	}
+
+	for _, item := range items {
+		if item.Source != SourceSkill {
+			continue
+		}
+
+		lines := strings.Split(item.Content, "\n")
+		for lineIdx, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" {
+				continue
+			}
+
+			lineKey := fmt.Sprintf("%s:%d", item.Path, lineIdx+1)
+			rate, exists := a.Scanner.EffData[lineKey]
+
+			if exists && rate < lowFollowRatePercent {
+				issues = append(issues, SkillLineIssue{
+					Path:       item.Path,
+					LineNumber: lineIdx + 1,
+					Content:    trimmed,
+					FollowRate: rate,
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+// extractKeywords splits content into lowercase word tokens for overlap calculation.
+func extractKeywords(content string) map[string]bool {
+	words := strings.Fields(strings.ToLower(content))
+	kw := make(map[string]bool, len(words))
+
+	for _, word := range words {
+		// Strip punctuation
+		word = strings.Trim(word, ".,;:!?\"'`()[]{}#*-_=+<>/\\|~@$%^&")
+		if len(word) > 1 { // skip single chars
+			kw[word] = true
+		}
+	}
+
+	return kw
+}
+
+// keywordOverlap computes Jaccard similarity between two keyword sets.
+func keywordOverlap(setA, setB map[string]bool) float64 {
+	if len(setA) == 0 && len(setB) == 0 {
+		return 0
+	}
+
+	intersection := 0
+
+	for word := range setA {
+		if setB[word] {
+			intersection++
+		}
+	}
+
+	union := len(setA) + len(setB) - intersection
+	if union == 0 {
+		return 0
+	}
+
+	return float64(intersection) / float64(union)
+}
