@@ -24,9 +24,11 @@ import (
 	"engram/internal/effectiveness"
 	"engram/internal/evaluate"
 	"engram/internal/extract"
+	"engram/internal/instruct"
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/remind"
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -126,6 +128,10 @@ func Run(
 		return runSurface(subArgs, stdout)
 	case "learn":
 		return runLearn(subArgs, stderr, stdin)
+	case "remind":
+		return runRemind(subArgs, stdout)
+	case "instruct":
+		return runInstructAudit(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
 	default:
@@ -402,11 +408,15 @@ var (
 	errSurfaceMissingFlags  = errors.New(
 		"surface: --mode and --data-dir required",
 	)
-	errUnknownCommand    = errors.New("unknown command")
-	errAuditMissingFlags = errors.New("audit: --data-dir required")
-	errUsage             = errors.New(
+	errInstructMissingFlags = errors.New(
+		"instruct audit: --data-dir required",
+	)
+	errRemindMissingFlags = errors.New("remind: --data-dir required")
+	errUnknownCommand     = errors.New("unknown command")
+	errAuditMissingFlags  = errors.New("audit: --data-dir required")
+	errUsage              = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|context-update> [flags]",
+			"|review|maintain|remind|instruct|context-update> [flags]",
 	)
 )
 
@@ -880,6 +890,149 @@ func runIncrementalLearn(
 	return nil
 }
 
+func runRemind(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("remind", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	filePath := fs.String("file-path", "", "file path from tool call")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("remind: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errRemindMissingFlags
+	}
+
+	configReader := &osRemindConfigReader{dataDir: *dataDir}
+	loader := &osMemoryLoader{dataDir: *dataDir}
+	transcriptReader := &noopTranscriptReader{}
+	surfLogger := surfacinglog.New(*dataDir)
+
+	reminder := remind.New(configReader, loader, transcriptReader,
+		remind.WithSurfacingLogger(surfLogger),
+	)
+
+	ctx := context.Background()
+	input := remind.ToolCallInput{
+		ToolName: "",
+		FilePath: *filePath,
+	}
+
+	result, err := reminder.Run(ctx, input)
+	if err != nil {
+		return fmt.Errorf("remind: %w", err)
+	}
+
+	if result != "" {
+		_, _ = fmt.Fprint(stdout, result)
+	}
+
+	return nil
+}
+
+// osRemindConfigReader reads reminders.toml from the data directory.
+type osRemindConfigReader struct {
+	dataDir string
+}
+
+func (r *osRemindConfigReader) ReadConfig() (map[string][]string, error) {
+	path := filepath.Join(r.dataDir, "reminders.toml")
+
+	data, err := os.ReadFile(path) //nolint:gosec // thin I/O adapter
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("reading reminders.toml: %w", err)
+	}
+
+	return parseRemindersToml(data)
+}
+
+// parseRemindersToml parses a simple TOML config: ["*.go"]\ninstructions = ["id1", "id2"].
+func parseRemindersToml(data []byte) (map[string][]string, error) {
+	result := make(map[string][]string)
+
+	lines := strings.Split(string(data), "\n")
+	var currentPattern string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Section header: ["*.go"]
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			pattern := strings.Trim(line, "[]\"")
+			currentPattern = pattern
+
+			continue
+		}
+
+		// Key-value: instructions = ["id1", "id2"]
+		if strings.HasPrefix(line, "instructions") && currentPattern != "" {
+			_, valueStr, found := strings.Cut(line, "=")
+			if !found {
+				continue
+			}
+
+			valueStr = strings.TrimSpace(valueStr)
+			valueStr = strings.Trim(valueStr, "[]")
+
+			parts := strings.Split(valueStr, ",")
+			ids := make([]string, 0, len(parts))
+
+			for _, part := range parts {
+				id := strings.TrimSpace(strings.Trim(strings.TrimSpace(part), "\""))
+				if id != "" {
+					ids = append(ids, id)
+				}
+			}
+
+			result[currentPattern] = ids
+		}
+	}
+
+	return result, nil
+}
+
+// osMemoryLoader loads a memory's principle by instruction ID from the data directory.
+type osMemoryLoader struct {
+	dataDir string
+}
+
+func (l *osMemoryLoader) LoadPrinciple(_ context.Context, instructionID string) (string, error) {
+	retriever := retrieve.New()
+	ctx := context.Background()
+
+	memories, err := retriever.ListMemories(ctx, l.dataDir)
+	if err != nil {
+		return "", fmt.Errorf("loading memories: %w", err)
+	}
+
+	// Match by filename slug (without .toml extension).
+	for _, mem := range memories {
+		slug := strings.TrimSuffix(filepath.Base(mem.FilePath), ".toml")
+		if slug == instructionID && mem.Principle != "" {
+			return mem.Principle, nil
+		}
+	}
+
+	return "", nil
+}
+
+// noopTranscriptReader returns empty transcript (hook passes transcript via stdin in future).
+type noopTranscriptReader struct{}
+
+func (r *noopTranscriptReader) ReadRecent(_ int) (string, error) {
+	return "", nil
+}
+
 func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
 	return RunLearn(args, os.Getenv("ENGRAM_API_TOKEN"), stderr, stdin, nil)
 }
@@ -940,4 +1093,58 @@ func runSurface(args []string, stdout io.Writer) error {
 		ToolInput: *toolInput,
 		Format:    *format,
 	})
+}
+
+func runInstructAudit(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("instruct", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	projectDir := fs.String("project-dir", "", "path to project directory")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("instruct: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errInstructMissingFlags
+	}
+
+	if *projectDir == "" {
+		*projectDir = "."
+	}
+
+	scanner := &instruct.Scanner{
+		ReadFile:  osReadFileFunc,
+		GlobFiles: filepath.Glob,
+		EffData:   map[string]float64{},
+	}
+
+	token := os.Getenv("ENGRAM_API_TOKEN")
+
+	var llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+	if token != "" {
+		llmCaller = makeAnthropicCaller(token)
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: llmCaller,
+	}
+
+	ctx := context.Background()
+
+	report, err := auditor.Run(ctx, *dataDir, *projectDir)
+	if err != nil {
+		return fmt.Errorf("instruct audit: %w", err)
+	}
+
+	//nolint:wrapcheck // thin JSON encoding at CLI boundary
+	return json.NewEncoder(stdout).Encode(report)
+}
+
+// osReadFileFunc wraps os.ReadFile for DI injection.
+func osReadFileFunc(path string) ([]byte, error) {
+	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
