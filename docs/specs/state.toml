@@ -696,16 +696,16 @@ layer = "L5"
 name = "PostToolUse Reminder Implementation"
 parents = ["L4G3"]
 items = ["T-207", "T-208", "T-209", "T-210", "T-211", "T-212", "T-213", "T-214"]
-status = "pending"
-history = "L5 pending. Implementation: internal/remind/remind.go (Reminder pipeline with DI), hooks/post-tool-use-remind.sh, hooks/hooks.json update."
+status = "complete"
+history = "Reminder pipeline with full DI (ConfigReader, MemoryLoader, TranscriptReader, SurfacingLogger, EffectivenessProvider). Glob matching, suppression, 100-token cap. PostToolUse hook gates Write/Edit. All T-207..T-214 passing. Validator PASS. Commit a89fe3e."
 
 [tree.L5G4]
 layer = "L5"
 name = "Instruction Quality Implementation"
 parents = ["L4G4"]
 items = ["T-215", "T-216", "T-217", "T-218", "T-219", "T-220", "T-221", "T-222", "T-223"]
-status = "pending"
-history = "L5 pending. Implementation: internal/instruct/scanner.go, internal/instruct/audit.go, CLI instruct audit subcommand."
+status = "complete"
+history = "Scanner + Auditor with full DI. Dedup (>80% Jaccard), LLM diagnosis (bottom 20%), proposals, gap analysis, skill decomposition. CLI instruct audit subcommand. All T-215..T-223 passing. Validator PASS. Commit 403b938."
 
 [tree.L5G5]
 layer = "L5"
@@ -797,7 +797,7 @@ status = "pending"
 history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
 
 [cursor]
-node = "L5G3"
+node = "L5G5"
 mode = "in_progress"
-next_action = "UC-18 (G3) and UC-20 (G4) L2-L4 complete. L5 IMPL pending — spawn executors for parallel implementation. After completion: UC-21 (G5, depends on UC-18) and UC-22 (G6, depends on UC-21)."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "docs/specs/architecture.md", "docs/specs/tests.md"]
+next_action = "UC-17/19/18/20 (G1-G4) complete L1-L5. UC-21 (G5) and UC-22 (G6) L2-L4 complete. UC-21 L5 unblocked (UC-18 done). UC-22 L5 blocked by UC-21. Spawn executors for UC-21 L5, then UC-22 L5 sequentially."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
