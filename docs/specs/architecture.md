@@ -1345,3 +1345,158 @@ All UC-16 L2 items have ARCH coverage.
 | REQ-65 | ARCH-45 |
 
 All UC-17 & UC-19 L2 items have ARCH coverage.
+
+---
+
+## ARCH-46: PostToolUse Reminder Pipeline
+
+**Decision:** New reminder pipeline triggered by PostToolUse hook. Reads tool call details from stdin, matches file path against pattern config, resolves instruction IDs, checks suppression, emits single capped reminder.
+
+```go
+// internal/remind/remind.go
+type Reminder struct {
+    ConfigReader  func(path string) ([]byte, error)  // reads reminders.toml
+    MemoryLoader  func(dataDir string) ([]Memory, error)
+    TranscriptReader func(path string, maxTokens int) (string, error)
+    EstimateTokens func(text string) int  // reuse from surface
+}
+
+func (r *Reminder) Run(ctx context.Context, toolCall ToolCallInput) (string, error) {
+    // 1. Load pattern config from reminders.toml
+    // 2. Match toolCall.FilePath against glob patterns
+    // 3. No match → return "" (no reminder)
+    // 4. Resolve instruction IDs → load memories/rules/CLAUDE.md entries
+    // 5. Select highest-effectiveness instruction
+    // 6. Check suppression: read recent transcript, look for compliance evidence
+    // 7. If suppressed → return ""
+    // 8. Cap at 100 tokens, format as "[engram] Reminder: <text>"
+    // 9. Log to surfacing log for effectiveness tracking
+    // 10. Return formatted reminder
+}
+```
+
+**Design choices:**
+- **Single reminder per invocation:** Not a dump — select the highest-effectiveness match.
+- **Suppression before emission:** Check transcript for compliance evidence using keyword matching (no LLM).
+- **Budget from UC-17:** Reuse estimateTokens for the 100-token cap.
+- **Effectiveness tracking:** Log to surfacing log (same infrastructure as UC-2/UC-15).
+
+**Traces to:** REQ-66 (hook), REQ-67 (patterns), REQ-68 (sourcing), REQ-69 (budget), REQ-70 (suppression), REQ-71 (tracking)
+
+---
+
+## ARCH-47: Reminder Hook Wiring and Configuration
+
+**Decision:** PostToolUse hook registered in hooks/hooks.json. Hook script reads stdin JSON, extracts file_path and tool_name, invokes `engram remind`. Configuration in reminders.toml is optional — missing config means no reminders.
+
+```bash
+# hooks/post-tool-use-remind.sh
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
+
+if [ -z "$FILE_PATH" ]; then exit 0; fi
+if [ "$TOOL_NAME" != "Write" ] && [ "$TOOL_NAME" != "Edit" ]; then exit 0; fi
+
+RESULT=$(echo "$INPUT" | engram remind --data-dir "$DATA_DIR" --file-path "$FILE_PATH")
+if [ -n "$RESULT" ]; then
+  echo "{\"hookSpecificOutput\":{\"additionalContext\":\"$RESULT\"}}"
+fi
+```
+
+**Traces to:** REQ-66 (hook registration), DES-26 (config format), DES-27 (output format)
+
+---
+
+## ARCH-48: Cross-Source Instruction Scanner
+
+**Decision:** New scanner that reads all instruction sources and produces a unified instruction registry. Each instruction is a structured item with source metadata, content, and effectiveness data.
+
+```go
+// internal/instruct/scanner.go
+type InstructionItem struct {
+    Source     string   // "memory", "claude_md", "rule", "skill"
+    Path       string   // file path
+    ID         string   // unique identifier
+    Text       string   // instruction content
+    Keywords   []string
+    Effectiveness float64  // from evaluation data, 0 if unavailable
+}
+
+type Scanner struct {
+    ReadFile    func(path string) ([]byte, error)
+    GlobFiles   func(pattern string) ([]string, error)
+    EffData     map[string]float64  // memory_id → effectiveness score
+}
+
+func (s *Scanner) ScanAll(dataDir, projectDir string) ([]InstructionItem, error) {
+    // 1. Scan CLAUDE.md (project + global) → extract by section header
+    // 2. Scan <data-dir>/memories/*.toml → extract title, principle, keywords
+    // 3. Scan .claude/rules/*.md → extract by file
+    // 4. Scan plugin skill directories → extract by file
+    // 5. Join effectiveness data where available
+    // 6. Return unified list
+}
+```
+
+**Traces to:** REQ-72 (scanning), REQ-73 (dedup input), REQ-76 (gap analysis input)
+
+---
+
+## ARCH-49: Instruct Audit Pipeline
+
+**Decision:** Pipeline for deduplication, quality diagnosis, refinement, gap analysis, and skill decomposition. LLM-dependent steps are skippable (no API token).
+
+```go
+// internal/instruct/audit.go
+type Auditor struct {
+    Scanner    *Scanner
+    LLMCaller  func(ctx, prompt) (string, error)  // nil = skip LLM steps
+    EvalData   map[string][]EvalRecord
+}
+
+func (a *Auditor) Run(ctx context.Context) (*AuditReport, error) {
+    // 1. ScanAll → unified instruction list
+    // 2. Deduplicate: pairwise keyword overlap >80% → duplicate pairs
+    // 3. If LLMCaller != nil:
+    //    a. Quality diagnosis: bottom 20% → Haiku diagnosis
+    //    b. Refinement proposals: rewrite diagnosed instructions
+    // 4. Gap analysis: contradicted evals without matching instruction
+    // 5. Skill decomposition: per-line effectiveness for skill files
+    // 6. Return AuditReport JSON
+}
+```
+
+**Design choices:**
+- **LLM-optional:** Dedup, gaps, skill decomposition work without API token.
+- **Salience hierarchy:** CLAUDE.md > rules > memories for dedup recommendations.
+- **Maintain-compatible proposals:** Memory proposals match UC-16 format.
+
+**Traces to:** REQ-74 (diagnosis), REQ-75 (proposals), REQ-76 (gaps), REQ-77 (skills), REQ-78 (CLI), REQ-79 (error handling)
+
+---
+
+## L2 → ARCH Traceability (UC-18 & UC-20)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-66 | ARCH-46, ARCH-47 |
+| DES-26 | ARCH-47 |
+| REQ-67 | ARCH-46 |
+| REQ-68 | ARCH-46 |
+| REQ-69 | ARCH-46 |
+| DES-27 | ARCH-47 |
+| REQ-70 | ARCH-46 |
+| DES-28 | ARCH-46 |
+| REQ-71 | ARCH-46 |
+| REQ-72 | ARCH-48 |
+| REQ-73 | ARCH-48, ARCH-49 |
+| REQ-74 | ARCH-49 |
+| DES-29 | ARCH-49 |
+| REQ-75 | ARCH-49 |
+| REQ-76 | ARCH-49 |
+| REQ-77 | ARCH-49 |
+| REQ-78 | ARCH-49 |
+| REQ-79 | ARCH-49 |
+
+All UC-18 & UC-20 L2 items have ARCH coverage.

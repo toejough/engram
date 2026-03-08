@@ -1478,3 +1478,215 @@ If the Haiku API call fails due to missing or invalid API token, the audit phase
 - Verification: deterministic (error condition handling)
 
 ---
+
+## UC-18: PostToolUse Proactive Reminders — Requirements
+
+---
+
+## REQ-66: PostToolUse hook registration
+
+A PostToolUse hook is registered in `hooks/hooks.json` that fires after Write and Edit tool calls. The hook invokes `engram remind --data-dir <path>` with the tool call details (file path, tool name) passed via stdin JSON.
+
+- Traces to: UC-18 (PostToolUse hook)
+- AC: (1) hooks.json includes PostToolUse event entry. (2) Hook fires after Write and Edit tool calls. (3) Hook passes tool call JSON (including file_path) via stdin. (4) Hook invokes engram remind subcommand.
+- Verification: deterministic (hook registration, stdin JSON schema)
+
+---
+
+## REQ-67: Pattern-based trigger configuration
+
+A configuration file maps file glob patterns to instruction sets. Format: TOML file at `<data-dir>/reminders.toml` with entries like `"*.go" = ["go-conventions", "targ-not-go-test"]`. When a file path matches a glob, the associated instruction set IDs are used to source reminders.
+
+- Traces to: UC-18 (pattern-based triggers)
+- AC: (1) Config file is TOML at `<data-dir>/reminders.toml`. (2) Keys are glob patterns, values are arrays of instruction set IDs. (3) File path from tool call is matched against globs in order. (4) First matching glob's instruction IDs are used. (5) No match → no reminder emitted.
+- Verification: deterministic (glob matching, config parsing)
+
+---
+
+## DES-26: Reminder configuration format
+
+```toml
+# <data-dir>/reminders.toml
+["*.go"]
+instructions = ["go-conventions", "targ-build-system"]
+
+["*.md"]
+instructions = ["markdown-style"]
+
+["**/skills/**"]
+instructions = ["pressure-test-reminder"]
+```
+
+Each key is a glob pattern. Instructions reference memory titles, CLAUDE.md section headers, or rule file names. Instruction set IDs are resolved at runtime against available sources.
+
+- Traces to: REQ-67 (pattern configuration)
+
+---
+
+## REQ-68: Reminder sourcing from instruction registry
+
+When a file pattern matches, the system resolves instruction set IDs against: (1) engram memories by title/keywords, (2) CLAUDE.md entries by section header, (3) rules files by filename. The highest-effectiveness instruction from the matched set is selected as the reminder.
+
+- Traces to: UC-18 (reminder sourcing)
+- AC: (1) Instruction IDs resolve against memories, CLAUDE.md, and rules. (2) Resolution is best-effort (unresolved IDs are skipped). (3) Highest effectiveness instruction is selected. (4) If no instructions resolve, no reminder emitted.
+- Verification: deterministic (ID resolution, effectiveness comparison)
+
+---
+
+## REQ-69: Budget cap per reminder
+
+Each reminder is capped at 100 tokens (using UC-17's estimateTokens formula). Single targeted reminder per invocation — not a dump of all matching instructions.
+
+- Traces to: UC-18 (budget cap), UC-17 (token estimation)
+- AC: (1) Reminder text ≤100 tokens (estimateTokens). (2) Only one reminder per PostToolUse invocation. (3) If selected instruction exceeds 100 tokens, truncate or summarize.
+- Verification: deterministic (token counting)
+
+---
+
+## DES-27: Reminder output format
+
+The PostToolUse hook outputs a system reminder in the format:
+
+```json
+{"hookSpecificOutput": {"additionalContext": "[engram] Reminder: <instruction text>"}}
+```
+
+The reminder is concise (≤100 tokens), targeted to the file just modified, and prefixed with `[engram] Reminder:`.
+
+- Traces to: REQ-69 (budget cap), REQ-66 (hook output)
+
+---
+
+## REQ-70: Suppression logic
+
+If the transcript shows the model already performed the required action before the reminder fires, the reminder is suppressed. Suppression check reads recent transcript context (last ~500 tokens) and looks for evidence of compliance.
+
+- Traces to: UC-18 (suppression logic)
+- AC: (1) Before emitting reminder, read recent transcript (~500 tokens). (2) Check if the instruction's principle or anti-pattern was already addressed. (3) If complied → suppress (emit empty output). (4) If not complied or uncertain → emit reminder. (5) Suppression is conservative: emit reminder when uncertain.
+- Verification: deterministic (string matching on transcript)
+
+---
+
+## DES-28: Suppression detection approach
+
+Suppression uses simple keyword matching against the recent transcript excerpt. For each instruction, check if the instruction's `principle` text (or key phrases from it) appears in the transcript. If found → already complied → suppress. No LLM call for suppression (performance-critical path).
+
+- Traces to: REQ-70 (suppression logic)
+
+---
+
+## REQ-71: Effectiveness tracking for reminders
+
+Reminder effectiveness is tracked: did the model comply after the reminder? The PostToolUse surfacing event is logged (same as UC-2 surfacing log), and the next tool call is checked for compliance. Results feed into the evaluation pipeline.
+
+- Traces to: UC-18 (effectiveness tracking)
+- AC: (1) Each reminder emission is logged to the surfacing log with hook="PostToolUse", memory_id, timestamp. (2) Evaluation pipeline picks up PostToolUse surfacing events. (3) Compliance signal comes from subsequent tool calls in the same session.
+- Verification: deterministic (log format, pipeline integration)
+
+---
+
+## UC-20: Instruction Quality, Deduplication & Gap Analysis — Requirements
+
+---
+
+## REQ-72: Cross-source instruction scanning
+
+The system scans all instruction sources: CLAUDE.md (project + global), engram memories, .claude/rules/ files, and skill files. Each instruction is extracted as a structured item with: source, location, text, keywords, and effectiveness data (if available).
+
+- Traces to: UC-20 (cross-source scanning)
+- AC: (1) CLAUDE.md entries are extracted by section header. (2) Memories are loaded from <data-dir>/memories/. (3) Rules files from .claude/rules/. (4) Skill files from plugin skill directories. (5) Each item has source type, file path, and text content. (6) Effectiveness data joined from evaluation pipeline where available.
+- Verification: deterministic (file scanning, structured extraction)
+
+---
+
+## REQ-73: Deduplication detection across sources
+
+Compare instructions across all sources to find semantic duplicates. Two instructions are considered duplicates if they share >80% keyword overlap or have near-identical principle text. Report which source to keep based on salience hierarchy: CLAUDE.md > rules > memories.
+
+- Traces to: UC-20 (deduplication)
+- AC: (1) Pairwise comparison of all instruction items. (2) Duplicate detection by keyword overlap (>80%) or principle text similarity. (3) Recommendation: keep higher-salience source, remove lower. (4) Output includes both items with source paths and recommendation.
+- Verification: deterministic (keyword overlap calculation)
+
+---
+
+## REQ-74: Quality diagnosis via LLM
+
+For low-effectiveness instructions (bottom 20% by effectiveness score), invoke Haiku to diagnose root cause: too abstract, framing mismatch, missing trigger conditions, too narrow, or too verbose.
+
+- Traces to: UC-20 (quality diagnosis)
+- AC: (1) Select instructions in bottom 20% by effectiveness. (2) Single Haiku call per instruction with content + effectiveness stats. (3) Diagnosis JSON: `{diagnosis: string, root_cause: string, suggestion: string}`. (4) Invalid responses logged and skipped.
+- Verification: deterministic (LLM output parsing)
+
+---
+
+## DES-29: Quality diagnosis prompt structure
+
+System prompt for Haiku:
+
+```
+You are diagnosing why an instruction is ineffective. Common root causes:
+- Too abstract: lacks specific trigger conditions
+- Framing mismatch: positive instruction for negative pattern (or vice versa)
+- Missing trigger: instruction doesn't specify when it applies
+- Too narrow: applies to rare situations
+- Too verbose: key point buried in text
+
+Given the instruction and its effectiveness data, diagnose the root cause
+and suggest a concrete improvement.
+
+Output JSON: {"diagnosis": "...", "root_cause": "...", "suggestion": "..."}
+```
+
+- Traces to: REQ-74 (quality diagnosis)
+
+---
+
+## REQ-75: Refinement proposals
+
+Generate rewritten versions of diagnosed instructions. Memory proposals use maintain-compatible format (same as UC-16). CLAUDE.md/skills/rules proposals are diff suggestions showing before/after.
+
+- Traces to: UC-20 (refinement proposals)
+- AC: (1) Each diagnosed instruction gets a rewrite proposal. (2) Memory proposals: JSON with proposed TOML field changes (maintain-compatible). (3) CLAUDE.md/rules proposals: unified diff format. (4) Proposal includes rationale explaining what changed and why.
+- Verification: deterministic (format validation)
+
+---
+
+## REQ-76: Gap analysis
+
+Compare instruction anti-patterns against observed tool actions in evaluation data to find common violation patterns with no corresponding instruction. Report as gap candidates.
+
+- Traces to: UC-20 (gap analysis)
+- AC: (1) Load evaluation data with contradicted outcomes. (2) Extract patterns from contradictions (file types, tool names, common mistakes). (3) Cross-reference against existing instructions. (4) Patterns not covered by any instruction → gap candidates. (5) Output: list of gap candidates with evidence (violation count, example).
+- Verification: deterministic (pattern extraction, cross-reference)
+
+---
+
+## REQ-77: Skill decomposition
+
+For skills with low per-line effectiveness, identify which lines are followed vs. ignored. Propose extraction of effective lines or compression of verbose sections.
+
+- Traces to: UC-20 (skill decomposition)
+- AC: (1) For each skill file, compute per-line effectiveness (if data available). (2) Lines with <20% follow rate → candidates for removal or rewrite. (3) Lines with >80% follow rate → effective, keep. (4) Proposal: extract effective lines, compress or remove ineffective.
+- Verification: deterministic (per-line effectiveness calculation)
+
+---
+
+## REQ-78: CLI command `engram instruct audit`
+
+New subcommand: `engram instruct audit --data-dir <path>`. Outputs a JSON report with: duplicates, quality diagnoses, refinement proposals, gap analysis, skill decomposition.
+
+- Traces to: UC-20 (CLI command)
+- AC: (1) Subcommand `instruct audit` registered. (2) Output is JSON with sections: duplicates, diagnoses, proposals, gaps, skills. (3) Exit 0 always. (4) Empty sections are empty arrays.
+- Verification: deterministic (CLI registration, JSON output)
+
+---
+
+## REQ-79: No graceful degradation on API failure
+
+If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposals). Deduplication, gap analysis, and skill decomposition still run. Output JSON includes skipped sections as empty arrays with a `skipped_reason` field.
+
+- Traces to: UC-20 (error handling)
+- AC: (1) Missing API token → skip REQ-74 and REQ-75. (2) REQ-72, REQ-73, REQ-76, REQ-77 still run. (3) Skipped sections include `{"skipped_reason": "no API token"}`. (4) Exit 0 regardless.
+- Verification: deterministic (error condition handling)
+
+---

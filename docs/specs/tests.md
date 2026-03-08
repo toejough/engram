@@ -2152,3 +2152,199 @@ Examples: len=100 → 25 tokens, len=99 → 24 tokens (floor).
 | REQ-65 | T-198 |
 
 All UC-17 & UC-19 L2 items have test coverage.
+
+---
+
+## PostToolUse Reminder Pipeline (ARCH-46)
+
+### T-207: Glob pattern matches file path to instruction set
+
+**Given** a reminders.toml with `"*.go"` mapped to `["go-conventions"]`,
+**When** Reminder.Run is called with a tool call on `internal/foo.go`,
+**Then** the `go-conventions` instruction set is resolved and the highest-effectiveness instruction is selected.
+
+- Traces to: ARCH-46, REQ-67, REQ-68
+- Verification: unit (mock config, mock memory loader)
+
+### T-208: No pattern match returns empty output
+
+**Given** a reminders.toml with `"*.go"` only,
+**When** Reminder.Run is called with a tool call on `README.md`,
+**Then** empty string is returned (no reminder).
+
+- Traces to: ARCH-46, REQ-67
+- Verification: unit
+
+### T-209: Reminder capped at 100 tokens
+
+**Given** a matching instruction with 200 tokens of text,
+**When** Reminder.Run selects it,
+**Then** the reminder output is truncated to ≤100 tokens.
+
+- Traces to: ARCH-46, REQ-69
+- Verification: unit (verify estimateTokens on output ≤ 100)
+
+### T-210: Suppression when model already complied
+
+**Given** a matching instruction about "use targ not go test" and recent transcript containing "targ test ./...",
+**When** Reminder.Run checks suppression,
+**Then** reminder is suppressed (empty output).
+
+- Traces to: ARCH-46, REQ-70
+- Verification: unit (mock transcript reader)
+
+### T-211: Reminder emitted when no compliance evidence
+
+**Given** a matching instruction and transcript with no evidence of compliance,
+**When** Reminder.Run checks suppression,
+**Then** reminder is emitted with format `[engram] Reminder: <text>`.
+
+- Traces to: ARCH-46, REQ-70, DES-27
+- Verification: unit
+
+### T-212: Reminder logged to surfacing log for effectiveness
+
+**Given** a reminder is emitted,
+**When** Reminder.Run completes,
+**Then** a surfacing log entry is written with hook="PostToolUse", memory_id, timestamp.
+
+- Traces to: ARCH-46, REQ-71
+- Verification: unit (mock surfacing logger)
+
+---
+
+## PostToolUse Hook Wiring (ARCH-47)
+
+### T-213: Hook fires only for Write and Edit tools
+
+**Given** PostToolUse hook registered in hooks.json,
+**When** tool calls for Write, Edit, Read, and Bash are processed,
+**Then** hook fires for Write and Edit only. Read and Bash are ignored.
+
+- Traces to: ARCH-47, REQ-66
+- Verification: integration (hook script behavior)
+
+### T-214: Missing reminders.toml produces no output
+
+**Given** no reminders.toml file exists,
+**When** engram remind is invoked,
+**Then** empty output, exit 0. No error.
+
+- Traces to: ARCH-47, REQ-67
+- Verification: unit
+
+---
+
+## Cross-Source Instruction Scanner (ARCH-48)
+
+### T-215: Scanner extracts instructions from all sources
+
+**Given** a project with CLAUDE.md, 3 memories, 2 rules files, and 1 skill file,
+**When** Scanner.ScanAll is called,
+**Then** all instructions are extracted with correct source type, path, and content.
+
+- Traces to: ARCH-48, REQ-72
+- Verification: unit (mock file I/O)
+
+### T-216: Scanner joins effectiveness data to instructions
+
+**Given** instructions with matching effectiveness data,
+**When** Scanner.ScanAll runs,
+**Then** each instruction has its effectiveness score populated. Instructions without effectiveness data have score 0.
+
+- Traces to: ARCH-48, REQ-72
+- Verification: unit
+
+---
+
+## Instruct Audit Pipeline (ARCH-49)
+
+### T-217: Deduplication detects >80% keyword overlap
+
+**Given** two instructions with 90% keyword overlap across different sources,
+**When** Auditor.Run performs deduplication,
+**Then** the pair is reported as a duplicate with recommendation to keep the higher-salience source.
+
+- Traces to: ARCH-49, REQ-73
+- Verification: unit (mock instructions with overlapping keywords)
+
+### T-218: Quality diagnosis calls Haiku for bottom 20%
+
+**Given** 10 instructions with effectiveness data, 2 in bottom 20%,
+**When** Auditor.Run performs quality diagnosis,
+**Then** Haiku is called for 2 instructions. Response includes diagnosis, root_cause, suggestion.
+
+- Traces to: ARCH-49, REQ-74, DES-29
+- Verification: unit (mock LLM caller)
+
+### T-219: Refinement proposals in maintain-compatible format
+
+**Given** a diagnosed memory instruction,
+**When** Auditor.Run generates refinement proposal,
+**Then** proposal includes proposed TOML field changes matching UC-16 maintain format.
+
+- Traces to: ARCH-49, REQ-75
+- Verification: unit
+
+### T-220: Gap analysis finds violations without instructions
+
+**Given** evaluation data with 5 contradicted outcomes, 3 covered by existing instructions, 2 not covered,
+**When** Auditor.Run performs gap analysis,
+**Then** 2 gap candidates are reported with violation count and example evidence.
+
+- Traces to: ARCH-49, REQ-76
+- Verification: unit (mock eval data)
+
+### T-221: Skill decomposition identifies low-effectiveness lines
+
+**Given** a skill file with 10 lines, 3 with <20% follow rate,
+**When** Auditor.Run performs skill decomposition,
+**Then** those 3 lines are flagged as candidates for removal/rewrite.
+
+- Traces to: ARCH-49, REQ-77
+- Verification: unit (mock per-line effectiveness data)
+
+### T-222: CLI command outputs JSON report
+
+**Given** `engram instruct audit --data-dir <path>`,
+**When** command runs successfully,
+**Then** output is valid JSON with sections: duplicates, diagnoses, proposals, gaps, skills.
+
+- Traces to: ARCH-49, REQ-78
+- Verification: unit (mock auditor)
+
+### T-223: No API token skips LLM steps, runs dedup and gaps
+
+**Given** no API token set,
+**When** `engram instruct audit` runs,
+**Then** dedup, gap analysis, and skill decomposition run normally. Diagnosis and proposals sections are empty arrays with `skipped_reason`.
+
+- Traces to: ARCH-49, REQ-79
+- Verification: unit
+
+---
+
+## Coverage Summary (UC-18 & UC-20)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-66 | T-213 |
+| DES-26 | T-207, T-214 |
+| REQ-67 | T-207, T-208, T-214 |
+| REQ-68 | T-207 |
+| REQ-69 | T-209 |
+| DES-27 | T-211 |
+| REQ-70 | T-210, T-211 |
+| DES-28 | T-210 |
+| REQ-71 | T-212 |
+| REQ-72 | T-215, T-216 |
+| REQ-73 | T-217 |
+| REQ-74 | T-218 |
+| DES-29 | T-218 |
+| REQ-75 | T-219 |
+| REQ-76 | T-220 |
+| REQ-77 | T-221 |
+| REQ-78 | T-222 |
+| REQ-79 | T-223 |
+
+All UC-18 & UC-20 L2 items have test coverage.
