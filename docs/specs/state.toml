@@ -489,5 +489,5 @@ history = "All T-134..160 tests implemented via TDD. internal/context/ package: 
 [cursor]
 node = "L5A"
 mode = "complete"
-next_action = "Tree complete: all UC-1..6, UC-14 (UC-2..5 deferred per issue #18). Usability gate final verification: each UC has build → install → exercise → observe path. UC-14 verified: context file created (OBSERVE), restored on SessionStart (next session). Ready for long-term maintenance."
+next_action = "Tree complete. Post-completion re-entry for issue #63 (async hook): DES-18, ARCH-33, T-158 updated, implementation shipped. Usability gate: reinstall plugin + restart session to verify async context-update fires."
 context_files = ["docs/specs/state.toml"]
