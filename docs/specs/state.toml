@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -487,8 +487,15 @@ items = ["T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141",
 status = "complete"
 history = "All T-134..160 tests implemented via TDD. internal/context/ package: DeltaReader (delta.go), ContentStripper (strip.go), ContextSummarizer (summarize.go), SessionContextFile (file.go), ContextOrchestrator (orchestrate.go). CLI context-update wired in internal/cli/cli.go. Hook integration in hooks/*.sh (UserPromptSubmit background, PreCompact synchronous, SessionStart restore). All tests passing, targ check clean, usability gate verified (build → install → exercise → observe). Commit a40b958."
 
+[tree.L1G]
+layer = "L1"
+name = "Unified Memory Maintenance"
+items = ["UC-16"]
+status = "in_progress"
+history = "Issues #40-43 consolidated. Single engram maintain command for all four effectiveness quadrants."
+
 [cursor]
-node = "L5A"
-mode = "complete"
-next_action = "Post-completion re-entry for issues #59+#60: BM25 implemented. Frecency spec complete (REQ-46, ARCH-35, T-165..170). REQ-9/10/11 revised. Ready for frecency implementation handoff."
-context_files = ["docs/specs/state.toml"]
+node = "L1G"
+mode = "in_progress"
+next_action = "L1 GREEN complete. UC-16 written. REFACTOR: check L1 consistency, then REGROUP."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]

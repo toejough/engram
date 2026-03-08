@@ -274,4 +274,48 @@ Working on session continuity for engram (#45)...
 
 ---
 
+## UC-16: Unified Memory Maintenance
+
+**Description:** Diagnose actionable memories across the four effectiveness quadrants (working/leech/hidden gem/noise) and generate specific maintenance proposals. Proposals surface as structured output for the agent to present to the user. The user confirms or skips each proposal; the agent executes confirmed actions (edit TOML, delete file, broaden keywords).
+
+**Starting state:** Memories exist with surfacing instrumentation (UC-2) and evaluation history (UC-15). UC-6 provides quadrant classification. At least some memories have 5+ evaluations.
+
+**End state:** Each actionable memory has a specific, evidence-backed proposal. Confirmed proposals result in updated or removed TOML files. Skipped proposals are logged but not acted on.
+
+**Actor:** Developer via `engram maintain --data-dir <path>` CLI command.
+
+**Key interactions:**
+
+- **Quadrant partitioning:** Reuse UC-6's effectiveness aggregation and matrix classification (REQ-35 median split, REQ-36 threshold flagging). No new classification logic — `maintain` consumes the same data `review` does.
+
+- **Proposal generation per quadrant:**
+
+  | Quadrant | Diagnosis | Proposal Type | LLM? |
+  |----------|-----------|---------------|------|
+  | **Working** | Staleness check: last_updated age, referenced code paths | "Still current" or "May be stale — review content" | No |
+  | **Leech** | Root cause: content quality, wrong tier, keyword mismatch | Rewrite content, adjust tier, expand/narrow keywords | Yes (Haiku) |
+  | **Hidden Gem** | Under-triggering: effective but rarely surfaced | Add keywords/concepts to broaden surfacing | Yes (Haiku) |
+  | **Noise** | Low value: rarely surfaced, ineffective when surfaced | Remove with evidence (surfacing count, follow rate, age) | No |
+
+- **Output format:** JSON array of proposals, each with:
+  - `memory_path` — file path of the target memory
+  - `quadrant` — working/leech/hidden_gem/noise
+  - `diagnosis` — human-readable explanation of why this memory needs attention
+  - `action` — proposed action type (review_staleness, rewrite, broaden_keywords, remove)
+  - `details` — action-specific payload (new keywords, rewritten content, removal evidence)
+
+- **LLM proposals (Haiku):** For leech and hidden gem quadrants, call claude-haiku-4-5-20251001 with:
+  - The memory's current content (title, principle, anti_pattern, keywords, content)
+  - The memory's effectiveness stats (surfaced count, follow rate, quadrant)
+  - Instruction to propose specific fixes (not vague suggestions)
+  - Output: JSON with proposed changes to specific TOML fields
+
+- **No-data behavior:** If no memories have 5+ evaluations, output empty proposals array and exit 0. No error, no degraded output.
+
+- **Fire-and-forget errors (ARCH-6):** LLM failures for individual proposals don't block other proposals. Failed proposals are omitted from output. Command always exits 0.
+
+- **Pure Go, no CGO.**
+
+---
+
 Deferred UCs (UC-4 through UC-13, excluding UC-6) are archived in issue #18 for review.
