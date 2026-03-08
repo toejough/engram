@@ -661,10 +661,11 @@ type Outcome struct {
 
 Implementation:
 1. LLM call uses claude-haiku-4-5-20251001
-2. Input: full transcript + list of surfaced memories (title, principle, anti_pattern, content)
+2. Input: stripped transcript + list of surfaced memories (title, principle, anti_pattern, content)
 3. Output: JSON array with one entry per surfaced memory
 4. Each memory gets exactly one outcome classification
 5. Evidence field captures LLM's reasoning
+6. CLI wiring applies `sessionctx.Strip` to transcript before passing to Evaluate (removes toolResult bodies, base64 data, truncates long lines — same preprocessing as learn and context-update pipelines)
 
 **Traces to:** REQ-27 (LLM evaluation), REQ-28 (evaluation log write), DES-12 (LLM prompt design), DES-13 (evaluation log schema)
 

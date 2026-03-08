@@ -1237,6 +1237,15 @@ Uses DI-injected dependencies. Verifies end-to-end wiring.
 
 - Traces to: ARCH-22, REQ-26
 
+### T-161: evaluate CLI applies Strip preprocessing to transcript
+
+**Given** a transcript on stdin containing toolResult JSON bodies and base64 data,
+**When** `runEvaluate` processes it,
+**Then** the transcript passed to the Evaluator has toolResult bodies and base64 data removed (Strip applied at CLI wiring level).
+
+- Traces to: ARCH-23, REQ-27
+- Type: example-based (verify stripped content reaches LLM)
+
 ---
 
 ## UC-15 Bidirectional Traceability
@@ -1246,7 +1255,7 @@ Uses DI-injected dependencies. Verifies end-to-end wiring.
 | ARCH | Tests |
 |------|-------|
 | ARCH-22 | T-101, T-102, T-103, T-104, T-105, T-121 |
-| ARCH-23 | T-106, T-107, T-108, T-109, T-110, T-111 |
+| ARCH-23 | T-106, T-107, T-108, T-109, T-110, T-111, T-161 |
 | ARCH-24 | T-112, T-113, T-114, T-115, T-116 |
 | ARCH-25 | T-117, T-118, T-119, T-120 |
 
@@ -1256,7 +1265,7 @@ Uses DI-injected dependencies. Verifies end-to-end wiring.
 |---------|-------|
 | REQ-26 | T-101, T-102, T-103, T-104, T-105, T-111, T-121 |
 | DES-11 | T-101 |
-| REQ-27 | T-106, T-107, T-110 |
+| REQ-27 | T-106, T-107, T-110, T-161 |
 | DES-12 | T-106 |
 | REQ-28 | T-108, T-109 |
 | DES-13 | T-108 |

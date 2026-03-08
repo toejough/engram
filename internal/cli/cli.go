@@ -171,7 +171,11 @@ func RunEvaluate(
 	evaluator := evaluate.New(*dataDir, allOpts...)
 	ctx := context.Background()
 
-	outcomes, err := evaluator.Evaluate(ctx, string(transcriptBytes))
+	transcriptLines := strings.Split(string(transcriptBytes), "\n")
+	strippedLines := sessionctx.Strip(transcriptLines)
+	strippedTranscript := strings.Join(strippedLines, "\n")
+
+	outcomes, err := evaluator.Evaluate(ctx, strippedTranscript)
 	if err != nil {
 		return fmt.Errorf("evaluate: %w", err)
 	}

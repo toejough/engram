@@ -952,6 +952,80 @@ func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient data"))
 }
 
+// T-161: evaluate applies Strip preprocessing to transcript before LLM call.
+func TestT161_EvaluateStripsTranscript(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Write a memory TOML file.
+	memPath := filepath.Join(dataDir, "strip-test.toml")
+	err := os.WriteFile(memPath, []byte(`title = "Strip Test"
+content = "Test content"
+principle = "Always strip"
+anti_pattern = ""`), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write a surfacing log referencing the memory.
+	logLine := fmt.Sprintf(
+		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}`,
+		memPath,
+	)
+	surfacingLog := filepath.Join(dataDir, "surfacing-log.jsonl")
+	err = os.WriteFile(surfacingLog, []byte(logLine+"\n"), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Transcript with normal lines AND a toolResult line that Strip removes.
+	transcript := strings.Join([]string{
+		`{"role":"user","content":"please help me"}`,
+		`{"role":"toolResult","content":[{"type":"text","text":"huge tool output that should be stripped"}]}`,
+		`{"role":"assistant","content":"sure, I can help"}`,
+	}, "\n")
+
+	// Fake LLM that captures the user prompt it receives.
+	var capturedPrompt string
+
+	fakeLLM := func(_ context.Context, _, _, userPrompt string) (string, error) {
+		capturedPrompt = userPrompt
+
+		return fmt.Sprintf(
+			`[{"memory_path":%q,"outcome":"followed","evidence":"Complied."}]`,
+			memPath,
+		), nil
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.RunEvaluate(
+		[]string{"--data-dir", dataDir},
+		"fake-token",
+		&stdout, &stderr,
+		strings.NewReader(transcript),
+		evaluate.WithLLMCaller(fakeLLM),
+	)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// The toolResult line should have been stripped before reaching the LLM.
+	g.Expect(capturedPrompt).To(ContainSubstring("please help me"))
+	g.Expect(capturedPrompt).To(ContainSubstring("sure, I can help"))
+	g.Expect(capturedPrompt).NotTo(ContainSubstring("huge tool output that should be stripped"))
+}
+
 // T-18: correct subcommand with no API key returns error
 func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.

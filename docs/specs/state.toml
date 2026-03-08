@@ -54,7 +54,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-161"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -168,9 +168,9 @@ history = "5 ARCH decisions derived from UC-1 L2C. Learner pipeline (ARCH-14), t
 layer = "L4"
 name = "Automatic Outcome Signal Tests"
 parents = ["L3D"]
-items = ["T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121"]
+items = ["T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-161"]
 status = "complete"
-history = "21 BDD test specs across 4 ARCH boundaries: surfacing log write/read (T-101..T-105, ARCH-22), evaluation pipeline (T-106..T-111, ARCH-23), effectiveness aggregation (T-112..T-116, ARCH-24), CLI/hook integration (T-117..T-121, ARCH-25). Full bidirectional traceability to all UC-15 L2 items."
+history = "22 BDD test specs across 4 ARCH boundaries: surfacing log write/read (T-101..T-105, ARCH-22), evaluation pipeline (T-106..T-111, ARCH-23), effectiveness aggregation (T-112..T-116, ARCH-24), CLI/hook integration (T-117..T-121, ARCH-25). Full bidirectional traceability to all UC-15 L2 items."
 
 [tree.L4A]
 layer = "L4"
@@ -489,5 +489,5 @@ history = "All T-134..160 tests implemented via TDD. internal/context/ package: 
 [cursor]
 node = "L5A"
 mode = "complete"
-next_action = "Tree complete. Post-completion re-entry for issue #63 (async hook): DES-18, ARCH-33, T-158 updated, implementation shipped. Usability gate: reinstall plugin + restart session to verify async context-update fires."
+next_action = "Tree complete. Post-completion re-entry for issue #64 (Strip preprocessing for evaluate): ARCH-23 updated, T-161 added and implemented. sessionctx.Strip applied in RunEvaluate CLI wiring."
 context_files = ["docs/specs/state.toml"]
