@@ -205,23 +205,23 @@ When a session starts (SessionStart hook), the system reads all memory TOML file
 
 ---
 
-## REQ-10: UserPromptSubmit surfacing — keyword match
+## REQ-10: UserPromptSubmit surfacing — BM25 ranking
 
-When a user message is submitted (UserPromptSubmit hook), the system matches the message against memory `keywords` and `concepts` fields. Memories with at least one keyword or concept appearing in the message are surfaced as a system reminder.
+When a user message is submitted (UserPromptSubmit hook), the system ranks all memories using BM25 (Best Matching 25) scoring and surfaces the top 10 results as a system reminder.
 
 - Traces to: UC-2 (UserPromptSubmit surfacing)
-- AC: (1) Each memory's `keywords` and `concepts` arrays are checked for whole-word matches in the user message (case-insensitive). (2) Matching memories are surfaced with title, file path, and which keywords matched. (3) If no memories match, no surfacing reminder is emitted. (4) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
-- Verification: deterministic (keyword presence check)
+- AC: (1) BM25 index is built per call from concatenated text fields (title, content, principle, keywords, concepts). (2) User message is scored against each memory. (3) Memories are ranked by relevance score descending. (4) Top 10 ranked results (or fewer if fewer than 10 memories exist) are surfaced with title and file path. (5) If no memories exist or all scores are zero, no surfacing reminder is emitted. (6) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
+- Verification: probabilistic (BM25 scoring is deterministic within a session, but ranking changes with message input)
 
 ---
 
-## REQ-11: PreToolUse keyword pre-filter and advisory surfacing
+## REQ-11: PreToolUse advisory surfacing — BM25 ranking on anti-pattern candidates
 
-When a tool call is about to execute (PreToolUse hook), the system scans memory TOML files for keyword matches against the tool name and tool input. Only memories with an `anti_pattern` field are candidates (tier A always, tier B when generalizable per REQ-7 — tier C memories never have anti-patterns). Matching memories are surfaced as an advisory system reminder for the agent to evaluate with full session context.
+When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, and surfaces the top 5 results as an advisory system reminder.
 
 - Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are scanned (tier A always, tier B sometimes, tier C never per REQ-7). (2) Each candidate memory's `keywords` are checked for whole-word matches (case-insensitive) in the tool name or tool input arguments. (3) Memories with at least one keyword match are surfaced as a system reminder with title, principle, and file path. (4) If no memories match, no output is emitted (zero overhead — no LLM call, no advisory). (5) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
-- Verification: deterministic (keyword presence check, tier-aware anti-pattern filtering)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) Top 5 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path. (5) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (6) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
+- Verification: probabilistic (BM25 scoring within session, ranking changes with tool input)
 
 ---
 

@@ -232,12 +232,20 @@ Design choices:
 
 ## ARCH-9: Memory Storage and Retrieval
 
-**Decision:** Memories are stored as individual TOML files in `<data-dir>/memories/`. Retrieval happens by scanning and parsing all files at query time (no database).
+**Decision:** Memories are stored as individual TOML files in `<data-dir>/memories/`. Retrieval uses BM25 ranking: scan and parse all files, build a BM25 index on demand per query, score the input text against each memory, and return ranked results.
 
 ```go
 type MemoryRetriever interface {
     ListMemories(ctx context.Context, dataDir string) ([]*Memory, error)
-    FindByKeywords(keywords []string, memories []*Memory) []*Memory
+}
+
+type BM25Scorer interface {
+    Score(query string, memories []*Memory) []ScoredMemory
+}
+
+type ScoredMemory struct {
+    Memory *Memory
+    Score  float64
 }
 
 type Memory struct {
@@ -256,29 +264,26 @@ type Memory struct {
 ```
 
 Design choices:
-- **No database:** Each TOML file is a Memory record. Scan all files in the memories directory on each retrieval. For small corpora (hundreds of memories), scanning is faster than database setup/teardown.
-- **File-based discovery:** `ioutil.ReadDir(memdir)` + parse each `.toml` file. Errors on individual files are logged but don't block other memories.
-- **Sorting:** `sort.Slice` on Memory structs (sort by UpdatedAt for SessionStart, no sorting for keyword matches).
+- **No persistent database:** Each TOML file is a Memory record. Scan all files in memories/ on each query. For small corpora (hundreds of memories), scanning is faster than database setup.
+- **BM25 indexing:** Per-query BM25 index built by concatenating searchable fields (title, content, principle, keywords, concepts, anti_pattern). No persistent index — rebuilt per call.
+- **Ranking:** BM25 algorithm produces relevance scores; memories sorted by score descending. Results are top-N limited (top 10 for UserPromptSubmit, top 5 for PreToolUse).
+- **File-based discovery:** `os.ReadDir(memdir)` + parse each `.toml` file. Errors on individual files don't block others.
 
-**Traces to:** REQ-9 (SessionStart needs file listing), REQ-10 (UserPromptSubmit needs all memories for keyword match), REQ-11/12 (PreToolUse scans all memories)
+**Traces to:** REQ-9 (SessionStart lists all), REQ-10 (UserPromptSubmit BM25 ranking), REQ-11 (PreToolUse BM25 ranking on anti-pattern candidates)
 
 ---
 
-## ARCH-10: Keyword Pre-Filter for PreToolUse
+## ARCH-10: BM25 Candidate Pruning (ARCH-9 detail)
 
-**Decision:** Fast, deterministic keyword matching on tool input before LLM judgment.
-
-```go
-type KeywordMatcher interface {
-    MatchMemories(toolName, toolInput string, memories []*Memory) []*Memory
-}
-```
+**Decision:** Pre-query filtering in PreToolUse: only memories with non-empty `anti_pattern` field are indexed and ranked (tier-aware: tier A always, tier B sometimes, tier C never per REQ-7). Same BM25 scoring as UserPromptSubmit, applied to the filtered candidate set.
 
 Implementation:
-- For each memory with non-empty `anti_pattern`, extract its `keywords` array.
-- For each keyword, check if it appears as a whole word in `toolName` or `toolInput` (case-insensitive).
-- A memory matches if at least one of its keywords matches.
-- Return all matching memories.
+- Candidate selection: Filter all memories to keep only those with non-empty `anti_pattern` (respecting tier-awareness per REQ-7).
+- BM25 indexing: Build BM25 index from candidate memories' searchable fields (title, principle, anti_pattern, keywords).
+- Query: Concatenate tool name and input.
+- Scoring and ranking: Score query against each candidate, sort by relevance score descending.
+- Result limit: Return top 5 ranked candidates (or all if fewer than 5 exist).
+- Zero results: If no candidates exist or all scores are zero, return empty (zero overhead, no advisory).
 
 Design choices:
 - **Whole-word matching:** Regex `\b<keyword>\b` (case-insensitive). Avoids false positives like "commit" matching "recommit".

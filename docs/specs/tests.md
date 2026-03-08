@@ -290,57 +290,86 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 ## UserPromptSubmit Surfacing (ARCH-9, ARCH-10, ARCH-12)
 
-### T-30: Keyword match surfaces relevant memories
+### T-30: BM25 ranking surfaces top relevant memories
 
-**Given** memories with keywords ["commit", "git"] and ["targ", "build"], and a user message containing "commit",
+**Given** memories A (title: "Using Git", content: "Commit workflow...") and B (title: "Build System", content: "targ build target..."), and a user message "how do I commit?",
 **When** surface is called with mode prompt,
-**Then** only the memory with keyword "commit" is surfaced in DES-6 format, showing which keyword matched.
+**Then** memory A is ranked higher than B by BM25 relevance score (higher score due to term "commit" in content). Top 10 ranked results are surfaced in DES-6 format.
 
 - Traces to: ARCH-9, ARCH-12, REQ-10, DES-6
+- Type: example-based (BM25 deterministic, ranking depends on term frequency and document frequency)
 
-### T-31: No keyword match produces empty output
+### T-31: Low-relevance memories produce empty output
 
-**Given** memories with keywords ["commit", "git"] and a user message "hello world",
+**Given** memories with content unrelated to user query, and a user message "hello world",
 **When** surface is called with mode prompt,
-**Then** stdout is empty.
+**Then** BM25 scores all memories as zero or near-zero (no query terms found). No surfacing reminder is emitted (zero overhead).
 
 - Traces to: ARCH-9, ARCH-12, REQ-10
 
-### T-32: Keyword matching is case-insensitive and whole-word
+### T-32: BM25 scores term frequency within memory text
 
-**Given** a memory with keyword "commit" and a user message "COMMIT this change",
+**Given** a memory with title "Git Workflow" and content mentioning "commit" 5 times, and a user message "commit commit commit",
 **When** surface is called with mode prompt,
-**Then** the memory is surfaced (case-insensitive match). But a message "recommit" does NOT match (whole-word boundary).
+**Then** BM25 scores the memory based on term frequency (TF-IDF). Higher frequency in both query and memory = higher score.
 
-- Traces to: ARCH-10, REQ-10
+- Traces to: ARCH-9, REQ-10
+- Type: example-based (BM25 term frequency scoring)
 
 ---
 
-## PreToolUse Keyword Pre-Filter (ARCH-10)
+## PreToolUse BM25 Candidate Pruning (ARCH-10)
 
-### T-33: Pre-filter matches memory keywords in tool input
+### T-33: Pre-filter ranks anti-pattern candidates by BM25
 
-**Given** a memory with anti_pattern "manual git commit" and keywords ["commit", "git"], and a tool call {name: "Bash", input: "git commit -m 'fix'"},
-**When** MatchMemories is called,
-**Then** the memory is returned as a candidate (keyword "commit" matched in tool input).
+**Given** memories with anti_pattern (candidates: "manual git commit", "avoid hardcoding secrets") with searchable text, and a tool call {name: "Bash", input: "git commit -m 'fix'"},
+**When** surface is called with mode tool,
+**Then** BM25 scores each anti_pattern candidate against the tool input. Top 5 ranked candidates are surfaced. Unrelated candidates may score zero.
 
 - Traces to: ARCH-10, REQ-11
 
 ### T-34: Pre-filter skips memories without anti_pattern
 
-**Given** a memory with empty anti_pattern and keywords ["commit"], and a tool call containing "commit",
-**When** MatchMemories is called,
-**Then** the memory is NOT returned (no anti_pattern = not a candidate for enforcement).
+**Given** memories: one with anti_pattern (candidate), one with empty anti_pattern (not a candidate), and a tool call containing relevant terms,
+**When** surface is called with mode tool,
+**Then** only anti_pattern memories are indexed and scored. Non-anti_pattern memories are excluded from candidate set before BM25 indexing (tier-aware per REQ-7).
 
 - Traces to: ARCH-10, REQ-11
 
-### T-35: Pre-filter returns empty when no keywords match
+### T-35: Pre-filter returns empty when no candidates rank above zero
 
-**Given** a memory with anti_pattern and keywords ["commit", "git"], and a tool call {name: "Read", input: "/path/to/file.go"},
-**When** MatchMemories is called,
-**Then** empty slice is returned (no keyword overlap).
+**Given** anti_pattern memories with searchable text (candidates), and a tool call with no overlapping terms,
+**When** surface is called with mode tool,
+**Then** BM25 scores candidates as zero or near-zero (no query terms found). No surfacing reminder is emitted (zero overhead, zero advisory).
 
 - Traces to: ARCH-10, REQ-11
+
+### T-162: BM25 top-N limit — only top 10 results surfaced for prompt mode
+
+**Given** 15 memories with varying relevance to a user message (all with non-zero BM25 scores),
+**When** surface is called with mode prompt,
+**Then** only the top 10 ranked memories are surfaced (by BM25 relevance score). Lower-ranked memories 11–15 are not included.
+
+- Traces to: ARCH-9, REQ-10
+- Type: example-based (verify top-N limiting in BM25 ranking)
+
+### T-163: BM25 top-N limit — only top 5 results surfaced for tool mode
+
+**Given** 10 anti-pattern memories with varying relevance to a tool input (all with non-zero BM25 scores),
+**When** surface is called with mode tool,
+**Then** only the top 5 ranked candidates are surfaced (by BM25 relevance score). Lower-ranked candidates 6–10 are not included.
+
+- Traces to: ARCH-10, REQ-11
+- Type: example-based (verify top-N limiting in PreToolUse)
+
+### T-164: BM25 handles zero-score memories (relevance below threshold)
+
+**Given** memories with content: one closely matching query terms, others with no overlap,
+**When** surface is called with matching and non-matching memories,
+**Then** BM25 computes zero or near-zero scores for non-matching memories. They are not surfaced (no threshold gate needed — naturally ranked below matching memories).
+
+- Traces to: ARCH-9, REQ-10
+- Type: example-based (BM25 natural zero-scoring behavior)
 
 ---
 
