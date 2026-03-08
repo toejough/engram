@@ -108,7 +108,9 @@ func TestGenerate_LeechRewrite(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	llmResponse := `{"proposed_keywords": ["testing", "quality"], "proposed_principle": "Always test", "rationale": "Current wording is vague"}`
+	llmResponse := `{"proposed_keywords": ["testing", "quality"],` +
+		` "proposed_principle": "Always test",` +
+		` "rationale": "Current wording is vague"}`
 
 	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
 		return llmResponse, nil

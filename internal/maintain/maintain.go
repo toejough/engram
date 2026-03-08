@@ -66,9 +66,11 @@ func (g *Generator) generateOne(
 		return g.handleHiddenGem(ctx, classifiedMem, stored)
 	case review.Noise:
 		return g.handleNoise(classifiedMem)
-	default:
+	case review.InsufficientData:
 		return Proposal{}, false
 	}
+
+	return Proposal{}, false
 }
 
 func (g *Generator) handleHiddenGem(
@@ -171,8 +173,9 @@ func (g *Generator) handleWorking(
 // Option configures a Generator.
 type Option func(*Generator)
 
-//nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
 // Proposal represents a recommended maintenance action for a memory.
+//
+//nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
 type Proposal struct {
 	MemoryPath string          `json:"memory_path"`
 	Quadrant   string          `json:"quadrant"`
@@ -201,27 +204,24 @@ func WithNow(nowFn func() time.Time) Option {
 
 // unexported constants.
 const (
-	hoursPerDay            = 24
-	maintainModel          = "claude-haiku-4-5-20251001"
-	stalenessThresholdDays = 90
-
 	actionBroadenKeywords = "broaden_keywords"
 	actionRemove          = "remove"
 	actionReviewStaleness = "review_staleness"
 	actionRewrite         = "rewrite"
-
+	hiddenGemSystemPrompt = "You are a memory maintenance assistant. " +
+		"Analyze what contexts this memory could be relevant in. " +
+		"Propose additional keywords to broaden its triggers. " +
+		"Output: " +
+		`{"additional_keywords":[...],"rationale":"..."}`
+	hoursPerDay       = 24
 	leechSystemPrompt = "You are a memory maintenance assistant. " +
 		"Analyze why this memory is being ignored by agents " +
 		"(content quality, keyword mismatch, wrong tier). " +
 		"Propose specific field-level changes as JSON. " +
 		"Output: " +
 		`{"proposed_keywords":[...],"proposed_principle":"...","rationale":"..."}`
-
-	hiddenGemSystemPrompt = "You are a memory maintenance assistant. " +
-		"Analyze what contexts this memory could be relevant in. " +
-		"Propose additional keywords to broaden its triggers. " +
-		"Output: " +
-		`{"additional_keywords":[...],"rationale":"..."}`
+	maintainModel          = "claude-haiku-4-5-20251001"
+	stalenessThresholdDays = 90
 )
 
 //nolint:tagliatelle // DES-23 specifies snake_case JSON field names.
