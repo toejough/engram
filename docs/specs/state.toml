@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -768,43 +768,43 @@ history = "8 REQs + 3 DES items derived from UC-16. Quadrant partitioning (REQ-4
 layer = "L1"
 name = "Context Budget Management"
 items = ["UC-17"]
-status = "pending"
-history = "Issue #67. Track and cap total context injection across all engram hook points. Prioritize high-effectiveness memories within budget."
+status = "complete"
+history = "Issue #67. Track and cap total context injection across all engram hook points. Prioritize high-effectiveness memories within budget. L2-L5 complete."
 
 [tree.L1I]
 layer = "L1"
 name = "PostToolUse Proactive Reminders"
 items = ["UC-18"]
-status = "pending"
-history = "Issue #68. After model writes/edits tracked files, inject targeted reminder about commonly-violated instructions."
+status = "complete"
+history = "Issue #68. After model writes/edits tracked files, inject targeted reminder about commonly-violated instructions. L2-L5 complete."
 
 [tree.L1J]
 layer = "L1"
 name = "Stop Session Audit"
 items = ["UC-19"]
-status = "pending"
-history = "Issue #69. At session end, run lightweight audit checking whether high-priority instructions were followed."
+status = "complete"
+history = "Issue #69. At session end, run lightweight audit checking whether high-priority instructions were followed. L2-L5 complete."
 
 [tree.L1K]
 layer = "L1"
 name = "Instruction Quality, Deduplication & Gap Analysis"
 items = ["UC-20"]
-status = "pending"
-history = "Issue #70. Cross-reference all instruction sources to identify duplicates, quality problems, and gaps."
+status = "complete"
+history = "Issue #70. Cross-reference all instruction sources to identify duplicates, quality problems, and gaps. L2-L5 complete."
 
 [tree.L1L]
 layer = "L1"
 name = "Enforcement Escalation Ladder"
 items = ["UC-21"]
-status = "pending"
-history = "Issue #71. Graduated escalation from advisory to blocking enforcement for leech memories. Replaces issue #44."
+status = "complete"
+history = "Issue #71. Graduated escalation from advisory to blocking enforcement for leech memories. Replaces issue #44. L2-L5 complete, wired into CLI (commit e04e162)."
 
 [tree.L1M]
 layer = "L1"
 name = "Mechanical Instruction Extraction"
 items = ["UC-22"]
-status = "pending"
-history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them."
+status = "complete"
+history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them. L2-L5 complete."
 
 [tree.L1N]
 layer = "L1"
@@ -877,8 +877,36 @@ parents = ["L4N"]
 status = "complete"
 history = "Phase 5 of 5. Commit 6146ba8. CLI merge (absorb + delete source TOML), enhanced review (json/table format, quadrant grouping), concurrent write safety (sync.Mutex on JSONLStore). 5 new tests."
 
+[tree.L1O]
+layer = "L1"
+name = "Skill Generation"
+items = ["UC-4"]
+status = "in_progress"
+history = "Issue #37. Memory → Skill tier promotion when surfacing cost exceeds skill slot cost. Depends on UC-23 registry."
+
+[tree.L1P]
+layer = "L1"
+name = "CLAUDE.md Management"
+items = ["UC-5"]
+status = "in_progress"
+history = "Issue #38. Skill ↔ CLAUDE.md promotion/demotion based on effectiveness. Depends on UC-23 registry, UC-4 (skill generation for demotion path)."
+
+[tree.L1Q]
+layer = "L1"
+name = "Proposal Application"
+items = ["UC-24"]
+status = "in_progress"
+history = "Issues #40-43 consolidated. Apply maintain proposals: Working staleness, Leech rewrite, HiddenGem keyword broadening, Noise removal. Depends on UC-16 (maintain proposals), UC-23 (registry)."
+
+[tree.L1R]
+layer = "L1"
+name = "Evaluate Strip Preprocessing"
+items = ["UC-25"]
+status = "in_progress"
+history = "Issue #64. Apply sessionctx.Strip to evaluate pipeline before LLM call. Consistency with learn and context-update pipelines."
+
 [cursor]
-node = "TREE_COMPLETE"
-mode = "complete"
-next_action = "UC-23 L1-L5 complete. Usability gate PASSED: build ✅, registry init ✅, register-source ✅ (14 CLAUDE.md instructions), review ✅ (JSON with quadrant classification), merge ✅ (correct error on missing source). All 5 phases committed on main (c249df8, 5cb5aab, c429913/fdc369e, 31d7ec3, 6146ba8)."
-context_files = ["docs/specs/state.toml"]
+node = "L1O"
+mode = "in_progress"
+next_action = "L1 intake complete for UC-4, UC-5, UC-24, UC-25. Confirming constraints with user, then REFACTOR L1, REGROUP, COMMIT, and proceed to L2."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]

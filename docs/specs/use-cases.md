@@ -504,4 +504,128 @@ Working on session continuity for engram (#45)...
 
 ---
 
-Deferred UCs (UC-4 through UC-13, excluding UC-6) are archived in issue #18 for review.
+## UC-4: Skill Generation
+
+**Description:** Automatically promote memories to Claude Code skills (tier 2) when surfacing cost exceeds skill slot cost. A memory surfaced frequently enough would be cheaper as a skill that loads by context similarity rather than keyword matching on every prompt.
+
+**Starting state:** The instruction registry (UC-23) tracks surfacing frequency and effectiveness for all memories. Some memories have high surfacing counts, indicating they load on many prompts via keyword matching.
+
+**End state:** Memories that cross the promotion threshold are converted to skill files, registered with the Claude Code plugin, and the source memory is retired (merged into the skill's registry entry via UC-23 merge). The skill loads by context similarity instead of keyword matching.
+
+**Actor:** Developer via `engram promote --to-skill` CLI command.
+
+**Key interactions:**
+
+- **Candidate detection:** Query the registry for memories with surfacing_count above the promotion threshold. Compare surfacing cost (loaded every prompt via keyword match) vs skill slot cost (loaded only when context-similar). Candidates are memories where surfacing cost > skill cost.
+- **Skill file generation (LLM):** Generate a skill file from memory content — title becomes skill name, content/principle/anti_pattern become skill body, keywords/concepts inform the skill's triggering description.
+- **Plugin registration:** Write skill file to the plugin's skills directory. Update plugin manifest if needed.
+- **Source retirement:** Merge the memory's registry entry into the new skill's entry (preserving effectiveness history via UC-23 merge). Delete the source memory TOML.
+- **User confirmation:** Present the proposed promotion (source memory, generated skill preview) before executing. Never auto-promote.
+- **No graceful degradation:** If no API token, skip LLM generation. Candidate detection still works.
+- **Pure Go, no CGO.**
+- **DI everywhere.**
+
+**Constraints:**
+1. User confirms before any promotion — memories are user-curated artifacts
+2. Effectiveness history preserved via registry merge (not lost on promotion)
+3. Generated skill must be valid Claude Code skill format
+4. Fire-and-forget on registry write failures (ARCH-6)
+
+**Dependencies:** UC-23 (registry for effectiveness data and merge operations)
+
+---
+
+## UC-5: CLAUDE.md Management
+
+**Description:** Propose additions and removals to CLAUDE.md (tier 1, always-loaded guidance) based on measured effectiveness. Promote skills that prove universally useful; demote narrowly-specific CLAUDE.md entries back to skills.
+
+**Starting state:** The instruction registry (UC-23) tracks effectiveness for all instruction sources including CLAUDE.md entries and skills. Some skills have high effectiveness across contexts; some CLAUDE.md entries have low effectiveness (Leech quadrant).
+
+**End state:** Promotion candidates (high-effectiveness skills) are proposed for addition to CLAUDE.md. Demotion candidates (low-effectiveness CLAUDE.md entries) are proposed for removal from CLAUDE.md and conversion to skills. User confirms before any changes.
+
+**Actor:** Developer via `engram promote --to-claude-md` and `engram demote --to-skill` CLI commands.
+
+**Key interactions:**
+
+- **Promotion candidate detection:** Query the registry for skills in the Working quadrant with high surfacing frequency. These are universally useful and would benefit from always-loaded status.
+- **CLAUDE.md entry generation (LLM):** Generate a concise CLAUDE.md entry from skill content. Must fit the existing CLAUDE.md style and structure.
+- **Demotion candidate detection:** Query the registry for CLAUDE.md entries in the Leech quadrant — always loaded but rarely followed. These waste context budget.
+- **Skill file generation from CLAUDE.md entry:** Convert the demoted CLAUDE.md entry into a skill file that loads by context similarity.
+- **Registry merge:** On promotion, merge the skill's registry entry into the new CLAUDE.md entry's. On demotion, merge the CLAUDE.md entry's into the new skill's.
+- **User confirmation:** Present proposed changes with evidence (effectiveness data, quadrant classification) before executing. Never auto-modify CLAUDE.md.
+- **No graceful degradation:** If no API token, skip LLM generation. Candidate detection still works.
+- **Pure Go, no CGO.**
+- **DI everywhere.**
+
+**Constraints:**
+1. User confirms before any CLAUDE.md modification — CLAUDE.md is the highest-trust tier
+2. Effectiveness history preserved via registry merge
+3. CLAUDE.md edits are proposed as diffs, not applied blindly
+4. Fire-and-forget on registry write failures (ARCH-6)
+
+**Dependencies:** UC-23 (registry), UC-4 (skill generation for demotion path)
+
+---
+
+## UC-24: Proposal Application
+
+**Description:** Apply the maintenance proposals generated by UC-16's `engram maintain` command. UC-16 generates JSON proposals for all four effectiveness quadrants (Working staleness updates, Leech rewrites, HiddenGem keyword broadening, Noise removal). This UC adds the `--apply` flag that executes selected proposals with user confirmation.
+
+**Starting state:** `engram maintain` has generated a JSON array of proposals, each with a quadrant, action type, target memory path, and proposed change.
+
+**End state:** Selected proposals are applied: memory TOML files are rewritten (Working/Leech/HiddenGem) or deleted (Noise). Registry entries are updated to reflect changes. All modifications are confirmed by the user before execution.
+
+**Actor:** Developer via `engram maintain --apply` CLI command.
+
+**Key interactions:**
+
+- **Proposal review:** Display proposals grouped by quadrant with evidence (effectiveness score, surfacing count, proposed change preview). User selects which proposals to apply.
+- **Working — staleness update:** Rewrite memory content to reflect current practices. LLM generates updated content; user confirms the diff.
+- **Leech — content rewrite:** Rewrite memory to improve follow-through. Root cause diagnosis informs the rewrite (content quality → rewrite, wrong keywords → adjust, enforcement gap → escalate to UC-21).
+- **HiddenGem — keyword broadening:** Add keywords/concepts to increase surfacing coverage. LLM suggests additional keywords based on contexts where the memory would have been relevant.
+- **Noise — removal:** Delete the memory TOML file. Registry entry is removed. User confirms with evidence of low utility.
+- **Registry update:** After each applied proposal, update the registry entry (content_hash for rewrites, remove for deletions).
+- **User confirmation per action:** Each proposal requires explicit confirmation. Batch confirmation (`--yes`) available but not default.
+- **No graceful degradation:** If no API token, skip LLM-dependent proposals (Working/Leech/HiddenGem rewrites). Noise removal still works (deterministic).
+- **Pure Go, no CGO.**
+- **DI everywhere.**
+
+**Constraints:**
+1. User confirms each proposal — memories are user-curated artifacts (MEMORY.md rule: never delete directly)
+2. Content hash updated in registry after rewrites
+3. Noise removal deletes the memory TOML file directly — user confirmation is the safety gate
+4. Fire-and-forget on registry write failures (ARCH-6)
+
+**Dependencies:** UC-16 (maintain proposals), UC-23 (registry)
+
+---
+
+## UC-25: Evaluate Strip Preprocessing
+
+**Description:** Apply the same content stripping (removal of tool results, base64 data, truncated blocks) to the evaluate pipeline that learn and context-update already use. This reduces cost (~80-90% content removal) and improves signal quality for LLM evaluation.
+
+**Starting state:** The evaluate command reads the full transcript via stdin without stripping noisy content. The `sessionctx.Strip` function exists and is used by learn (incremental) and context-update pipelines.
+
+**End state:** The evaluate pipeline applies `sessionctx.Strip` to the transcript before sending it to the LLM for outcome evaluation. Evaluation quality improves (LLM evaluates conversation, not tool noise) and cost decreases.
+
+**Actor:** System (Go binary triggered by hooks).
+
+**Key interactions:**
+
+- **Strip injection:** Add `sessionctx.Strip` call in the evaluate CLI path, after reading transcript from stdin and before passing to the Evaluator.
+- **DI pattern:** Strip function injected as a dependency (consistent with learn pipeline's `StripFunc` pattern), not hardcoded.
+- **Backward compatible:** If Strip produces empty output (edge case: transcript is all tool results), evaluation is skipped gracefully.
+- **No graceful degradation needed:** Strip is local computation, no API dependency.
+- **Pure Go, no CGO.**
+- **DI everywhere.**
+
+**Constraints:**
+1. Same Strip function as learn and context-update — no divergent implementations
+2. Empty post-strip transcript skips evaluation (no empty LLM calls)
+3. Fire-and-forget consistent with evaluate pipeline's existing error handling
+
+**Dependencies:** None (reuses existing Strip function)
+
+---
+
+Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope consolidated into UC-16; proposal-application scope consolidated into UC-24. Issue #59 (BM25) already implemented. Archives in issue #18.
