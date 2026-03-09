@@ -926,6 +926,38 @@ items = ["UC-25"]
 status = "in_progress"
 history = "Issue #64. Apply sessionctx.Strip to evaluate pipeline before LLM call. Consistency with learn and context-update pipelines."
 
+[tree.L5P6]
+layer = "L5"
+name = "Phase 6: Evaluate Strip Preprocessing"
+description = "Add WithStripFunc DI option to Evaluator, wire sessionctx.Strip in CLI, handle empty post-strip transcript."
+parents = ["L4R"]
+status = "pending"
+history = "Phase 6 of 4. Smallest scope, no dependencies. 4 tests (T-266..T-269)."
+
+[tree.L5P7]
+layer = "L5"
+name = "Phase 7: Skill Generation"
+description = "New internal/promote/ package with Promoter pipeline: candidate detection, LLM skill generation, plugin registration, source retirement via registry merge."
+parents = ["L4O"]
+status = "pending"
+history = "Phase 7 of 4. Independent, medium scope. 10 tests (T-238..T-247)."
+
+[tree.L5P8]
+layer = "L5"
+name = "Phase 8: CLAUDE.md Management"
+description = "Extend internal/promote/ with ClaudeMDPromoter: promotion/demotion detection, CLAUDE.md editor, entry generation, CLI promote/demote subcommands."
+parents = ["L4P"]
+status = "pending"
+history = "Phase 8 of 4. Depends on P7 (SkillGenerator interface). 8 tests (T-248..T-255)."
+
+[tree.L5P9]
+layer = "L5"
+name = "Phase 9: Proposal Application"
+description = "Extend internal/maintain/ with Executor: proposal ingestion, quadrant-specific apply strategies, memory TOML rewriter, CLI maintain --apply."
+parents = ["L4Q"]
+status = "pending"
+history = "Phase 9 of 4. Independent, medium scope. 10 tests (T-256..T-265)."
+
 [tree.L4O]
 layer = "L4"
 name = "Skill Generation Tests"
@@ -1023,7 +1055,7 @@ status = "in_progress"
 history = "2 REQs + 1 DES derived from UC-25. Strip injection (REQ-110), empty handling (REQ-111), DI pattern (DES-39)."
 
 [cursor]
-node = "L4O"
-mode = "in_progress"
-next_action = "L4 GREEN complete for all 4 UCs. REFACTOR, REGROUP, COMMIT, then L5 structuring for parallel delegation."
-context_files = ["docs/specs/state.toml", "docs/specs/test-list.md"]
+node = "L5P6"
+mode = "pending"
+next_action = "L5 structured: 4 phases. P6 (evaluate strip, 4 tests) + P7 (skill gen, 10 tests) + P9 (proposal apply, 10 tests) can run in parallel. P8 (CLAUDE.md mgmt, 8 tests) blocked on P7. Spawn parallel teams now."
+context_files = ["docs/specs/state.toml", "docs/specs/test-list.md", "docs/specs/architecture.md", "docs/specs/requirements.md"]
