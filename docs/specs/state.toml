@@ -837,8 +837,48 @@ parents = ["L3N"]
 status = "complete"
 history = "19 BDD tests covering all 10 ARCH items: bounded growth, ID format, signal computation, content hash, merges, concurrency, backfill, quadrants, DI, CLI subcommands, hook auto-integration."
 
+[tree.L5P1]
+layer = "L5"
+name = "Phase 1: Build Registry + Backfill"
+description = "Define Registry interface in internal/registry/, implement JSONL-backed concrete, backfill command with old-store aggregation + retirement mapping."
+parents = ["L4N"]
+status = "pending"
+history = "Phase 1 of 5-phase implementation. Unblocks Phase 2/3/4/5. Covers ARCH-52..58, DES-26."
+
+[tree.L5P2]
+layer = "L5"
+name = "Phase 2: Wire Surfacing + Evaluation"
+description = "Integrate Registry into surface.go and evaluate hooks. Hook calls to RecordSurfacing/RecordEvaluation. Tests T-199/T-200 validate auto-integration."
+parents = ["L4N"]
+status = "pending"
+history = "Phase 2 of 5. Depends on Phase 1 (Registry must exist). Unblocks Phase 3. Covers ARCH-54, ARCH-61, DES-29."
+
+[tree.L5P3]
+layer = "L5"
+name = "Phase 3: Register Non-Memory Sources"
+description = "Build instruction extractors for CLAUDE.md, memory-md, rules, skills. Register via `engram registry register-source`. Extend evaluation to non-memory sources."
+parents = ["L4N"]
+status = "pending"
+history = "Phase 3 of 5. Depends on Phase 1/2. Can run parallel to Phase 4. Covers ARCH-53, ARCH-59."
+
+[tree.L5P4]
+layer = "L5"
+name = "Phase 4: Simplify Memory TOMLs + Cleanup"
+description = "Strip effectiveness fields from memory TOMLs. Delete old stores (surfacing-log, creation-log, evaluations/). Update code that read inline stats."
+parents = ["L4N"]
+status = "pending"
+history = "Phase 4 of 5. Depends on Phase 1/2 (data migrated). Can run parallel to Phase 3. Covers ARCH-55, ARCH-59."
+
+[tree.L5P5]
+layer = "L5"
+name = "Phase 5: Merge + Lifecycle"
+description = "Implement `engram registry merge` command. Extend `engram review` for quadrant classification. Wire absorbed history into escalation engine (UC-21)."
+parents = ["L4N"]
+status = "pending"
+history = "Phase 5 of 5. Depends on Phase 1-4. Final integration point. Covers ARCH-56, ARCH-59, ARCH-60, ARCH-61, DES-27/28."
+
 [cursor]
-node = "L4N"
-mode = "in_progress"
-next_action = "L4 TEST LIST complete: 19 BDD tests covering all ARCH items. L5 IMPL to follow with parallel team delegation. Five phases per migration plan: (1) Build Registry + Backfill, (2) Wire Surfacing + Evaluation, (3) Register Non-Memory Sources, (4) Simplify Memory TOMLs + Cleanup, (5) Merge + Lifecycle. Each phase is independently exercisable; delegate to Sonnet/Haiku teams after setting up L5 group nodes."
-context_files = ["docs/specs/state.toml", "docs/specs/test-list.md", "docs/prompts/unified-instruction-registry.md"]
+node = "L5P1"
+mode = "pending"
+next_action = "L5 IMPL structure complete: 5 phases with blocking relationships. L5P1 (Build Registry + Backfill) is root phase, unblocks L5P2/P3/P4/P5. Delegation ready: spawn Sonnet team for P1 (foundational), then spawn P2 executor (blocks P3), P3+P4 can run parallel (independent), P5 executor waits for all. Use TaskCreate for 5 phases, set up blocking edges, spawn teams via Agent tool with isolation:worktree."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/test-list.md"]
