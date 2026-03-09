@@ -926,6 +926,38 @@ items = ["UC-25"]
 status = "in_progress"
 history = "Issue #64. Apply sessionctx.Strip to evaluate pipeline before LLM call. Consistency with learn and context-update pipelines."
 
+[tree.L4O]
+layer = "L4"
+name = "Skill Generation Tests"
+parents = ["L3O"]
+items = ["T-238", "T-239", "T-240", "T-241", "T-242", "T-243", "T-244", "T-245", "T-246", "T-247"]
+status = "in_progress"
+history = "10 BDD tests: candidate detection (T-238/239), skill generation (T-240/241), plugin registration (T-242/243), retirement (T-244), full flow (T-245/246), CLI (T-247)."
+
+[tree.L4P]
+layer = "L4"
+name = "CLAUDE.md Management Tests"
+parents = ["L3P"]
+items = ["T-248", "T-249", "T-250", "T-251", "T-252", "T-253", "T-254", "T-255"]
+status = "in_progress"
+history = "8 BDD tests: promotion detection (T-248), demotion detection (T-249), entry generation (T-250), editor add/remove (T-251/252), demotion flow (T-253), CLI (T-254/255)."
+
+[tree.L4Q]
+layer = "L4"
+name = "Proposal Application Tests"
+parents = ["L3Q"]
+items = ["T-256", "T-257", "T-258", "T-259", "T-260", "T-261", "T-262", "T-263", "T-264", "T-265"]
+status = "in_progress"
+history = "10 BDD tests: ingestion (T-256/257), Working rewrite (T-258), Leech rewrite (T-259), HiddenGem broadening (T-260), Noise removal (T-261), confirmation flow (T-262), no-token (T-263), CLI (T-264), TOML rewriter (T-265)."
+
+[tree.L4R]
+layer = "L4"
+name = "Evaluate Strip Tests"
+parents = ["L3R"]
+items = ["T-266", "T-267", "T-268", "T-269"]
+status = "in_progress"
+history = "4 BDD tests: strip applied (T-266), empty handling (T-267), default no-op (T-268), CLI wiring (T-269)."
+
 [tree.L3O]
 layer = "L3"
 name = "Promoter Pipeline Architecture"
@@ -991,7 +1023,7 @@ status = "in_progress"
 history = "2 REQs + 1 DES derived from UC-25. Strip injection (REQ-110), empty handling (REQ-111), DI pattern (DES-39)."
 
 [cursor]
-node = "L3O"
+node = "L4O"
 mode = "in_progress"
-next_action = "L3 GREEN complete for all 4 UCs. REFACTOR, REGROUP, COMMIT, then L4 test list derivation."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]
+next_action = "L4 GREEN complete for all 4 UCs. REFACTOR, REGROUP, COMMIT, then L5 structuring for parallel delegation."
+context_files = ["docs/specs/state.toml", "docs/specs/test-list.md"]
