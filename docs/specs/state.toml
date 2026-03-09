@@ -67,7 +67,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-161", "T-162", "T-163", "T-164", "T-165", "T-166", "T-167", "T-168", "T-169", "T-170", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-161", "T-162", "T-163", "T-164", "T-165", "T-166", "T-167", "T-168", "T-169", "T-170", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -829,8 +829,16 @@ parents = ["L2N"]
 status = "complete"
 history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration."
 
+[tree.L4N]
+layer = "L4"
+name = "Registry test list"
+items = ["T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200"]
+parents = ["L3N"]
+status = "complete"
+history = "19 BDD tests covering all 10 ARCH items: bounded growth, ID format, signal computation, content hash, merges, concurrency, backfill, quadrants, DI, CLI subcommands, hook auto-integration."
+
 [cursor]
-node = "L3N"
+node = "L4N"
 mode = "in_progress"
-next_action = "L3 ARCH complete: 10 items converging L2 (ARCH-52..61 storage/ID format/signals/content hash/merge/concurrency/backfill/quadrants/DI/CLI). All L2 REQ/DES traced to L3. L4 TEST LIST derivation + L5 IMPL teams follow. Delegating L5 to parallel teams (5 phases: backfill+schema, wire surface/eval, register sources, simplify TOMLs, merge+lifecycle)."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/prompts/unified-instruction-registry.md"]
+next_action = "L4 TEST LIST complete: 19 BDD tests covering all ARCH items. L5 IMPL to follow with parallel team delegation. Five phases per migration plan: (1) Build Registry + Backfill, (2) Wire Surfacing + Evaluation, (3) Register Non-Memory Sources, (4) Simplify Memory TOMLs + Cleanup, (5) Merge + Lifecycle. Each phase is independently exercisable; delegate to Sonnet/Haiku teams after setting up L5 group nodes."
+context_files = ["docs/specs/state.toml", "docs/specs/test-list.md", "docs/prompts/unified-instruction-registry.md"]
