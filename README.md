@@ -177,7 +177,7 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 
 ## Specification
 
-19 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 415 tests.
+20 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 415 tests.
 
 | UC | Name |
 |----|------|
@@ -200,6 +200,7 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 | UC-24 | Proposal Application |
 | UC-25 | Evaluate Strip Preprocessing |
 | UC-26 | First-Class Non-Memory Instruction Sources |
+| UC-27 | Global Binary Installation |
 
 ## License
 
