@@ -2,8 +2,6 @@
 
 Self-correcting memory for LLM agents. Measures impact, not just frequency — memories that don't improve outcomes get diagnosed and fixed.
 
-**Context preservation:** During long sessions, before context approaches limits, write a brief `docs/session-context.md` capturing: (a) constraints discovered this session, (b) patterns/workarounds found, (c) what's been tried and failed.
-
 ## Design Principles
 
 - **DI everywhere:** No function in `internal/` calls `os.*`, `http.*`, `sql.Open`, or any I/O directly. All I/O through injected interfaces. Wire at the edges.

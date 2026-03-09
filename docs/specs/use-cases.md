@@ -471,4 +471,37 @@ Working on session continuity for engram (#45)...
 
 ---
 
+## UC-23: Unified Instruction Registry
+
+**Description:** Track effectiveness, frecency, and lifecycle state for all instruction sources (memories, CLAUDE.md, MEMORY.md, rules, skills) in a single bounded registry. Replace fragmented tracking stores (surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, inline memory TOML stats) with one instruction-registry.jsonl file. Enable cross-source quadrant classification and merge operations that preserve violation history when deleting duplicates.
+
+**Starting state:** Engram has 6 data stores with effectiveness tracked only for memories. CLAUDE.md entries, rules, and skills have no feedback loop.
+
+**End state:** A single instruction-registry.jsonl tracks all registered instructions. Surfacing, evaluation, and learn pipelines write to the registry instead of fragmented stores. `engram review` classifies all registered instructions into quadrants. `engram registry merge` absorbs effectiveness history when deleting duplicates. Old stores (surfacing-log, creation-log, evaluations/) are deleted.
+
+**Actor:** System (Go binary, triggered by hooks) + User (CLI commands for review, merge, register-source).
+
+**Key interactions:**
+
+- **Registration:** New memories auto-registered on creation via learn pipeline. Non-memory sources registered via `engram registry register-source --type claude-md --path <file>`.
+- **Surfacing tracking:** Each hook surfacing event updates the registry (increment surfaced_count, update last_surfaced) instead of appending to surfacing-log.jsonl.
+- **Evaluation tracking:** Compliance evaluation updates registry counters (followed/contradicted/ignored) instead of writing per-session JSONL files.
+- **Classification:** `engram review` reads the registry directly for pre-aggregated quadrant classification across all sources.
+- **Merge:** `engram registry merge --source <id> --target <id>` absorbs effectiveness history into the target instruction's `absorbed` field, then deletes the source.
+- **Backfill:** `engram registry init` migrates data from existing stores into the registry. After verification, old stores can be deleted.
+- **No graceful degradation needed:** Registry operations are local file I/O, no API dependency.
+- **Pure Go, no CGO.**
+- **DI everywhere:** Registry interface in internal/, JSONL I/O wired at edges.
+
+**Constraints:**
+1. Bounded growth — one line per instruction, no unbounded logs
+2. Backward compatibility — backfill migrates existing data with no loss
+3. Fire-and-forget on failure — registry write failures don't crash hooks (ARCH-6)
+4. Content-only memory TOMLs — after migration, memory TOMLs lose effectiveness fields
+5. Concurrent-write safety — multiple hooks may update the registry
+
+**Dependencies:** None (foundation UC). Depended on by: UC-4, UC-5, UC-7, UC-8, UC-9, UC-10.
+
+---
+
 Deferred UCs (UC-4 through UC-13, excluding UC-6) are archived in issue #18 for review.
