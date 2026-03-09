@@ -3,6 +3,7 @@ package automate_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,221 @@ import (
 	"engram/internal/automate"
 	"engram/internal/memory"
 )
+
+// processCandidate: empty TestCommand skips verification.
+func TestProcessCandidate_EmptyTestCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmResponse := automate.LLMResponse{
+		AutomationType: "script",
+		Code:           "echo ok",
+		Description:    "test script",
+		TestCommand:    "",
+		InstallPath:    "/tmp/script.sh",
+	}
+
+	respJSON, marshalErr := json.Marshal(llmResponse)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	automator := &automate.Automator{
+		MemoryLoader: func(_ string) ([]automate.Memory, error) {
+			return []automate.Memory{
+				{
+					Title:    "Always format before push",
+					Content:  "Never skip convention check",
+					FilePath: "m1.toml",
+				},
+			}, nil
+		},
+		LLMCaller: func(_ context.Context, _ string) (string, error) {
+			return string(respJSON), nil
+		},
+		RunCommand: func(_ string) (int, string, error) {
+			t.Fatal("RunCommand should not be called with empty TestCommand")
+
+			return 0, "", nil
+		},
+	}
+
+	proposals, err := automator.Run(context.Background(), "/tmp/data")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Generated).To(BeTrue())
+	g.Expect(proposals[0].Verified).To(BeFalse())
+}
+
+// processCandidate records LLM error in SkippedReason.
+func TestProcessCandidate_LLMError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	automator := &automate.Automator{
+		MemoryLoader: func(_ string) ([]automate.Memory, error) {
+			return []automate.Memory{
+				{
+					Title:    "Always format before push",
+					Content:  "Never skip convention check",
+					FilePath: "m1.toml",
+				},
+			}, nil
+		},
+		LLMCaller: func(_ context.Context, _ string) (string, error) {
+			return "", errors.New("rate limit exceeded")
+		},
+	}
+
+	proposals, err := automator.Run(context.Background(), "/tmp/data")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Generated).To(BeFalse())
+	g.Expect(proposals[0].SkippedReason).To(ContainSubstring("LLM error"))
+	g.Expect(proposals[0].SkippedReason).To(ContainSubstring("rate limit exceeded"))
+}
+
+// processCandidate: nil RunCommand skips verification.
+func TestProcessCandidate_NilRunCommand(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmResponse := automate.LLMResponse{
+		AutomationType: "script",
+		Code:           "echo ok",
+		Description:    "test script",
+		TestCommand:    "run-test",
+		InstallPath:    "/tmp/script.sh",
+	}
+
+	respJSON, marshalErr := json.Marshal(llmResponse)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	automator := &automate.Automator{
+		MemoryLoader: func(_ string) ([]automate.Memory, error) {
+			return []automate.Memory{
+				{
+					Title:    "Always format before push",
+					Content:  "Never skip convention check",
+					FilePath: "m1.toml",
+				},
+			}, nil
+		},
+		LLMCaller: func(_ context.Context, _ string) (string, error) {
+			return string(respJSON), nil
+		},
+		// RunCommand is nil
+	}
+
+	proposals, err := automator.Run(context.Background(), "/tmp/data")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Generated).To(BeTrue())
+	g.Expect(proposals[0].Verified).To(BeFalse())
+}
+
+// processCandidate records parse error when LLM returns invalid JSON.
+func TestProcessCandidate_ParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	automator := &automate.Automator{
+		MemoryLoader: func(_ string) ([]automate.Memory, error) {
+			return []automate.Memory{
+				{
+					Title:    "Always format before push",
+					Content:  "Never skip convention check",
+					FilePath: "m1.toml",
+				},
+			}, nil
+		},
+		LLMCaller: func(_ context.Context, _ string) (string, error) {
+			return "not json", nil
+		},
+	}
+
+	proposals, err := automator.Run(context.Background(), "/tmp/data")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Generated).To(BeFalse())
+	g.Expect(proposals[0].SkippedReason).To(ContainSubstring("parse error"))
+}
+
+// processCandidate: RunCommand returns error, verification stays false.
+func TestProcessCandidate_RunCommandError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	llmResponse := automate.LLMResponse{
+		AutomationType: "script",
+		Code:           "echo ok",
+		Description:    "test script",
+		TestCommand:    "run-test",
+		InstallPath:    "/tmp/script.sh",
+	}
+
+	respJSON, marshalErr := json.Marshal(llmResponse)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	if marshalErr != nil {
+		return
+	}
+
+	automator := &automate.Automator{
+		MemoryLoader: func(_ string) ([]automate.Memory, error) {
+			return []automate.Memory{
+				{
+					Title:    "Always format before push",
+					Content:  "Never skip convention check",
+					FilePath: "m1.toml",
+				},
+			}, nil
+		},
+		LLMCaller: func(_ context.Context, _ string) (string, error) {
+			return string(respJSON), nil
+		},
+		RunCommand: func(_ string) (int, string, error) {
+			return 0, "", errors.New("command not found")
+		},
+	}
+
+	proposals, err := automator.Run(context.Background(), "/tmp/data")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+	g.Expect(proposals[0].Generated).To(BeTrue())
+	g.Expect(proposals[0].Verified).To(BeFalse())
+}
 
 // T-230: Pattern recognition identifies mechanical candidates.
 func TestT230_PatternRecognitionIdentifiesMechanicalCandidates(t *testing.T) {

@@ -15,143 +15,391 @@ import (
 	"engram/internal/registry"
 )
 
-// fakeRegistry is a test double for register.Registry.
-type fakeRegistry struct {
-	entries     map[string]registry.InstructionEntry
-	registered  []registry.InstructionEntry
-	surfaced    []string
-	removed     []string
-	registerErr error
-}
+// TestDiscoverClaudeMD_NonErrNotExistReadError verifies non-ErrNotExist read
+// errors are logged but pipeline continues.
+func TestDiscoverClaudeMD_NonErrNotExistReadError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
 
-func newFakeRegistry() *fakeRegistry {
-	return &fakeRegistry{
-		entries:    make(map[string]registry.InstructionEntry),
-		registered: make([]registry.InstructionEntry, 0),
-		surfaced:   make([]string, 0),
-		removed:    make([]string, 0),
-	}
-}
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
 
-func (r *fakeRegistry) Register(entry registry.InstructionEntry) error {
-	if r.registerErr != nil {
-		return r.registerErr
+	var stderrBuf strings.Builder
+
+	readFile := func(path string) ([]byte, error) {
+		if path == "/bad/CLAUDE.md" {
+			return nil, errors.New("permission denied")
+		}
+
+		return nil, os.ErrNotExist
 	}
 
-	r.entries[entry.ID] = entry
-	r.registered = append(r.registered, entry)
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(readFile),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
 
-	return nil
-}
-
-func (r *fakeRegistry) RecordSurfacing(id string) error {
-	r.surfaced = append(r.surfaced, id)
-
-	entry, ok := r.entries[id]
-	if ok {
-		entry.SurfacedCount++
-		r.entries[id] = entry
-	}
-
-	return nil
-}
-
-func (r *fakeRegistry) Remove(id string) error {
-	delete(r.entries, id)
-	r.removed = append(r.removed, id)
-
-	return nil
-}
-
-func (r *fakeRegistry) List() ([]registry.InstructionEntry, error) {
-	result := make([]registry.InstructionEntry, 0, len(r.entries))
-	for _, entry := range r.entries {
-		result = append(result, entry)
-	}
-
-	return result, nil
-}
-
-func (r *fakeRegistry) Get(id string) (*registry.InstructionEntry, error) {
-	entry, ok := r.entries[id]
-	if !ok {
-		return nil, registry.ErrNotFound
-	}
-
-	return &entry, nil
-}
-
-// fakeSurfacingLogger is a test double for register.SurfacingLogger.
-type fakeSurfacingLogger struct {
-	events []surfacingEvent
-}
-
-type surfacingEvent struct {
-	memoryPath string
-	mode       string
-	timestamp  time.Time
-}
-
-func (l *fakeSurfacingLogger) LogSurfacing(
-	memoryPath, mode string, timestamp time.Time,
-) error {
-	l.events = append(l.events, surfacingEvent{
-		memoryPath: memoryPath,
-		mode:       mode,
-		timestamp:  timestamp,
+	err := registrar.Run(register.SourceConfig{
+		ClaudeMDPaths: []string{"/bad/CLAUDE.md"},
 	})
-
-	return nil
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("permission denied"))
 }
 
-// helper to build a fake readFile that returns content for known paths.
-func fakeReadFile(files map[string]string) func(string) ([]byte, error) {
-	return func(path string) ([]byte, error) {
-		content, ok := files[path]
-		if !ok {
-			return nil, os.ErrNotExist
+// TestDiscoverMemoryMD_MissingFile verifies missing MEMORY.md is silently skipped.
+func TestDiscoverMemoryMD_MissingFile(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(nil)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(io.Discard),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		MemoryMDPaths: []string{"/nonexistent/MEMORY.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	listed, listErr := reg.List()
+	g.Expect(listErr).NotTo(HaveOccurred())
+
+	if listErr != nil {
+		return
+	}
+
+	g.Expect(listed).To(BeEmpty())
+}
+
+// TestDiscoverMemoryMD_NonErrNotExistReadError verifies non-ErrNotExist
+// read errors are logged.
+func TestDiscoverMemoryMD_NonErrNotExistReadError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	readFile := func(path string) ([]byte, error) {
+		if path == "/bad/MEMORY.md" {
+			return nil, errors.New("io error")
 		}
 
-		return []byte(content), nil
+		return nil, os.ErrNotExist
 	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(readFile),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		MemoryMDPaths: []string{"/bad/MEMORY.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("io error"))
 }
 
-// helper to build a fake readDir returning entries for known dirs.
-func fakeReadDir(dirs map[string][]os.DirEntry) func(string) ([]os.DirEntry, error) {
-	return func(path string) ([]os.DirEntry, error) {
-		entries, ok := dirs[path]
-		if !ok {
-			return nil, os.ErrNotExist
-		}
+// TestDiscoverMemoryMD_ValidFile verifies MEMORY.md files are discovered.
+func TestDiscoverMemoryMD_ValidFile(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
 
-		return entries, nil
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	files := map[string]string{
+		"/project/MEMORY.md": "## User Preferences\n\n- Always be concise\n",
 	}
-}
 
-// fakeDirEntry implements os.DirEntry for testing.
-type fakeDirEntry struct {
-	name  string
-	isDir bool
-}
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(files)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(io.Discard),
+	)
 
-func (e fakeDirEntry) Name() string               { return e.name }
-func (e fakeDirEntry) IsDir() bool                { return e.isDir }
-func (e fakeDirEntry) Type() os.FileMode          { return 0 }
-func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+	err := registrar.Run(register.SourceConfig{
+		MemoryMDPaths: []string{"/project/MEMORY.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
 
-// fakeGlob returns a fake glob function for known patterns.
-func fakeGlob(results map[string][]string) func(string) ([]string, error) {
-	return func(pattern string) ([]string, error) {
-		matches, ok := results[pattern]
-		if !ok {
-			return nil, nil
-		}
+	listed, listErr := reg.List()
+	g.Expect(listErr).NotTo(HaveOccurred())
 
-		return matches, nil
+	if listErr != nil {
+		return
 	}
+
+	g.Expect(len(listed)).To(BeNumerically(">", 0))
 }
 
-var fixedTime = time.Date(2026, 3, 9, 12, 0, 0, 0, time.UTC)
+// TestDiscoverRules_ReadFileError verifies rule file read error is logged.
+func TestDiscoverRules_ReadFileError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	dirs := map[string][]os.DirEntry{
+		"/rules": {
+			fakeDirEntry{name: "bad.md", isDir: false},
+		},
+	}
+
+	readFile := func(_ string) ([]byte, error) {
+		return nil, errors.New("read error")
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(readFile),
+		register.WithReadDir(fakeReadDir(dirs)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		RulesDir: "/rules",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("read error"))
+}
+
+// TestDiscoverSkills_GlobError verifies glob error is logged.
+func TestDiscoverSkills_GlobError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	globFn := func(_ string) ([]string, error) {
+		return nil, errors.New("bad pattern")
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(nil)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(globFn),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		SkillsDir: "/skills",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("bad pattern"))
+}
+
+// TestDiscoverSkills_ReadFileError verifies skill file read error is logged.
+func TestDiscoverSkills_ReadFileError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	globResults := map[string][]string{
+		"/skills/*/SKILL.md": {"/skills/broken/SKILL.md"},
+	}
+
+	readFile := func(_ string) ([]byte, error) {
+		return nil, errors.New("file corrupt")
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(readFile),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(globResults)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		SkillsDir: "/skills",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("file corrupt"))
+}
+
+// TestRecordSurfacing_LoggerError verifies logger error is logged.
+func TestRecordSurfacing_LoggerError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLoggerWithErr{err: errors.New("log write error")}
+
+	var stderrBuf strings.Builder
+
+	files := map[string]string{
+		"/project/CLAUDE.md": "- Rule one\n",
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(files)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		ClaudeMDPaths: []string{"/project/CLAUDE.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("log write error"))
+}
+
+// TestRecordSurfacing_RegistryError verifies registry surfacing error is logged.
+func TestRecordSurfacing_RegistryError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := &fakeRegistryWithSurfacingErr{
+		fakeRegistry: newFakeRegistry(),
+		surfacingErr: errors.New("surfacing failed"),
+	}
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	files := map[string]string{
+		"/project/CLAUDE.md": "- Rule one\n",
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(files)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		ClaudeMDPaths: []string{"/project/CLAUDE.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("surfacing failed"))
+}
+
+// TestRegisterEntries_GetNonNotFoundError verifies non-ErrNotFound get
+// errors are logged and entry is skipped.
+func TestRegisterEntries_GetNonNotFoundError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := &fakeRegistryWithGetErr{
+		fakeRegistry: newFakeRegistry(),
+		getErr:       errors.New("database corrupt"),
+	}
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	files := map[string]string{
+		"/project/CLAUDE.md": "- Rule one\n",
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(files)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		ClaudeMDPaths: []string{"/project/CLAUDE.md"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("database corrupt"))
+}
+
+// TestRegisterEntries_RemoveErrorDuringUpdate verifies remove error during
+// content-changed update is logged.
+func TestRegisterEntries_RemoveErrorDuringUpdate(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	reg := &fakeRegistryWithRemoveErr{
+		fakeRegistry: newFakeRegistry(),
+		removeErr:    errors.New("cannot remove"),
+	}
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	oldTime := fixedTime.Add(-24 * time.Hour)
+
+	reg.entries["rule:go.md"] = registry.InstructionEntry{
+		ID:           "rule:go.md",
+		SourceType:   "rule",
+		SourcePath:   "go.md",
+		Title:        "go.md",
+		ContentHash:  "old-hash",
+		RegisteredAt: oldTime,
+	}
+
+	files := map[string]string{
+		"/rules/go.md": "## Updated Go rules\nUse gofmt always.",
+	}
+
+	dirs := map[string][]os.DirEntry{
+		"/rules": {
+			fakeDirEntry{name: "go.md", isDir: false},
+		},
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(files)),
+		register.WithReadDir(fakeReadDir(dirs)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{
+		RulesDir: "/rules",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("cannot remove"))
+}
 
 // traces: T-270
 func TestT270_DiscoverClaudeMDSources(t *testing.T) {
@@ -190,7 +438,7 @@ func TestT270_DiscoverClaudeMDSources(t *testing.T) {
 		return
 	}
 
-	g.Expect(len(listed)).To(Equal(3))
+	g.Expect(listed).To(HaveLen(3))
 
 	// All should be claude-md source type.
 	for _, entry := range listed {
@@ -240,7 +488,7 @@ func TestT271_DiscoverRuleFiles(t *testing.T) {
 		return
 	}
 
-	g.Expect(len(listed)).To(Equal(2))
+	g.Expect(listed).To(HaveLen(2))
 
 	for _, entry := range listed {
 		g.Expect(entry.SourceType).To(Equal("rule"))
@@ -296,7 +544,7 @@ func TestT272_DiscoverSkillFiles(t *testing.T) {
 		return
 	}
 
-	g.Expect(len(listed)).To(Equal(2))
+	g.Expect(listed).To(HaveLen(2))
 
 	for _, entry := range listed {
 		g.Expect(entry.SourceType).To(Equal("skill"))
@@ -339,7 +587,7 @@ func TestT273_RegisterNewEntries(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	// 2 claude-md bullets + 1 rule = 3 entries registered.
-	g.Expect(len(reg.registered)).To(Equal(3))
+	g.Expect(reg.registered).To(HaveLen(3))
 
 	// Each entry should have correct timestamps.
 	for _, entry := range reg.registered {
@@ -551,10 +799,10 @@ func TestT277_ImplicitSurfacingRecordsForAlwaysLoaded(t *testing.T) {
 
 	// 1 claude-md bullet + 1 rule = 2 entries.
 	// RecordSurfacing should be called for each.
-	g.Expect(len(reg.surfaced)).To(Equal(2))
+	g.Expect(reg.surfaced).To(HaveLen(2))
 
 	// SurfacingLogger should also be called for each.
-	g.Expect(len(logger.events)).To(Equal(2))
+	g.Expect(logger.events).To(HaveLen(2))
 
 	for _, event := range logger.events {
 		g.Expect(event.mode).To(Equal("session-start"))
@@ -654,8 +902,8 @@ func TestT279_IdempotentSecondRunIsNoOp(t *testing.T) {
 	// No removals.
 	g.Expect(reg.removed).To(BeEmpty())
 	// But surfacing SHOULD still be recorded.
-	g.Expect(len(reg.surfaced)).To(Equal(3))
-	g.Expect(len(logger.events)).To(Equal(3))
+	g.Expect(reg.surfaced).To(HaveLen(3))
+	g.Expect(logger.events).To(HaveLen(3))
 }
 
 // traces: T-280
@@ -701,5 +949,186 @@ func TestT280_FireAndForgetErrorsDontFail(t *testing.T) {
 	g.Expect(errorLines).To(Equal(3))
 }
 
-// Suppress unused import warnings.
-var _ = fmt.Sprintf
+// unexported variables.
+var (
+	_         = fmt.Sprintf
+	fixedTime = time.Date(2026, 3, 9, 12, 0, 0, 0, time.UTC)
+)
+
+// fakeDirEntry implements os.DirEntry for testing.
+type fakeDirEntry struct {
+	name  string
+	isDir bool
+}
+
+func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+
+func (e fakeDirEntry) IsDir() bool { return e.isDir }
+
+func (e fakeDirEntry) Name() string { return e.name }
+
+func (e fakeDirEntry) Type() os.FileMode { return 0 }
+
+// fakeRegistry is a test double for register.Registry.
+type fakeRegistry struct {
+	entries     map[string]registry.InstructionEntry
+	registered  []registry.InstructionEntry
+	surfaced    []string
+	removed     []string
+	registerErr error
+}
+
+func (r *fakeRegistry) Get(id string) (*registry.InstructionEntry, error) {
+	entry, ok := r.entries[id]
+	if !ok {
+		return nil, registry.ErrNotFound
+	}
+
+	return &entry, nil
+}
+
+func (r *fakeRegistry) List() ([]registry.InstructionEntry, error) {
+	result := make([]registry.InstructionEntry, 0, len(r.entries))
+	for _, entry := range r.entries {
+		result = append(result, entry)
+	}
+
+	return result, nil
+}
+
+func (r *fakeRegistry) RecordSurfacing(id string) error {
+	r.surfaced = append(r.surfaced, id)
+
+	entry, ok := r.entries[id]
+	if ok {
+		entry.SurfacedCount++
+		r.entries[id] = entry
+	}
+
+	return nil
+}
+
+func (r *fakeRegistry) Register(entry registry.InstructionEntry) error {
+	if r.registerErr != nil {
+		return r.registerErr
+	}
+
+	r.entries[entry.ID] = entry
+	r.registered = append(r.registered, entry)
+
+	return nil
+}
+
+func (r *fakeRegistry) Remove(id string) error {
+	delete(r.entries, id)
+	r.removed = append(r.removed, id)
+
+	return nil
+}
+
+// fakeRegistryWithGetErr returns an error on Get (non-ErrNotFound).
+type fakeRegistryWithGetErr struct {
+	*fakeRegistry
+	getErr error
+}
+
+func (r *fakeRegistryWithGetErr) Get(_ string) (*registry.InstructionEntry, error) {
+	return nil, r.getErr
+}
+
+// fakeRegistryWithRemoveErr returns an error on Remove.
+type fakeRegistryWithRemoveErr struct {
+	*fakeRegistry
+	removeErr error
+}
+
+func (r *fakeRegistryWithRemoveErr) Remove(_ string) error {
+	return r.removeErr
+}
+
+// fakeRegistryWithSurfacingErr returns an error on RecordSurfacing.
+type fakeRegistryWithSurfacingErr struct {
+	*fakeRegistry
+	surfacingErr error
+}
+
+func (r *fakeRegistryWithSurfacingErr) RecordSurfacing(_ string) error {
+	return r.surfacingErr
+}
+
+// fakeSurfacingLogger is a test double for register.SurfacingLogger.
+type fakeSurfacingLogger struct {
+	events []surfacingEvent
+}
+
+func (l *fakeSurfacingLogger) LogSurfacing(
+	memoryPath, mode string, timestamp time.Time,
+) error {
+	l.events = append(l.events, surfacingEvent{
+		memoryPath: memoryPath,
+		mode:       mode,
+		timestamp:  timestamp,
+	})
+
+	return nil
+}
+
+// fakeSurfacingLoggerWithErr returns an error on LogSurfacing.
+type fakeSurfacingLoggerWithErr struct {
+	err error
+}
+
+func (l *fakeSurfacingLoggerWithErr) LogSurfacing(_, _ string, _ time.Time) error {
+	return l.err
+}
+
+type surfacingEvent struct {
+	memoryPath string
+	mode       string
+	timestamp  time.Time
+}
+
+// fakeGlob returns a fake glob function for known patterns.
+func fakeGlob(results map[string][]string) func(string) ([]string, error) {
+	return func(pattern string) ([]string, error) {
+		matches, ok := results[pattern]
+		if !ok {
+			return nil, nil
+		}
+
+		return matches, nil
+	}
+}
+
+// helper to build a fake readDir returning entries for known dirs.
+func fakeReadDir(dirs map[string][]os.DirEntry) func(string) ([]os.DirEntry, error) {
+	return func(path string) ([]os.DirEntry, error) {
+		entries, ok := dirs[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+
+		return entries, nil
+	}
+}
+
+// helper to build a fake readFile that returns content for known paths.
+func fakeReadFile(files map[string]string) func(string) ([]byte, error) {
+	return func(path string) ([]byte, error) {
+		content, ok := files[path]
+		if !ok {
+			return nil, os.ErrNotExist
+		}
+
+		return []byte(content), nil
+	}
+}
+
+func newFakeRegistry() *fakeRegistry {
+	return &fakeRegistry{
+		entries:    make(map[string]registry.InstructionEntry),
+		registered: make([]registry.InstructionEntry, 0),
+		surfaced:   make([]string, 0),
+		removed:    make([]string, 0),
+	}
+}

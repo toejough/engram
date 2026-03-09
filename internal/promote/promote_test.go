@@ -12,118 +12,295 @@ import (
 	"engram/internal/registry"
 )
 
-// fakeRegistry implements RegistryReader.
-type fakeRegistry struct {
-	entries []registry.InstructionEntry
-}
+func TestCandidatesExcludesInsufficientQuadrant(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-func (f *fakeRegistry) List() ([]registry.InstructionEntry, error) {
-	return f.entries, nil
-}
-
-func (f *fakeRegistry) Get(id string) (*registry.InstructionEntry, error) {
-	for i := range f.entries {
-		if f.entries[i].ID == id {
-			return &f.entries[i], nil
-		}
-	}
-
-	return nil, registry.ErrNotFound
-}
-
-// fakeGenerator implements SkillGenerator.
-type fakeGenerator struct {
-	content string
-	err     error
-}
-
-func (f *fakeGenerator) Generate(_ context.Context, _ promote.MemoryContent) (string, error) {
-	return f.content, f.err
-}
-
-// fakeWriter implements SkillWriter.
-type fakeWriter struct {
-	written   map[string]string
-	returnErr error
-}
-
-func newFakeWriter() *fakeWriter {
-	return &fakeWriter{written: make(map[string]string)}
-}
-
-func (f *fakeWriter) Write(name, content string) (string, error) {
-	if f.returnErr != nil {
-		return "", f.returnErr
-	}
-
-	path := "skills/" + name + ".md"
-	if _, exists := f.written[name]; exists {
-		return "", fmt.Errorf("skill %q already exists", name)
-	}
-
-	f.written[name] = content
-
-	return path, nil
-}
-
-// fakeMerger implements RegistryMerger.
-type fakeMerger struct {
-	merged []mergeCall
-}
-
-type mergeCall struct {
-	sourceID string
-	targetID string
-}
-
-func (f *fakeMerger) Merge(sourceID, targetID string) error {
-	f.merged = append(f.merged, mergeCall{sourceID: sourceID, targetID: targetID})
-
-	return nil
-}
-
-// fakeRemover implements MemoryRemover.
-type fakeRemover struct {
-	removed []string
-}
-
-func (f *fakeRemover) Remove(path string) error {
-	f.removed = append(f.removed, path)
-
-	return nil
-}
-
-// fakeRegisterer implements RegistryRegisterer.
-type fakeRegisterer struct {
-	registered []registry.InstructionEntry
-}
-
-func (f *fakeRegisterer) Register(entry registry.InstructionEntry) error {
-	f.registered = append(f.registered, entry)
-
-	return nil
-}
-
-// fakeConfirmer implements Confirmer.
-type fakeConfirmer struct {
-	response bool
-}
-
-func (f *fakeConfirmer) Confirm(_ string) (bool, error) {
-	return f.response, nil
-}
-
-func makeMemoryEntry(id string, surfacedCount, followed, ignored int) registry.InstructionEntry {
-	return registry.InstructionEntry{
-		ID:            id,
-		SourceType:    "memory",
-		SourcePath:    "memories/" + id + ".toml",
-		Title:         id,
-		SurfacedCount: surfacedCount,
-		Evaluations: registry.EvaluationCounters{
-			Followed: followed,
-			Ignored:  ignored,
+	// Entry with no evaluations → Insufficient quadrant.
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:            "memory:no-evals",
+				SourceType:    "memory",
+				SurfacedCount: 100,
+				Evaluations:   registry.EvaluationCounters{},
+			},
 		},
+	}
+
+	promoter := &promote.Promoter{Registry: reg}
+
+	candidates, err := promoter.Candidates(50)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(candidates).To(BeEmpty())
+}
+
+func TestPromoteGetError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{entries: []registry.InstructionEntry{}}
+	promoter := &promote.Promoter{Registry: reg}
+
+	err := promoter.Promote(context.Background(), "nonexistent")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrNotFound)).To(BeTrue())
+}
+
+// TestPromote_ConfirmError verifies Promote returns error on confirm failure.
+func TestPromote_ConfirmError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:  reg,
+		Generator: &fakeGenerator{content: "# skill"},
+		Confirmer: &fakeConfirmerWithErr{err: errors.New("tty error")},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("confirming promotion")))
+}
+
+// TestPromote_GenerateError verifies Promote returns error on generate failure.
+func TestPromote_GenerateError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:  reg,
+		Generator: &fakeGenerator{err: errors.New("llm failed")},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("generating skill")))
+}
+
+// TestPromote_MemoryLoadError verifies Promote returns error on memory load failure.
+func TestPromote_MemoryLoadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:broken.toml",
+				SourceType: "memory",
+				SourcePath: "memories/broken.toml",
+				Title:      "Broken",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry: reg,
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return nil, errors.New("corrupt toml")
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:broken.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("loading memory")))
+}
+
+// TestPromote_MergeError verifies Promote returns error on merge failure.
+func TestPromote_MergeError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  &fakeGenerator{content: "# skill"},
+		Writer:     newFakeWriter(),
+		Registerer: &fakeRegisterer{},
+		Merger:     &fakeMergerWithErr{err: errors.New("merge conflict")},
+		Confirmer:  &fakeConfirmer{response: true},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("merging registry")))
+}
+
+// TestPromote_RegisterError verifies Promote returns error on register failure.
+func TestPromote_RegisterError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  &fakeGenerator{content: "# skill"},
+		Writer:     newFakeWriter(),
+		Registerer: &fakeRegistererWithErr{err: errors.New("db locked")},
+		Confirmer:  &fakeConfirmer{response: true},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("registering skill")))
+}
+
+// TestPromote_RemoveError verifies Promote returns error on memory remove failure.
+func TestPromote_RemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  &fakeGenerator{content: "# skill"},
+		Writer:     newFakeWriter(),
+		Registerer: &fakeRegisterer{},
+		Merger:     &fakeMerger{},
+		Remover:    &fakeRemoverWithErr{err: errors.New("permission denied")},
+		Confirmer:  &fakeConfirmer{response: true},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("removing memory")))
+}
+
+// TestPromote_WriteError verifies Promote returns error on skill write failure.
+func TestPromote_WriteError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.Promoter{
+		Registry:  reg,
+		Generator: &fakeGenerator{content: "# skill"},
+		Writer:    &fakeWriter{returnErr: errors.New("disk full")},
+		Confirmer: &fakeConfirmer{response: true},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{
+				Title: "Test", Content: "c", Keywords: []string{"k"},
+			}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing skill")))
+}
+
+func TestSlugify(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Use Targ Build System", "use-targ-build-system"},
+		{"DI everywhere — no direct I/O", "di-everywhere-no-direct-io"},
+		{"simple", "simple"},
+		{"One Two Three Four Five Six Seven", "one-two-three-four-five"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			g := NewWithT(t)
+
+			g.Expect(promote.Slugify(tt.input)).To(Equal(tt.expected))
+		})
 	}
 }
 
@@ -451,65 +628,153 @@ func TestT246_PromoteFlowUserDeclines(t *testing.T) {
 	g.Expect(registerer.registered).To(BeEmpty())
 }
 
-func TestSlugify(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{"Use Targ Build System", "use-targ-build-system"},
-		{"DI everywhere — no direct I/O", "di-everywhere-no-direct-io"},
-		{"simple", "simple"},
-		{"One Two Three Four Five Six Seven", "one-two-three-four-five"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			g.Expect(promote.Slugify(tt.input)).To(Equal(tt.expected))
-		})
-	}
+// fakeConfirmer implements Confirmer.
+type fakeConfirmer struct {
+	response bool
 }
 
-func TestCandidatesExcludesInsufficientQuadrant(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
+func (f *fakeConfirmer) Confirm(_ string) (bool, error) {
+	return f.response, nil
+}
 
-	// Entry with no evaluations → Insufficient quadrant.
-	reg := &fakeRegistry{
-		entries: []registry.InstructionEntry{
-			{
-				ID:            "memory:no-evals",
-				SourceType:    "memory",
-				SurfacedCount: 100,
-				Evaluations:   registry.EvaluationCounters{},
-			},
+// fakeConfirmerWithErr always returns an error.
+type fakeConfirmerWithErr struct {
+	err error
+}
+
+func (f *fakeConfirmerWithErr) Confirm(_ string) (bool, error) {
+	return false, f.err
+}
+
+// fakeGenerator implements SkillGenerator.
+type fakeGenerator struct {
+	content string
+	err     error
+}
+
+func (f *fakeGenerator) Generate(_ context.Context, _ promote.MemoryContent) (string, error) {
+	return f.content, f.err
+}
+
+// fakeMerger implements RegistryMerger.
+type fakeMerger struct {
+	merged []mergeCall
+}
+
+func (f *fakeMerger) Merge(sourceID, targetID string) error {
+	f.merged = append(f.merged, mergeCall{sourceID: sourceID, targetID: targetID})
+
+	return nil
+}
+
+// fakeMergerWithErr always returns an error.
+type fakeMergerWithErr struct {
+	err error
+}
+
+func (f *fakeMergerWithErr) Merge(_, _ string) error {
+	return f.err
+}
+
+// fakeRegisterer implements RegistryRegisterer.
+type fakeRegisterer struct {
+	registered []registry.InstructionEntry
+}
+
+func (f *fakeRegisterer) Register(entry registry.InstructionEntry) error {
+	f.registered = append(f.registered, entry)
+
+	return nil
+}
+
+// fakeRegistererWithErr always returns an error.
+type fakeRegistererWithErr struct {
+	err error
+}
+
+func (f *fakeRegistererWithErr) Register(_ registry.InstructionEntry) error {
+	return f.err
+}
+
+// fakeRegistry implements RegistryReader.
+type fakeRegistry struct {
+	entries []registry.InstructionEntry
+}
+
+func (f *fakeRegistry) Get(id string) (*registry.InstructionEntry, error) {
+	for i := range f.entries {
+		if f.entries[i].ID == id {
+			return &f.entries[i], nil
+		}
+	}
+
+	return nil, registry.ErrNotFound
+}
+
+func (f *fakeRegistry) List() ([]registry.InstructionEntry, error) {
+	return f.entries, nil
+}
+
+// fakeRemover implements MemoryRemover.
+type fakeRemover struct {
+	removed []string
+}
+
+func (f *fakeRemover) Remove(path string) error {
+	f.removed = append(f.removed, path)
+
+	return nil
+}
+
+// fakeRemoverWithErr always returns an error.
+type fakeRemoverWithErr struct {
+	err error
+}
+
+func (f *fakeRemoverWithErr) Remove(_ string) error {
+	return f.err
+}
+
+// fakeWriter implements SkillWriter.
+type fakeWriter struct {
+	written   map[string]string
+	returnErr error
+}
+
+func (f *fakeWriter) Write(name, content string) (string, error) {
+	if f.returnErr != nil {
+		return "", f.returnErr
+	}
+
+	path := "skills/" + name + ".md"
+	if _, exists := f.written[name]; exists {
+		return "", fmt.Errorf("skill %q already exists", name)
+	}
+
+	f.written[name] = content
+
+	return path, nil
+}
+
+type mergeCall struct {
+	sourceID string
+	targetID string
+}
+
+func makeMemoryEntry(id string, surfacedCount, followed, ignored int) registry.InstructionEntry {
+	return registry.InstructionEntry{
+		ID:            id,
+		SourceType:    "memory",
+		SourcePath:    "memories/" + id + ".toml",
+		Title:         id,
+		SurfacedCount: surfacedCount,
+		Evaluations: registry.EvaluationCounters{
+			Followed: followed,
+			Ignored:  ignored,
 		},
 	}
-
-	promoter := &promote.Promoter{Registry: reg}
-
-	candidates, err := promoter.Candidates(50)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(candidates).To(BeEmpty())
 }
 
-func TestPromoteGetError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reg := &fakeRegistry{entries: []registry.InstructionEntry{}}
-	promoter := &promote.Promoter{Registry: reg}
-
-	err := promoter.Promote(context.Background(), "nonexistent")
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(errors.Is(err, registry.ErrNotFound)).To(BeTrue())
+func newFakeWriter() *fakeWriter {
+	return &fakeWriter{written: make(map[string]string)}
 }

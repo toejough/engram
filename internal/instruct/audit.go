@@ -18,77 +18,12 @@ type AuditReport struct {
 	Skills     []SkillLineIssue `json:"skills"`
 }
 
-// DuplicatePair reports two instructions with >80% keyword overlap.
-type DuplicatePair struct {
-	PathA      string  `json:"path_a"`
-	PathB      string  `json:"path_b"`
-	Overlap    float64 `json:"overlap"`
-	KeepSource string  `json:"keep_source"`
-}
-
-// Diagnosis is the LLM output for a low-effectiveness instruction.
-type Diagnosis struct {
-	Path       string `json:"path"`
-	Diagnosis  string `json:"diagnosis"`
-	RootCause  string `json:"root_cause"`
-	Suggestion string `json:"suggestion"`
-}
-
-// RefinementProposal is a maintain-compatible proposal for fixing an instruction.
-type RefinementProposal struct {
-	Path       string `json:"path"`
-	Action     string `json:"action"`
-	RootCause  string `json:"root_cause"`
-	Suggestion string `json:"suggestion"`
-}
-
-// GapCandidate is a violation pattern not covered by existing instructions.
-type GapCandidate struct {
-	Pattern        string `json:"pattern"`
-	ViolationCount int    `json:"violation_count"`
-	Example        string `json:"example"`
-}
-
-// SkillLineIssue flags a low-effectiveness line in a skill file.
-type SkillLineIssue struct {
-	Path       string  `json:"path"`
-	LineNumber int     `json:"line_number"`
-	Content    string  `json:"content"`
-	FollowRate float64 `json:"follow_rate"`
-}
-
-// SkippedSection indicates an audit section was skipped.
-type SkippedSection struct {
-	SkippedReason string `json:"skipped_reason"`
-}
-
-const (
-	dupThreshold         = 0.80
-	bottomPercentile     = 0.20
-	lowFollowRatePercent = 20.0
-	diagnosisPrompt      = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
-		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
-		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
-	haikuModel = "claude-haiku-4-5-20251001"
-)
-
 // Auditor runs the instruction quality audit pipeline.
 type Auditor struct {
 	Scanner   *Scanner
 	LLMCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
 	EvalData  []EvalRecord
 }
-
-// EvalRecord represents a single evaluation outcome for gap analysis.
-type EvalRecord struct {
-	MemoryPath string `json:"memory_path"`
-	Outcome    string `json:"outcome"`
-	Pattern    string `json:"pattern"`
-	Example    string `json:"example"`
-}
-
-// PerLineEffectiveness maps "path:line" to follow rate percentage.
-type PerLineEffectiveness map[string]float64
 
 // Run executes the full audit pipeline.
 //
@@ -146,43 +81,6 @@ func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditRe
 	return report, nil
 }
 
-// findDuplicates detects instruction pairs with >80% keyword overlap.
-func findDuplicates(items []InstructionItem) []DuplicatePair {
-	pairs := make([]DuplicatePair, 0)
-
-	for i := range len(items) {
-		kwA := extractKeywords(items[i].Content)
-
-		for j := i + 1; j < len(items); j++ {
-			kwB := extractKeywords(items[j].Content)
-			overlap := keywordOverlap(kwA, kwB)
-
-			if overlap > dupThreshold {
-				keep := items[i].Path
-				if salienceRank[items[j].Source] < salienceRank[items[i].Source] {
-					keep = items[j].Path
-				}
-
-				pairs = append(pairs, DuplicatePair{
-					PathA:      items[i].Path,
-					PathB:      items[j].Path,
-					Overlap:    overlap,
-					KeepSource: keep,
-				})
-			}
-		}
-	}
-
-	return pairs
-}
-
-// diagnosisResponse is the expected JSON from the LLM.
-type diagnosisResponse struct {
-	Diagnosis  string `json:"diagnosis"`
-	RootCause  string `json:"root_cause"`
-	Suggestion string `json:"suggestion"`
-}
-
 // diagnoseBottom sends the bottom 20% (by effectiveness) to the LLM for diagnosis.
 func (a *Auditor) diagnoseBottom(
 	ctx context.Context,
@@ -195,9 +93,7 @@ func (a *Auditor) diagnoseBottom(
 	// Filter to items with effectiveness data (score > 0 means data exists)
 	scored := make([]InstructionItem, 0, len(items))
 
-	for _, item := range items {
-		scored = append(scored, item)
-	}
+	scored = append(scored, items...)
 
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].EffectivenessScore < scored[j].EffectivenessScore
@@ -221,7 +117,8 @@ func (a *Auditor) diagnoseBottom(
 
 		var parsed diagnosisResponse
 
-		if unmarshalErr := json.Unmarshal([]byte(resp), &parsed); unmarshalErr != nil {
+		unmarshalErr := json.Unmarshal([]byte(resp), &parsed)
+		if unmarshalErr != nil {
 			return nil, fmt.Errorf("parsing LLM response for %s: %w", item.Path, unmarshalErr)
 		}
 
@@ -234,22 +131,6 @@ func (a *Auditor) diagnoseBottom(
 	}
 
 	return diagnoses, nil
-}
-
-// buildProposals converts diagnoses into maintain-compatible proposals.
-func buildProposals(diagnoses []Diagnosis) []RefinementProposal {
-	proposals := make([]RefinementProposal, 0, len(diagnoses))
-
-	for _, diag := range diagnoses {
-		proposals = append(proposals, RefinementProposal{
-			Path:       diag.Path,
-			Action:     "rewrite",
-			RootCause:  diag.RootCause,
-			Suggestion: diag.Suggestion,
-		})
-	}
-
-	return proposals
 }
 
 // findGaps finds contradicted evaluation patterns not covered by existing instructions.
@@ -344,6 +225,95 @@ func (a *Auditor) findSkillIssues(items []InstructionItem) []SkillLineIssue {
 	return issues
 }
 
+// Diagnosis is the LLM output for a low-effectiveness instruction.
+type Diagnosis struct {
+	Path       string `json:"path"`
+	Diagnosis  string `json:"diagnosis"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// DuplicatePair reports two instructions with >80% keyword overlap.
+type DuplicatePair struct {
+	PathA      string  `json:"path_a"`
+	PathB      string  `json:"path_b"`
+	Overlap    float64 `json:"overlap"`
+	KeepSource string  `json:"keep_source"`
+}
+
+// EvalRecord represents a single evaluation outcome for gap analysis.
+type EvalRecord struct {
+	MemoryPath string `json:"memory_path"`
+	Outcome    string `json:"outcome"`
+	Pattern    string `json:"pattern"`
+	Example    string `json:"example"`
+}
+
+// GapCandidate is a violation pattern not covered by existing instructions.
+type GapCandidate struct {
+	Pattern        string `json:"pattern"`
+	ViolationCount int    `json:"violation_count"`
+	Example        string `json:"example"`
+}
+
+// PerLineEffectiveness maps "path:line" to follow rate percentage.
+type PerLineEffectiveness map[string]float64
+
+// RefinementProposal is a maintain-compatible proposal for fixing an instruction.
+type RefinementProposal struct {
+	Path       string `json:"path"`
+	Action     string `json:"action"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// SkillLineIssue flags a low-effectiveness line in a skill file.
+type SkillLineIssue struct {
+	Path       string  `json:"path"`
+	LineNumber int     `json:"line_number"`
+	Content    string  `json:"content"`
+	FollowRate float64 `json:"follow_rate"`
+}
+
+// SkippedSection indicates an audit section was skipped.
+type SkippedSection struct {
+	SkippedReason string `json:"skipped_reason"`
+}
+
+// unexported constants.
+const (
+	bottomPercentile = 0.20
+	diagnosisPrompt  = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
+		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
+		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
+	dupThreshold         = 0.80
+	haikuModel           = "claude-haiku-4-5-20251001"
+	lowFollowRatePercent = 20.0
+)
+
+// diagnosisResponse is the expected JSON from the LLM.
+type diagnosisResponse struct {
+	Diagnosis  string `json:"diagnosis"`
+	RootCause  string `json:"root_cause"`
+	Suggestion string `json:"suggestion"`
+}
+
+// buildProposals converts diagnoses into maintain-compatible proposals.
+func buildProposals(diagnoses []Diagnosis) []RefinementProposal {
+	proposals := make([]RefinementProposal, 0, len(diagnoses))
+
+	for _, diag := range diagnoses {
+		proposals = append(proposals, RefinementProposal{
+			Path:       diag.Path,
+			Action:     "rewrite",
+			RootCause:  diag.RootCause,
+			Suggestion: diag.Suggestion,
+		})
+	}
+
+	return proposals
+}
+
 // extractKeywords splits content into lowercase word tokens for overlap calculation.
 func extractKeywords(content string) map[string]bool {
 	words := strings.Fields(strings.ToLower(content))
@@ -358,6 +328,36 @@ func extractKeywords(content string) map[string]bool {
 	}
 
 	return kw
+}
+
+// findDuplicates detects instruction pairs with >80% keyword overlap.
+func findDuplicates(items []InstructionItem) []DuplicatePair {
+	pairs := make([]DuplicatePair, 0)
+
+	for i := range items {
+		kwA := extractKeywords(items[i].Content)
+
+		for j := i + 1; j < len(items); j++ {
+			kwB := extractKeywords(items[j].Content)
+			overlap := keywordOverlap(kwA, kwB)
+
+			if overlap > dupThreshold {
+				keep := items[i].Path
+				if salienceRank[items[j].Source] < salienceRank[items[i].Source] {
+					keep = items[j].Path
+				}
+
+				pairs = append(pairs, DuplicatePair{
+					PathA:      items[i].Path,
+					PathB:      items[j].Path,
+					Overlap:    overlap,
+					KeepSource: keep,
+				})
+			}
+		}
+	}
+
+	return pairs
 }
 
 // keywordOverlap computes Jaccard similarity between two keyword sets.

@@ -5,9 +5,10 @@ import (
 	"strings"
 )
 
-// MaxSummaryBytes is the maximum size of session context summary content
-// (excluding the HTML metadata header). Summaries exceeding this are truncated.
-const MaxSummaryBytes = 1024
+// Exported constants.
+const (
+	MaxSummaryBytes = 1024
+)
 
 // Orchestrator composes the session continuity pipeline:
 // read watermark → extract delta → strip content → summarize → write file.

@@ -75,10 +75,12 @@ func TestScanAll_ExtractsAllSources(t *testing.T) {
 		sourceCount[item.Source]++
 	}
 
-	const expectedClaudeMD = 2
-	const expectedMemories = 3
-	const expectedRules = 2
-	const expectedSkills = 1
+	const (
+		expectedClaudeMD = 2
+		expectedMemories = 3
+		expectedRules    = 2
+		expectedSkills   = 1
+	)
 
 	g.Expect(sourceCount[instruct.SourceClaudeMD]).To(Equal(expectedClaudeMD))
 	g.Expect(sourceCount[instruct.SourceMemory]).To(Equal(expectedMemories))

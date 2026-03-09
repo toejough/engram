@@ -2,6 +2,15 @@ package surface
 
 import "engram/internal/memory"
 
+// Exported constants.
+const (
+	DefaultPostToolUseBudget      = 100
+	DefaultPreToolUseBudget       = 200
+	DefaultSessionStartBudget     = 800
+	DefaultStopBudget             = 500
+	DefaultUserPromptSubmitBudget = 300
+)
+
 // BudgetConfig holds per-hook token budget caps (ARCH-40).
 type BudgetConfig struct {
 	SessionStart     int
@@ -9,31 +18,6 @@ type BudgetConfig struct {
 	PreToolUse       int
 	PostToolUse      int
 	Stop             int
-}
-
-// BudgetConfigReader loads budget configuration from persistent storage.
-type BudgetConfigReader interface {
-	ReadBudgetConfig() (BudgetConfig, error)
-}
-
-// Default budget caps per hook type.
-const (
-	DefaultSessionStartBudget     = 800
-	DefaultUserPromptSubmitBudget = 300
-	DefaultPreToolUseBudget       = 200
-	DefaultPostToolUseBudget      = 100
-	DefaultStopBudget             = 500
-)
-
-// DefaultBudgetConfig returns the default budget configuration.
-func DefaultBudgetConfig() BudgetConfig {
-	return BudgetConfig{
-		SessionStart:     DefaultSessionStartBudget,
-		UserPromptSubmit: DefaultUserPromptSubmitBudget,
-		PreToolUse:       DefaultPreToolUseBudget,
-		PostToolUse:      DefaultPostToolUseBudget,
-		Stop:             DefaultStopBudget,
-	}
 }
 
 // ForMode returns the token budget for a given surface mode.
@@ -50,14 +34,30 @@ func (c BudgetConfig) ForMode(mode string) int {
 	}
 }
 
-// EstimateTokens returns the estimated token count for text using len/4 truncation.
-func EstimateTokens(text string) int {
-	return len(text) / estimateTokensDivisor
+// BudgetConfigReader loads budget configuration from persistent storage.
+type BudgetConfigReader interface {
+	ReadBudgetConfig() (BudgetConfig, error)
+}
+
+// DefaultBudgetConfig returns the default budget configuration.
+func DefaultBudgetConfig() BudgetConfig {
+	return BudgetConfig{
+		SessionStart:     DefaultSessionStartBudget,
+		UserPromptSubmit: DefaultUserPromptSubmitBudget,
+		PreToolUse:       DefaultPreToolUseBudget,
+		PostToolUse:      DefaultPostToolUseBudget,
+		Stop:             DefaultStopBudget,
+	}
 }
 
 // EstimateMemoryTokens estimates the token cost of a memory for prompt mode.
 func EstimateMemoryTokens(mem *memory.Stored) int {
 	return EstimateTokens(concatenatePromptFields(mem))
+}
+
+// EstimateTokens returns the estimated token count for text using len/4 truncation.
+func EstimateTokens(text string) int {
+	return len(text) / estimateTokensDivisor
 }
 
 // EstimateToolMemoryTokens estimates the token cost of a memory for tool mode.
@@ -69,6 +69,11 @@ func EstimateToolMemoryTokens(mem *memory.Stored) int {
 func WithBudgetConfig(config BudgetConfig) SurfacerOption {
 	return func(s *Surfacer) { s.budgetConfig = &config }
 }
+
+// unexported constants.
+const (
+	estimateTokensDivisor = 4
+)
 
 // applyPromptBudget returns the prefix of matches that fits within the token budget.
 // Budget of 0 means unlimited.
@@ -87,6 +92,7 @@ func applyPromptBudget(matches []promptMatch, budget int) []promptMatch {
 		}
 
 		accumulated += tokens
+
 		result = append(result, match)
 	}
 
@@ -110,10 +116,9 @@ func applyToolBudget(matches []toolMatch, budget int) []toolMatch {
 		}
 
 		accumulated += tokens
+
 		result = append(result, match)
 	}
 
 	return result
 }
-
-const estimateTokensDivisor = 4

@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -45,9 +46,11 @@ func TestT242_EffectivenessWithSufficientData(t *testing.T) {
 	}
 	result := registry.Effectiveness(entry)
 	g.Expect(result).NotTo(BeNil())
+
 	if result == nil {
 		return
 	}
+
 	g.Expect(*result).To(BeNumerically("~", 70.0, 0.01))
 }
 
@@ -75,9 +78,11 @@ func TestT244_EffectivenessExactlyAtMinEvaluations(t *testing.T) {
 	}
 	result := registry.Effectiveness(entry)
 	g.Expect(result).NotTo(BeNil())
+
 	if result == nil {
 		return
 	}
+
 	g.Expect(*result).To(BeNumerically("~", 100.0, 0.01))
 }
 
@@ -92,9 +97,11 @@ func TestT245_EffectivenessZeroFollowed(t *testing.T) {
 	}
 	result := registry.Effectiveness(entry)
 	g.Expect(result).NotTo(BeNil())
+
 	if result == nil {
 		return
 	}
+
 	g.Expect(*result).To(BeNumerically("~", 0.0, 0.01))
 }
 
@@ -106,6 +113,7 @@ func TestT246_FrecencyDecaysWithTime(t *testing.T) {
 
 	now := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC)
 	lastSurfaced := now.Add(-7 * 24 * time.Hour) // 7 days ago
+
 	const halfLifeDays = 7.0
 
 	entry := &registry.InstructionEntry{
@@ -124,6 +132,7 @@ func TestT247_FrecencyUsesUpdatedAtWhenNoLastSurfaced(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	now := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC)
+
 	const halfLifeDays = 7.0
 
 	entry := &registry.InstructionEntry{
@@ -252,6 +261,7 @@ func TestT255_ClassifyAlwaysLoadedWorkingOrLeechOnly(t *testing.T) {
 	for _, sourceType := range []string{"claude-md", "memory-md"} {
 		t.Run(sourceType+"_working", func(t *testing.T) {
 			t.Parallel()
+
 			entry := &registry.InstructionEntry{
 				SourceType:    sourceType,
 				SurfacedCount: 0, // low surfacing, but always-loaded → no HiddenGem
@@ -265,6 +275,7 @@ func TestT255_ClassifyAlwaysLoadedWorkingOrLeechOnly(t *testing.T) {
 
 		t.Run(sourceType+"_leech", func(t *testing.T) {
 			t.Parallel()
+
 			entry := &registry.InstructionEntry{
 				SourceType:    sourceType,
 				SurfacedCount: 0,
@@ -311,9 +322,11 @@ func TestT256_BackfillCreatesEntriesFromMemories(t *testing.T) {
 
 	entries, err := registry.Backfill(config)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(entries).To(HaveLen(1))
 
 	entry := entries[0]
@@ -325,6 +338,7 @@ func TestT256_BackfillCreatesEntriesFromMemories(t *testing.T) {
 	g.Expect(entry.Evaluations.Followed).To(Equal(3))
 	g.Expect(entry.Evaluations.Contradicted).To(Equal(1))
 	g.Expect(entry.LastSurfaced).NotTo(BeNil())
+
 	if entry.LastSurfaced != nil {
 		g.Expect(*entry.LastSurfaced).To(Equal(lastSurf))
 	}
@@ -369,9 +383,11 @@ func TestT257_BackfillAbsorbsRetiredMemoryCounters(t *testing.T) {
 
 	entries, err := registry.Backfill(config)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(entries).To(HaveLen(1)) // only active, not retired
 
 	entry := entries[0]
@@ -409,9 +425,11 @@ func TestT258_BackfillUsesNowWhenNoCreationTime(t *testing.T) {
 
 	entries, err := registry.Backfill(config)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(entries).To(HaveLen(1))
 	g.Expect(entries[0].RegisteredAt).To(Equal(now))
 }
@@ -421,7 +439,7 @@ func TestT259_BackfillScannerErrorPropagates(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	config := registry.BackfillConfig{
-		Scanner:      &fakeScanner{err: fmt.Errorf("scan failed")},
+		Scanner:      &fakeScanner{err: errors.New("scan failed")},
 		SurfacingLog: &fakeSurfacingLog{},
 		CreationLog:  &fakeCreationLog{},
 		Evaluations:  &fakeEvaluations{},
@@ -431,30 +449,6 @@ func TestT259_BackfillScannerErrorPropagates(t *testing.T) {
 	_, err := registry.Backfill(config)
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err.Error()).To(ContainSubstring("scanning memories"))
-}
-
-// --- Test fakes ---
-
-type fakeScanner struct {
-	memories []registry.ScannedMemory
-	err      error
-}
-
-func (f *fakeScanner) ScanMemories() ([]registry.ScannedMemory, error) {
-	return f.memories, f.err
-}
-
-type fakeSurfacingLog struct {
-	data map[string]registry.SurfacingData
-	err  error
-}
-
-func (f *fakeSurfacingLog) AggregateSurfacing() (map[string]registry.SurfacingData, error) {
-	if f.data == nil {
-		return make(map[string]registry.SurfacingData), f.err
-	}
-
-	return f.data, f.err
 }
 
 type fakeCreationLog struct {
@@ -478,6 +472,30 @@ type fakeEvaluations struct {
 func (f *fakeEvaluations) AggregateEvaluations() (map[string]registry.EvaluationCounters, error) {
 	if f.data == nil {
 		return make(map[string]registry.EvaluationCounters), f.err
+	}
+
+	return f.data, f.err
+}
+
+// --- Test fakes ---
+
+type fakeScanner struct {
+	memories []registry.ScannedMemory
+	err      error
+}
+
+func (f *fakeScanner) ScanMemories() ([]registry.ScannedMemory, error) {
+	return f.memories, f.err
+}
+
+type fakeSurfacingLog struct {
+	data map[string]registry.SurfacingData
+	err  error
+}
+
+func (f *fakeSurfacingLog) AggregateSurfacing() (map[string]registry.SurfacingData, error) {
+	if f.data == nil {
+		return make(map[string]registry.SurfacingData), f.err
 	}
 
 	return f.data, f.err

@@ -13,24 +13,10 @@ import (
 	"engram/internal/memory"
 )
 
-// Minimum keyword score to consider a memory a mechanical candidate.
-const minKeywordScore = 2
-
-// mechanicalKeywords are words that indicate a memory contains a mechanical instruction.
-var mechanicalKeywords = []string{ //nolint:gochecknoglobals // static lookup table
-	"always", "never", "before", "after", "format", "convention",
-}
-
-// ErrNoDataDir is returned when no data directory is provided.
-var ErrNoDataDir = errors.New("automate: missing data directory")
-
-// Memory is a simplified memory representation for the automate pipeline.
-type Memory struct {
-	Title    string
-	Content  string
-	Keywords []string
-	FilePath string
-}
+// Exported variables.
+var (
+	ErrNoDataDir = errors.New("automate: missing data directory")
+)
 
 // AutomationProposal represents a proposed automation for a mechanical memory.
 type AutomationProposal struct {
@@ -47,21 +33,21 @@ type AutomationProposal struct {
 	Verified       bool   `json:"verified"`
 }
 
-// LLMResponse is the expected JSON structure from the LLM generation call.
-type LLMResponse struct {
-	AutomationType string `json:"automation_type"`
-	Code           string `json:"code"`
-	Description    string `json:"description"`
-	TestCommand    string `json:"test_command"`
-	InstallPath    string `json:"install_path"`
-}
-
 // Automator orchestrates the mechanical instruction extraction pipeline.
 type Automator struct {
 	MemoryLoader func(dataDir string) ([]Memory, error)
 	LLMCaller    func(ctx context.Context, prompt string) (string, error)
 	RunCommand   func(cmd string) (exitCode int, output string, err error)
 	MemoryWriter func(path, retiredBy string, retiredAt time.Time) error
+}
+
+// Retire marks a memory as retired by setting retired_by and retired_at fields.
+func (a *Automator) Retire(memoryPath, installPath string, retiredAt time.Time) error {
+	if a.MemoryWriter == nil {
+		return errNoMemoryWriter
+	}
+
+	return a.MemoryWriter(memoryPath, installPath, retiredAt)
 }
 
 // Run executes the automation pipeline: scan → generate → verify → propose.
@@ -88,46 +74,6 @@ func (a *Automator) Run(ctx context.Context, dataDir string) ([]AutomationPropos
 	}
 
 	return proposals, nil
-}
-
-// Retire marks a memory as retired by setting retired_by and retired_at fields.
-func (a *Automator) Retire(memoryPath, installPath string, retiredAt time.Time) error {
-	if a.MemoryWriter == nil {
-		return errors.New("automate: no memory writer configured")
-	}
-
-	return a.MemoryWriter(memoryPath, installPath, retiredAt)
-}
-
-type scoredCandidate struct {
-	mem   Memory
-	score int
-}
-
-func scoreCandidates(memories []Memory) []scoredCandidate {
-	candidates := make([]scoredCandidate, 0)
-
-	for _, mem := range memories {
-		score := keywordScore(mem)
-		if score >= minKeywordScore {
-			candidates = append(candidates, scoredCandidate{mem: mem, score: score})
-		}
-	}
-
-	return candidates
-}
-
-func keywordScore(mem Memory) int {
-	searchText := strings.ToLower(mem.Title + " " + mem.Content)
-	score := 0
-
-	for _, kw := range mechanicalKeywords {
-		if strings.Contains(searchText, kw) {
-			score++
-		}
-	}
-
-	return score
 }
 
 func (a *Automator) processCandidate(
@@ -159,7 +105,8 @@ func (a *Automator) processCandidate(
 
 	var llmResp LLMResponse
 
-	if jsonErr := json.Unmarshal([]byte(response), &llmResp); jsonErr != nil {
+	jsonErr := json.Unmarshal([]byte(response), &llmResp)
+	if jsonErr != nil {
 		proposal.Generated = false
 		proposal.SkippedReason = fmt.Sprintf("parse error: %s", jsonErr)
 
@@ -184,13 +131,21 @@ func (a *Automator) processCandidate(
 	return proposal
 }
 
-func buildGenerationPrompt(mem Memory) string {
-	return fmt.Sprintf(
-		"Generate automation for this mechanical instruction:\n"+
-			"Title: %s\nContent: %s\n"+
-			"Respond with JSON: {\"automation_type\", \"code\", \"description\", \"test_command\", \"install_path\"}",
-		mem.Title, mem.Content,
-	)
+// LLMResponse is the expected JSON structure from the LLM generation call.
+type LLMResponse struct {
+	AutomationType string `json:"automation_type"`
+	Code           string `json:"code"`
+	Description    string `json:"description"`
+	TestCommand    string `json:"test_command"`
+	InstallPath    string `json:"install_path"`
+}
+
+// Memory is a simplified memory representation for the automate pipeline.
+type Memory struct {
+	Title    string
+	Content  string
+	Keywords []string
+	FilePath string
 }
 
 // MemoriesFromStored converts memory.Stored slice to automate.Memory slice.
@@ -207,4 +162,57 @@ func MemoriesFromStored(stored []*memory.Stored) []Memory {
 	}
 
 	return result
+}
+
+// unexported constants.
+const (
+	minKeywordScore = 2
+)
+
+// unexported variables.
+var (
+	errNoMemoryWriter  = errors.New("automate: no memory writer configured")
+	mechanicalKeywords = []string{ //nolint:gochecknoglobals // static lookup table
+		"always", "never", "before", "after", "format", "convention",
+	}
+)
+
+type scoredCandidate struct {
+	mem   Memory
+	score int
+}
+
+func buildGenerationPrompt(mem Memory) string {
+	return fmt.Sprintf(
+		"Generate automation for this mechanical instruction:\n"+
+			"Title: %s\nContent: %s\n"+
+			"Respond with JSON: {\"automation_type\", \"code\", \"description\", \"test_command\", \"install_path\"}",
+		mem.Title, mem.Content,
+	)
+}
+
+func keywordScore(mem Memory) int {
+	searchText := strings.ToLower(mem.Title + " " + mem.Content)
+	score := 0
+
+	for _, kw := range mechanicalKeywords {
+		if strings.Contains(searchText, kw) {
+			score++
+		}
+	}
+
+	return score
+}
+
+func scoreCandidates(memories []Memory) []scoredCandidate {
+	candidates := make([]scoredCandidate, 0)
+
+	for _, mem := range memories {
+		score := keywordScore(mem)
+		if score >= minKeywordScore {
+			candidates = append(candidates, scoredCandidate{mem: mem, score: score})
+		}
+	}
+
+	return candidates
 }

@@ -16,6 +16,11 @@ import (
 	"time"
 )
 
+// Exported variables.
+var (
+	ErrNoToken = errors.New("audit: API token missing or invalid, skipping audit")
+)
+
 // Auditor runs the session audit pipeline.
 type Auditor struct {
 	dataDir   string
@@ -89,6 +94,26 @@ func (a *Auditor) Run(ctx context.Context, transcript string) (*Report, error) {
 	return report, nil
 }
 
+func (a *Auditor) buildReport(results []ComplianceResult) *Report {
+	var compliant, nonCompliant int
+
+	for _, result := range results {
+		if result.Compliant {
+			compliant++
+		} else {
+			nonCompliant++
+		}
+	}
+
+	return &Report{
+		Timestamp:                a.now().UTC().Format(time.RFC3339),
+		TotalInstructionsAudited: len(results),
+		Compliant:                compliant,
+		NonCompliant:             nonCompliant,
+		Results:                  results,
+	}
+}
+
 // buildScope reads the surfacing log and effectiveness data, returning the
 // top 20% of memories by effectiveness score.
 func (a *Auditor) buildScope() ([]ScopeEntry, error) {
@@ -141,45 +166,6 @@ func (a *Auditor) buildScope() ([]ScopeEntry, error) {
 	return entries[:topCount], nil
 }
 
-func (a *Auditor) buildReport(results []ComplianceResult) *Report {
-	var compliant, nonCompliant int
-
-	for _, result := range results {
-		if result.Compliant {
-			compliant++
-		} else {
-			nonCompliant++
-		}
-	}
-
-	return &Report{
-		Timestamp:                a.now().UTC().Format(time.RFC3339),
-		TotalInstructionsAudited: len(results),
-		Compliant:                compliant,
-		NonCompliant:             nonCompliant,
-		Results:                  results,
-	}
-}
-
-func (a *Auditor) writeReport(report *Report) error {
-	auditDir := filepath.Join(a.dataDir, auditsDirName)
-
-	err := a.mkdirAll(auditDir, dirPerm)
-	if err != nil {
-		return fmt.Errorf("creating audits dir: %w", err)
-	}
-
-	timestamp := strings.ReplaceAll(report.Timestamp, ":", "-")
-	filePath := filepath.Join(auditDir, timestamp+".json")
-
-	data, err := json.Marshal(report)
-	if err != nil {
-		return fmt.Errorf("marshaling report: %w", err)
-	}
-
-	return a.writeFile(filePath, data, filePerm) //nolint:wrapcheck // thin write
-}
-
 // injectSignals writes a negative outcome for each non-compliant instruction
 // into the evaluations directory as a .jsonl file.
 func (a *Auditor) injectSignals(report *Report) error {
@@ -229,38 +215,39 @@ func (a *Auditor) injectSignals(report *Report) error {
 		return nil
 	}
 
-	return a.writeFile(filePath, []byte(sb.String()), filePerm) //nolint:wrapcheck // thin write
+	return a.writeFile(filePath, []byte(sb.String()), filePerm)
+}
+
+func (a *Auditor) writeReport(report *Report) error {
+	auditDir := filepath.Join(a.dataDir, auditsDirName)
+
+	err := a.mkdirAll(auditDir, dirPerm)
+	if err != nil {
+		return fmt.Errorf("creating audits dir: %w", err)
+	}
+
+	timestamp := strings.ReplaceAll(report.Timestamp, ":", "-")
+	filePath := filepath.Join(auditDir, timestamp+".json")
+
+	data, err := json.Marshal(report)
+	if err != nil {
+		return fmt.Errorf("marshaling report: %w", err)
+	}
+
+	return a.writeFile(filePath, data, filePerm)
+}
+
+// ComplianceResult is a single instruction compliance result from the LLM.
+//
+
+type ComplianceResult struct {
+	Instruction string `json:"instruction"`
+	Compliant   bool   `json:"compliant"`
+	Evidence    string `json:"evidence"`
 }
 
 // Option configures an Auditor.
 type Option func(*Auditor)
-
-// WithLLMCaller injects an LLM caller.
-func WithLLMCaller(
-	fn func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
-) Option {
-	return func(a *Auditor) { a.llmCaller = fn }
-}
-
-// WithReadFile injects a file reader.
-func WithReadFile(fn func(string) ([]byte, error)) Option {
-	return func(a *Auditor) { a.readFile = fn }
-}
-
-// WithWriteFile injects a file writer.
-func WithWriteFile(fn func(string, []byte, os.FileMode) error) Option {
-	return func(a *Auditor) { a.writeFile = fn }
-}
-
-// WithMkdirAll injects a directory creator.
-func WithMkdirAll(fn func(string, os.FileMode) error) Option {
-	return func(a *Auditor) { a.mkdirAll = fn }
-}
-
-// WithNow injects a clock function.
-func WithNow(fn func() time.Time) Option {
-	return func(a *Auditor) { a.now = fn }
-}
 
 // Report is the audit report written to audits/<timestamp>.json.
 //
@@ -274,15 +261,6 @@ type Report struct {
 	Results                  []ComplianceResult `json:"results"`
 }
 
-// ComplianceResult is a single instruction compliance result from the LLM.
-//
-//nolint:tagliatelle // spec requires snake_case JSON field names.
-type ComplianceResult struct {
-	Instruction string `json:"instruction"`
-	Compliant   bool   `json:"compliant"`
-	Evidence    string `json:"evidence"`
-}
-
 // ScopeEntry is one memory in the audit scope.
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
@@ -291,8 +269,32 @@ type ScopeEntry struct {
 	EffectivenessScore float64 `json:"effectiveness_score"`
 }
 
-// ErrNoToken is returned when no API token is configured.
-var ErrNoToken = errors.New("audit: API token missing or invalid, skipping audit")
+// WithLLMCaller injects an LLM caller.
+func WithLLMCaller(
+	fn func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
+) Option {
+	return func(a *Auditor) { a.llmCaller = fn }
+}
+
+// WithMkdirAll injects a directory creator.
+func WithMkdirAll(fn func(string, os.FileMode) error) Option {
+	return func(a *Auditor) { a.mkdirAll = fn }
+}
+
+// WithNow injects a clock function.
+func WithNow(fn func() time.Time) Option {
+	return func(a *Auditor) { a.now = fn }
+}
+
+// WithReadFile injects a file reader.
+func WithReadFile(fn func(string) ([]byte, error)) Option {
+	return func(a *Auditor) { a.readFile = fn }
+}
+
+// WithWriteFile injects a file writer.
+func WithWriteFile(fn func(string, []byte, os.FileMode) error) Option {
+	return func(a *Auditor) { a.writeFile = fn }
+}
 
 // unexported constants.
 const (
@@ -307,14 +309,6 @@ const (
 	topPercentDivisor    = 5 // 100/20 = top 20%
 )
 
-// surfacingLogEntry is one line in surfacing-log.jsonl with optional effectiveness.
-//
-//nolint:tagliatelle // spec requires snake_case JSON field names.
-type surfacingLogEntry struct {
-	MemoryPath         string  `json:"memory_path"`
-	EffectivenessScore float64 `json:"effectiveness_score"`
-}
-
 // evalEntry is the JSON structure for injected evaluation signals.
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
@@ -322,6 +316,14 @@ type evalEntry struct {
 	MemoryPath string `json:"memory_path"`
 	Outcome    string `json:"outcome"`
 	Evidence   string `json:"evidence"`
+}
+
+// surfacingLogEntry is one line in surfacing-log.jsonl with optional effectiveness.
+//
+//nolint:tagliatelle // spec requires snake_case JSON field names.
+type surfacingLogEntry struct {
+	MemoryPath         string  `json:"memory_path"`
+	EffectivenessScore float64 `json:"effectiveness_score"`
 }
 
 func buildCompliancePrompt(scope []ScopeEntry, transcript string) string {

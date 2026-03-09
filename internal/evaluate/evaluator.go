@@ -17,11 +17,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
-type RegistryRecorder interface {
-	RecordEvaluation(id, outcome string) error
-}
-
 // Evaluator runs the outcome evaluation pipeline for a session.
 type Evaluator struct {
 	dataDir    string
@@ -59,6 +54,8 @@ func New(dataDir string, opts ...Option) *Evaluator {
 // Returns nil if no memories were surfaced (no LLM call made).
 // When a StripFunc is set, the transcript is split into lines, stripped,
 // and rejoined before evaluation. Empty post-strip transcripts skip the LLM call.
+//
+//nolint:cyclop // evaluation pipeline
 func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome, error) {
 	if e.stripFunc != nil {
 		lines := strings.Split(transcript, "\n")
@@ -67,6 +64,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 		if len(stripped) == 0 {
 			_, _ = fmt.Fprintln(e.logWriter,
 				"[engram] evaluate: transcript empty after strip — skipping")
+
 			return nil, nil
 		}
 
@@ -234,11 +232,21 @@ type Outcome struct {
 	EvaluatedAt time.Time `json:"evaluated_at"`
 }
 
+// RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
+type RegistryRecorder interface {
+	RecordEvaluation(id, outcome string) error
+}
+
 // WithLLMCaller injects an LLM caller function.
 func WithLLMCaller(
 	fn func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
 ) Option {
 	return func(e *Evaluator) { e.llmCaller = fn }
+}
+
+// WithLogWriter injects a writer for diagnostic log messages.
+func WithLogWriter(w io.Writer) Option {
+	return func(e *Evaluator) { e.logWriter = w }
 }
 
 // WithMkdirAll injects a directory creator.
@@ -256,25 +264,20 @@ func WithReadFile(fn func(name string) ([]byte, error)) Option {
 	return func(e *Evaluator) { e.readFile = fn }
 }
 
-// WithRemoveFile injects a file remover.
-func WithRemoveFile(fn func(name string) error) Option {
-	return func(e *Evaluator) { e.removeFile = fn }
-}
-
 // WithRegistry sets the registry recorder for evaluation events (UC-23).
 func WithRegistry(recorder RegistryRecorder) Option {
 	return func(e *Evaluator) { e.registry = recorder }
+}
+
+// WithRemoveFile injects a file remover.
+func WithRemoveFile(fn func(name string) error) Option {
+	return func(e *Evaluator) { e.removeFile = fn }
 }
 
 // WithStripFunc injects a preprocessing function that filters transcript lines
 // before sending to the LLM (UC-25). Default is nil (no stripping).
 func WithStripFunc(fn func([]string) []string) Option {
 	return func(e *Evaluator) { e.stripFunc = fn }
-}
-
-// WithLogWriter injects a writer for diagnostic log messages.
-func WithLogWriter(w io.Writer) Option {
-	return func(e *Evaluator) { e.logWriter = w }
 }
 
 // WithWriteFile injects a file writer.

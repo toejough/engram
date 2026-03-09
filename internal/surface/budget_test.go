@@ -227,20 +227,6 @@ func TestT192_ToolBudgetEnforcement(t *testing.T) {
 	g.Expect(count).To(Equal(2), "expected 2 memories within 35 token budget, got %d", count)
 }
 
-// T-193: Budget cap configuration loads from config with defaults fallback
-func TestT193_BudgetConfigDefaults(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	cfg := surface.DefaultBudgetConfig()
-	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))
-	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget))
-	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))
-	g.Expect(cfg.PostToolUse).To(Equal(surface.DefaultPostToolUseBudget))
-	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
-}
-
 // T-193: Custom config values override defaults
 func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	t.Parallel()
@@ -258,4 +244,18 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	g.Expect(custom.ForMode(surface.ModeSessionStart)).To(Equal(1000))
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
 	g.Expect(custom.ForMode(surface.ModeTool)).To(Equal(300))
+}
+
+// T-193: Budget cap configuration loads from config with defaults fallback
+func TestT193_BudgetConfigDefaults(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	cfg := surface.DefaultBudgetConfig()
+	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))
+	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget))
+	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))
+	g.Expect(cfg.PostToolUse).To(Equal(surface.DefaultPostToolUseBudget))
+	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
 }

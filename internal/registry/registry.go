@@ -2,22 +2,22 @@ package registry
 
 import "errors"
 
-// Outcome represents the result of evaluating an instruction.
-type Outcome string
-
-// Outcome values.
+// Exported constants.
 const (
-	Followed     Outcome = "followed"
 	Contradicted Outcome = "contradicted"
+	Followed     Outcome = "followed"
 	Ignored      Outcome = "ignored"
 )
 
-// Sentinel errors.
+// Exported variables.
 var (
-	ErrNotFound      = errors.New("instruction not found")
 	ErrDuplicateID   = errors.New("instruction ID already exists")
 	ErrMergeNotFound = errors.New("merge source or target not found")
+	ErrNotFound      = errors.New("instruction not found")
 )
+
+// Outcome represents the result of evaluating an instruction.
+type Outcome string
 
 // Registry defines the interface for managing registered instructions.
 type Registry interface {

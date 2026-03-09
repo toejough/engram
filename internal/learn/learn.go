@@ -29,11 +29,6 @@ type Deduplicator interface {
 	) []memory.CandidateLearning
 }
 
-// RegistryRegistrar registers new memories in the instruction registry (UC-23).
-type RegistryRegistrar interface {
-	RegisterMemory(filePath, title, content string, now time.Time) error
-}
-
 // Learner orchestrates the four-stage Session Learning pipeline.
 type Learner struct {
 	extractor      TranscriptExtractor
@@ -173,6 +168,11 @@ type MemoryRetriever interface {
 // MemoryWriter writes an enriched memory to persistent storage.
 type MemoryWriter interface {
 	Write(mem *memory.Enriched, dataDir string) (string, error)
+}
+
+// RegistryRegistrar registers new memories in the instruction registry (UC-23).
+type RegistryRegistrar interface {
+	RegisterMemory(filePath, title, content string, now time.Time) error
 }
 
 // Result holds the output of a learning run for feedback rendering.

@@ -2,18 +2,13 @@ package registry_test
 
 import (
 	"crypto/sha256"
-	"fmt"
+	"encoding/hex"
 	"testing"
 
 	. "github.com/onsi/gomega"
 
 	"engram/internal/registry"
 )
-
-func contentHash(s string) string {
-	h := sha256.Sum256([]byte(s))
-	return fmt.Sprintf("%x", h)
-}
 
 func TestClaudeMDExtractor_Extract(t *testing.T) {
 	t.Parallel()
@@ -40,6 +35,7 @@ func TestClaudeMDExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -63,6 +59,7 @@ func TestClaudeMDExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -79,12 +76,14 @@ func TestClaudeMDExtractor_Extract(t *testing.T) {
 
 		entries1, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
 
 		entries2, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -101,6 +100,7 @@ func TestClaudeMDExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -131,6 +131,7 @@ func TestMemoryMDExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -149,6 +150,7 @@ func TestMemoryMDExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -171,6 +173,7 @@ func TestRuleExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -192,6 +195,7 @@ func TestRuleExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -214,6 +218,7 @@ func TestSkillExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
@@ -235,10 +240,16 @@ func TestSkillExtractor_Extract(t *testing.T) {
 
 		entries, err := ext.Extract()
 		g.Expect(err).NotTo(HaveOccurred())
+
 		if err != nil {
 			return
 		}
 
 		g.Expect(entries).To(BeEmpty())
 	})
+}
+
+func contentHash(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
 }

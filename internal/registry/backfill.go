@@ -2,19 +2,18 @@ package registry
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"time"
 )
 
-// SurfacingLogReader aggregates surfacing data per memory path.
-type SurfacingLogReader interface {
-	AggregateSurfacing() (map[string]SurfacingData, error)
-}
-
-// SurfacingData holds aggregated surfacing info for one memory.
-type SurfacingData struct {
-	Count        int
-	LastSurfaced *time.Time
+// BackfillConfig holds injected readers for the backfill operation.
+type BackfillConfig struct {
+	SurfacingLog SurfacingLogReader
+	CreationLog  CreationLogReader
+	Evaluations  EvaluationsReader
+	Scanner      MemoryScanner
+	Now          time.Time
 }
 
 // CreationLogReader provides registration timestamps per memory path.
@@ -41,13 +40,15 @@ type ScannedMemory struct {
 	UpdatedAt time.Time
 }
 
-// BackfillConfig holds injected readers for the backfill operation.
-type BackfillConfig struct {
-	SurfacingLog SurfacingLogReader
-	CreationLog  CreationLogReader
-	Evaluations  EvaluationsReader
-	Scanner      MemoryScanner
-	Now          time.Time
+// SurfacingData holds aggregated surfacing info for one memory.
+type SurfacingData struct {
+	Count        int
+	LastSurfaced *time.Time
+}
+
+// SurfacingLogReader aggregates surfacing data per memory path.
+type SurfacingLogReader interface {
+	AggregateSurfacing() (map[string]SurfacingData, error)
 }
 
 // Backfill creates registry entries from existing memory data.
@@ -101,6 +102,35 @@ func Backfill(config BackfillConfig) ([]InstructionEntry, error) {
 	return result, nil
 }
 
+func absorbRetired(
+	mem ScannedMemory,
+	entries map[string]*InstructionEntry,
+	surfacing map[string]SurfacingData,
+	evaluations map[string]EvaluationCounters,
+) {
+	target, ok := entries[mem.RetiredBy]
+	if !ok {
+		return
+	}
+
+	surf := surfacing[mem.FilePath]
+	evals := evaluations[mem.FilePath]
+
+	record := AbsorbedRecord{
+		From:          mem.FilePath,
+		SurfacedCount: surf.Count,
+		Evaluations:   evals,
+		ContentHash:   contentHash(mem.Content),
+		MergedAt:      mem.UpdatedAt,
+	}
+
+	target.Absorbed = append(target.Absorbed, record)
+	target.SurfacedCount += surf.Count
+	target.Evaluations.Followed += evals.Followed
+	target.Evaluations.Contradicted += evals.Contradicted
+	target.Evaluations.Ignored += evals.Ignored
+}
+
 func buildEntry(
 	mem ScannedMemory,
 	surfacing map[string]SurfacingData,
@@ -135,37 +165,8 @@ func buildEntry(
 	return entry
 }
 
-func absorbRetired(
-	mem ScannedMemory,
-	entries map[string]*InstructionEntry,
-	surfacing map[string]SurfacingData,
-	evaluations map[string]EvaluationCounters,
-) {
-	target, ok := entries[mem.RetiredBy]
-	if !ok {
-		return
-	}
-
-	surf := surfacing[mem.FilePath]
-	evals := evaluations[mem.FilePath]
-
-	record := AbsorbedRecord{
-		From:          mem.FilePath,
-		SurfacedCount: surf.Count,
-		Evaluations:   evals,
-		ContentHash:   contentHash(mem.Content),
-		MergedAt:      mem.UpdatedAt,
-	}
-
-	target.Absorbed = append(target.Absorbed, record)
-	target.SurfacedCount += surf.Count
-	target.Evaluations.Followed += evals.Followed
-	target.Evaluations.Contradicted += evals.Contradicted
-	target.Evaluations.Ignored += evals.Ignored
-}
-
 func contentHash(content string) string {
 	hash := sha256.Sum256([]byte(content))
 
-	return fmt.Sprintf("%x", hash)
+	return hex.EncodeToString(hash[:])
 }

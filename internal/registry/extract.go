@@ -2,23 +2,13 @@ package registry
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"regexp"
 	"strings"
 	"time"
 	"unicode"
 )
-
-// maxSlugWords is the number of words used to generate entry slugs.
-const maxSlugWords = 4
-
-// bulletPrefix matches markdown list items (-, *, or numbered).
-var bulletPrefix = regexp.MustCompile(`^\s*[-*]\s+`)
-
-// InstructionExtractor extracts registrable instructions from a source.
-type InstructionExtractor interface {
-	Extract() ([]InstructionEntry, error)
-}
 
 // ClaudeMDExtractor extracts instructions from CLAUDE.md content.
 type ClaudeMDExtractor struct {
@@ -29,6 +19,11 @@ type ClaudeMDExtractor struct {
 // Extract parses CLAUDE.md bullets into instruction entries.
 func (e ClaudeMDExtractor) Extract() ([]InstructionEntry, error) {
 	return extractBullets(e.Content, "claude-md", e.SourcePath)
+}
+
+// InstructionExtractor extracts registrable instructions from a source.
+type InstructionExtractor interface {
+	Extract() ([]InstructionEntry, error)
 }
 
 // MemoryMDExtractor extracts instructions from MEMORY.md content.
@@ -58,7 +53,7 @@ func (e RuleExtractor) Extract() ([]InstructionEntry, error) {
 
 	return []InstructionEntry{
 		{
-			ID:           fmt.Sprintf("rule:%s", e.Filename),
+			ID:           "rule:" + e.Filename,
 			SourceType:   "rule",
 			SourcePath:   e.Filename,
 			Title:        e.Filename,
@@ -85,7 +80,7 @@ func (e SkillExtractor) Extract() ([]InstructionEntry, error) {
 
 	return []InstructionEntry{
 		{
-			ID:           fmt.Sprintf("skill:%s", e.SkillName),
+			ID:           "skill:" + e.SkillName,
 			SourceType:   "skill",
 			SourcePath:   e.SkillName,
 			Title:        e.SkillName,
@@ -95,6 +90,16 @@ func (e SkillExtractor) Extract() ([]InstructionEntry, error) {
 		},
 	}, nil
 }
+
+// unexported constants.
+const (
+	maxSlugWords = 4
+)
+
+// unexported variables.
+var (
+	bulletPrefix = regexp.MustCompile(`^\s*[-*]\s+`)
+)
 
 // extractBullets parses markdown content for bullet items and converts each
 // into an InstructionEntry with a stable slug-based ID.
@@ -141,14 +146,11 @@ func extractBullets(
 	return entries, nil
 }
 
-// stripMarkdown removes bold/italic markers and colons after bold text.
-func stripMarkdown(text string) string {
-	// Remove ** markers
-	result := strings.ReplaceAll(text, "**", "")
-	// Remove trailing colon+space after what was a bold label
-	result = strings.TrimSpace(result)
+// hashContent produces a SHA-256 hex digest of content.
+func hashContent(content string) string {
+	h := sha256.Sum256([]byte(content))
 
-	return result
+	return hex.EncodeToString(h[:])
 }
 
 // makeSlug generates a stable slug from the first maxSlugWords words,
@@ -172,9 +174,12 @@ func makeSlug(text string) string {
 	return strings.Join(words, "-")
 }
 
-// hashContent produces a SHA-256 hex digest of content.
-func hashContent(content string) string {
-	h := sha256.Sum256([]byte(content))
+// stripMarkdown removes bold/italic markers and colons after bold text.
+func stripMarkdown(text string) string {
+	// Remove ** markers
+	result := strings.ReplaceAll(text, "**", "")
+	// Remove trailing colon+space after what was a bold label
+	result = strings.TrimSpace(result)
 
-	return fmt.Sprintf("%x", h)
+	return result
 }

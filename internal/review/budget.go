@@ -14,6 +14,15 @@ type BudgetHookStat struct {
 	CapHits       int
 }
 
+// CapHitRate returns the percentage of invocations that hit the budget cap.
+func (s BudgetHookStat) CapHitRate() float64 {
+	if s.Invocations == 0 {
+		return 0
+	}
+
+	return float64(s.CapHits) / float64(s.Invocations) * percentMultiplier
+}
+
 // Utilization returns the average utilization percentage for this hook.
 func (s BudgetHookStat) Utilization() float64 {
 	if s.Budget == 0 || s.Invocations == 0 {
@@ -23,15 +32,6 @@ func (s BudgetHookStat) Utilization() float64 {
 	avg := float64(s.TotalSurfaced) / float64(s.Invocations)
 
 	return (avg / float64(s.Budget)) * percentMultiplier
-}
-
-// CapHitRate returns the percentage of invocations that hit the budget cap.
-func (s BudgetHookStat) CapHitRate() float64 {
-	if s.Invocations == 0 {
-		return 0
-	}
-
-	return float64(s.CapHits) / float64(s.Invocations) * percentMultiplier
 }
 
 // Warning returns a warning string if cap hit rate exceeds the threshold, or "".
@@ -64,6 +64,7 @@ func RenderBudget(stats []BudgetHookStat, w io.Writer) {
 	}
 }
 
+// unexported constants.
 const (
 	capHitWarningThreshold = 50.0
 	percentMultiplier      = 100.0

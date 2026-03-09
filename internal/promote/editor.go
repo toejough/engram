@@ -1,6 +1,7 @@
 package promote
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
@@ -16,6 +17,24 @@ func (e *SectionEditor) AddEntry(content, entry string) (string, error) {
 	}
 
 	return content + "\n\n" + entry, nil
+}
+
+// ExtractEntry returns the content of the section containing the
+// promoted-from marker for the given entryID.
+func (e *SectionEditor) ExtractEntry(
+	content, entryID string,
+) (string, error) {
+	marker := "<!-- promoted from " + entryID + " -->"
+
+	sections := splitSections(content)
+
+	for _, section := range sections {
+		if strings.Contains(section, marker) {
+			return strings.TrimSpace(section), nil
+		}
+	}
+
+	return "", fmt.Errorf("%w: %q", errEntryNotFound, entryID)
 }
 
 // RemoveEntry removes the section containing the promoted-from marker
@@ -41,28 +60,27 @@ func (e *SectionEditor) RemoveEntry(
 	}
 
 	if !found {
-		return "", fmt.Errorf("entry %q not found in CLAUDE.md", entryID)
+		return "", fmt.Errorf("%w: %q", errEntryNotFound, entryID)
 	}
 
 	return joinSections(result), nil
 }
 
-// ExtractEntry returns the content of the section containing the
-// promoted-from marker for the given entryID.
-func (e *SectionEditor) ExtractEntry(
-	content, entryID string,
-) (string, error) {
-	marker := "<!-- promoted from " + entryID + " -->"
+// unexported variables.
+var (
+	errEntryNotFound = errors.New("entry not found in CLAUDE.md")
+)
 
-	sections := splitSections(content)
+// joinSections reassembles sections, trimming trailing whitespace
+// between them.
+func joinSections(sections []string) string {
+	trimmed := make([]string, 0, len(sections))
 
-	for _, section := range sections {
-		if strings.Contains(section, marker) {
-			return strings.TrimSpace(section), nil
-		}
+	for _, s := range sections {
+		trimmed = append(trimmed, strings.TrimRight(s, "\n"))
 	}
 
-	return "", fmt.Errorf("entry %q not found in CLAUDE.md", entryID)
+	return strings.Join(trimmed, "\n\n")
 }
 
 // splitSections splits CLAUDE.md content into sections delimited by
@@ -89,16 +107,4 @@ func splitSections(content string) []string {
 	}
 
 	return sections
-}
-
-// joinSections reassembles sections, trimming trailing whitespace
-// between them.
-func joinSections(sections []string) string {
-	trimmed := make([]string, 0, len(sections))
-
-	for _, s := range sections {
-		trimmed = append(trimmed, strings.TrimRight(s, "\n"))
-	}
-
-	return strings.Join(trimmed, "\n\n")
 }

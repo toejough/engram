@@ -23,6 +23,144 @@ import (
 	"engram/internal/learn"
 )
 
+// TestAuditFlagParseError exercises the flag parse error path.
+func TestAuditFlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "audit", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestAuditMissingDataDir verifies audit without --data-dir returns error.
+func TestAuditMissingDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "audit"},
+		&stdout, &stderr,
+		strings.NewReader("transcript"),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestAuditStdinReadError exercises the stdin read error path via an errReader.
+//
+
+func TestAuditStdinReadError(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "audit", "--data-dir", dataDir,
+		},
+		&stdout, &stderr,
+		&errReader{err: errors.New("broken stdin")},
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestAuditWithBadTimestamp exercises the timestamp parse failure branch.
+//
+
+func TestAuditWithBadTimestamp(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "audit", "--data-dir", dataDir,
+			"--timestamp", "not-a-valid-timestamp",
+		},
+		&stdout, &stderr,
+		strings.NewReader("some transcript"),
+	)
+	// Bad timestamp is silently ignored; audit still runs (no memories → nil report → no error).
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
+// TestAutomateMissingDataDir verifies automate without --data-dir returns error.
+func TestAutomateMissingDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "automate"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestAutomateWithMemories exercises automate with actual memory files (non-empty proposals).
+func TestAutomateWithMemories(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	// Write a memory with high surfaced_count to trigger automation patterns.
+	writeTestTOML(t, memDir, "auto-candidate.toml", `title = "Auto Candidate"
+content = "use targ for builds"
+observation_type = "correction"
+keywords = ["targ"]
+principle = "always use targ"
+anti_pattern = "running go test directly"
+surfaced_count = 20
+confidence = "A"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+`)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "automate", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Output should be valid JSON (array).
+	var proposals []any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+}
+
 // callAnthropicAPI error branches: invalid URL, bad JSON, empty content.
 // Not parallel — sub-tests mutate the cli.AnthropicAPIURL global sequentially.
 //
@@ -305,6 +443,263 @@ func TestLearnSuccessPath(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("[engram] No new learnings extracted."))
 }
 
+// TestMaintainAggregateError exercises the effectiveness Aggregate error path
+// by making the evaluations dir a file (not a directory).
+func TestMaintainAggregateError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create evaluations as a file, not a directory, so readDir fails.
+	g.Expect(os.WriteFile(
+		filepath.Join(dataDir, "evaluations"),
+		[]byte("not a directory"),
+		0o640,
+	)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"",
+		&stdout,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("aggregating effectiveness")))
+	}
+}
+
+// TestMaintainApplyEmptyProposals verifies --apply with empty proposals outputs message.
+func TestMaintainApplyEmptyProposals(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	proposalsPath := filepath.Join(dataDir, "proposals.json")
+
+	g.Expect(os.WriteFile(proposalsPath, []byte("[]"), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir, "--apply", "--proposals", proposalsPath, "--yes"},
+		"",
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("No valid proposals"))
+}
+
+// TestMaintainApplyMissingProposals verifies --apply without --proposals returns error.
+func TestMaintainApplyMissingProposals(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir, "--apply"},
+		"",
+		&stdout,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("--proposals")))
+	}
+}
+
+// TestMaintainApplyNonexistentFile verifies --apply with missing file returns error.
+func TestMaintainApplyNonexistentFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{
+			"--data-dir", dataDir, "--apply",
+			"--proposals", filepath.Join(dataDir, "nope.json"),
+		},
+		"",
+		&stdout,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("reading proposals")))
+	}
+}
+
+// TestMaintainApplyRemoveProposal exercises --apply with a remove proposal.
+func TestMaintainApplyRemoveProposal(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	memPath := filepath.Join(memDir, "remove-me.toml")
+
+	g.Expect(os.WriteFile(memPath, []byte("title=\"Remove Me\"\nprinciple=\"P\"\n"), 0o640)).
+		To(Succeed())
+
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+	registryLine := fmt.Sprintf(
+		`{"id":%q,"source_type":"memory","title":"Remove Me","surfaced_count":5}`,
+		memPath,
+	)
+
+	g.Expect(os.WriteFile(registryPath, []byte(registryLine+"\n"), 0o640)).To(Succeed())
+
+	proposalsJSON := fmt.Sprintf(
+		`[{"memory_path":%q,"quadrant":"Noise","diagnosis":"never used","action":"remove","details":{}}]`,
+		memPath,
+	)
+	proposalsPath := filepath.Join(dataDir, "proposals.json")
+
+	g.Expect(os.WriteFile(proposalsPath, []byte(proposalsJSON), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir, "--apply", "--proposals", proposalsPath, "--yes"},
+		"",
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Applied 1/1"))
+
+	// Memory file should be removed.
+	_, statErr := os.Stat(memPath)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+}
+
+// TestMaintainApplyRewriteProposal exercises cliLLMCaller.Call via a rewrite proposal.
+//
+//nolint:paralleltest // mutates cli.AnthropicAPIURL global
+func TestMaintainApplyRewriteProposal(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	memPath := filepath.Join(memDir, "rewrite-me.toml")
+
+	g.Expect(os.WriteFile(memPath,
+		[]byte("title=\"Rewrite Me\"\nprinciple=\"old principle\"\n"), 0o640,
+	)).To(Succeed())
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(
+				`{"content":[{"type":"text","text":"{\"principle\":\"new principle\",\"anti_pattern\":\"old way\"}"}]}`,
+			))
+		}))
+	defer server.Close()
+
+	original := cli.AnthropicAPIURL
+	cli.AnthropicAPIURL = server.URL
+
+	defer func() { cli.AnthropicAPIURL = original }()
+
+	proposalsJSON := fmt.Sprintf(
+		`[{"memory_path":%q,"quadrant":"Leech","diagnosis":"contradicted","action":"rewrite","details":{}}]`,
+		memPath,
+	)
+	proposalsPath := filepath.Join(dataDir, "proposals.json")
+
+	g.Expect(os.WriteFile(proposalsPath, []byte(proposalsJSON), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir, "--apply", "--proposals", proposalsPath, "--yes"},
+		"fake-token",
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Applied 1/1"))
+}
+
+// TestMaintainBuildMemoryMapError exercises the buildMemoryMap error path
+// by providing a data-dir where the memories directory is a file, not a dir.
+func TestMaintainBuildMemoryMapError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// Write evaluation data so stats is non-empty (skip the early return).
+	memPath := filepath.Join(dataDir, "memories", "fake.toml")
+	evalLine := fmt.Sprintf(
+		`{"memory_path":%q,"outcome":"followed","evaluated_at":"2024-01-01T00:00:00Z"}`,
+		memPath,
+	)
+
+	g.Expect(os.WriteFile(
+		filepath.Join(evalDir, "session.jsonl"),
+		[]byte(evalLine+"\n"),
+		0o640,
+	)).To(Succeed())
+
+	// Make "memories" a file instead of a directory to cause buildMemoryMap to fail.
+	g.Expect(os.WriteFile(
+		filepath.Join(dataDir, "memories"),
+		[]byte("not a directory"),
+		0o640,
+	)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"",
+		&stdout,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("maintain")))
+	}
+}
+
 // TestMaintainDispatchedViaRun verifies "maintain" is in dispatch.
 func TestMaintainDispatchedViaRun(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
@@ -330,6 +725,26 @@ func TestMaintainDispatchedViaRun(t *testing.T) {
 	g.Expect(strings.TrimSpace(stdout.String())).To(Equal("[]"))
 }
 
+// TestMaintainFlagParseError exercises the flag parse error path.
+func TestMaintainFlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain(
+		[]string{"--bogus-flag"},
+		"",
+		&stdout,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("maintain")))
+	}
+}
+
 // TestMaintainMissingDataDir verifies missing --data-dir returns error.
 func TestMaintainMissingDataDir(t *testing.T) {
 	t.Parallel()
@@ -343,6 +758,386 @@ func TestMaintainMissingDataDir(t *testing.T) {
 
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("data-dir"))
+	}
+}
+
+// TestMaintainWithLeechEscalation exercises the escalation engine path in RunMaintain.
+func TestMaintainWithLeechEscalation(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
+
+	// Create a leech memory: high surfacing, all contradicted.
+	leechMem := writeReviewMemoryTOML(t, memDir, "leech-escalation.toml", 10)
+	writeReviewEvalLog(t, evalDir, "leech-esc.jsonl", leechMem,
+		[]string{
+			"contradicted", "contradicted", "contradicted",
+			"contradicted", "contradicted",
+		})
+
+	var stdout bytes.Buffer
+
+	// Pass a token to exercise the token != "" branch (WithLLMCaller).
+	// The LLM caller won't be invoked since no hidden gem or leech LLM proposals
+	// are generated without an actual LLM, but the wiring path is exercised.
+	err := cli.RunMaintain(
+		[]string{"--data-dir", dataDir},
+		"fake-token",
+		&stdout,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var proposals []map[string]any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+
+	if jsonErr != nil {
+		return
+	}
+
+	// Should have at least one proposal (escalation or noise).
+	g.Expect(proposals).ToNot(BeEmpty())
+}
+
+// TestRegistryMergeMissingFlags verifies merge without flags returns error.
+func TestRegistryMergeMissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRegistryMerge(
+		[]string{},
+		&stdout,
+		os.Remove,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("required")))
+	}
+}
+
+// TestRegistryMergeNonMemorySource exercises merge where source is not a memory type
+// (no file deletion).
+func TestRegistryMergeNonMemorySource(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+
+	sourceEntry := map[string]any{
+		"id":             "rule-src",
+		"source_type":    "rule",
+		"source_path":    "",
+		"title":          "Source Rule",
+		"surfaced_count": 3,
+		"evaluations":    map[string]int{"followed": 2, "contradicted": 0, "ignored": 1},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+	targetEntry := map[string]any{
+		"id":             "rule-tgt",
+		"source_type":    "rule",
+		"title":          "Target Rule",
+		"surfaced_count": 1,
+		"evaluations":    map[string]int{"followed": 1, "contradicted": 0, "ignored": 0},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, marshalErr := json.Marshal(sourceEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, marshalErr := json.Marshal(targetEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	g.Expect(os.WriteFile(registryPath, []byte(registryData.String()), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	removeFileCalled := false
+
+	err := cli.RunRegistryMerge(
+		[]string{
+			"--data-dir", dataDir,
+			"--source", "rule-src",
+			"--target", "rule-tgt",
+		},
+		&stdout,
+		func(_ string) error {
+			removeFileCalled = true
+
+			return nil
+		},
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Merged"))
+
+	// Non-memory source should NOT trigger file deletion.
+	g.Expect(removeFileCalled).To(BeFalse())
+}
+
+// TestRegistryMergeRemoveFileError exercises the removeFile error warning path.
+func TestRegistryMergeRemoveFileError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+
+	sourceEntry := map[string]any{
+		"id":             "mem-src",
+		"source_type":    "memory",
+		"source_path":    "/fake/path/memory.toml",
+		"title":          "Source Memory",
+		"surfaced_count": 5,
+		"evaluations":    map[string]int{"followed": 3, "contradicted": 1, "ignored": 0},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+	targetEntry := map[string]any{
+		"id":             "mem-tgt",
+		"source_type":    "memory",
+		"title":          "Target Memory",
+		"surfaced_count": 2,
+		"evaluations":    map[string]int{"followed": 1, "contradicted": 0, "ignored": 0},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, marshalErr := json.Marshal(sourceEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, marshalErr := json.Marshal(targetEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	g.Expect(os.WriteFile(registryPath, []byte(registryData.String()), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	// removeFile returns a non-IsNotExist error to exercise the warning path.
+	err := cli.RunRegistryMerge(
+		[]string{
+			"--data-dir", dataDir,
+			"--source", "mem-src",
+			"--target", "mem-tgt",
+		},
+		&stdout,
+		func(_ string) error {
+			return errors.New("permission denied")
+		},
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Warning"))
+	g.Expect(stdout.String()).To(ContainSubstring("permission denied"))
+}
+
+// TestRegistryMergeSourceNotFound exercises the Get error path.
+func TestRegistryMergeSourceNotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Write an empty registry file.
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+
+	g.Expect(os.WriteFile(registryPath, []byte(""), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRegistryMerge(
+		[]string{
+			"--data-dir", dataDir,
+			"--source", "nonexistent-src",
+			"--target", "nonexistent-tgt",
+		},
+		&stdout,
+		os.Remove,
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestRegistryRegisterSourceDuplicateSkipped exercises the ErrDuplicateID continue path.
+func TestRegistryRegisterSourceDuplicateSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	srcPath := filepath.Join(dataDir, "rule.md")
+
+	g.Expect(os.WriteFile(srcPath,
+		[]byte("## Rule\nAlways use table-driven tests.\n"), 0o640,
+	)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	// Register once.
+	err := cli.RunRegistryRegisterSource(
+		[]string{
+			"--data-dir", dataDir,
+			"--type", "rule",
+			"--path", srcPath,
+		},
+		&stdout,
+		os.ReadFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Register again — duplicates should be skipped.
+	stdout.Reset()
+
+	err = cli.RunRegistryRegisterSource(
+		[]string{
+			"--data-dir", dataDir,
+			"--type", "rule",
+			"--path", srcPath,
+		},
+		&stdout,
+		os.ReadFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Registered 0 instructions"))
+}
+
+// TestRegistryRegisterSourceEmptyExtraction exercises the zero-entries path.
+func TestRegistryRegisterSourceEmptyExtraction(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	srcPath := filepath.Join(dataDir, "empty.md")
+
+	// An empty file produces zero extracted entries.
+	g.Expect(os.WriteFile(srcPath, []byte(""), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRegistryRegisterSource(
+		[]string{
+			"--data-dir", dataDir,
+			"--type", "skill",
+			"--path", srcPath,
+		},
+		&stdout,
+		os.ReadFile,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("No instructions extracted"))
+}
+
+// TestRegistryRegisterSourceReadFileError exercises the readFile error path.
+func TestRegistryRegisterSourceReadFileError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRegistryRegisterSource(
+		[]string{
+			"--data-dir", dataDir,
+			"--type", "rule",
+			"--path", "/nonexistent/file.md",
+		},
+		&stdout,
+		os.ReadFile,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("reading source")))
+	}
+}
+
+// TestRegistryRegisterSourceUnknownType exercises the buildExtractor error path.
+func TestRegistryRegisterSourceUnknownType(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	srcPath := filepath.Join(dataDir, "src.md")
+
+	g.Expect(os.WriteFile(srcPath, []byte("# Content\nSome rule.\n"), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunRegistryRegisterSource(
+		[]string{
+			"--data-dir", dataDir,
+			"--type", "unknown-type",
+			"--path", srcPath,
+		},
+		&stdout,
+		os.ReadFile,
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err).To(MatchError(ContainSubstring("register-source")))
 	}
 }
 
@@ -1255,6 +2050,182 @@ func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	}
 }
 
+func TestT197_CLIReviewQuadrantOutputJSON(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+
+	// Write a registry file with two entries.
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+
+	workingEntry := map[string]any{
+		"id":             "mem-working",
+		"source_type":    "memory",
+		"title":          "Working Memory",
+		"surfaced_count": 10,
+		"evaluations":    map[string]int{"followed": 8, "contradicted": 1, "ignored": 1},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+	leechEntry := map[string]any{
+		"id":             "mem-leech",
+		"source_type":    "memory",
+		"title":          "Leech Memory",
+		"surfaced_count": 10,
+		"evaluations":    map[string]int{"followed": 1, "contradicted": 5, "ignored": 4},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, marshalErr := json.Marshal(workingEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, marshalErr := json.Marshal(leechEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	err := os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "review",
+			"--data-dir", tmpDir,
+			"--format", "json",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var results []map[string]any
+
+	err = json.Unmarshal(stdout.Bytes(), &results)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(results).To(HaveLen(2))
+
+	quadrants := make(map[string]string)
+
+	for _, result := range results {
+		id, _ := result["id"].(string)
+		quadrant, _ := result["quadrant"].(string)
+		quadrants[id] = quadrant
+	}
+
+	g.Expect(quadrants["mem-working"]).To(Equal("Working"))
+	g.Expect(quadrants["mem-leech"]).To(Equal("Leech"))
+}
+
+func TestT198_CLIMergeAbsorbsAndDeletes(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+
+	// Create a source memory TOML file.
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	sourceToml := filepath.Join(memDir, "source-memory.toml")
+
+	err = os.WriteFile(sourceToml, []byte("title=\"Source\"\n"), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Write a registry with source and target entries.
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+
+	sourceEntry := map[string]any{
+		"id":             "memories/source-memory.toml",
+		"source_type":    "memory",
+		"source_path":    sourceToml,
+		"title":          "Source Memory",
+		"content_hash":   "abc",
+		"surfaced_count": 5,
+		"evaluations": map[string]int{
+			"followed": 3, "contradicted": 1, "ignored": 0,
+		},
+		"registered_at": "2026-03-01T00:00:00Z",
+		"updated_at":    "2026-03-08T00:00:00Z",
+	}
+	targetEntry := map[string]any{
+		"id":             "target-id",
+		"source_type":    "memory",
+		"title":          "Target Memory",
+		"surfaced_count": 2,
+		"evaluations": map[string]int{
+			"followed": 1, "contradicted": 0, "ignored": 0,
+		},
+		"registered_at": "2026-03-01T00:00:00Z",
+		"updated_at":    "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, marshalErr := json.Marshal(sourceEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, marshalErr := json.Marshal(targetEntry)
+	g.Expect(marshalErr).NotTo(HaveOccurred())
+
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	err = os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "merge",
+			"--data-dir", tmpDir,
+			"--source", "memories/source-memory.toml",
+			"--target", "target-id",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("Merged"))
+
+	// Verify source TOML was deleted.
+	_, statErr := os.Stat(sourceToml)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+
+	// Verify registry: only one line (target), source absorbed into it.
+	data, err := os.ReadFile(registryPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	g.Expect(lines).To(HaveLen(1)) // only target remains
+	g.Expect(lines[0]).To(ContainSubstring("target-id"))
+	g.Expect(lines[0]).To(ContainSubstring("absorbed"))
+}
+
 // T-19: correct with non-matching message produces empty stdout
 func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 	t.Parallel()
@@ -1277,6 +2248,111 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 	_, statErr := os.Stat(memoriesDir)
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+}
+
+func TestT272_RegistryInitDryRunListsEntries(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tomlContent := `Title = "Test Memory"
+Content = "test content"
+Concepts = ["testing"]
+Keywords = ["test"]
+Principle = "always test"
+updated_at = "2026-03-08T00:00:00Z"
+`
+	writeTestTOML(t, memDir, "test-memory.toml", tomlContent)
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "init",
+			"--data-dir", tmpDir, "--dry-run",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("dry-run"))
+	g.Expect(output).To(ContainSubstring("1 entries"))
+}
+
+func TestT273_RegistryInitWritesJSONLFile(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tomlContent := `Title = "Init Test"
+Content = "init content"
+Concepts = ["init"]
+Keywords = ["registry"]
+updated_at = "2026-03-08T00:00:00Z"
+`
+	writeTestTOML(t, memDir, "init-test.toml", tomlContent)
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "init",
+			"--data-dir", tmpDir,
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("initialized"))
+	g.Expect(output).To(ContainSubstring("1 entries"))
+
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+	data, err := os.ReadFile(registryPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(string(data)).To(ContainSubstring("Init Test"))
+}
+
+func TestT274_RegistryInitMissingDataDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "init"},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("--data-dir")))
+}
+
+func TestT275_RegistryUnknownSubcommand(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "bogus"},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("unknown subcommand")))
 }
 
 // T-40: Mode session-start routes to SessionStart surfacing
@@ -1602,6 +2678,17 @@ func (f *fakeHTTPDoer) Do(_ *http.Request) (*http.Response, error) {
 	}, nil
 }
 
+// reviewTestEntry is a compact representation for building registry test data.
+type reviewTestEntry struct {
+	ID           string
+	Source       string
+	Title        string
+	Surfaced     int
+	Followed     int
+	Contradicted int
+	Ignored      int
+}
+
 // writeReviewEvalLog writes evaluation log entries for a memory to a .jsonl file.
 func writeReviewEvalLog(tb testing.TB, evalDir, filename, memPath string, outcomes []string) {
 	tb.Helper()
@@ -1633,284 +2720,6 @@ func writeReviewMemoryTOML(tb testing.TB, dir, filename string, surfacedCount in
 	}
 
 	return path
-}
-
-func TestT272_RegistryInitDryRunListsEntries(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	tmpDir := t.TempDir()
-	memDir := filepath.Join(tmpDir, "memories")
-
-	err := os.MkdirAll(memDir, 0o755)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	tomlContent := `Title = "Test Memory"
-Content = "test content"
-Concepts = ["testing"]
-Keywords = ["test"]
-Principle = "always test"
-updated_at = "2026-03-08T00:00:00Z"
-`
-	writeTestTOML(t, memDir, "test-memory.toml", tomlContent)
-
-	var stdout bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "registry", "init",
-			"--data-dir", tmpDir, "--dry-run",
-		},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("dry-run"))
-	g.Expect(output).To(ContainSubstring("1 entries"))
-}
-
-func TestT273_RegistryInitWritesJSONLFile(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	tmpDir := t.TempDir()
-	memDir := filepath.Join(tmpDir, "memories")
-
-	err := os.MkdirAll(memDir, 0o755)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	tomlContent := `Title = "Init Test"
-Content = "init content"
-Concepts = ["init"]
-Keywords = ["registry"]
-updated_at = "2026-03-08T00:00:00Z"
-`
-	writeTestTOML(t, memDir, "init-test.toml", tomlContent)
-
-	var stdout bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "registry", "init",
-			"--data-dir", tmpDir,
-		},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("initialized"))
-	g.Expect(output).To(ContainSubstring("1 entries"))
-
-	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
-	data, err := os.ReadFile(registryPath)
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	g.Expect(string(data)).To(ContainSubstring("Init Test"))
-}
-
-func TestT274_RegistryInitMissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	var stdout bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "registry", "init"},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).To(MatchError(ContainSubstring("--data-dir")))
-}
-
-func TestT275_RegistryUnknownSubcommand(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	var stdout bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "registry", "bogus"},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).To(MatchError(ContainSubstring("unknown subcommand")))
-}
-
-func TestT197_CLIReviewQuadrantOutputJSON(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	tmpDir := t.TempDir()
-
-	// Write a registry file with two entries.
-	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
-
-	workingEntry := map[string]any{
-		"id":             "mem-working",
-		"source_type":    "memory",
-		"title":          "Working Memory",
-		"surfaced_count": 10,
-		"evaluations":    map[string]int{"followed": 8, "contradicted": 1, "ignored": 1},
-		"registered_at":  "2026-03-01T00:00:00Z",
-		"updated_at":     "2026-03-08T00:00:00Z",
-	}
-	leechEntry := map[string]any{
-		"id":             "mem-leech",
-		"source_type":    "memory",
-		"title":          "Leech Memory",
-		"surfaced_count": 10,
-		"evaluations":    map[string]int{"followed": 1, "contradicted": 5, "ignored": 4},
-		"registered_at":  "2026-03-01T00:00:00Z",
-		"updated_at":     "2026-03-08T00:00:00Z",
-	}
-
-	var registryData strings.Builder
-
-	line1, _ := json.Marshal(workingEntry)
-	registryData.Write(line1)
-	registryData.WriteByte('\n')
-
-	line2, _ := json.Marshal(leechEntry)
-	registryData.Write(line2)
-	registryData.WriteByte('\n')
-
-	err := os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var stdout bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "review",
-			"--data-dir", tmpDir,
-			"--format", "json",
-		},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var results []map[string]any
-
-	err = json.Unmarshal(stdout.Bytes(), &results)
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-	g.Expect(results).To(HaveLen(2))
-
-	quadrants := make(map[string]string)
-	for _, result := range results {
-		id, _ := result["id"].(string)
-		quadrant, _ := result["quadrant"].(string)
-		quadrants[id] = quadrant
-	}
-
-	g.Expect(quadrants["mem-working"]).To(Equal("Working"))
-	g.Expect(quadrants["mem-leech"]).To(Equal("Leech"))
-}
-
-func TestT198_CLIMergeAbsorbsAndDeletes(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	tmpDir := t.TempDir()
-
-	// Create a source memory TOML file.
-	memDir := filepath.Join(tmpDir, "memories")
-
-	err := os.MkdirAll(memDir, 0o755)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	sourceToml := filepath.Join(memDir, "source-memory.toml")
-
-	err = os.WriteFile(sourceToml, []byte("title=\"Source\"\n"), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	// Write a registry with source and target entries.
-	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
-
-	sourceEntry := map[string]any{
-		"id":             "memories/source-memory.toml",
-		"source_type":    "memory",
-		"source_path":    sourceToml,
-		"title":          "Source Memory",
-		"content_hash":   "abc",
-		"surfaced_count": 5,
-		"evaluations": map[string]int{
-			"followed": 3, "contradicted": 1, "ignored": 0,
-		},
-		"registered_at": "2026-03-01T00:00:00Z",
-		"updated_at":    "2026-03-08T00:00:00Z",
-	}
-	targetEntry := map[string]any{
-		"id":             "target-id",
-		"source_type":    "memory",
-		"title":          "Target Memory",
-		"surfaced_count": 2,
-		"evaluations": map[string]int{
-			"followed": 1, "contradicted": 0, "ignored": 0,
-		},
-		"registered_at": "2026-03-01T00:00:00Z",
-		"updated_at":    "2026-03-08T00:00:00Z",
-	}
-
-	var registryData strings.Builder
-
-	line1, _ := json.Marshal(sourceEntry)
-	registryData.Write(line1)
-	registryData.WriteByte('\n')
-
-	line2, _ := json.Marshal(targetEntry)
-	registryData.Write(line2)
-	registryData.WriteByte('\n')
-
-	err = os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	var stdout bytes.Buffer
-
-	err = cli.Run(
-		[]string{
-			"engram", "registry", "merge",
-			"--data-dir", tmpDir,
-			"--source", "memories/source-memory.toml",
-			"--target", "target-id",
-		},
-		&stdout, io.Discard, strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Merged"))
-
-	// Verify source TOML was deleted.
-	_, statErr := os.Stat(sourceToml)
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
-
-	// Verify registry: only one line (target), source absorbed into it.
-	data, err := os.ReadFile(registryPath)
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	g.Expect(lines).To(HaveLen(1)) // only target remains
-	g.Expect(lines[0]).To(ContainSubstring("target-id"))
-	g.Expect(lines[0]).To(ContainSubstring("absorbed"))
-}
-
-// reviewTestEntry is a compact representation for building registry test data.
-type reviewTestEntry struct {
-	ID           string
-	Source       string
-	Title        string
-	Surfaced     int
-	Followed     int
-	Contradicted int
-	Ignored      int
 }
 
 func writeReviewRegistry(t *testing.T, dataDir string, entries []reviewTestEntry) {

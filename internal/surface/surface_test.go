@@ -15,6 +15,205 @@ import (
 	"engram/internal/surface"
 )
 
+// QW-1: Tool mode limits to top 3 results.
+func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// 5 anti-pattern memories matching "commit" + 8 non-matching fillers for IDF contrast.
+	memories := make([]*memory.Stored, 0, 13)
+	for i := range 5 {
+		memories = append(memories, &memory.Stored{
+			Title:       memTitle(i),
+			FilePath:    memPath(i),
+			AntiPattern: "manual commit violation",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill",
+		})
+	}
+
+	fillerNames := []string{
+		"logging",
+		"testing",
+		"deploy",
+		"config",
+		"monitoring",
+		"caching",
+		"auth",
+		"docs",
+	}
+	for _, name := range fillerNames {
+		memories = append(memories, &memory.Stored{
+			Title:       name + " rule",
+			FilePath:    name + "-rule.toml",
+			AntiPattern: name + " violation",
+			Keywords:    []string{name},
+			Principle:   name + " standards",
+		})
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix bug'",
+		Format:    surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var result surface.Result
+
+	decodeErr := json.Unmarshal(buf.Bytes(), &result)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 3 tool advisories:"))
+}
+
+// QW-2: BM25 relevance floor filters low-scoring memories.
+func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Need enough docs for IDF contrast (df/N < 0.5 so IDF > 0).
+	memories := []*memory.Stored{
+		{
+			Title:    "Exact Match",
+			FilePath: "exact-match.toml",
+			Keywords: []string{"deploy", "production"},
+			Content:  "deploy to production safely",
+		},
+		{
+			Title:    "Irrelevant Memory",
+			FilePath: "irrelevant.toml",
+			Keywords: []string{"banana", "fruit"},
+			Content:  "banana smoothie recipe for healthy eating",
+		},
+		{
+			Title:    "Filler A",
+			FilePath: "filler-a.toml",
+			Keywords: []string{"logging"},
+			Content:  "logging best practices",
+		},
+		{
+			Title:    "Filler B",
+			FilePath: "filler-b.toml",
+			Keywords: []string{"testing"},
+			Content:  "testing strategies",
+		},
+		{
+			Title:    "Filler C",
+			FilePath: "filler-c.toml",
+			Keywords: []string{"monitoring"},
+			Content:  "monitoring dashboards",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "deploy to production",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	// "exact-match" should appear, "irrelevant" should not (score below floor).
+	g.Expect(output).To(ContainSubstring("exact-match"))
+	g.Expect(output).NotTo(ContainSubstring("irrelevant"))
+}
+
+// QW-2: Tool mode relevance floor filters low-scoring memories.
+func TestQW2_ToolRelevanceFloorFiltersLowScoring(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:       "Commit Rule",
+			FilePath:    "commit-rule.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit",
+		},
+		{
+			Title:       "Banana Rule",
+			FilePath:    "banana-rule.toml",
+			AntiPattern: "eating bananas at desk",
+			Keywords:    []string{"banana", "fruit"},
+			Principle:   "no food at desk",
+		},
+		{
+			Title:       "Filler A",
+			FilePath:    "filler-a.toml",
+			AntiPattern: "logging without context",
+			Keywords:    []string{"logging"},
+			Principle:   "always log with context",
+		},
+		{
+			Title:       "Filler B",
+			FilePath:    "filler-b.toml",
+			AntiPattern: "skipping monitoring",
+			Keywords:    []string{"monitoring"},
+			Principle:   "monitor everything",
+		},
+		{
+			Title:       "Filler C",
+			FilePath:    "filler-c.toml",
+			AntiPattern: "ignoring alerts",
+			Keywords:    []string{"alerts"},
+			Principle:   "respond to alerts",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		DataDir:   "/tmp/data",
+		ToolName:  "Bash",
+		ToolInput: "git commit -m 'fix'",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("commit-rule"))
+	g.Expect(output).NotTo(ContainSubstring("banana-rule"))
+}
+
 // T-100: Tool mode with no matching memories produces empty output
 func TestT100_ToolModeNoMatchProducesEmpty(t *testing.T) {
 	t.Parallel()
@@ -345,6 +544,107 @@ func TestT170B_PromptModeFrecencyReRanking(t *testing.T) {
 	// Without inline tracking fields, both memories should appear (BM25 match).
 	// Frecency re-ranking is pending registry integration (UC-23).
 	g.Expect(output).To(ContainSubstring("testing"))
+}
+
+// T-199: Surfacing hook calls RecordSurfacing, surfaced_count increments.
+func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Beta",
+			FilePath:  "beta.toml",
+			UpdatedAt: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	registry := &fakeRegistryRecorder{}
+	s := surface.New(retriever, surface.WithRegistry(registry))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Both memories should have been recorded.
+	g.Expect(registry.ids).To(HaveLen(2))
+	g.Expect(registry.ids).To(ContainElement("alpha.toml"))
+	g.Expect(registry.ids).To(ContainElement("beta.toml"))
+}
+
+// T-199b: Registry error does not affect surfacing output (fire-and-forget).
+func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	registry := &fakeRegistryRecorder{err: errors.New("registry write failed")}
+	s := surface.New(retriever, surface.WithRegistry(registry))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	// Run should succeed despite registry error.
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("alpha"))
+}
+
+// T-199c: Nil registry does not panic (backward compat).
+func TestT199c_NilRegistryNoPanic(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	// No WithRegistry — registry is nil.
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("alpha"))
 }
 
 // T-27: SessionStart surfaces top 10 by frecency
@@ -1308,205 +1608,6 @@ func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T)
 	g.Expect(logReader.cleared).To(BeTrue())
 }
 
-// QW-1: Tool mode limits to top 3 results.
-func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// 5 anti-pattern memories matching "commit" + 8 non-matching fillers for IDF contrast.
-	memories := make([]*memory.Stored, 0, 13)
-	for i := range 5 {
-		memories = append(memories, &memory.Stored{
-			Title:       memTitle(i),
-			FilePath:    memPath(i),
-			AntiPattern: "manual commit violation",
-			Keywords:    []string{"commit", "git"},
-			Principle:   "use /commit skill",
-		})
-	}
-
-	fillerNames := []string{
-		"logging",
-		"testing",
-		"deploy",
-		"config",
-		"monitoring",
-		"caching",
-		"auth",
-		"docs",
-	}
-	for _, name := range fillerNames {
-		memories = append(memories, &memory.Stored{
-			Title:       name + " rule",
-			FilePath:    name + "-rule.toml",
-			AntiPattern: name + " violation",
-			Keywords:    []string{name},
-			Principle:   name + " standards",
-		})
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:      surface.ModeTool,
-		DataDir:   "/tmp/data",
-		ToolName:  "Bash",
-		ToolInput: "git commit -m 'fix bug'",
-		Format:    surface.FormatJSON,
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	var result surface.Result
-
-	decodeErr := json.Unmarshal(buf.Bytes(), &result)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-
-	if decodeErr != nil {
-		return
-	}
-
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 3 tool advisories:"))
-}
-
-// QW-2: BM25 relevance floor filters low-scoring memories.
-func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// Need enough docs for IDF contrast (df/N < 0.5 so IDF > 0).
-	memories := []*memory.Stored{
-		{
-			Title:    "Exact Match",
-			FilePath: "exact-match.toml",
-			Keywords: []string{"deploy", "production"},
-			Content:  "deploy to production safely",
-		},
-		{
-			Title:    "Irrelevant Memory",
-			FilePath: "irrelevant.toml",
-			Keywords: []string{"banana", "fruit"},
-			Content:  "banana smoothie recipe for healthy eating",
-		},
-		{
-			Title:    "Filler A",
-			FilePath: "filler-a.toml",
-			Keywords: []string{"logging"},
-			Content:  "logging best practices",
-		},
-		{
-			Title:    "Filler B",
-			FilePath: "filler-b.toml",
-			Keywords: []string{"testing"},
-			Content:  "testing strategies",
-		},
-		{
-			Title:    "Filler C",
-			FilePath: "filler-c.toml",
-			Keywords: []string{"monitoring"},
-			Content:  "monitoring dashboards",
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModePrompt,
-		DataDir: "/tmp/data",
-		Message: "deploy to production",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	// "exact-match" should appear, "irrelevant" should not (score below floor).
-	g.Expect(output).To(ContainSubstring("exact-match"))
-	g.Expect(output).NotTo(ContainSubstring("irrelevant"))
-}
-
-// QW-2: Tool mode relevance floor filters low-scoring memories.
-func TestQW2_ToolRelevanceFloorFiltersLowScoring(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:       "Commit Rule",
-			FilePath:    "commit-rule.toml",
-			AntiPattern: "manual git commit",
-			Keywords:    []string{"commit", "git"},
-			Principle:   "use /commit",
-		},
-		{
-			Title:       "Banana Rule",
-			FilePath:    "banana-rule.toml",
-			AntiPattern: "eating bananas at desk",
-			Keywords:    []string{"banana", "fruit"},
-			Principle:   "no food at desk",
-		},
-		{
-			Title:       "Filler A",
-			FilePath:    "filler-a.toml",
-			AntiPattern: "logging without context",
-			Keywords:    []string{"logging"},
-			Principle:   "always log with context",
-		},
-		{
-			Title:       "Filler B",
-			FilePath:    "filler-b.toml",
-			AntiPattern: "skipping monitoring",
-			Keywords:    []string{"monitoring"},
-			Principle:   "monitor everything",
-		},
-		{
-			Title:       "Filler C",
-			FilePath:    "filler-c.toml",
-			AntiPattern: "ignoring alerts",
-			Keywords:    []string{"alerts"},
-			Principle:   "respond to alerts",
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	s := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:      surface.ModeTool,
-		DataDir:   "/tmp/data",
-		ToolName:  "Bash",
-		ToolInput: "git commit -m 'fix'",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := buf.String()
-	g.Expect(output).To(ContainSubstring("commit-rule"))
-	g.Expect(output).NotTo(ContainSubstring("banana-rule"))
-}
-
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
 func TestUnknownModeReturnsError(t *testing.T) {
 	t.Parallel()
@@ -1555,6 +1656,17 @@ func (f *fakeLogReader) ReadAndClear(dataDir string) ([]surface.LogEntry, error)
 	f.cleared = true
 
 	return f.entries, f.err
+}
+
+// fakeRegistryRecorder is a test double for surface.RegistryRecorder.
+type fakeRegistryRecorder struct {
+	ids []string
+	err error
+}
+
+func (f *fakeRegistryRecorder) RecordSurfacing(id string) error {
+	f.ids = append(f.ids, id)
+	return f.err
 }
 
 // fakeRetriever is a test double for surface.MemoryRetriever.
@@ -1613,118 +1725,6 @@ func memPath(i int) string {
 
 func memSlug(i int) string {
 	return "memory-" + string(rune('a'+i%26))
-}
-
-// T-199: Surfacing hook calls RecordSurfacing, surfaced_count increments.
-func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:     "Alpha",
-			FilePath:  "alpha.toml",
-			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
-		},
-		{
-			Title:     "Beta",
-			FilePath:  "beta.toml",
-			UpdatedAt: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	registry := &fakeRegistryRecorder{}
-	s := surface.New(retriever, surface.WithRegistry(registry))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Both memories should have been recorded.
-	g.Expect(registry.ids).To(HaveLen(2))
-	g.Expect(registry.ids).To(ContainElement("alpha.toml"))
-	g.Expect(registry.ids).To(ContainElement("beta.toml"))
-}
-
-// T-199b: Registry error does not affect surfacing output (fire-and-forget).
-func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:     "Alpha",
-			FilePath:  "alpha.toml",
-			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	registry := &fakeRegistryRecorder{err: errors.New("registry write failed")}
-	s := surface.New(retriever, surface.WithRegistry(registry))
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	// Run should succeed despite registry error.
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(ContainSubstring("alpha"))
-}
-
-// T-199c: Nil registry does not panic (backward compat).
-func TestT199c_NilRegistryNoPanic(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	memories := []*memory.Stored{
-		{
-			Title:     "Alpha",
-			FilePath:  "alpha.toml",
-			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
-		},
-	}
-
-	retriever := &fakeRetriever{memories: memories}
-	// No WithRegistry — registry is nil.
-	s := surface.New(retriever)
-
-	var buf bytes.Buffer
-
-	err := s.Run(context.Background(), &buf, surface.Options{
-		Mode:    surface.ModeSessionStart,
-		DataDir: "/tmp/data",
-	})
-
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(ContainSubstring("alpha"))
-}
-
-// fakeRegistryRecorder is a test double for surface.RegistryRecorder.
-type fakeRegistryRecorder struct {
-	ids []string
-	err error
-}
-
-func (f *fakeRegistryRecorder) RecordSurfacing(id string) error {
-	f.ids = append(f.ids, id)
-	return f.err
 }
 
 // --- Helpers ---

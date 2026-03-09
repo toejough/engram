@@ -152,76 +152,6 @@ func TestAuditRun_DiagnosesBottom20Percent(t *testing.T) {
 	g.Expect(diagnoses[0].Suggestion).To(Equal("add when clause"))
 }
 
-// T-219: Refinement proposals in maintain-compatible format.
-func TestAuditRun_GeneratesRefinementProposals(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	files := map[string]string{
-		"/data/memories/bad.toml": "vague instruction about code quality",
-	}
-
-	scanner := &instruct.Scanner{
-		ReadFile: func(path string) ([]byte, error) {
-			content, ok := files[path]
-			if !ok {
-				return nil, fmt.Errorf("not found: %s", path)
-			}
-
-			return []byte(content), nil
-		},
-		GlobFiles: func(pattern string) ([]string, error) {
-			if pattern == "/data/memories/*.toml" {
-				return []string{"/data/memories/bad.toml"}, nil
-			}
-
-			return nil, nil
-		},
-		EffData: map[string]float64{
-			"/data/memories/bad.toml": 5.0,
-		},
-	}
-
-	auditor := &instruct.Auditor{
-		Scanner: scanner,
-		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
-			return `{"diagnosis":"too vague","root_cause":"too abstract","suggestion":"specify file types"}`, nil
-		},
-	}
-
-	report, err := auditor.Run(context.Background(), "/data", "/project")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report).NotTo(BeNil())
-
-	if report == nil {
-		return
-	}
-
-	proposals := make([]instruct.RefinementProposal, 0)
-	unmarshalErr := json.Unmarshal(report.Proposals, &proposals)
-	g.Expect(unmarshalErr).NotTo(HaveOccurred())
-
-	if unmarshalErr != nil {
-		return
-	}
-
-	g.Expect(proposals).To(HaveLen(1))
-
-	if len(proposals) < 1 {
-		return
-	}
-
-	g.Expect(proposals[0].Action).To(Equal("rewrite"))
-	g.Expect(proposals[0].Path).To(Equal("/data/memories/bad.toml"))
-	g.Expect(proposals[0].RootCause).To(Equal("too abstract"))
-	g.Expect(proposals[0].Suggestion).To(Equal("specify file types"))
-}
-
 // T-220: Gap analysis finds violations without instructions.
 func TestAuditRun_FindsGapCandidates(t *testing.T) {
 	t.Parallel()
@@ -340,9 +270,11 @@ func TestAuditRun_FlagsLowEffectivenessSkillLines(t *testing.T) {
 		"/project/.claude-plugin/skills/test.md": skillContent,
 	}
 
-	const lowRate1 = 10.0
-	const lowRate2 = 15.0
-	const lowRate3 = 5.0
+	const (
+		lowRate1 = 10.0
+		lowRate2 = 15.0
+		lowRate3 = 5.0
+	)
 
 	effData := map[string]float64{
 		"/project/.claude-plugin/skills/test.md:2":  lowRate1,
@@ -399,6 +331,76 @@ func TestAuditRun_FlagsLowEffectivenessSkillLines(t *testing.T) {
 	}
 }
 
+// T-219: Refinement proposals in maintain-compatible format.
+func TestAuditRun_GeneratesRefinementProposals(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	files := map[string]string{
+		"/data/memories/bad.toml": "vague instruction about code quality",
+	}
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			content, ok := files[path]
+			if !ok {
+				return nil, fmt.Errorf("not found: %s", path)
+			}
+
+			return []byte(content), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/bad.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{
+			"/data/memories/bad.toml": 5.0,
+		},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner: scanner,
+		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
+			return `{"diagnosis":"too vague","root_cause":"too abstract","suggestion":"specify file types"}`, nil
+		},
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	proposals := make([]instruct.RefinementProposal, 0)
+	unmarshalErr := json.Unmarshal(report.Proposals, &proposals)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(proposals).To(HaveLen(1))
+
+	if len(proposals) < 1 {
+		return
+	}
+
+	g.Expect(proposals[0].Action).To(Equal("rewrite"))
+	g.Expect(proposals[0].Path).To(Equal("/data/memories/bad.toml"))
+	g.Expect(proposals[0].RootCause).To(Equal("too abstract"))
+	g.Expect(proposals[0].Suggestion).To(Equal("specify file types"))
+}
+
 // T-223: No API token skips LLM steps, runs dedup and gaps.
 func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 	t.Parallel()
@@ -447,6 +449,7 @@ func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 
 	// Diagnoses and proposals should be skipped
 	var skippedDiag instruct.SkippedSection
+
 	unmarshalErr := json.Unmarshal(report.Diagnoses, &skippedDiag)
 	g.Expect(unmarshalErr).NotTo(HaveOccurred())
 
@@ -457,6 +460,7 @@ func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 	g.Expect(skippedDiag.SkippedReason).To(Equal("no API token"))
 
 	var skippedProp instruct.SkippedSection
+
 	unmarshalErr = json.Unmarshal(report.Proposals, &skippedProp)
 	g.Expect(unmarshalErr).NotTo(HaveOccurred())
 

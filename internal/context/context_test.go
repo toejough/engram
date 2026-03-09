@@ -28,6 +28,119 @@ func TestDeltaReader_FileReadError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("permission denied")))
 }
 
+// --- QW-3: Orchestrator caps summary at MaxSummaryBytes ---
+
+func TestOrchestrator_CapsSummaryAtMaxBytes(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	transcript := `{"role":"user","content":"help"}` + "\n"
+
+	reader := &fakeFileReader{
+		contents: map[string][]byte{
+			"/ctx/session-context.md": {},
+			"/t.jsonl":                []byte(transcript),
+		},
+	}
+
+	// Return a summary larger than 1024 bytes.
+	oversizedSummary := strings.Repeat("x", 2000)
+	client := &fakeHaikuClient{result: oversizedSummary}
+	writer := newFakeFileWriter()
+	renamer := &fakeRenamer{}
+	dirCreator := &fakeDirCreator{}
+	clock := &fakeTimestamper{
+		now: time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC),
+	}
+
+	delta := sessionctx.NewDeltaReader(reader)
+	summarizer := sessionctx.NewSummarizer(client)
+	file := sessionctx.NewSessionFile(
+		reader, writer, dirCreator, renamer, clock,
+	)
+
+	orch := sessionctx.NewOrchestrator(delta, summarizer, file)
+
+	err := orch.Update(
+		context.Background(),
+		"/t.jsonl",
+		"sess-cap",
+		"/ctx/session-context.md",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tmpContent, ok := writer.written["/ctx/session-context.md.tmp"]
+	g.Expect(ok).To(BeTrue())
+
+	if !ok {
+		return
+	}
+
+	contentStr := string(tmpContent)
+
+	// Extract summary: everything after the header line + blank line.
+	parts := strings.SplitN(contentStr, "\n\n", 2)
+	g.Expect(parts).To(HaveLen(2))
+
+	if len(parts) < 2 {
+		return
+	}
+
+	summary := parts[1]
+	g.Expect(len(summary)).To(BeNumerically("<=", sessionctx.MaxSummaryBytes))
+}
+
+func TestOrchestrator_SummaryUnderCapUnchanged(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	transcript := `{"role":"user","content":"help"}` + "\n"
+
+	reader := &fakeFileReader{
+		contents: map[string][]byte{
+			"/ctx/session-context.md": {},
+			"/t.jsonl":                []byte(transcript),
+		},
+	}
+
+	shortSummary := "Short summary under cap"
+	client := &fakeHaikuClient{result: shortSummary}
+	writer := newFakeFileWriter()
+	renamer := &fakeRenamer{}
+	dirCreator := &fakeDirCreator{}
+	clock := &fakeTimestamper{
+		now: time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC),
+	}
+
+	delta := sessionctx.NewDeltaReader(reader)
+	summarizer := sessionctx.NewSummarizer(client)
+	file := sessionctx.NewSessionFile(
+		reader, writer, dirCreator, renamer, clock,
+	)
+
+	orch := sessionctx.NewOrchestrator(delta, summarizer, file)
+
+	err := orch.Update(
+		context.Background(),
+		"/t.jsonl",
+		"sess-cap",
+		"/ctx/session-context.md",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tmpContent, ok := writer.written["/ctx/session-context.md.tmp"]
+	g.Expect(ok).To(BeTrue())
+
+	if !ok {
+		return
+	}
+
+	contentStr := string(tmpContent)
+	g.Expect(contentStr).To(ContainSubstring(shortSummary))
+}
+
 // --- Coverage: Read with only metadata, no summary ---
 
 func TestRead_MetadataOnly(t *testing.T) {
@@ -758,119 +871,6 @@ func TestT157_APIErrorExitsCleanly(t *testing.T) {
 	// Summarizer returns previous summary on error (empty string).
 	// File IS written with empty summary but updated watermark.
 	// The key assertion: no panic, returns nil.
-}
-
-// --- QW-3: Orchestrator caps summary at MaxSummaryBytes ---
-
-func TestOrchestrator_CapsSummaryAtMaxBytes(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	transcript := `{"role":"user","content":"help"}` + "\n"
-
-	reader := &fakeFileReader{
-		contents: map[string][]byte{
-			"/ctx/session-context.md": {},
-			"/t.jsonl":                []byte(transcript),
-		},
-	}
-
-	// Return a summary larger than 1024 bytes.
-	oversizedSummary := strings.Repeat("x", 2000)
-	client := &fakeHaikuClient{result: oversizedSummary}
-	writer := newFakeFileWriter()
-	renamer := &fakeRenamer{}
-	dirCreator := &fakeDirCreator{}
-	clock := &fakeTimestamper{
-		now: time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC),
-	}
-
-	delta := sessionctx.NewDeltaReader(reader)
-	summarizer := sessionctx.NewSummarizer(client)
-	file := sessionctx.NewSessionFile(
-		reader, writer, dirCreator, renamer, clock,
-	)
-
-	orch := sessionctx.NewOrchestrator(delta, summarizer, file)
-
-	err := orch.Update(
-		context.Background(),
-		"/t.jsonl",
-		"sess-cap",
-		"/ctx/session-context.md",
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	tmpContent, ok := writer.written["/ctx/session-context.md.tmp"]
-	g.Expect(ok).To(BeTrue())
-
-	if !ok {
-		return
-	}
-
-	contentStr := string(tmpContent)
-
-	// Extract summary: everything after the header line + blank line.
-	parts := strings.SplitN(contentStr, "\n\n", 2)
-	g.Expect(parts).To(HaveLen(2))
-
-	if len(parts) < 2 {
-		return
-	}
-
-	summary := parts[1]
-	g.Expect(len(summary)).To(BeNumerically("<=", sessionctx.MaxSummaryBytes))
-}
-
-func TestOrchestrator_SummaryUnderCapUnchanged(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	transcript := `{"role":"user","content":"help"}` + "\n"
-
-	reader := &fakeFileReader{
-		contents: map[string][]byte{
-			"/ctx/session-context.md": {},
-			"/t.jsonl":                []byte(transcript),
-		},
-	}
-
-	shortSummary := "Short summary under cap"
-	client := &fakeHaikuClient{result: shortSummary}
-	writer := newFakeFileWriter()
-	renamer := &fakeRenamer{}
-	dirCreator := &fakeDirCreator{}
-	clock := &fakeTimestamper{
-		now: time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC),
-	}
-
-	delta := sessionctx.NewDeltaReader(reader)
-	summarizer := sessionctx.NewSummarizer(client)
-	file := sessionctx.NewSessionFile(
-		reader, writer, dirCreator, renamer, clock,
-	)
-
-	orch := sessionctx.NewOrchestrator(delta, summarizer, file)
-
-	err := orch.Update(
-		context.Background(),
-		"/t.jsonl",
-		"sess-cap",
-		"/ctx/session-context.md",
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	tmpContent, ok := writer.written["/ctx/session-context.md.tmp"]
-	g.Expect(ok).To(BeTrue())
-
-	if !ok {
-		return
-	}
-
-	contentStr := string(tmpContent)
-	g.Expect(contentStr).To(ContainSubstring(shortSummary))
 }
 
 // --- Coverage: Write content verification ---

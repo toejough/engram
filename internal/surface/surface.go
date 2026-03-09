@@ -71,15 +71,15 @@ type Options struct {
 	Format    string // output format: "" (plain) or "json"
 }
 
+// RegistryRecorder records surfacing events in the instruction registry (UC-23).
+type RegistryRecorder interface {
+	RecordSurfacing(id string) error
+}
+
 // Result holds the structured output of a surface invocation.
 type Result struct {
 	Summary string `json:"summary"`
 	Context string `json:"context"`
-}
-
-// RegistryRecorder records surfacing events in the instruction registry (UC-23).
-type RegistryRecorder interface {
-	RecordSurfacing(id string) error
 }
 
 // Surfacer orchestrates memory surfacing.
@@ -174,6 +174,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	return s.writeResult(w, result, opts.Format)
 }
 
+//nolint:funlen // orchestration function
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message string,
@@ -392,14 +393,14 @@ func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
 }
 
-// WithSurfacingLogger sets the surfacing event logger (ARCH-22).
-func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
-	return func(s *Surfacer) { s.surfacingLogger = logger }
-}
-
 // WithRegistry sets the registry recorder for surfacing events (UC-23).
 func WithRegistry(recorder RegistryRecorder) SurfacerOption {
 	return func(s *Surfacer) { s.registry = recorder }
+}
+
+// WithSurfacingLogger sets the surfacing event logger (ARCH-22).
+func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
+	return func(s *Surfacer) { s.surfacingLogger = logger }
 }
 
 // WithTracker sets the memory tracker for surfacing instrumentation.
@@ -409,10 +410,10 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
+	minRelevanceScore = 0.01
 	promptLimit       = 10
 	sessionStartLimit = 10
 	toolLimit         = 3
-	minRelevanceScore = 0.01
 )
 
 // promptMatch holds a memory for prompt mode.

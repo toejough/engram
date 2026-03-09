@@ -2,16 +2,14 @@
 package main
 
 import (
-	"fmt"
 	"os"
+
+	"github.com/toejough/targ"
 
 	"engram/internal/cli"
 )
 
 func main() {
-	// ARCH-6: Exit 0 always — hook failures must not break Claude Code.
-	err := cli.Run(os.Args, os.Stdout, os.Stderr, os.Stdin)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
+	// ARCH-6: Target functions never return errors, so targ.Main always exits 0.
+	targ.Main(cli.Targets(os.Stdout, os.Stderr, os.Stdin)...)
 }

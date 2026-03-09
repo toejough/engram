@@ -8,55 +8,14 @@ import (
 	"time"
 )
 
-// EscalationLevel represents the enforcement intensity for a memory.
-type EscalationLevel string
-
+// Exported constants.
 const (
 	LevelAdvisory            EscalationLevel = "advisory"
+	LevelAutomationCandidate EscalationLevel = "automation_candidate"
 	LevelEmphasizedAdvisory  EscalationLevel = "emphasized_advisory"
 	LevelPosttoolReminder    EscalationLevel = "posttool_reminder"
 	LevelPretoolBlock        EscalationLevel = "pretool_block"
-	LevelAutomationCandidate EscalationLevel = "automation_candidate"
 )
-
-// escalationLadder defines the ordered escalation levels.
-var escalationLadder = []EscalationLevel{
-	LevelAdvisory,
-	LevelEmphasizedAdvisory,
-	LevelPosttoolReminder,
-	LevelPretoolBlock,
-	LevelAutomationCandidate,
-}
-
-// EscalationHistoryEntry records a level change and its observed effectiveness.
-//
-//nolint:tagliatelle // DES-31 specifies snake_case JSON/TOML field names.
-type EscalationHistoryEntry struct {
-	Level         EscalationLevel `json:"level"         toml:"level"`
-	Since         time.Time       `json:"since"         toml:"since"`
-	Effectiveness float64         `json:"effectiveness" toml:"effectiveness"`
-}
-
-// EscalationMemory is the view of a memory needed by the escalation engine.
-type EscalationMemory struct {
-	Path              string
-	Content           string
-	EscalationLevel   EscalationLevel
-	EscalationHistory []EscalationHistoryEntry
-	Effectiveness     float64
-}
-
-// EscalationProposal recommends an escalation action.
-//
-//nolint:tagliatelle // DES-31 specifies snake_case JSON field names.
-type EscalationProposal struct {
-	MemoryPath      string `json:"memory_path"`
-	ProposalType    string `json:"proposal_type"`
-	CurrentLevel    string `json:"current_level"`
-	ProposedLevel   string `json:"proposed_level"`
-	Rationale       string `json:"rationale"`
-	PredictedImpact string `json:"predicted_impact"`
-}
 
 // EffData maps escalation levels to observed effectiveness deltas for
 // memories that were previously at that level.
@@ -96,16 +55,6 @@ func (e *EscalationEngine) Analyze(
 	return proposals, nil
 }
 
-const (
-	deEscalationCycles    = 3
-	mechanicalScoreThresh = 2
-)
-
-// mechanicalKeywords are indicators of mechanical/automatable patterns.
-var mechanicalKeywords = []string{
-	"always", "never", "before", "after", "format", "convention",
-}
-
 func (e *EscalationEngine) analyzeOne(
 	mem *EscalationMemory,
 ) (EscalationProposal, bool) {
@@ -142,23 +91,21 @@ func (e *EscalationEngine) analyzeOne(
 	}, true
 }
 
-func (e *EscalationEngine) tryDimensionRouting(
-	mem *EscalationMemory,
-	currentLevel EscalationLevel,
-) (bool, EscalationProposal) {
-	score := mechanicalScore(mem.Content)
-	if score < mechanicalScoreThresh {
-		return false, EscalationProposal{}
+func (e *EscalationEngine) predictImpact(level EscalationLevel) string {
+	deltas, ok := e.effData[level]
+	if !ok || len(deltas) == 0 {
+		return "unknown"
 	}
 
-	return true, EscalationProposal{
-		MemoryPath:      mem.Path,
-		ProposalType:    "route_automation",
-		CurrentLevel:    string(currentLevel),
-		ProposedLevel:   string(LevelAutomationCandidate),
-		Rationale:       "Mechanical pattern detected — suitable for automation/rule",
-		PredictedImpact: "unknown",
+	var sum float64
+
+	for _, delta := range deltas {
+		sum += delta
 	}
+
+	avg := sum / float64(len(deltas))
+
+	return fmt.Sprintf("%+.0f%% follow rate", avg)
 }
 
 func (e *EscalationEngine) tryDeEscalation(
@@ -219,22 +166,87 @@ func (e *EscalationEngine) tryDeEscalation(
 	}
 }
 
-func (e *EscalationEngine) predictImpact(level EscalationLevel) string {
-	deltas, ok := e.effData[level]
-	if !ok || len(deltas) == 0 {
-		return "unknown"
+func (e *EscalationEngine) tryDimensionRouting(
+	mem *EscalationMemory,
+	currentLevel EscalationLevel,
+) (bool, EscalationProposal) {
+	score := mechanicalScore(mem.Content)
+	if score < mechanicalScoreThresh {
+		return false, EscalationProposal{}
 	}
 
-	var sum float64
-
-	for _, delta := range deltas {
-		sum += delta
+	return true, EscalationProposal{
+		MemoryPath:      mem.Path,
+		ProposalType:    "route_automation",
+		CurrentLevel:    string(currentLevel),
+		ProposedLevel:   string(LevelAutomationCandidate),
+		Rationale:       "Mechanical pattern detected — suitable for automation/rule",
+		PredictedImpact: "unknown",
 	}
-
-	avg := sum / float64(len(deltas))
-
-	return fmt.Sprintf("%+.0f%% follow rate", avg)
 }
+
+// EscalationHistoryEntry records a level change and its observed effectiveness.
+//
+
+type EscalationHistoryEntry struct {
+	Level         EscalationLevel `json:"level"         toml:"level"`
+	Since         time.Time       `json:"since"         toml:"since"`
+	Effectiveness float64         `json:"effectiveness" toml:"effectiveness"`
+}
+
+// EscalationLevel represents the enforcement intensity for a memory.
+type EscalationLevel string
+
+// EscalationMemory is the view of a memory needed by the escalation engine.
+type EscalationMemory struct {
+	Path              string
+	Content           string
+	EscalationLevel   EscalationLevel
+	EscalationHistory []EscalationHistoryEntry
+	Effectiveness     float64
+}
+
+// EscalationProposal recommends an escalation action.
+//
+//nolint:tagliatelle // DES-31 specifies snake_case JSON field names.
+type EscalationProposal struct {
+	MemoryPath      string `json:"memory_path"`
+	ProposalType    string `json:"proposal_type"`
+	CurrentLevel    string `json:"current_level"`
+	ProposedLevel   string `json:"proposed_level"`
+	Rationale       string `json:"rationale"`
+	PredictedImpact string `json:"predicted_impact"`
+}
+
+// MarshalProposal serializes an EscalationProposal to JSON.
+func MarshalProposal(proposal EscalationProposal) (json.RawMessage, error) {
+	data, err := json.Marshal(proposal)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling escalation proposal: %w", err)
+	}
+
+	return data, nil
+}
+
+// unexported constants.
+const (
+	deEscalationCycles    = 3
+	mechanicalScoreThresh = 2
+)
+
+// unexported variables.
+var (
+	escalationLadder = []EscalationLevel{
+		LevelAdvisory,
+		LevelEmphasizedAdvisory,
+		LevelPosttoolReminder,
+		LevelPretoolBlock,
+		LevelAutomationCandidate,
+	}
+	mechanicalKeywords = []string{
+		"always", "never", "before", "after", "format", "convention",
+	}
+)
 
 func mechanicalScore(content string) int {
 	lower := strings.ToLower(content)
@@ -267,14 +279,4 @@ func prevEscalationLevel(current EscalationLevel) (EscalationLevel, bool) {
 	}
 
 	return "", false
-}
-
-// MarshalProposal serializes an EscalationProposal to JSON.
-func MarshalProposal(proposal EscalationProposal) (json.RawMessage, error) {
-	data, err := json.Marshal(proposal)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling escalation proposal: %w", err)
-	}
-
-	return data, nil
 }

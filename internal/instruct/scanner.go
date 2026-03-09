@@ -6,24 +6,13 @@ import (
 	"strings"
 )
 
-// SourceType identifies where an instruction came from.
-type SourceType string
-
+// Exported constants.
 const (
 	SourceClaudeMD SourceType = "claude-md"
-	SourceRule     SourceType = "rule"
 	SourceMemory   SourceType = "memory"
+	SourceRule     SourceType = "rule"
 	SourceSkill    SourceType = "skill"
 )
-
-// salienceRank maps source types to their salience hierarchy.
-// Lower number = higher salience.
-var salienceRank = map[SourceType]int{
-	SourceClaudeMD: 0,
-	SourceRule:     1,
-	SourceMemory:   2,
-	SourceSkill:    3,
-}
 
 // InstructionItem represents a single instruction extracted from a source file.
 type InstructionItem struct {
@@ -47,16 +36,12 @@ func (s *Scanner) ScanAll(dataDir, projectDir string) ([]InstructionItem, error)
 	// 1. Project CLAUDE.md
 	projectClaude := filepath.Join(projectDir, "CLAUDE.md")
 
-	if err := s.scanFile(projectClaude, SourceClaudeMD, &items); err != nil {
-		// File not found is not an error — skip silently.
-	}
+	_ = s.scanFile(projectClaude, SourceClaudeMD, &items)
 
 	// 2. Global CLAUDE.md (home dir)
 	globalClaude := filepath.Join(projectDir, ".claude", "CLAUDE.md")
 
-	if err := s.scanFile(globalClaude, SourceClaudeMD, &items); err != nil {
-		// Skip silently.
-	}
+	_ = s.scanFile(globalClaude, SourceClaudeMD, &items)
 
 	// 3. Memories (*.toml in dataDir/memories/)
 	memPattern := filepath.Join(dataDir, "memories", "*.toml")
@@ -98,7 +83,7 @@ func (s *Scanner) scanFile(
 ) error {
 	data, err := s.ReadFile(path)
 	if err != nil {
-		return err //nolint:wrapcheck // caller handles missing files
+		return err
 	}
 
 	content := strings.TrimSpace(string(data))
@@ -117,3 +102,16 @@ func (s *Scanner) scanFile(
 
 	return nil
 }
+
+// SourceType identifies where an instruction came from.
+type SourceType string
+
+// unexported variables.
+var (
+	salienceRank = map[SourceType]int{
+		SourceClaudeMD: 0,
+		SourceRule:     1,
+		SourceMemory:   2,
+		SourceSkill:    3,
+	}
+)

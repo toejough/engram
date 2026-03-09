@@ -11,6 +11,16 @@ import (
 	"engram/internal/registry"
 )
 
+// Candidate represents a memory eligible for promotion.
+type Candidate struct {
+	Entry registry.InstructionEntry
+}
+
+// Confirmer asks for user confirmation before proceeding.
+type Confirmer interface {
+	Confirm(preview string) (bool, error)
+}
+
 // MemoryContent holds the content of a memory file for skill generation.
 type MemoryContent struct {
 	Title       string
@@ -20,40 +30,9 @@ type MemoryContent struct {
 	Keywords    []string
 }
 
-// RegistryReader reads entries from the instruction registry.
-type RegistryReader interface {
-	List() ([]registry.InstructionEntry, error)
-	Get(id string) (*registry.InstructionEntry, error)
-}
-
-// SkillGenerator generates skill file content from a memory.
-type SkillGenerator interface {
-	Generate(ctx context.Context, memory MemoryContent) (string, error)
-}
-
-// SkillWriter writes a skill file to the plugin skills directory.
-type SkillWriter interface {
-	Write(name, content string) (string, error)
-}
-
-// RegistryMerger merges a source entry into a target in the registry.
-type RegistryMerger interface {
-	Merge(sourceID, targetID string) error
-}
-
 // MemoryRemover deletes a memory TOML file.
 type MemoryRemover interface {
 	Remove(path string) error
-}
-
-// RegistryRegisterer registers a new entry in the registry.
-type RegistryRegisterer interface {
-	Register(entry registry.InstructionEntry) error
-}
-
-// Confirmer asks for user confirmation before proceeding.
-type Confirmer interface {
-	Confirm(preview string) (bool, error)
 }
 
 // Promoter orchestrates memory→skill promotion.
@@ -66,11 +45,6 @@ type Promoter struct {
 	Registerer   RegistryRegisterer
 	Confirmer    Confirmer
 	MemoryLoader func(path string) (*MemoryContent, error)
-}
-
-// Candidate represents a memory eligible for promotion.
-type Candidate struct {
-	Entry registry.InstructionEntry
 }
 
 // Candidates returns memory entries eligible for skill promotion,
@@ -114,6 +88,8 @@ func (p *Promoter) Candidates(threshold int) ([]Candidate, error) {
 }
 
 // Promote executes the full promotion flow for a single candidate.
+//
+//nolint:cyclop // promotion orchestration
 func (p *Promoter) Promote(ctx context.Context, candidateID string) error {
 	entry, err := p.Registry.Get(candidateID)
 	if err != nil {
@@ -158,45 +134,48 @@ func (p *Promoter) Promote(ctx context.Context, candidateID string) error {
 		Title:      mem.Title,
 	}
 
-	if regErr := p.Registerer.Register(regEntry); regErr != nil {
+	regErr := p.Registerer.Register(regEntry)
+	if regErr != nil {
 		return fmt.Errorf("registering skill: %w", regErr)
 	}
 
-	if mergeErr := p.Merger.Merge(candidateID, skillID); mergeErr != nil {
+	mergeErr := p.Merger.Merge(candidateID, skillID)
+	if mergeErr != nil {
 		return fmt.Errorf("merging registry: %w", mergeErr)
 	}
 
-	if rmErr := p.Remover.Remove(entry.SourcePath); rmErr != nil {
+	rmErr := p.Remover.Remove(entry.SourcePath)
+	if rmErr != nil {
 		return fmt.Errorf("removing memory: %w", rmErr)
 	}
 
 	return nil
 }
 
-// Constants matching registry package defaults.
-const (
-	defaultSurfacingThreshold     = 3
-	defaultEffectivenessThreshold = 50.0
-)
+// RegistryMerger merges a source entry into a target in the registry.
+type RegistryMerger interface {
+	Merge(sourceID, targetID string) error
+}
 
-// Slugify converts a title to a hyphenated lowercase slug.
-func Slugify(title string) string {
-	clean := strings.Map(func(r rune) rune {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r) {
-			return r
-		}
+// RegistryReader reads entries from the instruction registry.
+type RegistryReader interface {
+	List() ([]registry.InstructionEntry, error)
+	Get(id string) (*registry.InstructionEntry, error)
+}
 
-		return -1
-	}, title)
+// RegistryRegisterer registers a new entry in the registry.
+type RegistryRegisterer interface {
+	Register(entry registry.InstructionEntry) error
+}
 
-	words := strings.Fields(strings.ToLower(clean))
+// SkillGenerator generates skill file content from a memory.
+type SkillGenerator interface {
+	Generate(ctx context.Context, memory MemoryContent) (string, error)
+}
 
-	const maxSlugWords = 5
-	if len(words) > maxSlugWords {
-		words = words[:maxSlugWords]
-	}
-
-	return strings.Join(words, "-")
+// SkillWriter writes a skill file to the plugin skills directory.
+type SkillWriter interface {
+	Write(name, content string) (string, error)
 }
 
 // FormatSkill generates a skill file from memory content using the DES-34 template.
@@ -221,3 +200,29 @@ func FormatSkill(mem MemoryContent) string {
 
 	return buf.String()
 }
+
+// Slugify converts a title to a hyphenated lowercase slug.
+func Slugify(title string) string {
+	clean := strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r) {
+			return r
+		}
+
+		return -1
+	}, title)
+
+	words := strings.Fields(strings.ToLower(clean))
+
+	const maxSlugWords = 5
+	if len(words) > maxSlugWords {
+		words = words[:maxSlugWords]
+	}
+
+	return strings.Join(words, "-")
+}
+
+// unexported constants.
+const (
+	defaultEffectivenessThreshold = 50.0
+	defaultSurfacingThreshold     = 3
+)

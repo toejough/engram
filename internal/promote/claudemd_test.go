@@ -2,6 +2,7 @@ package promote_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -10,66 +11,294 @@ import (
 	"engram/internal/registry"
 )
 
-// --- Fakes for ClaudeMDPromoter ---
+// TestAddEntry_EmptyContent verifies AddEntry with empty existing content.
+func TestAddEntry_EmptyContent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-type fakeEntryGenerator struct {
-	entry string
-	err   error
+	editor := &promote.SectionEditor{}
+
+	result, err := editor.AddEntry("", "## New\n\nContent.")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("## New\n\nContent."))
 }
 
-func (f *fakeEntryGenerator) Generate(
-	_ context.Context, _ promote.SkillContent, _ string,
-) (string, error) {
-	return f.entry, f.err
+// TestClaudeMDDemote_NotFound verifies Demote returns error for missing entry.
+func TestClaudeMDDemote_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{entries: []registry.InstructionEntry{}}
+
+	promoter := &promote.ClaudeMDPromoter{Registry: reg}
+
+	err := promoter.Demote(context.Background(), "nonexistent")
+	g.Expect(err).To(HaveOccurred())
 }
 
-type fakeStore struct {
-	content  string
-	written  string
-	readErr  error
-	writeErr error
-}
+// TestClaudeMDDemote_StoreReadError verifies Demote returns error on store read failure.
+func TestClaudeMDDemote_StoreReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
 
-func (f *fakeStore) Read() (string, error) {
-	return f.content, f.readErr
-}
-
-func (f *fakeStore) Write(content string) error {
-	f.written = content
-
-	return f.writeErr
-}
-
-func makeSkillEntry(
-	id string, surfacedCount, followed, ignored int,
-) registry.InstructionEntry {
-	return registry.InstructionEntry{
-		ID:            id,
-		SourceType:    "skill",
-		SourcePath:    "skills/" + id + ".md",
-		Title:         id,
-		SurfacedCount: surfacedCount,
-		Evaluations: registry.EvaluationCounters{
-			Followed: followed,
-			Ignored:  ignored,
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test",
+			},
 		},
 	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry: reg,
+		Store:    &fakeStore{readErr: errors.New("disk error")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("reading CLAUDE.md")))
 }
 
-func makeClaudeMDEntry(
-	id string, surfacedCount, followed, ignored int,
-) registry.InstructionEntry {
-	return registry.InstructionEntry{
-		ID:            id,
-		SourceType:    "claude-md",
-		SourcePath:    "CLAUDE.md",
-		Title:         id,
-		SurfacedCount: surfacedCount,
-		Evaluations: registry.EvaluationCounters{
-			Followed: followed,
-			Ignored:  ignored,
+// TestClaudeMDDemote_UserDeclines verifies Demote returns nil on user decline.
+func TestClaudeMDDemote_UserDeclines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
 		},
 	}
+
+	store := &fakeStore{content: claudeMDContent}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Editor:         &promote.SectionEditor{},
+		Store:          store,
+		Confirmer:      &fakeConfirmer{response: false},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Store should NOT have been written.
+	g.Expect(store.written).To(BeEmpty())
+}
+
+// TestClaudeMDPromote_ConfirmError verifies Promote returns error on confirm failure.
+func TestClaudeMDPromote_ConfirmError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: "# Project"},
+		EntryGenerator: &fakeEntryGenerator{entry: "## Test\n\ncontent"},
+		Confirmer:      &fakeConfirmerErr{err: errors.New("tty error")},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("confirming promotion")))
+}
+
+// TestClaudeMDPromote_GenerateError verifies Promote returns error on generate failure.
+func TestClaudeMDPromote_GenerateError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: "# Project"},
+		EntryGenerator: &fakeEntryGenerator{err: errors.New("llm failed")},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("generating entry")))
+}
+
+// TestClaudeMDPromote_NotFound verifies Promote returns error for missing entry.
+func TestClaudeMDPromote_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{entries: []registry.InstructionEntry{}}
+
+	promoter := &promote.ClaudeMDPromoter{Registry: reg}
+
+	err := promoter.Promote(context.Background(), "nonexistent")
+	g.Expect(err).To(HaveOccurred())
+}
+
+// TestClaudeMDPromote_SkillLoadError verifies Promote returns error on skill load failure.
+func TestClaudeMDPromote_SkillLoadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:broken",
+				SourceType: "skill",
+				SourcePath: "skills/broken.md",
+				Title:      "Broken",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry: reg,
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{}, errors.New("file corrupt")
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:broken")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("loading skill")))
+}
+
+// TestClaudeMDPromote_StoreReadError verifies Promote returns error on store read failure.
+func TestClaudeMDPromote_StoreReadError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry: reg,
+		Store:    &fakeStore{readErr: errors.New("disk error")},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("reading CLAUDE.md")))
+}
+
+// TestClaudeMDPromote_UserDeclines verifies Promote returns nil on user decline.
+func TestClaudeMDPromote_UserDeclines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	store := &fakeStore{content: "# Project"}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          store,
+		EntryGenerator: &fakeEntryGenerator{entry: "## Test\n\ncontent"},
+		Confirmer:      &fakeConfirmer{response: false},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Store should NOT have been written.
+	g.Expect(store.written).To(BeEmpty())
+}
+
+// TestClaudeMDPromote_WriteError verifies Promote returns error on store write failure.
+func TestClaudeMDPromote_WriteError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: "# Project", writeErr: errors.New("read only")},
+		EntryGenerator: &fakeEntryGenerator{entry: "## Test\n\ncontent"},
+		Editor:         &promote.SectionEditor{},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing CLAUDE.md")))
 }
 
 // T-248: Promotion candidate detection — Working skills.
@@ -370,4 +599,75 @@ func TestT255_DemotionCandidatesLeechEntriesListed(t *testing.T) {
 
 	g.Expect(candidates).To(HaveLen(1))
 	g.Expect(candidates[0].Entry.ID).To(Equal("claude-md:bad-rule"))
+}
+
+// fakeConfirmerErr always returns an error.
+type fakeConfirmerErr struct {
+	err error
+}
+
+func (f *fakeConfirmerErr) Confirm(_ string) (bool, error) {
+	return false, f.err
+}
+
+// --- Fakes for ClaudeMDPromoter ---
+
+type fakeEntryGenerator struct {
+	entry string
+	err   error
+}
+
+func (f *fakeEntryGenerator) Generate(
+	_ context.Context, _ promote.SkillContent, _ string,
+) (string, error) {
+	return f.entry, f.err
+}
+
+type fakeStore struct {
+	content  string
+	written  string
+	readErr  error
+	writeErr error
+}
+
+func (f *fakeStore) Read() (string, error) {
+	return f.content, f.readErr
+}
+
+func (f *fakeStore) Write(content string) error {
+	f.written = content
+
+	return f.writeErr
+}
+
+func makeClaudeMDEntry(
+	id string, surfacedCount, followed, ignored int,
+) registry.InstructionEntry {
+	return registry.InstructionEntry{
+		ID:            id,
+		SourceType:    "claude-md",
+		SourcePath:    "CLAUDE.md",
+		Title:         id,
+		SurfacedCount: surfacedCount,
+		Evaluations: registry.EvaluationCounters{
+			Followed: followed,
+			Ignored:  ignored,
+		},
+	}
+}
+
+func makeSkillEntry(
+	id string, surfacedCount, followed, ignored int,
+) registry.InstructionEntry {
+	return registry.InstructionEntry{
+		ID:            id,
+		SourceType:    "skill",
+		SourcePath:    "skills/" + id + ".md",
+		Title:         id,
+		SurfacedCount: surfacedCount,
+		Evaluations: registry.EvaluationCounters{
+			Followed: followed,
+			Ignored:  ignored,
+		},
+	}
 }

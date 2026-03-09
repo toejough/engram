@@ -16,31 +16,18 @@ type ConfigReader interface {
 	ReadConfig() (map[string][]string, error)
 }
 
-// MemoryLoader loads a memory's principle text by instruction ID.
-type MemoryLoader interface {
-	LoadPrinciple(ctx context.Context, instructionID string) (string, error)
-}
-
-// TranscriptReader reads recent transcript text for suppression checks.
-type TranscriptReader interface {
-	ReadRecent(maxTokens int) (string, error)
-}
-
-// SurfacingLogger logs surfacing events for effectiveness tracking (ARCH-22).
-type SurfacingLogger interface {
-	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
-}
-
 // EffectivenessProvider returns the effectiveness score for a memory ID.
 type EffectivenessProvider interface {
 	Score(instructionID string) float64
 }
 
-// ToolCallInput holds the context of a PostToolUse hook invocation.
-type ToolCallInput struct {
-	ToolName string
-	FilePath string
+// MemoryLoader loads a memory's principle text by instruction ID.
+type MemoryLoader interface {
+	LoadPrinciple(ctx context.Context, instructionID string) (string, error)
 }
+
+// Option configures a Reminder.
+type Option func(*Reminder)
 
 // Reminder orchestrates PostToolUse proactive reminders.
 type Reminder struct {
@@ -50,24 +37,6 @@ type Reminder struct {
 	logger         SurfacingLogger
 	effectiveness  EffectivenessProvider
 	estimateTokens func(string) int
-}
-
-// Option configures a Reminder.
-type Option func(*Reminder)
-
-// WithSurfacingLogger sets the surfacing logger.
-func WithSurfacingLogger(logger SurfacingLogger) Option {
-	return func(r *Reminder) { r.logger = logger }
-}
-
-// WithEffectiveness sets the effectiveness provider.
-func WithEffectiveness(provider EffectivenessProvider) Option {
-	return func(r *Reminder) { r.effectiveness = provider }
-}
-
-// WithEstimateTokens overrides the token estimator (default: len/4).
-func WithEstimateTokens(fn func(string) int) Option {
-	return func(r *Reminder) { r.estimateTokens = fn }
 }
 
 // New creates a Reminder with the given dependencies.
@@ -94,7 +63,7 @@ func New(
 // Run executes the reminder pipeline for a tool call.
 // Returns the reminder text or empty string if no reminder applies.
 //
-//nolint:cyclop // orchestration: config → match → resolve → select → suppress → cap → log
+
 func (r *Reminder) Run(ctx context.Context, input ToolCallInput) (string, error) {
 	// Step 1: Load config.
 	patterns, err := r.config.ReadConfig()
@@ -136,7 +105,7 @@ func (r *Reminder) Run(ctx context.Context, input ToolCallInput) (string, error)
 	reminder := r.capTokens(principle)
 
 	// Step 6: Format output.
-	output := fmt.Sprintf("[engram] Reminder: %s", reminder)
+	output := "[engram] Reminder: " + reminder
 
 	// Step 7: Log surfacing event.
 	if r.logger != nil {
@@ -144,6 +113,45 @@ func (r *Reminder) Run(ctx context.Context, input ToolCallInput) (string, error)
 	}
 
 	return output, nil
+}
+
+// capTokens truncates text to fit within the reminder token budget.
+func (r *Reminder) capTokens(text string) string {
+	if r.estimateTokens(text) <= maxReminderTokens {
+		return text
+	}
+
+	// Truncate by characters (4 chars ≈ 1 token).
+	maxChars := maxReminderTokens * estimateTokensDivisor
+	if len(text) > maxChars {
+		text = text[:maxChars]
+	}
+
+	return text
+}
+
+// isSuppressed checks if the instruction's principle text appears in recent transcript.
+func (r *Reminder) isSuppressed(principle string) (bool, error) {
+	if r.transcript == nil {
+		return false, nil
+	}
+
+	recent, err := r.transcript.ReadRecent(suppressionTranscriptTokens)
+	if err != nil {
+		return false, err
+	}
+
+	// Keyword matching: check if any significant word from principle appears in transcript.
+	words := extractKeywords(principle)
+	recentLower := strings.ToLower(recent)
+
+	for _, word := range words {
+		if strings.Contains(recentLower, strings.ToLower(word)) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // matchPatterns returns deduplicated instruction IDs for patterns matching filePath.
@@ -223,43 +231,47 @@ func (r *Reminder) selectBest(
 	return bestID, bestPrinciple, nil
 }
 
-// isSuppressed checks if the instruction's principle text appears in recent transcript.
-func (r *Reminder) isSuppressed(principle string) (bool, error) {
-	if r.transcript == nil {
-		return false, nil
-	}
-
-	recent, err := r.transcript.ReadRecent(suppressionTranscriptTokens)
-	if err != nil {
-		return false, err //nolint:wrapcheck // caller wraps
-	}
-
-	// Keyword matching: check if any significant word from principle appears in transcript.
-	words := extractKeywords(principle)
-	recentLower := strings.ToLower(recent)
-
-	for _, word := range words {
-		if strings.Contains(recentLower, strings.ToLower(word)) {
-			return true, nil
-		}
-	}
-
-	return false, nil
+// SurfacingLogger logs surfacing events for effectiveness tracking (ARCH-22).
+type SurfacingLogger interface {
+	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
-// capTokens truncates text to fit within the reminder token budget.
-func (r *Reminder) capTokens(text string) string {
-	if r.estimateTokens(text) <= maxReminderTokens {
-		return text
-	}
+// ToolCallInput holds the context of a PostToolUse hook invocation.
+type ToolCallInput struct {
+	ToolName string
+	FilePath string
+}
 
-	// Truncate by characters (4 chars ≈ 1 token).
-	maxChars := maxReminderTokens * estimateTokensDivisor
-	if len(text) > maxChars {
-		text = text[:maxChars]
-	}
+// TranscriptReader reads recent transcript text for suppression checks.
+type TranscriptReader interface {
+	ReadRecent(maxTokens int) (string, error)
+}
 
-	return text
+// WithEffectiveness sets the effectiveness provider.
+func WithEffectiveness(provider EffectivenessProvider) Option {
+	return func(r *Reminder) { r.effectiveness = provider }
+}
+
+// WithEstimateTokens overrides the token estimator (default: len/4).
+func WithEstimateTokens(fn func(string) int) Option {
+	return func(r *Reminder) { r.estimateTokens = fn }
+}
+
+// WithSurfacingLogger sets the surfacing logger.
+func WithSurfacingLogger(logger SurfacingLogger) Option {
+	return func(r *Reminder) { r.logger = logger }
+}
+
+// unexported constants.
+const (
+	estimateTokensDivisor       = 4
+	maxReminderTokens           = 100
+	minKeywordLength            = 4
+	suppressionTranscriptTokens = 500
+)
+
+func defaultEstimateTokens(text string) int {
+	return len(text) / estimateTokensDivisor
 }
 
 // extractKeywords splits principle into words of 4+ characters for suppression matching.
@@ -276,15 +288,3 @@ func extractKeywords(text string) []string {
 
 	return result
 }
-
-func defaultEstimateTokens(text string) int {
-	return len(text) / estimateTokensDivisor
-}
-
-// unexported constants.
-const (
-	estimateTokensDivisor       = 4
-	maxReminderTokens           = 100
-	minKeywordLength            = 4
-	suppressionTranscriptTokens = 500
-)

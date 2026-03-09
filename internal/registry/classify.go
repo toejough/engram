@@ -1,38 +1,23 @@
 package registry
 
-// Quadrant represents a position in the effectiveness/surfacing matrix.
-type Quadrant string
-
-// Quadrant values.
+// Exported constants.
 const (
-	Working      Quadrant = "Working"
-	Leech        Quadrant = "Leech"
 	HiddenGem    Quadrant = "Hidden Gem"
-	Noise        Quadrant = "Noise"
 	Insufficient Quadrant = "Insufficient"
+	Leech        Quadrant = "Leech"
+	Noise        Quadrant = "Noise"
+	Working      Quadrant = "Working"
 )
 
-// alwaysLoadedSources are source types that are always loaded into context
-// (not gated by surfacing). They can only be Working or Leech.
-var alwaysLoadedSources = map[string]bool{
-	"claude-md": true,
-	"memory-md": true,
-	"rule":      true,
-	"skill":     true,
-}
-
-// defaultSurfacingThreshold is the minimum surfaced_count to be
-// considered "often surfaced" when no explicit threshold is provided.
-const defaultSurfacingThreshold = 3
-
-// defaultEffectivenessThreshold is the minimum effectiveness percentage
-// to be considered "high follow-through".
-const defaultEffectivenessThreshold = 50.0
+// Quadrant represents a position in the effectiveness/surfacing matrix.
+type Quadrant string
 
 // Classify assigns a quadrant to an instruction entry.
 // Always-loaded sources (claude-md, memory-md) get binary classification:
 // Working or Leech only.
 // Configurable thresholds control the surfacing/effectiveness boundaries.
+//
+//nolint:cyclop // classification matrix
 func Classify(
 	entry *InstructionEntry,
 	surfacingThreshold int,
@@ -67,3 +52,13 @@ func Classify(
 		return Noise
 	}
 }
+
+// unexported variables.
+var (
+	alwaysLoadedSources = map[string]bool{
+		"claude-md": true,
+		"memory-md": true,
+		"rule":      true,
+		"skill":     true,
+	}
+)

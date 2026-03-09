@@ -14,6 +14,9 @@ type FileReader func(path string) ([]byte, error)
 // FileWriter writes content to a file.
 type FileWriter func(path string, content []byte) error
 
+// JSONLOption configures a JSONLStore.
+type JSONLOption func(*JSONLStore)
+
 // JSONLStore implements Registry backed by a JSONL file.
 // All I/O is performed through injected reader/writer functions.
 // All public methods are safe for concurrent use.
@@ -25,24 +28,6 @@ type JSONLStore struct {
 	now     func() time.Time
 	entries map[string]*InstructionEntry
 	loaded  bool
-}
-
-// JSONLOption configures a JSONLStore.
-type JSONLOption func(*JSONLStore)
-
-// WithReader injects a file reader.
-func WithReader(reader FileReader) JSONLOption {
-	return func(s *JSONLStore) { s.read = reader }
-}
-
-// WithWriter injects a file writer.
-func WithWriter(writer FileWriter) JSONLOption {
-	return func(s *JSONLStore) { s.write = writer }
-}
-
-// WithNow injects a clock function.
-func WithNow(now func() time.Time) JSONLOption {
-	return func(s *JSONLStore) { s.now = now }
 }
 
 // NewJSONLStore creates a new JSONL-backed registry store.
@@ -59,70 +44,58 @@ func NewJSONLStore(path string, opts ...JSONLOption) *JSONLStore {
 	return store
 }
 
-// Register adds a new instruction entry to the store.
-func (s *JSONLStore) Register(entry InstructionEntry) error {
+// BulkLoad replaces all entries in the store (used by backfill init).
+func (s *JSONLStore) BulkLoad(entries []InstructionEntry) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureLoaded(); err != nil {
-		return err
+	s.entries = make(map[string]*InstructionEntry, len(entries))
+
+	for idx := range entries {
+		s.entries[entries[idx].ID] = &entries[idx]
 	}
 
-	if _, exists := s.entries[entry.ID]; exists {
-		return fmt.Errorf("%w: %s", ErrDuplicateID, entry.ID)
-	}
-
-	s.entries[entry.ID] = &entry
+	s.loaded = true
 
 	return s.save()
 }
 
-// RecordSurfacing increments the surfaced count and updates last_surfaced.
-func (s *JSONLStore) RecordSurfacing(id string) error {
+// Get returns a single entry by ID.
+func (s *JSONLStore) Get(id string) (*InstructionEntry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureLoaded(); err != nil {
-		return err
+	err := s.ensureLoaded()
+	if err != nil {
+		return nil, err
 	}
 
 	entry, ok := s.entries[id]
 	if !ok {
-		return fmt.Errorf("%w: %s", ErrNotFound, id)
+		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
 
-	entry.SurfacedCount++
+	copied := *entry
 
-	now := s.clock()
-	entry.LastSurfaced = &now
-
-	return s.save()
+	return &copied, nil
 }
 
-// RecordEvaluation increments the appropriate evaluation counter.
-func (s *JSONLStore) RecordEvaluation(id string, outcome Outcome) error {
+// List returns all entries in the store.
+func (s *JSONLStore) List() ([]InstructionEntry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureLoaded(); err != nil {
-		return err
+	err := s.ensureLoaded()
+	if err != nil {
+		return nil, err
 	}
 
-	entry, ok := s.entries[id]
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	result := make([]InstructionEntry, 0, len(s.entries))
+	for _, entry := range s.entries {
+		result = append(result, *entry)
 	}
 
-	switch outcome {
-	case Followed:
-		entry.Evaluations.Followed++
-	case Contradicted:
-		entry.Evaluations.Contradicted++
-	case Ignored:
-		entry.Evaluations.Ignored++
-	}
-
-	return s.save()
+	return result, nil
 }
 
 // Merge absorbs the source entry into the target entry, then removes the source.
@@ -130,7 +103,8 @@ func (s *JSONLStore) Merge(sourceID, targetID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureLoaded(); err != nil {
+	err := s.ensureLoaded()
+	if err != nil {
 		return err
 	}
 
@@ -161,12 +135,82 @@ func (s *JSONLStore) Merge(sourceID, targetID string) error {
 	return s.save()
 }
 
+// RecordEvaluation increments the appropriate evaluation counter.
+func (s *JSONLStore) RecordEvaluation(id string, outcome Outcome) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.ensureLoaded()
+	if err != nil {
+		return err
+	}
+
+	entry, ok := s.entries[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	switch outcome {
+	case Followed:
+		entry.Evaluations.Followed++
+	case Contradicted:
+		entry.Evaluations.Contradicted++
+	case Ignored:
+		entry.Evaluations.Ignored++
+	}
+
+	return s.save()
+}
+
+// RecordSurfacing increments the surfaced count and updates last_surfaced.
+func (s *JSONLStore) RecordSurfacing(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.ensureLoaded()
+	if err != nil {
+		return err
+	}
+
+	entry, ok := s.entries[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	entry.SurfacedCount++
+
+	now := s.clock()
+	entry.LastSurfaced = &now
+
+	return s.save()
+}
+
+// Register adds a new instruction entry to the store.
+func (s *JSONLStore) Register(entry InstructionEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.ensureLoaded()
+	if err != nil {
+		return err
+	}
+
+	if _, exists := s.entries[entry.ID]; exists {
+		return fmt.Errorf("%w: %s", ErrDuplicateID, entry.ID)
+	}
+
+	s.entries[entry.ID] = &entry
+
+	return s.save()
+}
+
 // Remove deletes an entry from the store.
 func (s *JSONLStore) Remove(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.ensureLoaded(); err != nil {
+	err := s.ensureLoaded()
+	if err != nil {
 		return err
 	}
 
@@ -175,58 +219,6 @@ func (s *JSONLStore) Remove(id string) error {
 	}
 
 	delete(s.entries, id)
-
-	return s.save()
-}
-
-// List returns all entries in the store.
-func (s *JSONLStore) List() ([]InstructionEntry, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.ensureLoaded(); err != nil {
-		return nil, err
-	}
-
-	result := make([]InstructionEntry, 0, len(s.entries))
-	for _, entry := range s.entries {
-		result = append(result, *entry)
-	}
-
-	return result, nil
-}
-
-// Get returns a single entry by ID.
-func (s *JSONLStore) Get(id string) (*InstructionEntry, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := s.ensureLoaded(); err != nil {
-		return nil, err
-	}
-
-	entry, ok := s.entries[id]
-	if !ok {
-		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
-	}
-
-	copied := *entry
-
-	return &copied, nil
-}
-
-// BulkLoad replaces all entries in the store (used by backfill init).
-func (s *JSONLStore) BulkLoad(entries []InstructionEntry) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.entries = make(map[string]*InstructionEntry, len(entries))
-
-	for idx := range entries {
-		s.entries[entries[idx].ID] = &entries[idx]
-	}
-
-	s.loaded = true
 
 	return s.save()
 }
@@ -292,4 +284,19 @@ func (s *JSONLStore) save() error {
 	}
 
 	return nil
+}
+
+// WithNow injects a clock function.
+func WithNow(now func() time.Time) JSONLOption {
+	return func(s *JSONLStore) { s.now = now }
+}
+
+// WithReader injects a file reader.
+func WithReader(reader FileReader) JSONLOption {
+	return func(s *JSONLStore) { s.read = reader }
+}
+
+// WithWriter injects a file writer.
+func WithWriter(writer FileWriter) JSONLOption {
+	return func(s *JSONLStore) { s.write = writer }
 }

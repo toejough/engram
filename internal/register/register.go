@@ -14,30 +14,8 @@ import (
 	"engram/internal/registry"
 )
 
-// sourceTypeMemory is the source type for memory entries, which are never pruned.
-const sourceTypeMemory = "memory"
-
-// SourceConfig defines the file paths to scan for instruction sources.
-type SourceConfig struct {
-	ClaudeMDPaths []string
-	MemoryMDPaths []string
-	RulesDir      string
-	SkillsDir     string
-}
-
-// Registry is the subset of registry.Registry needed by Registrar.
-type Registry interface {
-	Register(entry registry.InstructionEntry) error
-	RecordSurfacing(id string) error
-	Remove(id string) error
-	List() ([]registry.InstructionEntry, error)
-	Get(id string) (*registry.InstructionEntry, error)
-}
-
-// SurfacingLogger logs surfacing events for the evaluate pipeline.
-type SurfacingLogger interface {
-	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
-}
+// Option configures a Registrar.
+type Option func(*Registrar)
 
 // Registrar orchestrates discovery, registration, pruning, and implicit
 // surfacing of non-memory instruction sources.
@@ -50,9 +28,6 @@ type Registrar struct {
 	now          func() time.Time
 	stderr       io.Writer
 }
-
-// Option configures a Registrar.
-type Option func(*Registrar)
 
 // NewRegistrar creates a Registrar with the given registry and surfacing
 // logger, applying any functional options. Defaults use real os.* functions.
@@ -72,31 +47,6 @@ func NewRegistrar(reg Registry, logger SurfacingLogger, opts ...Option) *Registr
 	}
 
 	return r
-}
-
-// WithReadFile injects a file reader function.
-func WithReadFile(fn func(string) ([]byte, error)) Option {
-	return func(r *Registrar) { r.readFile = fn }
-}
-
-// WithReadDir injects a directory reader function.
-func WithReadDir(fn func(string) ([]os.DirEntry, error)) Option {
-	return func(r *Registrar) { r.readDir = fn }
-}
-
-// WithGlob injects a glob function.
-func WithGlob(fn func(string) ([]string, error)) Option {
-	return func(r *Registrar) { r.glob = fn }
-}
-
-// WithNow injects a time provider function.
-func WithNow(fn func() time.Time) Option {
-	return func(r *Registrar) { r.now = fn }
-}
-
-// WithStderr injects a writer for error logging.
-func WithStderr(w io.Writer) Option {
-	return func(r *Registrar) { r.stderr = w }
 }
 
 // Run executes the 4-phase registration pipeline:
@@ -321,50 +271,14 @@ func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry
 	return result
 }
 
-// registerEntries registers new entries and updates changed ones.
-func (r *Registrar) registerEntries(discovered []registry.InstructionEntry) {
-	for _, entry := range discovered {
-		existing, err := r.registry.Get(entry.ID)
-		if err != nil {
-			if !errors.Is(err, registry.ErrNotFound) {
-				r.logError("getting entry %s: %v", entry.ID, err)
-
-				continue
-			}
-
-			// New entry — register it.
-			regErr := r.registry.Register(entry)
-			if regErr != nil {
-				r.logError("registering %s: %v", entry.ID, regErr)
-			}
-
-			continue
-		}
-
-		// Entry exists — check if content changed.
-		if existing.ContentHash == entry.ContentHash {
-			continue // same content, skip
-		}
-
-		// Content changed — update: preserve counters, remove + re-register.
-		entry.SurfacedCount = existing.SurfacedCount
-		entry.LastSurfaced = existing.LastSurfaced
-		entry.Evaluations = existing.Evaluations
-		entry.Absorbed = existing.Absorbed
-		entry.RegisteredAt = existing.RegisteredAt
-
-		removeErr := r.registry.Remove(entry.ID)
-		if removeErr != nil {
-			r.logError("removing for update %s: %v", entry.ID, removeErr)
-
-			continue
-		}
-
-		regErr := r.registry.Register(entry)
-		if regErr != nil {
-			r.logError("re-registering %s: %v", entry.ID, regErr)
-		}
+// logError writes an error message to stderr without failing the pipeline.
+func (r *Registrar) logError(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if !strings.HasSuffix(msg, "\n") {
+		msg += "\n"
 	}
+
+	_, _ = fmt.Fprintf(r.stderr, "engram: register: %s", msg)
 }
 
 // pruneStale removes non-memory entries from the registry that are not in the
@@ -418,12 +332,100 @@ func (r *Registrar) recordSurfacing(discovered []registry.InstructionEntry) {
 	}
 }
 
-// logError writes an error message to stderr without failing the pipeline.
-func (r *Registrar) logError(format string, args ...any) {
-	msg := fmt.Sprintf(format, args...)
-	if !strings.HasSuffix(msg, "\n") {
-		msg += "\n"
-	}
+// registerEntries registers new entries and updates changed ones.
+func (r *Registrar) registerEntries(discovered []registry.InstructionEntry) {
+	for _, entry := range discovered {
+		existing, err := r.registry.Get(entry.ID)
+		if err != nil {
+			if !errors.Is(err, registry.ErrNotFound) {
+				r.logError("getting entry %s: %v", entry.ID, err)
 
-	_, _ = fmt.Fprintf(r.stderr, "engram: register: %s", msg)
+				continue
+			}
+
+			// New entry — register it.
+			regErr := r.registry.Register(entry)
+			if regErr != nil {
+				r.logError("registering %s: %v", entry.ID, regErr)
+			}
+
+			continue
+		}
+
+		// Entry exists — check if content changed.
+		if existing.ContentHash == entry.ContentHash {
+			continue // same content, skip
+		}
+
+		// Content changed — update: preserve counters, remove + re-register.
+		entry.SurfacedCount = existing.SurfacedCount
+		entry.LastSurfaced = existing.LastSurfaced
+		entry.Evaluations = existing.Evaluations
+		entry.Absorbed = existing.Absorbed
+		entry.RegisteredAt = existing.RegisteredAt
+
+		removeErr := r.registry.Remove(entry.ID)
+		if removeErr != nil {
+			r.logError("removing for update %s: %v", entry.ID, removeErr)
+
+			continue
+		}
+
+		regErr := r.registry.Register(entry)
+		if regErr != nil {
+			r.logError("re-registering %s: %v", entry.ID, regErr)
+		}
+	}
 }
+
+// Registry is the subset of registry.Registry needed by Registrar.
+type Registry interface {
+	Register(entry registry.InstructionEntry) error
+	RecordSurfacing(id string) error
+	Remove(id string) error
+	List() ([]registry.InstructionEntry, error)
+	Get(id string) (*registry.InstructionEntry, error)
+}
+
+// SourceConfig defines the file paths to scan for instruction sources.
+type SourceConfig struct {
+	ClaudeMDPaths []string
+	MemoryMDPaths []string
+	RulesDir      string
+	SkillsDir     string
+}
+
+// SurfacingLogger logs surfacing events for the evaluate pipeline.
+type SurfacingLogger interface {
+	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
+}
+
+// WithGlob injects a glob function.
+func WithGlob(fn func(string) ([]string, error)) Option {
+	return func(r *Registrar) { r.glob = fn }
+}
+
+// WithNow injects a time provider function.
+func WithNow(fn func() time.Time) Option {
+	return func(r *Registrar) { r.now = fn }
+}
+
+// WithReadDir injects a directory reader function.
+func WithReadDir(fn func(string) ([]os.DirEntry, error)) Option {
+	return func(r *Registrar) { r.readDir = fn }
+}
+
+// WithReadFile injects a file reader function.
+func WithReadFile(fn func(string) ([]byte, error)) Option {
+	return func(r *Registrar) { r.readFile = fn }
+}
+
+// WithStderr injects a writer for error logging.
+func WithStderr(w io.Writer) Option {
+	return func(r *Registrar) { r.stderr = w }
+}
+
+// unexported constants.
+const (
+	sourceTypeMemory = "memory"
+)
