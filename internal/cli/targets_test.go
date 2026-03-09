@@ -1,4 +1,4 @@
-package cli
+package cli_test
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+
+	"engram/internal/cli"
 )
 
 func TestAddBoolFlag(t *testing.T) {
@@ -15,7 +17,7 @@ func TestAddBoolFlag(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AddBoolFlag([]string{"--existing"}, "--verbose", true)
+		result := cli.AddBoolFlag([]string{"--existing"}, "--verbose", true)
 		g.Expect(result).To(gomega.Equal([]string{"--existing", "--verbose"}))
 	})
 
@@ -23,7 +25,7 @@ func TestAddBoolFlag(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AddBoolFlag([]string{"--existing"}, "--verbose", false)
+		result := cli.AddBoolFlag([]string{"--existing"}, "--verbose", false)
 		g.Expect(result).To(gomega.Equal([]string{"--existing"}))
 	})
 
@@ -31,44 +33,8 @@ func TestAddBoolFlag(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AddBoolFlag(nil, "--flag", true)
+		result := cli.AddBoolFlag(nil, "--flag", true)
 		g.Expect(result).To(gomega.Equal([]string{"--flag"}))
-	})
-}
-
-func TestBuildFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("includes non-empty values", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := BuildFlags("--data-dir", "/tmp", "--format", "json")
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/tmp", "--format", "json"}))
-	})
-
-	t.Run("skips empty values", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := BuildFlags("--data-dir", "/tmp", "--format", "", "--mode", "test")
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/tmp", "--mode", "test"}))
-	})
-
-	t.Run("returns empty slice for all empty values", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := BuildFlags("--a", "", "--b", "")
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("returns empty slice for no args", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := BuildFlags()
-		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 
@@ -79,7 +45,7 @@ func TestAuditFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AuditFlags(AuditArgs{DataDir: "/data", Timestamp: "2024-01-01T00:00:00Z"})
+		result := cli.AuditFlags(cli.AuditArgs{DataDir: "/data", Timestamp: "2024-01-01T00:00:00Z"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--timestamp", "2024-01-01T00:00:00Z"}))
 	})
 
@@ -87,7 +53,7 @@ func TestAuditFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AuditFlags(AuditArgs{})
+		result := cli.AuditFlags(cli.AuditArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -99,7 +65,7 @@ func TestAutomateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AutomateFlags(AutomateArgs{DataDir: "/data"})
+		result := cli.AutomateFlags(cli.AutomateArgs{DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -107,7 +73,43 @@ func TestAutomateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := AutomateFlags(AutomateArgs{})
+		result := cli.AutomateFlags(cli.AutomateArgs{})
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
+func TestBuildFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("includes non-empty values", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.BuildFlags("--data-dir", "/tmp", "--format", "json")
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/tmp", "--format", "json"}))
+	})
+
+	t.Run("skips empty values", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.BuildFlags("--data-dir", "/tmp", "--format", "", "--mode", "test")
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/tmp", "--mode", "test"}))
+	})
+
+	t.Run("returns empty slice for all empty values", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.BuildFlags("--a", "", "--b", "")
+		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("returns empty slice for no args", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.BuildFlags()
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -119,7 +121,7 @@ func TestContextUpdateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := ContextUpdateFlags(ContextUpdateArgs{
+		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{
 			TranscriptPath: "/transcript",
 			SessionID:      "sess-1",
 			DataDir:        "/data",
@@ -137,7 +139,7 @@ func TestContextUpdateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := ContextUpdateFlags(ContextUpdateArgs{})
+		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -149,7 +151,7 @@ func TestCorrectFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := CorrectFlags(CorrectArgs{
+		result := cli.CorrectFlags(cli.CorrectArgs{
 			Message:        "fix this",
 			DataDir:        "/data",
 			TranscriptPath: "/transcript",
@@ -165,7 +167,7 @@ func TestCorrectFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := CorrectFlags(CorrectArgs{})
+		result := cli.CorrectFlags(cli.CorrectArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -177,7 +179,7 @@ func TestDemoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := DemoteFlags(DemoteArgs{DataDir: "/data", ToSkill: true, Yes: true})
+		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: true, Yes: true})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill", "--yes"}))
 	})
 
@@ -185,7 +187,7 @@ func TestDemoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := DemoteFlags(DemoteArgs{DataDir: "/data", ToSkill: false, Yes: false})
+		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: false, Yes: false})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -193,7 +195,7 @@ func TestDemoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := DemoteFlags(DemoteArgs{})
+		result := cli.DemoteFlags(cli.DemoteArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -205,7 +207,7 @@ func TestEvaluateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := EvaluateFlags(EvaluateArgs{DataDir: "/data"})
+		result := cli.EvaluateFlags(cli.EvaluateArgs{DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -213,7 +215,7 @@ func TestEvaluateFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := EvaluateFlags(EvaluateArgs{})
+		result := cli.EvaluateFlags(cli.EvaluateArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -225,7 +227,7 @@ func TestInstructFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := InstructFlags(InstructArgs{DataDir: "/data", ProjectDir: "/project"})
+		result := cli.InstructFlags(cli.InstructArgs{DataDir: "/data", ProjectDir: "/project"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--project-dir", "/project"}))
 	})
 
@@ -233,7 +235,7 @@ func TestInstructFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := InstructFlags(InstructArgs{})
+		result := cli.InstructFlags(cli.InstructArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -245,7 +247,7 @@ func TestLearnFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := LearnFlags(LearnArgs{
+		result := cli.LearnFlags(cli.LearnArgs{
 			DataDir:        "/data",
 			TranscriptPath: "/transcript",
 			SessionID:      "sess-1",
@@ -261,7 +263,7 @@ func TestLearnFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := LearnFlags(LearnArgs{})
+		result := cli.LearnFlags(cli.LearnArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -273,7 +275,7 @@ func TestMaintainFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := MaintainFlags(MaintainArgs{
+		result := cli.MaintainFlags(cli.MaintainArgs{
 			DataDir:   "/data",
 			Proposals: "/proposals.json",
 			Apply:     true,
@@ -290,7 +292,7 @@ func TestMaintainFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := MaintainFlags(MaintainArgs{DataDir: "/data"})
+		result := cli.MaintainFlags(cli.MaintainArgs{DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -298,7 +300,7 @@ func TestMaintainFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := MaintainFlags(MaintainArgs{})
+		result := cli.MaintainFlags(cli.MaintainArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -310,12 +312,12 @@ func TestPromoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := PromoteFlags(PromoteArgs{
-			DataDir:   "/data",
-			ToSkill:   true,
+		result := cli.PromoteFlags(cli.PromoteArgs{
+			DataDir:    "/data",
+			ToSkill:    true,
 			ToClaudeMD: true,
-			Threshold: 100,
-			Yes:       true,
+			Threshold:  100,
+			Yes:        true,
 		})
 		g.Expect(result).To(gomega.Equal([]string{
 			"--data-dir", "/data",
@@ -328,7 +330,7 @@ func TestPromoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := PromoteFlags(PromoteArgs{DataDir: "/data"})
+		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -336,7 +338,7 @@ func TestPromoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := PromoteFlags(PromoteArgs{Threshold: 50})
+		result := cli.PromoteFlags(cli.PromoteArgs{Threshold: 50})
 		g.Expect(result).To(gomega.Equal([]string{"--threshold", "50"}))
 	})
 
@@ -344,7 +346,7 @@ func TestPromoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := PromoteFlags(PromoteArgs{})
+		result := cli.PromoteFlags(cli.PromoteArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -356,7 +358,7 @@ func TestRegistryInitFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryInitFlags(RegistryInitArgs{DataDir: "/data", DryRun: true})
+		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DataDir: "/data", DryRun: true})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--dry-run"}))
 	})
 
@@ -364,7 +366,7 @@ func TestRegistryInitFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryInitFlags(RegistryInitArgs{DataDir: "/data"})
+		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 
@@ -372,7 +374,7 @@ func TestRegistryInitFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryInitFlags(RegistryInitArgs{})
+		result := cli.RegistryInitFlags(cli.RegistryInitArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -384,7 +386,7 @@ func TestRegistryMergeFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryMergeFlags(RegistryMergeArgs{
+		result := cli.RegistryMergeFlags(cli.RegistryMergeArgs{
 			DataDir:  "/data",
 			SourceID: "src-1",
 			TargetID: "tgt-1",
@@ -400,7 +402,7 @@ func TestRegistryMergeFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryMergeFlags(RegistryMergeArgs{})
+		result := cli.RegistryMergeFlags(cli.RegistryMergeArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -412,7 +414,7 @@ func TestRegistryRegisterSourceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryRegisterSourceFlags(RegistryRegisterSourceArgs{
+		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{
 			DataDir:    "/data",
 			SourceType: "claude-md",
 			Path:       "/path/to/source",
@@ -428,7 +430,7 @@ func TestRegistryRegisterSourceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RegistryRegisterSourceFlags(RegistryRegisterSourceArgs{})
+		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -440,7 +442,7 @@ func TestRemindFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RemindFlags(RemindArgs{DataDir: "/data", FilePath: "/file.go"})
+		result := cli.RemindFlags(cli.RemindArgs{DataDir: "/data", FilePath: "/file.go"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--file-path", "/file.go"}))
 	})
 
@@ -448,7 +450,7 @@ func TestRemindFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := RemindFlags(RemindArgs{})
+		result := cli.RemindFlags(cli.RemindArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
@@ -460,7 +462,7 @@ func TestReviewFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := ReviewFlags(ReviewArgs{DataDir: "/data", Format: "json"})
+		result := cli.ReviewFlags(cli.ReviewArgs{DataDir: "/data", Format: "json"})
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--format", "json"}))
 	})
 
@@ -468,8 +470,23 @@ func TestReviewFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := ReviewFlags(ReviewArgs{})
+		result := cli.ReviewFlags(cli.ReviewArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+}
+
+func TestRunSafe(t *testing.T) {
+	t.Parallel()
+
+	t.Run("prints error to stderr on failure", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var stdout, stderr bytes.Buffer
+
+		// Pass invalid args to trigger an error from Run
+		cli.RunSafe([]string{"engram", "nonexistent-subcommand"}, &stdout, &stderr, strings.NewReader(""))
+		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
 	})
 }
 
@@ -480,7 +497,7 @@ func TestSurfaceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := SurfaceFlags(SurfaceArgs{
+		result := cli.SurfaceFlags(cli.SurfaceArgs{
 			Mode:      "prompt",
 			DataDir:   "/data",
 			Message:   "hello",
@@ -502,7 +519,7 @@ func TestSurfaceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := SurfaceFlags(SurfaceArgs{Mode: "session-start", DataDir: "/data"})
+		result := cli.SurfaceFlags(cli.SurfaceArgs{Mode: "session-start", DataDir: "/data"})
 		g.Expect(result).To(gomega.Equal([]string{"--mode", "session-start", "--data-dir", "/data"}))
 	})
 
@@ -510,23 +527,8 @@ func TestSurfaceFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := SurfaceFlags(SurfaceArgs{})
+		result := cli.SurfaceFlags(cli.SurfaceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestRunSafe(t *testing.T) {
-	t.Parallel()
-
-	t.Run("prints error to stderr on failure", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		var stdout, stderr bytes.Buffer
-
-		// Pass invalid args to trigger an error from Run
-		RunSafe([]string{"engram", "nonexistent-subcommand"}, &stdout, &stderr, strings.NewReader(""))
-		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
 	})
 }
 
@@ -539,7 +541,7 @@ func TestTargets(t *testing.T) {
 
 		var stdout, stderr bytes.Buffer
 
-		targets := Targets(&stdout, &stderr, strings.NewReader(""))
+		targets := cli.Targets(&stdout, &stderr, strings.NewReader(""))
 		g.Expect(targets).NotTo(gomega.BeEmpty())
 	})
 }

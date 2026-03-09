@@ -261,6 +261,14 @@ func ReviewFlags(a ReviewArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--format", a.Format)
 }
 
+// RunSafe runs the CLI and prints errors to the given writer (ARCH-6: always exit 0).
+func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
+	err := Run(args, stdout, stderr, stdin)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+	}
+}
+
 // SurfaceFlags returns the CLI flag args for the surface subcommand.
 func SurfaceFlags(a SurfaceArgs) []string {
 	return BuildFlags(
@@ -273,16 +281,8 @@ func SurfaceFlags(a SurfaceArgs) []string {
 	)
 }
 
-// RunSafe runs the CLI and prints errors to the given writer (ARCH-6: always exit 0).
-func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
-	if err := Run(args, stdout, stderr, stdin); err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-	}
-}
-
 // Targets returns all targ targets for the engram CLI.
 //
-//nolint:funlen // CLI wiring — all targets registered in one place
 func Targets(stdout io.Writer, stderr io.Writer, stdin io.Reader) []any {
 	run := func(subcmd string, flags []string) {
 		args := append([]string{"engram", subcmd}, flags...)

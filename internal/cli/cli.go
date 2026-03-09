@@ -303,7 +303,7 @@ func RunLearn(
 // proposals as a JSON array on stdout. token controls LLM availability
 // for leech/hidden-gem proposals; empty string skips them.
 //
-//nolint:cyclop // orchestration function
+//nolint:cyclop,funlen // CLI wiring
 func RunMaintain(
 	args []string,
 	token string,
@@ -440,10 +440,13 @@ func RunRegistryInit(
 
 	registryPath := filepath.Join(*dataDir, registryFilename)
 
-	allOpts := []regpkg.JSONLOption{
+	const baseOpts = 2
+
+	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
+	allOpts = append(allOpts,
 		regpkg.WithReader(osReadFileFunc),
 		regpkg.WithWriter(osWriteFileFunc),
-	}
+	)
 	allOpts = append(allOpts, opts...)
 
 	store := regpkg.NewJSONLStore(registryPath, allOpts...)
@@ -463,7 +466,7 @@ func RunRegistryInit(
 // RunRegistryMerge implements the registry merge subcommand (ARCH-56, DES-28).
 // removeFile is injected for testability (DI).
 //
-//nolint:cyclop // merge logic
+//nolint:cyclop,funlen // CLI wiring
 func RunRegistryMerge(
 	args []string,
 	stdout io.Writer,
@@ -488,10 +491,13 @@ func RunRegistryMerge(
 
 	registryPath := filepath.Join(*dataDir, registryFilename)
 
-	allOpts := []regpkg.JSONLOption{
+	const baseOpts = 2
+
+	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
+	allOpts = append(allOpts,
 		regpkg.WithReader(osReadFileFunc),
 		regpkg.WithWriter(osWriteFileFunc),
-	}
+	)
 	allOpts = append(allOpts, opts...)
 
 	store := regpkg.NewJSONLStore(registryPath, allOpts...)
@@ -534,7 +540,7 @@ func RunRegistryMerge(
 // RunRegistryRegisterSource implements the registry register-source subcommand.
 // readFile is injected for testability (DI).
 //
-//nolint:cyclop // registration logic
+//nolint:cyclop,funlen // CLI wiring
 func RunRegistryRegisterSource(
 	args []string,
 	stdout io.Writer,
@@ -581,10 +587,13 @@ func RunRegistryRegisterSource(
 
 	registryPath := filepath.Join(*dataDir, registryFilename)
 
-	allOpts := []regpkg.JSONLOption{
+	const baseOpts = 2
+
+	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
+	allOpts = append(allOpts,
 		regpkg.WithReader(osReadFileFunc),
 		regpkg.WithWriter(osWriteFileFunc),
-	}
+	)
 	allOpts = append(allOpts, opts...)
 
 	store := regpkg.NewJSONLStore(registryPath, allOpts...)
@@ -632,10 +641,13 @@ func RunReview(args []string, stdout io.Writer, opts ...regpkg.JSONLOption) erro
 
 	registryPath := filepath.Join(*dataDir, registryFilename)
 
-	allOpts := []regpkg.JSONLOption{
+	const baseOpts = 2
+
+	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
+	allOpts = append(allOpts,
 		regpkg.WithReader(osReadFileFunc),
 		regpkg.WithWriter(osWriteFileFunc),
-	}
+	)
 	allOpts = append(allOpts, opts...)
 
 	store := regpkg.NewJSONLStore(registryPath, allOpts...)
@@ -783,7 +795,9 @@ func (c *cliConfirmer) Confirm(preview string) (bool, error) {
 	_, _ = fmt.Fprint(c.stdout, "Promote this memory to a skill? [y/N] ")
 
 	var response string
-	if _, err := fmt.Fscan(c.stdin, &response); err != nil {
+
+	_, err := fmt.Fscan(c.stdin, &response)
+	if err != nil {
 		return false, fmt.Errorf("reading confirmation: %w", err)
 	}
 
@@ -855,7 +869,6 @@ func (h *haikuClientAdapter) Summarize(
 // learnRegistryAdapter bridges learn.RegistryRegistrar to registry.Registry.
 type learnRegistryAdapter struct {
 	reg regpkg.Registry
-	now func() time.Time
 }
 
 func (a *learnRegistryAdapter) RegisterMemory(
@@ -1094,7 +1107,7 @@ func (r *osRemindConfigReader) ReadConfig() (map[string][]string, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // thin I/O adapter
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // intentional: missing config returns nil
 		}
 
 		return nil, fmt.Errorf("reading reminders.toml: %w", err)
@@ -1124,7 +1137,8 @@ func (w *osSkillWriter) Write(name, content string) (string, error) {
 
 	path := filepath.Join(w.dir, name+".md")
 
-	if _, err := os.Stat(path); err == nil {
+	_, err := os.Stat(path)
+	if err == nil {
 		return "", fmt.Errorf("%w at %s: %q", errSkillExists, path, name)
 	}
 
@@ -1206,7 +1220,9 @@ type stdinConfirmer struct {
 func (sc *stdinConfirmer) Confirm(preview string) (bool, error) {
 	_, _ = fmt.Fprintf(sc.stdout, "\n%s\n\nApply? [a]pply / [s]kip / [q]uit: ", preview)
 
-	buf := make([]byte, 16)
+	const confirmBufSize = 16
+
+	buf := make([]byte, confirmBufSize)
 
 	n, err := sc.stdin.Read(buf)
 	if err != nil {
@@ -1287,12 +1303,12 @@ func buildEscalationMemories(
 ) []maintain.EscalationMemory {
 	leeches := make([]maintain.EscalationMemory, 0)
 
-	for _, cm := range classified {
-		if cm.Quadrant != reviewpkg.Leech {
+	for _, classifiedMem := range classified {
+		if classifiedMem.Quadrant != reviewpkg.Leech {
 			continue
 		}
 
-		stored := memoryMap[cm.Name]
+		stored := memoryMap[classifiedMem.Name]
 		content := ""
 
 		if stored != nil {
@@ -1300,9 +1316,9 @@ func buildEscalationMemories(
 		}
 
 		leeches = append(leeches, maintain.EscalationMemory{
-			Path:          cm.Name,
+			Path:          classifiedMem.Name,
 			Content:       content,
-			Effectiveness: cm.EffectivenessScore,
+			Effectiveness: classifiedMem.EffectivenessScore,
 		})
 	}
 
@@ -1540,7 +1556,7 @@ func loadMemoryContent(
 }
 
 func loadSkillContent(path string) (promote.SkillContent, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // file path from user flag, not user input
 	if err != nil {
 		return promote.SkillContent{}, fmt.Errorf("reading skill: %w", err)
 	}
@@ -1595,7 +1611,7 @@ func osReadFileFunc(path string) ([]byte, error) {
 func osWriteFileFunc(path string, content []byte) error {
 	const filePermsRW = 0o644
 
-	return os.WriteFile(path, content, filePermsRW) //nolint:wrapcheck,gosec // thin I/O adapter
+	return os.WriteFile(path, content, filePermsRW) //nolint:wrapcheck // thin I/O adapter
 }
 
 // parseRemindersToml parses a simple TOML config: ["*.go"]\ninstructions = ["id1", "id2"].
@@ -2131,7 +2147,7 @@ func runMaintainApply(
 		return errMaintainApplyMissingProposals
 	}
 
-	data, err := os.ReadFile(proposalsPath)
+	data, err := os.ReadFile(proposalsPath) //nolint:gosec // file path from user flag, not user input
 	if err != nil {
 		return fmt.Errorf("maintain --apply: reading proposals: %w", err)
 	}
@@ -2193,7 +2209,6 @@ func runMaintainApply(
 	return nil
 }
 
-//nolint:funlen,cyclop // CLI orchestration: wires DI dependencies for promote pipeline
 func runPromote(args []string, stdout io.Writer, stdin io.Reader) error {
 	fs := flag.NewFlagSet("promote", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -2246,9 +2261,7 @@ func runPromoteToClaudeMD(
 		Merger:         reg,
 		Registerer:     reg,
 		Confirmer:      confirmer,
-		SkillLoader: func(path string) (promote.SkillContent, error) {
-			return loadSkillContent(path)
-		},
+		SkillLoader: loadSkillContent,
 	}
 
 	candidates, err := promoter.PromotionCandidates(threshold)
