@@ -2261,7 +2261,7 @@ func runPromoteToClaudeMD(
 		Merger:         reg,
 		Registerer:     reg,
 		Confirmer:      confirmer,
-		SkillLoader: loadSkillContent,
+		SkillLoader:    loadSkillContent,
 	}
 
 	candidates, err := promoter.PromotionCandidates(threshold)

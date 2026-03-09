@@ -19,7 +19,7 @@ type InstructionItem struct {
 	Source             SourceType `json:"source"`
 	Path               string     `json:"path"`
 	Content            string     `json:"content"`
-	EffectivenessScore float64    `json:"effectiveness_score"`
+	EffectivenessScore float64    `json:"effectiveness_score"` //nolint:tagliatelle // external JSON contract
 }
 
 // Scanner extracts instructions from all project sources.
@@ -106,16 +106,18 @@ func (s *Scanner) scanFile(
 // SourceType identifies where an instruction came from.
 type SourceType string
 
-// Salience rank constants for instruction source priority.
+// unexported constants.
 const (
 	salienceHigh   = 2
 	salienceMedium = 3
 )
 
-//nolint:gochecknoglobals // package-level lookup table
-var salienceRank = map[SourceType]int{
-	SourceClaudeMD: 0,
-	SourceRule:     1,
-	SourceMemory:   salienceHigh,
-	SourceSkill:    salienceMedium,
-}
+// unexported variables.
+var (
+	salienceRank = map[SourceType]int{ //nolint:gochecknoglobals // package-level constant table
+		SourceClaudeMD: 0,
+		SourceRule:     1,
+		SourceMemory:   salienceHigh,
+		SourceSkill:    salienceMedium,
+	}
+)

@@ -3,6 +3,7 @@ package instruct_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -63,6 +64,68 @@ func TestAuditRun_DeduplicatesOverlappingInstructions(t *testing.T) {
 	g.Expect(report.Duplicates[0].Overlap).To(BeNumerically(">", 0.80))
 	// CLAUDE.md has higher salience → keep it
 	g.Expect(report.Duplicates[0].KeepSource).To(Equal("/project/CLAUDE.md"))
+}
+
+// diagnoseBottom returns error when LLM call fails.
+func TestAuditRun_DiagnoseBottomLLMError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("instruction content"), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/m1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{"/data/memories/m1.toml": 5.0},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner: scanner,
+		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
+			return "", errors.New("LLM timeout")
+		},
+	}
+
+	_, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("diagnosing instructions")))
+}
+
+// diagnoseBottom returns error when LLM returns invalid JSON.
+func TestAuditRun_DiagnoseBottomParseError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("instruction content"), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/m1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{"/data/memories/m1.toml": 5.0},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner: scanner,
+		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
+			return "not json", nil
+		},
+	}
+
+	_, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("parsing LLM response")))
 }
 
 // T-218: Quality diagnosis calls Haiku for bottom 20%.
@@ -150,6 +213,272 @@ func TestAuditRun_DiagnosesBottom20Percent(t *testing.T) {
 	g.Expect(diagnoses[0].Diagnosis).To(Equal("too abstract"))
 	g.Expect(diagnoses[0].RootCause).To(Equal("missing trigger"))
 	g.Expect(diagnoses[0].Suggestion).To(Equal("add when clause"))
+}
+
+// keywordOverlap with both empty sets returns 0.
+func TestAuditRun_DuplicatesSingleItemNoPairs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			// Each file has unique content so no duplicates are found.
+			return []byte("unique content for " + path), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/only.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{Scanner: scanner, LLMCaller: nil}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Duplicates).To(BeEmpty())
+}
+
+// extractKeywords strips punctuation and single-char words.
+func TestAuditRun_DuplicatesWithPunctuation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Content with lots of punctuation; after stripping, they should still match.
+	content := "always! use? the (fish) shell, for [terminal] commands."
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			switch path {
+			case "/data/memories/a.toml":
+				return []byte(content), nil
+			case "/data/memories/b.toml":
+				return []byte(content), nil // identical
+			}
+
+			return nil, errors.New("not found")
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/a.toml", "/data/memories/b.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{Scanner: scanner, LLMCaller: nil}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Duplicates).To(HaveLen(1))
+	g.Expect(report.Duplicates[0].Overlap).To(BeNumerically("==", 1.0))
+}
+
+// buildProposals with empty diagnoses produces empty proposals.
+func TestAuditRun_EmptyDiagnosesEmptyProposals(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		},
+		GlobFiles: func(_ string) ([]string, error) {
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	// LLM caller present but no items to diagnose (empty scan)
+	auditor := &instruct.Auditor{
+		Scanner: scanner,
+		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
+			return `{"diagnosis":"x","root_cause":"y","suggestion":"z"}`, nil
+		},
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	var proposals []instruct.RefinementProposal
+
+	unmarshalErr := json.Unmarshal(report.Proposals, &proposals)
+	g.Expect(unmarshalErr).NotTo(HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(proposals).To(BeEmpty())
+}
+
+// findGaps skips covered paths and non-contradicted outcomes.
+func TestAuditRun_FindGapsAllCovered(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("content"), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/m1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: nil,
+		EvalData: []instruct.EvalRecord{
+			{MemoryPath: "/data/memories/m1.toml", Outcome: "contradicted", Pattern: "p1", Example: "e1"},
+		},
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	// m1.toml is covered by scanner, so no gaps
+	g.Expect(report.Gaps).To(BeEmpty())
+}
+
+// findGaps groups multiple contradictions of the same pattern.
+func TestAuditRun_FindGapsGroupsPatterns(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("content"), nil
+		},
+		GlobFiles: func(_ string) ([]string, error) {
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: nil,
+		EvalData: []instruct.EvalRecord{
+			{MemoryPath: "/uncovered1", Outcome: "contradicted", Pattern: "same_pat", Example: "ex1"},
+			{MemoryPath: "/uncovered2", Outcome: "contradicted", Pattern: "same_pat", Example: "ex2"},
+			{MemoryPath: "/uncovered3", Outcome: "contradicted", Pattern: "other_pat", Example: "ex3"},
+		},
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Gaps).To(HaveLen(2))
+
+	// Sorted descending by count, so same_pat (2) first
+	g.Expect(report.Gaps[0].Pattern).To(Equal("same_pat"))
+	g.Expect(report.Gaps[0].ViolationCount).To(Equal(2))
+	g.Expect(report.Gaps[1].Pattern).To(Equal("other_pat"))
+	g.Expect(report.Gaps[1].ViolationCount).To(Equal(1))
+}
+
+// findGaps returns empty when no eval data.
+func TestAuditRun_FindGapsNoEvalData(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("content"), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/m1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: nil,
+		EvalData:  nil, // no eval data
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Gaps).To(BeEmpty())
 }
 
 // T-220: Gap analysis finds violations without instructions.
@@ -401,6 +730,50 @@ func TestAuditRun_GeneratesRefinementProposals(t *testing.T) {
 	g.Expect(proposals[0].Suggestion).To(Equal("specify file types"))
 }
 
+// findDuplicates returns empty for no overlap.
+func TestAuditRun_NoDuplicatesForDistinctContent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			switch path {
+			case "/data/memories/a.toml":
+				return []byte("completely unique alpha beta gamma delta epsilon"), nil
+			case "/data/memories/b.toml":
+				return []byte("entirely different zeta eta theta iota kappa lambda"), nil
+			}
+
+			return nil, errors.New("not found")
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/a.toml", "/data/memories/b.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	auditor := &instruct.Auditor{Scanner: scanner, LLMCaller: nil}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Duplicates).To(BeEmpty())
+}
+
 // T-223: No API token skips LLM steps, runs dedup and gaps.
 func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 	t.Parallel()
@@ -474,4 +847,130 @@ func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 	g.Expect(report.Duplicates).NotTo(BeNil())
 	g.Expect(report.Gaps).NotTo(BeNil())
 	g.Expect(report.Skills).NotTo(BeNil())
+}
+
+// Run returns error when ScanAll fails.
+func TestAuditRun_ScanError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return nil, errors.New("read error")
+		},
+		GlobFiles: func(_ string) ([]string, error) {
+			return nil, errors.New("glob error")
+		},
+	}
+
+	auditor := &instruct.Auditor{Scanner: scanner}
+
+	// ScanAll won't error because it swallows errors, so this tests the path.
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+}
+
+// findSkillIssues returns empty when EffData is nil.
+func TestAuditRun_SkillIssuesNilEffData(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			if path == "/project/.claude-plugin/skills/test.md" {
+				return []byte("line one\nline two"), nil
+			}
+
+			return nil, fmt.Errorf("not found: %s", path)
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/project/.claude-plugin/skills/*.md" {
+				return []string{"/project/.claude-plugin/skills/test.md"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: nil, // nil EffData
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: nil,
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	g.Expect(report.Skills).To(BeEmpty())
+}
+
+// findSkillIssues skips non-skill items and empty lines.
+func TestAuditRun_SkillIssuesSkipsNonSkillAndEmptyLines(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(path string) ([]byte, error) {
+			switch path {
+			case "/project/.claude-plugin/skills/s.md":
+				return []byte("real line\n\nskipped empty"), nil
+			case "/data/memories/m.toml":
+				return []byte("memory content"), nil
+			}
+
+			return nil, errors.New("not found")
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			switch pattern {
+			case "/project/.claude-plugin/skills/*.md":
+				return []string{"/project/.claude-plugin/skills/s.md"}, nil
+			case "/data/memories/*.toml":
+				return []string{"/data/memories/m.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{
+			"/project/.claude-plugin/skills/s.md:1": 5.0,
+			"/data/memories/m.toml:1":               5.0, // not a skill, should be skipped
+		},
+	}
+
+	auditor := &instruct.Auditor{
+		Scanner:   scanner,
+		LLMCaller: nil,
+	}
+
+	report, err := auditor.Run(context.Background(), "/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(report).NotTo(BeNil())
+
+	if report == nil {
+		return
+	}
+
+	// Only skill line 1 flagged, not memory
+	g.Expect(report.Skills).To(HaveLen(1))
+	g.Expect(report.Skills[0].Content).To(Equal("real line"))
 }

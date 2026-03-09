@@ -436,6 +436,7 @@ func TestMarshalProposal_ValidProposal(t *testing.T) {
 	data := maintain.MarshalProposal(proposal)
 
 	var decoded map[string]any
+
 	unmarshalErr := json.Unmarshal(data, &decoded)
 	g.Expect(unmarshalErr).NotTo(gomega.HaveOccurred())
 

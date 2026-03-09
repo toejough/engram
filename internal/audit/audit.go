@@ -267,6 +267,27 @@ type ScopeEntry struct {
 	EffectivenessScore float64 `json:"effectiveness_score"`
 }
 
+// StripMarkdownFence removes surrounding markdown code fences from text.
+func StripMarkdownFence(text string) string {
+	trimmed := strings.TrimSpace(text)
+	if !strings.HasPrefix(trimmed, "```") {
+		return text
+	}
+
+	firstNewline := strings.Index(trimmed, "\n")
+	if firstNewline < 0 {
+		return text
+	}
+
+	trimmed = trimmed[firstNewline+1:]
+
+	if idx := strings.LastIndex(trimmed, "```"); idx >= 0 {
+		trimmed = trimmed[:idx]
+	}
+
+	return strings.TrimSpace(trimmed)
+}
+
 // WithLLMCaller injects an LLM caller.
 func WithLLMCaller(
 	fn func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
@@ -341,24 +362,4 @@ func buildCompliancePrompt(scope []ScopeEntry, transcript string) string {
 	sb.WriteString(`[{"instruction": "memory_path", "compliant": true/false, "evidence": "..."}]`)
 
 	return sb.String()
-}
-
-func StripMarkdownFence(text string) string {
-	trimmed := strings.TrimSpace(text)
-	if !strings.HasPrefix(trimmed, "```") {
-		return text
-	}
-
-	firstNewline := strings.Index(trimmed, "\n")
-	if firstNewline < 0 {
-		return text
-	}
-
-	trimmed = trimmed[firstNewline+1:]
-
-	if idx := strings.LastIndex(trimmed, "```"); idx >= 0 {
-		trimmed = trimmed[:idx]
-	}
-
-	return strings.TrimSpace(trimmed)
 }

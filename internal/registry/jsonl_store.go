@@ -231,7 +231,7 @@ func (s *JSONLStore) clock() time.Time {
 	return time.Now()
 }
 
-func (s *JSONLStore) ensureLoaded() error {
+func (s *JSONLStore) ensureLoaded() error { //nolint:unparam // error return kept for future use
 	if s.loaded {
 		return nil
 	}

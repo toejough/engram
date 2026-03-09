@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/onsi/gomega"
+	"github.com/toejough/targ"
 
 	"engram/internal/cli"
 )
@@ -55,6 +56,14 @@ func TestAuditFlags(t *testing.T) {
 
 		result := cli.AuditFlags(cli.AuditArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.AuditFlags(cli.AuditArgs{Timestamp: "2024-01-01T00:00:00Z"})
+		g.Expect(result).To(gomega.Equal([]string{"--timestamp", "2024-01-01T00:00:00Z"}))
 	})
 }
 
@@ -112,6 +121,73 @@ func TestBuildFlags(t *testing.T) {
 		result := cli.BuildFlags()
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("odd number of args ignores trailing key", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.BuildFlags("--data-dir", "/tmp", "--orphan")
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/tmp"}))
+	})
+}
+
+func TestBuildTargets(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns expected number of targets", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		targets := cli.BuildTargets(func(_ string, _ []string) {})
+		// 13 individual commands + 1 registry group = 14 entries
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 14))
+	})
+
+	t.Run("each subcommand wires to correct name", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var calls []string
+
+		targets := cli.BuildTargets(func(subcmd string, _ []string) {
+			calls = append(calls, subcmd)
+		})
+
+		subcmds := []string{
+			"audit", "automate", "correct", "evaluate", "review",
+			"maintain", "surface", "learn", "remind", "instruct",
+			"context-update", "promote", "demote",
+		}
+		for _, sub := range subcmds {
+			_, _ = targ.Execute([]string{"engram", sub}, targets...)
+		}
+
+		g.Expect(calls).To(gomega.Equal(subcmds))
+	})
+
+	t.Run("registry subcommands wire correctly", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var calls []string
+
+		targets := cli.BuildTargets(func(subcmd string, flags []string) {
+			if len(flags) > 0 {
+				calls = append(calls, subcmd+"/"+flags[0])
+			}
+		})
+
+		registrySubs := []string{"init", "register-source", "merge"}
+		for _, sub := range registrySubs {
+			_, _ = targ.Execute([]string{"engram", "registry", sub}, targets...)
+		}
+
+		g.Expect(calls).To(gomega.Equal([]string{
+			"registry/init",
+			"registry/register-source",
+			"registry/merge",
+		}))
+	})
 }
 
 func TestContextUpdateFlags(t *testing.T) {
@@ -142,6 +218,20 @@ func TestContextUpdateFlags(t *testing.T) {
 		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{
+			TranscriptPath: "/transcript",
+			DataDir:        "/data",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--transcript-path", "/transcript",
+			"--data-dir", "/data",
+		}))
+	})
 }
 
 func TestCorrectFlags(t *testing.T) {
@@ -170,6 +260,14 @@ func TestCorrectFlags(t *testing.T) {
 		result := cli.CorrectFlags(cli.CorrectArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.CorrectFlags(cli.CorrectArgs{Message: "fix this"})
+		g.Expect(result).To(gomega.Equal([]string{"--message", "fix this"}))
+	})
 }
 
 func TestDemoteFlags(t *testing.T) {
@@ -197,6 +295,14 @@ func TestDemoteFlags(t *testing.T) {
 
 		result := cli.DemoteFlags(cli.DemoteArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("partial bools only to-skill", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: true, Yes: false})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill"}))
 	})
 }
 
@@ -238,6 +344,14 @@ func TestInstructFlags(t *testing.T) {
 		result := cli.InstructFlags(cli.InstructArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.InstructFlags(cli.InstructArgs{ProjectDir: "/project"})
+		g.Expect(result).To(gomega.Equal([]string{"--project-dir", "/project"}))
+	})
 }
 
 func TestLearnFlags(t *testing.T) {
@@ -265,6 +379,17 @@ func TestLearnFlags(t *testing.T) {
 
 		result := cli.LearnFlags(cli.LearnArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.LearnFlags(cli.LearnArgs{DataDir: "/data", SessionID: "sess-1"})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--session-id", "sess-1",
+		}))
 	})
 }
 
@@ -302,6 +427,38 @@ func TestMaintainFlags(t *testing.T) {
 
 		result := cli.MaintainFlags(cli.MaintainArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("partial apply true yes false", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.MaintainFlags(cli.MaintainArgs{
+			DataDir:   "/data",
+			Proposals: "/p.json",
+			Apply:     true,
+			Yes:       false,
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--proposals", "/p.json",
+			"--apply",
+		}))
+	})
+
+	t.Run("partial apply false yes true", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.MaintainFlags(cli.MaintainArgs{
+			DataDir: "/data",
+			Apply:   false,
+			Yes:     true,
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--yes",
+		}))
 	})
 }
 
@@ -349,6 +506,30 @@ func TestPromoteFlags(t *testing.T) {
 		result := cli.PromoteFlags(cli.PromoteArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("to-skill true to-claude-md false", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", ToSkill: true, ToClaudeMD: false})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill"}))
+	})
+
+	t.Run("to-skill false to-claude-md true yes true", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", ToClaudeMD: true, Yes: true})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-claude-md", "--yes"}))
+	})
+
+	t.Run("negative threshold omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", Threshold: -1})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
+	})
 }
 
 func TestRegistryInitFlags(t *testing.T) {
@@ -376,6 +557,14 @@ func TestRegistryInitFlags(t *testing.T) {
 
 		result := cli.RegistryInitFlags(cli.RegistryInitArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("dry-run true no data-dir", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DryRun: true})
+		g.Expect(result).To(gomega.Equal([]string{"--dry-run"}))
 	})
 }
 
@@ -405,6 +594,14 @@ func TestRegistryMergeFlags(t *testing.T) {
 		result := cli.RegistryMergeFlags(cli.RegistryMergeArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RegistryMergeFlags(cli.RegistryMergeArgs{SourceID: "src-1"})
+		g.Expect(result).To(gomega.Equal([]string{"--source", "src-1"}))
+	})
 }
 
 func TestRegistryRegisterSourceFlags(t *testing.T) {
@@ -433,6 +630,20 @@ func TestRegistryRegisterSourceFlags(t *testing.T) {
 		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{
+			SourceType: "memory-md",
+			Path:       "/memories.md",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--type", "memory-md",
+			"--path", "/memories.md",
+		}))
+	})
 }
 
 func TestRemindFlags(t *testing.T) {
@@ -452,6 +663,14 @@ func TestRemindFlags(t *testing.T) {
 
 		result := cli.RemindFlags(cli.RemindArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
+	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RemindFlags(cli.RemindArgs{FilePath: "/file.go"})
+		g.Expect(result).To(gomega.Equal([]string{"--file-path", "/file.go"}))
 	})
 }
 
@@ -473,19 +692,30 @@ func TestReviewFlags(t *testing.T) {
 		result := cli.ReviewFlags(cli.ReviewArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("partial fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.ReviewFlags(cli.ReviewArgs{Format: "json"})
+		g.Expect(result).To(gomega.Equal([]string{"--format", "json"}))
+	})
 }
 
 func TestRunSafe(t *testing.T) {
 	t.Parallel()
 
-	t.Run("prints error to stderr on failure", func(t *testing.T) {
+	t.Run("writes error to stderr on failure", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		var stdout, stderr bytes.Buffer
+		var stderr bytes.Buffer
 
-		// Pass invalid args to trigger an error from Run
-		cli.RunSafe([]string{"engram", "nonexistent-subcommand"}, &stdout, &stderr, strings.NewReader(""))
+		// Invalid subcommand triggers error path — no filesystem I/O.
+		cli.RunSafe(
+			[]string{"engram", "nonexistent-subcommand"},
+			&bytes.Buffer{}, &stderr, strings.NewReader(""),
+		)
 		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
 	})
 }
@@ -530,18 +760,48 @@ func TestSurfaceFlags(t *testing.T) {
 		result := cli.SurfaceFlags(cli.SurfaceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+
+	t.Run("tool mode partial", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.SurfaceFlags(cli.SurfaceArgs{
+			Mode:     "tool",
+			ToolName: "Read",
+			Format:   "json",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--mode", "tool",
+			"--tool-name", "Read",
+			"--format", "json",
+		}))
+	})
 }
 
 func TestTargets(t *testing.T) {
 	t.Parallel()
 
-	t.Run("returns non-empty slice", func(t *testing.T) {
+	t.Run("returns expected target count", func(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		var stdout, stderr bytes.Buffer
+		// Construction doesn't do I/O — just builds targ target objects.
+		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 14))
+	})
 
-		targets := cli.Targets(&stdout, &stderr, strings.NewReader(""))
-		g.Expect(targets).NotTo(gomega.BeEmpty())
+	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		var stderr bytes.Buffer
+
+		// Execute one target to exercise the closure body.
+		// I/O goes to injected bytes.Buffer — no real side effects.
+		targets := cli.Targets(&bytes.Buffer{}, &stderr, strings.NewReader(""))
+		_, _ = targ.Execute([]string{"engram", "review", "--data-dir", t.TempDir()}, targets...)
+
+		// review with empty dir produces no error output.
+		g.Expect(stderr.String()).To(gomega.BeEmpty())
 	})
 }

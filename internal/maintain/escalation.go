@@ -224,16 +224,16 @@ const (
 	mechanicalScoreThresh = 2
 )
 
-//nolint:gochecknoglobals // package-level lookup tables
+// unexported variables.
 var (
-	escalationLadder = []EscalationLevel{
+	escalationLadder = []EscalationLevel{ //nolint:gochecknoglobals // package-level constant table
 		LevelAdvisory,
 		LevelEmphasizedAdvisory,
 		LevelPosttoolReminder,
 		LevelPretoolBlock,
 		LevelAutomationCandidate,
 	}
-	mechanicalKeywords = []string{
+	mechanicalKeywords = []string{ //nolint:gochecknoglobals // package-level constant table
 		"always", "never", "before", "after", "format", "convention",
 	}
 )

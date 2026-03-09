@@ -961,7 +961,8 @@ type fakeDirEntry struct {
 	isDir bool
 }
 
-func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil } //nolint:nilnil // test fake returns nil,nil intentionally
+//nolint:nilnil // test fake returns nil,nil intentionally
+func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil }
 
 func (e fakeDirEntry) IsDir() bool { return e.isDir }
 

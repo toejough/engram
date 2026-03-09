@@ -39,6 +39,7 @@ func (rewriter *TOMLRewriter) Rewrite(path string, updates map[string]any) error
 	}
 
 	var existing map[string]any
+
 	_, decodeErr := toml.Decode(string(data), &existing)
 	if decodeErr != nil {
 		return fmt.Errorf("decoding memory TOML: %w", decodeErr)

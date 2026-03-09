@@ -416,6 +416,7 @@ anti_pattern = ""`
 
 	// Build a transcript: 80 tool result lines + 20 conversation lines.
 	const totalLines = 100
+
 	lines := make([]string, 0, totalLines)
 	for range 80 {
 		lines = append(lines, `{"role":"toolResult","content":"big blob"}`)

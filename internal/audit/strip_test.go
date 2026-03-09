@@ -36,6 +36,21 @@ func TestStripMarkdownFence(t *testing.T) {
 			input: "```",
 			want:  "```",
 		},
+		{
+			name:  "nested fences preserves inner",
+			input: "```json\nouter\n```inner```\n```",
+			want:  "outer\n```inner```",
+		},
+		{
+			name:  "partial fence no closing",
+			input: "```json\ncontent without closing fence",
+			want:  "content without closing fence",
+		},
+		{
+			name:  "whitespace around fence",
+			input: "  \n```json\n{\"a\":1}\n```\n  ",
+			want:  `{"a":1}`,
+		},
 	}
 
 	for _, tc := range tests {

@@ -27,6 +27,70 @@ func TestTOMLRewriter_DecodeError(t *testing.T) {
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("decoding memory TOML")))
 }
 
+// Rewrite with empty updates still writes (no-op merge).
+func TestTOMLRewriter_EmptyUpdates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	writeCalled := false
+
+	rewriter := maintain.NewTOMLRewriter(
+		maintain.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte("title = \"test\"\n"), nil
+		}),
+		maintain.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error {
+			writeCalled = true
+
+			return nil
+		}),
+		maintain.WithRenameFile(func(_, _ string) error { return nil }),
+	)
+
+	err := rewriter.Rewrite("/f.toml", map[string]any{})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writeCalled).To(gomega.BeTrue())
+}
+
+// Rewrite merges updates into existing fields and adds new ones.
+func TestTOMLRewriter_MergesUpdates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var writtenData []byte
+
+	rewriter := maintain.NewTOMLRewriter(
+		maintain.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte("title = \"original\"\nkeep = \"preserved\"\n"), nil
+		}),
+		maintain.WithWriteFile(func(_ string, data []byte, _ os.FileMode) error {
+			writtenData = data
+
+			return nil
+		}),
+		maintain.WithRenameFile(func(_, _ string) error { return nil }),
+	)
+
+	err := rewriter.Rewrite("/f.toml", map[string]any{
+		"title": "updated",
+		"added": "new field",
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	content := string(writtenData)
+	g.Expect(content).To(gomega.ContainSubstring(`title = "updated"`))
+	g.Expect(content).To(gomega.ContainSubstring(`keep = "preserved"`))
+	g.Expect(content).To(gomega.ContainSubstring(`added = "new field"`))
+}
+
 // T-265: Memory TOML rewriter — atomic write preserves fields.
 func TestTOMLRewriter_PreservesUnchangedFields(t *testing.T) {
 	t.Parallel()
@@ -212,6 +276,88 @@ func TestTOMLRewriter_WithOptions(t *testing.T) {
 	g.Expect(readCalled).To(gomega.BeTrue())
 	g.Expect(writeCalled).To(gomega.BeTrue())
 	g.Expect(renameCalled).To(gomega.BeTrue())
+}
+
+// WithReadFile alone overrides the default os.ReadFile.
+func TestTOMLRewriter_WithReadFileAlone(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	customCalled := false
+
+	rewriter := maintain.NewTOMLRewriter(
+		maintain.WithReadFile(func(_ string) ([]byte, error) {
+			customCalled = true
+
+			return nil, errors.New("custom read")
+		}),
+	)
+
+	err := rewriter.Rewrite("/fake.toml", map[string]any{"k": "v"})
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(customCalled).To(gomega.BeTrue())
+}
+
+// WithRenameFile alone overrides the default os.Rename.
+func TestTOMLRewriter_WithRenameFileAlone(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var renamedFrom, renamedTo string
+
+	rewriter := maintain.NewTOMLRewriter(
+		maintain.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte("title = \"test\"\n"), nil
+		}),
+		maintain.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error {
+			return nil
+		}),
+		maintain.WithRenameFile(func(oldpath, newpath string) error {
+			renamedFrom = oldpath
+			renamedTo = newpath
+
+			return nil
+		}),
+	)
+
+	err := rewriter.Rewrite("/dir/file.toml", map[string]any{"title": "new"})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(renamedFrom).To(gomega.Equal("/dir/.tmp-rewrite"))
+	g.Expect(renamedTo).To(gomega.Equal("/dir/file.toml"))
+}
+
+// WithWriteFile alone overrides the default os.WriteFile.
+func TestTOMLRewriter_WithWriteFileAlone(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	writtenPath := ""
+
+	rewriter := maintain.NewTOMLRewriter(
+		maintain.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte("title = \"test\"\n"), nil
+		}),
+		maintain.WithWriteFile(func(name string, _ []byte, _ os.FileMode) error {
+			writtenPath = name
+
+			return nil
+		}),
+		maintain.WithRenameFile(func(_, _ string) error { return nil }),
+	)
+
+	err := rewriter.Rewrite("/dir/file.toml", map[string]any{"title": "new"})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writtenPath).To(gomega.Equal("/dir/.tmp-rewrite"))
 }
 
 // TestTOMLRewriter_WriteError verifies error when temp file write fails.

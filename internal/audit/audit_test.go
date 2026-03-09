@@ -35,6 +35,93 @@ func TestAuditor_BuildScopeError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("building scope")))
 }
 
+// buildCompliancePrompt with empty transcript.
+func TestAuditor_CompliancePromptEmptyTranscript(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedPrompt string
+
+	fixedNow := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(name string) ([]byte, error) {
+			if strings.Contains(name, "surfacing-log") {
+				return []byte(`{"memory_path":"m1","effectiveness_score":90.0}`), nil
+			}
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, userPrompt string) (string, error) {
+			capturedPrompt = userPrompt
+
+			return `[{"instruction":"m1","compliant":true,"evidence":"ok"}]`, nil
+		}),
+		audit.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error { return nil }),
+		audit.WithMkdirAll(func(_ string, _ os.FileMode) error { return nil }),
+		audit.WithNow(func() time.Time { return fixedNow }),
+	)
+
+	_, err := auditor.Run(context.Background(), "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(capturedPrompt).To(ContainSubstring("Session transcript:\n\n"))
+}
+
+// buildCompliancePrompt formats scope and transcript correctly.
+func TestAuditor_CompliancePromptFormatsMultipleEntries(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedPrompt string
+
+	fixedNow := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	// Multiple entries with different scores to test prompt formatting.
+	surfacingLog := "" +
+		`{"memory_path":"m1","effectiveness_score":90.0}` + "\n" +
+		`{"memory_path":"m2","effectiveness_score":80.0}` + "\n" +
+		`{"memory_path":"m3","effectiveness_score":70.0}` + "\n" +
+		`{"memory_path":"m4","effectiveness_score":60.0}` + "\n" +
+		`{"memory_path":"m5","effectiveness_score":50.0}`
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(name string) ([]byte, error) {
+			if strings.Contains(name, "surfacing-log") {
+				return []byte(surfacingLog), nil
+			}
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, userPrompt string) (string, error) {
+			capturedPrompt = userPrompt
+
+			return `[{"instruction":"m1","compliant":true,"evidence":"ok"}]`, nil
+		}),
+		audit.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error { return nil }),
+		audit.WithMkdirAll(func(_ string, _ os.FileMode) error { return nil }),
+		audit.WithNow(func() time.Time { return fixedNow }),
+	)
+
+	_, err := auditor.Run(context.Background(), "the transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Top 20% of 5 = 1 entry (m1 with score 90).
+	g.Expect(capturedPrompt).To(ContainSubstring("m1"))
+	g.Expect(capturedPrompt).To(ContainSubstring("90.0%"))
+	g.Expect(capturedPrompt).To(ContainSubstring("the transcript"))
+	g.Expect(capturedPrompt).To(ContainSubstring("High-priority instructions"))
+	g.Expect(capturedPrompt).To(ContainSubstring("Session transcript"))
+}
+
 // Run returns nil when surfacing log has only empty/whitespace lines.
 func TestAuditor_EmptySurfacingLog(t *testing.T) {
 	t.Parallel()
@@ -126,7 +213,7 @@ func TestAuditor_InjectsNegativeSignals(t *testing.T) {
 				g.Expect(jsonErr).NotTo(HaveOccurred())
 
 				if jsonErr != nil {
-					return nil
+					return jsonErr
 				}
 
 				g.Expect(entry["outcome"]).To(Equal("contradicted"))
@@ -630,4 +717,170 @@ func TestAuditor_WriteReportError(t *testing.T) {
 	_, err := auditor.Run(context.Background(), "transcript")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(ContainSubstring("writing report")))
+}
+
+// WithLLMCaller overrides the default nil llmCaller.
+func TestWithLLMCaller_OverridesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	called := false
+	caller := func(_ context.Context, _, _, _ string) (string, error) {
+		called = true
+
+		return "[]", nil
+	}
+
+	auditor := audit.New("/data",
+		audit.WithLLMCaller(caller),
+		audit.WithReadFile(func(_ string) ([]byte, error) {
+			return nil, os.ErrNotExist
+		}),
+	)
+
+	// With empty scope, LLM won't be called, but the auditor won't return ErrNoToken.
+	report, err := auditor.Run(context.Background(), "t")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(report).To(BeNil())   // empty scope
+	g.Expect(called).To(BeFalse()) // not called because scope was empty
+}
+
+// WithMkdirAll overrides the default os.MkdirAll.
+func TestWithMkdirAll_OverridesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mkdirCalled := false
+	fixedNow := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(name string) ([]byte, error) {
+			if strings.Contains(name, "surfacing-log") {
+				return []byte(`{"memory_path":"m1","effectiveness_score":50}`), nil
+			}
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return `[{"instruction":"m1","compliant":true,"evidence":"ok"}]`, nil
+		}),
+		audit.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error { return nil }),
+		audit.WithMkdirAll(func(_ string, _ os.FileMode) error {
+			mkdirCalled = true
+
+			return nil
+		}),
+		audit.WithNow(func() time.Time { return fixedNow }),
+	)
+
+	_, err := auditor.Run(context.Background(), "t")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(mkdirCalled).To(BeTrue())
+}
+
+// WithNow overrides the default time.Now.
+func TestWithNow_OverridesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixedNow := time.Date(2099, 12, 31, 23, 59, 59, 0, time.UTC)
+
+	var reportPath string
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(name string) ([]byte, error) {
+			if strings.Contains(name, "surfacing-log") {
+				return []byte(`{"memory_path":"m1","effectiveness_score":50}`), nil
+			}
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return `[{"instruction":"m1","compliant":true,"evidence":"ok"}]`, nil
+		}),
+		audit.WithWriteFile(func(name string, _ []byte, _ os.FileMode) error {
+			if strings.Contains(name, "audits/") {
+				reportPath = name
+			}
+
+			return nil
+		}),
+		audit.WithMkdirAll(func(_ string, _ os.FileMode) error { return nil }),
+		audit.WithNow(func() time.Time { return fixedNow }),
+	)
+
+	_, err := auditor.Run(context.Background(), "t")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(reportPath).To(ContainSubstring("2099"))
+}
+
+// WithReadFile overrides the default os.ReadFile.
+func TestWithReadFile_OverridesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	customCalled := false
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(_ string) ([]byte, error) {
+			customCalled = true
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return "[]", nil
+		}),
+	)
+
+	_, err := auditor.Run(context.Background(), "t")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(customCalled).To(BeTrue())
+}
+
+// WithWriteFile overrides the default os.WriteFile.
+func TestWithWriteFile_OverridesDefault(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	writeCalled := false
+	fixedNow := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	auditor := audit.New("/data",
+		audit.WithReadFile(func(name string) ([]byte, error) {
+			if strings.Contains(name, "surfacing-log") {
+				return []byte(`{"memory_path":"m1","effectiveness_score":50}`), nil
+			}
+
+			return nil, os.ErrNotExist
+		}),
+		audit.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return `[{"instruction":"m1","compliant":true,"evidence":"ok"}]`, nil
+		}),
+		audit.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error {
+			writeCalled = true
+
+			return nil
+		}),
+		audit.WithMkdirAll(func(_ string, _ os.FileMode) error { return nil }),
+		audit.WithNow(func() time.Time { return fixedNow }),
+	)
+
+	_, err := auditor.Run(context.Background(), "t")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(writeCalled).To(BeTrue())
 }

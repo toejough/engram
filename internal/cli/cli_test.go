@@ -1380,6 +1380,41 @@ func TestRunDemote_NoCandidates(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("No demotion candidates"))
 }
 
+// runDemote: exercises candidates-found path (prints list, attempts demote).
+func TestRunDemote_WithCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Seed registry with a claude-md Leech entry: low effectiveness (1/3 = 33%).
+	seedRegistry(t, dataDir,
+		`{"id":"claudemd-1","source_type":"claude-md",`+
+			`"source_path":"CLAUDE.md","title":"Old Rule",`+
+			`"content_hash":"abc","surfaced_count":5,`+
+			`"evaluations":{"followed":1,"contradicted":2}}`,
+	)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "demote",
+			"--data-dir", dataDir,
+			"--to-skill", "--yes",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	// Should list candidates and attempt demotion.
+	g.Expect(output).To(ContainSubstring("candidates for demotion"))
+	g.Expect(output).To(ContainSubstring("Old Rule"))
+}
+
 // runEvaluate covered via cli.Run with empty token (no-token path).
 func TestRunEvaluateNoToken(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
@@ -1523,6 +1558,51 @@ func TestRunPromote_ToClaudeMD_NoCandidates(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("No candidates"))
 }
 
+// runPromoteToClaudeMD: exercises candidates-found path.
+func TestRunPromote_ToClaudeMD_WithCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create skills dir with a skill file.
+	skillsDir := filepath.Join(dataDir, "skills")
+	g.Expect(os.MkdirAll(skillsDir, 0o755)).To(Succeed())
+
+	g.Expect(os.WriteFile(
+		filepath.Join(skillsDir, "my-skill.md"),
+		[]byte("# My Skill\nContent here.\n"),
+		0o644,
+	)).To(Succeed())
+
+	// Seed registry with a skill Working entry: high effectiveness (3/3 = 100%).
+	seedRegistry(t, dataDir,
+		`{"id":"skill:my-skill","source_type":"skill",`+
+			`"source_path":"skills/my-skill.md","title":"My Skill",`+
+			`"content_hash":"def","surfaced_count":100,`+
+			`"evaluations":{"followed":3}}`,
+	)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "promote",
+			"--data-dir", dataDir,
+			"--to-claude-md", "--yes",
+			"--threshold", "50",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("candidates for CLAUDE.md promotion"))
+	g.Expect(output).To(ContainSubstring("My Skill"))
+}
+
 // runPromote --to-skill: empty registry returns no candidates.
 func TestRunPromote_ToSkill_NoCandidates(t *testing.T) {
 	t.Parallel()
@@ -1545,6 +1625,56 @@ func TestRunPromote_ToSkill_NoCandidates(t *testing.T) {
 	}
 
 	g.Expect(stdout.String()).To(ContainSubstring("No candidates"))
+}
+
+// runPromoteToSkill: exercises candidates-found path.
+func TestRunPromote_ToSkill_WithCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create memories dir with a memory file.
+	memDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memDir, 0o755)).To(Succeed())
+
+	memPath := filepath.Join(memDir, "test-mem.toml")
+
+	g.Expect(os.WriteFile(
+		memPath,
+		[]byte("title = \"Test Memory\"\nprinciple = \"be good\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
+		0o644,
+	)).To(Succeed())
+
+	// Seed registry with a memory Working entry: high effectiveness (3/3 = 100%).
+	seedRegistry(t, dataDir,
+		fmt.Sprintf(
+			`{"id":"%s","source_type":"memory",`+
+				`"source_path":"%s","title":"Test Memory",`+
+				`"content_hash":"ghi","surfaced_count":100,`+
+				`"evaluations":{"followed":3}}`,
+			memPath, memPath,
+		),
+	)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "promote",
+			"--data-dir", dataDir,
+			"--to-skill", "--yes",
+			"--threshold", "50",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("candidates for promotion"))
+	g.Expect(output).To(ContainSubstring("Test Memory"))
 }
 
 // runRegistryRegisterSource: dispatched via Run.
@@ -3025,6 +3155,20 @@ type reviewTestEntry struct {
 	Ignored      int
 }
 
+// seedRegistry writes a JSONL registry file with the given entries.
+func seedRegistry(t *testing.T, dataDir string, entries ...string) {
+	t.Helper()
+
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+
+	content := strings.Join(entries, "\n") + "\n"
+
+	err := os.WriteFile(registryPath, []byte(content), 0o644)
+	if err != nil {
+		t.Fatalf("seedRegistry: %v", err)
+	}
+}
+
 // writeReviewEvalLog writes evaluation log entries for a memory to a .jsonl file.
 func writeReviewEvalLog(tb testing.TB, evalDir, filename, memPath string, outcomes []string) {
 	tb.Helper()
@@ -3103,148 +3247,4 @@ func writeTestTOML(t *testing.T, dir, filename, content string) {
 	if err != nil {
 		t.Fatalf("writeTestTOML: %v", err)
 	}
-}
-
-// seedRegistry writes a JSONL registry file with the given entries.
-func seedRegistry(t *testing.T, dataDir string, entries ...string) {
-	t.Helper()
-
-	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
-
-	content := strings.Join(entries, "\n") + "\n"
-
-	err := os.WriteFile(registryPath, []byte(content), 0o644)
-	if err != nil {
-		t.Fatalf("seedRegistry: %v", err)
-	}
-}
-
-// runDemote: exercises candidates-found path (prints list, attempts demote).
-func TestRunDemote_WithCandidates(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Seed registry with a claude-md Leech entry: low effectiveness (1/3 = 33%).
-	seedRegistry(t, dataDir,
-		`{"id":"claudemd-1","source_type":"claude-md",`+
-			`"source_path":"CLAUDE.md","title":"Old Rule",`+
-			`"content_hash":"abc","surfaced_count":5,`+
-			`"evaluations":{"followed":1,"contradicted":2}}`,
-	)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "demote",
-			"--data-dir", dataDir,
-			"--to-skill", "--yes",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	// Should list candidates and attempt demotion.
-	g.Expect(output).To(ContainSubstring("candidates for demotion"))
-	g.Expect(output).To(ContainSubstring("Old Rule"))
-}
-
-// runPromoteToClaudeMD: exercises candidates-found path.
-func TestRunPromote_ToClaudeMD_WithCandidates(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Create skills dir with a skill file.
-	skillsDir := filepath.Join(dataDir, "skills")
-	g.Expect(os.MkdirAll(skillsDir, 0o755)).To(Succeed())
-
-	g.Expect(os.WriteFile(
-		filepath.Join(skillsDir, "my-skill.md"),
-		[]byte("# My Skill\nContent here.\n"),
-		0o644,
-	)).To(Succeed())
-
-	// Seed registry with a skill Working entry: high effectiveness (3/3 = 100%).
-	seedRegistry(t, dataDir,
-		`{"id":"skill:my-skill","source_type":"skill",`+
-			`"source_path":"skills/my-skill.md","title":"My Skill",`+
-			`"content_hash":"def","surfaced_count":100,`+
-			`"evaluations":{"followed":3}}`,
-	)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "promote",
-			"--data-dir", dataDir,
-			"--to-claude-md", "--yes",
-			"--threshold", "50",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("candidates for CLAUDE.md promotion"))
-	g.Expect(output).To(ContainSubstring("My Skill"))
-}
-
-// runPromoteToSkill: exercises candidates-found path.
-func TestRunPromote_ToSkill_WithCandidates(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Create memories dir with a memory file.
-	memDir := filepath.Join(dataDir, "memories")
-	g.Expect(os.MkdirAll(memDir, 0o755)).To(Succeed())
-
-	memPath := filepath.Join(memDir, "test-mem.toml")
-
-	g.Expect(os.WriteFile(
-		memPath,
-		[]byte("title = \"Test Memory\"\nprinciple = \"be good\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
-		0o644,
-	)).To(Succeed())
-
-	// Seed registry with a memory Working entry: high effectiveness (3/3 = 100%).
-	seedRegistry(t, dataDir,
-		fmt.Sprintf(
-			`{"id":"%s","source_type":"memory",`+
-				`"source_path":"%s","title":"Test Memory",`+
-				`"content_hash":"ghi","surfaced_count":100,`+
-				`"evaluations":{"followed":3}}`,
-			memPath, memPath,
-		),
-	)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "promote",
-			"--data-dir", dataDir,
-			"--to-skill", "--yes",
-			"--threshold", "50",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("candidates for promotion"))
-	g.Expect(output).To(ContainSubstring("Test Memory"))
 }

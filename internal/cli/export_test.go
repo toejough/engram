@@ -12,7 +12,7 @@ import (
 	reviewpkg "engram/internal/review"
 )
 
-// Export unexported functions for black-box testing.
+// Exported variables.
 var (
 	ExportBuildEscalationMemories = buildEscalationMemories
 	ExportBuildExtractor          = buildExtractor
@@ -24,19 +24,15 @@ var (
 	ExportTruncateTitle           = truncateTitle
 )
 
-// Re-export types used by test function signatures.
-type (
-	ExportClassifiedMemory = reviewpkg.ClassifiedMemory
-	ExportStored           = memory.Stored
-	ExportEscalationMemory = maintain.EscalationMemory
-	ExportSkillContent     = promote.SkillContent
-	ExportMemoryContent    = promote.MemoryContent
-)
+type ExportClassifiedMemory = reviewpkg.ClassifiedMemory
 
-// ExportNewRetriever creates a retrieve.Retriever for testing.
-func ExportNewRetriever() *retrieve.Retriever {
-	return retrieve.New()
-}
+type ExportEscalationMemory = maintain.EscalationMemory
+
+type ExportMemoryContent = promote.MemoryContent
+
+type ExportSkillContent = promote.SkillContent
+
+type ExportStored = memory.Stored
 
 // --- Factory functions for structs with unexported fields ---
 
@@ -45,11 +41,6 @@ func ExportNewCliConfirmer(
 	stdout io.Writer, stdin io.Reader, autoConfirm bool,
 ) maintain.Confirmer {
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
-}
-
-// ExportNewStdinConfirmer creates a stdinConfirmer for testing.
-func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
-	return &stdinConfirmer{stdout: stdout, stdin: stdin}
 }
 
 // ExportNewEvaluateRegistryAdapter creates an evaluateRegistryAdapter for testing.
@@ -116,6 +107,16 @@ func ExportNewOsSkillWriter(dir string) interface {
 // ExportNewOsSurfacingLogReader creates an osSurfacingLogReader for testing.
 func ExportNewOsSurfacingLogReader(dataDir string) *osSurfacingLogReader {
 	return &osSurfacingLogReader{dataDir: dataDir}
+}
+
+// ExportNewRetriever creates a retrieve.Retriever for testing.
+func ExportNewRetriever() *retrieve.Retriever {
+	return retrieve.New()
+}
+
+// ExportNewStdinConfirmer creates a stdinConfirmer for testing.
+func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
+	return &stdinConfirmer{stdout: stdout, stdin: stdin}
 }
 
 // ExportNewTemplateClaudeMDGenerator creates a templateClaudeMDGenerator for testing.

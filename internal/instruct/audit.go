@@ -26,8 +26,6 @@ type Auditor struct {
 }
 
 // Run executes the full audit pipeline.
-//
-//nolint:cyclop // orchestration function: sequential pipeline steps
 func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditReport, error) {
 	items, err := a.Scanner.ScanAll(dataDir, projectDir)
 	if err != nil {
@@ -75,13 +73,6 @@ func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditRe
 	report.Proposals = propJSON
 
 	return a.finishReport(report, items), nil
-}
-
-func (a *Auditor) finishReport(report *AuditReport, items []InstructionItem) *AuditReport {
-	report.Gaps = a.findGaps(items)
-	report.Skills = a.findSkillIssues(items)
-
-	return report
 }
 
 // diagnoseBottom sends the bottom 20% (by effectiveness) to the LLM for diagnosis.
@@ -228,6 +219,15 @@ func (a *Auditor) findSkillIssues(items []InstructionItem) []SkillLineIssue {
 	return issues
 }
 
+func (a *Auditor) finishReport(report *AuditReport, items []InstructionItem) *AuditReport {
+	report.Gaps = a.findGaps(items)
+	report.Skills = a.findSkillIssues(items)
+
+	return report
+}
+
+// Diagnosis holds an LLM-generated diagnosis for a low-performing instruction.
+//
 //nolint:tagliatelle // external JSON API contract
 type Diagnosis struct {
 	Path       string `json:"path"`
@@ -236,6 +236,8 @@ type Diagnosis struct {
 	Suggestion string `json:"suggestion"`
 }
 
+// DuplicatePair identifies two instructions with overlapping content.
+//
 //nolint:tagliatelle // external JSON API contract
 type DuplicatePair struct {
 	PathA      string  `json:"path_a"`
@@ -244,6 +246,8 @@ type DuplicatePair struct {
 	KeepSource string  `json:"keep_source"`
 }
 
+// EvalRecord captures the outcome of evaluating a memory against a transcript.
+//
 //nolint:tagliatelle // external JSON API contract
 type EvalRecord struct {
 	MemoryPath string `json:"memory_path"`
@@ -252,6 +256,8 @@ type EvalRecord struct {
 	Example    string `json:"example"`
 }
 
+// GapCandidate represents a recurring violation pattern not yet covered by a memory.
+//
 //nolint:tagliatelle // external JSON API contract
 type GapCandidate struct {
 	Pattern        string `json:"pattern"`
@@ -262,6 +268,8 @@ type GapCandidate struct {
 // PerLineEffectiveness maps "path:line" to follow rate percentage.
 type PerLineEffectiveness map[string]float64
 
+// RefinementProposal suggests an action to improve a low-performing instruction.
+//
 //nolint:tagliatelle // external JSON API contract
 type RefinementProposal struct {
 	Path       string `json:"path"`
@@ -270,6 +278,8 @@ type RefinementProposal struct {
 	Suggestion string `json:"suggestion"`
 }
 
+// SkillLineIssue identifies a specific line in a skill file with a low follow rate.
+//
 //nolint:tagliatelle // external JSON API contract
 type SkillLineIssue struct {
 	Path       string  `json:"path"`
@@ -278,6 +288,8 @@ type SkillLineIssue struct {
 	FollowRate float64 `json:"follow_rate"`
 }
 
+// SkippedSection records a section that was excluded from auditing.
+//
 //nolint:tagliatelle // external JSON API contract
 type SkippedSection struct {
 	SkippedReason string `json:"skipped_reason"`
@@ -297,7 +309,7 @@ const (
 // diagnosisResponse is the expected JSON from the LLM.
 type diagnosisResponse struct {
 	Diagnosis  string `json:"diagnosis"`
-	RootCause  string `json:"root_cause"`
+	RootCause  string `json:"root_cause"` //nolint:tagliatelle // LLM JSON contract
 	Suggestion string `json:"suggestion"`
 }
 

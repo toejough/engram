@@ -163,6 +163,49 @@ func BuildFlags(pairs ...string) []string {
 	return flags
 }
 
+// BuildTargets constructs targ targets using the given run function.
+func BuildTargets(run func(subcmd string, flags []string)) []any {
+	return []any{
+		targ.Targ(func(a AuditArgs) { run("audit", AuditFlags(a)) }).
+			Name("audit").Description("Run compliance audit"),
+		targ.Targ(func(a AutomateArgs) { run("automate", AutomateFlags(a)) }).
+			Name("automate").Description("Generate automation proposals"),
+		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
+			Name("correct").Description("Correct from user feedback"),
+		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
+			Name("evaluate").Description("Evaluate memory effectiveness"),
+		targ.Targ(func(a ReviewArgs) { run("review", ReviewFlags(a)) }).
+			Name("review").Description("Review instruction registry"),
+		targ.Targ(func(a MaintainArgs) { run("maintain", MaintainFlags(a)) }).
+			Name("maintain").Description("Generate or apply maintenance proposals"),
+		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
+			Name("surface").Description("Surface relevant memories"),
+		targ.Targ(func(a LearnArgs) { run("learn", LearnFlags(a)) }).
+			Name("learn").Description("Extract learnings from session"),
+		targ.Targ(func(a RemindArgs) { run("remind", RemindFlags(a)) }).
+			Name("remind").Description("Proactive reminders for tool calls"),
+		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
+			Name("instruct").Description("Audit instruction quality"),
+		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
+			Name("context-update").Description("Update session context"),
+		targ.Targ(func(a PromoteArgs) { run("promote", PromoteFlags(a)) }).
+			Name("promote").Description("Promote memories to skills or CLAUDE.md"),
+		targ.Targ(func(a DemoteArgs) { run("demote", DemoteFlags(a)) }).
+			Name("demote").Description("Demote CLAUDE.md entries to skills"),
+		targ.Group("registry",
+			targ.Targ(func(a RegistryInitArgs) {
+				run("registry", append([]string{"init"}, RegistryInitFlags(a)...))
+			}).Name("init").Description("Backfill registry from memory files"),
+			targ.Targ(func(a RegistryRegisterSourceArgs) {
+				run("registry", append([]string{"register-source"}, RegistryRegisterSourceFlags(a)...))
+			}).Name("register-source").Description("Register a single source"),
+			targ.Targ(func(a RegistryMergeArgs) {
+				run("registry", append([]string{"merge"}, RegistryMergeFlags(a)...))
+			}).Name("merge").Description("Merge two registry entries"),
+		),
+	}
+}
+
 // ContextUpdateFlags returns the CLI flag args for the context-update subcommand.
 func ContextUpdateFlags(a ContextUpdateArgs) []string {
 	return BuildFlags(
@@ -282,50 +325,9 @@ func SurfaceFlags(a SurfaceArgs) []string {
 }
 
 // Targets returns all targ targets for the engram CLI.
-//
 func Targets(stdout io.Writer, stderr io.Writer, stdin io.Reader) []any {
-	run := func(subcmd string, flags []string) {
+	return BuildTargets(func(subcmd string, flags []string) {
 		args := append([]string{"engram", subcmd}, flags...)
 		RunSafe(args, stdout, stderr, stdin)
-	}
-
-	return []any{
-		targ.Targ(func(a AuditArgs) { run("audit", AuditFlags(a)) }).
-			Name("audit").Description("Run compliance audit"),
-		targ.Targ(func(a AutomateArgs) { run("automate", AutomateFlags(a)) }).
-			Name("automate").Description("Generate automation proposals"),
-		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
-			Name("correct").Description("Correct from user feedback"),
-		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
-			Name("evaluate").Description("Evaluate memory effectiveness"),
-		targ.Targ(func(a ReviewArgs) { run("review", ReviewFlags(a)) }).
-			Name("review").Description("Review instruction registry"),
-		targ.Targ(func(a MaintainArgs) { run("maintain", MaintainFlags(a)) }).
-			Name("maintain").Description("Generate or apply maintenance proposals"),
-		targ.Targ(func(a SurfaceArgs) { run("surface", SurfaceFlags(a)) }).
-			Name("surface").Description("Surface relevant memories"),
-		targ.Targ(func(a LearnArgs) { run("learn", LearnFlags(a)) }).
-			Name("learn").Description("Extract learnings from session"),
-		targ.Targ(func(a RemindArgs) { run("remind", RemindFlags(a)) }).
-			Name("remind").Description("Proactive reminders for tool calls"),
-		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
-			Name("instruct").Description("Audit instruction quality"),
-		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
-			Name("context-update").Description("Update session context"),
-		targ.Targ(func(a PromoteArgs) { run("promote", PromoteFlags(a)) }).
-			Name("promote").Description("Promote memories to skills or CLAUDE.md"),
-		targ.Targ(func(a DemoteArgs) { run("demote", DemoteFlags(a)) }).
-			Name("demote").Description("Demote CLAUDE.md entries to skills"),
-		targ.Group("registry",
-			targ.Targ(func(a RegistryInitArgs) {
-				run("registry", append([]string{"init"}, RegistryInitFlags(a)...))
-			}).Name("init").Description("Backfill registry from memory files"),
-			targ.Targ(func(a RegistryRegisterSourceArgs) {
-				run("registry", append([]string{"register-source"}, RegistryRegisterSourceFlags(a)...))
-			}).Name("register-source").Description("Register a single source"),
-			targ.Targ(func(a RegistryMergeArgs) {
-				run("registry", append([]string{"merge"}, RegistryMergeFlags(a)...))
-			}).Name("merge").Description("Merge two registry entries"),
-		),
-	}
+	})
 }
