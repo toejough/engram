@@ -976,19 +976,21 @@ The HTML comment is a single line. Metadata fields are pipe-delimited key-value 
 
 ## DES-21: CLI context-update subcommand
 
-New `engram context-update` subcommand. Flags: `--transcript-path` (required), `--session-id` (required), `--data-dir` (required). Pipeline: read watermark from context file → extract delta from transcript → strip low-value content → if delta non-empty, summarize via Haiku → write context file with updated watermark. Exit 0 always (fire-and-forget per ARCH-6).
+New `engram context-update` subcommand. Flags: `--transcript-path` (required), `--session-id` (required), `--data-dir` (required), `--context-path` (optional, overrides default context file location). Pipeline: read watermark from context file → extract delta from transcript → strip low-value content → if delta non-empty, summarize via Haiku → write context file with updated watermark. Exit 0 always (fire-and-forget per ARCH-6).
+
+When `--context-path` is provided, the context file is written to that path instead of `<data-dir>/session-context.md`. This enables per-project context storage.
 
 - Traces to: UC-14 (CLI wiring), REQ-40 through REQ-44
-- AC: (1) Missing transcript file → exit 0, no context file written. (2) Empty delta → exit 0, context file unchanged. (3) Successful update → context file written with new watermark. (4) API error → exit 0, context file unchanged.
+- AC: (1) Missing transcript file → exit 0, no context file written. (2) Empty delta → exit 0, context file unchanged. (3) Successful update → context file written with new watermark. (4) API error → exit 0, context file unchanged. (5) `--context-path` provided → writes to that path instead of default.
 
 ---
 
 ## DES-22: SessionStart context injection
 
-The SessionStart hook script reads `.claude/engram/session-context.md` (if it exists) and includes the summary in the `additionalContext` field of its JSON output, alongside the existing memory surfacing context. If the file doesn't exist, no context is injected (no error).
+Session context is stored per-project using a slug derived from `$PWD` (replace `/` with `-`), following Claude Code's MEMORY.md path convention. The SessionStart hook computes the project slug, then reads `~/.claude/engram/data/projects/<slug>/session-context.md` (if it exists) and includes the summary in the `additionalContext` field of its JSON output. The Stop hook writes to the same per-project path via `--context-path`. If the file doesn't exist, no context is injected (no error).
 
 - Traces to: UC-14 (restore on SessionStart), REQ-45
-- AC: (1) Context file exists → summary appears in additionalContext. (2) No file → additionalContext contains only memory context (existing behavior). (3) Context is clearly labeled so the model knows it's a session resumption summary.
+- AC: (1) Context file exists → summary appears in additionalContext. (2) No file → additionalContext contains only memory context (existing behavior). (3) Context is clearly labeled so the model knows it's a session resumption summary. (4) Context is project-specific — switching projects surfaces the correct project's context.
 
 ---
 
@@ -1045,9 +1047,9 @@ Encapsulates the context file format and read/write operations.
 Orchestrates the full incremental context update pipeline.
 
 - Traces to: DES-21 (CLI context-update subcommand), REQ-40–REQ-44
-- Responsibilities: (1) Accept CLI flags: --transcript-path, --session-id, --data-dir. (2) Read watermark from context file (or 0 if missing). (3) Extract transcript delta from ARCH-28. (4) Check session ID mismatch: if current session ID ≠ stored session ID, reset offset to 0. (5) Strip content via ARCH-29. (6) If delta non-empty, summarize via ARCH-30. (7) Write updated context file via ARCH-31 with new offset. (8) Exit 0 always (fire-and-forget per ARCH-6).
+- Responsibilities: (1) Accept CLI flags: --transcript-path, --session-id, --data-dir, --context-path (optional). (2) Read watermark from context file (or 0 if missing). (3) Extract transcript delta from ARCH-28. (4) Check session ID mismatch: if current session ID ≠ stored session ID, reset offset to 0. (5) Strip content via ARCH-29. (6) If delta non-empty, summarize via ARCH-30. (7) Write updated context file via ARCH-31 with new offset. (8) Exit 0 always (fire-and-forget per ARCH-6). When --context-path is provided, it overrides the default `<data-dir>/session-context.md` location.
 - Behavioral contract: No error output on missing transcript file, empty delta, or API error. All errors are silent (logged but not surfaced). Exit code always 0.
-- Entry point: CLI binary, invoked by UserPromptSubmit hook (background) and PreCompact hook (synchronous).
+- Entry point: CLI binary, invoked by Stop hook (synchronous) with --context-path set to per-project path.
 
 ---
 
@@ -1058,8 +1060,9 @@ Specifies how context updates are triggered and how context is restored.
 - Traces to: DES-18 (UserPromptSubmit pipeline), DES-19 (PreCompact flush), DES-22 (SessionStart injection)
 - UserPromptSubmit hook: Context-update runs as a separate async hook entry (`"async": true` in hooks.json) via `user-prompt-submit-async.sh`. The synchronous `user-prompt-submit.sh` handles correct/surface only.
 - PreCompact hook: Call `engram context-update` synchronously with same flags. Wait for completion (60s timeout available per hook config).
-- SessionStart hook: Read context file (if exists) via ARCH-31. Extract summary and inject as `additionalContext` in hook JSON output. Annotate clearly so the model knows this is a session resumption summary.
-- Behavioral contract: Hooks remain responsive; background calls don't block. SessionStart always succeeds (missing file → no injection, no error).
+- Stop hook: Call `engram context-update` with `--context-path` pointing to per-project path: `~/.claude/engram/data/projects/<slug>/session-context.md`, where `<slug>` is `$PWD` with `/` replaced by `-` (matching Claude Code's MEMORY.md convention).
+- SessionStart hook: Compute project slug from `$PWD`, read per-project context file (if exists) via ARCH-31. Extract summary and inject as `additionalContext` in hook JSON output. Annotate clearly so the model knows it's a session resumption summary.
+- Behavioral contract: Hooks remain responsive; background calls don't block. SessionStart always succeeds (missing file → no injection, no error). Context is project-specific — switching projects surfaces the correct project's context.
 
 ---
 

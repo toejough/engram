@@ -1139,5 +1139,5 @@ history = "Symlink block added to hooks/session-start.sh after binary build step
 [cursor]
 node = "L5T1"
 mode = "complete"
-next_action = "UC-27 tree complete. Usability gate passed. All 20 UCs implemented."
+next_action = "Tree complete. 20 UCs implemented. UC-14 spec artifacts updated for per-project context paths."
 context_files = ["docs/specs/state.toml"]
