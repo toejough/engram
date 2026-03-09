@@ -62,6 +62,27 @@ items = [
   { id = "ARCH-59", source = "derived" },
   { id = "ARCH-60", source = "derived" },
   { id = "ARCH-61", source = "derived" },
+  { id = "ARCH-38", source = "derived" },
+  { id = "ARCH-39", source = "derived" },
+  { id = "ARCH-40", source = "derived" },
+  { id = "ARCH-41", source = "derived" },
+  { id = "ARCH-42", source = "derived" },
+  { id = "ARCH-43", source = "derived" },
+  { id = "ARCH-44", source = "derived" },
+  { id = "ARCH-45", source = "derived" },
+  { id = "ARCH-46", source = "derived" },
+  { id = "ARCH-47", source = "derived" },
+  { id = "ARCH-48", source = "derived" },
+  { id = "ARCH-49", source = "derived" },
+  { id = "ARCH-50", source = "derived" },
+  { id = "ARCH-51", source = "derived" },
+  { id = "ARCH-62", source = "derived" },
+  { id = "ARCH-63", source = "derived" },
+  { id = "ARCH-64", source = "derived" },
+  { id = "ARCH-65", source = "derived" },
+  { id = "ARCH-66", source = "derived" },
+  { id = "ARCH-67", source = "derived" },
+  { id = "ARCH-68", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -905,6 +926,38 @@ items = ["UC-25"]
 status = "in_progress"
 history = "Issue #64. Apply sessionctx.Strip to evaluate pipeline before LLM call. Consistency with learn and context-update pipelines."
 
+[tree.L3O]
+layer = "L3"
+name = "Promoter Pipeline Architecture"
+parents = ["L2O"]
+items = ["ARCH-62", "ARCH-63"]
+status = "in_progress"
+history = "2 ARCH items: Promoter pipeline with DI (ARCH-62), Skill template engine with LLM generation (ARCH-63)."
+
+[tree.L3P]
+layer = "L3"
+name = "Tier Transition Architecture"
+parents = ["L2P"]
+items = ["ARCH-64", "ARCH-65"]
+status = "in_progress"
+history = "2 ARCH items: tier transition engine reusing SkillGenerator for demotion (ARCH-64), CLAUDE.md section-level editor (ARCH-65)."
+
+[tree.L3Q]
+layer = "L3"
+name = "Proposal Executor Architecture"
+parents = ["L2Q"]
+items = ["ARCH-66", "ARCH-67"]
+status = "in_progress"
+history = "2 ARCH items: proposal executor with quadrant-specific strategies (ARCH-66), memory TOML atomic rewriter (ARCH-67)."
+
+[tree.L3R]
+layer = "L3"
+name = "Evaluate Strip Architecture"
+parents = ["L2R"]
+items = ["ARCH-68"]
+status = "in_progress"
+history = "1 ARCH item: StripFunc DI option on Evaluator, CLI wiring, empty handling (ARCH-68)."
+
 [tree.L2O]
 layer = "L2"
 name = "Skill Generation Requirements"
@@ -938,7 +991,7 @@ status = "in_progress"
 history = "2 REQs + 1 DES derived from UC-25. Strip injection (REQ-110), empty handling (REQ-111), DI pattern (DES-39)."
 
 [cursor]
-node = "L2O"
+node = "L3O"
 mode = "in_progress"
-next_action = "L2 GREEN complete for all 4 UCs. Run REFACTOR, REGROUP, COMMIT, then proceed to L3."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+next_action = "L3 GREEN complete for all 4 UCs. REFACTOR, REGROUP, COMMIT, then L4 test list derivation."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]

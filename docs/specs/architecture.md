@@ -1766,3 +1766,210 @@ Fire-and-forget error handling: registry write failures log but don't crash hook
 | DES-29 | ARCH-60, ARCH-61 |
 
 All UC-23 L2 items have ARCH coverage.
+
+---
+
+## ARCH-62: Promoter Pipeline (UC-4)
+
+**Decision:** New `internal/promote/` package with a `Promoter` struct orchestrating memory→skill promotion.
+
+```go
+type Promoter struct {
+    Registry     RegistryReader   // List + Get from registry
+    Generator    SkillGenerator   // LLM: memory → skill content
+    SkillWriter  SkillWriter      // Write skill file to plugin dir
+    Merger       RegistryMerger   // Merge source→target in registry
+    MemoryRemover MemoryRemover   // Delete source memory TOML
+    Confirmer    Confirmer        // User confirmation (stdin/stdout)
+}
+
+type RegistryReader interface {
+    List() ([]registry.InstructionEntry, error)
+    Get(id string) (registry.InstructionEntry, error)
+}
+
+type SkillGenerator interface {
+    Generate(ctx context.Context, memory MemoryContent) (string, error)
+}
+
+type SkillWriter interface {
+    Write(name string, content string) (string, error)  // returns path
+}
+
+type RegistryMerger interface {
+    Merge(sourceID, targetID string) error
+}
+
+type MemoryRemover interface {
+    Remove(path string) error
+}
+
+type Confirmer interface {
+    Confirm(preview string) (bool, error)
+}
+```
+
+**Candidate detection:** `Promoter.Candidates(threshold int)` filters registry entries where `source_type == "memory"` and `surfaced_count >= threshold` and quadrant is not Insufficient. Returns sorted by surfaced_count descending.
+
+**Promote flow:** `Promoter.Promote(ctx, candidateID)` → get memory content → generate skill → show preview → confirm → write skill → register skill in registry → merge memory→skill → delete memory TOML. Atomic: if any step after confirmation fails, partial work is cleaned up.
+
+**Traces to:** REQ-92 (threshold), REQ-93 (generation), REQ-94 (plugin registration), REQ-95 (retirement), REQ-96 (confirmation), DES-33 (CLI), DES-34 (format)
+
+---
+
+## ARCH-63: Skill Template Engine (UC-4)
+
+**Decision:** Skill generation uses LLM with a structured prompt template. The LLM receives memory fields (title, content, principle, anti_pattern, keywords, concepts) and returns a complete skill file in the DES-34 format. The template is a Go `text/template` embedded in the generator.
+
+**Fallback:** If no API token, `SkillGenerator.Generate` returns an error. The Promoter reports "no token" and skips. Candidate detection still works without a token.
+
+**Skill ID format:** `skill:<slugified-title>` — consistent with UC-23 registry's source_type taxonomy (ARCH-53).
+
+**Traces to:** REQ-93 (LLM generation), DES-34 (skill format), REQ-96 (no-token behavior)
+
+---
+
+## ARCH-64: Tier Transition Engine (UC-5)
+
+**Decision:** New `internal/promote/` extension (same package as ARCH-62) with `ClaudeMDPromoter` struct. Reuses `SkillGenerator` (ARCH-63) for demotion path. Adds `ClaudeMDEditor` for CLAUDE.md file manipulation.
+
+```go
+type ClaudeMDPromoter struct {
+    Registry       RegistryReader
+    EntryGenerator ClaudeMDEntryGenerator  // LLM: skill → CLAUDE.md entry
+    SkillGenerator SkillGenerator          // Reuse from ARCH-63 for demotion
+    Editor         ClaudeMDEditor          // Parse + edit CLAUDE.md file
+    SkillWriter    SkillWriter
+    Merger         RegistryMerger
+    Confirmer      Confirmer
+}
+
+type ClaudeMDEntryGenerator interface {
+    Generate(ctx context.Context, skill SkillContent, existingClaudeMD string) (string, error)
+}
+
+type ClaudeMDEditor interface {
+    AddEntry(content string, entry string) (string, error)    // returns new content
+    RemoveEntry(content string, entryID string) (string, error)
+}
+```
+
+**Promotion candidates:** `source_type == "skill"`, Working quadrant, `surfaced_count >= threshold`.
+
+**Demotion candidates:** `source_type == "claude-md"`, Leech quadrant (binary: always-loaded sources only have Working/Leech per ARCH-59).
+
+**Traces to:** REQ-97 (promotion detection), REQ-98 (entry generation), REQ-99 (demotion detection), REQ-100 (demotion execution), REQ-101 (registry merge), REQ-102 (confirmation), DES-35 (CLI), DES-36 (diff preview)
+
+---
+
+## ARCH-65: CLAUDE.md File Editor (UC-5)
+
+**Decision:** `ClaudeMDEditor` implementation uses section-level parsing (split on `## ` headings). AddEntry appends a new section. RemoveEntry removes the section matching the entry ID (matched by comment marker `<!-- promoted from ... -->` or heading text). File writes are atomic (temp + rename).
+
+**DI boundary:** `ClaudeMDEditor` interface in `internal/promote/`, concrete implementation at CLI edge (reads/writes actual files).
+
+**Traces to:** REQ-100 (CLAUDE.md editing), DES-36 (diff preview)
+
+---
+
+## ARCH-66: Proposal Executor (UC-24)
+
+**Decision:** New `internal/maintain/apply.go` extending the existing `internal/maintain/` package. `Executor` struct routes proposals by quadrant to strategy handlers.
+
+```go
+type Executor struct {
+    Rewriter    MemoryRewriter     // Atomic TOML rewrite
+    Remover     MemoryRemover      // Delete memory file
+    Registry    RegistryUpdater    // Update content_hash or remove entry
+    LLMCaller   LLMCaller          // For Working/Leech/HiddenGem rewrites
+    Confirmer   Confirmer          // Per-proposal user confirmation
+}
+
+type MemoryRewriter interface {
+    Rewrite(path string, updates map[string]interface{}) error
+}
+
+type RegistryUpdater interface {
+    Register(entry registry.InstructionEntry) error  // re-register with new hash
+    Remove(id string) error
+}
+
+type Proposal struct {
+    Quadrant      string  // Working, Leech, HiddenGem, Noise
+    Action        string  // update_content, rewrite, broaden_keywords, remove
+    TargetPath    string  // memory TOML path
+    TargetID      string  // registry instruction ID
+    ProposedChange string // LLM-generated or deterministic
+    Evidence      Evidence
+}
+```
+
+**Strategy routing:** Working→`applyStaleUpdate`, Leech→`applyRewrite`, HiddenGem→`applyBroadenKeywords`, Noise→`applyRemoval`. Each strategy returns a diff string for confirmation display.
+
+**Traces to:** REQ-103 (ingestion), REQ-104 (Working), REQ-105 (Leech), REQ-106 (HiddenGem), REQ-107 (Noise), REQ-108 (registry update), REQ-109 (confirmation), DES-37 (CLI), DES-38 (display)
+
+---
+
+## ARCH-67: Memory TOML Rewriter (UC-24)
+
+**Decision:** `MemoryRewriter` in `internal/maintain/` reads existing TOML, applies field updates (content, keywords, concepts, principle, anti_pattern), writes atomically (temp + rename). Preserves all fields not being updated. Uses BurntSushi/toml for parse and encode.
+
+**DI boundary:** File I/O injected via `WithReadFile`, `WithWriteFile` options (same pattern as track.Recorder, creationlog.LogWriter).
+
+**Traces to:** REQ-104 (Working rewrite), REQ-105 (Leech rewrite), REQ-106 (keyword broadening)
+
+---
+
+## ARCH-68: Evaluate Strip Integration (UC-25)
+
+**Decision:** Extend `internal/evaluate/Evaluator` with `WithStripFunc(fn func([]string) []string)` option. When set, the evaluator splits transcript into lines, applies the strip function, and rejoins before sending to LLM. Default is no-op (backward compatible).
+
+```go
+type Option func(*Evaluator)
+
+func WithStripFunc(fn func([]string) []string) Option {
+    return func(e *Evaluator) { e.stripFunc = fn }
+}
+```
+
+CLI wiring in `runEvaluate`: `evaluate.WithStripFunc(sessionctx.Strip)`.
+
+**Empty handling:** If post-strip content is empty, `Evaluate` returns early with no error and no LLM call. Stderr message logged.
+
+**Traces to:** REQ-110 (strip injection), REQ-111 (empty handling), DES-39 (DI pattern)
+
+---
+
+## L2 → ARCH Traceability (UC-4, UC-5, UC-24, UC-25)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-92 | ARCH-62 |
+| REQ-93 | ARCH-62, ARCH-63 |
+| REQ-94 | ARCH-62 |
+| REQ-95 | ARCH-62 |
+| REQ-96 | ARCH-62, ARCH-63 |
+| DES-33 | ARCH-62 |
+| DES-34 | ARCH-63 |
+| REQ-97 | ARCH-64 |
+| REQ-98 | ARCH-64 |
+| REQ-99 | ARCH-64 |
+| REQ-100 | ARCH-64, ARCH-65 |
+| REQ-101 | ARCH-64 |
+| REQ-102 | ARCH-64 |
+| DES-35 | ARCH-64 |
+| DES-36 | ARCH-64, ARCH-65 |
+| REQ-103 | ARCH-66 |
+| REQ-104 | ARCH-66, ARCH-67 |
+| REQ-105 | ARCH-66, ARCH-67 |
+| REQ-106 | ARCH-66, ARCH-67 |
+| REQ-107 | ARCH-66 |
+| REQ-108 | ARCH-66 |
+| REQ-109 | ARCH-66 |
+| DES-37 | ARCH-66 |
+| DES-38 | ARCH-66 |
+| REQ-110 | ARCH-68 |
+| REQ-111 | ARCH-68 |
+| DES-39 | ARCH-68 |
+
+All L2 items have ARCH coverage.
