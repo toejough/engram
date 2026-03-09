@@ -60,7 +60,7 @@ func (a *Auditor) Run(ctx context.Context, transcript string) (*Report, error) {
 	}
 
 	if len(scope) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil // intentional: no assessment returns nil
 	}
 
 	userPrompt := buildCompliancePrompt(scope, transcript)
@@ -70,7 +70,7 @@ func (a *Auditor) Run(ctx context.Context, transcript string) (*Report, error) {
 		return nil, fmt.Errorf("audit: calling LLM: %w", err)
 	}
 
-	llmResponse = stripMarkdownFence(llmResponse)
+	llmResponse = StripMarkdownFence(llmResponse)
 
 	var results []ComplianceResult
 
@@ -238,8 +238,6 @@ func (a *Auditor) writeReport(report *Report) error {
 }
 
 // ComplianceResult is a single instruction compliance result from the LLM.
-//
-
 type ComplianceResult struct {
 	Instruction string `json:"instruction"`
 	Compliant   bool   `json:"compliant"`
@@ -345,7 +343,7 @@ func buildCompliancePrompt(scope []ScopeEntry, transcript string) string {
 	return sb.String()
 }
 
-func stripMarkdownFence(text string) string {
+func StripMarkdownFence(text string) string {
 	trimmed := strings.TrimSpace(text)
 	if !strings.HasPrefix(trimmed, "```") {
 		return text

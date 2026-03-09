@@ -1,9 +1,11 @@
-package audit
+package audit_test
 
 import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+
+	"engram/internal/audit"
 )
 
 func TestStripMarkdownFence(t *testing.T) {
@@ -40,7 +42,7 @@ func TestStripMarkdownFence(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			g := NewWithT(t)
-			g.Expect(stripMarkdownFence(tc.input)).To(Equal(tc.want))
+			g.Expect(audit.StripMarkdownFence(tc.input)).To(Equal(tc.want))
 		})
 	}
 }

@@ -150,7 +150,7 @@ func TestDiscoverMemoryMD_ValidFile(t *testing.T) {
 		return
 	}
 
-	g.Expect(len(listed)).To(BeNumerically(">", 0))
+	g.Expect(listed).ToNot(BeEmpty())
 }
 
 // TestDiscoverRules_ReadFileError verifies rule file read error is logged.
@@ -961,7 +961,7 @@ type fakeDirEntry struct {
 	isDir bool
 }
 
-func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+func (e fakeDirEntry) Info() (os.FileInfo, error) { return nil, nil } //nolint:nilnil // test fake returns nil,nil intentionally
 
 func (e fakeDirEntry) IsDir() bool { return e.isDir }
 
@@ -1029,6 +1029,7 @@ func (r *fakeRegistry) Remove(id string) error {
 // fakeRegistryWithGetErr returns an error on Get (non-ErrNotFound).
 type fakeRegistryWithGetErr struct {
 	*fakeRegistry
+
 	getErr error
 }
 
@@ -1039,6 +1040,7 @@ func (r *fakeRegistryWithGetErr) Get(_ string) (*registry.InstructionEntry, erro
 // fakeRegistryWithRemoveErr returns an error on Remove.
 type fakeRegistryWithRemoveErr struct {
 	*fakeRegistry
+
 	removeErr error
 }
 
@@ -1049,6 +1051,7 @@ func (r *fakeRegistryWithRemoveErr) Remove(_ string) error {
 // fakeRegistryWithSurfacingErr returns an error on RecordSurfacing.
 type fakeRegistryWithSurfacingErr struct {
 	*fakeRegistry
+
 	surfacingErr error
 }
 
@@ -1062,12 +1065,11 @@ type fakeSurfacingLogger struct {
 }
 
 func (l *fakeSurfacingLogger) LogSurfacing(
-	memoryPath, mode string, timestamp time.Time,
+	_, mode string, timestamp time.Time,
 ) error {
 	l.events = append(l.events, surfacingEvent{
-		memoryPath: memoryPath,
-		mode:       mode,
-		timestamp:  timestamp,
+		mode:      mode,
+		timestamp: timestamp,
 	})
 
 	return nil
@@ -1083,9 +1085,8 @@ func (l *fakeSurfacingLoggerWithErr) LogSurfacing(_, _ string, _ time.Time) erro
 }
 
 type surfacingEvent struct {
-	memoryPath string
-	mode       string
-	timestamp  time.Time
+	mode      string
+	timestamp time.Time
 }
 
 // fakeGlob returns a fake glob function for known patterns.

@@ -241,7 +241,7 @@ func (s *JSONLStore) ensureLoaded() error {
 		// Missing file is fine — start empty.
 		s.loaded = true
 
-		return nil
+		return nil //nolint:nilerr // intentional: skip missing file
 	}
 
 	for line := range strings.SplitSeq(string(data), "\n") {

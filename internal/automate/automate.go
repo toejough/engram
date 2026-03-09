@@ -19,6 +19,8 @@ var (
 )
 
 // AutomationProposal represents a proposed automation for a mechanical memory.
+//
+//nolint:tagliatelle // external JSON API contract
 type AutomationProposal struct {
 	MemoryPath     string `json:"memory_path"`
 	MemoryTitle    string `json:"memory_title"`
@@ -132,6 +134,8 @@ func (a *Automator) processCandidate(
 }
 
 // LLMResponse is the expected JSON structure from the LLM generation call.
+//
+//nolint:tagliatelle // external JSON API contract
 type LLMResponse struct {
 	AutomationType string `json:"automation_type"`
 	Code           string `json:"code"`

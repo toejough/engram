@@ -69,7 +69,7 @@ func (r *Registrar) Run(config SourceConfig) error {
 
 // discover extracts instruction entries from all configured sources.
 func (r *Registrar) discover(config SourceConfig) []registry.InstructionEntry {
-	var discovered []registry.InstructionEntry
+	discovered := make([]registry.InstructionEntry, 0, 4) //nolint:mnd // four source types
 
 	discovered = append(discovered, r.discoverClaudeMD(config.ClaudeMDPaths)...)
 	discovered = append(discovered, r.discoverMemoryMD(config.MemoryMDPaths)...)
@@ -90,7 +90,7 @@ func (r *Registrar) discoverClaudeMD(paths []string) []registry.InstructionEntry
 				continue
 			}
 
-			r.logError("reading claude-md %s: %v", path, err)
+			r.logErrorf("reading claude-md %s: %v", path, err)
 
 			continue
 		}
@@ -102,7 +102,7 @@ func (r *Registrar) discoverClaudeMD(paths []string) []registry.InstructionEntry
 
 		entries, extractErr := extractor.Extract()
 		if extractErr != nil {
-			r.logError("extracting claude-md %s: %v", path, extractErr)
+			r.logErrorf("extracting claude-md %s: %v", path, extractErr)
 
 			continue
 		}
@@ -131,7 +131,7 @@ func (r *Registrar) discoverMemoryMD(paths []string) []registry.InstructionEntry
 				continue
 			}
 
-			r.logError("reading memory-md %s: %v", path, err)
+			r.logErrorf("reading memory-md %s: %v", path, err)
 
 			continue
 		}
@@ -143,7 +143,7 @@ func (r *Registrar) discoverMemoryMD(paths []string) []registry.InstructionEntry
 
 		entries, extractErr := extractor.Extract()
 		if extractErr != nil {
-			r.logError("extracting memory-md %s: %v", path, extractErr)
+			r.logErrorf("extracting memory-md %s: %v", path, extractErr)
 
 			continue
 		}
@@ -172,7 +172,7 @@ func (r *Registrar) discoverRules(rulesDir string) []registry.InstructionEntry {
 			return nil
 		}
 
-		r.logError("reading rules dir %s: %v", rulesDir, err)
+		r.logErrorf("reading rules dir %s: %v", rulesDir, err)
 
 		return nil
 	}
@@ -188,7 +188,7 @@ func (r *Registrar) discoverRules(rulesDir string) []registry.InstructionEntry {
 
 		content, readErr := r.readFile(filePath)
 		if readErr != nil {
-			r.logError("reading rule %s: %v", filePath, readErr)
+			r.logErrorf("reading rule %s: %v", filePath, readErr)
 
 			continue
 		}
@@ -200,7 +200,7 @@ func (r *Registrar) discoverRules(rulesDir string) []registry.InstructionEntry {
 
 		entries, extractErr := extractor.Extract()
 		if extractErr != nil {
-			r.logError("extracting rule %s: %v", filePath, extractErr)
+			r.logErrorf("extracting rule %s: %v", filePath, extractErr)
 
 			continue
 		}
@@ -228,7 +228,7 @@ func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry
 
 	matches, err := r.glob(pattern)
 	if err != nil {
-		r.logError("globbing skills %s: %v", pattern, err)
+		r.logErrorf("globbing skills %s: %v", pattern, err)
 
 		return nil
 	}
@@ -238,7 +238,7 @@ func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry
 	for _, matchPath := range matches {
 		content, readErr := r.readFile(matchPath)
 		if readErr != nil {
-			r.logError("reading skill %s: %v", matchPath, readErr)
+			r.logErrorf("reading skill %s: %v", matchPath, readErr)
 
 			continue
 		}
@@ -254,7 +254,7 @@ func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry
 
 		entries, extractErr := extractor.Extract()
 		if extractErr != nil {
-			r.logError("extracting skill %s: %v", matchPath, extractErr)
+			r.logErrorf("extracting skill %s: %v", matchPath, extractErr)
 
 			continue
 		}
@@ -271,8 +271,8 @@ func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry
 	return result
 }
 
-// logError writes an error message to stderr without failing the pipeline.
-func (r *Registrar) logError(format string, args ...any) {
+// logErrorf writes an error message to stderr without failing the pipeline.
+func (r *Registrar) logErrorf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
@@ -292,7 +292,7 @@ func (r *Registrar) pruneStale(discovered []registry.InstructionEntry) {
 
 	existing, err := r.registry.List()
 	if err != nil {
-		r.logError("listing for prune: %v", err)
+		r.logErrorf("listing for prune: %v", err)
 
 		return
 	}
@@ -309,7 +309,7 @@ func (r *Registrar) pruneStale(discovered []registry.InstructionEntry) {
 
 		removeErr := r.registry.Remove(entry.ID)
 		if removeErr != nil {
-			r.logError("pruning %s: %v", entry.ID, removeErr)
+			r.logErrorf("pruning %s: %v", entry.ID, removeErr)
 		}
 	}
 }
@@ -322,12 +322,12 @@ func (r *Registrar) recordSurfacing(discovered []registry.InstructionEntry) {
 	for _, entry := range discovered {
 		surfErr := r.registry.RecordSurfacing(entry.ID)
 		if surfErr != nil {
-			r.logError("recording surfacing %s: %v", entry.ID, surfErr)
+			r.logErrorf("recording surfacing %s: %v", entry.ID, surfErr)
 		}
 
 		logErr := r.surfacingLog.LogSurfacing(entry.ID, "session-start", now)
 		if logErr != nil {
-			r.logError("logging surfacing %s: %v", entry.ID, logErr)
+			r.logErrorf("logging surfacing %s: %v", entry.ID, logErr)
 		}
 	}
 }
@@ -338,7 +338,7 @@ func (r *Registrar) registerEntries(discovered []registry.InstructionEntry) {
 		existing, err := r.registry.Get(entry.ID)
 		if err != nil {
 			if !errors.Is(err, registry.ErrNotFound) {
-				r.logError("getting entry %s: %v", entry.ID, err)
+				r.logErrorf("getting entry %s: %v", entry.ID, err)
 
 				continue
 			}
@@ -346,7 +346,7 @@ func (r *Registrar) registerEntries(discovered []registry.InstructionEntry) {
 			// New entry — register it.
 			regErr := r.registry.Register(entry)
 			if regErr != nil {
-				r.logError("registering %s: %v", entry.ID, regErr)
+				r.logErrorf("registering %s: %v", entry.ID, regErr)
 			}
 
 			continue
@@ -366,14 +366,14 @@ func (r *Registrar) registerEntries(discovered []registry.InstructionEntry) {
 
 		removeErr := r.registry.Remove(entry.ID)
 		if removeErr != nil {
-			r.logError("removing for update %s: %v", entry.ID, removeErr)
+			r.logErrorf("removing for update %s: %v", entry.ID, removeErr)
 
 			continue
 		}
 
 		regErr := r.registry.Register(entry)
 		if regErr != nil {
-			r.logError("re-registering %s: %v", entry.ID, regErr)
+			r.logErrorf("re-registering %s: %v", entry.ID, regErr)
 		}
 	}
 }

@@ -284,7 +284,7 @@ anti_pattern = ""`
 		evaluate.WithNow(
 			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
 		),
-		evaluate.WithStripFunc(func(lines []string) []string {
+		evaluate.WithStripFunc(func(_ []string) []string {
 			// Strip everything.
 			return make([]string, 0)
 		}),
@@ -415,7 +415,8 @@ anti_pattern = ""`
 	)
 
 	// Build a transcript: 80 tool result lines + 20 conversation lines.
-	var lines []string
+	const totalLines = 100
+	lines := make([]string, 0, totalLines)
 	for range 80 {
 		lines = append(lines, `{"role":"toolResult","content":"big blob"}`)
 	}

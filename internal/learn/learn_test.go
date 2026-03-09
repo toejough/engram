@@ -612,13 +612,12 @@ type fakeRegistrar struct {
 }
 
 func (f *fakeRegistrar) RegisterMemory(
-	filePath, title, content string, now time.Time,
+	filePath, title, content string, _ time.Time,
 ) error {
 	f.calls = append(f.calls, registrarCall{
 		filePath: filePath,
 		title:    title,
 		content:  content,
-		now:      now,
 	})
 
 	return f.err
@@ -672,5 +671,4 @@ type registrarCall struct {
 	filePath string
 	title    string
 	content  string
-	now      time.Time
 }

@@ -54,6 +54,7 @@ func Classify(
 }
 
 // unexported variables.
+//nolint:gochecknoglobals // package-level lookup table
 var (
 	alwaysLoadedSources = map[string]bool{
 		"claude-md": true,

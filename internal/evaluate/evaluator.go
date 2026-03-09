@@ -55,7 +55,7 @@ func New(dataDir string, opts ...Option) *Evaluator {
 // When a StripFunc is set, the transcript is split into lines, stripped,
 // and rejoined before evaluation. Empty post-strip transcripts skip the LLM call.
 //
-//nolint:cyclop // evaluation pipeline
+//nolint:cyclop,funlen // evaluation pipeline
 func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome, error) {
 	if e.stripFunc != nil {
 		lines := strings.Split(transcript, "\n")

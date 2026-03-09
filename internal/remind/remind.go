@@ -62,8 +62,6 @@ func New(
 
 // Run executes the reminder pipeline for a tool call.
 // Returns the reminder text or empty string if no reminder applies.
-//
-
 func (r *Reminder) Run(ctx context.Context, input ToolCallInput) (string, error) {
 	// Step 1: Load config.
 	patterns, err := r.config.ReadConfig()

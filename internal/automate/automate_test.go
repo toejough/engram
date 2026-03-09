@@ -228,6 +228,34 @@ func TestProcessCandidate_RunCommandError(t *testing.T) {
 	g.Expect(proposals[0].Verified).To(BeFalse())
 }
 
+// TestRetire_NilMemoryWriter verifies Retire returns error when MemoryWriter is nil.
+func TestRetire_NilMemoryWriter(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	automator := &automate.Automator{}
+
+	err := automator.Retire("mem.toml", "/tmp/hook", time.Now())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("no memory writer configured")))
+}
+
+// TestRetire_WriterError verifies Retire returns error when MemoryWriter fails.
+func TestRetire_WriterError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	automator := &automate.Automator{
+		MemoryWriter: func(_, _ string, _ time.Time) error {
+			return errors.New("permission denied")
+		},
+	}
+
+	err := automator.Retire("mem.toml", "/tmp/hook", time.Now())
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("permission denied")))
+}
+
 // T-230: Pattern recognition identifies mechanical candidates.
 func TestT230_PatternRecognitionIdentifiesMechanicalCandidates(t *testing.T) {
 	t.Parallel()

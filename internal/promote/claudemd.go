@@ -42,7 +42,7 @@ type ClaudeMDPromoter struct {
 
 // Demote executes CLAUDE.md->skill demotion for a single candidate.
 //
-//nolint:cyclop // demotion pipeline
+//nolint:cyclop,funlen // demotion pipeline
 func (p *ClaudeMDPromoter) Demote(
 	ctx context.Context, candidateID string,
 ) error {
@@ -160,7 +160,7 @@ func (p *ClaudeMDPromoter) DemotionCandidates() ([]ClaudeMDCandidate, error) {
 
 // Promote executes skill->CLAUDE.md promotion for a single candidate.
 //
-//nolint:cyclop // promotion pipeline
+//nolint:cyclop,funlen // promotion pipeline
 func (p *ClaudeMDPromoter) Promote(
 	ctx context.Context, candidateID string,
 ) error {
