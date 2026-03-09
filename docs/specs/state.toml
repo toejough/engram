@@ -842,43 +842,43 @@ layer = "L5"
 name = "Phase 1: Build Registry + Backfill"
 description = "Define Registry interface in internal/registry/, implement JSONL-backed concrete, backfill command with old-store aggregation + retirement mapping."
 parents = ["L4N"]
-status = "pending"
-history = "Phase 1 of 5-phase implementation. Unblocks Phase 2/3/4/5. Covers ARCH-52..58, DES-26."
+status = "complete"
+history = "Phase 1 of 5. Commit c249df8. Registry interface (7 methods), InstructionEntry data model, signals (effectiveness/frecency), classify (5 quadrants), backfill with DI readers, JSONLStore, CLI registry init. 32 tests."
 
 [tree.L5P2]
 layer = "L5"
 name = "Phase 2: Wire Surfacing + Evaluation"
 description = "Integrate Registry into surface.go and evaluate hooks. Hook calls to RecordSurfacing/RecordEvaluation. Tests T-199/T-200 validate auto-integration."
 parents = ["L4N"]
-status = "pending"
-history = "Phase 2 of 5. Depends on Phase 1 (Registry must exist). Unblocks Phase 3. Covers ARCH-54, ARCH-61, DES-29."
+status = "complete"
+history = "Phase 2 of 5. Commit 5cb5aab. RegistryRecorder interfaces in surface/evaluate, RegistryRegistrar in learn. CLI adapters bridge package interfaces to registry.Registry. Fire-and-forget wrappers. 3 new tests."
 
 [tree.L5P3]
 layer = "L5"
 name = "Phase 3: Register Non-Memory Sources"
 description = "Build instruction extractors for CLAUDE.md, memory-md, rules, skills. Register via `engram registry register-source`. Extend evaluation to non-memory sources."
 parents = ["L4N"]
-status = "pending"
-history = "Phase 3 of 5. Depends on Phase 1/2. Can run parallel to Phase 4. Covers ARCH-53, ARCH-59."
+status = "complete"
+history = "Phase 3 of 5. Commits c429913, fdc369e. 4 extractors (ClaudeMD, MemoryMD, Rule, Skill) with stable slug IDs + SHA-256 hashing. CLI register-source subcommand. 12 tests."
 
 [tree.L5P4]
 layer = "L5"
 name = "Phase 4: Simplify Memory TOMLs + Cleanup"
 description = "Strip effectiveness fields from memory TOMLs. Delete old stores (surfacing-log, creation-log, evaluations/). Update code that read inline stats."
 parents = ["L4N"]
-status = "pending"
-history = "Phase 4 of 5. Depends on Phase 1/2 (data migrated). Can run parallel to Phase 3. Covers ARCH-55, ARCH-59."
+status = "complete"
+history = "Phase 4 of 5. Commit 31d7ec3. Removed 5 effectiveness fields from memory.Stored and tomlRecord. Removed filterRetired from surface.go. Simplified frecency to UpdatedAt fallback. Updated 14 files, -401/+219 lines."
 
 [tree.L5P5]
 layer = "L5"
 name = "Phase 5: Merge + Lifecycle"
 description = "Implement `engram registry merge` command. Extend `engram review` for quadrant classification. Wire absorbed history into escalation engine (UC-21)."
 parents = ["L4N"]
-status = "pending"
-history = "Phase 5 of 5. Depends on Phase 1-4. Final integration point. Covers ARCH-56, ARCH-59, ARCH-60, ARCH-61, DES-27/28."
+status = "complete"
+history = "Phase 5 of 5. Commit 6146ba8. CLI merge (absorb + delete source TOML), enhanced review (json/table format, quadrant grouping), concurrent write safety (sync.Mutex on JSONLStore). 5 new tests."
 
 [cursor]
-node = "L5P1"
-mode = "pending"
-next_action = "L5 IMPL structure complete: 5 phases with blocking relationships. L5P1 (Build Registry + Backfill) is root phase, unblocks L5P2/P3/P4/P5. Delegation ready: spawn Sonnet team for P1 (foundational), then spawn P2 executor (blocks P3), P3+P4 can run parallel (independent), P5 executor waits for all. Use TaskCreate for 5 phases, set up blocking edges, spawn teams via Agent tool with isolation:worktree."
-context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/specs/test-list.md"]
+node = "TREE_COMPLETE"
+mode = "complete"
+next_action = "UC-23 L1-L5 complete. Usability gate PASSED: build ✅, registry init ✅, register-source ✅ (14 CLAUDE.md instructions), review ✅ (JSON with quadrant classification), merge ✅ (correct error on missing source). All 5 phases committed on main (c249df8, 5cb5aab, c429913/fdc369e, 31d7ec3, 6146ba8)."
+context_files = ["docs/specs/state.toml"]
