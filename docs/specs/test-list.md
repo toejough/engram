@@ -720,3 +720,87 @@ Then: Registrar.Run is NOT called; only memory surfacing executes
 | ARCH-71 | T-283, T-284 |
 
 All ARCH items have test coverage.
+
+---
+
+## UC-27: Global Binary Installation
+
+### T-285: Symlink created when none exists
+
+**Traces to:** ARCH-72 (REQ-119)
+
+Given: `~/.local/bin/engram` does not exist, `~/.claude/engram/bin/engram` is a valid binary
+When: SessionStart hook runs
+Then: `~/.local/bin/engram` is a symlink pointing to `~/.claude/engram/bin/engram`
+
+- Verification: shell (readlink check)
+
+---
+
+### T-286: Target directory created if missing
+
+**Traces to:** ARCH-72 (REQ-119)
+
+Given: `~/.local/bin/` directory does not exist
+When: SessionStart hook runs
+Then: `~/.local/bin/` is created and symlink is placed inside it
+
+- Verification: shell (directory existence + symlink check)
+
+---
+
+### T-287: Idempotent — correct symlink unchanged
+
+**Traces to:** ARCH-72 (REQ-120)
+
+Given: `~/.local/bin/engram` already symlinks to `~/.claude/engram/bin/engram`
+When: SessionStart hook runs
+Then: Symlink unchanged, no errors logged
+
+- Verification: shell (readlink before/after, stderr empty)
+
+---
+
+### T-288: Stale symlink not replaced (no-clobber)
+
+**Traces to:** ARCH-72 (REQ-120, REQ-121)
+
+Given: `~/.local/bin/engram` symlinks to `/old/path/engram` (wrong target)
+When: SessionStart hook runs
+Then: Warning logged to stderr, symlink NOT replaced
+
+- Verification: shell (readlink unchanged, stderr contains warning)
+
+---
+
+### T-289: No-clobber — regular file preserved
+
+**Traces to:** ARCH-72 (REQ-121)
+
+Given: `~/.local/bin/engram` is a regular file (not a symlink)
+When: SessionStart hook runs
+Then: File preserved intact, warning logged to stderr
+
+- Verification: shell (file unchanged, stderr contains warning)
+
+---
+
+### T-290: Fire-and-forget — permission error doesn't block session
+
+**Traces to:** ARCH-72 (REQ-122)
+
+Given: `~/.local/bin/` is read-only (permission denied for symlink creation)
+When: SessionStart hook runs
+Then: Session start continues, surface output still produced, error logged to stderr
+
+- Verification: shell (hook exits 0, stdout has surface JSON)
+
+---
+
+## L4 → ARCH Traceability (UC-27)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-72 | T-285, T-286, T-287, T-288, T-289, T-290 |
+
+All ARCH items have test coverage.
