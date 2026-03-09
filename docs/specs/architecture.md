@@ -1973,3 +1973,107 @@ CLI wiring in `runEvaluate`: `evaluate.WithStripFunc(sessionctx.Strip)`.
 | DES-39 | ARCH-68 |
 
 All L2 items have ARCH coverage.
+
+---
+
+## ARCH-69: SourceRegistrar Component (UC-26)
+
+**Decision:** New `internal/register/` package with `Registrar` struct that orchestrates the 4-phase auto-registration flow from DES-40.
+
+```go
+type SourceConfig struct {
+    ClaudeMDPaths []string // e.g., ["./CLAUDE.md", "~/.claude/CLAUDE.md"]
+    MemoryMDPaths []string // e.g., ["~/.claude/projects/<slug>/memory/MEMORY.md"]
+    RulesDir      string   // e.g., ".claude/rules/"
+    SkillsDir     string   // e.g., "<plugin-root>/skills/"
+}
+
+type Registrar struct {
+    registry       Registry           // Register, Remove, List, RecordSurfacing
+    surfacingLog   SurfacingLogger    // LogSurfacing (for evaluate pipeline)
+    readFile       func(string) ([]byte, error)
+    readDir        func(string) ([]os.DirEntry, error)
+    glob           func(string) ([]string, error)
+    now            func() time.Time
+}
+
+func (r *Registrar) Run(config SourceConfig) error {
+    // 1. Discover: scan all configured paths, extract entries via UC-23 extractors
+    // 2. Register: for each discovered entry, register or update content hash
+    // 3. Prune: list registry, remove non-memory entries not in discovered set
+    // 4. Record surfacing: for each always-loaded entry, call registry.RecordSurfacing
+    //    AND surfacingLog.LogSurfacing (so evaluate pipeline picks them up)
+}
+```
+
+**DI boundary:** All I/O injected — readFile, readDir, glob for source discovery; Registry interface for state management; SurfacingLogger interface for evaluate integration. No direct `os.*` calls.
+
+**Key design choice:** Implicit surfacing writes to BOTH the registry (`RecordSurfacing` for long-term tracking) and the surfacing log (`LogSurfacing` for per-session evaluate input). The evaluator reads the surfacing log to know what was active this session.
+
+**Traces to:** REQ-112 (source discovery), REQ-113 (auto-registration), REQ-114 (stale pruning), REQ-115 (implicit surfacing), REQ-118 (idempotency), DES-40 (flow ordering), DES-41 (source paths)
+
+---
+
+## ARCH-70: Extended Always-Loaded Classification (UC-26)
+
+**Decision:** Add `"rule"` and `"skill"` to `alwaysLoadedSources` in `internal/registry/classify.go`. This is a 2-line change:
+
+```go
+var alwaysLoadedSources = map[string]bool{
+    "claude-md": true,
+    "memory-md": true,
+    "rule":      true,  // NEW
+    "skill":     true,  // NEW
+}
+```
+
+All 4 non-memory source types now get binary Working/Leech classification. Memory sources retain 4-way classification.
+
+**Traces to:** REQ-116 (extended classification)
+
+---
+
+## ARCH-71: CLI Integration and Hook Wiring (UC-26)
+
+**Decision:** Wire `Registrar.Run` into the existing `runSurface` function in `internal/cli/cli.go`, specifically in the `session-start` mode path. The registration runs before memory surfacing.
+
+```go
+func runSurface(...) {
+    // NEW: auto-registration phase (session-start only)
+    if mode == "session-start" {
+        registrar := register.New(registry, surfacingLogger, ...)
+        _ = registrar.Run(sourceConfig) // fire-and-forget
+    }
+    // EXISTING: memory surfacing
+    ...
+}
+```
+
+**Source path resolution** at CLI edge:
+- Project CLAUDE.md: `filepath.Join(workDir, "CLAUDE.md")`
+- Global CLAUDE.md: `filepath.Join(homeDir, ".claude", "CLAUDE.md")`
+- MEMORY.md: Claude Code convention path (injected or derived from workDir)
+- Rules: `filepath.Join(workDir, ".claude", "rules")`
+- Skills: `filepath.Join(pluginRoot, "skills")` (plugin root from env or convention)
+
+The evaluate pipeline (Stop hook) requires no code changes — it already reads the surfacing log and evaluates all entries. Always-loaded sources now appear in the log via ARCH-69's implicit surfacing.
+
+**Traces to:** REQ-117 (evaluate all — achieved by surfacing log inclusion), DES-40 (flow ordering), DES-41 (path resolution)
+
+---
+
+## L2 → ARCH Traceability (UC-26)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-112 | ARCH-69 |
+| REQ-113 | ARCH-69 |
+| REQ-114 | ARCH-69 |
+| REQ-115 | ARCH-69 |
+| REQ-116 | ARCH-70 |
+| REQ-117 | ARCH-71 (via surfacing log inclusion from ARCH-69) |
+| REQ-118 | ARCH-69 |
+| DES-40  | ARCH-69, ARCH-71 |
+| DES-41  | ARCH-69, ARCH-71 |
+
+All L2 items have ARCH coverage.
