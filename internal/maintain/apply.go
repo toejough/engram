@@ -76,13 +76,14 @@ func (e *Executor) applyBroadenKeywords(
 	proposal Proposal,
 ) (bool, string, error) {
 	// Extract existing keywords from proposal details.
+	//nolint:tagliatelle // external JSON API contract
 	var details struct {
 		AdditionalKeywords []string `json:"additional_keywords"`
 	}
 
 	unmarshalErr := json.Unmarshal(proposal.Details, &details)
 	if unmarshalErr != nil {
-		return false, "invalid details", nil
+		return false, "invalid details", nil //nolint:nilerr // fire-and-forget per ARCH-6
 	}
 
 	newKeywords := details.AdditionalKeywords
@@ -102,7 +103,7 @@ func (e *Executor) applyBroadenKeywords(
 
 		unmarshalErr := json.Unmarshal([]byte(response), &details)
 		if unmarshalErr != nil {
-			return false, "invalid llm response", nil
+			return false, "invalid llm response", nil //nolint:nilerr // fire-and-forget per ARCH-6
 		}
 
 		newKeywords = details.AdditionalKeywords
@@ -247,9 +248,10 @@ func (e *Executor) llmRewrite(
 	}
 
 	var updates map[string]any
+
 	unmarshalErr := json.Unmarshal([]byte(response), &updates)
 	if unmarshalErr != nil {
-		return false, "invalid llm response", nil
+		return false, "invalid llm response", nil //nolint:nilerr // fire-and-forget per ARCH-6
 	}
 
 	confirmed, confirmErr := e.confirm(proposal, updates)

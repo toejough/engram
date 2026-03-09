@@ -106,12 +106,16 @@ func (s *Scanner) scanFile(
 // SourceType identifies where an instruction came from.
 type SourceType string
 
-// unexported variables.
-var (
-	salienceRank = map[SourceType]int{
-		SourceClaudeMD: 0,
-		SourceRule:     1,
-		SourceMemory:   2,
-		SourceSkill:    3,
-	}
+// Salience rank constants for instruction source priority.
+const (
+	salienceHigh   = 2
+	salienceMedium = 3
 )
+
+//nolint:gochecknoglobals // package-level lookup table
+var salienceRank = map[SourceType]int{
+	SourceClaudeMD: 0,
+	SourceRule:     1,
+	SourceMemory:   salienceHigh,
+	SourceSkill:    salienceMedium,
+}

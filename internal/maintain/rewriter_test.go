@@ -16,13 +16,13 @@ func TestTOMLRewriter_DecodeError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	rw := maintain.NewTOMLRewriter(
+	rewriter := maintain.NewTOMLRewriter(
 		maintain.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte("not = [valid toml"), nil
 		}),
 	)
 
-	err := rw.Rewrite("/fake/bad.toml", map[string]any{"title": "x"})
+	err := rewriter.Rewrite("/fake/bad.toml", map[string]any{"title": "x"})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("decoding memory TOML")))
 }
@@ -95,13 +95,13 @@ func TestTOMLRewriter_ReadError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	rw := maintain.NewTOMLRewriter(
+	rewriter := maintain.NewTOMLRewriter(
 		maintain.WithReadFile(func(_ string) ([]byte, error) {
 			return nil, errors.New("file not found")
 		}),
 	)
 
-	err := rw.Rewrite("/fake/missing.toml", map[string]any{"title": "x"})
+	err := rewriter.Rewrite("/fake/missing.toml", map[string]any{"title": "x"})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("reading memory TOML")))
 }
@@ -111,7 +111,7 @@ func TestTOMLRewriter_RenameError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	rw := maintain.NewTOMLRewriter(
+	rewriter := maintain.NewTOMLRewriter(
 		maintain.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte("title = \"test\"\n"), nil
 		}),
@@ -123,7 +123,7 @@ func TestTOMLRewriter_RenameError(t *testing.T) {
 		}),
 	)
 
-	err := rw.Rewrite("/fake/path.toml", map[string]any{"title": "x"})
+	err := rewriter.Rewrite("/fake/path.toml", map[string]any{"title": "x"})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("renaming temp to final")))
 }
@@ -184,7 +184,7 @@ func TestTOMLRewriter_WithOptions(t *testing.T) {
 	writeCalled := false
 	renameCalled := false
 
-	rw := maintain.NewTOMLRewriter(
+	rewriter := maintain.NewTOMLRewriter(
 		maintain.WithReadFile(func(_ string) ([]byte, error) {
 			readCalled = true
 
@@ -202,7 +202,7 @@ func TestTOMLRewriter_WithOptions(t *testing.T) {
 		}),
 	)
 
-	err := rw.Rewrite("/fake/path.toml", map[string]any{"title": "updated"})
+	err := rewriter.Rewrite("/fake/path.toml", map[string]any{"title": "updated"})
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
@@ -219,7 +219,7 @@ func TestTOMLRewriter_WriteError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	rw := maintain.NewTOMLRewriter(
+	rewriter := maintain.NewTOMLRewriter(
 		maintain.WithReadFile(func(_ string) ([]byte, error) {
 			return []byte("title = \"test\"\n"), nil
 		}),
@@ -228,7 +228,7 @@ func TestTOMLRewriter_WriteError(t *testing.T) {
 		}),
 	)
 
-	err := rw.Rewrite("/fake/path.toml", map[string]any{"title": "x"})
+	err := rewriter.Rewrite("/fake/path.toml", map[string]any{"title": "x"})
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("writing temp file")))
 }

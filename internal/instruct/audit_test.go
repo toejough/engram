@@ -109,7 +109,7 @@ func TestAuditRun_DiagnosesBottom20Percent(t *testing.T) {
 
 	auditor := &instruct.Auditor{
 		Scanner: scanner,
-		LLMCaller: func(_ context.Context, model, _, _ string) (string, error) {
+		LLMCaller: func(_ context.Context, _, _, _ string) (string, error) {
 			llmCallCount++
 
 			return `{"diagnosis":"too abstract","root_cause":"missing trigger","suggestion":"add when clause"}`, nil

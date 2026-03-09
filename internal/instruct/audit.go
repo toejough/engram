@@ -27,7 +27,7 @@ type Auditor struct {
 
 // Run executes the full audit pipeline.
 //
-//nolint:funlen,cyclop // orchestration function: sequential pipeline steps
+//nolint:cyclop // orchestration function: sequential pipeline steps
 func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditReport, error) {
 	items, err := a.Scanner.ScanAll(dataDir, projectDir)
 	if err != nil {
@@ -48,37 +48,40 @@ func (a *Auditor) Run(ctx context.Context, dataDir, projectDir string) (*AuditRe
 
 		report.Diagnoses = skipped
 		report.Proposals = skipped
-	} else {
-		diagnoses, diagErr := a.diagnoseBottom(ctx, items)
-		if diagErr != nil {
-			return nil, fmt.Errorf("diagnosing instructions: %w", diagErr)
-		}
 
-		diagJSON, marshalErr := json.Marshal(diagnoses)
-		if marshalErr != nil {
-			return nil, fmt.Errorf("marshaling diagnoses: %w", marshalErr)
-		}
-
-		report.Diagnoses = diagJSON
-
-		// Step 3: Proposals from diagnoses
-		proposals := buildProposals(diagnoses)
-
-		propJSON, marshalErr := json.Marshal(proposals)
-		if marshalErr != nil {
-			return nil, fmt.Errorf("marshaling proposals: %w", marshalErr)
-		}
-
-		report.Proposals = propJSON
+		return a.finishReport(report, items), nil
 	}
 
-	// Step 4: Gap analysis (always runs)
-	report.Gaps = a.findGaps(items)
+	diagnoses, diagErr := a.diagnoseBottom(ctx, items)
+	if diagErr != nil {
+		return nil, fmt.Errorf("diagnosing instructions: %w", diagErr)
+	}
 
-	// Step 5: Skill decomposition (always runs)
+	diagJSON, marshalErr := json.Marshal(diagnoses)
+	if marshalErr != nil {
+		return nil, fmt.Errorf("marshaling diagnoses: %w", marshalErr)
+	}
+
+	report.Diagnoses = diagJSON
+
+	// Step 3: Proposals from diagnoses
+	proposals := buildProposals(diagnoses)
+
+	propJSON, propMarshalErr := json.Marshal(proposals)
+	if propMarshalErr != nil {
+		return nil, fmt.Errorf("marshaling proposals: %w", propMarshalErr)
+	}
+
+	report.Proposals = propJSON
+
+	return a.finishReport(report, items), nil
+}
+
+func (a *Auditor) finishReport(report *AuditReport, items []InstructionItem) *AuditReport {
+	report.Gaps = a.findGaps(items)
 	report.Skills = a.findSkillIssues(items)
 
-	return report, nil
+	return report
 }
 
 // diagnoseBottom sends the bottom 20% (by effectiveness) to the LLM for diagnosis.
@@ -225,7 +228,7 @@ func (a *Auditor) findSkillIssues(items []InstructionItem) []SkillLineIssue {
 	return issues
 }
 
-// Diagnosis is the LLM output for a low-effectiveness instruction.
+//nolint:tagliatelle // external JSON API contract
 type Diagnosis struct {
 	Path       string `json:"path"`
 	Diagnosis  string `json:"diagnosis"`
@@ -233,7 +236,7 @@ type Diagnosis struct {
 	Suggestion string `json:"suggestion"`
 }
 
-// DuplicatePair reports two instructions with >80% keyword overlap.
+//nolint:tagliatelle // external JSON API contract
 type DuplicatePair struct {
 	PathA      string  `json:"path_a"`
 	PathB      string  `json:"path_b"`
@@ -241,7 +244,7 @@ type DuplicatePair struct {
 	KeepSource string  `json:"keep_source"`
 }
 
-// EvalRecord represents a single evaluation outcome for gap analysis.
+//nolint:tagliatelle // external JSON API contract
 type EvalRecord struct {
 	MemoryPath string `json:"memory_path"`
 	Outcome    string `json:"outcome"`
@@ -249,7 +252,7 @@ type EvalRecord struct {
 	Example    string `json:"example"`
 }
 
-// GapCandidate is a violation pattern not covered by existing instructions.
+//nolint:tagliatelle // external JSON API contract
 type GapCandidate struct {
 	Pattern        string `json:"pattern"`
 	ViolationCount int    `json:"violation_count"`
@@ -259,7 +262,7 @@ type GapCandidate struct {
 // PerLineEffectiveness maps "path:line" to follow rate percentage.
 type PerLineEffectiveness map[string]float64
 
-// RefinementProposal is a maintain-compatible proposal for fixing an instruction.
+//nolint:tagliatelle // external JSON API contract
 type RefinementProposal struct {
 	Path       string `json:"path"`
 	Action     string `json:"action"`
@@ -267,7 +270,7 @@ type RefinementProposal struct {
 	Suggestion string `json:"suggestion"`
 }
 
-// SkillLineIssue flags a low-effectiveness line in a skill file.
+//nolint:tagliatelle // external JSON API contract
 type SkillLineIssue struct {
 	Path       string  `json:"path"`
 	LineNumber int     `json:"line_number"`
@@ -275,7 +278,7 @@ type SkillLineIssue struct {
 	FollowRate float64 `json:"follow_rate"`
 }
 
-// SkippedSection indicates an audit section was skipped.
+//nolint:tagliatelle // external JSON API contract
 type SkippedSection struct {
 	SkippedReason string `json:"skipped_reason"`
 }
@@ -317,17 +320,17 @@ func buildProposals(diagnoses []Diagnosis) []RefinementProposal {
 // extractKeywords splits content into lowercase word tokens for overlap calculation.
 func extractKeywords(content string) map[string]bool {
 	words := strings.Fields(strings.ToLower(content))
-	kw := make(map[string]bool, len(words))
+	keywords := make(map[string]bool, len(words))
 
 	for _, word := range words {
 		// Strip punctuation
 		word = strings.Trim(word, ".,;:!?\"'`()[]{}#*-_=+<>/\\|~@$%^&")
 		if len(word) > 1 { // skip single chars
-			kw[word] = true
+			keywords[word] = true
 		}
 	}
 
-	return kw
+	return keywords
 }
 
 // findDuplicates detects instruction pairs with >80% keyword overlap.

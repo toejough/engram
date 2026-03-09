@@ -419,25 +419,6 @@ func TestEscalation_TOMLFieldsOnConfirmation(t *testing.T) {
 	g.Expect(decoded.Since).To(gomega.BeTemporally("~", now, time.Second))
 }
 
-// TestMarshalProposal_ZeroValue verifies JSON marshaling of a zero-value proposal.
-func TestMarshalProposal_ZeroValue(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	data := maintain.MarshalProposal(maintain.EscalationProposal{})
-
-	var decoded map[string]string
-	unmarshalErr := json.Unmarshal(data, &decoded)
-	g.Expect(unmarshalErr).NotTo(gomega.HaveOccurred())
-
-	if unmarshalErr != nil {
-		return
-	}
-
-	g.Expect(decoded["memory_path"]).To(gomega.Equal(""))
-	g.Expect(decoded["proposal_type"]).To(gomega.Equal(""))
-}
-
 // TestMarshalProposal_ValidProposal verifies JSON marshaling of a proposal.
 func TestMarshalProposal_ValidProposal(t *testing.T) {
 	t.Parallel()
@@ -464,4 +445,24 @@ func TestMarshalProposal_ValidProposal(t *testing.T) {
 
 	g.Expect(decoded["memory_path"]).To(gomega.Equal("mem-1"))
 	g.Expect(decoded["proposal_type"]).To(gomega.Equal("escalate"))
+}
+
+// TestMarshalProposal_ZeroValue verifies JSON marshaling of a zero-value proposal.
+func TestMarshalProposal_ZeroValue(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	data := maintain.MarshalProposal(maintain.EscalationProposal{})
+
+	var decoded map[string]string
+
+	unmarshalErr := json.Unmarshal(data, &decoded)
+	g.Expect(unmarshalErr).NotTo(gomega.HaveOccurred())
+
+	if unmarshalErr != nil {
+		return
+	}
+
+	g.Expect(decoded["memory_path"]).To(gomega.Equal(""))
+	g.Expect(decoded["proposal_type"]).To(gomega.Equal(""))
 }

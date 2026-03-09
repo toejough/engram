@@ -1,4 +1,3 @@
-// Package maintain — escalation engine for UC-21.
 package maintain
 
 import (
@@ -24,18 +23,12 @@ type EffData map[EscalationLevel][]float64
 // EscalationEngine analyzes leech memories and proposes escalation actions.
 type EscalationEngine struct {
 	effData EffData
-	now     func() time.Time
 }
 
 // NewEscalationEngine creates an EscalationEngine.
-func NewEscalationEngine(effData EffData, now func() time.Time) *EscalationEngine {
-	if now == nil {
-		now = time.Now
-	}
-
+func NewEscalationEngine(effData EffData, _ func() time.Time) *EscalationEngine {
 	return &EscalationEngine{
 		effData: effData,
-		now:     now,
 	}
 }
 
@@ -186,8 +179,6 @@ func (e *EscalationEngine) tryDimensionRouting(
 }
 
 // EscalationHistoryEntry records a level change and its observed effectiveness.
-//
-
 type EscalationHistoryEntry struct {
 	Level         EscalationLevel `json:"level"         toml:"level"`
 	Since         time.Time       `json:"since"         toml:"since"`
@@ -219,13 +210,12 @@ type EscalationProposal struct {
 }
 
 // MarshalProposal serializes an EscalationProposal to JSON.
-func MarshalProposal(proposal EscalationProposal) (json.RawMessage, error) {
-	data, err := json.Marshal(proposal)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling escalation proposal: %w", err)
-	}
+// EscalationProposal contains only string fields, so json.Marshal cannot fail.
+func MarshalProposal(proposal EscalationProposal) json.RawMessage {
+	//nolint:errchkjson // string-only struct cannot fail
+	data, _ := json.Marshal(proposal)
 
-	return data, nil
+	return data
 }
 
 // unexported constants.
@@ -234,7 +224,7 @@ const (
 	mechanicalScoreThresh = 2
 )
 
-// unexported variables.
+//nolint:gochecknoglobals // package-level lookup tables
 var (
 	escalationLadder = []EscalationLevel{
 		LevelAdvisory,
