@@ -675,4 +675,33 @@ Working on session continuity for engram (#45)...
 
 ---
 
+---
+
+## UC-27: Global Binary Installation
+
+**Description:** Make the engram binary accessible on the user's PATH so manual operations (maintain, review, promote, demote, registry) work outside of Claude Code sessions. The SessionStart hook already builds the binary — extend it to create a symlink in `~/.local/bin/` so the binary is discoverable.
+
+**Actor:** SessionStart hook (automatic), User (manual invocation after symlink exists)
+
+**Starting state:** The engram binary exists at `~/.claude/engram/bin/engram` after the SessionStart build step. The user has no way to run engram commands without knowing this internal path.
+
+**End state:** A symlink at `~/.local/bin/engram` points to `~/.claude/engram/bin/engram`. The user can run `engram review`, `engram maintain`, etc. from any terminal.
+
+**Key interactions:**
+1. SessionStart hook builds binary (existing behavior)
+2. After successful build, check if `~/.local/bin/engram` symlink exists and points to the right target
+3. If missing or stale: create `~/.local/bin/` if needed, then create symlink
+4. If `~/.local/bin/engram` exists and is NOT a symlink to our binary: log warning, don't clobber
+
+**Constraints:**
+1. Idempotent — if symlink already correct, skip silently
+2. No clobber — never overwrite a non-engram binary at the target path
+3. Fire-and-forget — symlink creation failure doesn't block session start (ARCH-6)
+4. Create `~/.local/bin/` directory if it doesn't exist
+5. Target directory is `~/.local/bin/` (XDG standard)
+
+**Dependencies:** None (extends existing SessionStart build step)
+
+---
+
 Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope consolidated into UC-16; proposal-application scope consolidated into UC-24. Issue #59 (BM25) already implemented. Archives in issue #18.

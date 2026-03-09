@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25", "UC-26"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25", "UC-26", "UC-27"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -1096,8 +1096,15 @@ items = ["T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277",
 status = "complete"
 history = "SourceRegistrar in internal/register/ (ARCH-69): 4-phase pipeline discover/register/prune/surfacing with DI options. Classify extension (ARCH-70): rule+skill added to alwaysLoadedSources. CLI wiring (ARCH-71): runAutoRegistration called in session-start mode. 15 tests passing, lint clean."
 
+[tree.L1T]
+layer = "L1"
+name = "Global Binary Installation"
+items = ["UC-27"]
+status = "complete"
+history = "Issue #76. Make engram binary accessible on PATH via symlink at ~/.local/bin/engram. SessionStart creates symlink after build. Idempotent, no-clobber, fire-and-forget."
+
 [cursor]
-node = "L5S1"
-mode = "complete"
-next_action = "UC-26 tree complete. Usability gate passed. All 19 UCs implemented."
-context_files = ["docs/specs/state.toml"]
+node = "L1T"
+mode = "traversal"
+next_action = "L1T complete. DESCEND to L2 for UC-27."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
