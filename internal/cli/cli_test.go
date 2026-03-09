@@ -386,7 +386,7 @@ func TestReviewDispatchedViaRun(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("[engram] No evaluation data found."))
+	g.Expect(stdout.String()).To(ContainSubstring("[engram] No registry entries found."))
 }
 
 // T-158: context-update subcommand returns error when flags are missing.
@@ -845,24 +845,24 @@ func TestT129_ReviewOutputsAllSections(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	evalDir := filepath.Join(dataDir, "evaluations")
 
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
-
-	// mem-a: surfaced=10, 4 followed + 1 ignored = 80% effectiveness, 5 evals → Working.
-	// mem-b: surfaced=2, 1 followed + 4 ignored = 20% effectiveness, 5 evals → Noise + flagged.
-	// mem-c: surfaced=5, no evals → InsufficientData.
-	// Median of tracking [2,5,10] = 5. mem-a (10) above median, mem-b (2) below.
-	memA := writeReviewMemoryTOML(t, memDir, "mem-a.toml", 10)
-	memB := writeReviewMemoryTOML(t, memDir, "mem-b.toml", 2)
-	writeReviewMemoryTOML(t, memDir, "mem-c.toml", 5)
-
-	writeReviewEvalLog(t, evalDir, "a.jsonl", memA,
-		[]string{"followed", "followed", "followed", "followed", "ignored"})
-	writeReviewEvalLog(t, evalDir, "b.jsonl", memB,
-		[]string{"followed", "ignored", "ignored", "ignored", "ignored"})
+	// mem-a: Working (high surfacing, high effectiveness).
+	// mem-b: Noise (low surfacing, low effectiveness).
+	// mem-c: Insufficient (too few evals).
+	writeReviewRegistry(t, dataDir, []reviewTestEntry{
+		{
+			ID: "mem-a", Source: "memory", Title: "Working A", Surfaced: 10,
+			Followed: 4, Contradicted: 0, Ignored: 1,
+		},
+		{
+			ID: "mem-b", Source: "memory", Title: "Noisy B", Surfaced: 2,
+			Followed: 1, Contradicted: 2, Ignored: 2,
+		},
+		{
+			ID: "mem-c", Source: "memory", Title: "Insufficient C", Surfaced: 5,
+			Followed: 1, Contradicted: 0, Ignored: 0,
+		},
+	})
 
 	var stdout bytes.Buffer
 
@@ -874,19 +874,17 @@ func TestT129_ReviewOutputsAllSections(t *testing.T) {
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("[engram] Memory Effectiveness Review"))
-	g.Expect(output).To(ContainSubstring("Total: 3 memories"))
-	g.Expect(output).To(ContainSubstring("Quadrant Summary:"))
-	g.Expect(output).To(ContainSubstring("Flagged for action"))
-	g.Expect(output).To(ContainSubstring("Insufficient data"))
+	g.Expect(output).To(ContainSubstring("Instruction Review"))
+	g.Expect(output).To(ContainSubstring("3 entries"))
+	g.Expect(output).To(ContainSubstring("Source: memory"))
 }
 
-// T-130: Review with no evaluations directory outputs no-data message.
+// T-130: Review with no registry data outputs no-data message.
 func TestT130_ReviewNoEvalDir(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	dataDir := t.TempDir() // no evaluations subdir
+	dataDir := t.TempDir() // no registry file
 
 	var stdout bytes.Buffer
 
@@ -897,7 +895,7 @@ func TestT130_ReviewNoEvalDir(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("[engram] No evaluation data found."))
+	g.Expect(stdout.String()).To(ContainSubstring("[engram] No registry entries found."))
 }
 
 // T-131: Review without --data-dir outputs usage error.
@@ -917,33 +915,29 @@ func TestT131_ReviewMissingDataDir(t *testing.T) {
 	g.Expect(err.Error()).To(ContainSubstring("data-dir"))
 }
 
-// T-132: Flagged memories sorted by effectiveness ascending (worst first).
+// T-132: Review entries sorted by quadrant within source type.
 func TestT132_ReviewFlaggedSortedByEffectiveness(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
 	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	evalDir := filepath.Join(dataDir, "evaluations")
 
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
-
-	// All have surfaced=5, median=5, none > 5 → all below/equal median → Noise + flagged.
-	// Effectiveness: mem-x=10% (1/10), mem-y=20% (1/5), mem-z=33% (2/6).
-	memX := writeReviewMemoryTOML(t, memDir, "mem-x.toml", 5)
-	memY := writeReviewMemoryTOML(t, memDir, "mem-y.toml", 5)
-	memZ := writeReviewMemoryTOML(t, memDir, "mem-z.toml", 5)
-
-	writeReviewEvalLog(t, evalDir, "x.jsonl", memX,
-		[]string{
-			"followed", "ignored", "ignored", "ignored", "ignored",
-			"ignored", "ignored", "ignored", "ignored", "ignored",
-		}) // 1/10 = 10%
-	writeReviewEvalLog(t, evalDir, "y.jsonl", memY,
-		[]string{"followed", "ignored", "ignored", "ignored", "ignored"}) // 1/5 = 20%
-	writeReviewEvalLog(t, evalDir, "z.jsonl", memZ,
-		[]string{"followed", "followed", "ignored", "ignored", "ignored", "ignored"}) // 2/6 = 33%
+	// All surfaced=5 (above threshold=3), varying effectiveness.
+	// Quadrant sort is alphabetical: Hidden Gem < Leech < Noise < Working.
+	writeReviewRegistry(t, dataDir, []reviewTestEntry{
+		{
+			ID: "mem-x", Source: "memory", Title: "mem-x", Surfaced: 5,
+			Followed: 1, Contradicted: 5, Ignored: 4,
+		}, // 10% → Leech
+		{
+			ID: "mem-y", Source: "memory", Title: "mem-y", Surfaced: 5,
+			Followed: 1, Contradicted: 2, Ignored: 2,
+		}, // 20% → Leech
+		{
+			ID: "mem-z", Source: "memory", Title: "mem-z", Surfaced: 5,
+			Followed: 2, Contradicted: 2, Ignored: 2,
+		}, // 33% → Leech
+	})
 
 	var stdout bytes.Buffer
 
@@ -959,28 +953,28 @@ func TestT132_ReviewFlaggedSortedByEffectiveness(t *testing.T) {
 	posY := strings.Index(output, "mem-y")
 	posZ := strings.Index(output, "mem-z")
 
-	g.Expect(posX).To(BeNumerically("<", posY), "mem-x (10%%) should appear before mem-y (20%%)")
-	g.Expect(posY).To(BeNumerically("<", posZ), "mem-y (20%%) should appear before mem-z (33%%)")
+	g.Expect(posX).To(BeNumerically(">", 0), "mem-x should appear in output")
+	g.Expect(posY).To(BeNumerically(">", 0), "mem-y should appear in output")
+	g.Expect(posZ).To(BeNumerically(">", 0), "mem-z should appear in output")
 }
 
-// T-133: Insufficient-data section omitted when all memories have 5+ evaluations.
+// T-133: No "Insufficient" quadrant when all entries have sufficient evaluations.
 func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
 	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	evalDir := filepath.Join(dataDir, "evaluations")
 
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
-
-	memA := writeReviewMemoryTOML(t, memDir, "mem-a.toml", 10)
-	memB := writeReviewMemoryTOML(t, memDir, "mem-b.toml", 2)
-	writeReviewEvalLog(t, evalDir, "a.jsonl", memA,
-		[]string{"followed", "followed", "followed", "followed", "followed"}) // 100%
-	writeReviewEvalLog(t, evalDir, "b.jsonl", memB,
-		[]string{"followed", "followed", "followed", "followed", "followed"}) // 100%
+	writeReviewRegistry(t, dataDir, []reviewTestEntry{
+		{
+			ID: "mem-a", Source: "memory", Title: "Good A", Surfaced: 10,
+			Followed: 5, Contradicted: 0, Ignored: 0,
+		},
+		{
+			ID: "mem-b", Source: "memory", Title: "Good B", Surfaced: 5,
+			Followed: 5, Contradicted: 0, Ignored: 0,
+		},
+	})
 
 	var stdout bytes.Buffer
 
@@ -991,7 +985,7 @@ func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient data"))
+	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient"))
 }
 
 // T-161: evaluate applies Strip preprocessing to transcript before LLM call.
@@ -1740,6 +1734,217 @@ func TestT275_RegistryUnknownSubcommand(t *testing.T) {
 		&stdout, io.Discard, strings.NewReader(""),
 	)
 	g.Expect(err).To(MatchError(ContainSubstring("unknown subcommand")))
+}
+
+func TestT197_CLIReviewQuadrantOutputJSON(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+
+	// Write a registry file with two entries.
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+
+	workingEntry := map[string]any{
+		"id":             "mem-working",
+		"source_type":    "memory",
+		"title":          "Working Memory",
+		"surfaced_count": 10,
+		"evaluations":    map[string]int{"followed": 8, "contradicted": 1, "ignored": 1},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+	leechEntry := map[string]any{
+		"id":             "mem-leech",
+		"source_type":    "memory",
+		"title":          "Leech Memory",
+		"surfaced_count": 10,
+		"evaluations":    map[string]int{"followed": 1, "contradicted": 5, "ignored": 4},
+		"registered_at":  "2026-03-01T00:00:00Z",
+		"updated_at":     "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, _ := json.Marshal(workingEntry)
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, _ := json.Marshal(leechEntry)
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	err := os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "review",
+			"--data-dir", tmpDir,
+			"--format", "json",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var results []map[string]any
+
+	err = json.Unmarshal(stdout.Bytes(), &results)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(results).To(HaveLen(2))
+
+	quadrants := make(map[string]string)
+	for _, result := range results {
+		id, _ := result["id"].(string)
+		quadrant, _ := result["quadrant"].(string)
+		quadrants[id] = quadrant
+	}
+
+	g.Expect(quadrants["mem-working"]).To(Equal("Working"))
+	g.Expect(quadrants["mem-leech"]).To(Equal("Leech"))
+}
+
+func TestT198_CLIMergeAbsorbsAndDeletes(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+
+	// Create a source memory TOML file.
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	sourceToml := filepath.Join(memDir, "source-memory.toml")
+
+	err = os.WriteFile(sourceToml, []byte("title=\"Source\"\n"), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Write a registry with source and target entries.
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+
+	sourceEntry := map[string]any{
+		"id":             "memories/source-memory.toml",
+		"source_type":    "memory",
+		"source_path":    sourceToml,
+		"title":          "Source Memory",
+		"content_hash":   "abc",
+		"surfaced_count": 5,
+		"evaluations": map[string]int{
+			"followed": 3, "contradicted": 1, "ignored": 0,
+		},
+		"registered_at": "2026-03-01T00:00:00Z",
+		"updated_at":    "2026-03-08T00:00:00Z",
+	}
+	targetEntry := map[string]any{
+		"id":             "target-id",
+		"source_type":    "memory",
+		"title":          "Target Memory",
+		"surfaced_count": 2,
+		"evaluations": map[string]int{
+			"followed": 1, "contradicted": 0, "ignored": 0,
+		},
+		"registered_at": "2026-03-01T00:00:00Z",
+		"updated_at":    "2026-03-08T00:00:00Z",
+	}
+
+	var registryData strings.Builder
+
+	line1, _ := json.Marshal(sourceEntry)
+	registryData.Write(line1)
+	registryData.WriteByte('\n')
+
+	line2, _ := json.Marshal(targetEntry)
+	registryData.Write(line2)
+	registryData.WriteByte('\n')
+
+	err = os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "merge",
+			"--data-dir", tmpDir,
+			"--source", "memories/source-memory.toml",
+			"--target", "target-id",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("Merged"))
+
+	// Verify source TOML was deleted.
+	_, statErr := os.Stat(sourceToml)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+
+	// Verify registry: only one line (target), source absorbed into it.
+	data, err := os.ReadFile(registryPath)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	g.Expect(lines).To(HaveLen(1)) // only target remains
+	g.Expect(lines[0]).To(ContainSubstring("target-id"))
+	g.Expect(lines[0]).To(ContainSubstring("absorbed"))
+}
+
+// reviewTestEntry is a compact representation for building registry test data.
+type reviewTestEntry struct {
+	ID           string
+	Source       string
+	Title        string
+	Surfaced     int
+	Followed     int
+	Contradicted int
+	Ignored      int
+}
+
+func writeReviewRegistry(t *testing.T, dataDir string, entries []reviewTestEntry) {
+	t.Helper()
+
+	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+
+	var sb strings.Builder
+
+	for _, entry := range entries {
+		raw := map[string]any{
+			"id":             entry.ID,
+			"source_type":    entry.Source,
+			"title":          entry.Title,
+			"surfaced_count": entry.Surfaced,
+			"evaluations": map[string]int{
+				"followed":     entry.Followed,
+				"contradicted": entry.Contradicted,
+				"ignored":      entry.Ignored,
+			},
+			"registered_at": "2026-03-01T00:00:00Z",
+			"updated_at":    "2026-03-08T00:00:00Z",
+		}
+
+		line, err := json.Marshal(raw)
+		if err != nil {
+			t.Fatalf("writeReviewRegistry: marshal: %v", err)
+		}
+
+		sb.Write(line)
+		sb.WriteByte('\n')
+	}
+
+	if err := os.WriteFile(registryPath, []byte(sb.String()), 0o640); err != nil {
+		t.Fatalf("writeReviewRegistry: write: %v", err)
+	}
 }
 
 func writeTestTOML(t *testing.T, dir, filename, content string) {

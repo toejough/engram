@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -371,13 +372,14 @@ func RunMaintain(
 	return json.NewEncoder(stdout).Encode(proposals)
 }
 
-// RunReview implements the review subcommand: aggregates effectiveness stats,
-// retrieves memory tracking data, classifies memories, and renders the matrix.
-func RunReview(args []string, stdout io.Writer) error {
+// RunReview implements the review subcommand: reads the instruction registry,
+// classifies entries by quadrant, and renders grouped output (ARCH-59, DES-27).
+func RunReview(args []string, stdout io.Writer, opts ...regpkg.JSONLOption) error {
 	fs := flag.NewFlagSet("review", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	format := fs.String("format", "table", "output format: json, table")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -388,25 +390,38 @@ func RunReview(args []string, stdout io.Writer) error {
 		return errReviewMissingFlags
 	}
 
-	evalDir := filepath.Join(*dataDir, "evaluations")
+	registryPath := filepath.Join(*dataDir, registryFilename)
 
-	stats, err := effectiveness.New(evalDir).Aggregate()
+	allOpts := []regpkg.JSONLOption{
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	}
+	allOpts = append(allOpts, opts...)
+
+	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+
+	entries, err := store.List()
 	if err != nil {
-		return fmt.Errorf("review: aggregating effectiveness: %w", err)
+		return fmt.Errorf("review: listing registry: %w", err)
 	}
 
-	if len(stats) == 0 {
-		_, _ = fmt.Fprintln(stdout, "[engram] No evaluation data found.")
+	if len(entries) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No registry entries found.")
 
 		return nil
 	}
 
-	tracking := buildTrackingMap(*dataDir)
+	classifications := classifyEntries(entries)
 
-	classified := reviewpkg.Classify(stats, tracking)
-	reviewpkg.Render(classified, stdout)
+	switch *format {
+	case "json":
+		//nolint:wrapcheck // thin JSON encoding at CLI boundary
+		return json.NewEncoder(stdout).Encode(classifications)
+	default:
+		renderReviewTable(stdout, classifications)
 
-	return nil
+		return nil
+	}
 }
 
 // unexported constants.
@@ -450,10 +465,13 @@ var (
 		"registry init: --data-dir required",
 	)
 	errRegistryUnknownSub = errors.New(
-		"registry: unknown subcommand (expected: init, register-source)",
+		"registry: unknown subcommand (expected: init, register-source, merge)",
 	)
 	errRegisterSourceMissingFlags = errors.New(
 		"registry register-source: --type and --path and --data-dir required",
+	)
+	errMergeMissingFlags = errors.New(
+		"registry merge: --data-dir, --source, and --target required",
 	)
 	errUsage = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
@@ -1288,6 +1306,8 @@ func runRegistry(args []string, stdout io.Writer) error {
 		return runRegistryInit(subArgs, stdout)
 	case "register-source":
 		return runRegistryRegisterSource(subArgs, stdout)
+	case "merge":
+		return runRegistryMerge(subArgs, stdout)
 	default:
 		return errRegistryUnknownSub
 	}
@@ -1447,6 +1467,184 @@ func RunRegistryRegisterSource(
 		registered, *sourcePath, *sourceType)
 
 	return nil
+}
+
+func runRegistryMerge(args []string, stdout io.Writer) error {
+	return RunRegistryMerge(args, stdout, os.Remove)
+}
+
+// RemoveFileFunc removes a file by path, injected for testability.
+type RemoveFileFunc func(path string) error
+
+// RunRegistryMerge implements the registry merge subcommand (ARCH-56, DES-28).
+// removeFile is injected for testability (DI).
+func RunRegistryMerge(
+	args []string,
+	stdout io.Writer,
+	removeFile RemoveFileFunc,
+	opts ...regpkg.JSONLOption,
+) error {
+	fs := flag.NewFlagSet("registry merge", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	sourceID := fs.String("source", "", "source instruction ID")
+	targetID := fs.String("target", "", "target instruction ID")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("registry merge: %w", parseErr)
+	}
+
+	if *dataDir == "" || *sourceID == "" || *targetID == "" {
+		return errMergeMissingFlags
+	}
+
+	registryPath := filepath.Join(*dataDir, registryFilename)
+
+	allOpts := []regpkg.JSONLOption{
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	}
+	allOpts = append(allOpts, opts...)
+
+	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+
+	// Retrieve source entry before merge to know its source path.
+	source, getErr := store.Get(*sourceID)
+	if getErr != nil {
+		return fmt.Errorf("registry merge: getting source: %w", getErr)
+	}
+
+	if source == nil {
+		return fmt.Errorf("registry merge: source entry is nil")
+	}
+
+	mergeErr := store.Merge(*sourceID, *targetID)
+	if mergeErr != nil {
+		return fmt.Errorf("registry merge: %w", mergeErr)
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] Merged %q into %q (counters transferred)\n",
+		*sourceID, *targetID)
+
+	// If source was a memory TOML, delete the file.
+	if source.SourceType == "memory" && source.SourcePath != "" {
+		rmErr := removeFile(source.SourcePath)
+		if rmErr != nil && !os.IsNotExist(rmErr) {
+			_, _ = fmt.Fprintf(stdout,
+				"[engram] Warning: could not delete source file %s: %v\n",
+				source.SourcePath, rmErr)
+		} else if rmErr == nil {
+			_, _ = fmt.Fprintf(stdout,
+				"[engram] Deleted source file: %s\n", source.SourcePath)
+		}
+	}
+
+	return nil
+}
+
+// reviewClassification holds the quadrant classification for a single entry.
+//
+//nolint:tagliatelle // spec requires snake_case JSON field names.
+type reviewClassification struct {
+	ID            string   `json:"id"`
+	SourceType    string   `json:"source_type"`
+	Title         string   `json:"title"`
+	Quadrant      string   `json:"quadrant"`
+	Effectiveness *float64 `json:"effectiveness,omitempty"`
+	SurfacedCount int      `json:"surfaced_count"`
+}
+
+// reviewSurfacingThreshold mirrors the default from classify.go.
+const reviewSurfacingThreshold = 3
+
+// reviewEffectivenessThreshold mirrors the default from classify.go.
+const reviewEffectivenessThreshold = 50.0
+
+func classifyEntries(entries []regpkg.InstructionEntry) []reviewClassification {
+	classifications := make([]reviewClassification, 0, len(entries))
+
+	for idx := range entries {
+		entry := &entries[idx]
+		quadrant := regpkg.Classify(
+			entry,
+			reviewSurfacingThreshold,
+			reviewEffectivenessThreshold,
+		)
+		eff := regpkg.Effectiveness(entry)
+
+		classifications = append(classifications, reviewClassification{
+			ID:            entry.ID,
+			SourceType:    entry.SourceType,
+			Title:         entry.Title,
+			Quadrant:      string(quadrant),
+			Effectiveness: eff,
+			SurfacedCount: entry.SurfacedCount,
+		})
+	}
+
+	return classifications
+}
+
+func renderReviewTable(
+	writer io.Writer,
+	classifications []reviewClassification,
+) {
+	_, _ = fmt.Fprintf(writer,
+		"[engram] Instruction Review (%d entries)\n\n",
+		len(classifications))
+
+	// Group by source_type.
+	groups := make(map[string][]reviewClassification)
+
+	for _, classification := range classifications {
+		groups[classification.SourceType] = append(
+			groups[classification.SourceType], classification)
+	}
+
+	sourceTypes := make([]string, 0, len(groups))
+	for sourceType := range groups {
+		sourceTypes = append(sourceTypes, sourceType)
+	}
+
+	sort.Strings(sourceTypes)
+
+	for _, sourceType := range sourceTypes {
+		_, _ = fmt.Fprintf(writer, "Source: %s\n", sourceType)
+
+		group := groups[sourceType]
+
+		sort.Slice(group, func(i, j int) bool {
+			return group[i].Quadrant < group[j].Quadrant
+		})
+
+		for _, entry := range group {
+			effStr := "N/A"
+			if entry.Effectiveness != nil {
+				effStr = fmt.Sprintf("%.1f%%", *entry.Effectiveness)
+			}
+
+			_, _ = fmt.Fprintf(writer,
+				"  %-14s %-40s %8s  surfaced=%d\n",
+				entry.Quadrant, truncateTitle(entry.Title),
+				effStr, entry.SurfacedCount)
+		}
+
+		_, _ = fmt.Fprintln(writer)
+	}
+}
+
+// maxTitleLength is the maximum display width for titles in table output.
+const maxTitleLength = 38
+
+func truncateTitle(title string) string {
+	if len(title) <= maxTitleLength {
+		return title
+	}
+
+	return title[:maxTitleLength-1] + "…"
 }
 
 // buildExtractor creates the appropriate extractor for the given source type.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,7 +16,9 @@ type FileWriter func(path string, content []byte) error
 
 // JSONLStore implements Registry backed by a JSONL file.
 // All I/O is performed through injected reader/writer functions.
+// All public methods are safe for concurrent use.
 type JSONLStore struct {
+	mu      sync.Mutex
 	path    string
 	read    FileReader
 	write   FileWriter
@@ -58,6 +61,9 @@ func NewJSONLStore(path string, opts ...JSONLOption) *JSONLStore {
 
 // Register adds a new instruction entry to the store.
 func (s *JSONLStore) Register(entry InstructionEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return err
 	}
@@ -73,6 +79,9 @@ func (s *JSONLStore) Register(entry InstructionEntry) error {
 
 // RecordSurfacing increments the surfaced count and updates last_surfaced.
 func (s *JSONLStore) RecordSurfacing(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return err
 	}
@@ -92,6 +101,9 @@ func (s *JSONLStore) RecordSurfacing(id string) error {
 
 // RecordEvaluation increments the appropriate evaluation counter.
 func (s *JSONLStore) RecordEvaluation(id string, outcome Outcome) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return err
 	}
@@ -115,6 +127,9 @@ func (s *JSONLStore) RecordEvaluation(id string, outcome Outcome) error {
 
 // Merge absorbs the source entry into the target entry, then removes the source.
 func (s *JSONLStore) Merge(sourceID, targetID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return err
 	}
@@ -148,6 +163,9 @@ func (s *JSONLStore) Merge(sourceID, targetID string) error {
 
 // Remove deletes an entry from the store.
 func (s *JSONLStore) Remove(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return err
 	}
@@ -163,6 +181,9 @@ func (s *JSONLStore) Remove(id string) error {
 
 // List returns all entries in the store.
 func (s *JSONLStore) List() ([]InstructionEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return nil, err
 	}
@@ -177,6 +198,9 @@ func (s *JSONLStore) List() ([]InstructionEntry, error) {
 
 // Get returns a single entry by ID.
 func (s *JSONLStore) Get(id string) (*InstructionEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := s.ensureLoaded(); err != nil {
 		return nil, err
 	}
@@ -193,6 +217,9 @@ func (s *JSONLStore) Get(id string) (*InstructionEntry, error) {
 
 // BulkLoad replaces all entries in the store (used by backfill init).
 func (s *JSONLStore) BulkLoad(entries []InstructionEntry) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.entries = make(map[string]*InstructionEntry, len(entries))
 
 	for idx := range entries {
