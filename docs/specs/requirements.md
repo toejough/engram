@@ -2507,6 +2507,68 @@ Auto-registration runs synchronously before surfacing so that newly registered e
 
 ---
 
+## UC-27: Global Binary Installation
+
+### REQ-119: Symlink creation after build
+
+After a successful binary build in SessionStart, the system creates a symlink at `~/.local/bin/engram` pointing to the built binary at `~/.claude/engram/bin/engram`.
+
+- Traces to: UC-27 (symlink creation)
+- AC: (1) Symlink created pointing to correct target. (2) Only runs after successful build. (3) Target directory created if missing.
+- Verification: deterministic (symlink target check)
+
+---
+
+### REQ-120: Idempotent symlink management
+
+If the symlink already exists and points to the correct target, the operation is a no-op. If the symlink exists but points to a stale target, it is replaced.
+
+- Traces to: UC-27 (idempotent)
+- AC: (1) Existing correct symlink → no action. (2) Existing stale symlink → replaced. (3) Running twice produces same result.
+- Verification: deterministic (idempotent state check)
+
+---
+
+### REQ-121: No-clobber for non-engram binaries
+
+If `~/.local/bin/engram` exists and is a regular file (not a symlink to our binary), the system does NOT overwrite it. A warning is logged to stderr.
+
+- Traces to: UC-27 (no clobber)
+- AC: (1) Regular file at target → skip, log warning. (2) Symlink to different target → skip, log warning. (3) Original file preserved intact.
+- Verification: deterministic (file type check)
+
+---
+
+### REQ-122: Fire-and-forget symlink errors
+
+Symlink creation failures (permission denied, read-only filesystem, etc.) are logged to stderr but never block session start.
+
+- Traces to: UC-27 (fire-and-forget, ARCH-6)
+- AC: (1) Any symlink error → log to stderr. (2) Session start continues normally. (3) No error propagation to hook output.
+- Verification: deterministic (error handling)
+
+---
+
+### DES-42: SessionStart symlink flow
+
+After the binary build step in `session-start.sh`, the hook creates the global symlink:
+
+1. **Build binary** — existing behavior (unchanged)
+2. **Ensure target directory** — `mkdir -p ~/.local/bin`
+3. **Check existing** — if `~/.local/bin/engram` exists:
+   - If symlink pointing to `~/.claude/engram/bin/engram` → done
+   - If symlink pointing elsewhere or regular file → log warning, skip
+4. **Create symlink** — `ln -s ~/.claude/engram/bin/engram ~/.local/bin/engram`
+5. **Continue** — proceed to surface command (existing behavior)
+
+All steps after build are fire-and-forget — errors logged but never block.
+
+- Traces to: UC-27 (SessionStart flow)
+- AC: (1) Symlink step runs after build, before surface. (2) Steps are fire-and-forget. (3) New terminals can run `engram` after first session start.
+- Verification: integration (hook flow)
+
+---
+
 ### DES-41: Source path configuration
 
 Source paths are provided to the auto-registration system via injected configuration, not hardcoded paths. The CLI wiring layer resolves paths from the environment:
