@@ -2077,3 +2077,37 @@ The evaluate pipeline (Stop hook) requires no code changes — it already reads 
 | DES-41  | ARCH-69, ARCH-71 |
 
 All L2 items have ARCH coverage.
+
+---
+
+## ARCH-72: SessionStart symlink step (UC-27)
+
+**Component:** `hooks/session-start.sh`
+
+**What changes:** After the existing binary build block (lines 11-23), add a symlink management block that:
+
+1. Defines target: `SYMLINK_TARGET="$HOME/.local/bin/engram"`
+2. `mkdir -p "$HOME/.local/bin"` (create target dir if missing)
+3. Check existing target:
+   - If symlink pointing to `$ENGRAM_BIN` → skip (idempotent)
+   - If symlink pointing elsewhere or regular file → log warning to stderr, skip (no-clobber)
+   - If nothing exists → `ln -s "$ENGRAM_BIN" "$SYMLINK_TARGET"`
+4. All errors captured with `|| true` (fire-and-forget per ARCH-6)
+
+**Why shell, not Go:** This is a 10-line shell block. Adding a Go subcommand (`engram install-symlink`) would be over-engineering — the symlink logic has no business rules, no DI boundaries, no testable pure functions. It's filesystem plumbing that belongs in the hook script.
+
+**Traces to:** REQ-119 (create), REQ-120 (idempotent), REQ-121 (no-clobber), REQ-122 (fire-and-forget), DES-42 (flow ordering)
+
+---
+
+## L2 → ARCH Traceability (UC-27)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-119 | ARCH-72 |
+| REQ-120 | ARCH-72 |
+| REQ-121 | ARCH-72 |
+| REQ-122 | ARCH-72 |
+| DES-42  | ARCH-72 |
+
+All L2 items have ARCH coverage.

@@ -86,6 +86,7 @@ items = [
   { id = "ARCH-69", source = "derived" },
   { id = "ARCH-70", source = "derived" },
   { id = "ARCH-71", source = "derived" },
+  { id = "ARCH-72", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -1111,8 +1112,16 @@ items = ["REQ-119", "REQ-120", "REQ-121", "REQ-122", "DES-42"]
 status = "complete"
 history = "4 REQs + 1 DES: symlink creation (REQ-119), idempotent management (REQ-120), no-clobber (REQ-121), fire-and-forget errors (REQ-122), SessionStart flow (DES-42)."
 
+[tree.L3T]
+layer = "L3"
+name = "Global Binary Installation Architecture"
+parents = ["L2T"]
+items = ["ARCH-72"]
+status = "complete"
+history = "1 ARCH item: SessionStart symlink step in hooks/session-start.sh. Shell-only — no Go code needed. All L2 items trace to ARCH-72."
+
 [cursor]
-node = "L2T"
+node = "L3T"
 mode = "traversal"
-next_action = "L2T complete. DESCEND to L3 for UC-27."
-context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]
+next_action = "L3T complete. DESCEND to L4 for UC-27."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md"]
