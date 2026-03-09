@@ -628,4 +628,51 @@ Working on session continuity for engram (#45)...
 
 ---
 
+## UC-26: First-Class Non-Memory Instruction Sources
+
+**Description:** Make rules, skills, CLAUDE.md entries, and MEMORY.md entries full participants in the feedback loop. Currently these sources are registered in the instruction registry but never surfacing-tracked or evaluated — only memories get measured. This UC closes that gap: auto-register all sources at session start, track implicit surfacing for always-loaded sources, evaluate all registered instructions at session end, and prune stale entries when source files disappear.
+
+**Starting state:** The instruction registry (UC-23) has extractors for all 5 source types and can store entries for any of them. But the hooks only call `RecordSurfacing` and `RecordEvaluation` for memory sources. Non-memory entries sit in the registry with zero surfacing counts and zero evaluation data, making quadrant classification meaningless for them.
+
+**End state:** Every session automatically registers all discoverable instruction sources, records implicit surfacing for always-loaded sources, evaluates all surfaced instructions (not just memories) at session end, and removes registry entries whose source files no longer exist. `engram review` shows meaningful quadrant classifications for all instruction types.
+
+**Actor:** System (Go binary triggered by SessionStart and Stop hooks) + Developer (CLI commands).
+
+**Key interactions:**
+
+- **Auto-registration at SessionStart:** On each session start, scan all known instruction source locations:
+  - CLAUDE.md files: project CLAUDE.md, user global CLAUDE.md (paths from environment or convention)
+  - MEMORY.md: `~/.claude/projects/<project>/memory/MEMORY.md`
+  - Rules: all files in `.claude/rules/`
+  - Skills: all skill files in the plugin's skills directory
+  - Memories: already registered by learn pipeline (UC-1/UC-3), no change needed
+
+  For each discovered source, extract entries using existing extractors (UC-23). Register new entries. Update content hash for existing entries if source content changed. **Remove registry entries whose source file no longer exists** (stale pruning).
+
+- **Implicit surfacing for always-loaded sources:** Claude Code always loads claude-md, memory-md, and rule sources into every session. Engram doesn't control this loading, so it can't observe individual surfacing events. Instead, at SessionStart, increment `surfaced_count` and update `last_surfaced` for all always-loaded entries. This reflects the truth: they are surfaced on every session.
+
+- **Skills as always-surfaced:** Claude Code loads skills by context similarity — engram cannot reliably detect when a specific skill is active. Rather than guess, treat all registered skills as always-surfaced (same as claude-md/memory-md/rule). This overcounts surfacing but produces valid effectiveness ratios. Skills get binary Working/Leech classification. Add `"skill"` and `"rule"` to `alwaysLoadedSources` in classify.go.
+
+- **Evaluate all surfaced sources:** Extend the Stop hook's evaluation step (UC-15) to evaluate all instructions that were surfaced during the session, not just memories. The evaluator already takes a list of surfaced instruction IDs and judges each against the transcript. The change is in what gets surfaced: always-loaded sources are now in the surfacing log, so they appear in the evaluation input.
+
+- **Stale entry pruning:** During auto-registration, build the set of all currently-discoverable source IDs. Any registry entry whose source type is non-memory and whose ID is not in the discovered set gets removed. This handles deleted rules, removed skills, and CLAUDE.md entries that were edited out.
+
+- **No graceful degradation needed:** Auto-registration and surfacing tracking are local file I/O. Evaluation requires an API token (same as UC-15) — if no token, evaluation is skipped for all sources (existing behavior).
+
+- **Pure Go, no CGO.**
+- **DI everywhere.**
+
+**Constraints:**
+1. Always-loaded sources get implicit surfacing (one increment per session) — no per-prompt tracking
+2. Skills treated as always-surfaced — binary Working/Leech classification only
+3. Rules added to `alwaysLoadedSources` alongside claude-md and memory-md
+4. Stale pruning only applies to non-memory sources — memory pruning is handled by UC-16 Noise removal
+5. Auto-registration is idempotent — running twice produces the same registry state
+6. Fire-and-forget on registry write failures (ARCH-6 contract)
+7. Content hash updates detect when source content changes (e.g., CLAUDE.md edited)
+
+**Dependencies:** UC-23 (registry infrastructure, extractors), UC-15 (evaluation pipeline)
+
+---
+
 Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope consolidated into UC-16; proposal-application scope consolidated into UC-24. Issue #59 (BM25) already implemented. Archives in issue #18.

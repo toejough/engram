@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25", "UC-26"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -1054,8 +1054,15 @@ items = ["REQ-110", "REQ-111", "DES-39"]
 status = "complete"
 history = "2 REQs + 1 DES derived from UC-25. L3-L5 complete."
 
+[tree.L1S]
+layer = "L1"
+name = "First-Class Non-Memory Instruction Sources"
+items = ["UC-26"]
+status = "in_progress"
+history = "Issue #77. Post-completion re-entry: make rules/skills/claude-md/memory-md full participants in the feedback loop. Auto-registration, implicit surfacing tracking, evaluate all sources, stale pruning."
+
 [cursor]
-node = "TREE_COMPLETE"
-mode = "complete"
-next_action = "UC-4,5,24,25 L1-L5 complete. Usability gate pending: verify build, promote, demote, maintain --apply, evaluate strip exercisable end-to-end."
-context_files = ["docs/specs/state.toml", "docs/specs/test-list.md", "docs/specs/architecture.md", "docs/specs/requirements.md"]
+node = "L1S"
+mode = "traversal"
+next_action = "L1S GREEN complete (UC-26 written). REFACTOR L1 layer, then REGROUP, COMMIT, DESCEND to L2."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
