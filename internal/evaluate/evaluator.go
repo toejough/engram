@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,8 @@ type Evaluator struct {
 	mkdirAll   func(path string, perm os.FileMode) error
 	now        func() time.Time
 	registry   RegistryRecorder
+	stripFunc  func([]string) []string
+	logWriter  io.Writer
 }
 
 // New creates an Evaluator with the given data directory and options.
@@ -43,6 +46,7 @@ func New(dataDir string, opts ...Option) *Evaluator {
 		removeFile: os.Remove,
 		mkdirAll:   os.MkdirAll,
 		now:        time.Now,
+		logWriter:  io.Discard,
 	}
 	for _, opt := range opts {
 		opt(e)
@@ -53,7 +57,22 @@ func New(dataDir string, opts ...Option) *Evaluator {
 
 // Evaluate runs the outcome evaluation pipeline for a session transcript.
 // Returns nil if no memories were surfaced (no LLM call made).
+// When a StripFunc is set, the transcript is split into lines, stripped,
+// and rejoined before evaluation. Empty post-strip transcripts skip the LLM call.
 func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome, error) {
+	if e.stripFunc != nil {
+		lines := strings.Split(transcript, "\n")
+		stripped := e.stripFunc(lines)
+
+		if len(stripped) == 0 {
+			_, _ = fmt.Fprintln(e.logWriter,
+				"[engram] evaluate: transcript empty after strip — skipping")
+			return nil, nil
+		}
+
+		transcript = strings.Join(stripped, "\n")
+	}
+
 	logPath := filepath.Join(e.dataDir, surfacingLogFilename)
 
 	entries, err := e.readSurfacingLog(logPath)
@@ -245,6 +264,17 @@ func WithRemoveFile(fn func(name string) error) Option {
 // WithRegistry sets the registry recorder for evaluation events (UC-23).
 func WithRegistry(recorder RegistryRecorder) Option {
 	return func(e *Evaluator) { e.registry = recorder }
+}
+
+// WithStripFunc injects a preprocessing function that filters transcript lines
+// before sending to the LLM (UC-25). Default is nil (no stripping).
+func WithStripFunc(fn func([]string) []string) Option {
+	return func(e *Evaluator) { e.stripFunc = fn }
+}
+
+// WithLogWriter injects a writer for diagnostic log messages.
+func WithLogWriter(w io.Writer) Option {
+	return func(e *Evaluator) { e.logWriter = w }
 }
 
 // WithWriteFile injects a file writer.

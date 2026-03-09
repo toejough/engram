@@ -31,6 +31,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/promote"
 	regpkg "engram/internal/registry"
 	"engram/internal/remind"
 	"engram/internal/render"
@@ -140,6 +141,10 @@ func Run(
 		return runInstructAudit(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
+	case "promote":
+		return runPromote(subArgs, stdout, stdin)
+	case "demote":
+		return runDemote(subArgs, stdout, stdin)
 	case "registry":
 		return runRegistry(subArgs, stdout)
 	default:
@@ -192,11 +197,7 @@ func RunEvaluate(
 	evaluator := evaluate.New(*dataDir, allOpts...)
 	ctx := context.Background()
 
-	transcriptLines := strings.Split(string(transcriptBytes), "\n")
-	strippedLines := sessionctx.Strip(transcriptLines)
-	strippedTranscript := strings.Join(strippedLines, "\n")
-
-	outcomes, err := evaluator.Evaluate(ctx, strippedTranscript)
+	outcomes, err := evaluator.Evaluate(ctx, string(transcriptBytes))
 	if err != nil {
 		return fmt.Errorf("evaluate: %w", err)
 	}
@@ -1002,6 +1003,8 @@ func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error
 			&evaluateRegistryAdapter{reg: registry},
 		))
 	}
+
+	opts = append(opts, evaluate.WithStripFunc(sessionctx.Strip))
 
 	return RunEvaluate(args, os.Getenv("ENGRAM_API_TOKEN"), stdout, stderr, stdin, opts...)
 }
@@ -1874,4 +1877,378 @@ func openRegistry(dataDir string) *regpkg.JSONLStore {
 		regpkg.WithReader(osReadFileFunc),
 		regpkg.WithWriter(osWriteFileFunc),
 	)
+}
+
+//nolint:funlen,cyclop // CLI orchestration: wires DI dependencies for promote pipeline
+func runPromote(args []string, stdout io.Writer, stdin io.Reader) error {
+	fs := flag.NewFlagSet("promote", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	toSkill := fs.Bool("to-skill", false, "promote memory to skill")
+	toClaudeMD := fs.Bool("to-claude-md", false, "promote skill to CLAUDE.md")
+	threshold := fs.Int("threshold", defaultPromoteThreshold, "minimum surfaced_count")
+	autoConfirm := fs.Bool("yes", false, "skip confirmation prompt")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("promote: %w", parseErr)
+	}
+
+	if *dataDir == "" || (!*toSkill && !*toClaudeMD) {
+		return errors.New(
+			"promote: --data-dir and one of --to-skill/--to-claude-md required",
+		)
+	}
+
+	reg := openRegistry(*dataDir)
+	confirmer := &cliConfirmer{
+		stdout:      stdout,
+		stdin:       stdin,
+		autoConfirm: *autoConfirm,
+	}
+
+	if *toClaudeMD {
+		return runPromoteToClaudeMD(reg, confirmer, *dataDir, *threshold, stdout)
+	}
+
+	return runPromoteToSkill(reg, confirmer, *dataDir, *threshold, stdout)
+}
+
+func runPromoteToSkill(
+	reg *regpkg.JSONLStore,
+	confirmer *cliConfirmer,
+	dataDir string,
+	threshold int,
+	stdout io.Writer,
+) error {
+	retriever := retrieve.New()
+	skillsDir := filepath.Join(dataDir, "skills")
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  &templateGenerator{},
+		Writer:     &osSkillWriter{dir: skillsDir},
+		Merger:     reg,
+		Remover:    &osMemoryRemover{},
+		Registerer: reg,
+		Confirmer:  confirmer,
+		MemoryLoader: func(path string) (*promote.MemoryContent, error) {
+			return loadMemoryContent(retriever, path)
+		},
+	}
+
+	candidates, err := promoter.Candidates(threshold)
+	if err != nil {
+		return fmt.Errorf("promote: %w", err)
+	}
+
+	if len(candidates) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No candidates above threshold.")
+
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] %d candidates for promotion:\n", len(candidates))
+
+	for i, candidate := range candidates {
+		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
+			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
+	}
+
+	for _, candidate := range candidates {
+		promoteErr := promoter.Promote(context.Background(), candidate.Entry.ID)
+		if promoteErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[engram] Error promoting %s: %v\n",
+				candidate.Entry.ID, promoteErr)
+		}
+	}
+
+	return nil
+}
+
+func runPromoteToClaudeMD(
+	reg *regpkg.JSONLStore,
+	confirmer *cliConfirmer,
+	dataDir string,
+	threshold int,
+	stdout io.Writer,
+) error {
+	claudeMDPath := filepath.Join(dataDir, "CLAUDE.md")
+	skillsDir := filepath.Join(dataDir, "skills")
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		EntryGenerator: &templateClaudeMDGenerator{},
+		Editor:         &promote.SectionEditor{},
+		Store:          &osClaudeMDStore{path: claudeMDPath},
+		SkillWriter:    &osSkillWriter{dir: skillsDir},
+		Merger:         reg,
+		Registerer:     reg,
+		Confirmer:      confirmer,
+		SkillLoader: func(path string) (promote.SkillContent, error) {
+			return loadSkillContent(path)
+		},
+	}
+
+	candidates, err := promoter.PromotionCandidates(threshold)
+	if err != nil {
+		return fmt.Errorf("promote: %w", err)
+	}
+
+	if len(candidates) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No candidates above threshold.")
+
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] %d candidates for CLAUDE.md promotion:\n", len(candidates))
+
+	for i, candidate := range candidates {
+		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
+			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
+	}
+
+	for _, candidate := range candidates {
+		promoteErr := promoter.Promote(context.Background(), candidate.Entry.ID)
+		if promoteErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[engram] Error promoting %s: %v\n",
+				candidate.Entry.ID, promoteErr)
+		}
+	}
+
+	return nil
+}
+
+//nolint:funlen // CLI orchestration: wires DI dependencies for demote pipeline
+func runDemote(args []string, stdout io.Writer, stdin io.Reader) error {
+	fs := flag.NewFlagSet("demote", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	toSkill := fs.Bool("to-skill", false, "demote CLAUDE.md entry to skill")
+	autoConfirm := fs.Bool("yes", false, "skip confirmation prompt")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("demote: %w", parseErr)
+	}
+
+	if *dataDir == "" || !*toSkill {
+		return errors.New("demote: --data-dir and --to-skill are required")
+	}
+
+	reg := openRegistry(*dataDir)
+	claudeMDPath := filepath.Join(*dataDir, "CLAUDE.md")
+	skillsDir := filepath.Join(*dataDir, "skills")
+
+	confirmer := &cliConfirmer{
+		stdout:      stdout,
+		stdin:       stdin,
+		autoConfirm: *autoConfirm,
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		SkillGenerator: &templateGenerator{},
+		Editor:         &promote.SectionEditor{},
+		Store:          &osClaudeMDStore{path: claudeMDPath},
+		SkillWriter:    &osSkillWriter{dir: skillsDir},
+		Merger:         reg,
+		Registerer:     reg,
+		Confirmer:      confirmer,
+	}
+
+	candidates, err := promoter.DemotionCandidates()
+	if err != nil {
+		return fmt.Errorf("demote: %w", err)
+	}
+
+	if len(candidates) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No demotion candidates found.")
+
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] %d candidates for demotion:\n", len(candidates))
+
+	for i, candidate := range candidates {
+		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
+			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
+	}
+
+	for _, candidate := range candidates {
+		demoteErr := promoter.Demote(context.Background(), candidate.Entry.ID)
+		if demoteErr != nil {
+			_, _ = fmt.Fprintf(stdout, "[engram] Error demoting %s: %v\n",
+				candidate.Entry.ID, demoteErr)
+		}
+	}
+
+	return nil
+}
+
+// templateGenerator generates skill content using the built-in template.
+type templateGenerator struct{}
+
+func (t *templateGenerator) Generate(
+	_ context.Context, mem promote.MemoryContent,
+) (string, error) {
+	return promote.FormatSkill(mem), nil
+}
+
+// osSkillWriter writes skill files to a directory on disk.
+type osSkillWriter struct {
+	dir string
+}
+
+func (w *osSkillWriter) Write(name, content string) (string, error) {
+	const dirPerms = 0o755
+
+	if mkErr := os.MkdirAll(w.dir, dirPerms); mkErr != nil {
+		return "", fmt.Errorf("creating skills dir: %w", mkErr)
+	}
+
+	path := filepath.Join(w.dir, name+".md")
+
+	if _, err := os.Stat(path); err == nil {
+		return "", fmt.Errorf("skill %q already exists at %s", name, path)
+	}
+
+	const filePerms = 0o644
+
+	if writeErr := os.WriteFile(path, []byte(content), filePerms); writeErr != nil {
+		return "", fmt.Errorf("writing skill: %w", writeErr)
+	}
+
+	return path, nil
+}
+
+// osMemoryRemover deletes a memory TOML file from disk.
+type osMemoryRemover struct{}
+
+func (r *osMemoryRemover) Remove(path string) error {
+	if rmErr := os.Remove(path); rmErr != nil {
+		return fmt.Errorf("removing memory: %w", rmErr)
+	}
+
+	return nil
+}
+
+// cliConfirmer prompts the user for confirmation via stdin/stdout.
+type cliConfirmer struct {
+	stdout      io.Writer
+	stdin       io.Reader
+	autoConfirm bool
+}
+
+func (c *cliConfirmer) Confirm(preview string) (bool, error) {
+	_, _ = fmt.Fprintf(c.stdout, "\n--- Skill Preview ---\n%s\n--- End Preview ---\n", preview)
+
+	if c.autoConfirm {
+		_, _ = fmt.Fprintln(c.stdout, "Auto-confirmed (--yes).")
+
+		return true, nil
+	}
+
+	_, _ = fmt.Fprint(c.stdout, "Promote this memory to a skill? [y/N] ")
+
+	var response string
+	if _, err := fmt.Fscan(c.stdin, &response); err != nil {
+		return false, fmt.Errorf("reading confirmation: %w", err)
+	}
+
+	return strings.EqualFold(response, "y") || strings.EqualFold(response, "yes"), nil
+}
+
+func loadMemoryContent(
+	ret *retrieve.Retriever,
+	path string,
+) (*promote.MemoryContent, error) {
+	memories, err := ret.ListMemories(context.Background(), filepath.Dir(filepath.Dir(path)))
+	if err != nil {
+		return nil, fmt.Errorf("loading memories: %w", err)
+	}
+
+	for _, mem := range memories {
+		if mem.FilePath == path {
+			return &promote.MemoryContent{
+				Title:       mem.Title,
+				Content:     mem.Content,
+				Principle:   mem.Principle,
+				AntiPattern: mem.AntiPattern,
+				Keywords:    mem.Keywords,
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("memory not found at path: %s", path)
+}
+
+const defaultPromoteThreshold = 50
+
+// templateClaudeMDGenerator generates CLAUDE.md entries using the built-in template.
+type templateClaudeMDGenerator struct{}
+
+func (t *templateClaudeMDGenerator) Generate(
+	_ context.Context, skill promote.SkillContent, _ string,
+) (string, error) {
+	entryID := "skill:" + promote.Slugify(skill.Title)
+
+	return promote.FormatClaudeMDEntry(skill, entryID), nil
+}
+
+// osClaudeMDStore reads and writes CLAUDE.md files on disk.
+type osClaudeMDStore struct {
+	path string
+}
+
+func (s *osClaudeMDStore) Read() (string, error) {
+	data, err := os.ReadFile(s.path)
+	if os.IsNotExist(err) {
+		return "", nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("reading CLAUDE.md: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *osClaudeMDStore) Write(content string) error {
+	const filePerms = 0o644
+
+	if writeErr := os.WriteFile(s.path, []byte(content), filePerms); writeErr != nil {
+		return fmt.Errorf("writing CLAUDE.md: %w", writeErr)
+	}
+
+	return nil
+}
+
+func loadSkillContent(path string) (promote.SkillContent, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return promote.SkillContent{}, fmt.Errorf("reading skill: %w", err)
+	}
+
+	// Extract title from first markdown heading.
+	content := string(data)
+	title := filepath.Base(path)
+
+	for line := range strings.SplitSeq(content, "\n") {
+		if after, ok := strings.CutPrefix(line, "# "); ok {
+			title = after
+
+			break
+		}
+	}
+
+	return promote.SkillContent{
+		Title:   title,
+		Content: content,
+	}, nil
 }

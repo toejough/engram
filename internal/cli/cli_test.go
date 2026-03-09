@@ -17,6 +17,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
+	sessionctx "engram/internal/context"
 	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/learn"
@@ -1048,6 +1049,7 @@ anti_pattern = ""`), 0o644)
 		&stdout, &stderr,
 		strings.NewReader(transcript),
 		evaluate.WithLLMCaller(fakeLLM),
+		evaluate.WithStripFunc(sessionctx.Strip),
 	)
 
 	g.Expect(err).NotTo(HaveOccurred())
