@@ -52,6 +52,16 @@ items = [
   { id = "ARCH-35", source = "derived" },
   { id = "ARCH-36", source = "derived" },
   { id = "ARCH-37", source = "derived" },
+  { id = "ARCH-52", source = "derived" },
+  { id = "ARCH-53", source = "derived" },
+  { id = "ARCH-54", source = "derived" },
+  { id = "ARCH-55", source = "derived" },
+  { id = "ARCH-56", source = "derived" },
+  { id = "ARCH-57", source = "derived" },
+  { id = "ARCH-58", source = "derived" },
+  { id = "ARCH-59", source = "derived" },
+  { id = "ARCH-60", source = "derived" },
+  { id = "ARCH-61", source = "derived" },
 ]
 green_tool = "none"
 refactor_tool = "none"
@@ -808,11 +818,19 @@ layer = "L2"
 name = "Registry requirements and design"
 items = ["REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "REQ-62", "REQ-63", "REQ-64", "REQ-65", "REQ-66", "REQ-67", "REQ-68", "DES-26", "DES-27", "DES-28", "DES-29"]
 parents = ["L1N"]
-status = "pending"
+status = "complete"
 history = "Derived from UC-23. 14 requirements covering taxonomy, signals, bounded growth, concurrent writes, backfill migration, quadrant classification. 4 DES items covering CLI commands (init, review, merge) and auto-registration."
 
+[tree.L3N]
+layer = "L3"
+name = "Registry architecture"
+items = ["ARCH-52", "ARCH-53", "ARCH-54", "ARCH-55", "ARCH-56", "ARCH-57", "ARCH-58", "ARCH-59", "ARCH-60", "ARCH-61"]
+parents = ["L2N"]
+status = "complete"
+history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration."
+
 [cursor]
-node = "L2N"
+node = "L3N"
 mode = "in_progress"
-next_action = "L2 GREEN complete: 18 items derived (REQ-55..68 bounded growth/signals/concurrency/migration; DES-26..29 CLI commands + auto-integration). Single group: registry is cohesive feature. Ready for REGROUP exercisability check then L3 ARCH derivation."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md", "docs/specs/requirements.md", "docs/prompts/unified-instruction-registry.md"]
+next_action = "L3 ARCH complete: 10 items converging L2 (ARCH-52..61 storage/ID format/signals/content hash/merge/concurrency/backfill/quadrants/DI/CLI). All L2 REQ/DES traced to L3. L4 TEST LIST derivation + L5 IMPL teams follow. Delegating L5 to parallel teams (5 phases: backfill+schema, wire surface/eval, register sources, simplify TOMLs, merge+lifecycle)."
+context_files = ["docs/specs/state.toml", "docs/specs/architecture.md", "docs/prompts/unified-instruction-registry.md"]
