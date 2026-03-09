@@ -10,7 +10,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L2]
-items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34", "REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17", "REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "REQ-46", "DES-18", "DES-19", "DES-20", "DES-21", "DES-22", "REQ-47", "REQ-48", "REQ-49", "REQ-50", "REQ-51", "REQ-52", "REQ-53", "REQ-54", "DES-23", "DES-24", "DES-25", "REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "REQ-62", "REQ-63", "REQ-64", "REQ-65", "REQ-66", "REQ-67", "REQ-68", "DES-26", "DES-27", "DES-28", "DES-29", "REQ-69", "REQ-70", "REQ-71", "DES-30", "DES-31", "REQ-72", "REQ-73", "REQ-74", "DES-32", "REQ-75", "REQ-76", "REQ-77", "REQ-78", "REQ-79", "REQ-80", "DES-33", "REQ-81", "DES-34", "REQ-82", "REQ-83", "REQ-84", "REQ-85", "REQ-86", "REQ-87", "DES-35", "REQ-88", "REQ-89", "REQ-90", "REQ-91", "REQ-92", "REQ-93", "REQ-94", "REQ-95", "REQ-96", "DES-33", "DES-34", "REQ-97", "REQ-98", "REQ-99", "REQ-100", "REQ-101", "REQ-102", "DES-35", "DES-36", "REQ-103", "REQ-104", "REQ-105", "REQ-106", "REQ-107", "REQ-108", "REQ-109", "DES-37", "DES-38", "REQ-110", "REQ-111", "DES-39"]
+items = ["REQ-1", "REQ-2", "REQ-X", "REQ-3", "REQ-4", "REQ-6", "REQ-7", "REQ-8", "DES-1", "DES-3", "DES-4", "REQ-9", "REQ-10", "REQ-11", "REQ-14", "DES-5", "DES-6", "DES-7", "DES-8", "REQ-21", "REQ-22", "REQ-23", "REQ-24", "REQ-15", "REQ-16", "REQ-17", "REQ-18", "REQ-19", "REQ-20", "DES-9", "DES-10", "REQ-25", "REQ-26", "DES-11", "REQ-27", "DES-12", "REQ-28", "DES-13", "REQ-29", "REQ-30", "DES-14", "REQ-31", "DES-15", "REQ-32", "REQ-33", "REQ-34", "REQ-35", "REQ-36", "REQ-37", "REQ-38", "REQ-39", "DES-16", "DES-17", "REQ-40", "REQ-41", "REQ-42", "REQ-43", "REQ-44", "REQ-45", "REQ-46", "DES-18", "DES-19", "DES-20", "DES-21", "DES-22", "REQ-47", "REQ-48", "REQ-49", "REQ-50", "REQ-51", "REQ-52", "REQ-53", "REQ-54", "DES-23", "DES-24", "DES-25", "REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "REQ-62", "REQ-63", "REQ-64", "REQ-65", "REQ-66", "REQ-67", "REQ-68", "DES-26", "DES-27", "DES-28", "DES-29", "REQ-69", "REQ-70", "REQ-71", "DES-30", "DES-31", "REQ-72", "REQ-73", "REQ-74", "DES-32", "REQ-75", "REQ-76", "REQ-77", "REQ-78", "REQ-79", "REQ-80", "DES-33", "REQ-81", "DES-34", "REQ-82", "REQ-83", "REQ-84", "REQ-85", "REQ-86", "REQ-87", "DES-35", "REQ-88", "REQ-89", "REQ-90", "REQ-91", "REQ-92", "REQ-93", "REQ-94", "REQ-95", "REQ-96", "DES-33", "DES-34", "REQ-97", "REQ-98", "REQ-99", "REQ-100", "REQ-101", "REQ-102", "DES-35", "DES-36", "REQ-103", "REQ-104", "REQ-105", "REQ-106", "REQ-107", "REQ-108", "REQ-109", "DES-37", "DES-38", "REQ-110", "REQ-111", "DES-39", "REQ-112", "REQ-113", "REQ-114", "REQ-115", "REQ-116", "REQ-117", "REQ-118", "DES-40", "DES-41"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -1058,11 +1058,19 @@ history = "2 REQs + 1 DES derived from UC-25. L3-L5 complete."
 layer = "L1"
 name = "First-Class Non-Memory Instruction Sources"
 items = ["UC-26"]
-status = "in_progress"
+status = "complete"
 history = "Issue #77. Post-completion re-entry: make rules/skills/claude-md/memory-md full participants in the feedback loop. Auto-registration, implicit surfacing tracking, evaluate all sources, stale pruning."
 
+[tree.L2S]
+layer = "L2"
+name = "Non-Memory Source Requirements"
+parents = ["L1S"]
+items = ["REQ-112", "REQ-113", "REQ-114", "REQ-115", "REQ-116", "REQ-117", "REQ-118", "DES-40", "DES-41"]
+status = "in_progress"
+history = "7 REQs + 2 DES derived from UC-26. Source discovery (REQ-112), auto-registration (REQ-113), stale pruning (REQ-114), implicit surfacing (REQ-115), extended classification (REQ-116), evaluate all (REQ-117), idempotency (REQ-118), SessionStart flow (DES-40), source path config (DES-41)."
+
 [cursor]
-node = "L1S"
+node = "L2S"
 mode = "traversal"
-next_action = "L1S GREEN complete (UC-26 written). REFACTOR L1 layer, then REGROUP, COMMIT, DESCEND to L2."
-context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
+next_action = "L2S GREEN complete. REFACTOR L2, REGROUP, COMMIT, DESCEND to L3."
+context_files = ["docs/specs/state.toml", "docs/specs/requirements.md"]

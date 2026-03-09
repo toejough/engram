@@ -2397,3 +2397,132 @@ Strip function injected into the Evaluator as a `StripFunc func([]string) []stri
 - Verification: deterministic (DI wiring check)
 
 ---
+
+## UC-26: First-Class Non-Memory Instruction Sources
+
+---
+
+### REQ-112: Source discovery at SessionStart
+
+At SessionStart, the system scans all known instruction source locations to discover current sources:
+- CLAUDE.md files: project CLAUDE.md (working directory), user global CLAUDE.md (`~/.claude/CLAUDE.md`)
+- MEMORY.md: project memory file (`~/.claude/projects/<project>/memory/MEMORY.md`)
+- Rules: all files in `.claude/rules/`
+- Skills: all skill files in the plugin's skills directory
+
+Source paths are provided as configuration (injected, not hardcoded). Missing directories or files are silently skipped (non-fatal).
+
+- Traces to: UC-26 (auto-registration scan)
+- AC: (1) All 4 non-memory source types are scanned. (2) Source paths are injected configuration. (3) Missing paths are silently skipped. (4) Each discovered source is passed to the appropriate extractor (UC-23 extractors). (5) Discovery runs at SessionStart before surfacing.
+- Verification: deterministic (path scanning, extractor invocation)
+
+---
+
+### REQ-113: Auto-registration of discovered sources
+
+For each discovered source, the system registers new entries and updates existing ones:
+- **New source:** Extract entries using UC-23 extractors, call `Registry.Register` for each.
+- **Changed source:** If an entry with the same ID exists but content hash differs, update the entry's `content_hash` and `updated_at` fields.
+- **Unchanged source:** No action needed — entry already exists with correct hash.
+
+Registration errors are fire-and-forget (ARCH-6 contract) — logged to stderr, never fail the hook.
+
+- Traces to: UC-26 (auto-registration)
+- AC: (1) New entries are registered with correct source type, path, title, content hash. (2) Changed entries get updated content hash and updated_at. (3) Unchanged entries are not modified. (4) Registration errors logged but don't fail the hook. (5) Duplicate ID errors (ErrDuplicateID) are expected for existing entries and handled gracefully.
+- Verification: deterministic (registry state after registration)
+
+---
+
+### REQ-114: Stale entry pruning
+
+During auto-registration, build the set of all currently-discoverable non-memory source IDs. Any registry entry whose source type is non-memory (`claude-md`, `memory-md`, `rule`, `skill`) and whose ID is not in the discovered set is removed via `Registry.Remove`.
+
+Memory entries are never pruned by this mechanism — memory pruning is handled by UC-16 Noise removal with user confirmation.
+
+- Traces to: UC-26 (stale pruning)
+- AC: (1) Only non-memory entries are candidates for pruning. (2) Entry removed if its ID is not in the discovered set. (3) Memory entries are never removed. (4) Remove errors are fire-and-forget. (5) Pruning runs after registration (so newly discovered entries are not accidentally pruned).
+- Verification: deterministic (registry state after pruning)
+
+---
+
+### REQ-115: Implicit surfacing for always-loaded sources
+
+At SessionStart, after auto-registration, call `Registry.RecordSurfacing` for every always-loaded entry (source types: `claude-md`, `memory-md`, `rule`, `skill`). This increments `surfaced_count` and updates `last_surfaced` to reflect that these sources are loaded into every session by Claude Code.
+
+This runs once per session, not per prompt. One surfacing increment per session accurately reflects the "loaded for the duration of the session" reality.
+
+- Traces to: UC-26 (implicit surfacing tracking)
+- AC: (1) RecordSurfacing called for every always-loaded entry. (2) Called once per session at SessionStart. (3) Fire-and-forget — errors logged but don't fail. (4) Only entries currently in the registry are surfaced (pruned entries excluded).
+- Verification: deterministic (surfaced_count increment, last_surfaced update)
+
+---
+
+### REQ-116: Extended always-loaded source classification
+
+The quadrant classifier (`registry.Classify`) treats `rule` and `skill` source types as always-loaded, alongside existing `claude-md` and `memory-md`. Always-loaded sources get binary classification: Working or Leech only (no Hidden Gem or Noise — they can't be "rarely surfaced").
+
+- Traces to: UC-26 (skills and rules as always-surfaced)
+- AC: (1) `alwaysLoadedSources` includes `"rule"` and `"skill"`. (2) Rules and skills get binary Working/Leech classification. (3) Existing claude-md/memory-md classification unchanged. (4) Memory sources still get 4-way classification.
+- Verification: deterministic (quadrant assignment for each source type)
+
+---
+
+### REQ-117: Evaluate all surfaced sources at session end
+
+The Stop hook's evaluation step (UC-15) evaluates all instructions that were surfaced during the session, including non-memory sources. The evaluator reads the surfacing log (which now includes always-loaded sources via REQ-115) and judges each surfaced instruction against the transcript.
+
+No changes to the evaluation LLM prompt or outcome classification are needed — the evaluator already works with instruction IDs and content, regardless of source type.
+
+- Traces to: UC-26 (evaluate all sources)
+- AC: (1) Evaluation covers all instruction IDs in the surfacing log. (2) Non-memory instructions are evaluated with the same followed/contradicted/ignored outcomes. (3) Evaluation results update the registry entry for each source. (4) No API token → evaluation skipped for all sources (existing behavior).
+- Verification: deterministic (evaluation log includes non-memory entries)
+
+---
+
+### REQ-118: Idempotent auto-registration
+
+Running auto-registration twice in the same session produces the same registry state. This is important because SessionStart may re-fire (e.g., plugin reload) and the system must not double-count.
+
+- Traces to: UC-26 (idempotency)
+- AC: (1) Registering an already-registered entry with same content hash is a no-op. (2) Surfacing increment is tied to session start, not registration. (3) Pruning the same set twice removes nothing on the second pass. (4) No duplicate entries created.
+- Verification: deterministic (registry state comparison after 1 vs 2 runs)
+
+---
+
+### DES-40: SessionStart auto-registration flow
+
+The SessionStart hook invokes `engram surface` (existing behavior). The surface command is extended with an auto-registration phase that runs before memory surfacing:
+
+1. **Discover** — Scan configured source paths for all non-memory sources
+2. **Register** — Register new entries, update changed entries (REQ-113)
+3. **Prune** — Remove stale non-memory entries (REQ-114)
+4. **Record surfacing** — Increment surfaced_count for all always-loaded entries (REQ-115)
+5. **Surface memories** — Existing BM25 surfacing behavior (unchanged)
+
+Auto-registration runs synchronously before surfacing so that newly registered entries can participate in the first session's evaluation.
+
+- Traces to: UC-26 (SessionStart flow)
+- AC: (1) Auto-registration runs before memory surfacing. (2) Steps execute in order: discover → register → prune → record surfacing → surface memories. (3) Any step failure doesn't block subsequent steps. (4) Total time budget: auto-registration should complete in <100ms for typical source counts (<50 entries).
+- Verification: integration (hook flow sequence)
+
+---
+
+### DES-41: Source path configuration
+
+Source paths are provided to the auto-registration system via injected configuration, not hardcoded paths. The CLI wiring layer resolves paths from the environment:
+
+| Source type | Resolution |
+|-------------|-----------|
+| `claude-md` (project) | Working directory + `/CLAUDE.md` |
+| `claude-md` (global) | `~/.claude/CLAUDE.md` |
+| `memory-md` | `~/.claude/projects/<project-slug>/memory/MEMORY.md` |
+| `rule` | Working directory + `/.claude/rules/*` |
+| `skill` | Plugin root + `/skills/*/SKILL.md` (or similar convention) |
+
+The project slug for MEMORY.md follows Claude Code's convention (path-based slug of the working directory).
+
+- Traces to: UC-26 (source discovery paths)
+- AC: (1) All paths resolved at CLI wiring layer. (2) Paths injected into the registration system. (3) No hardcoded paths in internal packages. (4) Missing paths produce empty entry lists (non-fatal).
+- Verification: deterministic (path resolution, DI wiring)
+
+---
