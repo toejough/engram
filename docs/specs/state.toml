@@ -1128,8 +1128,16 @@ items = ["T-285", "T-286", "T-287", "T-288", "T-289", "T-290"]
 status = "complete"
 history = "6 BDD test specs for ARCH-72: symlink creation (T-285), directory creation (T-286), idempotent (T-287), stale no-clobber (T-288), regular file no-clobber (T-289), fire-and-forget (T-290)."
 
+[tree.L5T1]
+layer = "L5"
+name = "Global Binary Installation Implementation"
+parents = ["L4T"]
+items = ["T-285", "T-286", "T-287", "T-288", "T-289", "T-290"]
+status = "complete"
+history = "Symlink block added to hooks/session-start.sh after binary build step. Creates ~/.local/bin/engram symlink. Idempotent, no-clobber, fire-and-forget. Pure shell — no Go code."
+
 [cursor]
-node = "L4T"
+node = "L5T1"
 mode = "traversal"
-next_action = "L4T complete. DESCEND to L5 for UC-27 implementation."
-context_files = ["docs/specs/state.toml", "docs/specs/test-list.md"]
+next_action = "L5T1 complete. Run usability gate for UC-27."
+context_files = ["docs/specs/state.toml"]

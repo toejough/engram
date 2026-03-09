@@ -23,6 +23,23 @@ if [[ "$NEEDS_BUILD" == "true" ]]; then
     go build -o "$ENGRAM_BIN" ./cmd/engram/ 2>/dev/null || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
 fi
 
+# UC-27: Create global symlink so engram is on PATH (fire-and-forget)
+SYMLINK_TARGET="$HOME/.local/bin/engram"
+{
+    mkdir -p "$HOME/.local/bin"
+    if [[ -L "$SYMLINK_TARGET" ]]; then
+        # Symlink exists — check if it points to our binary
+        if [[ "$(readlink "$SYMLINK_TARGET")" != "$ENGRAM_BIN" ]]; then
+            echo "[engram] warning: $SYMLINK_TARGET points to $(readlink "$SYMLINK_TARGET"), not overwriting" >&2
+        fi
+    elif [[ -e "$SYMLINK_TARGET" ]]; then
+        # Regular file or directory — don't clobber
+        echo "[engram] warning: $SYMLINK_TARGET exists and is not a symlink, not overwriting" >&2
+    else
+        ln -s "$ENGRAM_BIN" "$SYMLINK_TARGET"
+    fi
+} || true
+
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
