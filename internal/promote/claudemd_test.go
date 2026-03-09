@@ -41,6 +41,20 @@ func TestClaudeMDDemote_NotFound(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+// TestClaudeMDDemote_NilEntry verifies Demote returns error when Get returns nil entry without error.
+func TestClaudeMDDemote_NilEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistryNilGet{}
+
+	promoter := &promote.ClaudeMDPromoter{Registry: reg}
+
+	err := promoter.Demote(context.Background(), "claude-md:ghost")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("getting candidate")))
+}
+
 // TestClaudeMDDemote_StoreReadError verifies Demote returns error on store read failure.
 func TestClaudeMDDemote_StoreReadError(t *testing.T) {
 	t.Parallel()
@@ -101,6 +115,20 @@ func TestClaudeMDDemote_UserDeclines(t *testing.T) {
 
 	// Store should NOT have been written.
 	g.Expect(store.written).To(BeEmpty())
+}
+
+// TestClaudeMDPromote_NilEntry verifies Promote returns error when Get returns nil entry without error.
+func TestClaudeMDPromote_NilEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistryNilGet{}
+
+	promoter := &promote.ClaudeMDPromoter{Registry: reg}
+
+	err := promoter.Promote(context.Background(), "skill:ghost")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("getting candidate")))
 }
 
 // TestClaudeMDPromote_ConfirmError verifies Promote returns error on confirm failure.
@@ -599,6 +627,309 @@ func TestT255_DemotionCandidatesLeechEntriesListed(t *testing.T) {
 
 	g.Expect(candidates).To(HaveLen(1))
 	g.Expect(candidates[0].Entry.ID).To(Equal("claude-md:bad-rule"))
+}
+
+// TestClaudeMDDemote_ExtractError verifies Demote returns error on extract failure.
+func TestClaudeMDDemote_ExtractError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry: reg,
+		Store:    &fakeStore{content: "# Project"},
+		Editor:   &fakeEditorExtractErr{err: errors.New("no section found")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("extracting entry")))
+}
+
+// TestClaudeMDDemote_GenerateError verifies Demote returns error on skill generation failure.
+func TestClaudeMDDemote_GenerateError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{err: errors.New("llm failed")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("generating skill")))
+}
+
+// TestClaudeMDDemote_ConfirmError verifies Demote returns error on confirm failure.
+func TestClaudeMDDemote_ConfirmError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmerErr{err: errors.New("tty error")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("confirming demotion")))
+}
+
+// TestClaudeMDDemote_WriteSkillError verifies Demote returns error on skill write failure.
+func TestClaudeMDDemote_WriteSkillError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillWriter:    &fakeWriter{returnErr: errors.New("disk full")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing skill")))
+}
+
+// TestClaudeMDDemote_RemoveEntryError verifies Demote returns error on entry removal failure.
+func TestClaudeMDDemote_RemoveEntryError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &fakeEditorRemoveErr{err: errors.New("parse error")},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillWriter:    newFakeWriter(),
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("removing entry")))
+}
+
+// TestClaudeMDDemote_StoreWriteError verifies Demote returns error on CLAUDE.md write failure.
+func TestClaudeMDDemote_StoreWriteError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent, writeErr: errors.New("read only")},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillWriter:    newFakeWriter(),
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing CLAUDE.md")))
+}
+
+// TestClaudeMDDemote_RegisterError verifies Demote returns error on register failure.
+func TestClaudeMDDemote_RegisterError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillWriter:    newFakeWriter(),
+		Registerer:     &fakeRegistererWithErr{err: errors.New("db locked")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("registering skill")))
+}
+
+// TestClaudeMDDemote_MergeError verifies Demote returns error on merge failure.
+func TestClaudeMDDemote_MergeError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	claudeMDContent := "## Test Rule\n\nContent.\n\n" +
+		"<!-- promoted from claude-md:test-rule -->"
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "claude-md:test-rule",
+				SourceType: "claude-md",
+				SourcePath: "CLAUDE.md",
+				Title:      "Test Rule",
+			},
+		},
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          &fakeStore{content: claudeMDContent},
+		Editor:         &promote.SectionEditor{},
+		SkillGenerator: &fakeGenerator{content: "# demoted"},
+		Confirmer:      &fakeConfirmer{response: true},
+		SkillWriter:    newFakeWriter(),
+		Registerer:     &fakeRegisterer{},
+		Merger:         &fakeMergerWithErr{err: errors.New("merge conflict")},
+	}
+
+	err := promoter.Demote(context.Background(), "claude-md:test-rule")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("merging registry")))
+}
+
+// fakeRegistryNilGet returns nil entry and nil error from Get.
+type fakeRegistryNilGet struct{}
+
+func (f *fakeRegistryNilGet) Get(_ string) (*registry.InstructionEntry, error) {
+	return nil, nil
+}
+
+func (f *fakeRegistryNilGet) List() ([]registry.InstructionEntry, error) {
+	return nil, nil
+}
+
+// fakeEditorExtractErr returns an error on ExtractEntry.
+type fakeEditorExtractErr struct {
+	err error
+}
+
+func (f *fakeEditorExtractErr) AddEntry(content, entry string) (string, error) {
+	return content + "\n\n" + entry, nil
+}
+
+func (f *fakeEditorExtractErr) RemoveEntry(content, _ string) (string, error) {
+	return content, nil
+}
+
+func (f *fakeEditorExtractErr) ExtractEntry(_, _ string) (string, error) {
+	return "", f.err
+}
+
+// fakeEditorRemoveErr returns success on ExtractEntry but error on RemoveEntry.
+type fakeEditorRemoveErr struct {
+	err error
+}
+
+func (f *fakeEditorRemoveErr) AddEntry(content, entry string) (string, error) {
+	return content + "\n\n" + entry, nil
+}
+
+func (f *fakeEditorRemoveErr) RemoveEntry(_, _ string) (string, error) {
+	return "", f.err
+}
+
+func (f *fakeEditorRemoveErr) ExtractEntry(_, _ string) (string, error) {
+	return "extracted content", nil
 }
 
 // fakeConfirmerErr always returns an error.
