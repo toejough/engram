@@ -302,6 +302,9 @@ func RunMaintain(
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	applyMode := fs.Bool("apply", false, "apply proposals instead of generating")
+	proposalsPath := fs.String("proposals", "", "path to proposals JSON file")
+	autoYes := fs.Bool("yes", false, "auto-approve all proposals (no confirmation)")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -310,6 +313,12 @@ func RunMaintain(
 
 	if *dataDir == "" {
 		return errMaintainMissingFlags
+	}
+
+	if *applyMode {
+		return runMaintainApply(
+			*dataDir, *proposalsPath, *autoYes, token, stdout,
+		)
 	}
 
 	evalDir := filepath.Join(*dataDir, "evaluations")
@@ -371,6 +380,129 @@ func RunMaintain(
 
 	//nolint:wrapcheck // thin JSON encoding at CLI boundary
 	return json.NewEncoder(stdout).Encode(proposals)
+}
+
+// runMaintainApply implements `engram maintain --apply`: reads proposals from
+// a JSON file and applies them with user confirmation (T-264, ARCH-66).
+func runMaintainApply(
+	dataDir, proposalsPath string, autoYes bool,
+	token string, stdout io.Writer,
+) error {
+	if proposalsPath == "" {
+		return errMaintainApplyMissingProposals
+	}
+
+	data, err := os.ReadFile(proposalsPath)
+	if err != nil {
+		return fmt.Errorf("maintain --apply: reading proposals: %w", err)
+	}
+
+	proposals, err := maintain.IngestProposals(data)
+	if err != nil {
+		return fmt.Errorf("maintain --apply: %w", err)
+	}
+
+	if len(proposals) == 0 {
+		_, _ = fmt.Fprintln(stdout, "[engram] No valid proposals to apply.")
+
+		return nil
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] %d proposals to apply.\n", len(proposals))
+
+	execOpts := make([]maintain.ExecutorOption, 0, 5) //nolint:mnd
+
+	rewriter := maintain.NewTOMLRewriter()
+	execOpts = append(execOpts, maintain.WithRewriter(rewriter))
+	execOpts = append(execOpts, maintain.WithRemover(&osMemoryRemover{}))
+
+	registryPath := filepath.Join(dataDir, registryFilename)
+	store := regpkg.NewJSONLStore(registryPath,
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	)
+	execOpts = append(execOpts, maintain.WithRegistry(
+		&registryEntryRemover{store: store},
+	))
+
+	if token != "" {
+		execOpts = append(execOpts, maintain.WithLLMCaller2(
+			&cliLLMCaller{token: token},
+		))
+	}
+
+	if !autoYes {
+		execOpts = append(execOpts, maintain.WithConfirmer(
+			&stdinConfirmer{stdout: stdout, stdin: os.Stdin},
+		))
+	}
+
+	executor := maintain.NewExecutor(execOpts...)
+	ctx := context.Background()
+	report := executor.Apply(ctx, proposals)
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] Applied %d/%d (%d skipped, %d not reached)\n",
+		report.Applied, report.Total, report.Skipped, report.NotReached,
+	)
+
+	for _, reason := range report.SkipReasons {
+		_, _ = fmt.Fprintf(stdout, "  skipped: %s\n", reason)
+	}
+
+	return nil
+}
+
+// registryEntryRemover adapts regpkg.JSONLStore to maintain.RegistryUpdater.
+type registryEntryRemover struct {
+	store *regpkg.JSONLStore
+}
+
+func (r *registryEntryRemover) RemoveEntry(id string) error {
+	return r.store.Remove(id) //nolint:wrapcheck // thin I/O at CLI edge
+}
+
+// cliLLMCaller implements maintain.LLMCaller via the Anthropic API.
+type cliLLMCaller struct {
+	token string
+}
+
+const maintainModel = "claude-haiku-4-5-20251001"
+
+func (c *cliLLMCaller) Call(ctx context.Context, prompt string) (string, error) {
+	caller := makeAnthropicCaller(c.token)
+
+	return caller(ctx, maintainModel, "You are a memory maintenance assistant.", prompt)
+}
+
+// stdinConfirmer implements maintain.Confirmer with stdin/stdout interaction.
+type stdinConfirmer struct {
+	stdout io.Writer
+	stdin  io.Reader
+}
+
+func (sc *stdinConfirmer) Confirm(preview string) (bool, error) {
+	_, _ = fmt.Fprintf(sc.stdout, "\n%s\n\nApply? [a]pply / [s]kip / [q]uit: ", preview)
+
+	buf := make([]byte, 16)
+
+	n, err := sc.stdin.Read(buf)
+	if err != nil {
+		return false, fmt.Errorf("reading confirmation: %w", err)
+	}
+
+	input := string(buf[:n])
+	if len(input) > 0 {
+		switch input[0] {
+		case 'a', 'A', 'y', 'Y':
+			return true, nil
+		case 'q', 'Q':
+			return false, maintain.ErrUserQuit
+		}
+	}
+
+	return false, nil
 }
 
 // RunReview implements the review subcommand: reads the instruction registry,
@@ -447,13 +579,16 @@ var (
 	errCorrectMissingFlags = errors.New(
 		"correct: --message and --data-dir required",
 	)
-	errEvaluateMissingFlags = errors.New("evaluate: --data-dir required")
-	errLearnMissingFlags    = errors.New("learn: --data-dir required")
-	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
-	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks      = errors.New("API response contained no content blocks")
-	errReviewMissingFlags   = errors.New("review: --data-dir required")
-	errSurfaceMissingFlags  = errors.New(
+	errEvaluateMissingFlags          = errors.New("evaluate: --data-dir required")
+	errLearnMissingFlags             = errors.New("learn: --data-dir required")
+	errMaintainMissingFlags          = errors.New("maintain: --data-dir required")
+	errMaintainApplyMissingProposals = errors.New(
+		"maintain --apply: --proposals required",
+	)
+	errNilAPIResponse      = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks     = errors.New("API response contained no content blocks")
+	errReviewMissingFlags  = errors.New("review: --data-dir required")
+	errSurfaceMissingFlags = errors.New(
 		"surface: --mode and --data-dir required",
 	)
 	errInstructMissingFlags = errors.New(
@@ -477,7 +612,7 @@ var (
 	errUsage = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
 			"|review|maintain|remind|instruct|automate" +
-			"|context-update|registry> [flags]",
+			"|promote|demote|context-update|registry> [flags]",
 	)
 )
 
