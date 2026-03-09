@@ -77,6 +77,11 @@ type Result struct {
 	Context string `json:"context"`
 }
 
+// RegistryRecorder records surfacing events in the instruction registry (UC-23).
+type RegistryRecorder interface {
+	RecordSurfacing(id string) error
+}
+
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
 	retriever             MemoryRetriever
@@ -85,6 +90,7 @@ type Surfacer struct {
 	surfacingLogger       SurfacingEventLogger
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
+	registry              RegistryRecorder
 }
 
 // New creates a Surfacer.
@@ -156,6 +162,12 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		now := time.Now()
 		for _, mem := range matched {
 			_ = s.surfacingLogger.LogSurfacing(mem.FilePath, opts.Mode, now)
+		}
+	}
+
+	if s.registry != nil {
+		for _, mem := range matched {
+			_ = s.registry.RecordSurfacing(mem.FilePath)
 		}
 	}
 
@@ -389,6 +401,11 @@ func WithLogReader(reader CreationLogReader) SurfacerOption {
 // WithSurfacingLogger sets the surfacing event logger (ARCH-22).
 func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
 	return func(s *Surfacer) { s.surfacingLogger = logger }
+}
+
+// WithRegistry sets the registry recorder for surfacing events (UC-23).
+func WithRegistry(recorder RegistryRecorder) SurfacerOption {
+	return func(s *Surfacer) { s.registry = recorder }
 }
 
 // WithTracker sets the memory tracker for surfacing instrumentation.

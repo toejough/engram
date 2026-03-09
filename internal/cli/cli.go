@@ -4,6 +4,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -257,6 +258,9 @@ func RunLearn(
 		extractor, retriever, deduplicator, writer, *dataDir,
 	)
 	learner.SetCreationLogger(creationlog.NewLogWriter())
+
+	registry := openRegistry(*dataDir)
+	learner.SetRegistryRegistrar(&learnRegistryAdapter{reg: registry})
 
 	ctx := context.Background()
 
@@ -963,7 +967,22 @@ func runCorrect(
 }
 
 func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
-	return RunEvaluate(args, os.Getenv("ENGRAM_API_TOKEN"), stdout, stderr, stdin)
+	// Parse data-dir early to wire registry (UC-23).
+	fs := flag.NewFlagSet("evaluate-peek", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "")
+	_ = fs.Parse(args)
+
+	var opts []evaluate.Option
+	if *dataDir != "" {
+		registry := openRegistry(*dataDir)
+		opts = append(opts, evaluate.WithRegistry(
+			&evaluateRegistryAdapter{reg: registry},
+		))
+	}
+
+	return RunEvaluate(args, os.Getenv("ENGRAM_API_TOKEN"), stdout, stderr, stdin, opts...)
 }
 
 // runIncrementalLearn creates an IncrementalLearner and runs it.
@@ -1182,12 +1201,15 @@ func runSurface(args []string, stdout io.Writer) error {
 	evalDir := filepath.Join(*dataDir, "evaluations")
 	effAdapter := &effectivenessAdapter{computer: effectiveness.New(evalDir)}
 
+	registry := openRegistry(*dataDir)
+
 	surfacer := surface.New(
 		retriever,
 		surface.WithTracker(recorder),
 		surface.WithLogReader(logReader),
 		surface.WithSurfacingLogger(surfLogger),
 		surface.WithEffectiveness(effAdapter),
+		surface.WithRegistry(&surfaceRegistryAdapter{reg: registry}),
 	)
 	ctx := context.Background()
 
@@ -1476,3 +1498,62 @@ func osWriteFileFunc(path string, content []byte) error {
 
 // registryFilename is the default name for the instruction registry file.
 const registryFilename = "instruction-registry.jsonl"
+
+// surfaceRegistryAdapter bridges surface.RegistryRecorder to registry.Registry.
+type surfaceRegistryAdapter struct {
+	reg regpkg.Registry
+}
+
+func (a *surfaceRegistryAdapter) RecordSurfacing(id string) error {
+	return a.reg.RecordSurfacing(id)
+}
+
+// evaluateRegistryAdapter bridges evaluate.RegistryRecorder to registry.Registry.
+type evaluateRegistryAdapter struct {
+	reg regpkg.Registry
+}
+
+func (a *evaluateRegistryAdapter) RecordEvaluation(id, outcome string) error {
+	return a.reg.RecordEvaluation(id, regpkg.Outcome(outcome))
+}
+
+// learnRegistryAdapter bridges learn.RegistryRegistrar to registry.Registry.
+type learnRegistryAdapter struct {
+	reg regpkg.Registry
+	now func() time.Time
+}
+
+func (a *learnRegistryAdapter) RegisterMemory(
+	filePath, title, content string, now time.Time,
+) error {
+	entry := regpkg.InstructionEntry{
+		ID:           filePath,
+		SourceType:   "memory",
+		SourcePath:   filePath,
+		Title:        title,
+		ContentHash:  contentHashForRegistry(content),
+		RegisteredAt: now,
+		UpdatedAt:    now,
+	}
+
+	return a.reg.Register(entry)
+}
+
+// contentHashForRegistry produces a SHA-256 hash consistent with registry.Backfill.
+func contentHashForRegistry(content string) string {
+	hash := sha256.Sum256([]byte(content))
+
+	return fmt.Sprintf("%x", hash)
+}
+
+// openRegistry creates a JSONLStore for the given data directory.
+// Returns nil if the registry file cannot be loaded (fire-and-forget).
+func openRegistry(dataDir string) *regpkg.JSONLStore {
+	registryPath := filepath.Join(dataDir, registryFilename)
+
+	return regpkg.NewJSONLStore(
+		registryPath,
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	)
+}

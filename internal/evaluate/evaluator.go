@@ -16,6 +16,11 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
+type RegistryRecorder interface {
+	RecordEvaluation(id, outcome string) error
+}
+
 // Evaluator runs the outcome evaluation pipeline for a session.
 type Evaluator struct {
 	dataDir    string
@@ -25,6 +30,7 @@ type Evaluator struct {
 	removeFile func(name string) error
 	mkdirAll   func(path string, perm os.FileMode) error
 	now        func() time.Time
+	registry   RegistryRecorder
 }
 
 // New creates an Evaluator with the given data directory and options.
@@ -101,6 +107,12 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 	writeErr := e.writeEvaluationLog(outcomes, now)
 	if writeErr != nil {
 		return nil, writeErr
+	}
+
+	if e.registry != nil {
+		for _, outcome := range outcomes {
+			_ = e.registry.RecordEvaluation(outcome.MemoryPath, outcome.Outcome)
+		}
 	}
 
 	return outcomes, nil
@@ -228,6 +240,11 @@ func WithReadFile(fn func(name string) ([]byte, error)) Option {
 // WithRemoveFile injects a file remover.
 func WithRemoveFile(fn func(name string) error) Option {
 	return func(e *Evaluator) { e.removeFile = fn }
+}
+
+// WithRegistry sets the registry recorder for evaluation events (UC-23).
+func WithRegistry(recorder RegistryRecorder) Option {
+	return func(e *Evaluator) { e.registry = recorder }
 }
 
 // WithWriteFile injects a file writer.

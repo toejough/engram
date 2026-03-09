@@ -29,6 +29,11 @@ type Deduplicator interface {
 	) []memory.CandidateLearning
 }
 
+// RegistryRegistrar registers new memories in the instruction registry (UC-23).
+type RegistryRegistrar interface {
+	RegisterMemory(filePath, title, content string, now time.Time) error
+}
+
 // Learner orchestrates the four-stage Session Learning pipeline.
 type Learner struct {
 	extractor      TranscriptExtractor
@@ -37,6 +42,7 @@ type Learner struct {
 	writer         MemoryWriter
 	dataDir        string
 	creationLogger CreationLogger // optional: log creation events for deferred visibility
+	registrar      RegistryRegistrar
 	stderr         io.Writer
 }
 
@@ -104,6 +110,11 @@ func (l *Learner) SetCreationLogger(logger CreationLogger) {
 	l.creationLogger = logger
 }
 
+// SetRegistryRegistrar attaches an optional RegistryRegistrar to the Learner (UC-23).
+func (l *Learner) SetRegistryRegistrar(registrar RegistryRegistrar) {
+	l.registrar = registrar
+}
+
 // writeCandidate enriches and writes a single candidate, then logs its creation.
 func (l *Learner) writeCandidate(
 	candidate memory.CandidateLearning,
@@ -139,6 +150,15 @@ func (l *Learner) writeCandidate(
 		logErr := l.creationLogger.Append(entry, l.dataDir)
 		if logErr != nil {
 			_, _ = fmt.Fprintf(l.stderr, "learn: creation log: %v\n", logErr)
+		}
+	}
+
+	if l.registrar != nil {
+		regErr := l.registrar.RegisterMemory(
+			filePath, candidate.Title, candidate.Content, now,
+		)
+		if regErr != nil {
+			_, _ = fmt.Fprintf(l.stderr, "learn: registry: %v\n", regErr)
 		}
 	}
 

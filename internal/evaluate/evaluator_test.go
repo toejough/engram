@@ -433,6 +433,128 @@ anti_pattern = ""`
 	g.Expect(writeCallCount).To(Equal(0))
 }
 
+// T-200: Evaluation hook calls RecordEvaluation, counter increments.
+func TestT200_RegistryRecordEvaluationCalled(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = "" +
+		`{"memory_path":"/data/memories/mem1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/mem2.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:01Z"}`
+
+	const genericTOML = `title = "Memory"
+content = "Content"
+principle = "Principle"
+anti_pattern = ""`
+
+	const llmResponse = `[` +
+		`{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"e1"},` +
+		`{"memory_path":"/data/memories/mem2.toml","outcome":"contradicted","evidence":"e2"}` +
+		`]`
+
+	registry := &fakeEvalRegistryRecorder{}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(genericTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(
+			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
+		),
+		evaluate.WithRegistry(registry),
+	)
+
+	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(outcomes).To(HaveLen(2))
+	g.Expect(registry.calls).To(HaveLen(2))
+
+	if len(registry.calls) < 2 {
+		return
+	}
+
+	g.Expect(registry.calls[0].id).To(Equal("/data/memories/mem1.toml"))
+	g.Expect(registry.calls[0].outcome).To(Equal("followed"))
+	g.Expect(registry.calls[1].id).To(Equal("/data/memories/mem2.toml"))
+	g.Expect(registry.calls[1].outcome).To(Equal("contradicted"))
+}
+
+// T-200b: Registry error does not affect evaluation (fire-and-forget).
+func TestT200b_RegistryErrorDoesNotAffectEvaluation(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
+	const genericTOML = `title = "Memory"
+content = "Content"
+principle = "Principle"
+anti_pattern = ""`
+
+	registry := &fakeEvalRegistryRecorder{err: errors.New("registry write failed")}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(genericTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
+		}),
+		evaluate.WithNow(
+			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
+		),
+		evaluate.WithRegistry(registry),
+	)
+
+	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
+
+	// Should succeed despite registry error.
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(outcomes).To(HaveLen(1))
+}
+
+// fakeEvalRegistryRecorder is a test double for evaluate.RegistryRecorder.
+type fakeEvalRegistryRecorder struct {
+	calls []evalRegistryCall
+	err   error
+}
+
+func (f *fakeEvalRegistryRecorder) RecordEvaluation(id, outcome string) error {
+	f.calls = append(f.calls, evalRegistryCall{id: id, outcome: outcome})
+	return f.err
+}
+
+type evalRegistryCall struct {
+	id      string
+	outcome string
+}
+
 // writeEvaluationLog: writeFile error is returned to caller.
 func TestEvaluator_WriteFileError_ReturnsError(t *testing.T) {
 	t.Parallel()

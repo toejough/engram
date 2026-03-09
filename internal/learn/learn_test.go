@@ -372,6 +372,185 @@ func TestT97_CreationLoggerError_PipelineSucceeds(t *testing.T) {
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
 }
 
+// T-201: Learn pipeline calls RegisterMemory for new memories.
+func TestT201_RegistryRegistrarCalledForNewMemories(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{
+			Tier:            "A",
+			Title:           "Use targ",
+			Content:         "use targ for builds",
+			FilenameSummary: "use-targ",
+		},
+		{
+			Tier:            "B",
+			Title:           "DI pattern",
+			Content:         "use DI everywhere",
+			FilenameSummary: "di-pattern",
+		},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ":   "/tmp/memories/use-targ.toml",
+			"di-pattern": "/tmp/memories/di-pattern.toml",
+		},
+	}
+	registrar := &fakeRegistrar{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetRegistryRegistrar(registrar)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(HaveLen(2))
+	g.Expect(registrar.calls).To(HaveLen(2))
+
+	if len(registrar.calls) < 2 {
+		return
+	}
+
+	g.Expect(registrar.calls[0].filePath).To(Equal("/tmp/memories/use-targ.toml"))
+	g.Expect(registrar.calls[0].title).To(Equal("Use targ"))
+	g.Expect(registrar.calls[0].content).To(Equal("use targ for builds"))
+	g.Expect(registrar.calls[1].filePath).To(Equal("/tmp/memories/di-pattern.toml"))
+	g.Expect(registrar.calls[1].title).To(Equal("DI pattern"))
+}
+
+// T-201b: Registry error does not fail the learn pipeline (fire-and-forget).
+func TestT201b_RegistrarErrorDoesNotFailPipeline(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{
+			Tier:            "A",
+			Title:           "Use targ",
+			Content:         "use targ for builds",
+			FilenameSummary: "use-targ",
+		},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+	registrar := &fakeRegistrar{err: errors.New("registry write failed")}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetRegistryRegistrar(registrar)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	// Should succeed despite registry error.
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+}
+
+// T-201c: Nil registrar does not panic (backward compat).
+func TestT201c_NilRegistrarNoPanic(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	candidates := []memory.CandidateLearning{
+		{
+			Tier:            "A",
+			Title:           "Use targ",
+			Content:         "use targ for builds",
+			FilenameSummary: "use-targ",
+		},
+	}
+
+	extractor := &fakeExtractor{candidates: candidates}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: candidates}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	// No SetRegistryRegistrar — registrar is nil.
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+}
+
+// fakeRegistrar is a test double for learn.RegistryRegistrar.
+type fakeRegistrar struct {
+	calls []registrarCall
+	err   error
+}
+
+func (f *fakeRegistrar) RegisterMemory(
+	filePath, title, content string, now time.Time,
+) error {
+	f.calls = append(f.calls, registrarCall{
+		filePath: filePath,
+		title:    title,
+		content:  content,
+		now:      now,
+	})
+
+	return f.err
+}
+
+type registrarCall struct {
+	filePath string
+	title    string
+	content  string
+	now      time.Time
+}
+
 // Write error — pipeline returns error
 func TestWriteError_ReturnsError(t *testing.T) {
 	t.Parallel()

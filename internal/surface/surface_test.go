@@ -1687,6 +1687,118 @@ func memSlug(i int) string {
 	return "memory-" + string(rune('a'+i%26))
 }
 
+// T-199: Surfacing hook calls RecordSurfacing, surfaced_count increments.
+func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Title:     "Beta",
+			FilePath:  "beta.toml",
+			UpdatedAt: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	registry := &fakeRegistryRecorder{}
+	s := surface.New(retriever, surface.WithRegistry(registry))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Both memories should have been recorded.
+	g.Expect(registry.ids).To(HaveLen(2))
+	g.Expect(registry.ids).To(ContainElement("alpha.toml"))
+	g.Expect(registry.ids).To(ContainElement("beta.toml"))
+}
+
+// T-199b: Registry error does not affect surfacing output (fire-and-forget).
+func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	registry := &fakeRegistryRecorder{err: errors.New("registry write failed")}
+	s := surface.New(retriever, surface.WithRegistry(registry))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	// Run should succeed despite registry error.
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("alpha"))
+}
+
+// T-199c: Nil registry does not panic (backward compat).
+func TestT199c_NilRegistryNoPanic(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:     "Alpha",
+			FilePath:  "alpha.toml",
+			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	// No WithRegistry — registry is nil.
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("alpha"))
+}
+
+// fakeRegistryRecorder is a test double for surface.RegistryRecorder.
+type fakeRegistryRecorder struct {
+	ids []string
+	err error
+}
+
+func (f *fakeRegistryRecorder) RecordSurfacing(id string) error {
+	f.ids = append(f.ids, id)
+	return f.err
+}
+
 // --- Helpers ---
 
 func memTitle(i int) string {
