@@ -162,7 +162,7 @@ The binary auto-builds on first hook invocation and rebuilds when Go source file
 
 ```
 cmd/engram/          CLI entry point (thin wiring layer)
-internal/            Business logic (30 packages, all DI boundaries)
+internal/            Business logic (31 packages, all DI boundaries)
 hooks/               Shell scripts for Claude Code hook integration
 .claude-plugin/      Plugin manifest (plugin.json)
 docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
@@ -177,7 +177,7 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 
 ## Specification
 
-18 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 402 tests.
+19 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 415 tests.
 
 | UC | Name |
 |----|------|
@@ -199,6 +199,7 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 | UC-23 | Unified Instruction Registry |
 | UC-24 | Proposal Application |
 | UC-25 | Evaluate Strip Preprocessing |
+| UC-26 | First-Class Non-Memory Instruction Sources |
 
 ## License
 
