@@ -1868,3 +1868,185 @@ If no API token, skip LLM generation. Pattern recognition still identifies mecha
 - Verification: deterministic (error condition)
 
 ---
+
+## REQ-55: Registry bounded growth — one line per instruction
+
+The registry `instruction-registry.jsonl` contains exactly one line per registered instruction. No unbounded logs, no append-only event files. Each update to an instruction (surfaced, evaluated, merged) rewrites the corresponding line atomically.
+
+- Traces to: UC-23 (data model constraint)
+- AC: (1) Each instruction has a unique ID (source_type:source_path:item). (2) One line per ID in JSONL. (3) Updates overwrite the line, not append. (4) File size is O(num_instructions), not O(events).
+- Verification: structural (line count = unique IDs)
+
+---
+
+## REQ-56: Registry tracks six instruction source types
+
+Registry entries tag source_type with one of: `claude-md`, `memory-md`, `memory`, `rule`, `skill`, `hook`. Each source type has a defined salience level in the hierarchy (deterministic code > claude-md > rule > memory-md > skill > memory).
+
+- Traces to: UC-23 (instruction taxonomy)
+- AC: (1) source_type field is required, must match enum. (2) Salience hierarchy is deterministic — no tie-breaking. (3) Quadrant classification logic respects salience (always-loaded sources have binary quadrant: Working or Leech).
+- Verification: structural (enum validation, salience ordering)
+
+---
+
+## REQ-57: Registry computes effectiveness as quantitative ratio
+
+Effectiveness = followed / (followed + contradicted + ignored). Null when insufficient evaluations. Used for quadrant assignment and escalation decisions.
+
+- Traces to: UC-23 (effectiveness signal)
+- AC: (1) Three counters: followed, contradicted, ignored. (2) Effectiveness computed on read (not stored). (3) Denominator is sum of all three. (4) Null when denominator < N evaluations (threshold).
+- Verification: deterministic (arithmetic)
+
+---
+
+## REQ-58: Registry computes frecency as frequency × recency blend
+
+Frecency weights surfaced_count (frequency) and time-since-last-surfaced (recency) using exponential decay. Higher frecency = rank higher in surfacing.
+
+- Traces to: UC-23 (frecency signal, relates to #60)
+- AC: (1) surfaced_count is counter (incremented on each surface event). (2) last_surfaced is timestamp. (3) Decay function has fixed half-life (e.g., 7 days). (4) Computed on read.
+- Verification: deterministic (time-based + arithmetic)
+
+---
+
+## REQ-59: Registry stores content_hash to detect instruction changes
+
+Each instruction's content is hashed (SHA256 or similar) and stored. If content changes (e.g., a memory TOML is edited), content_hash changes, triggering re-evaluation.
+
+- Traces to: UC-23 (change detection)
+- AC: (1) content_hash is computed from instruction text. (2) Hash updated on register and on rewrite proposal acceptance. (3) Hash mismatch detected during evaluation pipeline.
+- Verification: deterministic (hash function)
+
+---
+
+## REQ-60: Registry tracks absorbed history — merged duplicates preserve effectiveness
+
+When `engram registry merge --source <id> --target <id>` runs, the source instruction's counters (surfaced_count, followed/contradicted/ignored) are appended to the target's `absorbed` array as a timestamped record. Source is then deleted.
+
+- Traces to: UC-23 (merge operation + history preservation)
+- AC: (1) Merge is idempotent: running twice with same source/target is safe. (2) absorbed array preserves surfaced_count and counters. (3) merged_at timestamp is recorded. (4) Source file deleted after merge. (5) Content_hash of absorbed entries preserved for retrospective analysis.
+- Verification: deterministic (array structure, deletion)
+
+---
+
+## REQ-61: Surfacing event atomically increments surfaced_count and updates last_surfaced
+
+Each time the surfacing hook surfaces an instruction, it increments the registry's surfaced_count for that instruction ID and updates last_surfaced to current timestamp. Both updates happen in the same write.
+
+- Traces to: UC-23 (surfacing tracking)
+- AC: (1) Hook calls Registry.RecordSurfacing(id). (2) Increments surfaced_count. (3) Sets last_surfaced to current time. (4) Single atomic JSONL line rewrite. (5) No partial updates.
+- Verification: integration (hook + registry I/O)
+
+---
+
+## REQ-62: Evaluation event increments followed/contradicted/ignored counters
+
+During evaluation, the system assesses whether the user's behavior complied with each active instruction. For each instruction, one counter increments: followed (user complied), contradicted (user did opposite), ignored (no evidence of awareness).
+
+- Traces to: UC-23 (evaluation tracking)
+- AC: (1) Evaluation runs at session end or PreCompact. (2) For each active instruction, exactly one of the three counters increments. (3) Counter update writes to registry atomically. (4) Counters start at 0.
+- Verification: integration (evaluate + registry I/O)
+
+---
+
+## REQ-63: Registry merge absorbs all counters into target's absorbed field
+
+When merging source → target, all of source's evaluation counters (followed, contradicted, ignored) and surfacing history (surfaced_count, last_surfaced, content_hash, registered_at) become a single entry in target's `absorbed` array. No counter loss.
+
+- Traces to: UC-23 (merge semantics)
+- AC: (1) absorbed array entry has: from (source id), surfaced_count, evaluations object, merged_at timestamp, content_hash. (2) Multiple entries allowed (multiple duplicates can be absorbed). (3) Absorbed entries are readable for escalation engine decisions.
+- Verification: structural (JSON schema)
+
+---
+
+## REQ-64: Registry supports concurrent writes from multiple hooks
+
+Multiple hook instances may call Registry.RecordSurfacing or Registry.RecordEvaluation concurrently. Registry write must be safe: no data loss, no partial updates, no corruption.
+
+- Traces to: UC-23 (concurrency + data safety)
+- AC: (1) JSONL read-all-on-load, write-full-file strategy is safe for < 10K instructions. (2) No lock files needed (file I/O atomicity sufficient). (3) Worst case: two concurrent writes both see same stale state, one overwrites the other (acceptable for small frequency deltas).
+- Verification: integration (concurrent hook calls)
+
+---
+
+## REQ-65: Registry backfill migrates all data from old stores without loss
+
+`engram registry init` reads surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, and memory TOML metadata fields. For each memory file, creates one registry entry with all aggregated data.
+
+- Traces to: UC-23 (migration / Phase 1)
+- AC: (1) surfacing-log.jsonl data aggregated: sum surfaced_count per memory, take max last_surfaced. (2) creation-log.jsonl: set registered_at. (3) evaluations/*.jsonl: sum counters per memory. (4) Memory TOML metadata (surfaced_count, last_surfaced, surfacing_contexts): migrated. (5) No data discarded.
+- Verification: integration (read old stores, verify registry counts match)
+
+---
+
+## REQ-66: Backfill handles retirement mapping — covers for retired duplicates
+
+During backfill, if a memory has retired_by set, the backfill identifies the covering instruction (the one with matching title/domain in surviving memories or CLAUDE.md entries). The retired memory's counters are recorded as absorbed history in the covering instruction's entry.
+
+- Traces to: UC-23 (migration with attribution)
+- AC: (1) Memory with retired_by="..." is matched to covering instruction by ID or semantic lookup. (2) Retired memory's counters appended to covering instruction's absorbed array. (3) No standalone registry entry created for retired memories. (4) Covering instruction's absorbed field documents the merge.
+- Verification: integration (semantic matching, retired_by mapping)
+
+---
+
+## REQ-67: Quadrant classification works across all six source types
+
+`engram review` reads the registry and classifies all instructions (not just memories) into quadrants: Working (high surfacing + high effectiveness), Leech (high surfacing + low effectiveness), HiddenGem (low surfacing + high effectiveness), Noise (low surfacing + low effectiveness). Always-loaded sources (claude-md, memory-md) have binary quadrant: Working or Leech.
+
+- Traces to: UC-23 (cross-source classification)
+- AC: (1) Surfacing threshold and effectiveness threshold are configurable but have sensible defaults. (2) Classification is deterministic given thresholds. (3) All six source types are classified. (4) CLAUDE.md entry can be Leech, triggering rewrite proposal (not just memories).
+- Verification: deterministic (thresholds + math)
+
+---
+
+## REQ-68: DI boundary — Registry interface in internal/, JSONL I/O at edges
+
+The registry abstraction (interface) lives in `internal/registry/`. Concrete JSONL implementation lives in cli.go or top-level wiring. Tests use mock Registry interface.
+
+- Traces to: UC-23 (DI everywhere principle) + UC-23 constraint (#5: pure Go, no CGO)
+- AC: (1) Registry interface defined in internal/ with methods: Register, RecordSurfacing, RecordEvaluation, Merge, Remove, List, Get. (2) Concrete JSONL-based implementation in cli.go (not internal/). (3) No raw file I/O in internal/. (4) Tests inject mock Registry.
+- Verification: structural (interface + no os.* calls in internal/)
+
+---
+
+## DES-26: User command `engram registry init` triggers backfill
+
+New CLI subcommand: `engram registry init`. Reads surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, memory TOML files, and produces instruction-registry.jsonl. Outputs summary: number of entries created, number of duplicates absorbed, any warnings (unmatched retired_by references).
+
+- Traces to: UC-23 (backfill interaction)
+- AC: (1) Subcommand registered in CLI. (2) Optional --dry-run flag shows what would be written without writing. (3) Output is human-readable summary + JSON detail. (4) Exit code 0 on success, non-zero on error (failed reads, schema violations).
+- Verification: integration (CLI + Registry.Register calls)
+
+---
+
+## DES-27: User command `engram review` reads registry for quadrant classification
+
+Enhanced `engram review` command (if exists) or new subcommand: `engram review --format [table|json]`. Reads instruction-registry.jsonl, classifies all entries by quadrant, outputs summary grouped by source type and quadrant.
+
+- Traces to: UC-23 (classification interaction)
+- AC: (1) Output includes quadrant, source_type, instruction ID, title, effectiveness, surfaced_count. (2) Grouped by: source_type (primary), quadrant (secondary). (3) CLAUDE.md leeches flagged prominently (rare, high-salience source). (4) JSON output is array of classification objects.
+- Verification: integration (read registry, classify, format output)
+
+---
+
+## DES-28: User command `engram registry merge` absorbs duplicates
+
+New CLI subcommand: `engram registry merge --source <id> --target <id>`. Absorbs all counters from source into target's absorbed field. Deletes source entry and source file (if applicable, e.g., memory TOML). Outputs confirmation.
+
+- Traces to: UC-23 (merge interaction)
+- AC: (1) Subcommand registered. (2) --source and --target required. (3) Source can be any instruction type; target must be a surviving instruction (same or broader domain). (4) Merge is idempotent. (5) Output includes absorbed counters for verification. (6) Exit 0 always (merge either succeeds or fails verbosely).
+- Verification: integration (Registry.Merge calls, file deletion if needed)
+
+---
+
+## DES-29: System auto-registers new instructions and auto-updates registry
+
+When a new memory is created (via learn pipeline), it is auto-registered in the registry (Registry.Register call). When surfacing or evaluation occurs, registry is updated atomically without user action. No manual registration steps for memories.
+
+- Traces to: UC-23 (auto-integration into pipelines)
+- AC: (1) Learn pipeline calls Registry.Register(id, content_hash, source_type, title). (2) Surfacing hook calls Registry.RecordSurfacing(id). (3) Evaluate hook calls Registry.RecordEvaluation(id, followed|contradicted|ignored). (4) All calls are fire-and-forget: failures don't crash hooks (ARCH-6). (5) Registry updates are logged but don't interrupt instruction delivery.
+- Verification: integration (hook + registry I/O)
+
+---
+
+---
