@@ -1027,6 +1027,10 @@ func runContextUpdate(args []string) error {
 	)
 	sessionID := fs.String("session-id", "", "session identifier")
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	contextPath := fs.String(
+		"context-path", "",
+		"path to session-context.md (overrides data-dir default)",
+	)
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -1040,6 +1044,9 @@ func runContextUpdate(args []string) error {
 	contextFilePath := filepath.Join(
 		*dataDir, "session-context.md",
 	)
+	if *contextPath != "" {
+		contextFilePath = *contextPath
+	}
 
 	reader := &osFileReader{}
 	writer := &osFileWriter{}

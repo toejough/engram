@@ -43,9 +43,14 @@ if [[ -n "$TRANSCRIPT_PATH" ]]; then
 fi
 
 # UC-14: Update session context (synchronous — Stop is the last chance)
+# Project-specific context path follows Claude Code's convention
+PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
+CONTEXT_DIR="${ENGRAM_DATA}/projects/${PROJECT_SLUG}"
+mkdir -p "$CONTEXT_DIR" 2>/dev/null || true
 if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
     "$ENGRAM_BIN" context-update \
         --transcript-path "$TRANSCRIPT_PATH" \
         --session-id "$SESSION_ID" \
-        --data-dir "$ENGRAM_DATA" || true
+        --data-dir "$ENGRAM_DATA" \
+        --context-path "${CONTEXT_DIR}/session-context.md" || true
 fi

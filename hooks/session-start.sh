@@ -43,8 +43,9 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
-# UC-14: Restore session context
-CONTEXT_FILE="${ENGRAM_DATA}/session-context.md"
+# UC-14: Restore session context (project-specific path)
+PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
+CONTEXT_FILE="${ENGRAM_DATA}/projects/${PROJECT_SLUG}/session-context.md"
 SESSION_CONTEXT=""
 if [[ -f "$CONTEXT_FILE" ]]; then
     # Extract summary (skip HTML comment on first line)
