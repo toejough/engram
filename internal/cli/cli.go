@@ -32,6 +32,7 @@ import (
 	"engram/internal/maintain"
 	"engram/internal/memory"
 	"engram/internal/promote"
+	"engram/internal/register"
 	regpkg "engram/internal/registry"
 	"engram/internal/remind"
 	"engram/internal/render"
@@ -1362,6 +1363,11 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	registry := openRegistry(*dataDir)
 
+	// Auto-registration phase: session-start only (ARCH-71, UC-26).
+	if *mode == "session-start" {
+		runAutoRegistration(registry, surfLogger)
+	}
+
 	surfacer := surface.New(
 		retriever,
 		surface.WithTracker(recorder),
@@ -2000,6 +2006,69 @@ func contentHashForRegistry(content string) string {
 	hash := sha256.Sum256([]byte(content))
 
 	return fmt.Sprintf("%x", hash)
+}
+
+// runAutoRegistration discovers and registers all non-memory instruction sources
+// at session start (ARCH-71, UC-26). Fire-and-forget: errors logged to stderr.
+func runAutoRegistration(
+	reg *regpkg.JSONLStore,
+	surfLogger *surfacinglog.Logger,
+) {
+	homeDir, _ := os.UserHomeDir()
+	workDir, _ := os.Getwd()
+
+	config := register.SourceConfig{
+		ClaudeMDPaths: buildClaudeMDPaths(workDir, homeDir),
+		MemoryMDPaths: buildMemoryMDPaths(workDir, homeDir),
+		RulesDir:      filepath.Join(workDir, ".claude", "rules"),
+		SkillsDir:     resolveSkillsDir(),
+	}
+
+	registrar := register.NewRegistrar(reg, surfLogger)
+	_ = registrar.Run(config) // fire-and-forget per ARCH-6
+}
+
+// buildClaudeMDPaths returns project and global CLAUDE.md paths.
+func buildClaudeMDPaths(workDir, homeDir string) []string {
+	paths := make([]string, 0, 2) //nolint:mnd // project + global
+
+	if workDir != "" {
+		paths = append(paths, filepath.Join(workDir, "CLAUDE.md"))
+	}
+
+	if homeDir != "" {
+		paths = append(paths, filepath.Join(homeDir, ".claude", "CLAUDE.md"))
+	}
+
+	return paths
+}
+
+// buildMemoryMDPaths returns the MEMORY.md path using Claude Code's convention.
+func buildMemoryMDPaths(workDir, homeDir string) []string {
+	if workDir == "" || homeDir == "" {
+		return nil
+	}
+
+	// Claude Code convention: ~/.claude/projects/<slug>/memory/MEMORY.md
+	// where slug is the working directory path with / replaced by -.
+	slug := strings.ReplaceAll(workDir, "/", "-")
+	slug = strings.TrimPrefix(slug, "-")
+
+	memPath := filepath.Join(
+		homeDir, ".claude", "projects", slug, "memory", "MEMORY.md",
+	)
+
+	return []string{memPath}
+}
+
+// resolveSkillsDir returns the plugin's skills directory if available.
+func resolveSkillsDir() string {
+	pluginRoot := os.Getenv("CLAUDE_PLUGIN_ROOT")
+	if pluginRoot == "" {
+		return ""
+	}
+
+	return filepath.Join(pluginRoot, "skills")
 }
 
 // openRegistry creates a JSONLStore for the given data directory.

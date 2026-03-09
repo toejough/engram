@@ -96,7 +96,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L5]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181", "T-238", "T-239", "T-240", "T-241", "T-242", "T-243", "T-244", "T-245", "T-246", "T-247", "T-248", "T-249", "T-250", "T-251", "T-252", "T-253", "T-254", "T-255", "T-256", "T-257", "T-258", "T-259", "T-260", "T-261", "T-262", "T-263", "T-264", "T-265", "T-266", "T-267", "T-268", "T-269"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "DES-3", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181", "T-238", "T-239", "T-240", "T-241", "T-242", "T-243", "T-244", "T-245", "T-246", "T-247", "T-248", "T-249", "T-250", "T-251", "T-252", "T-253", "T-254", "T-255", "T-256", "T-257", "T-258", "T-259", "T-260", "T-261", "T-262", "T-263", "T-264", "T-265", "T-266", "T-267", "T-268", "T-269", "T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277", "T-278", "T-279", "T-280", "T-281", "T-282", "T-283", "T-284"]
 green_tool = "targ test"
 refactor_tool = "targ check-full"
 
@@ -1085,11 +1085,19 @@ layer = "L4"
 name = "Non-Memory Source Tests"
 parents = ["L3S"]
 items = ["T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277", "T-278", "T-279", "T-280", "T-281", "T-282", "T-283", "T-284"]
-status = "in_progress"
+status = "complete"
 history = "15 BDD test specs: SourceRegistrar (T-270..T-280, ARCH-69), classify extension (T-281/T-282, ARCH-70), CLI wiring (T-283/T-284, ARCH-71). All ARCH items have test coverage."
 
+[tree.L5S1]
+layer = "L5"
+name = "Non-Memory Source Implementation"
+parents = ["L4S"]
+items = ["T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277", "T-278", "T-279", "T-280", "T-281", "T-282", "T-283", "T-284"]
+status = "complete"
+history = "SourceRegistrar in internal/register/ (ARCH-69): 4-phase pipeline discover/register/prune/surfacing with DI options. Classify extension (ARCH-70): rule+skill added to alwaysLoadedSources. CLI wiring (ARCH-71): runAutoRegistration called in session-start mode. 15 tests passing, lint clean."
+
 [cursor]
-node = "L4S"
+node = "L5S1"
 mode = "traversal"
-next_action = "L4S GREEN complete. REFACTOR L4, REGROUP, COMMIT, DESCEND to L5."
-context_files = ["docs/specs/state.toml", "docs/specs/test-list.md"]
+next_action = "L5S1 complete. Run usability gate for UC-26, then mark tree complete."
+context_files = ["docs/specs/state.toml"]

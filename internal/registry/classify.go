@@ -17,6 +17,8 @@ const (
 var alwaysLoadedSources = map[string]bool{
 	"claude-md": true,
 	"memory-md": true,
+	"rule":      true,
+	"skill":     true,
 }
 
 // defaultSurfacingThreshold is the minimum surfaced_count to be
