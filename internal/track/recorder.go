@@ -64,7 +64,10 @@ func (r *Recorder) RecordSurfacing(
 	return errors.Join(errs...)
 }
 
-func (r *Recorder) updateMemoryFile(mem *memory.Stored, mode string, now time.Time) error {
+func (r *Recorder) updateMemoryFile(mem *memory.Stored, _ string, _ time.Time) error {
+	// Tracking fields are now managed by the instruction registry (UC-23).
+	// The Recorder reads and re-writes the TOML to strip old tracking fields
+	// (surfaced_count, last_surfaced, surfacing_contexts) from disk.
 	data, err := r.readFile(mem.FilePath)
 	if err != nil {
 		return fmt.Errorf("reading file: %w", err)
@@ -76,11 +79,6 @@ func (r *Recorder) updateMemoryFile(mem *memory.Stored, mode string, now time.Ti
 	if err != nil {
 		return fmt.Errorf("decoding TOML: %w", err)
 	}
-
-	update := ComputeUpdate(mem, mode, now)
-	record.SurfacedCount = update.SurfacedCount
-	record.LastSurfaced = update.LastSurfaced.Format(time.RFC3339)
-	record.SurfacingContexts = update.SurfacingContexts
 
 	return r.writeAtomic(mem.FilePath, &record)
 }
@@ -150,20 +148,20 @@ func WithRename(fn func(oldpath, newpath string) error) RecorderOption {
 	return func(r *Recorder) { r.rename = fn }
 }
 
-// tomlRecord mirrors all TOML fields to preserve round-trip fidelity.
+// tomlRecord mirrors content TOML fields to preserve round-trip fidelity.
+// Tracking fields (surfaced_count, last_surfaced, surfacing_contexts) are no longer
+// included — they are managed by the instruction registry (UC-23). Re-writing a TOML
+// through this struct strips any old tracking fields from disk.
 type tomlRecord struct {
-	Title             string   `toml:"title"`
-	Content           string   `toml:"content"`
-	ObservationType   string   `toml:"observation_type"`
-	Concepts          []string `toml:"concepts"`
-	Keywords          []string `toml:"keywords"`
-	Principle         string   `toml:"principle"`
-	AntiPattern       string   `toml:"anti_pattern"`
-	Rationale         string   `toml:"rationale"`
-	Confidence        string   `toml:"confidence"`
-	CreatedAt         string   `toml:"created_at"`
-	UpdatedAt         string   `toml:"updated_at"`
-	SurfacedCount     int      `toml:"surfaced_count"`
-	LastSurfaced      string   `toml:"last_surfaced"`
-	SurfacingContexts []string `toml:"surfacing_contexts"`
+	Title           string   `toml:"title"`
+	Content         string   `toml:"content"`
+	ObservationType string   `toml:"observation_type"`
+	Concepts        []string `toml:"concepts"`
+	Keywords        []string `toml:"keywords"`
+	Principle       string   `toml:"principle"`
+	AntiPattern     string   `toml:"anti_pattern"`
+	Rationale       string   `toml:"rationale"`
+	Confidence      string   `toml:"confidence"`
+	CreatedAt       string   `toml:"created_at"`
+	UpdatedAt       string   `toml:"updated_at"`
 }

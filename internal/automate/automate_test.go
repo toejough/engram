@@ -237,40 +237,21 @@ func TestT234_RetirementSetsRetiredByField(t *testing.T) {
 	g.Expect(writtenRetiredAt).To(Equal(retireTime))
 }
 
-// T-235: Retired memories not surfaced.
-func TestT235_RetiredMemoriesNotSurfaced(t *testing.T) {
+// T-235: MemoriesFromStored converts all memories correctly.
+// Retirement is now tracked in the instruction registry (UC-23), not inline in Stored.
+func TestT235_MemoriesFromStoredConvertsAll(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	stored := []*memory.Stored{
 		{Title: "Active memory", Content: "still valid", FilePath: "m1.toml"},
-		{
-			Title: "Retired memory", Content: "replaced", FilePath: "m2.toml",
-			RetiredBy: ".git/hooks/pre-commit",
-			RetiredAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
-		},
-		{Title: "Another active", Content: "also valid", FilePath: "m3.toml"},
+		{Title: "Another active", Content: "also valid", FilePath: "m2.toml"},
 	}
 
 	converted := automate.MemoriesFromStored(stored)
-	// MemoriesFromStored doesn't filter — surface does via filterRetired.
-	// This test verifies the Stored struct carries RetiredBy correctly.
-	g.Expect(converted).To(HaveLen(3))
-	g.Expect(stored[1].RetiredBy).To(Equal(".git/hooks/pre-commit"))
-
-	// The actual surface filtering is tested in the surface package.
-	// Here we verify the memory model carries the field correctly.
-	active := make([]*memory.Stored, 0)
-
-	for _, s := range stored {
-		if s.RetiredBy == "" {
-			active = append(active, s)
-		}
-	}
-
-	g.Expect(active).To(HaveLen(2))
-	g.Expect(active[0].Title).To(Equal("Active memory"))
-	g.Expect(active[1].Title).To(Equal("Another active"))
+	g.Expect(converted).To(HaveLen(2))
+	g.Expect(converted[0].Title).To(Equal("Active memory"))
+	g.Expect(converted[1].Title).To(Equal("Another active"))
 }
 
 // T-236: CLI engram automate outputs JSON proposals.

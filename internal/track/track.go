@@ -3,8 +3,6 @@ package track
 
 import (
 	"time"
-
-	"engram/internal/memory"
 )
 
 // Exported constants.
@@ -19,15 +17,17 @@ type SurfacingUpdate struct {
 	SurfacingContexts []string
 }
 
-// ComputeUpdate calculates new tracking values for a memory after being surfaced.
-// It does not mutate the input — it returns a new SurfacingUpdate.
-func ComputeUpdate(current *memory.Stored, mode string, now time.Time) SurfacingUpdate {
-	newCount := current.SurfacedCount + 1
+// ComputeUpdate calculates new tracking values after a surfacing event.
+// Takes explicit current values rather than reading from memory.Stored,
+// since tracking fields are no longer stored inline in TOMLs (UC-23).
+func ComputeUpdate(
+	currentCount int, currentContexts []string, mode string, now time.Time,
+) SurfacingUpdate {
+	newCount := currentCount + 1
 
 	// Build new contexts slice: append mode, then FIFO evict if over max.
-	existing := current.SurfacingContexts
 	newContexts := make([]string, 0, MaxContextEntries)
-	newContexts = append(newContexts, existing...)
+	newContexts = append(newContexts, currentContexts...)
 	newContexts = append(newContexts, mode)
 
 	if len(newContexts) > MaxContextEntries {

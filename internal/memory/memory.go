@@ -77,18 +77,15 @@ type PatternMatch struct {
 }
 
 // Stored represents a memory read back from a TOML file on disk (ARCH-9).
+// Effectiveness fields (surfaced_count, last_surfaced, surfacing_contexts, retired_by,
+// retired_at) are tracked in the instruction registry (UC-23), not inline in TOMLs.
 type Stored struct {
-	Title             string
-	Content           string
-	Concepts          []string
-	Keywords          []string
-	AntiPattern       string
-	Principle         string
-	UpdatedAt         time.Time
-	FilePath          string
-	SurfacedCount     int
-	LastSurfaced      time.Time
-	SurfacingContexts []string
-	RetiredBy         string    // automation install path that replaced this memory (ARCH-51)
-	RetiredAt         time.Time // when the memory was retired
+	Title       string
+	Content     string
+	Concepts    []string
+	Keywords    []string
+	AntiPattern string
+	Principle   string
+	UpdatedAt   time.Time
+	FilePath    string
 }

@@ -155,8 +155,10 @@ func TestT26_ListMemoriesSkipsUnparseableFiles(t *testing.T) {
 	g.Expect(memories[1].Title).To(Equal("Valid One"))
 }
 
-// T-82: Tracking fields are populated from TOML
-func TestT82_TrackingFieldsPopulated(t *testing.T) {
+// T-82: Old TOMLs with tracking fields parse without error (backward compat).
+// Tracking fields are now managed by the instruction registry (UC-23) and
+// are silently ignored by BurntSushi/toml when not in the struct.
+func TestT82_OldTrackingFieldsIgnored(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -170,13 +172,11 @@ func TestT82_TrackingFieldsPopulated(t *testing.T) {
 		return
 	}
 
-	writeTestTOML(t, memoriesDir, "tracked.toml", tomlContent{
-		Title:             "Tracked Memory",
-		Keywords:          []string{"track"},
-		UpdatedAt:         "2026-03-01T00:00:00Z",
-		SurfacedCount:     5,
-		LastSurfaced:      "2026-03-01T00:00:00Z",
-		SurfacingContexts: []string{"prompt", "tool"},
+	// Write a TOML with old tracking fields that should be silently ignored.
+	writeTestTOMLWithTracking(t, memoriesDir, "tracked.toml", tomlContent{
+		Title:     "Tracked Memory",
+		Keywords:  []string{"track"},
+		UpdatedAt: "2026-03-01T00:00:00Z",
 	})
 
 	r := retrieve.New()
@@ -189,59 +189,18 @@ func TestT82_TrackingFieldsPopulated(t *testing.T) {
 	}
 
 	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].SurfacedCount).To(Equal(5))
-	g.Expect(memories[0].LastSurfaced).To(Equal(time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)))
-	g.Expect(memories[0].SurfacingContexts).To(Equal([]string{"prompt", "tool"}))
-}
-
-// T-83: Missing tracking fields default to zero values
-func TestT83_MissingTrackingFieldsDefaultToZero(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Existing format with no tracking fields.
-	writeTestTOML(t, memoriesDir, "legacy.toml", tomlContent{
-		Title:     "Legacy Memory",
-		Keywords:  []string{"old"},
-		UpdatedAt: "2025-06-01T00:00:00Z",
-	})
-
-	r := retrieve.New()
-	memories, err := r.ListMemories(context.Background(), dataDir)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memories).To(HaveLen(1))
-	g.Expect(memories[0].SurfacedCount).To(Equal(0))
-	g.Expect(memories[0].LastSurfaced).To(Equal(time.Time{}))
-	g.Expect(memories[0].SurfacingContexts).To(BeEmpty())
+	g.Expect(memories[0].Title).To(Equal("Tracked Memory"))
+	g.Expect(memories[0].FilePath).To(ContainSubstring("tracked.toml"))
 }
 
 // tomlContent is a test helper for writing memory TOML files.
 type tomlContent struct {
-	Title             string
-	Keywords          []string
-	Concepts          []string
-	AntiPattern       string
-	UpdatedAt         string
-	Principle         string
-	SurfacedCount     int
-	LastSurfaced      string
-	SurfacingContexts []string
+	Title       string
+	Keywords    []string
+	Concepts    []string
+	AntiPattern string
+	UpdatedAt   string
+	Principle   string
 }
 
 // formatTOMLStringArray formats a string slice as a TOML array literal.
@@ -283,22 +242,46 @@ created_at = "2025-01-01T00:00:00Z"
 updated_at = "` + tc.UpdatedAt + `"
 `
 
-	if tc.SurfacedCount > 0 {
-		content += fmt.Sprintf("surfaced_count = %d\n", tc.SurfacedCount)
-	}
-
-	if tc.LastSurfaced != "" {
-		content += `last_surfaced = "` + tc.LastSurfaced + `"` + "\n"
-	}
-
-	if len(tc.SurfacingContexts) > 0 {
-		content += "surfacing_contexts = " + formatTOMLStringArray(tc.SurfacingContexts) + "\n"
-	}
-
 	path := filepath.Join(dir, filename)
 
 	err := os.WriteFile(path, []byte(content), 0o640)
 	if err != nil {
 		t.Fatalf("writeTestTOML: %v", err)
+	}
+}
+
+// writeTestTOMLWithTracking writes a TOML with old-format tracking fields
+// to verify backward compatibility (unknown fields are silently ignored).
+func writeTestTOMLWithTracking(t *testing.T, dir, filename string, tc tomlContent) {
+	t.Helper()
+
+	content := fmt.Sprintf(`title = "%s"
+content = "test content"
+observation_type = "correction"
+concepts = %s
+keywords = %s
+principle = "%s"
+anti_pattern = "%s"
+rationale = "test rationale"
+confidence = "B"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "%s"
+surfaced_count = 5
+last_surfaced = "2026-03-01T00:00:00Z"
+surfacing_contexts = ["prompt", "tool"]
+`,
+		tc.Title,
+		formatTOMLStringArray(tc.Concepts),
+		formatTOMLStringArray(tc.Keywords),
+		tc.Principle,
+		tc.AntiPattern,
+		tc.UpdatedAt,
+	)
+
+	path := filepath.Join(dir, filename)
+
+	err := os.WriteFile(path, []byte(content), 0o640)
+	if err != nil {
+		t.Fatalf("writeTestTOMLWithTracking: %v", err)
 	}
 }

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"engram/internal/registry"
-
 	. "github.com/onsi/gomega"
+
+	"engram/internal/registry"
 )
 
 func contentHash(s string) string {
@@ -180,7 +180,8 @@ func TestRuleExtractor_Extract(t *testing.T) {
 		g.Expect(entries[0].SourceType).To(Equal("rule"))
 		g.Expect(entries[0].SourcePath).To(Equal("go.md"))
 		g.Expect(entries[0].Title).To(Equal("go.md"))
-		g.Expect(entries[0].ContentHash).To(Equal(contentHash("## Go Rules\n\nUse gofmt always.\n")))
+		g.Expect(entries[0].ContentHash).
+			To(Equal(contentHash("## Go Rules\n\nUse gofmt always.\n")))
 	})
 
 	t.Run("empty content produces zero entries", func(t *testing.T) {
@@ -222,7 +223,8 @@ func TestSkillExtractor_Extract(t *testing.T) {
 		g.Expect(entries[0].SourceType).To(Equal("skill"))
 		g.Expect(entries[0].SourcePath).To(Equal("commit"))
 		g.Expect(entries[0].Title).To(Equal("commit"))
-		g.Expect(entries[0].ContentHash).To(Equal(contentHash("Create a git commit with proper formatting.")))
+		g.Expect(entries[0].ContentHash).
+			To(Equal(contentHash("Create a git commit with proper formatting.")))
 	})
 
 	t.Run("empty content produces zero entries", func(t *testing.T) {

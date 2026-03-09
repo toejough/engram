@@ -1223,7 +1223,8 @@ func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
 			"hidden gem proposals absent without API key")
 	}
 
-	// Should have exactly one noise proposal.
+	// Both memories classify as Noise since tracking data (surfaced_count) is
+	// no longer read from TOMLs — it's managed by the instruction registry (UC-23).
 	noiseCount := 0
 
 	for _, proposal := range proposals {
@@ -1232,7 +1233,7 @@ func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
 		}
 	}
 
-	g.Expect(noiseCount).To(Equal(1))
+	g.Expect(noiseCount).To(Equal(2))
 }
 
 // T-18: correct subcommand with no API key returns error

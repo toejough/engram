@@ -81,55 +81,28 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		return nil, fmt.Errorf("parsing updated_at: %w", err)
 	}
 
-	var lastSurfaced time.Time
-
-	if record.LastSurfaced != "" {
-		lastSurfaced, err = time.Parse(time.RFC3339, record.LastSurfaced)
-		if err != nil {
-			return nil, fmt.Errorf("parsing last_surfaced: %w", err)
-		}
-	}
-
-	var retiredAt time.Time
-
-	if record.RetiredAt != "" {
-		retiredAt, err = time.Parse(time.RFC3339, record.RetiredAt)
-		if err != nil {
-			return nil, fmt.Errorf("parsing retired_at: %w", err)
-		}
-	}
-
 	return &memory.Stored{
-		Title:             record.Title,
-		Content:           record.Content,
-		Concepts:          record.Concepts,
-		Keywords:          record.Keywords,
-		AntiPattern:       record.AntiPattern,
-		Principle:         record.Principle,
-		UpdatedAt:         updatedAt,
-		FilePath:          filePath,
-		SurfacedCount:     record.SurfacedCount,
-		LastSurfaced:      lastSurfaced,
-		SurfacingContexts: record.SurfacingContexts,
-		RetiredBy:         record.RetiredBy,
-		RetiredAt:         retiredAt,
+		Title:       record.Title,
+		Content:     record.Content,
+		Concepts:    record.Concepts,
+		Keywords:    record.Keywords,
+		AntiPattern: record.AntiPattern,
+		Principle:   record.Principle,
+		UpdatedAt:   updatedAt,
+		FilePath:    filePath,
 	}, nil
 }
 
 // tomlRecord mirrors the on-disk TOML format for reading.
-//
-
+// Effectiveness fields (surfaced_count, last_surfaced, etc.) are no longer read;
+// they are tracked in the instruction registry (UC-23). Old TOMLs with these
+// fields parse fine — BurntSushi/toml ignores unknown keys.
 type tomlRecord struct {
-	Title             string   `toml:"title"`
-	Content           string   `toml:"content"`
-	Concepts          []string `toml:"concepts"`
-	Keywords          []string `toml:"keywords"`
-	AntiPattern       string   `toml:"anti_pattern"`
-	Principle         string   `toml:"principle"`
-	UpdatedAt         string   `toml:"updated_at"`
-	SurfacedCount     int      `toml:"surfaced_count"`
-	LastSurfaced      string   `toml:"last_surfaced"`
-	SurfacingContexts []string `toml:"surfacing_contexts"`
-	RetiredBy         string   `toml:"retired_by"`
-	RetiredAt         string   `toml:"retired_at"`
+	Title       string   `toml:"title"`
+	Content     string   `toml:"content"`
+	Concepts    []string `toml:"concepts"`
+	Keywords    []string `toml:"keywords"`
+	AntiPattern string   `toml:"anti_pattern"`
+	Principle   string   `toml:"principle"`
+	UpdatedAt   string   `toml:"updated_at"`
 }
