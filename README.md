@@ -1,116 +1,202 @@
 # Engram
 
-Self-correcting memory for LLM agents. A [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that learns from sessions, surfaces relevant memories, and measures impact — memories that don't improve outcomes get diagnosed and fixed.
+Self-correcting memory for LLM agents. A [Claude Code plugin](https://docs.anthropic.com/en/docs/claude-code/plugins) that learns from sessions, surfaces relevant memories, measures whether they're actually followed, and fixes the ones that aren't.
 
-## How it works
+## The problem
 
-Engram runs as hook-driven middleware in Claude Code sessions:
+Claude Code has several instruction sources — CLAUDE.md, rules, skills, MEMORY.md — but no way to know if they're working. An instruction that's always loaded but never followed wastes context budget. A great instruction that only matches narrow keywords goes unseen. Without measurement, instruction sets decay: duplicates accumulate, stale guidance persists, and useful patterns stay buried.
 
-1. **Learn** — Extracts structured memories from user corrections, instructions, and contextual facts (TOML files with tier-based metadata)
-2. **Surface** — Injects relevant memories at prompt submission and tool use via BM25 keyword matching, within a configurable context budget
-3. **Evaluate** — Measures whether surfaced memories were followed, contradicted, or ignored
-4. **Maintain** — Diagnoses underperforming memories and proposes fixes: rewrites, keyword broadening, escalation, or removal
+## How engram solves it
+
+Engram hooks into every phase of a Claude Code session to create a closed feedback loop:
+
+```
+  Learn ──→ Surface ──→ Evaluate ──→ Maintain
+    ↑                                    │
+    └────────────────────────────────────┘
+```
+
+1. **Learn** — Extracts structured memories from user corrections, instructions, and contextual facts. Each memory is a TOML file with tier-based metadata: title, content, principle, anti-pattern, keywords, concepts, and confidence tier (A/B/C).
+
+2. **Surface** — At every prompt and tool use, retrieves relevant memories via BM25 keyword scoring and injects them as context. A per-hook token budget caps total injection to avoid overwhelming the model.
+
+3. **Evaluate** — After each session, an LLM reads the (stripped) transcript and judges each surfaced memory: was it **followed**, **contradicted**, or **ignored**? Results are tallied in the instruction registry.
+
+4. **Maintain** — Periodic diagnosis generates proposals for each memory based on its effectiveness quadrant. Proposals are applied with user confirmation: rewrites for stale content, keyword broadening for hidden gems, escalation for persistent violations, deletion for noise.
+
+## Instruction sources
+
+Engram tracks five types of instruction sources in a unified registry (`instruction-registry.jsonl`):
+
+| Source type | Description | Surfacing behavior |
+|-------------|-------------|-------------------|
+| `memory` | TOML files in `~/.claude/engram/data/memories/` | Keyword-matched per prompt via BM25 |
+| `claude-md` | Entries in project CLAUDE.md files | Always loaded (highest trust tier) |
+| `memory-md` | Entries in MEMORY.md | Always loaded |
+| `rule` | Files in `.claude/rules/` | Always loaded |
+| `skill` | Plugin skill files | Loaded by context similarity |
+
+Each registry entry tracks: source type, source path, content hash, surfaced count, last surfaced timestamp, and evaluation counters (followed/contradicted/ignored).
+
+## Measurements
+
+Every time a memory is surfaced, the registry increments its `surfaced_count` and updates `last_surfaced`. At session end, the evaluator classifies each surfaced memory's outcome:
+
+- **Followed** — The model's behavior aligned with the instruction
+- **Contradicted** — The model did the opposite of what the instruction said
+- **Ignored** — The instruction was surfaced but had no observable effect
+
+From these counters, engram computes **effectiveness** (followed / total evaluations) and **frecency** (recency-weighted frequency with configurable half-life decay).
+
+## Effectiveness quadrants
+
+The registry classifies every instruction into one of four quadrants:
+
+|  | High effectiveness | Low effectiveness |
+|--|-------------------|------------------|
+| **Often surfaced** | **Working** — Keep as-is | **Leech** — Rewrite or escalate |
+| **Rarely surfaced** | **Hidden Gem** — Broaden keywords | **Noise** — Remove |
+
+Always-loaded sources (claude-md, memory-md) get binary classification: Working or Leech only (they can't be "rarely surfaced").
+
+## Maintenance actions
+
+Each quadrant has a prescribed action:
+
+- **Working** — Check for staleness; rewrite if content is outdated
+- **Leech** — Diagnose root cause (content quality, wrong keywords, enforcement gap) and either rewrite content or escalate enforcement
+- **Hidden Gem** — LLM suggests additional keywords/concepts to increase surfacing coverage
+- **Noise** — Delete the memory TOML and remove the registry entry
+
+Maintenance proposals are generated by `engram maintain` and applied interactively via `engram maintain --apply --proposals <file>`.
+
+## Enforcement escalation
+
+For persistent leech memories (instructions that keep getting violated), engram applies a graduated escalation ladder:
+
+1. **Advisory** — Standard surfacing (default)
+2. **Emphasized advisory** — Surfaced with emphasis markers
+3. **Post-tool reminder** — Reminder injected after file edits via PostToolUse hook
+4. **Pre-tool block** — Advisory injected before tool execution
+5. **Automation candidate** — Flagged for mechanical rule extraction
+
+Escalation level is tracked per-memory with history of level changes and observed effectiveness at each level.
+
+## Instruction tier promotion
+
+Instructions flow through a three-tier promotion ladder based on measured effectiveness:
+
+```
+Memory (TOML) ──→ Skill (plugin) ──→ CLAUDE.md (always loaded)
+                ←──                ←──
+```
+
+- **Memory → Skill** (`engram promote --to-skill`): When a memory's surfacing cost (loaded every prompt via keyword match) exceeds the skill slot cost (loaded by context similarity). Generated skill file preserves effectiveness history via registry merge.
+- **Skill → CLAUDE.md** (`engram promote --to-claude-md`): When a skill proves universally useful (Working quadrant, high surfacing frequency). Generated CLAUDE.md entry follows existing style.
+- **CLAUDE.md → Skill** (`engram demote --to-skill`): When a CLAUDE.md entry has low effectiveness (Leech quadrant). Demoted to skill, reducing always-loaded context cost.
+
+All promotions and demotions require user confirmation. Effectiveness history is preserved through registry merge operations.
+
+## Session lifecycle
+
+Engram hooks into 6 Claude Code hook points:
+
+| Phase | Hook | What happens |
+|-------|------|-------------|
+| Start | `SessionStart` | Build binary if stale. Surface session-relevant memories. Restore previous session context. |
+| Prompt | `UserPromptSubmit` | Surface prompt-relevant memories (BM25). Detect inline corrections (UC-3). |
+| Prompt (async) | `UserPromptSubmit` | Incremental learning extraction from transcript delta. |
+| Tool use | `PreToolUse` | Surface tool-specific memories (e.g., file-path-relevant instructions). |
+| After tool | `PostToolUse` | Proactive reminders when Write/Edit touches tracked files. |
+| Compact | `PreCompact` | Flush incremental learning before context window compaction. |
+| End | `Stop` | Final learning extraction. Evaluate memory effectiveness. Session compliance audit. Save session context for continuity. |
+
+## Data files
+
+All data lives in `~/.claude/engram/data/`:
+
+| File | Purpose |
+|------|---------|
+| `memories/*.toml` | Structured memory files (one per learned fact/instruction) |
+| `instruction-registry.jsonl` | Unified registry tracking all instruction sources |
+| `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
+| `evaluations/*.jsonl` | Per-session evaluation results (followed/contradicted/ignored) |
+| `learn-offset.json` | Offset tracking for incremental transcript learning |
+| `session-context.md` | Continuity context carried across sessions |
+
+## Memory TOML structure
+
+Each memory is a TOML file with structured fields:
+
+```toml
+title = "Use targ for builds"
+content = "Always use targ build system instead of raw go commands"
+observation_type = "workflow_preference"
+concepts = ["build-system", "tooling"]
+keywords = ["targ", "build", "go test", "go vet"]
+principle = "Use targ test, targ check, targ build for all operations"
+anti_pattern = "Running go test or go vet directly"
+rationale = "targ encodes hard-won lessons about build configuration"
+confidence = "A"
+```
+
+Confidence tiers: **A** (explicit instruction — "always/never/remember"), **B** (teachable correction), **C** (contextual fact). Anti-patterns are required for tier A, optional for B, empty for C.
 
 ## Installation
 
 Requires Go 1.25+.
 
 ```bash
+# Clone and install as a Claude Code plugin
 git clone https://github.com/toejough/engram.git
-cd engram
-go build -o engram ./cmd/engram/
+
+# Add to Claude Code — the plugin auto-builds on first session
+claude plugin add /path/to/engram
 ```
 
-Install as a Claude Code plugin by adding the repo path to your Claude Code plugin configuration.
-
-## Architecture
-
-Pure Go, no CGO. DI everywhere — all I/O through injected interfaces, wired at CLI edges. Hook scripts call the `engram` binary with subcommands.
-
-### Hook integration
-
-| Hook | Script | Purpose |
-|------|--------|---------|
-| SessionStart | `session-start.sh` | Initialize session context |
-| UserPromptSubmit | `user-prompt-submit.sh` | Surface memories, detect learning signals |
-| UserPromptSubmit (async) | `user-prompt-submit-async.sh` | Incremental learning extraction |
-| PreToolUse | `pre-tool-use.sh` | Surface tool-specific memories |
-| PostToolUse | `post-tool-use.sh` | Proactive reminders after file edits |
-| PreCompact | `pre-compact.sh` | Incremental learning before context compaction |
-| Stop | `stop.sh` | Session audit, outcome evaluation, learning |
-
-### CLI subcommands
-
-| Command | Description |
-|---------|-------------|
-| `surface` | Retrieve and inject relevant memories |
-| `learn` | Extract memories from transcript |
-| `evaluate` | Measure memory effectiveness |
-| `correct` | Apply user corrections to memories |
-| `maintain` | Generate/apply maintenance proposals |
-| `review` | Classify instructions by effectiveness quadrant |
-| `promote` | Promote memories to skills or CLAUDE.md |
-| `demote` | Demote CLAUDE.md entries to skills |
-| `registry` | Manage the unified instruction registry |
-| `audit` | Session compliance audit |
-| `remind` | Proactive post-tool-use reminders |
-| `instruct` | Instruction quality analysis |
-| `automate` | Extract mechanical rules for automation |
-| `context-update` | Session continuity context |
-
-### Effectiveness quadrants
-
-The registry classifies instructions into four quadrants based on surfacing frequency and follow-through rate:
-
-- **Working** — High surfacing, high effectiveness. Keep as-is.
-- **Leech** — High surfacing, low effectiveness. Rewrite or escalate.
-- **HiddenGem** — Low surfacing, high effectiveness. Broaden keywords.
-- **Noise** — Low surfacing, low effectiveness. Remove.
-
-### Instruction tiers
-
-Memories flow through a three-tier promotion ladder:
-
-1. **Memory** (TOML files) — Surfaced by keyword matching on every prompt
-2. **Skill** (plugin skills) — Loaded by context similarity, lower per-prompt cost
-3. **CLAUDE.md** (always loaded) — Highest trust, highest cost, reserved for universal guidance
-
-Promotion and demotion are driven by measured effectiveness, confirmed by the user.
+The binary auto-builds on first hook invocation and rebuilds when Go source files change.
 
 ## Project structure
 
 ```
-cmd/engram/          CLI entry point
-internal/            Business logic (30 packages, DI boundaries)
+cmd/engram/          CLI entry point (thin wiring layer)
+internal/            Business logic (30 packages, all DI boundaries)
 hooks/               Shell scripts for Claude Code hook integration
-.claude-plugin/      Plugin manifest
-docs/specs/          Specification artifacts (use cases, requirements, architecture, tests)
+.claude-plugin/      Plugin manifest (plugin.json)
+docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 ```
+
+## Design principles
+
+- **DI everywhere** — No function in `internal/` calls `os.*`, `http.*`, or any I/O directly. All I/O through injected interfaces, wired at `cmd/` and `cli.go` edges.
+- **Pure Go, no CGO** — TF-IDF/BM25 for retrieval instead of ONNX. External embedding API if vector similarity needed.
+- **Fire and forget** — Registry writes never block the critical path. Write failures are logged but don't fail the operation.
+- **Measure impact, not frequency** — A memory surfaced 1000 times but never followed is a leech, not a success.
 
 ## Specification
 
-18 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 402 tests. Spec artifacts in `docs/specs/`.
+18 use cases implemented across 5 specification layers (UC → REQ/DES → ARCH → TEST → IMPL). 402 tests.
 
-| UC | Name | Status |
-|----|------|--------|
-| UC-1 | Session Learning | Complete |
-| UC-2 | Hook-Time Surfacing & Enforcement | Complete |
-| UC-3 | Remember & Correct | Complete |
-| UC-4 | Skill Generation | Complete |
-| UC-5 | CLAUDE.md Management | Complete |
-| UC-6 | Memory Effectiveness Review | Complete |
-| UC-14 | Structured Session Continuity | Complete |
-| UC-15 | Automatic Outcome Signal | Complete |
-| UC-16 | Unified Memory Maintenance | Complete |
-| UC-17 | Context Budget Management | Complete |
-| UC-18 | PostToolUse Proactive Reminders | Complete |
-| UC-19 | Stop Session Audit | Complete |
-| UC-20 | Instruction Quality & Gap Analysis | Complete |
-| UC-21 | Enforcement Escalation Ladder | Complete |
-| UC-22 | Mechanical Instruction Extraction | Complete |
-| UC-23 | Unified Instruction Registry | Complete |
-| UC-24 | Proposal Application | Complete |
-| UC-25 | Evaluate Strip Preprocessing | Complete |
+| UC | Name |
+|----|------|
+| UC-1 | Session Learning |
+| UC-2 | Hook-Time Surfacing & Enforcement |
+| UC-3 | Remember & Correct |
+| UC-4 | Skill Generation |
+| UC-5 | CLAUDE.md Management |
+| UC-6 | Memory Effectiveness Review |
+| UC-14 | Structured Session Continuity |
+| UC-15 | Automatic Outcome Signal |
+| UC-16 | Unified Memory Maintenance |
+| UC-17 | Context Budget Management |
+| UC-18 | PostToolUse Proactive Reminders |
+| UC-19 | Stop Session Audit |
+| UC-20 | Instruction Quality & Gap Analysis |
+| UC-21 | Enforcement Escalation Ladder |
+| UC-22 | Mechanical Instruction Extraction |
+| UC-23 | Unified Instruction Registry |
+| UC-24 | Proposal Application |
+| UC-25 | Evaluate Strip Preprocessing |
 
 ## License
 
