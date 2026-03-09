@@ -623,6 +623,235 @@ func TestTruncateTitle_Short(t *testing.T) {
 	g.Expect(truncateTitle("Short")).To(Equal("Short"))
 }
 
+func TestLoadMemoryContent_ListError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	ret := retrieve.New()
+
+	_, err := loadMemoryContent(ret, "/nonexistent/dir/memories/test.toml")
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("loading memories"))
+	}
+}
+
+func TestLoadMemoryContent_NotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "exists.toml"),
+		[]byte("title = \"Exists\"\nprinciple = \"test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
+		0o644,
+	)).To(Succeed())
+
+	ret := retrieve.New()
+
+	_, err := loadMemoryContent(ret, filepath.Join(memDir, "nonexistent.toml"))
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("memory not found"))
+	}
+}
+
+func TestNoopTranscriptReader_ReadRecent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	reader := &noopTranscriptReader{}
+
+	result, err := reader.ReadRecent(10)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestOsMemoryLoader_LoadPrinciple_Found(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "test-mem.toml"),
+		[]byte("title = \"Test\"\nprinciple = \"always test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
+		0o644,
+	)).To(Succeed())
+
+	loader := &osMemoryLoader{dataDir: dataDir}
+
+	principle, err := loader.LoadPrinciple(context.Background(), "test-mem")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(principle).To(Equal("always test"))
+}
+
+func TestOsMemoryLoader_LoadPrinciple_NotFound(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	loader := &osMemoryLoader{dataDir: dataDir}
+
+	principle, err := loader.LoadPrinciple(context.Background(), "nonexistent")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(principle).To(BeEmpty())
+}
+
+func TestOsRemindConfigReader_ReadConfig_Missing(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	reader := &osRemindConfigReader{dataDir: t.TempDir()}
+
+	config, err := reader.ReadConfig()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(config).To(BeNil())
+}
+
+func TestOsRemindConfigReader_ReadConfig_WithFile(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	tomlContent := `["*.go"]
+instructions = ["mem-1", "mem-2"]
+
+["*.py"]
+instructions = ["mem-3"]
+`
+
+	g.Expect(os.WriteFile(
+		filepath.Join(dataDir, "reminders.toml"),
+		[]byte(tomlContent),
+		0o644,
+	)).To(Succeed())
+
+	reader := &osRemindConfigReader{dataDir: dataDir}
+
+	config, err := reader.ReadConfig()
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(config).To(HaveLen(2))
+	g.Expect(config["*.go"]).To(ConsistOf("mem-1", "mem-2"))
+	g.Expect(config["*.py"]).To(ConsistOf("mem-3"))
+}
+
+func TestParseRemindersToml_EmptyInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result, err := parseRemindersToml([]byte(""))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestParseRemindersToml_InstructionsWithoutSection(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	// Instructions line without a preceding section header is ignored.
+	input := []byte(`instructions = ["rule-1"]`)
+
+	result, err := parseRemindersToml(input)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestParseRemindersToml_NoEqualsSign(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := []byte("[\"*.go\"]\ninstructions [\"rule-1\"]\n")
+
+	result, err := parseRemindersToml(input)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// The line without = is skipped; section has no entries.
+	g.Expect(result).To(BeEmpty())
+}
+
+func TestParseRemindersToml_ValidInput(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	input := []byte("# Comment line\n[\"*.go\"]\ninstructions = [\"rule-1\", \"rule-2\"]\n\n[\"*.py\"]\ninstructions = [\"rule-3\"]\n")
+
+	result, err := parseRemindersToml(input)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(result["*.go"]).To(Equal([]string{"rule-1", "rule-2"}))
+	g.Expect(result["*.py"]).To(Equal([]string{"rule-3"}))
+}
+
 func newTestStore(t *testing.T) *regpkg.JSONLStore {
 	t.Helper()
 

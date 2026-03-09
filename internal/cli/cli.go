@@ -376,16 +376,14 @@ func RunMaintain(
 		escalations, escErr := engine.Analyze(leeches)
 		if escErr == nil {
 			for idx := range escalations {
-				escJSON, marshalErr := maintain.MarshalProposal(escalations[idx])
-				if marshalErr == nil {
-					proposals = append(proposals, maintain.Proposal{
-						MemoryPath: escalations[idx].MemoryPath,
-						Quadrant:   string(reviewpkg.Leech),
-						Diagnosis:  escalations[idx].Rationale,
-						Action:     "escalation_" + escalations[idx].ProposalType,
-						Details:    escJSON,
-					})
-				}
+				escJSON := maintain.MarshalProposal(escalations[idx])
+				proposals = append(proposals, maintain.Proposal{
+					MemoryPath: escalations[idx].MemoryPath,
+					Quadrant:   string(reviewpkg.Leech),
+					Diagnosis:  escalations[idx].Rationale,
+					Action:     "escalation_" + escalations[idx].ProposalType,
+					Details:    escJSON,
+				})
 			}
 		}
 	}

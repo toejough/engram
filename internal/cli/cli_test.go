@@ -2651,6 +2651,342 @@ func TestT64_RenderLearnResult_NoLearnings(t *testing.T) {
 	g.Expect(buf.String()).To(Equal("[engram] No new learnings extracted.\n"))
 }
 
+// runDemote: flag parse error.
+func TestRunDemote_FlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "demote", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// runDemote: missing flags returns error.
+func TestRunDemote_MissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "demote"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// runDemote: empty registry produces no candidates.
+func TestRunDemote_NoCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "demote", "--data-dir", dataDir, "--to-skill", "--yes"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("No demotion candidates"))
+}
+
+// runInstructAudit: flag parse error.
+func TestRunInstructAudit_FlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// runInstructAudit: missing flags.
+func TestRunInstructAudit_MissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// runInstructAudit: valid run with empty dir produces JSON report.
+func TestRunInstructAudit_EmptyDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "instruct", "--data-dir", dataDir, "--project-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Output should be valid JSON.
+	var report any
+
+	jsonErr := json.Unmarshal(stdout.Bytes(), &report)
+	g.Expect(jsonErr).NotTo(HaveOccurred())
+}
+
+// runPromote: flag parse error.
+func TestRunPromote_FlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "promote", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// runPromote: missing flags.
+func TestRunPromote_MissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "promote"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// runPromote --to-claude-md: empty registry returns no candidates.
+func TestRunPromote_ToClaudeMD_NoCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "promote", "--data-dir", dataDir, "--to-claude-md", "--yes"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("No candidates"))
+}
+
+// runPromote --to-skill: empty registry returns no candidates.
+func TestRunPromote_ToSkill_NoCandidates(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "promote", "--data-dir", dataDir, "--to-skill", "--yes"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("No candidates"))
+}
+
+// runRegistry: no args returns unknown subcommand error.
+func TestRunRegistry_NoArgs(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown subcommand"))
+	}
+}
+
+// runRegistry: unknown subcommand.
+func TestRunRegistry_UnknownSubcommand(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "bogus"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("unknown subcommand"))
+	}
+}
+
+// runRegistryRegisterSource: dispatched via Run.
+func TestRunRegistryRegisterSource_ViaRun(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	srcPath := filepath.Join(dataDir, "test-rule.md")
+
+	g.Expect(os.WriteFile(srcPath,
+		[]byte("## Rule\nAlways use targ.\n"), 0o640,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "registry", "register-source",
+			"--data-dir", dataDir,
+			"--type", "rule",
+			"--path", srcPath,
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Registered"))
+}
+
+// runRemind: flag parse error.
+func TestRunRemind_FlagParseError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "remind", "--bogus-flag"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+}
+
+// runRemind: missing flags.
+func TestRunRemind_MissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "remind"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// runRemind: valid run with empty data dir produces no output.
+func TestRunRemind_EmptyDataDir(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "remind", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // unexported variables.
 var (
 	_ extract.HTTPDoer = (*fakeHTTPDoer)(nil)
