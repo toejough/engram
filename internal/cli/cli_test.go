@@ -1638,6 +1638,109 @@ func writeReviewMemoryTOML(tb testing.TB, dir, filename string, surfacedCount in
 	return path
 }
 
+func TestT272_RegistryInitDryRunListsEntries(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tomlContent := `Title = "Test Memory"
+Content = "test content"
+Concepts = ["testing"]
+Keywords = ["test"]
+Principle = "always test"
+updated_at = "2026-03-08T00:00:00Z"
+`
+	writeTestTOML(t, memDir, "test-memory.toml", tomlContent)
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "init",
+			"--data-dir", tmpDir, "--dry-run",
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("dry-run"))
+	g.Expect(output).To(ContainSubstring("1 entries"))
+}
+
+func TestT273_RegistryInitWritesJSONLFile(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tmpDir := t.TempDir()
+	memDir := filepath.Join(tmpDir, "memories")
+
+	err := os.MkdirAll(memDir, 0o755)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	tomlContent := `Title = "Init Test"
+Content = "init content"
+Concepts = ["init"]
+Keywords = ["registry"]
+updated_at = "2026-03-08T00:00:00Z"
+`
+	writeTestTOML(t, memDir, "init-test.toml", tomlContent)
+
+	var stdout bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "registry", "init",
+			"--data-dir", tmpDir,
+		},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("initialized"))
+	g.Expect(output).To(ContainSubstring("1 entries"))
+
+	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
+	data, err := os.ReadFile(registryPath)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(string(data)).To(ContainSubstring("Init Test"))
+}
+
+func TestT274_RegistryInitMissingDataDir(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "init"},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("--data-dir")))
+}
+
+func TestT275_RegistryUnknownSubcommand(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var stdout bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "bogus"},
+		&stdout, io.Discard, strings.NewReader(""),
+	)
+	g.Expect(err).To(MatchError(ContainSubstring("unknown subcommand")))
+}
+
 func writeTestTOML(t *testing.T, dir, filename, content string) {
 	t.Helper()
 

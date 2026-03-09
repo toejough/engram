@@ -29,6 +29,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	regpkg "engram/internal/registry"
 	"engram/internal/remind"
 	"engram/internal/render"
 	"engram/internal/retrieve"
@@ -137,6 +138,8 @@ func Run(
 		return runInstructAudit(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
+	case "registry":
+		return runRegistry(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -436,12 +439,19 @@ var (
 	errInstructMissingFlags = errors.New(
 		"instruct audit: --data-dir required",
 	)
-	errRemindMissingFlags = errors.New("remind: --data-dir required")
-	errUnknownCommand     = errors.New("unknown command")
-	errAuditMissingFlags  = errors.New("audit: --data-dir required")
-	errUsage              = errors.New(
+	errRemindMissingFlags   = errors.New("remind: --data-dir required")
+	errUnknownCommand       = errors.New("unknown command")
+	errAuditMissingFlags    = errors.New("audit: --data-dir required")
+	errRegistryMissingFlags = errors.New(
+		"registry init: --data-dir required",
+	)
+	errRegistryUnknownSub = errors.New(
+		"registry: unknown subcommand (expected: init)",
+	)
+	errUsage = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|remind|instruct|automate|context-update> [flags]",
+			"|review|maintain|remind|instruct|automate" +
+			"|context-update|registry> [flags]",
 	)
 )
 
@@ -1240,7 +1250,229 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 	return json.NewEncoder(stdout).Encode(report)
 }
 
+func runRegistry(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return errRegistryUnknownSub
+	}
+
+	sub := args[0]
+	subArgs := args[1:]
+
+	switch sub {
+	case "init":
+		return runRegistryInit(subArgs, stdout)
+	default:
+		return errRegistryUnknownSub
+	}
+}
+
+// RunRegistryInit implements the registry init subcommand with injectable
+// backfill config components. opts override default I/O adapters for testing.
+func RunRegistryInit(
+	args []string,
+	stdout io.Writer,
+	opts ...regpkg.JSONLOption,
+) error {
+	fs := flag.NewFlagSet("registry init", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	dryRun := fs.Bool("dry-run", false, "print entries without writing")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("registry init: %w", parseErr)
+	}
+
+	if *dataDir == "" {
+		return errRegistryMissingFlags
+	}
+
+	config := buildBackfillConfig(*dataDir)
+
+	entries, err := regpkg.Backfill(config)
+	if err != nil {
+		return fmt.Errorf("registry init: %w", err)
+	}
+
+	if *dryRun {
+		_, _ = fmt.Fprintf(stdout,
+			"[engram] Registry init (dry-run): %d entries\n",
+			len(entries))
+
+		for _, entry := range entries {
+			_, _ = fmt.Fprintf(stdout,
+				"  %s (%s) surfaced=%d evals=%d\n",
+				entry.ID, entry.SourceType,
+				entry.SurfacedCount, entry.Evaluations.Total())
+		}
+
+		return nil
+	}
+
+	registryPath := filepath.Join(*dataDir, registryFilename)
+
+	allOpts := []regpkg.JSONLOption{
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	}
+	allOpts = append(allOpts, opts...)
+
+	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+
+	bulkErr := store.BulkLoad(entries)
+	if bulkErr != nil {
+		return fmt.Errorf("registry init: writing: %w", bulkErr)
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] Registry initialized: %d entries written to %s\n",
+		len(entries), registryPath)
+
+	return nil
+}
+
+func runRegistryInit(args []string, stdout io.Writer) error {
+	return RunRegistryInit(args, stdout)
+}
+
+func buildBackfillConfig(dataDir string) regpkg.BackfillConfig {
+	return regpkg.BackfillConfig{
+		Scanner:      &osMemoryScanner{dataDir: dataDir},
+		SurfacingLog: &osSurfacingLogReader{dataDir: dataDir},
+		CreationLog:  &osCreationLogReader{dataDir: dataDir},
+		Evaluations:  &osEvaluationsReader{dataDir: dataDir},
+		Now:          time.Now(),
+	}
+}
+
+// osMemoryScanner scans memory TOML files from the data directory.
+type osMemoryScanner struct {
+	dataDir string
+}
+
+func (s *osMemoryScanner) ScanMemories() ([]regpkg.ScannedMemory, error) {
+	retriever := retrieve.New()
+	ctx := context.Background()
+
+	memories, err := retriever.ListMemories(ctx, s.dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("listing memories: %w", err)
+	}
+
+	result := make([]regpkg.ScannedMemory, 0, len(memories))
+	for _, mem := range memories {
+		result = append(result, regpkg.ScannedMemory{
+			FilePath:  mem.FilePath,
+			Title:     mem.Title,
+			Content:   mem.Content,
+			RetiredBy: mem.RetiredBy,
+			UpdatedAt: mem.UpdatedAt,
+		})
+	}
+
+	return result, nil
+}
+
+// osSurfacingLogReader reads and aggregates the surfacing log.
+type osSurfacingLogReader struct {
+	dataDir string
+}
+
+func (r *osSurfacingLogReader) AggregateSurfacing() (
+	map[string]regpkg.SurfacingData, error,
+) {
+	logger := surfacinglog.New(r.dataDir)
+
+	events, err := logger.ReadAndClear()
+	if err != nil {
+		return nil, fmt.Errorf("reading surfacing log: %w", err)
+	}
+
+	result := make(map[string]regpkg.SurfacingData, len(events))
+
+	for _, event := range events {
+		data := result[event.MemoryPath]
+		data.Count++
+
+		surfTime := event.SurfacedAt
+		if data.LastSurfaced == nil || surfTime.After(*data.LastSurfaced) {
+			data.LastSurfaced = &surfTime
+		}
+
+		result[event.MemoryPath] = data
+	}
+
+	return result, nil
+}
+
+// osCreationLogReader reads creation timestamps.
+type osCreationLogReader struct {
+	dataDir string
+}
+
+func (r *osCreationLogReader) CreationTimes() (map[string]time.Time, error) {
+	reader := creationlog.NewLogReader()
+
+	entries, err := reader.ReadAndClear(r.dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("reading creation log: %w", err)
+	}
+
+	result := make(map[string]time.Time, len(entries))
+
+	for _, entry := range entries {
+		parsed, parseErr := time.Parse(time.RFC3339, entry.Timestamp)
+		if parseErr != nil {
+			continue
+		}
+
+		result[entry.Filename] = parsed
+	}
+
+	return result, nil
+}
+
+// osEvaluationsReader aggregates evaluations from JSONL files.
+type osEvaluationsReader struct {
+	dataDir string
+}
+
+func (r *osEvaluationsReader) AggregateEvaluations() (
+	map[string]regpkg.EvaluationCounters, error,
+) {
+	evalDir := filepath.Join(r.dataDir, "evaluations")
+	computer := effectiveness.New(evalDir)
+
+	stats, err := computer.Aggregate()
+	if err != nil {
+		return nil, fmt.Errorf("aggregating evaluations: %w", err)
+	}
+
+	result := make(map[string]regpkg.EvaluationCounters, len(stats))
+
+	for memPath, stat := range stats {
+		result[memPath] = regpkg.EvaluationCounters{
+			Followed:     stat.FollowedCount,
+			Contradicted: stat.ContradictedCount,
+			Ignored:      stat.IgnoredCount,
+		}
+	}
+
+	return result, nil
+}
+
 // osReadFileFunc wraps os.ReadFile for DI injection.
 func osReadFileFunc(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
+
+// osWriteFileFunc wraps os.WriteFile for DI injection.
+func osWriteFileFunc(path string, content []byte) error {
+	const filePermsRW = 0o644
+
+	return os.WriteFile(path, content, filePermsRW) //nolint:wrapcheck,gosec // thin I/O adapter
+}
+
+// registryFilename is the default name for the instruction registry file.
+const registryFilename = "instruction-registry.jsonl"
