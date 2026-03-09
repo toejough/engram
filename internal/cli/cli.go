@@ -450,7 +450,10 @@ var (
 		"registry init: --data-dir required",
 	)
 	errRegistryUnknownSub = errors.New(
-		"registry: unknown subcommand (expected: init)",
+		"registry: unknown subcommand (expected: init, register-source)",
+	)
+	errRegisterSourceMissingFlags = errors.New(
+		"registry register-source: --type and --path and --data-dir required",
 	)
 	errUsage = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
@@ -627,7 +630,7 @@ func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
 	tracking := make(map[string]reviewpkg.TrackingData, len(memories))
 
 	for _, mem := range memories {
-		tracking[mem.FilePath] = reviewpkg.TrackingData{SurfacedCount: mem.SurfacedCount}
+		tracking[mem.FilePath] = reviewpkg.TrackingData{}
 	}
 
 	return tracking
@@ -1283,6 +1286,8 @@ func runRegistry(args []string, stdout io.Writer) error {
 	switch sub {
 	case "init":
 		return runRegistryInit(subArgs, stdout)
+	case "register-source":
+		return runRegistryRegisterSource(subArgs, stdout)
 	default:
 		return errRegistryUnknownSub
 	}
@@ -1358,6 +1363,122 @@ func runRegistryInit(args []string, stdout io.Writer) error {
 	return RunRegistryInit(args, stdout)
 }
 
+func runRegistryRegisterSource(args []string, stdout io.Writer) error {
+	return RunRegistryRegisterSource(args, stdout, osReadFileFunc)
+}
+
+// ReadFileFunc reads a file by path, injected for testability.
+type ReadFileFunc func(path string) ([]byte, error)
+
+// RunRegistryRegisterSource implements the registry register-source subcommand.
+// readFile is injected for testability (DI).
+func RunRegistryRegisterSource(
+	args []string,
+	stdout io.Writer,
+	readFile ReadFileFunc,
+	opts ...regpkg.JSONLOption,
+) error {
+	fs := flag.NewFlagSet("registry register-source", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	sourceType := fs.String("type", "", "source type (claude-md, memory-md, rule, skill)")
+	sourcePath := fs.String("path", "", "path to source file or name")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("registry register-source: %w", parseErr)
+	}
+
+	if *dataDir == "" || *sourceType == "" || *sourcePath == "" {
+		return errRegisterSourceMissingFlags
+	}
+
+	content, err := readFile(*sourcePath)
+	if err != nil {
+		return fmt.Errorf("registry register-source: reading source: %w", err)
+	}
+
+	extractor, err := buildExtractor(*sourceType, *sourcePath, string(content))
+	if err != nil {
+		return fmt.Errorf("registry register-source: %w", err)
+	}
+
+	entries, err := extractor.Extract()
+	if err != nil {
+		return fmt.Errorf("registry register-source: extracting: %w", err)
+	}
+
+	if len(entries) == 0 {
+		_, _ = fmt.Fprintln(stdout,
+			"[engram] No instructions extracted from source.")
+
+		return nil
+	}
+
+	registryPath := filepath.Join(*dataDir, registryFilename)
+
+	allOpts := []regpkg.JSONLOption{
+		regpkg.WithReader(osReadFileFunc),
+		regpkg.WithWriter(osWriteFileFunc),
+	}
+	allOpts = append(allOpts, opts...)
+
+	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+
+	var registered int
+
+	for _, entry := range entries {
+		regErr := store.Register(entry)
+		if regErr != nil {
+			if errors.Is(regErr, regpkg.ErrDuplicateID) {
+				continue
+			}
+
+			return fmt.Errorf("registry register-source: registering %s: %w",
+				entry.ID, regErr)
+		}
+
+		registered++
+	}
+
+	_, _ = fmt.Fprintf(stdout,
+		"[engram] Registered %d instructions from %s (%s)\n",
+		registered, *sourcePath, *sourceType)
+
+	return nil
+}
+
+// buildExtractor creates the appropriate extractor for the given source type.
+func buildExtractor(
+	sourceType, sourcePath, content string,
+) (regpkg.InstructionExtractor, error) {
+	switch sourceType {
+	case "claude-md":
+		return regpkg.ClaudeMDExtractor{
+			Content:    content,
+			SourcePath: filepath.Base(sourcePath),
+		}, nil
+	case "memory-md":
+		return regpkg.MemoryMDExtractor{
+			Content:    content,
+			SourcePath: filepath.Base(sourcePath),
+		}, nil
+	case "rule":
+		return regpkg.RuleExtractor{
+			Filename: filepath.Base(sourcePath),
+			Content:  content,
+		}, nil
+	case "skill":
+		return regpkg.SkillExtractor{
+			SkillName: filepath.Base(sourcePath),
+			Content:   content,
+		}, nil
+	default:
+		return nil, fmt.Errorf("unknown source type: %s", sourceType)
+	}
+}
+
 func buildBackfillConfig(dataDir string) regpkg.BackfillConfig {
 	return regpkg.BackfillConfig{
 		Scanner:      &osMemoryScanner{dataDir: dataDir},
@@ -1388,7 +1509,6 @@ func (s *osMemoryScanner) ScanMemories() ([]regpkg.ScannedMemory, error) {
 			FilePath:  mem.FilePath,
 			Title:     mem.Title,
 			Content:   mem.Content,
-			RetiredBy: mem.RetiredBy,
 			UpdatedAt: mem.UpdatedAt,
 		})
 	}
