@@ -5,7 +5,7 @@ go 1.25.6
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/onsi/gomega v1.39.1
-	github.com/toejough/targ v0.0.0-20260309125855-142bcf9dfb95
+	github.com/toejough/targ v0.0.0-20260309192222-fa54a090c6d3
 	pgregory.net/rapid v1.2.0
 )
 
