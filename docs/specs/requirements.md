@@ -2049,4 +2049,351 @@ When a new memory is created (via learn pipeline), it is auto-registered in the 
 
 ---
 
+## UC-4: Skill Generation Requirements
+
+---
+
+### REQ-92: Promotion threshold computation
+
+When computing promotion candidates, compare surfacing cost (memory loaded via keyword matching on every prompt) against skill slot cost (loaded only when context-similar). A memory is a promotion candidate when its registry surfaced_count exceeds a configurable threshold (default: 50 surfacings). The threshold is a CLI flag, not hardcoded.
+
+- Traces to: UC-4 (candidate detection)
+- AC: (1) Registry queried for memories above threshold. (2) Threshold configurable via `--threshold` flag. (3) Only memories (source_type=memory) are candidates, not other instruction types. (4) Memories with Insufficient quadrant classification are excluded.
+- Verification: deterministic (threshold comparison)
+
+---
+
+### REQ-93: Skill file generation from memory content
+
+Given a memory TOML with title, content, principle, anti_pattern, keywords, and concepts, an LLM call (claude-haiku-4-5-20251001) generates a valid Claude Code skill file. The skill's triggering description is derived from keywords/concepts. The skill body contains the memory's principle and anti_pattern as actionable guidance.
+
+- Traces to: UC-4 (skill file generation)
+- AC: (1) Generated skill file is valid YAML frontmatter + markdown body. (2) Skill description enables context-similarity matching. (3) Memory content faithfully represented (no information loss on principle/anti_pattern). (4) No API token → skip generation, return error.
+- Verification: integration (LLM call, file format validation)
+
+---
+
+### REQ-94: Plugin registration of generated skill
+
+After skill file generation, write the file to the plugin's skills directory (`skills/<slug>.md`). The plugin manifest (`plugin.json`) auto-discovers skills from the directory — no manifest update needed.
+
+- Traces to: UC-4 (plugin registration)
+- AC: (1) Skill file written to skills/ directory. (2) File name is slugified memory title. (3) File permissions are standard (0644). (4) Existing file with same name → error, not overwrite.
+- Verification: deterministic (file existence check)
+
+---
+
+### REQ-95: Source retirement via registry merge
+
+After successful promotion and user confirmation, the source memory's registry entry is merged into the new skill's entry (preserving all effectiveness counters in the absorbed array). The source memory TOML file is deleted.
+
+- Traces to: UC-4 (source retirement)
+- AC: (1) Registry.Merge called with source=memory ID, target=skill ID. (2) Source memory TOML deleted from filesystem. (3) Source registry entry removed. (4) Target's absorbed array contains source's counters. (5) If merge fails, no deletion occurs (atomic: merge before delete).
+- Verification: integration (registry merge + file deletion)
+
+---
+
+### REQ-96: User confirmation before promotion
+
+Promotion is never automatic. The system presents a preview (source memory summary, generated skill preview, effectiveness data) and requires explicit user confirmation before executing.
+
+- Traces to: UC-4 (user confirmation)
+- AC: (1) Preview displayed before any file writes. (2) User must type "y" or "yes" to confirm. (3) Any other input aborts. (4) `--yes` flag skips confirmation (for scripting). (5) Abort produces no side effects.
+- Verification: deterministic (input parsing)
+
+---
+
+### DES-33: CLI interaction for `engram promote --to-skill`
+
+New CLI subcommand: `engram promote --to-skill --data-dir <dir> [--threshold N] [--yes]`.
+
+Flow:
+1. Query registry for promotion candidates (memories above threshold).
+2. Display candidate list with surfacing count, effectiveness score, quadrant.
+3. User selects a candidate (by number or ID).
+4. LLM generates skill file; preview displayed.
+5. User confirms → skill written, registry merged, memory deleted.
+6. Output: confirmation with new skill path.
+
+No candidates → "No memories meet the promotion threshold." Exit 0 always.
+
+- Traces to: UC-4 (CLI interaction)
+- AC: (1) Subcommand registered. (2) --data-dir required. (3) Candidate list sorted by surfacing count descending. (4) Invalid selection → re-prompt. (5) Exit 0 always.
+- Verification: integration (CLI flow)
+
+---
+
+### DES-34: Generated skill file format
+
+```markdown
+---
+description: "Use when <context derived from keywords/concepts>"
+---
+
+# <Memory Title>
+
+<Memory principle as actionable guidance>
+
+## What to avoid
+
+<Memory anti_pattern, if present>
+
+## Context
+
+<Memory content — full original text>
+```
+
+Skills without anti_pattern omit the "What to avoid" section.
+
+- Traces to: UC-4 (skill file format)
+- AC: (1) YAML frontmatter with description field. (2) Markdown body with title, principle, anti_pattern (optional), content. (3) Description enables context-similarity triggering.
+- Verification: deterministic (format check)
+
+---
+
+## UC-5: CLAUDE.md Management Requirements
+
+---
+
+### REQ-97: Promotion candidate detection for CLAUDE.md
+
+Query the registry for skills in the Working quadrant with surfacing frequency above a configurable threshold (default: 100). These are universally useful skills that would benefit from always-loaded status in CLAUDE.md.
+
+- Traces to: UC-5 (promotion detection)
+- AC: (1) Only skills (source_type=skill) are candidates. (2) Must be in Working quadrant. (3) Threshold configurable via `--threshold` flag. (4) Candidates sorted by effectiveness descending.
+- Verification: deterministic (registry query + quadrant check)
+
+---
+
+### REQ-98: CLAUDE.md entry generation from skill
+
+Given a skill file, an LLM call generates a concise CLAUDE.md entry matching the project's existing CLAUDE.md style. The entry preserves the skill's core guidance in a format appropriate for always-loaded context.
+
+- Traces to: UC-5 (CLAUDE.md generation)
+- AC: (1) Generated entry matches existing CLAUDE.md style (bullet points, concise). (2) No information loss on core principle. (3) Entry includes a comment indicating source skill for traceability. (4) No API token → skip generation, return error.
+- Verification: integration (LLM call, style matching)
+
+---
+
+### REQ-99: Demotion candidate detection
+
+Query the registry for CLAUDE.md entries (source_type=claude-md) in the Leech quadrant — always loaded but rarely followed. These waste context budget and should be demoted to skills.
+
+- Traces to: UC-5 (demotion detection)
+- AC: (1) Only claude-md entries are candidates. (2) Must be in Leech quadrant (binary classification for always-loaded sources). (3) Candidates sorted by effectiveness ascending (worst first).
+- Verification: deterministic (registry query + quadrant check)
+
+---
+
+### REQ-100: Demotion execution — CLAUDE.md entry to skill
+
+Convert a CLAUDE.md entry into a skill file using the same generation logic as UC-4 (REQ-93). Remove the entry from CLAUDE.md. The CLAUDE.md file is edited in-place with the entry removed.
+
+- Traces to: UC-5 (demotion execution)
+- AC: (1) Skill file generated from CLAUDE.md entry content. (2) CLAUDE.md entry removed from file. (3) Registry merge: claude-md entry → new skill entry. (4) CLAUDE.md file written atomically (temp + rename).
+- Verification: integration (file edit + registry merge)
+
+---
+
+### REQ-101: Registry merge on tier transitions
+
+All tier transitions (promotion and demotion) preserve effectiveness history via registry merge. Source entry's counters are absorbed into target's absorbed array before source deletion.
+
+- Traces to: UC-5 (history preservation)
+- AC: (1) Same merge semantics as UC-23 REQ-63. (2) Absorbed array includes source_id, all counters, merge timestamp. (3) Idempotent — re-merge doesn't duplicate.
+- Verification: deterministic (merge output check)
+
+---
+
+### REQ-102: User confirmation for CLAUDE.md modifications
+
+All CLAUDE.md modifications (promotion and demotion) require explicit user confirmation. The system presents evidence (effectiveness data, quadrant, proposed change) before executing.
+
+- Traces to: UC-5 (user confirmation)
+- AC: (1) Diff preview shown before any file writes. (2) Explicit "y"/"yes" confirmation required. (3) `--yes` flag for scripting. (4) Abort → no side effects.
+- Verification: deterministic (input parsing)
+
+---
+
+### DES-35: CLI interaction for CLAUDE.md management
+
+Two subcommands:
+- `engram promote --to-claude-md --data-dir <dir> [--threshold N] [--yes]` — promote skill to CLAUDE.md
+- `engram demote --to-skill --data-dir <dir> [--yes]` — demote CLAUDE.md entry to skill
+
+Both follow the same flow: detect candidates → display list → user selects → preview → confirm → execute.
+
+- Traces to: UC-5 (CLI interaction)
+- AC: (1) Both subcommands registered. (2) --data-dir required. (3) No candidates → informational message, exit 0. (4) Exit 0 always.
+- Verification: integration (CLI flow)
+
+---
+
+### DES-36: Diff preview format for CLAUDE.md changes
+
+```
+[engram] Proposed CLAUDE.md change:
+
+  Action: ADD entry (promoted from skill "use-targ-build")
+  Evidence: Working quadrant, effectiveness 92%, surfaced 150 times
+
+  + ## Build System
+  + - Use `targ` for all build/test/check operations
+  + - Never run `go test`, `go vet`, `go build` directly
+  + <!-- promoted from skill:use-targ-build -->
+
+  Confirm? [y/N]
+```
+
+Demotion shows removal diff with `-` prefix.
+
+- Traces to: UC-5 (preview format)
+- AC: (1) Action and evidence shown. (2) Diff uses +/- prefix for additions/removals. (3) Source traceability comment included.
+- Verification: deterministic (format check)
+
+---
+
+## UC-24: Proposal Application Requirements
+
+---
+
+### REQ-103: Proposal ingestion from maintain output
+
+Read JSON proposals from `engram maintain` output (piped or from file via `--proposals <path>`). Each proposal has: quadrant, action, target_path, proposed_change, evidence (effectiveness, surfacing_count).
+
+- Traces to: UC-24 (proposal ingestion)
+- AC: (1) Accepts JSON array from stdin or --proposals file. (2) Validates proposal schema. (3) Invalid proposals → skip with warning. (4) Empty proposals → "No proposals to apply." exit 0.
+- Verification: deterministic (JSON parsing)
+
+---
+
+### REQ-104: Working staleness — content rewrite
+
+For Working-quadrant proposals with action "update_content", an LLM call rewrites the memory TOML content to reflect current practices. The original content is preserved in the proposal for diff display.
+
+- Traces to: UC-24 (Working staleness)
+- AC: (1) LLM receives original content + staleness evidence. (2) Rewrite preserves memory structure (title, keywords, concepts unchanged unless explicitly part of the update). (3) TOML file written atomically. (4) No API token → skip, report "skipped: no token".
+- Verification: integration (LLM call, TOML write)
+
+---
+
+### REQ-105: Leech rewrite — root-cause-informed fix
+
+For Leech-quadrant proposals with action "rewrite", an LLM call rewrites the memory content informed by the root cause diagnosis (content quality, wrong keywords, enforcement gap). Different root causes produce different rewrite strategies.
+
+- Traces to: UC-24 (Leech rewrite)
+- AC: (1) Root cause from proposal determines rewrite strategy. (2) "content_quality" → rewrite principle/anti_pattern. (3) "wrong_keywords" → adjust keywords/concepts. (4) "enforcement_gap" → add anti_pattern or strengthen existing. (5) No API token → skip.
+- Verification: integration (LLM call, strategy selection)
+
+---
+
+### REQ-106: HiddenGem keyword broadening
+
+For HiddenGem-quadrant proposals with action "broaden_keywords", an LLM call suggests additional keywords and concepts based on contexts where the memory would have been relevant but wasn't triggered.
+
+- Traces to: UC-24 (HiddenGem broadening)
+- AC: (1) LLM receives current keywords + memory content. (2) Suggestions are additive (no keywords removed). (3) Updated keywords written to TOML. (4) No API token → skip.
+- Verification: integration (LLM call, keyword addition)
+
+---
+
+### REQ-107: Noise removal — delete memory and registry entry
+
+For Noise-quadrant proposals with action "remove", delete the memory TOML file and remove its registry entry. This is deterministic — no LLM needed.
+
+- Traces to: UC-24 (Noise removal)
+- AC: (1) Memory TOML file deleted. (2) Registry entry removed via Registry.Remove. (3) User confirmation required before deletion. (4) Missing file → skip with warning.
+- Verification: deterministic (file deletion + registry removal)
+
+---
+
+### REQ-108: Registry update after proposal application
+
+After each applied proposal: content rewrites update the registry entry's content_hash (via re-registration or explicit update). Deletions remove the entry. All updates are fire-and-forget per ARCH-6.
+
+- Traces to: UC-24 (registry update)
+- AC: (1) Rewrite → content_hash updated. (2) Deletion → entry removed. (3) Registry write failures logged but don't block. (4) Updated_at timestamp set.
+- Verification: integration (registry I/O)
+
+---
+
+### REQ-109: User confirmation per proposal
+
+Each proposal requires individual user confirmation. Display the proposed change as a diff (for rewrites) or deletion summary (for removals) with evidence.
+
+- Traces to: UC-24 (user confirmation)
+- AC: (1) Each proposal confirmed individually. (2) `--yes` flag confirms all. (3) Skip ("s") skips one proposal. (4) Abort ("q") stops all remaining. (5) Applied count reported at end.
+- Verification: deterministic (input parsing)
+
+---
+
+### DES-37: CLI interaction for `engram maintain --apply`
+
+Extended subcommand: `engram maintain --apply --data-dir <dir> [--proposals <path>] [--yes]`.
+
+Flow:
+1. Generate or read proposals (stdin/file).
+2. Group by quadrant, display summary (N Working, N Leech, N HiddenGem, N Noise).
+3. Walk proposals one by one: show diff/evidence → confirm → apply.
+4. Report: "Applied N/M proposals (K skipped, J failed)."
+
+- Traces to: UC-24 (CLI interaction)
+- AC: (1) --apply flag activates application mode (without it, maintain behaves as before). (2) --data-dir required. (3) Summary before individual proposals. (4) Exit 0 always.
+- Verification: integration (CLI flow)
+
+---
+
+### DES-38: Proposal display format
+
+```
+[engram] Proposal 3/8 — Leech rewrite
+
+  Memory: use-targ-build-system.toml
+  Quadrant: Leech (effectiveness: 23%, surfaced: 45 times)
+  Root cause: content_quality
+
+  - content = "Always use targ for testing"
+  + content = "Use targ test, targ check, and targ build for all build operations. Never run raw go test, go vet, or go build — targ encodes project-specific flags and coverage thresholds."
+
+  [a]pply / [s]kip / [q]uit:
+```
+
+- Traces to: UC-24 (display format)
+- AC: (1) Proposal number and total shown. (2) Evidence includes quadrant, effectiveness, surfacing count. (3) Diff shown for rewrites. (4) Interactive prompt with a/s/q options.
+- Verification: deterministic (format check)
+
+---
+
+## UC-25: Evaluate Strip Preprocessing Requirements
+
+---
+
+### REQ-110: Strip preprocessing in evaluate pipeline
+
+The evaluate pipeline applies `sessionctx.Strip` to the transcript before sending it to the LLM for outcome evaluation. This removes tool results, base64 data, and truncated blocks — the same preprocessing used by learn (incremental) and context-update pipelines.
+
+- Traces to: UC-25 (strip injection)
+- AC: (1) Strip applied after reading transcript from stdin. (2) Same `sessionctx.Strip` function as learn and context-update. (3) Stripped content passed to Evaluator. (4) No additional configuration needed.
+- Verification: deterministic (content comparison before/after strip)
+
+---
+
+### REQ-111: Empty post-strip transcript handling
+
+If `sessionctx.Strip` produces an empty result (edge case: transcript is entirely tool results with no conversation), the evaluate pipeline skips the LLM evaluation call and returns early with no output.
+
+- Traces to: UC-25 (empty handling)
+- AC: (1) Empty post-strip transcript → no LLM call. (2) No error — graceful skip. (3) Exit 0. (4) Stderr message: "[engram] Evaluation skipped: no content after stripping."
+- Verification: deterministic (empty input test)
+
+---
+
+### DES-39: StripFunc dependency injection
+
+Strip function injected into the Evaluator as a `StripFunc func([]string) []string` option, consistent with the learn pipeline's pattern (`learn.NewIncrementalLearner` accepts `StripFunc`). Default is no-op (backward compatible). CLI wiring injects `sessionctx.Strip`.
+
+- Traces to: UC-25 (DI pattern)
+- AC: (1) Evaluator accepts `WithStripFunc` option. (2) Default strip is identity (no-op). (3) CLI wiring passes `sessionctx.Strip`. (4) Tests can inject custom strip functions.
+- Verification: deterministic (DI wiring check)
+
 ---
