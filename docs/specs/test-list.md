@@ -556,3 +556,167 @@ Then: WithStripFunc(sessionctx.Strip) is passed to evaluator
 | ARCH-68 | T-266, T-267, T-268, T-269 |
 
 All ARCH items have test coverage.
+
+---
+
+## UC-26: First-Class Non-Memory Instruction Sources Tests
+
+### T-270: Discover CLAUDE.md sources
+
+**Traces to:** ARCH-69
+
+Given: Two CLAUDE.md files exist (project and global), each with bullet items
+When: Registrar discovers sources with configured paths
+Then: Entries extracted from both files using ClaudeMDExtractor, source type "claude-md"
+
+---
+
+### T-271: Discover rule files
+
+**Traces to:** ARCH-69
+
+Given: Rules directory contains 2 rule files
+When: Registrar discovers sources
+Then: Entries extracted for each rule file using RuleExtractor, source type "rule"
+
+---
+
+### T-272: Discover skill files
+
+**Traces to:** ARCH-69
+
+Given: Skills directory contains 2 skill subdirectories with SKILL.md files
+When: Registrar discovers sources
+Then: Entries extracted for each skill using SkillExtractor, source type "skill"
+
+---
+
+### T-273: Register new entries
+
+**Traces to:** ARCH-69
+
+Given: Registry is empty, 3 sources discovered (1 claude-md, 1 rule, 1 skill)
+When: Registrar runs registration phase
+Then: Registry.Register called for each entry with correct ID, source type, content hash
+
+---
+
+### T-274: Update changed entries — content hash differs
+
+**Traces to:** ARCH-69
+
+Given: Registry has entry with ID "rule:go.md" and content hash "abc123"
+When: Registrar discovers same rule with different content (new hash "def456")
+Then: Entry updated with new content_hash and updated_at; surfaced_count and evaluations preserved
+
+---
+
+### T-275: Stale entry pruning — removes absent non-memory entries
+
+**Traces to:** ARCH-69
+
+Given: Registry has entries ["rule:go.md", "rule:deleted.md", "memory:foo.toml"]
+When: Registrar discovers only ["rule:go.md"] (deleted.md source file gone)
+Then: "rule:deleted.md" removed via Registry.Remove; "memory:foo.toml" untouched
+
+---
+
+### T-276: Memory entries never pruned
+
+**Traces to:** ARCH-69
+
+Given: Registry has memory entry "memory:old-memory.toml" not in discovered set
+When: Registrar runs pruning phase
+Then: Memory entry is NOT removed (memory pruning is UC-16 Noise removal)
+
+---
+
+### T-277: Implicit surfacing — records for always-loaded entries
+
+**Traces to:** ARCH-69
+
+Given: Registry has 3 always-loaded entries (1 claude-md, 1 rule, 1 skill)
+When: Registrar runs implicit surfacing phase
+Then: RecordSurfacing called on registry for each; LogSurfacing called on surfacing log for each with mode "session-start"
+
+---
+
+### T-278: Missing source paths silently skipped
+
+**Traces to:** ARCH-69
+
+Given: Configured CLAUDE.md path does not exist, rules dir does not exist
+When: Registrar discovers sources
+Then: No error returned; discovered set contains only entries from existing paths
+
+---
+
+### T-279: Idempotent registration — second run is no-op
+
+**Traces to:** ARCH-69
+
+Given: Registrar already ran once (3 entries registered)
+When: Registrar runs again with same source files unchanged
+Then: No new registrations, no removals, no content hash updates; surfacing incremented again (expected — once per session)
+
+---
+
+### T-280: Fire-and-forget — registration errors don't fail hook
+
+**Traces to:** ARCH-69
+
+Given: Registry.Register returns an error for one entry
+When: Registrar runs
+Then: Error logged to stderr; remaining entries still registered; no error returned from Run
+
+---
+
+### T-281: Rules classified as always-loaded
+
+**Traces to:** ARCH-70
+
+Given: Registry entry with source_type "rule", 5 evaluations (3 followed, 2 ignored)
+When: Classify is called
+Then: Returns Working (binary classification — no Hidden Gem/Noise possible)
+
+---
+
+### T-282: Skills classified as always-loaded
+
+**Traces to:** ARCH-70
+
+Given: Registry entry with source_type "skill", 5 evaluations (1 followed, 4 contradicted)
+When: Classify is called
+Then: Returns Leech (binary classification — low effectiveness, always-loaded)
+
+---
+
+### T-283: Session-start mode triggers auto-registration
+
+**Traces to:** ARCH-71
+
+Given: `engram surface --mode session-start --data-dir <dir>`
+When: CLI runs surface command
+Then: Registrar.Run is called before memory surfacing
+
+---
+
+### T-284: Non-session-start modes skip auto-registration
+
+**Traces to:** ARCH-71
+
+Given: `engram surface --mode prompt --data-dir <dir>`
+When: CLI runs surface command
+Then: Registrar.Run is NOT called; only memory surfacing executes
+
+---
+
+## L4 → ARCH Traceability (UC-26)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-69 | T-270, T-271, T-272, T-273, T-274, T-275, T-276, T-277, T-278, T-279, T-280 |
+| ARCH-70 | T-281, T-282 |
+| ARCH-71 | T-283, T-284 |
+
+All ARCH items have test coverage.
