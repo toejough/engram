@@ -2264,3 +2264,21 @@ All L2 items have ARCH coverage.
 - `internal/cli/cli.go` — `buildExtractor` function uses `crossref.InstructionExtractor` return type and all four `crossref.*Extractor` types.
 
 **Traces to:** UC-23 (registry), UC-26 (first-class non-memory sources via ARCH-69)
+
+---
+
+## ARCH-P1-1: contradict package is pure logic, no I/O (P1)
+
+`internal/contradict` contains only business logic. BM25 scoring uses the existing `internal/bm25` package. The LLM classifier is an injected interface. No file I/O, no HTTP calls, no `os.*` usage.
+
+- Traces to: UC-P1-1, ARCH-7 (DI everywhere)
+- Rationale: Keeps detection testable without mocks for I/O. LLM calls isolated behind Classifier interface.
+
+---
+
+## ARCH-P1-2: Surface package uses interface indirection for contradict (P1)
+
+Surface package does NOT import `internal/contradict` directly. It defines a local `ContradictionDetector` interface. This avoids circular imports and keeps surface package independently testable.
+
+- Traces to: UC-P1-1, ARCH-7
+- Rationale: Interface-based wiring consistent with existing surface pattern (MemoryRetriever, MemoryTracker, etc.)

@@ -1140,3 +1140,43 @@ Then: Generator.Generate IS called (existing flow unchanged)
 | ARCH-78 | T-319, T-320, T-321, T-322 |
 
 All ARCH items have test coverage.
+
+---
+
+## P1: Contradiction Detection Tests
+
+### T-P1-1: Detector returns empty for single memory
+A slice with one memory produces no pairs. (unit, contradict pkg)
+
+### T-P1-2: Heuristic fires on opposing verb pair (use/avoid)
+Memory A principle: "Always use targ". Memory B principle: "Avoid using targ". Expect pair returned. (unit)
+
+### T-P1-3: Heuristic fires on always/never pair
+Memory A: "Always add t.Parallel()". Memory B: "Never use t.Parallel() in benchmarks". Expect pair returned. (unit)
+
+### T-P1-4: Heuristic does not fire on unrelated memories
+Memory A about git commits. Memory B about test patterns. No pair. (unit)
+
+### T-P1-5: BM25 high similarity without heuristic → borderline, sent to LLM
+Two nearly-identical memories that don't trigger verb heuristic but score high BM25. Classifier called. (unit with mock)
+
+### T-P1-6: LLM budget enforced — max 3 calls
+6 borderline pairs: only first 3 trigger Classify calls. (unit with mock classifier counting calls)
+
+### T-P1-7: Classifier error treated as non-contradiction
+Classifier returns error. Pair not included in result. (unit)
+
+### T-P1-8: High-confidence pair skips LLM
+Heuristic fires AND BM25 > 0.3 → pair returned without Classify call. (unit)
+
+### T-P1-9: KindContradiction constant value is "contradiction"
+Compile-time check. (unit, signal pkg)
+
+### T-P1-10: Surface runSessionStart suppresses contradicted memory
+Mock detector returns pair (A, B). B removed from output. Signal emitted for B. (unit, surface pkg)
+
+### T-P1-11: Surface proceeds without suppression when detector is nil
+No detector set. No panic. Normal output. (unit, surface pkg)
+
+### T-P1-12: Detector with no classifier skips LLM phase
+Borderline pair: no Classify called, pair not returned. (unit)

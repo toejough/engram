@@ -728,3 +728,32 @@ Working on session continuity for engram (#45)...
 ---
 
 Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope consolidated into UC-16; proposal-application scope consolidated into UC-24. Issue #59 (BM25) already implemented. Archives in issue #18.
+
+---
+
+## UC-P1-1: Cross-Source Contradiction Detection
+
+**Description:** At surface time, detect when two or more memories in the top-N selection contradict each other (e.g., one says "always use X", another says "never use X"). Suppress the lower-ranked contradicting memory and emit a `KindContradiction` signal so the user can review and reconcile.
+
+**Actor:** Surface pipeline (automatic, read-only)
+
+**Starting state:** Top-N memories have been ranked by frecency. No contradiction check exists.
+
+**End state:** Contradicting memory pairs are identified via a two-pass heuristic + optional LLM classifier. The lower-ranked memory of each pair is suppressed from the surfaced output. A `KindContradiction` signal is emitted for each suppressed memory so it appears in `engram review`.
+
+**Key interactions:**
+1. Post-ranking: `Detector.Check(ctx, topN)` runs after frecency sort and before output formatting.
+2. Pass 1 — keyword heuristic: For each pair (A, B), concatenate principle+title+content. Check if they share subject tokens and contain opposing verb patterns (use/avoid, always/never, do/don't, is/isn't, enable/disable). Flag as candidate contradiction if heuristic fires.
+3. Pass 2 — BM25 similarity: Score A against B's text. If BM25 score > threshold and heuristic flagged the pair, mark high-confidence. If only BM25 is high (no heuristic), mark as borderline.
+4. LLM classifier fallback (max 3 calls per surface event): For borderline pairs, call injected `Classifier.Classify(ctx, a, b)` to confirm. High-confidence pairs from step 3 skip LLM.
+5. For each confirmed contradicting pair: suppress the lower-ranked (later in sorted slice) memory from output.
+6. Emit `KindContradiction` signal for each suppressed memory into the proposal queue.
+
+**Constraints:**
+1. Read-only — no memory writes during detection
+2. Max 3 LLM calls per surface event (budget enforced by Detector)
+3. DI everywhere — LLM classifier is an injected interface
+4. Fire-and-forget — if detector errors, proceed without suppression
+5. Only runs on top-N selection (post-ranking), not all memories
+
+**Dependencies:** UC-2 (surfacing), UC-28 (signal queue for KindContradiction)

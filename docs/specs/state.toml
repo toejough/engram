@@ -1221,3 +1221,20 @@ node = "L5W"
 mode = "complete"
 next_action = "P2 fully implemented. PreCompact memory re-injection complete."
 context_files = ["docs/specs/state.toml"]
+
+# P1: Contradiction detection
+
+[layers.L1.p1]
+items = ["UC-P1-1"]
+
+[layers.L2.p1]
+items = ["REQ-P1-1", "REQ-P1-2", "REQ-P1-3", "REQ-P1-4", "REQ-P1-5", "DES-P1-1", "DES-P1-2", "DES-P1-5"]
+
+[layers.L3.p1]
+items = [
+  { id = "ARCH-P1-1", source = "derived" },
+  { id = "ARCH-P1-2", source = "derived" },
+]
+
+[layers.L4.p1]
+items = ["T-P1-1", "T-P1-2", "T-P1-3", "T-P1-4", "T-P1-5", "T-P1-6", "T-P1-7", "T-P1-8", "T-P1-9", "T-P1-10", "T-P1-11", "T-P1-12"]
