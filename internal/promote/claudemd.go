@@ -38,6 +38,8 @@ type ClaudeMDPromoter struct {
 	Registerer     RegistryRegisterer
 	Confirmer      Confirmer
 	SkillLoader    func(path string) (SkillContent, error)
+	Content        string // Pre-generated entry content (ARCH-78); skips EntryGenerator.
+	SkipConfirm    bool   // Skip Confirmer.Confirm (ARCH-78).
 }
 
 // Demote executes CLAUDE.md->skill demotion for a single candidate.
@@ -71,18 +73,25 @@ func (p *ClaudeMDPromoter) Demote(
 		Keywords: []string{Slugify(entry.Title)},
 	}
 
-	skillContent, err := p.SkillGenerator.Generate(ctx, mem)
-	if err != nil {
-		return fmt.Errorf("generating skill: %w", err)
+	skillContent := p.Content
+	if skillContent == "" {
+		generated, genErr := p.SkillGenerator.Generate(ctx, mem)
+		if genErr != nil {
+			return fmt.Errorf("generating skill: %w", genErr)
+		}
+
+		skillContent = generated
 	}
 
-	confirmed, err := p.Confirmer.Confirm(skillContent)
-	if err != nil {
-		return fmt.Errorf("confirming demotion: %w", err)
-	}
+	if !p.SkipConfirm {
+		confirmed, confirmErr := p.Confirmer.Confirm(skillContent)
+		if confirmErr != nil {
+			return fmt.Errorf("confirming demotion: %w", confirmErr)
+		}
 
-	if !confirmed {
-		return nil
+		if !confirmed {
+			return nil
+		}
 	}
 
 	skillName := Slugify(entry.Title)
@@ -183,18 +192,25 @@ func (p *ClaudeMDPromoter) Promote(
 		return fmt.Errorf("reading CLAUDE.md: %w", err)
 	}
 
-	generatedEntry, err := p.EntryGenerator.Generate(ctx, skill, existing)
-	if err != nil {
-		return fmt.Errorf("generating entry: %w", err)
+	generatedEntry := p.Content
+	if generatedEntry == "" {
+		generated, genErr := p.EntryGenerator.Generate(ctx, skill, existing)
+		if genErr != nil {
+			return fmt.Errorf("generating entry: %w", genErr)
+		}
+
+		generatedEntry = generated
 	}
 
-	confirmed, err := p.Confirmer.Confirm(generatedEntry)
-	if err != nil {
-		return fmt.Errorf("confirming promotion: %w", err)
-	}
+	if !p.SkipConfirm {
+		confirmed, confirmErr := p.Confirmer.Confirm(generatedEntry)
+		if confirmErr != nil {
+			return fmt.Errorf("confirming promotion: %w", confirmErr)
+		}
 
-	if !confirmed {
-		return nil
+		if !confirmed {
+			return nil
+		}
 	}
 
 	updated, err := p.Editor.AddEntry(existing, generatedEntry)

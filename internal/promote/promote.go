@@ -45,6 +45,8 @@ type Promoter struct {
 	Registerer   RegistryRegisterer
 	Confirmer    Confirmer
 	MemoryLoader func(path string) (*MemoryContent, error)
+	Content      string // Pre-generated skill content (ARCH-78); skips Generator.
+	SkipConfirm  bool   // Skip Confirmer.Confirm (ARCH-78).
 }
 
 // Candidates returns memory entries eligible for skill promotion,
@@ -89,7 +91,7 @@ func (p *Promoter) Candidates(threshold int) ([]Candidate, error) {
 
 // Promote executes the full promotion flow for a single candidate.
 //
-//nolint:cyclop // promotion orchestration
+//nolint:cyclop,funlen // promotion orchestration
 func (p *Promoter) Promote(ctx context.Context, candidateID string) error {
 	entry, err := p.Registry.Get(candidateID)
 	if err != nil {
@@ -105,18 +107,25 @@ func (p *Promoter) Promote(ctx context.Context, candidateID string) error {
 		return fmt.Errorf("loading memory: %w", err)
 	}
 
-	skillContent, err := p.Generator.Generate(ctx, *mem)
-	if err != nil {
-		return fmt.Errorf("generating skill: %w", err)
+	skillContent := p.Content
+	if skillContent == "" {
+		generated, genErr := p.Generator.Generate(ctx, *mem)
+		if genErr != nil {
+			return fmt.Errorf("generating skill: %w", genErr)
+		}
+
+		skillContent = generated
 	}
 
-	confirmed, err := p.Confirmer.Confirm(skillContent)
-	if err != nil {
-		return fmt.Errorf("confirming promotion: %w", err)
-	}
+	if !p.SkipConfirm {
+		confirmed, confirmErr := p.Confirmer.Confirm(skillContent)
+		if confirmErr != nil {
+			return fmt.Errorf("confirming promotion: %w", confirmErr)
+		}
 
-	if !confirmed {
-		return nil
+		if !confirmed {
+			return nil
+		}
 	}
 
 	skillName := Slugify(mem.Title)

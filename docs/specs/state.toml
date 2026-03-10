@@ -1146,39 +1146,39 @@ history = "Symlink block added to hooks/session-start.sh after binary build step
 layer = "L1"
 name = "Automatic Maintenance and Promotion Triggers"
 items = ["UC-28"]
-status = "pending"
-history = "Issue #75. Close the feedback loop by auto-detecting maintenance/promotion signals and enabling model-driven application."
+status = "complete"
+history = "Issue #75. Close the feedback loop by auto-detecting maintenance/promotion signals and enabling model-driven application. Implemented in Phase A (specs), Phase B (internal/signal/), Phase C (CLI: signal-detect, signal-surface, apply-proposal, promote --content/--yes), Phase D (hooks: stop.sh, session-start.sh). All tests pass, targ check-full green."
 
 [tree.L2V]
 layer = "L2"
 name = "Automatic Triggers Requirements"
 parents = ["L1V"]
 items = ["REQ-123", "REQ-124", "REQ-125", "REQ-126", "REQ-127", "REQ-128", "REQ-129", "DES-43", "DES-44", "DES-45", "DES-46"]
-status = "pending"
+status = "complete"
 
 [tree.L3V]
 layer = "L3"
 name = "Automatic Triggers Architecture"
 parents = ["L2V"]
 items = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-status = "pending"
+status = "complete"
 
 [tree.L4V]
 layer = "L4"
 name = "Automatic Triggers Tests"
 parents = ["L3V"]
 items = ["T-291", "T-292", "T-293", "T-294", "T-295", "T-296", "T-297", "T-298", "T-299", "T-300", "T-301", "T-302", "T-303", "T-304", "T-305", "T-306", "T-307", "T-309", "T-310", "T-311", "T-312", "T-313", "T-314", "T-315", "T-316", "T-317", "T-318", "T-319", "T-320", "T-321", "T-322"]
-status = "pending"
+status = "complete"
 
 [tree.L5V]
 layer = "L5"
 name = "Automatic Triggers Implementation"
 parents = ["L4V"]
 items = ["T-291", "T-292", "T-293", "T-294", "T-295", "T-296", "T-297", "T-298", "T-299", "T-300", "T-301", "T-302", "T-303", "T-304", "T-305", "T-306", "T-307", "T-309", "T-310", "T-311", "T-312", "T-313", "T-314", "T-315", "T-316", "T-317", "T-318", "T-319", "T-320", "T-321", "T-322"]
-status = "pending"
+status = "complete"
 
 [cursor]
 node = "L5V"
-mode = "implement"
-next_action = "Implement UC-28: internal/signal/ package (detector, queue, apply, surface), CLI wiring, hook integration, promote --content/--yes."
+mode = "complete"
+next_action = "UC-28 fully implemented. All phases A-D complete."
 context_files = ["docs/specs/state.toml"]

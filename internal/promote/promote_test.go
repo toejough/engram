@@ -628,6 +628,127 @@ func TestT246_PromoteFlowUserDeclines(t *testing.T) {
 	g.Expect(registerer.registered).To(BeEmpty())
 }
 
+// TestT319_PromoteUsesPreGeneratedContent verifies Promoter.Promote uses Content
+// when set, skipping the Generator (ARCH-78).
+func TestT319_PromoteUsesPreGeneratedContent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+				Evaluations: registry.EvaluationCounters{
+					Followed:     5,
+					Contradicted: 0,
+					Ignored:      0,
+				},
+				SurfacedCount: 10,
+			},
+		},
+	}
+
+	writer := &fakeWriter{written: make(map[string]string)}
+	merger := &fakeMerger{}
+	registerer := &fakeRegisterer{}
+	remover := &fakeRemover{}
+
+	generatorCalled := false
+	generatorSpy := &spyGenerator{
+		onGenerate: func() { generatorCalled = true },
+		content:    "generated content",
+	}
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  generatorSpy,
+		Writer:     writer,
+		Merger:     merger,
+		Remover:    remover,
+		Registerer: registerer,
+		Confirmer:  &fakeConfirmer{response: true},
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{Title: "Test", Content: "c", Keywords: []string{"k"}}, nil
+		},
+		Content:     "pre-built skill content",
+		SkipConfirm: true,
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Generator must not have been called.
+	g.Expect(generatorCalled).To(BeFalse())
+
+	// Content written should be the pre-built content.
+	for _, written := range writer.written {
+		g.Expect(written).To(Equal("pre-built skill content"))
+	}
+}
+
+// TestT320_PromoteSkipsConfirmWithSkipConfirm verifies Promoter.Promote skips
+// Confirmer when SkipConfirm is true (ARCH-78).
+func TestT320_PromoteSkipsConfirmWithSkipConfirm(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "memory:test.toml",
+				SourceType: "memory",
+				SourcePath: "memories/test.toml",
+				Title:      "Test",
+				Evaluations: registry.EvaluationCounters{
+					Followed:     5,
+					Contradicted: 0,
+					Ignored:      0,
+				},
+				SurfacedCount: 10,
+			},
+		},
+	}
+
+	writer := &fakeWriter{written: make(map[string]string)}
+	merger := &fakeMerger{}
+	registerer := &fakeRegisterer{}
+	remover := &fakeRemover{}
+
+	// Confirmer returns false — but SkipConfirm=true should bypass it.
+	confirmer := &fakeConfirmer{response: false}
+
+	promoter := &promote.Promoter{
+		Registry:   reg,
+		Generator:  &fakeGenerator{content: "skill content"},
+		Writer:     writer,
+		Merger:     merger,
+		Remover:    remover,
+		Registerer: registerer,
+		Confirmer:  confirmer,
+		MemoryLoader: func(_ string) (*promote.MemoryContent, error) {
+			return &promote.MemoryContent{Title: "Test", Content: "c", Keywords: []string{"k"}}, nil
+		},
+		SkipConfirm: true,
+	}
+
+	err := promoter.Promote(context.Background(), "memory:test.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Promotion must have happened (writer was called).
+	g.Expect(writer.written).NotTo(BeEmpty())
+}
+
 // fakeConfirmer implements Confirmer.
 type fakeConfirmer struct {
 	response bool
@@ -759,6 +880,21 @@ func (f *fakeWriter) Write(name, content string) (string, error) {
 type mergeCall struct {
 	sourceID string
 	targetID string
+}
+
+// spyGenerator tracks calls to Generate.
+type spyGenerator struct {
+	onGenerate func()
+	content    string
+	err        error
+}
+
+func (s *spyGenerator) Generate(_ context.Context, _ promote.MemoryContent) (string, error) {
+	if s.onGenerate != nil {
+		s.onGenerate()
+	}
+
+	return s.content, s.err
 }
 
 func makeMemoryEntry(id string, surfacedCount, followed, ignored int) registry.InstructionEntry {

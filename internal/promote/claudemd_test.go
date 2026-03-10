@@ -887,6 +887,107 @@ func TestT255_DemotionCandidatesLeechEntriesListed(t *testing.T) {
 	g.Expect(candidates[0].Entry.ID).To(Equal("claude-md:bad-rule"))
 }
 
+// TestT321_ClaudeMDPromoteUsesPreGeneratedContent verifies ClaudeMDPromoter.Promote
+// uses Content when set, skipping EntryGenerator (ARCH-78).
+func TestT321_ClaudeMDPromoteUsesPreGeneratedContent(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	store := &fakeStore{content: "# Project"}
+
+	generatorCalled := false
+	entryGen := &spyEntryGenerator{
+		onGenerate: func() { generatorCalled = true },
+		entry:      "generated entry",
+	}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          store,
+		Editor:         &promote.SectionEditor{},
+		EntryGenerator: entryGen,
+		Confirmer:      &fakeConfirmerFalse{},
+		Merger:         &fakeMergerClaudeMD{},
+		Registerer:     &fakeRegistererClaudeMD{},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+		Content:     "## Pre-Built\n\npre-built content",
+		SkipConfirm: true,
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// EntryGenerator must not have been called.
+	g.Expect(generatorCalled).To(BeFalse())
+
+	// Store should have been written with pre-built content.
+	g.Expect(store.written).To(ContainSubstring("Pre-Built"))
+}
+
+// TestT322_ClaudeMDPromoteSkipsConfirmWithSkipConfirm verifies ClaudeMDPromoter.Promote
+// skips Confirmer when SkipConfirm is true (ARCH-78).
+func TestT322_ClaudeMDPromoteSkipsConfirmWithSkipConfirm(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	reg := &fakeRegistry{
+		entries: []registry.InstructionEntry{
+			{
+				ID:         "skill:test",
+				SourceType: "skill",
+				SourcePath: "skills/test.md",
+				Title:      "Test",
+			},
+		},
+	}
+
+	store := &fakeStore{content: "# Project"}
+
+	// Confirmer always returns false — should be bypassed by SkipConfirm.
+	confirmer := &fakeConfirmerFalse{}
+
+	promoter := &promote.ClaudeMDPromoter{
+		Registry:       reg,
+		Store:          store,
+		Editor:         &promote.SectionEditor{},
+		EntryGenerator: &fakeEntryGenerator{entry: "## Test\n\ncontent"},
+		Confirmer:      confirmer,
+		Merger:         &fakeMergerClaudeMD{},
+		Registerer:     &fakeRegistererClaudeMD{},
+		SkillLoader: func(_ string) (promote.SkillContent, error) {
+			return promote.SkillContent{Title: "Test", Content: "c"}, nil
+		},
+		SkipConfirm: true,
+	}
+
+	err := promoter.Promote(context.Background(), "skill:test")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Store must have been written — promotion actually happened.
+	g.Expect(store.written).NotTo(BeEmpty())
+}
+
 // fakeConfirmerErr always returns an error.
 type fakeConfirmerErr struct {
 	err error
@@ -894,6 +995,13 @@ type fakeConfirmerErr struct {
 
 func (f *fakeConfirmerErr) Confirm(_ string) (bool, error) {
 	return false, f.err
+}
+
+// fakeConfirmerFalse always returns false (decline) without error.
+type fakeConfirmerFalse struct{}
+
+func (f *fakeConfirmerFalse) Confirm(_ string) (bool, error) {
+	return false, nil
 }
 
 // fakeEditorExtractErr returns an error on ExtractEntry.
@@ -943,6 +1051,16 @@ func (f *fakeEntryGenerator) Generate(
 	return f.entry, f.err
 }
 
+// fakeMergerClaudeMD is a no-op RegistryMerger.
+type fakeMergerClaudeMD struct{}
+
+func (f *fakeMergerClaudeMD) Merge(_, _ string) error { return nil }
+
+// fakeRegistererClaudeMD is a no-op RegistryRegisterer.
+type fakeRegistererClaudeMD struct{}
+
+func (f *fakeRegistererClaudeMD) Register(_ registry.InstructionEntry) error { return nil }
+
 // fakeRegistryNilGet returns nil entry and nil error from Get.
 type fakeRegistryNilGet struct{}
 
@@ -969,6 +1087,23 @@ func (f *fakeStore) Write(content string) error {
 	f.written = content
 
 	return f.writeErr
+}
+
+// spyEntryGenerator tracks calls to Generate.
+type spyEntryGenerator struct {
+	onGenerate func()
+	entry      string
+	err        error
+}
+
+func (s *spyEntryGenerator) Generate(
+	_ context.Context, _ promote.SkillContent, _ string,
+) (string, error) {
+	if s.onGenerate != nil {
+		s.onGenerate()
+	}
+
+	return s.entry, s.err
 }
 
 func makeClaudeMDEntry(

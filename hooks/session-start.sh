@@ -43,6 +43,9 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
+# UC-28: Surface pending maintenance/promotion signals
+SIGNAL_OUTPUT=$("$ENGRAM_BIN" signal-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
+
 # UC-14: Restore session context (project-specific path)
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 CONTEXT_FILE="${ENGRAM_DATA}/projects/${PROJECT_SLUG}/session-context.md"
@@ -55,14 +58,21 @@ fi
 # Static guidance for mid-turn message capture (issue #54)
 MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
 
+SIGNAL_CTX=""
+if [[ -n "$SIGNAL_OUTPUT" ]]; then
+    SIGNAL_CTX=$(echo "$SIGNAL_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
+fi
+
 if [[ -n "$SURFACE_OUTPUT" ]]; then
     echo "$SURFACE_OUTPUT" | jq \
         --arg note "$MIDTURN_NOTE" \
         --arg ctx "$SESSION_CONTEXT" \
-        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end))}'
+        --arg sig "$SIGNAL_CTX" \
+        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end))}'
 else
     jq -n \
         --arg note "$MIDTURN_NOTE" \
         --arg ctx "$SESSION_CONTEXT" \
-        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end))}'
+        --arg sig "$SIGNAL_CTX" \
+        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end))}'
 fi

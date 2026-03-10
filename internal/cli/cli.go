@@ -115,7 +115,7 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
 //
-//nolint:cyclop // CLI dispatch switch
+//nolint:cyclop,funlen // CLI dispatch switch
 func Run(
 	args []string,
 	stdout, stderr io.Writer,
@@ -153,6 +153,12 @@ func Run(
 		return runContextUpdate(subArgs)
 	case "promote":
 		return runPromote(subArgs, stdout, stdin)
+	case "signal-detect":
+		return runSignalDetect(subArgs)
+	case "signal-surface":
+		return runSignalSurface(subArgs, stdout)
+	case "apply-proposal":
+		return runApplyProposal(subArgs, stdout)
 	case "demote":
 		return runDemote(subArgs, stdout, stdin)
 	case "registry":
@@ -2222,6 +2228,7 @@ func runPromote(args []string, stdout io.Writer, stdin io.Reader) error {
 	toClaudeMD := fs.Bool("to-claude-md", false, "promote skill to CLAUDE.md")
 	threshold := fs.Int("threshold", defaultPromoteThreshold, "minimum surfaced_count")
 	autoConfirm := fs.Bool("yes", false, "skip confirmation prompt")
+	content := fs.String("content", "", "pre-generated content (ARCH-78)")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -2240,10 +2247,16 @@ func runPromote(args []string, stdout io.Writer, stdin io.Reader) error {
 	}
 
 	if *toClaudeMD {
-		return runPromoteToClaudeMD(reg, confirmer, *dataDir, *threshold, stdout)
+		return runPromoteToClaudeMD(
+			reg, confirmer, *dataDir, *threshold, stdout,
+			*content, *autoConfirm,
+		)
 	}
 
-	return runPromoteToSkill(reg, confirmer, *dataDir, *threshold, stdout)
+	return runPromoteToSkill(
+		reg, confirmer, *dataDir, *threshold, stdout,
+		*content, *autoConfirm,
+	)
 }
 
 func runPromoteToClaudeMD(
@@ -2252,6 +2265,8 @@ func runPromoteToClaudeMD(
 	dataDir string,
 	threshold int,
 	stdout io.Writer,
+	content string,
+	skipConfirm bool,
 ) error {
 	claudeMDPath := filepath.Join(dataDir, "CLAUDE.md")
 	skillsDir := filepath.Join(dataDir, "skills")
@@ -2266,6 +2281,8 @@ func runPromoteToClaudeMD(
 		Registerer:     reg,
 		Confirmer:      confirmer,
 		SkillLoader:    loadSkillContent,
+		Content:        content,
+		SkipConfirm:    skipConfirm,
 	}
 
 	candidates, err := promoter.PromotionCandidates(threshold)
@@ -2304,6 +2321,8 @@ func runPromoteToSkill(
 	dataDir string,
 	threshold int,
 	stdout io.Writer,
+	content string,
+	skipConfirm bool,
 ) error {
 	retriever := retrieve.New()
 	skillsDir := filepath.Join(dataDir, "skills")
@@ -2319,6 +2338,8 @@ func runPromoteToSkill(
 		MemoryLoader: func(path string) (*promote.MemoryContent, error) {
 			return loadMemoryContent(retriever, path)
 		},
+		Content:     content,
+		SkipConfirm: skipConfirm,
 	}
 
 	candidates, err := promoter.Candidates(threshold)
