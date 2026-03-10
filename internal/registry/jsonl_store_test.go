@@ -719,6 +719,190 @@ func TestTP0a2_LoadBackfillsMissingEnforcementLevelToAdvisory(t *testing.T) {
 	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
 }
 
+// traces: T-P0b-1
+func TestTP0b1_SetEnforcementLevelRecordsTransition(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	now := time.Date(2026, 3, 10, 9, 0, 0, 0, time.UTC)
+	store := emptyStoreWithClock(func() time.Time { return now })
+
+	err := store.Register(registry.InstructionEntry{ID: "p0b-1", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.SetEnforcementLevel("p0b-1", registry.EnforcementEmphasizedAdvisory,
+		"low effectiveness after 5 surfacings")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("p0b-1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementEmphasizedAdvisory))
+	g.Expect(got.Transitions).To(HaveLen(1))
+	g.Expect(got.Transitions[0].From).To(Equal(registry.EnforcementAdvisory))
+	g.Expect(got.Transitions[0].To).To(Equal(registry.EnforcementEmphasizedAdvisory))
+	g.Expect(got.Transitions[0].At).To(Equal(now))
+	g.Expect(got.Transitions[0].Reason).To(Equal("low effectiveness after 5 surfacings"))
+}
+
+// traces: T-P0b-2
+func TestTP0b2_SetEnforcementLevelSameLevelNoTransition(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	err := store.Register(registry.InstructionEntry{ID: "p0b-2", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Setting same level (advisory → advisory) should not record a transition.
+	err = store.SetEnforcementLevel("p0b-2", registry.EnforcementAdvisory, "no change")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("p0b-2")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Transitions).To(BeEmpty())
+}
+
+// traces: T-P0b-3
+func TestTP0b3_SetEnforcementLevelAccumulatesHistory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	tick := 0
+	times := []time.Time{
+		time.Date(2026, 3, 10, 9, 0, 0, 0, time.UTC),
+		time.Date(2026, 3, 11, 9, 0, 0, 0, time.UTC),
+	}
+	store := emptyStoreWithClock(func() time.Time {
+		current := times[tick]
+
+		if tick < len(times)-1 {
+			tick++
+		}
+
+		return current
+	})
+
+	err := store.Register(registry.InstructionEntry{ID: "p0b-3", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementEmphasizedAdvisory, "first escalation")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementReminder, "second escalation")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("p0b-3")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementReminder))
+	g.Expect(got.Transitions).To(HaveLen(2))
+	g.Expect(got.Transitions[0].From).To(Equal(registry.EnforcementAdvisory))
+	g.Expect(got.Transitions[0].To).To(Equal(registry.EnforcementEmphasizedAdvisory))
+	g.Expect(got.Transitions[1].From).To(Equal(registry.EnforcementEmphasizedAdvisory))
+	g.Expect(got.Transitions[1].To).To(Equal(registry.EnforcementReminder))
+}
+
+// traces: T-P0b-4
+func TestTP0b4_TransitionsRoundTripThroughJSONL(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	transitionAt := time.Date(2026, 3, 10, 9, 0, 0, 0, time.UTC)
+
+	// Construct JSONL with an existing transition.
+	entry := registry.InstructionEntry{
+		ID:               "p0b-4",
+		SourceType:       "memory",
+		EnforcementLevel: registry.EnforcementEmphasizedAdvisory,
+		Transitions: []registry.EnforcementTransition{
+			{
+				From:   registry.EnforcementAdvisory,
+				To:     registry.EnforcementEmphasizedAdvisory,
+				At:     transitionAt,
+				Reason: "persisted reason",
+			},
+		},
+	}
+
+	line, err := json.Marshal(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	store := registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return append(line, '\n'), nil
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+
+	got, err := store.Get("p0b-4")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Transitions).To(HaveLen(1))
+	g.Expect(got.Transitions[0].From).To(Equal(registry.EnforcementAdvisory))
+	g.Expect(got.Transitions[0].To).To(Equal(registry.EnforcementEmphasizedAdvisory))
+	g.Expect(got.Transitions[0].At).To(Equal(transitionAt))
+	g.Expect(got.Transitions[0].Reason).To(Equal("persisted reason"))
+}
+
+// traces: T-P0b-5
+func TestTP0b5_SetEnforcementLevelNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	err := store.SetEnforcementLevel("missing", registry.EnforcementReminder, "reason")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrNotFound)).To(BeTrue())
+}
+
+// Remove returns ErrNotFound for nonexistent ID.
+
 // --- Helpers ---
 
 func emptyStore() *registry.JSONLStore {
@@ -743,5 +927,3 @@ func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
 		registry.WithNow(clock),
 	)
 }
-
-// Remove returns ErrNotFound for nonexistent ID.
