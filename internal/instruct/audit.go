@@ -11,11 +11,10 @@ import (
 
 // AuditReport is the full output of the instruction quality audit pipeline.
 type AuditReport struct {
-	Duplicates []DuplicatePair  `json:"duplicates"`
-	Diagnoses  json.RawMessage  `json:"diagnoses"`
-	Proposals  json.RawMessage  `json:"proposals"`
-	Gaps       []GapCandidate   `json:"gaps"`
-	Skills     []SkillLineIssue `json:"skills"`
+	Duplicates []DuplicatePair `json:"duplicates"`
+	Diagnoses  json.RawMessage `json:"diagnoses"`
+	Proposals  json.RawMessage `json:"proposals"`
+	Gaps       []GapCandidate  `json:"gaps"`
 }
 
 // Auditor runs the instruction quality audit pipeline.
@@ -182,46 +181,8 @@ func (a *Auditor) findGaps(items []InstructionItem) []GapCandidate {
 	return gaps
 }
 
-// findSkillIssues identifies skill file lines with low follow rates.
-func (a *Auditor) findSkillIssues(items []InstructionItem) []SkillLineIssue {
-	issues := make([]SkillLineIssue, 0)
-
-	if a.Scanner.EffData == nil {
-		return issues
-	}
-
-	for _, item := range items {
-		if item.Source != SourceSkill {
-			continue
-		}
-
-		lines := strings.Split(item.Content, "\n")
-		for lineIdx, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if trimmed == "" {
-				continue
-			}
-
-			lineKey := fmt.Sprintf("%s:%d", item.Path, lineIdx+1)
-			rate, exists := a.Scanner.EffData[lineKey]
-
-			if exists && rate < lowFollowRatePercent {
-				issues = append(issues, SkillLineIssue{
-					Path:       item.Path,
-					LineNumber: lineIdx + 1,
-					Content:    trimmed,
-					FollowRate: rate,
-				})
-			}
-		}
-	}
-
-	return issues
-}
-
 func (a *Auditor) finishReport(report *AuditReport, items []InstructionItem) *AuditReport {
 	report.Gaps = a.findGaps(items)
-	report.Skills = a.findSkillIssues(items)
 
 	return report
 }
@@ -236,14 +197,13 @@ type Diagnosis struct {
 	Suggestion string `json:"suggestion"`
 }
 
-// DuplicatePair identifies two instructions with overlapping content.
+// DuplicatePair identifies two memory instructions with overlapping content.
 //
 //nolint:tagliatelle // external JSON API contract
 type DuplicatePair struct {
-	PathA      string  `json:"path_a"`
-	PathB      string  `json:"path_b"`
-	Overlap    float64 `json:"overlap"`
-	KeepSource string  `json:"keep_source"`
+	PathA   string  `json:"path_a"`
+	PathB   string  `json:"path_b"`
+	Overlap float64 `json:"overlap"`
 }
 
 // EvalRecord captures the outcome of evaluating a memory against a transcript.
@@ -278,16 +238,6 @@ type RefinementProposal struct {
 	Suggestion string `json:"suggestion"`
 }
 
-// SkillLineIssue identifies a specific line in a skill file with a low follow rate.
-//
-//nolint:tagliatelle // external JSON API contract
-type SkillLineIssue struct {
-	Path       string  `json:"path"`
-	LineNumber int     `json:"line_number"`
-	Content    string  `json:"content"`
-	FollowRate float64 `json:"follow_rate"`
-}
-
 // SkippedSection records a section that was excluded from auditing.
 //
 //nolint:tagliatelle // external JSON API contract
@@ -301,9 +251,8 @@ const (
 	diagnosisPrompt  = "You are diagnosing why an instruction is ineffective. Common root causes:\n" +
 		"- Too abstract, framing mismatch, missing trigger, too narrow, too verbose\n" +
 		"Output JSON: {\"diagnosis\": \"...\", \"root_cause\": \"...\", \"suggestion\": \"...\"}"
-	dupThreshold         = 0.80
-	haikuModel           = "claude-haiku-4-5-20251001"
-	lowFollowRatePercent = 20.0
+	dupThreshold = 0.80
+	haikuModel   = "claude-haiku-4-5-20251001"
 )
 
 // diagnosisResponse is the expected JSON from the LLM.
@@ -345,7 +294,7 @@ func extractKeywords(content string) map[string]bool {
 	return keywords
 }
 
-// findDuplicates detects instruction pairs with >80% keyword overlap.
+// findDuplicates detects memory pairs with >80% keyword overlap.
 func findDuplicates(items []InstructionItem) []DuplicatePair {
 	pairs := make([]DuplicatePair, 0)
 
@@ -357,16 +306,10 @@ func findDuplicates(items []InstructionItem) []DuplicatePair {
 			overlap := keywordOverlap(kwA, kwB)
 
 			if overlap > dupThreshold {
-				keep := items[i].Path
-				if salienceRank[items[j].Source] < salienceRank[items[i].Source] {
-					keep = items[j].Path
-				}
-
 				pairs = append(pairs, DuplicatePair{
-					PathA:      items[i].Path,
-					PathB:      items[j].Path,
-					Overlap:    overlap,
-					KeepSource: keep,
+					PathA:   items[i].Path,
+					PathB:   items[j].Path,
+					Overlap: overlap,
 				})
 			}
 		}

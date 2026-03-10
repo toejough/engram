@@ -12,21 +12,21 @@ import (
 	"engram/internal/instruct"
 )
 
-// T-217: Deduplication detects >80% keyword overlap.
+// T-217: Deduplication detects >80% keyword overlap between memories.
 func TestAuditRun_DeduplicatesOverlappingInstructions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	// Two instructions with ~90% keyword overlap but different sources
+	// Two memory instructions with ~90% keyword overlap
 	contentA := "always use fish shell for terminal commands in this project"
 	contentB := "always use fish shell for terminal commands in every project"
 
 	scanner := &instruct.Scanner{
 		ReadFile: func(path string) ([]byte, error) {
 			switch path {
-			case "/project/CLAUDE.md":
+			case "/data/memories/shell-a.toml":
 				return []byte(contentA), nil
-			case "/data/memories/shell.toml":
+			case "/data/memories/shell-b.toml":
 				return []byte(contentB), nil
 			}
 
@@ -34,7 +34,7 @@ func TestAuditRun_DeduplicatesOverlappingInstructions(t *testing.T) {
 		},
 		GlobFiles: func(pattern string) ([]string, error) {
 			if pattern == "/data/memories/*.toml" {
-				return []string{"/data/memories/shell.toml"}, nil
+				return []string{"/data/memories/shell-a.toml", "/data/memories/shell-b.toml"}, nil
 			}
 
 			return nil, nil
@@ -62,8 +62,6 @@ func TestAuditRun_DeduplicatesOverlappingInstructions(t *testing.T) {
 
 	g.Expect(report.Duplicates).To(HaveLen(1))
 	g.Expect(report.Duplicates[0].Overlap).To(BeNumerically(">", 0.80))
-	// CLAUDE.md has higher salience → keep it
-	g.Expect(report.Duplicates[0].KeepSource).To(Equal("/project/CLAUDE.md"))
 }
 
 // diagnoseBottom returns error when LLM call fails.
@@ -607,79 +605,6 @@ func TestAuditRun_FindsGapCandidates(t *testing.T) {
 	g.Expect(patterns).To(ContainElements("gap_pattern_a", "gap_pattern_b"))
 }
 
-// T-221: Skill decomposition identifies low-effectiveness lines.
-func TestAuditRun_FlagsLowEffectivenessSkillLines(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	skillContent := "line one\nline two\nline three\nline four\nline five\n" +
-		"line six\nline seven\nline eight\nline nine\nline ten"
-
-	files := map[string]string{
-		"/project/.claude-plugin/skills/test.md": skillContent,
-	}
-
-	const (
-		lowRate1 = 10.0
-		lowRate2 = 15.0
-		lowRate3 = 5.0
-	)
-
-	effData := map[string]float64{
-		"/project/.claude-plugin/skills/test.md:2":  lowRate1,
-		"/project/.claude-plugin/skills/test.md:5":  lowRate2,
-		"/project/.claude-plugin/skills/test.md:9":  lowRate3,
-		"/project/.claude-plugin/skills/test.md:1":  50.0, // above threshold
-		"/project/.claude-plugin/skills/test.md:10": 80.0, // above threshold
-	}
-
-	scanner := &instruct.Scanner{
-		ReadFile: func(path string) ([]byte, error) {
-			content, ok := files[path]
-			if !ok {
-				return nil, fmt.Errorf("not found: %s", path)
-			}
-
-			return []byte(content), nil
-		},
-		GlobFiles: func(pattern string) ([]string, error) {
-			if pattern == "/project/.claude-plugin/skills/*.md" {
-				return []string{"/project/.claude-plugin/skills/test.md"}, nil
-			}
-
-			return nil, nil
-		},
-		EffData: effData,
-	}
-
-	auditor := &instruct.Auditor{
-		Scanner:   scanner,
-		LLMCaller: nil,
-	}
-
-	report, err := auditor.Run(context.Background(), "/data", "/project")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report).NotTo(BeNil())
-
-	if report == nil {
-		return
-	}
-
-	const expectedIssues = 3
-	g.Expect(report.Skills).To(HaveLen(expectedIssues))
-
-	for _, issue := range report.Skills {
-		g.Expect(issue.FollowRate).To(BeNumerically("<", 20.0))
-		g.Expect(issue.Content).NotTo(BeEmpty())
-		g.Expect(issue.LineNumber).To(BeNumerically(">", 0))
-	}
-}
-
 // T-219: Refinement proposals in maintain-compatible format.
 func TestAuditRun_GeneratesRefinementProposals(t *testing.T) {
 	t.Parallel()
@@ -863,10 +788,9 @@ func TestAuditRun_NoTokenSkipsLLMSteps(t *testing.T) {
 
 	g.Expect(skippedProp.SkippedReason).To(Equal("no API token"))
 
-	// Duplicates, gaps, skills still run (may be empty but not nil)
+	// Duplicates and gaps still run (may be empty but not nil)
 	g.Expect(report.Duplicates).NotTo(BeNil())
 	g.Expect(report.Gaps).NotTo(BeNil())
-	g.Expect(report.Skills).NotTo(BeNil())
 }
 
 // Run returns error when ScanAll fails.
@@ -894,103 +818,4 @@ func TestAuditRun_ScanError(t *testing.T) {
 	}
 
 	g.Expect(report).NotTo(BeNil())
-}
-
-// findSkillIssues returns empty when EffData is nil.
-func TestAuditRun_SkillIssuesNilEffData(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	scanner := &instruct.Scanner{
-		ReadFile: func(path string) ([]byte, error) {
-			if path == "/project/.claude-plugin/skills/test.md" {
-				return []byte("line one\nline two"), nil
-			}
-
-			return nil, fmt.Errorf("not found: %s", path)
-		},
-		GlobFiles: func(pattern string) ([]string, error) {
-			if pattern == "/project/.claude-plugin/skills/*.md" {
-				return []string{"/project/.claude-plugin/skills/test.md"}, nil
-			}
-
-			return nil, nil
-		},
-		EffData: nil, // nil EffData
-	}
-
-	auditor := &instruct.Auditor{
-		Scanner:   scanner,
-		LLMCaller: nil,
-	}
-
-	report, err := auditor.Run(context.Background(), "/data", "/project")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report).NotTo(BeNil())
-
-	if report == nil {
-		return
-	}
-
-	g.Expect(report.Skills).To(BeEmpty())
-}
-
-// findSkillIssues skips non-skill items and empty lines.
-func TestAuditRun_SkillIssuesSkipsNonSkillAndEmptyLines(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	scanner := &instruct.Scanner{
-		ReadFile: func(path string) ([]byte, error) {
-			switch path {
-			case "/project/.claude-plugin/skills/s.md":
-				return []byte("real line\n\nskipped empty"), nil
-			case "/data/memories/m.toml":
-				return []byte("memory content"), nil
-			}
-
-			return nil, errors.New("not found")
-		},
-		GlobFiles: func(pattern string) ([]string, error) {
-			switch pattern {
-			case "/project/.claude-plugin/skills/*.md":
-				return []string{"/project/.claude-plugin/skills/s.md"}, nil
-			case "/data/memories/*.toml":
-				return []string{"/data/memories/m.toml"}, nil
-			}
-
-			return nil, nil
-		},
-		EffData: map[string]float64{
-			"/project/.claude-plugin/skills/s.md:1": 5.0,
-			"/data/memories/m.toml:1":               5.0, // not a skill, should be skipped
-		},
-	}
-
-	auditor := &instruct.Auditor{
-		Scanner:   scanner,
-		LLMCaller: nil,
-	}
-
-	report, err := auditor.Run(context.Background(), "/data", "/project")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(report).NotTo(BeNil())
-
-	if report == nil {
-		return
-	}
-
-	// Only skill line 1 flagged, not memory
-	g.Expect(report.Skills).To(HaveLen(1))
-	g.Expect(report.Skills[0].Content).To(Equal("real line"))
 }

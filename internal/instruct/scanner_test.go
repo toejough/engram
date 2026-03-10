@@ -9,20 +9,15 @@ import (
 	"engram/internal/instruct"
 )
 
-// T-215: Scanner extracts instructions from all sources.
-func TestScanAll_ExtractsAllSources(t *testing.T) {
+// T-215: Scanner extracts instructions from memory source only.
+func TestScanAll_ExtractsMemorySources(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
 	files := map[string]string{
-		"/project/CLAUDE.md":                    "project instructions",
-		"/project/.claude/CLAUDE.md":            "global instructions",
-		"/data/memories/mem1.toml":              "memory one",
-		"/data/memories/mem2.toml":              "memory two",
-		"/data/memories/mem3.toml":              "memory three",
-		"/project/.claude/rules/go.md":          "rule one",
-		"/project/.claude/rules/style.md":       "rule two",
-		"/project/.claude-plugin/skills/foo.md": "skill one",
+		"/data/memories/mem1.toml": "memory one",
+		"/data/memories/mem2.toml": "memory two",
+		"/data/memories/mem3.toml": "memory three",
 	}
 
 	scanner := &instruct.Scanner{
@@ -42,15 +37,6 @@ func TestScanAll_ExtractsAllSources(t *testing.T) {
 					"/data/memories/mem2.toml",
 					"/data/memories/mem3.toml",
 				}, nil
-			case "/project/.claude/rules/*.md":
-				return []string{
-					"/project/.claude/rules/go.md",
-					"/project/.claude/rules/style.md",
-				}, nil
-			case "/project/.claude-plugin/skills/*.md":
-				return []string{
-					"/project/.claude-plugin/skills/foo.md",
-				}, nil
 			default:
 				return nil, nil
 			}
@@ -65,30 +51,12 @@ func TestScanAll_ExtractsAllSources(t *testing.T) {
 		return
 	}
 
-	// 2 CLAUDE.md + 3 memories + 2 rules + 1 skill = 8
-	const expectedCount = 8
+	// 3 memories only
+	const expectedCount = 3
 	g.Expect(items).To(HaveLen(expectedCount))
 
-	// Check source types
-	sourceCount := map[instruct.SourceType]int{}
 	for _, item := range items {
-		sourceCount[item.Source]++
-	}
-
-	const (
-		expectedClaudeMD = 2
-		expectedMemories = 3
-		expectedRules    = 2
-		expectedSkills   = 1
-	)
-
-	g.Expect(sourceCount[instruct.SourceClaudeMD]).To(Equal(expectedClaudeMD))
-	g.Expect(sourceCount[instruct.SourceMemory]).To(Equal(expectedMemories))
-	g.Expect(sourceCount[instruct.SourceRule]).To(Equal(expectedRules))
-	g.Expect(sourceCount[instruct.SourceSkill]).To(Equal(expectedSkills))
-
-	// Verify paths and content populated
-	for _, item := range items {
+		g.Expect(item.Source).To(Equal(instruct.SourceMemory))
 		g.Expect(item.Path).NotTo(BeEmpty())
 		g.Expect(item.Content).NotTo(BeEmpty())
 	}
@@ -100,7 +68,6 @@ func TestScanAll_JoinsEffectivenessData(t *testing.T) {
 	g := NewWithT(t)
 
 	files := map[string]string{
-		"/project/CLAUDE.md":       "instructions",
 		"/data/memories/mem1.toml": "memory with data",
 		"/data/memories/mem2.toml": "memory without data",
 	}
