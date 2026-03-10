@@ -661,30 +661,6 @@ func TestT323_MergeRejectsNonMemorySourceType(t *testing.T) {
 	g.Expect(errors.Is(err, registry.ErrMergeSourceType)).To(BeTrue())
 }
 
-// --- Helpers ---
-
-func emptyStore() *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-	)
-}
-
-func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-		registry.WithNow(clock),
-	)
-}
 
 // traces: T-P0a-1
 func TestTP0a1_NewEntryDefaultsEnforcementLevelToAdvisory(t *testing.T) {
@@ -735,4 +711,29 @@ func TestTP0a2_LoadBackfillsMissingEnforcementLevelToAdvisory(t *testing.T) {
 		return
 	}
 	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
+}
+
+// --- Helpers ---
+
+func emptyStore() *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+}
+
+func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+		registry.WithNow(clock),
+	)
 }
