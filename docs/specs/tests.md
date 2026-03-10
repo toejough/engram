@@ -2340,11 +2340,11 @@ Removed in S6. Skill files are no longer scanned in the memory-only audit. This 
 | DES-29 | T-218 |
 | REQ-75 | T-219 |
 | REQ-76 | T-220 |
-| REQ-77 | T-221 |
+| REQ-77 | ~~T-221~~ — removed (S6) |
 | REQ-78 | T-222 |
 | REQ-79 | T-223 |
 
-All UC-18 & UC-20 L2 items have test coverage.
+All UC-18 & UC-20 active L2 items have test coverage. REQ-77 removed in S6 simplification.
 
 ---
 
