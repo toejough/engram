@@ -13,6 +13,32 @@ import (
 	"engram/internal/registry"
 )
 
+// --- Helpers ---
+
+func emptyStore() *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+}
+
+func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+		registry.WithNow(clock),
+	)
+}
+
+
 // Remove returns ErrNotFound for nonexistent ID.
 func TestJSONLStore_RemoveNotFound(t *testing.T) {
 	t.Parallel()
@@ -711,29 +737,4 @@ func TestTP0a2_LoadBackfillsMissingEnforcementLevelToAdvisory(t *testing.T) {
 		return
 	}
 	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
-}
-
-// --- Helpers ---
-
-func emptyStore() *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-	)
-}
-
-func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-		registry.WithNow(clock),
-	)
 }
