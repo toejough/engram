@@ -101,66 +101,6 @@ func TestAuditWithBadTimestamp(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-// TestAutomateMissingDataDir verifies automate without --data-dir returns error.
-func TestAutomateMissingDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "automate"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestAutomateWithMemories exercises automate with actual memory files (non-empty proposals).
-func TestAutomateWithMemories(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	// Write a memory with high surfaced_count to trigger automation patterns.
-	writeTestTOML(t, memDir, "auto-candidate.toml", `title = "Auto Candidate"
-content = "use targ for builds"
-observation_type = "correction"
-keywords = ["targ"]
-principle = "always use targ"
-anti_pattern = "running go test directly"
-surfaced_count = 20
-confidence = "A"
-created_at = "2025-01-01T00:00:00Z"
-updated_at = "2025-01-01T00:00:00Z"
-`)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "automate", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Output should be valid JSON (array).
-	var proposals []any
-
-	jsonErr := json.Unmarshal(stdout.Bytes(), &proposals)
-	g.Expect(jsonErr).NotTo(HaveOccurred())
-}
-
 // callAnthropicAPI error branches: invalid URL, bad JSON, empty content.
 // Not parallel — sub-tests mutate the cli.AnthropicAPIURL global sequentially.
 //
@@ -831,8 +771,8 @@ func TestRegistryMergeMissingFlags(t *testing.T) {
 	}
 }
 
-// TestRegistryMergeNonMemorySource exercises merge where source is not a memory type
-// (no file deletion).
+// TestRegistryMergeNonMemorySource exercises merge where source is not a memory type.
+// Registry merge is scoped to memory-to-memory only; non-memory merges are rejected.
 func TestRegistryMergeNonMemorySource(t *testing.T) {
 	t.Parallel()
 
@@ -879,8 +819,6 @@ func TestRegistryMergeNonMemorySource(t *testing.T) {
 
 	var stdout bytes.Buffer
 
-	removeFileCalled := false
-
 	err := cli.RunRegistryMerge(
 		[]string{
 			"--data-dir", dataDir,
@@ -888,22 +826,11 @@ func TestRegistryMergeNonMemorySource(t *testing.T) {
 			"--target", "rule-tgt",
 		},
 		&stdout,
-		func(_ string) error {
-			removeFileCalled = true
-
-			return nil
-		},
+		func(_ string) error { return nil },
 	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("Merged"))
-
-	// Non-memory source should NOT trigger file deletion.
-	g.Expect(removeFileCalled).To(BeFalse())
+	// Registry merge is memory-to-memory only; non-memory entries are rejected.
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("source_type=memory"))
 }
 
 // TestRegistryMergeRemoveFileError exercises the removeFile error warning path.

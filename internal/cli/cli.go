@@ -19,11 +19,11 @@ import (
 	"time"
 
 	"engram/internal/audit"
-	"engram/internal/automate"
 	"engram/internal/classify"
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
 	"engram/internal/creationlog"
+	"engram/internal/crossref"
 	"engram/internal/dedup"
 	"engram/internal/effectiveness"
 	"engram/internal/evaluate"
@@ -131,8 +131,6 @@ func Run(
 	switch cmd {
 	case "audit":
 		return runAudit(subArgs, stdout, stderr, stdin)
-	case "automate":
-		return runAutomate(subArgs, stdout)
 	case "correct":
 		return runCorrect(subArgs, stdout)
 	case "evaluate":
@@ -705,7 +703,6 @@ const (
 var (
 	errAuditMissingFlags         = errors.New("audit: --data-dir required")
 	errAuditTokenMissing         = errors.New("audit: API token missing")
-	errAutomateMissingFlags      = errors.New("automate: --data-dir is required")
 	errContextUpdateMissingFlags = errors.New(
 		"context-update: --transcript-path, --session-id," +
 			" and --data-dir required",
@@ -752,7 +749,7 @@ var (
 	errUnknownSourceType = errors.New("unknown source type")
 	errUsage             = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|remind|instruct|automate" +
+			"|review|maintain|remind|instruct" +
 			"|promote|demote|context-update|registry> [flags]",
 	)
 )
@@ -1336,25 +1333,25 @@ func buildEscalationMemories(
 // buildExtractor creates the appropriate extractor for the given source type.
 func buildExtractor(
 	sourceType, sourcePath, content string,
-) (regpkg.InstructionExtractor, error) {
+) (crossref.InstructionExtractor, error) {
 	switch sourceType {
 	case "claude-md":
-		return regpkg.ClaudeMDExtractor{
+		return crossref.ClaudeMDExtractor{
 			Content:    content,
 			SourcePath: filepath.Base(sourcePath),
 		}, nil
 	case "memory-md":
-		return regpkg.MemoryMDExtractor{
+		return crossref.MemoryMDExtractor{
 			Content:    content,
 			SourcePath: filepath.Base(sourcePath),
 		}, nil
 	case "rule":
-		return regpkg.RuleExtractor{
+		return crossref.RuleExtractor{
 			Filename: filepath.Base(sourcePath),
 			Content:  content,
 		}, nil
 	case "skill":
-		return regpkg.SkillExtractor{
+		return crossref.SkillExtractor{
 			SkillName: filepath.Base(sourcePath),
 			Content:   content,
 		}, nil
@@ -1807,48 +1804,6 @@ func runAutoRegistration(
 
 	registrar := register.NewRegistrar(reg, surfLogger)
 	_ = registrar.Run(config) // fire-and-forget per ARCH-6
-}
-
-func runAutomate(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("automate", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("automate: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errAutomateMissingFlags
-	}
-
-	retriever := retrieve.New()
-
-	automator := &automate.Automator{
-		MemoryLoader: func(dir string) ([]automate.Memory, error) {
-			stored, err := retriever.ListMemories(context.Background(), dir)
-			if err != nil {
-				return nil, err
-			}
-
-			return automate.MemoriesFromStored(stored), nil
-		},
-		// LLMCaller is nil — no API token wiring yet (T-237 path).
-	}
-
-	proposals, err := automator.Run(context.Background(), *dataDir)
-	if err != nil {
-		return err
-	}
-
-	encodeErr := json.NewEncoder(stdout).Encode(proposals)
-	if encodeErr != nil {
-		return fmt.Errorf("automate: encoding JSON: %w", encodeErr)
-	}
-
-	return nil
 }
 
 //nolint:funlen // orchestration function

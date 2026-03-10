@@ -17,11 +17,6 @@ type AuditArgs struct {
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// AutomateArgs holds parsed flags for the automate subcommand.
-type AutomateArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
 // ContextUpdateArgs holds parsed flags for the context-update subcommand.
 type ContextUpdateArgs struct {
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
@@ -143,11 +138,6 @@ func AuditFlags(a AuditArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--timestamp", a.Timestamp)
 }
 
-// AutomateFlags returns the CLI flag args for the automate subcommand.
-func AutomateFlags(a AutomateArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
-}
-
 // --- Flag construction helpers ---
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
@@ -168,8 +158,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 	return []any{
 		targ.Targ(func(a AuditArgs) { run("audit", AuditFlags(a)) }).
 			Name("audit").Description("Run compliance audit"),
-		targ.Targ(func(a AutomateArgs) { run("automate", AutomateFlags(a)) }).
-			Name("automate").Description("Generate automation proposals"),
 		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
 			Name("correct").Description("Correct from user feedback"),
 		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).

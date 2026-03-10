@@ -400,25 +400,26 @@ Working on session continuity for engram (#45)...
 
 ---
 
-## UC-20: Instruction Quality, Deduplication & Gap Analysis
+## UC-20: Memory Instruction Quality Audit
 
-**Description:** Cross-reference all instruction sources (CLAUDE.md, engram memories, rules, skills) to identify duplicates, quality problems, and gaps. Extends UC-16's memory-specific refinement to all instruction sources with deeper content diagnosis.
+**Description:** Audit engram memory entries for quality problems and gaps. Examines memories only — cross-source deduplication (CLAUDE.md, rules, skills) moves to the surface pipeline in P4-full. S6 simplification of Phase A-1.
 
-**Starting state:** Instructions exist across multiple sources: CLAUDE.md, engram memories, skills, and rules. Some instructions overlap, some are poorly framed, and some gaps exist where violations occur without corresponding instructions.
+**Starting state:** Memory entries exist in the data directory. Some overlap, some are poorly framed, and some gaps exist where violations occur without corresponding memories.
 
-**End state:** An `engram instruct audit` command reports duplicates across sources, quality diagnoses for low-effectiveness instructions, refinement proposals, and gap analysis. Proposals are actionable: diffs for CLAUDE.md/skills/rules, maintain-compatible proposals for memories.
+**End state:** An `engram instruct audit` command reports duplicates among memories, quality diagnoses for low-effectiveness memories, refinement proposals, and gap analysis. Proposals are maintain-compatible.
 
 **Actor:** Developer via `engram instruct audit` CLI command.
 
 **Key interactions:**
 
-- **Cross-source deduplication:** Scan for overlapping instructions across CLAUDE.md, memories, rules, and skills. Recommend which source to keep based on effectiveness data and salience hierarchy (CLAUDE.md > rules > memories).
-- **Quality diagnosis (LLM):** For low-effectiveness instructions, diagnose root cause: too abstract, framing mismatch, missing trigger conditions, too narrow, too verbose.
-- **Refinement proposals:** Generate rewritten versions with rationale. Memory proposals are maintain-compatible. CLAUDE.md/skills/rules proposals are diff suggestions.
-- **Gap analysis:** Compare instruction anti-patterns against observed tool actions to find common violation patterns with no corresponding instruction.
-- **Skill decomposition:** For skills with low per-line effectiveness, identify followed vs. ignored lines. Propose extraction or compression.
+- **Memory-only scanning:** Scan memory entries from `<data-dir>/memories/`. No CLAUDE.md, rules, or skill sources.
+- **Memory deduplication:** Detect memories with >80% keyword overlap and report pairs.
+- **Quality diagnosis (LLM):** For low-effectiveness memories (bottom 20%), diagnose root cause: too abstract, framing mismatch, missing trigger conditions, too narrow, too verbose.
+- **Refinement proposals:** Generate rewrite proposals in maintain-compatible format.
+- **Gap analysis:** Compare instruction anti-patterns against observed tool actions to find common violation patterns with no corresponding memory.
 - **No graceful degradation:** If no API token, skip LLM diagnosis. Deduplication and gap analysis still run.
 - **Pure Go, no CGO.**
+- **Future:** Cross-source deduplication re-introduced as read-only check in surface pipeline (P4-full).
 
 **Dependencies:** UC-6 (review), UC-16 (maintain), UC-17 (budget — needed to measure context cost)
 
@@ -436,36 +437,19 @@ Working on session continuity for engram (#45)...
 
 **Key interactions:**
 
-- **Escalation levels:** advisory → emphasized advisory → PostToolUse reminder → PreToolUse block → deterministic automation candidate.
+- **Escalation levels:** advisory → emphasized_advisory → reminder (PostToolUse injection). Engram's top level is `reminder`; beyond that, a graduation signal is emitted (UC-28).
 - **Escalation proposals:** Each level change is a maintain proposal with rationale and predicted impact based on effectiveness data at current level.
-- **De-escalation:** If a blocking enforcement causes new compliance problems (measured by contradictions increasing), propose reverting to a lower level.
-- **Dimension routing:** Before escalating enforcement, check whether the instruction should instead become automation (UC-22) or a rule. Escalation is only for instructions requiring LLM judgment.
+- **De-escalation:** If an elevated level causes no improvement, propose reverting to a lower level.
 - **Tracking:** Escalation level stored per memory in TOML. Effectiveness tracked per escalation level to measure impact of each step.
 - **User confirmation:** Every escalation/de-escalation requires explicit user confirmation.
-- **Pure Go, no CGO.**
 
 **Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse)
 
 ---
 
-## UC-22: Mechanical Instruction Extraction
+## UC-22: Mechanical Instruction Extraction *(removed — Phase A-1/S1)*
 
-**Description:** Identify instructions that are purely mechanical (no judgment required) and generate deterministic automation to replace them. Provides a resolution path beyond "rewrite the memory" for leech/noise instructions.
-
-**Starting state:** Leech or noise memories exist that contain mechanical rules (e.g., "always X before Y", "never X when Z", format conventions). UC-21 escalation has identified these as automation candidates.
-
-**End state:** Deterministic automation (shell scripts, pre-commit hooks, or rule definitions) replaces mechanical instructions. Automation passes verification before the instruction is retired. Retired memories contain a pointer to the automation that replaced them.
-
-**Actor:** Developer via `engram automate` CLI command.
-
-**Key interactions:**
-
-- **Pattern recognition:** Analyze leech/noise memories for mechanical patterns: "always X before Y", "never X when Z", "format as...", naming conventions.
-- **Generator (LLM):** Produce shell scripts, pre-commit hooks, or rule definitions that deterministically enforce the instruction.
-- **Verification:** Generated automation must pass a test (dry-run against recent transcript or sample inputs) before replacing the instruction.
-- **Instruction retirement:** Once automation is verified and user confirms, memory gets a `retired_by` field pointing to the automation file path. Memory is no longer surfaced.
-- **No graceful degradation:** If no API token, skip generation. Pattern recognition still identifies candidates.
-- **Pure Go, no CGO.**
+**Status:** Removed. Engram's role is to diagnose and recommend — it does not generate enforcement mechanisms. Graduation signals (UC-28/Package 6) replace the automation proposal concept. The `internal/automate/` package and `engram automate` CLI command have been deleted.
 
 **Dependencies:** UC-21 (escalation — identifies automation candidates)
 
