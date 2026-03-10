@@ -3,17 +3,14 @@ package maintain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 )
 
 // Exported constants.
 const (
-	LevelAdvisory            EscalationLevel = "advisory"
-	LevelAutomationCandidate EscalationLevel = "automation_candidate"
-	LevelEmphasizedAdvisory  EscalationLevel = "emphasized_advisory"
-	LevelPosttoolReminder    EscalationLevel = "posttool_reminder"
-	LevelPretoolBlock        EscalationLevel = "pretool_block"
+	LevelAdvisory           EscalationLevel = "advisory"
+	LevelEmphasizedAdvisory EscalationLevel = "emphasized_advisory"
+	LevelReminder           EscalationLevel = "reminder"
 )
 
 // EffData maps escalation levels to observed effectiveness deltas for
@@ -54,11 +51,6 @@ func (e *EscalationEngine) analyzeOne(
 	currentLevel := mem.EscalationLevel
 	if currentLevel == "" {
 		currentLevel = LevelAdvisory
-	}
-
-	// Dimension routing: check for mechanical patterns first.
-	if routed, proposal := e.tryDimensionRouting(mem, currentLevel); routed {
-		return proposal, true
 	}
 
 	// De-escalation check.
@@ -159,25 +151,6 @@ func (e *EscalationEngine) tryDeEscalation(
 	}
 }
 
-func (e *EscalationEngine) tryDimensionRouting(
-	mem *EscalationMemory,
-	currentLevel EscalationLevel,
-) (bool, EscalationProposal) {
-	score := mechanicalScore(mem.Content)
-	if score < mechanicalScoreThresh {
-		return false, EscalationProposal{}
-	}
-
-	return true, EscalationProposal{
-		MemoryPath:      mem.Path,
-		ProposalType:    "route_automation",
-		CurrentLevel:    string(currentLevel),
-		ProposedLevel:   string(LevelAutomationCandidate),
-		Rationale:       "Mechanical pattern detected — suitable for automation/rule",
-		PredictedImpact: "unknown",
-	}
-}
-
 // EscalationHistoryEntry records a level change and its observed effectiveness.
 type EscalationHistoryEntry struct {
 	Level         EscalationLevel `json:"level"         toml:"level"`
@@ -219,36 +192,13 @@ func MarshalProposal(proposal EscalationProposal) json.RawMessage {
 }
 
 // unexported constants.
-const (
-	deEscalationCycles    = 3
-	mechanicalScoreThresh = 2
-)
+const deEscalationCycles = 3
 
 // unexported variables.
-var (
-	escalationLadder = []EscalationLevel{ //nolint:gochecknoglobals // package-level constant table
-		LevelAdvisory,
-		LevelEmphasizedAdvisory,
-		LevelPosttoolReminder,
-		LevelPretoolBlock,
-		LevelAutomationCandidate,
-	}
-	mechanicalKeywords = []string{ //nolint:gochecknoglobals // package-level constant table
-		"always", "never", "before", "after", "format", "convention",
-	}
-)
-
-func mechanicalScore(content string) int {
-	lower := strings.ToLower(content)
-	score := 0
-
-	for _, keyword := range mechanicalKeywords {
-		if strings.Contains(lower, keyword) {
-			score++
-		}
-	}
-
-	return score
+var escalationLadder = []EscalationLevel{ //nolint:gochecknoglobals // package-level constant table
+	LevelAdvisory,
+	LevelEmphasizedAdvisory,
+	LevelReminder,
 }
 
 func nextEscalationLevel(current EscalationLevel) (EscalationLevel, bool) {
