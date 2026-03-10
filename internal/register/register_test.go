@@ -253,6 +253,67 @@ func TestDiscoverSkills_ReadFileError(t *testing.T) {
 	g.Expect(stderrBuf.String()).To(ContainSubstring("file corrupt"))
 }
 
+// TestPruneStale_ListError verifies a List error during pruning is logged.
+func TestPruneStale_ListError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	reg := &fakeRegistryWithListErr{
+		fakeRegistry: newFakeRegistry(),
+		listErr:      errors.New("list failed"),
+	}
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(nil)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("list failed"))
+}
+
+// TestPruneStale_RemoveError verifies a Remove error during pruning is logged.
+func TestPruneStale_RemoveError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	reg := &fakeRegistryWithRemoveErr{
+		fakeRegistry: newFakeRegistry(),
+		removeErr:    errors.New("remove failed"),
+	}
+	logger := &fakeSurfacingLogger{}
+
+	var stderrBuf strings.Builder
+
+	// Pre-populate with a stale rule entry.
+	reg.entries["rule:stale.md"] = registry.InstructionEntry{
+		ID: "rule:stale.md", SourceType: "rule",
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(nil)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(&stderrBuf),
+	)
+
+	err := registrar.Run(register.SourceConfig{})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(stderrBuf.String()).To(ContainSubstring("remove failed"))
+}
+
 // TestRecordSurfacing_LoggerError verifies logger error is logged.
 func TestRecordSurfacing_LoggerError(t *testing.T) {
 	t.Parallel()
@@ -669,6 +730,36 @@ func TestT274_UpdateChangedEntries(t *testing.T) {
 }
 
 // traces: T-275
+func TestT275_PruneStaleRemovesAbsentNonMemoryEntries(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	reg := newFakeRegistry()
+	logger := &fakeSurfacingLogger{}
+
+	// Pre-populate with a rule entry that won't be in the discovered set.
+	reg.entries["rule:old.md"] = registry.InstructionEntry{
+		ID: "rule:old.md", SourceType: "rule",
+	}
+
+	registrar := register.NewRegistrar(
+		reg, logger,
+		register.WithReadFile(fakeReadFile(nil)),
+		register.WithReadDir(fakeReadDir(nil)),
+		register.WithGlob(fakeGlob(nil)),
+		register.WithNow(func() time.Time { return fixedTime }),
+		register.WithStderr(io.Discard),
+	)
+
+	// Run with empty config — rule:old.md is stale.
+	err := registrar.Run(register.SourceConfig{})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(reg.removed).To(ContainElement("rule:old.md"))
+}
+
+// traces: T-275
 func TestT275_StalePruningRemovesAbsentNonMemory(t *testing.T) {
 	t.Parallel()
 
@@ -1036,6 +1127,17 @@ type fakeRegistryWithGetErr struct {
 
 func (r *fakeRegistryWithGetErr) Get(_ string) (*registry.InstructionEntry, error) {
 	return nil, r.getErr
+}
+
+// fakeRegistryWithListErr returns an error on List.
+type fakeRegistryWithListErr struct {
+	*fakeRegistry
+
+	listErr error
+}
+
+func (r *fakeRegistryWithListErr) List() ([]registry.InstructionEntry, error) {
+	return nil, r.listErr
 }
 
 // fakeRegistryWithRemoveErr returns an error on Remove.

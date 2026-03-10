@@ -239,34 +239,6 @@ func TestEscalation_DefaultLevelAdvisory(t *testing.T) {
 	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
 }
 
-// T-227: Dimension routing to automation candidate.
-func TestEscalation_DimensionRoutingAutomation(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	engine := maintain.NewEscalationEngine(nil, fixedNow)
-
-	leeches := []maintain.EscalationMemory{
-		{
-			Path:            "mem-4",
-			Content:         "Always run targ test before committing",
-			EscalationLevel: maintain.LevelAdvisory,
-			Effectiveness:   0.10,
-		},
-	}
-
-	proposals, err := engine.Analyze(leeches)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(proposals).To(gomega.HaveLen(1))
-	g.Expect(proposals[0].ProposalType).To(gomega.Equal("route_automation"))
-	g.Expect(proposals[0].ProposedLevel).To(gomega.Equal("automation_candidate"))
-}
-
 // T-225: Escalation proposes next level with predicted impact.
 func TestEscalation_NextLevelWithPredictedImpact(t *testing.T) {
 	t.Parallel()

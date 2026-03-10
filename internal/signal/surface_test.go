@@ -33,8 +33,16 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 		{SourceID: "b.toml", SignalKind: signal.KindLeechRewrite},
 		{SourceID: "c.toml", SignalKind: signal.KindHiddenGemBroaden},
 		{SourceID: "d.toml", SignalKind: signal.KindMemoryToSkill},
-		{SourceID: "e.toml", SignalKind: signal.KindGraduation, Summary: "Consider promoting this skill to CLAUDE.md — it has met the promotion threshold"},
-		{SourceID: "f.toml", SignalKind: signal.KindGraduation, Summary: "Consider demoting this CLAUDE.md entry to a skill — it has not been frequently needed"},
+		{
+			SourceID:   "e.toml",
+			SignalKind: signal.KindGraduation,
+			Summary:    "Consider promoting this skill to CLAUDE.md — it has met the promotion threshold",
+		},
+		{
+			SourceID:   "f.toml",
+			SignalKind: signal.KindGraduation,
+			Summary:    "Consider demoting this CLAUDE.md entry to a skill — it has not been frequently needed",
+		},
 	}
 
 	result, err := signal.FormatContext(enriched)

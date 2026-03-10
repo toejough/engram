@@ -115,7 +115,7 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
 //
-//nolint:cyclop,funlen // CLI dispatch switch
+//nolint:cyclop // CLI dispatch switch
 func Run(
 	args []string,
 	stdout, stderr io.Writer,

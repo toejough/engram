@@ -192,14 +192,18 @@ func MarshalProposal(proposal EscalationProposal) json.RawMessage {
 }
 
 // unexported constants.
-const deEscalationCycles = 3
+const (
+	deEscalationCycles = 3
+)
 
 // unexported variables.
-var escalationLadder = []EscalationLevel{ //nolint:gochecknoglobals // package-level constant table
-	LevelAdvisory,
-	LevelEmphasizedAdvisory,
-	LevelReminder,
-}
+var (
+	escalationLadder = []EscalationLevel{ //nolint:gochecknoglobals // package-level constant table
+		LevelAdvisory,
+		LevelEmphasizedAdvisory,
+		LevelReminder,
+	}
+)
 
 func nextEscalationLevel(current EscalationLevel) (EscalationLevel, bool) {
 	for idx, level := range escalationLadder {
