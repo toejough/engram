@@ -1592,22 +1592,22 @@ Reminder effectiveness is tracked: did the model comply after the reminder? The 
 
 ---
 
-## REQ-72: Cross-source instruction scanning
+## REQ-72: Memory-only instruction scanning
 
-The system scans all instruction sources: CLAUDE.md (project + global), engram memories, .claude/rules/ files, and skill files. Each instruction is extracted as a structured item with: source, location, text, keywords, and effectiveness data (if available).
+The system scans memory entries only: `<data-dir>/memories/*.toml`. Each instruction is extracted as a structured item with: source, location, text, and effectiveness data (if available). CLAUDE.md, rules, and skill sources are not scanned (cross-source scanning moves to surface pipeline P4-full).
 
-- Traces to: UC-20 (cross-source scanning)
-- AC: (1) CLAUDE.md entries are extracted by section header. (2) Memories are loaded from <data-dir>/memories/. (3) Rules files from .claude/rules/. (4) Skill files from plugin skill directories. (5) Each item has source type, file path, and text content. (6) Effectiveness data joined from evaluation pipeline where available.
+- Traces to: UC-20 (memory scanning)
+- AC: (1) Memories are loaded from `<data-dir>/memories/`. (2) No CLAUDE.md, rules, or skill sources scanned. (3) Each item has source type "memory", file path, and text content. (4) Effectiveness data joined from evaluation pipeline where available.
 - Verification: deterministic (file scanning, structured extraction)
 
 ---
 
-## REQ-73: Deduplication detection across sources
+## REQ-73: Memory deduplication detection
 
-Compare instructions across all sources to find semantic duplicates. Two instructions are considered duplicates if they share >80% keyword overlap or have near-identical principle text. Report which source to keep based on salience hierarchy: CLAUDE.md > rules > memories.
+Compare memory entries to find semantic duplicates. Two memories are considered duplicates if they share >80% keyword overlap. Report both paths and overlap score. No salience hierarchy needed (all entries are memory type).
 
 - Traces to: UC-20 (deduplication)
-- AC: (1) Pairwise comparison of all instruction items. (2) Duplicate detection by keyword overlap (>80%) or principle text similarity. (3) Recommendation: keep higher-salience source, remove lower. (4) Output includes both items with source paths and recommendation.
+- AC: (1) Pairwise comparison of all memory items. (2) Duplicate detection by keyword overlap (>80%). (3) Output includes both memory paths and overlap score. (4) No source-salience recommendation (memory-only, cross-source dedup deferred to P4-full).
 - Verification: deterministic (keyword overlap calculation)
 
 ---
@@ -1646,10 +1646,10 @@ Output JSON: {"diagnosis": "...", "root_cause": "...", "suggestion": "..."}
 
 ## REQ-75: Refinement proposals
 
-Generate rewritten versions of diagnosed instructions. Memory proposals use maintain-compatible format (same as UC-16). CLAUDE.md/skills/rules proposals are diff suggestions showing before/after.
+Generate rewritten versions of diagnosed memory instructions in maintain-compatible format (same as UC-16).
 
 - Traces to: UC-20 (refinement proposals)
-- AC: (1) Each diagnosed instruction gets a rewrite proposal. (2) Memory proposals: JSON with proposed TOML field changes (maintain-compatible). (3) CLAUDE.md/rules proposals: unified diff format. (4) Proposal includes rationale explaining what changed and why.
+- AC: (1) Each diagnosed memory gets a rewrite proposal. (2) Proposals are maintain-compatible: JSON with path, action, root_cause, suggestion. (3) Proposal includes rationale explaining what changed and why.
 - Verification: deterministic (format validation)
 
 ---
@@ -1664,32 +1664,31 @@ Compare instruction anti-patterns against observed tool actions in evaluation da
 
 ---
 
-## REQ-77: Skill decomposition
+## REQ-77: ~~Skill decomposition~~ — REMOVED (S6 simplification)
 
-For skills with low per-line effectiveness, identify which lines are followed vs. ignored. Propose extraction of effective lines or compression of verbose sections.
+**Removed in S6 (Phase A-1).** Skill decomposition required scanning skill files, which are no longer in scope for the audit. Per-skill-line effectiveness analysis will be re-introduced when skill sources re-enter the audit pipeline (P4-full or later).
 
-- Traces to: UC-20 (skill decomposition)
-- AC: (1) For each skill file, compute per-line effectiveness (if data available). (2) Lines with <20% follow rate → candidates for removal or rewrite. (3) Lines with >80% follow rate → effective, keep. (4) Proposal: extract effective lines, compress or remove ineffective.
-- Verification: deterministic (per-line effectiveness calculation)
+- Traces to: UC-20 (removed)
+- Status: unsatisfiable — skills not scanned in memory-only audit
 
 ---
 
 ## REQ-78: CLI command `engram instruct audit`
 
-New subcommand: `engram instruct audit --data-dir <path>`. Outputs a JSON report with: duplicates, quality diagnoses, refinement proposals, gap analysis, skill decomposition.
+New subcommand: `engram instruct audit --data-dir <path>`. Outputs a JSON report with: duplicates, quality diagnoses, refinement proposals, and gap analysis. (Skill decomposition removed in S6.)
 
 - Traces to: UC-20 (CLI command)
-- AC: (1) Subcommand `instruct audit` registered. (2) Output is JSON with sections: duplicates, diagnoses, proposals, gaps, skills. (3) Exit 0 always. (4) Empty sections are empty arrays.
+- AC: (1) Subcommand `instruct audit` registered. (2) Output is JSON with sections: duplicates, diagnoses, proposals, gaps. (3) Exit 0 always. (4) Empty sections are empty arrays.
 - Verification: deterministic (CLI registration, JSON output)
 
 ---
 
 ## REQ-79: No graceful degradation on API failure
 
-If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposals). Deduplication, gap analysis, and skill decomposition still run. Output JSON includes skipped sections as empty arrays with a `skipped_reason` field.
+If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposals). Deduplication and gap analysis still run. Output JSON includes skipped sections with a `skipped_reason` field.
 
 - Traces to: UC-20 (error handling)
-- AC: (1) Missing API token → skip REQ-74 and REQ-75. (2) REQ-72, REQ-73, REQ-76, REQ-77 still run. (3) Skipped sections include `{"skipped_reason": "no API token"}`. (4) Exit 0 regardless.
+- AC: (1) Missing API token → skip REQ-74 and REQ-75. (2) REQ-72, REQ-73, REQ-76 still run. (3) Skipped sections include `{"skipped_reason": "no API token"}`. (4) Exit 0 regardless.
 - Verification: deterministic (error condition handling)
 
 ---
@@ -1698,12 +1697,12 @@ If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposa
 
 ---
 
-## REQ-80: Five escalation levels
+## REQ-80: Three escalation levels
 
-Each leech memory has an escalation level: (1) advisory — surfaced as system reminder, (2) emphasized advisory — surfaced with warning prefix, (3) PostToolUse reminder — targeted reminder after relevant file edits (UC-18), (4) PreToolUse block — blocks tool execution until acknowledged, (5) automation candidate — flagged for UC-22 extraction.
+Each leech memory has an escalation level: (1) advisory — surfaced as system reminder, (2) emphasized_advisory — surfaced with urgency markers, (3) reminder — targeted PostToolUse injection after relevant file edits (UC-18). Beyond `reminder`, a graduation signal (UC-28) is emitted recommending promotion to a higher-salience enforcement mechanism.
 
 - Traces to: UC-21 (escalation levels)
-- AC: (1) Five named levels in order. (2) Each level has a defined enforcement mechanism. (3) Default level for all memories is "advisory". (4) Level stored in memory TOML file. (5) Levels are ordinal (can compare for escalation/de-escalation).
+- AC: (1) Three named levels in order: advisory, emphasized_advisory, reminder. (2) Each level has a defined enforcement mechanism. (3) Default level for all memories is "advisory". (4) Level stored in memory TOML file. (5) Levels are ordinal (can compare for escalation/de-escalation).
 - Verification: deterministic (enum validation)
 
 ---
@@ -1761,13 +1760,11 @@ If a memory at an elevated enforcement level shows increasing contradictions (co
 
 ---
 
-## REQ-83: Dimension routing before escalation
+## REQ-83: ~~REMOVED (S2)~~ Dimension routing before escalation
 
-Before proposing enforcement escalation, check whether the instruction should instead become: (a) automation via UC-22 (if instruction is mechanical), (b) a rule file (if instruction is file-type-specific), or (c) a CLAUDE.md entry (if instruction is universal). Only escalate enforcement for instructions requiring LLM judgment.
+> **Removed in Phase A-1 (S2).** Engram does not route to automation, rule files, or CLAUDE.md. It escalates within its advisory range (advisory → emphasized_advisory → reminder) and emits graduation signals (UC-28) when that range is exhausted. Mechanical pattern detection and the `route_automation` proposal type have been removed from `internal/maintain/escalation.go`.
 
-- Traces to: UC-21 (dimension routing)
-- AC: (1) For each leech, check if instruction contains mechanical patterns ("always X", "never Y", format rules). (2) Mechanical → propose automation (UC-22 candidate). (3) File-type-specific → propose rule file. (4) Universal → propose CLAUDE.md entry. (5) Only remaining = escalate enforcement. (6) Routing classification is deterministic (keyword-based, no LLM).
-- Verification: deterministic (keyword matching)
+- Status: unsatisfiable — requirement removed from scope
 
 ---
 

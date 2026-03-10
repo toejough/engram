@@ -1505,43 +1505,41 @@ All UC-18 & UC-20 L2 items have ARCH coverage.
 
 ## ARCH-50: Escalation Engine
 
-**Decision:** Extend `engram maintain` with an escalation engine that analyzes leech memories and proposes graduated enforcement changes. Integrates with UC-18 (PostToolUse reminders) and UC-22 (automation candidates).
+**Decision:** Extend `engram maintain` with an escalation engine that analyzes leech memories and proposes graduated enforcement changes within engram's advisory range. Integrates with UC-18 (PostToolUse reminders). Ladder is 3 levels: advisory → emphasized_advisory → reminder. Beyond `reminder`, a graduation signal is emitted (UC-28). Dimension routing and automation candidate routing removed in S2.
 
 ```go
 // internal/maintain/escalation.go
 type EscalationEngine struct {
-    EffData        map[string][]EvalRecord  // effectiveness history
-    MemoryLoader   func(path string) (*Memory, error)
-    MemoryWriter   func(path string, memory *Memory) error
+    EffData  map[string][]float64  // effectiveness history per level
 }
 
 type EscalationProposal struct {
-    MemoryPath     string
-    ProposalType   string  // "escalate", "de_escalate", "route_automation", "route_rule"
-    CurrentLevel   string
-    ProposedLevel  string
-    Rationale      string
+    MemoryPath      string
+    ProposalType    string  // "escalate", "de_escalate"
+    CurrentLevel    string
+    ProposedLevel   string
+    Rationale       string
     PredictedImpact string
 }
 
 func (e *EscalationEngine) Analyze(leeches []Memory) ([]EscalationProposal, error) {
     // 1. For each leech memory:
-    //    a. Dimension routing: check mechanical patterns → route to automation/rule
-    //    b. If not routable: check escalation_history for de-escalation signal
-    //    c. If post-escalation effectiveness < pre for ≥3 cycles → de-escalate
-    //    d. Otherwise: propose escalation to next level
+    //    a. Check escalation_history for de-escalation signal
+    //    b. If post-escalation effectiveness < pre for ≥3 cycles → de-escalate
+    //    c. Otherwise: propose escalation to next level (advisory→emphasized_advisory→reminder)
+    //    d. If already at reminder: no proposal (graduation signal emitted via UC-28)
     //    e. Compute predicted impact from historical data
     // 2. Return proposals (user confirms separately)
 }
 ```
 
 **Design choices:**
-- **Dimension routing first:** Before escalating enforcement, check if instruction should become automation or rule. Prevents unnecessary enforcement complexity.
+- **Three levels only:** advisory, emphasized_advisory, reminder. No blocking hooks or automation candidates.
 - **De-escalation threshold:** 3 cycles prevents noise from triggering premature de-escalation.
 - **Predicted impact:** Based on average effectiveness delta for memories at the proposed level. "Unknown" if no historical data.
 - **TOML schema:** escalation_level field + escalation_history array are optional (default = advisory).
 
-**Traces to:** REQ-80 (levels), REQ-81 (proposals), REQ-82 (de-escalation), REQ-83 (routing), REQ-84 (TOML), REQ-85 (confirmation)
+**Traces to:** REQ-80 (levels), REQ-81 (proposals), REQ-82 (de-escalation), REQ-84 (TOML), REQ-85 (confirmation)
 
 ---
 

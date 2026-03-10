@@ -210,7 +210,7 @@ name = "Enforcement Escalation Ladder Requirements"
 parents = ["L1K"]
 items = ["REQ-80", "DES-30", "REQ-81", "DES-31", "REQ-82", "REQ-83", "REQ-84", "REQ-85"]
 status = "complete"
-history = "6 REQs + 2 DES items derived from UC-21. Escalation levels (REQ-80/DES-30), proposals (REQ-81/DES-31), de-escalation (REQ-82), dimension routing (REQ-83), TOML storage (REQ-84), user confirmation (REQ-85)."
+history = "6 REQs + 2 DES items derived from UC-21. Escalation levels (REQ-80/DES-30), proposals (REQ-81/DES-31), de-escalation (REQ-82), dimension routing (REQ-83 — REMOVED S2), TOML storage (REQ-84), user confirmation (REQ-85). S2: REQ-80 updated to 3-level ladder; REQ-83 marked unsatisfiable."
 
 [tree.L2G6]
 layer = "L2"
@@ -292,7 +292,7 @@ name = "Enforcement Escalation Architecture"
 parents = ["L2G5"]
 items = ["ARCH-50"]
 status = "complete"
-history = "1 ARCH decision: escalation engine with dimension routing, de-escalation, predicted impact (ARCH-50)."
+history = "1 ARCH decision: escalation engine with de-escalation, predicted impact (ARCH-50). S2: removed dimension routing; updated to 3-level ladder (advisory→emphasized_advisory→reminder)."
 
 [tree.L3G6]
 layer = "L3"
@@ -374,7 +374,7 @@ name = "Enforcement Escalation Tests"
 parents = ["L3G5"]
 items = ["T-224", "T-225", "T-226", "T-227", "T-228", "T-229"]
 status = "complete"
-history = "6 BDD test specs: default level (T-224), escalation with impact (T-225), de-escalation (T-226), dimension routing (T-227), TOML write (T-228), proposal format (T-229)."
+history = "5 BDD test specs: default level (T-224), escalation with impact (T-225), de-escalation (T-226), TOML write (T-228), proposal format (T-229). S2: T-227 (dimension routing) removed."
 
 [tree.L4G6]
 layer = "L4"
@@ -754,7 +754,7 @@ name = "Escalation Engine Implementation"
 parents = ["L4G5"]
 items = ["T-224", "T-225", "T-226", "T-227", "T-228", "T-229"]
 status = "complete"
-history = "UC-21 escalation engine complete. internal/maintain/escalation.go (EscalationEngine struct, 5 severity levels, dimension routing, de-escalation). T-224..T-229 all passing. Commit f38a38e."
+history = "UC-21 escalation engine complete. internal/maintain/escalation.go (EscalationEngine struct, 3 levels: advisory→emphasized_advisory→reminder, de-escalation). T-224..T-229 passing (T-227 removed in S2). Commit 1f4d7b9."
 
 [tree.L5G6]
 layer = "L5"
