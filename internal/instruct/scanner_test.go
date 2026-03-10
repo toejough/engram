@@ -1,6 +1,7 @@
 package instruct_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -128,4 +129,62 @@ func TestScanAll_JoinsEffectivenessData(t *testing.T) {
 	if mem2 != nil {
 		g.Expect(mem2.EffectivenessScore).To(Equal(0.0))
 	}
+}
+
+// T-216b: Scanner skips files with empty content.
+func TestScanAll_SkipsEmptyFiles(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return []byte("   "), nil
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/mem1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	items, err := scanner.ScanAll("/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(items).To(BeEmpty())
+}
+
+// T-216a: Scanner skips files that fail to read.
+func TestScanAll_SkipsUnreadableFiles(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scanner := &instruct.Scanner{
+		ReadFile: func(_ string) ([]byte, error) {
+			return nil, errors.New("read error")
+		},
+		GlobFiles: func(pattern string) ([]string, error) {
+			if pattern == "/data/memories/*.toml" {
+				return []string{"/data/memories/mem1.toml"}, nil
+			}
+
+			return nil, nil
+		},
+		EffData: map[string]float64{},
+	}
+
+	items, err := scanner.ScanAll("/data", "/project")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(items).To(BeEmpty())
 }
