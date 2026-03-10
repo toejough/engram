@@ -901,6 +901,36 @@ func TestTP0b5_SetEnforcementLevelNotFound(t *testing.T) {
 	g.Expect(errors.Is(err, registry.ErrNotFound)).To(BeTrue())
 }
 
+// traces: T-P0b-6
+func TestTP0b6_SetEnforcementLevelSaveError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	writeCallCount := 0
+
+	store := registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			writeCallCount++
+			// First write (Register) succeeds; second write (SetEnforcementLevel) fails.
+			if writeCallCount >= 2 {
+				return errors.New("disk full")
+			}
+
+			return nil
+		}),
+	)
+
+	err := store.Register(registry.InstructionEntry{ID: "p0b-6", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.SetEnforcementLevel("p0b-6", registry.EnforcementEmphasizedAdvisory, "escalate")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing registry")))
+}
+
 // Remove returns ErrNotFound for nonexistent ID.
 
 // --- Helpers ---
