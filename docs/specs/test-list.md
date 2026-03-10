@@ -1140,3 +1140,154 @@ Then: Generator.Generate IS called (existing flow unchanged)
 | ARCH-78 | T-319, T-320, T-321, T-322 |
 
 All ARCH items have test coverage.
+
+---
+
+## P6e: Escalation wiring to enforcement_level
+
+### T-P6e-1: LevelGraduated is 4th escalation level
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-1)
+
+Given: EscalationEngine with memory at `reminder` level
+When: Analyze called
+Then: Proposal type is "escalate" and ProposedLevel is "graduated"
+
+---
+
+### T-P6e-2: ApplyEscalationProposal calls SetEnforcementLevel
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: ApplyEscalationProposal called with a proposal and mock EnforcementApplier
+When: Function executes
+Then: SetEnforcementLevel called with MemoryPath, ProposedLevel, and Rationale
+
+---
+
+### T-P6e-3: ApplyEscalationProposal with nil applier is no-op
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: ApplyEscalationProposal called with nil applier
+When: Function executes
+Then: Returns nil, no panic
+
+---
+
+### T-P6e-4: ApplyEscalationProposal to graduated emits graduation signal
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-3)
+
+Given: ApplyEscalationProposal called with ProposedLevel="graduated" and mock GraduationEmitter
+When: Function executes
+Then: EmitGraduation called with MemoryPath, non-empty recommendation, and correct timestamp
+
+---
+
+### T-P6e-5: ApplyEscalationProposal to non-graduated does NOT emit signal
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-3)
+
+Given: ApplyEscalationProposal called with ProposedLevel="emphasized_advisory"
+When: Function executes
+Then: EmitGraduation is NOT called
+
+---
+
+### T-P6e-6: ClassifyContent returns "settings.json" for linter/config content
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "golangci linter settings"
+When: ClassifyContent called
+Then: Returns "settings.json"
+
+---
+
+### T-P6e-7: ClassifyContent returns ".claude/rules/" for file-scoped content
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "glob pattern"
+When: ClassifyContent called
+Then: Returns ".claude/rules/"
+
+---
+
+### T-P6e-8: ClassifyContent returns "skill" for procedural content
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "step-by-step procedure"
+When: ClassifyContent called
+Then: Returns "skill"
+
+---
+
+### T-P6e-9: ClassifyContent returns "CLAUDE.md" as behavioral default
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains no classification keywords
+When: ClassifyContent called
+Then: Returns "CLAUDE.md"
+
+---
+
+### T-P6e-10: ApplyEscalationProposal propagates applier error
+
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: EnforcementApplier.SetEnforcementLevel returns error
+When: ApplyEscalationProposal called
+Then: Returns wrapped error containing "setting enforcement level"
+
+---
+
+### T-P6e-11: emphasized_advisory renders with IMPORTANT: prefix in tool mode
+
+**Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
+
+Given: Memory at emphasized_advisory level, tool mode surfacing
+When: Surface Run executes
+Then: Output contains "IMPORTANT:" and memory slug
+
+---
+
+### T-P6e-12: reminder renders with REMINDER: prefix in tool mode
+
+**Traces to:** ARCH-P6e-2 (REQ-P6e-6, DES-P6e-2)
+
+Given: Memory at reminder level, tool mode surfacing
+When: Surface Run executes
+Then: Output contains "REMINDER:" and memory slug
+
+---
+
+### T-P6e-13: advisory level renders with normal format
+
+**Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
+
+Given: No EnforcementReader set (all memories default to advisory)
+When: Surface Run executes in tool mode
+Then: Output does NOT contain "IMPORTANT:" or "REMINDER:"
+
+---
+
+### T-P6e-14: emphasized_advisory memories sorted before advisory in tool mode
+
+**Traces to:** ARCH-P6e-2 (REQ-P6e-7)
+
+Given: Two matching memories — one advisory, one emphasized_advisory
+When: Surface Run executes in tool mode
+Then: emphasized_advisory memory appears first in output
+
+---
+
+## L4 → ARCH Traceability (P6e)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P6e-1 | T-P6e-1, T-P6e-2, T-P6e-3, T-P6e-4, T-P6e-5, T-P6e-6, T-P6e-7, T-P6e-8, T-P6e-9, T-P6e-10 |
+| ARCH-P6e-2 | T-P6e-11, T-P6e-12, T-P6e-13, T-P6e-14 |

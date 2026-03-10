@@ -2735,3 +2735,93 @@ Each `InstructionEntry` in the registry carries an `enforcement_level` field. Th
 - Verification: deterministic (enum constants, JSON round-trip, backfill)
 
 ---
+
+---
+
+## REQ-P6e-1: Escalation ladder extended to graduated (P6e)
+
+The escalation ladder has four levels: `advisory` → `emphasized_advisory` → `reminder` → `graduated`. A memory at `reminder` level can escalate to `graduated` via the same proposal mechanism.
+
+- Traces to: UC-28 (maintenance signals), REQ-P0a-1 (enforcement_level field)
+- AC: (1) `LevelGraduated` constant defined with value `"graduated"`. (2) Escalation engine proposes `graduated` when current level is `reminder`. (3) No further escalation is possible from `graduated` (top of ladder). (4) De-escalation from `graduated` reverts to `reminder`.
+- Verification: deterministic
+
+---
+
+## REQ-P6e-2: ApplyEscalationProposal persists level to registry (P6e)
+
+A confirmed escalation proposal must update the instruction registry's `enforcement_level` field via the `EnforcementApplier` interface. The function is a no-op when `applier` is nil.
+
+- Traces to: UC-28 (maintenance signals apply), UC-23 (registry stores enforcement level)
+- AC: (1) `ApplyEscalationProposal(proposal, content, applier, emitter, now)` calls `applier.SetEnforcementLevel(path, proposedLevel, rationale)`. (2) Returns wrapped error on registry failure. (3) Returns nil immediately when `applier` is nil.
+- Verification: deterministic
+
+---
+
+## REQ-P6e-3: Graduation emits KindGraduation signal with placement recommendation (P6e)
+
+When a proposal escalates a memory to `graduated`, a `KindGraduation` signal is emitted via `GraduationEmitter`. The recommendation classifies the memory content to determine where the graduated rule should live.
+
+- Traces to: UC-28 (maintenance signal emission)
+- AC: (1) `EmitGraduation` is called only when `ProposedLevel == "graduated"` AND `emitter != nil`. (2) `recommendation` is derived from `ClassifyContent(content)`. (3) Non-graduation proposals do not call `EmitGraduation`. (4) Emitter errors are fire-and-forget (ignored per ARCH-6).
+- Verification: deterministic
+
+---
+
+## REQ-P6e-4: ClassifyContent routes graduated memory to placement destination (P6e)
+
+`ClassifyContent(content string) string` returns one of four placement destinations based on keyword matching of the memory's content (lowercase).
+
+- Traces to: UC-28 (graduation recommendation), REQ-P6e-3
+- AC: (1) "settings.json" when content contains any of: linter, lint, deny, eslint, golangci, settings, config. (2) ".claude/rules/" when content contains: glob pattern, file glob, rule file, .claude/rules, file-scoped. (3) "skill" when content contains: workflow, procedure, step-by-step, how to, process, skill. (4) "CLAUDE.md" as default/behavioral fallback.
+- Verification: deterministic
+
+### DES-P6e-1: Placement classification keyword heuristics
+
+Content classification uses simple substring matching on lowercased content. Priority order: settings.json (mechanical/config) → .claude/rules/ (file-scoped) → skill (procedural) → CLAUDE.md (behavioral default). First match wins.
+
+- Traces to: REQ-P6e-4
+- AC: See REQ-P6e-4 acceptance criteria.
+- Verification: deterministic
+
+---
+
+## REQ-P6e-5: Surface pipeline renders emphasized_advisory with IMPORTANT: prefix (P6e)
+
+When a memory's registry enforcement level is `emphasized_advisory`, the surface pipeline prefixes its output line with "IMPORTANT:" and bolds the slug.
+
+- Traces to: UC-2 (memory surfacing), REQ-P6e-1
+- AC: (1) Memory at `emphasized_advisory` level renders as `  - IMPORTANT: **slug**annotation\n`. (2) `EnforcementReader` interface injected via `WithEnforcementReader` option. (3) Missing or erroring reader defaults to advisory (normal format).
+- Verification: deterministic
+
+---
+
+## REQ-P6e-6: Surface pipeline renders reminder with REMINDER: prefix (P6e)
+
+When a memory's registry enforcement level is `reminder`, the surface pipeline prefixes its output line with "REMINDER:" and includes the principle text.
+
+- Traces to: UC-2 (memory surfacing), REQ-P6e-1
+- AC: (1) Memory at `reminder` level renders as `  - REMINDER: slug — principle annotation\n`. (2) Principle sourced from `memory.Stored.Principle`.
+- Verification: deterministic
+
+### DES-P6e-2: Surface rendering format per enforcement level
+
+| Level | Format |
+|-------|--------|
+| advisory (default) | `  - slug annotation\n` |
+| emphasized_advisory | `  - IMPORTANT: **slug** annotation\n` |
+| reminder | `  - REMINDER: slug — principle annotation\n` |
+| graduated | normal format (memory retired from surfacing path) |
+
+- Traces to: REQ-P6e-5, REQ-P6e-6
+- Verification: deterministic
+
+---
+
+## REQ-P6e-7: Emphasized and reminder memories sorted first in tool mode (P6e)
+
+In tool mode, memories at `emphasized_advisory` or `reminder` level are sorted before `advisory`-level memories after BM25 ranking and budget application.
+
+- Traces to: UC-2 (tool mode surfacing), REQ-P6e-5
+- AC: (1) `isEmphasized(level)` returns true for `emphasized_advisory` and `reminder`. (2) `sort.SliceStable` applied after budget cap preserves relative order within tiers. (3) Emphasized memories appear before advisory memories in rendered output.
+- Verification: deterministic
