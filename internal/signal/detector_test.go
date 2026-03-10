@@ -45,8 +45,10 @@ func TestDetector_ClaudeMDSignals(t *testing.T) {
 		return
 	}
 
-	g.Expect(signals[0].SignalKind).To(gomega.Equal(signal.KindSkillToClaudeMD))
-	g.Expect(signals[1].SignalKind).To(gomega.Equal(signal.KindClaudeMDDemotion))
+	g.Expect(signals[0].SignalKind).To(gomega.Equal(signal.KindGraduation))
+	g.Expect(signals[0].Summary).To(gomega.ContainSubstring("promoting this skill to CLAUDE.md"))
+	g.Expect(signals[1].SignalKind).To(gomega.Equal(signal.KindGraduation))
+	g.Expect(signals[1].Summary).To(gomega.ContainSubstring("demoting this CLAUDE.md entry"))
 }
 
 func TestDetector_HiddenGemSignal(t *testing.T) {

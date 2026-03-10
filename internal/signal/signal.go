@@ -5,13 +5,12 @@ import "time"
 
 // Exported constants.
 const (
-	KindClaudeMDDemotion = "claudemd_demotion"
 	KindEscalation       = "escalation"
+	KindGraduation       = "graduation"
 	KindHiddenGemBroaden = "hidden_gem_broadening"
 	KindLeechRewrite     = "leech_rewrite"
 	KindMemoryToSkill    = "memory_to_skill"
 	KindNoiseRemoval     = "noise_removal"
-	KindSkillToClaudeMD  = "skill_to_claudemd"
 	KindStalenessReview  = "staleness_review"
 	TypeMaintain         = "maintain"
 	TypePromote          = "promote"

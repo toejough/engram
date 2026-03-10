@@ -33,8 +33,8 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 		{SourceID: "b.toml", SignalKind: signal.KindLeechRewrite},
 		{SourceID: "c.toml", SignalKind: signal.KindHiddenGemBroaden},
 		{SourceID: "d.toml", SignalKind: signal.KindMemoryToSkill},
-		{SourceID: "e.toml", SignalKind: signal.KindSkillToClaudeMD},
-		{SourceID: "f.toml", SignalKind: signal.KindClaudeMDDemotion},
+		{SourceID: "e.toml", SignalKind: signal.KindGraduation, Summary: "Consider promoting this skill to CLAUDE.md — it has met the promotion threshold"},
+		{SourceID: "f.toml", SignalKind: signal.KindGraduation, Summary: "Consider demoting this CLAUDE.md entry to a skill — it has not been frequently needed"},
 	}
 
 	result, err := signal.FormatContext(enriched)
@@ -48,8 +48,8 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 	g.Expect(result).To(gomega.ContainSubstring("rewriting"))
 	g.Expect(result).To(gomega.ContainSubstring("broadening"))
 	g.Expect(result).To(gomega.ContainSubstring("promotion to skill"))
-	g.Expect(result).To(gomega.ContainSubstring("promotion to CLAUDE.md"))
-	g.Expect(result).To(gomega.ContainSubstring("demotion"))
+	g.Expect(result).To(gomega.ContainSubstring("promoting this skill to CLAUDE.md"))
+	g.Expect(result).To(gomega.ContainSubstring("demoting this CLAUDE.md entry"))
 }
 
 func TestFormatContext_WithSignals(t *testing.T) {

@@ -133,10 +133,6 @@ func formatInstructions(enriched []EnrichedSignal) string {
 			)
 		case KindMemoryToSkill:
 			fmt.Fprintf(&sb, "- %s: Eligible for promotion to skill\n", e.SourceID)
-		case KindSkillToClaudeMD:
-			fmt.Fprintf(&sb, "- %s: Eligible for promotion to CLAUDE.md\n", e.SourceID)
-		case KindClaudeMDDemotion:
-			fmt.Fprintf(&sb, "- %s: Consider demotion from CLAUDE.md to skill\n", e.SourceID)
 		default:
 			fmt.Fprintf(&sb, "- %s: %s\n", e.SourceID, e.Summary)
 		}

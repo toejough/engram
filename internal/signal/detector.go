@@ -125,8 +125,8 @@ func (d *Detector) claudeMDSignals() ([]Signal, error) {
 		signals = append(signals, Signal{
 			Type:       TypePromote,
 			SourceID:   c.Entry.SourcePath,
-			SignalKind: KindSkillToClaudeMD,
-			Summary:    "Skill eligible for CLAUDE.md promotion",
+			SignalKind: KindGraduation,
+			Summary:    "Consider promoting this skill to CLAUDE.md — it has met the promotion threshold",
 			DetectedAt: now,
 		})
 	}
@@ -140,8 +140,8 @@ func (d *Detector) claudeMDSignals() ([]Signal, error) {
 		signals = append(signals, Signal{
 			Type:       TypePromote,
 			SourceID:   c.Entry.SourcePath,
-			SignalKind: KindClaudeMDDemotion,
-			Summary:    "CLAUDE.md entry eligible for demotion to skill",
+			SignalKind: KindGraduation,
+			Summary:    "Consider demoting this CLAUDE.md entry to a skill — it has not been frequently needed",
 			DetectedAt: now,
 		})
 	}
