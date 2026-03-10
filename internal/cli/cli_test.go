@@ -829,8 +829,7 @@ func TestRegistryMergeNonMemorySource(t *testing.T) {
 		func(_ string) error { return nil },
 	)
 	// Registry merge is memory-to-memory only; non-memory entries are rejected.
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err.Error()).To(ContainSubstring("source_type=memory"))
+	g.Expect(err).To(MatchError(ContainSubstring("source_type=memory")))
 }
 
 // TestRegistryMergeRemoveFileError exercises the removeFile error warning path.

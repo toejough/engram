@@ -1978,22 +1978,11 @@ func (r *Registrar) Run(config SourceConfig) error {
 
 ---
 
-## ARCH-70: Extended Always-Loaded Classification (UC-26)
+## ARCH-70: Extended Always-Loaded Classification (UC-26) — REMOVED (S4)
 
-**Decision:** Add `"rule"` and `"skill"` to `alwaysLoadedSources` in `internal/registry/classify.go`. This is a 2-line change:
+**Status:** Removed by S4 simplification. The `alwaysLoadedSources` map and binary Working/Leech classification for non-memory sources have been deleted from `internal/registry/classify.go`. The registry now only persists memory entries; `Classify` uses the standard 4-quadrant model for all entries.
 
-```go
-var alwaysLoadedSources = map[string]bool{
-    "claude-md": true,
-    "memory-md": true,
-    "rule":      true,  // NEW
-    "skill":     true,  // NEW
-}
-```
-
-All 4 non-memory source types now get binary Working/Leech classification. Memory sources retain 4-way classification.
-
-**Traces to:** REQ-116 (extended classification)
+**Traces to:** REQ-116 (extended classification) — REQ-116 is unsatisfied; to be revisited if non-memory classification is needed in future.
 
 ---
 

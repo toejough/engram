@@ -3,6 +3,11 @@ package registry
 
 import "time"
 
+// Exported constants.
+const (
+	SourceTypeMemory = "memory"
+)
+
 // AbsorbedRecord preserves counters from a merged source instruction.
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.

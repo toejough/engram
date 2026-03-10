@@ -671,23 +671,13 @@ Then: Error logged to stderr; remaining entries still registered; no error retur
 
 ---
 
-### T-281: Rules classified as always-loaded
+### T-323: Merge rejects non-memory source type
 
-**Traces to:** ARCH-70
+**Traces to:** ARCH-23 (registry Merge operation)
 
-Given: Registry entry with source_type "rule", 5 evaluations (3 followed, 2 ignored)
-When: Classify is called
-Then: Returns Working (binary classification — no Hidden Gem/Noise possible)
-
----
-
-### T-282: Skills classified as always-loaded
-
-**Traces to:** ARCH-70
-
-Given: Registry entry with source_type "skill", 5 evaluations (1 followed, 4 contradicted)
-When: Classify is called
-Then: Returns Leech (binary classification — low effectiveness, always-loaded)
+Given: Registry has one entry with source_type "rule" and one with source_type "memory"
+When: Merge is called with either order
+Then: Returns ErrMergeSourceType; neither entry is modified
 
 ---
 
@@ -716,7 +706,6 @@ Then: Registrar.Run is NOT called; only memory surfacing executes
 | ARCH Item | Test Coverage |
 |-----------|--------------|
 | ARCH-69 | T-270, T-271, T-272, T-273, T-274, T-275, T-276, T-277, T-278, T-279, T-280 |
-| ARCH-70 | T-281, T-282 |
 | ARCH-71 | T-283, T-284 |
 
 All ARCH items have test coverage.

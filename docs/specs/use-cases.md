@@ -467,7 +467,7 @@ Working on session continuity for engram (#45)...
 
 **Key interactions:**
 
-- **Registration:** New memories auto-registered on creation via learn pipeline. Non-memory sources registered via `engram registry register-source --type claude-md --path <file>`.
+- **Registration:** New memories auto-registered on creation via learn pipeline.
 - **Surfacing tracking:** Each hook surfacing event updates the registry (increment surfaced_count, update last_surfaced) instead of appending to surfacing-log.jsonl.
 - **Evaluation tracking:** Compliance evaluation updates registry counters (followed/contradicted/ignored) instead of writing per-session JSONL files.
 - **Classification:** `engram review` reads the registry directly for pre-aggregated quadrant classification across all sources.

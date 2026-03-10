@@ -13,11 +13,7 @@ const (
 type Quadrant string
 
 // Classify assigns a quadrant to an instruction entry.
-// Always-loaded sources (claude-md, memory-md) get binary classification:
-// Working or Leech only.
 // Configurable thresholds control the surfacing/effectiveness boundaries.
-//
-//nolint:cyclop // classification matrix
 func Classify(
 	entry *InstructionEntry,
 	surfacingThreshold int,
@@ -29,16 +25,6 @@ func Classify(
 	}
 
 	highEffectiveness := *eff >= effectivenessThreshold
-	isAlwaysLoaded := alwaysLoadedSources[entry.SourceType]
-
-	if isAlwaysLoaded {
-		if highEffectiveness {
-			return Working
-		}
-
-		return Leech
-	}
-
 	oftenSurfaced := entry.SurfacedCount >= surfacingThreshold
 
 	switch {
@@ -52,13 +38,3 @@ func Classify(
 		return Noise
 	}
 }
-
-// unexported variables.
-var (
-	alwaysLoadedSources = map[string]bool{ //nolint:gochecknoglobals // package-level constant table
-		"claude-md": true,
-		"memory-md": true,
-		"rule":      true,
-		"skill":     true,
-	}
-)

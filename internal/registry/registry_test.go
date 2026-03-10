@@ -254,41 +254,6 @@ func TestT254_ClassifyInsufficientDataBelowMinEvals(t *testing.T) {
 	g.Expect(quadrant).To(Equal(registry.Insufficient))
 }
 
-func TestT255_ClassifyAlwaysLoadedWorkingOrLeechOnly(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	for _, sourceType := range []string{"claude-md", "memory-md"} {
-		t.Run(sourceType+"_working", func(t *testing.T) {
-			t.Parallel()
-
-			entry := &registry.InstructionEntry{
-				SourceType:    sourceType,
-				SurfacedCount: 0, // low surfacing, but always-loaded → no HiddenGem
-				Evaluations: registry.EvaluationCounters{
-					Followed: 5, Contradicted: 0, Ignored: 0,
-				},
-			}
-			quadrant := registry.Classify(entry, 3, 50.0)
-			g.Expect(quadrant).To(Equal(registry.Working))
-		})
-
-		t.Run(sourceType+"_leech", func(t *testing.T) {
-			t.Parallel()
-
-			entry := &registry.InstructionEntry{
-				SourceType:    sourceType,
-				SurfacedCount: 0,
-				Evaluations: registry.EvaluationCounters{
-					Followed: 0, Contradicted: 3, Ignored: 0,
-				},
-			}
-			quadrant := registry.Classify(entry, 3, 50.0)
-			g.Expect(quadrant).To(Equal(registry.Leech))
-		})
-	}
-}
-
 // --- Backfill ---
 
 func TestT256_BackfillCreatesEntriesFromMemories(t *testing.T) {

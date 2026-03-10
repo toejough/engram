@@ -64,6 +64,7 @@ func TestT187_AbsorbedHistoryPreservesCounters(t *testing.T) {
 
 	source := registry.InstructionEntry{
 		ID:            "src-187",
+		SourceType:    "memory",
 		ContentHash:   "hash-src",
 		SurfacedCount: 10,
 		Evaluations: registry.EvaluationCounters{
@@ -72,6 +73,7 @@ func TestT187_AbsorbedHistoryPreservesCounters(t *testing.T) {
 	}
 	target := registry.InstructionEntry{
 		ID:            "tgt-187",
+		SourceType:    "memory",
 		SurfacedCount: 3,
 		Evaluations: registry.EvaluationCounters{
 			Followed: 2, Contradicted: 1, Ignored: 0,
@@ -127,6 +129,7 @@ func TestT188_IdempotentMerge(t *testing.T) {
 
 	source := registry.InstructionEntry{
 		ID:            "src-188",
+		SourceType:    "memory",
 		SurfacedCount: 5,
 		Evaluations: registry.EvaluationCounters{
 			Followed: 3, Contradicted: 1, Ignored: 0,
@@ -134,6 +137,7 @@ func TestT188_IdempotentMerge(t *testing.T) {
 	}
 	target := registry.InstructionEntry{
 		ID:            "tgt-188",
+		SourceType:    "memory",
 		SurfacedCount: 3,
 		Evaluations: registry.EvaluationCounters{
 			Followed: 1, Contradicted: 0, Ignored: 0,
@@ -417,6 +421,7 @@ func TestT265_JSONLStoreMerge(t *testing.T) {
 
 	source := registry.InstructionEntry{
 		ID:            "source",
+		SourceType:    "memory",
 		ContentHash:   "hash-s",
 		SurfacedCount: 5,
 		Evaluations: registry.EvaluationCounters{
@@ -425,6 +430,7 @@ func TestT265_JSONLStoreMerge(t *testing.T) {
 	}
 	target := registry.InstructionEntry{
 		ID:            "target",
+		SourceType:    "memory",
 		SurfacedCount: 2,
 		Evaluations: registry.EvaluationCounters{
 			Followed: 1, Contradicted: 0, Ignored: 0,
@@ -629,6 +635,30 @@ func TestT271_JSONLStoreBulkLoad(t *testing.T) {
 	}
 
 	g.Expect(got.Title).To(Equal("First"))
+}
+
+// traces: T-323
+func TestT323_MergeRejectsNonMemorySourceType(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	err := store.Register(registry.InstructionEntry{ID: "rule-entry", SourceType: "rule"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.Register(registry.InstructionEntry{ID: "mem-entry", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Non-memory source into memory target → rejected.
+	err = store.Merge("rule-entry", "mem-entry")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrMergeSourceType)).To(BeTrue())
+
+	// Memory source into non-memory target → rejected.
+	err = store.Merge("mem-entry", "rule-entry")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrMergeSourceType)).To(BeTrue())
 }
 
 // --- Helpers ---

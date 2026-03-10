@@ -11,9 +11,10 @@ const (
 
 // Exported variables.
 var (
-	ErrDuplicateID   = errors.New("instruction ID already exists")
-	ErrMergeNotFound = errors.New("merge source or target not found")
-	ErrNotFound      = errors.New("instruction not found")
+	ErrDuplicateID     = errors.New("instruction ID already exists")
+	ErrMergeNotFound   = errors.New("merge source or target not found")
+	ErrMergeSourceType = errors.New("merge requires both entries to have source_type=memory")
+	ErrNotFound        = errors.New("instruction not found")
 )
 
 // Outcome represents the result of evaluating an instruction.

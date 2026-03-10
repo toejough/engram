@@ -116,6 +116,11 @@ func (s *JSONLStore) Merge(sourceID, targetID string) error {
 			ErrMergeNotFound, sourceID, targetID)
 	}
 
+	if source.SourceType != SourceTypeMemory || target.SourceType != SourceTypeMemory {
+		return fmt.Errorf("%w: source=%s target=%s",
+			ErrMergeSourceType, sourceID, targetID)
+	}
+
 	record := AbsorbedRecord{
 		From:          source.ID,
 		SurfacedCount: source.SurfacedCount,
