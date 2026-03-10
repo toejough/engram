@@ -13,33 +13,6 @@ import (
 	"engram/internal/registry"
 )
 
-// --- Helpers ---
-
-func emptyStore() *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-	)
-}
-
-func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-		registry.WithNow(clock),
-	)
-}
-
-
-// Remove returns ErrNotFound for nonexistent ID.
 func TestJSONLStore_RemoveNotFound(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -687,7 +660,6 @@ func TestT323_MergeRejectsNonMemorySourceType(t *testing.T) {
 	g.Expect(errors.Is(err, registry.ErrMergeSourceType)).To(BeTrue())
 }
 
-
 // traces: T-P0a-1
 func TestTP0a1_NewEntryDefaultsEnforcementLevelToAdvisory(t *testing.T) {
 	t.Parallel()
@@ -700,13 +672,17 @@ func TestTP0a1_NewEntryDefaultsEnforcementLevelToAdvisory(t *testing.T) {
 
 	got, err := store.Get("t324")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(got).NotTo(BeNil())
+
 	if got == nil {
 		return
 	}
+
 	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
 }
 
@@ -729,12 +705,43 @@ func TestTP0a2_LoadBackfillsMissingEnforcementLevelToAdvisory(t *testing.T) {
 
 	got, err := store.Get("t325")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(got).NotTo(BeNil())
+
 	if got == nil {
 		return
 	}
+
 	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
 }
+
+// --- Helpers ---
+
+func emptyStore() *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+}
+
+func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+		registry.WithNow(clock),
+	)
+}
+
+// Remove returns ErrNotFound for nonexistent ID.
