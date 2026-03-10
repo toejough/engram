@@ -59,10 +59,10 @@ github.com/toejough/go-reorder v0.0.0-20260123033158-812dc6e76018 h1:8miflSkc2Vs
 github.com/toejough/go-reorder v0.0.0-20260123033158-812dc6e76018/go.mod h1:RPG0RKzyzlpkYcX8YNsX4QpOJzt87lGdeRFA1NoOwFk=
 github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e h1:30DvtIHP1qxp8iXal2GDBHb67Qqwcp0h/qyT5ssuI9k=
 github.com/toejough/imptest v0.0.0-20260123020809-3621051ff02e/go.mod h1:x4rLasfjuQKaImCrhpmhQGQEINF7ShZkd9Yt6GBMnzk=
-github.com/toejough/targ v0.0.0-20260309200913-e45038cda726 h1:ZrO7HD0HtA2FDjabbKyhTp04SyhTgduWEHgE7SHN3Cg=
-github.com/toejough/targ v0.0.0-20260309200913-e45038cda726/go.mod h1:q8khPqLs6t3l0Ybxk3P6wLA87aQVrMlTulTZRUVBU/E=
 github.com/toejough/targ v0.0.0-20260309210230-8b3005c7df63 h1:fxmcXZL4YprEyz48j6FftxcO1KGZcrm2I1eaVNAL5Rw=
 github.com/toejough/targ v0.0.0-20260309210230-8b3005c7df63/go.mod h1:q8khPqLs6t3l0Ybxk3P6wLA87aQVrMlTulTZRUVBU/E=
+github.com/toejough/targ v0.0.0-20260310003509-b0ff6b58f8a9 h1:85mMLsYTWD9LL8LZ/D9GuvwNY44RkRGU2mtkkbaJE/8=
+github.com/toejough/targ v0.0.0-20260310003509-b0ff6b58f8a9/go.mod h1:q8khPqLs6t3l0Ybxk3P6wLA87aQVrMlTulTZRUVBU/E=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61 h1:q2kh5K7BzSky2Fw0ZnsGYG6YBJzvQA8uaWBkfILkCh8=
 github.com/toejough/testredundancy v0.0.0-20260129180558-09d0fdc0bb61/go.mod h1:BJ1ra8Pt6ouZE4yvgRt1j9HkH+yzusi0jlNrNTmZY6M=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=

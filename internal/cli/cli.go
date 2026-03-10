@@ -138,7 +138,7 @@ func Run(
 	case "evaluate":
 		return runEvaluate(subArgs, stdout, stderr, stdin)
 	case "review":
-		return runReview(subArgs, stdout)
+		return RunReview(subArgs, stdout)
 	case "maintain":
 		return runMaintain(subArgs, stdout)
 	case "surface":
@@ -721,9 +721,11 @@ var (
 	errMergeMissingFlags    = errors.New(
 		"registry merge: --data-dir, --source, and --target required",
 	)
-	errNilAPIResponse             = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks            = errors.New("API response contained no content blocks")
-	errPromoteMissingFlags        = errors.New("promote: --data-dir and one of --to-skill/--to-claude-md required")
+	errNilAPIResponse      = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks     = errors.New("API response contained no content blocks")
+	errPromoteMissingFlags = errors.New(
+		"promote: --data-dir and one of --to-skill/--to-claude-md required",
+	)
 	errRegisterSourceMissingFlags = errors.New(
 		"registry register-source: --type and --path and --data-dir required",
 	)
@@ -2147,7 +2149,9 @@ func runMaintainApply(
 		return errMaintainApplyMissingProposals
 	}
 
-	data, err := os.ReadFile(proposalsPath) //nolint:gosec // file path from user flag, not user input
+	cleanPath := filepath.Clean(proposalsPath)
+
+	data, err := os.ReadFile(cleanPath)
 	if err != nil {
 		return fmt.Errorf("maintain --apply: reading proposals: %w", err)
 	}
@@ -2357,26 +2361,14 @@ func runRegistry(args []string, stdout io.Writer) error {
 
 	switch sub {
 	case "init":
-		return runRegistryInit(subArgs, stdout)
+		return RunRegistryInit(subArgs, stdout)
 	case "register-source":
-		return runRegistryRegisterSource(subArgs, stdout)
+		return RunRegistryRegisterSource(subArgs, stdout, osReadFileFunc)
 	case "merge":
-		return runRegistryMerge(subArgs, stdout)
+		return RunRegistryMerge(subArgs, stdout, os.Remove)
 	default:
 		return errRegistryUnknownSub
 	}
-}
-
-func runRegistryInit(args []string, stdout io.Writer) error {
-	return RunRegistryInit(args, stdout)
-}
-
-func runRegistryMerge(args []string, stdout io.Writer) error {
-	return RunRegistryMerge(args, stdout, os.Remove)
-}
-
-func runRegistryRegisterSource(args []string, stdout io.Writer) error {
-	return RunRegistryRegisterSource(args, stdout, osReadFileFunc)
 }
 
 func runRemind(args []string, stdout io.Writer) error {
@@ -2420,10 +2412,6 @@ func runRemind(args []string, stdout io.Writer) error {
 	}
 
 	return nil
-}
-
-func runReview(args []string, stdout io.Writer) error {
-	return RunReview(args, stdout)
 }
 
 func runSurface(args []string, stdout io.Writer) error {

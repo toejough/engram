@@ -103,9 +103,21 @@ func TestDeEscalation_TailNotAllWorse(t *testing.T) {
 			Effectiveness:   0.25,
 			EscalationHistory: []maintain.EscalationHistoryEntry{
 				{Level: maintain.LevelAdvisory, Since: now.AddDate(0, -6, 0), Effectiveness: 0.20},
-				{Level: maintain.LevelEmphasizedAdvisory, Since: now.AddDate(0, -3, 0), Effectiveness: 0.15},
-				{Level: maintain.LevelEmphasizedAdvisory, Since: now.AddDate(0, -2, 0), Effectiveness: 0.25},
-				{Level: maintain.LevelEmphasizedAdvisory, Since: now.AddDate(0, -1, 0), Effectiveness: 0.12},
+				{
+					Level:         maintain.LevelEmphasizedAdvisory,
+					Since:         now.AddDate(0, -3, 0),
+					Effectiveness: 0.15,
+				},
+				{
+					Level:         maintain.LevelEmphasizedAdvisory,
+					Since:         now.AddDate(0, -2, 0),
+					Effectiveness: 0.25,
+				},
+				{
+					Level:         maintain.LevelEmphasizedAdvisory,
+					Since:         now.AddDate(0, -1, 0),
+					Effectiveness: 0.12,
+				},
 			},
 		},
 	}

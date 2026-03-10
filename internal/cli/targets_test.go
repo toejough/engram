@@ -47,7 +47,8 @@ func TestAuditFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.AuditFlags(cli.AuditArgs{DataDir: "/data", Timestamp: "2024-01-01T00:00:00Z"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--timestamp", "2024-01-01T00:00:00Z"}))
+		g.Expect(result).
+			To(gomega.Equal([]string{"--data-dir", "/data", "--timestamp", "2024-01-01T00:00:00Z"}))
 	})
 
 	t.Run("empty fields skipped", func(t *testing.T) {
@@ -334,7 +335,8 @@ func TestInstructFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.InstructFlags(cli.InstructArgs{DataDir: "/data", ProjectDir: "/project"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--project-dir", "/project"}))
+		g.Expect(result).
+			To(gomega.Equal([]string{"--data-dir", "/data", "--project-dir", "/project"}))
 	})
 
 	t.Run("empty fields skipped", func(t *testing.T) {
@@ -511,7 +513,9 @@ func TestPromoteFlags(t *testing.T) {
 		t.Parallel()
 		g := gomega.NewWithT(t)
 
-		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", ToSkill: true, ToClaudeMD: false})
+		result := cli.PromoteFlags(
+			cli.PromoteArgs{DataDir: "/data", ToSkill: true, ToClaudeMD: false},
+		)
 		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill"}))
 	})
 
@@ -520,7 +524,8 @@ func TestPromoteFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", ToClaudeMD: true, Yes: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-claude-md", "--yes"}))
+		g.Expect(result).
+			To(gomega.Equal([]string{"--data-dir", "/data", "--to-claude-md", "--yes"}))
 	})
 
 	t.Run("negative threshold omitted", func(t *testing.T) {
@@ -654,7 +659,8 @@ func TestRemindFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.RemindFlags(cli.RemindArgs{DataDir: "/data", FilePath: "/file.go"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--file-path", "/file.go"}))
+		g.Expect(result).
+			To(gomega.Equal([]string{"--data-dir", "/data", "--file-path", "/file.go"}))
 	})
 
 	t.Run("empty fields skipped", func(t *testing.T) {
@@ -750,7 +756,8 @@ func TestSurfaceFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.SurfaceFlags(cli.SurfaceArgs{Mode: "session-start", DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--mode", "session-start", "--data-dir", "/data"}))
+		g.Expect(result).
+			To(gomega.Equal([]string{"--mode", "session-start", "--data-dir", "/data"}))
 	})
 
 	t.Run("empty fields skipped", func(t *testing.T) {

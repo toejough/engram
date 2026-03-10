@@ -197,7 +197,10 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 				run("registry", append([]string{"init"}, RegistryInitFlags(a)...))
 			}).Name("init").Description("Backfill registry from memory files"),
 			targ.Targ(func(a RegistryRegisterSourceArgs) {
-				run("registry", append([]string{"register-source"}, RegistryRegisterSourceFlags(a)...))
+				run(
+					"registry",
+					append([]string{"register-source"}, RegistryRegisterSourceFlags(a)...),
+				)
 			}).Name("register-source").Description("Register a single source"),
 			targ.Targ(func(a RegistryMergeArgs) {
 				run("registry", append([]string{"merge"}, RegistryMergeFlags(a)...))
@@ -325,7 +328,7 @@ func SurfaceFlags(a SurfaceArgs) []string {
 }
 
 // Targets returns all targ targets for the engram CLI.
-func Targets(stdout io.Writer, stderr io.Writer, stdin io.Reader) []any {
+func Targets(stdout, stderr io.Writer, stdin io.Reader) []any {
 	return BuildTargets(func(subcmd string, flags []string) {
 		args := append([]string{"engram", subcmd}, flags...)
 		RunSafe(args, stdout, stderr, stdin)

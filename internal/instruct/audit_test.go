@@ -372,7 +372,12 @@ func TestAuditRun_FindGapsAllCovered(t *testing.T) {
 		Scanner:   scanner,
 		LLMCaller: nil,
 		EvalData: []instruct.EvalRecord{
-			{MemoryPath: "/data/memories/m1.toml", Outcome: "contradicted", Pattern: "p1", Example: "e1"},
+			{
+				MemoryPath: "/data/memories/m1.toml",
+				Outcome:    "contradicted",
+				Pattern:    "p1",
+				Example:    "e1",
+			},
 		},
 	}
 
@@ -412,9 +417,24 @@ func TestAuditRun_FindGapsGroupsPatterns(t *testing.T) {
 		Scanner:   scanner,
 		LLMCaller: nil,
 		EvalData: []instruct.EvalRecord{
-			{MemoryPath: "/uncovered1", Outcome: "contradicted", Pattern: "same_pat", Example: "ex1"},
-			{MemoryPath: "/uncovered2", Outcome: "contradicted", Pattern: "same_pat", Example: "ex2"},
-			{MemoryPath: "/uncovered3", Outcome: "contradicted", Pattern: "other_pat", Example: "ex3"},
+			{
+				MemoryPath: "/uncovered1",
+				Outcome:    "contradicted",
+				Pattern:    "same_pat",
+				Example:    "ex1",
+			},
+			{
+				MemoryPath: "/uncovered2",
+				Outcome:    "contradicted",
+				Pattern:    "same_pat",
+				Example:    "ex2",
+			},
+			{
+				MemoryPath: "/uncovered3",
+				Outcome:    "contradicted",
+				Pattern:    "other_pat",
+				Example:    "ex3",
+			},
 		},
 	}
 

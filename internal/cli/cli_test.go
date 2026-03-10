@@ -1643,7 +1643,9 @@ func TestRunPromote_ToSkill_WithCandidates(t *testing.T) {
 
 	g.Expect(os.WriteFile(
 		memPath,
-		[]byte("title = \"Test Memory\"\nprinciple = \"be good\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
+		[]byte(
+			"title = \"Test Memory\"\nprinciple = \"be good\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n",
+		),
 		0o644,
 	)).To(Succeed())
 
@@ -3115,6 +3117,34 @@ func TestT64_RenderLearnResult_NoLearnings(t *testing.T) {
 	cli.RenderLearnResult(&buf, result)
 
 	g.Expect(buf.String()).To(Equal("[engram] No new learnings extracted.\n"))
+}
+
+func TestTruncateTitle(t *testing.T) {
+	t.Parallel()
+
+	t.Run("short title unchanged", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+		g.Expect(cli.ExportTruncateTitle("short")).To(Equal("short"))
+	})
+
+	t.Run("exact length unchanged", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		exact := strings.Repeat("x", 38)
+		g.Expect(cli.ExportTruncateTitle(exact)).To(Equal(exact))
+	})
+
+	t.Run("long title truncated with ellipsis", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		long := strings.Repeat("a", 50)
+		result := cli.ExportTruncateTitle(long)
+		g.Expect(len(result)).To(BeNumerically("<=", 42)) // 37 chars + multibyte ellipsis
+		g.Expect(result).To(HaveSuffix("…"))
+	})
 }
 
 // unexported variables.

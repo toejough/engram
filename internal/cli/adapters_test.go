@@ -55,7 +55,7 @@ func TestBuildEscalationMemories(t *testing.T) {
 	g.Expect(result[1].Content).To(BeEmpty()) // nil stored → empty content
 
 	// Verify maintain.EscalationMemory type is used.
-	var _ = result[0]
+	_ = result[0]
 }
 
 func TestBuildExtractor_AllTypes(t *testing.T) {
@@ -455,7 +455,9 @@ func TestOsMemoryLoader_LoadPrinciple_Found(t *testing.T) {
 
 	g.Expect(os.WriteFile(
 		filepath.Join(memDir, "test-mem.toml"),
-		[]byte("title = \"Test\"\nprinciple = \"always test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
+		[]byte(
+			"title = \"Test\"\nprinciple = \"always test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n",
+		),
 		0o644,
 	)).To(Succeed())
 
