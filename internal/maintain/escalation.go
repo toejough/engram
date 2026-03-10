@@ -3,6 +3,7 @@ package maintain
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -10,12 +11,18 @@ import (
 const (
 	LevelAdvisory           EscalationLevel = "advisory"
 	LevelEmphasizedAdvisory EscalationLevel = "emphasized_advisory"
+	LevelGraduated          EscalationLevel = "graduated"
 	LevelReminder           EscalationLevel = "reminder"
 )
 
 // EffData maps escalation levels to observed effectiveness deltas for
 // memories that were previously at that level.
 type EffData map[EscalationLevel][]float64
+
+// EnforcementApplier updates the enforcement_level in the instruction registry.
+type EnforcementApplier interface {
+	SetEnforcementLevel(id string, level string, reason string) error
+}
 
 // EscalationEngine analyzes leech memories and proposes escalation actions.
 type EscalationEngine struct {
@@ -182,6 +189,68 @@ type EscalationProposal struct {
 	PredictedImpact string `json:"predicted_impact"`
 }
 
+// GraduationEmitter emits a graduation signal when a memory reaches graduated level.
+type GraduationEmitter interface {
+	EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error
+}
+
+// ApplyEscalationProposal persists a proposal's level change to the registry and
+// emits a graduation signal when the proposed level is "graduated".
+// Returns nil (no-op) if applier is nil.
+func ApplyEscalationProposal(
+	proposal EscalationProposal,
+	content string,
+	applier EnforcementApplier,
+	emitter GraduationEmitter,
+	now func() time.Time,
+) error {
+	if applier == nil {
+		return nil
+	}
+
+	err := applier.SetEnforcementLevel(
+		proposal.MemoryPath,
+		proposal.ProposedLevel,
+		proposal.Rationale,
+	)
+	if err != nil {
+		return fmt.Errorf("setting enforcement level: %w", err)
+	}
+
+	if EscalationLevel(proposal.ProposedLevel) == LevelGraduated && emitter != nil {
+		recommendation := ClassifyContent(content)
+		detectedAt := time.Now()
+
+		if now != nil {
+			detectedAt = now()
+		}
+
+		_ = emitter.EmitGraduation(proposal.MemoryPath, recommendation, detectedAt)
+	}
+
+	return nil
+}
+
+// ClassifyContent determines the recommended destination for a graduated memory.
+// Returns one of: "settings.json", ".claude/rules/", "skill", "CLAUDE.md".
+func ClassifyContent(content string) string {
+	lower := strings.ToLower(content)
+
+	if containsAny(lower, "linter", "lint", "deny", "eslint", "golangci", "settings", "config") {
+		return "settings.json"
+	}
+
+	if containsAny(lower, "glob pattern", "file glob", "rule file", ".claude/rules", "file-scoped") {
+		return ".claude/rules/"
+	}
+
+	if containsAny(lower, "workflow", "procedure", "step-by-step", "how to", "process", "skill") {
+		return "skill"
+	}
+
+	return "CLAUDE.md"
+}
+
 // MarshalProposal serializes an EscalationProposal to JSON.
 // EscalationProposal contains only string fields, so json.Marshal cannot fail.
 func MarshalProposal(proposal EscalationProposal) json.RawMessage {
@@ -202,8 +271,20 @@ var (
 		LevelAdvisory,
 		LevelEmphasizedAdvisory,
 		LevelReminder,
+		LevelGraduated,
 	}
 )
+
+// containsAny reports whether s contains any of the given substrings.
+func containsAny(s string, subs ...string) bool {
+	for _, sub := range subs {
+		if strings.Contains(s, sub) {
+			return true
+		}
+	}
+
+	return false
+}
 
 func nextEscalationLevel(current EscalationLevel) (EscalationLevel, bool) {
 	for idx, level := range escalationLadder {

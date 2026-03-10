@@ -49,6 +49,11 @@ type EffectivenessStat struct {
 	EffectivenessScore float64 // followed% (0–100)
 }
 
+// EnforcementReader returns the enforcement level for a registered instruction.
+type EnforcementReader interface {
+	GetEnforcementLevel(id string) (string, error)
+}
+
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -93,6 +98,7 @@ type Surfacer struct {
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
 	registry              RegistryRecorder
+	enforcementReader     EnforcementReader
 }
 
 // New creates a Surfacer.
@@ -185,6 +191,60 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	}
 
 	return s.writeResult(w, result, opts.Format)
+}
+
+// enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
+func (s *Surfacer) enforcementLevelFor(memPath string) string {
+	if s.enforcementReader == nil {
+		return enforcementAdvisory
+	}
+
+	level, err := s.enforcementReader.GetEnforcementLevel(memPath)
+	if err != nil {
+		return enforcementAdvisory
+	}
+
+	return level
+}
+
+func (s *Surfacer) renderToolAdvisories(
+	candidates []toolMatch,
+	effectiveness map[string]EffectivenessStat,
+) (Result, []*memory.Stored, error) {
+	// Sort emphasized/reminder memories first (REQ-P6e-1: higher budget priority).
+	sort.SliceStable(candidates, func(i, j int) bool {
+		li := isEmphasized(s.enforcementLevelFor(candidates[i].mem.FilePath))
+		lj := isEmphasized(s.enforcementLevelFor(candidates[j].mem.FilePath))
+
+		return li && !lj
+	})
+
+	var (
+		summaryBuf strings.Builder
+		contextBuf strings.Builder
+	)
+
+	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d tool advisories:\n", len(candidates))
+	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
+
+	toolMems := make([]*memory.Stored, 0, len(candidates))
+
+	for _, match := range candidates {
+		toolMems = append(toolMems, match.mem)
+		level := s.enforcementLevelFor(match.mem.FilePath)
+		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
+		line := formatMemoryLine(filenameSlug(match.mem.FilePath), match.mem.Principle, level, annotation)
+		_, _ = fmt.Fprint(&summaryBuf, line)
+		_, _ = fmt.Fprint(&contextBuf, line)
+	}
+
+	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
+
+	return Result{
+		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
+		Context: contextBuf.String(),
+	}, toolMems, nil
 }
 
 //nolint:cyclop,funlen // effectiveness filtering + budget enforcement: inherent branching
@@ -428,32 +488,7 @@ func (s *Surfacer) runTool(
 		return Result{}, nil, nil
 	}
 
-	var (
-		summaryBuf strings.Builder
-		contextBuf strings.Builder
-	)
-
-	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d tool advisories:\n", len(candidates))
-	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
-
-	toolMems := make([]*memory.Stored, 0, len(candidates))
-
-	for _, match := range candidates {
-		toolMems = append(toolMems, match.mem)
-		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		line := fmt.Sprintf("  - %s%s\n",
-			filenameSlug(match.mem.FilePath), annotation)
-		_, _ = fmt.Fprint(&summaryBuf, line)
-		_, _ = fmt.Fprint(&contextBuf, line)
-	}
-
-	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
-
-	return Result{
-		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
-		Context: contextBuf.String(),
-	}, toolMems, nil
+	return s.renderToolAdvisories(candidates, effectiveness)
 }
 
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
@@ -488,6 +523,11 @@ func WithEffectiveness(computer EffectivenessComputer) SurfacerOption {
 	return func(s *Surfacer) { s.effectivenessComputer = computer }
 }
 
+// WithEnforcementReader sets the enforcement level reader for level-aware rendering (REQ-P6e-1).
+func WithEnforcementReader(reader EnforcementReader) SurfacerOption {
+	return func(s *Surfacer) { s.enforcementReader = reader }
+}
+
 // WithLogReader sets the creation log reader for session-start mode.
 func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
@@ -510,12 +550,15 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	minPreCompactEffectiveness = 40.0
-	minRelevanceScore          = 0.01
-	preCompactLimit            = 5
-	promptLimit                = 10
-	sessionStartLimit          = 10
-	toolLimit                  = 3
+	enforcementAdvisory           = "advisory"
+	enforcementEmphasizedAdvisory = "emphasized_advisory"
+	enforcementReminder           = "reminder"
+	minPreCompactEffectiveness    = 40.0
+	minRelevanceScore             = 0.01
+	preCompactLimit               = 5
+	promptLimit                   = 10
+	sessionStartLimit             = 10
+	toolLimit                     = 3
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -597,6 +640,23 @@ func formatEffectivenessAnnotation(
 		stat.SurfacedCount,
 		int(stat.EffectivenessScore),
 	)
+}
+
+// formatMemoryLine formats a single memory entry based on its enforcement level.
+func formatMemoryLine(slug, principle, level, annotation string) string {
+	switch level {
+	case enforcementEmphasizedAdvisory:
+		return fmt.Sprintf("  - IMPORTANT: **%s**%s\n", slug, annotation)
+	case enforcementReminder:
+		return fmt.Sprintf("  - REMINDER: %s — %s%s\n", slug, principle, annotation)
+	default:
+		return fmt.Sprintf("  - %s%s\n", slug, annotation)
+	}
+}
+
+// isEmphasized reports whether the level should be prioritized in the output.
+func isEmphasized(level string) bool {
+	return level == enforcementEmphasizedAdvisory || level == enforcementReminder
 }
 
 // matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
