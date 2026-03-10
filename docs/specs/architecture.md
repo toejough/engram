@@ -2111,3 +2111,185 @@ All L2 items have ARCH coverage.
 | DES-42  | ARCH-72 |
 
 All L2 items have ARCH coverage.
+
+---
+
+## ARCH-73: Signal Detector component (UC-28)
+
+**Component:** `internal/signal/detector.go`
+
+**Decision:** A Detector aggregates maintenance and promotion signals using injected interfaces that wrap existing domain logic. No LLM calls.
+
+```go
+type Classifier interface {
+    Classify(stats map[string]effectiveness.Stat, tracking map[string]review.TrackingData) []review.ClassifiedMemory
+}
+
+type PromotionScanner interface {
+    Candidates(threshold int) ([]promote.Candidate, error)
+}
+
+type ClaudeMDScanner interface {
+    PromotionCandidates(threshold int) ([]promote.Candidate, error)
+    DemotionCandidates() ([]promote.Candidate, error)
+}
+
+type Detector struct {
+    classifier  Classifier
+    promoter    PromotionScanner
+    claudeMD    ClaudeMDScanner
+    now         func() time.Time
+}
+
+type Signal struct {
+    Type       string    `json:"type"`
+    SourceID   string    `json:"source_id"`
+    SignalKind string    `json:"signal"`
+    Quadrant   string    `json:"quadrant,omitempty"`
+    Summary    string    `json:"summary"`
+    DetectedAt time.Time `json:"detected_at"`
+}
+
+func (d *Detector) Detect(ctx context.Context) ([]Signal, error)
+```
+
+Detect() calls classifier for maintenance quadrants (Noise→`noise_removal`, Leech→`leech_rewrite`, HiddenGem→`hidden_gem_broadening`), then calls promotion/demotion scanners. Returns all detected signals.
+
+**Traces to:** REQ-123 (maintenance detection), REQ-124 (promotion detection)
+
+---
+
+## ARCH-74: Proposal Queue Store (UC-28)
+
+**Component:** `internal/signal/queue.go`
+
+**Decision:** Follows `creationlog` pattern exactly — JSONL file with atomic writes via temp+rename, DI for all I/O.
+
+```go
+type QueueStore struct {
+    readFile   func(string) ([]byte, error)
+    createTemp func(dir, pattern string) (*os.File, error)
+    rename     func(oldpath, newpath string) error
+    remove     func(name string) error
+    now        func() time.Time
+}
+
+func (q *QueueStore) Read(path string) ([]Signal, error)
+func (q *QueueStore) Append(signals []Signal, path string) error
+func (q *QueueStore) Prune(path string, existsCheck func(string) bool) error
+func (q *QueueStore) ClearBySourceID(path, sourceID string) error
+```
+
+File: `<data-dir>/proposal-queue.jsonl`. Read skips malformed lines. Prune removes >30d entries, entries for deleted sources, and deduplicates by source_id+type.
+
+**Traces to:** REQ-125 (queue file), REQ-126 (pruning)
+
+---
+
+## ARCH-75: CLI wiring for signal subcommands (UC-28)
+
+**Component:** `internal/cli/cli.go`
+
+**Decision:** Three new subcommands added to the Run dispatcher:
+
+- `signal-detect`: Opens registry, aggregates effectiveness, builds tracking data, calls Detector.Detect, reads existing queue, prunes, appends new signals, writes queue.
+- `signal-surface`: Reads queue, loads memory TOML for each signal, enriches with title/content/effectiveness stats, formats model-facing context with action instructions, outputs JSON.
+- `apply-proposal`: Parses action/memory/fields flags, dispatches to Applier, returns JSON result.
+
+All follow existing CLI wiring pattern: parse flags → compose dependencies → call domain logic → render output.
+
+**Traces to:** REQ-127 (surfacing), REQ-128 (apply-proposal), DES-46 (subcommands)
+
+---
+
+## ARCH-76: Hook integration for signal detection (UC-28)
+
+**Component:** `hooks/stop.sh`, `hooks/session-start.sh`
+
+**Decision:**
+- `hooks/stop.sh`: Append `"$ENGRAM_BIN" signal-detect --data-dir "$ENGRAM_DATA" 2>/dev/null || true` after the audit step. Last phase, fire-and-forget.
+- `hooks/session-start.sh`: Call `signal-surface --data-dir "$ENGRAM_DATA" --format json`, merge output into existing `additionalContext`.
+
+**Traces to:** DES-45 (hook ordering), DES-44 (surfacing format)
+
+---
+
+## ARCH-77: Apply-proposal component (UC-28)
+
+**Component:** `internal/signal/apply.go`
+
+**Decision:** An Applier dispatches actions to handlers, each performing: read TOML → modify → write atomically → update registry → clear queue entry.
+
+```go
+type Applier struct {
+    readFile   func(string) ([]byte, error)
+    writeFile  func(string, []byte) error
+    removeFile func(string) error
+    registry   RegistryUpdater
+    queue      QueueClearer
+}
+
+type ApplyAction struct {
+    Action   string            `json:"action"`
+    Memory   string            `json:"memory"`
+    Fields   map[string]any    `json:"fields"`
+    Keywords []string          `json:"keywords"`
+    Level    int               `json:"level"`
+}
+
+type ApplyResult struct {
+    Success bool   `json:"success"`
+    Action  string `json:"action"`
+    Memory  string `json:"memory"`
+    Error   string `json:"error,omitempty"`
+}
+
+func (a *Applier) Apply(ctx context.Context, action ApplyAction) (ApplyResult, error)
+```
+
+Action handlers:
+- `remove`: removeFile + registry.Remove + queue.ClearBySourceID
+- `rewrite`: read TOML → update fields → writeFile atomically → registry update content hash
+- `broaden`: read TOML → append keywords → writeFile atomically
+- `escalate`: read TOML → set escalation_level → writeFile atomically
+
+**Traces to:** REQ-128 (apply-proposal)
+
+---
+
+## ARCH-78: Promote with external content (UC-28)
+
+**Component:** `internal/promote/promote.go`, `internal/promote/claudemd.go`
+
+**Decision:** Extend `Promoter.Promote()` and `ClaudeMDPromoter.Promote()` to accept optional pre-generated content. When content is provided, skip the `Generator.Generate()` LLM call. When `--yes` flag is set, skip the `Confirmer.Confirm()` call. Registry merge + file write still happen normally.
+
+```go
+type PromoteOpts struct {
+    Content     string // if non-empty, skip Generator.Generate
+    SkipConfirm bool   // if true, skip Confirmer.Confirm
+}
+```
+
+Added as optional parameter to Promote methods. Existing callers pass zero-value opts (unchanged behavior).
+
+**Traces to:** REQ-129 (promote with content)
+
+---
+
+## L2 → ARCH Traceability (UC-28)
+
+| L2 Item | ARCH Coverage |
+|---------|--------------|
+| REQ-123 | ARCH-73 |
+| REQ-124 | ARCH-73 |
+| REQ-125 | ARCH-74 |
+| REQ-126 | ARCH-74 |
+| REQ-127 | ARCH-75 |
+| REQ-128 | ARCH-75, ARCH-77 |
+| REQ-129 | ARCH-78 |
+| DES-43  | ARCH-74 |
+| DES-44  | ARCH-75, ARCH-76 |
+| DES-45  | ARCH-76 |
+| DES-46  | ARCH-75 |
+
+All L2 items have ARCH coverage.

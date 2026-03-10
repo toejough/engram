@@ -2572,6 +2572,147 @@ All steps after build are fire-and-forget — errors logged but never block.
 
 ---
 
+## UC-28: Automatic Maintenance and Promotion Triggers
+
+---
+
+### REQ-123: Maintenance signal detection at session end
+
+After evaluate in Stop hook, classify all registered memories into quadrants and identify actionable signals: Noise (removal candidate), Leech (rewrite candidate), Working+stale (staleness review), Hidden Gem (keyword broadening candidate). No LLM calls. Reuses `review.Classify()` with registry effectiveness data.
+
+- Traces to: UC-28 (signal detection)
+- AC: (1) Correct quadrant assignment matching review.Classify logic. (2) No LLM calls — local-only computation. (3) <2s on local I/O. (4) Fire-and-forget on errors (ARCH-6). (5) Memories with <5 evaluations (InsufficientData) produce no signal.
+- Verification: deterministic (quadrant classification)
+
+---
+
+### REQ-124: Promotion/demotion signal detection at session end
+
+Query registry for tier transition candidates using existing threshold logic. Memory→skill candidates via `Promoter.Candidates()`. Skill→CLAUDE.md candidates via `ClaudeMDPromoter.PromotionCandidates()`. CLAUDE.md demotion candidates via `ClaudeMDPromoter.DemotionCandidates()`.
+
+- Traces to: UC-28 (promotion signal detection)
+- AC: (1) Same thresholds as existing promote/demote commands. (2) No LLM calls. (3) Fire-and-forget on errors. (4) Missing registry → skip silently.
+- Verification: deterministic (threshold filtering)
+
+---
+
+### REQ-125: Proposal queue JSONL file
+
+Signals written to `<data-dir>/proposal-queue.jsonl`. Each line is a JSON object: `{type, source_id, signal, quadrant, summary, detected_at}`. Atomic write via temp+rename (creationlog pattern).
+
+- Traces to: UC-28 (queue persistence)
+- AC: (1) Created if absent. (2) Atomic writes (temp file + rename). (3) Malformed lines skipped on read. (4) Bounded growth via pruning (REQ-126).
+- Verification: deterministic (file I/O)
+
+---
+
+### REQ-126: Stale signal pruning
+
+Before appending new signals, prune the queue: entries >30 days old, entries for deleted memories (source file no longer exists), entries where quadrant is no longer actionable (re-check against current registry). Deduplicate by source_id + type.
+
+- Traces to: UC-28 (queue hygiene)
+- AC: (1) Age pruning (>30 days). (2) Existence check (source file exists). (3) Quadrant re-check against current data. (4) Dedup by source_id + type (keep newest).
+- Verification: deterministic (pruning logic)
+
+---
+
+### REQ-127: SessionStart proposal queue surfacing with memory detail
+
+Read queue + load memory content for each signal. Output includes: signal metadata, memory title, memory content summary, effectiveness stats (surfaced count, follow rate), and quadrant rationale. Includes actionable instructions for the conversation model (CLI commands to run). Empty queue = no output. Goes into `additionalContext`.
+
+- Traces to: UC-28 (surfacing)
+- AC: (1) Each signal includes memory title + content excerpt. (2) Effectiveness stats included. (3) Empty queue = silent (no output). (4) Queue persists until acted upon. (5) Model-facing action instructions included.
+- Verification: deterministic (formatting)
+
+---
+
+### REQ-128: Atomic proposal application via CLI
+
+New `engram apply-proposal` subcommand. Accepts action + memory path + parameters. Actions:
+- `--action remove`: delete memory TOML + remove registry entry
+- `--action rewrite --fields '{"title":"...","content":"...","keywords":[...]}'`: update TOML fields + registry content hash
+- `--action broaden --keywords 'kw1,kw2'`: append keywords to memory TOML
+- `--action escalate --level N`: update escalation_level field
+
+- Traces to: UC-28 (apply-proposal)
+- AC: (1) File write is atomic (temp+rename). (2) Registry updated in same operation. (3) Clears matching signal from proposal queue. (4) Fire-and-forget on queue cleanup failure. (5) Returns structured JSON result (success/error). (6) Missing memory file → error result.
+- Verification: deterministic (file I/O + registry)
+
+---
+
+### REQ-129: Promotion with model-generated content
+
+Extend `engram promote` to accept `--content` flag. When provided, skip LLM generation and use the supplied content. Combined with `--yes` to skip interactive confirmation (model already confirmed with user).
+- `engram promote --to-skill --candidate <id> --content '<skill>' --yes`
+- `engram promote --to-claude-md --candidate <id> --content '<entry>' --yes`
+
+- Traces to: UC-28 (promote with content)
+- AC: (1) `--content` bypasses Generator.Generate LLM call. (2) `--yes` bypasses Confirmer.Confirm. (3) Registry merge still happens. (4) Clears matching promote signal from queue. (5) Existing promote flow unchanged when flags absent.
+- Verification: deterministic (flag handling)
+
+---
+
+### DES-43: Proposal queue schema
+
+Each line in `proposal-queue.jsonl`:
+```json
+{"type":"maintain","source_id":"path/to/memory.toml","signal":"leech_rewrite","quadrant":"Leech","summary":"High surfacing, low follow-through","detected_at":"2026-03-10T12:00:00Z"}
+```
+
+Signal values for maintain type: `noise_removal`, `leech_rewrite`, `staleness_review`, `hidden_gem_broadening`, `escalation`.
+Signal values for promote type: `memory_to_skill`, `skill_to_claudemd`, `claudemd_demotion`.
+
+- Traces to: UC-28 (queue format)
+- AC: (1) Valid JSON per line. (2) Signal values are one of the defined constants. (3) Timestamps in RFC3339.
+- Verification: deterministic (schema validation)
+
+---
+
+### DES-44: SessionStart surfacing format (model-facing)
+
+The surfacing output is designed for the conversation model, not the user. Includes structured signal data + memory excerpts + instruction block:
+```
+[engram] Pending maintenance signals (present these to the user for review):
+
+Signal 1/3: LEECH — "always-use-targ-test"
+  Quadrant: Leech (surfaced 14 times, followed 21%)
+  Content: "Use targ test for all test operations..."
+  Diagnosis: High surfacing, low follow-through — content may need rewriting
+  Action: Propose a rewrite to the user. If approved, call:
+    engram apply-proposal --action rewrite --memory <path> --fields '<json>'
+```
+
+Goes into `additionalContext`. The model reads this and starts the interview.
+
+- Traces to: UC-28 (surfacing format)
+- AC: (1) Human-readable format for model consumption. (2) Includes CLI commands. (3) Includes effectiveness stats.
+- Verification: deterministic (output format)
+
+---
+
+### DES-45: Stop hook phase ordering
+
+After existing phases: learn → evaluate → audit → **signal-detect** (new, last, local-only). Signal detection runs last because it depends on evaluate having updated the registry.
+
+- Traces to: UC-28 (hook ordering)
+- AC: (1) signal-detect runs after audit. (2) Fire-and-forget (exit 0 always). (3) No LLM calls.
+- Verification: integration (hook flow)
+
+---
+
+### DES-46: CLI subcommands
+
+Three new subcommands:
+- `engram signal-detect --data-dir <path>` — called by Stop hook, writes queue
+- `engram signal-surface --data-dir <path> --format json` — called by SessionStart hook, outputs detailed model-facing context
+- `engram apply-proposal --data-dir <path> --action <action> --memory <path> [--fields/--keywords/--level]` — called by conversation model after user confirms
+
+- Traces to: UC-28 (CLI design)
+- AC: (1) All three subcommands wired in cli.go. (2) signal-detect and signal-surface are hook-callable. (3) apply-proposal returns JSON result.
+- Verification: deterministic (CLI wiring)
+
+---
+
 ### DES-41: Source path configuration
 
 Source paths are provided to the auto-registration system via injected configuration, not hardcoded paths. The CLI wiring layer resolves paths from the environment:

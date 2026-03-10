@@ -804,3 +804,330 @@ Then: Session start continues, surface output still produced, error logged to st
 | ARCH-72 | T-285, T-286, T-287, T-288, T-289, T-290 |
 
 All ARCH items have test coverage.
+
+---
+
+## UC-28: Automatic Maintenance and Promotion Triggers Tests
+
+### T-291: Noise memory detected → noise_removal signal
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=10, effectiveness=0% (all ignored), ≥5 evaluations
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="noise_removal", quadrant="Noise" is returned
+
+---
+
+### T-292: Leech memory detected → leech_rewrite signal
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=20, effectiveness=15%, ≥5 evaluations (high surfacing, low follow-through)
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="leech_rewrite", quadrant="Leech" is returned
+
+---
+
+### T-293: Stale Working memory → staleness_review signal
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory in Working quadrant with last_surfaced >90 days ago
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="staleness_review", quadrant="Working" is returned
+
+---
+
+### T-294: Hidden Gem detected → hidden_gem_broadening signal
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=2, effectiveness=90%, ≥5 evaluations (low surfacing, high follow-through)
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="hidden_gem_broadening", quadrant="HiddenGem" is returned
+
+---
+
+### T-295: Memory with <5 evaluations → no signal
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=3, 2 evaluations (InsufficientData quadrant)
+When: Detector.Detect runs
+Then: No signal generated for this memory
+
+---
+
+### T-296: Memory-to-skill candidate detected
+
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A memory with surfaced_count >= promotion threshold, not InsufficientData quadrant
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="memory_to_skill" is returned
+
+---
+
+### T-297: Skill-to-CLAUDE.md candidate detected
+
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A skill in Working quadrant with surfaced_count >= promotion threshold
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="skill_to_claudemd" is returned
+
+---
+
+### T-298: CLAUDE.md demotion candidate detected
+
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A CLAUDE.md entry in Leech quadrant
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="claudemd_demotion" is returned
+
+---
+
+### T-299: Queue write creates file if absent
+
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: No proposal-queue.jsonl exists
+When: QueueStore.Append is called with signals
+Then: File created with one JSON line per signal
+
+---
+
+### T-300: Queue write is atomic (temp+rename)
+
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: An existing proposal-queue.jsonl
+When: QueueStore.Append is called
+Then: createTemp is called, content written to temp, rename to final path
+
+---
+
+### T-301: Queue read skips malformed lines
+
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: A proposal-queue.jsonl with 3 valid lines and 1 malformed line
+When: QueueStore.Read is called
+Then: Returns 3 signals, malformed line skipped without error
+
+---
+
+### T-302: Stale entries (>30d) pruned on detect
+
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with entries: one 10 days old, one 45 days old
+When: QueueStore.Prune is called
+Then: 45-day entry removed, 10-day entry preserved
+
+---
+
+### T-303: Entries for deleted memories pruned
+
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with entry for memory path that no longer exists
+When: QueueStore.Prune is called with existsCheck returning false
+Then: Entry removed
+
+---
+
+### T-304: Duplicate signals deduplicated
+
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with two entries having same source_id + type
+When: QueueStore.Prune is called
+Then: Only newest entry preserved
+
+---
+
+### T-305: SessionStart surfaces enriched signal detail with memory content
+
+**Traces to:** ARCH-75 (REQ-127)
+
+Given: Queue with 2 signals, corresponding memory TOMLs exist
+When: signal-surface runs
+Then: Output includes memory title, content excerpt, effectiveness stats, and CLI action instructions for each signal
+
+---
+
+### T-306: Empty queue produces no output
+
+**Traces to:** ARCH-75 (REQ-127)
+
+Given: Empty proposal-queue.jsonl (or file doesn't exist)
+When: signal-surface runs
+Then: No output produced
+
+---
+
+### T-307: signal-surface output is valid hook JSON
+
+**Traces to:** ARCH-75, ARCH-76 (DES-46)
+
+Given: Queue with signals
+When: signal-surface --format json runs
+Then: Output is valid JSON with `additionalContext` field compatible with SessionStart hook schema
+
+---
+
+### T-309: Detection with missing registry → skip silently
+
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: No instruction-registry.jsonl exists
+When: Detector.Detect runs
+Then: Returns empty signal list, no error
+
+---
+
+### T-310: Stop hook calls signal-detect after audit
+
+**Traces to:** ARCH-76 (DES-45)
+
+Given: A complete Stop hook script
+When: Inspecting hook flow
+Then: signal-detect invocation appears after audit, with fire-and-forget error handling
+
+---
+
+### T-311: SessionStart merges signal-surface into existing output
+
+**Traces to:** ARCH-76 (DES-44)
+
+Given: SessionStart hook produces surface output + signal-surface produces signal output
+When: SessionStart hook runs
+Then: Both outputs merged into single additionalContext
+
+---
+
+### T-312: Remove action deletes TOML + removes registry entry
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists and is registered
+When: Applier.Apply with action="remove"
+Then: TOML file deleted, registry entry removed, queue entry cleared
+
+---
+
+### T-313: Rewrite action updates TOML fields + registry hash
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists with title="old" and content="old content"
+When: Applier.Apply with action="rewrite", fields={"title":"new","content":"new content"}
+Then: TOML updated with new values, registry content_hash updated
+
+---
+
+### T-314: Broaden action appends keywords to TOML
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML with keywords=["go","test"]
+When: Applier.Apply with action="broaden", keywords=["lint","ci"]
+Then: TOML keywords=["go","test","lint","ci"]
+
+---
+
+### T-315: Escalate action updates escalation_level field
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML with escalation_level=1
+When: Applier.Apply with action="escalate", level=2
+Then: TOML escalation_level=2
+
+---
+
+### T-316: Apply clears matching signal from queue
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: Queue has signal for memory "x.toml"
+When: Applier.Apply runs successfully for "x.toml"
+Then: Signal for "x.toml" removed from queue
+
+---
+
+### T-317: Apply with missing memory file returns error
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: Memory path points to nonexistent file
+When: Applier.Apply with action="rewrite"
+Then: ApplyResult with success=false, error describes missing file
+
+---
+
+### T-318: Apply rewrite is atomic (temp+rename)
+
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists
+When: Applier.Apply with action="rewrite"
+Then: writeFile uses atomic temp+rename pattern
+
+---
+
+### T-319: Promote --content skips LLM generation
+
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{Content: "skill content"}
+When: Promote executes
+Then: Generator.Generate is NOT called, supplied content used instead
+
+---
+
+### T-320: Promote --yes skips confirmation prompt
+
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{SkipConfirm: true}
+When: Promote executes
+Then: Confirmer.Confirm is NOT called
+
+---
+
+### T-321: Promote --content + --yes still does registry merge
+
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{Content: "...", SkipConfirm: true}
+When: Promote executes
+Then: Registry merge still happens (source merged into target)
+
+---
+
+### T-322: Promote without --content uses existing LLM flow
+
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with zero-value PromoteOpts
+When: Promote executes
+Then: Generator.Generate IS called (existing flow unchanged)
+
+---
+
+## L4 → ARCH Traceability (UC-28)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-73 | T-291, T-292, T-293, T-294, T-295, T-296, T-297, T-298, T-309 |
+| ARCH-74 | T-299, T-300, T-301, T-302, T-303, T-304 |
+| ARCH-75 | T-305, T-306, T-307, T-311 |
+| ARCH-76 | T-307, T-310, T-311 |
+| ARCH-77 | T-312, T-313, T-314, T-315, T-316, T-317, T-318 |
+| ARCH-78 | T-319, T-320, T-321, T-322 |
+
+All ARCH items have test coverage.

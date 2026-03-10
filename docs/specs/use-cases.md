@@ -704,4 +704,41 @@ Working on session continuity for engram (#45)...
 
 ---
 
+## UC-28: Automatic Maintenance and Promotion Triggers
+
+**Description:** Automatically detect when memories need maintenance (rewrite, removal, keyword broadening) or tier transitions (memory→skill, skill→CLAUDE.md, CLAUDE.md demotion), queue those signals, and surface them at session start so the conversation model can interview the user and apply changes. The model handles creative work (rewriting, keyword suggestions, skill generation); engram handles atomic I/O (file writes, registry updates). No CLI interaction required from the user.
+
+**Starting state:** learn/evaluate run automatically via hooks; maintain/promote/demote require manual CLI invocation outside Claude Code.
+
+**End state:** Stop hook detects actionable signals and queues them. SessionStart surfaces signals with memory details so the conversation model can present them naturally ("I see 2 memories that aren't working well..."), discuss with the user, generate rewrites/suggestions, and apply changes via `engram apply-proposal` — all within Claude Code.
+
+**Actor:** System (Stop hook for detection, SessionStart hook for surfacing) + Conversation model (interview + creative work) + engram CLI (atomic apply).
+
+**Key interactions:**
+
+- **Signal detection (Stop hook):** After evaluate in Stop hook, run `engram signal-detect` — local-only quadrant classification + promotion threshold checks, no LLM calls. Reuses `review.Classify()` for maintenance signals and `Promoter.Candidates()` / `ClaudeMDPromoter.{Promotion,Demotion}Candidates()` for tier transitions.
+
+- **Proposal queue:** Detected signals written to `<data-dir>/proposal-queue.jsonl` (append-safe, dedup, prune stale). Each line: `{type, source_id, signal, quadrant, summary, detected_at}`. Pruning removes entries >30 days old, entries for deleted memories, and entries where quadrant is no longer actionable.
+
+- **SessionStart surfacing:** `engram signal-surface` reads queue + memory content for each signal. Outputs detailed model-facing context with signal metadata, memory title/content/stats, quadrant rationale, and action instructions (engram CLI commands to execute). Goes into `additionalContext`.
+
+- **Model-driven interview:** Conversation model reads the surfaced signals, presents proposals to the user, user confirms/rejects inline. No CLI interaction — model handles the conversation.
+
+- **Atomic application:** Model applies confirmed changes via `engram apply-proposal` — actions: remove (delete TOML + registry), rewrite (update TOML fields + registry hash), broaden (append keywords), escalate (update level). Atomic file writes via temp+rename.
+
+- **Promotion with external content:** `engram promote --content '<skill>' --yes` — model generates skill/CLAUDE.md content, passes to engram which skips LLM generation and confirmation. Registry merge + file write still happen normally.
+
+- **Queue cleanup:** Applied signals are cleared from queue automatically.
+
+**Constraints:**
+1. No LLM calls in detection — local-only classification
+2. All creative work done by conversation model, not engram
+3. User confirms all destructive actions via conversation
+4. Fire-and-forget on errors (ARCH-6)
+5. DI everywhere — all I/O through injected interfaces
+
+**Dependencies:** UC-15 (evaluate), UC-16 (maintain — reuses quadrant classification), UC-4/UC-5 (promote/demote — reuses candidate detection), UC-23 (registry)
+
+---
+
 Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope consolidated into UC-16; proposal-application scope consolidated into UC-24. Issue #59 (BM25) already implemented. Archives in issue #18.
