@@ -706,7 +706,7 @@ Working on session continuity for engram (#45)...
 
 ## UC-28: Automatic Maintenance and Promotion Triggers
 
-**Description:** Automatically detect when memories need maintenance (rewrite, removal, keyword broadening) or tier transitions (memory→skill, skill→CLAUDE.md, CLAUDE.md demotion), queue those signals, and surface them at session start so the conversation model can interview the user and apply changes. The model handles creative work (rewriting, keyword suggestions, skill generation); engram handles atomic I/O (file writes, registry updates). No CLI interaction required from the user.
+**Description:** Automatically detect when memories need maintenance (rewrite, removal, keyword broadening) or graduation (memory→skill, or skill/CLAUDE.md needing level change), queue those signals, and surface them at session start so the conversation model can interview the user and apply changes. Graduation signals carry a human-readable recommendation; engram diagnoses and recommends — the user decides what to do. The model handles creative work (rewriting, keyword suggestions, skill generation); engram handles atomic I/O (file writes, registry updates). No CLI interaction required from the user.
 
 **Starting state:** learn/evaluate run automatically via hooks; maintain/promote/demote require manual CLI invocation outside Claude Code.
 
@@ -716,7 +716,7 @@ Working on session continuity for engram (#45)...
 
 **Key interactions:**
 
-- **Signal detection (Stop hook):** After evaluate in Stop hook, run `engram signal-detect` — local-only quadrant classification + promotion threshold checks, no LLM calls. Reuses `review.Classify()` for maintenance signals and `Promoter.Candidates()` / `ClaudeMDPromoter.{Promotion,Demotion}Candidates()` for tier transitions.
+- **Signal detection (Stop hook):** After evaluate in Stop hook, run `engram signal-detect` — local-only quadrant classification + promotion threshold checks, no LLM calls. Reuses `review.Classify()` for maintenance signals and `Promoter.Candidates()` / `ClaudeMDPromoter.{Promotion,Demotion}Candidates()` for graduation signals. Promotion and demotion candidates both emit `graduation` signal kind with recommendation text.
 
 - **Proposal queue:** Detected signals written to `<data-dir>/proposal-queue.jsonl` (append-safe, dedup, prune stale). Each line: `{type, source_id, signal, quadrant, summary, detected_at}`. Pruning removes entries >30 days old, entries for deleted memories, and entries where quadrant is no longer actionable.
 

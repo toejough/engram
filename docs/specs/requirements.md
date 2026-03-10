@@ -2660,7 +2660,7 @@ Each line in `proposal-queue.jsonl`:
 ```
 
 Signal values for maintain type: `noise_removal`, `leech_rewrite`, `staleness_review`, `hidden_gem_broadening`, `escalation`.
-Signal values for promote type: `memory_to_skill`, `skill_to_claudemd`, `claudemd_demotion`.
+Signal values for promote type: `memory_to_skill`, `graduation`. (`graduation` replaces `skill_to_claudemd` and `claudemd_demotion` — S5 simplification. Signal carries recommendation text, not a specific target.)
 
 - Traces to: UC-28 (queue format)
 - AC: (1) Valid JSON per line. (2) Signal values are one of the defined constants. (3) Timestamps in RFC3339.

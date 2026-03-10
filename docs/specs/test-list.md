@@ -869,23 +869,23 @@ Then: Signal with type="promote", signal="memory_to_skill" is returned
 
 ---
 
-### T-297: Skill-to-CLAUDE.md candidate detected
+### T-297: Skill promotion candidate emits graduation signal
 
 **Traces to:** ARCH-73 (REQ-124)
 
 Given: A skill in Working quadrant with surfaced_count >= promotion threshold
 When: Detector.Detect runs
-Then: Signal with type="promote", signal="skill_to_claudemd" is returned
+Then: Signal with type="promote", signal="graduation" is returned, and Summary contains recommendation text about promoting to CLAUDE.md
 
 ---
 
-### T-298: CLAUDE.md demotion candidate detected
+### T-298: CLAUDE.md demotion candidate emits graduation signal
 
 **Traces to:** ARCH-73 (REQ-124)
 
 Given: A CLAUDE.md entry in Leech quadrant
 When: Detector.Detect runs
-Then: Signal with type="promote", signal="claudemd_demotion" is returned
+Then: Signal with type="promote", signal="graduation" is returned, and Summary contains recommendation text about demoting to skill
 
 ---
 
