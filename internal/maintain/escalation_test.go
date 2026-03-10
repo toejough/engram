@@ -146,7 +146,7 @@ func TestEscalation_AtTopOfLadder(t *testing.T) {
 		{
 			Path:            "mem-top",
 			Content:         "use descriptive names",
-			EscalationLevel: maintain.LevelReminder,
+			EscalationLevel: maintain.LevelGraduated,
 			Effectiveness:   0.10,
 		},
 	}

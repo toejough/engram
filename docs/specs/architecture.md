@@ -2264,3 +2264,29 @@ All L2 items have ARCH coverage.
 - `internal/cli/cli.go` — `buildExtractor` function uses `crossref.InstructionExtractor` return type and all four `crossref.*Extractor` types.
 
 **Traces to:** UC-23 (registry), UC-26 (first-class non-memory sources via ARCH-69)
+
+---
+
+## ARCH-P6e-1: EnforcementApplier and GraduationEmitter interfaces in maintain package
+
+**Decision:** Define `EnforcementApplier` and `GraduationEmitter` interfaces in `internal/maintain/escalation.go`. `ApplyEscalationProposal` accepts both as optional parameters (nil = no-op per ARCH-6).
+
+**Rationale:** Avoids importing `internal/registry` or `internal/signal` from `internal/maintain`, preserving DI-everywhere principle (ARCH-7). The registry and signal packages are wired at the CLI edge.
+
+**Interface contracts:**
+- `EnforcementApplier.SetEnforcementLevel(id, level, reason string) error` — satisfied by `registry.JSONLStore`
+- `GraduationEmitter.EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error` — satisfied by a thin adapter over `signal.QueueStore.Append`
+
+**Traces to:** REQ-P6e-2, REQ-P6e-3, ARCH-7 (DI everywhere)
+
+---
+
+## ARCH-P6e-2: EnforcementReader interface in surface package
+
+**Decision:** Define `EnforcementReader` interface in `internal/surface/surface.go` with `GetEnforcementLevel(id string) (string, error)`. Injected via `WithEnforcementReader` option. Absent reader defaults all memories to advisory level (normal format).
+
+**Rationale:** Decouples the surface package from the registry package. The surface pipeline uses the level for rendering only — it does not update registry state.
+
+**Data flow:** `Surfacer.enforcementLevelFor(path)` → `EnforcementReader.GetEnforcementLevel(path)` → level string → `formatMemoryLine(slug, principle, level, annotation)`.
+
+**Traces to:** REQ-P6e-5, REQ-P6e-6, REQ-P6e-7, ARCH-7 (DI everywhere)
