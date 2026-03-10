@@ -25,6 +25,7 @@ type Registry interface {
 	Register(entry InstructionEntry) error
 	RecordSurfacing(id string) error
 	RecordEvaluation(id string, outcome Outcome) error
+	SetEnforcementLevel(id string, level EnforcementLevel, reason string) error
 	Merge(sourceID, targetID string) error
 	Remove(id string) error
 	List() ([]InstructionEntry, error)

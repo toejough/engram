@@ -232,6 +232,39 @@ func (s *JSONLStore) Remove(id string) error {
 	return s.save()
 }
 
+// SetEnforcementLevel updates the enforcement level for an entry.
+// If the new level differs from the current level, a transition record is appended.
+func (s *JSONLStore) SetEnforcementLevel(id string, level EnforcementLevel, reason string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.ensureLoaded()
+	if err != nil {
+		return err
+	}
+
+	entry, ok := s.entries[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	if entry.EnforcementLevel == level {
+		return nil
+	}
+
+	transition := EnforcementTransition{
+		From:   entry.EnforcementLevel,
+		To:     level,
+		At:     s.clock(),
+		Reason: reason,
+	}
+
+	entry.Transitions = append(entry.Transitions, transition)
+	entry.EnforcementLevel = level
+
+	return s.save()
+}
+
 func (s *JSONLStore) clock() time.Time {
 	if s.now != nil {
 		return s.now()
