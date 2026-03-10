@@ -486,6 +486,8 @@ Working on session continuity for engram (#45)...
 
 **Dependencies:** None (foundation UC). Depended on by: UC-4, UC-5, UC-7, UC-8, UC-9, UC-10.
 
+**S3 simplification (Phase A-1):** Non-memory extractors (ClaudeMDExtractor, MemoryMDExtractor, RuleExtractor, SkillExtractor) relocated from `internal/registry/extract.go` to `internal/crossref/extract.go`. The registry package now handles only the memory source type. This sets up the correct package boundary for the cross-source scanner (P0c/UC-29). See ARCH-79.
+
 ---
 
 ## UC-4: Skill Generation

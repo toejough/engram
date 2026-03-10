@@ -1962,7 +1962,7 @@ type Registrar struct {
 }
 
 func (r *Registrar) Run(config SourceConfig) error {
-    // 1. Discover: scan all configured paths, extract entries via UC-23 extractors
+    // 1. Discover: scan all configured paths, extract entries via crossref extractors (ARCH-79)
     // 2. Register: for each discovered entry, register or update content hash
     // 3. Prune: list registry, remove non-memory entries not in discovered set
     // 4. Record surfacing: for each always-loaded entry, call registry.RecordSurfacing
@@ -2246,3 +2246,21 @@ Added as optional parameter to Promote methods. Existing callers pass zero-value
 | DES-46  | ARCH-75 |
 
 All L2 items have ARCH coverage.
+
+---
+
+## ARCH-79: CrossRef Extractor Package (UC-23, S3 Phase A-1)
+
+**Decision:** Create `internal/crossref/` package containing bullet extraction and parsing logic for non-memory instruction sources. Move `ClaudeMDExtractor`, `MemoryMDExtractor`, `RuleExtractor`, `SkillExtractor`, and `InstructionExtractor` interface from `internal/registry/extract.go` to `internal/crossref/extract.go`.
+
+**Rationale:** The registry package's responsibility is memory lifecycle tracking. Non-memory source parsing is a separate concern that belongs in crossref — the package that will host the cross-source scanner (P0c/UC-29). Establishing this boundary now prevents the registry from accumulating unrelated extraction logic.
+
+**Package boundary:**
+- `internal/crossref/` — parses CLAUDE.md, MEMORY.md, rule, and skill sources into `registry.InstructionEntry` values. Imports `internal/registry` for the entry type. No I/O — callers inject file content as strings.
+- `internal/registry/` — handles only memory source type. Registry JSONL store, surfacing, evaluation, merge operations.
+
+**Callers updated:**
+- `internal/register/register.go` — imports `internal/crossref`, uses `crossref.ClaudeMDExtractor` etc.
+- `internal/cli/cli.go` — `buildExtractor` function uses `crossref.InstructionExtractor` return type and all four `crossref.*Extractor` types.
+
+**Traces to:** UC-23 (registry), UC-26 (first-class non-memory sources via ARCH-69)
