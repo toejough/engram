@@ -1849,23 +1849,19 @@ Once automation is verified and user confirms, the memory gains a `retired_by` f
 
 ---
 
-## REQ-90: CLI command `engram automate`
+## REQ-90: CLI command `engram automate` *(removed — Phase A-1/S1)*
 
-New subcommand: `engram automate --data-dir <path>`. Scans for mechanical candidates, generates automation, verifies, and presents proposals. User confirms each.
+**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
 
-- Traces to: UC-22 (CLI command)
-- AC: (1) Subcommand registered. (2) Output is JSON array of automation proposals. (3) Exit 0 always. (4) Proposals include verification status.
-- Verification: deterministic (CLI registration, JSON output)
+- Traces to: UC-22 (removed)
 
 ---
 
-## REQ-91: No graceful degradation for automate
+## REQ-91: No graceful degradation for automate *(removed — Phase A-1/S1)*
 
-If no API token, skip LLM generation. Pattern recognition still identifies mechanical candidates and outputs them as ungenerated candidates. Output includes `skipped_reason` for generation step.
+**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
 
-- Traces to: UC-22 (error handling)
-- AC: (1) Missing token → skip REQ-87. (2) REQ-86 (pattern recognition) still runs. (3) Candidates output with `{"generated": false, "skipped_reason": "no API token"}`. (4) Exit 0.
-- Verification: deterministic (error condition)
+- Traces to: UC-22 (removed)
 
 ---
 

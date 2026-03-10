@@ -1543,45 +1543,11 @@ func (e *EscalationEngine) Analyze(leeches []Memory) ([]EscalationProposal, erro
 
 ---
 
-## ARCH-51: Automation Generator Pipeline
+## ARCH-51: Automation Generator Pipeline *(removed — Phase A-1/S1)*
 
-**Decision:** New `engram automate` command with pipeline: pattern recognition → LLM generation → verification → retirement.
+**Status:** Removed. UC-22 removed in S1. The `internal/automate/` package and `engram automate` CLI command were deleted. Graduation signals (UC-28/ARCH-53) replace the automation proposal concept.
 
-```go
-// internal/automate/automate.go
-type Automator struct {
-    MemoryLoader  func(dataDir string) ([]Memory, error)
-    LLMCaller     func(ctx context.Context, prompt string) (string, error)  // nil = skip
-    RunCommand    func(cmd string) (int, string, error)  // for verification
-    MemoryWriter  func(path string, memory *Memory) error
-}
-
-type AutomationProposal struct {
-    MemoryPath     string
-    AutomationType string  // "script", "pre_commit_hook", "rule"
-    Code           string
-    Description    string
-    TestCommand    string
-    InstallPath    string
-    Verified       bool
-    SkippedReason  string  // "no API token" if LLM skipped
-}
-
-func (a *Automator) Run(ctx context.Context, dataDir string) ([]AutomationProposal, error) {
-    // 1. Load memories, filter for mechanical candidates (keyword scoring ≥2)
-    // 2. If LLMCaller != nil: generate automation for each candidate
-    // 3. For generated automation: run test_command, mark verified/failed
-    // 4. Return proposals (user confirms installation + retirement separately)
-}
-```
-
-**Design choices:**
-- **Keyword-based pattern recognition:** Deterministic, no LLM. Keywords: "always", "never", "before", "after", "format", "convention".
-- **Sandboxed verification:** test_command is run but output is captured, not executed in production.
-- **Retirement is separate:** User must confirm both automation installation and memory retirement.
-- **Preserved memories:** Retired memories aren't deleted — `retired_by` field makes them invisible to surfacing.
-
-**Traces to:** REQ-86 (pattern recognition), REQ-87 (generator), REQ-88 (verification), REQ-89 (retirement), REQ-90 (CLI), REQ-91 (error handling)
+**Traces to:** REQ-90 (removed), REQ-91 (removed)
 
 ---
 

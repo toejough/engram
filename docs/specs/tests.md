@@ -2237,11 +2237,11 @@ All UC-17 & UC-19 L2 items have test coverage.
 
 ## Cross-Source Instruction Scanner (ARCH-48)
 
-### T-215: Scanner extracts instructions from all sources
+### T-215: Scanner extracts memory instructions only
 
-**Given** a project with CLAUDE.md, 3 memories, 2 rules files, and 1 skill file,
+**Given** a data directory with 3 memory files,
 **When** Scanner.ScanAll is called,
-**Then** all instructions are extracted with correct source type, path, and content.
+**Then** 3 memory items are extracted with source type "memory", correct path, and content. No CLAUDE.md, rules, or skill sources are included.
 
 - Traces to: ARCH-48, REQ-72
 - Verification: unit (mock file I/O)
@@ -2259,11 +2259,11 @@ All UC-17 & UC-19 L2 items have test coverage.
 
 ## Instruct Audit Pipeline (ARCH-49)
 
-### T-217: Deduplication detects >80% keyword overlap
+### T-217: Deduplication detects >80% keyword overlap between memories
 
-**Given** two instructions with 90% keyword overlap across different sources,
+**Given** two memory instructions with 90% keyword overlap,
 **When** Auditor.Run performs deduplication,
-**Then** the pair is reported as a duplicate with recommendation to keep the higher-salience source.
+**Then** the pair is reported as a duplicate with both paths and overlap score.
 
 - Traces to: ARCH-49, REQ-73
 - Verification: unit (mock instructions with overlapping keywords)
@@ -2295,20 +2295,17 @@ All UC-17 & UC-19 L2 items have test coverage.
 - Traces to: ARCH-49, REQ-76
 - Verification: unit (mock eval data)
 
-### T-221: Skill decomposition identifies low-effectiveness lines
+### T-221: ~~Skill decomposition~~ — REMOVED (S6 simplification)
 
-**Given** a skill file with 10 lines, 3 with <20% follow rate,
-**When** Auditor.Run performs skill decomposition,
-**Then** those 3 lines are flagged as candidates for removal/rewrite.
+Removed in S6. Skill files are no longer scanned in the memory-only audit. This test is obsolete until P4-full re-introduces skill scanning.
 
-- Traces to: ARCH-49, REQ-77
-- Verification: unit (mock per-line effectiveness data)
+- Traces to: REQ-77 (removed)
 
 ### T-222: CLI command outputs JSON report
 
 **Given** `engram instruct audit --data-dir <path>`,
 **When** command runs successfully,
-**Then** output is valid JSON with sections: duplicates, diagnoses, proposals, gaps, skills.
+**Then** output is valid JSON with sections: duplicates, diagnoses, proposals, gaps. (No skills section — removed in S6.)
 
 - Traces to: ARCH-49, REQ-78
 - Verification: unit (mock auditor)
@@ -2317,7 +2314,7 @@ All UC-17 & UC-19 L2 items have test coverage.
 
 **Given** no API token set,
 **When** `engram instruct audit` runs,
-**Then** dedup, gap analysis, and skill decomposition run normally. Diagnosis and proposals sections are empty arrays with `skipped_reason`.
+**Then** dedup and gap analysis run normally. Diagnosis and proposals sections contain `{"skipped_reason": "no API token"}`.
 
 - Traces to: ARCH-49, REQ-79
 - Verification: unit
@@ -2465,23 +2462,17 @@ All UC-18 & UC-20 L2 items have test coverage.
 - Traces to: ARCH-51, REQ-89
 - Verification: unit (verify surface filtering)
 
-### T-236: CLI engram automate outputs JSON proposals
+### T-236: CLI engram automate outputs JSON proposals *(removed — Phase A-1/S1)*
 
-**Given** `engram automate --data-dir <path>`,
-**When** command runs,
-**Then** output is JSON array of AutomationProposal objects. Exit 0.
+**Status:** Removed. UC-22 removed. Test deleted from cli_test.go.
 
-- Traces to: ARCH-51, REQ-90
-- Verification: unit (mock automator)
+- Traces to: ARCH-51 (removed), REQ-90 (removed)
 
-### T-237: No API token skips generation, outputs candidates
+### T-237: No API token skips generation, outputs candidates *(removed — Phase A-1/S1)*
 
-**Given** no API token set,
-**When** `engram automate` runs,
-**Then** pattern recognition outputs candidates with `generated: false, skipped_reason: "no API token"`. Exit 0.
+**Status:** Removed. UC-22 removed. Test deleted from cli_test.go.
 
-- Traces to: ARCH-51, REQ-91
-- Verification: unit
+- Traces to: ARCH-51 (removed), REQ-91 (removed)
 
 ---
 
@@ -2502,7 +2493,7 @@ All UC-18 & UC-20 L2 items have test coverage.
 | DES-32 | T-231 |
 | REQ-88 | T-232, T-233 |
 | REQ-89 | T-234, T-235 |
-| REQ-90 | T-236 |
-| REQ-91 | T-237 |
+| REQ-90 | T-236 (removed) |
+| REQ-91 | T-237 (removed) |
 
-All UC-21 & UC-22 L2 items have test coverage.
+All UC-21 L2 items have test coverage. UC-22 items removed in Phase A-1/S1.

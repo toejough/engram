@@ -217,8 +217,8 @@ layer = "L2"
 name = "Mechanical Instruction Extraction Requirements"
 parents = ["L1M"]
 items = ["REQ-86", "REQ-87", "DES-32", "REQ-88", "REQ-89", "REQ-90", "REQ-91"]
-status = "complete"
-history = "6 REQs + 1 DES item derived from UC-22. Pattern recognition (REQ-86), LLM generator (REQ-87/DES-32), verification (REQ-88), retirement (REQ-89), CLI (REQ-90), error handling (REQ-91)."
+status = "removed"
+history = "6 REQs + 1 DES item derived from UC-22. Pattern recognition (REQ-86), LLM generator (REQ-87/DES-32), verification (REQ-88), retirement (REQ-89), CLI (REQ-90), error handling (REQ-91). REMOVED in Phase A-1/S1 — REQ-90 and REQ-91 marked unsatisfiable; remaining REQs belong to deleted package."
 
 # Tree nodes — L3
 
@@ -299,8 +299,8 @@ layer = "L3"
 name = "Automation Generator Architecture"
 parents = ["L2G6"]
 items = ["ARCH-51"]
-status = "complete"
-history = "1 ARCH decision: automation generator pipeline with pattern recognition, LLM generation, verification, retirement (ARCH-51)."
+status = "removed"
+history = "1 ARCH decision: automation generator pipeline with pattern recognition, LLM generation, verification, retirement (ARCH-51). REMOVED in Phase A-1/S1 — ARCH-51 deleted along with internal/automate/ package."
 
 # Tree nodes — L4
 
@@ -381,8 +381,8 @@ layer = "L4"
 name = "Automation Generator Tests"
 parents = ["L3G6"]
 items = ["T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237"]
-status = "complete"
-history = "8 BDD test specs: pattern recognition (T-230), LLM generation (T-231), verification pass/fail (T-232/233), retirement (T-234/235), CLI (T-236), no token (T-237)."
+status = "removed"
+history = "8 BDD test specs: pattern recognition (T-230), LLM generation (T-231), verification pass/fail (T-232/233), retirement (T-234/235), CLI (T-236), no token (T-237). REMOVED in Phase A-1/S1 — all T-230..T-237 deleted with internal/automate/ package and cli tests."
 
 # Tree nodes — L5
 
@@ -761,8 +761,8 @@ layer = "L5"
 name = "Automation Generator Implementation"
 parents = ["L4G6"]
 items = ["T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237"]
-status = "complete"
-history = "UC-22 automation generator complete. internal/automate/automate.go (Automator, keyword scoring, LLM generation stub, verify, retire). Extended memory.Stored + retrieve TOML parsing for RetiredBy/RetiredAt. surface.go filterRetired(). T-230..T-237 all passing. Commit c256f0c."
+status = "removed"
+history = "UC-22 automation generator complete. internal/automate/automate.go (Automator, keyword scoring, LLM generation stub, verify, retire). Extended memory.Stored + retrieve TOML parsing for RetiredBy/RetiredAt. surface.go filterRetired(). T-230..T-237 all passing. Commit c256f0c. REMOVED in Phase A-1/S1 (issue #78): package deleted, tests deleted. Commit 44befad."
 
 [tree.L4G]
 layer = "L4"
@@ -834,8 +834,8 @@ history = "Issue #71. Graduated escalation from advisory to blocking enforcement
 layer = "L1"
 name = "Mechanical Instruction Extraction"
 items = ["UC-22"]
-status = "complete"
-history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them. L2-L5 complete."
+status = "removed"
+history = "Issue #72. Identify mechanical instructions and generate deterministic automation to replace them. L2-L5 complete. REMOVED in Phase A-1/S1 (issue #78): engram diagnoses and recommends only — automation generation conflicts with this principle. Graduation signals (UC-28) replace this concept. Commit 44befad."
 
 [tree.L1N]
 layer = "L1"
