@@ -204,6 +204,10 @@ func (s *JSONLStore) Register(entry InstructionEntry) error {
 		return fmt.Errorf("%w: %s", ErrDuplicateID, entry.ID)
 	}
 
+	if entry.EnforcementLevel == "" {
+		entry.EnforcementLevel = EnforcementAdvisory
+	}
+
 	s.entries[entry.ID] = &entry
 
 	return s.save()
@@ -260,6 +264,10 @@ func (s *JSONLStore) ensureLoaded() error { //nolint:unparam // error return kep
 		jsonErr := json.Unmarshal([]byte(line), &entry)
 		if jsonErr != nil {
 			continue // skip malformed lines
+		}
+
+		if entry.EnforcementLevel == "" {
+			entry.EnforcementLevel = EnforcementAdvisory
 		}
 
 		s.entries[entry.ID] = &entry

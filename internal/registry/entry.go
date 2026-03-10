@@ -5,7 +5,11 @@ import "time"
 
 // Exported constants.
 const (
-	SourceTypeMemory = "memory"
+	EnforcementAdvisory           EnforcementLevel = "advisory"
+	EnforcementEmphasizedAdvisory EnforcementLevel = "emphasized_advisory"
+	EnforcementGraduated          EnforcementLevel = "graduated"
+	EnforcementReminder           EnforcementLevel = "reminder"
+	SourceTypeMemory                               = "memory"
 )
 
 // AbsorbedRecord preserves counters from a merged source instruction.
@@ -18,6 +22,10 @@ type AbsorbedRecord struct {
 	ContentHash   string             `json:"content_hash"`
 	MergedAt      time.Time          `json:"merged_at"`
 }
+
+// EnforcementLevel represents the delivery salience of an instruction.
+// Levels are ordinal: advisory < emphasized_advisory < reminder < graduated.
+type EnforcementLevel string
 
 // EvaluationCounters holds follow/contradict/ignore tallies.
 type EvaluationCounters struct {
@@ -35,15 +43,16 @@ func (e EvaluationCounters) Total() int {
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
 type InstructionEntry struct {
-	ID            string             `json:"id"`
-	SourceType    string             `json:"source_type"`
-	SourcePath    string             `json:"source_path"`
-	Title         string             `json:"title"`
-	ContentHash   string             `json:"content_hash"`
-	RegisteredAt  time.Time          `json:"registered_at"`
-	UpdatedAt     time.Time          `json:"updated_at"`
-	SurfacedCount int                `json:"surfaced_count"`
-	LastSurfaced  *time.Time         `json:"last_surfaced,omitempty"`
-	Evaluations   EvaluationCounters `json:"evaluations"`
-	Absorbed      []AbsorbedRecord   `json:"absorbed,omitempty"`
+	ID               string             `json:"id"`
+	SourceType       string             `json:"source_type"`
+	SourcePath       string             `json:"source_path"`
+	Title            string             `json:"title"`
+	ContentHash      string             `json:"content_hash"`
+	RegisteredAt     time.Time          `json:"registered_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
+	SurfacedCount    int                `json:"surfaced_count"`
+	LastSurfaced     *time.Time         `json:"last_surfaced,omitempty"`
+	Evaluations      EvaluationCounters `json:"evaluations"`
+	Absorbed         []AbsorbedRecord   `json:"absorbed,omitempty"`
+	EnforcementLevel EnforcementLevel   `json:"enforcement_level,omitempty"`
 }

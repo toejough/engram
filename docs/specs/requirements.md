@@ -2725,3 +2725,13 @@ The project slug for MEMORY.md follows Claude Code's convention (path-based slug
 - Verification: deterministic (path resolution, DI wiring)
 
 ---
+
+## REQ-P0a-1: EnforcementLevel field in InstructionEntry (P0a)
+
+Each `InstructionEntry` in the registry carries an `enforcement_level` field. The level progresses through four values: `advisory` → `emphasized_advisory` → `reminder` → `graduated`. New entries default to `advisory`. Entries loaded from JSONL without the field are backfilled to `advisory` at load time.
+
+- Traces to: UC-23 (data model constraint — registry stores delivery salience per instruction)
+- AC: (1) `EnforcementLevel` type defined with four string constants: `advisory`, `emphasized_advisory`, `reminder`, `graduated`. (2) `InstructionEntry.EnforcementLevel` field exists with JSON tag `enforcement_level`. (3) New entries registered with zero-value field are stored as `advisory`. (4) Entries loaded from JSONL with missing `enforcement_level` field are backfilled to `advisory`. (5) Field round-trips through JSONL marshal/unmarshal.
+- Verification: deterministic (enum constants, JSON round-trip, backfill)
+
+---

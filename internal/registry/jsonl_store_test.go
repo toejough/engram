@@ -685,3 +685,54 @@ func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
 		registry.WithNow(clock),
 	)
 }
+
+// traces: T-P0a-1
+func TestTP0a1_NewEntryDefaultsEnforcementLevelToAdvisory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	err := store.Register(registry.InstructionEntry{ID: "t324", SourceType: "memory"})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("t324")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(got).NotTo(BeNil())
+	if got == nil {
+		return
+	}
+	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
+}
+
+// traces: T-P0a-2
+func TestTP0a2_LoadBackfillsMissingEnforcementLevelToAdvisory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// JSONL without enforcement_level field
+	data := "{\"id\":\"t325\",\"source_type\":\"memory\",\"title\":\"Old Entry\"}\n"
+
+	store := registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return []byte(data), nil
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+
+	got, err := store.Get("t325")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(got).NotTo(BeNil())
+	if got == nil {
+		return
+	}
+	g.Expect(got.EnforcementLevel).To(Equal(registry.EnforcementAdvisory))
+}

@@ -681,6 +681,26 @@ Then: Returns ErrMergeSourceType; neither entry is modified
 
 ---
 
+### T-P0a-1: New InstructionEntry defaults enforcement_level to advisory
+
+**Traces to:** REQ-P0a-1 (EnforcementLevel field default)
+
+Given: An InstructionEntry is registered with no EnforcementLevel set
+When: The entry is retrieved from the store
+Then: EnforcementLevel equals EnforcementAdvisory
+
+---
+
+### T-P0a-2: Load backfills missing enforcement_level to advisory
+
+**Traces to:** REQ-P0a-1 (EnforcementLevel backfill on load)
+
+Given: A JSONL file containing an entry with no enforcement_level field
+When: The store loads and the entry is retrieved
+Then: EnforcementLevel equals EnforcementAdvisory
+
+---
+
 ### T-283: Session-start mode triggers auto-registration
 
 **Traces to:** ARCH-71
