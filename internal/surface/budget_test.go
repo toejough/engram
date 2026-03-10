@@ -239,11 +239,13 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 		PreToolUse:       300,
 		PostToolUse:      150,
 		Stop:             600,
+		PreCompact:       400,
 	}
 
 	g.Expect(custom.ForMode(surface.ModeSessionStart)).To(Equal(1000))
 	g.Expect(custom.ForMode(surface.ModePrompt)).To(Equal(500))
 	g.Expect(custom.ForMode(surface.ModeTool)).To(Equal(300))
+	g.Expect(custom.ForMode(surface.ModePreCompact)).To(Equal(400))
 }
 
 // T-193: Budget cap configuration loads from config with defaults fallback
@@ -258,4 +260,5 @@ func TestT193_BudgetConfigDefaults(t *testing.T) {
 	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))
 	g.Expect(cfg.PostToolUse).To(Equal(surface.DefaultPostToolUseBudget))
 	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
+	g.Expect(cfg.PreCompact).To(Equal(surface.DefaultPreCompactBudget))
 }

@@ -63,3 +63,6 @@ fi
 if [[ -n "$TRANSCRIPT" ]]; then
     echo "$TRANSCRIPT" | "$ENGRAM_BIN" evaluate --data-dir "$ENGRAM_DATA" || true
 fi
+
+# P2: Preserve high-value memories through compaction (UC-17 extension)
+"$ENGRAM_BIN" surface --mode precompact --budget 500 --data-dir "$ENGRAM_DATA" || true

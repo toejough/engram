@@ -1177,8 +1177,47 @@ parents = ["L4V"]
 items = ["T-291", "T-292", "T-293", "T-294", "T-295", "T-296", "T-297", "T-298", "T-299", "T-300", "T-301", "T-302", "T-303", "T-304", "T-305", "T-306", "T-307", "T-309", "T-310", "T-311", "T-312", "T-313", "T-314", "T-315", "T-316", "T-317", "T-318", "T-319", "T-320", "T-321", "T-322"]
 status = "complete"
 
+[tree.L1W]
+layer = "L1"
+name = "PreCompact Memory Re-Injection"
+items = ["UC-17"]
+status = "complete"
+history = "Issue #89 (P2). Extend UC-17 (Context Budget) with PreCompact re-injection mode. Preserves high-value memories through Claude Code's auto-compact boundary by re-injecting them just before compaction. L2-L5 complete."
+
+[tree.L2W]
+layer = "L2"
+name = "PreCompact Re-Injection Requirements"
+parents = ["L1W"]
+items = ["REQ-P2-1", "REQ-P2-2", "REQ-P2-3", "DES-P2-1"]
+status = "complete"
+history = "3 REQs + 1 DES: effectiveness-only ranking (REQ-P2-1), top-5 within budget + 40% floor (REQ-P2-2), principle-statement output format (REQ-P2-3), hook wiring (DES-P2-1)."
+
+[tree.L3W]
+layer = "L3"
+name = "PreCompact Re-Injection Architecture"
+parents = ["L2W"]
+items = ["ARCH-P2-1", "ARCH-P2-2", "ARCH-P2-3"]
+status = "complete"
+history = "ModePreCompact constant + runPreCompact in internal/surface/ (ARCH-P2-1). --budget flag on engram surface CLI (ARCH-P2-2). hooks/pre-compact.sh calls engram surface --mode precompact --budget 500 (ARCH-P2-3)."
+
+[tree.L4W]
+layer = "L4"
+name = "PreCompact Re-Injection Tests"
+parents = ["L3W"]
+items = ["T-323", "T-324", "T-325", "T-326"]
+status = "complete"
+history = "T-323: ranks by effectiveness descending. T-324: skips effectiveness < 40% and no-data memories. T-325: limits to top-5 even with large budget. T-326: output format has correct header and principle-only lines."
+
+[tree.L5W]
+layer = "L5"
+name = "PreCompact Re-Injection Implementation"
+parents = ["L4W"]
+items = ["T-323", "T-324", "T-325", "T-326"]
+status = "complete"
+history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
+
 [cursor]
-node = "L5V"
+node = "L5W"
 mode = "complete"
-next_action = "UC-28 fully implemented. All phases A-D complete."
+next_action = "P2 fully implemented. PreCompact memory re-injection complete."
 context_files = ["docs/specs/state.toml"]

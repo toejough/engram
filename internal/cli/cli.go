@@ -2395,7 +2395,7 @@ func runSurface(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 
 	mode := fs.String(
-		"mode", "", "surface mode: session-start, prompt, tool",
+		"mode", "", "surface mode: session-start, prompt, tool, precompact",
 	)
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
@@ -2404,6 +2404,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		"tool-input", "", "tool input JSON (tool mode)",
 	)
 	format := fs.String("format", "", "output format: json")
+	budget := fs.Int("budget", 0, "token budget override (precompact mode)")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -2445,6 +2446,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		ToolName:  *toolName,
 		ToolInput: *toolInput,
 		Format:    *format,
+		Budget:    *budget,
 	})
 }
 

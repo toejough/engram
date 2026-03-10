@@ -22,6 +22,7 @@ import (
 // Exported constants.
 const (
 	FormatJSON       = "json"
+	ModePreCompact   = "precompact"
 	ModePrompt       = "prompt"
 	ModeSessionStart = "session-start"
 	ModeTool         = "tool"
@@ -69,6 +70,7 @@ type Options struct {
 	ToolName  string // for tool mode
 	ToolInput string // for tool mode
 	Format    string // output format: "" (plain) or "json"
+	Budget    int    // token budget override (precompact mode)
 }
 
 // RegistryRecorder records surfacing events in the instruction registry (UC-23).
@@ -108,7 +110,7 @@ func New(retriever MemoryRetriever, opts ...SurfacerOption) *Surfacer {
 
 // Run executes the surface subcommand, writing output to w.
 //
-//nolint:cyclop // orchestration function: routes modes, logs events, writes result — inherent branching
+//nolint:cyclop,funlen // orchestration function: routes modes, logs events, writes result — inherent branching
 func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	// Fetch effectiveness data upfront (fire-and-forget on error per ARCH-6).
 	var effectiveness map[string]EffectivenessStat
@@ -146,6 +148,17 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness, scorer)
 	case ModeTool:
 		result, matched, err = s.runTool(ctx, opts, effectiveness, scorer)
+	case ModePreCompact:
+		budget := opts.Budget
+		if budget == 0 && s.budgetConfig != nil {
+			budget = s.budgetConfig.ForMode(ModePreCompact)
+		}
+
+		if budget == 0 {
+			budget = DefaultPreCompactBudget
+		}
+
+		result, matched, err = s.runPreCompact(ctx, opts.DataDir, budget, effectiveness)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -172,6 +185,93 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	}
 
 	return s.writeResult(w, result, opts.Format)
+}
+
+//nolint:cyclop,funlen // effectiveness filtering + budget enforcement: inherent branching
+func (s *Surfacer) runPreCompact(
+	ctx context.Context,
+	dataDir string,
+	budget int,
+	effectiveness map[string]EffectivenessStat,
+) (Result, []*memory.Stored, error) {
+	memories, err := s.retriever.ListMemories(ctx, dataDir)
+	if err != nil {
+		return Result{}, nil, fmt.Errorf("surface: %w", err)
+	}
+
+	// Filter to memories with effectiveness >= minPreCompactEffectiveness.
+	candidates := make([]*memory.Stored, 0, len(memories))
+
+	for _, mem := range memories {
+		stat, ok := effectiveness[mem.FilePath]
+		if !ok || stat.EffectivenessScore < minPreCompactEffectiveness {
+			continue
+		}
+
+		candidates = append(candidates, mem)
+	}
+
+	if len(candidates) == 0 {
+		return Result{}, nil, nil
+	}
+
+	// Sort by effectiveness descending.
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return effectiveness[candidates[i].FilePath].EffectivenessScore >
+			effectiveness[candidates[j].FilePath].EffectivenessScore
+	})
+
+	// Apply top-5 count limit.
+	if len(candidates) > preCompactLimit {
+		candidates = candidates[:preCompactLimit]
+	}
+
+	// Apply token budget.
+	if budget > 0 {
+		accumulated := 0
+		limited := make([]*memory.Stored, 0, len(candidates))
+
+		for _, mem := range candidates {
+			tokens := EstimateTokens(mem.Principle)
+			if accumulated+tokens > budget {
+				break
+			}
+
+			accumulated += tokens
+
+			limited = append(limited, mem)
+		}
+
+		candidates = limited
+	}
+
+	if len(candidates) == 0 {
+		return Result{}, nil, nil
+	}
+
+	const header = "[engram] Preserving top memories through compaction:"
+
+	var (
+		summaryBuf strings.Builder
+		contextBuf strings.Builder
+	)
+
+	_, _ = fmt.Fprintf(&summaryBuf, "%s\n", header)
+	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
+	_, _ = fmt.Fprintf(&contextBuf, "%s\n", header)
+
+	for _, mem := range candidates {
+		line := fmt.Sprintf("- %s\n", mem.Principle)
+		_, _ = fmt.Fprint(&summaryBuf, line)
+		_, _ = fmt.Fprint(&contextBuf, line)
+	}
+
+	_, _ = fmt.Fprintf(&contextBuf, "</system-reminder>\n")
+
+	return Result{
+		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
+		Context: contextBuf.String(),
+	}, candidates, nil
 }
 
 //nolint:funlen // orchestration function
@@ -410,10 +510,12 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	minRelevanceScore = 0.01
-	promptLimit       = 10
-	sessionStartLimit = 10
-	toolLimit         = 3
+	minPreCompactEffectiveness = 40.0
+	minRelevanceScore          = 0.01
+	preCompactLimit            = 5
+	promptLimit                = 10
+	sessionStartLimit          = 10
+	toolLimit                  = 3
 )
 
 // promptMatch holds a memory for prompt mode.

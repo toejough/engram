@@ -5,6 +5,7 @@ import "engram/internal/memory"
 // Exported constants.
 const (
 	DefaultPostToolUseBudget      = 100
+	DefaultPreCompactBudget       = 500
 	DefaultPreToolUseBudget       = 200
 	DefaultSessionStartBudget     = 800
 	DefaultStopBudget             = 500
@@ -18,6 +19,7 @@ type BudgetConfig struct {
 	PreToolUse       int
 	PostToolUse      int
 	Stop             int
+	PreCompact       int
 }
 
 // ForMode returns the token budget for a given surface mode.
@@ -29,6 +31,8 @@ func (c BudgetConfig) ForMode(mode string) int {
 		return c.UserPromptSubmit
 	case ModeTool:
 		return c.PreToolUse
+	case ModePreCompact:
+		return c.PreCompact
 	default:
 		return 0
 	}
@@ -47,6 +51,7 @@ func DefaultBudgetConfig() BudgetConfig {
 		PreToolUse:       DefaultPreToolUseBudget,
 		PostToolUse:      DefaultPostToolUseBudget,
 		Stop:             DefaultStopBudget,
+		PreCompact:       DefaultPreCompactBudget,
 	}
 }
 
