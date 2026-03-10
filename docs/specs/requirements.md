@@ -2825,3 +2825,67 @@ In tool mode, memories at `emphasized_advisory` or `reminder` level are sorted b
 - Traces to: UC-2 (tool mode surfacing), REQ-P6e-5
 - AC: (1) `isEmphasized(level)` returns true for `emphasized_advisory` and `reminder`. (2) `sort.SliceStable` applied after budget cap preserves relative order within tiers. (3) Emphasized memories appear before advisory memories in rendered output.
 - Verification: deterministic
+
+---
+
+## REQ-P1-1: Contradiction detector interface (P1)
+
+The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx, []*memory.Stored) ([]Pair, error)` method. `Pair` holds two memories and a confidence score.
+
+- Traces to: UC-P1-1
+- AC: (1) `Detector.Check` accepts a slice of candidates. (2) Returns `[]Pair` of contradicting pairs. (3) Each pair identifies A (higher-ranked) and B (lower-ranked). (4) No mutations to input slice.
+- Verification: deterministic (unit)
+
+### DES-P1-1: Detector construction
+
+`NewDetector(opts ...DetectorOption) *Detector`. Options: `WithClassifier(Classifier)`, `WithMaxLLMCalls(n int)`. Default max LLM calls = 3. When no classifier is set, LLM phase is skipped.
+
+---
+
+## REQ-P1-2: Two-pass heuristic detection (P1)
+
+Pass 1 keyword heuristic: for each pair of candidates, build search text from principle+title+content. Fire if shared subject tokens AND any opposing-verb pattern matches: (use/avoid), (always/never), (do/don't), (enable/disable), (is/isn't), (should/shouldn't).
+
+Pass 2 BM25 similarity: score A's text against B using BM25. Score > 0.3 with heuristic flag → high-confidence (skip LLM). Score > 0.3 without heuristic → borderline (LLM eligible).
+
+- Traces to: UC-P1-1
+- AC: (1) Heuristic checks all pairs O(n²) for top-N (N≤10, so ≤45 pairs). (2) BM25 scores each flagged pair. (3) High-confidence pairs returned without LLM call. (4) Borderline pairs sent to LLM if classifier set and budget permits.
+- Verification: deterministic (unit, table-driven)
+
+### DES-P1-2: Opposing verb patterns
+
+Opposing pairs checked as bidirectional substrings: if text A contains "use" and text B contains "avoid" (or vice versa), that is one match. Full list: `{use,avoid}`, `{always,never}`, `{do not,do}` (order-sensitive), `{enable,disable}`, `{should not,should}` (order-sensitive), `{is not,is}` (order-sensitive).
+
+---
+
+## REQ-P1-3: LLM classifier interface (P1)
+
+`Classifier` interface: `Classify(ctx context.Context, a, b *memory.Stored) (bool, error)`. Returns true if A and B contradict. Injected via `WithClassifier`. When budget (max LLM calls) is exhausted, no further Classify calls are made for this surface event.
+
+- Traces to: UC-P1-1
+- AC: (1) Classifier is an interface, not a concrete type. (2) Budget enforced: counter incremented per call, halted at max. (3) Errors from Classify treated as non-contradiction (fire-and-forget).
+- Verification: deterministic (unit with mock classifier)
+
+---
+
+## REQ-P1-4: KindContradiction signal kind (P1)
+
+Add `KindContradiction = "contradiction"` constant to `internal/signal/signal.go`.
+
+- Traces to: UC-P1-1, UC-28
+- AC: (1) Constant exported. (2) Value is `"contradiction"`.
+- Verification: deterministic (compile)
+
+---
+
+## REQ-P1-5: Post-ranking suppression filter in surface.go (P1)
+
+After frecency sort and before output formatting, in `runSessionStart` and `runPrompt`, call `s.detector.Check(ctx, topN)`. For each returned pair, remove B (index 1, lower-ranked) from the candidates slice. Emit a `KindContradiction` signal for each suppressed memory via `s.signalEmitter`.
+
+- Traces to: UC-P1-1
+- AC: (1) Suppression happens post-sort, pre-format. (2) Lower-ranked memory removed. (3) Signal emitted per suppression. (4) If detector is nil or errors, proceed without suppression.
+- Verification: deterministic (unit with mock detector)
+
+### DES-P1-5: Surface wiring
+
+`ContradictionDetector` interface in surface package: `Check(ctx, []*memory.Stored) ([]contradict.Pair, error)`. `SignalEmitter` interface: `Emit(signal.Signal) error`. Add `WithContradictionDetector(d ContradictionDetector)` and `WithSignalEmitter(e SignalEmitter)` surfacer options.

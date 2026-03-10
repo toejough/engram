@@ -2290,3 +2290,21 @@ All L2 items have ARCH coverage.
 **Data flow:** `Surfacer.enforcementLevelFor(path)` → `EnforcementReader.GetEnforcementLevel(path)` → level string → `formatMemoryLine(slug, principle, level, annotation)`.
 
 **Traces to:** REQ-P6e-5, REQ-P6e-6, REQ-P6e-7, ARCH-7 (DI everywhere)
+
+---
+
+## ARCH-P1-1: contradict package is pure logic, no I/O (P1)
+
+`internal/contradict` contains only business logic. BM25 scoring uses the existing `internal/bm25` package. The LLM classifier is an injected interface. No file I/O, no HTTP calls, no `os.*` usage.
+
+- Traces to: UC-P1-1, ARCH-7 (DI everywhere)
+- Rationale: Keeps detection testable without mocks for I/O. LLM calls isolated behind Classifier interface.
+
+---
+
+## ARCH-P1-2: Surface package uses interface indirection for contradict (P1)
+
+Surface package does NOT import `internal/contradict` directly. It defines a local `ContradictionDetector` interface. This avoids circular imports and keeps surface package independently testable.
+
+- Traces to: UC-P1-1, ARCH-7
+- Rationale: Interface-based wiring consistent with existing surface pattern (MemoryRetriever, MemoryTracker, etc.)

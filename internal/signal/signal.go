@@ -5,6 +5,7 @@ import "time"
 
 // Exported constants.
 const (
+	KindContradiction    = "contradiction"
 	KindEscalation       = "escalation"
 	KindGraduation       = "graduation"
 	KindHiddenGemBroaden = "hidden_gem_broadening"

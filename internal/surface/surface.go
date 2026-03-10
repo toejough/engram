@@ -14,9 +14,11 @@ import (
 	"time"
 
 	"engram/internal/bm25"
+	"engram/internal/contradict"
 	"engram/internal/creationlog"
 	"engram/internal/frecency"
 	"engram/internal/memory"
+	"engram/internal/signal"
 )
 
 // Exported constants.
@@ -32,6 +34,11 @@ const (
 var (
 	ErrUnknownMode = errors.New("surface: unknown mode")
 )
+
+// ContradictionDetector detects contradicting memory pairs at surface time (UC-P1-1, ARCH-P1-2).
+type ContradictionDetector interface {
+	Check(ctx context.Context, candidates []*memory.Stored) ([]contradict.Pair, error)
+}
 
 // CreationLogReader reads and clears the creation log (ARCH-12).
 type CreationLogReader interface {
@@ -89,6 +96,11 @@ type Result struct {
 	Context string `json:"context"`
 }
 
+// SignalEmitter emits maintenance signals into the proposal queue (UC-P1-1).
+type SignalEmitter interface {
+	Emit(s signal.Signal) error
+}
+
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
 	retriever             MemoryRetriever
@@ -99,6 +111,8 @@ type Surfacer struct {
 	budgetConfig          *BudgetConfig
 	registry              RegistryRecorder
 	enforcementReader     EnforcementReader
+	contradictionDetector ContradictionDetector
+	signalEmitter         SignalEmitter
 }
 
 // New creates a Surfacer.
@@ -334,7 +348,7 @@ func (s *Surfacer) runPreCompact(
 	}, candidates, nil
 }
 
-//nolint:funlen // orchestration function
+//nolint:cyclop,funlen // orchestration function: BM25 filtering + suppression + budget: inherent branching
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
 	dataDir, message string,
@@ -369,6 +383,34 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, nil
 	}
 
+	// Post-ranking: suppress contradicting memories (UC-P1-1).
+	promptMems := make([]*memory.Stored, 0, len(matches))
+	for _, m := range matches {
+		promptMems = append(promptMems, m.mem)
+	}
+
+	promptMems = s.suppressContradictions(ctx, promptMems)
+
+	// Rebuild matches from suppressed set.
+	suppressedPaths := make(map[string]bool, len(promptMems))
+	for _, m := range promptMems {
+		suppressedPaths[m.FilePath] = true
+	}
+
+	filtered := make([]promptMatch, 0, len(promptMems))
+
+	for _, m := range matches {
+		if suppressedPaths[m.mem.FilePath] {
+			filtered = append(filtered, m)
+		}
+	}
+
+	matches = filtered
+
+	if len(matches) == 0 {
+		return Result{}, nil, nil
+	}
+
 	var buf strings.Builder
 
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
@@ -382,9 +424,10 @@ func (s *Surfacer) runPrompt(
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	promptMems := make([]*memory.Stored, 0, len(matches))
+	// Collect final memory list for tracking (suppression already applied above).
+	finalMems := make([]*memory.Stored, 0, len(matches))
 	for _, m := range matches {
-		promptMems = append(promptMems, m.mem)
+		finalMems = append(finalMems, m.mem)
 	}
 
 	var summaryBuf strings.Builder
@@ -400,7 +443,7 @@ func (s *Surfacer) runPrompt(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: buf.String(),
-	}, promptMems, nil
+	}, finalMems, nil
 }
 
 func (s *Surfacer) runSessionStart(
@@ -434,6 +477,10 @@ func (s *Surfacer) runSessionStart(
 		count = sessionStartLimit
 		memories = memories[:count]
 	}
+
+	// Post-ranking: suppress contradicting memories (UC-P1-1).
+	memories = s.suppressContradictions(ctx, memories)
+	count = len(memories)
 
 	// Nothing to surface at all.
 	if len(logEntries) == 0 && count == 0 {
@@ -491,6 +538,46 @@ func (s *Surfacer) runTool(
 	return s.renderToolAdvisories(candidates, effectiveness)
 }
 
+// suppressContradictions runs contradiction detection on candidates and returns a filtered slice
+// with lower-ranked contradicting memories removed. Emits KindContradiction signals for each
+// suppressed memory. Fire-and-forget: errors from detector return candidates unchanged (UC-P1-1).
+func (s *Surfacer) suppressContradictions(ctx context.Context, candidates []*memory.Stored) []*memory.Stored {
+	if s.contradictionDetector == nil || len(candidates) < 2 {
+		return candidates
+	}
+
+	pairs, err := s.contradictionDetector.Check(ctx, candidates)
+	if err != nil || len(pairs) == 0 {
+		return candidates
+	}
+
+	// Build set of suppressed file paths (lower-ranked B member of each pair).
+	suppressed := make(map[string]bool, len(pairs))
+
+	for _, pair := range pairs {
+		suppressed[pair.B.FilePath] = true
+
+		if s.signalEmitter != nil {
+			_ = s.signalEmitter.Emit(signal.Signal{
+				Type:       signal.TypeMaintain,
+				SourceID:   pair.B.FilePath,
+				SignalKind: signal.KindContradiction,
+				Summary:    "contradicts " + filenameSlug(pair.A.FilePath),
+			})
+		}
+	}
+
+	filtered := make([]*memory.Stored, 0, len(candidates)-len(suppressed))
+
+	for _, mem := range candidates {
+		if !suppressed[mem.FilePath] {
+			filtered = append(filtered, mem)
+		}
+	}
+
+	return filtered
+}
+
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
 	if result.Context == "" {
 		return nil
@@ -518,6 +605,11 @@ type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
+// WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
+func WithContradictionDetector(d ContradictionDetector) SurfacerOption {
+	return func(s *Surfacer) { s.contradictionDetector = d }
+}
+
 // WithEffectiveness sets the effectiveness computer for memory annotations (ARCH-24).
 func WithEffectiveness(computer EffectivenessComputer) SurfacerOption {
 	return func(s *Surfacer) { s.effectivenessComputer = computer }
@@ -536,6 +628,11 @@ func WithLogReader(reader CreationLogReader) SurfacerOption {
 // WithRegistry sets the registry recorder for surfacing events (UC-23).
 func WithRegistry(recorder RegistryRecorder) SurfacerOption {
 	return func(s *Surfacer) { s.registry = recorder }
+}
+
+// WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
+func WithSignalEmitter(e SignalEmitter) SurfacerOption {
+	return func(s *Surfacer) { s.signalEmitter = e }
 }
 
 // WithSurfacingLogger sets the surfacing event logger (ARCH-22).
