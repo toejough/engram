@@ -65,6 +65,7 @@ type InstructionEntry struct {
 	SourceType       string                  `json:"source_type"`
 	SourcePath       string                  `json:"source_path"`
 	Title            string                  `json:"title"`
+	Content          string                  `json:"content,omitempty"`
 	ContentHash      string                  `json:"content_hash"`
 	RegisteredAt     time.Time               `json:"registered_at"`
 	UpdatedAt        time.Time               `json:"updated_at"`

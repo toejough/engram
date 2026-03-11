@@ -21,13 +21,13 @@ func New() *Builder {
 // Pairs with Jaccard >= 0.15 produce a concept_overlap link.
 func (b *Builder) BuildConceptOverlap(entry registry.InstructionEntry, existing []registry.InstructionEntry) []registry.Link {
 	var links []registry.Link
-	newTokens := tokenize(entry.Title + " " + entry.ContentHash)
+	newTokens := tokenize(entry.Title + " " + entry.Content)
 
 	for _, ex := range existing {
 		if ex.ID == entry.ID {
 			continue // No self-links
 		}
-		exTokens := tokenize(ex.Title + " " + ex.ContentHash)
+		exTokens := tokenize(ex.Title + " " + ex.Content)
 		jac := jaccard(newTokens, exTokens)
 		if jac >= 0.15 {
 			links = append(links, registry.Link{
@@ -50,12 +50,12 @@ func (b *Builder) BuildContentSimilarity(entry registry.InstructionEntry, existi
 	for i, ex := range existing {
 		docs[i] = bm25.Document{
 			ID:   ex.ID,
-			Text: ex.Title + " " + ex.ContentHash,
+			Text: ex.Title + " " + ex.Content,
 		}
 	}
 	scorer := bm25.New()
 
-	query := entry.Title + " " + entry.ContentHash
+	query := entry.Title + " " + entry.Content
 	scored := scorer.Score(query, docs)
 
 	for _, sd := range scored {
