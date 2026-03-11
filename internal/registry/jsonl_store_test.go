@@ -957,3 +957,97 @@ func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
 		registry.WithNow(clock),
 	)
 }
+
+// T-P3-13: Registry.UpdateLinks stores and retrieves links
+func TestUpdateLinksStoresAndRetrieves(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	entry := registry.InstructionEntry{
+		ID:         "mem1",
+		SourceType: "memory",
+		Title:      "test",
+	}
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	links := []registry.Link{
+		{Target: "mem2", Weight: 0.5, Basis: "concept_overlap"},
+		{Target: "mem3", Weight: 0.3, Basis: "co_surfacing", CoSurfacingCount: 2},
+	}
+
+	err = store.UpdateLinks("mem1", links)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	retrieved, err := store.Get("mem1")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	g.Expect(retrieved.Links).To(HaveLen(2))
+	g.Expect(retrieved.Links[0].Target).To(Equal("mem2"))
+	g.Expect(retrieved.Links[1].Target).To(Equal("mem3"))
+}
+
+// T-P3-14: Registry.UpdateLinks returns ErrNotFound for unknown id
+func TestUpdateLinksNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	links := []registry.Link{{Target: "ex", Weight: 0.5, Basis: "co_surfacing"}}
+
+	err := store.UpdateLinks("nonexistent", links)
+	g.Expect(err).To(MatchError(ContainSubstring("not found")))
+}
+
+// T-P3-15: Registry.UpdateLinks replaces existing links entirely
+func TestUpdateLinksReplaces(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	entry := registry.InstructionEntry{
+		ID:         "mem1",
+		SourceType: "memory",
+		Title:      "test",
+		Links: []registry.Link{
+			{Target: "old1", Weight: 0.3, Basis: "concept_overlap"},
+			{Target: "old2", Weight: 0.2, Basis: "concept_overlap"},
+			{Target: "old3", Weight: 0.1, Basis: "concept_overlap"},
+		},
+	}
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	// Replace with single new link
+	newLinks := []registry.Link{{Target: "new1", Weight: 0.5, Basis: "co_surfacing"}}
+	err = store.UpdateLinks("mem1", newLinks)
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	retrieved, err := store.Get("mem1")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	g.Expect(retrieved.Links).To(HaveLen(1))
+	g.Expect(retrieved.Links[0].Target).To(Equal("new1"))
+}

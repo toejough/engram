@@ -47,6 +47,16 @@ func (e EvaluationCounters) Total() int {
 	return e.Followed + e.Contradicted + e.Ignored
 }
 
+// Link represents a typed, weighted relationship between two instruction entries.
+//
+//nolint:tagliatelle // spec requires snake_case JSON field names.
+type Link struct {
+	Target           string  `json:"target"`
+	Weight           float64 `json:"weight"`
+	Basis            string  `json:"basis"`
+	CoSurfacingCount int     `json:"co_surfacing_count,omitempty"`
+}
+
 // InstructionEntry represents one registered instruction.
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
@@ -64,4 +74,5 @@ type InstructionEntry struct {
 	Absorbed         []AbsorbedRecord        `json:"absorbed,omitempty"`
 	EnforcementLevel EnforcementLevel        `json:"enforcement_level,omitempty"`
 	Transitions      []EnforcementTransition `json:"transitions,omitempty"`
+	Links            []Link                  `json:"links,omitempty"`
 }

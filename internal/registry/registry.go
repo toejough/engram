@@ -30,4 +30,5 @@ type Registry interface {
 	Remove(id string) error
 	List() ([]InstructionEntry, error)
 	Get(id string) (*InstructionEntry, error)
+	UpdateLinks(id string, links []Link) error
 }

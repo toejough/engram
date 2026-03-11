@@ -265,6 +265,26 @@ func (s *JSONLStore) SetEnforcementLevel(id string, level EnforcementLevel, reas
 	return s.save()
 }
 
+// UpdateLinks replaces the links for an entry.
+func (s *JSONLStore) UpdateLinks(id string, links []Link) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	err := s.ensureLoaded()
+	if err != nil {
+		return err
+	}
+
+	entry, ok := s.entries[id]
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	entry.Links = links
+
+	return s.save()
+}
+
 func (s *JSONLStore) clock() time.Time {
 	if s.now != nil {
 		return s.now()
