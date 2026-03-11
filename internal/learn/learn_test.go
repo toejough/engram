@@ -250,7 +250,7 @@ func TestT57_FullPipeline_ExtractDedupWrite(t *testing.T) {
 
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
 	g.Expect(result.SkippedCount).To(Equal(1))
-	g.Expect(recorder.calls).To(Equal([]string{"extract", "list", "filter", "write"}))
+	g.Expect(recorder.calls).To(Equal([]string{"extract", "list", "classify", "write"}))
 }
 
 // T-58: No learnings extracted — pipeline short-circuits
