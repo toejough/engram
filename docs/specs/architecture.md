@@ -2344,3 +2344,105 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 - Traces to: UC-33, ARCH-7 (DI everywhere)
 - Rationale: DI on writer and absorber keeps the learn orchestrator testable; registry absorb is an optional side-effect that does not block merge success.
+
+---
+
+## P3: Memory Graph with Spreading Activation
+
+### ARCH-P3-1: internal/graph/ package — pure link logic, no I/O (P3)
+
+**Decision:** Create `internal/graph/` package with: `Builder` struct (`BuildConceptOverlap`, `BuildContentSimilarity`), `UpdateCoSurfacing(existing []registry.Link, pairWeight float64) []registry.Link`, `UpdateEvaluationCorrelation(existing []registry.Link) []registry.Link`, `Prune(links []registry.Link) []registry.Link`. Jaccard tokenizer as unexported function. Imports `internal/registry` (for Link type) and `internal/bm25`. No `os.*`, no `http.*`, no file I/O.
+
+**Rationale:** Keeps graph algorithms testable in isolation. All callers supply data via parameters; callers own I/O.
+
+**DI boundary:** All functions are pure input→output transformers. Registry mutations happen in callers via injected interfaces.
+
+- Traces to: UC-32, ARCH-7 (DI everywhere)
+
+---
+
+### ARCH-P3-2: UpdateLinks on Registry interface and JSONLStore (P3)
+
+**Decision:** Add `UpdateLinks(id string, links []Link) error` to `Registry` interface. `JSONLStore.UpdateLinks` acquires existing mutex, reads entry, replaces `Links` field, rewrites JSONL. Returns `ErrNotFound` if id absent.
+
+**Rationale:** Consistent with existing Registry mutation pattern. Mutex already exists for concurrent writes.
+
+**Data flow:** `graph.Builder` → `[]registry.Link` → `Registry.UpdateLinks(id, links)` → JSONL persisted.
+
+- Traces to: REQ-P3-2, ARCH-7
+
+---
+
+### ARCH-P3-3: LinkUpdater interface in surface package for co_surfacing (P3)
+
+**Decision:** `LinkUpdater` interface in `internal/surface/`: `GetEntryLinks(id string) ([]GraphLink, error)` and `SetEntryLinks(id string, links []GraphLink) error` where `GraphLink = struct{ Target, Basis string; Weight float64; CoSurfacingCount int }`. `WithLinkUpdater(u LinkUpdater)` option. The CLI adapter wraps `registry.JSONLStore` to satisfy this interface.
+
+**Data flow:** Post top-N selection → `updateCoSurfacingLinks(ctx, ids, updater)` → for each pair: `GetEntryLinks` → mutate → `SetEntryLinks`. Fire-and-forget errors.
+
+- Traces to: REQ-P3-5, ARCH-7
+
+---
+
+### ARCH-P3-4: Spreading activation via LinkReader in surface package (P3)
+
+**Decision:** `LinkReader` interface in `internal/surface/`: `GetEntryLinks(id string) ([]GraphLink, error)`. `WithLinkReader(r LinkReader)` option (can be same concrete value as LinkUpdater — separate interface for read-only use). `applySpreadingActivation(candidates []candidate, baseScores map[string]float64, reader LinkReader) map[string]float64` pure function: for each candidate, fetch its links, sum `linked_base × weight` for each link whose target is in baseScores, add `0.3 × sum` to base.
+
+**Rationale:** Read-only interface keeps activation logic testable with a simple stub.
+
+- Traces to: REQ-P3-6, ARCH-7
+
+---
+
+### ARCH-P3-5: TitleFetcher interface in surface package for cluster notes (P3)
+
+**Decision:** `TitleFetcher` interface: `GetTitle(id string) (string, bool)`. `WithTitleFetcher(f TitleFetcher)` option. `formatClusterNotes(links []GraphLink, fetcher TitleFetcher) string` returns up to 2 lines `  • see also: <title>\n` sorted by weight desc. Appended to each memory's formatted block in `formatMemoryLine`. The CLI adapter wraps `registry.JSONLStore.Get` to implement TitleFetcher.
+
+- Traces to: REQ-P3-7, ARCH-7
+
+---
+
+### ARCH-P3-6: EvalLinkUpdater interface in evaluate package (P3)
+
+**Decision:** `EvalLinkUpdater` interface in `internal/evaluate/`: `GetEntryLinks(id string) ([]EvalLink, error)` and `SetEntryLinks(id string, links []EvalLink) error` where `EvalLink = struct{ Target, Basis string; Weight float64; CoSurfacingCount int }`. `WithEvalLinkUpdater(u EvalLinkUpdater)` option. After outcome map built, `updateEvaluationCorrelationLinks(ctx, followedIDs, updater)` called. Fire-and-forget errors.
+
+- Traces to: REQ-P3-9, ARCH-7
+
+---
+
+### ARCH-P3-7: Learn-time link building wired in CLI (P3)
+
+**Decision:** After `Registry.Register` or `Registry.RecordSurfacing` in the learn pipeline, the CLI wires a `graph.Builder` call to build concept_overlap + content_similarity links. Calls `registry.List()` to get existing entries, then `builder.BuildConceptOverlap` + `builder.BuildContentSimilarity`, merges the two link slices (dedup by target+basis), calls `registry.UpdateLinks`. Fire-and-forget on error.
+
+**Rationale:** Learn pipeline is the natural place to build static links. CLI owns the wiring, internal/learn stays pure.
+
+- Traces to: REQ-P3-3, REQ-P3-4, ARCH-7
+
+---
+
+## ARCH-P6f-1: GraduationStore in signal package (P6f)
+
+**Decision:** New file `internal/signal/graduation_store.go`. `GraduationStore` struct with DI fields: `readFile func(string)([]byte,error)`, `createTemp func(dir,pattern string)(*os.File,error)`, `rename func(oldpath,newpath string)error`, `remove func(string)error`, `now func()time.Time`. Constructor: `NewGraduationStore(opts ...GraduationStoreOption)`. Methods: `Append(entry GraduationEntry, path string) error`, `List(path string) ([]GraduationEntry, error)`, `SetStatus(path, id, status, resolvedAt, issueURL string) error`. Sentinel: `ErrGraduationNotFound`. ID generation: `fmt.Sprintf("%x", sha256.Sum256([]byte(memoryPath)))[:12]` (pure crypto/sha256, no I/O).
+
+**Rationale:** Graduation lifecycle is independent of the general signal queue. GraduationStore is a dedicated JSONL store for persist-until-resolved entries. Follows the same DI-option pattern as QueueStore (ARCH-7).
+
+- Traces to: REQ-P6f-1, REQ-P6f-2, ARCH-7
+
+---
+
+## ARCH-P6f-2: GraduationQueueEmitter implements maintain.GraduationEmitter (P6f)
+
+**Decision:** `GraduationQueueEmitter` struct in `internal/signal/` with fields `store *GraduationStore` and `path string`. Constructor: `NewGraduationQueueEmitter(store *GraduationStore, path string) *GraduationQueueEmitter`. Implements `maintain.GraduationEmitter.EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error`. Generates ID, builds `GraduationEntry{status:"pending"}`, calls `store.Append`. Wired in `runApplyProposal` at CLI edge.
+
+**Rationale:** Separates the emitter concern (writing one entry) from the store concern (CRUD). Keeps `maintain` package free of `signal` import (ARCH-P6e-1 pattern).
+
+- Traces to: REQ-P6f-3, ARCH-P6e-1, ARCH-7
+
+---
+
+## ARCH-P6f-3: graduate CLI subcommand with IssueCreator interface (P6f)
+
+**Decision:** New file `internal/cli/graduate.go` with three entry points: `runGraduateList`, `runGraduateAccept`, `runGraduateDismiss`. Each parses `--data-dir` and (for accept/dismiss) `--id` flags. `IssueCreator` interface: `Create(title, body string) (issueURL string, err error)`. Concrete `ghIssueCreator` shells out to `exec.Command("gh", "issue", "create", "--title", title, "--body", body)` and captures stdout as the URL. New `runGraduateSurface` reads `graduation-queue.jsonl` via GraduationStore, formats pending entries per DES-P6f-2, outputs JSON with `--format json`. Session-start.sh updated to call `engram graduate-surface --data-dir ... --format json` and merge its context alongside the existing signal-surface output.
+
+**Rationale:** DI on IssueCreator makes acceptance testable without `gh`. `graduate-surface` is separate from `signal-surface` to give graduation signals independent framing (lifecycle management vs. one-time maintenance).
+
+- Traces to: REQ-P6f-4, REQ-P6f-5, REQ-P6f-6, REQ-P6f-7, ARCH-7

@@ -1290,3 +1290,59 @@ parents = ["L3P5c"]
 items = ["T-P5c-1", "T-P5c-2", "T-P5c-3", "T-P5c-4", "T-P5c-5", "T-P5c-6", "T-P5c-7", "T-P5c-8"]
 status = "complete"
 history = "8 BDD test specs: overlap classify (T-P5c-1/2/8), LLM merge (T-P5c-3), fallback merge (T-P5c-4/5), absorbed record (T-P5c-6), LLM error fallback (T-P5c-7)."
+
+# P3: Memory Graph with Spreading Activation
+
+[layers.L1.p3]
+items = ["UC-32"]
+
+[layers.L2.p3]
+items = ["REQ-P3-1", "REQ-P3-2", "REQ-P3-3", "REQ-P3-4", "REQ-P3-5", "REQ-P3-6", "REQ-P3-7", "REQ-P3-8", "REQ-P3-9", "DES-P3-1", "DES-P3-2", "DES-P3-3", "DES-P3-4", "DES-P3-5", "DES-P3-6", "DES-P3-7", "DES-P3-9"]
+
+[layers.L3.p3]
+items = [
+  { id = "ARCH-P3-1", source = "derived" },
+  { id = "ARCH-P3-2", source = "derived" },
+  { id = "ARCH-P3-3", source = "derived" },
+  { id = "ARCH-P3-4", source = "derived" },
+  { id = "ARCH-P3-5", source = "derived" },
+  { id = "ARCH-P3-6", source = "derived" },
+  { id = "ARCH-P3-7", source = "derived" },
+]
+
+[layers.L4.p3]
+items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
+
+[tree.L1P3]
+layer = "L1"
+name = "Memory Graph with Spreading Activation"
+items = ["UC-32"]
+status = "in_progress"
+
+[tree.L2P3]
+layer = "L2"
+name = "Memory Graph Requirements and Design"
+parents = ["L1P3"]
+items = ["REQ-P3-1", "REQ-P3-2", "REQ-P3-3", "REQ-P3-4", "REQ-P3-5", "REQ-P3-6", "REQ-P3-7", "REQ-P3-8", "REQ-P3-9", "DES-P3-1", "DES-P3-2", "DES-P3-3", "DES-P3-4", "DES-P3-5", "DES-P3-6", "DES-P3-7", "DES-P3-9"]
+status = "in_progress"
+
+[tree.L3P3]
+layer = "L3"
+name = "Memory Graph Architecture"
+parents = ["L2P3"]
+items = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
+status = "in_progress"
+
+[tree.L4P3]
+layer = "L4"
+name = "Memory Graph Tests"
+parents = ["L3P3"]
+items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
+status = "in_progress"
+
+[tree.L5P3impl]
+layer = "L5"
+name = "Memory Graph Implementation"
+parents = ["L4P3"]
+items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
+status = "pending"

@@ -2828,6 +2828,117 @@ In tool mode, memories at `emphasized_advisory` or `reminder` level are sorted b
 
 ---
 
+## REQ-P6f-1: GraduationEntry model (P6f)
+
+Each graduation entry persists the lifecycle of one graduated memory. Fields: `id` (12-char hex, derived from SHA-256 of memory_path), `memory_path`, `recommendation` (one of: "settings.json", ".claude/rules/", "skill", "CLAUDE.md"), `status` ("pending" | "accepted" | "dismissed"), `detected_at` (RFC3339), `resolved_at` (RFC3339, empty if still pending), `issue_url` (empty until accepted).
+
+- Traces to: UC-21 (graduation lifecycle)
+- AC: (1) GraduationEntry struct defined with all fields. (2) ID is derived deterministically from memory_path via SHA-256 prefix. (3) Status values: "pending", "accepted", "dismissed". (4) Accepted entries record issue_url and resolved_at. (5) Dismissed entries record resolved_at, issue_url is empty string.
+- Verification: deterministic
+
+---
+
+## REQ-P6f-2: GraduationStore CRUD operations (P6f)
+
+`GraduationStore` persists entries in `<data-dir>/graduation-queue.jsonl`. Provides: `Append(entry GraduationEntry, path string)` to add an entry, `List(path string) ([]GraduationEntry, error)` to read all entries, `SetStatus(path, id, status, resolvedAt, issueURL string) error` to update an entry by ID.
+
+- Traces to: UC-21, REQ-P6f-1
+- AC: (1) `Append` writes entry as one JSON line, atomically via temp+rename. (2) `List` reads all lines, skips malformed, returns empty slice for missing file. (3) `SetStatus` finds entry by ID, updates status/resolved_at/issue_url, rewrites atomically. (4) `SetStatus` on unknown ID returns `ErrGraduationNotFound`. (5) DI for all file I/O (readFile, createTemp, rename, remove, now).
+- Verification: deterministic
+
+---
+
+## REQ-P6f-3: GraduationQueueEmitter writes to GraduationStore (P6f)
+
+`GraduationQueueEmitter` in the signal package implements `maintain.GraduationEmitter`. On `EmitGraduation(memoryPath, recommendation string, detectedAt time.Time)`, it generates an ID from the memory_path SHA-256 prefix and calls `store.Append`.
+
+- Traces to: UC-21, REQ-P6f-1, REQ-P6f-2
+- AC: (1) EmitGraduation creates GraduationEntry with status="pending". (2) ID is the first 12 hex chars of SHA-256(memoryPath). (3) Entry is appended to the graduation store. (4) Emitter errors propagate to the caller.
+- Verification: deterministic
+
+---
+
+## REQ-P6f-4: graduate accept creates GitHub issue and records result (P6f)
+
+`engram graduate accept --data-dir <dir> --id <id>` reads the graduation entry, creates a GitHub issue via `IssueCreator`, and records the entry as accepted with the issue URL.
+
+- Traces to: UC-21
+- AC: (1) Reads GraduationStore for the entry with given ID. (2) Calls `IssueCreator.Create(title, body)` where title and body include memory_path and recommendation. (3) On success: calls `SetStatus(id, "accepted", now, issueURL)`. (4) Prints the issue URL to stdout. (5) IssueCreator errors propagate (not fire-and-forget). (6) Unknown ID returns error.
+- Verification: deterministic
+
+---
+
+## REQ-P6f-5: graduate dismiss records dismissed (P6f)
+
+`engram graduate dismiss --data-dir <dir> --id <id>` records the entry as dismissed.
+
+- Traces to: UC-21
+- AC: (1) Reads GraduationStore for the entry with given ID. (2) Calls `SetStatus(id, "dismissed", now, "")`. (3) Prints confirmation to stdout. (4) Unknown ID returns error.
+- Verification: deterministic
+
+---
+
+## REQ-P6f-6: graduate list shows pending entries and quality metric (P6f)
+
+`engram graduate list --data-dir <dir>` lists pending graduation entries and reports the quality metric.
+
+- Traces to: UC-21
+- AC: (1) Lists all entries with status="pending". (2) Quality metric = accepted / (accepted + dismissed) as a percentage. (3) If accepted+dismissed == 0, metric shows "n/a". (4) Each entry includes: ID, memory_path, recommendation, detected_at.
+- Verification: deterministic
+
+### DES-P6f-1: graduate list output format (P6f)
+
+```
+Graduation Signals (N pending)
+
+  ID:             <id>
+  Memory:         <memory_path>
+  Recommendation: <recommendation>
+  Detected:       <detected_at>
+
+Quality: X.X% accepted (N accepted, N dismissed)
+```
+
+If no pending entries: print "No pending graduation signals.\n". Quality line still appears if any resolved entries exist.
+
+- Traces to: REQ-P6f-6
+- Verification: deterministic
+
+---
+
+## REQ-P6f-7: SessionStart surfaces pending graduation signals with GitHub issue instructions (P6f)
+
+`engram graduate-surface --data-dir <dir> --format json` outputs `{"summary":..., "context":...}` when pending graduation entries exist, instructing the LLM to ask the user about GitHub issue creation.
+
+- Traces to: UC-21, UC-28 (signal surfacing)
+- AC: (1) Reads graduation-queue.jsonl, filters status="pending". (2) JSON output has `summary` (entry count) and `context` (entries + instructions). (3) Instructions reference `engram graduate accept --id <id>` and `engram graduate dismiss --id <id>`. (4) Empty/all-resolved queue returns no output (exit 0). (5) DI for I/O.
+- Verification: deterministic
+
+### DES-P6f-2: graduation-surface context format (P6f)
+
+Context block:
+```
+[engram] N pending graduation signal(s):
+
+  - ID: <id> | Memory: <memory_path> | Recommendation: <recommendation> | Detected: <detected_at>
+
+Ask the user if they would like to create GitHub issues for each graduated memory.
+Commands: `engram graduate accept --data-dir <data-dir> --id <id>` to accept (creates issue),
+          `engram graduate dismiss --data-dir <data-dir> --id <id>` to dismiss.
+```
+
+- Traces to: REQ-P6f-7
+- Verification: deterministic
+
+### DES-P6f-3: graduation-queue.jsonl line format (P6f)
+
+Each line: `{"id":"...","memory_path":"...","recommendation":"...","status":"...","detected_at":"...","resolved_at":"...","issue_url":""}`. All fields always present; `resolved_at` and `issue_url` are empty strings when not yet set.
+
+- Traces to: REQ-P6f-1, REQ-P6f-2
+- Verification: deterministic
+
+---
+
 ## REQ-P1-1: Contradiction detector interface (P1)
 
 The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx, []*memory.Stored) ([]Pair, error)` method. `Pair` holds two memories and a confidence score.
@@ -3031,3 +3142,127 @@ Merging does not modify `SurfacedCount`, `Evaluations`, `EnforcementLevel`, or `
 - Traces to: UC-33
 - AC: (1) Before and after merge, all effectiveness fields on the existing entry are equal. (2) Only `Absorbed` grows by one record.
 - Verification: unit with mock registry
+
+---
+
+## P3: Memory Graph with Spreading Activation
+
+### REQ-P3-1: Link data model on InstructionEntry (P3)
+
+`InstructionEntry` gains `Links []Link` field (json: `links,omitempty`). `Link` struct (in `internal/registry/entry.go`): `Target string` (instruction ID), `Weight float64` (0.0–1.0), `Basis string` (one of: `concept_overlap`, `co_surfacing`, `evaluation_correlation`, `content_similarity`), `CoSurfacingCount int` (co-surfacing opportunities observed).
+
+- Traces to: UC-32
+- AC: (1) Links field round-trips through JSONL. (2) Empty Links slice serializes as absent (omitempty). (3) Basis is one of 4 defined values. (4) CoSurfacingCount tracks opportunities independently of Weight.
+- Verification: deterministic (unit, registry pkg)
+
+### DES-P3-1: Link struct in registry/entry.go
+
+`Link` struct added to `internal/registry/entry.go` with `//nolint:tagliatelle` comment (snake_case). JSON tags: `target`, `weight`, `basis`, `co_surfacing_count` (omitempty). `InstructionEntry.Links` tagged `json:"links,omitempty"`.
+
+---
+
+### REQ-P3-2: Registry.UpdateLinks method (P3)
+
+`Registry` interface gains `UpdateLinks(id string, links []Link) error`. Implementation in `JSONLStore`: read entry by id, replace its `Links` field, write back atomically. Returns `ErrNotFound` if id absent.
+
+- Traces to: UC-32
+- AC: (1) UpdateLinks replaces entire links slice for the entry. (2) Concurrent-safe (existing mutex). (3) Returns ErrNotFound for unknown id.
+- Verification: deterministic (unit, registry pkg)
+
+### DES-P3-2: UpdateLinks wiring
+
+`JSONLStore.UpdateLinks` reads JSONL, finds entry, replaces Links, rewrites. Uses existing mutex. No new I/O pattern needed.
+
+---
+
+### REQ-P3-3: concept_overlap links at learn time (P3)
+
+`graph.Builder.BuildConceptOverlap(entry, existing)` computes Jaccard similarity of word-token sets of `title + " " + content` for the new entry against all existing entries. Pairs with Jaccard ≥ 0.15 produce a `concept_overlap` link with `Weight = Jaccard score`. Existing concept_overlap links for the same (entry, target) pair are replaced.
+
+- Traces to: UC-32
+- AC: (1) Jaccard = |A∩B| / |A∪B| on lowercase word tokens. (2) Threshold 0.15. (3) Self-links excluded. (4) Returns []Link, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P3-3: graph.Builder and Jaccard tokenizer
+
+`internal/graph/` package. `Builder` struct (no fields). `BuildConceptOverlap(entry registry.InstructionEntry, existing []registry.InstructionEntry) []registry.Link`. Token function: lowercase, split on `\W+`, deduplicate into set. Returns concept_overlap links only.
+
+---
+
+### REQ-P3-4: content_similarity links at learn time (P3)
+
+`graph.Builder.BuildContentSimilarity(entry, existing)` uses BM25 to score the new entry's `title + content` as a query against existing entries as corpus. Pairs with BM25 score ≥ 0.05 produce a `content_similarity` link with `Weight = min(1.0, score / 5.0)`. Existing content_similarity links for the same pair are replaced.
+
+- Traces to: UC-32
+- AC: (1) BM25 corpus = existing entries (title+content as document). (2) Threshold 0.05 raw score. (3) Weight = min(1.0, raw/5.0). (4) Returns []Link, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P3-4: BuildContentSimilarity uses internal/bm25
+
+Reuses existing `internal/bm25` package. Each existing entry's `title + " " + content` is a BM25 document. Query = new entry's `title + " " + content`. Score per document → weight formula.
+
+---
+
+### REQ-P3-5: co_surfacing link updates at surface time (P3)
+
+After top-N selection and before output formatting, for each unique pair of memories in the surface result, update their co_surfacing link: `Weight += 0.1` (capped at 1.0), `CoSurfacingCount += 1`. If no co_surfacing link exists, create one with `Weight = 0.1`, `CoSurfacingCount = 1`. Bidirectional (A→B and B→A). Fire-and-forget on error.
+
+- Traces to: UC-32
+- AC: (1) All O(n²) pairs updated for n surfaced memories. (2) Bidirectional updates. (3) Weight capped at 1.0. (4) CoSurfacingCount always incremented. (5) Error ignored (fire-and-forget).
+- Verification: deterministic (unit, surface pkg with mock LinkUpdater)
+
+### DES-P3-5: LinkUpdater and LinkReader interfaces in surface package
+
+`LinkUpdater` interface in surface pkg: `GetEntryLinks(id string) ([]GraphLink, error)` and `SetEntryLinks(id string, links []GraphLink) error` where `GraphLink` mirrors registry.Link fields. `WithLinkUpdater(u LinkUpdater)` option. Co-surfacing called via `updateCoSurfacingLinks` helper after rank.
+
+---
+
+### REQ-P3-6: Spreading activation in frecency scoring (P3)
+
+After base frecency scores computed and co_surfacing links updated, apply spreading activation: for each memory, `activated = base + 0.3 × Σ(linked_base × weight)` where the sum is over all links of the memory (all bases). Re-rank memories using activated scores. 1-hop only — linked memories' own links are not traversed.
+
+- Traces to: UC-32
+- AC: (1) Formula: base + 0.3 × Σ(linked_base × weight). (2) Linked base = base frecency of the linked memory (0 if not in current candidate set). (3) Re-ranking uses activated score. (4) If no LinkReader set, skip activation (unchanged scores).
+- Verification: deterministic (unit, surface pkg with mock LinkReader)
+
+### DES-P3-6: LinkReader interface in surface package
+
+`LinkReader` interface: `GetEntryLinks(id string) ([]GraphLink, error)`. `WithLinkReader(r LinkReader)` option. `applySpreadingActivation(candidates, baseScores, reader)` pure function in surface pkg. Applied after co_surfacing update, before final sort.
+
+---
+
+### REQ-P3-7: Cluster notes in surface output (P3)
+
+For each memory in the final surfaced output, if a LinkReader is set and the memory has links, include up to 2 cluster notes in the formatted output. Each cluster note is a single line: `  • see also: <linked-memory-title>` (≈20 tokens). Top-2 links selected by weight descending. Only includes links where the linked target has a known title.
+
+- Traces to: UC-32
+- AC: (1) Max 2 notes per memory. (2) Ordered by weight descending. (3) Format: `  • see also: <title>`. (4) Only emitted when LinkReader is set. (5) Missing title → skip that link.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P3-7: TitleFetcher interface in surface package
+
+`TitleFetcher` interface: `GetTitle(id string) (string, bool)`. `WithTitleFetcher(f TitleFetcher)` option. `formatClusterNotes(links []GraphLink, fetcher TitleFetcher) string` returns up to 2 note lines. Called from `formatMemoryLine` or equivalent.
+
+---
+
+### REQ-P3-8: Link pruning (P3)
+
+`graph.Prune(links []registry.Link) []registry.Link` returns a new slice with all links where `Weight < 0.1 AND CoSurfacingCount >= 10` removed. All other links are preserved unchanged.
+
+- Traces to: UC-32
+- AC: (1) Links with Weight < 0.1 AND CoSurfacingCount >= 10 removed. (2) Links with Weight < 0.1 but CoSurfacingCount < 10 preserved. (3) Links with Weight >= 0.1 always preserved. (4) Pure function, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+---
+
+### REQ-P3-9: evaluation_correlation links at evaluate time (P3)
+
+After outcome classification, for each pair of memories (A, B) where both received "followed" outcome in the same evaluate run, update evaluation_correlation link: `Weight += 0.05` (capped at 1.0), bidirectional. Fire-and-forget on error.
+
+- Traces to: UC-32
+- AC: (1) Only "followed" pairs. (2) Bidirectional. (3) Weight capped at 1.0. (4) Error ignored.
+- Verification: deterministic (unit, evaluate pkg with mock EvalLinkUpdater)
+
+### DES-P3-9: EvalLinkUpdater interface in evaluate package
+
+`EvalLinkUpdater` interface in evaluate pkg: `GetEntryLinks(id string) ([]EvalLink, error)` and `SetEntryLinks(id string, links []EvalLink) error`. `WithEvalLinkUpdater(u EvalLinkUpdater)` option. `updateEvaluationCorrelationLinks` helper called after outcome map is built.

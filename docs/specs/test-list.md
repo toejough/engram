@@ -1391,3 +1391,254 @@ After merge: `RegistryAbsorber.RecordAbsorbed` called once with existing file pa
 
 ### T-P5c-8: Empty candidate keywords are not merged
 Candidate with no keywords → appears in `Surviving` (create-new path), not in `MergePairs`. (unit, dedup pkg)
+
+---
+
+## P3: Memory Graph with Spreading Activation Tests
+
+### T-P3-1: Jaccard zero for disjoint token sets
+`tokenSet("foo bar") ∩ tokenSet("baz qux") = ∅` → Jaccard = 0. No link produced. (unit, graph pkg)
+
+### T-P3-2: Jaccard correct for overlapping sets
+`tokenSet("use targ build") ∩ tokenSet("use targ test") = {use, targ}`, union size 4 → Jaccard = 0.5. Link produced with Weight=0.5. (unit, graph pkg)
+
+### T-P3-3: BuildConceptOverlap threshold 0.15
+3 existing entries: one with Jaccard=0.2, one with 0.1, one with 0.0 against new entry → only the 0.2 entry produces a concept_overlap link. (unit, graph pkg)
+
+### T-P3-4: BuildConceptOverlap self-link excluded
+Entry in existing list has same ID as new entry → no self-link in output. (unit, graph pkg)
+
+### T-P3-5: BuildContentSimilarity threshold 0.05
+Entry scoring BM25=0.06 raw → content_similarity link with Weight=min(1.0,0.06/5.0). Entry scoring 0.03 → no link. (unit, graph pkg)
+
+### T-P3-6: BuildContentSimilarity weight capped at 1.0
+Entry scoring BM25=10.0 raw → Weight=1.0 (capped). (unit, graph pkg)
+
+### T-P3-7: UpdateCoSurfacing increments existing co_surfacing link
+Existing link: Weight=0.5, CoSurfacingCount=3 → after update: Weight=0.6, CoSurfacingCount=4. (unit, graph pkg)
+
+### T-P3-8: UpdateCoSurfacing creates new link if none exists
+No existing co_surfacing link → creates one with Weight=0.1, CoSurfacingCount=1. (unit, graph pkg)
+
+### T-P3-9: UpdateCoSurfacing caps weight at 1.0
+Existing link: Weight=0.95, CoSurfacingCount=5 → after update: Weight=1.0, CoSurfacingCount=6. (unit, graph pkg)
+
+### T-P3-10: Prune removes links below threshold with sufficient count
+Link: Weight=0.05, CoSurfacingCount=10 → removed. (unit, graph pkg)
+
+### T-P3-11: Prune preserves links below threshold with insufficient count
+Link: Weight=0.05, CoSurfacingCount=9 → preserved. (unit, graph pkg)
+
+### T-P3-12: Prune preserves links at or above weight threshold regardless of count
+Link: Weight=0.1, CoSurfacingCount=20 → preserved. (unit, graph pkg)
+
+### T-P3-13: Registry.UpdateLinks stores and retrieves links
+Call UpdateLinks with 2 links, then Get → entry.Links contains the 2 links. (unit, registry pkg)
+
+### T-P3-14: Registry.UpdateLinks returns ErrNotFound for unknown id
+UpdateLinks("nonexistent", links) → ErrNotFound. (unit, registry pkg)
+
+### T-P3-15: Registry.UpdateLinks replaces existing links entirely
+Entry has 3 links, UpdateLinks called with 1 link → entry has 1 link. (unit, registry pkg)
+
+### T-P3-16: applySpreadingActivation base + linked contribution
+Memory A (base=1.0) links to B (base=2.0, weight=0.5). Activated A = 1.0 + 0.3×(2.0×0.5) = 1.3. (unit, surface pkg)
+
+### T-P3-17: applySpreadingActivation linked target not in candidate set → zero contribution
+Memory A links to C which is not in baseScores → C contributes 0. Activated A = base. (unit, surface pkg)
+
+### T-P3-18: applySpreadingActivation with no LinkReader → unchanged scores
+No LinkReader set → scores unchanged from base. (unit, surface pkg)
+
+### T-P3-19: Surface co_surfacing update called for all pairs in top-N
+3 memories surfaced → 3 pairs (A-B, A-C, B-C) each get UpdateCoSurfacing call. (unit, surface pkg with mock LinkUpdater)
+
+### T-P3-20: Surface co_surfacing update error does not abort surfacing
+LinkUpdater.SetEntryLinks returns error → surface proceeds, output unchanged. (unit, surface pkg)
+
+### T-P3-21: formatClusterNotes returns top-2 links by weight
+Memory has 3 links with weights 0.9, 0.7, 0.3 → only top-2 noted (0.9, 0.7). (unit, surface pkg)
+
+### T-P3-22: formatClusterNotes skips links with no known title
+TitleFetcher returns (_, false) for a link target → that link excluded from notes. (unit, surface pkg)
+
+### T-P3-23: formatClusterNotes format is "  • see also: <title>"
+Link target title "use targ for builds" → note line is `  • see also: use targ for builds`. (unit, surface pkg)
+
+### T-P3-24: Surface cluster notes absent when no TitleFetcher set
+No TitleFetcher option → no cluster note lines in output. (unit, surface pkg)
+
+### T-P3-25: updateEvaluationCorrelationLinks updates links for followed pairs
+2 memories both followed → each gets evaluation_correlation link to the other (+0.05). (unit, evaluate pkg with mock EvalLinkUpdater)
+
+### T-P3-26: updateEvaluationCorrelationLinks ignores non-followed outcomes
+Memory followed, another contradicted → no evaluation_correlation link between them. (unit, evaluate pkg)
+
+### T-P3-27: EvalLinkUpdater error does not abort evaluate
+SetEntryLinks returns error → evaluate proceeds normally. (unit, evaluate pkg)
+
+---
+
+## L4 → ARCH Traceability (P3)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P3-1 | T-P3-1..T-P3-12 |
+| ARCH-P3-2 | T-P3-13, T-P3-14, T-P3-15 |
+| ARCH-P3-3 | T-P3-19, T-P3-20 |
+| ARCH-P3-4 | T-P3-16, T-P3-17, T-P3-18 |
+| ARCH-P3-5 | T-P3-21, T-P3-22, T-P3-23, T-P3-24 |
+| ARCH-P3-6 | T-P3-25, T-P3-26, T-P3-27 |
+| ARCH-P3-7 | (CLI wiring — integration verified by targ check) |
+
+---
+
+## P6f: Graduation Signal Lifecycle
+
+### T-P6f-1: GraduationStore Append writes entry to JSONL
+
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A GraduationStore with in-memory file DI and a GraduationEntry with status="pending"
+When: Append called with the entry and a path
+Then: The JSONL file contains exactly one line with valid JSON matching the entry
+
+---
+
+### T-P6f-2: GraduationStore List reads all entries, skips malformed lines
+
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with two valid entries and one malformed line
+When: List called
+Then: Returns exactly two entries; no error
+
+---
+
+### T-P6f-3: GraduationStore List returns empty slice for missing file
+
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: No graduation-queue.jsonl file exists
+When: List called
+Then: Returns empty slice with no error
+
+---
+
+### T-P6f-4: GraduationStore SetStatus updates matching entry
+
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with one pending entry (id="abc123def456")
+When: SetStatus called with id="abc123def456", status="accepted", issueURL="https://..."
+Then: Entry status is "accepted" and issue_url is set; resolved_at is non-empty
+
+---
+
+### T-P6f-5: GraduationStore SetStatus returns ErrGraduationNotFound for unknown ID
+
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with one entry (id="aaa")
+When: SetStatus called with id="zzz"
+Then: Returns ErrGraduationNotFound
+
+---
+
+### T-P6f-6: GraduationQueueEmitter EmitGraduation appends pending entry
+
+**Traces to:** ARCH-P6f-2 (REQ-P6f-3)
+
+Given: A GraduationQueueEmitter with in-memory store
+When: EmitGraduation("mem/foo.toml", "CLAUDE.md", now) called
+Then: Store contains one entry with status="pending", memory_path="mem/foo.toml", recommendation="CLAUDE.md"
+
+---
+
+### T-P6f-7: GraduationQueueEmitter ID is deterministic from memory_path
+
+**Traces to:** ARCH-P6f-2 (REQ-P6f-3)
+
+Given: Two calls to EmitGraduation with the same memory_path
+When: Both entries written
+Then: Both entries have the same ID
+
+---
+
+### T-P6f-8: graduate accept calls IssueCreator and marks entry accepted
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-4)
+
+Given: A GraduationStore with one pending entry; a mock IssueCreator returning "https://github.com/x/y/issues/1"
+When: runGraduateAccept called with that entry's ID
+Then: IssueCreator.Create called once; entry status becomes "accepted"; issue_url set; URL printed to stdout
+
+---
+
+### T-P6f-9: graduate dismiss marks entry dismissed
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-5)
+
+Given: A GraduationStore with one pending entry
+When: runGraduateDismiss called with that entry's ID
+Then: Entry status becomes "dismissed"; resolved_at non-empty; confirmation printed to stdout
+
+---
+
+### T-P6f-10: graduate list shows pending entries and quality metric
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-6)
+
+Given: Store with 2 pending, 3 accepted, 1 dismissed entries
+When: runGraduateList called
+Then: Output lists 2 pending entries; quality metric shows "75.0% accepted (3 accepted, 1 dismissed)"
+
+---
+
+### T-P6f-11: graduate list shows "n/a" quality metric when no resolved entries
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-6, DES-P6f-1)
+
+Given: Store with 2 pending, 0 accepted, 0 dismissed
+When: runGraduateList called
+Then: Quality line shows "n/a"
+
+---
+
+### T-P6f-12: graduate-surface outputs JSON with pending entries and instructions
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-7, DES-P6f-2)
+
+Given: Store with 1 pending entry
+When: runGraduateSurface called with --format json
+Then: JSON output has "summary" and "context"; context contains the entry ID and graduation accept/dismiss command instructions
+
+---
+
+### T-P6f-13: graduate-surface produces no output when queue is empty
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-7)
+
+Given: No graduation-queue.jsonl or all entries resolved
+When: runGraduateSurface called
+Then: No output written; exit 0
+
+---
+
+### T-P6f-14: graduate accept with unknown ID returns error
+
+**Traces to:** ARCH-P6f-3 (REQ-P6f-4)
+
+Given: Store with one entry id="abc"
+When: runGraduateAccept called with id="zzz"
+Then: Returns error; IssueCreator not called
+
+---
+
+## L4 → ARCH Traceability (P6f)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P6f-1 | T-P6f-1, T-P6f-2, T-P6f-3, T-P6f-4, T-P6f-5 |
+| ARCH-P6f-2 | T-P6f-6, T-P6f-7 |
+| ARCH-P6f-3 | T-P6f-8, T-P6f-9, T-P6f-10, T-P6f-11, T-P6f-12, T-P6f-13, T-P6f-14 |
