@@ -9,68 +9,6 @@ import (
 	"engram/internal/registry"
 )
 
-// T-P3-1: Jaccard zero for disjoint token sets
-func TestJaccardZeroForDisjointSets(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
-		Title: "foo bar",
-	}
-	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "baz qux"},
-	}
-
-	links := builder.BuildConceptOverlap(entry, existing)
-	g.Expect(links).To(BeEmpty())
-}
-
-// T-P3-2: Jaccard correct for overlapping sets
-func TestJaccardCorrectForOverlapping(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
-		Title: "use targ build",
-	}
-	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "use targ test"},
-	}
-
-	links := builder.BuildConceptOverlap(entry, existing)
-	g.Expect(links).To(HaveLen(1))
-	g.Expect(links[0].Target).To(Equal("ex1"))
-	g.Expect(links[0].Basis).To(Equal("concept_overlap"))
-	// Jaccard of {use, targ, build} vs {use, targ, test} = {use, targ} / {use, targ, build, test} = 2/4 = 0.5
-	g.Expect(links[0].Weight).To(BeNumerically("~", 0.5, 0.01))
-}
-
-// T-P3-3: BuildConceptOverlap threshold 0.15
-func TestConceptOverlapThreshold(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
-		Title: "alpha beta gamma delta epsilon",
-	}
-	existing := []registry.InstructionEntry{
-		{ID: "above", Title: "alpha beta gamma zeta"},    // Jaccard: {alpha,beta,gamma} / {alpha,beta,gamma,delta,epsilon,zeta} = 3/6 = 0.5 >= 0.15
-		{ID: "below", Title: "zeta eta theta iota kappa"}, // Jaccard: {} / {alpha,beta,gamma,delta,epsilon,zeta,eta,theta,iota,kappa} = 0/10 = 0 < 0.15
-	}
-
-	links := builder.BuildConceptOverlap(entry, existing)
-
-	// Only the "above" entry should produce a link
-	g.Expect(links).To(HaveLen(1))
-	g.Expect(links[0].Target).To(Equal("above"))
-}
-
 // T-P3-4: BuildConceptOverlap self-link excluded
 func TestConceptOverlapSelfLinkExcluded(t *testing.T) {
 	t.Parallel()
@@ -90,7 +28,41 @@ func TestConceptOverlapSelfLinkExcluded(t *testing.T) {
 
 	// Should only have link to "other", not "same"
 	g.Expect(links).To(HaveLen(1))
+
+	if len(links) == 0 {
+		return
+	}
+
 	g.Expect(links[0].Target).To(Equal("other"))
+}
+
+// T-P3-3: BuildConceptOverlap threshold 0.15
+func TestConceptOverlapThreshold(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:    "new",
+		Title: "alpha beta gamma delta epsilon",
+	}
+	existing := []registry.InstructionEntry{
+		// Jaccard: {alpha,beta,gamma} / {alpha,beta,gamma,delta,epsilon,zeta} = 3/6 = 0.5 >= 0.15
+		{ID: "above", Title: "alpha beta gamma zeta"},
+		// Jaccard: {} / {alpha,beta,gamma,delta,epsilon,zeta,eta,theta,iota,kappa} = 0/10 = 0 < 0.15
+		{ID: "below", Title: "zeta eta theta iota kappa"},
+	}
+
+	links := builder.BuildConceptOverlap(entry, existing)
+
+	// Only the "above" entry should produce a link
+	g.Expect(links).To(HaveLen(1))
+
+	if len(links) == 0 {
+		return
+	}
+
+	g.Expect(links[0].Target).To(Equal("above"))
 }
 
 // T-P3-5: BuildContentSimilarity threshold 0.05
@@ -127,10 +99,10 @@ func TestContentSimilarityWeightCapped(t *testing.T) {
 	builder := graph.New()
 	entry := registry.InstructionEntry{
 		ID:    "new",
-		Title: "test test test test test",
+		Title: "alpha beta gamma delta epsilon",
 	}
 	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "test test test test test"},
+		{ID: "ex1", Title: "alpha beta gamma delta epsilon"},
 	}
 
 	links := builder.BuildContentSimilarity(entry, existing)
@@ -140,20 +112,120 @@ func TestContentSimilarityWeightCapped(t *testing.T) {
 	}
 }
 
-// T-P3-7: UpdateCoSurfacing increments existing link
-func TestUpdateCoSurfacingIncrementsExisting(t *testing.T) {
+// T-P3-2: Jaccard correct for overlapping sets
+func TestJaccardCorrectForOverlapping(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:    "new",
+		Title: "use targ build",
+	}
+	existing := []registry.InstructionEntry{
+		{ID: "ex1", Title: "use targ test"},
+	}
+
+	links := builder.BuildConceptOverlap(entry, existing)
+
+	g.Expect(links).To(HaveLen(1))
+
+	if len(links) == 0 {
+		return
+	}
+
+	g.Expect(links[0].Target).To(Equal("ex1"))
+	g.Expect(links[0].Basis).To(Equal("concept_overlap"))
+	// Jaccard of {use, targ, build} vs {use, targ, test} = {use, targ} / {use, targ, build, test} = 2/4 = 0.5
+	g.Expect(links[0].Weight).To(BeNumerically("~", 0.5, 0.01))
+}
+
+// T-P3-1: Jaccard zero for disjoint token sets
+func TestJaccardZeroForDisjointSets(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:    "new",
+		Title: "foo bar",
+	}
+	existing := []registry.InstructionEntry{
+		{ID: "ex1", Title: "baz qux"},
+	}
+
+	links := builder.BuildConceptOverlap(entry, existing)
+
+	g.Expect(links).To(BeEmpty())
+}
+
+// T-P3-12: Prune preserves links at or above weight threshold
+func TestPrunePreservesHighWeight(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
 	links := []registry.Link{
-		{Target: "ex1", Weight: 0.5, Basis: "co_surfacing", CoSurfacingCount: 3},
+		{Target: "ex1", Weight: 0.1, Basis: "co_surfacing", CoSurfacingCount: 20},
+	}
+
+	pruned := graph.Prune(links)
+
+	g.Expect(pruned).To(HaveLen(1))
+
+	if len(pruned) == 0 {
+		return
+	}
+
+	g.Expect(pruned[0].Target).To(Equal("ex1"))
+}
+
+// T-P3-11: Prune preserves links below threshold with insufficient count
+func TestPrunePreservesInsufficient(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{
+		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 9},
+	}
+
+	pruned := graph.Prune(links)
+
+	g.Expect(pruned).To(HaveLen(1))
+
+	if len(pruned) == 0 {
+		return
+	}
+
+	g.Expect(pruned[0].Target).To(Equal("ex1"))
+}
+
+// T-P3-10: Prune removes links below threshold with sufficient count
+func TestPruneRemovesDeadLinks(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{
+		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 10},
+	}
+
+	pruned := graph.Prune(links)
+
+	g.Expect(pruned).To(BeEmpty())
+}
+
+// T-P3-9: UpdateCoSurfacing caps weight at 1.0
+func TestUpdateCoSurfacingCapWeight(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{
+		{Target: "ex1", Weight: 0.95, Basis: "co_surfacing", CoSurfacingCount: 5},
 	}
 
 	updated := graph.UpdateCoSurfacing(links, "ex1")
 
-	g.Expect(updated).To(HaveLen(1))
-	g.Expect(updated[0].Weight).To(BeNumerically("~", 0.6, 0.001))
-	g.Expect(updated[0].CoSurfacingCount).To(Equal(4))
+	g.Expect(updated[0].Weight).To(Equal(1.0))
+	g.Expect(updated[0].CoSurfacingCount).To(Equal(6))
 }
 
 // T-P3-8: UpdateCoSurfacing creates new link if none exists
@@ -172,61 +244,18 @@ func TestUpdateCoSurfacingCreatesNew(t *testing.T) {
 	g.Expect(updated[0].CoSurfacingCount).To(Equal(1))
 }
 
-// T-P3-9: UpdateCoSurfacing caps weight at 1.0
-func TestUpdateCoSurfacingCapWeight(t *testing.T) {
+// T-P3-7: UpdateCoSurfacing increments existing link
+func TestUpdateCoSurfacingIncrementsExisting(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
 	links := []registry.Link{
-		{Target: "ex1", Weight: 0.95, Basis: "co_surfacing", CoSurfacingCount: 5},
+		{Target: "ex1", Weight: 0.5, Basis: "co_surfacing", CoSurfacingCount: 3},
 	}
 
 	updated := graph.UpdateCoSurfacing(links, "ex1")
 
-	g.Expect(updated[0].Weight).To(Equal(1.0))
-	g.Expect(updated[0].CoSurfacingCount).To(Equal(6))
-}
-
-// T-P3-10: Prune removes links below threshold with sufficient count
-func TestPruneRemovesDeadLinks(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	links := []registry.Link{
-		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 10},
-	}
-
-	pruned := graph.Prune(links)
-
-	g.Expect(pruned).To(BeEmpty())
-}
-
-// T-P3-11: Prune preserves links below threshold with insufficient count
-func TestPrunePreservesInsufficient(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	links := []registry.Link{
-		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 9},
-	}
-
-	pruned := graph.Prune(links)
-
-	g.Expect(pruned).To(HaveLen(1))
-	g.Expect(pruned[0].Target).To(Equal("ex1"))
-}
-
-// T-P3-12: Prune preserves links at or above weight threshold
-func TestPrunePreservesHighWeight(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	links := []registry.Link{
-		{Target: "ex1", Weight: 0.1, Basis: "co_surfacing", CoSurfacingCount: 20},
-	}
-
-	pruned := graph.Prune(links)
-
-	g.Expect(pruned).To(HaveLen(1))
-	g.Expect(pruned[0].Target).To(Equal("ex1"))
+	g.Expect(updated).To(HaveLen(1))
+	g.Expect(updated[0].Weight).To(BeNumerically("~", 0.6, 0.001))
+	g.Expect(updated[0].CoSurfacingCount).To(Equal(4))
 }

@@ -575,21 +575,8 @@ type fakeDeduplicator struct {
 	record    *callRecord
 }
 
-func (f *fakeDeduplicator) Filter(
-	_ []memory.CandidateLearning,
-	_ []*memory.Stored,
-) []memory.CandidateLearning {
-	f.called = true
-
-	if f.record != nil {
-		f.record.record("filter")
-	}
-
-	return f.surviving
-}
-
 func (f *fakeDeduplicator) Classify(
-	candidates []memory.CandidateLearning,
+	_ []memory.CandidateLearning,
 	_ []*memory.Stored,
 ) dedup.ClassifyResult {
 	f.called = true
@@ -603,6 +590,19 @@ func (f *fakeDeduplicator) Classify(
 		Surviving:  f.surviving,
 		MergePairs: []dedup.MergePair{},
 	}
+}
+
+func (f *fakeDeduplicator) Filter(
+	_ []memory.CandidateLearning,
+	_ []*memory.Stored,
+) []memory.CandidateLearning {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("filter")
+	}
+
+	return f.surviving
 }
 
 // fakeExtractor is a test double for learn.TranscriptExtractor.
