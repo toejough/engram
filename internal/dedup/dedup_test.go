@@ -104,3 +104,68 @@ func TestT56_IdempotencySecondRunDeduplicatesAgainstFirst(t *testing.T) {
 
 	g.Expect(secondPass).To(BeEmpty())
 }
+
+// Tests for UC-33: Merge-on-Write
+
+func TestTP5c1_HighOverlapReturnsAsMergePair(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	// 3 of 4 candidate keywords match → 75% overlap → merge pair
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{"alpha", "beta", "gamma", "delta"}},
+	}
+	existing := []*memory.Stored{
+		{Title: "existing", Keywords: []string{"alpha", "beta", "gamma", "unrelated"}},
+	}
+
+	result := d.Classify(candidates, existing)
+
+	g.Expect(result.Surviving).To(BeEmpty())
+	g.Expect(result.MergePairs).To(HaveLen(1))
+	g.Expect(result.MergePairs[0].Candidate.Title).To(Equal("candidate"))
+	g.Expect(result.MergePairs[0].Existing.Title).To(Equal("existing"))
+}
+
+func TestTP5c2_LowOverlapPassesThroughAsSurviving(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	// 2 of 4 candidate keywords match → exactly 50% overlap → pass-through (threshold is >50%)
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{"alpha", "beta", "gamma", "delta"}},
+	}
+	existing := []*memory.Stored{
+		{Title: "existing", Keywords: []string{"alpha", "beta", "unrelated1", "unrelated2"}},
+	}
+
+	result := d.Classify(candidates, existing)
+
+	g.Expect(result.Surviving).To(HaveLen(1))
+	g.Expect(result.Surviving[0].Title).To(Equal("candidate"))
+	g.Expect(result.MergePairs).To(BeEmpty())
+}
+
+func TestTP5c8_EmptyKeywordsPassThroughAsSurviving(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	// Candidate has no keywords → pass-through, not merge
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{}},
+	}
+	existing := []*memory.Stored{
+		{Title: "existing", Keywords: []string{"alpha", "beta"}},
+	}
+
+	result := d.Classify(candidates, existing)
+
+	g.Expect(result.Surviving).To(HaveLen(1))
+	g.Expect(result.MergePairs).To(BeEmpty())
+}

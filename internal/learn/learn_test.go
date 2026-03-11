@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/creationlog"
+	"engram/internal/dedup"
 	"engram/internal/learn"
 	"engram/internal/memory"
 )
@@ -585,6 +586,23 @@ func (f *fakeDeduplicator) Filter(
 	}
 
 	return f.surviving
+}
+
+func (f *fakeDeduplicator) Classify(
+	candidates []memory.CandidateLearning,
+	_ []*memory.Stored,
+) dedup.ClassifyResult {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("classify")
+	}
+
+	// Return classified result with surviving candidates and no merges
+	return dedup.ClassifyResult{
+		Surviving:  f.surviving,
+		MergePairs: []dedup.MergePair{},
+	}
 }
 
 // fakeExtractor is a test double for learn.TranscriptExtractor.
