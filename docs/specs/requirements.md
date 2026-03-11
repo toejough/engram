@@ -2889,3 +2889,87 @@ After frecency sort and before output formatting, in `runSessionStart` and `runP
 ### DES-P1-5: Surface wiring
 
 `ContradictionDetector` interface in surface package: `Check(ctx, []*memory.Stored) ([]contradict.Pair, error)`. `SignalEmitter` interface: `Emit(signal.Signal) error`. Add `WithContradictionDetector(d ContradictionDetector)` and `WithSignalEmitter(e SignalEmitter)` surfacer options.
+
+---
+
+## REQ-P4e-1: SessionStart effectiveness ranking + gating (P4e)
+
+SessionStart mode ranks memories by effectiveness score descending. Memories with `SurfacedCount < 5` (insufficient data) use a default score of 50.0 and are always included. Memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded (gated out).
+
+- Traces to: UC-P4e-1
+- AC: (1) Low-surfacing memories always pass gate. (2) High-surfacing, low-effectiveness memories excluded. (3) Ranking is by effectiveness score desc; ties preserve retriever order (stable sort).
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4e-1: effectivenessScoreFor + filterByEffectivenessGate
+
+`effectivenessScoreFor(path, effectiveness)` returns `sessionStartDefaultEffectiveness` (50.0) when no data or `SurfacedCount < 5`, otherwise returns `EffectivenessScore`. `filterByEffectivenessGate` iterates memories and skips those where `ok && SurfacedCount >= 5 && EffectivenessScore <= 40.0`. `sortByEffectivenessScore` uses `sort.SliceStable` on the result.
+
+---
+
+## REQ-P4e-2: SessionStart top-7 limit, 600 token budget (P4e)
+
+SessionStart surfaces at most 7 memories (down from 10). Default token budget is 600 (down from 800).
+
+- Traces to: UC-P4e-1
+- AC: (1) `sessionStartLimit = 7`. (2) `DefaultSessionStartBudget = 600`.
+- Verification: deterministic (unit)
+
+### DES-P4e-2: sessionStartLimit constant updated
+
+`sessionStartLimit = 7`, `DefaultSessionStartBudget = 600`.
+
+---
+
+## REQ-P4e-3: UserPromptSubmit 250 token budget + raised BM25 floor (P4e)
+
+Default token budget for UserPromptSubmit is 250 (down from 300). BM25 minimum relevance score raised from 0.01 to 0.05.
+
+- Traces to: UC-P4e-1
+- AC: (1) `DefaultUserPromptSubmitBudget = 250`. (2) `minRelevanceScore = 0.05`.
+- Verification: deterministic (unit)
+
+### DES-P4e-3: Budget and floor constants updated
+
+`DefaultUserPromptSubmitBudget = 250`, `minRelevanceScore = 0.05`.
+
+---
+
+## REQ-P4e-4: PreToolUse top-2 limit, effectiveness gate, 150 token budget (P4e)
+
+PreToolUse mode limits to top-2 results (down from 3). Applies same effectiveness gate as SessionStart: memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded. Default token budget 150 (down from 200).
+
+- Traces to: UC-P4e-1
+- AC: (1) `toolLimit = 2`. (2) Gate applied post-BM25, pre-frecency sort. (3) `DefaultPreToolUseBudget = 150`.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4e-4: filterToolMatchesByEffectivenessGate
+
+`filterToolMatchesByEffectivenessGate(candidates, effectiveness)` mirrors `filterByEffectivenessGate` for `[]toolMatch`. Applied in `runTool` after BM25 match, before frecency sort.
+
+---
+
+## REQ-P4e-5: InvocationTokenLogger records per-call token count (P4e)
+
+After each `surface.Run` invocation, if an `InvocationTokenLogger` is set and output is non-empty, the output token count (estimated via `len(context)/4`) is recorded via `LogInvocationTokens(mode, count, now)`.
+
+- Traces to: UC-P4e-1
+- AC: (1) New `InvocationTokenLogger` interface in surface pkg. (2) `WithInvocationTokenLogger` option. (3) Token count estimated from `result.Context`. (4) Logger called once per non-empty invocation.
+- Verification: deterministic (unit)
+
+### DES-P4e-5: InvocationTokenLogger interface + surfacinglog.LogInvocationTokens
+
+`InvocationTokenLogger` interface: `LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error`. `surfacinglog.Logger` implements it: writes `SurfacingEvent` with empty `MemoryPath` and `TokenCount` set. `SurfacingEvent.MemoryPath` gets `omitempty` tag to distinguish invocation events from per-memory events.
+
+---
+
+## REQ-P4e-6: Stop hook sums per-session token counts (P4e)
+
+The stop hook reads the surfacing log before `evaluate` clears it, sums all `token_count` fields using `jq`, and logs the session token total to stderr.
+
+- Traces to: UC-P4e-1
+- AC: (1) Token sum logged before evaluate runs. (2) Graceful if log absent. (3) Total written to stderr.
+- Verification: shell inspection (hook test)
+
+### DES-P4e-6: stop.sh token sum via jq
+
+`jq -s '[.[].token_count // 0] | add // 0'` reads the JSONL, sums token_count (defaulting absent field to 0). Result logged as `[engram] session token total: N`.

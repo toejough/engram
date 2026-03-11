@@ -2308,3 +2308,21 @@ Surface package does NOT import `internal/contradict` directly. It defines a loc
 
 - Traces to: UC-P1-1, ARCH-7
 - Rationale: Interface-based wiring consistent with existing surface pattern (MemoryRetriever, MemoryTracker, etc.)
+
+---
+
+## ARCH-P4e-1: Effectiveness gating is pure logic in surface package (P4e)
+
+`filterByEffectivenessGate`, `filterToolMatchesByEffectivenessGate`, `sortByEffectivenessScore`, and `effectivenessScoreFor` are unexported pure functions in `internal/surface`. No I/O, no external calls. Takes map already fetched by `effectivenessComputer.Aggregate()`.
+
+- Traces to: UC-P4e-1, ARCH-7 (DI everywhere)
+- Rationale: Consistent with existing pattern; testable without I/O mocks.
+
+---
+
+## ARCH-P4e-2: InvocationTokenLogger is an injected interface (P4e)
+
+`InvocationTokenLogger` is a surface-package interface injected via `WithInvocationTokenLogger`. `surfacinglog.Logger` implements it. No direct dependency from surface to surfacinglog.
+
+- Traces to: UC-P4e-1, ARCH-7 (DI everywhere)
+- Rationale: Keeps surface package independently testable; avoids circular imports.

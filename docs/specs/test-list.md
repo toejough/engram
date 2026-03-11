@@ -1331,3 +1331,35 @@ No detector set. No panic. Normal output. (unit, surface pkg)
 
 ### T-P1-12: Detector with no classifier skips LLM phase
 Borderline pair: no Classify called, pair not returned. (unit)
+
+---
+
+### T-P4e-1: SessionStart limits to top 7
+15 memories, no effectiveness data → 7 surfaced. (unit, surface pkg)
+
+### T-P4e-2: SessionStart gates out low-effectiveness memories
+Memory with SurfacedCount=10, score=20% excluded; memory with score=75% included. (unit)
+
+### T-P4e-3: SessionStart includes insufficient-data memories regardless of score
+Memory with SurfacedCount=3, score=0% included. No-data memory included. (unit)
+
+### T-P4e-4: SessionStart ranks by effectiveness descending
+Low-scorer listed first in retriever; high-scorer appears first in output. (unit)
+
+### T-P4e-5: Default budgets are 600/250/150
+Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudget, DefaultPreToolUseBudget. (unit)
+
+### T-P4e-6: PreToolUse limits to top 2
+5 matching memories → 2 surfaced. (unit)
+
+### T-P4e-7: PreToolUse gates out low-effectiveness memories
+Memory with SurfacedCount=10, score=15% excluded; score=75% included. (unit)
+
+### T-P4e-8: InvocationTokenLogger called with positive token count
+SessionStart with one memory → LogInvocationTokens called once with mode="session-start" and tokenCount>0. (unit)
+
+### T-P4e-9: LogInvocationTokens appends token-count event to surfacing log
+Event JSON contains token_count and mode; no memory_path field. (unit, surfacinglog pkg)
+
+### T-P4e-10: LogInvocationTokens propagates append errors
+Real logger with /dev/null path → error wrapped as "appending invocation token log". (unit)
