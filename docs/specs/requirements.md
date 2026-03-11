@@ -2939,6 +2939,26 @@ Each line: `{"id":"...","memory_path":"...","recommendation":"...","status":"...
 
 ---
 
+## REQ-P6f-8: Graduation recommendation derives from ClassifyContent (P6f)
+
+When `ApplyEscalationProposal` emits a graduation signal (per REQ-P6e-3), the `recommendation` field passed to `EmitGraduation` is the return value of `ClassifyContent(content)` applied to the memory's full text content. It is never hardcoded.
+
+- Traces to: UC-21, REQ-P6e-3, REQ-P6e-4
+- AC: (1) `recommendation` equals `ClassifyContent(content)` at graduation time. (2) The classification follows REQ-P6e-4 keyword rules. (3) Different memory content yields different recommendations without code changes.
+- Verification: deterministic
+
+---
+
+## REQ-P6f-9: De-escalation from graduated state reverts to reminder (P6f)
+
+When a memory at `graduated` enforcement level shows post-escalation effectiveness ≥ pre-escalation effectiveness for ≥3 evaluation cycles (per REQ-82), the escalation engine proposes de-escalating to `reminder`. `graduated` is the top of the ladder; de-escalation always drops exactly one level. A de-escalated memory does not re-emit a graduation signal.
+
+- Traces to: UC-21, REQ-82
+- AC: (1) De-escalation from `graduated` proposes `reminder` (not `advisory` or `emphasized_advisory`). (2) The proposal follows the same confirmation gate as other proposals (REQ-85). (3) A confirmed de-escalation does NOT call `EmitGraduation`. (4) A de-escalated memory at `reminder` may re-escalate to `graduated` if conditions persist.
+- Verification: deterministic
+
+---
+
 ## REQ-P1-1: Contradiction detector interface (P1)
 
 The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx, []*memory.Stored) ([]Pair, error)` method. `Pair` holds two memories and a confidence score.

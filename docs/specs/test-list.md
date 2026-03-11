@@ -1635,6 +1635,16 @@ Then: Returns error; IssueCreator not called
 
 ---
 
+### T-P6f-15: ApplyEscalationProposal passes ClassifyContent result as recommendation
+
+**Traces to:** ARCH-P6e-1 (REQ-P6f-8, REQ-P6e-3, REQ-P6e-4)
+
+Given: Memory with content containing procedural keywords ("run", "execute")
+When: ApplyEscalationProposal called with ProposedLevel="graduated"
+Then: EmitGraduation called with recommendation="skill" (ClassifyContent result, not hardcoded)
+
+---
+
 ## L4 → ARCH Traceability (P6f)
 
 | ARCH Item | Test Coverage |
@@ -1642,3 +1652,4 @@ Then: Returns error; IssueCreator not called
 | ARCH-P6f-1 | T-P6f-1, T-P6f-2, T-P6f-3, T-P6f-4, T-P6f-5 |
 | ARCH-P6f-2 | T-P6f-6, T-P6f-7 |
 | ARCH-P6f-3 | T-P6f-8, T-P6f-9, T-P6f-10, T-P6f-11, T-P6f-12, T-P6f-13, T-P6f-14 |
+| ARCH-P6e-1 | T-P6f-15 (REQ-P6f-8 traceability) |
