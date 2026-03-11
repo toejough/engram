@@ -6,10 +6,10 @@ import "engram/internal/memory"
 const (
 	DefaultPostToolUseBudget      = 100
 	DefaultPreCompactBudget       = 500
-	DefaultPreToolUseBudget       = 200
-	DefaultSessionStartBudget     = 800
+	DefaultPreToolUseBudget       = 150
+	DefaultSessionStartBudget     = 600
 	DefaultStopBudget             = 500
-	DefaultUserPromptSubmitBudget = 300
+	DefaultUserPromptSubmitBudget = 250
 )
 
 // BudgetConfig holds per-hook token budget caps (ARCH-40).

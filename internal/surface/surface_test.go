@@ -16,7 +16,7 @@ import (
 	"engram/internal/surface"
 )
 
-// QW-1: Tool mode limits to top 3 results.
+// QW-1: Tool mode limits to top 2 results (REQ-P4e-4: down from 3).
 func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
 	t.Parallel()
 
@@ -82,7 +82,7 @@ func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
 		return
 	}
 
-	g.Expect(result.Summary).To(ContainSubstring("[engram] 3 tool advisories:"))
+	g.Expect(result.Summary).To(ContainSubstring("[engram] 2 tool advisories:"))
 }
 
 // QW-2: BM25 relevance floor filters low-scoring memories.
@@ -648,13 +648,14 @@ func TestT199c_NilRegistryNoPanic(t *testing.T) {
 	g.Expect(buf.String()).To(ContainSubstring("alpha"))
 }
 
-// T-27: SessionStart surfaces top 10 by frecency
-func TestT27_SessionStartSurfacesTop10(t *testing.T) {
+// T-27: SessionStart surfaces top 7 by effectiveness (REQ-P4e-2: reduced from 10).
+func TestT27_SessionStartSurfacesTop7(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	// Create 15 memories in descending order (retriever contract: sorted by UpdatedAt desc).
+	// All have no effectiveness data → insufficient data → stable order preserved, top-7 selected.
 	memories := make([]*memory.Stored, 0, 15)
 	for i := 14; i >= 0; i-- {
 		memories = append(memories, &memory.Stored{
@@ -682,12 +683,12 @@ func TestT27_SessionStartSurfacesTop10(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Loaded 10 memories."))
+	g.Expect(output).To(ContainSubstring("[engram] Loaded 7 memories."))
 
-	// Most recent (index 14) should appear by slug, oldest (index 0-4) should not.
+	// Top 7 (indices 14–8) should appear, index 7 and below should not.
 	g.Expect(output).To(ContainSubstring(memSlug(14)))
-	g.Expect(output).To(ContainSubstring(memSlug(5)))
-	g.Expect(output).NotTo(ContainSubstring(memSlug(4)))
+	g.Expect(output).To(ContainSubstring(memSlug(8)))
+	g.Expect(output).NotTo(ContainSubstring(memSlug(7)))
 	g.Expect(output).NotTo(ContainSubstring(memSlug(0)))
 }
 

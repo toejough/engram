@@ -30,6 +30,13 @@ if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
         --session-id "$SESSION_ID" --data-dir "$ENGRAM_DATA" || true
 fi
 
+# REQ-P4e-6: Sum per-invocation token counts before evaluate clears the surfacing log.
+SURFACING_LOG="${ENGRAM_DATA}/surfacing-log.jsonl"
+if [[ -f "$SURFACING_LOG" ]]; then
+    SESSION_TOKENS=$(jq -s '[.[].token_count // 0] | add // 0' "$SURFACING_LOG" 2>/dev/null || echo 0)
+    echo "[engram] session token total: ${SESSION_TOKENS}" >&2
+fi
+
 # UC-17: Evaluate memory effectiveness
 if [[ -n "$TRANSCRIPT_PATH" ]]; then
     "$ENGRAM_BIN" evaluate --data-dir "$ENGRAM_DATA" < "$TRANSCRIPT_PATH" || true

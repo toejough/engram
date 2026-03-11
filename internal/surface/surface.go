@@ -61,6 +61,11 @@ type EnforcementReader interface {
 	GetEnforcementLevel(id string) (string, error)
 }
 
+// InvocationTokenLogger records per-invocation token counts in the surfacing event log (REQ-P4e-5).
+type InvocationTokenLogger interface {
+	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
+}
+
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -107,6 +112,7 @@ type Surfacer struct {
 	tracker               MemoryTracker
 	logReader             CreationLogReader
 	surfacingLogger       SurfacingEventLogger
+	invocationTokenLogger InvocationTokenLogger
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
 	registry              RegistryRecorder
@@ -163,7 +169,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 
 	switch opts.Mode {
 	case ModeSessionStart:
-		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness, scorer)
+		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness)
 	case ModePrompt:
 		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness, scorer)
 	case ModeTool:
@@ -204,7 +210,18 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
-	return s.writeResult(w, result, opts.Format)
+	writeErr := s.writeResult(w, result, opts.Format)
+	if writeErr != nil {
+		return writeErr
+	}
+
+	// REQ-P4e-5: record output token count for this invocation.
+	if s.invocationTokenLogger != nil && result.Context != "" {
+		tokenCount := EstimateTokens(result.Context)
+		_ = s.invocationTokenLogger.LogInvocationTokens(opts.Mode, tokenCount, time.Now())
+	}
+
+	return nil
 }
 
 // enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
@@ -450,7 +467,6 @@ func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
 	effectiveness map[string]EffectivenessStat,
-	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, error) {
 	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
 	var logEntries []LogEntry
@@ -462,16 +478,19 @@ func (s *Surfacer) runSessionStart(
 		}
 	}
 
-	// Step 2: List memories for frecency surfacing (ARCH-35).
+	// Step 2: List memories for surfacing (REQ-P4e-1: effectiveness-ranked + gated).
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
 		return Result{}, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	// Sort by frecency activation descending (replaces pure recency ordering).
-	sortByActivation(memories, scorer)
+	// REQ-P4e-1: gate out memories with sufficient data (>=5 surfacings) but low effectiveness (<=40%).
+	memories = filterByEffectivenessGate(memories, effectiveness)
 
-	// Take top N by frecency.
+	// REQ-P4e-1: rank by effectiveness descending; insufficient-data memories use default score.
+	sortByEffectivenessScore(memories, effectiveness)
+
+	// REQ-P4e-2: take top-7.
 	count := len(memories)
 	if count > sessionStartLimit {
 		count = sessionStartLimit
@@ -517,10 +536,16 @@ func (s *Surfacer) runTool(
 		return Result{}, nil, nil
 	}
 
+	// REQ-P4e-4: gate out memories with sufficient data but low effectiveness.
+	candidates = filterToolMatchesByEffectivenessGate(candidates, effectiveness)
+	if len(candidates) == 0 {
+		return Result{}, nil, nil
+	}
+
 	// Re-rank by frecency activation (ARCH-35).
 	sortToolMatchesByActivation(candidates, scorer)
 
-	// Limit to top toolLimit results.
+	// REQ-P4e-4: limit to top-2.
 	if len(candidates) > toolLimit {
 		candidates = candidates[:toolLimit]
 	}
@@ -620,6 +645,11 @@ func WithEnforcementReader(reader EnforcementReader) SurfacerOption {
 	return func(s *Surfacer) { s.enforcementReader = reader }
 }
 
+// WithInvocationTokenLogger sets the invocation token logger for per-call token tracking (REQ-P4e-5).
+func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
+	return func(s *Surfacer) { s.invocationTokenLogger = logger }
+}
+
 // WithLogReader sets the creation log reader for session-start mode.
 func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
@@ -647,15 +677,18 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	enforcementAdvisory           = "advisory"
-	enforcementEmphasizedAdvisory = "emphasized_advisory"
-	enforcementReminder           = "reminder"
-	minPreCompactEffectiveness    = 40.0
-	minRelevanceScore             = 0.01
-	preCompactLimit               = 5
-	promptLimit                   = 10
-	sessionStartLimit             = 10
-	toolLimit                     = 3
+	enforcementAdvisory              = "advisory"
+	enforcementEmphasizedAdvisory    = "emphasized_advisory"
+	enforcementReminder              = "reminder"
+	insufficientDataThreshold        = 5    // REQ-P4e-1: <5 surfacings → insufficient data, skip gating
+	minEffectivenessFloor            = 40.0 // REQ-P4e-1/REQ-P4e-4: gate threshold
+	minPreCompactEffectiveness       = 40.0
+	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
+	preCompactLimit                  = 5
+	promptLimit                      = 10
+	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for new memories
+	sessionStartLimit                = 7    // REQ-P4e-2: top-7
+	toolLimit                        = 2    // REQ-P4e-4: top-2
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -712,9 +745,64 @@ func concatenateToolFields(mem *memory.Stored) string {
 	return strings.Join(parts, " ")
 }
 
+// effectivenessScoreFor returns the effectiveness score for a memory path.
+// Memories with <insufficientDataThreshold surfacings or no data use sessionStartDefaultEffectiveness (REQ-P4e-1).
+func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
+	if effectiveness == nil {
+		return sessionStartDefaultEffectiveness
+	}
+
+	stat, ok := effectiveness[path]
+	if !ok || stat.SurfacedCount < insufficientDataThreshold {
+		return sessionStartDefaultEffectiveness
+	}
+
+	return stat.EffectivenessScore
+}
+
 // filenameSlug strips directory path and .toml extension from a memory file path.
 func filenameSlug(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ".toml")
+}
+
+// filterByEffectivenessGate removes memories with sufficient data (>=5 surfacings) and low effectiveness (<=40%).
+// Memories with <5 surfacings or no data are always kept (REQ-P4e-1: insufficient data).
+func filterByEffectivenessGate(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) []*memory.Stored {
+	filtered := make([]*memory.Stored, 0, len(memories))
+
+	for _, mem := range memories {
+		if effectiveness != nil {
+			stat, ok := effectiveness[mem.FilePath]
+			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+				continue // gated out
+			}
+		}
+
+		filtered = append(filtered, mem)
+	}
+
+	return filtered
+}
+
+// filterToolMatchesByEffectivenessGate applies effectiveness gating to tool matches (REQ-P4e-4).
+func filterToolMatchesByEffectivenessGate(
+	candidates []toolMatch,
+	effectiveness map[string]EffectivenessStat,
+) []toolMatch {
+	filtered := make([]toolMatch, 0, len(candidates))
+
+	for _, candidate := range candidates {
+		if effectiveness != nil {
+			stat, ok := effectiveness[candidate.mem.FilePath]
+			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+				continue // gated out
+			}
+		}
+
+		filtered = append(filtered, candidate)
+	}
+
+	return filtered
 }
 
 // formatEffectivenessAnnotation returns a formatted annotation for a memory path,
@@ -844,11 +932,14 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	return matches
 }
 
-// sortByActivation sorts memories by frecency activation descending.
-func sortByActivation(memories []*memory.Stored, scorer *frecency.Scorer) {
+// sortByEffectivenessScore sorts memories by effectiveness score descending (REQ-P4e-1).
+// Insufficient-data memories use sessionStartDefaultEffectiveness.
+func sortByEffectivenessScore(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) {
 	sort.SliceStable(memories, func(i, j int) bool {
-		return scorer.Activation(toFrecencyInput(memories[i])) >
-			scorer.Activation(toFrecencyInput(memories[j]))
+		si := effectivenessScoreFor(memories[i].FilePath, effectiveness)
+		sj := effectivenessScoreFor(memories[j].FilePath, effectiveness)
+
+		return si > sj
 	})
 }
 
