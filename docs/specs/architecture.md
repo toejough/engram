@@ -2326,3 +2326,21 @@ Surface package does NOT import `internal/contradict` directly. It defines a loc
 
 - Traces to: UC-P4e-1, ARCH-7 (DI everywhere)
 - Rationale: Keeps surface package independently testable; avoids circular imports.
+
+---
+
+## ARCH-P5c-1: Dedup package exposes Classify instead of Filter (P5c)
+
+`KeywordDeduplicator` gains `Classify(candidates []memory.CandidateLearning, existing []*memory.Stored) ClassifyResult`. `ClassifyResult` has `Surviving []memory.CandidateLearning` and `MergePairs []MergePair`. `MergePair` = `{Candidate memory.CandidateLearning; Existing *memory.Stored}`. The old `Filter` method is removed. Learner's `Deduplicator` interface updated to use `Classify`. Learn pipeline iterates surviving candidates as before; for each merge pair, calls `MemoryMerger` + `MergeWriter`.
+
+- Traces to: UC-33, ARCH-7 (DI everywhere)
+- Rationale: Returning structured output lets the learn pipeline act on merge candidates without coupling dedup to the merger.
+
+---
+
+## ARCH-P5c-2: MergeWriter and RegistryAbsorber interfaces in learn package (P5c)
+
+New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.Stored, principle string, keywords, concepts []string, now time.Time) error`. Concrete implementation in `internal/memory` package reads existing TOML, updates `principle`, `keywords`, `concepts`, `updated_at`, writes back in place. New `RegistryAbsorber` interface in `internal/learn`: `RecordAbsorbed(existingPath, candidateTitle, contentHash string, now time.Time) error`. Registry implements it by finding the `InstructionEntry` by source path and appending an `AbsorbedRecord`. Both interfaces injected into `Learner` as optional fields (nil = feature disabled).
+
+- Traces to: UC-33, ARCH-7 (DI everywhere)
+- Rationale: DI on writer and absorber keeps the learn orchestrator testable; registry absorb is an optional side-effect that does not block merge success.

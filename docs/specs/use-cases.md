@@ -442,8 +442,9 @@ Working on session continuity for engram (#45)...
 - **De-escalation:** If an elevated level causes no improvement, propose reverting to a lower level.
 - **Tracking:** Escalation level stored per memory in TOML. Effectiveness tracked per escalation level to measure impact of each step.
 - **User confirmation:** Every escalation/de-escalation requires explicit user confirmation.
+- **Graduation lifecycle (P6-full):** When a memory reaches `graduated`, the signal is written to `graduation-queue.jsonl` with a stable ID and persists until the user accepts or dismisses it. At SessionStart, pending graduation signals are surfaced in `additionalContext` with instructions for the LLM to ask the user about GitHub issue creation. `engram graduate accept --id <id>` creates a GitHub issue and records the entry accepted; `engram graduate dismiss --id <id>` records it dismissed. Quality metric = accepted / (accepted + dismissed).
 
-**Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse)
+**Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse), UC-28 (signal queue)
 
 ---
 
@@ -757,3 +758,61 @@ Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope cons
 5. Only runs on top-N selection (post-ranking), not all memories
 
 **Dependencies:** UC-2 (surfacing), UC-28 (signal queue for KindContradiction)
+
+---
+
+## UC-33: Merge-on-Write
+
+**Description:** When the learn pipeline encounters a candidate learning with >50% keyword overlap with an existing memory, merge the two into a single stronger memory instead of discarding the candidate. Use LLM (Haiku) to combine principle fields where possible; fall back to keyword/concept union + longer principle text when no LLM is available.
+
+**Starting state:** The learn pipeline has extracted candidate learnings. At least one candidate has >50% keyword overlap with an existing memory.
+
+**End state:** The overlapping existing memory is updated in place with a merged principle (and union keywords/concepts). The merge is recorded in the registry's `Absorbed` field on the existing memory's `InstructionEntry`. The candidate is not written as a new memory. Effectiveness counters from the existing memory are preserved.
+
+**Actor:** System (learn pipeline at session end/pre-compact).
+
+**Key interactions:**
+
+- **Merge trigger:** In the deduplication stage, instead of discarding candidates with >50% keyword overlap, flag them as merge candidates and pair them with the matching existing memory.
+
+- **LLM-assisted merge (primary path):** Call Haiku with the existing and candidate principles to produce a single combined principle that is stronger and more specific. If the LLM returns a non-empty principle, use it; update the existing memory file's `principle` field, union keywords and concepts, update `updated_at`.
+
+- **Fallback merge (no LLM / LLM error):** Take the longer of the two principle texts. Union keywords and concepts. Update the existing memory file in place.
+
+- **Registry `Absorbed` record:** After a successful merge, record an `AbsorbedRecord` on the existing memory's `InstructionEntry` with: `from` (candidate title), `content_hash` (candidate keywords hash), `surfaced_count: 0`, and `merged_at` timestamp.
+
+- **Effectiveness preservation:** The existing memory's surfacing count, evaluation counters, and enforcement level are not modified. Only `principle`, `keywords`, `concepts`, and `updated_at` change in the TOML file.
+
+- **No graceful degradation for write failures:** If the existing memory TOML cannot be updated, return an error (do not silently skip).
+
+**Dependencies:** UC-1 (Session Learning), UC-23 (Registry)
+
+
+---
+
+## UC-32: Memory Graph with Spreading Activation
+
+**Description:** Build a typed, weighted graph of links between memory entries at learn time, surface time, and evaluate time. Use the graph to amplify frecency scores via spreading activation and to surface short cluster notes alongside related memories.
+
+**Actor:** Learn pipeline (concept_overlap + content_similarity at registration), surface pipeline (co_surfacing updates + spreading activation + cluster notes), evaluate pipeline (evaluation_correlation updates), maintenance (pruning)
+
+**Starting state:** Memory entries are scored independently. No graph relationship between memories exists.
+
+**End state:** Memory entries carry `Links []Link` (Target/Weight/Basis/CoSurfacingCount). Frecency scoring includes spreading activation: `total = base + 0.3 × Σ(linked_base × weight)`. Surfaced output includes cluster notes for top-2 linked memories per memory. Dead links (weight < 0.1, CoSurfacingCount ≥ 10) are pruned.
+
+**Key interactions:**
+1. **Learn time:** When a memory entry is registered/updated, `graph.Builder` computes concept_overlap (Jaccard ≥ 0.15) and content_similarity (BM25 ≥ 0.05) links to all existing entries. Links stored via `Registry.UpdateLinks`.
+2. **Surface time (co_surfacing):** After top-N selection, for each co-surfaced pair, co_surfacing link weight incremented (+0.1, cap 1.0), CoSurfacingCount incremented. Bidirectional. Fire-and-forget on error.
+3. **Surface time (spreading activation):** After co_surfacing updates, apply spreading activation: final score = base + 0.3 × Σ(linked_base × weight). Re-rank with activated scores.
+4. **Surface time (cluster notes):** For each memory in final output, include up to 2 cluster notes (title of top-2 linked memories by weight, ~20 tokens each).
+5. **Evaluate time:** For each pair of memories both receiving "followed" outcome in the same run, evaluation_correlation link weight incremented (+0.05, cap 1.0). Bidirectional.
+6. **Pruning:** `graph.Prune` removes links with weight < 0.1 AND CoSurfacingCount ≥ 10. Called at maintenance time.
+
+**Constraints:**
+1. DI everywhere — link reads/writes through injected interfaces in surface/evaluate/learn packages
+2. `internal/graph/` contains pure logic only (no I/O, no `os.*`)
+3. Spreading activation is 1-hop only (no recursive traversal)
+4. Max 2 cluster notes per surfaced memory
+5. Fire-and-forget on co_surfacing and evaluation_correlation update errors (ARCH-6)
+
+**Dependencies:** UC-23 (registry, UpdateLinks), UC-2 (surface pipeline), UC-15 (evaluate pipeline), UC-1 (learn pipeline)

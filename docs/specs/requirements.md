@@ -2973,3 +2973,61 @@ The stop hook reads the surfacing log before `evaluate` clears it, sums all `tok
 ### DES-P4e-6: stop.sh token sum via jq
 
 `jq -s '[.[].token_count // 0] | add // 0'` reads the JSONL, sums token_count (defaulting absent field to 0). Result logged as `[engram] session token total: N`.
+
+---
+
+## REQ-P5c-1: >50% keyword overlap triggers merge instead of skip (P5c)
+
+When a candidate learning shares >50% keyword overlap with any existing memory, the dedup stage returns it as a merge candidate paired with the matching memory, rather than dropping it.
+
+- Traces to: UC-33
+- AC: (1) Overlap computed as intersection(candidateKeywords, existingKeywords) / len(candidateKeywords). (2) Overlap > 0.5 → merge candidate. (3) Overlap ≤ 0.5 → pass-through (create new). (4) Empty candidate keywords → pass-through (create new, no merge).
+- Verification: deterministic (unit)
+
+### DES-P5c-1: Dedup returns ClassifyResult instead of filtered slice (P5c)
+
+`KeywordDeduplicator.Classify(candidates, existing)` replaces `Filter`. Returns `ClassifyResult{Surviving []CandidateLearning, MergePairs []MergePair}`. Each `MergePair` holds the candidate and the matched `*memory.Stored`. The learn pipeline processes surviving candidates as before; for each `MergePair`, it invokes the `MemoryMerger`.
+
+---
+
+## REQ-P5c-2: LLM-assisted merge combines principle fields (P5c)
+
+When a `MemoryMerger` is configured, call it with the existing and candidate principles. The merged principle is written to the existing memory TOML file.
+
+- Traces to: UC-33
+- AC: (1) LLM called with existing and candidate principle. (2) Non-empty LLM response replaces existing principle. (3) If LLM returns empty string, fall back to REQ-P5c-3. (4) LLM model: claude-haiku-4-5-20251001.
+- Verification: unit with mock LLM
+
+### DES-P5c-2: MemoryMerger interface and LLM implementation (P5c)
+
+`MemoryMerger` interface: `MergePrinciples(ctx context.Context, existing, candidate string) (string, error)`. `LLMMerger` struct implements it via `LLMClient` interface (same pattern as existing LLM callers). Prompt instructs Haiku to combine two memory principles into a single stronger, more specific statement. On error or empty response: trigger fallback.
+
+---
+
+## REQ-P5c-3: Fallback merge uses longer principle + union keywords/concepts (P5c)
+
+When no `MemoryMerger` is configured, or when LLM returns empty/error, merge by: taking the longer of existing and candidate principle texts; unioning keywords; unioning concepts.
+
+- Traces to: UC-33
+- AC: (1) `len(candidatePrinciple) > len(existingPrinciple)` → use candidate principle. (2) Otherwise keep existing principle. (3) Keywords = union of both sets (lowercase, deduplicated). (4) Concepts = union of both sets (deduplicated).
+- Verification: deterministic (unit)
+
+---
+
+## REQ-P5c-4: Absorbed field records merge provenance in registry (P5c)
+
+After a successful merge, append an `AbsorbedRecord` to the existing memory's `InstructionEntry.Absorbed` slice in the registry.
+
+- Traces to: UC-33
+- AC: (1) `AbsorbedRecord.From` = candidate title. (2) `AbsorbedRecord.ContentHash` = hex of sha256 of candidate keyword join. (3) `AbsorbedRecord.MergedAt` = current time. (4) `AbsorbedRecord.SurfacedCount = 0`. (5) Append does not overwrite existing `Absorbed` entries.
+- Verification: unit with mock registry
+
+---
+
+## REQ-P5c-5: Effectiveness history preserved during merge (P5c)
+
+Merging does not modify `SurfacedCount`, `Evaluations`, `EnforcementLevel`, or `Transitions` on the existing `InstructionEntry`.
+
+- Traces to: UC-33
+- AC: (1) Before and after merge, all effectiveness fields on the existing entry are equal. (2) Only `Absorbed` grows by one record.
+- Verification: unit with mock registry

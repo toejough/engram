@@ -1363,3 +1363,31 @@ Event JSON contains token_count and mode; no memory_path field. (unit, surfacing
 
 ### T-P4e-10: LogInvocationTokens propagates append errors
 Real logger with /dev/null path → error wrapped as "appending invocation token log". (unit)
+
+---
+
+## Tests for UC-33: Merge-on-Write (P5c)
+
+### T-P5c-1: High overlap returns merge pair not surviving candidate
+Candidate with 3/4 matching keywords against existing → `ClassifyResult.MergePairs` has 1 entry; `Surviving` is empty. (unit, dedup pkg)
+
+### T-P5c-2: Low overlap passes through as surviving candidate
+Candidate with 2/4 matching keywords (exactly 50%) → `ClassifyResult.Surviving` has 1 entry; `MergePairs` is empty. (unit, dedup pkg)
+
+### T-P5c-3: LLM merger called with existing and candidate principles
+`MergePrinciples` receives existing.Principle and candidate.Principle; mock returns merged string; merged principle passed to `MergeWriter`. (unit, learn pkg)
+
+### T-P5c-4: Fallback merge takes candidate principle when it is longer
+No merger configured; candidate principle longer than existing → merged TOML uses candidate principle; keywords = union; concepts = union. (unit, learn pkg)
+
+### T-P5c-5: Fallback merge keeps existing principle when it is longer
+No merger configured; existing principle longer → merged TOML keeps existing principle; keywords still unioned. (unit, learn pkg)
+
+### T-P5c-6: Absorbed record appended after merge
+After merge: `RegistryAbsorber.RecordAbsorbed` called once with existing file path, candidate title, non-empty hash, and timestamp. (unit, learn pkg with mock absorber)
+
+### T-P5c-7: LLM merger error falls back to deterministic merge
+`MergePrinciples` returns error → fallback applied (longer principle, union keywords, union concepts); no error propagated. (unit, learn pkg)
+
+### T-P5c-8: Empty candidate keywords are not merged
+Candidate with no keywords → appears in `Surviving` (create-new path), not in `MergePairs`. (unit, dedup pkg)
