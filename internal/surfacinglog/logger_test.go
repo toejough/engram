@@ -242,3 +242,42 @@ func TestT105_ReadAndClear_MissingFileReturnsEmpty(t *testing.T) {
 	g.Expect(events).To(gomega.BeEmpty())
 	g.Expect(removeCallCount).To(gomega.Equal(0))
 }
+
+// T-P4e-10: LogInvocationTokens propagates append errors.
+func TestTP4e10_LogInvocationTokens_AppendError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	logger := surfacinglog.New("/dev/null")
+
+	err := logger.LogInvocationTokens("session-start", 100, time.Now())
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("appending invocation token log")))
+}
+
+// T-P4e-9: LogInvocationTokens appends a token-count event to the surfacing log.
+func TestTP4e9_LogInvocationTokens_AppendsSummaryEvent(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	var appendedData []byte
+
+	logger := surfacinglog.New("/data",
+		surfacinglog.WithAppendFile(func(_ string, data []byte, _ os.FileMode) error {
+			appendedData = append(appendedData, data...)
+
+			return nil
+		}),
+	)
+
+	err := logger.LogInvocationTokens("session-start", 423, time.Now())
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	line := string(appendedData)
+	g.Expect(line).To(gomega.ContainSubstring(`"token_count":423`))
+	g.Expect(line).To(gomega.ContainSubstring(`"mode":"session-start"`))
+	g.Expect(line).NotTo(gomega.ContainSubstring(`"memory_path"`))
+}

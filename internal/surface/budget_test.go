@@ -248,16 +248,16 @@ func TestT193_BudgetConfigCustomValues(t *testing.T) {
 	g.Expect(custom.ForMode(surface.ModePreCompact)).To(Equal(400))
 }
 
-// T-193: Budget cap configuration loads from config with defaults fallback
+// T-193: Budget cap configuration loads from config with defaults fallback (REQ-P4e-2/3/4: updated targets).
 func TestT193_BudgetConfigDefaults(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	cfg := surface.DefaultBudgetConfig()
-	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))
-	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget))
-	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))
+	g.Expect(cfg.SessionStart).To(Equal(surface.DefaultSessionStartBudget))         // 600
+	g.Expect(cfg.UserPromptSubmit).To(Equal(surface.DefaultUserPromptSubmitBudget)) // 250
+	g.Expect(cfg.PreToolUse).To(Equal(surface.DefaultPreToolUseBudget))             // 150
 	g.Expect(cfg.PostToolUse).To(Equal(surface.DefaultPostToolUseBudget))
 	g.Expect(cfg.Stop).To(Equal(surface.DefaultStopBudget))
 	g.Expect(cfg.PreCompact).To(Equal(surface.DefaultPreCompactBudget))

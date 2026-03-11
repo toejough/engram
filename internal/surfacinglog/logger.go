@@ -54,6 +54,32 @@ func New(dataDir string, opts ...Option) *Logger {
 	return logger
 }
 
+// LogInvocationTokens appends a token-count summary event for a surface invocation (REQ-P4e-5).
+// MemoryPath is empty to distinguish invocation summaries from per-memory events.
+func (l *Logger) LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error {
+	event := SurfacingEvent{
+		Mode:       mode,
+		SurfacedAt: timestamp.UTC(),
+		TokenCount: tokenCount,
+	}
+
+	line, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshaling invocation token event: %w", err)
+	}
+
+	line = append(line, '\n')
+
+	path := l.dataDir + "/" + logFilename
+
+	appendErr := l.appendFile(path, line, logFilePerm)
+	if appendErr != nil {
+		return fmt.Errorf("appending invocation token log: %w", appendErr)
+	}
+
+	return nil
+}
+
 // LogSurfacing appends a surfacing event for the given memory path, mode, and timestamp.
 func (l *Logger) LogSurfacing(memoryPath, mode string, timestamp time.Time) error {
 	event := SurfacingEvent{
@@ -128,9 +154,10 @@ type Option func(*Logger)
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
 type SurfacingEvent struct {
-	MemoryPath string    `json:"memory_path"`
+	MemoryPath string    `json:"memory_path,omitempty"`
 	Mode       string    `json:"mode"`
 	SurfacedAt time.Time `json:"surfaced_at"`
+	TokenCount int       `json:"token_count,omitempty"`
 }
 
 // WithAppendFile injects a file append function into a Logger.

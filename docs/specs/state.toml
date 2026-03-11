@@ -1240,3 +1240,20 @@ items = [
 
 [layers.L4.p1]
 items = ["T-P1-1", "T-P1-2", "T-P1-3", "T-P1-4", "T-P1-5", "T-P1-6", "T-P1-7", "T-P1-8", "T-P1-9", "T-P1-10", "T-P1-11", "T-P1-12"]
+
+# P4-early: Budget quick wins
+
+[layers.L1.p4e]
+items = ["UC-P4e-1"]
+
+[layers.L2.p4e]
+items = ["REQ-P4e-1", "REQ-P4e-2", "REQ-P4e-3", "REQ-P4e-4", "REQ-P4e-5", "REQ-P4e-6", "DES-P4e-1", "DES-P4e-2", "DES-P4e-3", "DES-P4e-4", "DES-P4e-5", "DES-P4e-6"]
+
+[layers.L3.p4e]
+items = [
+  { id = "ARCH-P4e-1", source = "derived" },
+  { id = "ARCH-P4e-2", source = "derived" },
+]
+
+[layers.L4.p4e]
+items = ["T-P4e-1", "T-P4e-2", "T-P4e-3", "T-P4e-4", "T-P4e-5", "T-P4e-6", "T-P4e-7", "T-P4e-8", "T-P4e-9", "T-P4e-10"]
