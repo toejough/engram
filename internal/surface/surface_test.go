@@ -1893,7 +1893,6 @@ func memPath(i int) string {
 	return "memory-" + string(rune('a'+i%26)) + ".toml"
 }
 
-
 // T-235: Retirement filtering is now handled by the instruction registry (UC-23),
 // not inline in memory.Stored. filterRetired was removed — retired memories are
 // deleted from disk by the automation pipeline.
