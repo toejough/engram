@@ -855,7 +855,8 @@ anti_pattern = ""`
 
 	updater := &fakeEvalLinkUpdater{}
 
-	evaluator := evaluate.New("/data",
+	evaluator := evaluate.New(
+		"/data",
 		evaluate.WithEvalLinkUpdater(updater),
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
@@ -875,7 +876,9 @@ anti_pattern = ""`
 
 			return response, nil
 		}),
-		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithNow(
+			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
+		),
 	)
 
 	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")

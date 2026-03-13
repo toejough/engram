@@ -43,7 +43,13 @@ func TestJSONMergeWriter_WritesJSON(t *testing.T) {
 	existing := &memory.Stored{FilePath: filePath, Title: "Test Memory"}
 	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
-	err = writer.UpdateMerged(existing, "merged principle", []string{"alpha"}, []string{"concept1"}, now)
+	err = writer.UpdateMerged(
+		existing,
+		"merged principle",
+		[]string{"alpha"},
+		[]string{"concept1"},
+		now,
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -88,7 +94,13 @@ func TestTOMLMergeWriter_WritesFields(t *testing.T) {
 	existing := &memory.Stored{FilePath: filePath, Title: "Test Memory"}
 	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
-	err = writer.UpdateMerged(existing, "new principle", []string{"alpha", "beta"}, []string{"concept1"}, now)
+	err = writer.UpdateMerged(
+		existing,
+		"new principle",
+		[]string{"alpha", "beta"},
+		[]string{"concept1"},
+		now,
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 

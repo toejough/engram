@@ -99,17 +99,24 @@ func TestRegistryAbsorberFunc_RecordAbsorbed(t *testing.T) {
 
 	var called bool
 
-	absorber := learn.RegistryAbsorberFunc(func(existingPath, candidateTitle, contentHash string, _ time.Time) error {
-		called = true
+	absorber := learn.RegistryAbsorberFunc(
+		func(existingPath, candidateTitle, contentHash string, _ time.Time) error {
+			called = true
 
-		g.Expect(existingPath).To(Equal("/path/to/existing.toml"))
-		g.Expect(candidateTitle).To(Equal("candidate title"))
-		g.Expect(contentHash).To(HaveLen(16))
+			g.Expect(existingPath).To(Equal("/path/to/existing.toml"))
+			g.Expect(candidateTitle).To(Equal("candidate title"))
+			g.Expect(contentHash).To(HaveLen(16))
 
-		return nil
-	})
+			return nil
+		},
+	)
 
-	err := absorber.RecordAbsorbed("/path/to/existing.toml", "candidate title", "abc123def4567890", time.Now())
+	err := absorber.RecordAbsorbed(
+		"/path/to/existing.toml",
+		"candidate title",
+		"abc123def4567890",
+		time.Now(),
+	)
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
@@ -123,7 +130,11 @@ func TestSetMemoryMerger_PipelineUsesIt(t *testing.T) {
 	candidate := memory.CandidateLearning{
 		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
 	}
-	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+	existingMem := &memory.Stored{
+		FilePath:  "/data/use-targ.toml",
+		Title:     "Use targ",
+		Principle: "old",
+	}
 
 	merger := &fakeMerger{merged: "merged principle"}
 	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
@@ -156,7 +167,11 @@ func TestSetMergeWriter_PipelineCallsIt(t *testing.T) {
 	candidate := memory.CandidateLearning{
 		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
 	}
-	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+	existingMem := &memory.Stored{
+		FilePath:  "/data/use-targ.toml",
+		Title:     "Use targ",
+		Principle: "old",
+	}
 
 	mergeWriter := &fakeMergeWriter{}
 	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
@@ -190,7 +205,11 @@ func TestSetRegistryAbsorber_PipelineCallsIt(t *testing.T) {
 		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
 		Keywords: []string{"targ"},
 	}
-	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+	existingMem := &memory.Stored{
+		FilePath:  "/data/use-targ.toml",
+		Title:     "Use targ",
+		Principle: "old",
+	}
 
 	absorber := &fakeAbsorber{}
 	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
@@ -839,7 +858,12 @@ type fakeMergeWriter struct {
 	concepts  []string
 }
 
-func (f *fakeMergeWriter) UpdateMerged(_ *memory.Stored, principle string, _, concepts []string, _ time.Time) error {
+func (f *fakeMergeWriter) UpdateMerged(
+	_ *memory.Stored,
+	principle string,
+	_, concepts []string,
+	_ time.Time,
+) error {
 	f.called = true
 	f.principle = principle
 	f.concepts = concepts
@@ -864,11 +888,17 @@ type fakeMergingDeduplicator struct {
 	mergePairs []dedup.MergePair
 }
 
-func (f *fakeMergingDeduplicator) Classify(_ []memory.CandidateLearning, _ []*memory.Stored) dedup.ClassifyResult {
+func (f *fakeMergingDeduplicator) Classify(
+	_ []memory.CandidateLearning,
+	_ []*memory.Stored,
+) dedup.ClassifyResult {
 	return dedup.ClassifyResult{MergePairs: f.mergePairs}
 }
 
-func (f *fakeMergingDeduplicator) Filter(_ []memory.CandidateLearning, _ []*memory.Stored) []memory.CandidateLearning {
+func (f *fakeMergingDeduplicator) Filter(
+	_ []memory.CandidateLearning,
+	_ []*memory.Stored,
+) []memory.CandidateLearning {
 	return nil
 }
 

@@ -21,7 +21,9 @@ func TestAppendClusterNotes_CalledDuringSessionStart(t *testing.T) {
 		{FilePath: "mem1.toml", Title: "Memory One", UpdatedAt: time.Now()},
 	}
 	reader := &fakeP3LinkReaderWithLinks{
-		links: []surface.LinkGraphLink{{Target: "mem2.toml", Weight: 0.5, Basis: "concept_overlap"}},
+		links: []surface.LinkGraphLink{
+			{Target: "mem2.toml", Weight: 0.5, Basis: "concept_overlap"},
+		},
 	}
 	fetcher := &fakeP3TitleFetcherWithTitle{title: "Memory Two"}
 	surfacer := surface.New(
