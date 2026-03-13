@@ -3286,3 +3286,55 @@ After outcome classification, for each pair of memories (A, B) where both receiv
 ### DES-P3-9: EvalLinkUpdater interface in evaluate package
 
 `EvalLinkUpdater` interface in evaluate pkg: `GetEntryLinks(id string) ([]EvalLink, error)` and `SetEntryLinks(id string, links []EvalLink) error`. `WithEvalLinkUpdater(u EvalLinkUpdater)` option. `updateEvaluationCorrelationLinks` helper called after outcome map is built.
+
+---
+
+## P5f: Re-compute links after merge
+
+### REQ-P5f-1: MergeResult type (P5f)
+
+After merge-on-write completes, the pipeline must produce a `graph.MergeResult` struct with fields: `MergedMemoryID string`, `AbsorbedMemoryID string`, `MergedTitle string`, `MergedContent string`, `MergedConceptSet []string`. This is the contract passed to the link recomputer.
+
+- Traces to: UC-P5f-1
+- AC: (1) MergedMemoryID = registry ID (file path) of the surviving merged memory. (2) AbsorbedMemoryID = registry ID of absorbed memory, or empty string if candidate was never registered. (3) MergedTitle/MergedContent/MergedConceptSet carry the post-merge values. (4) Pure data type — no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### REQ-P5f-2: Remove absorbed-memory links (P5f)
+
+When `AbsorbedMemoryID` is non-empty, all registry entries that have links targeting that ID must have those links removed.
+
+- Traces to: UC-P5f-1
+- AC: (1) All entries returned by List() are scanned. (2) For each entry with ≥1 link targeting AbsorbedMemoryID, UpdateLinks is called with the filtered link set. (3) Entries with no such links are not updated. (4) No-op when AbsorbedMemoryID is empty.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-3: Re-compute concept_overlap links for merged memory (P5f)
+
+After absorbed-link cleanup, remove all existing concept_overlap links from the merged memory and replace them with freshly computed ones using `Builder.BuildConceptOverlap`.
+
+- Traces to: UC-P5f-1
+- AC: (1) Old concept_overlap links removed. (2) New links computed using MergedTitle + MergedContent as the query entry. (3) Other basis types untouched.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-4: Re-compute content_similarity links for merged memory (P5f)
+
+Remove all existing content_similarity links from the merged memory and replace them with freshly computed ones using `Builder.BuildContentSimilarity`.
+
+- Traces to: UC-P5f-1
+- AC: (1) Old content_similarity links removed. (2) New links computed with merged principle as query content. (3) Other basis types untouched.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-5: Preserve co_surfacing and evaluation_correlation links (P5f)
+
+co_surfacing and evaluation_correlation links on the merged memory must never be modified by the link recomputation step.
+
+- Traces to: UC-P5f-1
+- AC: (1) co_surfacing links present before merge remain after recomputation. (2) evaluation_correlation links present before merge remain after recomputation. (3) Weights and CoSurfacingCount unchanged.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P5f-1: MergeResult type and RegistryLinker interface (P5f)
+
+`graph.MergeResult` struct in `internal/graph/recompute.go`. `RegistryLinker` interface with `List() ([]registry.InstructionEntry, error)` and `UpdateLinks(id string, links []registry.Link) error`. `Builder.RecomputeMergeLinks(result MergeResult, linker RegistryLinker) error` pure logic method.
+
+### DES-P5f-2: LinkRecomputer interface in learn package, wired after processMerge (P5f)
+
+`learn.LinkRecomputer` interface: `RecomputeAfterMerge(result graph.MergeResult) error`. Optional field on `Learner` set via `SetLinkRecomputer`. Called at end of `processMerge`; errors logged to stderr, not propagated (fire-and-forget).

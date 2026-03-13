@@ -816,3 +816,38 @@ Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope cons
 5. Fire-and-forget on co_surfacing and evaluation_correlation update errors (ARCH-6)
 
 **Dependencies:** UC-23 (registry, UpdateLinks), UC-2 (surface pipeline), UC-15 (evaluate pipeline), UC-1 (learn pipeline)
+
+---
+
+## UC-P5f-1: Re-compute links after merge
+
+**Description:** After P5-core merge-on-write produces a merged memory, re-compute concept_overlap and content_similarity links for the merged memory using P3's link-building algorithm. Remove links that referenced the absorbed source. Preserve co_surfacing and evaluation_correlation links.
+
+**Starting state:** A merge has completed; the merged memory's principle, keywords, and concepts have changed; the registry may have entries with stale links.
+
+**End state:** The merged memory has fresh concept_overlap and content_similarity links; all registry entries that linked to the absorbed memory have those links removed; co_surfacing and evaluation_correlation links are unchanged.
+
+**Actor:** System (learn pipeline after processMerge completes).
+
+**Key interactions:**
+
+1. **MergeResult produced:** After merge-on-write, the pipeline produces `MergeResult{MergedMemoryID, AbsorbedMemoryID, MergedTitle, MergedContent, MergedConceptSet}`.
+
+2. **Absorbed-link cleanup:** If AbsorbedMemoryID is non-empty, all registry entries that have links pointing to AbsorbedMemoryID have those links removed (UpdateLinks called per affected entry).
+
+3. **Selective link replacement for merged memory:** From the merged memory's current link set, remove all links with `basis == "concept_overlap"` or `basis == "content_similarity"`. Preserve links with `basis == "co_surfacing"` or `basis == "evaluation_correlation"`.
+
+4. **Concept_overlap recompute:** Build new concept_overlap links for the merged memory against all other entries using `Builder.BuildConceptOverlap`.
+
+5. **Content_similarity recompute:** Build new content_similarity links for the merged memory against all other entries using `Builder.BuildContentSimilarity`.
+
+6. **Link update:** Merged link set (preserved + new) written via `UpdateLinks`.
+
+**Constraints:**
+1. DI everywhere — registry reads/writes through injected RegistryLinker interface
+2. `internal/graph/` contains pure logic only (no I/O)
+3. co_surfacing and evaluation_correlation links are never touched by this UC
+4. If LinkRecomputer is not wired, processMerge completes without error (optional)
+5. Fire-and-forget on error (log to stderr, do not fail the merge)
+
+**Dependencies:** UC-33 (merge-on-write), UC-32 (graph/link-building), UC-23 (registry)
