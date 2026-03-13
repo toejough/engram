@@ -65,27 +65,72 @@ fi
 MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
 
 SIGNAL_CTX=""
+SIGNAL_COUNT=0
 if [[ -n "$SIGNAL_OUTPUT" ]]; then
     SIGNAL_CTX=$(echo "$SIGNAL_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
+    SIGNAL_COUNT=$(echo "$SIGNAL_CTX" | jq -r '.signals | length' 2>/dev/null) || SIGNAL_COUNT=0
 fi
 
 GRAD_CTX=""
+GRAD_COUNT=0
 if [[ -n "$GRAD_OUTPUT" ]]; then
     GRAD_CTX=$(echo "$GRAD_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
+    GRAD_COUNT=$(echo "$GRAD_OUTPUT" | jq -r '.entries | length' 2>/dev/null) || GRAD_COUNT=0
+fi
+
+# Build directive systemMessage when there are pending actions
+DIRECTIVE=""
+if [[ "$SIGNAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
+    PARTS=""
+    if [[ "$SIGNAL_COUNT" -gt 0 ]]; then
+        PARTS="${SIGNAL_COUNT} maintenance signals"
+    fi
+    if [[ "$GRAD_COUNT" -gt 0 ]]; then
+        if [[ -n "$PARTS" ]]; then PARTS="$PARTS and "; fi
+        PARTS="${PARTS}${GRAD_COUNT} graduation candidates"
+    fi
+    DIRECTIVE="[engram] ACTION REQUIRED: You have ${PARTS} pending. Present these memory management recommendations to the user BEFORE doing anything else. Use the session-start skill for formatting guidance."
+fi
+
+# Assemble output
+ADDITIONAL_CTX="$MIDTURN_NOTE"
+if [[ -n "$SESSION_CONTEXT" ]]; then
+    ADDITIONAL_CTX="${ADDITIONAL_CTX}
+[engram] Previous session context:
+${SESSION_CONTEXT}"
+fi
+if [[ -n "$SIGNAL_CTX" ]]; then
+    ADDITIONAL_CTX="${ADDITIONAL_CTX}
+[engram] Pending signals:
+${SIGNAL_CTX}"
+fi
+if [[ -n "$GRAD_CTX" ]]; then
+    ADDITIONAL_CTX="${ADDITIONAL_CTX}
+[engram] Graduation signals:
+${GRAD_CTX}"
 fi
 
 if [[ -n "$SURFACE_OUTPUT" ]]; then
-    echo "$SURFACE_OUTPUT" | jq \
-        --arg note "$MIDTURN_NOTE" \
-        --arg ctx "$SESSION_CONTEXT" \
-        --arg sig "$SIGNAL_CTX" \
-        --arg grad "$GRAD_CTX" \
-        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end) + (if $grad != "" then "\n[engram] Graduation signals:\n" + $grad else "" end))}'
+    SURFACE_MSG=$(echo "$SURFACE_OUTPUT" | jq -r '.summary // empty' 2>/dev/null) || true
+    SURFACE_CTX=$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
+    if [[ -n "$DIRECTIVE" ]]; then
+        SYSTEM_MSG="${DIRECTIVE}
+${SURFACE_MSG}"
+    else
+        SYSTEM_MSG="$SURFACE_MSG"
+    fi
+    jq -n \
+        --arg sys "$SYSTEM_MSG" \
+        --arg add "${SURFACE_CTX}
+${ADDITIONAL_CTX}" \
+        '{systemMessage: $sys, additionalContext: $add}'
+elif [[ -n "$DIRECTIVE" ]]; then
+    jq -n \
+        --arg sys "$DIRECTIVE" \
+        --arg add "$ADDITIONAL_CTX" \
+        '{systemMessage: $sys, additionalContext: $add}'
 else
     jq -n \
-        --arg note "$MIDTURN_NOTE" \
-        --arg ctx "$SESSION_CONTEXT" \
-        --arg sig "$SIGNAL_CTX" \
-        --arg grad "$GRAD_CTX" \
-        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end) + (if $grad != "" then "\n[engram] Graduation signals:\n" + $grad else "" end))}'
+        --arg add "$ADDITIONAL_CTX" \
+        '{additionalContext: $add}'
 fi
