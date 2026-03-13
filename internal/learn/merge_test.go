@@ -10,7 +10,7 @@ import (
 	"engram/internal/memory"
 )
 
-// LLMUnavailableError is used in tests to simulate LLM failure.
+// LLMUnavailableError is a test error type for LLM unavailability.
 type LLMUnavailableError struct{}
 
 func (e LLMUnavailableError) Error() string {
@@ -38,6 +38,7 @@ func TestTP5c3_LLMMergerCombinesPrinciples(t *testing.T) {
 	}
 
 	merged, err := merger.MergePrinciples(ctx, existing.Principle, candidate.Principle)
+
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -72,6 +73,7 @@ func TestTP5c4_FallbackMergeUsesLongerPrinciple(t *testing.T) {
 
 	// Keywords union
 	mergedKeywords := make(map[string]struct{})
+
 	for _, k := range existing.Keywords {
 		mergedKeywords[k] = struct{}{}
 	}
@@ -103,6 +105,7 @@ func TestTP5c5_FallbackMergeKeepsExistingWhenLonger(t *testing.T) {
 
 	// Fallback merge: existing is longer
 	var merged string
+
 	if len(candidate.Principle) > len(existing.Principle) {
 		merged = candidate.Principle
 	} else {
@@ -123,6 +126,7 @@ func TestTP5c6_AbsorbedRecordAppendedAfterMerge(t *testing.T) {
 		Keywords: []string{"alpha", "beta"},
 	}
 
+	// Simulate calling RecordAbsorbed
 	_ = absorber.RecordAbsorbed("/path/to/existing.toml", candidate.Title, "somehash", time.Now())
 
 	g.Expect(absorber.called).To(BeTrue())
@@ -150,11 +154,13 @@ func TestTP5c7_LLMMergerErrorFallsBackToDeterministic(t *testing.T) {
 	}
 
 	_, err := merger.MergePrinciples(ctx, existing.Principle, candidate.Principle)
+
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
 		// On error, fallback to deterministic: longer principle
 		var fallback string
+
 		if len(candidate.Principle) > len(existing.Principle) {
 			fallback = candidate.Principle
 		} else {
@@ -165,13 +171,16 @@ func TestTP5c7_LLMMergerErrorFallsBackToDeterministic(t *testing.T) {
 	}
 }
 
-// mockMemoryMerger is a test double for MemoryMerger.
+// mockMemoryMerger is a test double for the MemoryMerger interface.
 type mockMemoryMerger struct {
 	merged string
 	err    error
 }
 
-func (m *mockMemoryMerger) MergePrinciples(_ context.Context, _, _ string) (string, error) {
+func (m *mockMemoryMerger) MergePrinciples(
+	_ context.Context,
+	_, _ string,
+) (string, error) {
 	if m.err != nil {
 		return "", m.err
 	}
@@ -179,14 +188,16 @@ func (m *mockMemoryMerger) MergePrinciples(_ context.Context, _, _ string) (stri
 	return m.merged, nil
 }
 
-// mockRegistryAbsorber is a test double for RegistryAbsorber.
+// mockRegistryAbsorber is a test double for the RegistryAbsorber interface.
 type mockRegistryAbsorber struct {
 	called         bool
 	candidateTitle string
 }
 
 func (m *mockRegistryAbsorber) RecordAbsorbed(
-	_, candidateTitle, _ string,
+	_ string,
+	candidateTitle string,
+	_ string,
 	_ time.Time,
 ) error {
 	m.called = true

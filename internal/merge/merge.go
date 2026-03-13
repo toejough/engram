@@ -19,7 +19,10 @@ func New(client LLMClient) *LLMMerger {
 }
 
 // MergePrinciples calls the LLM to combine two principle texts.
-func (m *LLMMerger) MergePrinciples(ctx context.Context, existing, candidate string) (string, error) {
+func (m *LLMMerger) MergePrinciples(
+	ctx context.Context,
+	existing, candidate string,
+) (string, error) {
 	prompt := "Combine these two memory principles into a single stronger, more specific statement:\n\n" +
 		"Existing: " + existing + "\n\n" +
 		"Candidate: " + candidate + "\n\n" +

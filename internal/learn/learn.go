@@ -150,7 +150,7 @@ func (l *Learner) fallbackMergePrinciple(existing, candidate string) string {
 	if len(candidate) > len(existing) {
 		return candidate
 	}
-	// Keep existing when it is equal length or longer.
+
 	return existing
 }
 
@@ -189,7 +189,13 @@ func (l *Learner) processMerge(
 
 	// Write merged memory to disk
 	if l.mergeWriter != nil {
-		err := l.mergeWriter.UpdateMerged(existing, mergedPrinciple, mergedKeywords, mergedConcepts, now)
+		err := l.mergeWriter.UpdateMerged(
+			existing,
+			mergedPrinciple,
+			mergedKeywords,
+			mergedConcepts,
+			now,
+		)
 		if err != nil {
 			return fmt.Errorf("merge writer: %w", err)
 		}
@@ -317,7 +323,12 @@ type MemoryWriter interface {
 
 // MergeWriter updates an existing memory with merged fields (UC-33).
 type MergeWriter interface {
-	UpdateMerged(existing *memory.Stored, principle string, keywords, concepts []string, now time.Time) error
+	UpdateMerged(
+		existing *memory.Stored,
+		principle string,
+		keywords, concepts []string,
+		now time.Time,
+	) error
 }
 
 // RegistryAbsorber records a merge in the registry (UC-33).

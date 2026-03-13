@@ -839,9 +839,98 @@ anti_pattern = ""`
 	g.Expect(outcomes).To(HaveLen(1))
 }
 
+// T-P3-9b: updateEvalCorrelationLinks reads and sets entry links for each outcome.
+func TestUpdateEvalCorrelationLinks_CallsUpdater(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const (
+		surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}
+{"memory_path":"/data/memories/m2.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
+		genericTOML = `title = "Memory"
+content = "Content"
+principle = "Principle"
+anti_pattern = ""`
+	)
+
+	updater := &fakeEvalLinkUpdater{}
+
+	evaluator := evaluate.New(
+		"/data",
+		evaluate.WithEvalLinkUpdater(updater),
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(genericTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			const response = `[` +
+				`{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"},` +
+				`{"memory_path":"/data/memories/m2.toml","outcome":"followed","evidence":"ok"}` +
+				`]`
+
+			return response, nil
+		}),
+		evaluate.WithNow(
+			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
+		),
+	)
+
+	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(outcomes).To(HaveLen(2))
+	g.Expect(updater.getCalls).To(BeNumerically(">=", 2))
+}
+
+// T-P3-9a: WithEvalLinkUpdater sets the link updater on the evaluator.
+func TestWithEvalLinkUpdater_SetsOption(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	updater := &fakeEvalLinkUpdater{}
+	evaluator := evaluate.New("/data",
+		evaluate.WithEvalLinkUpdater(updater),
+		evaluate.WithReadFile(func(string) ([]byte, error) { return nil, os.ErrNotExist }),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+	)
+
+	// Should not panic when no surfacing log exists — evaluator handles it gracefully.
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 type evalRegistryCall struct {
 	id      string
 	outcome string
+}
+
+// fakeEvalLinkUpdater is a test double for evaluate.EvalLinkUpdater.
+type fakeEvalLinkUpdater struct {
+	getCalls int
+}
+
+func (f *fakeEvalLinkUpdater) GetEntryLinks(_ string) ([]evaluate.EvalLink, error) {
+	f.getCalls++
+
+	return nil, nil
+}
+
+func (f *fakeEvalLinkUpdater) SetEntryLinks(_ string, _ []evaluate.EvalLink) error {
+	return nil
 }
 
 // fakeEvalRegistryRecorder is a test double for evaluate.RegistryRecorder.

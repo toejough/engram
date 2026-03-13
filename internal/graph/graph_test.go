@@ -47,10 +47,14 @@ func TestConceptOverlapThreshold(t *testing.T) {
 		Title: "alpha beta gamma delta epsilon",
 	}
 	existing := []registry.InstructionEntry{
-		// Jaccard: {alpha,beta,gamma} / {alpha,beta,gamma,delta,epsilon,zeta} = 3/6 = 0.5 >= 0.15
-		{ID: "above", Title: "alpha beta gamma zeta"},
-		// Jaccard: {} / {alpha,beta,gamma,delta,epsilon,zeta,eta,theta,iota,kappa} = 0/10 = 0 < 0.15
-		{ID: "below", Title: "zeta eta theta iota kappa"},
+		{
+			ID:    "above",
+			Title: "alpha beta gamma zeta",
+		}, // Jaccard: {alpha,beta,gamma} / {alpha,beta,gamma,delta,epsilon,zeta} = 3/6 = 0.5 >= 0.15
+		{
+			ID:    "below",
+			Title: "zeta eta theta iota kappa",
+		}, // Jaccard: {} / {alpha,beta,gamma,delta,epsilon,zeta,eta,theta,iota,kappa} = 0/10 = 0 < 0.15
 	}
 
 	links := builder.BuildConceptOverlap(entry, existing)
@@ -63,6 +67,88 @@ func TestConceptOverlapThreshold(t *testing.T) {
 	}
 
 	g.Expect(links[0].Target).To(Equal("above"))
+}
+
+// T-P3-5b: BuildContentSimilarity returns empty for empty existing
+func TestContentSimilarityEmptyExisting(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:      "new",
+		Title:   "use targ build",
+		Content: "always use targ for all builds",
+	}
+
+	links := builder.BuildContentSimilarity(entry, nil)
+
+	g.Expect(links).To(BeEmpty())
+}
+
+// T-P3-5a: BuildContentSimilarity produces link for matching content.
+// BM25 requires >=3 documents for positive IDF (with N=1, IDF=log(0.5/1.5)<0).
+func TestContentSimilarityProducesLink(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:      "new",
+		Title:   "targ build invocation system",
+		Content: "targ build invocation system",
+	}
+	// 3 docs: "match" shares unique terms; "other1"/"other2" use different words.
+	// With N=3 and df=1, IDF = log(2.5/1.5) > 0.
+	existing := []registry.InstructionEntry{
+		{
+			ID:    "match",
+			Title: "targ build invocation system",
+		},
+		{
+			ID:    "other1",
+			Title: "cat fish bird elephant",
+		},
+		{
+			ID:    "other2",
+			Title: "river mountain ocean desert",
+		},
+	}
+
+	links := builder.BuildContentSimilarity(entry, existing)
+
+	g.Expect(links).NotTo(BeEmpty())
+
+	if len(links) == 0 {
+		return
+	}
+
+	g.Expect(links[0].Target).To(Equal("match"))
+	g.Expect(links[0].Weight).To(BeNumerically("<=", 1.0))
+	g.Expect(links[0].Basis).To(Equal("content_similarity"))
+}
+
+// T-P3-5c: BuildContentSimilarity excludes self-link
+func TestContentSimilaritySelfLinkExcluded(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	builder := graph.New()
+	entry := registry.InstructionEntry{
+		ID:      "mem1",
+		Title:   "use targ build for all go builds",
+		Content: "always use targ",
+	}
+	existing := []registry.InstructionEntry{
+		{ID: "mem1", Title: "use targ build for all go builds", Content: "always use targ"},
+		{ID: "mem2", Title: "use targ test for all go tests", Content: "always use targ"},
+	}
+
+	links := builder.BuildContentSimilarity(entry, existing)
+
+	for _, link := range links {
+		g.Expect(link.Target).NotTo(Equal("mem1"))
+	}
 }
 
 // T-P3-5: BuildContentSimilarity threshold 0.05
@@ -155,7 +241,6 @@ func TestJaccardZeroForDisjointSets(t *testing.T) {
 	}
 
 	links := builder.BuildConceptOverlap(entry, existing)
-
 	g.Expect(links).To(BeEmpty())
 }
 
@@ -258,4 +343,48 @@ func TestUpdateCoSurfacingIncrementsExisting(t *testing.T) {
 	g.Expect(updated).To(HaveLen(1))
 	g.Expect(updated[0].Weight).To(BeNumerically("~", 0.6, 0.001))
 	g.Expect(updated[0].CoSurfacingCount).To(Equal(4))
+}
+
+// UpdateEvaluationCorrelation caps weight at 1.0
+func TestUpdateEvaluationCorrelationCapWeight(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{
+		{Target: "mem2", Weight: 0.98, Basis: "evaluation_correlation"},
+	}
+
+	updated := graph.UpdateEvaluationCorrelation(links, "mem2")
+
+	g.Expect(updated[0].Weight).To(Equal(1.0))
+}
+
+// UpdateEvaluationCorrelation creates new link when none exists
+func TestUpdateEvaluationCorrelationCreatesNew(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{}
+
+	updated := graph.UpdateEvaluationCorrelation(links, "mem2")
+
+	g.Expect(updated).To(HaveLen(1))
+	g.Expect(updated[0].Target).To(Equal("mem2"))
+	g.Expect(updated[0].Weight).To(BeNumerically("~", 0.05, 0.001))
+	g.Expect(updated[0].Basis).To(Equal("evaluation_correlation"))
+}
+
+// UpdateEvaluationCorrelation increments existing link
+func TestUpdateEvaluationCorrelationIncrementsExisting(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	links := []registry.Link{
+		{Target: "mem2", Weight: 0.2, Basis: "evaluation_correlation"},
+	}
+
+	updated := graph.UpdateEvaluationCorrelation(links, "mem2")
+
+	g.Expect(updated).To(HaveLen(1))
+	g.Expect(updated[0].Weight).To(BeNumerically("~", 0.25, 0.001))
 }

@@ -18,7 +18,7 @@ func New() *Builder {
 }
 
 // BuildConceptOverlap computes Jaccard similarity links between a new entry and existing entries.
-// Pairs with Jaccard >= 0.15 produce a concept_overlap link.
+// Pairs with Jaccard >= conceptOverlapMinJaccard produce a concept_overlap link.
 func (b *Builder) BuildConceptOverlap(
 	entry registry.InstructionEntry,
 	existing []registry.InstructionEntry,
@@ -27,17 +27,17 @@ func (b *Builder) BuildConceptOverlap(
 
 	newTokens := tokenize(entry.Title + " " + entry.Content)
 
-	for _, candidate := range existing {
-		if candidate.ID == entry.ID {
+	for _, other := range existing {
+		if other.ID == entry.ID {
 			continue // No self-links
 		}
 
-		exTokens := tokenize(candidate.Title + " " + candidate.Content)
-		jac := jaccard(newTokens, exTokens)
+		otherTokens := tokenize(other.Title + " " + other.Content)
+		jac := jaccard(newTokens, otherTokens)
 
-		if jac >= conceptOverlapThreshold {
+		if jac >= conceptOverlapMinJaccard {
 			links = append(links, registry.Link{
-				Target: candidate.ID,
+				Target: other.ID,
 				Weight: jac,
 				Basis:  "concept_overlap",
 			})
@@ -48,7 +48,7 @@ func (b *Builder) BuildConceptOverlap(
 }
 
 // BuildContentSimilarity computes BM25 relevance links between a new entry and existing entries.
-// Pairs with BM25 score >= 0.05 (raw) produce a content_similarity link with normalized weight.
+// Pairs with BM25 score >= contentSimilarityMinScore produce a content_similarity link with normalized weight.
 func (b *Builder) BuildContentSimilarity(
 	entry registry.InstructionEntry,
 	existing []registry.InstructionEntry,
@@ -57,11 +57,10 @@ func (b *Builder) BuildContentSimilarity(
 
 	// Build BM25 scorer with existing entries as corpus
 	docs := make([]bm25.Document, len(existing))
-
-	for i, candidate := range existing {
+	for i, other := range existing {
 		docs[i] = bm25.Document{
-			ID:   candidate.ID,
-			Text: candidate.Title + " " + candidate.Content,
+			ID:   other.ID,
+			Text: other.Title + " " + other.Content,
 		}
 	}
 
@@ -69,21 +68,20 @@ func (b *Builder) BuildContentSimilarity(
 	query := entry.Title + " " + entry.Content
 	scored := scorer.Score(query, docs)
 
-	for _, result := range scored {
-		if result.ID == entry.ID {
+	for _, scoredDoc := range scored {
+		if scoredDoc.ID == entry.ID {
 			continue
 		}
 
-		if result.Score >= contentSimilarityThreshold {
-			// Normalize: weight = min(1.0, raw / 5.0)
-			weight := result.Score / contentSimilarityNormDiv
-
-			if weight > maxLinkWeight {
-				weight = maxLinkWeight
+		if scoredDoc.Score >= contentSimilarityMinScore {
+			// Normalize: weight = min(1.0, raw / contentSimilarityNormDivisor)
+			weight := scoredDoc.Score / contentSimilarityNormDivisor
+			if weight > 1.0 {
+				weight = 1.0
 			}
 
 			links = append(links, registry.Link{
-				Target: result.ID,
+				Target: scoredDoc.ID,
 				Weight: weight,
 				Basis:  "content_similarity",
 			})
@@ -93,13 +91,13 @@ func (b *Builder) BuildContentSimilarity(
 	return links
 }
 
-// Prune removes links with weight < 0.1 and CoSurfacingCount >= 10.
+// Prune removes links with weight < pruneWeightThreshold and CoSurfacingCount >= pruneMinCount.
 // Returns a new slice with remaining links.
 func Prune(links []registry.Link) []registry.Link {
 	var result []registry.Link
 
 	for _, link := range links {
-		if link.Weight < pruneWeightThreshold && link.CoSurfacingCount >= pruneCountThreshold {
+		if link.Weight < pruneWeightThreshold && link.CoSurfacingCount >= pruneMinCount {
 			continue // Prune this link
 		}
 
@@ -110,15 +108,14 @@ func Prune(links []registry.Link) []registry.Link {
 }
 
 // UpdateCoSurfacing updates co_surfacing links for a pair of memory IDs.
-// Increments weight (+0.1, capped at 1.0) and CoSurfacingCount (+1).
+// Increments weight (+coSurfacingIncrement, capped at 1.0) and CoSurfacingCount (+1).
 // Returns the updated links slice.
 func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "co_surfacing" {
 			links[i].Weight += coSurfacingIncrement
-
-			if links[i].Weight > maxLinkWeight {
-				links[i].Weight = maxLinkWeight
+			if links[i].Weight > 1.0 {
+				links[i].Weight = 1.0
 			}
 
 			links[i].CoSurfacingCount++
@@ -137,15 +134,14 @@ func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
 }
 
 // UpdateEvaluationCorrelation updates evaluation_correlation links for a pair.
-// Increments weight (+0.05, capped at 1.0).
+// Increments weight (+evalCorrelationIncrement, capped at 1.0).
 // Returns the updated links slice.
 func UpdateEvaluationCorrelation(links []registry.Link, targetID string) []registry.Link {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "evaluation_correlation" {
-			links[i].Weight += evalCorrIncrement
-
-			if links[i].Weight > maxLinkWeight {
-				links[i].Weight = maxLinkWeight
+			links[i].Weight += evalCorrelationIncrement
+			if links[i].Weight > 1.0 {
+				links[i].Weight = 1.0
 			}
 
 			return links
@@ -155,21 +151,20 @@ func UpdateEvaluationCorrelation(links []registry.Link, targetID string) []regis
 	// No existing link, create new one
 	return append(links, registry.Link{
 		Target: targetID,
-		Weight: evalCorrIncrement,
+		Weight: evalCorrelationIncrement,
 		Basis:  "evaluation_correlation",
 	})
 }
 
 // unexported constants.
 const (
-	coSurfacingIncrement       = 0.1
-	conceptOverlapThreshold    = 0.15
-	contentSimilarityNormDiv   = 5.0
-	contentSimilarityThreshold = 0.05
-	evalCorrIncrement          = 0.05
-	maxLinkWeight              = 1.0
-	pruneCountThreshold        = 10
-	pruneWeightThreshold       = 0.1
+	coSurfacingIncrement         = 0.1
+	conceptOverlapMinJaccard     = 0.15
+	contentSimilarityMinScore    = 0.05
+	contentSimilarityNormDivisor = 5.0
+	evalCorrelationIncrement     = 0.05
+	pruneMinCount                = 10
+	pruneWeightThreshold         = 0.1
 )
 
 // jaccard computes Jaccard similarity: |A∩B| / |A∪B|
@@ -188,7 +183,6 @@ func jaccard(a, b map[string]bool) float64 {
 
 	// Union size
 	union := make(map[string]bool)
-
 	for key := range a {
 		union[key] = true
 	}

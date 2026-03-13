@@ -808,7 +808,11 @@ func TestTP0b3_SetEnforcementLevelAccumulatesHistory(t *testing.T) {
 	err := store.Register(registry.InstructionEntry{ID: "p0b-3", SourceType: "memory"})
 	g.Expect(err).NotTo(HaveOccurred())
 
-	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementEmphasizedAdvisory, "first escalation")
+	err = store.SetEnforcementLevel(
+		"p0b-3",
+		registry.EnforcementEmphasizedAdvisory,
+		"first escalation",
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementReminder, "second escalation")

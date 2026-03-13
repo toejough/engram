@@ -23,5 +23,5 @@ func ComputeContentHash(keywords []string) string {
 	joined := strings.Join(keywords, ",")
 	hash := sha256.Sum256([]byte(joined))
 
-	return hex.EncodeToString(hash[:])[:16] // Use first 16 chars of hex
+	return hex.EncodeToString(hash[:])[:16]
 }

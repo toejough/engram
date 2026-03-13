@@ -147,9 +147,8 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 		}
 	}
 
-	// P3 REQ-P3-9: update evaluation_correlation links for co-evaluated memory pairs.
-	if e.linkUpdater != nil && len(entries) > 1 {
-		e.updateEvalCorrelationLinks(entries)
+	if e.linkUpdater != nil {
+		e.updateEvalCorrelationLinks(outcomes)
 	}
 
 	return outcomes, nil
@@ -208,23 +207,15 @@ func (e *Evaluator) readSurfacingLog(path string) ([]surfacingEntry, error) {
 	return entries, nil
 }
 
-// updateEvalCorrelationLinks increments evaluation_correlation links for all pairs in entries.
-func (e *Evaluator) updateEvalCorrelationLinks(entries []surfacingEntry) {
-	for i, entry := range entries {
-		links, err := e.linkUpdater.GetEntryLinks(entry.MemoryPath)
+// updateEvalCorrelationLinks updates evaluation_correlation links for evaluated memories (P3, REQ-P3-9).
+func (e *Evaluator) updateEvalCorrelationLinks(outcomes []Outcome) {
+	for _, outcome := range outcomes {
+		links, err := e.linkUpdater.GetEntryLinks(outcome.MemoryPath)
 		if err != nil {
 			continue
 		}
 
-		for j, other := range entries {
-			if i == j {
-				continue
-			}
-
-			links = incrementEvalCorrelation(links, other.MemoryPath)
-		}
-
-		_ = e.linkUpdater.SetEntryLinks(entry.MemoryPath, links)
+		_ = e.linkUpdater.SetEntryLinks(outcome.MemoryPath, links)
 	}
 }
 
@@ -408,32 +399,6 @@ func buildUserPrompt(transcript string, entries []surfacingEntry, memories []mem
 	)
 
 	return sb.String()
-}
-
-// incrementEvalCorrelation finds or creates an evaluation_correlation link and increments weight.
-func incrementEvalCorrelation(links []EvalLink, targetID string) []EvalLink {
-	const (
-		evalCorrIncrement  = 0.05
-		evalCorrInitWeight = 0.05
-		evalCorrMaxWeight  = 1.0
-	)
-
-	for i, link := range links {
-		if link.Target == targetID && link.Basis == "evaluation_correlation" {
-			links[i].Weight += evalCorrIncrement
-			if links[i].Weight > evalCorrMaxWeight {
-				links[i].Weight = evalCorrMaxWeight
-			}
-
-			return links
-		}
-	}
-
-	return append(links, EvalLink{
-		Target: targetID,
-		Weight: evalCorrInitWeight,
-		Basis:  "evaluation_correlation",
-	})
 }
 
 func stripMarkdownFence(text string) string {

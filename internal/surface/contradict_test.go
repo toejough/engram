@@ -90,7 +90,10 @@ type fakeContradictionDetector struct {
 	err   error
 }
 
-func (f *fakeContradictionDetector) Check(_ context.Context, _ []*memory.Stored) ([]contradict.Pair, error) {
+func (f *fakeContradictionDetector) Check(
+	_ context.Context,
+	_ []*memory.Stored,
+) ([]contradict.Pair, error) {
 	return f.pairs, f.err
 }
 

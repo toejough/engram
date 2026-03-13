@@ -65,6 +65,7 @@ func (d *KeywordDeduplicator) Filter(
 }
 
 // MergePair pairs a candidate learning with an existing memory for merge (UC-33).
+// (Capitalized as a public type for use across packages.)
 type MergePair struct {
 	Candidate memory.CandidateLearning
 	Existing  *memory.Stored

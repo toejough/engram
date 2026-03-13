@@ -246,6 +246,29 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	return nil
 }
 
+// appendClusterNotes adds top-linked memory titles as cluster annotations (P3, REQ-P3-7).
+func (s *Surfacer) appendClusterNotes(buf *strings.Builder, memories []*memory.Stored) {
+	const maxClusterNotes = 2
+
+	for _, mem := range memories {
+		links, err := s.linkReader.GetEntryLinks(mem.FilePath)
+		if err != nil || len(links) == 0 {
+			continue
+		}
+
+		noteCount := min(maxClusterNotes, len(links))
+
+		for i := range noteCount {
+			title, ok := s.titleFetcher.GetTitle(links[i].Target)
+			if !ok {
+				continue
+			}
+
+			_, _ = fmt.Fprintf(buf, "  linked: %s\n", title)
+		}
+	}
+}
+
 // enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
 func (s *Surfacer) enforcementLevelFor(memPath string) string {
 	if s.enforcementReader == nil {
@@ -287,7 +310,12 @@ func (s *Surfacer) renderToolAdvisories(
 		toolMems = append(toolMems, match.mem)
 		level := s.enforcementLevelFor(match.mem.FilePath)
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		line := formatMemoryLine(filenameSlug(match.mem.FilePath), match.mem.Principle, level, annotation)
+		line := formatMemoryLine(
+			filenameSlug(match.mem.FilePath),
+			match.mem.Principle,
+			level,
+			annotation,
+		)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
 	}
@@ -485,7 +513,7 @@ func (s *Surfacer) runPrompt(
 	}, finalMems, nil
 }
 
-//nolint:cyclop,funlen // session-start pipeline: gate + rank + suppress + P3 re-rank is inherently branchy
+//nolint:cyclop // session-start orchestration: reads log, loads memories, ranks, P3 links — inherent branching
 func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
@@ -513,6 +541,12 @@ func (s *Surfacer) runSessionStart(
 	// REQ-P4e-1: rank by effectiveness descending; insufficient-data memories use default score.
 	sortByEffectivenessScore(memories, effectiveness)
 
+	// REQ-P3-6: re-rank using spreading activation if link reader is available.
+	if s.linkReader != nil {
+		activated := applySpreadingActivation(memories, effectiveness, s.linkReader)
+		sortByActivatedScore(memories, activated)
+	}
+
 	// REQ-P4e-2: take top-7.
 	count := len(memories)
 	if count > sessionStartLimit {
@@ -534,35 +568,18 @@ func (s *Surfacer) runSessionStart(
 		contextBuf strings.Builder
 	)
 
-	// P3: Apply spreading activation to re-rank memories (REQ-P3-6).
-	if s.linkReader != nil && count > 0 {
-		ids := make([]string, count)
-		baseScores := make(map[string]float64, count)
-
-		for i, mem := range memories[:count] {
-			ids[i] = mem.FilePath
-			baseScores[mem.FilePath] = float64(count - i)
-		}
-
-		activated := applySpreadingActivation(ids, baseScores, s.linkReader)
-
-		sort.Slice(memories[:count], func(i, j int) bool {
-			return activated[memories[i].FilePath] > activated[memories[j].FilePath]
-		})
-	}
-
-	// P3: Update co-surfacing links for all surfaced pairs (REQ-P3-5).
-	if s.linkUpdater != nil && count > 0 {
-		ids := make([]string, count)
-		for i, mem := range memories[:count] {
-			ids[i] = mem.FilePath
-		}
-
-		updateCoSurfacingLinks(ids, s.linkUpdater)
-	}
-
 	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
-	writeRecencySection(&summaryBuf, &contextBuf, memories[:count], effectiveness, s.linkReader, s.titleFetcher)
+	writeRecencySection(&summaryBuf, &contextBuf, memories[:count], effectiveness)
+
+	// P3: update co_surfacing links for memories surfaced together (REQ-P3-5).
+	if s.linkUpdater != nil && count > 0 {
+		s.updateCoSurfacingLinks(memories[:count])
+	}
+
+	// P3: annotate context with cluster notes from linked memories (REQ-P3-7).
+	if s.linkReader != nil && s.titleFetcher != nil && count > 0 {
+		s.appendClusterNotes(&contextBuf, memories[:count])
+	}
 
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
@@ -616,7 +633,10 @@ func (s *Surfacer) runTool(
 // suppressContradictions runs contradiction detection on candidates and returns a filtered slice
 // with lower-ranked contradicting memories removed. Emits KindContradiction signals for each
 // suppressed memory. Fire-and-forget: errors from detector return candidates unchanged (UC-P1-1).
-func (s *Surfacer) suppressContradictions(ctx context.Context, candidates []*memory.Stored) []*memory.Stored {
+func (s *Surfacer) suppressContradictions(
+	ctx context.Context,
+	candidates []*memory.Stored,
+) []*memory.Stored {
 	if s.contradictionDetector == nil || len(candidates) < 2 {
 		return candidates
 	}
@@ -651,6 +671,59 @@ func (s *Surfacer) suppressContradictions(ctx context.Context, candidates []*mem
 	}
 
 	return filtered
+}
+
+// updateCoSurfacingLinks increments co_surfacing link weights for all pairs in the surfaced set (P3, REQ-P3-5).
+func (s *Surfacer) updateCoSurfacingLinks(memories []*memory.Stored) {
+	const (
+		coSurfacingInitWeight = 0.1
+		coSurfacingIncrement  = 0.1
+		coSurfacingWeightCap  = 1.0
+	)
+
+	for i, mem := range memories {
+		existing, err := s.linkUpdater.GetEntryLinks(mem.FilePath)
+		if err != nil {
+			continue
+		}
+
+		updated := make([]LinkGraphLink, 0, len(existing))
+		updated = append(updated, existing...)
+
+		for j, peer := range memories {
+			if i == j {
+				continue
+			}
+
+			found := false
+
+			for linkIdx, link := range updated {
+				if link.Target == peer.FilePath {
+					updated[linkIdx].CoSurfacingCount++
+					updated[linkIdx].Weight += coSurfacingIncrement
+
+					if updated[linkIdx].Weight > coSurfacingWeightCap {
+						updated[linkIdx].Weight = coSurfacingWeightCap
+					}
+
+					found = true
+
+					break
+				}
+			}
+
+			if !found {
+				updated = append(updated, LinkGraphLink{
+					Target:           peer.FilePath,
+					Weight:           coSurfacingInitWeight,
+					Basis:            "co_surfacing",
+					CoSurfacingCount: 1,
+				})
+			}
+		}
+
+		_ = s.linkUpdater.SetEntryLinks(mem.FilePath, updated)
+	}
 }
 
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
@@ -747,10 +820,6 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
-	clusterNotesMaxLinks             = 2
-	coSurfacingLinkIncrement         = 0.1
-	coSurfacingLinkInitWeight        = 0.1
-	coSurfacingLinkWeightCap         = 1.0
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
@@ -762,8 +831,8 @@ const (
 	promptLimit                      = 10
 	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for new memories
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
-	spreadingActivationFactor        = 0.3
-	toolLimit                        = 2 // REQ-P4e-4: top-2
+	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
+	toolLimit                        = 2    // REQ-P4e-4: top-2
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -776,30 +845,39 @@ type toolMatch struct {
 	mem *memory.Stored
 }
 
-// applySpreadingActivation boosts scores using linked memory weights (P3, REQ-P3-6).
-// total[id] = base[id] + 0.3 * Σ(base[linked] * link.Weight)
+// applySpreadingActivation re-scores memories using the P3 spreading activation formula (REQ-P3-6):
+//
+//	activated[id] = base[id] + 0.3 × Σ(base[linked_id] × link.Weight)
+//
+// Only linked memories in the candidate set contribute to the spread term.
+// Returns a map from FilePath to activated score.
 func applySpreadingActivation(
-	ids []string,
-	baseScores map[string]float64,
-	reader LinkReader,
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+	linkReader LinkReader,
 ) map[string]float64 {
-	activated := make(map[string]float64, len(ids))
+	// Build base score index.
+	base := make(map[string]float64, len(memories))
 
-	for _, id := range ids {
-		activated[id] = baseScores[id]
+	for _, mem := range memories {
+		base[mem.FilePath] = effectivenessScoreFor(mem.FilePath, effectiveness)
 	}
 
-	for _, id := range ids {
-		links, err := reader.GetEntryLinks(id)
-		if err != nil {
-			continue
-		}
+	activated := make(map[string]float64, len(memories))
 
-		for _, link := range links {
-			if linkedBase, ok := baseScores[link.Target]; ok {
-				activated[id] += spreadingActivationFactor * linkedBase * link.Weight
+	for _, mem := range memories {
+		spread := 0.0
+
+		links, err := linkReader.GetEntryLinks(mem.FilePath)
+		if err == nil {
+			for _, link := range links {
+				if linkedBase, ok := base[link.Target]; ok {
+					spread += linkedBase * link.Weight
+				}
 			}
 		}
+
+		activated[mem.FilePath] = base[mem.FilePath] + spreadingActivationDecay*spread
 	}
 
 	return activated
@@ -871,13 +949,17 @@ func filenameSlug(path string) string {
 
 // filterByEffectivenessGate removes memories with sufficient data (>=5 surfacings) and low effectiveness (<=40%).
 // Memories with <5 surfacings or no data are always kept (REQ-P4e-1: insufficient data).
-func filterByEffectivenessGate(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) []*memory.Stored {
+func filterByEffectivenessGate(
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) []*memory.Stored {
 	filtered := make([]*memory.Stored, 0, len(memories))
 
 	for _, mem := range memories {
 		if effectiveness != nil {
 			stat, ok := effectiveness[mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
+				stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -898,7 +980,8 @@ func filterToolMatchesByEffectivenessGate(
 	for _, candidate := range candidates {
 		if effectiveness != nil {
 			stat, ok := effectiveness[candidate.mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
+				stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -907,35 +990,6 @@ func filterToolMatchesByEffectivenessGate(
 	}
 
 	return filtered
-}
-
-// formatClusterNotes returns a formatted string of top-2 linked memory titles (P3, REQ-P3-7).
-func formatClusterNotes(id string, reader LinkReader, fetcher TitleFetcher) string {
-	links, err := reader.GetEntryLinks(id)
-	if err != nil || len(links) == 0 {
-		return ""
-	}
-
-	// Sort by weight descending, take top-2
-	sort.Slice(links, func(i, j int) bool {
-		return links[i].Weight > links[j].Weight
-	})
-
-	maxNotes := min(clusterNotesMaxLinks, len(links))
-
-	var titles []string
-
-	for _, link := range links[:maxNotes] {
-		if title, ok := fetcher.GetTitle(link.Target); ok {
-			titles = append(titles, title)
-		}
-	}
-
-	if len(titles) == 0 {
-		return ""
-	}
-
-	return " [linked: " + strings.Join(titles, ", ") + "]"
 }
 
 // formatEffectivenessAnnotation returns a formatted annotation for a memory path,
@@ -970,29 +1024,6 @@ func formatMemoryLine(slug, principle, level, annotation string) string {
 	default:
 		return fmt.Sprintf("  - %s%s\n", slug, annotation)
 	}
-}
-
-// incrementCoSurfacing finds or creates a co_surfacing link for targetID and increments it.
-func incrementCoSurfacing(links []LinkGraphLink, targetID string) []LinkGraphLink {
-	for i, link := range links {
-		if link.Target == targetID && link.Basis == "co_surfacing" {
-			links[i].Weight += coSurfacingLinkIncrement
-			if links[i].Weight > coSurfacingLinkWeightCap {
-				links[i].Weight = coSurfacingLinkWeightCap
-			}
-
-			links[i].CoSurfacingCount++
-
-			return links
-		}
-	}
-
-	return append(links, LinkGraphLink{
-		Target:           targetID,
-		Weight:           coSurfacingLinkInitWeight,
-		Basis:            "co_surfacing",
-		CoSurfacingCount: 1,
-	})
 }
 
 // isEmphasized reports whether the level should be prioritized in the output.
@@ -1088,9 +1119,19 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	return matches
 }
 
+// sortByActivatedScore sorts memories by activated score descending (REQ-P3-6).
+func sortByActivatedScore(memories []*memory.Stored, scores map[string]float64) {
+	sort.SliceStable(memories, func(i, j int) bool {
+		return scores[memories[i].FilePath] > scores[memories[j].FilePath]
+	})
+}
+
 // sortByEffectivenessScore sorts memories by effectiveness score descending (REQ-P4e-1).
 // Insufficient-data memories use sessionStartDefaultEffectiveness.
-func sortByEffectivenessScore(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) {
+func sortByEffectivenessScore(
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) {
 	sort.SliceStable(memories, func(i, j int) bool {
 		si := effectivenessScoreFor(memories[i].FilePath, effectiveness)
 		sj := effectivenessScoreFor(memories[j].FilePath, effectiveness)
@@ -1126,26 +1167,6 @@ func toFrecencyInput(mem *memory.Stored) frecency.Input {
 	}
 }
 
-// updateCoSurfacingLinks increments co_surfacing weights for all pairs in ids (P3, REQ-P3-5).
-func updateCoSurfacingLinks(ids []string, updater LinkUpdater) {
-	for i, id := range ids {
-		links, err := updater.GetEntryLinks(id)
-		if err != nil {
-			continue
-		}
-
-		for j, other := range ids {
-			if i == j {
-				continue
-			}
-
-			links = incrementCoSurfacing(links, other)
-		}
-
-		_ = updater.SetEntryLinks(id, links)
-	}
-}
-
 // writeCreationSection appends the creation report to summary and context buffers.
 func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []LogEntry) {
 	if len(entries) == 0 {
@@ -1177,8 +1198,6 @@ func writeRecencySection(
 	summaryBuf, contextBuf *strings.Builder,
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
-	reader LinkReader,
-	fetcher TitleFetcher,
 ) {
 	if len(memories) == 0 {
 		return
@@ -1192,13 +1211,7 @@ func writeRecencySection(
 
 	for _, mem := range memories {
 		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
-		notes := ""
-
-		if reader != nil && fetcher != nil {
-			notes = formatClusterNotes(mem.FilePath, reader, fetcher)
-		}
-
-		memLine := fmt.Sprintf("  - %s%s%s\n", filenameSlug(mem.FilePath), annotation, notes)
+		memLine := fmt.Sprintf("  - %s%s\n", filenameSlug(mem.FilePath), annotation)
 		_, _ = fmt.Fprint(summaryBuf, memLine)
 		_, _ = fmt.Fprint(contextBuf, memLine)
 	}
