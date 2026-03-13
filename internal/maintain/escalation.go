@@ -153,7 +153,7 @@ func (e *EscalationEngine) tryDeEscalation(
 		ProposalType:    "de_escalate",
 		CurrentLevel:    string(currentLevel),
 		ProposedLevel:   string(prevLevel),
-		Rationale:       "Post-escalation effectiveness worse than pre-escalation for 3+ cycles",
+		Rationale:       "Post-escalation effectiveness improved vs pre-escalation for 3+ cycles",
 		PredictedImpact: e.predictImpact(prevLevel),
 	}
 }
