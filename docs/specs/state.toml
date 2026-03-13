@@ -1349,3 +1349,52 @@ name = "Memory Graph Implementation"
 parents = ["L4P3"]
 items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
 status = "pending"
+
+# P5f: Re-compute links after merge
+
+[layers.L1.p5f]
+items = ["UC-P5f-1"]
+
+[layers.L2.p5f]
+items = ["REQ-P5f-1", "REQ-P5f-2", "REQ-P5f-3", "REQ-P5f-4", "REQ-P5f-5", "DES-P5f-1", "DES-P5f-2"]
+
+[layers.L3.p5f]
+items = [
+  { id = "ARCH-P5f-1", source = "derived" },
+  { id = "ARCH-P5f-2", source = "derived" },
+  { id = "ARCH-P5f-3", source = "derived" },
+]
+
+[layers.L4.p5f]
+items = ["T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5f-7"]
+
+[tree.L1P5f]
+layer = "L1"
+name = "Re-compute links after merge"
+items = ["UC-P5f-1"]
+status = "complete"
+history = "P5-full issue #95. Extends UC-33. Re-compute concept_overlap + content_similarity links after merge-on-write. Remove absorbed-memory links. Preserve co_surfacing + evaluation_correlation. Commit 3d5e85b."
+
+[tree.L2P5f]
+layer = "L2"
+name = "Re-compute links after merge Requirements"
+parents = ["L1P5f"]
+items = ["REQ-P5f-1", "REQ-P5f-2", "REQ-P5f-3", "REQ-P5f-4", "REQ-P5f-5", "DES-P5f-1", "DES-P5f-2"]
+status = "complete"
+history = "5 REQs + 2 DES items. MergeResult type (REQ-P5f-1/DES-P5f-1), absorbed-link cleanup (REQ-P5f-2), concept_overlap recompute (REQ-P5f-3), content_similarity recompute (REQ-P5f-4), co_surfacing/eval_correlation preservation (REQ-P5f-5), LinkRecomputer interface (DES-P5f-2)."
+
+[tree.L3P5f]
+layer = "L3"
+name = "Re-compute links after merge Architecture"
+parents = ["L2P5f"]
+items = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
+status = "complete"
+history = "3 ARCH decisions: MergeResult + RegistryLinker interface (ARCH-P5f-1), Builder.RecomputeMergeLinks (ARCH-P5f-2), LinkRecomputer in learn (ARCH-P5f-3)."
+
+[tree.L4P5f]
+layer = "L4"
+name = "Re-compute links after merge Tests"
+parents = ["L3P5f"]
+items = ["T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5f-7"]
+status = "complete"
+history = "7 tests passing, targ check-full green. MergeResult fields (T-P5f-1), absorbed-link cleanup (T-P5f-2), concept_overlap recompute (T-P5f-3), content_similarity recompute (T-P5f-4), co_surfacing preserved (T-P5f-5), eval_correlation preserved (T-P5f-6), LinkRecomputer wired (T-P5f-7). Commit 3d5e85b."

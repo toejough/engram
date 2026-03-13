@@ -1653,3 +1653,85 @@ Then: EmitGraduation called with recommendation="skill" (ClassifyContent result,
 | ARCH-P6f-2 | T-P6f-6, T-P6f-7 |
 | ARCH-P6f-3 | T-P6f-8, T-P6f-9, T-P6f-10, T-P6f-11, T-P6f-12, T-P6f-13, T-P6f-14 |
 | ARCH-P6e-1 | T-P6f-15 (REQ-P6f-8 traceability) |
+
+---
+
+## P5f: Re-compute links after merge
+
+### T-P5f-1: MergeResult carries merged memory fields
+
+**Traces to:** ARCH-P5f-1 (REQ-P5f-1)
+
+Given: A merge completed with MergedMemoryID="/path/mem.toml", AbsorbedMemoryID="", MergedTitle="T", MergedContent="C", MergedConceptSet=["x"]
+When: MergeResult struct constructed
+Then: All fields accessible with correct values
+
+---
+
+### T-P5f-2: Absorbed-memory links removed from all entries
+
+**Traces to:** ARCH-P5f-2 (REQ-P5f-2)
+
+Given: Registry with 3 entries; entry A has link to AbsorbedMemoryID; entry B has link to AbsorbedMemoryID; entry C has no such link
+When: RecomputeMergeLinks called with non-empty AbsorbedMemoryID
+Then: UpdateLinks called for A and B with filtered link sets (absorbed link removed); UpdateLinks NOT called for C
+
+---
+
+### T-P5f-3: Concept_overlap links recomputed for merged memory
+
+**Traces to:** ARCH-P5f-2 (REQ-P5f-3)
+
+Given: Registry with merged entry having stale concept_overlap link; other entries present
+When: RecomputeMergeLinks called
+Then: Old concept_overlap link removed; new concept_overlap links computed from merged content; UpdateLinks called with fresh concept_overlap links
+
+---
+
+### T-P5f-4: Content_similarity links recomputed for merged memory
+
+**Traces to:** ARCH-P5f-2 (REQ-P5f-4)
+
+Given: Registry with merged entry having stale content_similarity link; corpus entries present with overlapping text
+When: RecomputeMergeLinks called
+Then: Old content_similarity link removed; new content_similarity links computed from merged principle; result includes fresh content_similarity links
+
+---
+
+### T-P5f-5: co_surfacing links preserved after recomputation
+
+**Traces to:** ARCH-P5f-2 (REQ-P5f-5)
+
+Given: Merged memory entry with co_surfacing link (weight=0.5, CoSurfacingCount=5)
+When: RecomputeMergeLinks called
+Then: UpdateLinks called with co_surfacing link present and unchanged (same weight, same CoSurfacingCount)
+
+---
+
+### T-P5f-6: evaluation_correlation links preserved after recomputation
+
+**Traces to:** ARCH-P5f-2 (REQ-P5f-5)
+
+Given: Merged memory entry with evaluation_correlation link (weight=0.3)
+When: RecomputeMergeLinks called
+Then: UpdateLinks called with evaluation_correlation link present and unchanged (same weight)
+
+---
+
+### T-P5f-7: LinkRecomputer called after processMerge when wired
+
+**Traces to:** ARCH-P5f-3 (REQ-P5f-1 through REQ-P5f-5)
+
+Given: Learner with LinkRecomputer set; merge pair processed; MergeWriter and Absorber wired
+When: processMerge completes
+Then: LinkRecomputer.RecomputeAfterMerge called with MergedMemoryID=existing.FilePath and MergedContent=mergedPrinciple
+
+---
+
+## L4 → ARCH Traceability (P5f)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P5f-1 | T-P5f-1 |
+| ARCH-P5f-2 | T-P5f-2, T-P5f-3, T-P5f-4, T-P5f-5, T-P5f-6 |
+| ARCH-P5f-3 | T-P5f-7 |

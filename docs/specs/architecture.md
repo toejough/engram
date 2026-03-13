@@ -2446,3 +2446,33 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 **Rationale:** DI on IssueCreator makes acceptance testable without `gh`. `graduate-surface` is separate from `signal-surface` to give graduation signals independent framing (lifecycle management vs. one-time maintenance).
 
 - Traces to: REQ-P6f-4, REQ-P6f-5, REQ-P6f-6, REQ-P6f-7, ARCH-7
+
+---
+
+## ARCH-P5f-1: MergeResult type and RegistryLinker interface in internal/graph (P5f)
+
+**Decision:** New file `internal/graph/recompute.go`. `MergeResult` struct: `MergedMemoryID string`, `AbsorbedMemoryID string`, `MergedTitle string`, `MergedContent string`, `MergedConceptSet []string`. `RegistryLinker` interface: `List() ([]registry.InstructionEntry, error)` and `UpdateLinks(id string, links []registry.Link) error`. Pure data; no I/O.
+
+**Rationale:** MergeResult is the natural output of P5-core's merge step and the input to P5-full's link recomputation. Placing it in graph keeps the contract near the algorithm that consumes it. RegistryLinker follows ARCH-7 DI-everywhere pattern.
+
+- Traces to: REQ-P5f-1, ARCH-7
+
+---
+
+## ARCH-P5f-2: Builder.RecomputeMergeLinks in internal/graph (P5f)
+
+**Decision:** `func (b *Builder) RecomputeMergeLinks(result MergeResult, linker RegistryLinker) error` in `internal/graph/recompute.go`. Steps: (1) If AbsorbedMemoryID non-empty, call linker.List(), filter links in all entries, call linker.UpdateLinks per affected entry. (2) Build synthetic InstructionEntry for merged memory (ID=MergedMemoryID, Title=MergedTitle, Content=MergedContent). (3) Get existing links for merged entry from List() result; filter to keep only co_surfacing and evaluation_correlation. (4) Call BuildConceptOverlap + BuildContentSimilarity (excluding MergedMemoryID from corpus). (5) Merge kept + new links; call linker.UpdateLinks for merged entry.
+
+**Rationale:** Pure function — all registry interaction through RegistryLinker. Reuses existing Builder methods for link computation. Single List() call for efficiency.
+
+- Traces to: REQ-P5f-2, REQ-P5f-3, REQ-P5f-4, REQ-P5f-5, ARCH-7
+
+---
+
+## ARCH-P5f-3: LinkRecomputer interface in learn package, optional on Learner (P5f)
+
+**Decision:** `type LinkRecomputer interface { RecomputeAfterMerge(result graph.MergeResult) error }` in `internal/learn/learn.go`. `linkRecomputer LinkRecomputer` optional field; `SetLinkRecomputer(r LinkRecomputer)` setter. In `processMerge`, after all writes complete, build `graph.MergeResult` (MergedMemoryID=existing.FilePath, AbsorbedMemoryID="", MergedTitle=existing.Title, MergedContent=mergedPrinciple, MergedConceptSet=mergedConcepts) and call `l.linkRecomputer.RecomputeAfterMerge(result)`; errors written to stderr only (fire-and-forget).
+
+**Rationale:** Optional interface keeps the learn pipeline backward-compatible. CLI wires concrete adapter that delegates to graph.Builder + registry. Fire-and-forget matches ARCH-6 pattern for secondary updates.
+
+- Traces to: REQ-P5f-1, REQ-P5f-2, REQ-P5f-3, REQ-P5f-4, REQ-P5f-5, ARCH-6, ARCH-7

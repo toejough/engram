@@ -14,6 +14,7 @@ import (
 
 	"engram/internal/creationlog"
 	"engram/internal/dedup"
+	"engram/internal/graph"
 	"engram/internal/memory"
 )
 
@@ -46,6 +47,7 @@ type Learner struct {
 	merger         MemoryMerger     // optional: merge candidates with existing memories (UC-33)
 	mergeWriter    MergeWriter      // optional: write merged memories to disk (UC-33)
 	absorber       RegistryAbsorber // optional: record merges in registry (UC-33)
+	linkRecomputer LinkRecomputer   // optional: re-compute links after merge (P5f)
 	stderr         io.Writer
 }
 
@@ -123,6 +125,11 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 // SetCreationLogger attaches an optional CreationLogger to the Learner.
 func (l *Learner) SetCreationLogger(logger CreationLogger) {
 	l.creationLogger = logger
+}
+
+// SetLinkRecomputer attaches an optional LinkRecomputer to the Learner (P5f).
+func (l *Learner) SetLinkRecomputer(recomputer LinkRecomputer) {
+	l.linkRecomputer = recomputer
 }
 
 // SetMemoryMerger attaches an optional MemoryMerger to the Learner (UC-33).
@@ -208,6 +215,22 @@ func (l *Learner) processMerge(
 		err := l.absorber.RecordAbsorbed(existing.FilePath, candidate.Title, contentHash, now)
 		if err != nil {
 			_, _ = fmt.Fprintf(l.stderr, "learn: absorber: %v\n", err)
+		}
+	}
+
+	// Re-compute links for merged memory (P5f).
+	if l.linkRecomputer != nil {
+		mergeResult := graph.MergeResult{
+			MergedMemoryID:   existing.FilePath,
+			AbsorbedMemoryID: "",
+			MergedTitle:      existing.Title,
+			MergedContent:    mergedPrinciple,
+			MergedConceptSet: mergedConcepts,
+		}
+
+		recomputeErr := l.linkRecomputer.RecomputeAfterMerge(mergeResult)
+		if recomputeErr != nil {
+			_, _ = fmt.Fprintf(l.stderr, "learn: link recompute: %v\n", recomputeErr)
 		}
 	}
 
@@ -304,6 +327,11 @@ func (l *Learner) writeCandidate(
 	}
 
 	return filePath, nil
+}
+
+// LinkRecomputer re-computes concept_overlap and content_similarity links after merge (P5f).
+type LinkRecomputer interface {
+	RecomputeAfterMerge(result graph.MergeResult) error
 }
 
 // MemoryMerger combines principles during merge (UC-33).
