@@ -839,9 +839,31 @@ anti_pattern = ""`
 	g.Expect(outcomes).To(HaveLen(1))
 }
 
+// TestWithEvalLinkUpdater_SetsOption verifies the option applies without error.
+func TestWithEvalLinkUpdater_SetsOption(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	updater := &fakeEvalLinkUpdater{}
+	evaluator := evaluate.New(t.TempDir(), evaluate.WithEvalLinkUpdater(updater))
+
+	g.Expect(evaluator).NotTo(BeNil())
+}
+
 type evalRegistryCall struct {
 	id      string
 	outcome string
+}
+
+// fakeEvalLinkUpdater is a test double for evaluate.EvalLinkUpdater.
+type fakeEvalLinkUpdater struct{}
+
+func (f *fakeEvalLinkUpdater) GetEntryLinks(_ string) ([]evaluate.EvalLink, error) {
+	return nil, nil
+}
+
+func (f *fakeEvalLinkUpdater) SetEntryLinks(_ string, _ []evaluate.EvalLink) error {
+	return nil
 }
 
 // fakeEvalRegistryRecorder is a test double for evaluate.RegistryRecorder.

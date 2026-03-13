@@ -18,121 +18,184 @@ func New() *Builder {
 }
 
 // BuildConceptOverlap computes Jaccard similarity links between a new entry and existing entries.
-// Pairs with Jaccard >= 0.15 produce a concept_overlap link.
-func (b *Builder) BuildConceptOverlap(entry registry.InstructionEntry, existing []registry.InstructionEntry) []registry.Link {
-	var links []registry.Link
+// Pairs with Jaccard >= conceptOverlapMinJaccard produce a concept_overlap link.
+func (b *Builder) BuildConceptOverlap(
+	entry registry.InstructionEntry,
+	existing []registry.InstructionEntry,
+) []registry.Link {
+	links := make([]registry.Link, 0)
 	newTokens := tokenize(entry.Title + " " + entry.Content)
 
-	for _, ex := range existing {
-		if ex.ID == entry.ID {
+	for _, existingEntry := range existing {
+		if existingEntry.ID == entry.ID {
 			continue // No self-links
 		}
-		exTokens := tokenize(ex.Title + " " + ex.Content)
-		jac := jaccard(newTokens, exTokens)
-		if jac >= 0.15 {
+
+		existingTokens := tokenize(existingEntry.Title + " " + existingEntry.Content)
+		jac := jaccard(newTokens, existingTokens)
+
+		if jac >= conceptOverlapMinJaccard {
 			links = append(links, registry.Link{
-				Target: ex.ID,
+				Target: existingEntry.ID,
 				Weight: jac,
 				Basis:  "concept_overlap",
 			})
 		}
 	}
+
 	return links
 }
 
 // BuildContentSimilarity computes BM25 relevance links between a new entry and existing entries.
-// Pairs with BM25 score >= 0.05 (raw) produce a content_similarity link with normalized weight.
-func (b *Builder) BuildContentSimilarity(entry registry.InstructionEntry, existing []registry.InstructionEntry) []registry.Link {
-	var links []registry.Link
+// Pairs with BM25 score >= contentSimilarityMinBM25 produce a content_similarity link.
+func (b *Builder) BuildContentSimilarity(
+	entry registry.InstructionEntry,
+	existing []registry.InstructionEntry,
+) []registry.Link {
+	links := make([]registry.Link, 0)
 
 	// Build BM25 scorer with existing entries as corpus
 	docs := make([]bm25.Document, len(existing))
-	for i, ex := range existing {
+	for i, existingEntry := range existing {
 		docs[i] = bm25.Document{
-			ID:   ex.ID,
-			Text: ex.Title + " " + ex.Content,
+			ID:   existingEntry.ID,
+			Text: existingEntry.Title + " " + existingEntry.Content,
 		}
 	}
-	scorer := bm25.New()
 
+	scorer := bm25.New()
 	query := entry.Title + " " + entry.Content
 	scored := scorer.Score(query, docs)
 
-	for _, sd := range scored {
-		if sd.ID == entry.ID {
+	for _, scoredDoc := range scored {
+		if scoredDoc.ID == entry.ID {
 			continue
 		}
-		if sd.Score >= 0.05 {
-			// Normalize: weight = min(1.0, raw / 5.0)
-			weight := sd.Score / 5.0
+
+		if scoredDoc.Score >= contentSimilarityMinBM25 {
+			// Normalize: weight = min(1.0, raw / contentSimilarityNormDiv)
+			weight := scoredDoc.Score / contentSimilarityNormDiv
 			if weight > 1.0 {
 				weight = 1.0
 			}
+
 			links = append(links, registry.Link{
-				Target: sd.ID,
+				Target: scoredDoc.ID,
 				Weight: weight,
 				Basis:  "content_similarity",
 			})
 		}
 	}
+
 	return links
 }
 
+// Prune removes links with weight < pruneWeightThreshold and CoSurfacingCount >= pruneCoSurfacingMin.
+// Returns a new slice with remaining links.
+func Prune(links []registry.Link) []registry.Link {
+	result := make([]registry.Link, 0, len(links))
+
+	for _, link := range links {
+		if link.Weight < pruneWeightThreshold && link.CoSurfacingCount >= pruneCoSurfacingMin {
+			continue // Prune this link
+		}
+
+		result = append(result, link)
+	}
+
+	return result
+}
+
 // UpdateCoSurfacing updates co_surfacing links for a pair of memory IDs.
-// Increments weight (+0.1, capped at 1.0) and CoSurfacingCount (+1).
+// Increments weight (+coSurfacingIncrement, capped at 1.0) and CoSurfacingCount (+1).
 // Returns the updated links slice.
 func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "co_surfacing" {
-			links[i].Weight += 0.1
+			links[i].Weight += coSurfacingIncrement
 			if links[i].Weight > 1.0 {
 				links[i].Weight = 1.0
 			}
+
 			links[i].CoSurfacingCount++
+
 			return links
 		}
 	}
+
 	// No existing link, create new one
 	return append(links, registry.Link{
 		Target:           targetID,
-		Weight:           0.1,
+		Weight:           coSurfacingIncrement,
 		Basis:            "co_surfacing",
 		CoSurfacingCount: 1,
 	})
 }
 
 // UpdateEvaluationCorrelation updates evaluation_correlation links for a pair.
-// Increments weight (+0.05, capped at 1.0).
+// Increments weight (+evalCorrelationIncrement, capped at 1.0).
 // Returns the updated links slice.
 func UpdateEvaluationCorrelation(links []registry.Link, targetID string) []registry.Link {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "evaluation_correlation" {
-			links[i].Weight += 0.05
+			links[i].Weight += evalCorrelationIncrement
 			if links[i].Weight > 1.0 {
 				links[i].Weight = 1.0
 			}
+
 			return links
 		}
 	}
+
 	// No existing link, create new one
 	return append(links, registry.Link{
 		Target: targetID,
-		Weight: 0.05,
+		Weight: evalCorrelationIncrement,
 		Basis:  "evaluation_correlation",
 	})
 }
 
-// Prune removes links with weight < 0.1 and CoSurfacingCount >= 10.
-// Returns a new slice with remaining links.
-func Prune(links []registry.Link) []registry.Link {
-	var result []registry.Link
-	for _, link := range links {
-		if link.Weight < 0.1 && link.CoSurfacingCount >= 10 {
-			continue // Prune this link
-		}
-		result = append(result, link)
+// unexported constants.
+const (
+	coSurfacingIncrement     = 0.1  // weight increment per co-surfacing event
+	conceptOverlapMinJaccard = 0.15 // minimum Jaccard similarity for concept_overlap links
+	contentSimilarityMinBM25 = 0.05 // minimum BM25 score for content_similarity links
+	contentSimilarityNormDiv = 5.0  // divisor for normalizing BM25 score to [0, 1]
+	evalCorrelationIncrement = 0.05 // weight increment per evaluation correlation
+	pruneCoSurfacingMin      = 10   // minimum co-surfacing count to prune a low-weight link
+	pruneWeightThreshold     = 0.1  // links below this weight are eligible for pruning
+)
+
+// jaccard computes Jaccard similarity: |A∩B| / |A∪B|
+func jaccard(a, b map[string]bool) float64 {
+	if len(a) == 0 && len(b) == 0 {
+		return 0
 	}
-	return result
+
+	intersection := 0
+
+	for key := range a {
+		if b[key] {
+			intersection++
+		}
+	}
+
+	// Union size
+	union := make(map[string]bool)
+
+	for key := range a {
+		union[key] = true
+	}
+
+	for key := range b {
+		union[key] = true
+	}
+
+	if len(union) == 0 {
+		return 0
+	}
+
+	return float64(intersection) / float64(len(union))
 }
 
 // tokenize returns a set of lowercase word tokens from text.
@@ -142,38 +205,12 @@ func tokenize(text string) map[string]bool {
 	parts := re.Split(strings.ToLower(text), -1)
 
 	set := make(map[string]bool)
+
 	for _, part := range parts {
 		if part != "" {
 			set[part] = true
 		}
 	}
+
 	return set
-}
-
-// jaccard computes Jaccard similarity: |A∩B| / |A∪B|
-func jaccard(a, b map[string]bool) float64 {
-	if len(a) == 0 && len(b) == 0 {
-		return 0
-	}
-
-	intersection := 0
-	for key := range a {
-		if b[key] {
-			intersection++
-		}
-	}
-
-	// Union size
-	union := make(map[string]bool)
-	for key := range a {
-		union[key] = true
-	}
-	for key := range b {
-		union[key] = true
-	}
-
-	if len(union) == 0 {
-		return 0
-	}
-	return float64(intersection) / float64(len(union))
 }

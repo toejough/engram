@@ -66,6 +66,25 @@ type InvocationTokenLogger interface {
 	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
 }
 
+// LinkGraphLink represents a typed link in the memory graph (P3).
+type LinkGraphLink struct {
+	Target           string
+	Weight           float64
+	Basis            string
+	CoSurfacingCount int
+}
+
+// LinkReader reads memory graph links for spreading activation and cluster notes (P3).
+type LinkReader interface {
+	GetEntryLinks(id string) ([]LinkGraphLink, error)
+}
+
+// LinkUpdater reads and updates memory graph links (P3: co_surfacing, spreading activation).
+type LinkUpdater interface {
+	GetEntryLinks(id string) ([]LinkGraphLink, error)
+	SetEntryLinks(id string, links []LinkGraphLink) error
+}
+
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -106,30 +125,6 @@ type SignalEmitter interface {
 	Emit(s signal.Signal) error
 }
 
-// LinkGraphLink represents a typed link in the memory graph (P3).
-type LinkGraphLink struct {
-	Target           string
-	Weight           float64
-	Basis            string
-	CoSurfacingCount int
-}
-
-// LinkUpdater reads and updates memory graph links (P3: co_surfacing, spreading activation).
-type LinkUpdater interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-	SetEntryLinks(id string, links []LinkGraphLink) error
-}
-
-// LinkReader reads memory graph links for spreading activation and cluster notes (P3).
-type LinkReader interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-}
-
-// TitleFetcher fetches memory titles for cluster notes (P3).
-type TitleFetcher interface {
-	GetTitle(id string) (string, bool)
-}
-
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
 	retriever             MemoryRetriever
@@ -143,9 +138,9 @@ type Surfacer struct {
 	enforcementReader     EnforcementReader
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
-	linkUpdater           LinkUpdater    // P3: co_surfacing + spreading activation
-	linkReader            LinkReader     // P3: spreading activation + cluster notes
-	titleFetcher          TitleFetcher   // P3: cluster notes
+	linkUpdater           LinkUpdater  //nolint:unused // P3: co_surfacing + spreading activation (wired in P3)
+	linkReader            LinkReader   //nolint:unused // P3: spreading activation + cluster notes (wired in P3)
+	titleFetcher          TitleFetcher //nolint:unused // P3: cluster notes (wired in P3)
 }
 
 // New creates a Surfacer.
@@ -657,6 +652,11 @@ type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
+// TitleFetcher fetches memory titles for cluster notes (P3).
+type TitleFetcher interface {
+	GetTitle(id string) (string, bool)
+}
+
 // WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
 func WithContradictionDetector(d ContradictionDetector) SurfacerOption {
 	return func(s *Surfacer) { s.contradictionDetector = d }
@@ -675,6 +675,16 @@ func WithEnforcementReader(reader EnforcementReader) SurfacerOption {
 // WithInvocationTokenLogger sets the invocation token logger for per-call token tracking (REQ-P4e-5).
 func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
 	return func(s *Surfacer) { s.invocationTokenLogger = logger }
+}
+
+// WithLinkReader sets the link reader for spreading activation and cluster notes (P3, REQ-P3-6, REQ-P3-7).
+func WithLinkReader(reader LinkReader) SurfacerOption {
+	return func(s *Surfacer) { s.linkReader = reader }
+}
+
+// WithLinkUpdater sets the link updater for co_surfacing and spreading activation (P3, REQ-P3-5, REQ-P3-6).
+func WithLinkUpdater(updater LinkUpdater) SurfacerOption {
+	return func(s *Surfacer) { s.linkUpdater = updater }
 }
 
 // WithLogReader sets the creation log reader for session-start mode.
@@ -697,24 +707,14 @@ func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
 	return func(s *Surfacer) { s.surfacingLogger = logger }
 }
 
-// WithTracker sets the memory tracker for surfacing instrumentation.
-func WithTracker(tracker MemoryTracker) SurfacerOption {
-	return func(s *Surfacer) { s.tracker = tracker }
-}
-
-// WithLinkUpdater sets the link updater for co_surfacing and spreading activation (P3, REQ-P3-5, REQ-P3-6).
-func WithLinkUpdater(updater LinkUpdater) SurfacerOption {
-	return func(s *Surfacer) { s.linkUpdater = updater }
-}
-
-// WithLinkReader sets the link reader for spreading activation and cluster notes (P3, REQ-P3-6, REQ-P3-7).
-func WithLinkReader(reader LinkReader) SurfacerOption {
-	return func(s *Surfacer) { s.linkReader = reader }
-}
-
 // WithTitleFetcher sets the title fetcher for cluster notes (P3, REQ-P3-7).
 func WithTitleFetcher(fetcher TitleFetcher) SurfacerOption {
 	return func(s *Surfacer) { s.titleFetcher = fetcher }
+}
+
+// WithTracker sets the memory tracker for surfacing instrumentation.
+func WithTracker(tracker MemoryTracker) SurfacerOption {
+	return func(s *Surfacer) { s.tracker = tracker }
 }
 
 // unexported constants.

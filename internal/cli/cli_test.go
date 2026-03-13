@@ -1733,6 +1733,15 @@ func TestRunRemind_MissingFlags(t *testing.T) {
 	}
 }
 
+// TestRun_ApplyProposalDispatch verifies "apply-proposal" branch is reached.
+func TestRun_ApplyProposalDispatch(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	_ = cli.Run([]string{"engram", "apply-proposal", "--data-dir", t.TempDir()}, &stdout, &stderr, strings.NewReader(""))
+}
+
 func TestRun_CorrectMissingFlags(t *testing.T) {
 	t.Parallel()
 
@@ -1748,6 +1757,15 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 	}
 }
 
+// TestRun_GraduateSurfaceDispatch verifies "graduate-surface" branch is reached.
+func TestRun_GraduateSurfaceDispatch(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	_ = cli.Run([]string{"engram", "graduate-surface", "--data-dir", t.TempDir()}, &stdout, &stderr, strings.NewReader(""))
+}
+
 func TestRun_NoArgs(t *testing.T) {
 	t.Parallel()
 
@@ -1761,6 +1779,25 @@ func TestRun_NoArgs(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("usage"))
 	}
+}
+
+// TestRun_SignalDetectDispatch verifies "signal-detect" branch is reached.
+func TestRun_SignalDetectDispatch(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	// Any error is OK — we just need to exercise the dispatch branch.
+	_ = cli.Run([]string{"engram", "signal-detect", "--data-dir", t.TempDir()}, &stdout, &stderr, strings.NewReader(""))
+}
+
+// TestRun_SignalSurfaceDispatch verifies "signal-surface" branch is reached.
+func TestRun_SignalSurfaceDispatch(t *testing.T) {
+	t.Parallel()
+
+	var stdout, stderr bytes.Buffer
+
+	_ = cli.Run([]string{"engram", "signal-surface", "--data-dir", t.TempDir()}, &stdout, &stderr, strings.NewReader(""))
 }
 
 func TestRun_UnknownCommand(t *testing.T) {

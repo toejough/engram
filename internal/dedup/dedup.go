@@ -8,25 +8,18 @@ import (
 	"engram/internal/memory"
 )
 
+// ClassifyResult holds the results of dedup classification (UC-33).
+type ClassifyResult struct {
+	Surviving  []memory.CandidateLearning // candidates to create as new memories
+	MergePairs []MergePair                // candidate-existing pairs to merge
+}
+
 // KeywordDeduplicator filters candidates by keyword overlap against existing memories.
 type KeywordDeduplicator struct{}
 
 // New returns a new KeywordDeduplicator.
 func New() *KeywordDeduplicator {
 	return &KeywordDeduplicator{}
-}
-
-// Merge Pair pairs a candidate learning with an existing memory for merge (UC-33).
-// (Capitalized as a public type for use across packages.)
-type MergePair struct {
-	Candidate memory.CandidateLearning
-	Existing  *memory.Stored
-}
-
-// ClassifyResult holds the results of dedup classification (UC-33).
-type ClassifyResult struct {
-	Surviving  []memory.CandidateLearning // candidates to create as new memories
-	MergePairs []MergePair                // candidate-existing pairs to merge
 }
 
 // Classify partitions candidates into survivors (new memories) and merge pairs (UC-33).
@@ -71,10 +64,40 @@ func (d *KeywordDeduplicator) Filter(
 	return result
 }
 
+// MergePair pairs a candidate learning with an existing memory for merge (UC-33).
+type MergePair struct {
+	Candidate memory.CandidateLearning
+	Existing  *memory.Stored
+}
+
 // unexported constants.
 const (
 	overlapThreshold = 0.5
 )
+
+// findMergeMatch returns the first existing memory with >50% keyword overlap with the candidate.
+// Returns nil if no match found.
+func findMergeMatch(candidate memory.CandidateLearning, existing []*memory.Stored) *memory.Stored {
+	candidateKeys := keywordSet(candidate.Keywords)
+	if len(candidateKeys) == 0 {
+		return nil // empty keywords never merge
+	}
+
+	for _, stored := range existing {
+		if stored == nil {
+			continue
+		}
+
+		storedKeys := keywordSet(stored.Keywords)
+		overlap := intersectionSize(candidateKeys, storedKeys)
+
+		if float64(overlap)/float64(len(candidateKeys)) > overlapThreshold {
+			return stored
+		}
+	}
+
+	return nil
+}
 
 func intersectionSize(a, b map[string]struct{}) int {
 	count := 0
@@ -117,28 +140,4 @@ func keywordSet(keywords []string) map[string]struct{} {
 	}
 
 	return set
-}
-
-// findMergeMatch returns the first existing memory with >50% keyword overlap with the candidate.
-// Returns nil if no match found.
-func findMergeMatch(candidate memory.CandidateLearning, existing []*memory.Stored) *memory.Stored {
-	candidateKeys := keywordSet(candidate.Keywords)
-	if len(candidateKeys) == 0 {
-		return nil // empty keywords never merge
-	}
-
-	for _, stored := range existing {
-		if stored == nil {
-			continue
-		}
-
-		storedKeys := keywordSet(stored.Keywords)
-		overlap := intersectionSize(candidateKeys, storedKeys)
-
-		if float64(overlap)/float64(len(candidateKeys)) > overlapThreshold {
-			return stored
-		}
-	}
-
-	return nil
 }

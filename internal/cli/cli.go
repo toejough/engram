@@ -115,7 +115,7 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
 //
-//nolint:cyclop // CLI dispatch switch
+//nolint:cyclop,funlen // CLI dispatch switch grows with each new subcommand
 func Run(
 	args []string,
 	stdout, stderr io.Writer,
@@ -157,6 +157,10 @@ func Run(
 		return runSignalSurface(subArgs, stdout)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
+	case "graduate":
+		return runGraduateCommand(subArgs, stdout)
+	case "graduate-surface":
+		return runGraduateSurface(subArgs, stdout)
 	case "demote":
 		return runDemote(subArgs, stdout, stdin)
 	case "registry":
@@ -670,7 +674,7 @@ func RunReview(args []string, stdout io.Writer, opts ...regpkg.JSONLOption) erro
 	classifications := classifyEntries(entries)
 
 	switch *format {
-	case "json":
+	case formatJSON:
 		//nolint:wrapcheck // thin JSON encoding at CLI boundary
 		return json.NewEncoder(stdout).Encode(classifications)
 	default:
@@ -689,6 +693,7 @@ const (
 		"Do NOT include discovered constraints or patterns (those are captured as memories)."
 	defaultPromoteThreshold      = 50
 	evaluateMaxTokens            = 1024
+	formatJSON                   = "json"
 	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
 	maxTitleLength               = 38

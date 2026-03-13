@@ -2,7 +2,7 @@ package learn
 
 import (
 	"crypto/sha256"
-	"fmt"
+	"encoding/hex"
 	"strings"
 	"time"
 )
@@ -22,5 +22,6 @@ func (f RegistryAbsorberFunc) RecordAbsorbed(
 func ComputeContentHash(keywords []string) string {
 	joined := strings.Join(keywords, ",")
 	hash := sha256.Sum256([]byte(joined))
-	return fmt.Sprintf("%x", hash)[:16] // Use first 16 chars of hex
+
+	return hex.EncodeToString(hash[:])[:16] // Use first 16 chars of hex
 }
