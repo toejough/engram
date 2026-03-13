@@ -407,7 +407,7 @@ func runSignalSurface(args []string, stdout io.Writer) error {
 		return nil
 	}
 
-	if *format == "json" {
+	if *format == formatJSON {
 		type jsonOutput struct {
 			Summary string `json:"summary"`
 			Context string `json:"context"`

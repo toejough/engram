@@ -127,19 +127,19 @@ func (e *EscalationEngine) tryDeEscalation(
 		return false, EscalationProposal{}
 	}
 
-	// Check last deEscalationCycles entries: all must show post < pre.
+	// Check last deEscalationCycles entries: all must show post >= pre (REQ-P6f-9).
 	tail := history[len(history)-deEscalationCycles:]
-	allWorse := true
+	allImproved := true
 
 	for idx := range tail {
-		if tail[idx].Effectiveness >= preEff {
-			allWorse = false
+		if tail[idx].Effectiveness < preEff {
+			allImproved = false
 
 			break
 		}
 	}
 
-	if !allWorse {
+	if !allImproved {
 		return false, EscalationProposal{}
 	}
 
@@ -153,7 +153,7 @@ func (e *EscalationEngine) tryDeEscalation(
 		ProposalType:    "de_escalate",
 		CurrentLevel:    string(currentLevel),
 		ProposedLevel:   string(prevLevel),
-		Rationale:       "Post-escalation effectiveness worse than pre-escalation for 3+ cycles",
+		Rationale:       "Post-escalation effectiveness improved vs pre-escalation for 3+ cycles",
 		PredictedImpact: e.predictImpact(prevLevel),
 	}
 }

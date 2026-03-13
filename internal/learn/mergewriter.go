@@ -10,10 +10,10 @@ import (
 	"engram/internal/memory"
 )
 
-// JSONMergeWriter writes merged memories to JSON files (UC-33, placeholder).
+// JSONMergeWriter writes merged memories as JSON (for testing).
 type JSONMergeWriter struct{}
 
-// UpdateMerged implements MergeWriter by serializing merged fields as JSON.
+// UpdateMerged writes the merged memory fields to disk as JSON.
 func (w *JSONMergeWriter) UpdateMerged(
 	existing *memory.Stored,
 	principle string,
@@ -33,7 +33,7 @@ func (w *JSONMergeWriter) UpdateMerged(
 		return fmt.Errorf("marshaling merged memory: %w", err)
 	}
 
-	err = os.WriteFile(existing.FilePath, jsonBytes, mergeFileMode)
+	err = os.WriteFile(existing.FilePath, jsonBytes, mergedFileMode)
 	if err != nil {
 		return fmt.Errorf("writing merged memory file: %w", err)
 	}
@@ -62,6 +62,7 @@ func (w *TOMLMergeWriter) UpdateMerged(
 
 	fmt.Fprintf(&content, "principle = %q\n", principle)
 	fmt.Fprintf(&content, "updated_at = %q\n", now.Format(time.RFC3339))
+
 	content.WriteString("keywords = [")
 
 	for i, k := range keywords {
@@ -85,9 +86,9 @@ func (w *TOMLMergeWriter) UpdateMerged(
 
 	content.WriteString("]\n")
 
-	err = os.WriteFile(existing.FilePath, []byte(content.String()), mergeFileMode)
-	if err != nil {
-		return fmt.Errorf("writing merged memory: %w", err)
+	writeErr := os.WriteFile(existing.FilePath, []byte(content.String()), mergedFileMode)
+	if writeErr != nil {
+		return fmt.Errorf("writing merged memory: %w", writeErr)
 	}
 
 	return nil
@@ -95,5 +96,5 @@ func (w *TOMLMergeWriter) UpdateMerged(
 
 // unexported constants.
 const (
-	mergeFileMode = 0o600
+	mergedFileMode = 0o600
 )

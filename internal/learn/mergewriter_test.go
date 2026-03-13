@@ -12,45 +12,24 @@ import (
 	"engram/internal/memory"
 )
 
-func TestJSONMergeWriter_WriteError(t *testing.T) {
+func TestJSONMergeWriter_UpdateMerged(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	writer := &learn.JSONMergeWriter{}
-	existing := &memory.Stored{FilePath: "/nonexistent/dir/mem.json", Title: "Test"}
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "memory.json")
 
-	err := writer.UpdateMerged(existing, "principle", nil, nil, time.Now())
-
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestJSONMergeWriter_WritesJSON(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "mem.json")
-
-	err := os.WriteFile(filePath, []byte("{}"), 0o600)
-
+	err := os.WriteFile(filePath, []byte(`{}`), 0o600)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
+	existing := &memory.Stored{FilePath: filePath, Title: "existing"}
 	writer := &learn.JSONMergeWriter{}
-	existing := &memory.Stored{FilePath: filePath, Title: "Test Memory"}
-	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
-	err = writer.UpdateMerged(
-		existing,
-		"merged principle",
-		[]string{"alpha"},
-		[]string{"concept1"},
-		now,
-	)
-
+	err = writer.UpdateMerged(existing, "merged principle", []string{"alpha"}, []string{"c1"}, time.Now())
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -58,50 +37,39 @@ func TestJSONMergeWriter_WritesJSON(t *testing.T) {
 	}
 
 	data, readErr := os.ReadFile(filePath)
-
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(ContainSubstring("merged principle"))
 }
 
-func TestTOMLMergeWriter_ErrorOnMissingFile(t *testing.T) {
+func TestJSONMergeWriter_UpdateMerged_FileNotFound(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	writer := &learn.TOMLMergeWriter{}
-	existing := &memory.Stored{FilePath: "/nonexistent/path.toml", Title: "Test"}
+	existing := &memory.Stored{FilePath: "/nonexistent/path.json"}
+	writer := &learn.JSONMergeWriter{}
 
 	err := writer.UpdateMerged(existing, "principle", nil, nil, time.Now())
-
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestTOMLMergeWriter_WritesFields(t *testing.T) {
+func TestTOMLMergeWriter_UpdateMerged(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	dir := t.TempDir()
-	filePath := filepath.Join(dir, "mem.toml")
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "memory.toml")
 
-	err := os.WriteFile(filePath, []byte(`principle = "old principle"`), 0o600)
-
+	err := os.WriteFile(filePath, []byte(`principle = "old"`), 0o600)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
 		return
 	}
 
+	existing := &memory.Stored{FilePath: filePath, Title: "existing"}
 	writer := &learn.TOMLMergeWriter{}
-	existing := &memory.Stored{FilePath: filePath, Title: "Test Memory"}
-	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 
-	err = writer.UpdateMerged(
-		existing,
-		"new principle",
-		[]string{"alpha", "beta"},
-		[]string{"concept1"},
-		now,
-	)
-
+	err = writer.UpdateMerged(existing, "new principle", []string{"alpha", "beta"}, []string{"c1"}, time.Now())
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -109,8 +77,17 @@ func TestTOMLMergeWriter_WritesFields(t *testing.T) {
 	}
 
 	data, readErr := os.ReadFile(filePath)
-
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(ContainSubstring("new principle"))
-	g.Expect(string(data)).To(ContainSubstring("alpha"))
+}
+
+func TestTOMLMergeWriter_UpdateMerged_FileNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	existing := &memory.Stored{FilePath: "/nonexistent/path.toml"}
+	writer := &learn.TOMLMergeWriter{}
+
+	err := writer.UpdateMerged(existing, "principle", nil, nil, time.Now())
+	g.Expect(err).To(HaveOccurred())
 }

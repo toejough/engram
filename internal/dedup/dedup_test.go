@@ -9,6 +9,58 @@ import (
 	"engram/internal/memory"
 )
 
+func TestClassify_NilStoredEntriesSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	// nil entry in existing slice should be skipped without panic
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{"alpha", "beta", "gamma"}},
+	}
+	existing := []*memory.Stored{nil, {Title: "valid", Keywords: []string{"alpha", "beta", "gamma"}}}
+
+	result := d.Classify(candidates, existing)
+
+	g.Expect(result.MergePairs).To(HaveLen(1))
+}
+
+func TestFilter_EmptyKeywordsPassThrough(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{}},
+	}
+	existing := []*memory.Stored{
+		{Title: "existing", Keywords: []string{"alpha", "beta"}},
+	}
+
+	result := d.Filter(candidates, existing)
+
+	g.Expect(result).To(HaveLen(1))
+}
+
+func TestFilter_NilStoredEntriesSkipped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	d := dedup.New()
+
+	// nil entry in existing slice should be skipped without panic
+	candidates := []memory.CandidateLearning{
+		{Title: "candidate", Keywords: []string{"alpha", "beta", "gamma"}},
+	}
+	existing := []*memory.Stored{nil, {Title: "valid", Keywords: []string{"alpha", "beta", "gamma"}}}
+
+	result := d.Filter(candidates, existing)
+
+	g.Expect(result).To(BeEmpty())
+}
+
 func TestT52_HighOverlapFiltersCandidate(t *testing.T) {
 	t.Parallel()
 
