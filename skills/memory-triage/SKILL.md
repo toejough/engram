@@ -1,16 +1,16 @@
 ---
-name: session-start
+name: memory-triage
 description: |
-  This skill is triggered automatically by the engram SessionStart hook.
-  Use when you see "[engram]" system messages containing pending maintenance
-  signals, graduation candidates, or memory management recommendations.
-  Also use when the user asks about "memory management", "engram signals",
-  "graduation", "memory maintenance", or "pending recommendations".
+  Use when the user asks about "memory management", "engram signals",
+  "graduation", "memory maintenance", "pending recommendations", "triage
+  memories", or "clean up memories". Provides formatting rules and commands
+  for reviewing and acting on engram maintenance signals and graduation
+  candidates.
 ---
 
-# Engram Session Start: Memory Management
+# Engram Memory Triage
 
-When engram surfaces memory management data at session start, you MUST present it to the user before proceeding with any other task. Do not skip this step.
+Review and act on engram maintenance signals and graduation candidates. This skill covers the presentation format and available commands for memory triage.
 
 ## What Gets Surfaced
 

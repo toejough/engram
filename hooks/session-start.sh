@@ -89,7 +89,20 @@ if [[ "$SIGNAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
         if [[ -n "$PARTS" ]]; then PARTS="$PARTS and "; fi
         PARTS="${PARTS}${GRAD_COUNT} graduation candidates"
     fi
-    DIRECTIVE="[engram] ACTION REQUIRED: You have ${PARTS} pending. Present these memory management recommendations to the user BEFORE doing anything else. Use the session-start skill for formatting guidance."
+    DIRECTIVE="[engram] ACTION REQUIRED: You have ${PARTS} pending. Present these memory management recommendations to the user BEFORE doing anything else.
+
+PRESENTATION RULES:
+- Group and summarize. Do NOT dump raw signal data.
+- Noise removal: group by theme, state count per group, give 2-3 examples, recommend bulk removal.
+- Hidden gems: list each with current keywords and a suggestion for broader keywords.
+- Graduation candidates: identify duplicates first, group by destination (skill, CLAUDE.md, rules), state the principle and recommended destination.
+- Wait for user decision before acting. Valid responses: remove noise, promote, broaden keywords, or deal with later.
+
+COMMANDS FOR EXECUTING DECISIONS:
+- Remove: engram maintain remove --id <memory-id> --data-dir ~/.claude/engram/data
+- Broaden keywords: edit the memory .toml file to add keywords
+- Graduate accept: engram graduate accept --id <id> --data-dir ~/.claude/engram/data
+- Graduate dismiss: engram graduate dismiss --id <id> --data-dir ~/.claude/engram/data"
 fi
 
 # Assemble output
