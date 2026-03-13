@@ -127,19 +127,19 @@ func (e *EscalationEngine) tryDeEscalation(
 		return false, EscalationProposal{}
 	}
 
-	// Check last deEscalationCycles entries: all must show post < pre.
+	// Check last deEscalationCycles entries: all must show post >= pre (REQ-P6f-9).
 	tail := history[len(history)-deEscalationCycles:]
-	allWorse := true
+	allImproved := true
 
 	for idx := range tail {
-		if tail[idx].Effectiveness >= preEff {
-			allWorse = false
+		if tail[idx].Effectiveness < preEff {
+			allImproved = false
 
 			break
 		}
 	}
 
-	if !allWorse {
+	if !allImproved {
 		return false, EscalationProposal{}
 	}
 

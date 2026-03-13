@@ -48,6 +48,55 @@ func TestDeEscalation_AtBottomOfLadder(t *testing.T) {
 	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
 }
 
+// TestDeEscalation_FromGraduated verifies de-escalation from graduated to emphasized_advisory
+// when all tail entries show improvement (REQ-P6f-9).
+func TestDeEscalation_FromGraduated(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	engine := maintain.NewEscalationEngine(nil, fixedNow)
+
+	now := fixedNow()
+
+	leeches := []maintain.EscalationMemory{
+		{
+			Path:            "mem-graduated",
+			Content:         "use descriptive names",
+			EscalationLevel: maintain.LevelGraduated,
+			Effectiveness:   0.80,
+			EscalationHistory: []maintain.EscalationHistoryEntry{
+				{Level: maintain.LevelReminder, Since: now.AddDate(0, -9, 0), Effectiveness: 0.30},
+				{
+					Level:         maintain.LevelGraduated,
+					Since:         now.AddDate(0, -3, 0),
+					Effectiveness: 0.50, // >= 0.30: improved
+				},
+				{
+					Level:         maintain.LevelGraduated,
+					Since:         now.AddDate(0, -2, 0),
+					Effectiveness: 0.70, // >= 0.30: improved
+				},
+				{
+					Level:         maintain.LevelGraduated,
+					Since:         now.AddDate(0, -1, 0),
+					Effectiveness: 0.80, // >= 0.30: improved
+				},
+			},
+		},
+	}
+
+	proposals, err := engine.Analyze(leeches)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].ProposalType).To(gomega.Equal("de_escalate"))
+	g.Expect(proposals[0].ProposedLevel).To(gomega.Equal("reminder"))
+}
+
 // TestDeEscalation_HistoryTooShort verifies no de-escalation with insufficient history.
 func TestDeEscalation_HistoryTooShort(t *testing.T) {
 	t.Parallel()
@@ -85,9 +134,9 @@ func TestDeEscalation_HistoryTooShort(t *testing.T) {
 	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
 }
 
-// TestDeEscalation_TailNotAllWorse verifies no de-escalation when recent
-// effectiveness is not consistently worse than pre-escalation.
-func TestDeEscalation_TailNotAllWorse(t *testing.T) {
+// TestDeEscalation_TailNotAllImproved verifies no de-escalation when recent
+// effectiveness is not consistently >= pre-escalation (REQ-P6f-9).
+func TestDeEscalation_TailNotAllImproved(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -106,7 +155,7 @@ func TestDeEscalation_TailNotAllWorse(t *testing.T) {
 				{
 					Level:         maintain.LevelEmphasizedAdvisory,
 					Since:         now.AddDate(0, -3, 0),
-					Effectiveness: 0.15,
+					Effectiveness: 0.15, // worse than pre (0.20) → not all improved
 				},
 				{
 					Level:         maintain.LevelEmphasizedAdvisory,
@@ -129,10 +178,50 @@ func TestDeEscalation_TailNotAllWorse(t *testing.T) {
 		return
 	}
 
-	// Not all tail entries worse than pre-eff (0.20) — 0.25 >= 0.20.
-	// Should escalate instead.
+	// Not all tail entries >= pre-eff (0.20); 0.15 and 0.12 are below.
+	// Should escalate instead (effectiveness still low).
 	g.Expect(proposals).To(gomega.HaveLen(1))
 	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
+}
+
+// TestDeEscalation_UnknownLevel verifies no de-escalation when the level is not in the ladder.
+// Exercises the prevEscalationLevel "not found" return path.
+func TestDeEscalation_UnknownLevel(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	engine := maintain.NewEscalationEngine(nil, fixedNow)
+
+	now := fixedNow()
+
+	// "custom_level" is not in the escalation ladder; prevEscalationLevel returns "", false.
+	const unknownLevel maintain.EscalationLevel = "custom_level"
+
+	leeches := []maintain.EscalationMemory{
+		{
+			Path:            "mem-unknown",
+			Content:         "use descriptive names",
+			EscalationLevel: unknownLevel,
+			Effectiveness:   0.80,
+			EscalationHistory: []maintain.EscalationHistoryEntry{
+				{Level: maintain.LevelReminder, Since: now.AddDate(0, -9, 0), Effectiveness: 0.30},
+				{Level: unknownLevel, Since: now.AddDate(0, -3, 0), Effectiveness: 0.50},
+				{Level: unknownLevel, Since: now.AddDate(0, -2, 0), Effectiveness: 0.60},
+				{Level: unknownLevel, Since: now.AddDate(0, -1, 0), Effectiveness: 0.70},
+			},
+		},
+	}
+
+	proposals, err := engine.Analyze(leeches)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// prevEscalationLevel("custom_level") returns "", false → no de-escalation.
+	// nextEscalationLevel("custom_level") also returns "", false → no escalation.
+	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
 // TestEscalation_AtTopOfLadder verifies no escalation at the top level.
@@ -162,7 +251,8 @@ func TestEscalation_AtTopOfLadder(t *testing.T) {
 	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
-// T-226: De-escalation when post-escalation effectiveness drops.
+// T-226: De-escalation when post-escalation effectiveness improves (REQ-P6f-9).
+// De-escalate when all tail entries show effectiveness >= pre-escalation baseline.
 func TestEscalation_DeEscalation(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -176,23 +266,23 @@ func TestEscalation_DeEscalation(t *testing.T) {
 			Path:            "mem-3",
 			Content:         "use descriptive names",
 			EscalationLevel: maintain.LevelEmphasizedAdvisory,
-			Effectiveness:   0.15,
+			Effectiveness:   0.30,
 			EscalationHistory: []maintain.EscalationHistoryEntry{
 				{Level: maintain.LevelAdvisory, Since: now.AddDate(0, -6, 0), Effectiveness: 0.20},
 				{
 					Level:         maintain.LevelEmphasizedAdvisory,
 					Since:         now.AddDate(0, -3, 0),
-					Effectiveness: 0.15,
+					Effectiveness: 0.22, // >= 0.20 (pre): improved
 				},
 				{
 					Level:         maintain.LevelEmphasizedAdvisory,
 					Since:         now.AddDate(0, -2, 0),
-					Effectiveness: 0.18,
+					Effectiveness: 0.25, // >= 0.20: improved
 				},
 				{
 					Level:         maintain.LevelEmphasizedAdvisory,
 					Since:         now.AddDate(0, -1, 0),
-					Effectiveness: 0.12,
+					Effectiveness: 0.30, // >= 0.20: improved
 				},
 			},
 		},
