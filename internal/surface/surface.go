@@ -541,6 +541,12 @@ func (s *Surfacer) runSessionStart(
 	// REQ-P4e-1: rank by effectiveness descending; insufficient-data memories use default score.
 	sortByEffectivenessScore(memories, effectiveness)
 
+	// REQ-P3-6: re-rank using spreading activation if link reader is available.
+	if s.linkReader != nil {
+		activated := applySpreadingActivation(memories, effectiveness, s.linkReader)
+		sortByActivatedScore(memories, activated)
+	}
+
 	// REQ-P4e-2: take top-7.
 	count := len(memories)
 	if count > sessionStartLimit {
@@ -825,6 +831,7 @@ const (
 	promptLimit                      = 10
 	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for new memories
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
+	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
 	toolLimit                        = 2    // REQ-P4e-4: top-2
 )
 
@@ -836,6 +843,44 @@ type promptMatch struct {
 // toolMatch holds a memory for tool mode.
 type toolMatch struct {
 	mem *memory.Stored
+}
+
+// applySpreadingActivation re-scores memories using the P3 spreading activation formula (REQ-P3-6):
+//
+//	activated[id] = base[id] + 0.3 × Σ(base[linked_id] × link.Weight)
+//
+// Only linked memories in the candidate set contribute to the spread term.
+// Returns a map from FilePath to activated score.
+func applySpreadingActivation(
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+	linkReader LinkReader,
+) map[string]float64 {
+	// Build base score index.
+	base := make(map[string]float64, len(memories))
+
+	for _, mem := range memories {
+		base[mem.FilePath] = effectivenessScoreFor(mem.FilePath, effectiveness)
+	}
+
+	activated := make(map[string]float64, len(memories))
+
+	for _, mem := range memories {
+		spread := 0.0
+
+		links, err := linkReader.GetEntryLinks(mem.FilePath)
+		if err == nil {
+			for _, link := range links {
+				if linkedBase, ok := base[link.Target]; ok {
+					spread += linkedBase * link.Weight
+				}
+			}
+		}
+
+		activated[mem.FilePath] = base[mem.FilePath] + spreadingActivationDecay*spread
+	}
+
+	return activated
 }
 
 // concatenatePromptFields builds searchable text for prompt mode.
@@ -1072,6 +1117,13 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	}
 
 	return matches
+}
+
+// sortByActivatedScore sorts memories by activated score descending (REQ-P3-6).
+func sortByActivatedScore(memories []*memory.Stored, scores map[string]float64) {
+	sort.SliceStable(memories, func(i, j int) bool {
+		return scores[memories[i].FilePath] > scores[memories[j].FilePath]
+	})
 }
 
 // sortByEffectivenessScore sorts memories by effectiveness score descending (REQ-P4e-1).
