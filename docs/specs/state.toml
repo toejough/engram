@@ -1372,15 +1372,15 @@ items = ["T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5
 layer = "L1"
 name = "Re-compute links after merge"
 items = ["UC-P5f-1"]
-status = "in_progress"
-history = "P5-full issue #95. Extends UC-33. Re-compute concept_overlap + content_similarity links after merge-on-write. Remove absorbed-memory links. Preserve co_surfacing + evaluation_correlation."
+status = "complete"
+history = "P5-full issue #95. Extends UC-33. Re-compute concept_overlap + content_similarity links after merge-on-write. Remove absorbed-memory links. Preserve co_surfacing + evaluation_correlation. Commit 3d5e85b."
 
 [tree.L2P5f]
 layer = "L2"
 name = "Re-compute links after merge Requirements"
 parents = ["L1P5f"]
 items = ["REQ-P5f-1", "REQ-P5f-2", "REQ-P5f-3", "REQ-P5f-4", "REQ-P5f-5", "DES-P5f-1", "DES-P5f-2"]
-status = "in_progress"
+status = "complete"
 history = "5 REQs + 2 DES items. MergeResult type (REQ-P5f-1/DES-P5f-1), absorbed-link cleanup (REQ-P5f-2), concept_overlap recompute (REQ-P5f-3), content_similarity recompute (REQ-P5f-4), co_surfacing/eval_correlation preservation (REQ-P5f-5), LinkRecomputer interface (DES-P5f-2)."
 
 [tree.L3P5f]
@@ -1388,7 +1388,7 @@ layer = "L3"
 name = "Re-compute links after merge Architecture"
 parents = ["L2P5f"]
 items = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
-status = "in_progress"
+status = "complete"
 history = "3 ARCH decisions: MergeResult + RegistryLinker interface (ARCH-P5f-1), Builder.RecomputeMergeLinks (ARCH-P5f-2), LinkRecomputer in learn (ARCH-P5f-3)."
 
 [tree.L4P5f]
@@ -1396,5 +1396,5 @@ layer = "L4"
 name = "Re-compute links after merge Tests"
 parents = ["L3P5f"]
 items = ["T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5f-7"]
-status = "in_progress"
-history = "7 tests: MergeResult fields (T-P5f-1), absorbed-link cleanup (T-P5f-2), concept_overlap recompute (T-P5f-3), content_similarity recompute (T-P5f-4), co_surfacing preserved (T-P5f-5), eval_correlation preserved (T-P5f-6), LinkRecomputer wired (T-P5f-7)."
+status = "complete"
+history = "7 tests passing, targ check-full green. MergeResult fields (T-P5f-1), absorbed-link cleanup (T-P5f-2), concept_overlap recompute (T-P5f-3), content_similarity recompute (T-P5f-4), co_surfacing preserved (T-P5f-5), eval_correlation preserved (T-P5f-6), LinkRecomputer wired (T-P5f-7). Commit 3d5e85b."
