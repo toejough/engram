@@ -3338,3 +3338,69 @@ co_surfacing and evaluation_correlation links on the merged memory must never be
 ### DES-P5f-2: LinkRecomputer interface in learn package, wired after processMerge (P5f)
 
 `learn.LinkRecomputer` interface: `RecomputeAfterMerge(result graph.MergeResult) error`. Optional field on `Learner` set via `SetLinkRecomputer`. Called at end of `processMerge`; errors logged to stderr, not propagated (fire-and-forget).
+
+---
+
+## REQ-P4f-1: Cluster dedup suppresses lower-effectiveness linked pair member (P4f)
+
+When two or more memories that are graph-linked (via P3 link graph) would both appear in the final surfaced set, keep the member with the highest effectiveness score and suppress the rest. Suppression applies after the top-N count limit and contradiction suppression. Each suppressed memory emits a `SuppressionEvent` with `reason: "cluster_dedup"` and `suppressed_by: <winner path>`.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) For each linked pair in the final surfaced set, only the higher-effectiveness member remains. (2) Suppression event logged with reason "cluster_dedup". (3) When linkReader is nil, no dedup performed. (4) Applies in session-start mode.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-1: suppressClusterDuplicates pure function
+
+`suppressClusterDuplicates(candidates []*memory.Stored, effectiveness map[string]EffectivenessStat, linkReader LinkReader) ([]*memory.Stored, []SuppressionEvent)` — pure function. Builds inSet map, iterates candidates, fetches links, for each link whose target is also in the set, suppresses the lower-effectiveness member. Returns filtered slice + events.
+
+---
+
+## REQ-P4f-2: Cross-source suppression skips memories covered by external source (P4f)
+
+If a memory is covered by CLAUDE.md, a rule file, or a skill (via CrossRefChecker), skip it during surfacing. Each suppressed memory emits a `SuppressionEvent` with `reason: "cross_source"` and `suppressed_by: <source name>`. Applies in session-start and prompt modes. Fire-and-forget: CrossRefChecker errors leave memory unsuppressed.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) CrossRefChecker.IsCoveredBySource returns (true, source, nil) → memory skipped. (2) Error → memory kept. (3) When checker is nil, no suppression. (4) SuppressionEvent logged with reason "cross_source".
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-2: CrossRefChecker interface + suppressByCrossRef function
+
+`CrossRefChecker` interface: `IsCoveredBySource(memoryID string) (covered bool, source string, err error)`. Pure function `suppressByCrossRef(candidates []*memory.Stored, checker CrossRefChecker) ([]*memory.Stored, []SuppressionEvent)`. `WithCrossRefChecker(CrossRefChecker) SurfacerOption`.
+
+---
+
+## REQ-P4f-3: Transcript suppression skips memories whose keywords appear in recent window (P4f)
+
+If any of a memory's `keywords` appear in the provided transcript window text (~500 tokens), suppress the memory. Transcript window supplied via `Options.TranscriptWindow`. Each suppressed memory emits a `SuppressionEvent` with `reason: "transcript"` and `suppressed_by: <matched keyword>`. Applies in session-start and prompt modes.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) Case-insensitive keyword match in transcript window. (2) First matching keyword used as suppressed_by. (3) Empty TranscriptWindow → no suppression. (4) Memory with no keywords → never suppressed by transcript.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-3: suppressByTranscript pure function + Options.TranscriptWindow
+
+`suppressByTranscript(candidates []*memory.Stored, transcriptWindow string) ([]*memory.Stored, []SuppressionEvent)`. `Options.TranscriptWindow string` field.
+
+---
+
+## REQ-P4f-4: Suppression events logged via SuppressionEventLogger (P4f)
+
+All suppression decisions (cluster_dedup, cross_source, transcript) are recorded as structured events. Each event contains: memory_id, timestamp, reason, suppressed_by. Events are logged in-order via the injected `SuppressionEventLogger`. Fire-and-forget: log errors ignored. Logger called after all suppression passes complete.
+
+- Traces to: UC-17
+- AC: (1) All suppression events from all passes logged. (2) Logger nil → events discarded silently. (3) Log error ignored. (4) Events include correct memory_id, reason, suppressed_by.
+- Verification: deterministic (unit, surface pkg with fake logger)
+
+### DES-P4f-4: SuppressionEventLogger interface + SuppressionEvent struct
+
+`SuppressionEventLogger` interface: `LogSuppression(event SuppressionEvent) error`. `SuppressionEvent` struct: MemoryID, Timestamp, Reason, SuppressedBy. `WithSuppressionEventLogger(SuppressionEventLogger) SurfacerOption`.
+
+---
+
+## REQ-P4f-5: Suppression rate metric in Result (P4f)
+
+After each surface invocation, `Result.SuppressionStats` holds aggregate suppression metrics: suppressed count, surfaced count, and rate = suppressed / (suppressed + surfaced). Nil when both counts are zero.
+
+- Traces to: UC-17
+- AC: (1) Rate = suppressed / (suppressed + surfaced). (2) Nil when both zero. (3) Surfaced = len(matched) after all suppression. (4) Suppressed = total suppression events emitted.
+- Verification: deterministic (unit)

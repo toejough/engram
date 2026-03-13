@@ -45,6 +45,12 @@ type CreationLogReader interface {
 	ReadAndClear(dataDir string) ([]LogEntry, error)
 }
 
+// CrossRefChecker checks if a memory is covered by an external source such as CLAUDE.md,
+// a rule file, or a skill (REQ-P4f-2). IsCoveredBySource returns (covered, source, err).
+type CrossRefChecker interface {
+	IsCoveredBySource(memoryID string) (covered bool, source string, err error)
+}
+
 // EffectivenessComputer provides per-memory effectiveness aggregates (ARCH-24).
 type EffectivenessComputer interface {
 	Aggregate() (map[string]EffectivenessStat, error)
@@ -100,13 +106,14 @@ type MemoryTracker interface {
 
 // Options configures a surface invocation.
 type Options struct {
-	Mode      string
-	DataDir   string
-	Message   string // for prompt mode
-	ToolName  string // for tool mode
-	ToolInput string // for tool mode
-	Format    string // output format: "" (plain) or "json"
-	Budget    int    // token budget override (precompact mode)
+	Mode             string
+	DataDir          string
+	Message          string // for prompt mode
+	ToolName         string // for tool mode
+	ToolInput        string // for tool mode
+	Format           string // output format: "" (plain) or "json"
+	Budget           int    // token budget override (precompact mode)
+	TranscriptWindow string // recent transcript text for transcript suppression (REQ-P4f-3)
 }
 
 // RegistryRecorder records surfacing events in the instruction registry (UC-23).
@@ -116,13 +123,19 @@ type RegistryRecorder interface {
 
 // Result holds the structured output of a surface invocation.
 type Result struct {
-	Summary string `json:"summary"`
-	Context string `json:"context"`
+	Summary          string            `json:"summary"`
+	Context          string            `json:"context"`
+	SuppressionStats *SuppressionStats `json:"suppressionStats,omitempty"`
 }
 
 // SignalEmitter emits maintenance signals into the proposal queue (UC-P1-1).
 type SignalEmitter interface {
 	Emit(s signal.Signal) error
+}
+
+// SuppressionEventLogger records suppression decisions (REQ-P4f-4).
+type SuppressionEventLogger interface {
+	LogSuppression(event SuppressionEvent) error
 }
 
 // Surfacer orchestrates memory surfacing.
@@ -138,9 +151,12 @@ type Surfacer struct {
 	enforcementReader     EnforcementReader
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
-	linkUpdater           LinkUpdater  // P3: co_surfacing + spreading activation
-	linkReader            LinkReader   // P3: spreading activation + cluster notes
-	titleFetcher          TitleFetcher // P3: cluster notes
+	linkUpdater           LinkUpdater            // P3: co_surfacing + spreading activation
+	linkReader            LinkReader             // P3: spreading activation + cluster notes
+	titleFetcher          TitleFetcher           // P3: cluster notes
+	clusterDedupReader    LinkReader             // P4f: cluster dedup (separate from spreading activation)
+	crossRefChecker       CrossRefChecker        // P4f: cross-source suppression
+	suppressionLogger     SuppressionEventLogger // P4f: suppression event logging
 }
 
 // New creates a Surfacer.
@@ -184,18 +200,21 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	scorer := frecency.New(time.Now(), frecencyEff)
 
 	var (
-		result  Result
-		matched []*memory.Stored
-		err     error
+		result            Result
+		matched           []*memory.Stored
+		suppressionEvents []SuppressionEvent
+		err               error
 	)
 
 	switch opts.Mode {
 	case ModeSessionStart:
-		result, matched, err = s.runSessionStart(ctx, opts.DataDir, effectiveness)
+		result, matched, suppressionEvents, err = s.runSessionStart(ctx, opts.DataDir, effectiveness, opts)
 	case ModePrompt:
-		result, matched, err = s.runPrompt(ctx, opts.DataDir, opts.Message, effectiveness, scorer)
+		result, matched, suppressionEvents, err = s.runPrompt(
+			ctx, opts.DataDir, opts.Message, opts.TranscriptWindow, effectiveness, scorer,
+		)
 	case ModeTool:
-		result, matched, err = s.runTool(ctx, opts, effectiveness, scorer)
+		result, matched, suppressionEvents, err = s.runTool(ctx, opts, effectiveness, scorer)
 	case ModePreCompact:
 		budget := opts.Budget
 		if budget == 0 && s.budgetConfig != nil {
@@ -206,7 +225,7 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 			budget = DefaultPreCompactBudget
 		}
 
-		result, matched, err = s.runPreCompact(ctx, opts.DataDir, budget, effectiveness)
+		result, matched, suppressionEvents, err = s.runPreCompact(ctx, opts.DataDir, budget, effectiveness)
 	default:
 		return fmt.Errorf("%w: %s", ErrUnknownMode, opts.Mode)
 	}
@@ -214,6 +233,16 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	if err != nil {
 		return err
 	}
+
+	// REQ-P4f-4: log all suppression events.
+	if s.suppressionLogger != nil {
+		for _, event := range suppressionEvents {
+			_ = s.suppressionLogger.LogSuppression(event)
+		}
+	}
+
+	// REQ-P4f-5: compute suppression rate metric.
+	result.SuppressionStats = computeSuppressionStats(len(suppressionEvents), len(matched))
 
 	if s.tracker != nil && len(matched) > 0 {
 		_ = s.tracker.RecordSurfacing(ctx, matched, opts.Mode)
@@ -283,6 +312,7 @@ func (s *Surfacer) enforcementLevelFor(memPath string) string {
 	return level
 }
 
+//nolint:unparam // error return is always nil — kept for uniform internal signature
 func (s *Surfacer) renderToolAdvisories(
 	candidates []toolMatch,
 	effectiveness map[string]EffectivenessStat,
@@ -328,16 +358,16 @@ func (s *Surfacer) renderToolAdvisories(
 	}, toolMems, nil
 }
 
-//nolint:cyclop,funlen // effectiveness filtering + budget enforcement: inherent branching
+//nolint:cyclop,funlen,unparam // effectiveness filtering + budget enforcement; []SuppressionEvent always nil here
 func (s *Surfacer) runPreCompact(
 	ctx context.Context,
 	dataDir string,
 	budget int,
 	effectiveness map[string]EffectivenessStat,
-) (Result, []*memory.Stored, error) {
+) (Result, []*memory.Stored, []SuppressionEvent, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	// Filter to memories with effectiveness >= minPreCompactEffectiveness.
@@ -353,7 +383,7 @@ func (s *Surfacer) runPreCompact(
 	}
 
 	if len(candidates) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	// Sort by effectiveness descending.
@@ -387,7 +417,7 @@ func (s *Surfacer) runPreCompact(
 	}
 
 	if len(candidates) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	const header = "[engram] Preserving top memories through compaction:"
@@ -412,24 +442,24 @@ func (s *Surfacer) runPreCompact(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: contextBuf.String(),
-	}, candidates, nil
+	}, candidates, nil, nil
 }
 
 //nolint:cyclop,funlen // orchestration function: BM25 filtering + suppression + budget: inherent branching
 func (s *Surfacer) runPrompt(
 	ctx context.Context,
-	dataDir, message string,
+	dataDir, message, transcriptWindow string,
 	effectiveness map[string]EffectivenessStat,
 	scorer *frecency.Scorer,
-) (Result, []*memory.Stored, error) {
+) (Result, []*memory.Stored, []SuppressionEvent, error) {
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	matches := matchPromptMemories(message, memories)
 	if len(matches) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
@@ -447,7 +477,7 @@ func (s *Surfacer) runPrompt(
 	}
 
 	if len(matches) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	// Post-ranking: suppress contradicting memories (UC-P1-1).
@@ -475,7 +505,44 @@ func (s *Surfacer) runPrompt(
 	matches = filtered
 
 	if len(matches) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
+	}
+
+	// Collect mem slice for P4f suppression passes.
+	promptMems = make([]*memory.Stored, 0, len(matches))
+	for _, m := range matches {
+		promptMems = append(promptMems, m.mem)
+	}
+
+	// REQ-P4f-2: cross-source suppression.
+	promptMems, crossEvents := suppressByCrossRef(promptMems, s.crossRefChecker)
+
+	// REQ-P4f-3: transcript suppression.
+	promptMems, transcriptEvents := suppressByTranscript(promptMems, transcriptWindow)
+
+	suppressionEvents := make([]SuppressionEvent, 0, len(crossEvents)+len(transcriptEvents))
+	suppressionEvents = append(suppressionEvents, crossEvents...)
+	suppressionEvents = append(suppressionEvents, transcriptEvents...)
+
+	// Rebuild matches from post-suppression set.
+	keptPaths := make(map[string]bool, len(promptMems))
+
+	for _, m := range promptMems {
+		keptPaths[m.FilePath] = true
+	}
+
+	finalMatches := make([]promptMatch, 0, len(promptMems))
+
+	for _, m := range matches {
+		if keptPaths[m.mem.FilePath] {
+			finalMatches = append(finalMatches, m)
+		}
+	}
+
+	matches = finalMatches
+
+	if len(matches) == 0 {
+		return Result{}, nil, suppressionEvents, nil
 	}
 
 	var buf strings.Builder
@@ -491,7 +558,7 @@ func (s *Surfacer) runPrompt(
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
 
-	// Collect final memory list for tracking (suppression already applied above).
+	// Collect final memory list for tracking.
 	finalMems := make([]*memory.Stored, 0, len(matches))
 	for _, m := range matches {
 		finalMems = append(finalMems, m.mem)
@@ -510,15 +577,16 @@ func (s *Surfacer) runPrompt(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: buf.String(),
-	}, finalMems, nil
+	}, finalMems, suppressionEvents, nil
 }
 
-//nolint:cyclop // session-start orchestration: reads log, loads memories, ranks, P3 links — inherent branching
+//nolint:cyclop,funlen // session-start orchestration: reads log, loads memories, ranks, P3+P4f — inherent branching
 func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
 	effectiveness map[string]EffectivenessStat,
-) (Result, []*memory.Stored, error) {
+	opts Options,
+) (Result, []*memory.Stored, []SuppressionEvent, error) {
 	// Step 1: Read creation log (ARCH-12). Errors are fire-and-forget.
 	var logEntries []LogEntry
 
@@ -532,7 +600,7 @@ func (s *Surfacer) runSessionStart(
 	// Step 2: List memories for surfacing (REQ-P4e-1: effectiveness-ranked + gated).
 	memories, err := s.retriever.ListMemories(ctx, dataDir)
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	// REQ-P4e-1: gate out memories with sufficient data (>=5 surfacings) but low effectiveness (<=40%).
@@ -556,11 +624,22 @@ func (s *Surfacer) runSessionStart(
 
 	// Post-ranking: suppress contradicting memories (UC-P1-1).
 	memories = s.suppressContradictions(ctx, memories)
+
+	// REQ-P4f-1/2/3: cluster dedup, cross-source, transcript suppression passes.
+	memories, dedupEvents := suppressClusterDuplicates(memories, effectiveness, s.clusterDedupReader)
+	memories, crossEvents := suppressByCrossRef(memories, s.crossRefChecker)
+	memories, transcriptEvents := suppressByTranscript(memories, opts.TranscriptWindow)
+
+	suppressionEvents := make([]SuppressionEvent, 0, len(dedupEvents)+len(crossEvents)+len(transcriptEvents))
+	suppressionEvents = append(suppressionEvents, dedupEvents...)
+	suppressionEvents = append(suppressionEvents, crossEvents...)
+	suppressionEvents = append(suppressionEvents, transcriptEvents...)
+
 	count = len(memories)
 
 	// Nothing to surface at all.
 	if len(logEntries) == 0 && count == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, suppressionEvents, nil
 	}
 
 	var (
@@ -584,29 +663,30 @@ func (s *Surfacer) runSessionStart(
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
 		Context: contextBuf.String(),
-	}, memories, nil
+	}, memories, suppressionEvents, nil
 }
 
+//nolint:unparam // []SuppressionEvent always nil here — suppression not yet applied in tool mode
 func (s *Surfacer) runTool(
 	ctx context.Context,
 	opts Options,
 	effectiveness map[string]EffectivenessStat,
 	scorer *frecency.Scorer,
-) (Result, []*memory.Stored, error) {
+) (Result, []*memory.Stored, []SuppressionEvent, error) {
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("surface: %w", err)
+		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
 	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
 	if len(candidates) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	// REQ-P4e-4: gate out memories with sufficient data but low effectiveness.
 	candidates = filterToolMatchesByEffectivenessGate(candidates, effectiveness)
 	if len(candidates) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
 	// Re-rank by frecency activation (ARCH-35).
@@ -624,10 +704,12 @@ func (s *Surfacer) runTool(
 	}
 
 	if len(candidates) == 0 {
-		return Result{}, nil, nil
+		return Result{}, nil, nil, nil
 	}
 
-	return s.renderToolAdvisories(candidates, effectiveness)
+	result, mems, err := s.renderToolAdvisories(candidates, effectiveness)
+
+	return result, mems, nil, err
 }
 
 // suppressContradictions runs contradiction detection on candidates and returns a filtered slice
@@ -758,9 +840,20 @@ type TitleFetcher interface {
 	GetTitle(id string) (string, bool)
 }
 
+// WithClusterDedupReader sets the link reader used for cluster dedup (REQ-P4f-1).
+// Separate from WithLinkReader to avoid interfering with spreading activation.
+func WithClusterDedupReader(reader LinkReader) SurfacerOption {
+	return func(s *Surfacer) { s.clusterDedupReader = reader }
+}
+
 // WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
 func WithContradictionDetector(d ContradictionDetector) SurfacerOption {
 	return func(s *Surfacer) { s.contradictionDetector = d }
+}
+
+// WithCrossRefChecker sets the cross-reference checker for cross-source suppression (REQ-P4f-2).
+func WithCrossRefChecker(checker CrossRefChecker) SurfacerOption {
+	return func(s *Surfacer) { s.crossRefChecker = checker }
 }
 
 // WithEffectiveness sets the effectiveness computer for memory annotations (ARCH-24).
@@ -801,6 +894,11 @@ func WithRegistry(recorder RegistryRecorder) SurfacerOption {
 // WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
 func WithSignalEmitter(e SignalEmitter) SurfacerOption {
 	return func(s *Surfacer) { s.signalEmitter = e }
+}
+
+// WithSuppressionEventLogger sets the suppression event logger (REQ-P4f-4).
+func WithSuppressionEventLogger(logger SuppressionEventLogger) SurfacerOption {
+	return func(s *Surfacer) { s.suppressionLogger = logger }
 }
 
 // WithSurfacingLogger sets the surfacing event logger (ARCH-22).
