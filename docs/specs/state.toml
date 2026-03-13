@@ -20,7 +20,7 @@ green_tool = "none"
 refactor_tool = "none"
 
 [layers.L4]
-items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206", "T-207", "T-208", "T-209", "T-210", "T-211", "T-212", "T-213", "T-214", "T-215", "T-216", "T-217", "T-218", "T-219", "T-220", "T-221", "T-222", "T-223", "T-224", "T-225", "T-226", "T-227", "T-228", "T-229", "T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237", "T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277", "T-278", "T-279", "T-280", "T-281", "T-282", "T-283", "T-284", "T-285", "T-286", "T-287", "T-288", "T-289", "T-290", "T-291", "T-292", "T-293", "T-294", "T-295", "T-296", "T-297", "T-298", "T-299", "T-300", "T-301", "T-302", "T-303", "T-304", "T-305", "T-306", "T-307", "T-309", "T-310", "T-311", "T-312", "T-313", "T-314", "T-315", "T-316", "T-317", "T-318", "T-319", "T-320", "T-321", "T-322", "T-323", "T-324", "T-325", "T-326", "T-P3-1", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-2", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9"]
+items = ["T-1", "T-2", "T-3", "T-4", "T-5", "T-6", "T-7", "T-8", "T-9", "T-10", "T-11", "T-12", "T-13", "T-15", "T-16", "T-18", "T-19", "T-20", "T-21", "T-22", "T-23", "T-24", "T-25", "T-26", "T-27", "T-28", "T-29", "T-30", "T-31", "T-32", "T-33", "T-34", "T-35", "T-40", "T-41", "T-42", "T-43", "T-44", "T-45", "T-46", "T-47", "T-48", "T-49", "T-50", "T-51", "T-52", "T-53", "T-54", "T-55", "T-56", "T-57", "T-58", "T-59", "T-60", "T-61", "T-62", "T-63", "T-64", "T-65", "T-66", "T-67", "T-68", "T-69", "T-70", "T-71", "T-72", "T-73", "T-74", "T-75", "T-76", "T-77", "T-78", "T-79", "T-80", "T-81", "T-82", "T-83", "T-84", "T-85", "T-86", "T-87", "T-88", "T-89", "T-90", "T-91", "T-92", "T-93", "T-94", "T-95", "T-96", "T-97", "T-98", "T-99", "T-100", "T-101", "T-102", "T-103", "T-104", "T-105", "T-106", "T-107", "T-108", "T-109", "T-110", "T-111", "T-112", "T-113", "T-114", "T-115", "T-116", "T-117", "T-118", "T-119", "T-120", "T-121", "T-122", "T-123", "T-124", "T-125", "T-126", "T-127", "T-128", "T-129", "T-130", "T-131", "T-132", "T-133", "T-134", "T-135", "T-136", "T-137", "T-138", "T-139", "T-140", "T-141", "T-142", "T-143", "T-144", "T-145", "T-146", "T-147", "T-148", "T-149", "T-150", "T-151", "T-152", "T-153", "T-154", "T-155", "T-156", "T-157", "T-158", "T-159", "T-160", "T-171", "T-172", "T-173", "T-174", "T-175", "T-176", "T-177", "T-178", "T-179", "T-180", "T-181", "T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200", "T-201", "T-202", "T-203", "T-204", "T-205", "T-206", "T-207", "T-208", "T-209", "T-210", "T-211", "T-212", "T-213", "T-214", "T-215", "T-216", "T-217", "T-218", "T-219", "T-220", "T-221", "T-222", "T-223", "T-224", "T-225", "T-226", "T-227", "T-228", "T-229", "T-230", "T-231", "T-232", "T-233", "T-234", "T-235", "T-236", "T-237", "T-270", "T-271", "T-272", "T-273", "T-274", "T-275", "T-276", "T-277", "T-278", "T-279", "T-280", "T-281", "T-282", "T-283", "T-284", "T-285", "T-286", "T-287", "T-288", "T-289", "T-290", "T-291", "T-292", "T-293", "T-294", "T-295", "T-296", "T-297", "T-298", "T-299", "T-300", "T-301", "T-302", "T-303", "T-304", "T-305", "T-306", "T-307", "T-309", "T-310", "T-311", "T-312", "T-313", "T-314", "T-315", "T-316", "T-317", "T-318", "T-319", "T-320", "T-321", "T-322", "T-323", "T-324", "T-325", "T-326", "T-P3-1", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-2", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P5c-1", "T-P5c-2", "T-P5c-3", "T-P5c-4", "T-P5c-5", "T-P5c-6", "T-P5c-7", "T-P5c-8", "T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5f-7", "T-P6e-1", "T-P6e-2", "T-P6e-3", "T-P6e-4", "T-P6e-5", "T-P6e-6", "T-P6e-7", "T-P6e-8", "T-P6e-9", "T-P6e-10", "T-P6e-11", "T-P6e-12", "T-P6e-13", "T-P6e-14", "T-P6f-1", "T-P6f-2", "T-P6f-3", "T-P6f-4", "T-P6f-5", "T-P6f-6", "T-P6f-7", "T-P6f-8", "T-P6f-9", "T-P6f-10", "T-P6f-11", "T-P6f-12", "T-P6f-13", "T-P6f-14", "T-P6f-15"]
 green_tool = "targ test"
 refactor_tool = "targ check-full"
 
@@ -921,7 +921,7 @@ layer = "L1"
 name = "Enforcement Escalation Ladder"
 items = ["UC-21"]
 body_hash = "0bab1238"
-merkle_hash = "0bab1238"
+merkle_hash = "8ea7bc93"
 status = "complete"
 history = "Issue #71. Graduated escalation from advisory to blocking enforcement for leech memories. Replaces issue #44. L2-L5 complete, wired into CLI (commit e04e162)."
 
@@ -1412,9 +1412,9 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L5P3impl"
+node = "L5P6fImpl"
 mode = "complete"
-next_action = "P3 fully implemented. Memory graph with spreading activation complete. Next: P6-full (graduation signals)."
+next_action = "P6e + P6f tree nodes created. Both implementations complete, all tests passing."
 context_files = ["docs/specs/state.toml"]
 
 # P1: Contradiction detection
@@ -1614,3 +1614,118 @@ body_hash = ""
 merkle_hash = ""
 status = "complete"
 history = "7 tests passing, targ check-full green. MergeResult fields (T-P5f-1), absorbed-link cleanup (T-P5f-2), concept_overlap recompute (T-P5f-3), content_similarity recompute (T-P5f-4), co_surfacing preserved (T-P5f-5), eval_correlation preserved (T-P5f-6), LinkRecomputer wired (T-P5f-7). Commit 3d5e85b."
+
+# P6e: Wire escalation to enforcement_level
+
+[layers.L1.p6e]
+items = ["UC-21"]
+
+[layers.L2.p6e]
+items = ["REQ-P6e-1", "REQ-P6e-2", "REQ-P6e-3", "REQ-P6e-4", "REQ-P6e-5", "REQ-P6e-6", "REQ-P6e-7", "DES-P6e-1", "DES-P6e-2"]
+
+[layers.L3.p6e]
+items = [
+  { id = "ARCH-P6e-1", source = "derived" },
+  { id = "ARCH-P6e-2", source = "derived" },
+]
+
+[layers.L4.p6e]
+items = ["T-P6e-1", "T-P6e-2", "T-P6e-3", "T-P6e-4", "T-P6e-5", "T-P6e-6", "T-P6e-7", "T-P6e-8", "T-P6e-9", "T-P6e-10", "T-P6e-11", "T-P6e-12", "T-P6e-13", "T-P6e-14"]
+
+[tree.L2P6e]
+layer = "L2"
+name = "Wire Escalation to Enforcement Level Requirements"
+parents = ["L1L"]
+items = ["REQ-P6e-1", "REQ-P6e-2", "REQ-P6e-3", "REQ-P6e-4", "REQ-P6e-5", "REQ-P6e-6", "REQ-P6e-7", "DES-P6e-1", "DES-P6e-2"]
+body_hash = "33424f94"
+merkle_hash = "430c2ab5"
+status = "complete"
+history = "7 REQs + 2 DES items. LevelGraduated (REQ-P6e-1), ApplyEscalationProposal (REQ-P6e-2), graduation emission (REQ-P6e-3), ClassifyContent (REQ-P6e-4/DES-P6e-1), emphasized_advisory rendering (REQ-P6e-5), reminder rendering (REQ-P6e-6/DES-P6e-2), priority sorting (REQ-P6e-7)."
+
+[tree.L3P6e]
+layer = "L2"
+name = "Wire Escalation to Enforcement Level Architecture"
+parents = ["L2P6e"]
+items = ["ARCH-P6e-1", "ARCH-P6e-2"]
+body_hash = "9f17d5dd"
+merkle_hash = "2e265729"
+status = "complete"
+history = "2 ARCH decisions: EnforcementApplier + GraduationEmitter interfaces in maintain (ARCH-P6e-1), EnforcementReader interface in surface (ARCH-P6e-2)."
+
+[tree.L4P6e]
+layer = "L3"
+name = "Wire Escalation to Enforcement Level Tests"
+parents = ["L3P6e"]
+items = ["T-P6e-1", "T-P6e-2", "T-P6e-3", "T-P6e-4", "T-P6e-5", "T-P6e-6", "T-P6e-7", "T-P6e-8", "T-P6e-9", "T-P6e-10", "T-P6e-11", "T-P6e-12", "T-P6e-13", "T-P6e-14"]
+body_hash = ""
+merkle_hash = "6e340b9c"
+status = "complete"
+history = "14 tests passing. Escalation engine: LevelGraduated (T-P6e-1), ApplyEscalationProposal (T-P6e-2/3/4/5/10), ClassifyContent (T-P6e-6/7/8/9). Surface enforcement: emphasized_advisory (T-P6e-11), reminder (T-P6e-12), advisory (T-P6e-13), priority sorting (T-P6e-14)."
+
+[tree.L5P6eImpl]
+layer = "L4"
+name = "Wire Escalation to Enforcement Level Implementation"
+parents = ["L4P6e"]
+items = ["T-P6e-1", "T-P6e-2", "T-P6e-3", "T-P6e-4", "T-P6e-5", "T-P6e-6", "T-P6e-7", "T-P6e-8", "T-P6e-9", "T-P6e-10", "T-P6e-11", "T-P6e-12", "T-P6e-13", "T-P6e-14"]
+body_hash = ""
+merkle_hash = ""
+status = "complete"
+history = "internal/maintain/escalation.go (LevelGraduated, ApplyEscalationProposal, ClassifyContent), internal/surface/surface.go (EnforcementReader, formatMemoryLine with level-aware rendering, priority sorting). All 14 tests passing, targ check-full green."
+
+# P6f: Graduation signals
+
+[layers.L1.p6f]
+items = ["UC-21"]
+
+[layers.L2.p6f]
+items = ["REQ-P6f-1", "REQ-P6f-2", "REQ-P6f-3", "REQ-P6f-4", "REQ-P6f-5", "REQ-P6f-6", "REQ-P6f-7", "REQ-P6f-8", "REQ-P6f-9", "DES-P6f-1", "DES-P6f-2", "DES-P6f-3"]
+
+[layers.L3.p6f]
+items = [
+  { id = "ARCH-P6f-1", source = "derived" },
+  { id = "ARCH-P6f-2", source = "derived" },
+  { id = "ARCH-P6f-3", source = "derived" },
+]
+
+[layers.L4.p6f]
+items = ["T-P6f-1", "T-P6f-2", "T-P6f-3", "T-P6f-4", "T-P6f-5", "T-P6f-6", "T-P6f-7", "T-P6f-8", "T-P6f-9", "T-P6f-10", "T-P6f-11", "T-P6f-12", "T-P6f-13", "T-P6f-14", "T-P6f-15"]
+
+[tree.L2P6f]
+layer = "L2"
+name = "Graduation Signals Requirements"
+parents = ["L1L"]
+items = ["REQ-P6f-1", "REQ-P6f-2", "REQ-P6f-3", "REQ-P6f-4", "REQ-P6f-5", "REQ-P6f-6", "REQ-P6f-7", "REQ-P6f-8", "REQ-P6f-9", "DES-P6f-1", "DES-P6f-2", "DES-P6f-3"]
+body_hash = "abc72eec"
+merkle_hash = "9c01fcac"
+status = "complete"
+history = "9 REQs + 3 DES items. GraduationEntry model (REQ-P6f-1/DES-P6f-3), GraduationStore CRUD (REQ-P6f-2), GraduationQueueEmitter (REQ-P6f-3), graduate accept (REQ-P6f-4), graduate dismiss (REQ-P6f-5), graduate list (REQ-P6f-6/DES-P6f-1), graduate-surface (REQ-P6f-7/DES-P6f-2), ClassifyContent recommendation (REQ-P6f-8), de-escalation from graduated (REQ-P6f-9)."
+
+[tree.L3P6f]
+layer = "L2"
+name = "Graduation Signals Architecture"
+parents = ["L2P6f"]
+items = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
+body_hash = "9d5d3ca0"
+merkle_hash = "067018ad"
+status = "complete"
+history = "3 ARCH decisions: GraduationStore in signal package (ARCH-P6f-1), GraduationQueueEmitter implements maintain.GraduationEmitter (ARCH-P6f-2), graduate CLI subcommand with IssueCreator interface (ARCH-P6f-3)."
+
+[tree.L4P6f]
+layer = "L3"
+name = "Graduation Signals Tests"
+parents = ["L3P6f"]
+items = ["T-P6f-1", "T-P6f-2", "T-P6f-3", "T-P6f-4", "T-P6f-5", "T-P6f-6", "T-P6f-7", "T-P6f-8", "T-P6f-9", "T-P6f-10", "T-P6f-11", "T-P6f-12", "T-P6f-13", "T-P6f-14", "T-P6f-15"]
+body_hash = ""
+merkle_hash = "6e340b9c"
+status = "complete"
+history = "15 BDD test specs: GraduationStore CRUD (T-P6f-1..5), GraduationQueueEmitter (T-P6f-6/7), graduate accept/dismiss/list (T-P6f-8..11), graduate-surface (T-P6f-12/13), accept unknown ID (T-P6f-14), ApplyEscalationProposal ClassifyContent (T-P6f-15)."
+
+[tree.L5P6fImpl]
+layer = "L4"
+name = "Graduation Signals Implementation"
+parents = ["L4P6f"]
+items = ["T-P6f-1", "T-P6f-2", "T-P6f-3", "T-P6f-4", "T-P6f-5", "T-P6f-6", "T-P6f-7", "T-P6f-8", "T-P6f-9", "T-P6f-10", "T-P6f-11", "T-P6f-12", "T-P6f-13", "T-P6f-14", "T-P6f-15"]
+body_hash = ""
+merkle_hash = ""
+status = "complete"
+history = "internal/signal/graduation_store.go (GraduationStore CRUD), internal/signal/graduation_emitter.go (GraduationQueueEmitter), internal/signal/graduation.go (GraduationEntry model), internal/cli/graduate.go (accept/dismiss/list/surface subcommands with IssueCreator DI). All 15 tests passing, targ check-full green."
