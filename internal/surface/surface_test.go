@@ -1802,46 +1802,6 @@ func TestUnknownModeReturnsError(t *testing.T) {
 	g.Expect(err).To(MatchError(surface.ErrUnknownMode))
 }
 
-// T-235: Retirement filtering is now handled by the instruction registry (UC-23),
-// not inline in memory.Stored. filterRetired was removed — retired memories are
-// deleted from disk by the automation pipeline.
-
-// TestWithLinkReader_SetsOption verifies the option applies without error.
-func TestWithLinkReader_SetsOption(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	retriever := &fakeRetriever{}
-	reader := &fakeLinkReaderForSurface{}
-	s := surface.New(retriever, surface.WithLinkReader(reader))
-
-	g.Expect(s).NotTo(BeNil())
-}
-
-// TestWithLinkUpdater_SetsOption verifies the option applies without error.
-func TestWithLinkUpdater_SetsOption(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	retriever := &fakeRetriever{}
-	updater := &fakeLinkUpdaterForSurface{}
-	s := surface.New(retriever, surface.WithLinkUpdater(updater))
-
-	g.Expect(s).NotTo(BeNil())
-}
-
-// TestWithTitleFetcher_SetsOption verifies the option applies without error.
-func TestWithTitleFetcher_SetsOption(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	retriever := &fakeRetriever{}
-	fetcher := &fakeTitleFetcherForSurface{}
-	s := surface.New(retriever, surface.WithTitleFetcher(fetcher))
-
-	g.Expect(s).NotTo(BeNil())
-}
-
 // unexported variables.
 var (
 	errTrackerFail = errors.New("tracker failure")
@@ -1855,22 +1815,6 @@ type fakeEffectivenessComputer struct {
 
 func (f *fakeEffectivenessComputer) Aggregate() (map[string]surface.EffectivenessStat, error) {
 	return f.stats, f.err
-}
-
-type fakeLinkReaderForSurface struct{}
-
-func (f *fakeLinkReaderForSurface) GetEntryLinks(_ string) ([]surface.LinkGraphLink, error) {
-	return nil, nil
-}
-
-type fakeLinkUpdaterForSurface struct{}
-
-func (f *fakeLinkUpdaterForSurface) GetEntryLinks(_ string) ([]surface.LinkGraphLink, error) {
-	return nil, nil
-}
-
-func (f *fakeLinkUpdaterForSurface) SetEntryLinks(_ string, _ []surface.LinkGraphLink) error {
-	return nil
 }
 
 // fakeLogReader is a test double for surface.CreationLogReader.
@@ -1917,12 +1861,6 @@ type fakeSurfacingLogger struct {
 func (f *fakeSurfacingLogger) LogSurfacing(memoryPath, mode string, _ time.Time) error {
 	f.calls = append(f.calls, surfacingLogCall{memoryPath: memoryPath, mode: mode})
 	return nil
-}
-
-type fakeTitleFetcherForSurface struct{}
-
-func (f *fakeTitleFetcherForSurface) GetTitle(_ string) (string, bool) {
-	return "", false
 }
 
 // fakeTracker is a test double for surface.MemoryTracker.

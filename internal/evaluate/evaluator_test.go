@@ -624,6 +624,57 @@ anti_pattern = ""`
 	g.Expect(writeCallCount).To(Equal(0))
 }
 
+// TestEvaluator_UpdatesEvalCorrelationLinks verifies link updater is called for evaluated memories.
+func TestEvaluator_UpdatesEvalCorrelationLinks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = `title = "Use targ"
+content = "Always use targ"
+principle = "Use targ not go build"
+anti_pattern = ""`
+
+	const llmResponse = `[{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"Used targ"}]`
+
+	updater := &fakeEvalLinkUpdater{}
+
+	evaluator := evaluate.New(
+		"/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			switch name {
+			case "/data/surfacing-log.jsonl":
+				return []byte(surfacingLog), nil
+			case "/data/memories/mem1.toml":
+				return []byte(memTOML), nil
+			default:
+				return nil, os.ErrNotExist
+			}
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithEvalLinkUpdater(updater),
+	)
+
+	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(outcomes).To(HaveLen(1))
+	g.Expect(updater.getCalls).To(ContainElement("/data/memories/mem1.toml"))
+	g.Expect(updater.setCalls).To(ContainElement("/data/memories/mem1.toml"))
+}
+
 // writeEvaluationLog: writeFile error is returned to caller.
 func TestEvaluator_WriteFileError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -856,13 +907,20 @@ type evalRegistryCall struct {
 }
 
 // fakeEvalLinkUpdater is a test double for evaluate.EvalLinkUpdater.
-type fakeEvalLinkUpdater struct{}
+type fakeEvalLinkUpdater struct {
+	getCalls []string
+	setCalls []string
+}
 
-func (f *fakeEvalLinkUpdater) GetEntryLinks(_ string) ([]evaluate.EvalLink, error) {
+func (f *fakeEvalLinkUpdater) GetEntryLinks(id string) ([]evaluate.EvalLink, error) {
+	f.getCalls = append(f.getCalls, id)
+
 	return nil, nil
 }
 
-func (f *fakeEvalLinkUpdater) SetEntryLinks(_ string, _ []evaluate.EvalLink) error {
+func (f *fakeEvalLinkUpdater) SetEntryLinks(id string, _ []evaluate.EvalLink) error {
+	f.setCalls = append(f.setCalls, id)
+
 	return nil
 }
 
