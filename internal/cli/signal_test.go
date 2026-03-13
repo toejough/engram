@@ -182,9 +182,10 @@ updated_at = "2024-01-01T00:00:00Z"
 		return
 	}
 
-	// Create registry file.
+	// Create registry file with an entry for the memory.
 	registryPath := filepath.Join(dataDir, registryFilename)
-	regWriteErr := os.WriteFile(registryPath, []byte(""), 0o644)
+	regEntry := `{"id":"` + memPath + `","source_type":"memory","enforcement_level":"advisory"}`
+	regWriteErr := os.WriteFile(registryPath, []byte(regEntry+"\n"), 0o644)
 	g.Expect(regWriteErr).NotTo(HaveOccurred())
 
 	if regWriteErr != nil {

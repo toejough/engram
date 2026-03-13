@@ -46,6 +46,9 @@ SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_
 # UC-28: Surface pending maintenance/promotion signals
 SIGNAL_OUTPUT=$("$ENGRAM_BIN" signal-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
 
+# P6f: Surface pending graduation signals
+GRAD_OUTPUT=$("$ENGRAM_BIN" graduate-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
+
 # UC-14: Restore session context (project-specific path)
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 CONTEXT_FILE="${ENGRAM_DATA}/projects/${PROJECT_SLUG}/session-context.md"
@@ -63,16 +66,23 @@ if [[ -n "$SIGNAL_OUTPUT" ]]; then
     SIGNAL_CTX=$(echo "$SIGNAL_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
 fi
 
+GRAD_CTX=""
+if [[ -n "$GRAD_OUTPUT" ]]; then
+    GRAD_CTX=$(echo "$GRAD_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
+fi
+
 if [[ -n "$SURFACE_OUTPUT" ]]; then
     echo "$SURFACE_OUTPUT" | jq \
         --arg note "$MIDTURN_NOTE" \
         --arg ctx "$SESSION_CONTEXT" \
         --arg sig "$SIGNAL_CTX" \
-        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end))}'
+        --arg grad "$GRAD_CTX" \
+        '{systemMessage: .summary, additionalContext: (.context + "\n" + $note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end) + (if $grad != "" then "\n[engram] Graduation signals:\n" + $grad else "" end))}'
 else
     jq -n \
         --arg note "$MIDTURN_NOTE" \
         --arg ctx "$SESSION_CONTEXT" \
         --arg sig "$SIGNAL_CTX" \
-        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end))}'
+        --arg grad "$GRAD_CTX" \
+        '{additionalContext: ($note + (if $ctx != "" then "\n[engram] Previous session context:\n" + $ctx else "" end) + (if $sig != "" then "\n[engram] Pending signals:\n" + $sig else "" end) + (if $grad != "" then "\n[engram] Graduation signals:\n" + $grad else "" end))}'
 fi

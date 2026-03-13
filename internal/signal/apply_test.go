@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/onsi/gomega"
 
@@ -85,11 +86,81 @@ func TestApply_BroadenReadError(t *testing.T) {
 	g.Expect(result.Success).To(gomega.BeFalse())
 }
 
-func TestApply_Escalate(t *testing.T) {
+func TestApply_EscalateCallsEnforcementApplier(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
-	applier := signal.NewApplier()
+	enfApplier := &stubEnforcementApplier{}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Content: "some content"}, nil
+		}),
+		signal.WithEnforcementApplier(enfApplier),
+	)
+
+	action := signal.ApplyAction{
+		Action: "escalate",
+		Memory: "memories/problem.toml",
+		Level:  2, // emphasized_advisory
+	}
+
+	result, err := applier.Apply(context.Background(), action)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Success).To(gomega.BeTrue())
+	g.Expect(enfApplier.calls).To(gomega.HaveLen(1))
+	g.Expect(enfApplier.calls[0].level).To(gomega.Equal("emphasized_advisory"))
+	g.Expect(enfApplier.calls[0].id).To(gomega.Equal("memories/problem.toml"))
+}
+
+func TestApply_EscalateGraduatedEmitsGraduation(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	enfApplier := &stubEnforcementApplier{}
+	gradEmitter := &stubGraduationEmitter{}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Content: "run linter settings"}, nil
+		}),
+		signal.WithEnforcementApplier(enfApplier),
+		signal.WithGraduationEmitter(gradEmitter),
+	)
+
+	action := signal.ApplyAction{
+		Action: "escalate",
+		Memory: "memories/problem.toml",
+		Level:  4, // graduated
+	}
+
+	result, err := applier.Apply(context.Background(), action)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Success).To(gomega.BeTrue())
+	g.Expect(gradEmitter.calls).To(gomega.HaveLen(1))
+	g.Expect(gradEmitter.calls[0].memoryPath).To(gomega.Equal("memories/problem.toml"))
+	g.Expect(gradEmitter.calls[0].recommendation).To(gomega.Equal("settings.json"))
+}
+
+func TestApply_EscalateNilApplierNoOp(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Content: "test"}, nil
+		}),
+	)
 
 	action := signal.ApplyAction{
 		Action: "escalate",
@@ -105,6 +176,58 @@ func TestApply_Escalate(t *testing.T) {
 	}
 
 	g.Expect(result.Success).To(gomega.BeTrue())
+}
+
+func TestApply_EscalateNonGraduatedSkipsEmitter(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	enfApplier := &stubEnforcementApplier{}
+	gradEmitter := &stubGraduationEmitter{}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Content: "test"}, nil
+		}),
+		signal.WithEnforcementApplier(enfApplier),
+		signal.WithGraduationEmitter(gradEmitter),
+	)
+
+	action := signal.ApplyAction{
+		Action: "escalate",
+		Memory: "memories/problem.toml",
+		Level:  3, // reminder
+	}
+
+	result, err := applier.Apply(context.Background(), action)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.Success).To(gomega.BeTrue())
+	g.Expect(gradEmitter.calls).To(gomega.BeEmpty())
+}
+
+func TestApply_EscalateReadError(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	enfApplier := &stubEnforcementApplier{}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return nil, errors.New("disk error")
+		}),
+		signal.WithEnforcementApplier(enfApplier),
+	)
+
+	result, err := applier.Apply(context.Background(), signal.ApplyAction{
+		Action: "escalate", Memory: "test.toml", Level: 2,
+	})
+	g.Expect(err).To(gomega.HaveOccurred())
+	g.Expect(result.Success).To(gomega.BeFalse())
 }
 
 func TestApply_EscalateZeroLevel(t *testing.T) {
@@ -354,10 +477,39 @@ func TestApply_UnsupportedAction(t *testing.T) {
 	g.Expect(errors.Is(err, signal.ErrUnsupportedAction)).To(gomega.BeTrue())
 }
 
+type enforcementCall struct {
+	id    string
+	level string
+}
+
 type errorWriter struct{}
 
 func (e *errorWriter) Write(_ string, _ *memory.Stored) error {
 	return errors.New("write failed")
+}
+
+type graduationCall struct {
+	memoryPath, recommendation string
+}
+
+type stubEnforcementApplier struct {
+	calls []enforcementCall
+}
+
+func (s *stubEnforcementApplier) SetEnforcementLevel(id, level, _ string) error {
+	s.calls = append(s.calls, enforcementCall{id: id, level: level})
+
+	return nil
+}
+
+type stubGraduationEmitter struct {
+	calls []graduationCall
+}
+
+func (s *stubGraduationEmitter) EmitGraduation(memoryPath, recommendation string, _ time.Time) error {
+	s.calls = append(s.calls, graduationCall{memoryPath: memoryPath, recommendation: recommendation})
+
+	return nil
 }
 
 type stubMemoryWriter struct {

@@ -105,6 +105,10 @@ func (r *registryUpdaterAdapter) Remove(id string) error {
 	return r.reg.Remove(id)
 }
 
+func (r *registryUpdaterAdapter) SetEnforcementLevel(id, level, reason string) error {
+	return r.reg.SetEnforcementLevel(id, regpkg.EnforcementLevel(level), reason)
+}
+
 func (r *registryUpdaterAdapter) UpdateContentHash(_, _ string) error {
 	// JSONLStore does not yet expose UpdateContentHash; this is a no-op stub.
 	return nil
@@ -262,11 +266,20 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 	reg := openRegistry(*dataDir)
 	queue := signal.NewQueueStore()
 
+	regAdapter := &registryUpdaterAdapter{reg: reg}
+
+	gradStore := signal.NewGraduationStore()
+	gradPath := filepath.Join(*dataDir, "graduation-queue.jsonl")
+	gradEmitter := signal.NewGraduationQueueEmitter(gradStore, gradPath)
+
 	applier := signal.NewApplier(
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
-		signal.WithRegistry(&registryUpdaterAdapter{reg: reg}),
+		signal.WithRegistry(regAdapter),
 		signal.WithQueue(queue, queuePath),
+		signal.WithEnforcementApplier(regAdapter),
+		signal.WithGraduationEmitter(gradEmitter),
+		signal.WithNow(time.Now),
 	)
 
 	ctx := context.Background()

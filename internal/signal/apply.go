@@ -5,24 +5,30 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
+	"engram/internal/maintain"
 	"engram/internal/memory"
 )
 
 // Exported variables.
 var (
+	ErrLevelOutOfRange   = errors.New("escalation level out of range")
 	ErrUnsupportedAction = errors.New("unsupported action")
 	ErrZeroLevel         = errors.New("escalation requires non-zero level")
 )
 
 // Applier dispatches apply-proposal actions to handlers.
 type Applier struct {
-	readMemory func(path string) (*memory.Stored, error)
-	writeMem   MemoryWriter
-	removeFile func(string) error
-	registry   RegistryUpdater
-	queue      QueueClearer
-	queuePath  string
+	readMemory         func(path string) (*memory.Stored, error)
+	writeMem           MemoryWriter
+	removeFile         func(string) error
+	registry           RegistryUpdater
+	queue              QueueClearer
+	queuePath          string
+	enforcementApplier maintain.EnforcementApplier
+	graduationEmitter  maintain.GraduationEmitter
+	now                func() time.Time
 }
 
 // NewApplier creates an Applier with the given options.
@@ -95,13 +101,39 @@ func (a *Applier) applyBroaden(action ApplyAction) error {
 }
 
 func (a *Applier) applyEscalate(action ApplyAction) error {
-	// Escalation is a no-op file-wise — it signals the escalation engine.
-	// The escalation level is recorded but no file mutation is needed.
 	if action.Level == 0 {
 		return fmt.Errorf("escalation: %w", ErrZeroLevel)
 	}
 
-	return nil
+	if action.Level < 1 || action.Level > len(escalationLadder) {
+		return fmt.Errorf("escalation: %w: %d", ErrLevelOutOfRange, action.Level)
+	}
+
+	proposedLevel := escalationLadder[action.Level-1]
+
+	var content string
+
+	if a.readMemory != nil {
+		stored, err := a.readMemory(action.Memory)
+		if err != nil {
+			return fmt.Errorf("reading memory for escalation: %w", err)
+		}
+
+		if stored != nil {
+			content = stored.Content
+		}
+	}
+
+	proposal := maintain.EscalationProposal{
+		MemoryPath:    action.Memory,
+		ProposalType:  "escalate",
+		ProposedLevel: string(proposedLevel),
+		Rationale:     "applied via apply-proposal",
+	}
+
+	return maintain.ApplyEscalationProposal(
+		proposal, content, a.enforcementApplier, a.graduationEmitter, a.now,
+	)
 }
 
 func (a *Applier) applyRemove(action ApplyAction) error {
@@ -173,6 +205,27 @@ type RegistryUpdater interface {
 	Remove(id string) error
 }
 
+// WithEnforcementApplier sets the enforcement level applier for escalation.
+func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
+	return func(a *Applier) {
+		a.enforcementApplier = applier
+	}
+}
+
+// WithGraduationEmitter sets the graduation emitter for escalation to graduated.
+func WithGraduationEmitter(emitter maintain.GraduationEmitter) ApplierOption {
+	return func(a *Applier) {
+		a.graduationEmitter = emitter
+	}
+}
+
+// WithNow sets the time function for escalation timestamps.
+func WithNow(fn func() time.Time) ApplierOption {
+	return func(a *Applier) {
+		a.now = fn
+	}
+}
+
 // WithQueue sets the queue clearer and path.
 func WithQueue(q QueueClearer, path string) ApplierOption {
 	return func(a *Applier) {
@@ -215,6 +268,16 @@ const (
 	actionEscalate        = "escalate"
 	actionRemove          = "remove"
 	actionRewrite         = "rewrite"
+)
+
+// unexported variables.
+var (
+	escalationLadder = []maintain.EscalationLevel{ //nolint:gochecknoglobals // constant table
+		maintain.LevelAdvisory,
+		maintain.LevelEmphasizedAdvisory,
+		maintain.LevelReminder,
+		maintain.LevelGraduated,
+	}
 )
 
 func applyFields(stored *memory.Stored, fields map[string]any) {
