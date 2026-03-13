@@ -32,6 +32,44 @@ func TestExtractError_ReturnsError(t *testing.T) {
 	g.Expect(result).To(BeNil())
 }
 
+// TestFallbackMergePrinciple_CandidateLonger verifies longer candidate wins.
+func TestFallbackMergePrinciple_CandidateLonger(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Title:     "candidate",
+		Principle: "much longer principle text here",
+	}
+	existingMem := &memory.Stored{
+		FilePath:  "/data/use-targ.toml",
+		Title:     "Use targ",
+		Principle: "short",
+	}
+
+	deduplicator := &fakeMergingDeduplicator{
+		mergePairs: []dedup.MergePair{{Candidate: candidate, Existing: existingMem}},
+	}
+	mergeWriter := &fakeMergeWriter{}
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetMergeWriter(mergeWriter)
+
+	_, err := learner.Run(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// mergeWriter.principle = max(candidate, existing) = candidate
+	g.Expect(mergeWriter.principle).To(Equal("much longer principle text here"))
+}
+
 // ListMemories error — pipeline returns error
 func TestListMemoriesError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -52,6 +90,129 @@ func TestListMemoriesError_ReturnsError(t *testing.T) {
 
 	g.Expect(err).To(MatchError(ContainSubstring("disk read failed")))
 	g.Expect(result).To(BeNil())
+}
+
+// TestRegistryAbsorberFunc_RecordAbsorbed verifies the func adapter calls through.
+func TestRegistryAbsorberFunc_RecordAbsorbed(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var called bool
+
+	absorber := learn.RegistryAbsorberFunc(func(existingPath, candidateTitle, contentHash string, _ time.Time) error {
+		called = true
+
+		g.Expect(existingPath).To(Equal("/path/to/existing.toml"))
+		g.Expect(candidateTitle).To(Equal("candidate title"))
+		g.Expect(contentHash).To(HaveLen(16))
+
+		return nil
+	})
+
+	err := absorber.RecordAbsorbed("/path/to/existing.toml", "candidate title", "abc123def4567890", time.Now())
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(called).To(BeTrue())
+}
+
+// TestSetMemoryMerger_PipelineUsesIt verifies that SetMemoryMerger wires up the merger for merge pairs.
+func TestSetMemoryMerger_PipelineUsesIt(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
+	}
+	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+
+	merger := &fakeMerger{merged: "merged principle"}
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
+	deduplicator := &fakeMergingDeduplicator{
+		mergePairs: []dedup.MergePair{{Candidate: candidate, Existing: existingMem}},
+	}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetMemoryMerger(merger)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+	g.Expect(merger.called).To(BeTrue())
+}
+
+// TestSetMergeWriter_PipelineCallsIt verifies that SetMergeWriter writes merged memories.
+func TestSetMergeWriter_PipelineCallsIt(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
+	}
+	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+
+	mergeWriter := &fakeMergeWriter{}
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
+	deduplicator := &fakeMergingDeduplicator{
+		mergePairs: []dedup.MergePair{{Candidate: candidate, Existing: existingMem}},
+	}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetMergeWriter(mergeWriter)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+	g.Expect(mergeWriter.called).To(BeTrue())
+}
+
+// TestSetRegistryAbsorber_PipelineCallsIt verifies that SetRegistryAbsorber records merges.
+func TestSetRegistryAbsorber_PipelineCallsIt(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Title: "Use targ", Content: "use targ for builds", FilenameSummary: "use-targ",
+		Keywords: []string{"targ"},
+	}
+	existingMem := &memory.Stored{FilePath: "/data/use-targ.toml", Title: "Use targ", Principle: "old"}
+
+	absorber := &fakeAbsorber{}
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
+	deduplicator := &fakeMergingDeduplicator{
+		mergePairs: []dedup.MergePair{{Candidate: candidate, Existing: existingMem}},
+	}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetRegistryAbsorber(absorber)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+	g.Expect(absorber.called).To(BeTrue())
 }
 
 // T-201: Learn pipeline calls RegisterMemory for new memories.
@@ -526,6 +687,43 @@ func TestT97_CreationLoggerError_PipelineSucceeds(t *testing.T) {
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
 }
 
+// TestUnionConcepts_MergesBothSets verifies union has all unique concepts.
+func TestUnionConcepts_MergesBothSets(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Title:    "candidate",
+		Concepts: []string{"alpha", "gamma"},
+	}
+	existingMem := &memory.Stored{
+		FilePath: "/data/mem.toml",
+		Title:    "existing",
+		Concepts: []string{"alpha", "beta"},
+	}
+
+	deduplicator := &fakeMergingDeduplicator{
+		mergePairs: []dedup.MergePair{{Candidate: candidate, Existing: existingMem}},
+	}
+	mergeWriter := &fakeMergeWriter{}
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
+	writer := &fakeWriter{}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetMergeWriter(mergeWriter)
+
+	_, err := learner.Run(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(mergeWriter.concepts).To(ConsistOf("alpha", "beta", "gamma"))
+}
+
 // Write error — pipeline returns error
 func TestWriteError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -557,6 +755,17 @@ func (r *callRecord) record(name string) {
 	r.calls = append(r.calls, name)
 }
 
+// fakeAbsorber is a test double for learn.RegistryAbsorber.
+type fakeAbsorber struct {
+	called bool
+}
+
+func (f *fakeAbsorber) RecordAbsorbed(_, _, _ string, _ time.Time) error {
+	f.called = true
+
+	return nil
+}
+
 // fakeCreationLogger is a test double for learn.CreationLogger.
 type fakeCreationLogger struct {
 	entries []creationlog.LogEntry
@@ -575,21 +784,8 @@ type fakeDeduplicator struct {
 	record    *callRecord
 }
 
-func (f *fakeDeduplicator) Filter(
-	_ []memory.CandidateLearning,
-	_ []*memory.Stored,
-) []memory.CandidateLearning {
-	f.called = true
-
-	if f.record != nil {
-		f.record.record("filter")
-	}
-
-	return f.surviving
-}
-
 func (f *fakeDeduplicator) Classify(
-	candidates []memory.CandidateLearning,
+	_ []memory.CandidateLearning,
 	_ []*memory.Stored,
 ) dedup.ClassifyResult {
 	f.called = true
@@ -603,6 +799,19 @@ func (f *fakeDeduplicator) Classify(
 		Surviving:  f.surviving,
 		MergePairs: []dedup.MergePair{},
 	}
+}
+
+func (f *fakeDeduplicator) Filter(
+	_ []memory.CandidateLearning,
+	_ []*memory.Stored,
+) []memory.CandidateLearning {
+	f.called = true
+
+	if f.record != nil {
+		f.record.record("filter")
+	}
+
+	return f.surviving
 }
 
 // fakeExtractor is a test double for learn.TranscriptExtractor.
@@ -621,6 +830,46 @@ func (f *fakeExtractor) Extract(_ context.Context, _ string) ([]memory.Candidate
 	}
 
 	return f.candidates, f.err
+}
+
+// fakeMergeWriter is a test double for learn.MergeWriter.
+type fakeMergeWriter struct {
+	called    bool
+	principle string
+	concepts  []string
+}
+
+func (f *fakeMergeWriter) UpdateMerged(_ *memory.Stored, principle string, _, concepts []string, _ time.Time) error {
+	f.called = true
+	f.principle = principle
+	f.concepts = concepts
+
+	return nil
+}
+
+// fakeMerger is a test double for learn.MemoryMerger.
+type fakeMerger struct {
+	called bool
+	merged string
+}
+
+func (f *fakeMerger) MergePrinciples(_ context.Context, _, _ string) (string, error) {
+	f.called = true
+
+	return f.merged, nil
+}
+
+// fakeMergingDeduplicator returns merge pairs instead of surviving candidates.
+type fakeMergingDeduplicator struct {
+	mergePairs []dedup.MergePair
+}
+
+func (f *fakeMergingDeduplicator) Classify(_ []memory.CandidateLearning, _ []*memory.Stored) dedup.ClassifyResult {
+	return dedup.ClassifyResult{MergePairs: f.mergePairs}
+}
+
+func (f *fakeMergingDeduplicator) Filter(_ []memory.CandidateLearning, _ []*memory.Stored) []memory.CandidateLearning {
+	return nil
 }
 
 // fakeRegistrar is a test double for learn.RegistryRegistrar.

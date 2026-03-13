@@ -100,7 +100,8 @@ func TestTP4e2_SessionStartEffectivenessGating(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("high-eff"))
-	g.Expect(output).NotTo(ContainSubstring("low-eff"), "low effectiveness memory should be gated out")
+	g.Expect(output).
+		NotTo(ContainSubstring("low-eff"), "low effectiveness memory should be gated out")
 }
 
 // T-P4e-3: SessionStart includes memories with <5 surfacings regardless of effectiveness.
@@ -139,7 +140,8 @@ func TestTP4e3_SessionStartInsufficientDataAlwaysIncluded(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("new-mem"), "insufficient-data memory should be included")
-	g.Expect(output).To(ContainSubstring("no-data"), "memory with no effectiveness data should be included")
+	g.Expect(output).
+		To(ContainSubstring("no-data"), "memory with no effectiveness data should be included")
 }
 
 // T-P4e-4: SessionStart ranks by effectiveness descending (high-eff appears before low-eff).
@@ -180,7 +182,8 @@ func TestTP4e4_SessionStartRanksByEffectiveness(t *testing.T) {
 	output := buf.String()
 	highIdx := strings.Index(output, "high-scorer")
 	lowIdx := strings.Index(output, "low-scorer")
-	g.Expect(highIdx).To(BeNumerically("<", lowIdx), "high-eff memory should appear before low-eff memory")
+	g.Expect(highIdx).
+		To(BeNumerically("<", lowIdx), "high-eff memory should appear before low-eff memory")
 }
 
 // T-P4e-5: Default budgets are 600/250/150 for SessionStart/UserPromptSubmit/PreToolUse.
@@ -213,7 +216,16 @@ func TestTP4e6_PreToolUseLimitsToTop2(t *testing.T) {
 		})
 	}
 
-	fillerNames := []string{"logging", "testing", "deploy", "config", "monitoring", "caching", "auth", "docs"}
+	fillerNames := []string{
+		"logging",
+		"testing",
+		"deploy",
+		"config",
+		"monitoring",
+		"caching",
+		"auth",
+		"docs",
+	}
 
 	for _, name := range fillerNames {
 		memories = append(memories, &memory.Stored{
@@ -269,8 +281,20 @@ func TestTP4e7_PreToolUseEffectivenessGating(t *testing.T) {
 			Keywords:    []string{"commit", "git"},
 			Principle:   "review first",
 		},
-		{Title: "logging", FilePath: "log.toml", AntiPattern: "no logging", Keywords: []string{"logging"}, Principle: "log"},
-		{Title: "testing", FilePath: "test.toml", AntiPattern: "no tests", Keywords: []string{"testing"}, Principle: "test"},
+		{
+			Title:       "logging",
+			FilePath:    "log.toml",
+			AntiPattern: "no logging",
+			Keywords:    []string{"logging"},
+			Principle:   "log",
+		},
+		{
+			Title:       "testing",
+			FilePath:    "test.toml",
+			AntiPattern: "no tests",
+			Keywords:    []string{"testing"},
+			Principle:   "test",
+		},
 		{
 			Title:       "deploy",
 			FilePath:    "deploy.toml",
@@ -321,7 +345,8 @@ func TestTP4e7_PreToolUseEffectivenessGating(t *testing.T) {
 
 	output := buf.String()
 	g.Expect(output).To(ContainSubstring("high-eff-commit"))
-	g.Expect(output).NotTo(ContainSubstring("low-eff-commit"), "low effectiveness memory should be gated out")
+	g.Expect(output).
+		NotTo(ContainSubstring("low-eff-commit"), "low effectiveness memory should be gated out")
 }
 
 // T-P4e-8: InvocationTokenLogger is called with output token count after surface.
@@ -365,7 +390,11 @@ type fakeInvocationTokenLogger struct {
 	calls []invocationTokenCall
 }
 
-func (f *fakeInvocationTokenLogger) LogInvocationTokens(mode string, tokenCount int, _ time.Time) error {
+func (f *fakeInvocationTokenLogger) LogInvocationTokens(
+	mode string,
+	tokenCount int,
+	_ time.Time,
+) error {
 	f.calls = append(f.calls, invocationTokenCall{mode: mode, tokenCount: tokenCount})
 
 	return nil

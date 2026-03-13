@@ -808,7 +808,11 @@ func TestTP0b3_SetEnforcementLevelAccumulatesHistory(t *testing.T) {
 	err := store.Register(registry.InstructionEntry{ID: "p0b-3", SourceType: "memory"})
 	g.Expect(err).NotTo(HaveOccurred())
 
-	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementEmphasizedAdvisory, "first escalation")
+	err = store.SetEnforcementLevel(
+		"p0b-3",
+		registry.EnforcementEmphasizedAdvisory,
+		"first escalation",
+	)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = store.SetEnforcementLevel("p0b-3", registry.EnforcementReminder, "second escalation")
@@ -931,73 +935,6 @@ func TestTP0b6_SetEnforcementLevelSaveError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("writing registry")))
 }
 
-// Remove returns ErrNotFound for nonexistent ID.
-
-// --- Helpers ---
-
-func emptyStore() *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-	)
-}
-
-func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
-	return registry.NewJSONLStore("test.jsonl",
-		registry.WithReader(func(_ string) ([]byte, error) {
-			return nil, errors.New("not found")
-		}),
-		registry.WithWriter(func(_ string, _ []byte) error {
-			return nil
-		}),
-		registry.WithNow(clock),
-	)
-}
-
-// T-P3-13: Registry.UpdateLinks stores and retrieves links
-func TestUpdateLinksStoresAndRetrieves(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	store := emptyStore()
-
-	entry := registry.InstructionEntry{
-		ID:         "mem1",
-		SourceType: "memory",
-		Title:      "test",
-	}
-	err := store.Register(entry)
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	links := []registry.Link{
-		{Target: "mem2", Weight: 0.5, Basis: "concept_overlap"},
-		{Target: "mem3", Weight: 0.3, Basis: "co_surfacing", CoSurfacingCount: 2},
-	}
-
-	err = store.UpdateLinks("mem1", links)
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	retrieved, err := store.Get("mem1")
-	g.Expect(err).NotTo(HaveOccurred())
-	if err != nil {
-		return
-	}
-
-	g.Expect(retrieved.Links).To(HaveLen(2))
-	g.Expect(retrieved.Links[0].Target).To(Equal("mem2"))
-	g.Expect(retrieved.Links[1].Target).To(Equal("mem3"))
-}
-
 // T-P3-14: Registry.UpdateLinks returns ErrNotFound for unknown id
 func TestUpdateLinksNotFound(t *testing.T) {
 	t.Parallel()
@@ -1030,6 +967,7 @@ func TestUpdateLinksReplaces(t *testing.T) {
 	}
 	err := store.Register(entry)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -1038,16 +976,88 @@ func TestUpdateLinksReplaces(t *testing.T) {
 	newLinks := []registry.Link{{Target: "new1", Weight: 0.5, Basis: "co_surfacing"}}
 	err = store.UpdateLinks("mem1", newLinks)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
 	retrieved, err := store.Get("mem1")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
 	g.Expect(retrieved.Links).To(HaveLen(1))
 	g.Expect(retrieved.Links[0].Target).To(Equal("new1"))
+}
+
+// T-P3-13: Registry.UpdateLinks stores and retrieves links
+func TestUpdateLinksStoresAndRetrieves(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := emptyStore()
+
+	entry := registry.InstructionEntry{
+		ID:         "mem1",
+		SourceType: "memory",
+		Title:      "test",
+	}
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	links := []registry.Link{
+		{Target: "mem2", Weight: 0.5, Basis: "concept_overlap"},
+		{Target: "mem3", Weight: 0.3, Basis: "co_surfacing", CoSurfacingCount: 2},
+	}
+
+	err = store.UpdateLinks("mem1", links)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	retrieved, err := store.Get("mem1")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(retrieved.Links).To(HaveLen(2))
+	g.Expect(retrieved.Links[0].Target).To(Equal("mem2"))
+	g.Expect(retrieved.Links[1].Target).To(Equal("mem3"))
+}
+
+// Remove returns ErrNotFound for nonexistent ID.
+
+// --- Helpers ---
+
+func emptyStore() *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+	)
+}
+
+func emptyStoreWithClock(clock func() time.Time) *registry.JSONLStore {
+	return registry.NewJSONLStore("test.jsonl",
+		registry.WithReader(func(_ string) ([]byte, error) {
+			return nil, errors.New("not found")
+		}),
+		registry.WithWriter(func(_ string, _ []byte) error {
+			return nil
+		}),
+		registry.WithNow(clock),
+	)
 }

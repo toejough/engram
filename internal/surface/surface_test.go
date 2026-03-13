@@ -1893,6 +1893,178 @@ func memPath(i int) string {
 	return "memory-" + string(rune('a'+i%26)) + ".toml"
 }
 
+// T-323: PreCompact mode ranks memories by effectiveness descending.
+func TestT323_PreCompactRanksByEffectiveness(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "low.toml", Principle: "low principle"},
+		{FilePath: "high.toml", Principle: "high principle"},
+		{FilePath: "mid.toml", Principle: "mid principle"},
+	}
+
+	eff := &fakeEffectivenessComputer{
+		stats: map[string]surface.EffectivenessStat{
+			"low.toml":  {SurfacedCount: 5, EffectivenessScore: 45.0},
+			"high.toml": {SurfacedCount: 5, EffectivenessScore: 90.0},
+			"mid.toml":  {SurfacedCount: 5, EffectivenessScore: 70.0},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePreCompact,
+		DataDir: "/tmp/data",
+		Budget:  500,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	highIdx := strings.Index(output, "high principle")
+	midIdx := strings.Index(output, "mid principle")
+	lowIdx := strings.Index(output, "low principle")
+
+	g.Expect(highIdx).To(BeNumerically(">", -1), "expected high principle in output")
+	g.Expect(highIdx).To(BeNumerically("<", midIdx), "high should appear before mid")
+	g.Expect(midIdx).To(BeNumerically("<", lowIdx), "mid should appear before low")
+}
+
+// T-324: PreCompact mode skips memories with effectiveness < 40%.
+func TestT324_PreCompactSkipsLowEffectiveness(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "skip.toml", Principle: "skip principle"},
+		{FilePath: "keep.toml", Principle: "keep principle"},
+		{FilePath: "nodata.toml", Principle: "nodata principle"},
+	}
+
+	eff := &fakeEffectivenessComputer{
+		stats: map[string]surface.EffectivenessStat{
+			"skip.toml": {SurfacedCount: 5, EffectivenessScore: 39.0},
+			"keep.toml": {SurfacedCount: 5, EffectivenessScore: 50.0},
+			// nodata.toml has no entry — treated as 0% effectiveness
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePreCompact,
+		DataDir: "/tmp/data",
+		Budget:  500,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).NotTo(ContainSubstring("skip principle"))
+	g.Expect(output).NotTo(ContainSubstring("nodata principle"))
+	g.Expect(output).To(ContainSubstring("keep principle"))
+}
+
+// T-325: PreCompact mode limits to top-5 memories even when budget allows more.
+func TestT325_PreCompactLimitsToTop5(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := make([]*memory.Stored, 8)
+	stats := make(map[string]surface.EffectivenessStat, 8)
+
+	for i := range 8 {
+		path := fmt.Sprintf("mem-%d.toml", i)
+		memories[i] = &memory.Stored{
+			FilePath:  path,
+			Principle: fmt.Sprintf("principle %d", i),
+		}
+		stats[path] = surface.EffectivenessStat{
+			SurfacedCount:      5,
+			EffectivenessScore: float64(50 + i),
+		}
+	}
+
+	eff := &fakeEffectivenessComputer{stats: stats}
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePreCompact,
+		DataDir: "/tmp/data",
+		Budget:  10000,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	count := strings.Count(output, "\n- ")
+	g.Expect(count).To(Equal(5), "expected exactly 5 memories, got %d", count)
+}
+
+// T-326: PreCompact mode output has correct header and principle-only lines.
+func TestT326_PreCompactOutputFormat(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{FilePath: "mem.toml", Principle: "always use /commit skill"},
+	}
+
+	eff := &fakeEffectivenessComputer{
+		stats: map[string]surface.EffectivenessStat{
+			"mem.toml": {SurfacedCount: 5, EffectivenessScore: 80.0},
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePreCompact,
+		DataDir: "/tmp/data",
+		Budget:  500,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("[engram] Preserving top memories through compaction:"))
+	g.Expect(output).To(ContainSubstring("- always use /commit skill"))
+}
+
 // T-235: Retirement filtering is now handled by the instruction registry (UC-23),
 // not inline in memory.Stored. filterRetired was removed — retired memories are
 // deleted from disk by the automation pipeline.

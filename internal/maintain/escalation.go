@@ -21,7 +21,7 @@ type EffData map[EscalationLevel][]float64
 
 // EnforcementApplier updates the enforcement_level in the instruction registry.
 type EnforcementApplier interface {
-	SetEnforcementLevel(id string, level string, reason string) error
+	SetEnforcementLevel(id, level, reason string) error
 }
 
 // EscalationEngine analyzes leech memories and proposes escalation actions.
@@ -240,7 +240,14 @@ func ClassifyContent(content string) string {
 		return "settings.json"
 	}
 
-	if containsAny(lower, "glob pattern", "file glob", "rule file", ".claude/rules", "file-scoped") {
+	if containsAny(
+		lower,
+		"glob pattern",
+		"file glob",
+		"rule file",
+		".claude/rules",
+		"file-scoped",
+	) {
 		return ".claude/rules/"
 	}
 

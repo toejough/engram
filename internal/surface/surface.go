@@ -66,6 +66,25 @@ type InvocationTokenLogger interface {
 	LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error
 }
 
+// LinkGraphLink represents a typed link in the memory graph (P3).
+type LinkGraphLink struct {
+	Target           string
+	Weight           float64
+	Basis            string
+	CoSurfacingCount int
+}
+
+// LinkReader reads memory graph links for spreading activation and cluster notes (P3).
+type LinkReader interface {
+	GetEntryLinks(id string) ([]LinkGraphLink, error)
+}
+
+// LinkUpdater reads and updates memory graph links (P3: co_surfacing, spreading activation).
+type LinkUpdater interface {
+	GetEntryLinks(id string) ([]LinkGraphLink, error)
+	SetEntryLinks(id string, links []LinkGraphLink) error
+}
+
 // LogEntry is an alias for creationlog.LogEntry (avoids coupling callers to creationlog package).
 type LogEntry = creationlog.LogEntry
 
@@ -106,30 +125,6 @@ type SignalEmitter interface {
 	Emit(s signal.Signal) error
 }
 
-// LinkGraphLink represents a typed link in the memory graph (P3).
-type LinkGraphLink struct {
-	Target           string
-	Weight           float64
-	Basis            string
-	CoSurfacingCount int
-}
-
-// LinkUpdater reads and updates memory graph links (P3: co_surfacing, spreading activation).
-type LinkUpdater interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-	SetEntryLinks(id string, links []LinkGraphLink) error
-}
-
-// LinkReader reads memory graph links for spreading activation and cluster notes (P3).
-type LinkReader interface {
-	GetEntryLinks(id string) ([]LinkGraphLink, error)
-}
-
-// TitleFetcher fetches memory titles for cluster notes (P3).
-type TitleFetcher interface {
-	GetTitle(id string) (string, bool)
-}
-
 // Surfacer orchestrates memory surfacing.
 type Surfacer struct {
 	retriever             MemoryRetriever
@@ -143,9 +138,9 @@ type Surfacer struct {
 	enforcementReader     EnforcementReader
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
-	linkUpdater           LinkUpdater    // P3: co_surfacing + spreading activation
-	linkReader            LinkReader     // P3: spreading activation + cluster notes
-	titleFetcher          TitleFetcher   // P3: cluster notes
+	linkUpdater           LinkUpdater  // P3: co_surfacing + spreading activation
+	linkReader            LinkReader   // P3: spreading activation + cluster notes
+	titleFetcher          TitleFetcher // P3: cluster notes
 }
 
 // New creates a Surfacer.
@@ -251,6 +246,29 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 	return nil
 }
 
+// appendClusterNotes adds top-linked memory titles as cluster annotations (P3, REQ-P3-7).
+func (s *Surfacer) appendClusterNotes(buf *strings.Builder, memories []*memory.Stored) {
+	const maxClusterNotes = 2
+
+	for _, mem := range memories {
+		links, err := s.linkReader.GetEntryLinks(mem.FilePath)
+		if err != nil || len(links) == 0 {
+			continue
+		}
+
+		noteCount := min(maxClusterNotes, len(links))
+
+		for i := range noteCount {
+			title, ok := s.titleFetcher.GetTitle(links[i].Target)
+			if !ok {
+				continue
+			}
+
+			_, _ = fmt.Fprintf(buf, "  linked: %s\n", title)
+		}
+	}
+}
+
 // enforcementLevelFor returns the enforcement level for a memory path, defaulting to "advisory".
 func (s *Surfacer) enforcementLevelFor(memPath string) string {
 	if s.enforcementReader == nil {
@@ -292,7 +310,12 @@ func (s *Surfacer) renderToolAdvisories(
 		toolMems = append(toolMems, match.mem)
 		level := s.enforcementLevelFor(match.mem.FilePath)
 		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		line := formatMemoryLine(filenameSlug(match.mem.FilePath), match.mem.Principle, level, annotation)
+		line := formatMemoryLine(
+			filenameSlug(match.mem.FilePath),
+			match.mem.Principle,
+			level,
+			annotation,
+		)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
 	}
@@ -490,6 +513,7 @@ func (s *Surfacer) runPrompt(
 	}, finalMems, nil
 }
 
+//nolint:cyclop // session-start orchestration: reads log, loads memories, ranks, P3 links — inherent branching
 func (s *Surfacer) runSessionStart(
 	ctx context.Context,
 	dataDir string,
@@ -540,6 +564,16 @@ func (s *Surfacer) runSessionStart(
 
 	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
 	writeRecencySection(&summaryBuf, &contextBuf, memories[:count], effectiveness)
+
+	// P3: update co_surfacing links for memories surfaced together (REQ-P3-5).
+	if s.linkUpdater != nil && count > 0 {
+		s.updateCoSurfacingLinks(memories[:count])
+	}
+
+	// P3: annotate context with cluster notes from linked memories (REQ-P3-7).
+	if s.linkReader != nil && s.titleFetcher != nil && count > 0 {
+		s.appendClusterNotes(&contextBuf, memories[:count])
+	}
 
 	return Result{
 		Summary: strings.TrimRight(summaryBuf.String(), "\n"),
@@ -593,7 +627,10 @@ func (s *Surfacer) runTool(
 // suppressContradictions runs contradiction detection on candidates and returns a filtered slice
 // with lower-ranked contradicting memories removed. Emits KindContradiction signals for each
 // suppressed memory. Fire-and-forget: errors from detector return candidates unchanged (UC-P1-1).
-func (s *Surfacer) suppressContradictions(ctx context.Context, candidates []*memory.Stored) []*memory.Stored {
+func (s *Surfacer) suppressContradictions(
+	ctx context.Context,
+	candidates []*memory.Stored,
+) []*memory.Stored {
 	if s.contradictionDetector == nil || len(candidates) < 2 {
 		return candidates
 	}
@@ -630,6 +667,59 @@ func (s *Surfacer) suppressContradictions(ctx context.Context, candidates []*mem
 	return filtered
 }
 
+// updateCoSurfacingLinks increments co_surfacing link weights for all pairs in the surfaced set (P3, REQ-P3-5).
+func (s *Surfacer) updateCoSurfacingLinks(memories []*memory.Stored) {
+	const (
+		coSurfacingInitWeight = 0.1
+		coSurfacingIncrement  = 0.1
+		coSurfacingWeightCap  = 1.0
+	)
+
+	for i, mem := range memories {
+		existing, err := s.linkUpdater.GetEntryLinks(mem.FilePath)
+		if err != nil {
+			continue
+		}
+
+		updated := make([]LinkGraphLink, 0, len(existing))
+		updated = append(updated, existing...)
+
+		for j, peer := range memories {
+			if i == j {
+				continue
+			}
+
+			found := false
+
+			for linkIdx, link := range updated {
+				if link.Target == peer.FilePath {
+					updated[linkIdx].CoSurfacingCount++
+					updated[linkIdx].Weight += coSurfacingIncrement
+
+					if updated[linkIdx].Weight > coSurfacingWeightCap {
+						updated[linkIdx].Weight = coSurfacingWeightCap
+					}
+
+					found = true
+
+					break
+				}
+			}
+
+			if !found {
+				updated = append(updated, LinkGraphLink{
+					Target:           peer.FilePath,
+					Weight:           coSurfacingInitWeight,
+					Basis:            "co_surfacing",
+					CoSurfacingCount: 1,
+				})
+			}
+		}
+
+		_ = s.linkUpdater.SetEntryLinks(mem.FilePath, updated)
+	}
+}
+
 func (s *Surfacer) writeResult(w io.Writer, result Result, format string) error {
 	if result.Context == "" {
 		return nil
@@ -657,6 +747,11 @@ type SurfacingEventLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
+// TitleFetcher fetches memory titles for cluster notes (P3).
+type TitleFetcher interface {
+	GetTitle(id string) (string, bool)
+}
+
 // WithContradictionDetector sets the contradiction detector for post-ranking suppression (UC-P1-1).
 func WithContradictionDetector(d ContradictionDetector) SurfacerOption {
 	return func(s *Surfacer) { s.contradictionDetector = d }
@@ -675,6 +770,16 @@ func WithEnforcementReader(reader EnforcementReader) SurfacerOption {
 // WithInvocationTokenLogger sets the invocation token logger for per-call token tracking (REQ-P4e-5).
 func WithInvocationTokenLogger(logger InvocationTokenLogger) SurfacerOption {
 	return func(s *Surfacer) { s.invocationTokenLogger = logger }
+}
+
+// WithLinkReader sets the link reader for spreading activation and cluster notes (P3, REQ-P3-6, REQ-P3-7).
+func WithLinkReader(reader LinkReader) SurfacerOption {
+	return func(s *Surfacer) { s.linkReader = reader }
+}
+
+// WithLinkUpdater sets the link updater for co_surfacing and spreading activation (P3, REQ-P3-5, REQ-P3-6).
+func WithLinkUpdater(updater LinkUpdater) SurfacerOption {
+	return func(s *Surfacer) { s.linkUpdater = updater }
 }
 
 // WithLogReader sets the creation log reader for session-start mode.
@@ -697,24 +802,14 @@ func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
 	return func(s *Surfacer) { s.surfacingLogger = logger }
 }
 
-// WithTracker sets the memory tracker for surfacing instrumentation.
-func WithTracker(tracker MemoryTracker) SurfacerOption {
-	return func(s *Surfacer) { s.tracker = tracker }
-}
-
-// WithLinkUpdater sets the link updater for co_surfacing and spreading activation (P3, REQ-P3-5, REQ-P3-6).
-func WithLinkUpdater(updater LinkUpdater) SurfacerOption {
-	return func(s *Surfacer) { s.linkUpdater = updater }
-}
-
-// WithLinkReader sets the link reader for spreading activation and cluster notes (P3, REQ-P3-6, REQ-P3-7).
-func WithLinkReader(reader LinkReader) SurfacerOption {
-	return func(s *Surfacer) { s.linkReader = reader }
-}
-
 // WithTitleFetcher sets the title fetcher for cluster notes (P3, REQ-P3-7).
 func WithTitleFetcher(fetcher TitleFetcher) SurfacerOption {
 	return func(s *Surfacer) { s.titleFetcher = fetcher }
+}
+
+// WithTracker sets the memory tracker for surfacing instrumentation.
+func WithTracker(tracker MemoryTracker) SurfacerOption {
+	return func(s *Surfacer) { s.tracker = tracker }
 }
 
 // unexported constants.
@@ -809,13 +904,17 @@ func filenameSlug(path string) string {
 
 // filterByEffectivenessGate removes memories with sufficient data (>=5 surfacings) and low effectiveness (<=40%).
 // Memories with <5 surfacings or no data are always kept (REQ-P4e-1: insufficient data).
-func filterByEffectivenessGate(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) []*memory.Stored {
+func filterByEffectivenessGate(
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) []*memory.Stored {
 	filtered := make([]*memory.Stored, 0, len(memories))
 
 	for _, mem := range memories {
 		if effectiveness != nil {
 			stat, ok := effectiveness[mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
+				stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -836,7 +935,8 @@ func filterToolMatchesByEffectivenessGate(
 	for _, candidate := range candidates {
 		if effectiveness != nil {
 			stat, ok := effectiveness[candidate.mem.FilePath]
-			if ok && stat.SurfacedCount >= insufficientDataThreshold && stat.EffectivenessScore <= minEffectivenessFloor {
+			if ok && stat.SurfacedCount >= insufficientDataThreshold &&
+				stat.EffectivenessScore <= minEffectivenessFloor {
 				continue // gated out
 			}
 		}
@@ -976,7 +1076,10 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 
 // sortByEffectivenessScore sorts memories by effectiveness score descending (REQ-P4e-1).
 // Insufficient-data memories use sessionStartDefaultEffectiveness.
-func sortByEffectivenessScore(memories []*memory.Stored, effectiveness map[string]EffectivenessStat) {
+func sortByEffectivenessScore(
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) {
 	sort.SliceStable(memories, func(i, j int) bool {
 		si := effectivenessScoreFor(memories[i].FilePath, effectiveness)
 		sj := effectivenessScoreFor(memories[j].FilePath, effectiveness)

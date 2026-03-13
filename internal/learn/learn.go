@@ -34,21 +34,6 @@ type Deduplicator interface {
 	) dedup.ClassifyResult
 }
 
-// MemoryMerger combines principles during merge (UC-33).
-type MemoryMerger interface {
-	MergePrinciples(ctx context.Context, existing, candidate string) (string, error)
-}
-
-// MergeWriter updates an existing memory with merged fields (UC-33).
-type MergeWriter interface {
-	UpdateMerged(existing *memory.Stored, principle string, keywords, concepts []string, now time.Time) error
-}
-
-// RegistryAbsorber records a merge in the registry (UC-33).
-type RegistryAbsorber interface {
-	RecordAbsorbed(existingPath, candidateTitle, contentHash string, now time.Time) error
-}
-
 // Learner orchestrates the four-stage Session Learning pipeline.
 type Learner struct {
 	extractor      TranscriptExtractor
@@ -58,8 +43,8 @@ type Learner struct {
 	dataDir        string
 	creationLogger CreationLogger // optional: log creation events for deferred visibility
 	registrar      RegistryRegistrar
-	merger         MemoryMerger    // optional: merge candidates with existing memories (UC-33)
-	mergeWriter    MergeWriter     // optional: write merged memories to disk (UC-33)
+	merger         MemoryMerger     // optional: merge candidates with existing memories (UC-33)
+	mergeWriter    MergeWriter      // optional: write merged memories to disk (UC-33)
 	absorber       RegistryAbsorber // optional: record merges in registry (UC-33)
 	stderr         io.Writer
 }
@@ -140,11 +125,6 @@ func (l *Learner) SetCreationLogger(logger CreationLogger) {
 	l.creationLogger = logger
 }
 
-// SetRegistryRegistrar attaches an optional RegistryRegistrar to the Learner (UC-23).
-func (l *Learner) SetRegistryRegistrar(registrar RegistryRegistrar) {
-	l.registrar = registrar
-}
-
 // SetMemoryMerger attaches an optional MemoryMerger to the Learner (UC-33).
 func (l *Learner) SetMemoryMerger(merger MemoryMerger) {
 	l.merger = merger
@@ -158,6 +138,25 @@ func (l *Learner) SetMergeWriter(writer MergeWriter) {
 // SetRegistryAbsorber attaches an optional RegistryAbsorber to the Learner (UC-33).
 func (l *Learner) SetRegistryAbsorber(absorber RegistryAbsorber) {
 	l.absorber = absorber
+}
+
+// SetRegistryRegistrar attaches an optional RegistryRegistrar to the Learner (UC-23).
+func (l *Learner) SetRegistryRegistrar(registrar RegistryRegistrar) {
+	l.registrar = registrar
+}
+
+// fallbackMergePrinciple uses the longer principle text (UC-33).
+func (l *Learner) fallbackMergePrinciple(existing, candidate string) string {
+	if len(candidate) > len(existing) {
+		return candidate
+	}
+
+	return existing
+}
+
+// hashKeywords returns a hash of the keywords (for the Absorbed record).
+func (l *Learner) hashKeywords(keywords []string) string {
+	return ComputeContentHash(keywords)
 }
 
 // processMerge handles the merge of a candidate with an existing memory (UC-33).
@@ -190,7 +189,13 @@ func (l *Learner) processMerge(
 
 	// Write merged memory to disk
 	if l.mergeWriter != nil {
-		err := l.mergeWriter.UpdateMerged(existing, mergedPrinciple, mergedKeywords, mergedConcepts, now)
+		err := l.mergeWriter.UpdateMerged(
+			existing,
+			mergedPrinciple,
+			mergedKeywords,
+			mergedConcepts,
+			now,
+		)
 		if err != nil {
 			return fmt.Errorf("merge writer: %w", err)
 		}
@@ -199,6 +204,7 @@ func (l *Learner) processMerge(
 	// Record merge in registry
 	if l.absorber != nil {
 		contentHash := l.hashKeywords(candidate.Keywords)
+
 		err := l.absorber.RecordAbsorbed(existing.FilePath, candidate.Title, contentHash, now)
 		if err != nil {
 			_, _ = fmt.Fprintf(l.stderr, "learn: absorber: %v\n", err)
@@ -208,51 +214,46 @@ func (l *Learner) processMerge(
 	return nil
 }
 
-// fallbackMergePrinciple uses the longer principle text (UC-33).
-func (l *Learner) fallbackMergePrinciple(existing, candidate string) string {
-	if len(candidate) > len(existing) {
-		return candidate
-	}
-	return existing
-}
-
-// unionKeywords returns the union of two keyword slices.
-func (l *Learner) unionKeywords(a, b []string) []string {
-	set := make(map[string]struct{})
-	for _, k := range a {
-		set[k] = struct{}{}
-	}
-	for _, k := range b {
-		set[k] = struct{}{}
-	}
-
-	result := make([]string, 0, len(set))
-	for k := range set {
-		result = append(result, k)
-	}
-	return result
-}
-
 // unionConcepts returns the union of two concept slices.
 func (l *Learner) unionConcepts(a, b []string) []string {
 	set := make(map[string]struct{})
+
 	for _, c := range a {
 		set[c] = struct{}{}
 	}
+
 	for _, c := range b {
 		set[c] = struct{}{}
 	}
 
 	result := make([]string, 0, len(set))
+
 	for c := range set {
 		result = append(result, c)
 	}
+
 	return result
 }
 
-// hashKeywords returns a hash of the keywords (for the Absorbed record).
-func (l *Learner) hashKeywords(keywords []string) string {
-	return ComputeContentHash(keywords)
+// unionKeywords returns the union of two keyword slices.
+func (l *Learner) unionKeywords(a, b []string) []string {
+	set := make(map[string]struct{})
+
+	for _, k := range a {
+		set[k] = struct{}{}
+	}
+
+	for _, k := range b {
+		set[k] = struct{}{}
+	}
+
+	result := make([]string, 0, len(set))
+
+	for k := range set {
+		result = append(result, k)
+	}
+
+	return result
 }
 
 // writeCandidate enriches and writes a single candidate, then logs its creation.
@@ -305,6 +306,11 @@ func (l *Learner) writeCandidate(
 	return filePath, nil
 }
 
+// MemoryMerger combines principles during merge (UC-33).
+type MemoryMerger interface {
+	MergePrinciples(ctx context.Context, existing, candidate string) (string, error)
+}
+
 // MemoryRetriever lists existing memories from the data directory.
 type MemoryRetriever interface {
 	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
@@ -313,6 +319,21 @@ type MemoryRetriever interface {
 // MemoryWriter writes an enriched memory to persistent storage.
 type MemoryWriter interface {
 	Write(mem *memory.Enriched, dataDir string) (string, error)
+}
+
+// MergeWriter updates an existing memory with merged fields (UC-33).
+type MergeWriter interface {
+	UpdateMerged(
+		existing *memory.Stored,
+		principle string,
+		keywords, concepts []string,
+		now time.Time,
+	) error
+}
+
+// RegistryAbsorber records a merge in the registry (UC-33).
+type RegistryAbsorber interface {
+	RecordAbsorbed(existingPath, candidateTitle, contentHash string, now time.Time) error
 }
 
 // RegistryRegistrar registers new memories in the instruction registry (UC-23).

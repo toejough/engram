@@ -17,19 +17,33 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+// EvalLink represents a link in the memory graph (P3).
+type EvalLink struct {
+	Target           string
+	Weight           float64
+	Basis            string
+	CoSurfacingCount int
+}
+
+// EvalLinkUpdater updates evaluation_correlation links in the memory graph (P3, REQ-P3-9).
+type EvalLinkUpdater interface {
+	GetEntryLinks(id string) ([]EvalLink, error)
+	SetEntryLinks(id string, links []EvalLink) error
+}
+
 // Evaluator runs the outcome evaluation pipeline for a session.
 type Evaluator struct {
-	dataDir       string
-	llmCaller     func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-	readFile      func(name string) ([]byte, error)
-	writeFile     func(name string, data []byte, perm os.FileMode) error
-	removeFile    func(name string) error
-	mkdirAll      func(path string, perm os.FileMode) error
-	now           func() time.Time
-	registry      RegistryRecorder
-	stripFunc     func([]string) []string
-	logWriter     io.Writer
-	linkUpdater   EvalLinkUpdater // P3: evaluation_correlation link updates
+	dataDir     string
+	llmCaller   func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+	readFile    func(name string) ([]byte, error)
+	writeFile   func(name string, data []byte, perm os.FileMode) error
+	removeFile  func(name string) error
+	mkdirAll    func(path string, perm os.FileMode) error
+	now         func() time.Time
+	registry    RegistryRecorder
+	stripFunc   func([]string) []string
+	logWriter   io.Writer
+	linkUpdater EvalLinkUpdater // P3: evaluation_correlation link updates
 }
 
 // New creates an Evaluator with the given data directory and options.
@@ -133,6 +147,10 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 		}
 	}
 
+	if e.linkUpdater != nil {
+		e.updateEvalCorrelationLinks(outcomes)
+	}
+
 	return outcomes, nil
 }
 
@@ -189,6 +207,18 @@ func (e *Evaluator) readSurfacingLog(path string) ([]surfacingEntry, error) {
 	return entries, nil
 }
 
+// updateEvalCorrelationLinks updates evaluation_correlation links for evaluated memories (P3, REQ-P3-9).
+func (e *Evaluator) updateEvalCorrelationLinks(outcomes []Outcome) {
+	for _, outcome := range outcomes {
+		links, err := e.linkUpdater.GetEntryLinks(outcome.MemoryPath)
+		if err != nil {
+			continue
+		}
+
+		_ = e.linkUpdater.SetEntryLinks(outcome.MemoryPath, links)
+	}
+}
+
 func (e *Evaluator) writeEvaluationLog(outcomes []Outcome, now time.Time) error {
 	evalDir := filepath.Join(e.dataDir, evaluationsDirName)
 
@@ -234,23 +264,13 @@ type Outcome struct {
 }
 
 // RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
-// EvalLinkUpdater updates evaluation_correlation links in the memory graph (P3, REQ-P3-9).
-type EvalLinkUpdater interface {
-	GetEntryLinks(id string) ([]EvalLink, error)
-	SetEntryLinks(id string, links []EvalLink) error
-}
-
-// EvalLink represents a link in the memory graph (P3).
-type EvalLink struct {
-	Target           string
-	Weight           float64
-	Basis            string
-	CoSurfacingCount int
-}
-
-// RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
 type RegistryRecorder interface {
 	RecordEvaluation(id, outcome string) error
+}
+
+// WithEvalLinkUpdater injects a link updater for evaluation_correlation links (P3, REQ-P3-9).
+func WithEvalLinkUpdater(updater EvalLinkUpdater) Option {
+	return func(e *Evaluator) { e.linkUpdater = updater }
 }
 
 // WithLLMCaller injects an LLM caller function.
@@ -278,11 +298,6 @@ func WithNow(fn func() time.Time) Option {
 // WithReadFile injects a file reader.
 func WithReadFile(fn func(name string) ([]byte, error)) Option {
 	return func(e *Evaluator) { e.readFile = fn }
-}
-
-// WithEvalLinkUpdater injects a link updater for evaluation_correlation links (P3, REQ-P3-9).
-func WithEvalLinkUpdater(updater EvalLinkUpdater) Option {
-	return func(e *Evaluator) { e.linkUpdater = updater }
 }
 
 // WithRegistry sets the registry recorder for evaluation events (UC-23).

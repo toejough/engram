@@ -253,6 +253,9 @@ type fakeGraduationEmitter struct {
 	emitFn func(memoryPath, recommendation string, detectedAt time.Time) error
 }
 
-func (f *fakeGraduationEmitter) EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error {
+func (f *fakeGraduationEmitter) EmitGraduation(
+	memoryPath, recommendation string,
+	detectedAt time.Time,
+) error {
 	return f.emitFn(memoryPath, recommendation, detectedAt)
 }
