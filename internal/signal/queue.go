@@ -38,37 +38,40 @@ func NewQueueStore(opts ...QueueOption) *QueueStore {
 	return store
 }
 
-// Append adds signals to the queue file atomically.
+// Append upserts signals into the queue file atomically. If a signal with the
+// same source_id and type already exists, it is enriched (DetectedAt updated,
+// DetectionCount incremented) rather than duplicated.
 func (q *QueueStore) Append(signals []Signal, path string) error {
 	if len(signals) == 0 {
 		return nil
 	}
 
-	existing, err := q.readFile(path)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("reading signal queue: %w", err)
+	existingSignals, err := q.Read(path)
+	if err != nil {
+		return err
 	}
 
-	var sb strings.Builder
-	if len(existing) > 0 {
-		sb.Write(existing)
-
-		if existing[len(existing)-1] != '\n' {
-			sb.WriteByte('\n')
-		}
+	index := make(map[string]int, len(existingSignals))
+	for i, sig := range existingSignals {
+		index[sig.SourceID+"|"+sig.Type] = i
 	}
 
 	for _, sig := range signals {
-		line, marshalErr := json.Marshal(sig)
-		if marshalErr != nil {
-			return fmt.Errorf("marshaling signal: %w", marshalErr)
-		}
+		key := sig.SourceID + "|" + sig.Type
 
-		sb.Write(line)
-		sb.WriteByte('\n')
+		if idx, exists := index[key]; exists {
+			mergeInto(&existingSignals[idx], sig)
+		} else {
+			if sig.DetectionCount == 0 {
+				sig.DetectionCount = 1
+			}
+
+			index[key] = len(existingSignals)
+			existingSignals = append(existingSignals, sig)
+		}
 	}
 
-	return q.writeAtomic(path, sb.String())
+	return q.writeSignals(path, existingSignals)
 }
 
 // ClearBySourceID removes all entries matching the given sourceID.
@@ -89,8 +92,9 @@ func (q *QueueStore) ClearBySourceID(path, sourceID string) error {
 	return q.writeSignals(path, kept)
 }
 
-// Prune removes stale entries (>30 days), entries for deleted sources, and deduplicates
-// by source_id+type. existsCheck returns true if the source file exists.
+// Prune removes stale entries (>30 days), entries for deleted sources, and
+// merges duplicates by source_id+type (summing DetectionCount, keeping latest
+// DetectedAt). existsCheck returns true if the source file exists.
 func (q *QueueStore) Prune(path string, existsCheck func(string) bool) error {
 	signals, err := q.Read(path)
 	if err != nil {
@@ -102,8 +106,7 @@ func (q *QueueStore) Prune(path string, existsCheck func(string) bool) error {
 	}
 
 	now := q.now()
-	seen := make(map[string]struct{})
-	kept := make([]Signal, 0, len(signals))
+	filtered := make([]Signal, 0, len(signals))
 
 	for _, sig := range signals {
 		if now.Sub(sig.DetectedAt) > pruneMaxAge {
@@ -114,17 +117,10 @@ func (q *QueueStore) Prune(path string, existsCheck func(string) bool) error {
 			continue
 		}
 
-		dedupKey := sig.SourceID + "|" + sig.Type
-		if _, exists := seen[dedupKey]; exists {
-			continue
-		}
-
-		seen[dedupKey] = struct{}{}
-
-		kept = append(kept, sig)
+		filtered = append(filtered, sig)
 	}
 
-	return q.writeSignals(path, kept)
+	return q.writeSignals(path, mergeSignals(filtered))
 }
 
 // Read reads all signals from the queue file.
@@ -246,3 +242,44 @@ func WithQueueRename(fn func(oldpath, newpath string) error) QueueOption {
 const (
 	pruneMaxAge = 30 * 24 * time.Hour
 )
+
+// mergeInto enriches an existing signal with data from a duplicate.
+func mergeInto(existing *Signal, incoming Signal) {
+	if incoming.DetectedAt.After(existing.DetectedAt) {
+		existing.DetectedAt = incoming.DetectedAt
+	}
+
+	existing.DetectionCount += max(incoming.DetectionCount, 1)
+
+	if incoming.Summary != "" {
+		existing.Summary = incoming.Summary
+	}
+
+	if incoming.Quadrant != "" {
+		existing.Quadrant = incoming.Quadrant
+	}
+}
+
+// mergeSignals deduplicates signals by source_id+type, summing DetectionCount
+// and keeping the latest DetectedAt, Summary, and Quadrant.
+func mergeSignals(signals []Signal) []Signal {
+	index := make(map[string]int, len(signals))
+	merged := make([]Signal, 0, len(signals))
+
+	for _, sig := range signals {
+		key := sig.SourceID + "|" + sig.Type
+
+		if idx, exists := index[key]; exists {
+			mergeInto(&merged[idx], sig)
+		} else {
+			if sig.DetectionCount == 0 {
+				sig.DetectionCount = 1
+			}
+
+			index[key] = len(merged)
+			merged = append(merged, sig)
+		}
+	}
+
+	return merged
+}

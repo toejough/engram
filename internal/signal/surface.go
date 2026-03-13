@@ -108,7 +108,8 @@ func formatInstructions(enriched []EnrichedSignal) string {
 	var sb strings.Builder
 
 	sb.WriteString(
-		"Pending maintenance signals detected. For each signal, consider the recommended action:\n",
+		"Present these maintenance signals to the user for their decision. " +
+			"Do not act on them without user approval:\n",
 	)
 
 	for _, e := range enriched {
@@ -116,19 +117,19 @@ func formatInstructions(enriched []EnrichedSignal) string {
 		case KindNoiseRemoval:
 			fmt.Fprintf(
 				&sb,
-				"- %s: Consider removing (rarely surfaced, low effectiveness)\n",
+				"- %s: Recommend removal (rarely surfaced, low effectiveness)\n",
 				e.SourceID,
 			)
 		case KindLeechRewrite:
 			fmt.Fprintf(
 				&sb,
-				"- %s: Consider rewriting (frequently surfaced, rarely followed)\n",
+				"- %s: Recommend rewrite (frequently surfaced, rarely followed)\n",
 				e.SourceID,
 			)
 		case KindHiddenGemBroaden:
 			fmt.Fprintf(
 				&sb,
-				"- %s: Consider broadening keywords (high effectiveness, rarely surfaced)\n",
+				"- %s: Recommend broadening keywords (high effectiveness, rarely surfaced)\n",
 				e.SourceID,
 			)
 		case KindMemoryToSkill:

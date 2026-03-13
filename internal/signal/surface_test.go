@@ -52,9 +52,9 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 		return
 	}
 
-	g.Expect(result).To(gomega.ContainSubstring("removing"))
-	g.Expect(result).To(gomega.ContainSubstring("rewriting"))
-	g.Expect(result).To(gomega.ContainSubstring("broadening"))
+	g.Expect(result).To(gomega.ContainSubstring("Recommend removal"))
+	g.Expect(result).To(gomega.ContainSubstring("Recommend rewrite"))
+	g.Expect(result).To(gomega.ContainSubstring("Recommend broadening"))
 	g.Expect(result).To(gomega.ContainSubstring("promotion to skill"))
 	g.Expect(result).To(gomega.ContainSubstring("promoting this skill to CLAUDE.md"))
 	g.Expect(result).To(gomega.ContainSubstring("demoting this CLAUDE.md entry"))

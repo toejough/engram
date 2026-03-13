@@ -178,6 +178,73 @@ func TestQueueStore_AppendToExisting(t *testing.T) {
 	g.Expect(written).To(gomega.ContainSubstring("new.toml"))
 }
 
+func TestQueueStore_AppendUpsertsExisting(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	existingSig := signal.Signal{
+		Type: signal.TypeMaintain, SourceID: "dup.toml",
+		SignalKind: signal.KindNoiseRemoval, Summary: "first",
+		DetectedAt: fixedTime, DetectionCount: 1,
+	}
+
+	//nolint:errchkjson // test data
+	existingLine, _ := json.Marshal(existingSig)
+	fileData := string(existingLine) + "\n"
+
+	var written string
+
+	readCount := 0
+	store := signal.NewQueueStore(
+		signal.WithQueueReadFile(func(_ string) ([]byte, error) {
+			readCount++
+			if readCount == 1 {
+				return []byte(fileData), nil
+			}
+
+			return []byte(written), nil
+		}),
+		signal.WithQueueCreateTemp(func(_, _ string) (*os.File, error) {
+			return os.CreateTemp(t.TempDir(), "test-*.jsonl")
+		}),
+		signal.WithQueueRename(func(old, _ string) error {
+			data, readErr := os.ReadFile(old)
+			if readErr != nil {
+				return readErr
+			}
+
+			written = string(data)
+
+			return nil
+		}),
+	)
+
+	laterTime := fixedTime.Add(time.Hour)
+	newSigs := []signal.Signal{{
+		Type: signal.TypeMaintain, SourceID: "dup.toml",
+		SignalKind: signal.KindNoiseRemoval, Summary: "updated",
+		DetectedAt: laterTime,
+	}}
+
+	err := store.Append(newSigs, "/tmp/queue.jsonl")
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Should have one line, not two.
+	lines := strings.Split(strings.TrimSpace(written), "\n")
+	g.Expect(lines).To(gomega.HaveLen(1))
+
+	var result signal.Signal
+
+	g.Expect(json.Unmarshal([]byte(lines[0]), &result)).To(gomega.Succeed())
+	g.Expect(result.DetectionCount).To(gomega.Equal(2))
+	g.Expect(result.Summary).To(gomega.Equal("updated"))
+	g.Expect(result.DetectedAt).To(gomega.BeTemporally("~", laterTime, time.Second))
+}
+
 func TestQueueStore_AppendWriteError(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -257,58 +324,6 @@ func TestQueueStore_ClearBySourceID(t *testing.T) {
 	g.Expect(written).NotTo(gomega.ContainSubstring("remove.toml"))
 }
 
-func TestQueueStore_PruneDedup(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	sig1 := signal.Signal{
-		Type: signal.TypeMaintain, SourceID: "dup.toml",
-		SignalKind: signal.KindNoiseRemoval, Summary: "first", DetectedAt: fixedTime,
-	}
-	sig2 := signal.Signal{
-		Type: signal.TypeMaintain, SourceID: "dup.toml",
-		SignalKind: signal.KindNoiseRemoval, Summary: "second", DetectedAt: fixedTime,
-	}
-
-	//nolint:errchkjson // test data
-	l1, _ := json.Marshal(sig1)
-	//nolint:errchkjson // test data
-	l2, _ := json.Marshal(sig2)
-	fileData := string(l1) + "\n" + string(l2) + "\n"
-
-	var written string
-
-	store := signal.NewQueueStore(
-		signal.WithQueueReadFile(func(_ string) ([]byte, error) {
-			return []byte(fileData), nil
-		}),
-		signal.WithQueueCreateTemp(func(_, _ string) (*os.File, error) {
-			return os.CreateTemp(t.TempDir(), "test-*.jsonl")
-		}),
-		signal.WithQueueRename(func(old, _ string) error {
-			data, readErr := os.ReadFile(old)
-			if readErr != nil {
-				return readErr
-			}
-
-			written = string(data)
-
-			return nil
-		}),
-		signal.WithQueueNow(func() time.Time { return fixedTime }),
-	)
-
-	err := store.Prune("/tmp/queue.jsonl", func(_ string) bool { return true })
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(strings.TrimSpace(written), "\n")
-	g.Expect(lines).To(gomega.HaveLen(1))
-}
-
 func TestQueueStore_PruneDeletedSources(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -350,6 +365,68 @@ func TestQueueStore_PruneDeletedSources(t *testing.T) {
 	}
 
 	g.Expect(strings.TrimSpace(written)).To(gomega.BeEmpty())
+}
+
+func TestQueueStore_PruneMergesDuplicates(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	laterTime := fixedTime.Add(time.Hour)
+	sig1 := signal.Signal{
+		Type: signal.TypeMaintain, SourceID: "dup.toml",
+		SignalKind: signal.KindNoiseRemoval, Summary: "first",
+		DetectedAt: fixedTime, DetectionCount: 1,
+	}
+	sig2 := signal.Signal{
+		Type: signal.TypeMaintain, SourceID: "dup.toml",
+		SignalKind: signal.KindNoiseRemoval, Summary: "second",
+		DetectedAt: laterTime,
+	}
+
+	//nolint:errchkjson // test data
+	l1, _ := json.Marshal(sig1)
+	//nolint:errchkjson // test data
+	l2, _ := json.Marshal(sig2)
+	fileData := string(l1) + "\n" + string(l2) + "\n"
+
+	var written string
+
+	store := signal.NewQueueStore(
+		signal.WithQueueReadFile(func(_ string) ([]byte, error) {
+			return []byte(fileData), nil
+		}),
+		signal.WithQueueCreateTemp(func(_, _ string) (*os.File, error) {
+			return os.CreateTemp(t.TempDir(), "test-*.jsonl")
+		}),
+		signal.WithQueueRename(func(old, _ string) error {
+			data, readErr := os.ReadFile(old)
+			if readErr != nil {
+				return readErr
+			}
+
+			written = string(data)
+
+			return nil
+		}),
+		signal.WithQueueNow(func() time.Time { return laterTime }),
+	)
+
+	err := store.Prune("/tmp/queue.jsonl", func(_ string) bool { return true })
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	lines := strings.Split(strings.TrimSpace(written), "\n")
+	g.Expect(lines).To(gomega.HaveLen(1))
+
+	var result signal.Signal
+
+	g.Expect(json.Unmarshal([]byte(lines[0]), &result)).To(gomega.Succeed())
+	g.Expect(result.DetectionCount).To(gomega.Equal(2))
+	g.Expect(result.Summary).To(gomega.Equal("second"))
+	g.Expect(result.DetectedAt).To(gomega.BeTemporally("~", laterTime, time.Second))
 }
 
 func TestQueueStore_PruneOldEntries(t *testing.T) {

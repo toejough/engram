@@ -43,6 +43,9 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
+# UC-28: Refresh signal queue (safety net if stop hook didn't complete)
+"$ENGRAM_BIN" signal-detect --data-dir "$ENGRAM_DATA" 2>/dev/null || true
+
 # UC-28: Surface pending maintenance/promotion signals
 SIGNAL_OUTPUT=$("$ENGRAM_BIN" signal-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
 

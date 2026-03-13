@@ -21,10 +21,11 @@ const (
 //
 //nolint:tagliatelle // DES-43 specifies snake_case JSON field names.
 type Signal struct {
-	Type       string    `json:"type"`
-	SourceID   string    `json:"source_id"`
-	SignalKind string    `json:"signal"`
-	Quadrant   string    `json:"quadrant,omitempty"`
-	Summary    string    `json:"summary"`
-	DetectedAt time.Time `json:"detected_at"`
+	Type           string    `json:"type"`
+	SourceID       string    `json:"source_id"`
+	SignalKind     string    `json:"signal"`
+	Quadrant       string    `json:"quadrant,omitempty"`
+	Summary        string    `json:"summary"`
+	DetectedAt     time.Time `json:"detected_at"`
+	DetectionCount int       `json:"detection_count,omitempty"`
 }
