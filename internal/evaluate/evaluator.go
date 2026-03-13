@@ -207,15 +207,39 @@ func (e *Evaluator) readSurfacingLog(path string) ([]surfacingEntry, error) {
 	return entries, nil
 }
 
-// updateEvalCorrelationLinks updates evaluation_correlation links for evaluated memories (P3, REQ-P3-9).
+// updateEvalCorrelationLinks updates evaluation_correlation links for followed memory pairs (P3, REQ-P3-9).
+// For each pair (A, B) where both received "followed", increment evaluation_correlation weight (+0.05, cap 1.0).
 func (e *Evaluator) updateEvalCorrelationLinks(outcomes []Outcome) {
+	// Collect followed memory paths.
+	var followed []string
+
 	for _, outcome := range outcomes {
-		links, err := e.linkUpdater.GetEntryLinks(outcome.MemoryPath)
+		if outcome.Outcome == "followed" {
+			followed = append(followed, outcome.MemoryPath)
+		}
+	}
+
+	// Need at least a pair to form correlations.
+	if len(followed) < minCorrelationPairSize {
+		return
+	}
+
+	// For each followed memory, update links to all other followed memories.
+	for _, memPath := range followed {
+		links, err := e.linkUpdater.GetEntryLinks(memPath)
 		if err != nil {
 			continue
 		}
 
-		_ = e.linkUpdater.SetEntryLinks(outcome.MemoryPath, links)
+		for _, peer := range followed {
+			if peer == memPath {
+				continue
+			}
+
+			links = upsertCorrelationLink(links, peer)
+		}
+
+		_ = e.linkUpdater.SetEntryLinks(memPath, links)
 	}
 }
 
@@ -323,13 +347,16 @@ func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) Op
 
 // unexported constants.
 const (
-	evalDirPerm            = os.FileMode(0o755)
-	evalFilePerm           = os.FileMode(0o644)
-	evaluationModel        = "claude-haiku-4-5-20251001"
-	evaluationSystemPrompt = "You are evaluating whether an AI agent followed, contradicted, or ignored" +
+	evalCorrelationIncrement = 0.05
+	evalCorrelationWeightCap = 1.0
+	evalDirPerm              = os.FileMode(0o755)
+	evalFilePerm             = os.FileMode(0o644)
+	evaluationModel          = "claude-haiku-4-5-20251001"
+	evaluationSystemPrompt   = "You are evaluating whether an AI agent followed, contradicted, or ignored" +
 		" memories that were surfaced during its session."
-	evaluationsDirName   = "evaluations"
-	surfacingLogFilename = "surfacing-log.jsonl"
+	evaluationsDirName     = "evaluations"
+	minCorrelationPairSize = 2
+	surfacingLogFilename   = "surfacing-log.jsonl"
 )
 
 // llmOutcome is one element of the LLM's JSON array response.
@@ -419,4 +446,25 @@ func stripMarkdownFence(text string) string {
 	}
 
 	return strings.TrimSpace(trimmed)
+}
+
+// upsertCorrelationLink increments an existing evaluation_correlation link or creates a new one.
+func upsertCorrelationLink(links []EvalLink, target string) []EvalLink {
+	for i, link := range links {
+		if link.Target == target && link.Basis == "evaluation_correlation" {
+			links[i].Weight += evalCorrelationIncrement
+
+			if links[i].Weight > evalCorrelationWeightCap {
+				links[i].Weight = evalCorrelationWeightCap
+			}
+
+			return links
+		}
+	}
+
+	return append(links, EvalLink{
+		Target: target,
+		Weight: evalCorrelationIncrement,
+		Basis:  "evaluation_correlation",
+	})
 }

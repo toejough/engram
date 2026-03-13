@@ -16,6 +16,236 @@ import (
 	"engram/internal/evaluate"
 )
 
+// T-P3-27: EvalLinkUpdater error does not abort evaluate.
+func TestEvalCorrelation_ErrorDoesNotAbort(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/mem2.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"ok"},` +
+		`{"memory_path":"/data/memories/mem2.toml","outcome":"followed","evidence":"ok"}]`
+
+	updater := &fakeEvalLinkUpdaterCapture{
+		existing: map[string][]evaluate.EvalLink{},
+		err:      errors.New("link error"),
+	}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithEvalLinkUpdater(updater),
+	)
+
+	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Evaluation should still succeed with 2 outcomes despite link errors
+	g.Expect(outcomes).To(HaveLen(2))
+}
+
+// T-P3-25: updateEvaluationCorrelationLinks updates links for followed pairs.
+func TestEvalCorrelation_FollowedPairsGetLinks(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/mem2.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"ok"},` +
+		`{"memory_path":"/data/memories/mem2.toml","outcome":"followed","evidence":"ok"}]`
+
+	updater := &fakeEvalLinkUpdaterCapture{
+		existing: map[string][]evaluate.EvalLink{},
+	}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithEvalLinkUpdater(updater),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// mem1 should have link to mem2, mem2 should have link to mem1
+	mem1Links := updater.setLinks["/data/memories/mem1.toml"]
+	g.Expect(mem1Links).To(HaveLen(1))
+
+	if len(mem1Links) == 0 {
+		return
+	}
+
+	g.Expect(mem1Links[0].Target).To(Equal("/data/memories/mem2.toml"))
+	g.Expect(mem1Links[0].Basis).To(Equal("evaluation_correlation"))
+	g.Expect(mem1Links[0].Weight).To(BeNumerically("~", 0.05, 0.001))
+
+	mem2Links := updater.setLinks["/data/memories/mem2.toml"]
+	g.Expect(mem2Links).To(HaveLen(1))
+
+	if len(mem2Links) == 0 {
+		return
+	}
+
+	g.Expect(mem2Links[0].Target).To(Equal("/data/memories/mem1.toml"))
+}
+
+// T-P3-26: updateEvaluationCorrelationLinks ignores non-followed outcomes.
+func TestEvalCorrelation_IgnoresNonFollowed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/mem2.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"ok"},` +
+		`{"memory_path":"/data/memories/mem2.toml","outcome":"contradicted","evidence":"nope"}]`
+
+	updater := &fakeEvalLinkUpdaterCapture{
+		existing: map[string][]evaluate.EvalLink{},
+	}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithEvalLinkUpdater(updater),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only mem1 was followed, mem2 was contradicted — no pair, no links set
+	g.Expect(updater.setLinks).To(BeEmpty())
+}
+
+// T-P3-25b: updateEvaluationCorrelationLinks increments existing correlation link.
+func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/mem2.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	llmResp := `[{"memory_path":"/data/memories/mem1.toml",` +
+		`"outcome":"followed","evidence":"ok"},` +
+		`{"memory_path":"/data/memories/mem2.toml",` +
+		`"outcome":"followed","evidence":"ok"}]`
+
+	updater := &fakeEvalLinkUpdaterCapture{
+		existing: map[string][]evaluate.EvalLink{
+			"/data/memories/mem1.toml": {
+				{
+					Target: "/data/memories/mem2.toml",
+					Weight: 0.2,
+					Basis:  "evaluation_correlation",
+				},
+			},
+		},
+	}
+
+	evaluator := evaluate.New("/data",
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResp, nil
+		}),
+		evaluate.WithNow(func() time.Time {
+			return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+		}),
+		evaluate.WithEvalLinkUpdater(updater),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// mem1's existing link to mem2 should be incremented: 0.2 + 0.05 = 0.25
+	mem1Links := updater.setLinks["/data/memories/mem1.toml"]
+	g.Expect(mem1Links).To(HaveLen(1))
+
+	if len(mem1Links) == 0 {
+		return
+	}
+
+	g.Expect(mem1Links[0].Weight).To(BeNumerically("~", 0.25, 0.001))
+}
+
 // T-106: Evaluator classifies surfaced memories via LLM.
 func TestEvaluator_ClassifiesSurfacedMemories(t *testing.T) {
 	t.Parallel()
@@ -671,8 +901,9 @@ anti_pattern = ""`
 	}
 
 	g.Expect(outcomes).To(HaveLen(1))
-	g.Expect(updater.getCalls).To(ContainElement("/data/memories/mem1.toml"))
-	g.Expect(updater.setCalls).To(ContainElement("/data/memories/mem1.toml"))
+	// Only 1 followed memory → no pairs → no link updates (REQ-P3-9)
+	g.Expect(updater.getCalls).To(BeEmpty())
+	g.Expect(updater.setCalls).To(BeEmpty())
 }
 
 // writeEvaluationLog: writeFile error is returned to caller.
@@ -920,6 +1151,35 @@ func (f *fakeEvalLinkUpdater) GetEntryLinks(id string) ([]evaluate.EvalLink, err
 
 func (f *fakeEvalLinkUpdater) SetEntryLinks(id string, _ []evaluate.EvalLink) error {
 	f.setCalls = append(f.setCalls, id)
+
+	return nil
+}
+
+// fakeEvalLinkUpdaterCapture captures links set per ID.
+type fakeEvalLinkUpdaterCapture struct {
+	existing map[string][]evaluate.EvalLink
+	setLinks map[string][]evaluate.EvalLink
+	err      error
+}
+
+func (f *fakeEvalLinkUpdaterCapture) GetEntryLinks(id string) ([]evaluate.EvalLink, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+
+	return f.existing[id], nil
+}
+
+func (f *fakeEvalLinkUpdaterCapture) SetEntryLinks(id string, links []evaluate.EvalLink) error {
+	if f.err != nil {
+		return f.err
+	}
+
+	if f.setLinks == nil {
+		f.setLinks = make(map[string][]evaluate.EvalLink)
+	}
+
+	f.setLinks[id] = links
 
 	return nil
 }

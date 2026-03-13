@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -285,15 +286,35 @@ func (s *Surfacer) appendClusterNotes(buf *strings.Builder, memories []*memory.S
 			continue
 		}
 
-		noteCount := min(maxClusterNotes, len(links))
+		// Sort by weight descending to pick top-2
+		sorted := make([]LinkGraphLink, len(links))
+		copy(sorted, links)
+		slices.SortFunc(sorted, func(a, b LinkGraphLink) int {
+			if a.Weight > b.Weight {
+				return -1
+			}
 
-		for i := range noteCount {
-			title, ok := s.titleFetcher.GetTitle(links[i].Target)
+			if a.Weight < b.Weight {
+				return 1
+			}
+
+			return 0
+		})
+
+		noteCount := 0
+
+		for _, link := range sorted {
+			if noteCount >= maxClusterNotes {
+				break
+			}
+
+			title, ok := s.titleFetcher.GetTitle(link.Target)
 			if !ok {
 				continue
 			}
 
-			_, _ = fmt.Fprintf(buf, "  linked: %s\n", title)
+			_, _ = fmt.Fprintf(buf, "  • see also: %s\n", title)
+			noteCount++
 		}
 	}
 }

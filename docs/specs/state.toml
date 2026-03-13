@@ -1412,9 +1412,9 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L5W2"
+node = "L5P3impl"
 mode = "complete"
-next_action = "P2 fully implemented. PreCompact memory re-injection complete."
+next_action = "P3 fully implemented. Memory graph with spreading activation complete. Next: P6-full (graduation signals)."
 context_files = ["docs/specs/state.toml"]
 
 # P1: Contradiction detection
@@ -1518,7 +1518,8 @@ name = "Memory Graph with Spreading Activation"
 items = ["UC-32"]
 body_hash = "75a8e0c0"
 merkle_hash = "ef152450"
-status = "in_progress"
+status = "complete"
+history = "UC-32 fully implemented. Graph core (T-P3-1–12), registry UpdateLinks (T-P3-13–15), surface spreading activation + cluster notes (T-P3-16–24), evaluate correlation links (T-P3-25–27). All 27 tests passing, targ check-full green."
 
 [tree.L2P3]
 layer = "L2"
@@ -1527,7 +1528,7 @@ parents = ["L1P3"]
 items = ["REQ-P3-1", "REQ-P3-2", "REQ-P3-3", "REQ-P3-4", "REQ-P3-5", "REQ-P3-6", "REQ-P3-7", "REQ-P3-8", "REQ-P3-9", "DES-P3-1", "DES-P3-2", "DES-P3-3", "DES-P3-4", "DES-P3-5", "DES-P3-6", "DES-P3-7", "DES-P3-9"]
 body_hash = ""
 merkle_hash = "c7d5a012"
-status = "in_progress"
+status = "complete"
 
 [tree.L3P3]
 layer = "L2"
@@ -1536,7 +1537,7 @@ parents = ["L2P3"]
 items = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 body_hash = ""
 merkle_hash = "5f1bf7e4"
-status = "in_progress"
+status = "complete"
 
 [tree.L4P3]
 layer = "L3"
@@ -1545,7 +1546,7 @@ parents = ["L3P3"]
 items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
 body_hash = ""
 merkle_hash = "6e340b9c"
-status = "in_progress"
+status = "complete"
 
 [tree.L5P3impl]
 layer = "L4"
@@ -1554,7 +1555,8 @@ parents = ["L4P3"]
 items = ["T-P3-1", "T-P3-2", "T-P3-3", "T-P3-4", "T-P3-5", "T-P3-6", "T-P3-7", "T-P3-8", "T-P3-9", "T-P3-10", "T-P3-11", "T-P3-12", "T-P3-13", "T-P3-14", "T-P3-15", "T-P3-16", "T-P3-17", "T-P3-18", "T-P3-19", "T-P3-20", "T-P3-21", "T-P3-22", "T-P3-23", "T-P3-24", "T-P3-25", "T-P3-26", "T-P3-27"]
 body_hash = ""
 merkle_hash = ""
-status = "pending"
+status = "complete"
+history = "All 27 tests passing. Graph core: Jaccard, BM25 links, co_surfacing, pruning. Registry: UpdateLinks. Surface: spreading activation, cluster notes (sorted by weight, '• see also' format). Evaluate: evaluation_correlation for followed pairs. targ check-full green."
 
 # P5f: Re-compute links after merge
 
