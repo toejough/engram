@@ -33,7 +33,6 @@ import (
 	"engram/internal/maintain"
 	"engram/internal/memory"
 	"engram/internal/migrate"
-	"engram/internal/register"
 	regpkg "engram/internal/registry"
 	"engram/internal/remind"
 	"engram/internal/render"
@@ -650,9 +649,9 @@ func RunRegistryRegisterSource(
 	return nil
 }
 
-// RunReview implements the review subcommand: reads the instruction registry,
+// RunReview implements the review subcommand: reads the TOML memory directory,
 // classifies entries by quadrant, and renders grouped output (ARCH-59, DES-27).
-func RunReview(args []string, stdout io.Writer, opts ...regpkg.JSONLOption) error {
+func RunReview(args []string, stdout io.Writer, opts ...regpkg.TOMLDirOption) error {
 	fs := flag.NewFlagSet("review", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -668,18 +667,7 @@ func RunReview(args []string, stdout io.Writer, opts ...regpkg.JSONLOption) erro
 		return errReviewMissingFlags
 	}
 
-	registryPath := filepath.Join(*dataDir, registryFilename)
-
-	const baseOpts = 2
-
-	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
-	allOpts = append(allOpts,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
-	allOpts = append(allOpts, opts...)
-
-	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
 
 	entries, err := store.List()
 	if err != nil {
@@ -1287,21 +1275,6 @@ func buildBackfillConfig(dataDir string) regpkg.BackfillConfig {
 	}
 }
 
-// buildClaudeMDPaths returns project and global CLAUDE.md paths.
-func buildClaudeMDPaths(workDir, homeDir string) []string {
-	paths := make([]string, 0, 2) //nolint:mnd // project + global
-
-	if workDir != "" {
-		paths = append(paths, filepath.Join(workDir, "CLAUDE.md"))
-	}
-
-	if homeDir != "" {
-		paths = append(paths, filepath.Join(homeDir, ".claude", "CLAUDE.md"))
-	}
-
-	return paths
-}
-
 // buildEscalationMemories extracts leech memories for the escalation engine (UC-21, ARCH-50).
 func buildEscalationMemories(
 	classified []reviewpkg.ClassifiedMemory,
@@ -1359,24 +1332,6 @@ func buildExtractor(
 	default:
 		return nil, fmt.Errorf("%w: %s", errUnknownSourceType, sourceType)
 	}
-}
-
-// buildMemoryMDPaths returns the MEMORY.md path using Claude Code's convention.
-func buildMemoryMDPaths(workDir, homeDir string) []string {
-	if workDir == "" || homeDir == "" {
-		return nil
-	}
-
-	// Claude Code convention: ~/.claude/projects/<slug>/memory/MEMORY.md
-	// where slug is the working directory path with / replaced by -.
-	slug := strings.ReplaceAll(workDir, "/", "-")
-	slug = strings.TrimPrefix(slug, "-")
-
-	memPath := filepath.Join(
-		homeDir, ".claude", "projects", slug, "memory", "MEMORY.md",
-	)
-
-	return []string{memPath}
 }
 
 // buildTrackingMap retrieves memories and builds a path→TrackingData map.
@@ -1737,26 +1692,6 @@ func runAudit(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 	}
 
 	return nil
-}
-
-// runAutoRegistration discovers and registers all non-memory instruction sources
-// at session start (ARCH-71, UC-26). Fire-and-forget: errors logged to stderr.
-func runAutoRegistration(
-	reg *regpkg.JSONLStore,
-	surfLogger *surfacinglog.Logger,
-) {
-	homeDir, _ := os.UserHomeDir()
-	workDir, _ := os.Getwd()
-
-	config := register.SourceConfig{
-		ClaudeMDPaths: buildClaudeMDPaths(workDir, homeDir),
-		MemoryMDPaths: buildMemoryMDPaths(workDir, homeDir),
-		RulesDir:      filepath.Join(workDir, ".claude", "rules"),
-		SkillsDir:     resolveSkillsDir(),
-	}
-
-	registrar := register.NewRegistrar(reg, surfLogger)
-	_ = registrar.Run(config) // fire-and-forget per ARCH-6
 }
 
 //nolint:funlen // orchestration function
@@ -2156,11 +2091,6 @@ func runSurface(args []string, stdout io.Writer) error {
 	effAdapter := &effectivenessAdapter{computer: effectiveness.New(evalDir)}
 
 	registry := openRegistry(*dataDir)
-
-	// Auto-registration phase: session-start only (ARCH-71, UC-26).
-	if *mode == "session-start" {
-		runAutoRegistration(registry, surfLogger)
-	}
 
 	surfacer := surface.New(
 		retriever,

@@ -1939,6 +1939,39 @@ func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient"))
 }
 
+// T-250: Review reads quadrant classification from TOML memory directory.
+func TestT250_ReviewReadsFromTOMLDirectory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	writeReviewRegistry(t, dataDir, []reviewTestEntry{
+		{
+			ID: "working-mem", Source: "memory", Title: "Working Memory",
+			Surfaced: 10, Followed: 7, Contradicted: 0, Ignored: 1,
+		}, // high surfacing, high effectiveness → Working
+		{
+			ID: "leech-mem", Source: "memory", Title: "Leech Memory",
+			Surfaced: 8, Followed: 1, Contradicted: 5, Ignored: 2,
+		}, // high surfacing, low effectiveness → Leech
+	})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("Working Memory"))
+	g.Expect(output).To(ContainSubstring("Leech Memory"))
+	g.Expect(output).To(ContainSubstring("Source: memory"))
+}
+
 // T-161: evaluate applies Strip preprocessing to transcript before LLM call.
 func TestT161_EvaluateStripsTranscript(t *testing.T) {
 	t.Parallel()
@@ -2211,48 +2244,21 @@ func TestT197_CLIReviewQuadrantOutputJSON(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	// Write a registry file with two entries.
-	registryPath := filepath.Join(tmpDir, "instruction-registry.jsonl")
-
-	workingEntry := map[string]any{
-		"id":             "mem-working",
-		"source_type":    "memory",
-		"title":          "Working Memory",
-		"surfaced_count": 10,
-		"evaluations":    map[string]int{"followed": 8, "contradicted": 1, "ignored": 1},
-		"registered_at":  "2026-03-01T00:00:00Z",
-		"updated_at":     "2026-03-08T00:00:00Z",
-	}
-	leechEntry := map[string]any{
-		"id":             "mem-leech",
-		"source_type":    "memory",
-		"title":          "Leech Memory",
-		"surfaced_count": 10,
-		"evaluations":    map[string]int{"followed": 1, "contradicted": 5, "ignored": 4},
-		"registered_at":  "2026-03-01T00:00:00Z",
-		"updated_at":     "2026-03-08T00:00:00Z",
-	}
-
-	var registryData strings.Builder
-
-	line1, marshalErr := json.Marshal(workingEntry)
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	registryData.Write(line1)
-	registryData.WriteByte('\n')
-
-	line2, marshalErr := json.Marshal(leechEntry)
-	g.Expect(marshalErr).NotTo(HaveOccurred())
-
-	registryData.Write(line2)
-	registryData.WriteByte('\n')
-
-	err := os.WriteFile(registryPath, []byte(registryData.String()), 0o640)
-	g.Expect(err).NotTo(HaveOccurred())
+	// Write TOML memory files to the memories/ subdirectory.
+	writeReviewRegistry(t, tmpDir, []reviewTestEntry{
+		{
+			ID: "mem-working", Source: "memory", Title: "Working Memory",
+			Surfaced: 10, Followed: 8, Contradicted: 1, Ignored: 1,
+		},
+		{
+			ID: "mem-leech", Source: "memory", Title: "Leech Memory",
+			Surfaced: 10, Followed: 1, Contradicted: 5, Ignored: 4,
+		},
+	})
 
 	var stdout bytes.Buffer
 
-	err = cli.Run(
+	err := cli.Run(
 		[]string{
 			"engram", "review",
 			"--data-dir", tmpDir,
@@ -2276,13 +2282,13 @@ func TestT197_CLIReviewQuadrantOutputJSON(t *testing.T) {
 	quadrants := make(map[string]string)
 
 	for _, result := range results {
-		id, _ := result["id"].(string)
+		title, _ := result["title"].(string)
 		quadrant, _ := result["quadrant"].(string)
-		quadrants[id] = quadrant
+		quadrants[title] = quadrant
 	}
 
-	g.Expect(quadrants["mem-working"]).To(Equal("Working"))
-	g.Expect(quadrants["mem-leech"]).To(Equal("Leech"))
+	g.Expect(quadrants["Working Memory"]).To(Equal("Working"))
+	g.Expect(quadrants["Leech Memory"]).To(Equal("Leech"))
 }
 
 func TestT198_CLIMergeAbsorbsAndDeletes(t *testing.T) {
@@ -2905,39 +2911,32 @@ func writeReviewMemoryTOML(tb testing.TB, dir, filename string, surfacedCount in
 	return path
 }
 
+// writeReviewRegistry writes TOML memory files to the memories/ subdirectory
+// for use by RunReview (which reads from TOMLDirectoryStore).
 func writeReviewRegistry(t *testing.T, dataDir string, entries []reviewTestEntry) {
 	t.Helper()
 
-	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
+	memoriesDir := filepath.Join(dataDir, "memories")
 
-	var sb strings.Builder
-
-	for _, entry := range entries {
-		raw := map[string]any{
-			"id":             entry.ID,
-			"source_type":    entry.Source,
-			"title":          entry.Title,
-			"surfaced_count": entry.Surfaced,
-			"evaluations": map[string]int{
-				"followed":     entry.Followed,
-				"contradicted": entry.Contradicted,
-				"ignored":      entry.Ignored,
-			},
-			"registered_at": "2026-03-01T00:00:00Z",
-			"updated_at":    "2026-03-08T00:00:00Z",
-		}
-
-		line, err := json.Marshal(raw)
-		if err != nil {
-			t.Fatalf("writeReviewRegistry: marshal: %v", err)
-		}
-
-		sb.Write(line)
-		sb.WriteByte('\n')
+	if err := os.MkdirAll(memoriesDir, 0o750); err != nil {
+		t.Fatalf("writeReviewRegistry: mkdir: %v", err)
 	}
 
-	if err := os.WriteFile(registryPath, []byte(sb.String()), 0o640); err != nil {
-		t.Fatalf("writeReviewRegistry: write: %v", err)
+	for _, entry := range entries {
+		content := fmt.Sprintf(
+			"title = %q\nsource_type = %q\n"+
+				"surfaced_count = %d\nfollowed_count = %d\n"+
+				"contradicted_count = %d\nignored_count = %d\n"+
+				"enforcement_level = \"advisory\"\n",
+			entry.Title, entry.Source,
+			entry.Surfaced, entry.Followed, entry.Contradicted, entry.Ignored,
+		)
+
+		path := filepath.Join(memoriesDir, entry.ID+".toml")
+
+		if err := os.WriteFile(path, []byte(content), 0o640); err != nil {
+			t.Fatalf("writeReviewRegistry: write %s: %v", path, err)
+		}
 	}
 }
 
