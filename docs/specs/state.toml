@@ -941,9 +941,7 @@ items = ["UC-23"]
 issue = "218"
 body_hash = ""
 merkle_hash = ""
-status = "in_progress"
-dirty = true
-dirty_source = "L1N (UC-23 rewritten for issue #218: JSONL → TOML-embedded metrics)"
+status = "complete"
 history = "Issue #74. Foundation UC for next batch. Issue #218: UC-23 rewritten — consolidate JSONL registry into memory TOML files. Eliminates dual-store sync bugs (#216, #217). Non-memory entries dropped."
 
 [tree.L2N]
@@ -953,9 +951,7 @@ items = ["REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "
 parents = ["L1N"]
 body_hash = ""
 merkle_hash = ""
-status = "in_progress"
-dirty = true
-dirty_source = "L1N (UC-23 rewritten: JSONL → TOML-embedded metrics)"
+status = "complete"
 history = "Derived from UC-23. 14 requirements covering taxonomy, signals, bounded growth, concurrent writes, backfill migration, quadrant classification. 4 DES items covering CLI commands (init, review, merge) and auto-registration. Issue #218: dirty — parent UC-23 rewritten."
 
 [tree.L3N]
@@ -965,9 +961,7 @@ items = ["ARCH-52", "ARCH-53", "ARCH-54", "ARCH-55", "ARCH-56", "ARCH-57", "ARCH
 parents = ["L2N"]
 body_hash = ""
 merkle_hash = ""
-status = "in_progress"
-dirty = true
-dirty_source = "L2N (parent dirty from UC-23 rewrite)"
+status = "complete"
 history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration. Issue #218: dirty — storage model changes from JSONL to TOML-embedded."
 
 [tree.L4N-G1]
@@ -977,8 +971,8 @@ items = ["T-238", "T-239", "T-240", "T-241", "T-242", "T-243", "T-244", "T-245",
 parents = ["L3N"]
 body_hash = ""
 merkle_hash = ""
-status = "pending"
-history = "Issue #218 Group 1: 13 tests covering TOML-backed store, per-file locking, atomic writes, cleanup, classification."
+status = "complete"
+history = "Issue #218 Group 1: 13 tests covering TOML-backed store, per-file locking, atomic writes, cleanup, classification. Commit 90ad9f4."
 
 [tree.L4N-G2]
 layer = "L3"
@@ -987,8 +981,8 @@ items = ["T-251", "T-252", "T-253", "T-254", "T-255", "T-256"]
 parents = ["L3N"]
 body_hash = ""
 merkle_hash = ""
-status = "pending"
-history = "Issue #218 Group 2: 6 tests covering JSONL→TOML migration, skip non-memory, idempotent, dry-run, absorbed history."
+status = "complete"
+history = "Issue #218 Group 2: 6 tests covering JSONL→TOML migration, skip non-memory, idempotent, dry-run, absorbed history. Commit a5e61de."
 
 [tree.L5P1]
 layer = "L4"
@@ -1430,8 +1424,8 @@ history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filte
 
 [cursor]
 node = "L4N-G1"
-mode = "in_progress"
-next_action = "L3 test list derived. Two groups: G1 (TOMLDirectoryStore + cleanup, T-238..T-250) and G2 (migration, T-251..T-256). Launch elastic-pods for parallel implementation."
+mode = "complete"
+next_action = "L4 implementation complete. G1 (90ad9f4) and G2 (a5e61de) on main. All tests pass. Update state and close issue #218."
 context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
 
 # P1: Contradiction detection
