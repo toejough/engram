@@ -23,7 +23,6 @@ import (
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
 	"engram/internal/creationlog"
-	"engram/internal/crossref"
 	"engram/internal/dedup"
 	"engram/internal/effectiveness"
 	"engram/internal/evaluate"
@@ -147,8 +146,6 @@ func Run(
 		return runContextUpdate(subArgs)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
-	case "registry":
-		return runRegistry(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -325,27 +322,26 @@ func RunMaintain(
 		)
 	}
 
-	evalDir := filepath.Join(*dataDir, "evaluations")
+	ctx := context.Background()
+	retriever := retrieve.New()
 
-	stats, err := effectiveness.New(evalDir).Aggregate()
+	memories, err := retriever.ListMemories(ctx, *dataDir)
 	if err != nil {
-		return fmt.Errorf(
-			"maintain: aggregating effectiveness: %w", err,
-		)
+		return fmt.Errorf("maintain: listing memories: %w", err)
 	}
 
-	if len(stats) == 0 {
+	if len(memories) == 0 {
 		_, _ = fmt.Fprint(stdout, "[]\n")
 
 		return nil
 	}
 
-	// Consolidate duplicates before classification (UC-34).
-	ctx := context.Background()
+	stats := effectiveness.FromMemories(memories)
 
+	// Consolidate duplicates before classification (UC-34).
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
-			retriever: retrieve.New(),
+			retriever: retriever,
 			dataDir:   *dataDir,
 		}),
 		signal.WithMerger(&fileMergeExecutor{
@@ -361,13 +357,10 @@ func RunMaintain(
 		return fmt.Errorf("maintain: consolidating: %w", consolidateErr)
 	}
 
-	tracking := buildTrackingMap(*dataDir)
+	tracking := buildTrackingFromMemories(memories)
 	classified := reviewpkg.Classify(stats, tracking)
 
-	memoryMap, listErr := buildMemoryMap(*dataDir)
-	if listErr != nil {
-		return fmt.Errorf("maintain: %w", listErr)
-	}
+	memoryMap := buildMemoryMapFromSlice(memories)
 
 	allOpts := make([]maintain.Option, 0, len(opts)+1)
 	if token != "" {
@@ -402,187 +395,6 @@ func RunMaintain(
 
 	//nolint:wrapcheck // thin JSON encoding at CLI boundary
 	return json.NewEncoder(stdout).Encode(proposals)
-}
-
-// RunRegistryInit implements the registry init subcommand. Scans memory files,
-// computes backfill entries, and writes metrics into each TOML file.
-//
-//nolint:funlen // orchestration function
-func RunRegistryInit(
-	args []string,
-	stdout io.Writer,
-	opts ...regpkg.TOMLDirOption,
-) error {
-	fs := flag.NewFlagSet("registry init", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	dryRun := fs.Bool("dry-run", false, "print entries without writing")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("registry init: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errRegistryMissingFlags
-	}
-
-	config := buildBackfillConfig(*dataDir)
-
-	entries, err := regpkg.Backfill(config)
-	if err != nil {
-		return fmt.Errorf("registry init: %w", err)
-	}
-
-	if *dryRun {
-		_, _ = fmt.Fprintf(stdout,
-			"[engram] Registry init (dry-run): %d entries\n",
-			len(entries))
-
-		for _, entry := range entries {
-			_, _ = fmt.Fprintf(stdout,
-				"  %s (%s) surfaced=%d evals=%d\n",
-				entry.ID, entry.SourceType,
-				entry.SurfacedCount, entry.Evaluations.Total())
-		}
-
-		return nil
-	}
-
-	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
-
-	var registered int
-
-	for _, entry := range entries {
-		regErr := store.Register(entry)
-		if regErr != nil {
-			if errors.Is(regErr, regpkg.ErrDuplicateID) {
-				continue
-			}
-
-			return fmt.Errorf("registry init: registering %s: %w",
-				entry.ID, regErr)
-		}
-
-		registered++
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] Registry initialized: %d entries written to %s\n",
-		registered, *dataDir)
-
-	return nil
-}
-
-// RunRegistryMerge implements the registry merge subcommand (ARCH-56, DES-28).
-// The TOML store's Merge absorbs metrics and deletes the source file.
-func RunRegistryMerge(
-	args []string,
-	stdout io.Writer,
-	opts ...regpkg.TOMLDirOption,
-) error {
-	fs := flag.NewFlagSet("registry merge", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	sourceID := fs.String("source", "", "source instruction ID")
-	targetID := fs.String("target", "", "target instruction ID")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("registry merge: %w", parseErr)
-	}
-
-	if *dataDir == "" || *sourceID == "" || *targetID == "" {
-		return errMergeMissingFlags
-	}
-
-	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
-
-	mergeErr := store.Merge(*sourceID, *targetID)
-	if mergeErr != nil {
-		return fmt.Errorf("registry merge: %w", mergeErr)
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] Merged %q into %q (counters transferred, source deleted)\n",
-		*sourceID, *targetID)
-
-	return nil
-}
-
-// RunRegistryRegisterSource implements the registry register-source subcommand.
-// readFile is injected for testability (DI).
-//
-//nolint:cyclop,funlen // CLI wiring
-func RunRegistryRegisterSource(
-	args []string,
-	stdout io.Writer,
-	readFile ReadFileFunc,
-	opts ...regpkg.TOMLDirOption,
-) error {
-	fs := flag.NewFlagSet("registry register-source", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	sourceType := fs.String("type", "", "source type (claude-md, memory-md, rule, skill)")
-	sourcePath := fs.String("path", "", "path to source file or name")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("registry register-source: %w", parseErr)
-	}
-
-	if *dataDir == "" || *sourceType == "" || *sourcePath == "" {
-		return errRegisterSourceMissingFlags
-	}
-
-	content, err := readFile(*sourcePath)
-	if err != nil {
-		return fmt.Errorf("registry register-source: reading source: %w", err)
-	}
-
-	extractor, err := buildExtractor(*sourceType, *sourcePath, string(content))
-	if err != nil {
-		return fmt.Errorf("registry register-source: %w", err)
-	}
-
-	entries, err := extractor.Extract()
-	if err != nil {
-		return fmt.Errorf("registry register-source: extracting: %w", err)
-	}
-
-	if len(entries) == 0 {
-		_, _ = fmt.Fprintln(stdout,
-			"[engram] No instructions extracted from source.")
-
-		return nil
-	}
-
-	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
-
-	var registered int
-
-	for _, entry := range entries {
-		regErr := store.Register(entry)
-		if regErr != nil {
-			if errors.Is(regErr, regpkg.ErrDuplicateID) {
-				continue
-			}
-
-			return fmt.Errorf("registry register-source: registering %s: %w",
-				entry.ID, regErr)
-		}
-
-		registered++
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] Registered %d instructions from %s (%s)\n",
-		registered, *sourcePath, *sourceType)
-
-	return nil
 }
 
 // RunReview implements the review subcommand: reads the TOML memory directory,
@@ -667,32 +479,19 @@ var (
 		"maintain --apply: --proposals required",
 	)
 	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
-	errMergeMissingFlags    = errors.New(
-		"registry merge: --data-dir, --source, and --target required",
-	)
-	errNilAPIResponse             = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks            = errors.New("API response contained no content blocks")
-	errRegisterSourceMissingFlags = errors.New(
-		"registry register-source: --type and --path and --data-dir required",
-	)
-	errRegistryMissingFlags = errors.New(
-		"registry init: --data-dir required",
-	)
-	errRegistryUnknownSub = errors.New(
-		"registry: unknown subcommand (expected: init, register-source, merge)",
-	)
-	errRemindMissingFlags  = errors.New("remind: --data-dir required")
-	errReviewMissingFlags  = errors.New("review: --data-dir required")
-	errSkillExists         = errors.New("skill already exists")
-	errSurfaceMissingFlags = errors.New(
+	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks      = errors.New("API response contained no content blocks")
+	errRemindMissingFlags   = errors.New("remind: --data-dir required")
+	errReviewMissingFlags   = errors.New("review: --data-dir required")
+	errSkillExists          = errors.New("skill already exists")
+	errSurfaceMissingFlags  = errors.New(
 		"surface: --mode and --data-dir required",
 	)
-	errUnknownCommand    = errors.New("unknown command")
-	errUnknownSourceType = errors.New("unknown source type")
-	errUsage             = errors.New(
+	errUnknownCommand = errors.New("unknown command")
+	errUsage          = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
 			"|review|maintain|remind|instruct" +
-			"|context-update|registry> [flags]",
+			"|context-update> [flags]",
 	)
 )
 
@@ -762,20 +561,15 @@ func (c *cliLLMCaller) Call(ctx context.Context, prompt string) (string, error) 
 	return caller(ctx, maintainModel, "You are a memory maintenance assistant.", prompt)
 }
 
-// effectivenessAdapter bridges effectiveness.Computer to surface.EffectivenessComputer.
+// effectivenessAdapter bridges a pre-built stats map to surface.EffectivenessComputer.
 type effectivenessAdapter struct {
-	computer *effectiveness.Computer
+	stats map[string]effectiveness.Stat
 }
 
 func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat, error) {
-	stats, err := a.computer.Aggregate()
-	if err != nil {
-		return nil, err
-	}
+	result := make(map[string]surface.EffectivenessStat, len(a.stats))
 
-	result := make(map[string]surface.EffectivenessStat, len(stats))
-
-	for memPath, stat := range stats {
+	for memPath, stat := range a.stats {
 		total := stat.FollowedCount + stat.ContradictedCount + stat.IgnoredCount
 		result[memPath] = surface.EffectivenessStat{
 			SurfacedCount:      total,
@@ -826,7 +620,7 @@ func (a *learnRegistryAdapter) RegisterMemory(
 		SourceType:   "memory",
 		SourcePath:   filePath,
 		Title:        title,
-		ContentHash:  contentHashForRegistry(content),
+		ContentHash:  contentHash(content),
 		RegisteredAt: now,
 		UpdatedAt:    now,
 	}
@@ -870,68 +664,12 @@ func (s *osClaudeMDStore) Write(content string) error {
 	return nil
 }
 
-// osCreationLogReader reads creation timestamps.
-type osCreationLogReader struct {
-	dataDir string
-}
-
-func (r *osCreationLogReader) CreationTimes() (map[string]time.Time, error) {
-	reader := creationlog.NewLogReader()
-
-	entries, err := reader.ReadAndClear(r.dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("reading creation log: %w", err)
-	}
-
-	result := make(map[string]time.Time, len(entries))
-
-	for _, entry := range entries {
-		parsed, parseErr := time.Parse(time.RFC3339, entry.Timestamp)
-		if parseErr != nil {
-			continue
-		}
-
-		result[entry.Filename] = parsed
-	}
-
-	return result, nil
-}
-
 type osDirCreator struct{}
 
 func (d *osDirCreator) MkdirAll(path string) error {
 	const dirPerms = 0o755
 
 	return os.MkdirAll(path, dirPerms) //nolint:wrapcheck // thin I/O adapter
-}
-
-// osEvaluationsReader aggregates evaluations from JSONL files.
-type osEvaluationsReader struct {
-	dataDir string
-}
-
-func (r *osEvaluationsReader) AggregateEvaluations() (
-	map[string]regpkg.EvaluationCounters, error,
-) {
-	evalDir := filepath.Join(r.dataDir, "evaluations")
-	computer := effectiveness.New(evalDir)
-
-	stats, err := computer.Aggregate()
-	if err != nil {
-		return nil, fmt.Errorf("aggregating evaluations: %w", err)
-	}
-
-	result := make(map[string]regpkg.EvaluationCounters, len(stats))
-
-	for memPath, stat := range stats {
-		result[memPath] = regpkg.EvaluationCounters{
-			Followed:     stat.FollowedCount,
-			Contradicted: stat.ContradictedCount,
-			Ignored:      stat.IgnoredCount,
-		}
-	}
-
-	return result, nil
 }
 
 // I/O adapters for context package DI interfaces.
@@ -984,33 +722,6 @@ func (r *osMemoryRemover) Remove(path string) error {
 	}
 
 	return nil
-}
-
-// osMemoryScanner scans memory TOML files from the data directory.
-type osMemoryScanner struct {
-	dataDir string
-}
-
-func (s *osMemoryScanner) ScanMemories() ([]regpkg.ScannedMemory, error) {
-	retriever := retrieve.New()
-	ctx := context.Background()
-
-	memories, err := retriever.ListMemories(ctx, s.dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("listing memories: %w", err)
-	}
-
-	result := make([]regpkg.ScannedMemory, 0, len(memories))
-	for _, mem := range memories {
-		result = append(result, regpkg.ScannedMemory{
-			FilePath:  mem.FilePath,
-			Title:     mem.Title,
-			Content:   mem.Content,
-			UpdatedAt: mem.UpdatedAt,
-		})
-	}
-
-	return result, nil
 }
 
 // osOffsetStore implements learn.OffsetStore using the filesystem.
@@ -1099,38 +810,6 @@ func (w *osSkillWriter) Write(name, content string) (string, error) {
 	return path, nil
 }
 
-// osSurfacingLogReader reads and aggregates the surfacing log.
-type osSurfacingLogReader struct {
-	dataDir string
-}
-
-func (r *osSurfacingLogReader) AggregateSurfacing() (
-	map[string]regpkg.SurfacingData, error,
-) {
-	logger := surfacinglog.New(r.dataDir)
-
-	events, err := logger.ReadAndClear()
-	if err != nil {
-		return nil, fmt.Errorf("reading surfacing log: %w", err)
-	}
-
-	result := make(map[string]regpkg.SurfacingData, len(events))
-
-	for _, event := range events {
-		data := result[event.MemoryPath]
-		data.Count++
-
-		surfTime := event.SurfacedAt
-		if data.LastSurfaced == nil || surfTime.After(*data.LastSurfaced) {
-			data.LastSurfaced = &surfTime
-		}
-
-		result[event.MemoryPath] = data
-	}
-
-	return result, nil
-}
-
 type realTimestamper struct{}
 
 func (t *realTimestamper) Now() time.Time {
@@ -1198,16 +877,6 @@ func (a *surfaceRegistryAdapter) RecordSurfacing(id string) error {
 	return a.reg.RecordSurfacing(id)
 }
 
-func buildBackfillConfig(dataDir string) regpkg.BackfillConfig {
-	return regpkg.BackfillConfig{
-		Scanner:      &osMemoryScanner{dataDir: dataDir},
-		SurfacingLog: &osSurfacingLogReader{dataDir: dataDir},
-		CreationLog:  &osCreationLogReader{dataDir: dataDir},
-		Evaluations:  &osEvaluationsReader{dataDir: dataDir},
-		Now:          time.Now(),
-	}
-}
-
 // buildEscalationMemories extracts leech memories for the escalation engine (UC-21, ARCH-50).
 func buildEscalationMemories(
 	classified []reviewpkg.ClassifiedMemory,
@@ -1237,66 +906,18 @@ func buildEscalationMemories(
 	return leeches
 }
 
-// buildExtractor creates the appropriate extractor for the given source type.
-func buildExtractor(
-	sourceType, sourcePath, content string,
-) (crossref.InstructionExtractor, error) {
-	switch sourceType {
-	case "claude-md":
-		return crossref.ClaudeMDExtractor{
-			Content:    content,
-			SourcePath: filepath.Base(sourcePath),
-		}, nil
-	case "memory-md":
-		return crossref.MemoryMDExtractor{
-			Content:    content,
-			SourcePath: filepath.Base(sourcePath),
-		}, nil
-	case "rule":
-		return crossref.RuleExtractor{
-			Filename: filepath.Base(sourcePath),
-			Content:  content,
-		}, nil
-	case "skill":
-		return crossref.SkillExtractor{
-			SkillName: filepath.Base(sourcePath),
-			Content:   content,
-		}, nil
-	default:
-		return nil, fmt.Errorf("%w: %s", errUnknownSourceType, sourceType)
-	}
-}
-
-// buildTrackingMap retrieves memories and builds a path→TrackingData map.
-// Returns empty map if memories cannot be read.
-func buildMemoryMap(
-	dataDir string,
-) (map[string]*memory.Stored, error) {
-	retriever := retrieve.New()
-	ctx := context.Background()
-
-	memories, err := retriever.ListMemories(ctx, dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("listing memories: %w", err)
-	}
-
+// buildMemoryMapFromSlice builds a path→Stored map from a pre-loaded slice.
+func buildMemoryMapFromSlice(memories []*memory.Stored) map[string]*memory.Stored {
 	memMap := make(map[string]*memory.Stored, len(memories))
 	for _, mem := range memories {
 		memMap[mem.FilePath] = mem
 	}
 
-	return memMap, nil
+	return memMap
 }
 
-func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
-	retriever := retrieve.New()
-	ctx := context.Background()
-
-	memories, err := retriever.ListMemories(ctx, dataDir)
-	if err != nil {
-		return map[string]reviewpkg.TrackingData{}
-	}
-
+// buildTrackingFromMemories builds a path→TrackingData map from a pre-loaded slice.
+func buildTrackingFromMemories(memories []*memory.Stored) map[string]reviewpkg.TrackingData {
 	tracking := make(map[string]reviewpkg.TrackingData, len(memories))
 
 	for _, mem := range memories {
@@ -1396,11 +1017,10 @@ func classifyEntries(entries []regpkg.InstructionEntry) []reviewClassification {
 	return classifications
 }
 
-// contentHashForRegistry produces a SHA-256 hash consistent with registry.Backfill.
-func contentHashForRegistry(content string) string {
-	hash := sha256.Sum256([]byte(content))
+func contentHash(content string) string {
+	h := sha256.Sum256([]byte(content))
 
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(h[:])
 }
 
 // formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
@@ -1441,11 +1061,6 @@ func makeAnthropicCaller(
 // openRegistry creates a TOMLDirectoryStore for the given data directory.
 func openRegistry(dataDir string) *regpkg.TOMLDirectoryStore {
 	return regpkg.NewTOMLDirectoryStore(dataDir)
-}
-
-// osReadFileFunc wraps os.ReadFile for DI injection.
-func osReadFileFunc(path string) ([]byte, error) {
-	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
 }
 
 // parseRemindersToml parses a simple TOML config: ["*.go"]\ninstructions = ["id1", "id2"].
@@ -1802,7 +1417,7 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 	}
 
 	scanner := &instruct.Scanner{
-		ReadFile:  osReadFileFunc,
+		ReadFile:  os.ReadFile,
 		GlobFiles: filepath.Glob,
 		EffData:   map[string]float64{},
 	}
@@ -1910,26 +1525,6 @@ func runMaintainApply(
 	return nil
 }
 
-func runRegistry(args []string, stdout io.Writer) error {
-	if len(args) == 0 {
-		return errRegistryUnknownSub
-	}
-
-	sub := args[0]
-	subArgs := args[1:]
-
-	switch sub {
-	case "init":
-		return RunRegistryInit(subArgs, stdout)
-	case "register-source":
-		return RunRegistryRegisterSource(subArgs, stdout, osReadFileFunc)
-	case "merge":
-		return RunRegistryMerge(subArgs, stdout)
-	default:
-		return errRegistryUnknownSub
-	}
-}
-
 func runRemind(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("remind", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -2002,8 +1597,15 @@ func runSurface(args []string, stdout io.Writer) error {
 	recorder := track.NewRecorder()
 	logReader := creationlog.NewLogReader()
 	surfLogger := surfacinglog.New(*dataDir)
-	evalDir := filepath.Join(*dataDir, "evaluations")
-	effAdapter := &effectivenessAdapter{computer: effectiveness.New(evalDir)}
+
+	ctx := context.Background()
+
+	memories, memErr := retriever.ListMemories(ctx, *dataDir)
+	if memErr != nil {
+		return fmt.Errorf("surface: listing memories: %w", memErr)
+	}
+
+	effAdapter := &effectivenessAdapter{stats: effectiveness.FromMemories(memories)}
 
 	registry := openRegistry(*dataDir)
 
@@ -2015,7 +1617,6 @@ func runSurface(args []string, stdout io.Writer) error {
 		surface.WithEffectiveness(effAdapter),
 		surface.WithRegistry(&surfaceRegistryAdapter{reg: registry}),
 	)
-	ctx := context.Background()
 
 	return surfacer.Run(ctx, stdout, surface.Options{
 		Mode:      *mode,

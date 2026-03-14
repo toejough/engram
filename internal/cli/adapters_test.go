@@ -57,36 +57,6 @@ func TestBuildEscalationMemories(t *testing.T) {
 	_ = result[0]
 }
 
-func TestBuildExtractor_AllTypes(t *testing.T) {
-	t.Parallel()
-
-	types := []string{"claude-md", "memory-md", "rule", "skill"}
-
-	for _, sourceType := range types {
-		t.Run(sourceType, func(t *testing.T) {
-			t.Parallel()
-			g := NewWithT(t)
-
-			ext, err := cli.ExportBuildExtractor(sourceType, "test-path", "some content")
-			g.Expect(err).NotTo(HaveOccurred())
-
-			if err != nil {
-				return
-			}
-
-			g.Expect(ext).NotTo(BeNil())
-		})
-	}
-
-	t.Run("unknown type returns error", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		_, err := cli.ExportBuildExtractor("bogus", "path", "content")
-		g.Expect(err).To(HaveOccurred())
-	})
-}
-
 func TestCliConfirmer_Confirm_AutoApprove(t *testing.T) {
 	t.Parallel()
 
@@ -145,7 +115,7 @@ func TestCliConfirmer_Confirm_UserInput(t *testing.T) {
 	g.Expect(approved).To(BeTrue())
 }
 
-func TestContentHashForRegistry(t *testing.T) {
+func TestContentHash(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -235,112 +205,6 @@ func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	}
 
 	g.Expect(content).To(Equal("# Test\nContent."))
-}
-
-func TestOsCreationLogReader_CreationTimes(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	lines := `{"timestamp":"2025-06-01T12:00:00Z","title":"Memory A","tier":"A","filename":"memory-a.toml"}
-{"timestamp":"2025-06-02T14:30:00Z","title":"Memory B","tier":"B","filename":"memory-b.toml"}
-{"timestamp":"bad-timestamp","title":"Bad","tier":"C","filename":"bad.toml"}
-`
-
-	g.Expect(os.WriteFile(
-		filepath.Join(dataDir, "creation-log.jsonl"),
-		[]byte(lines),
-		0o644,
-	)).To(Succeed())
-
-	reader := cli.ExportNewOsCreationLogReader(dataDir)
-
-	result, err := reader.CreationTimes()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Two valid entries; bad timestamp skipped.
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(result).To(HaveKey("memory-a.toml"))
-	g.Expect(result).To(HaveKey("memory-b.toml"))
-	g.Expect(result["memory-a.toml"].Year()).To(Equal(2025))
-}
-
-func TestOsCreationLogReader_MissingFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	reader := cli.ExportNewOsCreationLogReader(t.TempDir())
-
-	result, err := reader.CreationTimes()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
-}
-
-// AggregateEvaluations: returns empty map when evaluations dir is missing.
-func TestOsEvaluationsReader_AggregateEvaluations_MissingDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	reader := cli.ExportNewOsEvaluationsReader(t.TempDir())
-
-	result, err := reader.AggregateEvaluations()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
-}
-
-// AggregateEvaluations: returns counters from evaluation JSONL files.
-func TestOsEvaluationsReader_AggregateEvaluations_WithData(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	evalDir := filepath.Join(dataDir, "evaluations")
-
-	g.Expect(os.MkdirAll(evalDir, 0o750)).To(Succeed())
-
-	lines := `{"memory_path":"/m/a.toml","outcome":"followed","evaluated_at":"2025-01-01T00:00:00Z"}
-{"memory_path":"/m/a.toml","outcome":"contradicted","evaluated_at":"2025-01-02T00:00:00Z"}
-{"memory_path":"/m/b.toml","outcome":"ignored","evaluated_at":"2025-01-01T00:00:00Z"}
-`
-
-	g.Expect(os.WriteFile(
-		filepath.Join(evalDir, "session.jsonl"),
-		[]byte(lines),
-		0o640,
-	)).To(Succeed())
-
-	reader := cli.ExportNewOsEvaluationsReader(dataDir)
-
-	result, err := reader.AggregateEvaluations()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(result["/m/a.toml"].Followed).To(Equal(1))
-	g.Expect(result["/m/a.toml"].Contradicted).To(Equal(1))
-	g.Expect(result["/m/b.toml"].Ignored).To(Equal(1))
 }
 
 func TestOsMemoryLoader_LoadPrinciple_Found(t *testing.T) {
@@ -501,36 +365,6 @@ func TestOsSkillWriter_Write(t *testing.T) {
 	// Writing again should fail (already exists).
 	_, err = writer.Write("my-skill", "duplicate")
 	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsSurfacingLogReader_AggregateSurfacing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Write a surfacing log with two entries.
-	logPath := filepath.Join(dataDir, "surfacing-log.jsonl")
-	lines := `{"memory_path":"/m/a.toml","mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}
-{"memory_path":"/m/a.toml","mode":"prompt","surfaced_at":"2025-01-02T00:00:00Z"}
-{"memory_path":"/m/b.toml","mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}
-`
-
-	g.Expect(os.WriteFile(logPath, []byte(lines), 0o644)).To(Succeed())
-
-	reader := cli.ExportNewOsSurfacingLogReader(dataDir)
-
-	result, err := reader.AggregateSurfacing()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(result["/m/a.toml"].Count).To(Equal(2))
-	g.Expect(result["/m/b.toml"].Count).To(Equal(1))
 }
 
 func TestParseRemindersToml_EmptyInput(t *testing.T) {

@@ -14,8 +14,7 @@ import (
 // Exported variables.
 var (
 	ExportBuildEscalationMemories = buildEscalationMemories
-	ExportBuildExtractor          = buildExtractor
-	ExportContentHash             = contentHashForRegistry
+	ExportContentHash             = contentHash
 	ExportParseRemindersToml      = parseRemindersToml
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
@@ -65,16 +64,6 @@ func ExportNewOsClaudeMDStore(path string) interface {
 	return &osClaudeMDStore{path: path}
 }
 
-// ExportNewOsCreationLogReader creates an osCreationLogReader for testing.
-func ExportNewOsCreationLogReader(dataDir string) *osCreationLogReader {
-	return &osCreationLogReader{dataDir: dataDir}
-}
-
-// ExportNewOsEvaluationsReader creates an osEvaluationsReader for testing.
-func ExportNewOsEvaluationsReader(dataDir string) *osEvaluationsReader {
-	return &osEvaluationsReader{dataDir: dataDir}
-}
-
 // ExportNewOsMemoryLoader creates an osMemoryLoader for testing.
 func ExportNewOsMemoryLoader(dataDir string) *osMemoryLoader {
 	return &osMemoryLoader{dataDir: dataDir}
@@ -95,11 +84,6 @@ func ExportNewOsSkillWriter(dir string) interface {
 	Write(name, content string) (string, error)
 } {
 	return &osSkillWriter{dir: dir}
-}
-
-// ExportNewOsSurfacingLogReader creates an osSurfacingLogReader for testing.
-func ExportNewOsSurfacingLogReader(dataDir string) *osSurfacingLogReader {
-	return &osSurfacingLogReader{dataDir: dataDir}
 }
 
 // ExportNewRetriever creates a retrieve.Retriever for testing.

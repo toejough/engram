@@ -3,7 +3,6 @@ package evaluate_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -45,8 +44,6 @@ func TestEvalCorrelation_ErrorDoesNotAbort(t *testing.T) {
 			return []byte(memTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
@@ -93,8 +90,6 @@ func TestEvalCorrelation_FollowedPairsGetLinks(t *testing.T) {
 			return []byte(memTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
@@ -159,8 +154,6 @@ func TestEvalCorrelation_IgnoresNonFollowed(t *testing.T) {
 			return []byte(memTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
@@ -217,8 +210,6 @@ func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
 			return []byte(memTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResp, nil
 		}),
@@ -287,8 +278,6 @@ anti_pattern = ""`
 			}
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, model, _, user string) (string, error) {
 			capturedModel = model
 			capturedUser = user
@@ -352,8 +341,6 @@ anti_pattern = ""`
 			removedPath = name
 			return nil
 		}),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
 		}),
@@ -370,54 +357,6 @@ anti_pattern = ""`
 	}
 
 	g.Expect(removedPath).To(Equal("/data/surfacing-log.jsonl"))
-}
-
-// T-109: Evaluator creates evaluations directory if missing.
-func TestEvaluator_CreatesEvaluationsDirectory(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const (
-		surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
-		genericTOML  = `title = "Memory"
-content = "Content"
-principle = "Principle"
-anti_pattern = ""`
-	)
-
-	var mkdirCalledPath string
-
-	evaluator := evaluate.New(
-		"/data",
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(genericTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(path string, _ os.FileMode) error {
-			mkdirCalledPath = path
-			return nil
-		}),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
-		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
-			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
-		}),
-		evaluate.WithNow(
-			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
-		),
-	)
-
-	_, err := evaluator.Evaluate(context.Background(), "transcript")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(mkdirCalledPath).To(Equal("/data/evaluations"))
 }
 
 // T-268: Default StripFunc is no-op — backward compatible.
@@ -447,8 +386,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, user string) (string, error) {
 			capturedUser = user
 			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
@@ -505,8 +442,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			llmCalled = true
 			return "", nil
@@ -539,18 +474,12 @@ func TestEvaluator_EmptySurfacingLog_NoLLMCall(t *testing.T) {
 	g := NewWithT(t)
 
 	llmCalled := false
-	writeCallCount := 0
 
 	evaluator := evaluate.New("/data",
 		evaluate.WithReadFile(func(string) ([]byte, error) {
 			return nil, os.ErrNotExist
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error {
-			writeCallCount++
-			return nil
-		}),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			llmCalled = true
 			return "", nil
@@ -566,7 +495,6 @@ func TestEvaluator_EmptySurfacingLog_NoLLMCall(t *testing.T) {
 	}
 
 	g.Expect(llmCalled).To(BeFalse())
-	g.Expect(writeCallCount).To(Equal(0))
 	g.Expect(outcomes).To(BeNil())
 }
 
@@ -586,43 +514,8 @@ func TestEvaluator_InvalidMemoryTOML_ReturnsError(t *testing.T) {
 			return []byte("this is [not valid toml {{{{"), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return "", nil
-		}),
-		evaluate.WithNow(time.Now),
-	)
-
-	_, err := evaluator.Evaluate(context.Background(), "transcript")
-	g.Expect(err).To(HaveOccurred())
-}
-
-// writeEvaluationLog: mkdirAll error is returned to caller.
-func TestEvaluator_MkdirAllError_ReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const (
-		surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
-		genericTOML  = "title = \"Memory\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
-	)
-
-	evaluator := evaluate.New("/data",
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(genericTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error {
-			return errors.New("mkdir failed")
-		}),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
-		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
-			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
 		}),
 		evaluate.WithNow(time.Now),
 	)
@@ -681,8 +574,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, user string) (string, error) {
 			capturedUser = user
 			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
@@ -735,8 +626,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return fencedResponse, nil
 		}),
@@ -771,8 +660,6 @@ func TestEvaluator_SurfacingLogReadError_ReturnsError(t *testing.T) {
 			return nil, errors.New("permission denied")
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return "", nil
 		}),
@@ -801,8 +688,6 @@ func TestEvaluator_SurfacingLogRemoveError_ReturnsError(t *testing.T) {
 		evaluate.WithRemoveFile(func(string) error {
 			return errors.New("remove failed")
 		}),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return "", nil
 		}),
@@ -826,8 +711,6 @@ principle = "Principle"
 anti_pattern = ""`
 	)
 
-	writeCallCount := 0
-
 	evaluator := evaluate.New("/data",
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
@@ -837,11 +720,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error {
-			writeCallCount++
-			return nil
-		}),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return "this is not valid JSON", nil
 		}),
@@ -851,7 +729,6 @@ anti_pattern = ""`
 	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(outcomes).To(BeNil())
-	g.Expect(writeCallCount).To(Equal(0))
 }
 
 // TestEvaluator_UpdatesEvalCorrelationLinks verifies link updater is called for evaluated memories.
@@ -884,8 +761,6 @@ anti_pattern = ""`
 			}
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
@@ -904,113 +779,6 @@ anti_pattern = ""`
 	// Only 1 followed memory → no pairs → no link updates (REQ-P3-9)
 	g.Expect(updater.getCalls).To(BeEmpty())
 	g.Expect(updater.setCalls).To(BeEmpty())
-}
-
-// writeEvaluationLog: writeFile error is returned to caller.
-func TestEvaluator_WriteFileError_ReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const (
-		surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
-		genericTOML  = "title = \"Memory\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
-	)
-
-	evaluator := evaluate.New("/data",
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(genericTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error {
-			return errors.New("write failed")
-		}),
-		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
-			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
-		}),
-		evaluate.WithNow(time.Now),
-	)
-
-	_, err := evaluator.Evaluate(context.Background(), "transcript")
-	g.Expect(err).To(HaveOccurred())
-}
-
-// T-108: Evaluator writes per-session evaluation log.
-func TestEvaluator_WritesEvaluationLog(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	const surfacingLog = "" +
-		`{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
-		`{"memory_path":"/data/memories/m2.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:01Z"}` + "\n" +
-		`{"memory_path":"/data/memories/m3.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:02Z"}`
-
-	const genericTOML = `title = "A Memory"
-content = "Some content"
-principle = "Some principle"
-anti_pattern = ""`
-
-	const llmResponse = `[` +
-		`{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"e1"},` +
-		`{"memory_path":"/data/memories/m2.toml","outcome":"contradicted","evidence":"e2"},` +
-		`{"memory_path":"/data/memories/m3.toml","outcome":"ignored","evidence":"e3"}` +
-		`]`
-
-	var (
-		writtenPath string
-		writtenData []byte
-	)
-
-	fixedNow := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-
-	evaluator := evaluate.New("/data",
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(genericTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(name string, data []byte, _ os.FileMode) error {
-			writtenPath = name
-			writtenData = data
-
-			return nil
-		}),
-		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
-			return llmResponse, nil
-		}),
-		evaluate.WithNow(func() time.Time { return fixedNow }),
-	)
-
-	_, err := evaluator.Evaluate(context.Background(), "transcript")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(writtenPath).To(Equal("/data/evaluations/2024-01-15T10-30-00Z.jsonl"))
-
-	lines := strings.Split(strings.TrimRight(string(writtenData), "\n"), "\n")
-	g.Expect(lines).To(HaveLen(3))
-
-	for _, line := range lines {
-		var record map[string]any
-
-		parseErr := json.Unmarshal([]byte(line), &record)
-		g.Expect(parseErr).NotTo(HaveOccurred())
-		g.Expect(record).To(HaveKey("memory_path"))
-		g.Expect(record).To(HaveKey("outcome"))
-		g.Expect(record).To(HaveKey("evidence"))
-		g.Expect(record).To(HaveKey("evaluated_at"))
-	}
 }
 
 // T-200: Evaluation hook calls RecordEvaluation, counter increments.
@@ -1043,8 +811,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
@@ -1098,8 +864,6 @@ anti_pattern = ""`
 			return []byte(genericTOML), nil
 		}),
 		evaluate.WithRemoveFile(func(string) error { return nil }),
-		evaluate.WithMkdirAll(func(string, os.FileMode) error { return nil }),
-		evaluate.WithWriteFile(func(string, []byte, os.FileMode) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`, nil
 		}),

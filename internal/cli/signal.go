@@ -82,12 +82,7 @@ type memoryListerAdapter struct {
 }
 
 func (m *memoryListerAdapter) ListAll(ctx context.Context) ([]*memory.Stored, error) {
-	memories, err := m.retriever.ListMemories(ctx, m.dataDir)
-	if err != nil {
-		return nil, fmt.Errorf("listing memories: %w", err)
-	}
-
-	return memories, nil
+	return m.retriever.ListMemories(ctx, m.dataDir)
 }
 
 // registryUpdaterAdapter adapts regpkg.Registry to signal.RegistryUpdater.

@@ -36,9 +36,7 @@ type Evaluator struct {
 	dataDir     string
 	llmCaller   func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
 	readFile    func(name string) ([]byte, error)
-	writeFile   func(name string, data []byte, perm os.FileMode) error
 	removeFile  func(name string) error
-	mkdirAll    func(path string, perm os.FileMode) error
 	now         func() time.Time
 	registry    RegistryRecorder
 	stripFunc   func([]string) []string
@@ -52,9 +50,7 @@ func New(dataDir string, opts ...Option) *Evaluator {
 	e := &Evaluator{
 		dataDir:    dataDir,
 		readFile:   os.ReadFile,
-		writeFile:  os.WriteFile,
 		removeFile: os.Remove,
-		mkdirAll:   os.MkdirAll,
 		now:        time.Now,
 		logWriter:  io.Discard,
 	}
@@ -134,11 +130,6 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 			Evidence:    raw.Evidence,
 			EvaluatedAt: now,
 		})
-	}
-
-	writeErr := e.writeEvaluationLog(outcomes, now)
-	if writeErr != nil {
-		return nil, writeErr
 	}
 
 	if e.registry != nil {
@@ -243,37 +234,6 @@ func (e *Evaluator) updateEvalCorrelationLinks(outcomes []Outcome) {
 	}
 }
 
-func (e *Evaluator) writeEvaluationLog(outcomes []Outcome, now time.Time) error {
-	evalDir := filepath.Join(e.dataDir, evaluationsDirName)
-
-	err := e.mkdirAll(evalDir, evalDirPerm)
-	if err != nil {
-		return fmt.Errorf("evaluate: creating evaluations dir: %w", err)
-	}
-
-	timestamp := strings.ReplaceAll(now.UTC().Format(time.RFC3339), ":", "-")
-	filePath := filepath.Join(evalDir, timestamp+".jsonl")
-
-	var sb strings.Builder
-
-	for _, outcome := range outcomes {
-		line, err := json.Marshal(outcome)
-		if err != nil {
-			return fmt.Errorf("evaluate: marshaling outcome: %w", err)
-		}
-
-		sb.Write(line)
-		sb.WriteByte('\n')
-	}
-
-	err = e.writeFile(filePath, []byte(sb.String()), evalFilePerm)
-	if err != nil {
-		return fmt.Errorf("evaluate: writing evaluation log: %w", err)
-	}
-
-	return nil
-}
-
 // Option configures an Evaluator.
 type Option func(*Evaluator)
 
@@ -309,11 +269,6 @@ func WithLogWriter(w io.Writer) Option {
 	return func(e *Evaluator) { e.logWriter = w }
 }
 
-// WithMkdirAll injects a directory creator.
-func WithMkdirAll(fn func(path string, perm os.FileMode) error) Option {
-	return func(e *Evaluator) { e.mkdirAll = fn }
-}
-
 // WithNow injects a clock function.
 func WithNow(fn func() time.Time) Option {
 	return func(e *Evaluator) { e.now = fn }
@@ -340,21 +295,13 @@ func WithStripFunc(fn func([]string) []string) Option {
 	return func(e *Evaluator) { e.stripFunc = fn }
 }
 
-// WithWriteFile injects a file writer.
-func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) Option {
-	return func(e *Evaluator) { e.writeFile = fn }
-}
-
 // unexported constants.
 const (
 	evalCorrelationIncrement = 0.05
 	evalCorrelationWeightCap = 1.0
-	evalDirPerm              = os.FileMode(0o755)
-	evalFilePerm             = os.FileMode(0o644)
 	evaluationModel          = "claude-haiku-4-5-20251001"
 	evaluationSystemPrompt   = "You are evaluating whether an AI agent followed, contradicted, or ignored" +
 		" memories that were surfaced during its session."
-	evaluationsDirName     = "evaluations"
 	minCorrelationPairSize = 2
 	surfacingLogFilename   = "surfacing-log.jsonl"
 )

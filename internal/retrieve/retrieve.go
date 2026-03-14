@@ -82,26 +82,32 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 	}
 
 	return &memory.Stored{
-		Title:         record.Title,
-		Content:       record.Content,
-		Concepts:      record.Concepts,
-		Keywords:      record.Keywords,
-		AntiPattern:   record.AntiPattern,
-		Principle:     record.Principle,
-		SurfacedCount: record.SurfacedCount,
-		UpdatedAt:     updatedAt,
-		FilePath:      filePath,
+		Title:             record.Title,
+		Content:           record.Content,
+		Concepts:          record.Concepts,
+		Keywords:          record.Keywords,
+		AntiPattern:       record.AntiPattern,
+		Principle:         record.Principle,
+		SurfacedCount:     record.SurfacedCount,
+		FollowedCount:     record.FollowedCount,
+		ContradictedCount: record.ContradictedCount,
+		IgnoredCount:      record.IgnoredCount,
+		UpdatedAt:         updatedAt,
+		FilePath:          filePath,
 	}, nil
 }
 
 // tomlRecord mirrors the on-disk TOML format for reading.
 type tomlRecord struct {
-	Title         string   `toml:"title"`
-	Content       string   `toml:"content"`
-	Concepts      []string `toml:"concepts"`
-	Keywords      []string `toml:"keywords"`
-	AntiPattern   string   `toml:"anti_pattern"`
-	Principle     string   `toml:"principle"`
-	SurfacedCount int      `toml:"surfaced_count"`
-	UpdatedAt     string   `toml:"updated_at"`
+	Title             string   `toml:"title"`
+	Content           string   `toml:"content"`
+	Concepts          []string `toml:"concepts"`
+	Keywords          []string `toml:"keywords"`
+	AntiPattern       string   `toml:"anti_pattern"`
+	Principle         string   `toml:"principle"`
+	SurfacedCount     int      `toml:"surfaced_count"`
+	FollowedCount     int      `toml:"followed_count"`
+	ContradictedCount int      `toml:"contradicted_count"`
+	IgnoredCount      int      `toml:"ignored_count"`
+	UpdatedAt         string   `toml:"updated_at"`
 }
