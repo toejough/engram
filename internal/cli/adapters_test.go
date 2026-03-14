@@ -700,17 +700,8 @@ func TestTruncateTitle_Short(t *testing.T) {
 	g.Expect(cli.ExportTruncateTitle("Short")).To(Equal("Short"))
 }
 
-func newTestStore(t *testing.T) *regpkg.JSONLStore {
+func newTestStore(t *testing.T) *regpkg.TOMLDirectoryStore {
 	t.Helper()
 
-	registryPath := filepath.Join(t.TempDir(), "instruction-registry.jsonl")
-
-	return regpkg.NewJSONLStore(
-		registryPath,
-		regpkg.WithReader(os.ReadFile),
-		regpkg.WithWriter(func(path string, data []byte) error {
-			const filePerms = 0o644
-			return os.WriteFile(path, data, filePerms)
-		}),
-	)
+	return regpkg.NewTOMLDirectoryStore(t.TempDir())
 }

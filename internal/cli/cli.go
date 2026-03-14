@@ -52,9 +52,6 @@ var (
 // ReadFileFunc reads a file by path, injected for testability.
 type ReadFileFunc func(path string) ([]byte, error)
 
-// RemoveFileFunc removes a file by path, injected for testability.
-type RemoveFileFunc func(path string) error
-
 // RenderEvaluateResult writes the evaluation summary to w (T-119).
 // No output is written when outcomes is empty.
 func RenderEvaluateResult(w io.Writer, outcomes []evaluate.Outcome) {
@@ -394,14 +391,14 @@ func RunMaintain(
 	return json.NewEncoder(stdout).Encode(proposals)
 }
 
-// RunRegistryInit implements the registry init subcommand with injectable
-// backfill config components. opts override default I/O adapters for testing.
+// RunRegistryInit implements the registry init subcommand. Scans memory files,
+// computes backfill entries, and writes metrics into each TOML file.
 //
 //nolint:funlen // orchestration function
 func RunRegistryInit(
 	args []string,
 	stdout io.Writer,
-	opts ...regpkg.JSONLOption,
+	opts ...regpkg.TOMLDirOption,
 ) error {
 	fs := flag.NewFlagSet("registry init", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -440,40 +437,37 @@ func RunRegistryInit(
 		return nil
 	}
 
-	registryPath := filepath.Join(*dataDir, registryFilename)
+	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
 
-	const baseOpts = 2
+	var registered int
 
-	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
-	allOpts = append(allOpts,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
-	allOpts = append(allOpts, opts...)
+	for _, entry := range entries {
+		regErr := store.Register(entry)
+		if regErr != nil {
+			if errors.Is(regErr, regpkg.ErrDuplicateID) {
+				continue
+			}
 
-	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+			return fmt.Errorf("registry init: registering %s: %w",
+				entry.ID, regErr)
+		}
 
-	bulkErr := store.BulkLoad(entries)
-	if bulkErr != nil {
-		return fmt.Errorf("registry init: writing: %w", bulkErr)
+		registered++
 	}
 
 	_, _ = fmt.Fprintf(stdout,
 		"[engram] Registry initialized: %d entries written to %s\n",
-		len(entries), registryPath)
+		registered, *dataDir)
 
 	return nil
 }
 
 // RunRegistryMerge implements the registry merge subcommand (ARCH-56, DES-28).
-// removeFile is injected for testability (DI).
-//
-//nolint:cyclop,funlen // CLI wiring
+// The TOML store's Merge absorbs metrics and deletes the source file.
 func RunRegistryMerge(
 	args []string,
 	stdout io.Writer,
-	removeFile RemoveFileFunc,
-	opts ...regpkg.JSONLOption,
+	opts ...regpkg.TOMLDirOption,
 ) error {
 	fs := flag.NewFlagSet("registry merge", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -491,28 +485,7 @@ func RunRegistryMerge(
 		return errMergeMissingFlags
 	}
 
-	registryPath := filepath.Join(*dataDir, registryFilename)
-
-	const baseOpts = 2
-
-	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
-	allOpts = append(allOpts,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
-	allOpts = append(allOpts, opts...)
-
-	store := regpkg.NewJSONLStore(registryPath, allOpts...)
-
-	// Retrieve source entry before merge to know its source path.
-	source, getErr := store.Get(*sourceID)
-	if getErr != nil {
-		return fmt.Errorf("registry merge: getting source: %w", getErr)
-	}
-
-	if source == nil {
-		return errRegistryMergeNilEntry
-	}
+	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
 
 	mergeErr := store.Merge(*sourceID, *targetID)
 	if mergeErr != nil {
@@ -520,21 +493,8 @@ func RunRegistryMerge(
 	}
 
 	_, _ = fmt.Fprintf(stdout,
-		"[engram] Merged %q into %q (counters transferred)\n",
+		"[engram] Merged %q into %q (counters transferred, source deleted)\n",
 		*sourceID, *targetID)
-
-	// If source was a memory TOML, delete the file.
-	if source.SourceType == "memory" && source.SourcePath != "" {
-		rmErr := removeFile(source.SourcePath)
-		if rmErr != nil && !os.IsNotExist(rmErr) {
-			_, _ = fmt.Fprintf(stdout,
-				"[engram] Warning: could not delete source file %s: %v\n",
-				source.SourcePath, rmErr)
-		} else if rmErr == nil {
-			_, _ = fmt.Fprintf(stdout,
-				"[engram] Deleted source file: %s\n", source.SourcePath)
-		}
-	}
 
 	return nil
 }
@@ -547,7 +507,7 @@ func RunRegistryRegisterSource(
 	args []string,
 	stdout io.Writer,
 	readFile ReadFileFunc,
-	opts ...regpkg.JSONLOption,
+	opts ...regpkg.TOMLDirOption,
 ) error {
 	fs := flag.NewFlagSet("registry register-source", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -587,18 +547,7 @@ func RunRegistryRegisterSource(
 		return nil
 	}
 
-	registryPath := filepath.Join(*dataDir, registryFilename)
-
-	const baseOpts = 2
-
-	allOpts := make([]regpkg.JSONLOption, 0, baseOpts+len(opts))
-	allOpts = append(allOpts,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
-	allOpts = append(allOpts, opts...)
-
-	store := regpkg.NewJSONLStore(registryPath, allOpts...)
+	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
 
 	var registered int
 
@@ -681,7 +630,6 @@ const (
 	maxTitleLength               = 38
 	maxTranscriptTok             = 2000
 	minArgs                      = 2
-	registryFilename             = "instruction-registry.jsonl"
 	reviewEffectivenessThreshold = 50.0
 	reviewSurfacingThreshold     = 3
 )
@@ -714,8 +662,7 @@ var (
 	errRegisterSourceMissingFlags = errors.New(
 		"registry register-source: --type and --path and --data-dir required",
 	)
-	errRegistryMergeNilEntry = errors.New("registry merge: source entry is nil")
-	errRegistryMissingFlags  = errors.New(
+	errRegistryMissingFlags = errors.New(
 		"registry init: --data-dir required",
 	)
 	errRegistryUnknownSub = errors.New(
@@ -1177,9 +1124,9 @@ func (t *realTimestamper) Now() time.Time {
 	return time.Now()
 }
 
-// registryEntryRemover adapts regpkg.JSONLStore to maintain.RegistryUpdater.
+// registryEntryRemover adapts regpkg.Registry to maintain.RegistryUpdater.
 type registryEntryRemover struct {
-	store *regpkg.JSONLStore
+	store regpkg.Registry
 }
 
 func (r *registryEntryRemover) RemoveEntry(id string) error {
@@ -1476,28 +1423,14 @@ func makeAnthropicCaller(
 	}
 }
 
-// openRegistry creates a JSONLStore for the given data directory.
-// Returns nil if the registry file cannot be loaded (fire-and-forget).
-func openRegistry(dataDir string) *regpkg.JSONLStore {
-	registryPath := filepath.Join(dataDir, registryFilename)
-
-	return regpkg.NewJSONLStore(
-		registryPath,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
+// openRegistry creates a TOMLDirectoryStore for the given data directory.
+func openRegistry(dataDir string) *regpkg.TOMLDirectoryStore {
+	return regpkg.NewTOMLDirectoryStore(dataDir)
 }
 
 // osReadFileFunc wraps os.ReadFile for DI injection.
 func osReadFileFunc(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
-}
-
-// osWriteFileFunc wraps os.WriteFile for DI injection.
-func osWriteFileFunc(path string, content []byte) error {
-	const filePermsRW = 0o644
-
-	return os.WriteFile(path, content, filePermsRW) //nolint:wrapcheck // thin I/O adapter
 }
 
 // parseRemindersToml parses a simple TOML config: ["*.go"]\ninstructions = ["id1", "id2"].
@@ -1929,11 +1862,7 @@ func runMaintainApply(
 	execOpts = append(execOpts, maintain.WithRewriter(rewriter))
 	execOpts = append(execOpts, maintain.WithRemover(&osMemoryRemover{}))
 
-	registryPath := filepath.Join(dataDir, registryFilename)
-	store := regpkg.NewJSONLStore(registryPath,
-		regpkg.WithReader(osReadFileFunc),
-		regpkg.WithWriter(osWriteFileFunc),
-	)
+	store := regpkg.NewTOMLDirectoryStore(dataDir)
 	execOpts = append(execOpts, maintain.WithRegistry(
 		&registryEntryRemover{store: store},
 	))
@@ -1980,7 +1909,7 @@ func runRegistry(args []string, stdout io.Writer) error {
 	case "register-source":
 		return RunRegistryRegisterSource(subArgs, stdout, osReadFileFunc)
 	case "merge":
-		return RunRegistryMerge(subArgs, stdout, os.Remove)
+		return RunRegistryMerge(subArgs, stdout)
 	default:
 		return errRegistryUnknownSub
 	}

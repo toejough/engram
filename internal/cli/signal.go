@@ -51,22 +51,38 @@ func (l *memoryStoredLoader) Load(path string) (*memory.Stored, error) {
 	return readStoredMemory(path)
 }
 
-// registryUpdaterAdapter adapts regpkg.JSONLStore to signal.RegistryUpdater.
+// registryUpdaterAdapter adapts regpkg.Registry to signal.RegistryUpdater.
+// dataDir is used to relativize absolute memory paths before passing to the
+// TOML directory store, which expects IDs relative to dataDir.
 type registryUpdaterAdapter struct {
-	reg *regpkg.JSONLStore
+	reg     regpkg.Registry
+	dataDir string
 }
 
 func (r *registryUpdaterAdapter) Remove(id string) error {
-	return r.reg.Remove(id)
+	return r.reg.Remove(r.relID(id))
 }
 
 func (r *registryUpdaterAdapter) SetEnforcementLevel(id, level, reason string) error {
-	return r.reg.SetEnforcementLevel(id, regpkg.EnforcementLevel(level), reason)
+	return r.reg.SetEnforcementLevel(r.relID(id), regpkg.EnforcementLevel(level), reason)
 }
 
 func (r *registryUpdaterAdapter) UpdateContentHash(_, _ string) error {
-	// JSONLStore does not yet expose UpdateContentHash; this is a no-op stub.
+	// Registry does not yet expose UpdateContentHash; this is a no-op stub.
 	return nil
+}
+
+func (r *registryUpdaterAdapter) relID(id string) string {
+	if r.dataDir == "" {
+		return id
+	}
+
+	rel, err := filepath.Rel(r.dataDir, id)
+	if err != nil {
+		return id
+	}
+
+	return rel
 }
 
 // storedMemoryWriter writes a memory.Stored back to its TOML path atomically.
@@ -221,7 +237,7 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 	reg := openRegistry(*dataDir)
 	queue := signal.NewQueueStore()
 
-	regAdapter := &registryUpdaterAdapter{reg: reg}
+	regAdapter := &registryUpdaterAdapter{reg: reg, dataDir: *dataDir}
 
 	gradStore := signal.NewGraduationStore()
 	gradPath := filepath.Join(*dataDir, "graduation-queue.jsonl")

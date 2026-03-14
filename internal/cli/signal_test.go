@@ -47,11 +47,29 @@ func TestRegistryUpdaterAdapterUpdateContentHash(t *testing.T) {
 
 	dataDir := t.TempDir()
 	reg := openRegistry(dataDir)
-	adapter := &registryUpdaterAdapter{reg: reg}
+	adapter := &registryUpdaterAdapter{reg: reg, dataDir: dataDir}
 
 	// UpdateContentHash is a no-op stub; it should always return nil.
 	err := adapter.UpdateContentHash("any-id", "any-hash")
 	g.Expect(err).NotTo(HaveOccurred())
+}
+
+func TestRegistryUpdaterAdapter_RelIDEmptyDataDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	adapter := &registryUpdaterAdapter{dataDir: ""}
+
+	g.Expect(adapter.relID("memories/test.toml")).To(Equal("memories/test.toml"))
+}
+
+func TestRegistryUpdaterAdapter_RelIDRelativePath(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	adapter := &registryUpdaterAdapter{dataDir: "/data"}
+
+	g.Expect(adapter.relID("/data/memories/test.toml")).To(Equal("memories/test.toml"))
 }
 
 func TestRunApplyProposal_BroadenKeywordsAction(t *testing.T) {
@@ -81,14 +99,6 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {
-		return
-	}
-
-	registryPath := filepath.Join(dataDir, registryFilename)
-	regWriteErr := os.WriteFile(registryPath, []byte(""), 0o644)
-	g.Expect(regWriteErr).NotTo(HaveOccurred())
-
-	if regWriteErr != nil {
 		return
 	}
 
@@ -136,21 +146,12 @@ keywords = []
 anti_pattern = ""
 principle = "principle"
 updated_at = "2024-01-01T00:00:00Z"
+enforcement_level = "advisory"
 `
 	writeErr := os.WriteFile(memPath, []byte(tomlContent), 0o644)
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {
-		return
-	}
-
-	// Create registry file with an entry for the memory.
-	registryPath := filepath.Join(dataDir, registryFilename)
-	regEntry := `{"id":"` + memPath + `","source_type":"memory","enforcement_level":"advisory"}`
-	regWriteErr := os.WriteFile(registryPath, []byte(regEntry+"\n"), 0o644)
-	g.Expect(regWriteErr).NotTo(HaveOccurred())
-
-	if regWriteErr != nil {
 		return
 	}
 
@@ -180,8 +181,6 @@ func TestRunApplyProposal_InvalidFieldsJSON(t *testing.T) {
 	g := NewWithT(t)
 
 	dataDir := t.TempDir()
-	registryPath := filepath.Join(dataDir, registryFilename)
-	_ = os.WriteFile(registryPath, []byte(""), 0o644)
 
 	err := runApplyProposal([]string{
 		"--data-dir", dataDir,
@@ -229,15 +228,6 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {
-		return
-	}
-
-	// Create registry file.
-	registryPath := filepath.Join(dataDir, registryFilename)
-	regWriteErr := os.WriteFile(registryPath, []byte(""), 0o644)
-	g.Expect(regWriteErr).NotTo(HaveOccurred())
-
-	if regWriteErr != nil {
 		return
 	}
 
@@ -292,14 +282,6 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(writeErr).NotTo(HaveOccurred())
 
 	if writeErr != nil {
-		return
-	}
-
-	registryPath := filepath.Join(dataDir, registryFilename)
-	regWriteErr := os.WriteFile(registryPath, []byte(""), 0o644)
-	g.Expect(regWriteErr).NotTo(HaveOccurred())
-
-	if regWriteErr != nil {
 		return
 	}
 
@@ -364,15 +346,6 @@ func TestRunSignalDetect_EmptyDataDir(t *testing.T) {
 		return
 	}
 
-	// Create registry file so openRegistry has something to load.
-	registryPath := filepath.Join(dataDir, registryFilename)
-	writeErr := os.WriteFile(registryPath, []byte(""), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
 	err = runSignalDetect([]string{"--data-dir", dataDir})
 	g.Expect(err).NotTo(HaveOccurred())
 }
@@ -410,14 +383,6 @@ func TestRunSignalDetect_WithPreexistingQueue(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
-		return
-	}
-
-	registryPath := filepath.Join(dataDir, registryFilename)
-	writeErr := os.WriteFile(registryPath, []byte(""), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
 		return
 	}
 
