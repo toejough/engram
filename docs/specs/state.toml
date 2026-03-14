@@ -938,20 +938,25 @@ history = "Issue #72. Identify mechanical instructions and generate deterministi
 layer = "L1"
 name = "Unified Instruction Registry"
 items = ["UC-23"]
-body_hash = "8678fda2"
-merkle_hash = "d5b5aa0d"
-status = "complete"
-history = "Issue #74. Foundation UC for next batch. Unified effectiveness tracking across all instruction sources. Replaces fragmented stores (surfacing-log, creation-log, evaluations/) with single bounded registry."
+issue = "218"
+body_hash = ""
+merkle_hash = ""
+status = "in_progress"
+dirty = true
+dirty_source = "L1N (UC-23 rewritten for issue #218: JSONL → TOML-embedded metrics)"
+history = "Issue #74. Foundation UC for next batch. Issue #218: UC-23 rewritten — consolidate JSONL registry into memory TOML files. Eliminates dual-store sync bugs (#216, #217). Non-memory entries dropped."
 
 [tree.L2N]
 layer = "L2"
 name = "Registry requirements and design"
 items = ["REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "REQ-62", "REQ-63", "REQ-64", "REQ-65", "REQ-66", "REQ-67", "REQ-68", "DES-26", "DES-27", "DES-28", "DES-29"]
 parents = ["L1N"]
-body_hash = "863fd6cb"
-merkle_hash = "73fe2a86"
-status = "complete"
-history = "Derived from UC-23. 14 requirements covering taxonomy, signals, bounded growth, concurrent writes, backfill migration, quadrant classification. 4 DES items covering CLI commands (init, review, merge) and auto-registration."
+body_hash = ""
+merkle_hash = ""
+status = "in_progress"
+dirty = true
+dirty_source = "L1N (UC-23 rewritten: JSONL → TOML-embedded metrics)"
+history = "Derived from UC-23. 14 requirements covering taxonomy, signals, bounded growth, concurrent writes, backfill migration, quadrant classification. 4 DES items covering CLI commands (init, review, merge) and auto-registration. Issue #218: dirty — parent UC-23 rewritten."
 
 [tree.L3N]
 layer = "L2"
@@ -959,9 +964,11 @@ name = "Registry architecture"
 items = ["ARCH-52", "ARCH-53", "ARCH-54", "ARCH-55", "ARCH-56", "ARCH-57", "ARCH-58", "ARCH-59", "ARCH-60", "ARCH-61"]
 parents = ["L2N"]
 body_hash = ""
-merkle_hash = "5f1bf7e4"
-status = "complete"
-history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration."
+merkle_hash = ""
+status = "in_progress"
+dirty = true
+dirty_source = "L2N (parent dirty from UC-23 rewrite)"
+history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration. Issue #218: dirty — storage model changes from JSONL to TOML-embedded."
 
 [tree.L4N]
 layer = "L3"
@@ -969,9 +976,11 @@ name = "Registry test list"
 items = ["T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200"]
 parents = ["L3N"]
 body_hash = ""
-merkle_hash = "6e340b9c"
-status = "complete"
-history = "19 BDD tests covering all 10 ARCH items: bounded growth, ID format, signal computation, content hash, merges, concurrency, backfill, quadrants, DI, CLI subcommands, hook auto-integration."
+merkle_hash = ""
+status = "in_progress"
+dirty = true
+dirty_source = "L3N (parent dirty from ARCH changes)"
+history = "19 BDD tests covering all 10 ARCH items: bounded growth, ID format, signal computation, content hash, merges, concurrency, backfill, quadrants, DI, CLI subcommands, hook auto-integration. Issue #218: dirty — test list needs update for TOML-backed store."
 
 [tree.L5P1]
 layer = "L4"
@@ -1412,10 +1421,10 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L5P6fImpl"
-mode = "complete"
-next_action = "P6e + P6f tree nodes created. Both implementations complete, all tests passing."
-context_files = ["docs/specs/state.toml"]
+node = "L1N"
+mode = "in_progress"
+next_action = "Post-completion re-entry for issue #218. UC-23 rewritten at L1. Next: derive L2 updates (REQ/DES/ARCH) for TOML-embedded registry."
+context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
 
 # P1: Contradiction detection
 

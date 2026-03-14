@@ -458,36 +458,40 @@ Working on session continuity for engram (#45)...
 
 ## UC-23: Unified Instruction Registry
 
-**Description:** Track effectiveness, frecency, and lifecycle state for all instruction sources (memories, CLAUDE.md, MEMORY.md, rules, skills) in a single bounded registry. Replace fragmented tracking stores (surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, inline memory TOML stats) with one instruction-registry.jsonl file. Enable cross-source quadrant classification and merge operations that preserve violation history when deleting duplicates.
+**Description:** Track effectiveness, frecency, and lifecycle state for memories by embedding runtime metrics directly in memory TOML files. Each memory file is the single source of truth for both content and tracking data. Directory scan replaces the JSONL index. Eliminates the dual-store sync problem that caused orphaned entries (#216, #217).
 
-**Starting state:** Engram has 6 data stores with effectiveness tracked only for memories. CLAUDE.md entries, rules, and skills have no feedback loop.
+**Starting state:** Separate instruction-registry.jsonl tracks metrics for ~1000 memory entries plus ~36 stale non-memory entries. Deleting a memory file without updating the registry creates orphaned entries that generate phantom signals.
 
-**End state:** A single instruction-registry.jsonl tracks all registered instructions. Surfacing, evaluation, and learn pipelines write to the registry instead of fragmented stores. `engram review` classifies all registered instructions into quadrants. `engram registry merge` absorbs effectiveness history when deleting duplicates. Old stores (surfacing-log, creation-log, evaluations/) are deleted.
+**End state:** Each memory TOML contains runtime metrics (`surfaced_count`, `followed_count`, `contradicted_count`, `ignored_count`, `effectiveness_score`, `enforcement_level`, `last_surfaced_at`, `links`, `absorbed`). instruction-registry.jsonl is deleted. `runAutoRegistration` for non-memory sources is removed. Registry interface implementation changes from JSONLStore to TOMLDirectoryStore. Deleting a memory file removes all associated tracking data — no orphans possible.
 
-**Actor:** System (Go binary, triggered by hooks) + User (CLI commands for review, merge, register-source).
+**Actor:** System (Go binary, triggered by hooks) + User (CLI commands for review, merge, apply-proposal).
 
 **Key interactions:**
 
-- **Registration:** New memories auto-registered on creation via learn pipeline.
-- **Surfacing tracking:** Each hook surfacing event updates the registry (increment surfaced_count, update last_surfaced) instead of appending to surfacing-log.jsonl.
-- **Evaluation tracking:** Compliance evaluation updates registry counters (followed/contradicted/ignored) instead of writing per-session JSONL files.
-- **Classification:** `engram review` reads the registry directly for pre-aggregated quadrant classification across all sources.
-- **Merge:** `engram registry merge --source <id> --target <id>` absorbs effectiveness history into the target instruction's `absorbed` field, then deletes the source.
-- **Backfill:** `engram registry init` migrates data from existing stores into the registry. After verification, old stores can be deleted.
+- **Registration:** New memories auto-registered on creation via learn pipeline. Initial metrics fields default to zero.
+- **Surfacing tracking:** Each hook surfacing event updates the memory TOML in-place (increment surfaced_count, update last_surfaced_at) via atomic read-modify-write.
+- **Evaluation tracking:** Compliance evaluation updates memory TOML counters (followed_count, contradicted_count, ignored_count) in-place.
+- **Classification:** `engram review` scans the memories directory, reads metrics from each TOML, classifies into quadrants.
+- **Merge:** `engram registry merge --source <id> --target <id>` absorbs effectiveness history into the target memory's `absorbed` field, then deletes the source TOML.
+- **Migration:** One-time `engram registry migrate` reads JSONL entries, matches to TOML files by source_path, merges metrics into each TOML. Non-memory entries are dropped.
 - **No graceful degradation needed:** Registry operations are local file I/O, no API dependency.
 - **Pure Go, no CGO.**
-- **DI everywhere:** Registry interface in internal/, JSONL I/O wired at edges.
+- **DI everywhere:** Registry interface in internal/, TOML I/O wired at edges.
 
 **Constraints:**
-1. Bounded growth — one line per instruction, no unbounded logs
-2. Backward compatibility — backfill migrates existing data with no loss
-3. Fire-and-forget on failure — registry write failures don't crash hooks (ARCH-6)
-4. Content-only memory TOMLs — after migration, memory TOMLs lose effectiveness fields
-5. Concurrent-write safety — multiple hooks may update the registry
+1. Registry interface unchanged — all consumers (UC-6, UC-16, UC-33, UC-34) keep working
+2. Atomic writes — temp file + rename pattern for all TOML updates
+3. Concurrent-write safety — file-level locking for read-modify-write cycles
+4. One-time migration merges JSONL data into existing TOMLs with no data loss
+5. Missing metrics fields default to zero (backward compat for pre-migration TOMLs)
+6. Fire-and-forget on write failures — metric update failures don't crash hooks (ARCH-6)
+7. Non-memory registry entries dropped — no TOML to store them in; cross-source scanning (UC-29) handled separately if needed
 
-**Dependencies:** None (foundation UC). Depended on by: UC-4, UC-5, UC-7, UC-8, UC-9, UC-10.
+**Dependencies:** None (foundation UC). Depended on by: UC-6, UC-16, UC-33, UC-34.
 
-**S3 simplification (Phase A-1):** Non-memory extractors (ClaudeMDExtractor, MemoryMDExtractor, RuleExtractor, SkillExtractor) relocated from `internal/registry/extract.go` to `internal/crossref/extract.go`. The registry package now handles only the memory source type. This sets up the correct package boundary for the cross-source scanner (P0c/UC-29). See ARCH-79.
+**History:**
+- **S3 simplification:** Non-memory extractors relocated to `internal/crossref/extract.go`. Registry scoped to memory-only source type.
+- **Issue #218 rewrite:** Consolidate JSONL registry into memory TOML files. Eliminates #216 (stale registry signals) by design.
 
 ---
 
