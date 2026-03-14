@@ -1965,13 +1965,14 @@ Multiple hook instances may call Registry.RecordSurfacing or Registry.RecordEval
 
 ---
 
-## REQ-65: One-time migration from JSONL registry to TOML-embedded metrics
+## REQ-65: One-time migration from JSONL registry to TOML-embedded metrics [COMPLETED]
 
-`engram registry migrate` reads instruction-registry.jsonl, matches entries to existing memory TOML files by source_path, and merges metrics fields (surfaced_count, followed_count, contradicted_count, ignored_count, last_surfaced_at, enforcement_level, links, absorbed) into each TOML. Non-memory entries are skipped. JSONL file deleted after successful migration.
+Migration executed: 1029 entries migrated, 36 non-memory skipped,
+instruction-registry.jsonl deleted. Migrator code removed after use.
+Requirement retained as historical record.
 
 - Traces to: UC-23 (migration from old storage model)
-- AC: (1) Each JSONL entry matched to TOML by source_path field. (2) Unmatched entries (deleted memories, non-memory sources) logged and skipped. (3) Existing TOML content fields preserved. (4) Metrics fields added/updated. (5) instruction-registry.jsonl deleted on success. (6) No data loss for matched entries.
-- Verification: integration (read JSONL, write TOMLs, verify counts match)
+- AC: All satisfied and verified during migration execution.
 
 ---
 
@@ -2005,13 +2006,13 @@ The registry abstraction (interface) lives in `internal/registry/`. Concrete TOM
 
 ---
 
-## DES-26: User command `engram registry migrate` consolidates JSONL into TOMLs
+## DES-26: User command `engram registry migrate` consolidates JSONL into TOMLs [COMPLETED]
 
-CLI subcommand: `engram registry migrate`. Reads instruction-registry.jsonl, merges metrics into corresponding memory TOML files, deletes the JSONL file. Outputs summary: number of memories updated, number of entries skipped (non-memory or unmatched), any warnings.
+Migration executed and CLI subcommand removed after use. Retained as
+historical record.
 
 - Traces to: UC-23 (migration interaction)
-- AC: (1) Subcommand registered in CLI. (2) Optional --dry-run flag shows what would be written without writing. (3) Output is human-readable summary. (4) Exit code 0 on success, non-zero on error. (5) Idempotent: running on already-migrated data is a no-op (JSONL missing = success).
-- Verification: integration (CLI + TOML rewrite calls)
+- AC: All satisfied during migration execution.
 
 ---
 
@@ -3183,7 +3184,7 @@ Merging does not modify `SurfacedCount`, `Evaluations`, `EnforcementLevel`, or `
 
 ### REQ-P3-2: Registry.UpdateLinks method (P3)
 
-`Registry` interface gains `UpdateLinks(id string, links []Link) error`. Implementation in `JSONLStore`: read entry by id, replace its `Links` field, write back atomically. Returns `ErrNotFound` if id absent.
+`Registry` interface gains `UpdateLinks(id string, links []Link) error`. Implementation in `TOMLDirectoryStore`: read entry by id, replace its `Links` field, write back atomically. Returns `ErrNotFound` if id absent.
 
 - Traces to: UC-32
 - AC: (1) UpdateLinks replaces entire links slice for the entry. (2) Concurrent-safe (existing mutex). (3) Returns ErrNotFound for unknown id.
@@ -3191,7 +3192,7 @@ Merging does not modify `SurfacedCount`, `Evaluations`, `EnforcementLevel`, or `
 
 ### DES-P3-2: UpdateLinks wiring
 
-`JSONLStore.UpdateLinks` reads JSONL, finds entry, replaces Links, rewrites. Uses existing mutex. No new I/O pattern needed.
+`TOMLDirectoryStore.UpdateLinks` reads entry TOML, replaces Links, rewrites atomically. Uses per-file flock. No new I/O pattern needed.
 
 ---
 

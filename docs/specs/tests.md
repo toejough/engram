@@ -2647,71 +2647,12 @@ All UC-21 L2 items have test coverage. UC-22 items removed in Phase A-1/S1.
 
 ---
 
-### Group 2: Migration
+### Group 2: Migration [COMPLETED — migrator run and deleted, issue #218]
 
-### T-251: Migration merges JSONL metrics into matching TOMLs
-
-- **Given** instruction-registry.jsonl with 3 memory entries and 3 corresponding TOML files,
-- **When** `engram registry migrate` is run,
-- **Then** each TOML now has surfaced_count, followed_count, etc. from its JSONL entry. JSONL file deleted.
-
-- Traces to: ARCH-58 (migration), REQ-65
-- Type: example-based
-
----
-
-### T-252: Migration skips non-memory JSONL entries
-
-- **Given** instruction-registry.jsonl with 2 memory entries and 3 non-memory entries (claude-md, rule, skill),
-- **When** `engram registry migrate` is run,
-- **Then** only 2 TOMLs updated. Non-memory entries logged and skipped. Summary shows skip count.
-
-- Traces to: ARCH-58 (migration), REQ-56 (memory-only)
-- Type: example-based
-
----
-
-### T-253: Migration skips unmatched memory entries
-
-- **Given** instruction-registry.jsonl with a memory entry whose source_path points to a deleted TOML,
-- **When** `engram registry migrate` is run,
-- **Then** the unmatched entry is logged and skipped. Other entries migrated successfully.
-
-- Traces to: ARCH-58 (migration handles missing files)
-- Type: example-based
-
----
-
-### T-254: Migration is idempotent — missing JSONL is success
-
-- **Given** no instruction-registry.jsonl file exists,
-- **When** `engram registry migrate` is run,
-- **Then** exit code 0, output indicates nothing to migrate.
-
-- Traces to: ARCH-58 (idempotent migration)
-- Type: example-based
-
----
-
-### T-255: Migration --dry-run shows plan without writing
-
-- **Given** instruction-registry.jsonl with 3 memory entries,
-- **When** `engram registry migrate --dry-run` is run,
-- **Then** output lists what would be migrated. TOML files unchanged. JSONL not deleted.
-
-- Traces to: ARCH-58, DES-26 (dry-run flag)
-- Type: example-based
-
----
-
-### T-256: Migration preserves absorbed history from JSONL
-
-- **Given** a JSONL entry with 2 absorbed records,
-- **When** `engram registry migrate` is run,
-- **Then** the target TOML contains the `[[absorbed]]` entries with all fields preserved.
-
-- Traces to: ARCH-58, ARCH-56 (absorbed history), REQ-60
-- Type: example-based
+T-251 through T-256 covered the one-shot JSONL→TOML migration. Migration was
+executed successfully (1029 entries migrated, 36 non-memory skipped, JSONL
+deleted). Migrator code and tests deleted after use — these test specs are
+retained as historical record only.
 
 ---
 

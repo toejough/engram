@@ -1637,16 +1637,11 @@ Each TOML file update follows: acquire file lock (flock) → read TOML → modif
 
 ---
 
-### ARCH-58: Migration — JSONL Registry to TOML-Embedded Metrics
+### ARCH-58: Migration — JSONL Registry to TOML-Embedded Metrics [COMPLETED]
 
-`engram registry migrate` command:
-1. Read instruction-registry.jsonl, parse all entries
-2. For each entry with source_type=memory: match to existing TOML by source_path
-3. Merge metrics fields into TOML (surfaced_count, followed_count, contradicted_count, ignored_count, last_surfaced_at, enforcement_level, links, absorbed)
-4. Skip non-memory entries (log count of skipped)
-5. Delete instruction-registry.jsonl on success
-
-**Rationale:** One-time migration. Non-memory entries dropped (no TOML to store them in). Matched by source_path field which contains the TOML file path. Idempotent: if JSONL doesn't exist, command succeeds immediately.
+One-shot migration executed successfully: 1029 entries migrated, 36 non-memory
+skipped, instruction-registry.jsonl deleted. Migrator code and CLI subcommand
+removed after use. This ADR retained as historical record.
 
 **Traces to:** REQ-65 (migration), REQ-66 (default zero values for unmatched)
 
@@ -2274,7 +2269,7 @@ All L2 items have ARCH coverage.
 **Rationale:** Avoids importing `internal/registry` or `internal/signal` from `internal/maintain`, preserving DI-everywhere principle (ARCH-7). The registry and signal packages are wired at the CLI edge.
 
 **Interface contracts:**
-- `EnforcementApplier.SetEnforcementLevel(id, level, reason string) error` — satisfied by `registry.JSONLStore`
+- `EnforcementApplier.SetEnforcementLevel(id, level, reason string) error` — satisfied by `registry.TOMLDirectoryStore`
 - `GraduationEmitter.EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error` — satisfied by a thin adapter over `signal.QueueStore.Append`
 
 **Traces to:** REQ-P6e-2, REQ-P6e-3, ARCH-7 (DI everywhere)
@@ -2361,13 +2356,13 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 ---
 
-### ARCH-P3-2: UpdateLinks on Registry interface and JSONLStore (P3)
+### ARCH-P3-2: UpdateLinks on Registry interface and TOMLDirectoryStore (P3)
 
-**Decision:** Add `UpdateLinks(id string, links []Link) error` to `Registry` interface. `JSONLStore.UpdateLinks` acquires existing mutex, reads entry, replaces `Links` field, rewrites JSONL. Returns `ErrNotFound` if id absent.
+**Decision:** Add `UpdateLinks(id string, links []Link) error` to `Registry` interface. `TOMLDirectoryStore.UpdateLinks` acquires per-file flock, reads entry TOML, replaces `Links` field, rewrites atomically. Returns `ErrNotFound` if id absent.
 
-**Rationale:** Consistent with existing Registry mutation pattern. Mutex already exists for concurrent writes.
+**Rationale:** Consistent with existing Registry mutation pattern. Per-file flock for concurrent writes.
 
-**Data flow:** `graph.Builder` → `[]registry.Link` → `Registry.UpdateLinks(id, links)` → JSONL persisted.
+**Data flow:** `graph.Builder` → `[]registry.Link` → `Registry.UpdateLinks(id, links)` → TOML persisted.
 
 - Traces to: REQ-P3-2, ARCH-7
 
@@ -2375,7 +2370,7 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 ### ARCH-P3-3: LinkUpdater interface in surface package for co_surfacing (P3)
 
-**Decision:** `LinkUpdater` interface in `internal/surface/`: `GetEntryLinks(id string) ([]GraphLink, error)` and `SetEntryLinks(id string, links []GraphLink) error` where `GraphLink = struct{ Target, Basis string; Weight float64; CoSurfacingCount int }`. `WithLinkUpdater(u LinkUpdater)` option. The CLI adapter wraps `registry.JSONLStore` to satisfy this interface.
+**Decision:** `LinkUpdater` interface in `internal/surface/`: `GetEntryLinks(id string) ([]GraphLink, error)` and `SetEntryLinks(id string, links []GraphLink) error` where `GraphLink = struct{ Target, Basis string; Weight float64; CoSurfacingCount int }`. `WithLinkUpdater(u LinkUpdater)` option. The CLI adapter wraps `registry.TOMLDirectoryStore` to satisfy this interface.
 
 **Data flow:** Post top-N selection → `updateCoSurfacingLinks(ctx, ids, updater)` → for each pair: `GetEntryLinks` → mutate → `SetEntryLinks`. Fire-and-forget errors.
 
@@ -2395,7 +2390,7 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 ### ARCH-P3-5: TitleFetcher interface in surface package for cluster notes (P3)
 
-**Decision:** `TitleFetcher` interface: `GetTitle(id string) (string, bool)`. `WithTitleFetcher(f TitleFetcher)` option. `formatClusterNotes(links []GraphLink, fetcher TitleFetcher) string` returns up to 2 lines `  • see also: <title>\n` sorted by weight desc. Appended to each memory's formatted block in `formatMemoryLine`. The CLI adapter wraps `registry.JSONLStore.Get` to implement TitleFetcher.
+**Decision:** `TitleFetcher` interface: `GetTitle(id string) (string, bool)`. `WithTitleFetcher(f TitleFetcher)` option. `formatClusterNotes(links []GraphLink, fetcher TitleFetcher) string` returns up to 2 lines `  • see also: <title>\n` sorted by weight desc. Appended to each memory's formatted block in `formatMemoryLine`. The CLI adapter wraps `registry.TOMLDirectoryStore.Get` to implement TitleFetcher.
 
 - Traces to: REQ-P3-7, ARCH-7
 

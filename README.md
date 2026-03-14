@@ -26,7 +26,7 @@ Engram hooks into every phase of a Claude Code session to create a closed feedba
 
 ## Instruction sources
 
-Engram tracks five types of instruction sources in a unified registry (`instruction-registry.jsonl`):
+Engram tracks five types of instruction sources. Memory files embed their own metrics (surfaced count, evaluation counters, enforcement level) directly in TOML:
 
 | Source type | Description | Surfacing behavior |
 |-------------|-------------|-------------------|
@@ -120,7 +120,6 @@ All data lives in `~/.claude/engram/data/`:
 | File | Purpose |
 |------|---------|
 | `memories/*.toml` | Structured memory files (one per learned fact/instruction) |
-| `instruction-registry.jsonl` | Unified registry tracking all instruction sources |
 | `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
 | `evaluations/*.jsonl` | Per-session evaluation results (followed/contradicted/ignored) |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |

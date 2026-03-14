@@ -503,14 +503,6 @@ func TestMaintainApplyRemoveProposal(t *testing.T) {
 	g.Expect(os.WriteFile(memPath, []byte("title=\"Remove Me\"\nprinciple=\"P\"\n"), 0o640)).
 		To(Succeed())
 
-	registryPath := filepath.Join(dataDir, "instruction-registry.jsonl")
-	registryLine := fmt.Sprintf(
-		`{"id":%q,"source_type":"memory","title":"Remove Me","surfaced_count":5}`,
-		memPath,
-	)
-
-	g.Expect(os.WriteFile(registryPath, []byte(registryLine+"\n"), 0o640)).To(Succeed())
-
 	proposalsJSON := fmt.Sprintf(
 		`[{"memory_path":%q,"quadrant":"Noise","diagnosis":"never used","action":"remove","details":{}}]`,
 		memPath,

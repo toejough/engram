@@ -11,8 +11,8 @@ Behavioral tests derived from architecture items. Each T-* item specifies a test
 **Traces to:** ARCH-52
 
 Given: A registry with 100 registered instructions, each with different source types
-When: I read instruction-registry.jsonl
-Then: File contains exactly 100 lines, one per instruction ID
+When: I list entries via TOMLDirectoryStore
+Then: 100 entries returned, one per instruction ID
 
 ---
 
@@ -992,7 +992,7 @@ Then: Output is valid JSON with `additionalContext` field compatible with Sessio
 
 **Traces to:** ARCH-73 (REQ-123)
 
-Given: No instruction-registry.jsonl exists
+Given: No memory TOML files exist in data directory
 When: Detector.Detect runs
 Then: Returns empty signal list, no error
 
