@@ -7,7 +7,6 @@ import "time"
 const (
 	EnforcementAdvisory           EnforcementLevel = "advisory"
 	EnforcementEmphasizedAdvisory EnforcementLevel = "emphasized_advisory"
-	EnforcementGraduated          EnforcementLevel = "graduated"
 	EnforcementReminder           EnforcementLevel = "reminder"
 	SourceTypeMemory                               = "memory"
 )
@@ -24,7 +23,7 @@ type AbsorbedRecord struct {
 }
 
 // EnforcementLevel represents the delivery salience of an instruction.
-// Levels are ordinal: advisory < emphasized_advisory < reminder < graduated.
+// Levels are ordinal: advisory < emphasized_advisory < reminder.
 type EnforcementLevel string
 
 // EnforcementTransition records a change in enforcement level for an instruction.

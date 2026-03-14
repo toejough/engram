@@ -150,10 +150,6 @@ func Run(
 		return runSignalSurface(subArgs, stdout)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
-	case "graduate":
-		return runGraduateCommand(subArgs, stdout)
-	case "graduate-surface":
-		return runGraduateSurface(subArgs, stdout)
 	case "registry":
 		return runRegistry(subArgs, stdout)
 	default:

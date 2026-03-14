@@ -50,29 +50,6 @@ type EvaluateArgs struct {
 	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// GraduateAcceptArgs holds parsed flags for the graduate accept subcommand.
-type GraduateAcceptArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ID      string `targ:"flag,name=id,desc=graduation entry ID"`
-}
-
-// GraduateDismissArgs holds parsed flags for the graduate dismiss subcommand.
-type GraduateDismissArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ID      string `targ:"flag,name=id,desc=graduation entry ID"`
-}
-
-// GraduateListArgs holds parsed flags for the graduate list subcommand.
-type GraduateListArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// GraduateSurfaceArgs holds parsed flags for the graduate-surface subcommand.
-type GraduateSurfaceArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Format  string `targ:"flag,name=format,default=text,desc=output format: text or json"`
-}
-
 // InstructArgs holds parsed flags for the instruct subcommand.
 type InstructArgs struct {
 	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -227,20 +204,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("signal-surface").Description("Surface pending maintenance signals"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
-		targ.Targ(func(a GraduateSurfaceArgs) {
-			run("graduate-surface", GraduateSurfaceFlags(a))
-		}).Name("graduate-surface").Description("Surface pending graduation signals"),
-		targ.Group("graduate",
-			targ.Targ(func(a GraduateAcceptArgs) {
-				run("graduate", append([]string{"accept"}, GraduateAcceptFlags(a)...))
-			}).Name("accept").Description("Accept graduation and create issue"),
-			targ.Targ(func(a GraduateDismissArgs) {
-				run("graduate", append([]string{"dismiss"}, GraduateDismissFlags(a)...))
-			}).Name("dismiss").Description("Dismiss graduation signal"),
-			targ.Targ(func(a GraduateListArgs) {
-				run("graduate", append([]string{"list"}, GraduateListFlags(a)...))
-			}).Name("list").Description("List graduation signals"),
-		),
 		targ.Group("registry",
 			targ.Targ(func(a RegistryInitArgs) {
 				run("registry", append([]string{"init"}, RegistryInitFlags(a)...))
@@ -280,26 +243,6 @@ func CorrectFlags(a CorrectArgs) []string {
 // EvaluateFlags returns the CLI flag args for the evaluate subcommand.
 func EvaluateFlags(a EvaluateArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir)
-}
-
-// GraduateAcceptFlags returns the CLI flag args for the graduate accept subcommand.
-func GraduateAcceptFlags(a GraduateAcceptArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--id", a.ID)
-}
-
-// GraduateDismissFlags returns the CLI flag args for the graduate dismiss subcommand.
-func GraduateDismissFlags(a GraduateDismissArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--id", a.ID)
-}
-
-// GraduateListFlags returns the CLI flag args for the graduate list subcommand.
-func GraduateListFlags(a GraduateListArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
-}
-
-// GraduateSurfaceFlags returns the CLI flag args for the graduate-surface subcommand.
-func GraduateSurfaceFlags(a GraduateSurfaceArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--format", a.Format)
 }
 
 // InstructFlags returns the CLI flag args for the instruct subcommand.

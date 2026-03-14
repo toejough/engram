@@ -170,8 +170,8 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		// 12 individual commands + 1 registry group = 13 entries
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 13))
+		// 11 individual commands + 1 registry group = 12 entries
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 12))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -189,37 +189,12 @@ func TestBuildTargets(t *testing.T) {
 			"maintain", "surface", "learn", "remind", "instruct",
 			"context-update",
 			"signal-detect", "signal-surface", "apply-proposal",
-			"graduate-surface",
 		}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
 		}
 
 		g.Expect(calls).To(gomega.Equal(subcmds))
-	})
-
-	t.Run("graduate subcommands wire correctly", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		var calls []string
-
-		targets := cli.BuildTargets(func(subcmd string, flags []string) {
-			if len(flags) > 0 {
-				calls = append(calls, subcmd+"/"+flags[0])
-			}
-		})
-
-		graduateSubs := []string{"accept", "dismiss", "list"}
-		for _, sub := range graduateSubs {
-			_, _ = targ.Execute([]string{"engram", "graduate", sub}, targets...)
-		}
-
-		g.Expect(calls).To(gomega.Equal([]string{
-			"graduate/accept",
-			"graduate/dismiss",
-			"graduate/list",
-		}))
 	})
 
 	t.Run("registry subcommands wire correctly", func(t *testing.T) {
@@ -343,86 +318,6 @@ func TestEvaluateFlags(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		result := cli.EvaluateFlags(cli.EvaluateArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestGraduateAcceptFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateAcceptFlags(cli.GraduateAcceptArgs{DataDir: "/data", ID: "abc123"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--id", "abc123"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateAcceptFlags(cli.GraduateAcceptArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestGraduateDismissFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateDismissFlags(cli.GraduateDismissArgs{DataDir: "/data", ID: "abc123"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--id", "abc123"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateDismissFlags(cli.GraduateDismissArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestGraduateListFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateListFlags(cli.GraduateListArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateListFlags(cli.GraduateListArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestGraduateSurfaceFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateSurfaceFlags(cli.GraduateSurfaceArgs{DataDir: "/data", Format: "json"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--format", "json"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.GraduateSurfaceFlags(cli.GraduateSurfaceArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
 }

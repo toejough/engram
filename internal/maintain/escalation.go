@@ -10,7 +10,6 @@ import (
 const (
 	LevelAdvisory           EscalationLevel = "advisory"
 	LevelEmphasizedAdvisory EscalationLevel = "emphasized_advisory"
-	LevelGraduated          EscalationLevel = "graduated"
 	LevelReminder           EscalationLevel = "reminder"
 )
 
@@ -188,20 +187,11 @@ type EscalationProposal struct {
 	PredictedImpact string `json:"predicted_impact"`
 }
 
-// GraduationEmitter emits a graduation signal when a memory reaches graduated level.
-type GraduationEmitter interface {
-	EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error
-}
-
-// ApplyEscalationProposal persists a proposal's level change to the registry and
-// emits a graduation signal when the proposed level is "graduated".
+// ApplyEscalationProposal persists a proposal's level change to the registry.
 // Returns nil (no-op) if applier is nil.
 func ApplyEscalationProposal(
 	proposal EscalationProposal,
-	_ string,
 	applier EnforcementApplier,
-	emitter GraduationEmitter,
-	now func() time.Time,
 ) error {
 	if applier == nil {
 		return nil
@@ -214,20 +204,6 @@ func ApplyEscalationProposal(
 	)
 	if err != nil {
 		return fmt.Errorf("setting enforcement level: %w", err)
-	}
-
-	if EscalationLevel(proposal.ProposedLevel) == LevelGraduated && emitter != nil {
-		detectedAt := time.Now()
-
-		if now != nil {
-			detectedAt = now()
-		}
-
-		_ = emitter.EmitGraduation(
-			proposal.MemoryPath,
-			"leech-at-top — this memory isn't working despite escalation",
-			detectedAt,
-		)
 	}
 
 	return nil
@@ -253,7 +229,6 @@ var (
 		LevelAdvisory,
 		LevelEmphasizedAdvisory,
 		LevelReminder,
-		LevelGraduated,
 	}
 )
 

@@ -48,55 +48,6 @@ func TestDeEscalation_AtBottomOfLadder(t *testing.T) {
 	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
 }
 
-// TestDeEscalation_FromGraduated verifies de-escalation from graduated to emphasized_advisory
-// when all tail entries show improvement (REQ-P6f-9).
-func TestDeEscalation_FromGraduated(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	engine := maintain.NewEscalationEngine(nil, fixedNow)
-
-	now := fixedNow()
-
-	leeches := []maintain.EscalationMemory{
-		{
-			Path:            "mem-graduated",
-			Content:         "use descriptive names",
-			EscalationLevel: maintain.LevelGraduated,
-			Effectiveness:   0.80,
-			EscalationHistory: []maintain.EscalationHistoryEntry{
-				{Level: maintain.LevelReminder, Since: now.AddDate(0, -9, 0), Effectiveness: 0.30},
-				{
-					Level:         maintain.LevelGraduated,
-					Since:         now.AddDate(0, -3, 0),
-					Effectiveness: 0.50, // >= 0.30: improved
-				},
-				{
-					Level:         maintain.LevelGraduated,
-					Since:         now.AddDate(0, -2, 0),
-					Effectiveness: 0.70, // >= 0.30: improved
-				},
-				{
-					Level:         maintain.LevelGraduated,
-					Since:         now.AddDate(0, -1, 0),
-					Effectiveness: 0.80, // >= 0.30: improved
-				},
-			},
-		},
-	}
-
-	proposals, err := engine.Analyze(leeches)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(proposals).To(gomega.HaveLen(1))
-	g.Expect(proposals[0].ProposalType).To(gomega.Equal("de_escalate"))
-	g.Expect(proposals[0].ProposedLevel).To(gomega.Equal("reminder"))
-}
-
 // TestDeEscalation_HistoryTooShort verifies no de-escalation with insufficient history.
 func TestDeEscalation_HistoryTooShort(t *testing.T) {
 	t.Parallel()
@@ -224,7 +175,7 @@ func TestDeEscalation_UnknownLevel(t *testing.T) {
 	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
-// TestEscalation_AtTopOfLadder verifies no escalation at the top level.
+// TestEscalation_AtTopOfLadder verifies no escalation at the top level (reminder).
 func TestEscalation_AtTopOfLadder(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
@@ -235,7 +186,7 @@ func TestEscalation_AtTopOfLadder(t *testing.T) {
 		{
 			Path:            "mem-top",
 			Content:         "use descriptive names",
-			EscalationLevel: maintain.LevelGraduated,
+			EscalationLevel: maintain.LevelReminder,
 			Effectiveness:   0.10,
 		},
 	}

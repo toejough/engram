@@ -1373,15 +1373,6 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 	}
 }
 
-// TestRun_GraduateSurfaceDispatch verifies "graduate-surface" branch is reached.
-func TestRun_GraduateSurfaceDispatch(t *testing.T) {
-	t.Parallel()
-
-	var stdout, stderr bytes.Buffer
-
-	_ = cli.Run([]string{"engram", "graduate-surface", "--data-dir", t.TempDir()}, &stdout, &stderr, strings.NewReader(""))
-}
-
 func TestRun_NoArgs(t *testing.T) {
 	t.Parallel()
 

@@ -7,7 +7,6 @@ import "time"
 const (
 	KindContradiction    = "contradiction"
 	KindEscalation       = "escalation"
-	KindGraduation       = "graduation"
 	KindHiddenGemBroaden = "hidden_gem_broadening"
 	KindLeechRewrite     = "leech_rewrite"
 	KindNoiseRemoval     = "noise_removal"

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"time"
 
 	"engram/internal/maintain"
 	"engram/internal/memory"
@@ -27,8 +26,6 @@ type Applier struct {
 	queue              QueueClearer
 	queuePath          string
 	enforcementApplier maintain.EnforcementApplier
-	graduationEmitter  maintain.GraduationEmitter
-	now                func() time.Time
 }
 
 // NewApplier creates an Applier with the given options.
@@ -111,19 +108,6 @@ func (a *Applier) applyEscalate(action ApplyAction) error {
 
 	proposedLevel := escalationLadder[action.Level-1]
 
-	var content string
-
-	if a.readMemory != nil {
-		stored, err := a.readMemory(action.Memory)
-		if err != nil {
-			return fmt.Errorf("reading memory for escalation: %w", err)
-		}
-
-		if stored != nil {
-			content = stored.Content
-		}
-	}
-
 	proposal := maintain.EscalationProposal{
 		MemoryPath:    action.Memory,
 		ProposalType:  "escalate",
@@ -132,7 +116,7 @@ func (a *Applier) applyEscalate(action ApplyAction) error {
 	}
 
 	return maintain.ApplyEscalationProposal(
-		proposal, content, a.enforcementApplier, a.graduationEmitter, a.now,
+		proposal, a.enforcementApplier,
 	)
 }
 
@@ -212,20 +196,6 @@ func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
 	}
 }
 
-// WithGraduationEmitter sets the graduation emitter for escalation to graduated.
-func WithGraduationEmitter(emitter maintain.GraduationEmitter) ApplierOption {
-	return func(a *Applier) {
-		a.graduationEmitter = emitter
-	}
-}
-
-// WithNow sets the time function for escalation timestamps.
-func WithNow(fn func() time.Time) ApplierOption {
-	return func(a *Applier) {
-		a.now = fn
-	}
-}
-
 // WithQueue sets the queue clearer and path.
 func WithQueue(q QueueClearer, path string) ApplierOption {
 	return func(a *Applier) {
@@ -276,7 +246,6 @@ var (
 		maintain.LevelAdvisory,
 		maintain.LevelEmphasizedAdvisory,
 		maintain.LevelReminder,
-		maintain.LevelGraduated,
 	}
 )
 

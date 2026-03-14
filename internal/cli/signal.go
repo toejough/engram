@@ -304,18 +304,12 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 
 	regAdapter := &registryUpdaterAdapter{reg: reg, dataDir: *dataDir}
 
-	gradStore := signal.NewGraduationStore()
-	gradPath := filepath.Join(*dataDir, "graduation-queue.jsonl")
-	gradEmitter := signal.NewGraduationQueueEmitter(gradStore, gradPath)
-
 	applier := signal.NewApplier(
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
 		signal.WithRegistry(regAdapter),
 		signal.WithQueue(queue, queuePath),
 		signal.WithEnforcementApplier(regAdapter),
-		signal.WithGraduationEmitter(gradEmitter),
-		signal.WithNow(time.Now),
 	)
 
 	ctx := context.Background()

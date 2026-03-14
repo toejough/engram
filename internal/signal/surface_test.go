@@ -34,13 +34,8 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 		{SourceID: "c.toml", SignalKind: signal.KindHiddenGemBroaden},
 		{
 			SourceID:   "e.toml",
-			SignalKind: signal.KindGraduation,
-			Summary:    "Consider promoting this skill to CLAUDE.md — it has met the promotion threshold",
-		},
-		{
-			SourceID:   "f.toml",
-			SignalKind: signal.KindGraduation,
-			Summary:    "Consider demoting this CLAUDE.md entry to a skill — it has not been frequently needed",
+			SignalKind: signal.KindStalenessReview,
+			Summary:    "Memory has not been surfaced recently — review for relevance",
 		},
 	}
 
@@ -54,8 +49,7 @@ func TestFormatContext_InstructionsByKind(t *testing.T) {
 	g.Expect(result).To(gomega.ContainSubstring("Recommend removal"))
 	g.Expect(result).To(gomega.ContainSubstring("Recommend rewrite"))
 	g.Expect(result).To(gomega.ContainSubstring("Recommend broadening"))
-	g.Expect(result).To(gomega.ContainSubstring("promoting this skill to CLAUDE.md"))
-	g.Expect(result).To(gomega.ContainSubstring("demoting this CLAUDE.md entry"))
+	g.Expect(result).To(gomega.ContainSubstring("review for relevance"))
 }
 
 func TestFormatContext_WithSignals(t *testing.T) {
@@ -132,8 +126,8 @@ func TestSurfacer_MissingMemoryStillEnriches(t *testing.T) {
 	signals := []signal.Signal{{
 		Type:       signal.TypeMaintain,
 		SourceID:   "missing.toml",
-		SignalKind: signal.KindGraduation,
-		Summary:    "graduated",
+		SignalKind: signal.KindStalenessReview,
+		Summary:    "stale memory",
 	}}
 
 	enriched, err := surfacer.Surface(signals)
@@ -145,7 +139,7 @@ func TestSurfacer_MissingMemoryStillEnriches(t *testing.T) {
 
 	g.Expect(enriched).To(gomega.HaveLen(1))
 	g.Expect(enriched[0].Title).To(gomega.BeEmpty())
-	g.Expect(enriched[0].SignalKind).To(gomega.Equal(signal.KindGraduation))
+	g.Expect(enriched[0].SignalKind).To(gomega.Equal(signal.KindStalenessReview))
 }
 
 func TestSurfacer_NoLoader(t *testing.T) {

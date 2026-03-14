@@ -3,7 +3,6 @@ package maintain_test
 import (
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/onsi/gomega"
 
@@ -26,19 +25,19 @@ func TestP6e10_ApplyEscalationProposalApplierError(t *testing.T) {
 		ProposedLevel: "emphasized_advisory",
 	}
 
-	err := maintain.ApplyEscalationProposal(proposal, "content", applier, nil, nil)
+	err := maintain.ApplyEscalationProposal(proposal, applier)
 	g.Expect(err).To(gomega.HaveOccurred())
 	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("setting enforcement level")))
 }
 
-// T-P6e-1: LevelGraduated exists as 4th escalation level.
-func TestP6e1_LevelGraduatedIs4thLevel(t *testing.T) {
+// T-P6e-1: Reminder is the top of the escalation ladder.
+func TestP6e1_ReminderIsTopLevel(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	engine := maintain.NewEscalationEngine(nil, fixedNow)
 
-	// At reminder level, next should be graduated.
+	// At reminder level, no further escalation should be proposed.
 	leeches := []maintain.EscalationMemory{
 		{
 			Path:            "mem-reminder",
@@ -55,9 +54,7 @@ func TestP6e1_LevelGraduatedIs4thLevel(t *testing.T) {
 		return
 	}
 
-	g.Expect(proposals).To(gomega.HaveLen(1))
-	g.Expect(proposals[0].ProposalType).To(gomega.Equal("escalate"))
-	g.Expect(proposals[0].ProposedLevel).To(gomega.Equal(string(maintain.LevelGraduated)))
+	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
 // T-P6e-2: ApplyEscalationProposal calls SetEnforcementLevel with correct args.
@@ -90,7 +87,7 @@ func TestP6e2_ApplyEscalationProposalCallsRegistry(t *testing.T) {
 		PredictedImpact: "unknown",
 	}
 
-	err := maintain.ApplyEscalationProposal(proposal, "some content", applier, nil, nil)
+	err := maintain.ApplyEscalationProposal(proposal, applier)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
 
 	if err != nil {
@@ -114,93 +111,8 @@ func TestP6e3_ApplyEscalationProposalNilApplierNoOp(t *testing.T) {
 		Rationale:     "ineffective",
 	}
 
-	err := maintain.ApplyEscalationProposal(proposal, "content", nil, nil, nil)
+	err := maintain.ApplyEscalationProposal(proposal, nil)
 	g.Expect(err).NotTo(gomega.HaveOccurred())
-}
-
-// T-P6e-4: ApplyEscalationProposal to graduated emits graduation signal.
-func TestP6e4_ApplyEscalationProposalGraduatedEmitsSignal(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	applier := &fakeEnforcementApplier{
-		setFn: func(_, _, _ string) error { return nil },
-	}
-
-	var (
-		gotPath           string
-		gotRecommendation string
-		gotAt             time.Time
-	)
-
-	emitter := &fakeGraduationEmitter{
-		emitFn: func(path, recommendation string, at time.Time) error {
-			gotPath = path
-			gotRecommendation = recommendation
-			gotAt = at
-
-			return nil
-		},
-	}
-
-	now := fixedNow()
-	proposal := maintain.EscalationProposal{
-		MemoryPath:    "mem/graduated.toml",
-		ProposalType:  "escalate",
-		ProposedLevel: string(maintain.LevelGraduated),
-		Rationale:     "top of ladder",
-	}
-
-	err := maintain.ApplyEscalationProposal(
-		proposal,
-		"always use linter settings",
-		applier,
-		emitter,
-		func() time.Time { return now },
-	)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(gotPath).To(gomega.Equal("mem/graduated.toml"))
-	g.Expect(gotRecommendation).NotTo(gomega.BeEmpty())
-	g.Expect(gotAt).To(gomega.BeTemporally("~", now, time.Second))
-}
-
-// T-P6e-5: ApplyEscalationProposal to non-graduated does NOT emit graduation signal.
-func TestP6e5_ApplyEscalationProposalNonGraduatedNoSignal(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	applier := &fakeEnforcementApplier{
-		setFn: func(_, _, _ string) error { return nil },
-	}
-
-	emitCount := 0
-	emitter := &fakeGraduationEmitter{
-		emitFn: func(_, _ string, _ time.Time) error {
-			emitCount++
-
-			return nil
-		},
-	}
-
-	proposal := maintain.EscalationProposal{
-		MemoryPath:    "mem/foo.toml",
-		ProposedLevel: "emphasized_advisory",
-		Rationale:     "escalation",
-	}
-
-	err := maintain.ApplyEscalationProposal(proposal, "content", applier, emitter, nil)
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(emitCount).To(gomega.Equal(0))
 }
 
 // --- Fakes ---
@@ -211,15 +123,4 @@ type fakeEnforcementApplier struct {
 
 func (f *fakeEnforcementApplier) SetEnforcementLevel(id, level, reason string) error {
 	return f.setFn(id, level, reason)
-}
-
-type fakeGraduationEmitter struct {
-	emitFn func(memoryPath, recommendation string, detectedAt time.Time) error
-}
-
-func (f *fakeGraduationEmitter) EmitGraduation(
-	memoryPath, recommendation string,
-	detectedAt time.Time,
-) error {
-	return f.emitFn(memoryPath, recommendation, detectedAt)
 }
