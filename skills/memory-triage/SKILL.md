@@ -53,9 +53,17 @@ Wait for the user's decision. Do not act on signals without explicit approval. V
 - "Broaden keywords on the hidden gems"
 - "Let's deal with this later" (acknowledge and move on)
 
+## Important: Always Use CLI Commands
+
+> **WARNING:** NEVER use `rm` to delete memory files or directly edit `.toml` files. Always use `apply-proposal` to keep the registry and signal queue in sync. Direct file operations cause stale registry entries and orphaned signals.
+
+All memory modifications (remove, broaden keywords, rewrite) MUST go through engram CLI commands:
+
 ## Executing Decisions
 
-- **Remove**: `engram maintain remove --id <memory-id> --data-dir ~/.claude/engram/data`
-- **Broaden keywords**: Edit the memory's `.toml` file to add keywords
+- **Remove**: `engram apply-proposal --data-dir ~/.claude/engram/data --action remove --memory <path>`
+- **Broaden keywords**: `engram apply-proposal --data-dir ~/.claude/engram/data --action broaden_keywords --memory <path> --keywords "kw1,kw2"`
+  - Deduplication is automatic — no need to check for existing keywords before calling.
+- **Rewrite**: `engram apply-proposal --data-dir ~/.claude/engram/data --action rewrite --memory <path> --fields '{"title":"...","principle":"..."}'`
 - **Graduate accept**: `engram graduate accept --id <id> --data-dir ~/.claude/engram/data`
 - **Graduate dismiss**: `engram graduate dismiss --id <id> --data-dir ~/.claude/engram/data`
