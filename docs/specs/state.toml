@@ -1421,9 +1421,9 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L1N"
+node = "L2N"
 mode = "in_progress"
-next_action = "Post-completion re-entry for issue #218. UC-23 rewritten at L1. Next: derive L2 updates (REQ/DES/ARCH) for TOML-embedded registry."
+next_action = "L2 REQ/DES/ARCH updated for TOML-embedded registry. Next: REGROUP for L3/L4 implementation groups."
 context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
 
 # P1: Contradiction detection

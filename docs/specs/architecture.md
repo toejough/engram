@@ -1577,132 +1577,132 @@ All UC-21 & UC-22 L2 items have ARCH coverage.
 
 ## UC-23: Unified Instruction Registry (ARCH Items)
 
-### ARCH-52: Registry Storage — JSONL with one line per instruction ID
+### ARCH-52: Registry Storage — TOML-Embedded Metrics in Memory Files
 
-Registry persists to `data/instruction-registry.jsonl` with one line per registered instruction. Each line is a complete JSON object with all current state (counts, timestamps, absorbed history). Updates rewrite the entire line atomically. File size is O(num_instructions), not O(events).
+Each memory TOML file contains both content fields (title, principle, keywords, etc.) and runtime metrics (surfaced_count, followed_count, contradicted_count, ignored_count, last_surfaced_at, enforcement_level, links, absorbed). No separate index file. The memories/ directory IS the registry — a directory scan yields all entries.
 
-**Rationale:** Bounded growth required by REQ-55. JSONL structure allows efficient reading into memory for all typical registry operations (< 10K instructions). Atomicity via full-line rewrites prevents partial updates under concurrent hook calls.
+**Rationale:** Eliminates dual-store sync bugs (#216, #217). Deleting a file removes everything — no orphaned entries possible. Human-inspectable: `cat memory.toml` shows content AND effectiveness. Backup/restore is just the memories directory.
 
 **Traces to:** REQ-55 (bounded growth), REQ-61 (atomic surfacing update), REQ-62 (atomic eval update), REQ-64 (concurrent writes)
 
 ---
 
-### ARCH-53: Instruction ID Format — source_type:source_path:entry_slug
+### ARCH-53: Instruction ID Format — Memory File Path
 
-Instruction IDs are deterministic, globally unique, and human-readable. Format: `claude-md:CLAUDE-md:use-targ-build`, `memory:always-use-targ-reminder.toml`, `rule:go.md`, `memory-md:MEMORY.md:di-pattern`, `skill:commit`, `hook:PreToolUse:surface`. ID uniqueness is enforced at registration time.
+Memory IDs are the TOML file path (relative to data dir). Format: `memories/always-use-targ-reminder.toml`. ID uniqueness enforced by filesystem (one file per path). Non-memory source types removed from registry scope.
 
-**Rationale:** Supports all 6 source types. Slug-based (not UUID) for debuggability. Hierarchical structure (source_type as prefix) enables salience-based filtering and source-specific operations.
+**Rationale:** Filesystem paths are naturally unique. No slug generation needed. Simplified from 6 source types to memory-only after S3 + issue #218.
 
-**Traces to:** REQ-56 (6 source types)
+**Traces to:** REQ-56 (memory-only scope)
 
 ---
 
 ### ARCH-54: Signal Computation — Effectiveness and Frecency on Read
 
-Effectiveness is computed on read: `followed / (followed + contradicted + ignored)`, null if denominator < threshold (e.g., 3 evaluations). Frecency is computed on read: `surfaced_count * exp(-t / half_life)` where t is days since last_surfaced. Both are deterministic, idempotent, and require no auxiliary storage.
+Effectiveness is computed on read: `followed_count / (followed_count + contradicted_count + ignored_count)`, null if denominator < threshold (5 evaluations). Frecency is computed on read: `surfaced_count * exp(-t / half_life)` where t is days since last_surfaced_at. Both are deterministic, idempotent, and require no auxiliary storage.
 
-**Rationale:** Avoids storing derived quantities that can go stale. Computation is O(1) per instruction. Thresholds are configurable per deployment.
+**Rationale:** Avoids storing derived quantities that can go stale. Computation is O(1) per memory. Thresholds are configurable per deployment.
 
 **Traces to:** REQ-57 (effectiveness ratio), REQ-58 (frecency blend)
 
 ---
 
-### ARCH-55: Content Hash — SHA256 of Instruction Content
+### ARCH-55: Content Hash — SHA256 of Memory Content Fields
 
-Each registered instruction stores content_hash (SHA256 of the instruction text). If content changes (e.g., memory TOML edited, CLAUDE.md entry rewritten), content_hash changes. Change detection happens during evaluation: if current content hash differs from stored hash, instruction is flagged for re-evaluation.
+Each memory TOML stores content_hash (SHA256 of title + principle + content). If content changes (e.g., memory edited manually or via rewrite proposal), content_hash changes. Change detection happens during evaluation: hash mismatch flags memory for re-evaluation.
 
-**Rationale:** Enables detection of manual edits to memory files and CLAUDE.md entries. Supports deduplication and content-based merging in future expansions.
+**Rationale:** Enables detection of manual edits. Supports deduplication and content-based merging.
 
 **Traces to:** REQ-59 (content hash detection)
 
 ---
 
-### ARCH-56: Absorbed History — Array of Merge Records with Counters
+### ARCH-56: Absorbed History — Array of Merge Records in Target TOML
 
-When `engram registry merge --source X --target Y` runs, all of X's state becomes one element in Y's `absorbed` array: `{ from: "X", surfaced_count, evaluations: {followed, contradicted, ignored}, merged_at, content_hash }`. Multiple absorbed entries allowed (multiple duplicates merged into same target). Absorbed records are immutable after creation.
+When `engram registry merge --source X --target Y` runs, all of X's metrics become one element in Y's TOML `[[absorbed]]` array: `{ from = "X", surfaced_count, followed_count, contradicted_count, ignored_count, merged_at, content_hash }`. Multiple absorbed entries allowed. Absorbed records are immutable after creation.
 
-**Rationale:** Preserves violation history of deleted duplicates. Feeds escalation engine (chronic leeches identified by large absorbed history + low current effectiveness). Supports attribution reporting.
+**Rationale:** Preserves violation history of deleted duplicates. Feeds escalation engine. TOML array-of-tables syntax (`[[absorbed]]`) maps naturally.
 
 **Traces to:** REQ-60 (merge history), REQ-63 (merge semantics)
 
 ---
 
-### ARCH-57: Concurrent Write Safety — Read-All, Write-Full Strategy
+### ARCH-57: Concurrent Write Safety — Per-File Locking with Atomic Writes
 
-Registry uses simple concurrency model: read entire file on load, apply changes in memory, write entire file on update. No lock files or atomic rename tricks needed. For up to ~10K instructions, this is safe: worst case is two concurrent writes where one loses a small frequency delta (acceptable loss for occasional duplication).
+Each TOML file update follows: acquire file lock (flock) → read TOML → modify in memory → write to temp file → rename to final path → release lock. Different memory files can be updated concurrently without contention. Same-file concurrent writes are serialized by the lock.
 
-**Rationale:** Simplicity over perfect consistency. Engram is single-user, single-machine. Hooks are bursty (PreCompact, Stop) not sustained. Loss of a few frequency deltas is acceptable and self-heals over time.
+**Rationale:** Per-file locking is more granular than the old whole-registry lock. Two hooks updating different memories never block each other. Atomic rename prevents partial writes. flock is POSIX-portable and works across processes.
 
 **Traces to:** REQ-64 (concurrent writes)
 
 ---
 
-### ARCH-58: Backfill Migration — Aggregate Old Stores, Map Retired Instructions
+### ARCH-58: Migration — JSONL Registry to TOML-Embedded Metrics
 
-`engram registry init` command performs Phase 1 backfill:
-1. Read surfacing-log.jsonl, aggregate per-memory: sum surfaced_count, take max last_surfaced
-2. Read creation-log.jsonl: set registered_at per memory
-3. Read evaluations/*.jsonl: sum followed/contradicted/ignored per memory
-4. Read memory TOML files: extract metadata fields
-5. For each retired memory (has retired_by): identify covering instruction via semantic or ID match. Append retired memory's counters as one absorbed entry in covering instruction.
-6. Write instruction-registry.jsonl with all aggregated data.
+`engram registry migrate` command:
+1. Read instruction-registry.jsonl, parse all entries
+2. For each entry with source_type=memory: match to existing TOML by source_path
+3. Merge metrics fields into TOML (surfaced_count, followed_count, contradicted_count, ignored_count, last_surfaced_at, enforcement_level, links, absorbed)
+4. Skip non-memory entries (log count of skipped)
+5. Delete instruction-registry.jsonl on success
 
-**Rationale:** Centralized migration plan. Maps duplicates to their covering instructions via retired_by metadata, preserving violation history. Provides --dry-run flag for verification before committing.
+**Rationale:** One-time migration. Non-memory entries dropped (no TOML to store them in). Matched by source_path field which contains the TOML file path. Idempotent: if JSONL doesn't exist, command succeeds immediately.
 
-**Traces to:** REQ-65 (backfill migration), REQ-66 (retirement mapping)
+**Traces to:** REQ-65 (migration), REQ-66 (default zero values for unmatched)
 
 ---
 
-### ARCH-59: Quadrant Classification — Source-Aware, Salience-Respecting
+### ARCH-59: Quadrant Classification — Memory-Only, Median-Based Thresholds
 
-Classification logic reads registry and assigns each instruction to one of four quadrants:
-- **Working:** high surfacing + high effectiveness
-- **Leech:** high surfacing + low effectiveness
-- **HiddenGem:** low surfacing + high effectiveness
-- **Noise:** low surfacing + low effectiveness
-- **Always-loaded sources (claude-md, memory-md):** binary only (Working or Leech), since they have maximal surfacing by definition
+Classification logic scans memories/ directory and assigns each memory to one of four quadrants:
+- **Working:** above-median surfacing + >= 50% effectiveness
+- **Leech:** above-median surfacing + < 50% effectiveness
+- **HiddenGem:** below-median surfacing + >= 50% effectiveness
+- **Noise:** below-median surfacing + < 50% effectiveness
+- **InsufficientData:** < 5 total evaluations (protected from classification)
 
-Thresholds are configurable. Always-loaded sources that are Leech (e.g., a CLAUDE.md entry with contradicted > followed) trigger rewrite proposals, same as memories.
+Surfacing threshold is dynamic (median of all surfaced_counts). Effectiveness threshold is 50%.
 
-**Rationale:** Unified classification across all sources. Enables surfacing of leeches in high-salience sources (CLAUDE.md, rules) that were previously invisible. Foundation for next UC batch (UC-4..10).
+**Rationale:** Memory-only after S3 + issue #218. Median-based surfacing threshold adapts to the actual distribution. InsufficientData protects fresh memories from premature classification.
 
-**Traces to:** REQ-67 (cross-source classification)
+**Traces to:** REQ-67 (memory-only classification)
 
 ---
 
 ### ARCH-60: DI Boundary — Registry Interface in internal/registry
 
 Registry abstraction lives in `internal/registry/registry.go` as an interface with methods:
-- `Register(id, title, source_type, content_hash, registered_at) error`
-- `RecordSurfacing(id) error`
-- `RecordEvaluation(id, outcome) error` where outcome ∈ {followed, contradicted, ignored}
-- `Merge(source_id, target_id) error`
-- `Remove(id) error`
+- `Register(entry InstructionEntry) error`
+- `RecordSurfacing(id string) error`
+- `RecordEvaluation(id string, outcome Outcome) error`
+- `Merge(sourceID, targetID string) error`
+- `Remove(id string) error`
 - `List() ([]InstructionEntry, error)`
-- `Get(id) (*InstructionEntry, error)`
+- `Get(id string) (*InstructionEntry, error)`
 
-Concrete JSONL implementation lives outside internal/ (e.g., cli.go). Tests inject mock Registry. No os.*, io.*, or file operations in internal/.
+Concrete TOMLDirectoryStore implementation wired in cli.go. TOML read/write functions injected into the store (no direct os.* calls). Tests inject mock Registry.
 
-**Rationale:** DI everywhere principle (ARCH-7). Enables testing without I/O. Concrete implementation can be swapped (future: SQL backend, cloud persistence).
+**Rationale:** DI everywhere principle (ARCH-7). Interface unchanged from JSONL era — all consumers keep working. Only the backing store changes.
 
 **Traces to:** REQ-68 (DI boundary)
 
 ---
 
-### ARCH-61: CLI Integration — Three New Subcommands + Hook Auto-Integration
+### ARCH-61: CLI Integration — Migration Subcommand + Hook Auto-Integration
 
-Three new CLI subcommands:
-- `engram registry init [--dry-run]`: backfill from old stores to instruction-registry.jsonl
-- `engram review [--format json|table]`: read registry, classify by quadrant, output grouped by source + quadrant
-- `engram registry merge --source <id> --target <id>`: absorb counters, delete source
+CLI changes:
+- `engram registry migrate [--dry-run]`: one-time migration from JSONL to TOML-embedded metrics
+- `engram review [--format json|table]`: scan memories/ directory, classify by quadrant (unchanged UX)
+- `engram registry merge --source <path> --target <path>`: absorb counters between memory TOMLs
+- `runAutoRegistration` for non-memory sources: **removed**
 
-Hooks auto-integrate (no new flags needed): surfacing hook calls `Registry.RecordSurfacing(id)`, evaluate hook calls `Registry.RecordEvaluation(id, outcome)`, learn pipeline calls `Registry.Register(...)`.
+Hooks auto-integrate: surfacing hook calls `Registry.RecordSurfacing(id)` which updates the memory TOML in-place. Evaluate hook calls `Registry.RecordEvaluation(id, outcome)`. Learn pipeline writes new TOML with zero-valued metrics.
 
-Fire-and-forget error handling: registry write failures log but don't crash hooks (ARCH-6 — hooks never block instruction delivery).
+Fire-and-forget error handling: TOML write failures log but don't crash hooks (ARCH-6).
 
-**Rationale:** User-facing commands (DES-26, 27, 28) backed by Registry interface. Auto-integration keeps memory management transparent. Fire-and-forget aligns with hook failure semantics.
+**Rationale:** Migration replaces backfill (registry init). Non-memory auto-registration removed (no registry entries for them). Hook integration unchanged at interface level.
 
-**Traces to:** DES-26 (registry init), DES-27 (review), DES-28 (merge), DES-29 (auto-integration)
+**Traces to:** DES-26 (migrate), DES-27 (review), DES-28 (merge), DES-29 (auto-integration)
 
 ---
 

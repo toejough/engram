@@ -1865,23 +1865,23 @@ Once automation is verified and user confirms, the memory gains a `retired_by` f
 
 ---
 
-## REQ-55: Registry bounded growth — one line per instruction
+## REQ-55: Registry bounded growth — one file per memory
 
-The registry `instruction-registry.jsonl` contains exactly one line per registered instruction. No unbounded logs, no append-only event files. Each update to an instruction (surfaced, evaluated, merged) rewrites the corresponding line atomically.
+Each memory TOML file contains exactly one set of runtime metrics alongside its content. No separate index, no unbounded logs, no append-only event files. Each update to a memory's metrics (surfaced, evaluated, merged) rewrites the TOML file atomically.
 
 - Traces to: UC-23 (data model constraint)
-- AC: (1) Each instruction has a unique ID (source_type:source_path:item). (2) One line per ID in JSONL. (3) Updates overwrite the line, not append. (4) File size is O(num_instructions), not O(events).
-- Verification: structural (line count = unique IDs)
+- AC: (1) Each memory has a unique file path as its ID. (2) One TOML file per memory with embedded metrics. (3) Updates rewrite the file atomically (temp + rename). (4) Total storage is O(num_memories), not O(events).
+- Verification: structural (file count = unique memories)
 
 ---
 
-## REQ-56: Registry tracks six instruction source types
+## REQ-56: Registry scoped to memory source type only
 
-Registry entries tag source_type with one of: `claude-md`, `memory-md`, `memory`, `rule`, `skill`, `hook`. Each source type has a defined salience level in the hierarchy (deterministic code > claude-md > rule > memory-md > skill > memory).
+The registry tracks only memory TOML files. Non-memory sources (claude-md, rules, skills) are handled separately by the cross-source scanner if needed. No source_type field required — all entries are memories by definition.
 
-- Traces to: UC-23 (instruction taxonomy)
-- AC: (1) source_type field is required, must match enum. (2) Salience hierarchy is deterministic — no tie-breaking. (3) Quadrant classification logic respects salience (always-loaded sources have binary quadrant: Working or Leech).
-- Verification: structural (enum validation, salience ordering)
+- Traces to: UC-23 (simplified taxonomy after S3 + issue #218)
+- AC: (1) Directory scan of memories/ directory is the complete registry. (2) No non-memory entries exist. (3) runAutoRegistration for non-memory sources removed.
+- Verification: structural (only *.toml files in memories/)
 
 ---
 
@@ -1890,7 +1890,7 @@ Registry entries tag source_type with one of: `claude-md`, `memory-md`, `memory`
 Effectiveness = followed / (followed + contradicted + ignored). Null when insufficient evaluations. Used for quadrant assignment and escalation decisions.
 
 - Traces to: UC-23 (effectiveness signal)
-- AC: (1) Three counters: followed, contradicted, ignored. (2) Effectiveness computed on read (not stored). (3) Denominator is sum of all three. (4) Null when denominator < N evaluations (threshold).
+- AC: (1) Three counters in TOML: followed_count, contradicted_count, ignored_count. (2) Effectiveness computed on read (not stored as separate field). (3) Denominator is sum of all three. (4) Null when denominator < N evaluations (threshold).
 - Verification: deterministic (arithmetic)
 
 ---
@@ -1899,149 +1899,149 @@ Effectiveness = followed / (followed + contradicted + ignored). Null when insuff
 
 Frecency weights surfaced_count (frequency) and time-since-last-surfaced (recency) using exponential decay. Higher frecency = rank higher in surfacing.
 
-- Traces to: UC-23 (frecency signal, relates to #60)
-- AC: (1) surfaced_count is counter (incremented on each surface event). (2) last_surfaced is timestamp. (3) Decay function has fixed half-life (e.g., 7 days). (4) Computed on read.
+- Traces to: UC-23 (frecency signal)
+- AC: (1) surfaced_count is a TOML field (incremented on each surface event). (2) last_surfaced_at is a TOML timestamp field. (3) Decay function has fixed half-life (e.g., 7 days). (4) Computed on read.
 - Verification: deterministic (time-based + arithmetic)
 
 ---
 
 ## REQ-59: Registry stores content_hash to detect instruction changes
 
-Each instruction's content is hashed (SHA256 or similar) and stored. If content changes (e.g., a memory TOML is edited), content_hash changes, triggering re-evaluation.
+Each memory's content fields are hashed (SHA256 or similar) and stored in the TOML. If content changes (e.g., memory is edited), content_hash changes, triggering re-evaluation.
 
 - Traces to: UC-23 (change detection)
-- AC: (1) content_hash is computed from instruction text. (2) Hash updated on register and on rewrite proposal acceptance. (3) Hash mismatch detected during evaluation pipeline.
+- AC: (1) content_hash computed from title + principle + content. (2) Hash updated on creation and on rewrite proposal acceptance. (3) Hash mismatch detected during evaluation pipeline.
 - Verification: deterministic (hash function)
 
 ---
 
 ## REQ-60: Registry tracks absorbed history — merged duplicates preserve effectiveness
 
-When `engram registry merge --source <id> --target <id>` runs, the source instruction's counters (surfaced_count, followed/contradicted/ignored) are appended to the target's `absorbed` array as a timestamped record. Source is then deleted.
+When merging source → target memory, the source memory's counters (surfaced_count, followed/contradicted/ignored) are appended to the target memory's `absorbed` array as a timestamped record. Source TOML is then deleted.
 
 - Traces to: UC-23 (merge operation + history preservation)
-- AC: (1) Merge is idempotent: running twice with same source/target is safe. (2) absorbed array preserves surfaced_count and counters. (3) merged_at timestamp is recorded. (4) Source file deleted after merge. (5) Content_hash of absorbed entries preserved for retrospective analysis.
+- AC: (1) Merge is idempotent: running twice with same source/target is safe. (2) absorbed array in target TOML preserves surfaced_count and counters. (3) merged_at timestamp is recorded. (4) Source TOML deleted after merge. (5) Content_hash of absorbed entries preserved for retrospective analysis.
 - Verification: deterministic (array structure, deletion)
 
 ---
 
-## REQ-61: Surfacing event atomically increments surfaced_count and updates last_surfaced
+## REQ-61: Surfacing event atomically increments surfaced_count and updates last_surfaced_at
 
-Each time the surfacing hook surfaces an instruction, it increments the registry's surfaced_count for that instruction ID and updates last_surfaced to current timestamp. Both updates happen in the same write.
+Each time the surfacing hook surfaces a memory, it increments surfaced_count and updates last_surfaced_at in the memory's TOML file. Both updates happen in the same atomic write.
 
 - Traces to: UC-23 (surfacing tracking)
-- AC: (1) Hook calls Registry.RecordSurfacing(id). (2) Increments surfaced_count. (3) Sets last_surfaced to current time. (4) Single atomic JSONL line rewrite. (5) No partial updates.
-- Verification: integration (hook + registry I/O)
+- AC: (1) Hook calls Registry.RecordSurfacing(id). (2) Increments surfaced_count. (3) Sets last_surfaced_at to current time. (4) Single atomic TOML file rewrite (read → modify → write temp → rename). (5) No partial updates.
+- Verification: integration (hook + TOML I/O)
 
 ---
 
 ## REQ-62: Evaluation event increments followed/contradicted/ignored counters
 
-During evaluation, the system assesses whether the user's behavior complied with each active instruction. For each instruction, one counter increments: followed (user complied), contradicted (user did opposite), ignored (no evidence of awareness).
+During evaluation, the system assesses whether the user's behavior complied with each surfaced memory. For each memory, one counter increments: followed (user complied), contradicted (user did opposite), ignored (no evidence of awareness).
 
 - Traces to: UC-23 (evaluation tracking)
-- AC: (1) Evaluation runs at session end or PreCompact. (2) For each active instruction, exactly one of the three counters increments. (3) Counter update writes to registry atomically. (4) Counters start at 0.
-- Verification: integration (evaluate + registry I/O)
+- AC: (1) Evaluation runs at session end or PreCompact. (2) For each surfaced memory, exactly one of the three counters increments in its TOML. (3) Counter update writes atomically. (4) Counters start at 0 (missing fields default to zero).
+- Verification: integration (evaluate + TOML I/O)
 
 ---
 
 ## REQ-63: Registry merge absorbs all counters into target's absorbed field
 
-When merging source → target, all of source's evaluation counters (followed, contradicted, ignored) and surfacing history (surfaced_count, last_surfaced, content_hash, registered_at) become a single entry in target's `absorbed` array. No counter loss.
+When merging source → target, all of source's evaluation counters (followed, contradicted, ignored) and surfacing history (surfaced_count, last_surfaced_at, content_hash, created_at) become a single entry in target's TOML `absorbed` array. No counter loss.
 
 - Traces to: UC-23 (merge semantics)
-- AC: (1) absorbed array entry has: from (source id), surfaced_count, evaluations object, merged_at timestamp, content_hash. (2) Multiple entries allowed (multiple duplicates can be absorbed). (3) Absorbed entries are readable for escalation engine decisions.
-- Verification: structural (JSON schema)
+- AC: (1) absorbed array entry has: from (source path), surfaced_count, evaluations object, merged_at timestamp, content_hash. (2) Multiple entries allowed (multiple duplicates can be absorbed). (3) Absorbed entries are readable for escalation engine decisions.
+- Verification: structural (TOML array structure)
 
 ---
 
 ## REQ-64: Registry supports concurrent writes from multiple hooks
 
-Multiple hook instances may call Registry.RecordSurfacing or Registry.RecordEvaluation concurrently. Registry write must be safe: no data loss, no partial updates, no corruption.
+Multiple hook instances may call Registry.RecordSurfacing or Registry.RecordEvaluation concurrently on the same or different memory files. Per-file writes must be safe: no data loss, no partial updates, no corruption.
 
 - Traces to: UC-23 (concurrency + data safety)
-- AC: (1) JSONL read-all-on-load, write-full-file strategy is safe for < 10K instructions. (2) No lock files needed (file I/O atomicity sufficient). (3) Worst case: two concurrent writes both see same stale state, one overwrites the other (acceptable for small frequency deltas).
-- Verification: integration (concurrent hook calls)
+- AC: (1) Per-file read-modify-write with file-level locking (flock or equivalent). (2) Atomic writes via temp file + rename. (3) Different memory files can be updated concurrently without contention. (4) Same-file concurrent writes serialized by lock. (5) Lock scope is minimal (read → modify → write → unlock).
+- Verification: integration (concurrent hook calls on same and different files)
 
 ---
 
-## REQ-65: Registry backfill migrates all data from old stores without loss
+## REQ-65: One-time migration from JSONL registry to TOML-embedded metrics
 
-`engram registry init` reads surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, and memory TOML metadata fields. For each memory file, creates one registry entry with all aggregated data.
+`engram registry migrate` reads instruction-registry.jsonl, matches entries to existing memory TOML files by source_path, and merges metrics fields (surfaced_count, followed_count, contradicted_count, ignored_count, last_surfaced_at, enforcement_level, links, absorbed) into each TOML. Non-memory entries are skipped. JSONL file deleted after successful migration.
 
-- Traces to: UC-23 (migration / Phase 1)
-- AC: (1) surfacing-log.jsonl data aggregated: sum surfaced_count per memory, take max last_surfaced. (2) creation-log.jsonl: set registered_at. (3) evaluations/*.jsonl: sum counters per memory. (4) Memory TOML metadata (surfaced_count, last_surfaced, surfacing_contexts): migrated. (5) No data discarded.
-- Verification: integration (read old stores, verify registry counts match)
-
----
-
-## REQ-66: Backfill handles retirement mapping — covers for retired duplicates
-
-During backfill, if a memory has retired_by set, the backfill identifies the covering instruction (the one with matching title/domain in surviving memories or CLAUDE.md entries). The retired memory's counters are recorded as absorbed history in the covering instruction's entry.
-
-- Traces to: UC-23 (migration with attribution)
-- AC: (1) Memory with retired_by="..." is matched to covering instruction by ID or semantic lookup. (2) Retired memory's counters appended to covering instruction's absorbed array. (3) No standalone registry entry created for retired memories. (4) Covering instruction's absorbed field documents the merge.
-- Verification: integration (semantic matching, retired_by mapping)
+- Traces to: UC-23 (migration from old storage model)
+- AC: (1) Each JSONL entry matched to TOML by source_path field. (2) Unmatched entries (deleted memories, non-memory sources) logged and skipped. (3) Existing TOML content fields preserved. (4) Metrics fields added/updated. (5) instruction-registry.jsonl deleted on success. (6) No data loss for matched entries.
+- Verification: integration (read JSONL, write TOMLs, verify counts match)
 
 ---
 
-## REQ-67: Quadrant classification works across all six source types
+## REQ-66: Missing metrics fields default to zero [SIMPLIFIED]
 
-`engram review` reads the registry and classifies all instructions (not just memories) into quadrants: Working (high surfacing + high effectiveness), Leech (high surfacing + low effectiveness), HiddenGem (low surfacing + high effectiveness), Noise (low surfacing + low effectiveness). Always-loaded sources (claude-md, memory-md) have binary quadrant: Working or Leech.
+Memory TOML files without metrics fields (pre-migration or newly created) are treated as having zero-valued metrics: surfaced_count=0, followed_count=0, contradicted_count=0, ignored_count=0, no links, no absorbed entries. No special initialization required.
 
-- Traces to: UC-23 (cross-source classification)
-- AC: (1) Surfacing threshold and effectiveness threshold are configurable but have sensible defaults. (2) Classification is deterministic given thresholds. (3) All six source types are classified. (4) CLAUDE.md entry can be Leech, triggering rewrite proposal (not just memories).
+- Traces to: UC-23 (backward compatibility)
+- AC: (1) TOML decoder treats missing numeric fields as 0. (2) Missing array fields (links, absorbed) treated as empty. (3) Missing timestamp fields (last_surfaced_at) treated as zero time. (4) No error on missing fields.
+- Verification: deterministic (decoder defaults)
+
+---
+
+## REQ-67: Quadrant classification operates on memory source type only
+
+`engram review` scans the memories directory, reads metrics from each TOML file, and classifies into quadrants: Working (high surfacing + high effectiveness), Leech (high surfacing + low effectiveness), HiddenGem (low surfacing + high effectiveness), Noise (low surfacing + low effectiveness).
+
+- Traces to: UC-23 (classification — simplified to memory-only after S3 + issue #218)
+- AC: (1) Surfacing threshold is median-based (dynamic). (2) Effectiveness threshold is 50%. (3) Classification is deterministic given thresholds. (4) InsufficientData when < 5 evaluations.
 - Verification: deterministic (thresholds + math)
 
 ---
 
-## REQ-68: DI boundary — Registry interface in internal/, JSONL I/O at edges
+## REQ-68: DI boundary — Registry interface in internal/, TOML I/O at edges
 
-The registry abstraction (interface) lives in `internal/registry/`. Concrete JSONL implementation lives in cli.go or top-level wiring. Tests use mock Registry interface.
+The registry abstraction (interface) lives in `internal/registry/`. Concrete TOML-directory-backed implementation wired at CLI edges. Tests use mock Registry interface. Interface methods unchanged.
 
-- Traces to: UC-23 (DI everywhere principle) + UC-23 constraint (#5: pure Go, no CGO)
-- AC: (1) Registry interface defined in internal/ with methods: Register, RecordSurfacing, RecordEvaluation, Merge, Remove, List, Get. (2) Concrete JSONL-based implementation in cli.go (not internal/). (3) No raw file I/O in internal/. (4) Tests inject mock Registry.
+- Traces to: UC-23 (DI everywhere principle)
+- AC: (1) Registry interface defined in internal/ with methods: Register, RecordSurfacing, RecordEvaluation, Merge, Remove, List, Get. (2) Concrete TOMLDirectoryStore implementation wired in cli.go. (3) No raw file I/O in internal/ domain logic. (4) Tests inject mock Registry.
 - Verification: structural (interface + no os.* calls in internal/)
 
 ---
 
-## DES-26: User command `engram registry init` triggers backfill
+## DES-26: User command `engram registry migrate` consolidates JSONL into TOMLs
 
-New CLI subcommand: `engram registry init`. Reads surfacing-log.jsonl, creation-log.jsonl, evaluations/*.jsonl, memory TOML files, and produces instruction-registry.jsonl. Outputs summary: number of entries created, number of duplicates absorbed, any warnings (unmatched retired_by references).
+CLI subcommand: `engram registry migrate`. Reads instruction-registry.jsonl, merges metrics into corresponding memory TOML files, deletes the JSONL file. Outputs summary: number of memories updated, number of entries skipped (non-memory or unmatched), any warnings.
 
-- Traces to: UC-23 (backfill interaction)
-- AC: (1) Subcommand registered in CLI. (2) Optional --dry-run flag shows what would be written without writing. (3) Output is human-readable summary + JSON detail. (4) Exit code 0 on success, non-zero on error (failed reads, schema violations).
-- Verification: integration (CLI + Registry.Register calls)
+- Traces to: UC-23 (migration interaction)
+- AC: (1) Subcommand registered in CLI. (2) Optional --dry-run flag shows what would be written without writing. (3) Output is human-readable summary. (4) Exit code 0 on success, non-zero on error. (5) Idempotent: running on already-migrated data is a no-op (JSONL missing = success).
+- Verification: integration (CLI + TOML rewrite calls)
 
 ---
 
-## DES-27: User command `engram review` reads registry for quadrant classification
+## DES-27: User command `engram review` reads TOML directory for quadrant classification
 
-Enhanced `engram review` command (if exists) or new subcommand: `engram review --format [table|json]`. Reads instruction-registry.jsonl, classifies all entries by quadrant, outputs summary grouped by source type and quadrant.
+`engram review --format [table|json]`. Scans memories/ directory, reads metrics from each TOML, classifies by quadrant, outputs summary grouped by quadrant.
 
 - Traces to: UC-23 (classification interaction)
-- AC: (1) Output includes quadrant, source_type, instruction ID, title, effectiveness, surfaced_count. (2) Grouped by: source_type (primary), quadrant (secondary). (3) CLAUDE.md leeches flagged prominently (rare, high-salience source). (4) JSON output is array of classification objects.
-- Verification: integration (read registry, classify, format output)
+- AC: (1) Output includes quadrant, memory path, title, effectiveness, surfaced_count. (2) Grouped by quadrant. (3) Flagged memories (< 40% effectiveness) highlighted. (4) JSON output is array of classification objects.
+- Verification: integration (scan directory, classify, format output)
 
 ---
 
 ## DES-28: User command `engram registry merge` absorbs duplicates
 
-New CLI subcommand: `engram registry merge --source <id> --target <id>`. Absorbs all counters from source into target's absorbed field. Deletes source entry and source file (if applicable, e.g., memory TOML). Outputs confirmation.
+CLI subcommand: `engram registry merge --source <path> --target <path>`. Reads source memory TOML metrics, appends to target's absorbed array, deletes source TOML file. Outputs confirmation with absorbed counters.
 
 - Traces to: UC-23 (merge interaction)
-- AC: (1) Subcommand registered. (2) --source and --target required. (3) Source can be any instruction type; target must be a surviving instruction (same or broader domain). (4) Merge is idempotent. (5) Output includes absorbed counters for verification. (6) Exit 0 always (merge either succeeds or fails verbosely).
-- Verification: integration (Registry.Merge calls, file deletion if needed)
+- AC: (1) Subcommand registered. (2) --source and --target required (memory file paths). (3) Both must be memory TOML files. (4) Merge is idempotent. (5) Output includes absorbed counters for verification. (6) Source file deleted after successful merge.
+- Verification: integration (TOML read/write, file deletion)
 
 ---
 
-## DES-29: System auto-registers new instructions and auto-updates registry
+## DES-29: System auto-embeds metrics in new memories and updates in-place
 
-When a new memory is created (via learn pipeline), it is auto-registered in the registry (Registry.Register call). When surfacing or evaluation occurs, registry is updated atomically without user action. No manual registration steps for memories.
+When a new memory is created (via learn pipeline), it is written with zero-valued metrics fields. When surfacing or evaluation occurs, the memory's TOML is updated in-place atomically. No separate registration step. Non-memory auto-registration removed.
 
 - Traces to: UC-23 (auto-integration into pipelines)
-- AC: (1) Learn pipeline calls Registry.Register(id, content_hash, source_type, title). (2) Surfacing hook calls Registry.RecordSurfacing(id). (3) Evaluate hook calls Registry.RecordEvaluation(id, followed|contradicted|ignored). (4) All calls are fire-and-forget: failures don't crash hooks (ARCH-6). (5) Registry updates are logged but don't interrupt instruction delivery.
-- Verification: integration (hook + registry I/O)
+- AC: (1) Learn pipeline writes TOML with content + zero metrics. (2) Surfacing hook reads TOML, increments surfaced_count, writes back atomically. (3) Evaluate hook reads TOML, increments appropriate counter, writes back atomically. (4) All updates are fire-and-forget: failures don't crash hooks (ARCH-6). (5) runAutoRegistration for non-memory sources removed.
+- Verification: integration (hook + TOML I/O)
 
 ---
 
