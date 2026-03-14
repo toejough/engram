@@ -859,3 +859,39 @@ Deferred UCs (UC-7 through UC-13, excluding UC-6) proposal-generation scope cons
 5. Fire-and-forget on error (log to stderr, do not fail the merge)
 
 **Dependencies:** UC-33 (merge-on-write), UC-32 (graph/link-building), UC-23 (registry)
+
+---
+
+## UC-34: Pre-Classification Duplicate Consolidation
+
+**Description:** Before the signal detection pipeline (UC-28) classifies memories into effectiveness quadrants, scan all memories for duplicate clusters and merge them using the existing merge-on-write infrastructure (UC-33). This ensures quadrant classification operates on consolidated memories rather than producing redundant signals for N copies of the same principle.
+
+**Starting state:** The Stop hook triggers `engram signal-detect`. Memory TOML files exist in the data directory, some with >50% keyword overlap.
+
+**End state:** Duplicate clusters are merged into single enriched memories (combined principles via LLM, unioned keywords/concepts). The consolidated memory set is then passed to quadrant classification. Absorbed memories are deleted. Registry entries are updated (effectiveness counters merged via `Absorbed` records).
+
+**Actor:** System (signal-detect pipeline in Stop hook).
+
+**Key interactions:**
+
+- **Cluster detection:** Before classification, run keyword overlap detection (reuse `dedup.Classify` logic) across all existing memories, not just new candidates. Group memories with >50% pairwise keyword overlap into clusters.
+
+- **Cluster merging:** For each cluster, pick the memory with the highest effectiveness score as the survivor. Merge all others into it via `MergePrinciples` (LLM combines principles iteratively) + union keywords/concepts. Record `AbsorbedRecord` entries on the survivor. Delete absorbed memory files.
+
+- **Link recompute:** After merging, recompute links for survivor memories (reuse UC-P5f-1 logic).
+
+- **Then classify:** Pass the consolidated memory set to the existing quadrant classifier.
+
+- **No graceful degradation:** If no API token, skip LLM principle merging — use longest-principle fallback (same as UC-33). Keyword union and file operations still run.
+
+- **Pure Go, no CGO.**
+
+- **DI everywhere:** All I/O through injected interfaces.
+
+**Constraints:**
+1. Merge happens automatically — no user confirmation needed (this is consolidation, not deletion)
+2. Effectiveness history preserved via `Absorbed` records (no counter loss)
+3. Atomic file writes via temp+rename
+4. Fire-and-forget on errors (ARCH-6)
+
+**Dependencies:** UC-33 (merge infrastructure), UC-28 (signal-detect pipeline), UC-23 (registry), UC-P5f-1 (link recompute after merge)

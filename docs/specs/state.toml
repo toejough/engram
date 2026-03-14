@@ -5,7 +5,7 @@ skill = "specwalk"
 # Layer registries
 
 [layers.L1]
-items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25", "UC-26", "UC-27", "UC-28", "UC-33"]
+items = ["UC-3", "UC-2", "UC-1", "UC-15", "UC-6", "UC-14", "UC-16", "UC-17", "UC-18", "UC-19", "UC-20", "UC-21", "UC-22", "UC-23", "UC-4", "UC-5", "UC-24", "UC-25", "UC-26", "UC-27", "UC-28", "UC-33", "UC-34"]
 green_tool = "none"
 refactor_tool = "none"
 
@@ -110,8 +110,8 @@ layer = "L2"
 name = "Context Budget Management Requirements"
 parents = ["L1H"]
 items = ["REQ-55", "DES-16", "REQ-56", "DES-17", "REQ-57", "DES-18", "REQ-58", "DES-19", "REQ-59", "DES-20"]
-body_hash = "a220d491"
-merkle_hash = "9b3e9670"
+body_hash = "7674184e"
+merkle_hash = "48a768ff"
 status = "complete"
 history = "5 REQs + 5 DES items derived from UC-17. Token estimation (REQ-55/DES-16), per-hook budget caps (REQ-56/DES-17), priority allocation (REQ-57/DES-18), budget reporting (REQ-58/DES-19), warning detection (REQ-59/DES-20). L5 complete, validator PASS."
 
@@ -120,8 +120,8 @@ layer = "L2"
 name = "Stop Session Audit Requirements"
 parents = ["L1H"]
 items = ["REQ-60", "DES-21", "REQ-61", "DES-22", "REQ-62", "DES-23", "REQ-63", "REQ-64", "DES-24", "REQ-65"]
-body_hash = "f12bfcb3"
-merkle_hash = "f73fe389"
+body_hash = "701af7a6"
+merkle_hash = "52abccb0"
 status = "complete"
 history = "6 REQs + 4 DES items derived from UC-19. Stop hook timing (REQ-60/DES-21), audit scope (REQ-61/DES-22), LLM compliance (REQ-62/DES-23), audit report (REQ-63), effectiveness integration (REQ-64/DES-24), error handling (REQ-65). L5 complete, validator PASS."
 
@@ -130,8 +130,8 @@ layer = "L2"
 name = "PostToolUse Proactive Reminders Requirements"
 parents = ["L1I"]
 items = ["REQ-66", "DES-26", "REQ-67", "REQ-68", "REQ-69", "DES-27", "REQ-70", "DES-28", "REQ-71"]
-body_hash = "a09f0df0"
-merkle_hash = "7245f9dd"
+body_hash = "9c4e21a9"
+merkle_hash = "1c55fecf"
 status = "complete"
 history = "6 REQs + 3 DES items derived from UC-18. Hook registration (REQ-66), pattern triggers (REQ-67/DES-26), sourcing (REQ-68), budget cap (REQ-69/DES-27), suppression (REQ-70/DES-28), tracking (REQ-71)."
 
@@ -885,7 +885,7 @@ layer = "L1"
 name = "Context Budget Management"
 items = ["UC-17"]
 body_hash = "5524dddc"
-merkle_hash = "f818a489"
+merkle_hash = "4485463e"
 status = "complete"
 history = "Issue #67. Track and cap total context injection across all engram hook points. Prioritize high-effectiveness memories within budget. L2-L5 complete."
 
@@ -894,7 +894,7 @@ layer = "L1"
 name = "PostToolUse Proactive Reminders"
 items = ["UC-18"]
 body_hash = "100c56ed"
-merkle_hash = "d0711885"
+merkle_hash = "c648e729"
 status = "complete"
 history = "Issue #68. After model writes/edits tracked files, inject targeted reminder about commonly-violated instructions. L2-L5 complete."
 
@@ -921,7 +921,7 @@ layer = "L1"
 name = "Enforcement Escalation Ladder"
 items = ["UC-21"]
 body_hash = "0bab1238"
-merkle_hash = "8ea7bc93"
+merkle_hash = "8ec2ab77"
 status = "complete"
 history = "Issue #71. Graduated escalation from advisory to blocking enforcement for leech memories. Replaces issue #44. L2-L5 complete, wired into CLI (commit e04e162)."
 
@@ -939,8 +939,8 @@ layer = "L1"
 name = "Unified Instruction Registry"
 items = ["UC-23"]
 issue = "218"
-body_hash = ""
-merkle_hash = ""
+body_hash = "618ebb11"
+merkle_hash = "0fc67a58"
 status = "complete"
 history = "Issue #74. Foundation UC for next batch. Issue #218: UC-23 rewritten — consolidate JSONL registry into memory TOML files. Eliminates dual-store sync bugs (#216, #217). Non-memory entries dropped."
 
@@ -949,8 +949,8 @@ layer = "L2"
 name = "Registry requirements and design"
 items = ["REQ-55", "REQ-56", "REQ-57", "REQ-58", "REQ-59", "REQ-60", "REQ-61", "REQ-62", "REQ-63", "REQ-64", "REQ-65", "REQ-66", "REQ-67", "REQ-68", "DES-26", "DES-27", "DES-28", "DES-29"]
 parents = ["L1N"]
-body_hash = ""
-merkle_hash = ""
+body_hash = "6646ffda"
+merkle_hash = "9b77a5cc"
 status = "complete"
 history = "Derived from UC-23. 14 requirements covering taxonomy, signals, bounded growth, concurrent writes, backfill migration, quadrant classification. 4 DES items covering CLI commands (init, review, merge) and auto-registration. Issue #218: dirty — parent UC-23 rewritten."
 
@@ -960,7 +960,7 @@ name = "Registry architecture"
 items = ["ARCH-52", "ARCH-53", "ARCH-54", "ARCH-55", "ARCH-56", "ARCH-57", "ARCH-58", "ARCH-59", "ARCH-60", "ARCH-61"]
 parents = ["L2N"]
 body_hash = ""
-merkle_hash = ""
+merkle_hash = "6e340b9c"
 status = "complete"
 history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration. Issue #218: dirty — storage model changes from JSONL to TOML-embedded."
 
@@ -1038,8 +1038,8 @@ history = "Phase 5 of 5. Commit 6146ba8. CLI merge (absorb + delete source TOML)
 layer = "L1"
 name = "Skill Generation"
 items = ["UC-4"]
-body_hash = "f0a6a4df"
-merkle_hash = "02efb8d7"
+body_hash = "21e6d245"
+merkle_hash = "89c2af91"
 status = "removed"
 history = "Issue #37. Memory → Skill tier promotion when surfacing cost exceeds skill slot cost. Depends on UC-23 registry. L2-L5 complete. Issue #215: removed — promotion machinery deleted; graduation via escalation ladder replaces tier promotion."
 
@@ -1047,8 +1047,8 @@ history = "Issue #37. Memory → Skill tier promotion when surfacing cost exceed
 layer = "L1"
 name = "CLAUDE.md Management"
 items = ["UC-5"]
-body_hash = "9333a5e7"
-merkle_hash = "0c7b5012"
+body_hash = "764dae3f"
+merkle_hash = "d6de47e3"
 status = "removed"
 history = "Issue #38. Skill ↔ CLAUDE.md promotion/demotion based on effectiveness. Depends on UC-23 registry, UC-4 (skill generation for demotion path). L2-L5 complete. Issue #215: removed — promotion/demotion machinery deleted along with UC-4."
 
@@ -1423,9 +1423,9 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L4N-G1"
-mode = "complete"
-next_action = "L4 implementation complete. G1 (90ad9f4) and G2 (a5e61de) on main. All tests pass. Update state and close issue #218."
+node = "L1-UC34"
+mode = "active"
+next_action = "L1 GREEN complete for UC-34. REGROUP then COMMIT, then descend to L2."
 context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
 
 # P1: Contradiction detection
@@ -1591,8 +1591,8 @@ items = ["T-P5f-1", "T-P5f-2", "T-P5f-3", "T-P5f-4", "T-P5f-5", "T-P5f-6", "T-P5
 layer = "L1"
 name = "Re-compute links after merge"
 items = ["UC-P5f-1"]
-body_hash = "4ce1dd7b"
-merkle_hash = "5b769977"
+body_hash = "05b2490a"
+merkle_hash = "4a1a6970"
 status = "complete"
 history = "P5-full issue #95. Extends UC-33. Re-compute concept_overlap + content_similarity links after merge-on-write. Remove absorbed-memory links. Preserve co_surfacing + evaluation_correlation. Commit 3d5e85b."
 
@@ -1649,7 +1649,7 @@ name = "Wire Escalation to Enforcement Level Requirements"
 parents = ["L1L"]
 items = ["REQ-P6e-1", "REQ-P6e-2", "REQ-P6e-3", "REQ-P6e-4", "REQ-P6e-5", "REQ-P6e-6", "REQ-P6e-7", "DES-P6e-1", "DES-P6e-2"]
 body_hash = "33424f94"
-merkle_hash = "430c2ab5"
+merkle_hash = "6ce688f1"
 status = "complete"
 history = "7 REQs + 2 DES items. LevelGraduated (REQ-P6e-1), ApplyEscalationProposal (REQ-P6e-2), graduation emission (REQ-P6e-3), ClassifyContent (REQ-P6e-4/DES-P6e-1), emphasized_advisory rendering (REQ-P6e-5), reminder rendering (REQ-P6e-6/DES-P6e-2), priority sorting (REQ-P6e-7)."
 
@@ -1658,8 +1658,8 @@ layer = "L2"
 name = "Wire Escalation to Enforcement Level Architecture"
 parents = ["L2P6e"]
 items = ["ARCH-P6e-1", "ARCH-P6e-2"]
-body_hash = "9f17d5dd"
-merkle_hash = "2e265729"
+body_hash = "f2f7fa2e"
+merkle_hash = "818ce446"
 status = "complete"
 history = "2 ARCH decisions: EnforcementApplier + GraduationEmitter interfaces in maintain (ARCH-P6e-1), EnforcementReader interface in surface (ARCH-P6e-2)."
 
@@ -1740,3 +1740,15 @@ body_hash = ""
 merkle_hash = ""
 status = "complete"
 history = "internal/signal/graduation_store.go (GraduationStore CRUD), internal/signal/graduation_emitter.go (GraduationQueueEmitter), internal/signal/graduation.go (GraduationEntry model), internal/cli/graduate.go (accept/dismiss/list/surface subcommands with IssueCreator DI). All 15 tests passing, targ check-full green."
+
+# UC-34: Pre-Classification Duplicate Consolidation (issue #288)
+
+[tree.L1-UC34]
+layer = "L1"
+name = "Pre-Classification Duplicate Consolidation"
+items = ["UC-34"]
+issue = "288"
+body_hash = "7da64e16"
+merkle_hash = "7da64e16"
+status = "in_progress"
+history = "UC-34 drafted and added to use-cases.md. Merge duplicates before classifying into effectiveness quadrants."
