@@ -2680,3 +2680,169 @@ retained as historical record only.
 | DES-29 | T-249 |
 
 All UC-23 (issue #218) L2 items have test coverage.
+
+---
+
+## Pre-Classification Duplicate Consolidation (UC-34, ARCH-79, ARCH-80)
+
+### T-327: No duplicates — all singletons, no merges
+
+**Given** a set of memories with no pairwise keyword overlap >50%,
+**When** Consolidate is called,
+**Then** no merges occur and all memories remain unchanged.
+
+- Traces to: REQ-130
+
+### T-328: Two memories with >50% keyword overlap form a cluster
+
+**Given** two memories where 3 of 5 keywords match (60% overlap),
+**When** Consolidate is called,
+**Then** the two are merged: survivor retains enriched principle, unioned keywords; absorbed memory is deleted.
+
+- Traces to: REQ-130, REQ-131
+
+### T-329: Transitive closure — three-way cluster
+
+**Given** memories A, B, C where A overlaps B and B overlaps C but A does not overlap C,
+**When** Consolidate is called,
+**Then** all three are in one cluster. Two are merged into the survivor.
+
+- Traces to: REQ-130
+
+### T-330: Memories at exactly 50% overlap are NOT clustered
+
+**Given** two memories where exactly 50% of keywords match,
+**When** Consolidate is called,
+**Then** no merge occurs (threshold is >50%, not >=50%).
+
+- Traces to: REQ-130
+
+### T-331: Highest effectiveness score survives
+
+**Given** a cluster of two memories with effectiveness scores 0.8 and 0.4,
+**When** the survivor is selected,
+**Then** the memory with score 0.8 is chosen as survivor.
+
+- Traces to: REQ-131
+
+### T-332: Null-effectiveness loses to scored memory
+
+**Given** a cluster where one memory has 0.6 effectiveness and another has insufficient data (null),
+**When** the survivor is selected,
+**Then** the scored memory (0.6) is chosen as survivor.
+
+- Traces to: REQ-131
+
+### T-333: Among null-effectiveness, highest surfaced_count wins
+
+**Given** a cluster where both memories have null effectiveness, one with surfaced_count=10 and another with surfaced_count=3,
+**When** the survivor is selected,
+**Then** the memory with surfaced_count=10 is chosen as survivor.
+
+- Traces to: REQ-131
+
+### T-334: Tie-breaking by alphabetical file path
+
+**Given** a cluster where both memories have identical effectiveness and surfaced_count,
+**When** the survivor is selected,
+**Then** the memory with the alphabetically-first file path is chosen.
+
+- Traces to: REQ-131
+
+### T-335: Absorbed memory's counters appear in survivor's absorbed array
+
+**Given** a merge where the absorbed memory has surfaced_count=5, followed_count=3, contradicted_count=1,
+**When** the merge completes,
+**Then** the survivor's `[[absorbed]]` array contains an entry with those counters, the absorbed memory's path in `from`, and a `merged_at` timestamp.
+
+- Traces to: REQ-132, REQ-60, REQ-63
+
+### T-336: Existing absorbed entries on survivor are preserved
+
+**Given** a survivor that already has 2 entries in its `[[absorbed]]` array,
+**When** another memory is merged into it,
+**Then** the survivor has 3 entries in `[[absorbed]]` — the original 2 plus the new one.
+
+- Traces to: REQ-132
+
+### T-337: No LLM — longest principle text used
+
+**Given** two overlapping memories and no LLM client (nil),
+**When** Consolidate merges them,
+**Then** the survivor's principle is the longer of the two original principles.
+
+- Traces to: REQ-133
+
+### T-338: Keywords and concepts unioned regardless of LLM
+
+**Given** two overlapping memories with keywords ["a","b","c"] and ["b","c","d"],
+**When** Consolidate merges them (with or without LLM),
+**Then** the survivor's keywords are ["a","b","c","d"] (deduplicated, case-insensitive).
+
+- Traces to: REQ-133
+
+### T-339: Consolidation runs before classification
+
+**Given** a data directory with 4 duplicate memories (2 clusters of 2),
+**When** `signal-detect` runs end-to-end,
+**Then** only 2 memories are classified into quadrants (the survivors), not 4.
+
+- Traces to: DES-47, REQ-134
+
+### T-340: Per-merge stderr log line emitted
+
+**Given** two overlapping memories,
+**When** Consolidate merges them,
+**Then** stderr contains `[engram] Merged <title> into <title>` and a summary line `[engram] Consolidated 1 duplicate clusters (1 memories merged)`.
+
+- Traces to: DES-48
+
+### T-341: No duplicates — no stderr output
+
+**Given** memories with no overlapping keywords,
+**When** Consolidate is called,
+**Then** no consolidation output is written to stderr.
+
+- Traces to: DES-48
+
+### T-342: MergeExecutor error — fire-and-forget per cluster
+
+**Given** a MergeExecutor that returns an error for one cluster,
+**When** Consolidate processes two clusters,
+**Then** the failing cluster is logged to stderr and skipped; the second cluster is still merged successfully.
+
+- Traces to: ARCH-79, ARCH-6
+
+### T-343: Cluster of 3 — iterative pair-by-pair merge
+
+**Given** three overlapping memories in one cluster,
+**When** Consolidate merges them,
+**Then** MergeExecutor is called twice (first non-survivor into survivor, then second non-survivor into enriched survivor). Survivor has 2 absorbed entries.
+
+- Traces to: ARCH-79, REQ-132
+
+### T-344: signal-detect integration — duplicates consolidated before signals emitted
+
+**Given** a data directory with 3 copies of a "use targ check-full" memory,
+**When** `engram signal-detect` runs,
+**Then** the proposal queue contains signals for 1 consolidated memory, not 3 individual ones.
+
+- Traces to: ARCH-80, DES-47
+
+---
+
+## L2 → TEST Traceability (UC-34)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-130 | T-327, T-328, T-329, T-330 |
+| REQ-131 | T-331, T-332, T-333, T-334 |
+| REQ-132 | T-335, T-336, T-343 |
+| REQ-133 | T-337, T-338 |
+| REQ-134 | T-339 |
+| DES-47 | T-339, T-344 |
+| DES-48 | T-340, T-341 |
+| ARCH-79 | T-342, T-343 |
+| ARCH-80 | T-344 |
+
+All UC-34 (issue #288) L2 items have test coverage.
