@@ -14,7 +14,7 @@ const (
 	TypeMaintain         = "maintain"
 )
 
-// Signal represents a detected maintenance or promotion signal.
+// Signal represents a detected maintenance signal.
 //
 //nolint:tagliatelle // DES-43 specifies snake_case JSON field names.
 type Signal struct {

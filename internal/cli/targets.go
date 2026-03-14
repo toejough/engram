@@ -199,7 +199,7 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
 			Name("context-update").Description("Update session context"),
 		targ.Targ(func(a SignalDetectArgs) { run("signal-detect", SignalDetectFlags(a)) }).
-			Name("signal-detect").Description("Detect maintenance and promotion signals"),
+			Name("signal-detect").Description("Detect maintenance signals"),
 		targ.Targ(func(a SignalSurfaceArgs) { run("signal-surface", SignalSurfaceFlags(a)) }).
 			Name("signal-surface").Description("Surface pending maintenance signals"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).

@@ -722,7 +722,7 @@ func (c *cliConfirmer) Confirm(preview string) (bool, error) {
 		return true, nil
 	}
 
-	_, _ = fmt.Fprint(c.stdout, "Promote this memory to a skill? [y/N] ")
+	_, _ = fmt.Fprint(c.stdout, "Apply this change? [y/N] ")
 
 	var response string
 
