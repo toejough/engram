@@ -32,7 +32,6 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	"engram/internal/migrate"
 	regpkg "engram/internal/registry"
 	"engram/internal/remind"
 	"engram/internal/render"
@@ -540,31 +539,6 @@ func RunRegistryMerge(
 	return nil
 }
 
-// RunRegistryMigrate implements the registry migrate subcommand (ARCH-58, DES-26).
-func RunRegistryMigrate(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("registry migrate", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	dryRun := fs.Bool("dry-run", false, "show what would be migrated without writing")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("registry migrate: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errMigrateMissingFlags
-	}
-
-	jsonlPath := filepath.Join(*dataDir, registryFilename)
-	memoriesDir := filepath.Join(*dataDir, "memories")
-
-	m := migrate.New(migrate.WithStdout(stdout))
-
-	return m.Run(jsonlPath, memoriesDir, *dryRun)
-}
-
 // RunRegistryRegisterSource implements the registry register-source subcommand.
 // readFile is injected for testability (DI).
 //
@@ -735,7 +709,6 @@ var (
 	errMergeMissingFlags    = errors.New(
 		"registry merge: --data-dir, --source, and --target required",
 	)
-	errMigrateMissingFlags        = errors.New("registry migrate: --data-dir required")
 	errNilAPIResponse             = errors.New("calling Anthropic API: nil response")
 	errNoContentBlocks            = errors.New("API response contained no content blocks")
 	errRegisterSourceMissingFlags = errors.New(
@@ -746,7 +719,7 @@ var (
 		"registry init: --data-dir required",
 	)
 	errRegistryUnknownSub = errors.New(
-		"registry: unknown subcommand (expected: init, register-source, merge, migrate)",
+		"registry: unknown subcommand (expected: init, register-source, merge)",
 	)
 	errRemindMissingFlags  = errors.New("remind: --data-dir required")
 	errReviewMissingFlags  = errors.New("review: --data-dir required")
@@ -2008,8 +1981,6 @@ func runRegistry(args []string, stdout io.Writer) error {
 		return RunRegistryRegisterSource(subArgs, stdout, osReadFileFunc)
 	case "merge":
 		return RunRegistryMerge(subArgs, stdout, os.Remove)
-	case "migrate":
-		return RunRegistryMigrate(subArgs, stdout)
 	default:
 		return errRegistryUnknownSub
 	}
