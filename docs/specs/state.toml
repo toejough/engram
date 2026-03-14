@@ -1425,7 +1425,7 @@ history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filte
 [cursor]
 node = "L4-UC34"
 mode = "active"
-next_action = "L4 GREEN complete for UC-34. All 18 tests passing, CLI wiring done. REFACTOR then mark complete."
+next_action = "UC-34 L4 complete. All layers L1-L4 complete. Close issue #288."
 context_files = ["docs/specs/state.toml", "internal/signal/consolidate.go", "internal/signal/consolidate_test.go", "internal/cli/signal.go"]
 
 # P1: Contradiction detection
@@ -1750,8 +1750,8 @@ items = ["UC-34"]
 issue = "288"
 body_hash = "7da64e16"
 merkle_hash = "95b341c4"
-status = "in_progress"
-history = "UC-34 drafted and added to use-cases.md. Merge duplicates before classifying into effectiveness quadrants."
+status = "complete"
+history = "UC-34 drafted and added to use-cases.md. Merge duplicates before classifying into effectiveness quadrants. L4 implementation complete."
 
 [tree.L2-UC34]
 layer = "L2"
@@ -1780,5 +1780,5 @@ parents = ["L3-UC34"]
 items = ["T-327", "T-328", "T-329", "T-330", "T-331", "T-332", "T-333", "T-334", "T-335", "T-336", "T-337", "T-338", "T-339", "T-340", "T-341", "T-342", "T-343", "T-344"]
 body_hash = ""
 merkle_hash = ""
-status = "in_progress"
+status = "complete"
 history = "Consolidator component (ARCH-79) implemented with Union-Find clustering, DI interfaces, 18 passing tests. CLI wiring (ARCH-80) complete — Consolidator runs before Detector in signal-detect. All checks passing."
