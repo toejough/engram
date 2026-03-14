@@ -203,42 +203,6 @@ func TestP6e5_ApplyEscalationProposalNonGraduatedNoSignal(t *testing.T) {
 	g.Expect(emitCount).To(gomega.Equal(0))
 }
 
-// T-P6e-6: ClassifyContent returns "settings.json" for linter/config content.
-func TestP6e6_ClassifyContent_Linter(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	result := maintain.ClassifyContent("always configure golangci linter settings")
-	g.Expect(result).To(gomega.Equal("settings.json"))
-}
-
-// T-P6e-7: ClassifyContent returns ".claude/rules/" for file-scoped content.
-func TestP6e7_ClassifyContent_FileScoped(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	result := maintain.ClassifyContent("apply rule file to all .go files via glob pattern")
-	g.Expect(result).To(gomega.Equal(".claude/rules/"))
-}
-
-// T-P6e-8: ClassifyContent returns "skill" for procedural content.
-func TestP6e8_ClassifyContent_Procedural(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	result := maintain.ClassifyContent("follow this workflow step-by-step procedure")
-	g.Expect(result).To(gomega.Equal("skill"))
-}
-
-// T-P6e-9: ClassifyContent returns "CLAUDE.md" as behavioral default.
-func TestP6e9_ClassifyContent_BehavioralDefault(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	result := maintain.ClassifyContent("always write tests before implementing features")
-	g.Expect(result).To(gomega.Equal("CLAUDE.md"))
-}
-
 // --- Fakes ---
 
 type fakeEnforcementApplier struct {

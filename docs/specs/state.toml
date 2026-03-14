@@ -1029,8 +1029,8 @@ name = "Skill Generation"
 items = ["UC-4"]
 body_hash = "f0a6a4df"
 merkle_hash = "02efb8d7"
-status = "complete"
-history = "Issue #37. Memory → Skill tier promotion when surfacing cost exceeds skill slot cost. Depends on UC-23 registry. L2-L5 complete."
+status = "removed"
+history = "Issue #37. Memory → Skill tier promotion when surfacing cost exceeds skill slot cost. Depends on UC-23 registry. L2-L5 complete. Issue #215: removed — promotion machinery deleted; graduation via escalation ladder replaces tier promotion."
 
 [tree.L1P]
 layer = "L1"
@@ -1038,8 +1038,8 @@ name = "CLAUDE.md Management"
 items = ["UC-5"]
 body_hash = "9333a5e7"
 merkle_hash = "0c7b5012"
-status = "complete"
-history = "Issue #38. Skill ↔ CLAUDE.md promotion/demotion based on effectiveness. Depends on UC-23 registry, UC-4 (skill generation for demotion path). L2-L5 complete."
+status = "removed"
+history = "Issue #38. Skill ↔ CLAUDE.md promotion/demotion based on effectiveness. Depends on UC-23 registry, UC-4 (skill generation for demotion path). L2-L5 complete. Issue #215: removed — promotion/demotion machinery deleted along with UC-4."
 
 [tree.L1Q]
 layer = "L1"

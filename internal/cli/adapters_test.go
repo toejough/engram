@@ -14,7 +14,6 @@ import (
 	"engram/internal/cli"
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	"engram/internal/promote"
 	regpkg "engram/internal/registry"
 	reviewpkg "engram/internal/review"
 )
@@ -188,105 +187,6 @@ func TestLearnRegistryAdapter_RegisterMemory(t *testing.T) {
 		"/tmp/test.toml", "Test Memory", "content body", time.Now(),
 	)
 	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestLoadMemoryContent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	memPath := filepath.Join(memDir, "test-mem.toml")
-
-	g.Expect(os.WriteFile(memPath, []byte(
-		"title = \"Test Mem\"\nprinciple = \"be good\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n",
-	), 0o644)).To(Succeed())
-
-	retriever := cli.ExportNewRetriever()
-
-	memContent, err := cli.ExportLoadMemoryContent(retriever, memPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(memContent.Title).To(Equal("Test Mem"))
-	g.Expect(memContent.Principle).To(Equal("be good"))
-}
-
-func TestLoadMemoryContent_ListError(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	retriever := cli.ExportNewRetriever()
-
-	_, err := cli.ExportLoadMemoryContent(
-		retriever, "/nonexistent/dir/memories/test.toml",
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("loading memories"))
-	}
-}
-
-func TestLoadMemoryContent_NotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	g.Expect(os.WriteFile(
-		filepath.Join(memDir, "exists.toml"),
-		[]byte("title = \"Exists\"\nprinciple = \"test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n"),
-		0o644,
-	)).To(Succeed())
-
-	retriever := cli.ExportNewRetriever()
-
-	_, err := cli.ExportLoadMemoryContent(
-		retriever, filepath.Join(memDir, "nonexistent.toml"),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("memory not found"))
-	}
-}
-
-func TestLoadSkillContent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	skillPath := filepath.Join(dir, "test-skill.md")
-
-	g.Expect(os.WriteFile(
-		skillPath,
-		[]byte("# My Skill Title\n\nBody here.\n"),
-		0o644,
-	)).To(Succeed())
-
-	skillContent, err := cli.ExportLoadSkillContent(skillPath)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(skillContent.Title).To(Equal("My Skill Title"))
-	g.Expect(skillContent.Content).To(ContainSubstring("Body here."))
 }
 
 func TestNoopTranscriptReader_ReadRecent(t *testing.T) {
@@ -778,47 +678,6 @@ func TestStdinConfirmer_Skip(t *testing.T) {
 	}
 
 	g.Expect(approved).To(BeFalse())
-}
-
-func TestTemplateClaudeMDGenerator_Generate(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	gen := cli.ExportNewTemplateClaudeMDGenerator()
-
-	result, err := gen.Generate(
-		context.Background(),
-		promote.SkillContent{Title: "My Skill", Content: "Skill body."},
-		"skill:my-skill",
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(ContainSubstring("My Skill"))
-}
-
-func TestTemplateGenerator_Generate(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	gen := cli.ExportNewTemplateGenerator()
-
-	result, err := gen.Generate(context.Background(), promote.MemoryContent{
-		Title:     "Test",
-		Principle: "do the right thing",
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(ContainSubstring("Test"))
 }
 
 func TestTruncateTitle_Long(t *testing.T) {

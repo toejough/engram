@@ -491,7 +491,9 @@ Working on session continuity for engram (#45)...
 
 ---
 
-## UC-4: Skill Generation
+## UC-4: Skill Generation [REMOVED — Issue #215]
+
+> **REMOVED:** The promote/demote CLI commands and all promotion machinery have been deleted. Graduation via the escalation ladder (UC-16) replaces tier promotion.
 
 **Description:** Automatically promote memories to Claude Code skills (tier 2) when surfacing cost exceeds skill slot cost. A memory surfaced frequently enough would be cheaper as a skill that loads by context similarity rather than keyword matching on every prompt.
 
@@ -522,7 +524,9 @@ Working on session continuity for engram (#45)...
 
 ---
 
-## UC-5: CLAUDE.md Management
+## UC-5: CLAUDE.md Management [REMOVED — Issue #215]
+
+> **REMOVED:** The promote/demote CLI commands and all promotion machinery have been deleted along with UC-4.
 
 **Description:** Propose additions and removals to CLAUDE.md (tier 1, always-loaded guidance) based on measured effectiveness. Promote skills that prove universally useful; demote narrowly-specific CLAUDE.md entries back to skills.
 

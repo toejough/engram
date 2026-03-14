@@ -44,13 +44,6 @@ type CorrectArgs struct {
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// DemoteArgs holds parsed flags for the demote subcommand.
-type DemoteArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ToSkill bool   `targ:"flag,name=to-skill,desc=demote CLAUDE.md entry to skill"`
-	Yes     bool   `targ:"flag,name=yes,desc=skip confirmation prompt"`
-}
-
 // EvaluateArgs holds parsed flags for the evaluate subcommand.
 type EvaluateArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -102,15 +95,6 @@ type MaintainArgs struct {
 	Proposals string `targ:"flag,name=proposals,desc=path to proposals JSON file"`
 	Yes       bool   `targ:"flag,name=yes,desc=auto-approve all proposals"`
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
-// PromoteArgs holds parsed flags for the promote subcommand.
-type PromoteArgs struct {
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ToSkill    bool   `targ:"flag,name=to-skill,desc=promote memory to skill"`
-	ToClaudeMD bool   `targ:"flag,name=to-claude-md,desc=promote skill to CLAUDE.md"`
-	Threshold  int    `targ:"flag,name=threshold,default=50,desc=minimum surfaced_count"`
-	Yes        bool   `targ:"flag,name=yes,desc=skip confirmation prompt"`
 }
 
 // RegistryInitArgs holds parsed flags for the registry init subcommand.
@@ -237,10 +221,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
 			Name("context-update").Description("Update session context"),
-		targ.Targ(func(a PromoteArgs) { run("promote", PromoteFlags(a)) }).
-			Name("promote").Description("Promote memories to skills or CLAUDE.md"),
-		targ.Targ(func(a DemoteArgs) { run("demote", DemoteFlags(a)) }).
-			Name("demote").Description("Demote CLAUDE.md entries to skills"),
 		targ.Targ(func(a SignalDetectArgs) { run("signal-detect", SignalDetectFlags(a)) }).
 			Name("signal-detect").Description("Detect maintenance and promotion signals"),
 		targ.Targ(func(a SignalSurfaceArgs) { run("signal-surface", SignalSurfaceFlags(a)) }).
@@ -297,15 +277,6 @@ func CorrectFlags(a CorrectArgs) []string {
 	)
 }
 
-// DemoteFlags returns the CLI flag args for the demote subcommand.
-func DemoteFlags(a DemoteArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
-	flags = AddBoolFlag(flags, "--to-skill", a.ToSkill)
-	flags = AddBoolFlag(flags, "--yes", a.Yes)
-
-	return flags
-}
-
 // EvaluateFlags returns the CLI flag args for the evaluate subcommand.
 func EvaluateFlags(a EvaluateArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir)
@@ -350,20 +321,6 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir, "--proposals", a.Proposals)
 	flags = AddBoolFlag(flags, "--apply", a.Apply)
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
-
-	return flags
-}
-
-// PromoteFlags returns the CLI flag args for the promote subcommand.
-func PromoteFlags(a PromoteArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
-	flags = AddBoolFlag(flags, "--to-skill", a.ToSkill)
-	flags = AddBoolFlag(flags, "--to-claude-md", a.ToClaudeMD)
-	flags = AddBoolFlag(flags, "--yes", a.Yes)
-
-	if a.Threshold > 0 {
-		flags = append(flags, "--threshold", strconv.Itoa(a.Threshold))
-	}
 
 	return flags
 }

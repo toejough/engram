@@ -187,7 +187,7 @@ func TestBuildTargets(t *testing.T) {
 		subcmds := []string{
 			"audit", "correct", "evaluate", "review",
 			"maintain", "surface", "learn", "remind", "instruct",
-			"context-update", "promote", "demote",
+			"context-update",
 			"signal-detect", "signal-surface", "apply-proposal",
 			"graduate-surface",
 		}
@@ -324,42 +324,6 @@ func TestCorrectFlags(t *testing.T) {
 
 		result := cli.CorrectFlags(cli.CorrectArgs{Message: "fix this"})
 		g.Expect(result).To(gomega.Equal([]string{"--message", "fix this"}))
-	})
-}
-
-func TestDemoteFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all flags set", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: true, Yes: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill", "--yes"}))
-	})
-
-	t.Run("bools false", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: false, Yes: false})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.DemoteFlags(cli.DemoteArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial bools only to-skill", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.DemoteFlags(cli.DemoteArgs{DataDir: "/data", ToSkill: true, Yes: false})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill"}))
 	})
 }
 
@@ -597,79 +561,6 @@ func TestMaintainFlags(t *testing.T) {
 			"--data-dir", "/data",
 			"--yes",
 		}))
-	})
-}
-
-func TestPromoteFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("all flags set with threshold", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{
-			DataDir:    "/data",
-			ToSkill:    true,
-			ToClaudeMD: true,
-			Threshold:  100,
-			Yes:        true,
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--to-skill", "--to-claude-md", "--yes",
-			"--threshold", "100",
-		}))
-	})
-
-	t.Run("threshold zero omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("threshold positive included", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{Threshold: 50})
-		g.Expect(result).To(gomega.Equal([]string{"--threshold", "50"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("to-skill true to-claude-md false", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(
-			cli.PromoteArgs{DataDir: "/data", ToSkill: true, ToClaudeMD: false},
-		)
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--to-skill"}))
-	})
-
-	t.Run("to-skill false to-claude-md true yes true", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", ToClaudeMD: true, Yes: true})
-		g.Expect(result).
-			To(gomega.Equal([]string{"--data-dir", "/data", "--to-claude-md", "--yes"}))
-	})
-
-	t.Run("negative threshold omitted", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.PromoteFlags(cli.PromoteArgs{DataDir: "/data", Threshold: -1})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 	})
 }
 

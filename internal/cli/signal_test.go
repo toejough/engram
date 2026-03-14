@@ -11,46 +11,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/memory"
-	"engram/internal/promote"
-	regpkg "engram/internal/registry"
 	"engram/internal/signal"
 )
-
-func TestClaudeMDScannerAdapter_DemotionCandidatesError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reg := &errorRegistry{err: os.ErrPermission}
-	claudeMDPromoter := &promote.ClaudeMDPromoter{Registry: reg}
-	adapter := &claudeMDScannerAdapter{promoter: claudeMDPromoter}
-
-	_, err := adapter.DemotionCandidates()
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestClaudeMDScannerAdapter_PromotionCandidatesError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reg := &errorRegistry{err: os.ErrPermission}
-	claudeMDPromoter := &promote.ClaudeMDPromoter{Registry: reg}
-	adapter := &claudeMDScannerAdapter{promoter: claudeMDPromoter}
-
-	_, err := adapter.PromotionCandidates(1)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestPromotionScannerAdapter_CandidatesError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	reg := &errorRegistry{err: os.ErrPermission}
-	promoter := &promote.Promoter{Registry: reg}
-	adapter := &promotionScannerAdapter{promoter: promoter}
-
-	_, err := adapter.Candidates(1)
-	g.Expect(err).To(HaveOccurred())
-}
 
 func TestReadStoredMemory_DecodeError(t *testing.T) {
 	t.Parallel()
@@ -715,17 +677,4 @@ updated_at = "2024-01-01T00:00:00Z"
 	data, readErr := os.ReadFile(path)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(ContainSubstring("Updated Title"))
-}
-
-// errorRegistry implements promote.RegistryReader, always returning an error on List.
-type errorRegistry struct {
-	err error
-}
-
-func (r *errorRegistry) Get(_ string) (*regpkg.InstructionEntry, error) {
-	return nil, r.err
-}
-
-func (r *errorRegistry) List() ([]regpkg.InstructionEntry, error) {
-	return nil, r.err
 }

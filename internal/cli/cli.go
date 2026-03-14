@@ -32,7 +32,6 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	"engram/internal/promote"
 	"engram/internal/register"
 	regpkg "engram/internal/registry"
 	"engram/internal/remind"
@@ -115,7 +114,7 @@ func RenderLearnResult(w io.Writer, result *learn.Result) {
 // Run dispatches to the appropriate subcommand based on args.
 // Output is written to stdout. Errors are returned (caller logs to stderr, exit 0).
 //
-//nolint:cyclop,funlen // CLI dispatch switch grows with each new subcommand
+//nolint:cyclop // CLI dispatch switch grows with each new subcommand
 func Run(
 	args []string,
 	stdout, stderr io.Writer,
@@ -149,8 +148,6 @@ func Run(
 		return runInstructAudit(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
-	case "promote":
-		return runPromote(subArgs, stdout, stdin)
 	case "signal-detect":
 		return runSignalDetect(subArgs)
 	case "signal-surface":
@@ -161,8 +158,6 @@ func Run(
 		return runGraduateCommand(subArgs, stdout)
 	case "graduate-surface":
 		return runGraduateSurface(subArgs, stdout)
-	case "demote":
-		return runDemote(subArgs, stdout, stdin)
 	case "registry":
 		return runRegistry(subArgs, stdout)
 	default:
@@ -691,7 +686,6 @@ const (
 		"Focus on what's being worked on, decisions made, progress, and open questions. " +
 		"Not a dissertation — just what's relevant for resuming work. " +
 		"Do NOT include discovered constraints or patterns (those are captured as memories)."
-	defaultPromoteThreshold      = 50
 	evaluateMaxTokens            = 1024
 	formatJSON                   = "json"
 	haikuModel                   = "claude-haiku-4-5-20251001"
@@ -715,7 +709,6 @@ var (
 	errCorrectMissingFlags = errors.New(
 		"correct: --message and --data-dir required",
 	)
-	errDemoteMissingFlags   = errors.New("demote: --data-dir and --to-skill are required")
 	errEvaluateMissingFlags = errors.New("evaluate: --data-dir required")
 	errInstructMissingFlags = errors.New(
 		"instruct audit: --data-dir required",
@@ -725,15 +718,11 @@ var (
 		"maintain --apply: --proposals required",
 	)
 	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
-	errMemoryNotFound       = errors.New("memory not found at path")
 	errMergeMissingFlags    = errors.New(
 		"registry merge: --data-dir, --source, and --target required",
 	)
-	errNilAPIResponse      = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks     = errors.New("API response contained no content blocks")
-	errPromoteMissingFlags = errors.New(
-		"promote: --data-dir and one of --to-skill/--to-claude-md required",
-	)
+	errNilAPIResponse             = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks            = errors.New("API response contained no content blocks")
 	errRegisterSourceMissingFlags = errors.New(
 		"registry register-source: --type and --path and --data-dir required",
 	)
@@ -755,7 +744,7 @@ var (
 	errUsage             = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
 			"|review|maintain|remind|instruct" +
-			"|promote|demote|context-update|registry> [flags]",
+			"|context-update|registry> [flags]",
 	)
 )
 
@@ -1261,26 +1250,6 @@ func (a *surfaceRegistryAdapter) RecordSurfacing(id string) error {
 	return a.reg.RecordSurfacing(id)
 }
 
-// templateClaudeMDGenerator generates CLAUDE.md entries using the built-in template.
-type templateClaudeMDGenerator struct{}
-
-func (t *templateClaudeMDGenerator) Generate(
-	_ context.Context, skill promote.SkillContent, _ string,
-) (string, error) {
-	entryID := "skill:" + promote.Slugify(skill.Title)
-
-	return promote.FormatClaudeMDEntry(skill, entryID), nil
-}
-
-// templateGenerator generates skill content using the built-in template.
-type templateGenerator struct{}
-
-func (t *templateGenerator) Generate(
-	_ context.Context, mem promote.MemoryContent,
-) (string, error) {
-	return promote.FormatSkill(mem), nil
-}
-
 func buildBackfillConfig(dataDir string) regpkg.BackfillConfig {
 	return regpkg.BackfillConfig{
 		Scanner:      &osMemoryScanner{dataDir: dataDir},
@@ -1539,54 +1508,6 @@ func formatTierBreakdown(counts map[string]int) string {
 	}
 
 	return "(" + strings.Join(parts, ", ") + ")"
-}
-
-func loadMemoryContent(
-	ret *retrieve.Retriever,
-	path string,
-) (*promote.MemoryContent, error) {
-	memories, err := ret.ListMemories(context.Background(), filepath.Dir(filepath.Dir(path)))
-	if err != nil {
-		return nil, fmt.Errorf("loading memories: %w", err)
-	}
-
-	for _, mem := range memories {
-		if mem.FilePath == path {
-			return &promote.MemoryContent{
-				Title:       mem.Title,
-				Content:     mem.Content,
-				Principle:   mem.Principle,
-				AntiPattern: mem.AntiPattern,
-				Keywords:    mem.Keywords,
-			}, nil
-		}
-	}
-
-	return nil, fmt.Errorf("%w: %s", errMemoryNotFound, path)
-}
-
-func loadSkillContent(path string) (promote.SkillContent, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // file path from user flag, not user input
-	if err != nil {
-		return promote.SkillContent{}, fmt.Errorf("reading skill: %w", err)
-	}
-
-	// Extract title from first markdown heading.
-	content := string(data)
-	title := filepath.Base(path)
-
-	for line := range strings.SplitSeq(content, "\n") {
-		if after, ok := strings.CutPrefix(line, "# "); ok {
-			title = after
-
-			break
-		}
-	}
-
-	return promote.SkillContent{
-		Title:   title,
-		Content: content,
-	}, nil
 }
 
 // makeAnthropicCaller returns an LLM caller function backed by the Anthropic API.
@@ -1925,75 +1846,6 @@ func runCorrect(
 	return nil
 }
 
-//nolint:funlen // CLI orchestration: wires DI dependencies for demote pipeline
-func runDemote(args []string, stdout io.Writer, stdin io.Reader) error {
-	fs := flag.NewFlagSet("demote", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	toSkill := fs.Bool("to-skill", false, "demote CLAUDE.md entry to skill")
-	autoConfirm := fs.Bool("yes", false, "skip confirmation prompt")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("demote: %w", parseErr)
-	}
-
-	if *dataDir == "" || !*toSkill {
-		return errDemoteMissingFlags
-	}
-
-	reg := openRegistry(*dataDir)
-	claudeMDPath := filepath.Join(*dataDir, "CLAUDE.md")
-	skillsDir := filepath.Join(*dataDir, "skills")
-
-	confirmer := &cliConfirmer{
-		stdout:      stdout,
-		stdin:       stdin,
-		autoConfirm: *autoConfirm,
-	}
-
-	promoter := &promote.ClaudeMDPromoter{
-		Registry:       reg,
-		SkillGenerator: &templateGenerator{},
-		Editor:         &promote.SectionEditor{},
-		Store:          &osClaudeMDStore{path: claudeMDPath},
-		SkillWriter:    &osSkillWriter{dir: skillsDir},
-		Merger:         reg,
-		Registerer:     reg,
-		Confirmer:      confirmer,
-	}
-
-	candidates, err := promoter.DemotionCandidates()
-	if err != nil {
-		return fmt.Errorf("demote: %w", err)
-	}
-
-	if len(candidates) == 0 {
-		_, _ = fmt.Fprintln(stdout, "[engram] No demotion candidates found.")
-
-		return nil
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] %d candidates for demotion:\n", len(candidates))
-
-	for i, candidate := range candidates {
-		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
-			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
-	}
-
-	for _, candidate := range candidates {
-		demoteErr := promoter.Demote(context.Background(), candidate.Entry.ID)
-		if demoteErr != nil {
-			_, _ = fmt.Fprintf(stdout, "[engram] Error demoting %s: %v\n",
-				candidate.Entry.ID, demoteErr)
-		}
-	}
-
-	return nil
-}
-
 func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 	// Parse data-dir early to wire registry (UC-23).
 	fs := flag.NewFlagSet("evaluate-peek", flag.ContinueOnError)
@@ -2174,159 +2026,6 @@ func runMaintainApply(
 
 	for _, reason := range report.SkipReasons {
 		_, _ = fmt.Fprintf(stdout, "  skipped: %s\n", reason)
-	}
-
-	return nil
-}
-
-func runPromote(args []string, stdout io.Writer, stdin io.Reader) error {
-	fs := flag.NewFlagSet("promote", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	toSkill := fs.Bool("to-skill", false, "promote memory to skill")
-	toClaudeMD := fs.Bool("to-claude-md", false, "promote skill to CLAUDE.md")
-	threshold := fs.Int("threshold", defaultPromoteThreshold, "minimum surfaced_count")
-	autoConfirm := fs.Bool("yes", false, "skip confirmation prompt")
-	content := fs.String("content", "", "pre-generated content (ARCH-78)")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("promote: %w", parseErr)
-	}
-
-	if *dataDir == "" || (!*toSkill && !*toClaudeMD) {
-		return errPromoteMissingFlags
-	}
-
-	reg := openRegistry(*dataDir)
-	confirmer := &cliConfirmer{
-		stdout:      stdout,
-		stdin:       stdin,
-		autoConfirm: *autoConfirm,
-	}
-
-	if *toClaudeMD {
-		return runPromoteToClaudeMD(
-			reg, confirmer, *dataDir, *threshold, stdout,
-			*content, *autoConfirm,
-		)
-	}
-
-	return runPromoteToSkill(
-		reg, confirmer, *dataDir, *threshold, stdout,
-		*content, *autoConfirm,
-	)
-}
-
-func runPromoteToClaudeMD(
-	reg *regpkg.JSONLStore,
-	confirmer *cliConfirmer,
-	dataDir string,
-	threshold int,
-	stdout io.Writer,
-	content string,
-	skipConfirm bool,
-) error {
-	claudeMDPath := filepath.Join(dataDir, "CLAUDE.md")
-	skillsDir := filepath.Join(dataDir, "skills")
-
-	promoter := &promote.ClaudeMDPromoter{
-		Registry:       reg,
-		EntryGenerator: &templateClaudeMDGenerator{},
-		Editor:         &promote.SectionEditor{},
-		Store:          &osClaudeMDStore{path: claudeMDPath},
-		SkillWriter:    &osSkillWriter{dir: skillsDir},
-		Merger:         reg,
-		Registerer:     reg,
-		Confirmer:      confirmer,
-		SkillLoader:    loadSkillContent,
-		Content:        content,
-		SkipConfirm:    skipConfirm,
-	}
-
-	candidates, err := promoter.PromotionCandidates(threshold)
-	if err != nil {
-		return fmt.Errorf("promote: %w", err)
-	}
-
-	if len(candidates) == 0 {
-		_, _ = fmt.Fprintln(stdout, "[engram] No candidates above threshold.")
-
-		return nil
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] %d candidates for CLAUDE.md promotion:\n", len(candidates))
-
-	for i, candidate := range candidates {
-		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
-			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
-	}
-
-	for _, candidate := range candidates {
-		promoteErr := promoter.Promote(context.Background(), candidate.Entry.ID)
-		if promoteErr != nil {
-			_, _ = fmt.Fprintf(stdout, "[engram] Error promoting %s: %v\n",
-				candidate.Entry.ID, promoteErr)
-		}
-	}
-
-	return nil
-}
-
-func runPromoteToSkill(
-	reg *regpkg.JSONLStore,
-	confirmer *cliConfirmer,
-	dataDir string,
-	threshold int,
-	stdout io.Writer,
-	content string,
-	skipConfirm bool,
-) error {
-	retriever := retrieve.New()
-	skillsDir := filepath.Join(dataDir, "skills")
-
-	promoter := &promote.Promoter{
-		Registry:   reg,
-		Generator:  &templateGenerator{},
-		Writer:     &osSkillWriter{dir: skillsDir},
-		Merger:     reg,
-		Remover:    &osMemoryRemover{},
-		Registerer: reg,
-		Confirmer:  confirmer,
-		MemoryLoader: func(path string) (*promote.MemoryContent, error) {
-			return loadMemoryContent(retriever, path)
-		},
-		Content:     content,
-		SkipConfirm: skipConfirm,
-	}
-
-	candidates, err := promoter.Candidates(threshold)
-	if err != nil {
-		return fmt.Errorf("promote: %w", err)
-	}
-
-	if len(candidates) == 0 {
-		_, _ = fmt.Fprintln(stdout, "[engram] No candidates above threshold.")
-
-		return nil
-	}
-
-	_, _ = fmt.Fprintf(stdout,
-		"[engram] %d candidates for promotion:\n", len(candidates))
-
-	for i, candidate := range candidates {
-		_, _ = fmt.Fprintf(stdout, "  %d. %s (surfaced %d times)\n",
-			i+1, candidate.Entry.Title, candidate.Entry.SurfacedCount)
-	}
-
-	for _, candidate := range candidates {
-		promoteErr := promoter.Promote(context.Background(), candidate.Entry.ID)
-		if promoteErr != nil {
-			_, _ = fmt.Fprintf(stdout, "[engram] Error promoting %s: %v\n",
-				candidate.Entry.ID, promoteErr)
-		}
 	}
 
 	return nil

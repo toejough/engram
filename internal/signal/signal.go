@@ -10,11 +10,9 @@ const (
 	KindGraduation       = "graduation"
 	KindHiddenGemBroaden = "hidden_gem_broadening"
 	KindLeechRewrite     = "leech_rewrite"
-	KindMemoryToSkill    = "memory_to_skill"
 	KindNoiseRemoval     = "noise_removal"
 	KindStalenessReview  = "staleness_review"
 	TypeMaintain         = "maintain"
-	TypePromote          = "promote"
 )
 
 // Signal represents a detected maintenance or promotion signal.

@@ -3,7 +3,6 @@ package maintain
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -199,7 +198,7 @@ type GraduationEmitter interface {
 // Returns nil (no-op) if applier is nil.
 func ApplyEscalationProposal(
 	proposal EscalationProposal,
-	content string,
+	_ string,
 	applier EnforcementApplier,
 	emitter GraduationEmitter,
 	now func() time.Time,
@@ -218,44 +217,20 @@ func ApplyEscalationProposal(
 	}
 
 	if EscalationLevel(proposal.ProposedLevel) == LevelGraduated && emitter != nil {
-		recommendation := ClassifyContent(content)
 		detectedAt := time.Now()
 
 		if now != nil {
 			detectedAt = now()
 		}
 
-		_ = emitter.EmitGraduation(proposal.MemoryPath, recommendation, detectedAt)
+		_ = emitter.EmitGraduation(
+			proposal.MemoryPath,
+			"leech-at-top — this memory isn't working despite escalation",
+			detectedAt,
+		)
 	}
 
 	return nil
-}
-
-// ClassifyContent determines the recommended destination for a graduated memory.
-// Returns one of: "settings.json", ".claude/rules/", "skill", "CLAUDE.md".
-func ClassifyContent(content string) string {
-	lower := strings.ToLower(content)
-
-	if containsAny(lower, "linter", "lint", "deny", "eslint", "golangci", "settings", "config") {
-		return "settings.json"
-	}
-
-	if containsAny(
-		lower,
-		"glob pattern",
-		"file glob",
-		"rule file",
-		".claude/rules",
-		"file-scoped",
-	) {
-		return ".claude/rules/"
-	}
-
-	if containsAny(lower, "workflow", "procedure", "step-by-step", "how to", "process", "skill") {
-		return "skill"
-	}
-
-	return "CLAUDE.md"
 }
 
 // MarshalProposal serializes an EscalationProposal to JSON.
@@ -281,17 +256,6 @@ var (
 		LevelGraduated,
 	}
 )
-
-// containsAny reports whether s contains any of the given substrings.
-func containsAny(s string, subs ...string) bool {
-	for _, sub := range subs {
-		if strings.Contains(s, sub) {
-			return true
-		}
-	}
-
-	return false
-}
 
 func nextEscalationLevel(current EscalationLevel) (EscalationLevel, bool) {
 	for idx, level := range escalationLadder {

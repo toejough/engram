@@ -132,8 +132,6 @@ func formatInstructions(enriched []EnrichedSignal) string {
 				"- %s: Recommend broadening keywords (high effectiveness, rarely surfaced)\n",
 				e.SourceID,
 			)
-		case KindMemoryToSkill:
-			fmt.Fprintf(&sb, "- %s: Eligible for promotion to skill\n", e.SourceID)
 		default:
 			fmt.Fprintf(&sb, "- %s: %s\n", e.SourceID, e.Summary)
 		}

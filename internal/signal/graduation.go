@@ -16,7 +16,7 @@ var (
 type GraduationEntry struct {
 	ID             string    `json:"id"`
 	MemoryPath     string    `json:"memory_path"`
-	Recommendation string    `json:"recommendation"` // "settings.json", ".claude/rules/", "skill", "CLAUDE.md"
+	Recommendation string    `json:"recommendation"` // human-readable reason why memory graduated
 	Status         string    `json:"status"`         // "pending", "accepted", "dismissed"
 	DetectedAt     time.Time `json:"detected_at"`
 	ResolvedAt     string    `json:"resolved_at"` // RFC3339 or empty

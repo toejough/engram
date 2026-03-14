@@ -6,7 +6,6 @@ import (
 
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	"engram/internal/promote"
 	regpkg "engram/internal/registry"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -17,8 +16,6 @@ var (
 	ExportBuildEscalationMemories = buildEscalationMemories
 	ExportBuildExtractor          = buildExtractor
 	ExportContentHash             = contentHashForRegistry
-	ExportLoadMemoryContent       = loadMemoryContent
-	ExportLoadSkillContent        = loadSkillContent
 	ExportParseRemindersToml      = parseRemindersToml
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
@@ -27,10 +24,6 @@ var (
 type ExportClassifiedMemory = reviewpkg.ClassifiedMemory
 
 type ExportEscalationMemory = maintain.EscalationMemory
-
-type ExportMemoryContent = promote.MemoryContent
-
-type ExportSkillContent = promote.SkillContent
 
 type ExportStored = memory.Stored
 
@@ -117,14 +110,4 @@ func ExportNewRetriever() *retrieve.Retriever {
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.
 func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
 	return &stdinConfirmer{stdout: stdout, stdin: stdin}
-}
-
-// ExportNewTemplateClaudeMDGenerator creates a templateClaudeMDGenerator for testing.
-func ExportNewTemplateClaudeMDGenerator() *templateClaudeMDGenerator {
-	return &templateClaudeMDGenerator{}
-}
-
-// ExportNewTemplateGenerator creates a templateGenerator for testing.
-func ExportNewTemplateGenerator() *templateGenerator {
-	return &templateGenerator{}
 }

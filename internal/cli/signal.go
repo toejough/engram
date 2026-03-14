@@ -15,7 +15,6 @@ import (
 
 	"engram/internal/effectiveness"
 	"engram/internal/memory"
-	"engram/internal/promote"
 	regpkg "engram/internal/registry"
 	reviewpkg "engram/internal/review"
 	"engram/internal/signal"
@@ -45,55 +44,11 @@ func (c *classifierAdapter) Classify(
 	return reviewpkg.Classify(stats, tracking)
 }
 
-// claudeMDScannerAdapter adapts promote.ClaudeMDPromoter to signal.ClaudeMDScanner.
-type claudeMDScannerAdapter struct {
-	promoter *promote.ClaudeMDPromoter
-}
-
-func (c *claudeMDScannerAdapter) DemotionCandidates() ([]promote.Candidate, error) {
-	candidates, err := c.promoter.DemotionCandidates()
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]promote.Candidate, 0, len(candidates))
-
-	for _, candidate := range candidates {
-		result = append(result, promote.Candidate(candidate))
-	}
-
-	return result, nil
-}
-
-func (c *claudeMDScannerAdapter) PromotionCandidates(threshold int) ([]promote.Candidate, error) {
-	candidates, err := c.promoter.PromotionCandidates(threshold)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]promote.Candidate, 0, len(candidates))
-
-	for _, candidate := range candidates {
-		result = append(result, promote.Candidate(candidate))
-	}
-
-	return result, nil
-}
-
 // memoryStoredLoader adapts file-based TOML reading to signal.MemoryLoader.
 type memoryStoredLoader struct{}
 
 func (l *memoryStoredLoader) Load(path string) (*memory.Stored, error) {
 	return readStoredMemory(path)
-}
-
-// promotionScannerAdapter adapts promote.Promoter to signal.PromotionScanner.
-type promotionScannerAdapter struct {
-	promoter *promote.Promoter
-}
-
-func (p *promotionScannerAdapter) Candidates(threshold int) ([]promote.Candidate, error) {
-	return p.promoter.Candidates(threshold)
 }
 
 // registryUpdaterAdapter adapts regpkg.JSONLStore to signal.RegistryUpdater.
@@ -302,8 +257,6 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 }
 
 // runSignalDetect implements the signal-detect subcommand (UC-28 Phase C).
-//
-//nolint:funlen // CLI flag parsing and DI wiring
 func runSignalDetect(args []string) error {
 	fs := flag.NewFlagSet("signal-detect", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -328,18 +281,8 @@ func runSignalDetect(args []string) error {
 
 	tracking := buildTrackingMap(*dataDir)
 
-	reg := openRegistry(*dataDir)
-
-	promScanner := &promotionScannerAdapter{
-		promoter: &promote.Promoter{Registry: reg},
-	}
-
-	claudeMDPromoter := &promote.ClaudeMDPromoter{Registry: reg}
-
 	detector := signal.NewDetector(
 		signal.WithClassifier(&classifierAdapter{}),
-		signal.WithPromoter(promScanner),
-		signal.WithClaudeMDScanner(&claudeMDScannerAdapter{promoter: claudeMDPromoter}),
 	)
 
 	ctx := context.Background()
