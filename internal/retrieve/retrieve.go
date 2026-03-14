@@ -82,27 +82,26 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 	}
 
 	return &memory.Stored{
-		Title:       record.Title,
-		Content:     record.Content,
-		Concepts:    record.Concepts,
-		Keywords:    record.Keywords,
-		AntiPattern: record.AntiPattern,
-		Principle:   record.Principle,
-		UpdatedAt:   updatedAt,
-		FilePath:    filePath,
+		Title:         record.Title,
+		Content:       record.Content,
+		Concepts:      record.Concepts,
+		Keywords:      record.Keywords,
+		AntiPattern:   record.AntiPattern,
+		Principle:     record.Principle,
+		SurfacedCount: record.SurfacedCount,
+		UpdatedAt:     updatedAt,
+		FilePath:      filePath,
 	}, nil
 }
 
 // tomlRecord mirrors the on-disk TOML format for reading.
-// Effectiveness fields (surfaced_count, last_surfaced, etc.) are no longer read;
-// they are tracked in the instruction registry (UC-23). Old TOMLs with these
-// fields parse fine — BurntSushi/toml ignores unknown keys.
 type tomlRecord struct {
-	Title       string   `toml:"title"`
-	Content     string   `toml:"content"`
-	Concepts    []string `toml:"concepts"`
-	Keywords    []string `toml:"keywords"`
-	AntiPattern string   `toml:"anti_pattern"`
-	Principle   string   `toml:"principle"`
-	UpdatedAt   string   `toml:"updated_at"`
+	Title         string   `toml:"title"`
+	Content       string   `toml:"content"`
+	Concepts      []string `toml:"concepts"`
+	Keywords      []string `toml:"keywords"`
+	AntiPattern   string   `toml:"anti_pattern"`
+	Principle     string   `toml:"principle"`
+	SurfacedCount int      `toml:"surfaced_count"`
+	UpdatedAt     string   `toml:"updated_at"`
 }

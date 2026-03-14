@@ -2044,25 +2044,32 @@ func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
 		return
 	}
 
-	// Only noise proposal should appear; leech requires LLM.
+	// No Hidden Gem proposals should appear without API key.
 	for _, proposal := range proposals {
-		g.Expect(proposal["quadrant"]).NotTo(Equal("Leech"),
-			"leech proposals should be absent without API key")
 		g.Expect(proposal["quadrant"]).NotTo(Equal("Hidden Gem"),
 			"hidden gem proposals absent without API key")
 	}
 
-	// Both memories classify as Noise since tracking data (surfaced_count) is
-	// no longer read from TOMLs — it's managed by the instruction registry (UC-23).
+	// Leech LLM rewrite proposals require API key, but escalation proposals
+	// are mechanical and appear regardless. Noise proposals always appear.
 	noiseCount := 0
+	leechCount := 0
 
 	for _, proposal := range proposals {
-		if proposal["quadrant"] == "Noise" {
+		switch proposal["quadrant"] {
+		case "Noise":
 			noiseCount++
+		case "Leech":
+			leechCount++
+			// Escalation proposals have action prefixed with "escalation_".
+			action, _ := proposal["action"].(string)
+			g.Expect(action).To(HavePrefix("escalation_"),
+				"leech proposals without API key should only be escalations")
 		}
 	}
 
-	g.Expect(noiseCount).To(Equal(2))
+	g.Expect(noiseCount).To(Equal(1), "noise-mem should classify as Noise")
+	g.Expect(leechCount).To(BeNumerically(">=", 1), "leech-mem should produce escalation proposals")
 }
 
 // T-18: correct subcommand with no API key returns error

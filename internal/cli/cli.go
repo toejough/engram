@@ -1283,7 +1283,9 @@ func buildTrackingMap(dataDir string) map[string]reviewpkg.TrackingData {
 	tracking := make(map[string]reviewpkg.TrackingData, len(memories))
 
 	for _, mem := range memories {
-		tracking[mem.FilePath] = reviewpkg.TrackingData{}
+		tracking[mem.FilePath] = reviewpkg.TrackingData{
+			SurfacedCount: mem.SurfacedCount,
+		}
 	}
 
 	return tracking

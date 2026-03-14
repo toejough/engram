@@ -153,23 +153,25 @@ type storedMemoryWriter struct {
 
 func (w *storedMemoryWriter) Write(path string, stored *memory.Stored) error {
 	type writeRecord struct {
-		Title       string   `toml:"title"`
-		Content     string   `toml:"content"`
-		Concepts    []string `toml:"concepts"`
-		Keywords    []string `toml:"keywords"`
-		AntiPattern string   `toml:"anti_pattern"`
-		Principle   string   `toml:"principle"`
-		UpdatedAt   string   `toml:"updated_at"`
+		Title         string   `toml:"title"`
+		Content       string   `toml:"content"`
+		Concepts      []string `toml:"concepts"`
+		Keywords      []string `toml:"keywords"`
+		AntiPattern   string   `toml:"anti_pattern"`
+		Principle     string   `toml:"principle"`
+		SurfacedCount int      `toml:"surfaced_count"`
+		UpdatedAt     string   `toml:"updated_at"`
 	}
 
 	record := writeRecord{
-		Title:       stored.Title,
-		Content:     stored.Content,
-		Concepts:    stored.Concepts,
-		Keywords:    stored.Keywords,
-		AntiPattern: stored.AntiPattern,
-		Principle:   stored.Principle,
-		UpdatedAt:   time.Now().UTC().Format(time.RFC3339),
+		Title:         stored.Title,
+		Content:       stored.Content,
+		Concepts:      stored.Concepts,
+		Keywords:      stored.Keywords,
+		AntiPattern:   stored.AntiPattern,
+		Principle:     stored.Principle,
+		SurfacedCount: stored.SurfacedCount,
+		UpdatedAt:     time.Now().UTC().Format(time.RFC3339),
 	}
 
 	tmpFile, err := w.createTemp(filepath.Dir(path), "engram-mem-*.toml")
@@ -239,13 +241,14 @@ func newStoredMemoryWriter() *storedMemoryWriter {
 // readStoredMemory reads a memory TOML file into a memory.Stored.
 func readStoredMemory(path string) (*memory.Stored, error) {
 	type readRecord struct {
-		Title       string   `toml:"title"`
-		Content     string   `toml:"content"`
-		Concepts    []string `toml:"concepts"`
-		Keywords    []string `toml:"keywords"`
-		AntiPattern string   `toml:"anti_pattern"`
-		Principle   string   `toml:"principle"`
-		UpdatedAt   string   `toml:"updated_at"`
+		Title         string   `toml:"title"`
+		Content       string   `toml:"content"`
+		Concepts      []string `toml:"concepts"`
+		Keywords      []string `toml:"keywords"`
+		AntiPattern   string   `toml:"anti_pattern"`
+		Principle     string   `toml:"principle"`
+		SurfacedCount int      `toml:"surfaced_count"`
+		UpdatedAt     string   `toml:"updated_at"`
 	}
 
 	data, err := os.ReadFile(path) //nolint:gosec // path is from trusted flag/internal source
@@ -261,13 +264,14 @@ func readStoredMemory(path string) (*memory.Stored, error) {
 	}
 
 	return &memory.Stored{
-		Title:       record.Title,
-		Content:     record.Content,
-		Concepts:    record.Concepts,
-		Keywords:    record.Keywords,
-		AntiPattern: record.AntiPattern,
-		Principle:   record.Principle,
-		FilePath:    path,
+		Title:         record.Title,
+		Content:       record.Content,
+		Concepts:      record.Concepts,
+		Keywords:      record.Keywords,
+		AntiPattern:   record.AntiPattern,
+		Principle:     record.Principle,
+		SurfacedCount: record.SurfacedCount,
+		FilePath:      path,
 	}, nil
 }
 
