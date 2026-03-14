@@ -209,6 +209,19 @@ func errNew(s string) error {
 	return fmt.Errorf("%s", s) //nolint:err113 // package-level sentinel via fmt.Errorf
 }
 
+func filterExistingSignals(signals []signal.Signal) []signal.Signal {
+	existing := make([]signal.Signal, 0, len(signals))
+
+	for _, sig := range signals {
+		_, statErr := os.Stat(sig.SourceID)
+		if statErr == nil {
+			existing = append(existing, sig)
+		}
+	}
+
+	return existing
+}
+
 func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
 	if len(absorbed.Principle) > len(survivor.Principle) {
 		survivor.Principle = absorbed.Principle
@@ -399,11 +412,13 @@ func runSignalDetect(args []string) error {
 		return fmt.Errorf("signal-detect: pruning queue: %w", pruneErr)
 	}
 
-	if len(detected) == 0 {
+	existing := filterExistingSignals(detected)
+
+	if len(existing) == 0 {
 		return nil
 	}
 
-	appendErr := store.Append(detected, queuePath)
+	appendErr := store.Append(existing, queuePath)
 	if appendErr != nil {
 		return fmt.Errorf("signal-detect: appending to queue: %w", appendErr)
 	}

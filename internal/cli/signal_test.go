@@ -476,6 +476,83 @@ func TestRunSignalDetect_EmptyDataDir(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+func TestRunSignalDetect_FiltersDeletedMemories(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	evalDir := filepath.Join(dataDir, "evaluations")
+	err := os.MkdirAll(evalDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	err = os.MkdirAll(filepath.Join(dataDir, "memories"), 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write 5 "ignored" evaluations for a memory file that does NOT exist.
+	// This triggers Noise classification (low effectiveness, low surfacing).
+	var evalBuf bytes.Buffer
+
+	deletedPath := filepath.Join(dataDir, "memories", "deleted.toml")
+
+	for range 5 {
+		entry := map[string]any{
+			"memory_path":  deletedPath,
+			"outcome":      "ignored",
+			"evidence":     "no evidence",
+			"evaluated_at": time.Now().Format(time.RFC3339),
+		}
+
+		data, marshalErr := json.Marshal(entry)
+		g.Expect(marshalErr).NotTo(HaveOccurred())
+
+		if marshalErr != nil {
+			return
+		}
+
+		evalBuf.Write(data)
+		evalBuf.WriteByte('\n')
+	}
+
+	evalFile := filepath.Join(evalDir, "test-eval.jsonl")
+	err = os.WriteFile(evalFile, evalBuf.Bytes(), 0o600)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Run signal-detect — classifier will emit a signal for deleted.toml,
+	// but the file-existence filter should prevent it from being queued.
+	err = runSignalDetect([]string{"--data-dir", dataDir})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Verify the queue is empty (deleted file's signal was filtered out).
+	queuePath := filepath.Join(dataDir, signalQueueFilename)
+	store := signal.NewQueueStore()
+
+	signals, readErr := store.Read(queuePath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(signals).To(BeEmpty(), "signals for deleted files should be filtered out")
+}
+
 func TestRunSignalDetect_InvalidFlag(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
