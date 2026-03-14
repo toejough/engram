@@ -10,9 +10,40 @@ import (
 
 	. "github.com/onsi/gomega"
 
+	"engram/internal/effectiveness"
 	"engram/internal/memory"
 	"engram/internal/signal"
 )
+
+func TestEffectivenessReaderAdapter_Found(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	adapter := &effectivenessReaderAdapter{
+		stats: map[string]effectiveness.Stat{
+			"memories/test.toml": {EffectivenessScore: 0.75},
+		},
+	}
+
+	score, hasData, err := adapter.EffectivenessScore("memories/test.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(hasData).To(BeTrue())
+	g.Expect(score).To(Equal(0.75))
+}
+
+func TestEffectivenessReaderAdapter_NotFound(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	adapter := &effectivenessReaderAdapter{
+		stats: map[string]effectiveness.Stat{},
+	}
+
+	score, hasData, err := adapter.EffectivenessScore("nonexistent.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(hasData).To(BeFalse())
+	g.Expect(score).To(Equal(0.0))
+}
 
 func TestReadStoredMemory_DecodeError(t *testing.T) {
 	t.Parallel()
@@ -323,6 +354,101 @@ func TestRunSignalDetect_AggregateError(t *testing.T) {
 	err := runSignalDetect([]string{"--data-dir", dataDir})
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(ContainSubstring("aggregating effectiveness")))
+}
+
+func TestRunSignalDetect_ConsolidatesDuplicates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	err := os.MkdirAll(filepath.Join(dataDir, "evaluations"), 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	memoriesDir := filepath.Join(dataDir, "memories")
+	err = os.MkdirAll(memoriesDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Two memories with >50% keyword overlap — should be consolidated.
+	memA := filepath.Join(memoriesDir, "dup-a.toml")
+	memB := filepath.Join(memoriesDir, "dup-b.toml")
+
+	tomlA := `title = "Use targ check-full"
+content = "Run targ check-full for all checks"
+concepts = ["build"]
+keywords = ["targ", "check", "full", "lint", "build"]
+anti_pattern = ""
+principle = "Always use targ check-full"
+updated_at = "2024-01-01T00:00:00Z"
+`
+	tomlB := `title = "Targ comprehensive validation"
+content = "Targ check-full runs all validation"
+concepts = ["validation"]
+keywords = ["targ", "check", "full", "validation", "errors"]
+anti_pattern = ""
+principle = "Use targ check-full to get ALL errors at once"
+updated_at = "2024-01-02T00:00:00Z"
+`
+
+	writeErr := os.WriteFile(memA, []byte(tomlA), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	writeErr = os.WriteFile(memB, []byte(tomlB), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	err = runSignalDetect([]string{"--data-dir", dataDir})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// After consolidation, one memory should be removed (absorbed).
+	entries, readErr := os.ReadDir(memoriesDir)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	tomlCount := 0
+	survivorName := ""
+
+	for _, entry := range entries {
+		if filepath.Ext(entry.Name()) == ".toml" {
+			tomlCount++
+			survivorName = entry.Name()
+		}
+	}
+
+	g.Expect(tomlCount).To(Equal(1), "one memory should remain after consolidation")
+
+	survivorPath := filepath.Join(memoriesDir, survivorName)
+	survivor, loadErr := readStoredMemory(survivorPath)
+	g.Expect(loadErr).NotTo(HaveOccurred())
+
+	if loadErr != nil {
+		return
+	}
+
+	// Should have unioned keywords from both memories.
+	g.Expect(len(survivor.Keywords)).To(BeNumerically(">=", 6))
 }
 
 func TestRunSignalDetect_EmptyDataDir(t *testing.T) {

@@ -16,6 +16,7 @@ import (
 	"engram/internal/effectiveness"
 	"engram/internal/memory"
 	regpkg "engram/internal/registry"
+	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
 	"engram/internal/signal"
 )
@@ -42,6 +43,64 @@ func (c *classifierAdapter) Classify(
 	tracking map[string]reviewpkg.TrackingData,
 ) []reviewpkg.ClassifiedMemory {
 	return reviewpkg.Classify(stats, tracking)
+}
+
+// effectivenessReaderAdapter wraps a pre-computed stats map for the Consolidator.
+type effectivenessReaderAdapter struct {
+	stats map[string]effectiveness.Stat
+}
+
+func (e *effectivenessReaderAdapter) EffectivenessScore(
+	path string,
+) (float64, bool, error) {
+	stat, ok := e.stats[path]
+	if !ok {
+		return 0, false, nil
+	}
+
+	return stat.EffectivenessScore, true, nil
+}
+
+// fileMergeExecutor merges two memories on disk (UC-34 / REQ-133 fallback).
+type fileMergeExecutor struct {
+	writer *storedMemoryWriter
+	remove func(string) error
+}
+
+func (f *fileMergeExecutor) Merge(
+	_ context.Context,
+	survivor, absorbed *memory.Stored,
+) error {
+	unionKeywords(survivor, absorbed)
+	unionConcepts(survivor, absorbed)
+	keepLongerPrinciple(survivor, absorbed)
+
+	writeErr := f.writer.Write(survivor.FilePath, survivor)
+	if writeErr != nil {
+		return fmt.Errorf("writing survivor: %w", writeErr)
+	}
+
+	removeErr := f.remove(absorbed.FilePath)
+	if removeErr != nil {
+		return fmt.Errorf("removing absorbed: %w", removeErr)
+	}
+
+	return nil
+}
+
+// memoryListerAdapter wraps retrieve.Retriever for the Consolidator.
+type memoryListerAdapter struct {
+	retriever *retrieve.Retriever
+	dataDir   string
+}
+
+func (m *memoryListerAdapter) ListAll(ctx context.Context) ([]*memory.Stored, error) {
+	memories, err := m.retriever.ListMemories(ctx, m.dataDir)
+	if err != nil {
+		return nil, fmt.Errorf("listing memories: %w", err)
+	}
+
+	return memories, nil
 }
 
 // memoryStoredLoader adapts file-based TOML reading to signal.MemoryLoader.
@@ -148,6 +207,12 @@ func (w *storedMemoryWriter) Write(path string, stored *memory.Stored) error {
 
 func errNew(s string) error {
 	return fmt.Errorf("%s", s) //nolint:err113 // package-level sentinel via fmt.Errorf
+}
+
+func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
+	if len(absorbed.Principle) > len(survivor.Principle) {
+		survivor.Principle = absorbed.Principle
+	}
 }
 
 func newStoredMemoryWriter() *storedMemoryWriter {
@@ -273,6 +338,8 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 }
 
 // runSignalDetect implements the signal-detect subcommand (UC-28 Phase C).
+//
+//nolint:funlen // CLI flag parsing and DI wiring
 func runSignalDetect(args []string) error {
 	fs := flag.NewFlagSet("signal-detect", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -295,13 +362,32 @@ func runSignalDetect(args []string) error {
 		return fmt.Errorf("signal-detect: aggregating effectiveness: %w", err)
 	}
 
+	ctx := context.Background()
+
+	// UC-34: consolidate duplicates before classification.
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(&memoryListerAdapter{
+			retriever: retrieve.New(),
+			dataDir:   *dataDir,
+		}),
+		signal.WithMerger(&fileMergeExecutor{
+			writer: newStoredMemoryWriter(),
+			remove: os.Remove,
+		}),
+		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
+		signal.WithStderr(os.Stderr),
+	)
+
+	_, consolidateErr := consolidator.Consolidate(ctx)
+	if consolidateErr != nil {
+		return fmt.Errorf("signal-detect: consolidating: %w", consolidateErr)
+	}
+
 	tracking := buildTrackingMap(*dataDir)
 
 	detector := signal.NewDetector(
 		signal.WithClassifier(&classifierAdapter{}),
 	)
-
-	ctx := context.Background()
 
 	detected, detectErr := detector.Detect(ctx, stats, tracking)
 	if detectErr != nil {
@@ -397,4 +483,34 @@ func runSignalSurface(args []string, stdout io.Writer) error {
 	_, _ = fmt.Fprint(stdout, context)
 
 	return nil
+}
+
+func unionConcepts(survivor, absorbed *memory.Stored) {
+	existing := make(map[string]struct{}, len(survivor.Concepts))
+
+	for _, concept := range survivor.Concepts {
+		existing[strings.ToLower(concept)] = struct{}{}
+	}
+
+	for _, concept := range absorbed.Concepts {
+		if _, ok := existing[strings.ToLower(concept)]; !ok {
+			survivor.Concepts = append(survivor.Concepts, concept)
+			existing[strings.ToLower(concept)] = struct{}{}
+		}
+	}
+}
+
+func unionKeywords(survivor, absorbed *memory.Stored) {
+	existing := make(map[string]struct{}, len(survivor.Keywords))
+
+	for _, keyword := range survivor.Keywords {
+		existing[strings.ToLower(keyword)] = struct{}{}
+	}
+
+	for _, keyword := range absorbed.Keywords {
+		if _, ok := existing[strings.ToLower(keyword)]; !ok {
+			survivor.Keywords = append(survivor.Keywords, keyword)
+			existing[strings.ToLower(keyword)] = struct{}{}
+		}
+	}
 }
