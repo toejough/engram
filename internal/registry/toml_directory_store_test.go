@@ -181,6 +181,74 @@ func TestT240_TOMLDirectoryStore_RecordEvaluation(t *testing.T) {
 	g.Expect(got.Evaluations.Ignored).To(Equal(2))
 }
 
+// --- RecordEvaluation: Contradicted and Ignored branches ---
+
+func TestT240b_TOMLDirectoryStore_RecordEvaluationContradicted(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/eval-c.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Eval Contradicted",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.RecordEvaluation("memories/eval-c.toml", registry.Contradicted)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/eval-c.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Evaluations.Contradicted).To(Equal(1))
+}
+
+func TestT240c_TOMLDirectoryStore_RecordEvaluationIgnored(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/eval-i.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Eval Ignored",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.RecordEvaluation("memories/eval-i.toml", registry.Ignored)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/eval-i.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Evaluations.Ignored).To(Equal(1))
+}
+
 // --- T-241: List scans directory, returns all entries ---
 
 func TestT241_TOMLDirectoryStore_List(t *testing.T) {
@@ -403,6 +471,53 @@ func TestT244b_TOMLDirectoryStore_MergeNotFound(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 
 	err = store.Merge("memories/missing.toml", "memories/only.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrMergeNotFound)).To(BeTrue())
+}
+
+// --- Merge: non-memory source type rejection ---
+
+func TestT244c_TOMLDirectoryStore_MergeRejectsNonMemorySource(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	// Create a source with non-memory source_type via raw TOML.
+	mfs.setFile("/testdata/memories/skill-src.toml", []byte(
+		"title = \"Skill Source\"\nsource_type = \"skill\"\n",
+	))
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/target.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Target",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.Merge("memories/skill-src.toml", "memories/target.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.Is(err, registry.ErrMergeSourceType)).To(BeTrue())
+}
+
+// --- Merge: target not found ---
+
+func TestT244d_TOMLDirectoryStore_MergeTargetNotFound(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/source.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Source",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.Merge("memories/source.toml", "memories/no-target.toml")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, registry.ErrMergeNotFound)).To(BeTrue())
 }
@@ -632,6 +747,101 @@ func TestT248_TOMLDirectoryStore_AtomicWriteFailedRename(t *testing.T) {
 	g.Expect(readErr).To(HaveOccurred())
 }
 
+// --- Register with full fields exercises entryToRecord, entryAbsorbedToRecord,
+// entryTransitionsToRecord ---
+
+func TestTOMLDirectoryStore_RegisterWithFullFields(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	regTime := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+	updTime := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	surfTime := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
+	mergeTime := time.Date(2026, 2, 20, 0, 0, 0, 0, time.UTC)
+	transTime := time.Date(2026, 2, 25, 0, 0, 0, 0, time.UTC)
+
+	entry := registry.InstructionEntry{
+		ID:               "memories/full.toml",
+		SourceType:       registry.SourceTypeMemory,
+		Title:            "Full Fields",
+		Content:          "Test content",
+		ContentHash:      "sha256:full",
+		SurfacedCount:    20,
+		RegisteredAt:     regTime,
+		UpdatedAt:        updTime,
+		LastSurfaced:     &surfTime,
+		EnforcementLevel: registry.EnforcementEmphasizedAdvisory,
+		Evaluations: registry.EvaluationCounters{
+			Followed: 15, Contradicted: 3, Ignored: 2,
+		},
+		Links: []registry.Link{
+			{Target: "memories/related.toml", Weight: 0.9, Basis: "co-surfacing"},
+		},
+		Absorbed: []registry.AbsorbedRecord{
+			{
+				From:          "memories/old.toml",
+				SurfacedCount: 5,
+				ContentHash:   "sha256:old",
+				MergedAt:      mergeTime,
+				Evaluations: registry.EvaluationCounters{
+					Followed: 4, Contradicted: 1, Ignored: 0,
+				},
+			},
+		},
+		Transitions: []registry.EnforcementTransition{
+			{
+				From:   registry.EnforcementAdvisory,
+				To:     registry.EnforcementEmphasizedAdvisory,
+				At:     transTime,
+				Reason: "low effectiveness",
+			},
+		},
+	}
+
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/full.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	// Verify all fields round-tripped.
+	g.Expect(got.Title).To(Equal("Full Fields"))
+	g.Expect(got.SurfacedCount).To(Equal(20))
+	g.Expect(got.LastSurfaced).NotTo(BeNil())
+	g.Expect(got.RegisteredAt).To(Equal(regTime))
+	g.Expect(got.UpdatedAt).To(Equal(updTime))
+	g.Expect(got.EnforcementLevel).To(
+		Equal(registry.EnforcementEmphasizedAdvisory),
+	)
+	g.Expect(got.Links).To(HaveLen(1))
+	g.Expect(got.Links[0].Target).To(Equal("memories/related.toml"))
+	g.Expect(got.Absorbed).To(HaveLen(1))
+	g.Expect(got.Absorbed[0].From).To(Equal("memories/old.toml"))
+	g.Expect(got.Absorbed[0].SurfacedCount).To(Equal(5))
+	g.Expect(got.Absorbed[0].MergedAt).To(Equal(mergeTime))
+	g.Expect(got.Transitions).To(HaveLen(1))
+	g.Expect(got.Transitions[0].From).To(
+		Equal(registry.EnforcementAdvisory),
+	)
+	g.Expect(got.Transitions[0].To).To(
+		Equal(registry.EnforcementEmphasizedAdvisory),
+	)
+	g.Expect(got.Transitions[0].At).To(Equal(transTime))
+}
+
 // --- SetEnforcementLevel ---
 
 func TestTOMLDirectoryStore_SetEnforcementLevel(t *testing.T) {
@@ -719,6 +929,48 @@ func TestTOMLDirectoryStore_UpdateLinks(t *testing.T) {
 	g.Expect(got.Links[0].Target).To(Equal("memories/other.toml"))
 	g.Expect(got.Links[0].Weight).To(Equal(0.8))
 	g.Expect(got.Links[0].CoSurfacingCount).To(Equal(5))
+}
+
+// --- UpdateLinks: empty links clears ---
+
+func TestTOMLDirectoryStore_UpdateLinksEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/clearlinks.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Clear Links",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// First set some links.
+	err = store.UpdateLinks("memories/clearlinks.toml", []registry.Link{
+		{Target: "memories/x.toml", Weight: 0.5, Basis: "test"},
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Clear them with empty slice.
+	err = store.UpdateLinks("memories/clearlinks.toml", nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/clearlinks.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Links).To(BeEmpty())
 }
 
 // unexported variables.

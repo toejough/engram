@@ -1329,6 +1329,49 @@ func TestRunInstructAudit_MissingFlags(t *testing.T) {
 	}
 }
 
+// runRegistry migrate: missing --data-dir returns error.
+func TestRunRegistryMigrate_MissingFlags(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "registry", "migrate"},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+	}
+}
+
+// runRegistry migrate: with valid data-dir and no JSONL file succeeds (idempotent).
+func TestRunRegistryMigrate_NoJSONL(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o750)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "registry", "migrate",
+			"--data-dir", dataDir,
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // runRegistryRegisterSource: dispatched via Run.
 func TestRunRegistryRegisterSource_ViaRun(t *testing.T) {
 	t.Parallel()

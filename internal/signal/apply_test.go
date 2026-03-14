@@ -149,7 +149,9 @@ func TestApply_EscalateGraduatedEmitsGraduation(t *testing.T) {
 	g.Expect(result.Success).To(gomega.BeTrue())
 	g.Expect(gradEmitter.calls).To(gomega.HaveLen(1))
 	g.Expect(gradEmitter.calls[0].memoryPath).To(gomega.Equal("memories/problem.toml"))
-	g.Expect(gradEmitter.calls[0].recommendation).To(gomega.Equal("settings.json"))
+
+	expectedRec := "leech-at-top — this memory isn't working despite escalation"
+	g.Expect(gradEmitter.calls[0].recommendation).To(gomega.Equal(expectedRec))
 }
 
 func TestApply_EscalateNilApplierNoOp(t *testing.T) {

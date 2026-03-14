@@ -2,6 +2,7 @@ package migrate_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -75,6 +76,124 @@ func TestMigrator_DryRun(t *testing.T) {
 	out := strings.ToLower(output.String())
 	g.Expect(out).To(gomega.ContainSubstring("dry-run"))
 	g.Expect(out).To(gomega.ContainSubstring("mem-a.toml"))
+}
+
+// mergeIntoTOML error path: write failure propagates.
+func TestMigrator_MergeIntoTOML_WriteError(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	fixedTime := time.Date(2026, 3, 10, 14, 30, 0, 0, time.UTC)
+
+	lines := []string{
+		jsonlLine(t, "memory", "memories/mem-a.toml", 5, 3, 1, 1, fixedTime, nil),
+	}
+	jsonlContent := strings.Join(lines, "\n") + "\n"
+
+	writeErr := errors.New("disk full")
+
+	migrator := migrate.New(
+		migrate.WithReadFile(func(name string) ([]byte, error) {
+			if strings.HasSuffix(name, "instruction-registry.jsonl") {
+				return []byte(jsonlContent), nil
+			}
+
+			return []byte("title = \"Test\"\n"), nil
+		}),
+		migrate.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error {
+			return writeErr
+		}),
+		migrate.WithRenameFile(func(_, _ string) error { return nil }),
+		migrate.WithStat(func(_ string) (os.FileInfo, error) {
+			return fakeFileInfo{}, nil
+		}),
+		migrate.WithRemove(func(_ string) error { return nil }),
+		migrate.WithStdout(io.Discard),
+	)
+
+	err := migrator.Run(
+		"/data/instruction-registry.jsonl", "/data/memories", false,
+	)
+	g.Expect(err).To(gomega.HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(gomega.ContainSubstring("disk full"))
+	}
+}
+
+// T-252 supplement: migration with links exercises buildUpdates links branch.
+func TestMigrator_MergesLinksIntoTOMLs(t *testing.T) {
+	t.Parallel()
+
+	g := gomega.NewWithT(t)
+
+	fixedTime := time.Date(2026, 3, 10, 14, 30, 0, 0, time.UTC)
+
+	entry := map[string]any{
+		"id":             "memory:mem-links.toml",
+		"source_type":    "memory",
+		"source_path":    "memories/mem-links.toml",
+		"title":          "Test",
+		"content_hash":   "abc123",
+		"registered_at":  "2026-01-15T00:00:00Z",
+		"updated_at":     "2026-01-15T00:00:00Z",
+		"surfaced_count": 5,
+		"last_surfaced":  fixedTime.Format(time.RFC3339),
+		"evaluations": map[string]any{
+			"followed": 3, "contradicted": 1, "ignored": 1,
+		},
+		"enforcement_level": "advisory",
+		"links": []map[string]any{
+			{"target": "memories/other.toml", "weight": 0.8, "basis": "co-surfacing"},
+		},
+	}
+
+	data, marshalErr := json.Marshal(entry)
+	if marshalErr != nil {
+		t.Fatalf("marshal failed: %v", marshalErr)
+	}
+
+	jsonlContent := string(data) + "\n"
+
+	const baseToml = "title = \"Test Memory\"\ncontent = \"Some content\"\n"
+
+	var lastWrittenData []byte
+
+	migrator := migrate.New(
+		migrate.WithReadFile(func(name string) ([]byte, error) {
+			if strings.HasSuffix(name, "instruction-registry.jsonl") {
+				return []byte(jsonlContent), nil
+			}
+
+			return []byte(baseToml), nil
+		}),
+		migrate.WithWriteFile(func(_ string, written []byte, _ os.FileMode) error {
+			lastWrittenData = written
+
+			return nil
+		}),
+		migrate.WithRenameFile(func(_, _ string) error { return nil }),
+		migrate.WithStat(func(_ string) (os.FileInfo, error) {
+			return fakeFileInfo{}, nil
+		}),
+		migrate.WithRemove(func(_ string) error { return nil }),
+		migrate.WithStdout(io.Discard),
+	)
+
+	err := migrator.Run(
+		"/data/instruction-registry.jsonl", "/data/memories", false,
+	)
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	content := string(lastWrittenData)
+	g.Expect(content).To(gomega.ContainSubstring("target"))
+	g.Expect(content).To(gomega.ContainSubstring("other.toml"))
+	g.Expect(content).To(gomega.ContainSubstring("co-surfacing"))
 }
 
 // T-251: Migration merges JSONL metrics into 3 matching TOMLs, deletes JSONL.

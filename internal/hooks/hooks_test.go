@@ -348,8 +348,8 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 	// Must call surface with --mode session-start --format json.
 	g.Expect(script).To(ContainSubstring("--mode session-start"))
 	g.Expect(script).To(ContainSubstring("--format json"))
-	// Must reshape so summary goes to systemMessage.
-	g.Expect(script).To(ContainSubstring("systemMessage: .summary"))
+	// Must reshape so summary goes to systemMessage via jq --arg.
+	g.Expect(script).To(ContainSubstring("{systemMessage: $sys"))
 	g.Expect(script).To(ContainSubstring("additionalContext:"))
 }
 
