@@ -970,17 +970,25 @@ dirty = true
 dirty_source = "L2N (parent dirty from UC-23 rewrite)"
 history = "Converges UC-23 L2 into 10 ARCH items: storage model (JSONL), ID format, signal computation, content hash, absorbed history, concurrent writes, backfill strategy, quadrant classification, DI boundary, CLI integration. Issue #218: dirty — storage model changes from JSONL to TOML-embedded."
 
-[tree.L4N]
+[tree.L4N-G1]
 layer = "L3"
-name = "Registry test list"
-items = ["T-182", "T-183", "T-184", "T-185", "T-186", "T-187", "T-188", "T-189", "T-190", "T-191", "T-192", "T-193", "T-194", "T-195", "T-196", "T-197", "T-198", "T-199", "T-200"]
+name = "TOMLDirectoryStore + Cleanup tests"
+items = ["T-238", "T-239", "T-240", "T-241", "T-242", "T-243", "T-244", "T-245", "T-246", "T-247", "T-248", "T-249", "T-250"]
 parents = ["L3N"]
 body_hash = ""
 merkle_hash = ""
-status = "in_progress"
-dirty = true
-dirty_source = "L3N (parent dirty from ARCH changes)"
-history = "19 BDD tests covering all 10 ARCH items: bounded growth, ID format, signal computation, content hash, merges, concurrency, backfill, quadrants, DI, CLI subcommands, hook auto-integration. Issue #218: dirty — test list needs update for TOML-backed store."
+status = "pending"
+history = "Issue #218 Group 1: 13 tests covering TOML-backed store, per-file locking, atomic writes, cleanup, classification."
+
+[tree.L4N-G2]
+layer = "L3"
+name = "Migration tests"
+items = ["T-251", "T-252", "T-253", "T-254", "T-255", "T-256"]
+parents = ["L3N"]
+body_hash = ""
+merkle_hash = ""
+status = "pending"
+history = "Issue #218 Group 2: 6 tests covering JSONL→TOML migration, skip non-memory, idempotent, dry-run, absorbed history."
 
 [tree.L5P1]
 layer = "L4"
@@ -1421,9 +1429,9 @@ status = "complete"
 history = "ModePreCompact + Budget in Options (surface.go). runPreCompact: filter >= 40%, sort desc, top-5, budget trim, format header + principles. DefaultPreCompactBudget = 500, BudgetConfig.PreCompact, ForMode case. --budget flag wired in runSurface (cli.go). hooks/pre-compact.sh updated. T-323..T-326 passing, targ check-full clean (worktree). Commit closes issue #89."
 
 [cursor]
-node = "L2N"
+node = "L4N-G1"
 mode = "in_progress"
-next_action = "L2 REQ/DES/ARCH updated for TOML-embedded registry. Next: REGROUP for L3/L4 implementation groups."
+next_action = "L3 test list derived. Two groups: G1 (TOMLDirectoryStore + cleanup, T-238..T-250) and G2 (migration, T-251..T-256). Launch elastic-pods for parallel implementation."
 context_files = ["docs/specs/state.toml", "docs/specs/use-cases.md"]
 
 # P1: Contradiction detection

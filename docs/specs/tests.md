@@ -2497,3 +2497,245 @@ All UC-18 & UC-20 active L2 items have test coverage. REQ-77 removed in S6 simpl
 | REQ-91 | T-237 (removed) |
 
 All UC-21 L2 items have test coverage. UC-22 items removed in Phase A-1/S1.
+
+---
+
+## TOML-Embedded Registry (Issue #218, ARCH-52 through ARCH-61)
+
+### Group 1: TOMLDirectoryStore + Cleanup
+
+### T-238: TOMLDirectoryStore Register writes metrics to new TOML file
+
+- **Given** an empty memories directory,
+- **When** `Register` is called with an InstructionEntry,
+- **Then** a TOML file is created with zero-valued metrics fields (surfaced_count=0, followed_count=0, etc.) alongside content fields.
+
+- Traces to: ARCH-52 (TOML-embedded storage), REQ-55 (one file per memory)
+- Type: example-based
+
+---
+
+### T-239: TOMLDirectoryStore RecordSurfacing increments surfaced_count atomically
+
+- **Given** a memory TOML with surfaced_count=5,
+- **When** `RecordSurfacing` is called for that memory,
+- **Then** the TOML file is rewritten with surfaced_count=6 and last_surfaced_at set to current time. All other fields preserved.
+
+- Traces to: ARCH-52 (TOML storage), REQ-61 (atomic surfacing update)
+- Type: example-based
+
+---
+
+### T-240: TOMLDirectoryStore RecordEvaluation increments correct counter
+
+- **Given** a memory TOML with followed_count=3, contradicted_count=1, ignored_count=2,
+- **When** `RecordEvaluation(id, "followed")` is called,
+- **Then** followed_count=4, other counters unchanged.
+
+- Traces to: ARCH-52 (TOML storage), REQ-62 (evaluation tracking)
+- Type: example-based
+
+---
+
+### T-241: TOMLDirectoryStore List scans directory and returns all entries
+
+- **Given** a memories directory with 3 TOML files containing metrics,
+- **When** `List()` is called,
+- **Then** 3 InstructionEntry values are returned with metrics populated from each TOML.
+
+- Traces to: ARCH-52 (directory scan replaces index), REQ-55 (bounded growth)
+- Type: example-based
+
+---
+
+### T-242: TOMLDirectoryStore Get reads single memory by path
+
+- **Given** a memory TOML at `memories/foo.toml` with surfaced_count=10,
+- **When** `Get("memories/foo.toml")` is called,
+- **Then** an InstructionEntry is returned with surfaced_count=10 and all content fields.
+
+- Traces to: ARCH-52, ARCH-53 (file path as ID)
+- Type: example-based
+
+---
+
+### T-243: TOMLDirectoryStore Remove deletes TOML file
+
+- **Given** a memory TOML at `memories/foo.toml`,
+- **When** `Remove("memories/foo.toml")` is called,
+- **Then** the file no longer exists. Subsequent `Get` returns ErrNotFound.
+
+- Traces to: ARCH-52 (delete file = delete everything)
+- Type: example-based
+
+---
+
+### T-244: TOMLDirectoryStore Merge absorbs source metrics into target
+
+- **Given** source TOML with surfaced_count=10, followed_count=8 and target TOML with surfaced_count=5,
+- **When** `Merge(sourcePath, targetPath)` is called,
+- **Then** target TOML has an absorbed entry with source's counters. Source TOML is deleted.
+
+- Traces to: ARCH-56 (absorbed history), REQ-60, REQ-63
+- Type: example-based
+
+---
+
+### T-245: Missing metrics fields default to zero
+
+- **Given** a memory TOML with only content fields (no surfaced_count, no followed_count, etc.),
+- **When** `Get` is called for that memory,
+- **Then** InstructionEntry has surfaced_count=0, followed_count=0, contradicted_count=0, ignored_count=0.
+
+- Traces to: REQ-66 (default zero values)
+- Type: example-based
+
+---
+
+### T-246: Per-file locking serializes concurrent writes to same file
+
+- **Given** a memory TOML with surfaced_count=0,
+- **When** 10 concurrent `RecordSurfacing` calls are made for the same memory,
+- **Then** surfaced_count=10 after all complete. No data loss.
+
+- Traces to: ARCH-57 (per-file locking), REQ-64 (concurrent writes)
+- Type: example-based (concurrency test)
+
+---
+
+### T-247: Concurrent writes to different files don't block each other
+
+- **Given** two memory TOMLs,
+- **When** `RecordSurfacing` is called concurrently on each,
+- **Then** both complete without deadlock and each file has correct surfaced_count.
+
+- Traces to: ARCH-57 (per-file locking), REQ-64
+- Type: example-based (concurrency test)
+
+---
+
+### T-248: Atomic write prevents partial TOML on crash
+
+- **Given** a memory TOML with valid content,
+- **When** a write is interrupted (simulated by failing rename),
+- **Then** the original TOML is unchanged. No partial file exists.
+
+- Traces to: ARCH-57 (atomic writes via temp+rename)
+- Type: example-based
+
+---
+
+### T-249: runAutoRegistration for non-memory sources is removed
+
+- **Given** a session-start invocation,
+- **When** the session-start hook runs,
+- **Then** no non-memory entries are created anywhere. Only memory TOMLs are read/written.
+
+- Traces to: ARCH-61 (cleanup), REQ-56 (memory-only scope)
+- Type: example-based
+
+---
+
+### T-250: Quadrant classification reads from TOML directory
+
+- **Given** a memories directory with TOMLs containing varied metrics,
+- **When** `engram review` is run,
+- **Then** quadrant classification output matches expected assignments based on TOML metrics.
+
+- Traces to: ARCH-59 (memory-only classification), REQ-67
+- Type: example-based
+
+---
+
+### Group 2: Migration
+
+### T-251: Migration merges JSONL metrics into matching TOMLs
+
+- **Given** instruction-registry.jsonl with 3 memory entries and 3 corresponding TOML files,
+- **When** `engram registry migrate` is run,
+- **Then** each TOML now has surfaced_count, followed_count, etc. from its JSONL entry. JSONL file deleted.
+
+- Traces to: ARCH-58 (migration), REQ-65
+- Type: example-based
+
+---
+
+### T-252: Migration skips non-memory JSONL entries
+
+- **Given** instruction-registry.jsonl with 2 memory entries and 3 non-memory entries (claude-md, rule, skill),
+- **When** `engram registry migrate` is run,
+- **Then** only 2 TOMLs updated. Non-memory entries logged and skipped. Summary shows skip count.
+
+- Traces to: ARCH-58 (migration), REQ-56 (memory-only)
+- Type: example-based
+
+---
+
+### T-253: Migration skips unmatched memory entries
+
+- **Given** instruction-registry.jsonl with a memory entry whose source_path points to a deleted TOML,
+- **When** `engram registry migrate` is run,
+- **Then** the unmatched entry is logged and skipped. Other entries migrated successfully.
+
+- Traces to: ARCH-58 (migration handles missing files)
+- Type: example-based
+
+---
+
+### T-254: Migration is idempotent — missing JSONL is success
+
+- **Given** no instruction-registry.jsonl file exists,
+- **When** `engram registry migrate` is run,
+- **Then** exit code 0, output indicates nothing to migrate.
+
+- Traces to: ARCH-58 (idempotent migration)
+- Type: example-based
+
+---
+
+### T-255: Migration --dry-run shows plan without writing
+
+- **Given** instruction-registry.jsonl with 3 memory entries,
+- **When** `engram registry migrate --dry-run` is run,
+- **Then** output lists what would be migrated. TOML files unchanged. JSONL not deleted.
+
+- Traces to: ARCH-58, DES-26 (dry-run flag)
+- Type: example-based
+
+---
+
+### T-256: Migration preserves absorbed history from JSONL
+
+- **Given** a JSONL entry with 2 absorbed records,
+- **When** `engram registry migrate` is run,
+- **Then** the target TOML contains the `[[absorbed]]` entries with all fields preserved.
+
+- Traces to: ARCH-58, ARCH-56 (absorbed history), REQ-60
+- Type: example-based
+
+---
+
+## Coverage Summary (Issue #218)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-55 | T-238, T-241 |
+| REQ-56 | T-249, T-252 |
+| REQ-57 | T-250 (via classification) |
+| REQ-58 | T-250 (via classification) |
+| REQ-59 | T-238 (content_hash in TOML) |
+| REQ-60 | T-244, T-256 |
+| REQ-61 | T-239 |
+| REQ-62 | T-240 |
+| REQ-63 | T-244 |
+| REQ-64 | T-246, T-247 |
+| REQ-65 | T-251, T-253 |
+| REQ-66 | T-245, T-254 |
+| REQ-67 | T-250 |
+| REQ-68 | T-238, T-241, T-242 (DI via injected I/O) |
+| DES-26 | T-251, T-255 |
+| DES-27 | T-250 |
+| DES-28 | T-244 |
+| DES-29 | T-249 |
+
+All UC-23 (issue #218) L2 items have test coverage.
