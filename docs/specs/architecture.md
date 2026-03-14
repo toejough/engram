@@ -2471,3 +2471,67 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 **Rationale:** Optional interface keeps the learn pipeline backward-compatible. CLI wires concrete adapter that delegates to graph.Builder + registry. Fire-and-forget matches ARCH-6 pattern for secondary updates.
 
 - Traces to: REQ-P5f-1, REQ-P5f-2, REQ-P5f-3, REQ-P5f-4, REQ-P5f-5, ARCH-6, ARCH-7
+
+---
+
+## ARCH-79: Consolidator component in signal package (UC-34)
+
+**Component:** `internal/signal/consolidate.go`
+
+**Decision:** New `Consolidator` struct with DI interfaces:
+
+```go
+// MemoryLister loads all existing memories from the data directory.
+type MemoryLister interface {
+    ListAll() ([]*memory.Stored, error)
+}
+
+// MergeExecutor performs a merge of one memory into another.
+type MergeExecutor interface {
+    Merge(ctx context.Context, survivor, absorbed *memory.Stored) error
+}
+
+// EffectivenessReader reads effectiveness score for a memory.
+type EffectivenessReader interface {
+    EffectivenessScore(path string) (float64, bool, error) // score, hasData, err
+}
+
+type Consolidator struct {
+    lister       MemoryLister
+    merger       MergeExecutor
+    effectiveness EffectivenessReader
+}
+
+func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, error)
+```
+
+**Algorithm:**
+1. `lister.ListAll()` → all memories
+2. Build clusters via pairwise keyword overlap (>50%, transitive closure) — reuse `dedup` package logic
+3. For each cluster with >1 member:
+   a. Select survivor (highest effectiveness score via `EffectivenessReader`, fallback to surfaced_count, then alphabetical)
+   b. Iteratively merge each non-survivor into survivor via `MergeExecutor`
+4. Return `ConsolidateResult{ClustersFound, MemoriesMerged, Errors}`
+
+**Design choices:**
+- **Reuse, not duplicate:** Cluster detection reuses `dedup.keywordSet` and `dedup.intersectionSize` logic (may need to export or extract a shared utility). `MergeExecutor` wraps the existing `merge.MergePrinciples` + `learn.TOMLMergeWriter` + registry absorbed-record path.
+- **Iterative merge:** For clusters of 3+, merge pair-by-pair into the survivor. Each merge enriches the survivor's principle before the next merge.
+- **Fire-and-forget per cluster:** If one cluster's merge fails, log to stderr and continue with remaining clusters (ARCH-6 pattern).
+
+**Traces to:** REQ-130 (cluster detection), REQ-131 (survivor selection), REQ-132 (absorbed records), REQ-133 (fallback), REQ-134 (automatic), ARCH-7 (DI)
+
+---
+
+## ARCH-80: CLI wiring update for consolidation in signal-detect (UC-34)
+
+**Component:** `internal/cli/signal.go` (`runSignalDetect`)
+
+**Decision:** Insert `Consolidator.Consolidate(ctx)` call before the existing `Detector.Detect()` call in `runSignalDetect`. Wire dependencies:
+
+- `MemoryLister` → adapter over `memory.LoadDir` (existing function)
+- `MergeExecutor` → adapter that composes `merge.LLMMerger` (with LLM client or nil for fallback) + `learn.TOMLMergeWriter` + registry absorbed-record write + file deletion
+- `EffectivenessReader` → adapter over `registry.TOMLDirectoryStore` reading effectiveness metrics
+
+Log `ConsolidateResult` to stderr per DES-48 format. If `Consolidate` returns error, log and continue (fire-and-forget — classification still runs on whatever state exists).
+
+**Traces to:** DES-47 (pipeline ordering), ARCH-75 (signal-detect CLI wiring), ARCH-79 (Consolidator), ARCH-6 (fire-and-forget)

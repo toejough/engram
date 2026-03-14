@@ -3405,3 +3405,73 @@ After each surface invocation, `Result.SuppressionStats` holds aggregate suppres
 - Traces to: UC-17
 - AC: (1) Rate = suppressed / (suppressed + surfaced). (2) Nil when both zero. (3) Surfaced = len(matched) after all suppression. (4) Suppressed = total suppression events emitted.
 - Verification: deterministic (unit)
+
+---
+
+## REQ-130: Cluster detection — pairwise keyword overlap before classification
+
+All existing memories are scanned pairwise for keyword overlap before quadrant classification. Memories with >50% keyword overlap are grouped into clusters. Reuses the same overlap threshold as UC-33's learn-time dedup.
+
+- Traces to: UC-34 (cluster detection)
+- AC: (1) All `.toml` files in `<data-dir>/memories/` are loaded. (2) Pairwise keyword overlap computed using the same algorithm as `dedup.KeywordDeduplicator`. (3) Memories with >50% overlap (in either direction) are grouped into clusters. (4) Memories with no overlap matches remain as singletons (not merged). (5) Transitive closure: if A overlaps B and B overlaps C, all three are in one cluster.
+- Verification: deterministic (keyword overlap calculation)
+
+---
+
+## REQ-131: Survivor selection — highest effectiveness score wins
+
+Within each duplicate cluster, the memory with the highest effectiveness score is selected as the survivor. All others are merged into it.
+
+- Traces to: UC-34 (survivor selection)
+- AC: (1) Effectiveness score = `followed_count / (followed_count + contradicted_count + ignored_count)`, null if denominator < 5 (reuses ARCH-54 formula). (2) Null-effectiveness memories lose to any scored memory. (3) Among null-effectiveness memories, highest `surfaced_count` wins. (4) Ties broken by alphabetical file path (deterministic).
+- Verification: deterministic (score comparison)
+
+---
+
+### DES-47: Consolidation phase ordering within signal-detect
+
+Consolidation runs as the **first phase** of `engram signal-detect`, before effectiveness aggregation and quadrant classification. The pipeline order becomes: load memories → consolidate duplicates → aggregate effectiveness → classify → emit signals.
+
+- Traces to: UC-34 (pipeline ordering), ARCH-75 (signal-detect CLI wiring)
+- AC: (1) Consolidation runs before Detector.Detect. (2) Classification operates on post-consolidation memory set. (3) Absorbed memories are deleted before classification reads the directory.
+- Verification: integration (signal-detect with duplicate memories produces consolidated signals)
+
+---
+
+## REQ-132: Merge preserves all effectiveness history via Absorbed records
+
+When merging non-survivor memories into the survivor, each absorbed memory's counters are recorded in the survivor's `[[absorbed]]` array. Reuses REQ-60/REQ-63 merge semantics.
+
+- Traces to: UC-34 (history preservation), REQ-60, REQ-63
+- AC: (1) Each absorbed memory produces one `[[absorbed]]` entry with: from, surfaced_count, followed_count, contradicted_count, ignored_count, merged_at, content_hash. (2) Existing absorbed entries on the survivor are preserved. (3) Absorbed entries from non-survivors that themselves have absorbed arrays are flattened into the survivor (no nested absorption).
+- Verification: structural (TOML array contents after merge)
+
+---
+
+## REQ-133: Fallback merge without LLM token
+
+When no API token is available, consolidation uses the longest principle text as the merged principle. Keyword and concept union still occurs. Reuses UC-33's fallback path.
+
+- Traces to: UC-34 (no graceful degradation), UC-33 (fallback merge)
+- AC: (1) No API token → longest principle selected (by character count). (2) Keywords unioned (deduplicated, case-insensitive). (3) Concepts unioned (deduplicated). (4) Merge still executes — only LLM principle combination is skipped. (5) Ties broken by alphabetical file path.
+- Verification: deterministic (string length comparison)
+
+---
+
+## REQ-134: Consolidation is automatic — no user confirmation
+
+Duplicate consolidation runs automatically during signal-detect without user confirmation. This is merging (combining into a stronger memory), not deletion (removing content).
+
+- Traces to: UC-34 (automatic consolidation)
+- AC: (1) No interactive prompt during consolidation. (2) Stderr log emitted for each merge (DES-48). (3) All merged content is preserved in the survivor (no information loss). (4) User can observe results via `engram review` or subsequent `signal-surface`.
+- Verification: integration (signal-detect completes without stdin)
+
+---
+
+### DES-48: Consolidation merge feedback
+
+Each merge is logged to stderr. After all merges, a summary line is emitted.
+
+- Traces to: UC-34 (feedback)
+- AC: (1) Per-merge line: `[engram] Merged <absorbed-title> into <survivor-title> (N keywords added)`. (2) Summary line: `[engram] Consolidated N duplicate clusters (M memories merged)`. (3) If no duplicates found: no output (silent). (4) Output goes to stderr (not stdout — stdout reserved for structured output).
+- Verification: integration (stderr capture)
