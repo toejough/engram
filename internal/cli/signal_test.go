@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -43,6 +42,150 @@ func TestEffectivenessReaderAdapter_NotFound(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(hasData).To(BeFalse())
 	g.Expect(score).To(Equal(0.0))
+}
+
+func TestFileMergeExecutor_RemoveError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	survivorPath := filepath.Join(dir, "survivor.toml")
+
+	writeErr := os.WriteFile(survivorPath, []byte(`title = "t"
+content = "c"
+concepts = []
+keywords = []
+anti_pattern = ""
+principle = "p"
+updated_at = "2024-01-01T00:00:00Z"
+`), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	survivor := &memory.Stored{
+		Title:    "S",
+		Content:  "c",
+		FilePath: survivorPath,
+	}
+	absorbed := &memory.Stored{
+		Title:    "A",
+		Content:  "c",
+		FilePath: "/nonexistent/absorbed.toml",
+	}
+
+	executor := &fileMergeExecutor{
+		writer: newStoredMemoryWriter(),
+		remove: func(_ string) error { return os.ErrPermission },
+	}
+
+	err := executor.Merge(t.Context(), survivor, absorbed)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("removing absorbed")))
+}
+
+func TestFileMergeExecutor_Success(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	survivorPath := filepath.Join(dir, "survivor.toml")
+	absorbedPath := filepath.Join(dir, "absorbed.toml")
+
+	for _, p := range []string{survivorPath, absorbedPath} {
+		writeErr := os.WriteFile(p, []byte(`title = "t"
+content = "c"
+concepts = []
+keywords = []
+anti_pattern = ""
+principle = "p"
+updated_at = "2024-01-01T00:00:00Z"
+`), 0o644)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+	}
+
+	survivor := &memory.Stored{
+		Title:     "Survivor",
+		Content:   "content",
+		Keywords:  []string{"kw1"},
+		Concepts:  []string{"concept1"},
+		Principle: "short",
+		FilePath:  survivorPath,
+	}
+	absorbed := &memory.Stored{
+		Title:     "Absorbed",
+		Content:   "content2",
+		Keywords:  []string{"kw1", "kw2"},
+		Concepts:  []string{"concept2"},
+		Principle: "longer principle",
+		FilePath:  absorbedPath,
+	}
+
+	executor := &fileMergeExecutor{
+		writer: newStoredMemoryWriter(),
+		remove: os.Remove,
+	}
+
+	err := executor.Merge(t.Context(), survivor, absorbed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Survivor should have merged keywords, concepts, and longer principle.
+	g.Expect(survivor.Keywords).To(ConsistOf("kw1", "kw2"))
+	g.Expect(survivor.Concepts).To(ConsistOf("concept1", "concept2"))
+	g.Expect(survivor.Principle).To(Equal("longer principle"))
+
+	// Absorbed file should be removed.
+	_, statErr := os.Stat(absorbedPath)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+}
+
+func TestFileMergeExecutor_WriteError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	survivor := &memory.Stored{
+		Title:    "S",
+		Content:  "c",
+		FilePath: "/nonexistent/dir/survivor.toml",
+	}
+	absorbed := &memory.Stored{
+		Title:    "A",
+		Content:  "c",
+		FilePath: "/nonexistent/dir/absorbed.toml",
+	}
+
+	executor := &fileMergeExecutor{
+		writer: newStoredMemoryWriter(),
+		remove: os.Remove,
+	}
+
+	err := executor.Merge(t.Context(), survivor, absorbed)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("writing survivor")))
+}
+
+func TestKeepLongerPrinciple(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	survivor := &memory.Stored{Principle: "short"}
+	absorbed := &memory.Stored{Principle: "much longer principle"}
+
+	keepLongerPrinciple(survivor, absorbed)
+	g.Expect(survivor.Principle).To(Equal("much longer principle"))
+}
+
+func TestKeepLongerPrinciple_SurvivorLonger(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	survivor := &memory.Stored{Principle: "already the longer one"}
+	absorbed := &memory.Stored{Principle: "short"}
+
+	keepLongerPrinciple(survivor, absorbed)
+	g.Expect(survivor.Principle).To(Equal("already the longer one"))
 }
 
 func TestReadStoredMemory_DecodeError(t *testing.T) {
@@ -337,417 +480,6 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(result.Success).To(BeTrue())
 }
 
-func TestRunSignalDetect_AggregateError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	// Create "evaluations" as a file (not dir) so Aggregate() fails.
-	evalFile := filepath.Join(dataDir, "evaluations")
-	writeErr := os.WriteFile(evalFile, []byte("not a dir"), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	err := runSignalDetect([]string{"--data-dir", dataDir})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("aggregating effectiveness")))
-}
-
-func TestRunSignalDetect_ConsolidatesDuplicates(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	err := os.MkdirAll(filepath.Join(dataDir, "evaluations"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	memoriesDir := filepath.Join(dataDir, "memories")
-	err = os.MkdirAll(memoriesDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Two memories with >50% keyword overlap — should be consolidated.
-	memA := filepath.Join(memoriesDir, "dup-a.toml")
-	memB := filepath.Join(memoriesDir, "dup-b.toml")
-
-	tomlA := `title = "Use targ check-full"
-content = "Run targ check-full for all checks"
-concepts = ["build"]
-keywords = ["targ", "check", "full", "lint", "build"]
-anti_pattern = ""
-principle = "Always use targ check-full"
-updated_at = "2024-01-01T00:00:00Z"
-`
-	tomlB := `title = "Targ comprehensive validation"
-content = "Targ check-full runs all validation"
-concepts = ["validation"]
-keywords = ["targ", "check", "full", "validation", "errors"]
-anti_pattern = ""
-principle = "Use targ check-full to get ALL errors at once"
-updated_at = "2024-01-02T00:00:00Z"
-`
-
-	writeErr := os.WriteFile(memA, []byte(tomlA), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	writeErr = os.WriteFile(memB, []byte(tomlB), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	err = runSignalDetect([]string{"--data-dir", dataDir})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// After consolidation, one memory should be removed (absorbed).
-	entries, readErr := os.ReadDir(memoriesDir)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	tomlCount := 0
-	survivorName := ""
-
-	for _, entry := range entries {
-		if filepath.Ext(entry.Name()) == ".toml" {
-			tomlCount++
-			survivorName = entry.Name()
-		}
-	}
-
-	g.Expect(tomlCount).To(Equal(1), "one memory should remain after consolidation")
-
-	survivorPath := filepath.Join(memoriesDir, survivorName)
-	survivor, loadErr := readStoredMemory(survivorPath)
-	g.Expect(loadErr).NotTo(HaveOccurred())
-
-	if loadErr != nil {
-		return
-	}
-
-	// Should have unioned keywords from both memories.
-	g.Expect(len(survivor.Keywords)).To(BeNumerically(">=", 6))
-}
-
-func TestRunSignalDetect_EmptyDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	// Create evaluations dir so effectiveness.Aggregate doesn't error.
-	err := os.MkdirAll(filepath.Join(dataDir, "evaluations"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Create memories dir so tracking map doesn't fail.
-	err = os.MkdirAll(filepath.Join(dataDir, "memories"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	err = runSignalDetect([]string{"--data-dir", dataDir})
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRunSignalDetect_FiltersDeletedMemories(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	evalDir := filepath.Join(dataDir, "evaluations")
-	err := os.MkdirAll(evalDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	err = os.MkdirAll(filepath.Join(dataDir, "memories"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write 5 "ignored" evaluations for a memory file that does NOT exist.
-	// This triggers Noise classification (low effectiveness, low surfacing).
-	var evalBuf bytes.Buffer
-
-	deletedPath := filepath.Join(dataDir, "memories", "deleted.toml")
-
-	for range 5 {
-		entry := map[string]any{
-			"memory_path":  deletedPath,
-			"outcome":      "ignored",
-			"evidence":     "no evidence",
-			"evaluated_at": time.Now().Format(time.RFC3339),
-		}
-
-		data, marshalErr := json.Marshal(entry)
-		g.Expect(marshalErr).NotTo(HaveOccurred())
-
-		if marshalErr != nil {
-			return
-		}
-
-		evalBuf.Write(data)
-		evalBuf.WriteByte('\n')
-	}
-
-	evalFile := filepath.Join(evalDir, "test-eval.jsonl")
-	err = os.WriteFile(evalFile, evalBuf.Bytes(), 0o600)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Run signal-detect — classifier will emit a signal for deleted.toml,
-	// but the file-existence filter should prevent it from being queued.
-	err = runSignalDetect([]string{"--data-dir", dataDir})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Verify the queue is empty (deleted file's signal was filtered out).
-	queuePath := filepath.Join(dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-
-	signals, readErr := store.Read(queuePath)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(signals).To(BeEmpty(), "signals for deleted files should be filtered out")
-}
-
-func TestRunSignalDetect_InvalidFlag(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := runSignalDetect([]string{"--unknown-flag"})
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("signal-detect")))
-}
-
-func TestRunSignalDetect_MissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := runSignalDetect([]string{})
-	g.Expect(err).To(MatchError(ContainSubstring("signal-detect")))
-}
-
-func TestRunSignalDetect_WithPreexistingQueue(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	err := os.MkdirAll(filepath.Join(dataDir, "evaluations"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	err = os.MkdirAll(filepath.Join(dataDir, "memories"), 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a pre-existing queue entry so Prune executes the existsCheck lambda.
-	queuePath := filepath.Join(dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-	preExisting := []signal.Signal{
-		{
-			Type:       signal.TypeMaintain,
-			SourceID:   "/nonexistent/memory.toml", // will be pruned (file doesn't exist)
-			SignalKind: signal.KindNoiseRemoval,
-			Summary:    "old signal",
-			DetectedAt: time.Now(),
-		},
-	}
-
-	appendErr := store.Append(preExisting, queuePath)
-	g.Expect(appendErr).NotTo(HaveOccurred())
-
-	if appendErr != nil {
-		return
-	}
-
-	err = runSignalDetect([]string{"--data-dir", dataDir})
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRunSignalSurface_EmptyQueue(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	var buf bytes.Buffer
-
-	err := runSignalSurface([]string{"--data-dir", dataDir}, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).To(BeEmpty())
-}
-
-func TestRunSignalSurface_MissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	err := runSignalSurface([]string{}, &bytes.Buffer{})
-	g.Expect(err).To(MatchError(ContainSubstring("signal-surface")))
-}
-
-func TestRunSignalSurface_TextFormat(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	memPath := filepath.Join(memDir, "test.toml")
-	tomlContent := "title = \"Test\"\ncontent = \"content\"\n" +
-		"concepts = []\nkeywords = [\"kw\"]\nanti_pattern = \"\"\n" +
-		"principle = \"principle\"\nupdated_at = \"2024-01-01T00:00:00Z\"\n"
-	writeErr := os.WriteFile(memPath, []byte(tomlContent), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	queuePath := filepath.Join(dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-	signals := []signal.Signal{
-		{
-			Type:       signal.TypeMaintain,
-			SourceID:   memPath,
-			SignalKind: signal.KindLeechRewrite,
-			Summary:    "Leech signal",
-			DetectedAt: time.Now(),
-		},
-	}
-
-	appendErr := store.Append(signals, queuePath)
-	g.Expect(appendErr).NotTo(HaveOccurred())
-
-	if appendErr != nil {
-		return
-	}
-
-	var buf bytes.Buffer
-
-	err = runSignalSurface([]string{"--data-dir", dataDir}, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(buf.String()).NotTo(BeEmpty())
-}
-
-func TestRunSignalSurface_WithSignalsJSONFormat(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	err := os.MkdirAll(memDir, 0o750)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	memPath := filepath.Join(memDir, "test.toml")
-	tomlContent := "title = \"Test\"\ncontent = \"content\"\n" +
-		"concepts = []\nkeywords = [\"kw\"]\nanti_pattern = \"\"\n" +
-		"principle = \"principle\"\nupdated_at = \"2024-01-01T00:00:00Z\"\n"
-	writeErr := os.WriteFile(memPath, []byte(tomlContent), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	if writeErr != nil {
-		return
-	}
-
-	queuePath := filepath.Join(dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-	signals := []signal.Signal{
-		{
-			Type:       signal.TypeMaintain,
-			SourceID:   memPath,
-			SignalKind: signal.KindNoiseRemoval,
-			Summary:    "Test signal",
-			DetectedAt: time.Now(),
-		},
-	}
-
-	appendErr := store.Append(signals, queuePath)
-	g.Expect(appendErr).NotTo(HaveOccurred())
-
-	if appendErr != nil {
-		return
-	}
-
-	var buf bytes.Buffer
-
-	err = runSignalSurface([]string{"--data-dir", dataDir, "--format", "json"}, &buf)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(buf.String()).NotTo(BeEmpty())
-
-	var output struct {
-		Summary string `json:"summary"`
-		Context string `json:"context"`
-	}
-
-	decodeErr := json.NewDecoder(&buf).Decode(&output)
-	g.Expect(decodeErr).NotTo(HaveOccurred())
-	g.Expect(output.Summary).To(ContainSubstring("signal"))
-}
-
 func TestStoredMemoryWriter_Write_CloseError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -845,4 +577,26 @@ updated_at = "2024-01-01T00:00:00Z"
 	data, readErr := os.ReadFile(path)
 	g.Expect(readErr).NotTo(HaveOccurred())
 	g.Expect(string(data)).To(ContainSubstring("Updated Title"))
+}
+
+func TestUnionConcepts(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	survivor := &memory.Stored{Concepts: []string{"DI", "testing"}}
+	absorbed := &memory.Stored{Concepts: []string{"di", "refactoring"}}
+
+	unionConcepts(survivor, absorbed)
+	g.Expect(survivor.Concepts).To(ConsistOf("DI", "testing", "refactoring"))
+}
+
+func TestUnionKeywords(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	survivor := &memory.Stored{Keywords: []string{"alpha", "beta"}}
+	absorbed := &memory.Stored{Keywords: []string{"Beta", "gamma"}}
+
+	unionKeywords(survivor, absorbed)
+	g.Expect(survivor.Keywords).To(ConsistOf("alpha", "beta", "gamma"))
 }

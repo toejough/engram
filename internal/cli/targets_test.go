@@ -188,7 +188,7 @@ func TestBuildTargets(t *testing.T) {
 			"audit", "correct", "evaluate", "review",
 			"maintain", "surface", "learn", "remind", "instruct",
 			"context-update",
-			"signal-detect", "signal-surface", "apply-proposal",
+			"apply-proposal",
 		}
 		for _, sub := range subcmds {
 			_, _ = targ.Execute([]string{"engram", sub}, targets...)
@@ -648,46 +648,6 @@ func TestRunSafe(t *testing.T) {
 	})
 }
 
-func TestSignalDetectFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SignalDetectFlags(cli.SignalDetectArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SignalDetectFlags(cli.SignalDetectArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
-func TestSignalSurfaceFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SignalSurfaceFlags(cli.SignalSurfaceArgs{DataDir: "/data", Format: "json"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--format", "json"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.SignalSurfaceFlags(cli.SignalSurfaceArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-}
-
 func TestSurfaceFlags(t *testing.T) {
 	t.Parallel()
 
@@ -756,7 +716,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 13))
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 11))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

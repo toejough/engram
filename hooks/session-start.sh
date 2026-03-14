@@ -43,11 +43,8 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
 # UC-2: Surface relevant memories at session start
 SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
 
-# UC-28: Refresh signal queue (safety net if stop hook didn't complete)
-"$ENGRAM_BIN" signal-detect --data-dir "$ENGRAM_DATA" 2>/dev/null || true
-
-# UC-28: Surface pending maintenance/promotion signals
-SIGNAL_OUTPUT=$("$ENGRAM_BIN" signal-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
+# UC-28: Run maintenance classification (single source of truth for signals)
+SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "$ENGRAM_DATA" 2>/dev/null) || true
 
 # P6f: Surface pending graduation signals
 GRAD_OUTPUT=$("$ENGRAM_BIN" graduate-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
@@ -64,11 +61,56 @@ fi
 # Static guidance for mid-turn message capture (issue #54)
 MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
 
-SIGNAL_CTX=""
-SIGNAL_COUNT=0
-if [[ -n "$SIGNAL_OUTPUT" ]]; then
-    SIGNAL_CTX=$(echo "$SIGNAL_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
-    SIGNAL_COUNT=$(echo "$SIGNAL_CTX" | jq -r '.signals | length' 2>/dev/null) || SIGNAL_COUNT=0
+# Parse maintain proposals (JSON array with quadrant, action, memory_path, diagnosis)
+PROPOSAL_COUNT=0
+NOISE_COUNT=0
+HIDDEN_GEM_COUNT=0
+LEECH_COUNT=0
+TRIAGE_DETAILS=""
+if [[ -n "$SIGNAL_OUTPUT" ]] && echo "$SIGNAL_OUTPUT" | jq -e 'type == "array" and length > 0' >/dev/null 2>&1; then
+    PROPOSAL_COUNT=$(echo "$SIGNAL_OUTPUT" | jq 'length' 2>/dev/null) || PROPOSAL_COUNT=0
+    NOISE_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Noise")] | length' 2>/dev/null) || NOISE_COUNT=0
+    HIDDEN_GEM_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Hidden Gem")] | length' 2>/dev/null) || HIDDEN_GEM_COUNT=0
+    LEECH_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Leech")] | length' 2>/dev/null) || LEECH_COUNT=0
+
+    # Build full details for additionalContext (Claude sees this if user says "triage")
+    NOISE_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+        [.[] | select(.quadrant == "Noise")] |
+        if length == 0 then empty else
+            "## Noise (\(length) memories)\nRarely surfaced AND low effectiveness — candidates for deletion.\n" +
+            (to_entries | map(
+                "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.diagnosis)"
+            ) | join("\n"))
+        end
+    ' 2>/dev/null) || true
+
+    HIDDEN_GEM_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+        [.[] | select(.quadrant == "Hidden Gem")] |
+        if length == 0 then empty else
+            "## Hidden Gems (\(length) memories)\nHigh effectiveness but rarely surfaced — keywords need broadening.\n" +
+            (to_entries | map(
+                "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.diagnosis)"
+            ) | join("\n"))
+        end
+    ' 2>/dev/null) || true
+
+    LEECH_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+        [.[] | select(.quadrant == "Leech")] |
+        if length == 0 then empty else
+            "## Leech (\(length) memories)\nFrequently surfaced but low effectiveness — need rewriting or escalation.\n" +
+            (to_entries | map(
+                "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.action): \(.value.diagnosis)"
+            ) | join("\n"))
+        end
+    ' 2>/dev/null) || true
+
+    for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$LEECH_DETAIL"; do
+        if [[ -n "$detail" ]]; then
+            TRIAGE_DETAILS="${TRIAGE_DETAILS}
+${detail}
+"
+        fi
+    done
 fi
 
 GRAD_CTX=""
@@ -76,56 +118,6 @@ GRAD_COUNT=0
 if [[ -n "$GRAD_OUTPUT" ]]; then
     GRAD_CTX=$(echo "$GRAD_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
     GRAD_COUNT=$(echo "$GRAD_OUTPUT" | jq -r '.entries | length' 2>/dev/null) || GRAD_COUNT=0
-fi
-
-# Count signals by type for the short summary line
-NOISE_COUNT=0
-HIDDEN_GEM_COUNT=0
-SKILL_PROMO_COUNT=0
-TRIAGE_DETAILS=""
-if [[ "$SIGNAL_COUNT" -gt 0 ]]; then
-    NOISE_COUNT=$(echo "$SIGNAL_CTX" | jq '[.signals[] | select(.signal == "noise_removal")] | length' 2>/dev/null) || NOISE_COUNT=0
-    HIDDEN_GEM_COUNT=$(echo "$SIGNAL_CTX" | jq '[.signals[] | select(.signal == "hidden_gem_broadening")] | length' 2>/dev/null) || HIDDEN_GEM_COUNT=0
-    SKILL_PROMO_COUNT=$(echo "$SIGNAL_CTX" | jq '[.signals[] | select(.signal == "memory_to_skill")] | length' 2>/dev/null) || SKILL_PROMO_COUNT=0
-
-    # Build full details for additionalContext (Claude sees this if user says "triage")
-    NOISE_DETAIL=$(echo "$SIGNAL_CTX" | jq -r '
-        [.signals[] | select(.signal == "noise_removal")] |
-        if length == 0 then empty else
-            "## Noise Removal (\(length) memories)\nRarely surfaced AND low effectiveness — candidates for deletion.\n" +
-            (to_entries | map(
-                "  \(.key + 1). **\(.value.title)** (id: \(.value.source_id | split("/") | last | rtrimstr(".toml")))"
-            ) | join("\n"))
-        end
-    ' 2>/dev/null) || true
-
-    HIDDEN_GEM_DETAIL=$(echo "$SIGNAL_CTX" | jq -r '
-        [.signals[] | select(.signal == "hidden_gem_broadening")] |
-        if length == 0 then empty else
-            "## Hidden Gems (\(length) memories)\nHigh effectiveness but rarely surfaced — keywords need broadening.\n" +
-            (to_entries | map(
-                "  \(.key + 1). **\(.value.title)** (id: \(.value.source_id | split("/") | last | rtrimstr(".toml")))\n     Keywords: \(.value.keywords)"
-            ) | join("\n"))
-        end
-    ' 2>/dev/null) || true
-
-    SKILL_PROMO_DETAIL=$(echo "$SIGNAL_CTX" | jq -r '
-        [.signals[] | select(.signal == "memory_to_skill")] |
-        if length == 0 then empty else
-            "## Skill Promotion (\(length) memories)\nUsed effectively and frequently — candidates for promotion to skill.\n" +
-            (to_entries | map(
-                "  \(.key + 1). **\(.value.title)** (id: \(.value.source_id | split("/") | last | rtrimstr(".toml")))\n     Principle: \(.value.principle // "n/a")"
-            ) | join("\n"))
-        end
-    ' 2>/dev/null) || true
-
-    for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$SKILL_PROMO_DETAIL"; do
-        if [[ -n "$detail" ]]; then
-            TRIAGE_DETAILS="${TRIAGE_DETAILS}
-${detail}
-"
-        fi
-    done
 fi
 
 GRAD_DETAIL=""
@@ -151,12 +143,12 @@ fi
 # Full details go in additionalContext for Claude to reference on request
 DIRECTIVE=""
 TRIAGE_CTX=""
-if [[ "$SIGNAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
+if [[ "$PROPOSAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
     # Build a compact counts line
     COUNTS=""
     [[ "$NOISE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${NOISE_COUNT} noise"
     [[ "$HIDDEN_GEM_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${HIDDEN_GEM_COUNT} hidden gems"
-    [[ "$SKILL_PROMO_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${SKILL_PROMO_COUNT} skill promotions"
+    [[ "$LEECH_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${LEECH_COUNT} leech"
     [[ "$GRAD_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${GRAD_COUNT} graduation candidates"
 
     DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
@@ -164,7 +156,7 @@ if [[ "$SIGNAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
     # Full details + commands go in additionalContext
     TRIAGE_CTX="[engram] Memory triage details (present interactively if user says 'triage'):
 ${TRIAGE_DETAILS}
-Commands: remove = engram maintain remove --id <id> --data-dir ~/.claude/engram/data | graduate accept/dismiss = engram graduate accept/dismiss --id <id> --data-dir ~/.claude/engram/data
+Use the engram:memory-triage skill for commands and presentation format.
 Present one category at a time. Ask what the user wants to do with each before moving to the next."
 fi
 

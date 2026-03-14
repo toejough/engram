@@ -106,17 +106,6 @@ type ReviewArgs struct {
 	Format  string `targ:"flag,name=format,default=table,desc=output format: json or table"`
 }
 
-// SignalDetectArgs holds parsed flags for the signal-detect subcommand.
-type SignalDetectArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-}
-
-// SignalSurfaceArgs holds parsed flags for the signal-surface subcommand.
-type SignalSurfaceArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Format  string `targ:"flag,name=format,default=text,desc=output format: text or json"`
-}
-
 // SurfaceArgs holds parsed flags for the surface subcommand.
 type SurfaceArgs struct {
 	Mode      string `targ:"flag,name=mode,desc=surface mode: session-start or prompt or tool"`
@@ -198,10 +187,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
 			Name("context-update").Description("Update session context"),
-		targ.Targ(func(a SignalDetectArgs) { run("signal-detect", SignalDetectFlags(a)) }).
-			Name("signal-detect").Description("Detect maintenance signals"),
-		targ.Targ(func(a SignalSurfaceArgs) { run("signal-surface", SignalSurfaceFlags(a)) }).
-			Name("signal-surface").Description("Surface pending maintenance signals"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
 		targ.Group("registry",
@@ -302,16 +287,6 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 	}
-}
-
-// SignalDetectFlags returns the CLI flag args for the signal-detect subcommand.
-func SignalDetectFlags(a SignalDetectArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
-}
-
-// SignalSurfaceFlags returns the CLI flag args for the signal-surface subcommand.
-func SignalSurfaceFlags(a SignalSurfaceArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--format", a.Format)
 }
 
 // SurfaceFlags returns the CLI flag args for the surface subcommand.

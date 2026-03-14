@@ -49,9 +49,6 @@ if [[ -n "$TRANSCRIPT_PATH" ]]; then
         --timestamp "$AUDIT_TIMESTAMP" < "$TRANSCRIPT_PATH" || true
 fi
 
-# UC-28: Detect maintenance and promotion signals
-"$ENGRAM_BIN" signal-detect --data-dir "$ENGRAM_DATA" 2>/dev/null || true
-
 # UC-14: Update session context (synchronous — Stop is the last chance)
 # Project-specific context path follows Claude Code's convention
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"

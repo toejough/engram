@@ -17,7 +17,6 @@ import (
 	"engram/internal/memory"
 	regpkg "engram/internal/registry"
 	"engram/internal/retrieve"
-	reviewpkg "engram/internal/review"
 	"engram/internal/signal"
 )
 
@@ -31,19 +30,7 @@ var (
 	errApplyProposalMissingFlags = errNew(
 		"apply-proposal: --data-dir, --action, and --memory required",
 	)
-	errSignalDetectMissingFlags  = errNew("signal-detect: --data-dir required")
-	errSignalSurfaceMissingFlags = errNew("signal-surface: --data-dir required")
 )
-
-// classifierAdapter adapts reviewpkg.Classify to signal.Classifier.
-type classifierAdapter struct{}
-
-func (c *classifierAdapter) Classify(
-	stats map[string]effectiveness.Stat,
-	tracking map[string]reviewpkg.TrackingData,
-) []reviewpkg.ClassifiedMemory {
-	return reviewpkg.Classify(stats, tracking)
-}
 
 // effectivenessReaderAdapter wraps a pre-computed stats map for the Consolidator.
 type effectivenessReaderAdapter struct {
@@ -101,13 +88,6 @@ func (m *memoryListerAdapter) ListAll(ctx context.Context) ([]*memory.Stored, er
 	}
 
 	return memories, nil
-}
-
-// memoryStoredLoader adapts file-based TOML reading to signal.MemoryLoader.
-type memoryStoredLoader struct{}
-
-func (l *memoryStoredLoader) Load(path string) (*memory.Stored, error) {
-	return readStoredMemory(path)
 }
 
 // registryUpdaterAdapter adapts regpkg.Registry to signal.RegistryUpdater.
@@ -209,19 +189,6 @@ func (w *storedMemoryWriter) Write(path string, stored *memory.Stored) error {
 
 func errNew(s string) error {
 	return fmt.Errorf("%s", s) //nolint:err113 // package-level sentinel via fmt.Errorf
-}
-
-func filterExistingSignals(signals []signal.Signal) []signal.Signal {
-	existing := make([]signal.Signal, 0, len(signals))
-
-	for _, sig := range signals {
-		_, statErr := os.Stat(sig.SourceID)
-		if statErr == nil {
-			existing = append(existing, sig)
-		}
-	}
-
-	return existing
 }
 
 func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
@@ -346,156 +313,6 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 
 	//nolint:wrapcheck // thin JSON encoding at CLI boundary
 	return json.NewEncoder(stdout).Encode(result)
-}
-
-// runSignalDetect implements the signal-detect subcommand (UC-28 Phase C).
-//
-//nolint:funlen // CLI flag parsing and DI wiring
-func runSignalDetect(args []string) error {
-	fs := flag.NewFlagSet("signal-detect", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("signal-detect: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errSignalDetectMissingFlags
-	}
-
-	evalDir := filepath.Join(*dataDir, "evaluations")
-
-	stats, err := effectiveness.New(evalDir).Aggregate()
-	if err != nil {
-		return fmt.Errorf("signal-detect: aggregating effectiveness: %w", err)
-	}
-
-	ctx := context.Background()
-
-	// UC-34: consolidate duplicates before classification.
-	consolidator := signal.NewConsolidator(
-		signal.WithLister(&memoryListerAdapter{
-			retriever: retrieve.New(),
-			dataDir:   *dataDir,
-		}),
-		signal.WithMerger(&fileMergeExecutor{
-			writer: newStoredMemoryWriter(),
-			remove: os.Remove,
-		}),
-		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
-		signal.WithStderr(os.Stderr),
-	)
-
-	_, consolidateErr := consolidator.Consolidate(ctx)
-	if consolidateErr != nil {
-		return fmt.Errorf("signal-detect: consolidating: %w", consolidateErr)
-	}
-
-	tracking := buildTrackingMap(*dataDir)
-
-	detector := signal.NewDetector(
-		signal.WithClassifier(&classifierAdapter{}),
-	)
-
-	detected, detectErr := detector.Detect(ctx, stats, tracking)
-	if detectErr != nil {
-		return fmt.Errorf("signal-detect: detecting signals: %w", detectErr)
-	}
-
-	queuePath := filepath.Join(*dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-
-	pruneErr := store.Prune(queuePath, func(path string) bool {
-		_, statErr := os.Stat(path)
-		return statErr == nil
-	})
-	if pruneErr != nil {
-		return fmt.Errorf("signal-detect: pruning queue: %w", pruneErr)
-	}
-
-	existing := filterExistingSignals(detected)
-
-	if len(existing) == 0 {
-		return nil
-	}
-
-	appendErr := store.Append(existing, queuePath)
-	if appendErr != nil {
-		return fmt.Errorf("signal-detect: appending to queue: %w", appendErr)
-	}
-
-	return nil
-}
-
-// runSignalSurface implements the signal-surface subcommand (UC-28 Phase C).
-//
-//nolint:funlen // CLI flag parsing and DI wiring
-func runSignalSurface(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("signal-surface", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	format := fs.String("format", "text", "output format: text or json")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("signal-surface: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errSignalSurfaceMissingFlags
-	}
-
-	queuePath := filepath.Join(*dataDir, signalQueueFilename)
-	store := signal.NewQueueStore()
-
-	signals, err := store.Read(queuePath)
-	if err != nil {
-		return fmt.Errorf("signal-surface: reading queue: %w", err)
-	}
-
-	if len(signals) == 0 {
-		return nil
-	}
-
-	loader := &memoryStoredLoader{}
-	surfacer := signal.NewSurfacer(signal.WithLoader(loader))
-
-	enriched, enrichErr := surfacer.Surface(signals)
-	if enrichErr != nil {
-		return fmt.Errorf("signal-surface: enriching signals: %w", enrichErr)
-	}
-
-	context, fmtErr := signal.FormatContext(enriched)
-	if fmtErr != nil {
-		return fmt.Errorf("signal-surface: formatting context: %w", fmtErr)
-	}
-
-	if context == "" {
-		return nil
-	}
-
-	if *format == formatJSON {
-		type jsonOutput struct {
-			Summary string `json:"summary"`
-			Context string `json:"context"`
-		}
-
-		out := jsonOutput{
-			Summary: fmt.Sprintf("[engram] %d pending maintenance signals", len(enriched)),
-			Context: context,
-		}
-
-		//nolint:wrapcheck // thin JSON encoding at CLI boundary
-		return json.NewEncoder(stdout).Encode(out)
-	}
-
-	_, _ = fmt.Fprint(stdout, context)
-
-	return nil
 }
 
 func unionConcepts(survivor, absorbed *memory.Stored) {

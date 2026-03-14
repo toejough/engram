@@ -37,6 +37,7 @@ import (
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
+	"engram/internal/signal"
 	"engram/internal/surface"
 	"engram/internal/surfacinglog"
 	"engram/internal/tomlwriter"
@@ -144,10 +145,6 @@ func Run(
 		return runInstructAudit(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
-	case "signal-detect":
-		return runSignalDetect(subArgs)
-	case "signal-surface":
-		return runSignalSurface(subArgs, stdout)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
 	case "registry":
@@ -343,6 +340,27 @@ func RunMaintain(
 		return nil
 	}
 
+	// Consolidate duplicates before classification (UC-34).
+	ctx := context.Background()
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(&memoryListerAdapter{
+			retriever: retrieve.New(),
+			dataDir:   *dataDir,
+		}),
+		signal.WithMerger(&fileMergeExecutor{
+			writer: newStoredMemoryWriter(),
+			remove: os.Remove,
+		}),
+		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
+		signal.WithStderr(os.Stderr),
+	)
+
+	_, consolidateErr := consolidator.Consolidate(ctx)
+	if consolidateErr != nil {
+		return fmt.Errorf("maintain: consolidating: %w", consolidateErr)
+	}
+
 	tracking := buildTrackingMap(*dataDir)
 	classified := reviewpkg.Classify(stats, tracking)
 
@@ -359,7 +377,6 @@ func RunMaintain(
 
 	allOpts = append(allOpts, opts...)
 
-	ctx := context.Background()
 	generator := maintain.New(allOpts...)
 	proposals := generator.Generate(ctx, classified, memoryMap)
 
