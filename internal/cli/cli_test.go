@@ -1939,39 +1939,6 @@ func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient"))
 }
 
-// T-250: Review reads quadrant classification from TOML memory directory.
-func TestT250_ReviewReadsFromTOMLDirectory(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	writeReviewRegistry(t, dataDir, []reviewTestEntry{
-		{
-			ID: "working-mem", Source: "memory", Title: "Working Memory",
-			Surfaced: 10, Followed: 7, Contradicted: 0, Ignored: 1,
-		}, // high surfacing, high effectiveness → Working
-		{
-			ID: "leech-mem", Source: "memory", Title: "Leech Memory",
-			Surfaced: 8, Followed: 1, Contradicted: 5, Ignored: 2,
-		}, // high surfacing, low effectiveness → Leech
-	})
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("Working Memory"))
-	g.Expect(output).To(ContainSubstring("Leech Memory"))
-	g.Expect(output).To(ContainSubstring("Source: memory"))
-}
-
 // T-161: evaluate applies Strip preprocessing to transcript before LLM call.
 func TestT161_EvaluateStripsTranscript(t *testing.T) {
 	t.Parallel()
@@ -2409,6 +2376,39 @@ func TestT19_CorrectWithNonMatchingMessageProducesEmptyStdout(t *testing.T) {
 	memoriesDir := filepath.Join(dataDir, "memories")
 	_, statErr := os.Stat(memoriesDir)
 	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
+}
+
+// T-250: Review reads quadrant classification from TOML memory directory.
+func TestT250_ReviewReadsFromTOMLDirectory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	writeReviewRegistry(t, dataDir, []reviewTestEntry{
+		{
+			ID: "working-mem", Source: "memory", Title: "Working Memory",
+			Surfaced: 10, Followed: 7, Contradicted: 0, Ignored: 1,
+		}, // high surfacing, high effectiveness → Working
+		{
+			ID: "leech-mem", Source: "memory", Title: "Leech Memory",
+			Surfaced: 8, Followed: 1, Contradicted: 5, Ignored: 2,
+		}, // high surfacing, low effectiveness → Leech
+	})
+
+	var stdout bytes.Buffer
+
+	err := cli.RunReview([]string{"--data-dir", dataDir}, &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("Working Memory"))
+	g.Expect(output).To(ContainSubstring("Leech Memory"))
+	g.Expect(output).To(ContainSubstring("Source: memory"))
 }
 
 func TestT272_RegistryInitDryRunListsEntries(t *testing.T) {

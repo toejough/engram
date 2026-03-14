@@ -34,8 +34,8 @@ func New(opts ...MigratorOption) *Migrator {
 		writeFile:  os.WriteFile,
 		renameFile: os.Rename,
 		remove:     os.Remove,
-		stat:   os.Stat,
-		stdout: os.Stdout,
+		stat:       os.Stat,
+		stdout:     os.Stdout,
 	}
 
 	for _, opt := range opts {
@@ -87,6 +87,44 @@ func (m *Migrator) Run(jsonlPath, memoriesDir string, dryRun bool) error {
 	return nil
 }
 
+func (m *Migrator) mergeIntoTOML(path string, entry *registry.InstructionEntry) error {
+	data, readErr := m.readFile(path)
+	if readErr != nil {
+		return fmt.Errorf("reading TOML: %w", readErr)
+	}
+
+	var existing map[string]any
+
+	_, decodeErr := toml.Decode(string(data), &existing)
+	if decodeErr != nil {
+		return fmt.Errorf("decoding TOML: %w", decodeErr)
+	}
+
+	maps.Copy(existing, buildUpdates(entry))
+
+	var buf bytes.Buffer
+
+	encodeErr := toml.NewEncoder(&buf).Encode(existing)
+	if encodeErr != nil {
+		return fmt.Errorf("encoding TOML: %w", encodeErr)
+	}
+
+	dir := filepath.Dir(path)
+	tmpPath := filepath.Join(dir, ".tmp-migrate-"+filepath.Base(path))
+
+	writeErr := m.writeFile(tmpPath, buf.Bytes(), tomlFilePerm)
+	if writeErr != nil {
+		return fmt.Errorf("writing temp file: %w", writeErr)
+	}
+
+	renameErr := m.renameFile(tmpPath, path)
+	if renameErr != nil {
+		return fmt.Errorf("renaming temp to final: %w", renameErr)
+	}
+
+	return nil
+}
+
 func (m *Migrator) processEntries(
 	entries []registry.InstructionEntry,
 	memoriesDir string,
@@ -129,44 +167,6 @@ func (m *Migrator) processEntries(
 	return migrated, skipped, unmatched, nil
 }
 
-func (m *Migrator) mergeIntoTOML(path string, entry *registry.InstructionEntry) error {
-	data, readErr := m.readFile(path)
-	if readErr != nil {
-		return fmt.Errorf("reading TOML: %w", readErr)
-	}
-
-	var existing map[string]any
-
-	_, decodeErr := toml.Decode(string(data), &existing)
-	if decodeErr != nil {
-		return fmt.Errorf("decoding TOML: %w", decodeErr)
-	}
-
-	maps.Copy(existing, buildUpdates(entry))
-
-	var buf bytes.Buffer
-
-	encodeErr := toml.NewEncoder(&buf).Encode(existing)
-	if encodeErr != nil {
-		return fmt.Errorf("encoding TOML: %w", encodeErr)
-	}
-
-	dir := filepath.Dir(path)
-	tmpPath := filepath.Join(dir, ".tmp-migrate-"+filepath.Base(path))
-
-	writeErr := m.writeFile(tmpPath, buf.Bytes(), tomlFilePerm)
-	if writeErr != nil {
-		return fmt.Errorf("writing temp file: %w", writeErr)
-	}
-
-	renameErr := m.renameFile(tmpPath, path)
-	if renameErr != nil {
-		return fmt.Errorf("renaming temp to final: %w", renameErr)
-	}
-
-	return nil
-}
-
 // MigratorOption configures a Migrator.
 type MigratorOption func(*Migrator)
 
@@ -175,19 +175,14 @@ func WithReadFile(fn func(name string) ([]byte, error)) MigratorOption {
 	return func(m *Migrator) { m.readFile = fn }
 }
 
-// WithWriteFile injects a file writer.
-func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) MigratorOption {
-	return func(m *Migrator) { m.writeFile = fn }
+// WithRemove injects a file removal function.
+func WithRemove(fn func(name string) error) MigratorOption {
+	return func(m *Migrator) { m.remove = fn }
 }
 
 // WithRenameFile injects a rename function (used for atomic writes).
 func WithRenameFile(fn func(oldpath, newpath string) error) MigratorOption {
 	return func(m *Migrator) { m.renameFile = fn }
-}
-
-// WithRemove injects a file removal function.
-func WithRemove(fn func(name string) error) MigratorOption {
-	return func(m *Migrator) { m.remove = fn }
 }
 
 // WithStat injects a stat function.
@@ -200,8 +195,15 @@ func WithStdout(w io.Writer) MigratorOption {
 	return func(m *Migrator) { m.stdout = w }
 }
 
+// WithWriteFile injects a file writer.
+func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) MigratorOption {
+	return func(m *Migrator) { m.writeFile = fn }
+}
+
 // unexported constants.
-const tomlFilePerm = 0o644
+const (
+	tomlFilePerm = 0o644
+)
 
 func buildUpdates(entry *registry.InstructionEntry) map[string]any {
 	updates := map[string]any{

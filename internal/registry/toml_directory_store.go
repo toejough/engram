@@ -13,15 +13,6 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Unexported constants.
-const (
-	memoriesSubdir = "memories"
-	tomlExt        = ".toml"
-	tmpSuffix      = ".tmp"
-	tomlFilePerm   = os.FileMode(0o644)
-	tomlDirPerm    = os.FileMode(0o750)
-)
-
 // TOMLDirOption configures a TOMLDirectoryStore.
 type TOMLDirOption func(*TOMLDirectoryStore)
 
@@ -76,7 +67,8 @@ func (s *TOMLDirectoryStore) Get(id string) (*InstructionEntry, error) {
 
 	var record memoryRecord
 
-	if _, decodeErr := toml.Decode(string(data), &record); decodeErr != nil {
+	_, decodeErr := toml.Decode(string(data), &record)
+	if decodeErr != nil {
 		return nil, fmt.Errorf("decoding TOML for %s: %w", id, decodeErr)
 	}
 
@@ -118,41 +110,49 @@ func (s *TOMLDirectoryStore) List() ([]InstructionEntry, error) {
 	return entries, nil
 }
 
-// Register writes a new TOML file for the given entry.
-// Returns ErrDuplicateID if a file already exists at entry.ID.
-func (s *TOMLDirectoryStore) Register(entry InstructionEntry) error {
-	absPath := filepath.Join(s.dataDir, entry.ID)
+// Merge absorbs the source entry into the target entry, then removes the source.
+func (s *TOMLDirectoryStore) Merge(sourceID, targetID string) error {
+	sourcePath := filepath.Join(s.dataDir, sourceID)
 
-	// Check if file already exists.
-	if _, readErr := s.readFile(absPath); readErr == nil {
-		return fmt.Errorf("%w: %s", ErrDuplicateID, entry.ID)
+	// Read source.
+	sourceData, readErr := s.readFile(sourcePath)
+	if readErr != nil {
+		return fmt.Errorf("%w: source=%s target=%s", ErrMergeNotFound, sourceID, targetID)
 	}
 
-	if mkdirErr := s.mkdirAll(filepath.Dir(absPath), tomlDirPerm); mkdirErr != nil {
-		return fmt.Errorf("creating directory for %s: %w", entry.ID, mkdirErr)
+	var sourceRecord memoryRecord
+
+	_, decodeErr := toml.Decode(string(sourceData), &sourceRecord)
+	if decodeErr != nil {
+		return fmt.Errorf("decoding source %s: %w", sourceID, decodeErr)
 	}
 
-	if entry.EnforcementLevel == "" {
-		entry.EnforcementLevel = EnforcementAdvisory
+	sourceType := sourceRecord.SourceType
+	if sourceType == "" {
+		sourceType = SourceTypeMemory
 	}
 
-	if entry.SourceType == "" {
-		entry.SourceType = SourceTypeMemory
+	if sourceType != SourceTypeMemory {
+		return fmt.Errorf("%w: source=%s target=%s", ErrMergeSourceType, sourceID, targetID)
 	}
 
-	record := entryToRecord(entry)
+	// Modify target under flock.
+	modErr := s.applyMergeToTarget(sourceID, targetID, sourceRecord)
+	if modErr != nil {
+		if errors.Is(modErr, ErrNotFound) {
+			return fmt.Errorf("%w: source=%s target=%s", ErrMergeNotFound, sourceID, targetID)
+		}
 
-	return s.writeAtomic(absPath, record)
-}
+		return modErr
+	}
 
-// RecordSurfacing increments the surfaced_count and sets last_surfaced_at.
-func (s *TOMLDirectoryStore) RecordSurfacing(id string) error {
-	return s.withFileLocked(id, func(record *memoryRecord) error {
-		record.SurfacedCount++
-		record.LastSurfacedAt = s.now().UTC().Format(time.RFC3339)
+	// Delete source after successful target update.
+	err := s.remove(sourcePath)
+	if err != nil {
+		return fmt.Errorf("removing source %s: %w", sourceID, err)
+	}
 
-		return nil
-	})
+	return nil
 }
 
 // RecordEvaluation increments the appropriate evaluation counter.
@@ -169,6 +169,62 @@ func (s *TOMLDirectoryStore) RecordEvaluation(id string, outcome Outcome) error 
 
 		return nil
 	})
+}
+
+// RecordSurfacing increments the surfaced_count and sets last_surfaced_at.
+func (s *TOMLDirectoryStore) RecordSurfacing(id string) error {
+	return s.withFileLocked(id, func(record *memoryRecord) error {
+		record.SurfacedCount++
+		record.LastSurfacedAt = s.now().UTC().Format(time.RFC3339)
+
+		return nil
+	})
+}
+
+// Register writes a new TOML file for the given entry.
+// Returns ErrDuplicateID if a file already exists at entry.ID.
+func (s *TOMLDirectoryStore) Register(entry InstructionEntry) error {
+	absPath := filepath.Join(s.dataDir, entry.ID)
+
+	// Check if file already exists.
+	_, readErr := s.readFile(absPath)
+	if readErr == nil {
+		return fmt.Errorf("%w: %s", ErrDuplicateID, entry.ID)
+	}
+
+	mkdirErr := s.mkdirAll(filepath.Dir(absPath), tomlDirPerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("creating directory for %s: %w", entry.ID, mkdirErr)
+	}
+
+	if entry.EnforcementLevel == "" {
+		entry.EnforcementLevel = EnforcementAdvisory
+	}
+
+	if entry.SourceType == "" {
+		entry.SourceType = SourceTypeMemory
+	}
+
+	record := entryToRecord(entry)
+
+	return s.writeAtomic(absPath, record)
+}
+
+// Remove deletes the TOML file for the given ID.
+func (s *TOMLDirectoryStore) Remove(id string) error {
+	absPath := filepath.Join(s.dataDir, id)
+
+	_, existErr := s.readFile(absPath)
+	if existErr != nil {
+		return fmt.Errorf("%w: %s", ErrNotFound, id)
+	}
+
+	err := s.remove(absPath)
+	if err != nil {
+		return fmt.Errorf("removing %s: %w", id, err)
+	}
+
+	return nil
 }
 
 // SetEnforcementLevel updates the enforcement level and records the transition.
@@ -197,33 +253,28 @@ func (s *TOMLDirectoryStore) SetEnforcementLevel(id string, level EnforcementLev
 	})
 }
 
-// Merge absorbs the source entry into the target entry, then removes the source.
-func (s *TOMLDirectoryStore) Merge(sourceID, targetID string) error {
-	sourcePath := filepath.Join(s.dataDir, sourceID)
+// UpdateLinks replaces the links array in the TOML file.
+func (s *TOMLDirectoryStore) UpdateLinks(id string, links []Link) error {
+	return s.withFileLocked(id, func(record *memoryRecord) error {
+		if len(links) == 0 {
+			record.Links = nil
+			return nil
+		}
 
-	// Read source.
-	sourceData, readErr := s.readFile(sourcePath)
-	if readErr != nil {
-		return fmt.Errorf("%w: source=%s target=%s", ErrMergeNotFound, sourceID, targetID)
-	}
+		linkRecords := make([]linkTOML, len(links))
+		for i, link := range links {
+			linkRecords[i] = linkTOML(link)
+		}
 
-	var sourceRecord memoryRecord
+		record.Links = linkRecords
 
-	if _, decodeErr := toml.Decode(string(sourceData), &sourceRecord); decodeErr != nil {
-		return fmt.Errorf("decoding source %s: %w", sourceID, decodeErr)
-	}
+		return nil
+	})
+}
 
-	sourceType := sourceRecord.SourceType
-	if sourceType == "" {
-		sourceType = SourceTypeMemory
-	}
-
-	if sourceType != SourceTypeMemory {
-		return fmt.Errorf("%w: source=%s target=%s", ErrMergeSourceType, sourceID, targetID)
-	}
-
-	// Modify target under flock.
-	modErr := s.withFileLocked(targetID, func(record *memoryRecord) error {
+// applyMergeToTarget mutates the target record under flock, absorbing source counters.
+func (s *TOMLDirectoryStore) applyMergeToTarget(sourceID, targetID string, sourceRecord memoryRecord) error {
+	return s.withFileLocked(targetID, func(record *memoryRecord) error {
 		targetType := record.SourceType
 		if targetType == "" {
 			targetType = SourceTypeMemory
@@ -253,54 +304,14 @@ func (s *TOMLDirectoryStore) Merge(sourceID, targetID string) error {
 
 		return nil
 	})
-	if modErr != nil {
-		if errors.Is(modErr, ErrNotFound) {
-			return fmt.Errorf("%w: source=%s target=%s", ErrMergeNotFound, sourceID, targetID)
-		}
-
-		return modErr
-	}
-
-	// Delete source after successful target update.
-	if err := s.remove(sourcePath); err != nil {
-		return fmt.Errorf("removing source %s: %w", sourceID, err)
-	}
-
-	return nil
 }
 
-// Remove deletes the TOML file for the given ID.
-func (s *TOMLDirectoryStore) Remove(id string) error {
-	absPath := filepath.Join(s.dataDir, id)
-
-	if _, err := s.readFile(absPath); err != nil {
-		return fmt.Errorf("%w: %s", ErrNotFound, id)
+func (s *TOMLDirectoryStore) now() time.Time {
+	if s.nowFn != nil {
+		return s.nowFn()
 	}
 
-	if err := s.remove(absPath); err != nil {
-		return fmt.Errorf("removing %s: %w", id, err)
-	}
-
-	return nil
-}
-
-// UpdateLinks replaces the links array in the TOML file.
-func (s *TOMLDirectoryStore) UpdateLinks(id string, links []Link) error {
-	return s.withFileLocked(id, func(record *memoryRecord) error {
-		if len(links) == 0 {
-			record.Links = nil
-			return nil
-		}
-
-		linkRecords := make([]linkTOML, len(links))
-		for i, link := range links {
-			linkRecords[i] = linkTOML(link)
-		}
-
-		record.Links = linkRecords
-
-		return nil
-	})
+	return time.Now()
 }
 
 // --- Private helpers ---
@@ -316,7 +327,8 @@ func (s *TOMLDirectoryStore) withFileLocked(id string, fn func(*memoryRecord) er
 	lockPath := absPath + ".lock"
 
 	// Check that the data file exists before acquiring the lock.
-	if _, existErr := s.readFile(absPath); existErr != nil {
+	_, existErr := s.readFile(absPath)
+	if existErr != nil {
 		return fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
 
@@ -328,7 +340,8 @@ func (s *TOMLDirectoryStore) withFileLocked(id string, fn func(*memoryRecord) er
 
 	defer func() { _ = f.Close() }()
 
-	if lockErr := s.lockFile(f); lockErr != nil {
+	lockErr := s.lockFile(f)
+	if lockErr != nil {
 		return fmt.Errorf("acquiring lock on %s: %w", id, lockErr)
 	}
 
@@ -342,11 +355,13 @@ func (s *TOMLDirectoryStore) withFileLocked(id string, fn func(*memoryRecord) er
 
 	var record memoryRecord
 
-	if _, decodeErr := toml.Decode(string(data), &record); decodeErr != nil {
+	_, decodeErr := toml.Decode(string(data), &record)
+	if decodeErr != nil {
 		return fmt.Errorf("decoding TOML for %s: %w", id, decodeErr)
 	}
 
-	if err := fn(&record); err != nil {
+	err := fn(&record)
+	if err != nil {
 		return err
 	}
 
@@ -357,18 +372,21 @@ func (s *TOMLDirectoryStore) withFileLocked(id string, fn func(*memoryRecord) er
 func (s *TOMLDirectoryStore) writeAtomic(path string, record memoryRecord) error {
 	var buf bytes.Buffer
 
-	if err := toml.NewEncoder(&buf).Encode(record); err != nil {
+	err := toml.NewEncoder(&buf).Encode(record)
+	if err != nil {
 		return fmt.Errorf("encoding TOML for %s: %w", path, err)
 	}
 
 	dir := filepath.Dir(path)
 	tmpPath := filepath.Join(dir, filepath.Base(path)+tmpSuffix)
 
-	if err := s.writeFile(tmpPath, buf.Bytes(), tomlFilePerm); err != nil {
+	err = s.writeFile(tmpPath, buf.Bytes(), tomlFilePerm)
+	if err != nil {
 		return fmt.Errorf("writing temp file for %s: %w", path, err)
 	}
 
-	if err := s.rename(tmpPath, path); err != nil {
+	err = s.rename(tmpPath, path)
+	if err != nil {
 		_ = s.remove(tmpPath) // best-effort cleanup
 
 		return fmt.Errorf("renaming to final %s: %w", path, err)
@@ -377,22 +395,86 @@ func (s *TOMLDirectoryStore) writeAtomic(path string, record memoryRecord) error
 	return nil
 }
 
-func (s *TOMLDirectoryStore) now() time.Time {
-	if s.nowFn != nil {
-		return s.nowFn()
-	}
-
-	return time.Now()
+// WithTOMLClock injects a clock function.
+func WithTOMLClock(fn func() time.Time) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.nowFn = fn }
 }
 
-// flockExclusive acquires an exclusive flock on f.
-func flockExclusive(f *os.File) error {
-	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX) //nolint:wrapcheck // thin syscall wrapper
+// WithTOMLLockFile injects a file-lock function.
+func WithTOMLLockFile(fn func(*os.File) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.lockFile = fn }
 }
 
-// flockUnlock releases the flock on f.
-func flockUnlock(f *os.File) error {
-	return syscall.Flock(int(f.Fd()), syscall.LOCK_UN) //nolint:wrapcheck // thin syscall wrapper
+// WithTOMLMkdirAll injects a directory creation function.
+func WithTOMLMkdirAll(fn func(string, os.FileMode) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.mkdirAll = fn }
+}
+
+// WithTOMLOpenFile injects a file-open function (used for flock).
+func WithTOMLOpenFile(fn func(string, int, os.FileMode) (*os.File, error)) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.openFile = fn }
+}
+
+// WithTOMLReadDir injects a directory reader.
+func WithTOMLReadDir(fn func(string) ([]os.DirEntry, error)) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.readDir = fn }
+}
+
+// --- Functional options ---
+
+// WithTOMLReadFile injects a file reader.
+func WithTOMLReadFile(fn func(string) ([]byte, error)) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.readFile = fn }
+}
+
+// WithTOMLRemove injects a file removal function.
+func WithTOMLRemove(fn func(string) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.remove = fn }
+}
+
+// WithTOMLRename injects a file rename function.
+func WithTOMLRename(fn func(string, string) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.rename = fn }
+}
+
+// WithTOMLUnlockFile injects a file-unlock function.
+func WithTOMLUnlockFile(fn func(*os.File) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.unlockFile = fn }
+}
+
+// WithTOMLWriteFile injects a file writer.
+func WithTOMLWriteFile(fn func(string, []byte, os.FileMode) error) TOMLDirOption {
+	return func(s *TOMLDirectoryStore) { s.writeFile = fn }
+}
+
+// unexported constants.
+const (
+	memoriesSubdir = "memories"
+	tmpSuffix      = ".tmp"
+	tomlDirPerm    = os.FileMode(0o750)
+	tomlExt        = ".toml"
+	tomlFilePerm   = os.FileMode(0o644)
+)
+
+type absorbedTOML struct {
+	From          string   `toml:"from"`
+	SurfacedCount int      `toml:"surfaced_count"`
+	ContentHash   string   `toml:"content_hash,omitempty"`
+	MergedAt      string   `toml:"merged_at,omitempty"`
+	Evaluations   evalTOML `toml:"evaluations"`
+}
+
+type evalTOML struct {
+	Followed     int `toml:"followed"`
+	Contradicted int `toml:"contradicted"`
+	Ignored      int `toml:"ignored"`
+}
+
+type linkTOML struct {
+	Target           string  `toml:"target"`
+	Weight           float64 `toml:"weight"`
+	Basis            string  `toml:"basis"`
+	CoSurfacingCount int     `toml:"co_surfacing_count,omitempty"`
 }
 
 // --- TOML record types ---
@@ -429,32 +511,35 @@ type memoryRecord struct {
 	Transitions []transitionTOML `toml:"transitions,omitempty"`
 }
 
-type linkTOML struct {
-	Target           string  `toml:"target"`
-	Weight           float64 `toml:"weight"`
-	Basis            string  `toml:"basis"`
-	CoSurfacingCount int     `toml:"co_surfacing_count,omitempty"`
-}
-
-type absorbedTOML struct {
-	From          string   `toml:"from"`
-	SurfacedCount int      `toml:"surfaced_count"`
-	ContentHash   string   `toml:"content_hash,omitempty"`
-	MergedAt      string   `toml:"merged_at,omitempty"`
-	Evaluations   evalTOML `toml:"evaluations"`
-}
-
-type evalTOML struct {
-	Followed     int `toml:"followed"`
-	Contradicted int `toml:"contradicted"`
-	Ignored      int `toml:"ignored"`
-}
-
 type transitionTOML struct {
 	From   string `toml:"from"`
 	To     string `toml:"to"`
 	At     string `toml:"at"`
 	Reason string `toml:"reason"`
+}
+
+func entryAbsorbedToRecord(absorbed []AbsorbedRecord) []absorbedTOML {
+	if len(absorbed) == 0 {
+		return nil
+	}
+
+	result := make([]absorbedTOML, len(absorbed))
+
+	for i, abs := range absorbed {
+		result[i] = absorbedTOML{
+			From:          abs.From,
+			SurfacedCount: abs.SurfacedCount,
+			ContentHash:   abs.ContentHash,
+			MergedAt:      abs.MergedAt.UTC().Format(time.RFC3339),
+			Evaluations: evalTOML{
+				Followed:     abs.Evaluations.Followed,
+				Contradicted: abs.Evaluations.Contradicted,
+				Ignored:      abs.Evaluations.Ignored,
+			},
+		}
+	}
+
+	return result
 }
 
 // --- Conversion functions ---
@@ -492,36 +577,98 @@ func entryToRecord(entry InstructionEntry) memoryRecord {
 		}
 	}
 
-	if len(entry.Absorbed) > 0 {
-		record.Absorbed = make([]absorbedTOML, len(entry.Absorbed))
-		for i, abs := range entry.Absorbed {
-			record.Absorbed[i] = absorbedTOML{
-				From:          abs.From,
-				SurfacedCount: abs.SurfacedCount,
-				ContentHash:   abs.ContentHash,
-				MergedAt:      abs.MergedAt.UTC().Format(time.RFC3339),
-				Evaluations: evalTOML{
-					Followed:     abs.Evaluations.Followed,
-					Contradicted: abs.Evaluations.Contradicted,
-					Ignored:      abs.Evaluations.Ignored,
-				},
-			}
-		}
-	}
-
-	if len(entry.Transitions) > 0 {
-		record.Transitions = make([]transitionTOML, len(entry.Transitions))
-		for i, tr := range entry.Transitions {
-			record.Transitions[i] = transitionTOML{
-				From:   string(tr.From),
-				To:     string(tr.To),
-				At:     tr.At.UTC().Format(time.RFC3339),
-				Reason: tr.Reason,
-			}
-		}
-	}
+	record.Absorbed = entryAbsorbedToRecord(entry.Absorbed)
+	record.Transitions = entryTransitionsToRecord(entry.Transitions)
 
 	return record
+}
+
+func entryTransitionsToRecord(transitions []EnforcementTransition) []transitionTOML {
+	if len(transitions) == 0 {
+		return nil
+	}
+
+	result := make([]transitionTOML, len(transitions))
+
+	for i, transition := range transitions {
+		result[i] = transitionTOML{
+			From:   string(transition.From),
+			To:     string(transition.To),
+			At:     transition.At.UTC().Format(time.RFC3339),
+			Reason: transition.Reason,
+		}
+	}
+
+	return result
+}
+
+// flockExclusive acquires an exclusive flock on f.
+func flockExclusive(f *os.File) error {
+	//nolint:wrapcheck,gosec // thin syscall wrapper; Fd fits int on 64-bit
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+}
+
+// flockUnlock releases the flock on f.
+func flockUnlock(f *os.File) error {
+	//nolint:wrapcheck,gosec // thin syscall wrapper; Fd fits int on 64-bit
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+}
+
+func parseOptionalTimeField(s string) *time.Time {
+	if s == "" {
+		return nil
+	}
+
+	parsed, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return nil
+	}
+
+	return &parsed
+}
+
+func parseTimeField(s string) time.Time {
+	parsed, _ := time.Parse(time.RFC3339, s)
+
+	return parsed
+}
+
+func recordAbsorbedToAbsorbed(absorbed []absorbedTOML) []AbsorbedRecord {
+	if len(absorbed) == 0 {
+		return nil
+	}
+
+	result := make([]AbsorbedRecord, len(absorbed))
+
+	for i, abs := range absorbed {
+		result[i] = AbsorbedRecord{
+			From:          abs.From,
+			SurfacedCount: abs.SurfacedCount,
+			ContentHash:   abs.ContentHash,
+			MergedAt:      parseTimeField(abs.MergedAt),
+			Evaluations: EvaluationCounters{
+				Followed:     abs.Evaluations.Followed,
+				Contradicted: abs.Evaluations.Contradicted,
+				Ignored:      abs.Evaluations.Ignored,
+			},
+		}
+	}
+
+	return result
+}
+
+func recordLinksToLinks(links []linkTOML) []Link {
+	if len(links) == 0 {
+		return nil
+	}
+
+	result := make([]Link, len(links))
+
+	for i, link := range links {
+		result[i] = Link(link)
+	}
+
+	return result
 }
 
 func recordToEntry(id string, record memoryRecord) InstructionEntry {
@@ -541,12 +688,12 @@ func recordToEntry(id string, record memoryRecord) InstructionEntry {
 	}
 
 	entry := InstructionEntry{
-		ID:         id,
-		SourceType: sourceType,
-		SourcePath: sourcePath,
-		Title:      record.Title,
-		Content:    record.Content,
-		ContentHash: record.ContentHash,
+		ID:            id,
+		SourceType:    sourceType,
+		SourcePath:    sourcePath,
+		Title:         record.Title,
+		Content:       record.Content,
+		ContentHash:   record.ContentHash,
 		SurfacedCount: record.SurfacedCount,
 		Evaluations: EvaluationCounters{
 			Followed:     record.FollowedCount,
@@ -556,116 +703,31 @@ func recordToEntry(id string, record memoryRecord) InstructionEntry {
 		EnforcementLevel: level,
 	}
 
-	if record.CreatedAt != "" {
-		parsed, parseErr := time.Parse(time.RFC3339, record.CreatedAt)
-		if parseErr == nil {
-			entry.RegisteredAt = parsed
-		}
-	}
-
-	if record.UpdatedAt != "" {
-		parsed, parseErr := time.Parse(time.RFC3339, record.UpdatedAt)
-		if parseErr == nil {
-			entry.UpdatedAt = parsed
-		}
-	}
-
-	if record.LastSurfacedAt != "" {
-		parsed, parseErr := time.Parse(time.RFC3339, record.LastSurfacedAt)
-		if parseErr == nil {
-			entry.LastSurfaced = &parsed
-		}
-	}
-
-	if len(record.Links) > 0 {
-		entry.Links = make([]Link, len(record.Links))
-		for i, link := range record.Links {
-			entry.Links[i] = Link(link)
-		}
-	}
-
-	if len(record.Absorbed) > 0 {
-		entry.Absorbed = make([]AbsorbedRecord, len(record.Absorbed))
-		for i, abs := range record.Absorbed {
-			mergedAt, _ := time.Parse(time.RFC3339, abs.MergedAt)
-			entry.Absorbed[i] = AbsorbedRecord{
-				From:          abs.From,
-				SurfacedCount: abs.SurfacedCount,
-				ContentHash:   abs.ContentHash,
-				MergedAt:      mergedAt,
-				Evaluations: EvaluationCounters{
-					Followed:     abs.Evaluations.Followed,
-					Contradicted: abs.Evaluations.Contradicted,
-					Ignored:      abs.Evaluations.Ignored,
-				},
-			}
-		}
-	}
-
-	if len(record.Transitions) > 0 {
-		entry.Transitions = make([]EnforcementTransition, len(record.Transitions))
-		for i, tr := range record.Transitions {
-			at, _ := time.Parse(time.RFC3339, tr.At)
-			entry.Transitions[i] = EnforcementTransition{
-				From:   EnforcementLevel(tr.From),
-				To:     EnforcementLevel(tr.To),
-				At:     at,
-				Reason: tr.Reason,
-			}
-		}
-	}
+	entry.RegisteredAt = parseTimeField(record.CreatedAt)
+	entry.UpdatedAt = parseTimeField(record.UpdatedAt)
+	entry.LastSurfaced = parseOptionalTimeField(record.LastSurfacedAt)
+	entry.Links = recordLinksToLinks(record.Links)
+	entry.Absorbed = recordAbsorbedToAbsorbed(record.Absorbed)
+	entry.Transitions = recordTransitionsToTransitions(record.Transitions)
 
 	return entry
 }
 
-// --- Functional options ---
+func recordTransitionsToTransitions(transitions []transitionTOML) []EnforcementTransition {
+	if len(transitions) == 0 {
+		return nil
+	}
 
-// WithTOMLReadFile injects a file reader.
-func WithTOMLReadFile(fn func(string) ([]byte, error)) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.readFile = fn }
-}
+	result := make([]EnforcementTransition, len(transitions))
 
-// WithTOMLWriteFile injects a file writer.
-func WithTOMLWriteFile(fn func(string, []byte, os.FileMode) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.writeFile = fn }
-}
+	for i, tr := range transitions {
+		result[i] = EnforcementTransition{
+			From:   EnforcementLevel(tr.From),
+			To:     EnforcementLevel(tr.To),
+			At:     parseTimeField(tr.At),
+			Reason: tr.Reason,
+		}
+	}
 
-// WithTOMLReadDir injects a directory reader.
-func WithTOMLReadDir(fn func(string) ([]os.DirEntry, error)) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.readDir = fn }
-}
-
-// WithTOMLRemove injects a file removal function.
-func WithTOMLRemove(fn func(string) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.remove = fn }
-}
-
-// WithTOMLRename injects a file rename function.
-func WithTOMLRename(fn func(string, string) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.rename = fn }
-}
-
-// WithTOMLMkdirAll injects a directory creation function.
-func WithTOMLMkdirAll(fn func(string, os.FileMode) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.mkdirAll = fn }
-}
-
-// WithTOMLOpenFile injects a file-open function (used for flock).
-func WithTOMLOpenFile(fn func(string, int, os.FileMode) (*os.File, error)) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.openFile = fn }
-}
-
-// WithTOMLLockFile injects a file-lock function.
-func WithTOMLLockFile(fn func(*os.File) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.lockFile = fn }
-}
-
-// WithTOMLUnlockFile injects a file-unlock function.
-func WithTOMLUnlockFile(fn func(*os.File) error) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.unlockFile = fn }
-}
-
-// WithTOMLClock injects a clock function.
-func WithTOMLClock(fn func() time.Time) TOMLDirOption {
-	return func(s *TOMLDirectoryStore) { s.nowFn = fn }
+	return result
 }

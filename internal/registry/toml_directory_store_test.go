@@ -25,10 +25,10 @@ func TestT238_TOMLDirectoryStore_Register(t *testing.T) {
 	store := newTOMLUnitStore(mfs, nil)
 
 	entry := registry.InstructionEntry{
-		ID:         "memories/test.toml",
-		SourceType: registry.SourceTypeMemory,
-		Title:      "Test Memory",
-		Content:    "Always use targ.",
+		ID:          "memories/test.toml",
+		SourceType:  registry.SourceTypeMemory,
+		Title:       "Test Memory",
+		Content:     "Always use targ.",
 		ContentHash: "sha256:abc",
 	}
 
@@ -473,6 +473,7 @@ func TestT246_TOMLDirectoryStore_ConcurrentWritesSameFile(t *testing.T) {
 	for range goroutines {
 		go func() {
 			defer wg.Done()
+
 			_ = store.RecordSurfacing("memories/concurrent.toml")
 		}()
 	}
@@ -522,11 +523,13 @@ func TestT247_TOMLDirectoryStore_ConcurrentWritesDifferentFiles(t *testing.T) {
 	for range writesPerFile {
 		go func() {
 			defer wg.Done()
+
 			_ = store.RecordSurfacing("memories/file-a.toml")
 		}()
 
 		go func() {
 			defer wg.Done()
+
 			_ = store.RecordSurfacing("memories/file-b.toml")
 		}()
 	}
@@ -579,6 +582,7 @@ func TestT248_TOMLDirectoryStore_AtomicWriteFailedRename(t *testing.T) {
 		if renameCount > 1 {
 			return errors.New("simulated rename failure")
 		}
+
 		return mfs.rename(oldpath, newpath)
 	}
 
@@ -628,50 +632,6 @@ func TestT248_TOMLDirectoryStore_AtomicWriteFailedRename(t *testing.T) {
 	g.Expect(readErr).To(HaveOccurred())
 }
 
-// --- UpdateLinks ---
-
-func TestTOMLDirectoryStore_UpdateLinks(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	mfs := newTOMLMemFS()
-	store := newTOMLUnitStore(mfs, nil)
-
-	entry := registry.InstructionEntry{
-		ID:         "memories/links.toml",
-		SourceType: registry.SourceTypeMemory,
-		Title:      "Links Test",
-	}
-
-	err := store.Register(entry)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	links := []registry.Link{
-		{Target: "memories/other.toml", Weight: 0.8, Basis: "co-surfacing", CoSurfacingCount: 5},
-	}
-
-	err = store.UpdateLinks("memories/links.toml", links)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	got, err := store.Get("memories/links.toml")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).NotTo(BeNil())
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got.Links).To(HaveLen(1))
-	g.Expect(got.Links[0].Target).To(Equal("memories/other.toml"))
-	g.Expect(got.Links[0].Weight).To(Equal(0.8))
-	g.Expect(got.Links[0].CoSurfacingCount).To(Equal(5))
-}
-
 // --- SetEnforcementLevel ---
 
 func TestTOMLDirectoryStore_SetEnforcementLevel(t *testing.T) {
@@ -717,50 +677,72 @@ func TestTOMLDirectoryStore_SetEnforcementLevel(t *testing.T) {
 	g.Expect(got.Transitions[0].Reason).To(Equal("low effectiveness"))
 }
 
-// --- Helpers ---
+// --- UpdateLinks ---
 
-// noopOpenFile opens /dev/null for use as a no-op lock file descriptor.
-func noopOpenFile(_ string, _ int, _ os.FileMode) (*os.File, error) {
-	return os.OpenFile(os.DevNull, os.O_RDONLY, 0)
+func TestTOMLDirectoryStore_UpdateLinks(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	entry := registry.InstructionEntry{
+		ID:         "memories/links.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Links Test",
+	}
+
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	links := []registry.Link{
+		{Target: "memories/other.toml", Weight: 0.8, Basis: "co-surfacing", CoSurfacingCount: 5},
+	}
+
+	err = store.UpdateLinks("memories/links.toml", links)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/links.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Links).To(HaveLen(1))
+	g.Expect(got.Links[0].Target).To(Equal("memories/other.toml"))
+	g.Expect(got.Links[0].Weight).To(Equal(0.8))
+	g.Expect(got.Links[0].CoSurfacingCount).To(Equal(5))
 }
 
-// noopLock is a no-op lock/unlock function.
-func noopLock(_ *os.File) error { return nil }
+// unexported variables.
+var (
+	errNoFileInfo = errors.New("no file info available")
+)
+
+// tomlMemDirEntry is a minimal os.DirEntry implementation for in-memory tests.
+type tomlMemDirEntry struct {
+	name string
+}
+
+func (e tomlMemDirEntry) Info() (os.FileInfo, error) { return nil, errNoFileInfo }
+
+func (e tomlMemDirEntry) IsDir() bool { return false }
+
+func (e tomlMemDirEntry) Name() string { return e.name }
+
+func (e tomlMemDirEntry) Type() os.FileMode { return 0 }
 
 // tomlMemFS is an in-memory filesystem for unit tests.
 type tomlMemFS struct {
 	mu    sync.Mutex
 	files map[string][]byte
-}
-
-func newTOMLMemFS() *tomlMemFS {
-	return &tomlMemFS{files: make(map[string][]byte)}
-}
-
-func (fs *tomlMemFS) setFile(path string, data []byte) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-	fs.files[path] = data
-}
-
-func (fs *tomlMemFS) readFile(name string) ([]byte, error) {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-
-	data, ok := fs.files[name]
-	if !ok {
-		return nil, fmt.Errorf("file not found: %s", name)
-	}
-
-	return append([]byte(nil), data...), nil
-}
-
-func (fs *tomlMemFS) writeFile(name string, data []byte, _ os.FileMode) error {
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-	fs.files[name] = append([]byte(nil), data...)
-
-	return nil
 }
 
 func (fs *tomlMemFS) readDir(name string) ([]os.DirEntry, error) {
@@ -776,6 +758,18 @@ func (fs *tomlMemFS) readDir(name string) ([]os.DirEntry, error) {
 	}
 
 	return entries, nil
+}
+
+func (fs *tomlMemFS) readFile(name string) ([]byte, error) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	data, ok := fs.files[name]
+	if !ok {
+		return nil, fmt.Errorf("file not found: %s", name)
+	}
+
+	return append([]byte(nil), data...), nil
 }
 
 func (fs *tomlMemFS) remove(name string) error {
@@ -806,15 +800,25 @@ func (fs *tomlMemFS) rename(oldpath, newpath string) error {
 	return nil
 }
 
-// tomlMemDirEntry is a minimal os.DirEntry implementation for in-memory tests.
-type tomlMemDirEntry struct {
-	name string
+func (fs *tomlMemFS) setFile(path string, data []byte) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.files[path] = data
 }
 
-func (e tomlMemDirEntry) Name() string               { return e.name }
-func (e tomlMemDirEntry) IsDir() bool                { return false }
-func (e tomlMemDirEntry) Type() os.FileMode          { return 0 }
-func (e tomlMemDirEntry) Info() (os.FileInfo, error) { return nil, nil }
+func (fs *tomlMemFS) writeFile(name string, data []byte, _ os.FileMode) error {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+
+	fs.files[name] = append([]byte(nil), data...)
+
+	return nil
+}
+
+func newTOMLMemFS() *tomlMemFS {
+	return &tomlMemFS{files: make(map[string][]byte)}
+}
 
 // newTOMLUnitStore creates a TOMLDirectoryStore backed by the given memFS.
 // clock may be nil for tests that don't depend on time.
@@ -836,4 +840,14 @@ func newTOMLUnitStore(mfs *tomlMemFS, clock func() time.Time) *registry.TOMLDire
 	}
 
 	return registry.NewTOMLDirectoryStore("/testdata", opts...)
+}
+
+// noopLock is a no-op lock/unlock function.
+func noopLock(_ *os.File) error { return nil }
+
+// --- Helpers ---
+
+// noopOpenFile opens /dev/null for use as a no-op lock file descriptor.
+func noopOpenFile(_ string, _ int, _ os.FileMode) (*os.File, error) {
+	return os.OpenFile(os.DevNull, os.O_RDONLY, 0)
 }
