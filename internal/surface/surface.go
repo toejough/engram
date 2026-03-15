@@ -478,7 +478,7 @@ func (s *Surfacer) runPrompt(
 		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	matches := matchPromptMemories(message, memories)
+	matches := matchPromptMemories(message, memories, effectiveness)
 	if len(matches) == 0 {
 		return Result{}, nil, nil, nil
 	}
@@ -699,7 +699,7 @@ func (s *Surfacer) runTool(
 		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories)
+	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories, effectiveness)
 	if len(candidates) == 0 {
 		return Result{}, nil, nil, nil
 	}
@@ -1173,7 +1173,12 @@ func isUnproven(path string, effectiveness map[string]EffectivenessStat) bool {
 
 // matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
 // Concatenates title, content, principle, keywords, and concepts for scoring.
-func matchPromptMemories(message string, memories []*memory.Stored) []promptMatch {
+// Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
+func matchPromptMemories(
+	message string,
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) []promptMatch {
 	// Build documents for BM25 scoring
 	docs := make([]bm25.Document, 0, len(memories))
 	memoryIndex := make(map[string]*memory.Stored)
@@ -1194,14 +1199,20 @@ func matchPromptMemories(message string, memories []*memory.Stored) []promptMatc
 	scorer := bm25.New()
 	scored := scorer.Score(message, docs)
 
-	// Build results, filtering by relevance floor
+	// Build results, filtering by relevance floor.
+	// Unproven memories require a higher floor to avoid cold-start noise.
 	matches := make([]promptMatch, 0, len(scored))
-	for _, sd := range scored {
-		if sd.Score < minRelevanceScore {
+	for _, result := range scored {
+		floor := minRelevanceScore
+		if isUnproven(result.ID, effectiveness) {
+			floor = unprovenBM25FloorPrompt
+		}
+
+		if result.Score < floor {
 			continue
 		}
 
-		mem := memoryIndex[sd.ID]
+		mem := memoryIndex[result.ID]
 		matches = append(matches, promptMatch{mem: mem})
 	}
 
@@ -1211,7 +1222,12 @@ func matchPromptMemories(message string, memories []*memory.Stored) []promptMatc
 // matchToolMemories returns top 5 memories with non-empty anti_pattern, ranked by BM25.
 // Only considers anti-pattern memories (tier-aware per REQ-7).
 // Concatenates title, principle, anti_pattern, and keywords for scoring.
-func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMatch {
+// Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
+func matchToolMemories(
+	_, toolInput string,
+	memories []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) []toolMatch {
 	// Filter to only anti-pattern memories (enforcement candidates)
 	candidates := make([]*memory.Stored, 0)
 
@@ -1245,14 +1261,20 @@ func matchToolMemories(_, toolInput string, memories []*memory.Stored) []toolMat
 	scorer := bm25.New()
 	scored := scorer.Score(toolInput, docs)
 
-	// Build results, filtering by relevance floor
+	// Build results, filtering by relevance floor.
+	// Unproven memories require a higher floor to avoid cold-start noise.
 	matches := make([]toolMatch, 0, len(scored))
-	for _, sd := range scored {
-		if sd.Score < minRelevanceScore {
+	for _, result := range scored {
+		floor := minRelevanceScore
+		if isUnproven(result.ID, effectiveness) {
+			floor = unprovenBM25FloorTool
+		}
+
+		if result.Score < floor {
 			continue
 		}
 
-		mem := memoryIndex[sd.ID]
+		mem := memoryIndex[result.ID]
 		matches = append(matches, toolMatch{mem: mem})
 	}
 
