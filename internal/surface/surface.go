@@ -939,6 +939,7 @@ func WithTracker(tracker MemoryTracker) SurfacerOption {
 
 // unexported constants.
 const (
+	coldStartBudget                  = 1
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
@@ -948,10 +949,13 @@ const (
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	preCompactLimit                  = 5
 	promptLimit                      = 10
-	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for new memories
+	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for memories with 1-4 surfacings
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
 	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
 	toolLimit                        = 2    // REQ-P4e-4: top-2
+	unprovenBM25FloorPrompt          = 0.20
+	unprovenBM25FloorTool            = 0.30
+	unprovenDefaultEffectiveness     = 30.0
 )
 
 // promptMatch holds a memory for prompt mode.
@@ -1047,14 +1051,20 @@ func concatenateToolFields(mem *memory.Stored) string {
 }
 
 // effectivenessScoreFor returns the effectiveness score for a memory path.
-// Memories with <insufficientDataThreshold surfacings or no data use sessionStartDefaultEffectiveness (REQ-P4e-1).
+// Unproven memories (0 surfacings) get unprovenDefaultEffectiveness (30%).
+// Memories with 1-4 surfacings (insufficient data) get sessionStartDefaultEffectiveness (50%).
+// Memories with >=insufficientDataThreshold surfacings use their recorded score (REQ-P4e-1).
 func effectivenessScoreFor(path string, effectiveness map[string]EffectivenessStat) float64 {
 	if effectiveness == nil {
-		return sessionStartDefaultEffectiveness
+		return unprovenDefaultEffectiveness
 	}
 
 	stat, ok := effectiveness[path]
-	if !ok || stat.SurfacedCount < insufficientDataThreshold {
+	if !ok || stat.SurfacedCount == 0 {
+		return unprovenDefaultEffectiveness
+	}
+
+	if stat.SurfacedCount < insufficientDataThreshold {
 		return sessionStartDefaultEffectiveness
 	}
 
@@ -1148,6 +1158,17 @@ func formatMemoryLine(slug, principle, level, annotation string) string {
 // isEmphasized reports whether the level should be prioritized in the output.
 func isEmphasized(level string) bool {
 	return level == enforcementEmphasizedAdvisory || level == enforcementReminder
+}
+
+// isUnproven reports whether a memory has never been surfaced (cold-start).
+func isUnproven(path string, effectiveness map[string]EffectivenessStat) bool {
+	if effectiveness == nil {
+		return true
+	}
+
+	stat, ok := effectiveness[path]
+
+	return !ok || stat.SurfacedCount == 0
 }
 
 // matchPromptMemories returns top 10 memories ranked by BM25 relevance to message.
