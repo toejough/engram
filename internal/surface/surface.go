@@ -486,6 +486,9 @@ func (s *Surfacer) runPrompt(
 	// Re-rank by frecency activation (ARCH-35).
 	sortPromptMatchesByActivation(matches, scorer)
 
+	// #307: cold-start budget — limit unproven to 1 per invocation.
+	matches = applyColdStartBudgetPrompt(matches, effectiveness)
+
 	// Limit to top promptLimit results.
 	if len(matches) > promptLimit {
 		matches = matches[:promptLimit]
@@ -636,6 +639,9 @@ func (s *Surfacer) runSessionStart(
 		sortByActivatedScore(memories, activated)
 	}
 
+	// #307: cold-start budget — limit unproven to 1 per invocation.
+	memories = applyColdStartBudgetStored(memories, effectiveness)
+
 	// REQ-P4e-2: take top-7.
 	count := len(memories)
 	if count > sessionStartLimit {
@@ -712,6 +718,9 @@ func (s *Surfacer) runTool(
 
 	// Re-rank by frecency activation (ARCH-35).
 	sortToolMatchesByActivation(candidates, scorer)
+
+	// #307: cold-start budget — limit unproven to 1 per invocation.
+	candidates = applyColdStartBudgetTool(candidates, effectiveness)
 
 	// REQ-P4e-4: limit to top-2.
 	if len(candidates) > toolLimit {
@@ -966,6 +975,87 @@ type promptMatch struct {
 // toolMatch holds a memory for tool mode.
 type toolMatch struct {
 	mem *memory.Stored
+}
+
+// applyColdStartBudgetPrompt keeps all proven matches plus at most coldStartBudget unproven.
+// No-op when effectiveness is nil (no data available to distinguish proven from unproven).
+func applyColdStartBudgetPrompt(
+	candidates []promptMatch,
+	effectiveness map[string]EffectivenessStat,
+) []promptMatch {
+	if effectiveness == nil {
+		return candidates
+	}
+
+	result := make([]promptMatch, 0, len(candidates))
+	unprovenCount := 0
+
+	for _, match := range candidates {
+		if isUnproven(match.mem.FilePath, effectiveness) {
+			unprovenCount++
+			if unprovenCount > coldStartBudget {
+				continue
+			}
+		}
+
+		result = append(result, match)
+	}
+
+	return result
+}
+
+// applyColdStartBudgetStored keeps all proven memories plus at most coldStartBudget unproven.
+// No-op when effectiveness is nil (no data available to distinguish proven from unproven).
+func applyColdStartBudgetStored(
+	candidates []*memory.Stored,
+	effectiveness map[string]EffectivenessStat,
+) []*memory.Stored {
+	if effectiveness == nil {
+		return candidates
+	}
+
+	result := make([]*memory.Stored, 0, len(candidates))
+	unprovenCount := 0
+
+	for _, mem := range candidates {
+		if isUnproven(mem.FilePath, effectiveness) {
+			unprovenCount++
+			if unprovenCount > coldStartBudget {
+				continue
+			}
+		}
+
+		result = append(result, mem)
+	}
+
+	return result
+}
+
+// applyColdStartBudgetTool keeps all proven matches plus at most coldStartBudget unproven.
+// No-op when effectiveness is nil (no data available to distinguish proven from unproven).
+func applyColdStartBudgetTool(
+	candidates []toolMatch,
+	effectiveness map[string]EffectivenessStat,
+) []toolMatch {
+	if effectiveness == nil {
+		return candidates
+	}
+
+	result := make([]toolMatch, 0, len(candidates))
+	unprovenCount := 0
+
+	for _, match := range candidates {
+		if isUnproven(match.mem.FilePath, effectiveness) {
+			unprovenCount++
+			if unprovenCount > coldStartBudget {
+				continue
+			}
+		}
+
+		result = append(result, match)
+	}
+
+	return result
 }
 
 // applySpreadingActivation re-scores memories using the P3 spreading activation formula (REQ-P3-6):
