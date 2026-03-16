@@ -1924,11 +1924,12 @@ func TestToolOutput_EnrichesBM25Query(t *testing.T) {
 		ToolOutput: "fatal: cannot commit in dirty working tree",
 		Format:     surface.FormatJSON,
 	})
+	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
 
-	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(buf.String()).To(ContainSubstring("stash-before-ops"))
 }
 
