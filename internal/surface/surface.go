@@ -1319,7 +1319,7 @@ func matchPromptMemories(
 // Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
 func matchToolMemories(
 	_, toolInput, toolOutput string,
-	_ bool,
+	errored bool,
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
 ) []toolMatch {
@@ -1362,11 +1362,12 @@ func matchToolMemories(
 	scored := scorer.Score(query, docs)
 
 	// Build results, filtering by relevance floor.
-	// Unproven memories require a higher floor to avoid cold-start noise.
+	// Unproven memories require a higher floor to avoid cold-start noise,
+	// unless the tool errored — any relevant memory is high-value on failure.
 	matches := make([]toolMatch, 0, len(scored))
 	for _, result := range scored {
 		floor := minRelevanceScore
-		if isUnproven(result.ID, effectiveness) {
+		if isUnproven(result.ID, effectiveness) && !errored {
 			floor = unprovenBM25FloorTool
 		}
 

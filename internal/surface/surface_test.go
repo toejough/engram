@@ -1782,6 +1782,112 @@ func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T)
 	g.Expect(logReader.cleared).To(BeTrue())
 }
 
+func TestToolErrored_LowersUnprovenFloor(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// This test verifies the errored flag lowers the BM25 floor for unproven memories
+	// from unprovenBM25FloorTool (0.30) to minRelevanceScore (0.05).
+	//
+	// Corpus design: 6 stash-filler memories (marked proven) dilute IDF for "stash"
+	// so the weak-match memory (unproven) scores ~0.16 — above 0.05 but below 0.30.
+	// (score verified empirically: reps=5 repetitions of padding, 6 stash-fillers)
+	//
+	// Stash-fillers are marked proven (SurfacedCount=5, EffectivenessScore=10) so:
+	//   - They are NOT unproven — cold-start budget does not apply to them.
+	//   - filterToolMatchesByEffectivenessGate removes them (score ≤ 40 with ≥ 5 surfacings).
+	// This leaves weak-match as the only surviving candidate, whose surfacing is
+	// controlled solely by the errored-flag floor logic.
+	stashAntiPattern := strings.Repeat(
+		"forgetting to backup configuration files before deployment ", 5,
+	) + "stash"
+
+	weakMatch := &memory.Stored{
+		FilePath:    "/data/memories/weak-match.toml",
+		Title:       "backup reminder",
+		Principle:   "always preserve working state before operations",
+		AntiPattern: stashAntiPattern,
+		Keywords:    []string{"backup", "configuration"},
+	}
+
+	memories := make([]*memory.Stored, 0, 17)
+	memories = append(memories, weakMatch)
+
+	stashFillerPaths := make([]string, 0, 6)
+
+	for i := range 6 {
+		path := fmt.Sprintf("/data/memories/stash-filler-%d.toml", i)
+		stashFillerPaths = append(stashFillerPaths, path)
+		memories = append(memories, &memory.Stored{
+			FilePath:    path,
+			Title:       fmt.Sprintf("stash rule %d", i),
+			AntiPattern: fmt.Sprintf("forgetting to stash changes before operation %d", i),
+			Keywords:    []string{"stash"},
+		})
+	}
+
+	for i := range 10 {
+		memories = append(memories, &memory.Stored{
+			FilePath:    fmt.Sprintf("/data/memories/unrel-filler-%d.toml", i),
+			Title:       fmt.Sprintf("db rule %d", i),
+			AntiPattern: fmt.Sprintf("running migrations without backup %d breaks production", i),
+			Keywords:    []string{"database"},
+		})
+	}
+
+	effStats := make(map[string]surface.EffectivenessStat)
+
+	for _, path := range stashFillerPaths {
+		effStats[path] = surface.EffectivenessStat{SurfacedCount: 5, EffectivenessScore: 10}
+	}
+
+	eff := &fakeEffectivenessComputer{stats: effStats}
+	retriever := &fakeRetriever{memories: memories}
+
+	// Without errored: unproven floor (0.30) filters out weak-match (score ~0.16).
+	sNoErr := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var bufNoErr bytes.Buffer
+
+	err := sNoErr.Run(context.Background(), &bufNoErr, surface.Options{
+		Mode:        surface.ModeTool,
+		DataDir:     "/tmp/data",
+		ToolName:    "Bash",
+		ToolInput:   "git stash",
+		ToolErrored: false,
+		Format:      surface.FormatJSON,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(bufNoErr.String()).NotTo(ContainSubstring("weak-match"))
+
+	// With errored: base floor (0.05) allows weak-match (score ~0.16) through.
+	sErr := surface.New(retriever, surface.WithEffectiveness(eff))
+
+	var bufErr bytes.Buffer
+
+	err = sErr.Run(context.Background(), &bufErr, surface.Options{
+		Mode:        surface.ModeTool,
+		DataDir:     "/tmp/data",
+		ToolName:    "Bash",
+		ToolInput:   "git stash",
+		ToolErrored: true,
+		Format:      surface.FormatJSON,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(bufErr.String()).To(ContainSubstring("weak-match"))
+}
+
 func TestToolOutput_EnrichesBM25Query(t *testing.T) {
 	t.Parallel()
 
