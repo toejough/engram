@@ -8,17 +8,13 @@ TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 TOOL_RESPONSE="$(echo "$STDIN_JSON" | jq -r '.tool_response // empty')"
 FILE_PATH="$(echo "$STDIN_JSON" | jq -r '.tool_input.file_path // empty')"
 
-# Only fire for Write and Edit tools (T-213)
-if [[ "$TOOL_NAME" != "Write" && "$TOOL_NAME" != "Edit" ]]; then
-    exit 0
-fi
-
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
 DATA_DIR="${ENGRAM_DATA_DIR:-${ENGRAM_HOME}/data}"
 
-# Skill/command file advisory
-if [[ "$FILE_PATH" == */skills/* || "$FILE_PATH" == */.claude/commands/* ]]; then
+# Skill/command file advisory for Write/Edit
+if [[ ("$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit") && \
+      ("$FILE_PATH" == */skills/* || "$FILE_PATH" == */.claude/commands/*) ]]; then
     jq -n '{
         continue: true,
         suppressOutput: false,
