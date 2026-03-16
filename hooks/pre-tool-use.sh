@@ -42,6 +42,7 @@ if [[ -n "$TOOL_NAME" ]]; then
         --data-dir "$ENGRAM_DATA" --format json) || true
     if [[ -n "$SURFACE_OUTPUT" ]]; then
         echo "$SURFACE_OUTPUT" | jq '{
+            systemMessage: (.summary // empty),
             continue: true,
             suppressOutput: false,
             hookSpecificOutput: {

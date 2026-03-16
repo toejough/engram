@@ -38,6 +38,7 @@ if [[ -x "$ENGRAM_BIN" ]]; then
         --data-dir "$DATA_DIR" --format json 2>/dev/null) || SURFACE_OUTPUT=""
     if [[ -n "$SURFACE_OUTPUT" ]]; then
         echo "$SURFACE_OUTPUT" | jq '{
+            systemMessage: (.summary // empty),
             continue: true,
             suppressOutput: false,
             hookSpecificOutput: {

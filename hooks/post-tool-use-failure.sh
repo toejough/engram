@@ -47,6 +47,7 @@ if [[ -x "$ENGRAM_BIN" ]]; then
         --tool-output "$ERROR" --tool-errored \
         --data-dir "$DATA_DIR" --format json 2>/dev/null) || SURFACE_OUT=""
     MEMORY_CONTEXT="$(echo "$SURFACE_OUT" | jq -r '.context // empty' 2>/dev/null)" || MEMORY_CONTEXT=""
+    MEMORY_SUMMARY="$(echo "$SURFACE_OUT" | jq -r '.summary // empty' 2>/dev/null)" || MEMORY_SUMMARY=""
 fi
 
 # Combine static advisory with memory context
@@ -57,11 +58,23 @@ else
     COMBINED="$ADVICE"
 fi
 
-jq -n --arg ctx "$COMBINED" '{
-    continue: true,
-    suppressOutput: false,
-    hookSpecificOutput: {
-        hookEventName: "PostToolUseFailure",
-        additionalContext: $ctx
-    }
-}'
+if [[ -n "$MEMORY_SUMMARY" ]]; then
+    jq -n --arg sys "$MEMORY_SUMMARY" --arg ctx "$COMBINED" '{
+        systemMessage: $sys,
+        continue: true,
+        suppressOutput: false,
+        hookSpecificOutput: {
+            hookEventName: "PostToolUseFailure",
+            additionalContext: $ctx
+        }
+    }'
+else
+    jq -n --arg ctx "$COMBINED" '{
+        continue: true,
+        suppressOutput: false,
+        hookSpecificOutput: {
+            hookEventName: "PostToolUseFailure",
+            additionalContext: $ctx
+        }
+    }'
+fi
