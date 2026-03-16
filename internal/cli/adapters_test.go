@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -159,23 +158,6 @@ func TestLearnRegistryAdapter_RegisterMemory(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-func TestNoopTranscriptReader_ReadRecent(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	reader := cli.ExportNewNoopTranscriptReader()
-
-	result, err := reader.ReadRecent(10)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
-}
-
 func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	t.Parallel()
 
@@ -207,58 +189,6 @@ func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
 	g.Expect(content).To(Equal("# Test\nContent."))
 }
 
-func TestOsMemoryLoader_LoadPrinciple_Found(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	g.Expect(os.WriteFile(
-		filepath.Join(memDir, "test-mem.toml"),
-		[]byte(
-			"title = \"Test\"\nprinciple = \"always test\"\nupdated_at = \"2025-01-01T00:00:00Z\"\n",
-		),
-		0o644,
-	)).To(Succeed())
-
-	loader := cli.ExportNewOsMemoryLoader(dataDir)
-
-	principle, err := loader.LoadPrinciple(context.Background(), "test-mem")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(principle).To(Equal("always test"))
-}
-
-func TestOsMemoryLoader_LoadPrinciple_NotFound(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	loader := cli.ExportNewOsMemoryLoader(dataDir)
-
-	principle, err := loader.LoadPrinciple(context.Background(), "nonexistent")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(principle).To(BeEmpty())
-}
-
 func TestOsMemoryRemover_Remove(t *testing.T) {
 	t.Parallel()
 
@@ -283,57 +213,6 @@ func TestOsMemoryRemover_RemoveError(t *testing.T) {
 	remover := cli.ExportNewOsMemoryRemover()
 	err := remover.Remove("/nonexistent/path/file.toml")
 	g.Expect(err).To(HaveOccurred())
-}
-
-func TestOsRemindConfigReader_ReadConfig_Missing(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	reader := cli.ExportNewOsRemindConfigReader(t.TempDir())
-
-	config, err := reader.ReadConfig()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(config).To(BeNil())
-}
-
-func TestOsRemindConfigReader_ReadConfig_WithFile(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	tomlContent := `["*.go"]
-instructions = ["mem-1", "mem-2"]
-
-["*.py"]
-instructions = ["mem-3"]
-`
-
-	g.Expect(os.WriteFile(
-		filepath.Join(dataDir, "reminders.toml"),
-		[]byte(tomlContent),
-		0o644,
-	)).To(Succeed())
-
-	reader := cli.ExportNewOsRemindConfigReader(dataDir)
-
-	config, err := reader.ReadConfig()
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(config).To(HaveLen(2))
-	g.Expect(config["*.go"]).To(ConsistOf("mem-1", "mem-2"))
-	g.Expect(config["*.py"]).To(ConsistOf("mem-3"))
 }
 
 func TestOsSkillWriter_Write(t *testing.T) {
@@ -365,80 +244,6 @@ func TestOsSkillWriter_Write(t *testing.T) {
 	// Writing again should fail (already exists).
 	_, err = writer.Write("my-skill", "duplicate")
 	g.Expect(err).To(HaveOccurred())
-}
-
-func TestParseRemindersToml_EmptyInput(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	result, err := cli.ExportParseRemindersToml([]byte(""))
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
-}
-
-func TestParseRemindersToml_InstructionsWithoutSection(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	// Instructions line without a preceding section header is ignored.
-	input := []byte(`instructions = ["rule-1"]`)
-
-	result, err := cli.ExportParseRemindersToml(input)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(BeEmpty())
-}
-
-func TestParseRemindersToml_NoEqualsSign(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	input := []byte("[\"*.go\"]\ninstructions [\"rule-1\"]\n")
-
-	result, err := cli.ExportParseRemindersToml(input)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// The line without = is skipped; section has no entries.
-	g.Expect(result).To(BeEmpty())
-}
-
-func TestParseRemindersToml_ValidInput(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	input := []byte(
-		"# Comment line\n[\"*.go\"]\n" +
-			"instructions = [\"rule-1\", \"rule-2\"]\n\n" +
-			"[\"*.py\"]\ninstructions = [\"rule-3\"]\n",
-	)
-
-	result, err := cli.ExportParseRemindersToml(input)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).To(HaveLen(2))
-	g.Expect(result["*.go"]).To(Equal([]string{"rule-1", "rule-2"}))
-	g.Expect(result["*.py"]).To(Equal([]string{"rule-3"}))
 }
 
 // resolveSkillsDir: returns skills subdir when CLAUDE_PLUGIN_ROOT is set.

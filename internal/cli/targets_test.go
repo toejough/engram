@@ -170,8 +170,8 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		// 11 individual commands + 1 registry group = 12 entries
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 12))
+		// 10 individual commands + 1 registry group = 11 entries
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 11))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -186,7 +186,7 @@ func TestBuildTargets(t *testing.T) {
 
 		subcmds := []string{
 			"audit", "correct", "evaluate", "review",
-			"maintain", "surface", "learn", "remind", "instruct",
+			"maintain", "surface", "learn", "instruct",
 			"context-update",
 			"apply-proposal",
 		}
@@ -570,35 +570,6 @@ func TestRegistryRegisterSourceFlags(t *testing.T) {
 			"--type", "memory-md",
 			"--path", "/memories.md",
 		}))
-	})
-}
-
-func TestRemindFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RemindFlags(cli.RemindArgs{DataDir: "/data", FilePath: "/file.go"})
-		g.Expect(result).
-			To(gomega.Equal([]string{"--data-dir", "/data", "--file-path", "/file.go"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RemindFlags(cli.RemindArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RemindFlags(cli.RemindArgs{FilePath: "/file.go"})
-		g.Expect(result).To(gomega.Equal([]string{"--file-path", "/file.go"}))
 	})
 }
 

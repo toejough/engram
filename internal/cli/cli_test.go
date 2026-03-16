@@ -1001,60 +1001,6 @@ func TestRunInstructAudit_MissingFlags(t *testing.T) {
 	}
 }
 
-// runRemind: valid run with empty data dir produces no output.
-func TestRunRemind_EmptyDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "remind", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-// runRemind: flag parse error.
-func TestRunRemind_FlagParseError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "remind", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// runRemind: missing flags.
-func TestRunRemind_MissingFlags(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "remind"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
 // TestRun_ApplyProposalDispatch verifies "apply-proposal" branch is reached.
 func TestRun_ApplyProposalDispatch(t *testing.T) {
 	t.Parallel()

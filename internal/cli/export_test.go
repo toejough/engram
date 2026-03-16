@@ -15,7 +15,6 @@ import (
 var (
 	ExportBuildEscalationMemories = buildEscalationMemories
 	ExportContentHash             = contentHash
-	ExportParseRemindersToml      = parseRemindersToml
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
 )
@@ -49,13 +48,6 @@ func ExportNewLearnRegistryAdapter(reg regpkg.Registry) interface {
 	return &learnRegistryAdapter{reg: reg}
 }
 
-// ExportNewNoopTranscriptReader creates a noopTranscriptReader for testing.
-func ExportNewNoopTranscriptReader() interface {
-	ReadRecent(n int) (string, error)
-} {
-	return &noopTranscriptReader{}
-}
-
 // ExportNewOsClaudeMDStore creates an osClaudeMDStore for testing.
 func ExportNewOsClaudeMDStore(path string) interface {
 	Read() (string, error)
@@ -64,19 +56,9 @@ func ExportNewOsClaudeMDStore(path string) interface {
 	return &osClaudeMDStore{path: path}
 }
 
-// ExportNewOsMemoryLoader creates an osMemoryLoader for testing.
-func ExportNewOsMemoryLoader(dataDir string) *osMemoryLoader {
-	return &osMemoryLoader{dataDir: dataDir}
-}
-
 // ExportNewOsMemoryRemover creates an osMemoryRemover for testing.
 func ExportNewOsMemoryRemover() *osMemoryRemover {
 	return &osMemoryRemover{}
-}
-
-// ExportNewOsRemindConfigReader creates an osRemindConfigReader for testing.
-func ExportNewOsRemindConfigReader(dataDir string) *osRemindConfigReader {
-	return &osRemindConfigReader{dataDir: dataDir}
 }
 
 // ExportNewOsSkillWriter creates an osSkillWriter for testing.

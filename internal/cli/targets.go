@@ -94,12 +94,6 @@ type RegistryRegisterSourceArgs struct {
 	Path       string `targ:"flag,name=path,desc=path to source file or name"`
 }
 
-// RemindArgs holds parsed flags for the remind subcommand.
-type RemindArgs struct {
-	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	FilePath string `targ:"flag,name=file-path,desc=file path from tool call"`
-}
-
 // ReviewArgs holds parsed flags for the review subcommand.
 type ReviewArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -181,8 +175,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("surface").Description("Surface relevant memories"),
 		targ.Targ(func(a LearnArgs) { run("learn", LearnFlags(a)) }).
 			Name("learn").Description("Extract learnings from session"),
-		targ.Targ(func(a RemindArgs) { run("remind", RemindFlags(a)) }).
-			Name("remind").Description("Proactive reminders for tool calls"),
 		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
 			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
@@ -269,11 +261,6 @@ func RegistryMergeFlags(a RegistryMergeArgs) []string {
 // RegistryRegisterSourceFlags returns the CLI flag args for the registry register-source subcommand.
 func RegistryRegisterSourceFlags(a RegistryRegisterSourceArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--type", a.SourceType, "--path", a.Path)
-}
-
-// RemindFlags returns the CLI flag args for the remind subcommand.
-func RemindFlags(a RemindArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--file-path", a.FilePath)
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.

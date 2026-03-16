@@ -32,7 +32,6 @@ import (
 	"engram/internal/maintain"
 	"engram/internal/memory"
 	regpkg "engram/internal/registry"
-	"engram/internal/remind"
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -138,8 +137,6 @@ func Run(
 		return runSurface(subArgs, stdout)
 	case "learn":
 		return runLearn(subArgs, stderr, stdin)
-	case "remind":
-		return runRemind(subArgs, stdout)
 	case "instruct":
 		return runInstructAudit(subArgs, stdout)
 	case "context-update":
@@ -481,7 +478,6 @@ var (
 	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
 	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
 	errNoContentBlocks      = errors.New("API response contained no content blocks")
-	errRemindMissingFlags   = errors.New("remind: --data-dir required")
 	errReviewMissingFlags   = errors.New("review: --data-dir required")
 	errSkillExists          = errors.New("skill already exists")
 	errSurfaceMissingFlags  = errors.New(
@@ -490,7 +486,7 @@ var (
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|remind|instruct" +
+			"|review|maintain|instruct" +
 			"|context-update> [flags]",
 	)
 )
@@ -628,13 +624,6 @@ func (a *learnRegistryAdapter) RegisterMemory(
 	return a.reg.Register(entry)
 }
 
-// noopTranscriptReader returns empty transcript (hook passes transcript via stdin in future).
-type noopTranscriptReader struct{}
-
-func (r *noopTranscriptReader) ReadRecent(_ int) (string, error) {
-	return "", nil
-}
-
 // osClaudeMDStore reads and writes CLAUDE.md files on disk.
 type osClaudeMDStore struct {
 	path string
@@ -688,30 +677,6 @@ func (w *osFileWriter) Write(path string, content []byte) error {
 	return os.WriteFile(path, content, filePerms) //nolint:wrapcheck // thin I/O adapter
 }
 
-// osMemoryLoader loads a memory's principle by instruction ID from the data directory.
-type osMemoryLoader struct {
-	dataDir string
-}
-
-func (l *osMemoryLoader) LoadPrinciple(ctx context.Context, instructionID string) (string, error) {
-	retriever := retrieve.New()
-
-	memories, err := retriever.ListMemories(ctx, l.dataDir)
-	if err != nil {
-		return "", fmt.Errorf("loading memories: %w", err)
-	}
-
-	// Match by filename slug (without .toml extension).
-	for _, mem := range memories {
-		slug := strings.TrimSuffix(filepath.Base(mem.FilePath), ".toml")
-		if slug == instructionID && mem.Principle != "" {
-			return mem.Principle, nil
-		}
-	}
-
-	return "", nil
-}
-
 // osMemoryRemover deletes a memory TOML file from disk.
 type osMemoryRemover struct{}
 
@@ -752,26 +717,6 @@ func (s *osOffsetStore) Write(path string, offset learn.Offset) error {
 	const filePerms = 0o644
 
 	return os.WriteFile(path, data, filePerms) //nolint:wrapcheck // thin I/O adapter
-}
-
-// osRemindConfigReader reads reminders.toml from the data directory.
-type osRemindConfigReader struct {
-	dataDir string
-}
-
-func (r *osRemindConfigReader) ReadConfig() (map[string][]string, error) {
-	path := filepath.Join(r.dataDir, "reminders.toml")
-
-	data, err := os.ReadFile(path) //nolint:gosec // thin I/O adapter
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil //nolint:nilnil // intentional: missing config returns nil
-		}
-
-		return nil, fmt.Errorf("reading reminders.toml: %w", err)
-	}
-
-	return parseRemindersToml(data)
 }
 
 type osRenamer struct{}
@@ -1061,57 +1006,6 @@ func makeAnthropicCaller(
 // openRegistry creates a TOMLDirectoryStore for the given data directory.
 func openRegistry(dataDir string) *regpkg.TOMLDirectoryStore {
 	return regpkg.NewTOMLDirectoryStore(dataDir)
-}
-
-// parseRemindersToml parses a simple TOML config: ["*.go"]\ninstructions = ["id1", "id2"].
-//
-//nolint:cyclop // TOML parsing
-func parseRemindersToml(data []byte) (map[string][]string, error) {
-	result := make(map[string][]string)
-
-	lines := strings.Split(string(data), "\n")
-
-	var currentPattern string
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Section header: ["*.go"]
-		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
-			pattern := strings.Trim(line, "[]\"")
-			currentPattern = pattern
-
-			continue
-		}
-
-		// Key-value: instructions = ["id1", "id2"]
-		if strings.HasPrefix(line, "instructions") && currentPattern != "" {
-			_, valueStr, found := strings.Cut(line, "=")
-			if !found {
-				continue
-			}
-
-			valueStr = strings.TrimSpace(valueStr)
-			valueStr = strings.Trim(valueStr, "[]")
-
-			parts := strings.Split(valueStr, ",")
-			ids := make([]string, 0, len(parts))
-
-			for _, part := range parts {
-				id := strings.TrimSpace(strings.Trim(strings.TrimSpace(part), "\""))
-				if id != "" {
-					ids = append(ids, id)
-				}
-			}
-
-			result[currentPattern] = ids
-		}
-	}
-
-	return result, nil
 }
 
 func renderReviewTable(
@@ -1520,49 +1414,6 @@ func runMaintainApply(
 
 	for _, reason := range report.SkipReasons {
 		_, _ = fmt.Fprintf(stdout, "  skipped: %s\n", reason)
-	}
-
-	return nil
-}
-
-func runRemind(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("remind", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	filePath := fs.String("file-path", "", "file path from tool call")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("remind: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errRemindMissingFlags
-	}
-
-	configReader := &osRemindConfigReader{dataDir: *dataDir}
-	loader := &osMemoryLoader{dataDir: *dataDir}
-	transcriptReader := &noopTranscriptReader{}
-	surfLogger := surfacinglog.New(*dataDir)
-
-	reminder := remind.New(configReader, loader, transcriptReader,
-		remind.WithSurfacingLogger(surfLogger),
-	)
-
-	ctx := context.Background()
-	input := remind.ToolCallInput{
-		ToolName: "",
-		FilePath: *filePath,
-	}
-
-	result, err := reminder.Run(ctx, input)
-	if err != nil {
-		return fmt.Errorf("remind: %w", err)
-	}
-
-	if result != "" {
-		_, _ = fmt.Fprint(stdout, result)
 	}
 
 	return nil
