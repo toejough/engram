@@ -15,6 +15,51 @@ import (
 	"engram/internal/registry"
 )
 
+// traces: issue-310
+func TestIssue310_RecordSurfacingWithAbsolutePath(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	fixedTime := time.Date(2026, 3, 16, 18, 0, 0, 0, time.UTC)
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, func() time.Time { return fixedTime })
+
+	entry := registry.InstructionEntry{
+		ID:            "memories/abs-path.toml",
+		SourceType:    registry.SourceTypeMemory,
+		Title:         "Absolute Path Test",
+		SurfacedCount: 0,
+	}
+
+	err := store.Register(entry)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// Pass absolute path (as surface.go does with mem.FilePath).
+	// The store dataDir is /testdata, so the absolute path is
+	// /testdata/memories/abs-path.toml.
+	err = store.RecordSurfacing("/testdata/memories/abs-path.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	got, err := store.Get("memories/abs-path.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.SurfacedCount).To(Equal(1))
+}
+
 // --- T-238: Register writes new TOML with zero metrics ---
 
 func TestT238_TOMLDirectoryStore_Register(t *testing.T) {

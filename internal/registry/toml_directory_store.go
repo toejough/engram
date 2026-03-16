@@ -306,14 +306,6 @@ func (s *TOMLDirectoryStore) applyMergeToTarget(sourceID, targetID string, sourc
 	})
 }
 
-func (s *TOMLDirectoryStore) now() time.Time {
-	if s.nowFn != nil {
-		return s.nowFn()
-	}
-
-	return time.Now()
-}
-
 // --- Private helpers ---
 
 // withFileLocked acquires an exclusive flock on a stable sidecar lock file,
@@ -322,7 +314,27 @@ func (s *TOMLDirectoryStore) now() time.Time {
 // A sidecar .lock file (not the data file) is used for locking so that the
 // inode is stable across atomic renames. All goroutines contending on the same
 // id block on the same inode regardless of how many rename cycles have occurred.
+// normalizeID converts an absolute path within dataDir to a relative ID.
+// If id is already relative or outside dataDir, it is returned unchanged.
+func (s *TOMLDirectoryStore) normalizeID(id string) string {
+	prefix := s.dataDir + string(filepath.Separator)
+	if trimmed, ok := strings.CutPrefix(id, prefix); ok {
+		return trimmed
+	}
+
+	return id
+}
+
+func (s *TOMLDirectoryStore) now() time.Time {
+	if s.nowFn != nil {
+		return s.nowFn()
+	}
+
+	return time.Now()
+}
+
 func (s *TOMLDirectoryStore) withFileLocked(id string, fn func(*memoryRecord) error) error {
+	id = s.normalizeID(id)
 	absPath := filepath.Join(s.dataDir, id)
 	lockPath := absPath + ".lock"
 
