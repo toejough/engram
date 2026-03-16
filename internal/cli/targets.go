@@ -102,12 +102,14 @@ type ReviewArgs struct {
 
 // SurfaceArgs holds parsed flags for the surface subcommand.
 type SurfaceArgs struct {
-	Mode      string `targ:"flag,name=mode,desc=surface mode: session-start or prompt or tool"`
-	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Message   string `targ:"flag,name=message,desc=user message (prompt mode)"`
-	ToolName  string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`
-	ToolInput string `targ:"flag,name=tool-input,desc=tool input JSON (tool mode)"`
-	Format    string `targ:"flag,name=format,desc=output format: json"`
+	Mode        string `targ:"flag,name=mode,desc=surface mode: session-start or prompt or tool"`
+	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Message     string `targ:"flag,name=message,desc=user message (prompt mode)"`
+	ToolName    string `targ:"flag,name=tool-name,desc=tool name (tool mode)"`
+	ToolInput   string `targ:"flag,name=tool-input,desc=tool input JSON (tool mode)"`
+	ToolOutput  string `targ:"flag,name=tool-output,desc=tool output or error text (tool mode)"`
+	ToolErrored bool   `targ:"flag,name=tool-errored,desc=true if tool call failed (tool mode)"`
+	Format      string `targ:"flag,name=format,desc=output format: json"`
 }
 
 // AddBoolFlag appends a flag if the bool is true.
@@ -278,14 +280,17 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 
 // SurfaceFlags returns the CLI flag args for the surface subcommand.
 func SurfaceFlags(a SurfaceArgs) []string {
-	return BuildFlags(
+	flags := BuildFlags(
 		"--mode", a.Mode,
 		"--data-dir", a.DataDir,
 		"--message", a.Message,
 		"--tool-name", a.ToolName,
 		"--tool-input", a.ToolInput,
+		"--tool-output", a.ToolOutput,
 		"--format", a.Format,
 	)
+
+	return AddBoolFlag(flags, "--tool-errored", a.ToolErrored)
 }
 
 // Targets returns all targ targets for the engram CLI.

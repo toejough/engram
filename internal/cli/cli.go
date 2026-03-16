@@ -1423,15 +1423,13 @@ func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	mode := fs.String(
-		"mode", "", "surface mode: session-start, prompt, tool, precompact",
-	)
+	mode := fs.String("mode", "", "surface mode: session-start, prompt, tool, precompact")
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	message := fs.String("message", "", "user message (prompt mode)")
 	toolName := fs.String("tool-name", "", "tool name (tool mode)")
-	toolInput := fs.String(
-		"tool-input", "", "tool input JSON (tool mode)",
-	)
+	toolInput := fs.String("tool-input", "", "tool input JSON (tool mode)")
+	toolOutput := fs.String("tool-output", "", "tool output or error text (tool mode)")
+	toolErrored := fs.Bool("tool-errored", false, "true if tool call failed (tool mode)")
 	format := fs.String("format", "", "output format: json")
 	budget := fs.Int("budget", 0, "token budget override (precompact mode)")
 
@@ -1442,6 +1440,18 @@ func runSurface(args []string, stdout io.Writer) error {
 
 	if *mode == "" || *dataDir == "" {
 		return errSurfaceMissingFlags
+	}
+
+	opts := surface.Options{
+		Mode:        *mode,
+		DataDir:     *dataDir,
+		Message:     *message,
+		ToolName:    *toolName,
+		ToolInput:   *toolInput,
+		ToolOutput:  *toolOutput,
+		ToolErrored: *toolErrored,
+		Format:      *format,
+		Budget:      *budget,
 	}
 
 	retriever := retrieve.New()
@@ -1457,7 +1467,6 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	effAdapter := &effectivenessAdapter{stats: effectiveness.FromMemories(memories)}
-
 	registry := openRegistry(*dataDir)
 
 	surfacer := surface.New(
@@ -1469,15 +1478,7 @@ func runSurface(args []string, stdout io.Writer) error {
 		surface.WithRegistry(&surfaceRegistryAdapter{reg: registry}),
 	)
 
-	return surfacer.Run(ctx, stdout, surface.Options{
-		Mode:      *mode,
-		DataDir:   *dataDir,
-		Message:   *message,
-		ToolName:  *toolName,
-		ToolInput: *toolInput,
-		Format:    *format,
-		Budget:    *budget,
-	})
+	return surfacer.Run(ctx, stdout, opts)
 }
 
 func truncateTitle(title string) string {

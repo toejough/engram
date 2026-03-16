@@ -112,6 +112,8 @@ type Options struct {
 	Message          string // for prompt mode
 	ToolName         string // for tool mode
 	ToolInput        string // for tool mode
+	ToolOutput       string // for tool mode: tool result or error text
+	ToolErrored      bool   // for tool mode: true if tool call failed
 	Format           string // output format: "" (plain) or "json"
 	Budget           int    // token budget override (precompact mode)
 	TranscriptWindow string // recent transcript text for transcript suppression (REQ-P4f-3)
@@ -705,7 +707,9 @@ func (s *Surfacer) runTool(
 		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
 	}
 
-	candidates := matchToolMemories(opts.ToolName, opts.ToolInput, memories, effectiveness)
+	candidates := matchToolMemories(
+		opts.ToolName, opts.ToolInput, opts.ToolOutput, opts.ToolErrored, memories, effectiveness,
+	)
 	if len(candidates) == 0 {
 		return Result{}, nil, nil, nil
 	}
@@ -1314,7 +1318,8 @@ func matchPromptMemories(
 // Concatenates title, principle, anti_pattern, and keywords for scoring.
 // Unproven memories (never surfaced) require a higher BM25 floor than proven ones.
 func matchToolMemories(
-	_, toolInput string,
+	_, toolInput, toolOutput string,
+	_ bool,
 	memories []*memory.Stored,
 	effectiveness map[string]EffectivenessStat,
 ) []toolMatch {
@@ -1347,9 +1352,14 @@ func matchToolMemories(
 		memoryIndex[mem.FilePath] = mem
 	}
 
-	// Score using BM25
+	// Score using BM25; enrich query with tool output if present.
+	query := toolInput
+	if toolOutput != "" {
+		query = toolInput + " " + toolOutput
+	}
+
 	scorer := bm25.New()
-	scored := scorer.Score(toolInput, docs)
+	scored := scorer.Score(query, docs)
 
 	// Build results, filtering by relevance floor.
 	// Unproven memories require a higher floor to avoid cold-start noise.

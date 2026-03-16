@@ -1782,6 +1782,50 @@ func TestT94_SessionStartCreationLogNoMemoriesProducesCreationOnly(t *testing.T)
 	g.Expect(logReader.cleared).To(BeTrue())
 }
 
+func TestToolOutput_EnrichesBM25Query(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	target := &memory.Stored{
+		FilePath:    "/data/memories/stash-before-ops.toml",
+		Title:       "stash before operations",
+		Principle:   "Always stash or commit before running commands that require clean tree",
+		AntiPattern: "dirty working tree uncommitted changes",
+		Keywords:    []string{"git", "stash", "working tree"},
+	}
+
+	memories := make([]*memory.Stored, 0, 21)
+	memories = append(memories, target)
+
+	for i := range 20 {
+		memories = append(memories, &memory.Stored{
+			FilePath:    fmt.Sprintf("/data/memories/filler-%d.toml", i),
+			AntiPattern: fmt.Sprintf("unrelated pattern %d about something else", i),
+		})
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:       surface.ModeTool,
+		DataDir:    "/tmp/data",
+		ToolName:   "Bash",
+		ToolInput:  `{"command": "git commit -m 'fix'"}`,
+		ToolOutput: "fatal: cannot commit in dirty working tree",
+		Format:     surface.FormatJSON,
+	})
+	if err != nil {
+		return
+	}
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(buf.String()).To(ContainSubstring("stash-before-ops"))
+}
+
 // TestUnknownModeReturnsError verifies that Run returns ErrUnknownMode for unrecognized modes.
 func TestUnknownModeReturnsError(t *testing.T) {
 	t.Parallel()
