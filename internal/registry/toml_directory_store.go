@@ -58,6 +58,7 @@ func NewTOMLDirectoryStore(dataDir string, opts ...TOMLDirOption) *TOMLDirectory
 
 // Get returns a single entry by ID (relative path from dataDir).
 func (s *TOMLDirectoryStore) Get(id string) (*InstructionEntry, error) {
+	id = s.normalizeID(id)
 	absPath := filepath.Join(s.dataDir, id)
 
 	data, err := s.readFile(absPath)
@@ -112,6 +113,8 @@ func (s *TOMLDirectoryStore) List() ([]InstructionEntry, error) {
 
 // Merge absorbs the source entry into the target entry, then removes the source.
 func (s *TOMLDirectoryStore) Merge(sourceID, targetID string) error {
+	sourceID = s.normalizeID(sourceID)
+	targetID = s.normalizeID(targetID)
 	sourcePath := filepath.Join(s.dataDir, sourceID)
 
 	// Read source.
@@ -184,6 +187,7 @@ func (s *TOMLDirectoryStore) RecordSurfacing(id string) error {
 // Register writes a new TOML file for the given entry.
 // Returns ErrDuplicateID if a file already exists at entry.ID.
 func (s *TOMLDirectoryStore) Register(entry InstructionEntry) error {
+	entry.ID = s.normalizeID(entry.ID)
 	absPath := filepath.Join(s.dataDir, entry.ID)
 
 	// Check if file already exists.
@@ -212,6 +216,7 @@ func (s *TOMLDirectoryStore) Register(entry InstructionEntry) error {
 
 // Remove deletes the TOML file for the given ID.
 func (s *TOMLDirectoryStore) Remove(id string) error {
+	id = s.normalizeID(id)
 	absPath := filepath.Join(s.dataDir, id)
 
 	_, existErr := s.readFile(absPath)
