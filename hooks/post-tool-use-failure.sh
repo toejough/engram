@@ -4,6 +4,7 @@ set -euo pipefail
 # Read failure details from stdin JSON
 STDIN_JSON="$(cat)"
 TOOL_NAME="$(echo "$STDIN_JSON" | jq -r '.tool_name // "unknown"')"
+TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 ERROR="$(echo "$STDIN_JSON" | jq -r '.error // "unknown error"')"
 IS_INTERRUPT="$(echo "$STDIN_JSON" | jq -r '.is_interrupt // false')"
 
@@ -11,6 +12,10 @@ IS_INTERRUPT="$(echo "$STDIN_JSON" | jq -r '.is_interrupt // false')"
 if [[ "$IS_INTERRUPT" == "true" ]]; then
     exit 0
 fi
+
+ENGRAM_HOME="${HOME}/.claude/engram"
+ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
+DATA_DIR="${ENGRAM_DATA_DIR:-${ENGRAM_HOME}/data}"
 
 # Build targeted advice based on tool type
 case "$TOOL_NAME" in
@@ -34,7 +39,25 @@ case "$TOOL_NAME" in
         ;;
 esac
 
-jq -n --arg ctx "$ADVICE" '{
+# Surface relevant memories about this failure
+MEMORY_CONTEXT=""
+if [[ -x "$ENGRAM_BIN" ]]; then
+    SURFACE_OUT=$("$ENGRAM_BIN" surface --mode tool \
+        --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
+        --tool-output "$ERROR" --tool-errored \
+        --data-dir "$DATA_DIR" --format json 2>/dev/null) || SURFACE_OUT=""
+    MEMORY_CONTEXT="$(echo "$SURFACE_OUT" | jq -r '.context // empty' 2>/dev/null)" || MEMORY_CONTEXT=""
+fi
+
+# Combine static advisory with memory context
+if [[ -n "$MEMORY_CONTEXT" ]]; then
+    COMBINED="${ADVICE}
+${MEMORY_CONTEXT}"
+else
+    COMBINED="$ADVICE"
+fi
+
+jq -n --arg ctx "$COMBINED" '{
     continue: true,
     suppressOutput: false,
     hookSpecificOutput: {
