@@ -2459,6 +2459,37 @@ Log `ConsolidateResult` to stderr per DES-48 format. If `Consolidate` returns er
 **Traces to:** DES-47 (pipeline ordering), ARCH-75 (signal-detect CLI wiring), ARCH-79 (Consolidator), ARCH-6 (fire-and-forget)
 '''
 
+[ARCH-81]
+name = "Surfacing Log Turn Isolation via Atomic Rename"
+traces_to = ["UC-15"]
+hash = ""
+body = '''
+**Decision:** The evaluator atomically renames `surfacing-log.jsonl` to a
+per-turn private file (`surfacing-log-<timestamp>.jsonl.tmp`) before reading
+it. This eliminates the data loss race when stop.sh runs async: new surfacing
+events written during evaluation append to a fresh `surfacing-log.jsonl`
+while the evaluator safely reads its private snapshot.
+
+```
+rename  <dataDir>/surfacing-log.jsonl
+     → <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp   (atomic)
+read    <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp
+delete  <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp
+```
+
+**Why rename instead of read-then-delete:**
+- read-then-delete window allows concurrent appenders to lose events
+- atomic rename removes the source path instantly; subsequent appenders
+  create a new `surfacing-log.jsonl` for the next turn
+
+**Missing file:** if `surfacing-log.jsonl` does not exist when rename is
+attempted, the evaluator returns an empty entry list (no LLM call).
+
+**Traces to:** REQ-26 (surfacing log lifecycle), ARCH-22 (surfacing log infra)
+
+---
+'''
+
 [ARCH-9]
 name = "Memory Storage and Retrieval"
 traces_to = ["UC-2"]

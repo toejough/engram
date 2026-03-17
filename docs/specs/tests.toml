@@ -3686,6 +3686,18 @@ body = '''
 **Then** the proposal queue contains signals for 1 consolidated memory, not 3 individual ones.
 
 
+[T-345]
+name = "Evaluator renames surfacing log before reading for turn isolation"
+traces_to = ["ARCH-81", "ARCH-22"]
+hash = ""
+body = '''
+**Given** a `surfacing-log.jsonl` with entries and a fixed clock,
+**When** Evaluate is called,
+**Then** the surfacing log is renamed to `surfacing-log-<evalTimestamp>.jsonl.tmp`
+  before any read, and the private file (not the original path) is passed to
+  readFile, so concurrent surfacers write to a new `surfacing-log.jsonl`.
+'''
+
 ---
 
 ## L2 → TEST Traceability (UC-34)

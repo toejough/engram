@@ -212,16 +212,25 @@ func (e *Evaluator) readMemoryTOML(path string) (memoryTOML, error) {
 }
 
 func (e *Evaluator) readSurfacingLog(path string) ([]surfacingEntry, error) {
-	data, err := e.readFile(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+	// ARCH-81: atomic rename isolates this turn's events from concurrent surfacers.
+	ts := e.now().UTC().Format(evalTimestampFormat)
+	privatePath := filepath.Join(e.dataDir, "surfacing-log-"+ts+".jsonl.tmp")
+
+	renameErr := e.rename(path, privatePath)
+	if renameErr != nil {
+		if errors.Is(renameErr, os.ErrNotExist) {
 			return make([]surfacingEntry, 0), nil
 		}
 
+		return nil, fmt.Errorf("isolating surfacing log: %w", renameErr)
+	}
+
+	data, err := e.readFile(privatePath)
+	if err != nil {
 		return nil, fmt.Errorf("reading surfacing log: %w", err)
 	}
 
-	removeErr := e.removeFile(path)
+	removeErr := e.removeFile(privatePath)
 	if removeErr != nil {
 		return nil, fmt.Errorf("removing surfacing log: %w", removeErr)
 	}

@@ -38,7 +38,7 @@ func TestEvalCorrelation_ErrorDoesNotAbort(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -84,7 +84,7 @@ func TestEvalCorrelation_FollowedPairsGetLinks(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -148,7 +148,7 @@ func TestEvalCorrelation_IgnoresNonFollowed(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -204,7 +204,7 @@ func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -266,9 +266,11 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			switch name {
-			case "/data/surfacing-log.jsonl":
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
+			}
+
+			switch name {
 			case "/data/memories/mem1.toml":
 				return []byte(mem1TOML), nil
 			case "/data/memories/mem2.toml":
@@ -330,7 +332,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -355,7 +357,8 @@ anti_pattern = ""`
 		return
 	}
 
-	g.Expect(removedPath).To(Equal("/data/surfacing-log.jsonl"))
+	// Private path (not original) is removed after rename-then-read (ARCH-81).
+	g.Expect(removedPath).To(Equal("/data/surfacing-log-2024-01-15T10-30-00Z.jsonl.tmp"))
 }
 
 // T-268: Default StripFunc is no-op — backward compatible.
@@ -378,7 +381,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -434,7 +437,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -475,10 +478,14 @@ func TestEvaluator_EmptySurfacingLog_NoLLMCall(t *testing.T) {
 	llmCalled := false
 
 	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(string) ([]byte, error) {
-			return nil, os.ErrNotExist
+		// Simulate missing surfacing log: rename fails with ErrNotExist (ARCH-81).
+		evaluate.WithRename(func(from, _ string) error {
+			if strings.Contains(from, "surfacing-log") {
+				return os.ErrNotExist
+			}
+
+			return nil
 		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			llmCalled = true
 			return "", nil
@@ -506,7 +513,7 @@ func TestEvaluator_InvalidMemoryTOML_ReturnsError(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -566,7 +573,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -617,7 +624,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -677,7 +684,7 @@ func TestEvaluator_SurfacingLogRemoveError_ReturnsError(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -711,7 +718,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -748,9 +755,11 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			switch name {
-			case "/data/surfacing-log.jsonl":
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
+			}
+
+			switch name {
 			case "/data/memories/mem1.toml":
 				return []byte(memTOML), nil
 			default:
@@ -806,7 +815,7 @@ func TestT108_EvaluationLogWritten(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -882,7 +891,7 @@ func TestT109_EvaluationsDirCreated(t *testing.T) {
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -939,7 +948,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -992,7 +1001,7 @@ anti_pattern = ""`
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if name == "/data/surfacing-log.jsonl" {
+			if strings.Contains(name, "surfacing-log") {
 				return []byte(surfacingLog), nil
 			}
 
@@ -1020,6 +1029,67 @@ anti_pattern = ""`
 	g.Expect(outcomes).To(HaveLen(1))
 }
 
+// T-345: Evaluator renames surfacing log before reading for turn isolation (ARCH-81).
+func TestT345_SurfacingLogRenamedBeforeRead(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = "" +
+		`{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = `title = "Mem"
+content = "Content"`
+
+	const llmResponse = `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`
+
+	fixedTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	const expectedPrivatePath = "/data/surfacing-log-2024-01-15T10-30-00Z.jsonl.tmp"
+
+	var surfacingRenameFrom, surfacingRenameTo string
+
+	var readPaths []string
+
+	evaluator := makeTestEvaluator(
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			readPaths = append(readPaths, name)
+			if name == expectedPrivatePath {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return fixedTime }),
+		evaluate.WithRename(func(from, to string) error {
+			if from == "/data/surfacing-log.jsonl" {
+				surfacingRenameFrom = from
+				surfacingRenameTo = to
+			}
+
+			return nil
+		}),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Surfacing log was renamed to private path before reading.
+	g.Expect(surfacingRenameFrom).To(Equal("/data/surfacing-log.jsonl"))
+	g.Expect(surfacingRenameTo).To(Equal(expectedPrivatePath))
+
+	// readFile was called with private path, never with original surfacing-log path.
+	g.Expect(readPaths).To(ContainElement(expectedPrivatePath))
+	g.Expect(readPaths).NotTo(ContainElement("/data/surfacing-log.jsonl"))
+}
+
 // TestWithEvalLinkUpdater_SetsOption verifies the option applies without error.
 func TestWithEvalLinkUpdater_SetsOption(t *testing.T) {
 	t.Parallel()
@@ -1030,6 +1100,12 @@ func TestWithEvalLinkUpdater_SetsOption(t *testing.T) {
 
 	g.Expect(evaluator).NotTo(BeNil())
 }
+
+// unexported constants.
+const (
+	numNoopOpts = 3
+	testDataDir = "/data"
+)
 
 type evalRegistryCall struct {
 	id      string
@@ -1093,14 +1169,6 @@ func (f *fakeEvalRegistryRecorder) RecordEvaluation(id, outcome string) error {
 	f.calls = append(f.calls, evalRegistryCall{id: id, outcome: outcome})
 	return f.err
 }
-
-// makeTestEvaluator wraps evaluate.New with noop persistence I/O defaults so
-// tests using the fake "/data" path don't hit real os.* calls. Any option
-// passed in opts overrides the noop defaults (last-wins), so tests that
-// exercise persistence can still inject capturing functions.
-const testDataDir = "/data"
-
-const numNoopOpts = 3
 
 func makeTestEvaluator(opts ...evaluate.Option) *evaluate.Evaluator {
 	noops := make([]evaluate.Option, 0, numNoopOpts+len(opts))
