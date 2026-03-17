@@ -297,7 +297,7 @@ body = '''
 
 [T-122]
 name = "Correct quadrant assignment based on median + effectiveness threshold"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "d544d37a"
 body = '''
 - **Given** 6 memories: 3 with surfaced_count above median and effectiveness >= 50% (Working), 1 with surfaced_count below median and effectiveness >= 50% (Hidden Gem), 1 with surfaced_count above median and effectiveness < 50% (Leech), 1 with surfaced_count below median and effectiveness < 50% (Noise). All have 5+ evaluations.
@@ -309,7 +309,7 @@ body = '''
 
 [T-123]
 name = "Memories with fewer than 5 evaluations classified as InsufficientData"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "e6b52adb"
 body = '''
 - **Given** a memory with 3 total evaluations (followed + contradicted + ignored)
@@ -321,7 +321,7 @@ body = '''
 
 [T-124]
 name = "Memory with 5+ evaluations and effectiveness < 40% is flagged"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "889f46f4"
 body = '''
 - **Given** a memory with 6 evaluations and effectiveness score 33%
@@ -333,7 +333,7 @@ body = '''
 
 [T-125]
 name = "Memory with effectiveness exactly 40% is not flagged"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "3ab4d65c"
 body = '''
 - **Given** a memory with 5 evaluations and effectiveness score exactly 40%
@@ -345,7 +345,7 @@ body = '''
 
 [T-126]
 name = "Memory with effectiveness exactly 50% classified as high follow-through"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "d28694e3"
 body = '''
 - **Given** a memory with 10 evaluations and effectiveness score exactly 50%
@@ -357,7 +357,7 @@ body = '''
 
 [T-127]
 name = "Empty input produces empty output"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "4c2ffb34"
 body = '''
 - **Given** empty effectiveness and tracking maps
@@ -369,7 +369,7 @@ body = '''
 
 [T-128]
 name = "Memories with tracking data but no evaluations classified as InsufficientData"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "99c31f08"
 body = '''
 - **Given** 3 memories with surfaced_count > 0 but zero evaluations
@@ -385,7 +385,7 @@ body = '''
 
 [T-129]
 name = "Review with data outputs all four DES-16 sections"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "27699d5f"
 body = '''
 - **Given** evaluation logs and tracking data exist with memories across all four quadrants
@@ -412,7 +412,7 @@ body = '''
 
 [T-130]
 name = "Review with no evaluation directory outputs no-data message"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "f6e1031f"
 body = '''
 - **Given** data-dir exists but evaluations subdirectory does not
@@ -424,7 +424,7 @@ body = '''
 
 [T-131]
 name = "Review without --data-dir outputs usage error"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "1d5d4c25"
 body = '''
 - **Given** no --data-dir argument provided
@@ -436,7 +436,7 @@ body = '''
 
 [T-132]
 name = "Flagged memories sorted by effectiveness ascending"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "317a40b9"
 body = '''
 - **Given** 3 flagged memories with effectiveness scores 33%, 20%, 10%
@@ -448,7 +448,7 @@ body = '''
 
 [T-133]
 name = "Insufficient-data section omitted when all memories have 5+ evaluations"
-traces_to = []
+traces_to = ["ARCH-26", "ARCH-27"]
 hash = "598a973c"
 body = '''
 - **Given** all memories have 5+ evaluations
@@ -464,7 +464,7 @@ body = '''
 
 [T-134]
 name = "TranscriptDeltaReader reads from offset 0"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "f23d24df"
 body = '''
 - **Given** a transcript JSONL file with 10 lines
@@ -476,7 +476,7 @@ body = '''
 
 [T-135]
 name = "TranscriptDeltaReader reads from mid-file offset"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "f6499f4b"
 body = '''
 - **Given** a transcript JSONL file with 10 lines, each 100 bytes
@@ -488,7 +488,7 @@ body = '''
 
 [T-136]
 name = "TranscriptDeltaReader resets to 0 when file is shorter than offset"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "1bfdb44a"
 body = '''
 - **Given** a transcript file is 1000 bytes and stored offset is 2000
@@ -500,7 +500,7 @@ body = '''
 
 [T-137]
 name = "TranscriptDeltaReader returns empty delta for empty file"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "2b684f6e"
 body = '''
 - **Given** a transcript file is empty
@@ -512,7 +512,7 @@ body = '''
 
 [T-138]
 name = "ContentStripper removes tool result blocks"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "c80f021b"
 body = '''
 - **Given** JSONL lines with toolResult role blocks
@@ -524,7 +524,7 @@ body = '''
 
 [T-139]
 name = "ContentStripper replaces base64 strings"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "9b5acdac"
 body = '''
 - **Given** JSONL lines with base64-encoded strings >100 chars
@@ -536,7 +536,7 @@ body = '''
 
 [T-140]
 name = "ContentStripper truncates oversized content blocks"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "55639aa0"
 body = '''
 - **Given** JSONL lines with content blocks >2000 characters
@@ -548,7 +548,7 @@ body = '''
 
 [T-141]
 name = "ContentStripper preserves user messages"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "3f1e66c8"
 body = '''
 - **Given** JSONL lines with role=user messages
@@ -560,7 +560,7 @@ body = '''
 
 [T-142]
 name = "ContentStripper preserves assistant text"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "e7a95c04"
 body = '''
 - **Given** JSONL lines with role=assistant text messages
@@ -572,7 +572,7 @@ body = '''
 
 [T-143]
 name = "ContentStripper preserves tool names, removes tool results"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "f1253bdd"
 body = '''
 - **Given** JSONL lines with toolUse (with name/command) and toolResult blocks
@@ -584,7 +584,7 @@ body = '''
 
 [T-144]
 name = "ContextSummarizer returns previous summary on empty delta"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "9e1aafab"
 body = '''
 - **Given** a previous summary "Current task: foo" and empty stripped delta
@@ -596,7 +596,7 @@ body = '''
 
 [T-145]
 name = "ContextSummarizer updates summary on non-empty delta"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "4cd9a5a4"
 body = '''
 - **Given** a previous summary and a non-empty stripped delta
@@ -608,7 +608,7 @@ body = '''
 
 [T-146]
 name = "ContextSummarizer creates new summary from delta without previous"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "d8bb032e"
 body = '''
 - **Given** an empty previous summary and a non-empty delta
@@ -620,7 +620,7 @@ body = '''
 
 [T-147]
 name = "ContextSummarizer skips API call when token is empty"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "84b0c8c9"
 body = '''
 - **Given** an empty API token and a non-empty delta
@@ -632,7 +632,7 @@ body = '''
 
 [T-148]
 name = "ContextSummarizer returns previous summary on API error"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "490d619a"
 body = '''
 - **Given** a previous summary and a mocked HaikuClient that returns error
@@ -644,7 +644,7 @@ body = '''
 
 [T-149]
 name = "SessionContextFile parses HTML metadata"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "172ddc94"
 body = '''
 - **Given** a context file with HTML comment: `<!-- engram session context | updated: 2026-03-07T00:00:00Z | offset: 1000 | session: abc123 -->`
@@ -668,7 +668,7 @@ Uses fakes for all three DI interfaces. Verifies call order and that transcript 
 
 [T-150]
 name = "SessionContextFile extracts markdown summary"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "af55a686"
 body = '''
 - **Given** a context file with HTML comment on first line, blank line, then markdown summary
@@ -680,7 +680,7 @@ body = '''
 
 [T-151]
 name = "SessionContextFile writes atomically"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "10a3bbb3"
 body = '''
 - **Given** a SessionContext struct and a target file path
@@ -692,7 +692,7 @@ body = '''
 
 [T-152]
 name = "SessionContextFile creates directory if missing"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "e206034a"
 body = '''
 - **Given** `.claude/engram/` directory does not exist
@@ -704,7 +704,7 @@ body = '''
 
 [T-153]
 name = "SessionContextFile returns empty on missing file"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "008754b5"
 body = '''
 - **Given** context file does not exist
@@ -716,7 +716,7 @@ body = '''
 
 [T-154]
 name = "ContextUpdateOrchestrator exits 0 on missing transcript file"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "510e5c73"
 body = '''
 - **Given** --transcript-path pointing to non-existent file
@@ -728,7 +728,7 @@ body = '''
 
 [T-155]
 name = "ContextUpdateOrchestrator skips API call on empty delta"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "d0a0eecd"
 body = '''
 - **Given** a transcript file with no new content (delta empty)
@@ -740,7 +740,7 @@ body = '''
 
 [T-156]
 name = "ContextUpdateOrchestrator writes file with updated watermark"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "6f845366"
 body = '''
 - **Given** a transcript file with new lines and existing context file with old offset
@@ -752,7 +752,7 @@ body = '''
 
 [T-157]
 name = "ContextUpdateOrchestrator exits 0 on API error"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "f8a76943"
 body = '''
 - **Given** a mocked ContextSummarizer that returns error
@@ -764,7 +764,7 @@ body = '''
 
 [T-158]
 name = "Hook integration — context-update runs as separate async hook"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "ace1bf71"
 body = '''
 - **Given** UserPromptSubmit hooks are configured in hooks.json
@@ -776,7 +776,7 @@ body = '''
 
 [T-159]
 name = "Hook integration — PreCompact calls context-update synchronously"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "3049a6ad"
 body = '''
 - **Given** PreCompact hook is triggered
@@ -803,7 +803,7 @@ body = '''
 
 [T-160]
 name = "Hook integration — SessionStart reads and injects context"
-traces_to = []
+traces_to = ["ARCH-28", "ARCH-29", "ARCH-30", "ARCH-31", "ARCH-32", "ARCH-33", "ARCH-34"]
 hash = "57524710"
 body = '''
 - **Given** context file exists at `.claude/engram/session-context.md` with summary "Task: foo"
@@ -2332,7 +2332,7 @@ All UC-23 (issue #218) L2 items have test coverage.
 
 [T-251]
 name = "CLAUDE.md add entry — section appended"
-traces_to = []
+traces_to = ["ARCH-64", "ARCH-65"]
 hash = "1b95dbb4"
 body = '''
 **Traces to:** ARCH-65
@@ -2346,7 +2346,7 @@ Then: New section appended, other sections unchanged
 
 [T-252]
 name = "CLAUDE.md remove entry — section removed"
-traces_to = []
+traces_to = ["ARCH-64", "ARCH-65"]
 hash = "6184f9e9"
 body = '''
 **Traces to:** ARCH-65
@@ -2360,7 +2360,7 @@ Then: That section removed, other sections unchanged
 
 [T-253]
 name = "Demotion execution — CLAUDE.md entry to skill"
-traces_to = []
+traces_to = ["ARCH-64", "ARCH-65"]
 hash = "caee8e1e"
 body = '''
 **Traces to:** ARCH-64, ARCH-65
@@ -2374,7 +2374,7 @@ Then: Skill file generated from entry content, entry removed from CLAUDE.md, reg
 
 [T-254]
 name = "CLI subcommand promote --to-claude-md"
-traces_to = []
+traces_to = ["ARCH-64", "ARCH-65"]
 hash = "5d195bf4"
 body = '''
 **Traces to:** ARCH-64
@@ -2388,7 +2388,7 @@ Then: Candidate displayed with evidence, user prompted for confirmation
 
 [T-255]
 name = "CLI subcommand demote --to-skill"
-traces_to = []
+traces_to = ["ARCH-64", "ARCH-65"]
 hash = "8e122922"
 body = '''
 **Traces to:** ARCH-64
@@ -2404,7 +2404,7 @@ Then: Candidate displayed with evidence, user prompted for confirmation
 
 [T-256]
 name = "Proposal ingestion — valid JSON"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "883ec78b"
 body = '''
 **Traces to:** ARCH-66
@@ -2418,7 +2418,7 @@ Then: All 3 parsed with correct quadrant, action, target_path, evidence
 
 [T-257]
 name = "Proposal ingestion — invalid schema skipped"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "8880e2ab"
 body = '''
 **Traces to:** ARCH-66
@@ -2432,7 +2432,7 @@ Then: 2 valid proposals parsed, invalid one skipped with warning
 
 [T-258]
 name = "Working staleness — content rewrite"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "ca16686b"
 body = '''
 **Traces to:** ARCH-66, ARCH-67
@@ -2446,7 +2446,7 @@ Then: Memory TOML rewritten with new content, other fields preserved, registry c
 
 [T-259]
 name = "Leech rewrite — root cause content_quality"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "53010461"
 body = '''
 **Traces to:** ARCH-66, ARCH-67
@@ -2475,7 +2475,7 @@ body = '''
 
 [T-260]
 name = "HiddenGem broadening — keywords added"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "ef7de5d4"
 body = '''
 **Traces to:** ARCH-66, ARCH-67
@@ -2489,7 +2489,7 @@ Then: Memory keywords updated to ["targ", "build", "test", "check"]
 
 [T-261]
 name = "Noise removal — file deleted and registry entry removed"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "72110085"
 body = '''
 **Traces to:** ARCH-66
@@ -2503,7 +2503,7 @@ Then: Memory TOML deleted, registry entry removed
 
 [T-262]
 name = "User confirmation — skip and quit"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "bb880841"
 body = '''
 **Traces to:** ARCH-66
@@ -2517,7 +2517,7 @@ Then: First applied, second skipped, third not reached. Report: "Applied 1/3 (1 
 
 [T-263]
 name = "No-token behavior — LLM proposals skipped"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "4eda1457"
 body = '''
 **Traces to:** ARCH-66
@@ -2531,7 +2531,7 @@ Then: Working skipped ("no token"), Noise applied (deterministic). Report: "Appl
 
 [T-264]
 name = "CLI subcommand maintain --apply"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "ac118c92"
 body = '''
 **Traces to:** ARCH-66
@@ -2545,7 +2545,7 @@ Then: Summary displayed, then per-proposal confirm/apply loop
 
 [T-265]
 name = "Memory TOML rewriter — atomic write preserves fields"
-traces_to = []
+traces_to = ["ARCH-66", "ARCH-67"]
 hash = "ac1e4908"
 body = '''
 **Traces to:** ARCH-67
@@ -2561,7 +2561,7 @@ Then: title, keywords, concepts, observation_type unchanged; content and princip
 
 [T-266]
 name = "Strip applied before LLM evaluation"
-traces_to = []
+traces_to = ["ARCH-68"]
 hash = "de522bbd"
 body = '''
 **Traces to:** ARCH-68
@@ -2575,7 +2575,7 @@ Then: LLM receives only the 20 conversation lines
 
 [T-267]
 name = "Empty post-strip transcript — evaluation skipped"
-traces_to = []
+traces_to = ["ARCH-68"]
 hash = "28744447"
 body = '''
 **Traces to:** ARCH-68
@@ -2589,7 +2589,7 @@ Then: No LLM call made, no error returned, stderr message logged
 
 [T-268]
 name = "Default StripFunc is no-op — backward compatible"
-traces_to = []
+traces_to = ["ARCH-68"]
 hash = "14b0d81b"
 body = '''
 **Traces to:** ARCH-68
@@ -2603,7 +2603,7 @@ Then: Full transcript passed to LLM (no stripping)
 
 [T-269]
 name = "CLI wiring injects sessionctx.Strip"
-traces_to = []
+traces_to = ["ARCH-68"]
 hash = "37492411"
 body = '''
 **Traces to:** ARCH-68
@@ -2645,7 +2645,7 @@ body = '''
 
 [T-270]
 name = "Discover CLAUDE.md sources"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "840a13c8"
 body = '''
 **Traces to:** ARCH-69
@@ -2659,7 +2659,7 @@ Then: Entries extracted from both files using ClaudeMDExtractor, source type "cl
 
 [T-271]
 name = "Discover rule files"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "425cca12"
 body = '''
 **Traces to:** ARCH-69
@@ -2673,7 +2673,7 @@ Then: Entries extracted for each rule file using RuleExtractor, source type "rul
 
 [T-272]
 name = "Discover skill files"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "84756fad"
 body = '''
 **Traces to:** ARCH-69
@@ -2687,7 +2687,7 @@ Then: Entries extracted for each skill using SkillExtractor, source type "skill"
 
 [T-273]
 name = "Register new entries"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "180efe6a"
 body = '''
 **Traces to:** ARCH-69
@@ -2701,7 +2701,7 @@ Then: Registry.Register called for each entry with correct ID, source type, cont
 
 [T-274]
 name = "Update changed entries — content hash differs"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "241b2e16"
 body = '''
 **Traces to:** ARCH-69
@@ -2715,7 +2715,7 @@ Then: Entry updated with new content_hash and updated_at; surfaced_count and eva
 
 [T-275]
 name = "Stale entry pruning — removes absent non-memory entries"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "02988f8e"
 body = '''
 **Traces to:** ARCH-69
@@ -2729,7 +2729,7 @@ Then: "rule:deleted.md" removed via Registry.Remove; "memory:foo.toml" untouched
 
 [T-276]
 name = "Memory entries never pruned"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "7547b130"
 body = '''
 **Traces to:** ARCH-69
@@ -2743,7 +2743,7 @@ Then: Memory entry is NOT removed (memory pruning is UC-16 Noise removal)
 
 [T-277]
 name = "Implicit surfacing — records for always-loaded entries"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "60435529"
 body = '''
 **Traces to:** ARCH-69
@@ -2757,7 +2757,7 @@ Then: RecordSurfacing called on registry for each; LogSurfacing called on surfac
 
 [T-278]
 name = "Missing source paths silently skipped"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "62331cd9"
 body = '''
 **Traces to:** ARCH-69
@@ -2771,7 +2771,7 @@ Then: No error returned; discovered set contains only entries from existing path
 
 [T-279]
 name = "Idempotent registration — second run is no-op"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "510e892a"
 body = '''
 **Traces to:** ARCH-69
@@ -2795,7 +2795,7 @@ body = '''
 
 [T-280]
 name = "Fire-and-forget — registration errors don't fail hook"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "06983992"
 body = '''
 **Traces to:** ARCH-69
@@ -2809,7 +2809,7 @@ Then: Error logged to stderr; remaining entries still registered; no error retur
 
 [T-283]
 name = "Session-start mode triggers auto-registration"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "26468c85"
 body = '''
 **Traces to:** ARCH-71
@@ -2823,7 +2823,7 @@ Then: Registrar.Run is called before memory surfacing
 
 [T-284]
 name = "Non-session-start modes skip auto-registration"
-traces_to = []
+traces_to = ["ARCH-69", "ARCH-70", "ARCH-71"]
 hash = "ecbc57f9"
 body = '''
 **Traces to:** ARCH-71
@@ -2850,7 +2850,7 @@ All ARCH items have test coverage.
 
 [T-285]
 name = "Symlink created when none exists"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "e746ebf5"
 body = '''
 **Traces to:** ARCH-72 (REQ-119)
@@ -2866,7 +2866,7 @@ Then: `~/.local/bin/engram` is a symlink pointing to `~/.claude/engram/bin/engra
 
 [T-286]
 name = "Target directory created if missing"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "024988a3"
 body = '''
 **Traces to:** ARCH-72 (REQ-119)
@@ -2882,7 +2882,7 @@ Then: `~/.local/bin/` is created and symlink is placed inside it
 
 [T-287]
 name = "Idempotent — correct symlink unchanged"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "a6eed497"
 body = '''
 **Traces to:** ARCH-72 (REQ-120)
@@ -2898,7 +2898,7 @@ Then: Symlink unchanged, no errors logged
 
 [T-288]
 name = "Stale symlink not replaced (no-clobber)"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "0582e2ad"
 body = '''
 **Traces to:** ARCH-72 (REQ-120, REQ-121)
@@ -2914,7 +2914,7 @@ Then: Warning logged to stderr, symlink NOT replaced
 
 [T-289]
 name = "No-clobber — regular file preserved"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "f22b638a"
 body = '''
 **Traces to:** ARCH-72 (REQ-121)
@@ -2945,7 +2945,7 @@ body = '''
 
 [T-290]
 name = "Fire-and-forget — permission error doesn't block session"
-traces_to = []
+traces_to = ["ARCH-72"]
 hash = "301e9c90"
 body = '''
 **Traces to:** ARCH-72 (REQ-122)
@@ -2973,7 +2973,7 @@ All ARCH items have test coverage.
 
 [T-291]
 name = "Noise memory detected → noise_removal signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "04967906"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -2987,7 +2987,7 @@ Then: Signal with type="maintain", signal="noise_removal", quadrant="Noise" is r
 
 [T-292]
 name = "Leech memory detected → leech_rewrite signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "466c7d44"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -3001,7 +3001,7 @@ Then: Signal with type="maintain", signal="leech_rewrite", quadrant="Leech" is r
 
 [T-293]
 name = "Stale Working memory → staleness_review signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "1ccb27e4"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -3015,7 +3015,7 @@ Then: Signal with type="maintain", signal="staleness_review", quadrant="Working"
 
 [T-294]
 name = "Hidden Gem detected → hidden_gem_broadening signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "d531f012"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -3029,7 +3029,7 @@ Then: Signal with type="maintain", signal="hidden_gem_broadening", quadrant="Hid
 
 [T-295]
 name = "Memory with <5 evaluations → no signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "f68b61fb"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -3043,7 +3043,7 @@ Then: No signal generated for this memory
 
 [T-296]
 name = "Memory-to-skill candidate detected"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "120cdb12"
 body = '''
 **Traces to:** ARCH-73 (REQ-124)
@@ -3057,7 +3057,7 @@ Then: Signal with type="promote", signal="memory_to_skill" is returned
 
 [T-297]
 name = "Skill promotion candidate emits graduation signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "8c90f529"
 body = '''
 **Traces to:** ARCH-73 (REQ-124)
@@ -3071,7 +3071,7 @@ Then: Signal with type="promote", signal="graduation" is returned, and Summary c
 
 [T-298]
 name = "CLAUDE.md demotion candidate emits graduation signal"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "a3fd095c"
 body = '''
 **Traces to:** ARCH-73 (REQ-124)
@@ -3085,7 +3085,7 @@ Then: Signal with type="promote", signal="graduation" is returned, and Summary c
 
 [T-299]
 name = "Queue write creates file if absent"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "d9d514ef"
 body = '''
 **Traces to:** ARCH-74 (REQ-125)
@@ -3123,7 +3123,7 @@ body = '''
 
 [T-300]
 name = "Queue write is atomic (temp+rename)"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "d105a7cb"
 body = '''
 **Traces to:** ARCH-74 (REQ-125)
@@ -3137,7 +3137,7 @@ Then: createTemp is called, content written to temp, rename to final path
 
 [T-301]
 name = "Queue read skips malformed lines"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "29bdde2d"
 body = '''
 **Traces to:** ARCH-74 (REQ-125)
@@ -3151,7 +3151,7 @@ Then: Returns 3 signals, malformed line skipped without error
 
 [T-302]
 name = "Stale entries (>30d) pruned on detect"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "57f2104a"
 body = '''
 **Traces to:** ARCH-74 (REQ-126)
@@ -3165,7 +3165,7 @@ Then: 45-day entry removed, 10-day entry preserved
 
 [T-303]
 name = "Entries for deleted memories pruned"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "39916690"
 body = '''
 **Traces to:** ARCH-74 (REQ-126)
@@ -3179,7 +3179,7 @@ Then: Entry removed
 
 [T-304]
 name = "Duplicate signals deduplicated"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "95418c62"
 body = '''
 **Traces to:** ARCH-74 (REQ-126)
@@ -3193,7 +3193,7 @@ Then: Only newest entry preserved
 
 [T-305]
 name = "SessionStart surfaces enriched signal detail with memory content"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "ab773f9f"
 body = '''
 **Traces to:** ARCH-75 (REQ-127)
@@ -3207,7 +3207,7 @@ Then: Output includes memory title, content excerpt, effectiveness stats, and CL
 
 [T-306]
 name = "Empty queue produces no output"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "75d6953e"
 body = '''
 **Traces to:** ARCH-75 (REQ-127)
@@ -3221,7 +3221,7 @@ Then: No output produced
 
 [T-307]
 name = "signal-surface output is valid hook JSON"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "5c2051b6"
 body = '''
 **Traces to:** ARCH-75, ARCH-76 (DES-46)
@@ -3235,7 +3235,7 @@ Then: Output is valid JSON with `additionalContext` field compatible with Sessio
 
 [T-309]
 name = "Detection with missing registry → skip silently"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "cb9e2cd8"
 body = '''
 **Traces to:** ARCH-73 (REQ-123)
@@ -3259,7 +3259,7 @@ body = '''
 
 [T-310]
 name = "Stop hook calls signal-detect after audit"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "9204d0d6"
 body = '''
 **Traces to:** ARCH-76 (DES-45)
@@ -3273,7 +3273,7 @@ Then: signal-detect invocation appears after audit, with fire-and-forget error h
 
 [T-311]
 name = "SessionStart merges signal-surface into existing output"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "46cef729"
 body = '''
 **Traces to:** ARCH-76 (DES-44)
@@ -3287,7 +3287,7 @@ Then: Both outputs merged into single additionalContext
 
 [T-312]
 name = "Remove action deletes TOML + removes registry entry"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "09c42e34"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3301,7 +3301,7 @@ Then: TOML file deleted, registry entry removed, queue entry cleared
 
 [T-313]
 name = "Rewrite action updates TOML fields + registry hash"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "97890f2c"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3315,7 +3315,7 @@ Then: TOML updated with new values, registry content_hash updated
 
 [T-314]
 name = "Broaden action appends keywords to TOML"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "33504def"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3329,7 +3329,7 @@ Then: TOML keywords=["go","test","lint","ci"]
 
 [T-315]
 name = "Escalate action updates escalation_level field"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "0f3e0588"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3343,7 +3343,7 @@ Then: TOML escalation_level=2
 
 [T-316]
 name = "Apply clears matching signal from queue"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "fc4247b1"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3357,7 +3357,7 @@ Then: Signal for "x.toml" removed from queue
 
 [T-317]
 name = "Apply with missing memory file returns error"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "704e1bc5"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3371,7 +3371,7 @@ Then: ApplyResult with success=false, error describes missing file
 
 [T-318]
 name = "Apply rewrite is atomic (temp+rename)"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "3dc2cb27"
 body = '''
 **Traces to:** ARCH-77 (REQ-128)
@@ -3385,7 +3385,7 @@ Then: writeFile uses atomic temp+rename pattern
 
 [T-319]
 name = "Promote --content skips LLM generation"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "8dc2021c"
 body = '''
 **Traces to:** ARCH-78 (REQ-129)
@@ -3415,7 +3415,7 @@ body = '''
 
 [T-320]
 name = "Promote --yes skips confirmation prompt"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "71ea38ad"
 body = '''
 **Traces to:** ARCH-78 (REQ-129)
@@ -3429,7 +3429,7 @@ Then: Confirmer.Confirm is NOT called
 
 [T-321]
 name = "Promote --content + --yes still does registry merge"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "d4197975"
 body = '''
 **Traces to:** ARCH-78 (REQ-129)
@@ -3443,7 +3443,7 @@ Then: Registry merge still happens (source merged into target)
 
 [T-322]
 name = "Promote without --content uses existing LLM flow"
-traces_to = []
+traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
 hash = "22f9f508"
 body = '''
 **Traces to:** ARCH-78 (REQ-129)
@@ -3474,7 +3474,7 @@ All ARCH items have test coverage.
 
 [T-323]
 name = "Merge rejects non-memory source type"
-traces_to = []
+traces_to = ["ARCH-P2-1", "ARCH-P2-2", "ARCH-P2-3"]
 hash = "d19c2245"
 body = '''
 **Traces to:** ARCH-23 (registry Merge operation)
@@ -4636,7 +4636,7 @@ Updates T-43 to verify creation report visibility.
 
 [T-P0a-1]
 name = "New InstructionEntry defaults enforcement_level to advisory"
-traces_to = []
+traces_to = ["REQ-P0a-1"]
 hash = "0d9871d2"
 body = '''
 **Traces to:** REQ-P0a-1 (EnforcementLevel field default)
@@ -4650,7 +4650,7 @@ Then: EnforcementLevel equals EnforcementAdvisory
 
 [T-P0a-2]
 name = "Load backfills missing enforcement_level to advisory"
-traces_to = []
+traces_to = ["REQ-P0a-1"]
 hash = "116c391c"
 body = '''
 **Traces to:** REQ-P0a-1 (EnforcementLevel backfill on load)
@@ -4664,7 +4664,7 @@ Then: EnforcementLevel equals EnforcementAdvisory
 
 [T-P1-1]
 name = "Detector returns empty for single memory"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "53f48823"
 body = '''
 A slice with one memory produces no pairs. (unit, contradict pkg)
@@ -4672,7 +4672,7 @@ A slice with one memory produces no pairs. (unit, contradict pkg)
 
 [T-P1-10]
 name = "Surface runSessionStart suppresses contradicted memory"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "289aa060"
 body = '''
 Mock detector returns pair (A, B). B removed from output. Signal emitted for B. (unit, surface pkg)
@@ -4680,7 +4680,7 @@ Mock detector returns pair (A, B). B removed from output. Signal emitted for B. 
 
 [T-P1-11]
 name = "Surface proceeds without suppression when detector is nil"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "dc3ddacb"
 body = '''
 No detector set. No panic. Normal output. (unit, surface pkg)
@@ -4688,7 +4688,7 @@ No detector set. No panic. Normal output. (unit, surface pkg)
 
 [T-P1-12]
 name = "Detector with no classifier skips LLM phase"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "ad4bfbdd"
 body = '''
 Borderline pair: no Classify called, pair not returned. (unit)
@@ -4698,7 +4698,7 @@ Borderline pair: no Classify called, pair not returned. (unit)
 
 [T-P1-2]
 name = "Heuristic fires on opposing verb pair (use/avoid)"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "d5aa75fd"
 body = '''
 Memory A principle: "Always use targ". Memory B principle: "Avoid using targ". Expect pair returned. (unit)
@@ -4706,7 +4706,7 @@ Memory A principle: "Always use targ". Memory B principle: "Avoid using targ". E
 
 [T-P1-3]
 name = "Heuristic fires on always/never pair"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "ccdc4124"
 body = '''
 Memory A: "Always add t.Parallel()". Memory B: "Never use t.Parallel() in benchmarks". Expect pair returned. (unit)
@@ -4714,7 +4714,7 @@ Memory A: "Always add t.Parallel()". Memory B: "Never use t.Parallel() in benchm
 
 [T-P1-4]
 name = "Heuristic does not fire on unrelated memories"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "d0a7f867"
 body = '''
 Memory A about git commits. Memory B about test patterns. No pair. (unit)
@@ -4722,7 +4722,7 @@ Memory A about git commits. Memory B about test patterns. No pair. (unit)
 
 [T-P1-5]
 name = "BM25 high similarity without heuristic → borderline, sent to LLM"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "20d160b9"
 body = '''
 Two nearly-identical memories that don't trigger verb heuristic but score high BM25. Classifier called. (unit with mock)
@@ -4730,7 +4730,7 @@ Two nearly-identical memories that don't trigger verb heuristic but score high B
 
 [T-P1-6]
 name = "LLM budget enforced — max 3 calls"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "d6d6607f"
 body = '''
 6 borderline pairs: only first 3 trigger Classify calls. (unit with mock classifier counting calls)
@@ -4738,7 +4738,7 @@ body = '''
 
 [T-P1-7]
 name = "Classifier error treated as non-contradiction"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "6e53aa92"
 body = '''
 Classifier returns error. Pair not included in result. (unit)
@@ -4746,7 +4746,7 @@ Classifier returns error. Pair not included in result. (unit)
 
 [T-P1-8]
 name = "High-confidence pair skips LLM"
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "c1ad97c3"
 body = '''
 Heuristic fires AND BM25 > 0.3 → pair returned without Classify call. (unit)
@@ -4754,7 +4754,7 @@ Heuristic fires AND BM25 > 0.3 → pair returned without Classify call. (unit)
 
 [T-P1-9]
 name = "KindContradiction constant value is \"contradiction\""
-traces_to = []
+traces_to = ["ARCH-P1-1", "ARCH-P1-2"]
 hash = "a98a17b0"
 body = '''
 Compile-time check. (unit, signal pkg)
@@ -4762,7 +4762,7 @@ Compile-time check. (unit, signal pkg)
 
 [T-P3-1]
 name = "Jaccard zero for disjoint token sets"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "dfec8409"
 body = '''
 `tokenSet("foo bar") ∩ tokenSet("baz qux") = ∅` → Jaccard = 0. No link produced. (unit, graph pkg)
@@ -4770,7 +4770,7 @@ body = '''
 
 [T-P3-10]
 name = "Prune removes links below threshold with sufficient count"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "691adee5"
 body = '''
 Link: Weight=0.05, CoSurfacingCount=10 → removed. (unit, graph pkg)
@@ -4778,7 +4778,7 @@ Link: Weight=0.05, CoSurfacingCount=10 → removed. (unit, graph pkg)
 
 [T-P3-11]
 name = "Prune preserves links below threshold with insufficient count"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "a20d4bdb"
 body = '''
 Link: Weight=0.05, CoSurfacingCount=9 → preserved. (unit, graph pkg)
@@ -4786,7 +4786,7 @@ Link: Weight=0.05, CoSurfacingCount=9 → preserved. (unit, graph pkg)
 
 [T-P3-12]
 name = "Prune preserves links at or above weight threshold regardless of count"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "aa670801"
 body = '''
 Link: Weight=0.1, CoSurfacingCount=20 → preserved. (unit, graph pkg)
@@ -4794,7 +4794,7 @@ Link: Weight=0.1, CoSurfacingCount=20 → preserved. (unit, graph pkg)
 
 [T-P3-13]
 name = "Registry.UpdateLinks stores and retrieves links"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "223883df"
 body = '''
 Call UpdateLinks with 2 links, then Get → entry.Links contains the 2 links. (unit, registry pkg)
@@ -4802,7 +4802,7 @@ Call UpdateLinks with 2 links, then Get → entry.Links contains the 2 links. (u
 
 [T-P3-14]
 name = "Registry.UpdateLinks returns ErrNotFound for unknown id"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "9600b865"
 body = '''
 UpdateLinks("nonexistent", links) → ErrNotFound. (unit, registry pkg)
@@ -4810,7 +4810,7 @@ UpdateLinks("nonexistent", links) → ErrNotFound. (unit, registry pkg)
 
 [T-P3-15]
 name = "Registry.UpdateLinks replaces existing links entirely"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "e80acce0"
 body = '''
 Entry has 3 links, UpdateLinks called with 1 link → entry has 1 link. (unit, registry pkg)
@@ -4818,7 +4818,7 @@ Entry has 3 links, UpdateLinks called with 1 link → entry has 1 link. (unit, r
 
 [T-P3-16]
 name = "applySpreadingActivation base + linked contribution"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "08959707"
 body = '''
 Memory A (base=1.0) links to B (base=2.0, weight=0.5). Activated A = 1.0 + 0.3×(2.0×0.5) = 1.3. (unit, surface pkg)
@@ -4826,7 +4826,7 @@ Memory A (base=1.0) links to B (base=2.0, weight=0.5). Activated A = 1.0 + 0.3×
 
 [T-P3-17]
 name = "applySpreadingActivation linked target not in candidate set → zero contribution"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "929c1da9"
 body = '''
 Memory A links to C which is not in baseScores → C contributes 0. Activated A = base. (unit, surface pkg)
@@ -4834,7 +4834,7 @@ Memory A links to C which is not in baseScores → C contributes 0. Activated A 
 
 [T-P3-18]
 name = "applySpreadingActivation with no LinkReader → unchanged scores"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "e7fc904a"
 body = '''
 No LinkReader set → scores unchanged from base. (unit, surface pkg)
@@ -4842,7 +4842,7 @@ No LinkReader set → scores unchanged from base. (unit, surface pkg)
 
 [T-P3-19]
 name = "Surface co_surfacing update called for all pairs in top-N"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "1c9931a9"
 body = '''
 3 memories surfaced → 3 pairs (A-B, A-C, B-C) each get UpdateCoSurfacing call. (unit, surface pkg with mock LinkUpdater)
@@ -4850,7 +4850,7 @@ body = '''
 
 [T-P3-2]
 name = "Jaccard correct for overlapping sets"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "1105f9eb"
 body = '''
 `tokenSet("use targ build") ∩ tokenSet("use targ test") = {use, targ}`, union size 4 → Jaccard = 0.5. Link produced with Weight=0.5. (unit, graph pkg)
@@ -4858,7 +4858,7 @@ body = '''
 
 [T-P3-20]
 name = "Surface co_surfacing update error does not abort surfacing"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "d2138cf4"
 body = '''
 LinkUpdater.SetEntryLinks returns error → surface proceeds, output unchanged. (unit, surface pkg)
@@ -4866,7 +4866,7 @@ LinkUpdater.SetEntryLinks returns error → surface proceeds, output unchanged. 
 
 [T-P3-21]
 name = "formatClusterNotes returns top-2 links by weight"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "f08943bf"
 body = '''
 Memory has 3 links with weights 0.9, 0.7, 0.3 → only top-2 noted (0.9, 0.7). (unit, surface pkg)
@@ -4874,7 +4874,7 @@ Memory has 3 links with weights 0.9, 0.7, 0.3 → only top-2 noted (0.9, 0.7). (
 
 [T-P3-22]
 name = "formatClusterNotes skips links with no known title"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "a2eac8ff"
 body = '''
 TitleFetcher returns (_, false) for a link target → that link excluded from notes. (unit, surface pkg)
@@ -4882,7 +4882,7 @@ TitleFetcher returns (_, false) for a link target → that link excluded from no
 
 [T-P3-23]
 name = "formatClusterNotes format is \"  • see also: <title>\""
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "8db045de"
 body = '''
 Link target title "use targ for builds" → note line is `  • see also: use targ for builds`. (unit, surface pkg)
@@ -4890,7 +4890,7 @@ Link target title "use targ for builds" → note line is `  • see also: use ta
 
 [T-P3-24]
 name = "Surface cluster notes absent when no TitleFetcher set"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "938fa6a9"
 body = '''
 No TitleFetcher option → no cluster note lines in output. (unit, surface pkg)
@@ -4898,7 +4898,7 @@ No TitleFetcher option → no cluster note lines in output. (unit, surface pkg)
 
 [T-P3-25]
 name = "updateEvaluationCorrelationLinks updates links for followed pairs"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "58cf992f"
 body = '''
 2 memories both followed → each gets evaluation_correlation link to the other (+0.05). (unit, evaluate pkg with mock EvalLinkUpdater)
@@ -4906,7 +4906,7 @@ body = '''
 
 [T-P3-26]
 name = "updateEvaluationCorrelationLinks ignores non-followed outcomes"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "7ac18c3b"
 body = '''
 Memory followed, another contradicted → no evaluation_correlation link between them. (unit, evaluate pkg)
@@ -4914,7 +4914,7 @@ Memory followed, another contradicted → no evaluation_correlation link between
 
 [T-P3-27]
 name = "EvalLinkUpdater error does not abort evaluate"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "8956032c"
 body = '''
 SetEntryLinks returns error → evaluate proceeds normally. (unit, evaluate pkg)
@@ -4940,7 +4940,7 @@ SetEntryLinks returns error → evaluate proceeds normally. (unit, evaluate pkg)
 
 [T-P3-3]
 name = "BuildConceptOverlap threshold 0.15"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "b9431a39"
 body = '''
 3 existing entries: one with Jaccard=0.2, one with 0.1, one with 0.0 against new entry → only the 0.2 entry produces a concept_overlap link. (unit, graph pkg)
@@ -4948,7 +4948,7 @@ body = '''
 
 [T-P3-4]
 name = "BuildConceptOverlap self-link excluded"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "5e8b325e"
 body = '''
 Entry in existing list has same ID as new entry → no self-link in output. (unit, graph pkg)
@@ -4956,7 +4956,7 @@ Entry in existing list has same ID as new entry → no self-link in output. (uni
 
 [T-P3-5]
 name = "BuildContentSimilarity threshold 0.05"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "9c7c3649"
 body = '''
 Entry scoring BM25=0.06 raw → content_similarity link with Weight=min(1.0,0.06/5.0). Entry scoring 0.03 → no link. (unit, graph pkg)
@@ -4964,7 +4964,7 @@ Entry scoring BM25=0.06 raw → content_similarity link with Weight=min(1.0,0.06
 
 [T-P3-6]
 name = "BuildContentSimilarity weight capped at 1.0"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "76937bd7"
 body = '''
 Entry scoring BM25=10.0 raw → Weight=1.0 (capped). (unit, graph pkg)
@@ -4972,7 +4972,7 @@ Entry scoring BM25=10.0 raw → Weight=1.0 (capped). (unit, graph pkg)
 
 [T-P3-7]
 name = "UpdateCoSurfacing increments existing co_surfacing link"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "6c9da1ac"
 body = '''
 Existing link: Weight=0.5, CoSurfacingCount=3 → after update: Weight=0.6, CoSurfacingCount=4. (unit, graph pkg)
@@ -4980,7 +4980,7 @@ Existing link: Weight=0.5, CoSurfacingCount=3 → after update: Weight=0.6, CoSu
 
 [T-P3-8]
 name = "UpdateCoSurfacing creates new link if none exists"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "d0e6fb53"
 body = '''
 No existing co_surfacing link → creates one with Weight=0.1, CoSurfacingCount=1. (unit, graph pkg)
@@ -4988,7 +4988,7 @@ No existing co_surfacing link → creates one with Weight=0.1, CoSurfacingCount=
 
 [T-P3-9]
 name = "UpdateCoSurfacing caps weight at 1.0"
-traces_to = []
+traces_to = ["ARCH-P3-1", "ARCH-P3-2", "ARCH-P3-3", "ARCH-P3-4", "ARCH-P3-5", "ARCH-P3-6", "ARCH-P3-7"]
 hash = "175e88b9"
 body = '''
 Existing link: Weight=0.95, CoSurfacingCount=5 → after update: Weight=1.0, CoSurfacingCount=6. (unit, graph pkg)
@@ -4996,7 +4996,7 @@ Existing link: Weight=0.95, CoSurfacingCount=5 → after update: Weight=1.0, CoS
 
 [T-P4e-1]
 name = "SessionStart limits to top 7"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "7e49c95c"
 body = '''
 15 memories, no effectiveness data → 7 surfaced. (unit, surface pkg)
@@ -5004,7 +5004,7 @@ body = '''
 
 [T-P4e-10]
 name = "LogInvocationTokens propagates append errors"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "24b7ae79"
 body = '''
 Real logger with /dev/null path → error wrapped as "appending invocation token log". (unit)
@@ -5016,7 +5016,7 @@ Real logger with /dev/null path → error wrapped as "appending invocation token
 
 [T-P4e-2]
 name = "SessionStart gates out low-effectiveness memories"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "799290f8"
 body = '''
 Memory with SurfacedCount=10, score=20% excluded; memory with score=75% included. (unit)
@@ -5024,7 +5024,7 @@ Memory with SurfacedCount=10, score=20% excluded; memory with score=75% included
 
 [T-P4e-3]
 name = "SessionStart includes insufficient-data memories regardless of score"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "dc9fdfa0"
 body = '''
 Memory with SurfacedCount=3, score=0% included. No-data memory included. (unit)
@@ -5032,7 +5032,7 @@ Memory with SurfacedCount=3, score=0% included. No-data memory included. (unit)
 
 [T-P4e-4]
 name = "SessionStart ranks by effectiveness descending"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "b4c3cd12"
 body = '''
 Low-scorer listed first in retriever; high-scorer appears first in output. (unit)
@@ -5040,7 +5040,7 @@ Low-scorer listed first in retriever; high-scorer appears first in output. (unit
 
 [T-P4e-5]
 name = "Default budgets are 600/250/150"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "7bb2798c"
 body = '''
 Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudget, DefaultPreToolUseBudget. (unit)
@@ -5048,7 +5048,7 @@ Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudg
 
 [T-P4e-6]
 name = "PreToolUse limits to top 2"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "42a956ae"
 body = '''
 5 matching memories → 2 surfaced. (unit)
@@ -5056,7 +5056,7 @@ body = '''
 
 [T-P4e-7]
 name = "PreToolUse gates out low-effectiveness memories"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "7782a41d"
 body = '''
 Memory with SurfacedCount=10, score=15% excluded; score=75% included. (unit)
@@ -5064,7 +5064,7 @@ Memory with SurfacedCount=10, score=15% excluded; score=75% included. (unit)
 
 [T-P4e-8]
 name = "InvocationTokenLogger called with positive token count"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "27c3afc4"
 body = '''
 SessionStart with one memory → LogInvocationTokens called once with mode="session-start" and tokenCount>0. (unit)
@@ -5072,7 +5072,7 @@ SessionStart with one memory → LogInvocationTokens called once with mode="sess
 
 [T-P4e-9]
 name = "LogInvocationTokens appends token-count event to surfacing log"
-traces_to = []
+traces_to = ["ARCH-P4e-1", "ARCH-P4e-2"]
 hash = "ab444948"
 body = '''
 Event JSON contains token_count and mode; no memory_path field. (unit, surfacinglog pkg)
@@ -5080,7 +5080,7 @@ Event JSON contains token_count and mode; no memory_path field. (unit, surfacing
 
 [T-P5c-1]
 name = "High overlap returns merge pair not surviving candidate"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "6fb847a8"
 body = '''
 Candidate with 3/4 matching keywords against existing → `ClassifyResult.MergePairs` has 1 entry; `Surviving` is empty. (unit, dedup pkg)
@@ -5088,7 +5088,7 @@ Candidate with 3/4 matching keywords against existing → `ClassifyResult.MergeP
 
 [T-P5c-2]
 name = "Low overlap passes through as surviving candidate"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "ea8784a6"
 body = '''
 Candidate with 2/4 matching keywords (exactly 50%) → `ClassifyResult.Surviving` has 1 entry; `MergePairs` is empty. (unit, dedup pkg)
@@ -5096,7 +5096,7 @@ Candidate with 2/4 matching keywords (exactly 50%) → `ClassifyResult.Surviving
 
 [T-P5c-3]
 name = "LLM merger called with existing and candidate principles"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "83ba55c8"
 body = '''
 `MergePrinciples` receives existing.Principle and candidate.Principle; mock returns merged string; merged principle passed to `MergeWriter`. (unit, learn pkg)
@@ -5104,7 +5104,7 @@ body = '''
 
 [T-P5c-4]
 name = "Fallback merge takes candidate principle when it is longer"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "1b4c7904"
 body = '''
 No merger configured; candidate principle longer than existing → merged TOML uses candidate principle; keywords = union; concepts = union. (unit, learn pkg)
@@ -5112,7 +5112,7 @@ No merger configured; candidate principle longer than existing → merged TOML u
 
 [T-P5c-5]
 name = "Fallback merge keeps existing principle when it is longer"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "6f30db6d"
 body = '''
 No merger configured; existing principle longer → merged TOML keeps existing principle; keywords still unioned. (unit, learn pkg)
@@ -5120,7 +5120,7 @@ No merger configured; existing principle longer → merged TOML keeps existing p
 
 [T-P5c-6]
 name = "Absorbed record appended after merge"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "21f5c5eb"
 body = '''
 After merge: `RegistryAbsorber.RecordAbsorbed` called once with existing file path, candidate title, non-empty hash, and timestamp. (unit, learn pkg with mock absorber)
@@ -5128,7 +5128,7 @@ After merge: `RegistryAbsorber.RecordAbsorbed` called once with existing file pa
 
 [T-P5c-7]
 name = "LLM merger error falls back to deterministic merge"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "517af54c"
 body = '''
 `MergePrinciples` returns error → fallback applied (longer principle, union keywords, union concepts); no error propagated. (unit, learn pkg)
@@ -5136,7 +5136,7 @@ body = '''
 
 [T-P5c-8]
 name = "Empty candidate keywords are not merged"
-traces_to = []
+traces_to = ["ARCH-P5c-1", "ARCH-P5c-2"]
 hash = "d77bdecb"
 body = '''
 Candidate with no keywords → appears in `Surviving` (create-new path), not in `MergePairs`. (unit, dedup pkg)
@@ -5148,7 +5148,7 @@ Candidate with no keywords → appears in `Surviving` (create-new path), not in 
 
 [T-P5f-1]
 name = "MergeResult carries merged memory fields"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "d59220ff"
 body = '''
 **Traces to:** ARCH-P5f-1 (REQ-P5f-1)
@@ -5162,7 +5162,7 @@ Then: All fields accessible with correct values
 
 [T-P5f-2]
 name = "Absorbed-memory links removed from all entries"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "ea3521a2"
 body = '''
 **Traces to:** ARCH-P5f-2 (REQ-P5f-2)
@@ -5176,7 +5176,7 @@ Then: UpdateLinks called for A and B with filtered link sets (absorbed link remo
 
 [T-P5f-3]
 name = "Concept_overlap links recomputed for merged memory"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "432e4edc"
 body = '''
 **Traces to:** ARCH-P5f-2 (REQ-P5f-3)
@@ -5190,7 +5190,7 @@ Then: Old concept_overlap link removed; new concept_overlap links computed from 
 
 [T-P5f-4]
 name = "Content_similarity links recomputed for merged memory"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "b07d400f"
 body = '''
 **Traces to:** ARCH-P5f-2 (REQ-P5f-4)
@@ -5204,7 +5204,7 @@ Then: Old content_similarity link removed; new content_similarity links computed
 
 [T-P5f-5]
 name = "co_surfacing links preserved after recomputation"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "c7d96bc1"
 body = '''
 **Traces to:** ARCH-P5f-2 (REQ-P5f-5)
@@ -5218,7 +5218,7 @@ Then: UpdateLinks called with co_surfacing link present and unchanged (same weig
 
 [T-P5f-6]
 name = "evaluation_correlation links preserved after recomputation"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "cf9dc040"
 body = '''
 **Traces to:** ARCH-P5f-2 (REQ-P5f-5)
@@ -5232,7 +5232,7 @@ Then: UpdateLinks called with evaluation_correlation link present and unchanged 
 
 [T-P5f-7]
 name = "LinkRecomputer called after processMerge when wired"
-traces_to = []
+traces_to = ["ARCH-P5f-1", "ARCH-P5f-2", "ARCH-P5f-3"]
 hash = "270a75d8"
 body = '''
 **Traces to:** ARCH-P5f-3 (REQ-P5f-1 through REQ-P5f-5)
@@ -5254,7 +5254,7 @@ Then: LinkRecomputer.RecomputeAfterMerge called with MergedMemoryID=existing.Fil
 
 [T-P6e-1]
 name = "LevelGraduated is 4th escalation level"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "2e2d9a66"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-1)
@@ -5268,7 +5268,7 @@ Then: Proposal type is "escalate" and ProposedLevel is "graduated"
 
 [T-P6e-10]
 name = "ApplyEscalationProposal propagates applier error"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "05101264"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-2)
@@ -5282,7 +5282,7 @@ Then: Returns wrapped error containing "setting enforcement level"
 
 [T-P6e-11]
 name = "emphasized_advisory renders with IMPORTANT: prefix in tool mode"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "dc651f64"
 body = '''
 **Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
@@ -5296,7 +5296,7 @@ Then: Output contains "IMPORTANT:" and memory slug
 
 [T-P6e-12]
 name = "reminder renders with REMINDER: prefix in tool mode"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "7ccade95"
 body = '''
 **Traces to:** ARCH-P6e-2 (REQ-P6e-6, DES-P6e-2)
@@ -5310,7 +5310,7 @@ Then: Output contains "REMINDER:" and memory slug
 
 [T-P6e-13]
 name = "advisory level renders with normal format"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "b9554416"
 body = '''
 **Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
@@ -5324,7 +5324,7 @@ Then: Output does NOT contain "IMPORTANT:" or "REMINDER:"
 
 [T-P6e-14]
 name = "emphasized_advisory memories sorted before advisory in tool mode"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "95545151"
 body = '''
 **Traces to:** ARCH-P6e-2 (REQ-P6e-7)
@@ -5349,7 +5349,7 @@ Then: emphasized_advisory memory appears first in output
 
 [T-P6e-2]
 name = "ApplyEscalationProposal calls SetEnforcementLevel"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "d7a48e94"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-2)
@@ -5363,7 +5363,7 @@ Then: SetEnforcementLevel called with MemoryPath, ProposedLevel, and Rationale
 
 [T-P6e-3]
 name = "ApplyEscalationProposal with nil applier is no-op"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "1b4063bc"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-2)
@@ -5377,7 +5377,7 @@ Then: Returns nil, no panic
 
 [T-P6e-4]
 name = "ApplyEscalationProposal to graduated emits graduation signal"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "022c17e3"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-3)
@@ -5391,7 +5391,7 @@ Then: EmitGraduation called with MemoryPath, non-empty recommendation, and corre
 
 [T-P6e-5]
 name = "ApplyEscalationProposal to non-graduated does NOT emit signal"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "9a13e3a2"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-3)
@@ -5405,7 +5405,7 @@ Then: EmitGraduation is NOT called
 
 [T-P6e-6]
 name = "ClassifyContent returns \"settings.json\" for linter/config content"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "74c4e721"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
@@ -5419,7 +5419,7 @@ Then: Returns "settings.json"
 
 [T-P6e-7]
 name = "ClassifyContent returns \".claude/rules/\" for file-scoped content"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "3d65a91f"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
@@ -5433,7 +5433,7 @@ Then: Returns ".claude/rules/"
 
 [T-P6e-8]
 name = "ClassifyContent returns \"skill\" for procedural content"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "23001801"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
@@ -5447,7 +5447,7 @@ Then: Returns "skill"
 
 [T-P6e-9]
 name = "ClassifyContent returns \"CLAUDE.md\" as behavioral default"
-traces_to = []
+traces_to = ["ARCH-P6e-1", "ARCH-P6e-2"]
 hash = "8ee78441"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
@@ -5461,7 +5461,7 @@ Then: Returns "CLAUDE.md"
 
 [T-P6f-1]
 name = "GraduationStore Append writes entry to JSONL"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "321ff896"
 body = '''
 **Traces to:** ARCH-P6f-1 (REQ-P6f-2)
@@ -5475,7 +5475,7 @@ Then: The JSONL file contains exactly one line with valid JSON matching the entr
 
 [T-P6f-10]
 name = "graduate list shows pending entries and quality metric"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "481dcdfc"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-6)
@@ -5489,7 +5489,7 @@ Then: Output lists 2 pending entries; quality metric shows "75.0% accepted (3 ac
 
 [T-P6f-11]
 name = "graduate list shows \"n/a\" quality metric when no resolved entries"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "07912868"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-6, DES-P6f-1)
@@ -5503,7 +5503,7 @@ Then: Quality line shows "n/a"
 
 [T-P6f-12]
 name = "graduate-surface outputs JSON with pending entries and instructions"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "ba695363"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-7, DES-P6f-2)
@@ -5517,7 +5517,7 @@ Then: JSON output has "summary" and "context"; context contains the entry ID and
 
 [T-P6f-13]
 name = "graduate-surface produces no output when queue is empty"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "065cb1cf"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-7)
@@ -5531,7 +5531,7 @@ Then: No output written; exit 0
 
 [T-P6f-14]
 name = "graduate accept with unknown ID returns error"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "20a8e60a"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-4)
@@ -5545,7 +5545,7 @@ Then: Returns error; IssueCreator not called
 
 [T-P6f-15]
 name = "ApplyEscalationProposal passes ClassifyContent result as recommendation"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "4704e99f"
 body = '''
 **Traces to:** ARCH-P6e-1 (REQ-P6f-8, REQ-P6e-3, REQ-P6e-4)
@@ -5572,7 +5572,7 @@ Then: EmitGraduation called with recommendation="skill" (ClassifyContent result,
 
 [T-P6f-2]
 name = "GraduationStore List reads all entries, skips malformed lines"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "267858b8"
 body = '''
 **Traces to:** ARCH-P6f-1 (REQ-P6f-2)
@@ -5586,7 +5586,7 @@ Then: Returns exactly two entries; no error
 
 [T-P6f-3]
 name = "GraduationStore List returns empty slice for missing file"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "6682f5d7"
 body = '''
 **Traces to:** ARCH-P6f-1 (REQ-P6f-2)
@@ -5600,7 +5600,7 @@ Then: Returns empty slice with no error
 
 [T-P6f-4]
 name = "GraduationStore SetStatus updates matching entry"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "3ab6163e"
 body = '''
 **Traces to:** ARCH-P6f-1 (REQ-P6f-2)
@@ -5614,7 +5614,7 @@ Then: Entry status is "accepted" and issue_url is set; resolved_at is non-empty
 
 [T-P6f-5]
 name = "GraduationStore SetStatus returns ErrGraduationNotFound for unknown ID"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "51900448"
 body = '''
 **Traces to:** ARCH-P6f-1 (REQ-P6f-2)
@@ -5628,7 +5628,7 @@ Then: Returns ErrGraduationNotFound
 
 [T-P6f-6]
 name = "GraduationQueueEmitter EmitGraduation appends pending entry"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "6b54f515"
 body = '''
 **Traces to:** ARCH-P6f-2 (REQ-P6f-3)
@@ -5642,7 +5642,7 @@ Then: Store contains one entry with status="pending", memory_path="mem/foo.toml"
 
 [T-P6f-7]
 name = "GraduationQueueEmitter ID is deterministic from memory_path"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "ca266d0e"
 body = '''
 **Traces to:** ARCH-P6f-2 (REQ-P6f-3)
@@ -5656,7 +5656,7 @@ Then: Both entries have the same ID
 
 [T-P6f-8]
 name = "graduate accept calls IssueCreator and marks entry accepted"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "4b6a56a5"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-4)
@@ -5670,7 +5670,7 @@ Then: IssueCreator.Create called once; entry status becomes "accepted"; issue_ur
 
 [T-P6f-9]
 name = "graduate dismiss marks entry dismissed"
-traces_to = []
+traces_to = ["ARCH-P6f-1", "ARCH-P6f-2", "ARCH-P6f-3"]
 hash = "0e56dc3f"
 body = '''
 **Traces to:** ARCH-P6f-3 (REQ-P6f-5)

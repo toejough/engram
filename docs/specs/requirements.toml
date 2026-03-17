@@ -730,7 +730,7 @@ On SessionStart, read `.claude/engram/session-context.md` if it exists. Extract 
 
 [REQ-46]
 name = "Frecency activation scoring (ACT-R model)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "af4a2e7f"
 body = '''
 Each memory has a frecency activation score computed from four components:
@@ -1440,7 +1440,7 @@ body = '''
 
 [REQ-P0a-1]
 name = "EnforcementLevel field in InstructionEntry (P0a)"
-traces_to = []
+traces_to = ["UC-23"]
 hash = "2d4a0f46"
 body = '''
 Each `InstructionEntry` in the registry carries an `enforcement_level` field. The level progresses through four values: `advisory` → `emphasized_advisory` → `reminder` → `graduated`. New entries default to `advisory`. Entries loaded from JSONL without the field are backfilled to `advisory` at load time.
@@ -1456,7 +1456,7 @@ Each `InstructionEntry` in the registry carries an `enforcement_level` field. Th
 
 [REQ-P1-1]
 name = "Contradiction detector interface (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "4c976c86"
 body = '''
 The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx, []*memory.Stored) ([]Pair, error)` method. `Pair` holds two memories and a confidence score.
@@ -1474,7 +1474,7 @@ The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx,
 
 [REQ-P1-2]
 name = "Two-pass heuristic detection (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "d409a75e"
 body = '''
 Pass 1 keyword heuristic: for each pair of candidates, build search text from principle+title+content. Fire if shared subject tokens AND any opposing-verb pattern matches: (use/avoid), (always/never), (do/don't), (enable/disable), (is/isn't), (should/shouldn't).
@@ -1494,7 +1494,7 @@ Opposing pairs checked as bidirectional substrings: if text A contains "use" and
 
 [REQ-P1-3]
 name = "LLM classifier interface (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "3d5d406e"
 body = '''
 `Classifier` interface: `Classify(ctx context.Context, a, b *memory.Stored) (bool, error)`. Returns true if A and B contradict. Injected via `WithClassifier`. When budget (max LLM calls) is exhausted, no further Classify calls are made for this surface event.
@@ -1508,7 +1508,7 @@ body = '''
 
 [REQ-P1-4]
 name = "KindContradiction signal kind (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "c85ddc23"
 body = '''
 Add `KindContradiction = "contradiction"` constant to `internal/signal/signal.go`.
@@ -1522,7 +1522,7 @@ Add `KindContradiction = "contradiction"` constant to `internal/signal/signal.go
 
 [REQ-P1-5]
 name = "Post-ranking suppression filter in surface.go (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "28e68234"
 body = '''
 After frecency sort and before output formatting, in `runSessionStart` and `runPrompt`, call `s.detector.Check(ctx, topN)`. For each returned pair, remove B (index 1, lower-ranked) from the candidates slice. Emit a `KindContradiction` signal for each suppressed memory via `s.signalEmitter`.
@@ -1540,7 +1540,7 @@ After frecency sort and before output formatting, in `runSessionStart` and `runP
 
 [REQ-P4e-1]
 name = "SessionStart effectiveness ranking + gating (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "c323a36a"
 body = '''
 SessionStart mode ranks memories by effectiveness score descending. Memories with `SurfacedCount < 5` (insufficient data) use a default score of 50.0 and are always included. Memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded (gated out).
@@ -1558,7 +1558,7 @@ SessionStart mode ranks memories by effectiveness score descending. Memories wit
 
 [REQ-P4e-2]
 name = "SessionStart top-7 limit, 600 token budget (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "b394c519"
 body = '''
 SessionStart surfaces at most 7 memories (down from 10). Default token budget is 600 (down from 800).
@@ -1576,7 +1576,7 @@ SessionStart surfaces at most 7 memories (down from 10). Default token budget is
 
 [REQ-P4e-3]
 name = "UserPromptSubmit 250 token budget + raised BM25 floor (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "c417f686"
 body = '''
 Default token budget for UserPromptSubmit is 250 (down from 300). BM25 minimum relevance score raised from 0.01 to 0.05.
@@ -1594,7 +1594,7 @@ Default token budget for UserPromptSubmit is 250 (down from 300). BM25 minimum r
 
 [REQ-P4e-4]
 name = "PreToolUse top-2 limit, effectiveness gate, 150 token budget (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "4878b8e4"
 body = '''
 PreToolUse mode limits to top-2 results (down from 3). Applies same effectiveness gate as SessionStart: memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded. Default token budget 150 (down from 200).
@@ -1612,7 +1612,7 @@ PreToolUse mode limits to top-2 results (down from 3). Applies same effectivenes
 
 [REQ-P4e-5]
 name = "InvocationTokenLogger records per-call token count (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "3698a3d6"
 body = '''
 After each `surface.Run` invocation, if an `InvocationTokenLogger` is set and output is non-empty, the output token count (estimated via `len(context)/4`) is recorded via `LogInvocationTokens(mode, count, now)`.
@@ -1630,7 +1630,7 @@ After each `surface.Run` invocation, if an `InvocationTokenLogger` is set and ou
 
 [REQ-P4e-6]
 name = "Stop hook sums per-session token counts (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "79c5e34a"
 body = '''
 The stop hook reads the surfacing log before `evaluate` clears it, sums all `token_count` fields using `jq`, and logs the session token total to stderr.
@@ -1648,7 +1648,7 @@ The stop hook reads the surfacing log before `evaluate` clears it, sums all `tok
 
 [REQ-P4f-1]
 name = "Cluster dedup suppresses lower-effectiveness linked pair member (P4f)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "c0ac8e5b"
 body = '''
 When two or more memories that are graph-linked (via P3 link graph) would both appear in the final surfaced set, keep the member with the highest effectiveness score and suppress the rest. Suppression applies after the top-N count limit and contradiction suppression. Each suppressed memory emits a `SuppressionEvent` with `reason: "cluster_dedup"` and `suppressed_by: <winner path>`.
@@ -1666,7 +1666,7 @@ When two or more memories that are graph-linked (via P3 link graph) would both a
 
 [REQ-P4f-2]
 name = "Cross-source suppression skips memories covered by external source (P4f)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "f5d9d7be"
 body = '''
 If a memory is covered by CLAUDE.md, a rule file, or a skill (via CrossRefChecker), skip it during surfacing. Each suppressed memory emits a `SuppressionEvent` with `reason: "cross_source"` and `suppressed_by: <source name>`. Applies in session-start and prompt modes. Fire-and-forget: CrossRefChecker errors leave memory unsuppressed.
@@ -1684,7 +1684,7 @@ If a memory is covered by CLAUDE.md, a rule file, or a skill (via CrossRefChecke
 
 [REQ-P4f-3]
 name = "Transcript suppression skips memories whose keywords appear in recent window (P4f)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "b63e8d5f"
 body = '''
 If any of a memory's `keywords` appear in the provided transcript window text (~500 tokens), suppress the memory. Transcript window supplied via `Options.TranscriptWindow`. Each suppressed memory emits a `SuppressionEvent` with `reason: "transcript"` and `suppressed_by: <matched keyword>`. Applies in session-start and prompt modes.
@@ -1702,7 +1702,7 @@ If any of a memory's `keywords` appear in the provided transcript window text (~
 
 [REQ-P4f-4]
 name = "Suppression events logged via SuppressionEventLogger (P4f)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "03eb8035"
 body = '''
 All suppression decisions (cluster_dedup, cross_source, transcript) are recorded as structured events. Each event contains: memory_id, timestamp, reason, suppressed_by. Events are logged in-order via the injected `SuppressionEventLogger`. Fire-and-forget: log errors ignored. Logger called after all suppression passes complete.
@@ -1720,7 +1720,7 @@ All suppression decisions (cluster_dedup, cross_source, transcript) are recorded
 
 [REQ-P4f-5]
 name = "Suppression rate metric in Result (P4f)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "0424ef70"
 body = '''
 After each surface invocation, `Result.SuppressionStats` holds aggregate suppression metrics: suppressed count, surfaced count, and rate = suppressed / (suppressed + surfaced). Nil when both counts are zero.

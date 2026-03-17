@@ -1,6 +1,6 @@
 [ARCH-1]
 name = "Pipeline Architecture"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "01f48e05"
 body = '''
 **Decision:** Three-stage pipeline with fast-path bypass:
@@ -32,7 +32,7 @@ Three stages, each independently testable via DI. The Classifier replaces the ol
 
 [ARCH-10]
 name = "BM25 Candidate Pruning (ARCH-9 detail)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "1f70e6c1"
 body = '''
 **Decision:** Pre-query filtering in PreToolUse: only memories with non-empty `anti_pattern` field are indexed and ranked (tier-aware: tier A always, tier B sometimes, tier C never per REQ-7). Same BM25 scoring as UserPromptSubmit, applied to the filtered candidate set.
@@ -56,7 +56,7 @@ Design choices:
 
 [ARCH-12]
 name = "Surface Subcommand and Mode Routing"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "a6cffc72"
 body = '''
 **Decision:** Single `surface` subcommand with mode flag routes to different behaviors.
@@ -88,7 +88,7 @@ Design choices:
 
 [ARCH-13]
 name = "Hook Script Integration"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "4cfa2e3a"
 body = '''
 **Decision:** Existing hooks (session-start.sh, user-prompt-submit.sh) are extended. New PreToolUse hook added.
@@ -110,7 +110,7 @@ Design choices:
 
 [ARCH-14]
 name = "Session Learner Pipeline"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "311b2e9e"
 body = '''
 **Decision:** Linear pipeline of injected stages, similar to ARCH-1 but for transcript extraction:
@@ -148,7 +148,7 @@ Five stages (four existing + optional creation logger), each independently testa
 
 [ARCH-15]
 name = "Transcript Delta Extraction via LLM with Unified Tier Criteria"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "1b3ed17f"
 body = '''
 **Decision:** Single LLM call to extract multiple learnings from the stripped transcript delta (not full transcript), classifying each using the same A/B/C tier criteria as the real-time classifier (ARCH-2).
@@ -189,7 +189,7 @@ Input is the stripped transcript delta (low-value content removed per REQ-27). R
 
 [ARCH-16]
 name = "Deduplication via Keyword Overlap"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "c110cfbf"
 body = '''
 **Decision:** Compare candidate keywords against existing memory keywords. Skip candidates with >50% overlap.
@@ -219,7 +219,7 @@ Design choices:
 
 [ARCH-17]
 name = "CLI Learn Subcommand with Incremental Offset Tracking"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "047d41d1"
 body = '''
 **Decision:** Extend the engram binary with a `learn` subcommand that reads transcript from file and tracks extraction offset per session.
@@ -250,7 +250,7 @@ Design choices:
 
 [ARCH-18]
 name = "Hook Script Integration for PreCompact and Stop"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "2a2a76d9"
 body = '''
 **Decision:** Two new hook scripts invoke `engram learn` with incremental offset tracking. Registered in `hooks/hooks.json`.
@@ -277,7 +277,7 @@ Design choices:
 
 [ARCH-19]
 name = "Surfacing Instrumentation — Tracking Logic and Recorder"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "f01cbfc2"
 body = '''
 **Decision:** Separate pure tracking logic from I/O-performing recorder, both in `internal/track/`.
@@ -323,7 +323,7 @@ All I/O is injected via functional options (`WithReadFile`, `WithCreateTemp`, `W
 
 [ARCH-2]
 name = "Unified Classifier (Fast-Path + LLM)"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "72a71767"
 body = '''
 **Decision:** Two-stage detection: deterministic fast-path, then LLM classifier.
@@ -363,7 +363,7 @@ Implementation:
 
 [ARCH-20]
 name = "Surfacer ↔ Tracker Integration"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "eac68733"
 body = '''
 **Decision:** Optional `MemoryTracker` interface injected into the Surfacer.
@@ -398,7 +398,7 @@ surfacer := surface.New(retriever, surface.WithTracker(recorder))
 
 [ARCH-21]
 name = "Creation Log — Deferred Visibility for UC-1"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "a3c45c57"
 body = '''
 **Decision:** New `internal/creationlog/` package for JSONL creation log read/write with full DI.
@@ -455,7 +455,7 @@ All I/O injected via functional options (`WithReadFile`, `WithWriteFile`, `WithR
 
 [ARCH-22]
 name = "Surfacing Log Infrastructure"
-traces_to = []
+traces_to = ["UC-15"]
 hash = "fc871a2a"
 body = '''
 **Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (SessionStart, UserPromptSubmit, PreToolUse). The evaluate pass reads this log to determine which memories were surfaced, then clears it.
@@ -487,7 +487,7 @@ Implementation:
 
 [ARCH-23]
 name = "Outcome Evaluation Pipeline"
-traces_to = []
+traces_to = ["UC-15"]
 hash = "0a37e073"
 body = '''
 **Decision:** Three-stage pipeline for outcome evaluation: read surfacing log → send to LLM for classification → write evaluation results.
@@ -531,7 +531,7 @@ Implementation:
 
 [ARCH-24]
 name = "Effectiveness Aggregation (Read Path)"
-traces_to = []
+traces_to = ["UC-15"]
 hash = "8d22c558"
 body = '''
 **Decision:** Compute effectiveness on-the-fly from evaluation logs when surfacing. Pure computation, no caching in TOML.
@@ -567,7 +567,7 @@ Usage: When UC-2 surfaces memories, call Aggregate, then append effectiveness an
 
 [ARCH-25]
 name = "Hook Integration — evaluate Subcommand"
-traces_to = []
+traces_to = ["UC-15"]
 hash = "1a395e6e"
 body = '''
 **Decision:** Thin CLI wrapper for the Evaluator pipeline. Same pattern as correct/learn: reads transcript from stdin, invokes Evaluator, outputs summary.
@@ -684,7 +684,7 @@ Implementation:
 
 [ARCH-26]
 name = "Matrix Classifier"
-traces_to = []
+traces_to = ["UC-6"]
 hash = "8b812bae"
 body = '''
 **Decision:** New `internal/review/` package with a pure classification function.
@@ -739,7 +739,7 @@ func Classify(
 
 [ARCH-27]
 name = "Review CLI Wiring"
-traces_to = []
+traces_to = ["UC-6"]
 hash = "cd31c9d8"
 body = '''
 **Decision:** New `review` subcommand in `internal/cli/cli.go`, following existing subcommand pattern.
@@ -794,7 +794,7 @@ All UC-6 L2 items have ARCH coverage.
 
 [ARCH-28]
 name = "TranscriptDeltaReader component"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "6760fcc8"
 body = '''
 Reads transcript JSONL file from a given byte offset (watermark) to end-of-file, handling watermark reset when file is shorter than the stored offset (session boundary or file rotation).
@@ -808,7 +808,7 @@ Reads transcript JSONL file from a given byte offset (watermark) to end-of-file,
 
 [ARCH-29]
 name = "ContentStripper component"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "928ccf04"
 body = '''
 Removes low-value content from raw transcript JSONL lines and retains high-value content.
@@ -822,7 +822,7 @@ Removes low-value content from raw transcript JSONL lines and retains high-value
 
 [ARCH-3]
 name = "Transcript Context Reader"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "0c9b1403"
 body = '''
 **Decision:** Read recent transcript context from the session transcript file for the unified classifier.
@@ -851,7 +851,7 @@ The CLI layer reads `transcript_path` from the hook JSON stdin and passes it to 
 
 [ARCH-30]
 name = "ContextSummarizer component"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "a2f7f225"
 body = '''
 Calls Haiku API to produce an updated task-focused working summary from previous summary and stripped transcript delta.
@@ -866,7 +866,7 @@ Calls Haiku API to produce an updated task-focused working summary from previous
 
 [ARCH-31]
 name = "SessionContextFile data structure and I/O"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "1d0bfe15"
 body = '''
 Encapsulates the context file format and read/write operations.
@@ -883,7 +883,7 @@ Encapsulates the context file format and read/write operations.
 
 [ARCH-32]
 name = "ContextUpdateOrchestrator"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "c3a7a3be"
 body = '''
 Orchestrates the full incremental context update pipeline.
@@ -898,7 +898,7 @@ Orchestrates the full incremental context update pipeline.
 
 [ARCH-33]
 name = "Hook integration wiring"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "2a4f2317"
 body = '''
 Specifies how context updates are triggered and how context is restored.
@@ -915,7 +915,7 @@ Specifies how context updates are triggered and how context is restored.
 
 [ARCH-34]
 name = "Dependency injection interfaces for testability"
-traces_to = []
+traces_to = ["UC-14"]
 hash = "d5cc4f9c"
 body = '''
 Specifies interfaces for all external I/O to enable unit testing without mocks.
@@ -934,7 +934,7 @@ Specifies interfaces for all external I/O to enable unit testing without mocks.
 
 [ARCH-35]
 name = "Frecency Activation Scorer"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "6656e8dd"
 body = '''
 **Decision:** Pure function that computes ACT-R frecency activation scores for memories. Used in all three surfacing modes.
@@ -983,7 +983,7 @@ Design choices:
 
 [ARCH-36]
 name = "Maintain Proposal Generator"
-traces_to = []
+traces_to = ["UC-16"]
 hash = "db55e160"
 body = '''
 **Decision:** New `internal/maintain/` package with a `Generator` struct that orchestrates proposal generation across all four quadrants.
@@ -1035,7 +1035,7 @@ func (g *Generator) Generate(
 
 [ARCH-37]
 name = "Maintain CLI Wiring"
-traces_to = []
+traces_to = ["UC-16"]
 hash = "cb76981b"
 body = '''
 **Decision:** New `RunMaintain` function in `internal/cli/cli.go` following the established pattern (RunReview, RunEvaluate).
@@ -1059,7 +1059,7 @@ body = '''
 
 [ARCH-38]
 name = "Learn Offset Tracking Infrastructure"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "67d3c95d"
 body = '''
 **Decision:** New `internal/learn/offset.go` package for persistent offset tracking per session.
@@ -1098,7 +1098,7 @@ Atomicity: write to temp file, then rename to final path. DI interfaces WithRead
 
 [ARCH-39]
 name = "IncrementalLearner Orchestrator"
-traces_to = []
+traces_to = ["UC-1"]
 hash = "2114a6bf"
 body = '''
 **Decision:** New `internal/learn/incremental.go` package that orchestrates incremental extraction: delta reading → stripping → learning → offset update.
@@ -1144,7 +1144,7 @@ func (il *IncrementalLearner) Run(ctx context.Context) ([]string, error) {
 
 [ARCH-4]
 name = "TOML File Writer"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "00e8028b"
 body = '''
 **Decision:** Write TOML to `<data-dir>/memories/<slug>.toml`:
@@ -1168,7 +1168,7 @@ Implementation:
 
 [ARCH-40]
 name = "Token Estimation and Budget Enforcement"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "fc1d4e9f"
 body = '''
 **Decision:** Token estimation is a pure stateless function. Budget configuration is loaded at startup and stored in a Configuration struct. Budget enforcement happens in surface.go's matching functions.
@@ -1209,7 +1209,7 @@ type BudgetConfig struct {
 
 [ARCH-41]
 name = "Budget Reporting and Warning Detection"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "57a098ad"
 body = '''
 **Decision:** Budget statistics are computed during `engram review` by analyzing surfacing logs for the session. Warnings are raised when cap hit rate exceeds 50%.
@@ -1244,7 +1244,7 @@ type BudgetStats struct {
 
 [ARCH-42]
 name = "Stop Hook Audit Phase"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "3f6ae2b8"
 body = '''
 **Decision:** Stop hook is expanded to a 4-phase pipeline with audit as the 3rd phase. New `engram audit` command is invoked between `engram evaluate` and `engram context-update`.
@@ -1271,7 +1271,7 @@ engram context-update --data-dir "$DATA_DIR"                                 # P
 
 [ARCH-43]
 name = "Audit Command Structure"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "c754b3f6"
 body = '''
 **Decision:** New CLI subcommand `engram audit --data-dir <path> --timestamp <iso8601>`. Reads session data (surfacing logs, effectiveness data, transcript), invokes Haiku for compliance assessment, writes audit report, and injects results into effectiveness pipeline.
@@ -1308,7 +1308,7 @@ engram audit --data-dir <path> --timestamp <iso8601> [--transcript-path <path>|-
 
 [ARCH-44]
 name = "Effectiveness Signal Injection from Audit Results"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "82cf51db"
 body = '''
 **Decision:** After audit report is written, compliance results are fed into the effectiveness evaluation pipeline as negative outcome signals for non-compliant memories.
@@ -1345,7 +1345,7 @@ type OutcomeSignal struct {
 
 [ARCH-45]
 name = "Audit Error Handling (No Graceful Degradation)"
-traces_to = []
+traces_to = ["UC-17"]
 hash = "605b222b"
 body = '''
 **Decision:** If Haiku API call fails (missing/invalid token), audit phase emits error to stderr and skips the audit. No report is written. Other Stop hook phases continue.
@@ -1423,7 +1423,7 @@ All UC-17 & UC-19 L2 items have ARCH coverage.
 
 [ARCH-46]
 name = "PostToolUse Reminder Pipeline"
-traces_to = []
+traces_to = ["UC-18"]
 hash = "6c3ce16d"
 body = '''
 **Decision:** New reminder pipeline triggered by PostToolUse hook. Reads tool call details from stdin, matches file path against pattern config, resolves instruction IDs, checks suppression, emits single capped reminder.
@@ -1464,7 +1464,7 @@ func (r *Reminder) Run(ctx context.Context, toolCall ToolCallInput) (string, err
 
 [ARCH-47]
 name = "Reminder Hook Wiring and Configuration"
-traces_to = []
+traces_to = ["UC-18"]
 hash = "f1f5719e"
 body = '''
 **Decision:** PostToolUse hook registered in hooks/hooks.json. Hook script reads stdin JSON, extracts file_path and tool_name, invokes `engram remind`. Configuration in reminders.toml is optional — missing config means no reminders.
@@ -1491,7 +1491,7 @@ fi
 
 [ARCH-48]
 name = "Cross-Source Instruction Scanner"
-traces_to = []
+traces_to = ["UC-19"]
 hash = "5b4b3684"
 body = '''
 **Decision:** New scanner that reads all instruction sources and produces a unified instruction registry. Each instruction is a structured item with source metadata, content, and effectiveness data.
@@ -1530,7 +1530,7 @@ func (s *Scanner) ScanAll(dataDir, projectDir string) ([]InstructionItem, error)
 
 [ARCH-49]
 name = "Instruct Audit Pipeline"
-traces_to = []
+traces_to = ["UC-19"]
 hash = "b563ae58"
 body = '''
 **Decision:** Pipeline for deduplication, quality diagnosis, refinement, gap analysis, and skill decomposition. LLM-dependent steps are skippable (no API token).
@@ -1594,7 +1594,7 @@ All UC-18 & UC-20 L2 items have ARCH coverage.
 
 [ARCH-5]
 name = "System Reminder Renderer"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "dfc81efb"
 body = '''
 **Decision:** Format the system reminder text per DES-1, including tier:
@@ -1616,7 +1616,7 @@ Returns empty string if no memory was created (shouldn't happen if called after 
 
 [ARCH-50]
 name = "Escalation Engine"
-traces_to = []
+traces_to = ["UC-20"]
 hash = "65b5cb9b"
 body = '''
 **Decision:** Extend `engram maintain` with an escalation engine that analyzes leech memories and proposes graduated enforcement changes within engram's advisory range. Integrates with UC-18 (PostToolUse reminders). Ladder is 3 levels: advisory → emphasized_advisory → reminder. Beyond `reminder`, a graduation signal is emitted (UC-28). Dimension routing and automation candidate routing removed in S2.
@@ -1660,7 +1660,7 @@ func (e *EscalationEngine) Analyze(leeches []Memory) ([]EscalationProposal, erro
 
 [ARCH-51]
 name = "Automation Generator Pipeline *(removed — Phase A-1/S1)*"
-traces_to = []
+traces_to = ["UC-22"]
 hash = "628dfb0f"
 body = '''
 **Status:** Removed. UC-22 removed in S1. The `internal/automate/` package and `engram automate` CLI command were deleted. Graduation signals (UC-28/ARCH-53) replace the automation proposal concept.
@@ -1696,7 +1696,7 @@ All UC-21 & UC-22 L2 items have ARCH coverage.
 
 [ARCH-6]
 name = "CLI Wiring and Entry Point"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "018d11c5"
 body = '''
 **Decision:** Single binary with `correct` subcommand. Composition root at `internal/cli/`:
@@ -1754,7 +1754,7 @@ export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
 
 [ARCH-62]
 name = "Promoter Pipeline (UC-4)"
-traces_to = []
+traces_to = ["UC-4"]
 hash = "dcd36efa"
 body = '''
 **Decision:** New `internal/promote/` package with a `Promoter` struct orchestrating memory→skill promotion.
@@ -1806,7 +1806,7 @@ type Confirmer interface {
 
 [ARCH-63]
 name = "Skill Template Engine (UC-4)"
-traces_to = []
+traces_to = ["UC-4"]
 hash = "9efc56d7"
 body = '''
 **Decision:** Skill generation uses LLM with a structured prompt template. The LLM receives memory fields (title, content, principle, anti_pattern, keywords, concepts) and returns a complete skill file in the DES-34 format. The template is a Go `text/template` embedded in the generator.
@@ -1822,7 +1822,7 @@ body = '''
 
 [ARCH-64]
 name = "Tier Transition Engine (UC-5)"
-traces_to = []
+traces_to = ["UC-5"]
 hash = "161edf4b"
 body = '''
 **Decision:** New `internal/promote/` extension (same package as ARCH-62) with `ClaudeMDPromoter` struct. Reuses `SkillGenerator` (ARCH-63) for demotion path. Adds `ClaudeMDEditor` for CLAUDE.md file manipulation.
@@ -1859,7 +1859,7 @@ type ClaudeMDEditor interface {
 
 [ARCH-65]
 name = "CLAUDE.md File Editor (UC-5)"
-traces_to = []
+traces_to = ["UC-5"]
 hash = "137f2a2c"
 body = '''
 **Decision:** `ClaudeMDEditor` implementation uses section-level parsing (split on `## ` headings). AddEntry appends a new section. RemoveEntry removes the section matching the entry ID (matched by comment marker `<!-- promoted from ... -->` or heading text). File writes are atomic (temp + rename).
@@ -1873,7 +1873,7 @@ body = '''
 
 [ARCH-66]
 name = "Proposal Executor (UC-24)"
-traces_to = []
+traces_to = ["UC-24"]
 hash = "5f933350"
 body = '''
 **Decision:** New `internal/maintain/apply.go` extending the existing `internal/maintain/` package. `Executor` struct routes proposals by quadrant to strategy handlers.
@@ -1915,7 +1915,7 @@ type Proposal struct {
 
 [ARCH-67]
 name = "Memory TOML Rewriter (UC-24)"
-traces_to = []
+traces_to = ["UC-24"]
 hash = "c7aaa2f2"
 body = '''
 **Decision:** `MemoryRewriter` in `internal/maintain/` reads existing TOML, applies field updates (content, keywords, concepts, principle, anti_pattern), writes atomically (temp + rename). Preserves all fields not being updated. Uses BurntSushi/toml for parse and encode.
@@ -1929,7 +1929,7 @@ body = '''
 
 [ARCH-68]
 name = "Evaluate Strip Integration (UC-25)"
-traces_to = []
+traces_to = ["UC-25"]
 hash = "e6f05d52"
 body = '''
 **Decision:** Extend `internal/evaluate/Evaluator` with `WithStripFunc(fn func([]string) []string)` option. When set, the evaluator splits transcript into lines, applies the strip function, and rejoins before sending to LLM. Default is no-op (backward compatible).
@@ -1989,7 +1989,7 @@ All L2 items have ARCH coverage.
 
 [ARCH-69]
 name = "SourceRegistrar Component (UC-26)"
-traces_to = []
+traces_to = ["UC-26"]
 hash = "214569bc"
 body = '''
 **Decision:** New `internal/register/` package with `Registrar` struct that orchestrates the 4-phase auto-registration flow from DES-40.
@@ -2031,7 +2031,7 @@ func (r *Registrar) Run(config SourceConfig) error {
 
 [ARCH-7]
 name = "DI Boundary Interfaces"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "415cad6c"
 body = '''
 **Decision:** All I/O through injected interfaces. This is a lateral standard from CLAUDE.md design principles.
@@ -2054,7 +2054,7 @@ Core DI interfaces (summary — defined in detail by ARCH-2 through ARCH-5):
 
 [ARCH-70]
 name = "Extended Always-Loaded Classification (UC-26) — REMOVED (S4)"
-traces_to = []
+traces_to = ["UC-26"]
 hash = "49c5c09f"
 body = '''
 **Status:** Removed by S4 simplification. The `alwaysLoadedSources` map and binary Working/Leech classification for non-memory sources have been deleted from `internal/registry/classify.go`. The registry now only persists memory entries; `Classify` uses the standard 4-quadrant model for all entries.
@@ -2066,7 +2066,7 @@ body = '''
 
 [ARCH-71]
 name = "CLI Integration and Hook Wiring (UC-26)"
-traces_to = []
+traces_to = ["UC-26"]
 hash = "96bc7e1d"
 body = '''
 **Decision:** Wire `Registrar.Run` into the existing `runSurface` function in `internal/cli/cli.go`, specifically in the `session-start` mode path. The registration runs before memory surfacing.
@@ -2117,7 +2117,7 @@ All L2 items have ARCH coverage.
 
 [ARCH-72]
 name = "SessionStart symlink step (UC-27)"
-traces_to = []
+traces_to = ["UC-27"]
 hash = "a23fbe1d"
 body = '''
 **Component:** `hooks/session-start.sh`
@@ -2155,7 +2155,7 @@ All L2 items have ARCH coverage.
 
 [ARCH-73]
 name = "Signal Detector component (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "77817981"
 body = '''
 **Component:** `internal/signal/detector.go`
@@ -2204,7 +2204,7 @@ Detect() calls classifier for maintenance quadrants (Noise→`noise_removal`, Le
 
 [ARCH-74]
 name = "Proposal Queue Store (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "a0954c05"
 body = '''
 **Component:** `internal/signal/queue.go`
@@ -2235,7 +2235,7 @@ File: `<data-dir>/proposal-queue.jsonl`. Read skips malformed lines. Prune remov
 
 [ARCH-75]
 name = "CLI wiring for signal subcommands (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "24ed4cbc"
 body = '''
 **Component:** `internal/cli/cli.go`
@@ -2255,7 +2255,7 @@ All follow existing CLI wiring pattern: parse flags → compose dependencies →
 
 [ARCH-76]
 name = "Hook integration for signal detection (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "a317aded"
 body = '''
 **Component:** `hooks/stop.sh`, `hooks/session-start.sh`
@@ -2271,7 +2271,7 @@ body = '''
 
 [ARCH-77]
 name = "Apply-proposal component (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "037d0e69"
 body = '''
 **Component:** `internal/signal/apply.go`
@@ -2318,7 +2318,7 @@ Action handlers:
 
 [ARCH-78]
 name = "Promote with external content (UC-28)"
-traces_to = []
+traces_to = ["UC-28"]
 hash = "4c538bd0"
 body = '''
 **Component:** `internal/promote/promote.go`, `internal/promote/claudemd.go`
@@ -2413,7 +2413,7 @@ func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, erro
 
 [ARCH-8]
 name = "Build Automation via SessionStart Hook"
-traces_to = []
+traces_to = ["UC-3"]
 hash = "3bbfd33b"
 body = '''
 **Decision:** A `SessionStart` hook script builds the Go binary on every session start:
@@ -2461,7 +2461,7 @@ Log `ConsolidateResult` to stderr per DES-48 format. If `Consolidate` returns er
 
 [ARCH-9]
 name = "Memory Storage and Retrieval"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "2135e0e3"
 body = '''
 **Decision:** Memories are stored as individual TOML files in `<data-dir>/memories/`. Retrieval uses BM25 ranking: scan and parse all files, build a BM25 index on demand per query, score the input text against each memory, and return ranked results.
@@ -2508,7 +2508,7 @@ Design choices:
 
 [ARCH-P1-1]
 name = "contradict package is pure logic, no I/O (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "b3486b7a"
 body = '''
 `internal/contradict` contains only business logic. BM25 scoring uses the existing `internal/bm25` package. The LLM classifier is an injected interface. No file I/O, no HTTP calls, no `os.*` usage.
@@ -2521,7 +2521,7 @@ body = '''
 
 [ARCH-P1-2]
 name = "Surface package uses interface indirection for contradict (P1)"
-traces_to = []
+traces_to = ["UC-P1-1"]
 hash = "b704980f"
 body = '''
 Surface package does NOT import `internal/contradict` directly. It defines a local `ContradictionDetector` interface. This avoids circular imports and keeps surface package independently testable.
@@ -2534,7 +2534,7 @@ Surface package does NOT import `internal/contradict` directly. It defines a loc
 
 [ARCH-P4e-1]
 name = "Effectiveness gating is pure logic in surface package (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "538872e1"
 body = '''
 `filterByEffectivenessGate`, `filterToolMatchesByEffectivenessGate`, `sortByEffectivenessScore`, and `effectivenessScoreFor` are unexported pure functions in `internal/surface`. No I/O, no external calls. Takes map already fetched by `effectivenessComputer.Aggregate()`.
@@ -2547,7 +2547,7 @@ body = '''
 
 [ARCH-P4e-2]
 name = "InvocationTokenLogger is an injected interface (P4e)"
-traces_to = []
+traces_to = ["UC-2"]
 hash = "e5358bd5"
 body = '''
 `InvocationTokenLogger` is a surface-package interface injected via `WithInvocationTokenLogger`. `surfacinglog.Logger` implements it. No direct dependency from surface to surfacinglog.
@@ -2560,7 +2560,7 @@ body = '''
 
 [ARCH-P5c-1]
 name = "Dedup package exposes Classify instead of Filter (P5c)"
-traces_to = []
+traces_to = ["UC-33"]
 hash = "8909ab46"
 body = '''
 `KeywordDeduplicator` gains `Classify(candidates []memory.CandidateLearning, existing []*memory.Stored) ClassifyResult`. `ClassifyResult` has `Surviving []memory.CandidateLearning` and `MergePairs []MergePair`. `MergePair` = `{Candidate memory.CandidateLearning; Existing *memory.Stored}`. The old `Filter` method is removed. Learner's `Deduplicator` interface updated to use `Classify`. Learn pipeline iterates surviving candidates as before; for each merge pair, calls `MemoryMerger` + `MergeWriter`.
@@ -2573,7 +2573,7 @@ body = '''
 
 [ARCH-P5c-2]
 name = "MergeWriter and RegistryAbsorber interfaces in learn package (P5c)"
-traces_to = []
+traces_to = ["UC-33"]
 hash = "17185cbf"
 body = '''
 New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.Stored, principle string, keywords, concepts []string, now time.Time) error`. Concrete implementation in `internal/memory` package reads existing TOML, updates `principle`, `keywords`, `concepts`, `updated_at`, writes back in place. New `RegistryAbsorber` interface in `internal/learn`: `RecordAbsorbed(existingPath, candidateTitle, contentHash string, now time.Time) error`. Registry implements it by finding the `InstructionEntry` by source path and appending an `AbsorbedRecord`. Both interfaces injected into `Learner` as optional fields (nil = feature disabled).
@@ -2658,7 +2658,7 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 [ARCH-P5f-1]
 name = "MergeResult type and RegistryLinker interface in internal/graph (P5f)"
-traces_to = []
+traces_to = ["UC-P5f-1"]
 hash = "e9756e4e"
 body = '''
 **Decision:** New file `internal/graph/recompute.go`. `MergeResult` struct: `MergedMemoryID string`, `AbsorbedMemoryID string`, `MergedTitle string`, `MergedContent string`, `MergedConceptSet []string`. `RegistryLinker` interface: `List() ([]registry.InstructionEntry, error)` and `UpdateLinks(id string, links []registry.Link) error`. Pure data; no I/O.
@@ -2672,7 +2672,7 @@ body = '''
 
 [ARCH-P5f-2]
 name = "Builder.RecomputeMergeLinks in internal/graph (P5f)"
-traces_to = []
+traces_to = ["UC-P5f-1"]
 hash = "50518fb0"
 body = '''
 **Decision:** `func (b *Builder) RecomputeMergeLinks(result MergeResult, linker RegistryLinker) error` in `internal/graph/recompute.go`. Steps: (1) If AbsorbedMemoryID non-empty, call linker.List(), filter links in all entries, call linker.UpdateLinks per affected entry. (2) Build synthetic InstructionEntry for merged memory (ID=MergedMemoryID, Title=MergedTitle, Content=MergedContent). (3) Get existing links for merged entry from List() result; filter to keep only co_surfacing and evaluation_correlation. (4) Call BuildConceptOverlap + BuildContentSimilarity (excluding MergedMemoryID from corpus). (5) Merge kept + new links; call linker.UpdateLinks for merged entry.
@@ -2686,7 +2686,7 @@ body = '''
 
 [ARCH-P5f-3]
 name = "LinkRecomputer interface in learn package, optional on Learner (P5f)"
-traces_to = []
+traces_to = ["UC-P5f-1"]
 hash = "05d86445"
 body = '''
 **Decision:** `type LinkRecomputer interface { RecomputeAfterMerge(result graph.MergeResult) error }` in `internal/learn/learn.go`. `linkRecomputer LinkRecomputer` optional field; `SetLinkRecomputer(r LinkRecomputer)` setter. In `processMerge`, after all writes complete, build `graph.MergeResult` (MergedMemoryID=existing.FilePath, AbsorbedMemoryID="", MergedTitle=existing.Title, MergedContent=mergedPrinciple, MergedConceptSet=mergedConcepts) and call `l.linkRecomputer.RecomputeAfterMerge(result)`; errors written to stderr only (fire-and-forget).
@@ -2700,7 +2700,7 @@ body = '''
 
 [ARCH-P6e-1]
 name = "EnforcementApplier and GraduationEmitter interfaces in maintain package"
-traces_to = []
+traces_to = ["UC-21"]
 hash = "3bd67412"
 body = '''
 **Decision:** Define `EnforcementApplier` and `GraduationEmitter` interfaces in `internal/maintain/escalation.go`. `ApplyEscalationProposal` accepts both as optional parameters (nil = no-op per ARCH-6).
@@ -2718,7 +2718,7 @@ body = '''
 
 [ARCH-P6e-2]
 name = "EnforcementReader interface in surface package"
-traces_to = []
+traces_to = ["UC-21"]
 hash = "064286b9"
 body = '''
 **Decision:** Define `EnforcementReader` interface in `internal/surface/surface.go` with `GetEnforcementLevel(id string) (string, error)`. Injected via `WithEnforcementReader` option. Absent reader defaults all memories to advisory level (normal format).
@@ -2734,7 +2734,7 @@ body = '''
 
 [ARCH-P6f-1]
 name = "GraduationStore in signal package (P6f)"
-traces_to = []
+traces_to = ["UC-21"]
 hash = "140aa340"
 body = '''
 **Decision:** New file `internal/signal/graduation_store.go`. `GraduationStore` struct with DI fields: `readFile func(string)([]byte,error)`, `createTemp func(dir,pattern string)(*os.File,error)`, `rename func(oldpath,newpath string)error`, `remove func(string)error`, `now func()time.Time`. Constructor: `NewGraduationStore(opts ...GraduationStoreOption)`. Methods: `Append(entry GraduationEntry, path string) error`, `List(path string) ([]GraduationEntry, error)`, `SetStatus(path, id, status, resolvedAt, issueURL string) error`. Sentinel: `ErrGraduationNotFound`. ID generation: `fmt.Sprintf("%x", sha256.Sum256([]byte(memoryPath)))[:12]` (pure crypto/sha256, no I/O).
@@ -2748,7 +2748,7 @@ body = '''
 
 [ARCH-P6f-2]
 name = "GraduationQueueEmitter implements maintain.GraduationEmitter (P6f)"
-traces_to = []
+traces_to = ["UC-21"]
 hash = "49321372"
 body = '''
 **Decision:** `GraduationQueueEmitter` struct in `internal/signal/` with fields `store *GraduationStore` and `path string`. Constructor: `NewGraduationQueueEmitter(store *GraduationStore, path string) *GraduationQueueEmitter`. Implements `maintain.GraduationEmitter.EmitGraduation(memoryPath, recommendation string, detectedAt time.Time) error`. Generates ID, builds `GraduationEntry{status:"pending"}`, calls `store.Append`. Wired in `runApplyProposal` at CLI edge.
@@ -2762,7 +2762,7 @@ body = '''
 
 [ARCH-P6f-3]
 name = "graduate CLI subcommand with IssueCreator interface (P6f)"
-traces_to = []
+traces_to = ["UC-21"]
 hash = "f9300fd6"
 body = '''
 **Decision:** New file `internal/cli/graduate.go` with three entry points: `runGraduateList`, `runGraduateAccept`, `runGraduateDismiss`. Each parses `--data-dir` and (for accept/dismiss) `--id` flags. `IssueCreator` interface: `Create(title, body string) (issueURL string, err error)`. Concrete `ghIssueCreator` shells out to `exec.Command("gh", "issue", "create", "--title", title, "--body", body)` and captures stdout as the URL. New `runGraduateSurface` reads `graduation-queue.jsonl` via GraduationStore, formats pending entries per DES-P6f-2, outputs JSON with `--format json`. Session-start.sh updated to call `engram graduate-surface --data-dir ... --format json` and merge its context alongside the existing signal-surface output.
