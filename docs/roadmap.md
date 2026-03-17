@@ -10,38 +10,46 @@ Evolution plan phases complete through A-3. B-1 in progress (graph + merge packa
 | A-2: Foundation | ✅ Complete |
 | A-3: High-Impact Fixes | ✅ Complete |
 | B-1: Graph + Evolution Core | 🔄 In progress |
-| B-2: Integration | ⏳ Blocked (see Cycle 1) |
+| B-2: Integration | ⏳ Blocked (see Cycle 2) |
 
 ---
 
-## Cycle 1 — Correctness (current)
+## Cycle 1 — Correctness ✅ Complete
 
-**Do not start B-2 until this cycle is complete.** P4-full's effectiveness gating and
-P5-full's link recompute both depend on evaluations/ having real data. Running B-2
-against empty evaluations/ produces unmeasurable behavior.
-
-| Issue | What | Why |
-|-------|------|-----|
-| [#311](https://github.com/toejough/engram/issues/311) | Evaluator never persists to `evaluations/` | Entire effectiveness pipeline is silent no-op without this. Unblocks #317, #320. |
-| [#312](https://github.com/toejough/engram/issues/312) | stop.sh `"async": true` vs ARCH-42 ordered phases | Data loss risk on long sessions. Needs product decision: sync or async? |
-| build | Fix `reorder-decls` (1 file) + coverage below 80% | Keep build green. |
+| Issue | What | Status |
+|-------|------|--------|
+| [#311](https://github.com/toejough/engram/issues/311) | Evaluator persists to `evaluations/` | ✅ Closed (T-108, T-109, commit 1a38b71) |
+| [#312](https://github.com/toejough/engram/issues/312) | stop.sh async: per-turn log isolation | ✅ Closed (T-345, ARCH-81, commit 2b952f9) |
+| [#317](https://github.com/toejough/engram/issues/317) | Atomic evaluation log write | ✅ Closed (resolved by #311 — temp+rename in persistEvaluationLog) |
+| build | reorder-decls + coverage | ✅ Done |
 
 ---
 
-## Cycle 2 — Test Hygiene
+## Cycle 2 — Test Hygiene (current)
 
-All independent; can run in parallel after Cycle 1.
+All independent; can run in parallel.
 
 | Issue | What | Notes |
 |-------|------|-------|
 | [#314](https://github.com/toejough/engram/issues/314) | Resolve top-N limit (spec says 5, code has 2) | Needs decision first — what is the authoritative limit? |
-| [#317](https://github.com/toejough/engram/issues/317) | REQ-28 AC(4): atomic evaluation log write | Unblocked by #311 |
 | [#320](https://github.com/toejough/engram/issues/320) | T-117: runEvaluate end-to-end test | Unblocked by #311 |
 | [#319](https://github.com/toejough/engram/issues/319) | T-103: spec contradiction + surfacer integration test | Spec fix + one new test |
 | [#313](https://github.com/toejough/engram/issues/313) | T-158: hooks.json structure test | New test in hooks_test.go |
 | [#315](https://github.com/toejough/engram/issues/315) | T-120: add stop.sh to evaluate-invocation test | One-line fix |
 | [#316](https://github.com/toejough/engram/issues/316) | T-165: frecency formula exact assertion | Replace `> 0` with numeric check |
 | [#318](https://github.com/toejough/engram/issues/318) | REQ-22 AC(2): RecordSurfacing field preservation | New round-trip test |
+| [#321](https://github.com/toejough/engram/issues/321) | testFS helper in makeTestEvaluator | Premortem P1 — prevents rework in Cycle 3 |
+
+---
+
+## Cycle 2/3 Boundary — Premortem Mitigations
+
+Complete before starting B-2 work. These prevent silent failure at scale.
+
+| Issue | What | Why |
+|-------|------|-----|
+| [#322](https://github.com/toejough/engram/issues/322) | Binary smoke test | CLI wiring bugs invisible without end-to-end run |
+| [#323](https://github.com/toejough/engram/issues/323) | Statement coverage floor | Per-function metric masks 4.2% statement coverage in evaluate |
 
 ---
 
