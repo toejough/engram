@@ -3,6 +3,7 @@ package evaluate_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -35,7 +36,7 @@ func TestEvalCorrelation_ErrorDoesNotAbort(t *testing.T) {
 		err:      errors.New("link error"),
 	}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -81,7 +82,7 @@ func TestEvalCorrelation_FollowedPairsGetLinks(t *testing.T) {
 		existing: map[string][]evaluate.EvalLink{},
 	}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -145,7 +146,7 @@ func TestEvalCorrelation_IgnoresNonFollowed(t *testing.T) {
 		existing: map[string][]evaluate.EvalLink{},
 	}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -201,7 +202,7 @@ func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
 		},
 	}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -263,8 +264,7 @@ anti_pattern = ""`
 
 	var capturedModel, capturedUser string
 
-	evaluator := evaluate.New(
-		"/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			switch name {
 			case "/data/surfacing-log.jsonl":
@@ -328,8 +328,7 @@ anti_pattern = ""`
 
 	var removedPath string
 
-	evaluator := evaluate.New(
-		"/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -377,7 +376,7 @@ anti_pattern = ""`
 
 	var capturedUser string
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -433,7 +432,7 @@ anti_pattern = ""`
 
 	var logBuf strings.Builder
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -475,7 +474,7 @@ func TestEvaluator_EmptySurfacingLog_NoLLMCall(t *testing.T) {
 
 	llmCalled := false
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(string) ([]byte, error) {
 			return nil, os.ErrNotExist
 		}),
@@ -505,7 +504,7 @@ func TestEvaluator_InvalidMemoryTOML_ReturnsError(t *testing.T) {
 
 	const surfacingLog = `{"memory_path":"/data/memories/bad.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -565,7 +564,7 @@ anti_pattern = ""`
 		return result
 	}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -616,8 +615,7 @@ anti_pattern = ""`
 		`[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]` +
 		"\n```"
 
-	evaluator := evaluate.New(
-		"/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -655,7 +653,7 @@ func TestEvaluator_SurfacingLogReadError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(string) ([]byte, error) {
 			return nil, errors.New("permission denied")
 		}),
@@ -677,7 +675,7 @@ func TestEvaluator_SurfacingLogRemoveError_ReturnsError(t *testing.T) {
 
 	const surfacingLog = `{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}`
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -711,7 +709,7 @@ principle = "Principle"
 anti_pattern = ""`
 	)
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -748,8 +746,7 @@ anti_pattern = ""`
 
 	updater := &fakeEvalLinkUpdater{}
 
-	evaluator := evaluate.New(
-		"/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			switch name {
 			case "/data/surfacing-log.jsonl":
@@ -781,6 +778,144 @@ anti_pattern = ""`
 	g.Expect(updater.setCalls).To(BeEmpty())
 }
 
+// T-108: Evaluator writes per-session evaluation JSONL to evaluations/ after LLM returns outcomes.
+func TestT108_EvaluationLogWritten(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = "" +
+		`{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/m2.toml","mode":"prompt","surfaced_at":"2024-01-15T10:01:00Z"}` + "\n" +
+		`{"memory_path":"/data/memories/m3.toml","mode":"prompt","surfaced_at":"2024-01-15T10:02:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"e1"},` +
+		`{"memory_path":"/data/memories/m2.toml","outcome":"ignored","evidence":"e2"},` +
+		`{"memory_path":"/data/memories/m3.toml","outcome":"contradicted","evidence":"e3"}]`
+
+	fixedTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	var mkdirAllPath string
+
+	var writtenPath string
+
+	var writtenData []byte
+
+	var renamedFrom, renamedTo string
+
+	evaluator := makeTestEvaluator(
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return fixedTime }),
+		evaluate.WithMkdirAll(func(path string, _ os.FileMode) error {
+			mkdirAllPath = path
+			return nil
+		}),
+		evaluate.WithWriteFile(func(path string, data []byte, _ os.FileMode) error {
+			writtenPath = path
+			writtenData = data
+
+			return nil
+		}),
+		evaluate.WithRename(func(from, to string) error {
+			renamedFrom = from
+			renamedTo = to
+
+			return nil
+		}),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Directory is created.
+	g.Expect(mkdirAllPath).To(Equal("/data/evaluations"))
+
+	// Temp file written then renamed atomically.
+	expectedTmp := "/data/evaluations/2024-01-15T10-30-00Z.jsonl.tmp"
+	expectedFinal := "/data/evaluations/2024-01-15T10-30-00Z.jsonl"
+
+	g.Expect(writtenPath).To(Equal(expectedTmp))
+	g.Expect(renamedFrom).To(Equal(expectedTmp))
+	g.Expect(renamedTo).To(Equal(expectedFinal))
+
+	// Content is valid JSONL with 3 outcomes.
+	lines := strings.Split(strings.TrimRight(string(writtenData), "\n"), "\n")
+	g.Expect(lines).To(HaveLen(3))
+
+	var outcome0 evaluate.Outcome
+	g.Expect(json.Unmarshal([]byte(lines[0]), &outcome0)).To(Succeed())
+	g.Expect(outcome0.MemoryPath).To(Equal("/data/memories/m1.toml"))
+	g.Expect(outcome0.Outcome).To(Equal("followed"))
+	g.Expect(outcome0.Evidence).To(Equal("e1"))
+}
+
+// T-109: Evaluator creates evaluations/ directory before writing log.
+func TestT109_EvaluationsDirCreated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	const surfacingLog = "" +
+		`{"memory_path":"/data/memories/m1.toml","mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"P\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/m1.toml","outcome":"followed","evidence":"ok"}]`
+
+	var mkdirAllCalled bool
+
+	var writeFileCalled bool
+
+	evaluator := makeTestEvaluator(
+		evaluate.WithReadFile(func(name string) ([]byte, error) {
+			if name == "/data/surfacing-log.jsonl" {
+				return []byte(surfacingLog), nil
+			}
+
+			return []byte(memTOML), nil
+		}),
+		evaluate.WithRemoveFile(func(string) error { return nil }),
+		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+			return llmResponse, nil
+		}),
+		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
+		evaluate.WithMkdirAll(func(_ string, _ os.FileMode) error {
+			mkdirAllCalled = true
+			return nil
+		}),
+		evaluate.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error {
+			writeFileCalled = true
+			return nil
+		}),
+		evaluate.WithRename(func(_, _ string) error { return nil }),
+	)
+
+	_, err := evaluator.Evaluate(context.Background(), "transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// MkdirAll is always called before WriteFile.
+	g.Expect(mkdirAllCalled).To(BeTrue())
+	g.Expect(writeFileCalled).To(BeTrue())
+}
+
 // T-200: Evaluation hook calls RecordEvaluation, counter increments.
 func TestT200_RegistryRecordEvaluationCalled(t *testing.T) {
 	t.Parallel()
@@ -802,7 +937,7 @@ anti_pattern = ""`
 
 	registry := &fakeEvalRegistryRecorder{}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -855,7 +990,7 @@ anti_pattern = ""`
 
 	registry := &fakeEvalRegistryRecorder{err: errors.New("registry write failed")}
 
-	evaluator := evaluate.New("/data",
+	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
 			if name == "/data/surfacing-log.jsonl" {
 				return []byte(surfacingLog), nil
@@ -957,4 +1092,23 @@ type fakeEvalRegistryRecorder struct {
 func (f *fakeEvalRegistryRecorder) RecordEvaluation(id, outcome string) error {
 	f.calls = append(f.calls, evalRegistryCall{id: id, outcome: outcome})
 	return f.err
+}
+
+// makeTestEvaluator wraps evaluate.New with noop persistence I/O defaults so
+// tests using the fake "/data" path don't hit real os.* calls. Any option
+// passed in opts overrides the noop defaults (last-wins), so tests that
+// exercise persistence can still inject capturing functions.
+const testDataDir = "/data"
+
+const numNoopOpts = 3
+
+func makeTestEvaluator(opts ...evaluate.Option) *evaluate.Evaluator {
+	noops := make([]evaluate.Option, 0, numNoopOpts+len(opts))
+	noops = append(noops,
+		evaluate.WithMkdirAll(func(_ string, _ os.FileMode) error { return nil }),
+		evaluate.WithWriteFile(func(_ string, _ []byte, _ os.FileMode) error { return nil }),
+		evaluate.WithRename(func(_, _ string) error { return nil }),
+	)
+
+	return evaluate.New(testDataDir, append(noops, opts...)...)
 }

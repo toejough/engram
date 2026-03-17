@@ -42,6 +42,9 @@ type Evaluator struct {
 	stripFunc   func([]string) []string
 	logWriter   io.Writer
 	linkUpdater EvalLinkUpdater // P3: evaluation_correlation link updates
+	writeFile   func(name string, data []byte, perm os.FileMode) error
+	rename      func(oldpath, newpath string) error
+	mkdirAll    func(path string, perm os.FileMode) error
 }
 
 // New creates an Evaluator with the given data directory and options.
@@ -51,6 +54,9 @@ func New(dataDir string, opts ...Option) *Evaluator {
 		dataDir:    dataDir,
 		readFile:   os.ReadFile,
 		removeFile: os.Remove,
+		writeFile:  os.WriteFile,
+		rename:     os.Rename,
+		mkdirAll:   os.MkdirAll,
 		now:        time.Now,
 		logWriter:  io.Discard,
 	}
@@ -142,7 +148,51 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 		e.updateEvalCorrelationLinks(outcomes)
 	}
 
+	err = e.persistEvaluationLog(outcomes, now)
+	if err != nil {
+		return nil, fmt.Errorf("evaluate: persisting evaluation log: %w", err)
+	}
+
 	return outcomes, nil
+}
+
+// persistEvaluationLog writes outcomes as JSONL to <dataDir>/evaluations/<timestamp>.jsonl
+// using an atomic temp+rename write.
+func (e *Evaluator) persistEvaluationLog(outcomes []Outcome, now time.Time) error {
+	evalDir := filepath.Join(e.dataDir, evaluationsDirname)
+
+	err := e.mkdirAll(evalDir, dirPerm)
+	if err != nil {
+		return fmt.Errorf("creating evaluations dir: %w", err)
+	}
+
+	timestamp := now.UTC().Format(evalTimestampFormat)
+	tmpPath := filepath.Join(evalDir, timestamp+".jsonl.tmp")
+	finalPath := filepath.Join(evalDir, timestamp+".jsonl")
+
+	var sb strings.Builder
+
+	for _, outcome := range outcomes {
+		line, marshalErr := json.Marshal(outcome)
+		if marshalErr != nil {
+			return fmt.Errorf("marshaling outcome: %w", marshalErr)
+		}
+
+		sb.Write(line)
+		sb.WriteByte('\n')
+	}
+
+	err = e.writeFile(tmpPath, []byte(sb.String()), filePerm)
+	if err != nil {
+		return fmt.Errorf("writing evaluation log: %w", err)
+	}
+
+	err = e.rename(tmpPath, finalPath)
+	if err != nil {
+		return fmt.Errorf("renaming evaluation log: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Evaluator) readMemoryTOML(path string) (memoryTOML, error) {
@@ -269,6 +319,11 @@ func WithLogWriter(w io.Writer) Option {
 	return func(e *Evaluator) { e.logWriter = w }
 }
 
+// WithMkdirAll injects a directory creation function (default: os.MkdirAll).
+func WithMkdirAll(fn func(path string, perm os.FileMode) error) Option {
+	return func(e *Evaluator) { e.mkdirAll = fn }
+}
+
 // WithNow injects a clock function.
 func WithNow(fn func() time.Time) Option {
 	return func(e *Evaluator) { e.now = fn }
@@ -289,19 +344,33 @@ func WithRemoveFile(fn func(name string) error) Option {
 	return func(e *Evaluator) { e.removeFile = fn }
 }
 
+// WithRename injects a file rename function (default: os.Rename).
+func WithRename(fn func(oldpath, newpath string) error) Option {
+	return func(e *Evaluator) { e.rename = fn }
+}
+
 // WithStripFunc injects a preprocessing function that filters transcript lines
 // before sending to the LLM (UC-25). Default is nil (no stripping).
 func WithStripFunc(fn func([]string) []string) Option {
 	return func(e *Evaluator) { e.stripFunc = fn }
 }
 
+// WithWriteFile injects a file write function (default: os.WriteFile).
+func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) Option {
+	return func(e *Evaluator) { e.writeFile = fn }
+}
+
 // unexported constants.
 const (
+	dirPerm                  = 0o755
 	evalCorrelationIncrement = 0.05
 	evalCorrelationWeightCap = 1.0
+	evalTimestampFormat      = "2006-01-02T15-04-05Z"
 	evaluationModel          = "claude-haiku-4-5-20251001"
 	evaluationSystemPrompt   = "You are evaluating whether an AI agent followed, contradicted, or ignored" +
 		" memories that were surfaced during its session."
+	evaluationsDirname     = "evaluations"
+	filePerm               = 0o600
 	minCorrelationPairSize = 2
 	surfacingLogFilename   = "surfacing-log.jsonl"
 )
