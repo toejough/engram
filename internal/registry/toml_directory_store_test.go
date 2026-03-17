@@ -16,6 +16,85 @@ import (
 )
 
 // traces: issue-310
+func TestIssue310_GetWithAbsolutePath(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, nil)
+
+	err := store.Register(registry.InstructionEntry{
+		ID:         "memories/abs-get.toml",
+		SourceType: registry.SourceTypeMemory,
+		Title:      "Abs Get",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("/testdata/memories/abs-get.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.Title).To(Equal("Abs Get"))
+	g.Expect(got.ID).To(Equal("memories/abs-get.toml"))
+}
+
+// traces: issue-310
+func TestIssue310_MergeWithAbsolutePaths(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	mergeTime := time.Date(2026, 3, 16, 18, 0, 0, 0, time.UTC)
+	mfs := newTOMLMemFS()
+	store := newTOMLUnitStore(mfs, func() time.Time { return mergeTime })
+
+	err := store.Register(registry.InstructionEntry{
+		ID:            "memories/abs-src.toml",
+		SourceType:    registry.SourceTypeMemory,
+		Title:         "Abs Source",
+		SurfacedCount: 3,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.Register(registry.InstructionEntry{
+		ID:            "memories/abs-tgt.toml",
+		SourceType:    registry.SourceTypeMemory,
+		Title:         "Abs Target",
+		SurfacedCount: 2,
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = store.Merge(
+		"/testdata/memories/abs-src.toml",
+		"/testdata/memories/abs-tgt.toml",
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	got, err := store.Get("memories/abs-tgt.toml")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(got).NotTo(BeNil())
+
+	if got == nil {
+		return
+	}
+
+	g.Expect(got.SurfacedCount).To(Equal(5))
+}
+
+// traces: issue-310
 func TestIssue310_RecordSurfacingWithAbsolutePath(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
@@ -58,38 +137,6 @@ func TestIssue310_RecordSurfacingWithAbsolutePath(t *testing.T) {
 	}
 
 	g.Expect(got.SurfacedCount).To(Equal(1))
-}
-
-// traces: issue-310
-func TestIssue310_GetWithAbsolutePath(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	mfs := newTOMLMemFS()
-	store := newTOMLUnitStore(mfs, nil)
-
-	err := store.Register(registry.InstructionEntry{
-		ID:         "memories/abs-get.toml",
-		SourceType: registry.SourceTypeMemory,
-		Title:      "Abs Get",
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	got, err := store.Get("/testdata/memories/abs-get.toml")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).NotTo(BeNil())
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got.Title).To(Equal("Abs Get"))
-	g.Expect(got.ID).To(Equal("memories/abs-get.toml"))
 }
 
 // traces: issue-310
@@ -146,53 +193,6 @@ func TestIssue310_RemoveWithAbsolutePath(t *testing.T) {
 	_, err = store.Get("memories/abs-rm.toml")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(errors.Is(err, registry.ErrNotFound)).To(BeTrue())
-}
-
-// traces: issue-310
-func TestIssue310_MergeWithAbsolutePaths(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	mergeTime := time.Date(2026, 3, 16, 18, 0, 0, 0, time.UTC)
-	mfs := newTOMLMemFS()
-	store := newTOMLUnitStore(mfs, func() time.Time { return mergeTime })
-
-	err := store.Register(registry.InstructionEntry{
-		ID:            "memories/abs-src.toml",
-		SourceType:    registry.SourceTypeMemory,
-		Title:         "Abs Source",
-		SurfacedCount: 3,
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	err = store.Register(registry.InstructionEntry{
-		ID:            "memories/abs-tgt.toml",
-		SourceType:    registry.SourceTypeMemory,
-		Title:         "Abs Target",
-		SurfacedCount: 2,
-	})
-	g.Expect(err).NotTo(HaveOccurred())
-
-	err = store.Merge(
-		"/testdata/memories/abs-src.toml",
-		"/testdata/memories/abs-tgt.toml",
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	got, err := store.Get("memories/abs-tgt.toml")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(got).NotTo(BeNil())
-
-	if got == nil {
-		return
-	}
-
-	g.Expect(got.SurfacedCount).To(Equal(5))
 }
 
 // --- T-238: Register writes new TOML with zero metrics ---
