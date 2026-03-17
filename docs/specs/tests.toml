@@ -1,0 +1,5683 @@
+[T-1]
+name = "Fast-path keywords trigger tier-A classification"
+traces_to = ["ARCH-2", "REQ-1", "REQ-7"]
+hash = "ad5cda62"
+body = '''
+**Given** a message containing one of the three fast-path keywords (`remember`, `always`, `never`),
+**When** Classify is called with the message,
+**Then** a ClassifiedMemory is returned with Tier "A" and all structured fields populated.
+
+Fast-path check should be case-insensitive, whole-word matching.
+'''
+
+[T-10]
+name = "Duplicate filename gets numeric suffix"
+traces_to = ["ARCH-4", "REQ-3"]
+hash = "a2034195"
+body = '''
+**Given** a file already exists at the computed slug path,
+**When** Write is called,
+**Then** the file is written to `<slug>-2.toml` (incrementing as needed).
+'''
+
+[T-100]
+name = "Tool mode with no matching memories produces empty output"
+traces_to = ["ARCH-12", "ARCH-10", "REQ-11"]
+hash = "67382df3"
+body = '''
+**Given** memories exist but none have keywords matching the tool input,
+**When** surface is called with mode tool and a tool input containing no matching keywords,
+**Then** stdout is empty (no advisory emitted).
+
+
+---
+'''
+
+[T-101]
+name = "Surfacing log append writes JSONL entry"
+traces_to = ["ARCH-22", "REQ-26", "DES-11"]
+hash = "bb469632"
+body = '''
+**Given** a SurfacingLogger with an injected write function,
+**When** LogSurfacing is called with a memory path, mode "prompt", and timestamp,
+**Then** a single JSONL line is appended to surfacing-log.jsonl with memory_path, mode, and surfaced_at (RFC 3339).
+
+Uses DI-injected file append function.
+'''
+
+[T-102]
+name = "Surfacing log append for multiple memories in one event"
+traces_to = ["ARCH-22", "REQ-26"]
+hash = "0fd4f284"
+body = '''
+**Given** a surfacing event that matches 3 memories,
+**When** LogSurfacing is called once per matched memory,
+**Then** surfacing-log.jsonl contains 3 JSONL lines, one per memory, all with the same mode and timestamp.
+'''
+
+[T-103]
+name = "Surfacing log append error is fire-and-forget"
+traces_to = ["ARCH-22", "REQ-26"]
+hash = "72951aae"
+body = '''
+**Given** a SurfacingLogger with an injected write function that returns an error,
+**When** LogSurfacing is called,
+**Then** the error is returned to the caller (surfacer swallows it per ARCH-6).
+'''
+
+[T-104]
+name = "Surfacing log read-and-clear returns events and removes file"
+traces_to = ["ARCH-22", "REQ-26"]
+hash = "9309df27"
+body = '''
+**Given** a surfacing-log.jsonl with 5 entries,
+**When** ReadAndClear is called,
+**Then** it returns 5 SurfacingEvent structs with correct fields, and the file is removed.
+
+Uses DI-injected read and remove functions.
+'''
+
+[T-105]
+name = "Surfacing log read-and-clear with missing file returns empty slice"
+traces_to = ["ARCH-22", "REQ-26", "REQ-34"]
+hash = "40794864"
+body = '''
+**Given** no surfacing-log.jsonl exists,
+**When** ReadAndClear is called,
+**Then** it returns an empty slice and no error.
+
+
+---
+
+## Outcome Evaluation Pipeline (ARCH-23)
+'''
+
+[T-106]
+name = "Evaluator classifies surfaced memories via LLM"
+traces_to = ["ARCH-23", "REQ-27", "DES-12"]
+hash = "ea3de5ad"
+body = '''
+**Given** a surfacing log with 2 entries, each memory's TOML loaded, and a transcript,
+**When** Evaluate is called,
+**Then** the LLM receives the full transcript + 2 memory summaries and returns outcomes for each.
+
+Uses fake LLM returning `[{"memory_path": "...", "outcome": "followed", "evidence": "..."}, ...]`.
+'''
+
+[T-107]
+name = "Evaluator handles empty surfacing log — no LLM call, no output"
+traces_to = ["ARCH-23", "REQ-27", "REQ-34"]
+hash = "f97d67b5"
+body = '''
+**Given** an empty surfacing log (or missing file),
+**When** Evaluate is called,
+**Then** no LLM call is made, no evaluation log is written, and no error is returned.
+'''
+
+[T-108]
+name = "Evaluator writes per-session evaluation log"
+traces_to = ["ARCH-23", "REQ-28", "DES-13"]
+hash = "3377fc94"
+body = '''
+**Given** the LLM returns outcomes for 3 surfaced memories,
+**When** Evaluate completes,
+**Then** a JSONL file is created at `<data-dir>/evaluations/<timestamp>.jsonl` with 3 lines, each containing memory_path, outcome, evidence, evaluated_at.
+
+Uses DI-injected write function. Timestamp in filename has colons replaced by hyphens.
+'''
+
+[T-109]
+name = "Evaluator creates evaluations directory if missing"
+traces_to = ["ARCH-23", "REQ-28"]
+hash = "2083ecea"
+body = '''
+**Given** no `<data-dir>/evaluations/` directory exists,
+**When** Evaluate writes results,
+**Then** the directory is created before writing the file.
+'''
+
+[T-11]
+name = "Write is atomic (temp file + rename)"
+traces_to = ["ARCH-4", "REQ-3"]
+hash = "b35742ed"
+body = '''
+**Given** an EnrichedMemory,
+**When** Write is called,
+**Then** the file is written atomically: temp file created first, then renamed to final path.
+'''
+
+[T-110]
+name = "Evaluator with unparseable LLM response returns error"
+traces_to = ["ARCH-23", "REQ-27"]
+hash = "20e4fa1d"
+body = '''
+**Given** an LLM that returns invalid JSON,
+**When** Evaluate is called,
+**Then** an error is returned and no evaluation log is written.
+'''
+
+[T-111]
+name = "Evaluator clears surfacing log after reading"
+traces_to = ["ARCH-23", "REQ-26", "REQ-34"]
+hash = "011a33d6"
+body = '''
+**Given** a surfacing-log.jsonl with entries,
+**When** Evaluate reads the log,
+**Then** the surfacing log file is removed (ensuring idempotency for second trigger).
+
+
+---
+
+## Effectiveness Aggregation (ARCH-24)
+'''
+
+[T-112]
+name = "Aggregate computes effectiveness from evaluation logs"
+traces_to = ["ARCH-24", "REQ-29"]
+hash = "c1863c48"
+body = '''
+**Given** an evaluations directory with 3 session files, where memory A was evaluated 5 times (3 followed, 1 contradicted, 1 ignored),
+**When** Aggregate is called,
+**Then** memory A's stat shows FollowedCount=3, ContradictedCount=1, IgnoredCount=1, EffectivenessScore=60.0.
+
+Uses DI-injected directory reader and file reader.
+'''
+
+[T-113]
+name = "Aggregate with missing evaluations directory returns empty map"
+traces_to = ["ARCH-24", "REQ-29"]
+hash = "0a0967fa"
+body = '''
+**Given** no evaluations directory exists,
+**When** Aggregate is called,
+**Then** an empty map is returned and no error.
+'''
+
+[T-114]
+name = "Aggregate skips malformed JSONL lines"
+traces_to = ["ARCH-24", "REQ-29"]
+hash = "8a3cbee3"
+body = '''
+**Given** an evaluation log with 3 valid lines and 1 malformed line,
+**When** Aggregate is called,
+**Then** 3 outcomes are aggregated and the malformed line is skipped.
+'''
+
+[T-115]
+name = "Effectiveness annotation rendered when data exists"
+traces_to = ["ARCH-24", "REQ-30", "DES-14"]
+hash = "1d33acc9"
+body = '''
+**Given** a surfaced memory with aggregated stats (surfaced 5 times, followed 80%),
+**When** the surfacer formats output,
+**Then** the annotation "(surfaced 5 times, followed 80%)" is appended to the memory's line.
+'''
+
+[T-116]
+name = "No annotation when no evaluation data exists"
+traces_to = ["ARCH-24", "REQ-30", "DES-14"]
+hash = "512a9152"
+body = '''
+**Given** a surfaced memory with no evaluation log entries,
+**When** the surfacer formats output,
+**Then** no annotation is appended (backward compatible output).
+
+
+---
+
+## Hook Integration — evaluate CLI (ARCH-25)
+'''
+
+[T-117]
+name = "evaluate subcommand runs full pipeline"
+traces_to = ["ARCH-25", "REQ-32"]
+hash = "acd938b0"
+body = '''
+**Given** a data directory with a surfacing log and memory TOML files,
+**When** `runEvaluate` is called with transcript on stdin,
+**Then** evaluation log is written and summary output is produced on stdout.
+
+Uses DI-injected dependencies. Verifies end-to-end wiring.
+'''
+
+[T-118]
+name = "evaluate without API token emits error and exits 0"
+traces_to = ["ARCH-25", "REQ-33"]
+hash = "3b8001df"
+body = '''
+**Given** no API token configured,
+**When** `runEvaluate` is called,
+**Then** stderr contains `[engram] Error: evaluation skipped — no API token configured` and no evaluation log is created.
+'''
+
+[T-119]
+name = "evaluate summary output format"
+traces_to = ["ARCH-25", "REQ-31"]
+hash = "d04b1c13"
+body = '''
+**Given** an evaluation with 3 memories: 2 followed, 1 ignored,
+**When** the evaluation summary is rendered,
+**Then** stdout contains `[engram] Evaluated 3 memories: 2 followed, 0 contradicted, 1 ignored.`
+'''
+
+[T-12]
+name = "Memories directory is created if missing"
+traces_to = ["ARCH-4", "REQ-3"]
+hash = "e70d964e"
+body = '''
+**Given** a data directory with no `memories/` subdirectory,
+**When** Write is called,
+**Then** the `memories/` directory is created and the file is written.
+
+
+---
+
+## System Reminder Renderer (ARCH-5)
+'''
+
+[T-120]
+name = "Hook scripts invoke engram evaluate after learn"
+traces_to = ["ARCH-25", "DES-15"]
+hash = "24597fa1"
+body = '''
+**Given** the PreCompact and SessionEnd hook scripts,
+**When** the script content is examined,
+**Then** `engram evaluate` is invoked after `engram learn`, with `--data-dir` and transcript piped via stdin.
+'''
+
+[T-121]
+name = "Surfacer writes surfacing log during surfacing events"
+traces_to = ["ARCH-22", "REQ-26"]
+hash = "ddf7d6f4"
+body = '''
+**Given** a Surfacer with an injected SurfacingLogger,
+**When** SessionStart, Prompt, or Tool mode surfaces memories,
+**Then** each matched memory is logged via SurfacingLogger.LogSurfacing with correct mode.
+'''
+
+[T-122]
+name = "Correct quadrant assignment based on median + effectiveness threshold"
+traces_to = []
+hash = "d544d37a"
+body = '''
+- **Given** 6 memories: 3 with surfaced_count above median and effectiveness >= 50% (Working), 1 with surfaced_count below median and effectiveness >= 50% (Hidden Gem), 1 with surfaced_count above median and effectiveness < 50% (Leech), 1 with surfaced_count below median and effectiveness < 50% (Noise). All have 5+ evaluations.
+- **When** Classify is called
+- **Then** each memory is assigned the correct quadrant: Working, Hidden Gem, Leech, or Noise
+- **Traces to:** REQ-35 (matrix classification)
+- **Type:** example-based (specific quadrant assignments need deterministic verification)
+'''
+
+[T-123]
+name = "Memories with fewer than 5 evaluations classified as InsufficientData"
+traces_to = []
+hash = "e6b52adb"
+body = '''
+- **Given** a memory with 3 total evaluations (followed + contradicted + ignored)
+- **When** Classify is called
+- **Then** the memory's Quadrant is InsufficientData and Flagged is false
+- **Traces to:** REQ-35 (insufficient data exclusion)
+- **Type:** example-based
+'''
+
+[T-124]
+name = "Memory with 5+ evaluations and effectiveness < 40% is flagged"
+traces_to = []
+hash = "889f46f4"
+body = '''
+- **Given** a memory with 6 evaluations and effectiveness score 33%
+- **When** Classify is called
+- **Then** Flagged is true
+- **Traces to:** REQ-36 (threshold flagging)
+- **Type:** example-based
+'''
+
+[T-125]
+name = "Memory with effectiveness exactly 40% is not flagged"
+traces_to = []
+hash = "3ab4d65c"
+body = '''
+- **Given** a memory with 5 evaluations and effectiveness score exactly 40%
+- **When** Classify is called
+- **Then** Flagged is false
+- **Traces to:** REQ-36 (threshold boundary — strictly less than 40%)
+- **Type:** example-based (boundary condition)
+'''
+
+[T-126]
+name = "Memory with effectiveness exactly 50% classified as high follow-through"
+traces_to = []
+hash = "d28694e3"
+body = '''
+- **Given** a memory with 10 evaluations and effectiveness score exactly 50%
+- **When** Classify is called
+- **Then** the memory is in a high follow-through quadrant (Working or Hidden Gem depending on surfacing frequency)
+- **Traces to:** REQ-35 (follow-through threshold — >= 50%)
+- **Type:** example-based (boundary condition)
+'''
+
+[T-127]
+name = "Empty input produces empty output"
+traces_to = []
+hash = "4c2ffb34"
+body = '''
+- **Given** empty effectiveness and tracking maps
+- **When** Classify is called
+- **Then** result is an empty slice
+- **Traces to:** REQ-35 (edge case)
+- **Type:** example-based
+'''
+
+[T-128]
+name = "Memories with tracking data but no evaluations classified as InsufficientData"
+traces_to = []
+hash = "99c31f08"
+body = '''
+- **Given** 3 memories with surfaced_count > 0 but zero evaluations
+- **When** Classify is called
+- **Then** all are classified as InsufficientData with Flagged false
+- **Traces to:** REQ-35 (insufficient data — zero evaluations)
+- **Type:** example-based
+
+---
+
+## Review CLI (ARCH-27)
+'''
+
+[T-129]
+name = "Review with data outputs all four DES-16 sections"
+traces_to = []
+hash = "27699d5f"
+body = '''
+- **Given** evaluation logs and tracking data exist with memories across all four quadrants
+- **When** `engram review --data-dir <path>` is run (via RunReview with injected I/O)
+- **Then** stdout contains: summary line, quadrant table, flagged list, insufficient-data list
+- **Traces to:** REQ-38 (review CLI output), DES-16 (output format)
+- **Type:** example-based (format verification)
+'''
+
+[T-13]
+name = "Memory produces DES-1 format with tier"
+traces_to = ["ARCH-5", "REQ-4", "DES-1"]
+hash = "8a276255"
+body = '''
+**Given** a ClassifiedMemory with Tier "A" or "B" and file path,
+**When** Render is called,
+**Then** output matches DES-1 format: `[engram] Memory captured (tier A).` header, Created/Type/File fields.
+
+
+---
+
+## Pipeline (ARCH-1)
+'''
+
+[T-130]
+name = "Review with no evaluation directory outputs no-data message"
+traces_to = []
+hash = "f6e1031f"
+body = '''
+- **Given** data-dir exists but evaluations subdirectory does not
+- **When** `engram review --data-dir <path>` is run
+- **Then** stdout contains "[engram] No evaluation data found." and exit 0
+- **Traces to:** REQ-39 (no-data behavior — missing directory)
+- **Type:** example-based
+'''
+
+[T-131]
+name = "Review without --data-dir outputs usage error"
+traces_to = []
+hash = "1d5d4c25"
+body = '''
+- **Given** no --data-dir argument provided
+- **When** `engram review` is run
+- **Then** output contains usage error message and exit 0
+- **Traces to:** REQ-38 (--data-dir required)
+- **Type:** example-based
+'''
+
+[T-132]
+name = "Flagged memories sorted by effectiveness ascending"
+traces_to = []
+hash = "317a40b9"
+body = '''
+- **Given** 3 flagged memories with effectiveness scores 33%, 20%, 10%
+- **When** review is run
+- **Then** flagged section lists them in order: 10%, 20%, 33%
+- **Traces to:** REQ-38 (sorted by effectiveness ascending)
+- **Type:** example-based
+'''
+
+[T-133]
+name = "Insufficient-data section omitted when all memories have 5+ evaluations"
+traces_to = []
+hash = "598a973c"
+body = '''
+- **Given** all memories have 5+ evaluations
+- **When** review is run
+- **Then** "Insufficient data" section does not appear in output
+- **Traces to:** REQ-38 (section omitted when empty)
+- **Type:** example-based
+
+---
+
+## Session Continuity Components (UC-14: ARCH-28 through ARCH-34)
+'''
+
+[T-134]
+name = "TranscriptDeltaReader reads from offset 0"
+traces_to = []
+hash = "f23d24df"
+body = '''
+- **Given** a transcript JSONL file with 10 lines
+- **When** TranscriptDeltaReader.Read is called with offset 0
+- **Then** all 10 lines are returned and new offset equals file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (file I/O via DI injection)
+'''
+
+[T-135]
+name = "TranscriptDeltaReader reads from mid-file offset"
+traces_to = []
+hash = "f6499f4b"
+body = '''
+- **Given** a transcript JSONL file with 10 lines, each 100 bytes
+- **When** TranscriptDeltaReader.Read is called with offset 500 (byte 5, line 5)
+- **Then** lines 6-10 are returned and new offset equals file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (byte offset calculation)
+'''
+
+[T-136]
+name = "TranscriptDeltaReader resets to 0 when file is shorter than offset"
+traces_to = []
+hash = "1bfdb44a"
+body = '''
+- **Given** a transcript file is 1000 bytes and stored offset is 2000
+- **When** TranscriptDeltaReader.Read is called with offset 2000
+- **Then** entire file (1000 bytes) is returned and new offset is file size
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based (watermark reset on rotation)
+'''
+
+[T-137]
+name = "TranscriptDeltaReader returns empty delta for empty file"
+traces_to = []
+hash = "2b684f6e"
+body = '''
+- **Given** a transcript file is empty
+- **When** TranscriptDeltaReader.Read is called
+- **Then** empty line array is returned and new offset is 0
+- **Traces to:** ARCH-28, REQ-40
+- **Type:** example-based
+'''
+
+[T-138]
+name = "ContentStripper removes tool result blocks"
+traces_to = []
+hash = "c80f021b"
+body = '''
+- **Given** JSONL lines with toolResult role blocks
+- **When** ContentStripper.Strip is called
+- **Then** tool result blocks are omitted from output
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based (role-based filtering)
+'''
+
+[T-139]
+name = "ContentStripper replaces base64 strings"
+traces_to = []
+hash = "9b5acdac"
+body = '''
+- **Given** JSONL lines with base64-encoded strings >100 chars
+- **When** ContentStripper.Strip is called
+- **Then** base64 strings are replaced with `[base64 removed]`
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** property-based (generate base64 strings, verify replacement)
+'''
+
+[T-140]
+name = "ContentStripper truncates oversized content blocks"
+traces_to = []
+hash = "55639aa0"
+body = '''
+- **Given** JSONL lines with content blocks >2000 characters
+- **When** ContentStripper.Strip is called
+- **Then** oversized blocks are truncated with `[truncated]` suffix
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based (size threshold validation)
+'''
+
+[T-141]
+name = "ContentStripper preserves user messages"
+traces_to = []
+hash = "3f1e66c8"
+body = '''
+- **Given** JSONL lines with role=user messages
+- **When** ContentStripper.Strip is called
+- **Then** user messages are preserved verbatim
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+'''
+
+[T-142]
+name = "ContentStripper preserves assistant text"
+traces_to = []
+hash = "e7a95c04"
+body = '''
+- **Given** JSONL lines with role=assistant text messages
+- **When** ContentStripper.Strip is called
+- **Then** assistant text messages are preserved verbatim
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+'''
+
+[T-143]
+name = "ContentStripper preserves tool names, removes tool results"
+traces_to = []
+hash = "f1253bdd"
+body = '''
+- **Given** JSONL lines with toolUse (with name/command) and toolResult blocks
+- **When** ContentStripper.Strip is called
+- **Then** tool names and commands are preserved, tool results are omitted
+- **Traces to:** ARCH-29, REQ-41
+- **Type:** example-based
+'''
+
+[T-144]
+name = "ContextSummarizer returns previous summary on empty delta"
+traces_to = []
+hash = "9e1aafab"
+body = '''
+- **Given** a previous summary "Current task: foo" and empty stripped delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** previous summary is returned unchanged (no API call)
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+'''
+
+[T-145]
+name = "ContextSummarizer updates summary on non-empty delta"
+traces_to = []
+hash = "4cd9a5a4"
+body = '''
+- **Given** a previous summary and a non-empty stripped delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** HaikuClient is called with combined context and updated summary is returned
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+'''
+
+[T-146]
+name = "ContextSummarizer creates new summary from delta without previous"
+traces_to = []
+hash = "d8bb032e"
+body = '''
+- **Given** an empty previous summary and a non-empty delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** HaikuClient is called with delta only and new summary is returned
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+'''
+
+[T-147]
+name = "ContextSummarizer skips API call when token is empty"
+traces_to = []
+hash = "84b0c8c9"
+body = '''
+- **Given** an empty API token and a non-empty delta
+- **When** ContextSummarizer.Summarize is called
+- **Then** no API call is made and previous summary is returned unchanged
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based
+'''
+
+[T-148]
+name = "ContextSummarizer returns previous summary on API error"
+traces_to = []
+hash = "490d619a"
+body = '''
+- **Given** a previous summary and a mocked HaikuClient that returns error
+- **When** ContextSummarizer.Summarize is called
+- **Then** previous summary is returned unchanged (error is silent)
+- **Traces to:** ARCH-30, REQ-43
+- **Type:** example-based (mocked HaikuClient)
+'''
+
+[T-149]
+name = "SessionContextFile parses HTML metadata"
+traces_to = []
+hash = "172ddc94"
+body = '''
+- **Given** a context file with HTML comment: `<!-- engram session context | updated: 2026-03-07T00:00:00Z | offset: 1000 | session: abc123 -->`
+- **When** SessionContextFile.Read is called
+- **Then** metadata is parsed into (offset: 1000, sessionID: "abc123")
+- **Traces to:** ARCH-31, REQ-42
+- **Type:** example-based (string parsing)
+'''
+
+[T-15]
+name = "Full pipeline — classify → write → render"
+traces_to = ["ARCH-1", "REQ-1", "REQ-2", "REQ-3", "REQ-4"]
+hash = "8230e2ea"
+body = '''
+**Given** a message with a learning signal and transcript context, with all pipeline stages wired,
+**When** Run is called (with message and transcript_path),
+**Then** the Classifier, Writer, and Renderer execute in order and a system reminder string is returned.
+
+Uses fakes for all three DI interfaces. Verifies call order and that transcript context is passed to Classifier.
+'''
+
+[T-150]
+name = "SessionContextFile extracts markdown summary"
+traces_to = []
+hash = "af55a686"
+body = '''
+- **Given** a context file with HTML comment on first line, blank line, then markdown summary
+- **When** SessionContextFile.Read is called
+- **Then** markdown summary is returned (HTML comment excluded)
+- **Traces to:** ARCH-31, REQ-45
+- **Type:** example-based
+'''
+
+[T-151]
+name = "SessionContextFile writes atomically"
+traces_to = []
+hash = "10a3bbb3"
+body = '''
+- **Given** a SessionContext struct and a target file path
+- **When** SessionContextFile.Write is called
+- **Then** file is written atomically (via temp file + rename) and `.claude/engram/` directory is created if missing
+- **Traces to:** ARCH-31, REQ-44
+- **Type:** example-based (file I/O via DI injection)
+'''
+
+[T-152]
+name = "SessionContextFile creates directory if missing"
+traces_to = []
+hash = "e206034a"
+body = '''
+- **Given** `.claude/engram/` directory does not exist
+- **When** SessionContextFile.Write is called
+- **Then** directory is created with all required parent directories
+- **Traces to:** ARCH-31, REQ-44
+- **Type:** example-based
+'''
+
+[T-153]
+name = "SessionContextFile returns empty on missing file"
+traces_to = []
+hash = "008754b5"
+body = '''
+- **Given** context file does not exist
+- **When** SessionContextFile.Read is called
+- **Then** ("", 0, "") is returned (empty summary, offset 0, empty session ID)
+- **Traces to:** ARCH-31, REQ-45
+- **Type:** example-based
+'''
+
+[T-154]
+name = "ContextUpdateOrchestrator exits 0 on missing transcript file"
+traces_to = []
+hash = "510e5c73"
+body = '''
+- **Given** --transcript-path pointing to non-existent file
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** exit code 0, no context file written
+- **Traces to:** ARCH-32, REQ-40
+- **Type:** example-based (fire-and-forget error handling)
+'''
+
+[T-155]
+name = "ContextUpdateOrchestrator skips API call on empty delta"
+traces_to = []
+hash = "d0a0eecd"
+body = '''
+- **Given** a transcript file with no new content (delta empty)
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** ContextSummarizer is not called, context file is not written, exit 0
+- **Traces to:** ARCH-32, REQ-41
+- **Type:** example-based
+'''
+
+[T-156]
+name = "ContextUpdateOrchestrator writes file with updated watermark"
+traces_to = []
+hash = "6f845366"
+body = '''
+- **Given** a transcript file with new lines and existing context file with old offset
+- **When** ContextUpdateOrchestrator.Run is called with non-empty delta
+- **Then** context file is written with updated byte offset (watermark) in metadata
+- **Traces to:** ARCH-32, REQ-42, REQ-44
+- **Type:** example-based
+'''
+
+[T-157]
+name = "ContextUpdateOrchestrator exits 0 on API error"
+traces_to = []
+hash = "f8a76943"
+body = '''
+- **Given** a mocked ContextSummarizer that returns error
+- **When** ContextUpdateOrchestrator.Run is called
+- **Then** error is silent, context file is not written, exit 0
+- **Traces to:** ARCH-32, REQ-43
+- **Type:** example-based
+'''
+
+[T-158]
+name = "Hook integration — context-update runs as separate async hook"
+traces_to = []
+hash = "ace1bf71"
+body = '''
+- **Given** UserPromptSubmit hooks are configured in hooks.json
+- **When** hooks.json is inspected
+- **Then** there are two UserPromptSubmit entries: (1) synchronous entry running `user-prompt-submit.sh` (correct + surface), (2) async entry (`"async": true`) running `user-prompt-submit-async.sh` (context-update only). The synchronous script does not contain nohup/disown or background spawning of context-update.
+- **Traces to:** ARCH-33, DES-18
+- **Type:** example-based (hook configuration verification)
+'''
+
+[T-159]
+name = "Hook integration — PreCompact calls context-update synchronously"
+traces_to = []
+hash = "3049a6ad"
+body = '''
+- **Given** PreCompact hook is triggered
+- **When** hook script runs
+- **Then** `engram context-update` is called synchronously (no `&`) and waits for completion before returning
+- **Traces to:** ARCH-33, DES-19
+- **Type:** example-based (hook script execution)
+'''
+
+[T-16]
+name = "No signal — pipeline short-circuits"
+traces_to = ["ARCH-1", "REQ-1"]
+hash = "0330b8b5"
+body = '''
+**Given** a message with no learning signal (null classification),
+**When** Run is called,
+**Then** empty string is returned and Writer/Renderer are never called.
+
+
+---
+
+## CLI Wiring (ARCH-6)
+'''
+
+[T-160]
+name = "Hook integration — SessionStart reads and injects context"
+traces_to = []
+hash = "57524710"
+body = '''
+- **Given** context file exists at `.claude/engram/session-context.md` with summary "Task: foo"
+- **When** SessionStart hook runs
+- **Then** summary is read and injected into hook JSON output additionalContext field, labeled as session resumption context
+- **Traces to:** ARCH-33, DES-22, REQ-45
+- **Type:** example-based (hook script JSON generation)
+
+---
+
+## L2 → Test Traceability (UC-6)
+
+| L2 Item | Test Coverage |
+|---------|--------------|
+| REQ-35 | T-122, T-123, T-126, T-127, T-128 |
+| REQ-36 | T-124, T-125 |
+| REQ-37 | Already covered by T-115 (existing UC-15 annotation test) |
+| DES-17 | Already covered by T-115 (existing UC-15 annotation format) |
+| REQ-38 | T-129, T-131, T-132, T-133 |
+| DES-16 | T-129 |
+| REQ-39 | T-130 |
+
+All UC-6 L2 items have test coverage. All ARCH-26..27 items have test coverage.
+
+---
+
+## Proposal Generator (ARCH-36)
+'''
+
+[T-161]
+name = "evaluate CLI applies Strip preprocessing to transcript"
+traces_to = ["ARCH-23", "REQ-27"]
+hash = "39cab61c"
+body = '''
+**Given** a transcript on stdin containing toolResult JSON bodies and base64 data,
+**When** `runEvaluate` processes it,
+**Then** the transcript passed to the Evaluator has toolResult bodies and base64 data removed (Strip applied at CLI wiring level).
+
+- Type: example-based (verify stripped content reaches LLM)
+
+---
+
+## UC-15 Bidirectional Traceability
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-22 | T-101, T-102, T-103, T-104, T-105, T-121 |
+| ARCH-23 | T-106, T-107, T-108, T-109, T-110, T-111, T-161 |
+| ARCH-24 | T-112, T-113, T-114, T-115, T-116 |
+| ARCH-25 | T-117, T-118, T-119, T-120 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-26 | T-101, T-102, T-103, T-104, T-105, T-111, T-121 |
+| DES-11 | T-101 |
+| REQ-27 | T-106, T-107, T-110, T-161 |
+| DES-12 | T-106 |
+| REQ-28 | T-108, T-109 |
+| DES-13 | T-108 |
+| REQ-29 | T-112, T-113, T-114 |
+| REQ-30 | T-115, T-116 |
+| DES-14 | T-115, T-116 |
+| REQ-31 | T-119 |
+| DES-15 | T-120 |
+| REQ-32 | T-117 |
+| REQ-33 | T-118 |
+| REQ-34 | T-105, T-107, T-111 |
+
+All UC-15 L2 items have test coverage. All ARCH-22..25 items have test coverage.
+
+---
+
+# UC-6: Memory Effectiveness Review
+
+---
+
+## Matrix Classifier (ARCH-26)
+'''
+
+[T-162]
+name = "BM25 top-N limit — only top 10 results surfaced for prompt mode"
+traces_to = ["ARCH-9", "REQ-10"]
+hash = "a1291ef5"
+body = '''
+**Given** 15 memories with varying relevance to a user message (all with non-zero BM25 scores),
+**When** surface is called with mode prompt,
+**Then** only the top 10 ranked memories are surfaced (by BM25 relevance score). Lower-ranked memories 11–15 are not included.
+
+- Type: example-based (verify top-N limiting in BM25 ranking)
+'''
+
+[T-163]
+name = "BM25 top-N limit — only top 5 results surfaced for tool mode"
+traces_to = ["ARCH-10", "REQ-11"]
+hash = "905e08ad"
+body = '''
+**Given** 10 anti-pattern memories with varying relevance to a tool input (all with non-zero BM25 scores),
+**When** surface is called with mode tool,
+**Then** only the top 5 ranked candidates are surfaced (by BM25 relevance score). Lower-ranked candidates 6–10 are not included.
+
+- Type: example-based (verify top-N limiting in PreToolUse)
+'''
+
+[T-164]
+name = "BM25 handles zero-score memories (relevance below threshold)"
+traces_to = ["ARCH-9", "REQ-10"]
+hash = "dc55a4e0"
+body = '''
+**Given** memories with content: one closely matching query terms, others with no overlap,
+**When** surface is called with matching and non-matching memories,
+**Then** BM25 computes zero or near-zero scores for non-matching memories. They are not surfaced (no threshold gate needed — naturally ranked below matching memories).
+
+- Type: example-based (BM25 natural zero-scoring behavior)
+
+---
+
+## Frecency Activation Scoring (ARCH-35)
+'''
+
+[T-165]
+name = "Frecency activation computation — all components present"
+traces_to = ["ARCH-35", "REQ-46"]
+hash = "0f2ffdb0"
+body = '''
+**Given** a memory with SurfacedCount=10, LastSurfaced=2h ago, SurfacingContexts=["session-start","prompt","tool"], and effectiveness score of 80%,
+**When** Activation is computed,
+**Then** the result combines: log(11) × 1/(1+2) × log(4) × 0.8. All four components are multiplied together to produce a positive activation score.
+
+- Type: example-based (verify formula components)
+'''
+
+[T-166]
+name = "Frecency activation — never-surfaced memory uses UpdatedAt fallback"
+traces_to = ["ARCH-35", "REQ-46"]
+hash = "467e257a"
+body = '''
+**Given** a memory with SurfacedCount=0, LastSurfaced=zero time, UpdatedAt=24h ago, empty SurfacingContexts, no effectiveness data,
+**When** Activation is computed,
+**Then** frequency=log(1)=0, so activation is 0.0 (frequency of zero dominates). This ensures never-surfaced memories rank below actively-used ones.
+
+- Type: example-based (fallback behavior for new memories)
+'''
+
+[T-167]
+name = "Frecency activation — effectiveness defaults to 0.5 when no data"
+traces_to = ["ARCH-35", "REQ-46"]
+hash = "139d6cdc"
+body = '''
+**Given** a memory with surfacing history but no evaluation data (effectiveness map has no entry for this memory),
+**When** Activation is computed,
+**Then** effectiveness component uses default 0.5 (neutral — neither boosted nor penalized).
+
+- Type: example-based (default effectiveness)
+'''
+
+[T-168]
+name = "Combined BM25 + frecency score preserves BM25 zero"
+traces_to = ["ARCH-35", "REQ-46", "REQ-10"]
+hash = "b042c04b"
+body = '''
+**Given** a memory with high frecency activation but BM25 score of 0.0,
+**When** CombinedScore is computed,
+**Then** combined score is 0.0 (BM25 of zero stays zero regardless of frecency). Frecency cannot promote irrelevant memories.
+
+- Type: example-based (multiplicative combination)
+'''
+
+[T-169]
+name = "SessionStart uses pure frecency ranking"
+traces_to = ["ARCH-35", "REQ-9"]
+hash = "58d00f33"
+body = '''
+**Given** 25 memories with varying surfacing history and effectiveness data,
+**When** surface is called with mode session-start,
+**Then** memories are ranked by pure frecency activation score (not BM25). Top 20 are surfaced. Higher frequency + recency + spread + effectiveness = higher rank.
+
+- Type: example-based (SessionStart frecency ranking)
+'''
+
+[T-170]
+name = "Prompt mode re-ranks BM25 top-N by combined score"
+traces_to = ["ARCH-35", "REQ-10"]
+hash = "67623589"
+body = '''
+**Given** 3 memories with BM25 scores [10.0, 8.0, 6.0] and frecency activations [0.1, 0.5, 0.3],
+**When** surface is called with mode prompt,
+**Then** combined scores are [10×1.1=11.0, 8×1.5=12.0, 6×1.3=7.8]. Memory 2 re-ranks to top position because its frecency boost overcomes its lower BM25 score.
+
+- Type: example-based (frecency re-ranking changes BM25 order)
+
+---
+
+## Surface Subcommand Routing (ARCH-12)
+'''
+
+[T-171]
+name = "Working memory within staleness threshold produces no proposal"
+traces_to = ["ARCH-36", "REQ-48"]
+hash = "753d7984"
+body = '''
+**Given** a classified memory in the Working quadrant with `updated_at` less than 90 days ago,
+**When** Generate is called,
+**Then** no proposal is produced for that memory.
+
+- Type: example-based (boundary: 89 days = no proposal)
+'''
+
+[T-172]
+name = "Working memory beyond staleness threshold produces review proposal"
+traces_to = ["ARCH-36", "REQ-48"]
+hash = "ff9bf22f"
+body = '''
+**Given** a classified memory in the Working quadrant with `updated_at` more than 90 days ago,
+**When** Generate is called,
+**Then** a proposal with `action: "review_staleness"` is produced, including the memory's age in days.
+
+- Type: example-based (boundary: 91 days = proposal)
+'''
+
+[T-173]
+name = "Leech memory produces LLM-powered rewrite proposal"
+traces_to = ["ARCH-36", "REQ-49", "DES-24"]
+hash = "85ce6b31"
+body = '''
+**Given** a classified memory in the Leech quadrant,
+**When** Generate is called with a working LLM caller,
+**Then** a proposal with `action: "rewrite"` is produced containing LLM-proposed field changes (keywords, principle, etc.).
+
+- Type: example-based (verify LLM called with memory content + stats, response parsed into proposal)
+'''
+
+[T-174]
+name = "Hidden gem memory produces LLM-powered broadening proposal"
+traces_to = ["ARCH-36", "REQ-50", "DES-25"]
+hash = "a31340c1"
+body = '''
+**Given** a classified memory in the Hidden Gem quadrant,
+**When** Generate is called with a working LLM caller,
+**Then** a proposal with `action: "broaden_keywords"` is produced containing proposed keyword additions.
+
+- Type: example-based (verify LLM called, response parsed)
+'''
+
+[T-175]
+name = "Noise memory produces removal proposal with evidence"
+traces_to = ["ARCH-36", "REQ-51"]
+hash = "38ac6538"
+body = '''
+**Given** a classified memory in the Noise quadrant with surfaced_count=2, effectiveness_score=15.0, evaluation_count=8,
+**When** Generate is called,
+**Then** a proposal with `action: "remove"` is produced with evidence fields matching the stats.
+
+- Type: example-based (verify evidence fields match input stats)
+'''
+
+[T-176]
+name = "Insufficient-data memory produces no proposal"
+traces_to = ["ARCH-36", "REQ-47"]
+hash = "c947a989"
+body = '''
+**Given** a classified memory with quadrant InsufficientData,
+**When** Generate is called,
+**Then** no proposal is produced for that memory.
+
+- Type: example-based (filter check)
+'''
+
+[T-177]
+name = "LLM failure for one memory does not block others"
+traces_to = ["ARCH-36", "REQ-52"]
+hash = "282c70d8"
+body = '''
+**Given** two leech memories where the LLM caller fails for the first but succeeds for the second,
+**When** Generate is called,
+**Then** one proposal is returned (for the second memory). The first memory's proposal is omitted.
+
+- Type: example-based (fire-and-forget error handling)
+'''
+
+[T-178]
+name = "No LLM caller skips leech and hidden gem proposals"
+traces_to = ["ARCH-36", "REQ-53"]
+hash = "04b24b62"
+body = '''
+**Given** classified memories including leech and hidden gem entries, but no LLM caller configured,
+**When** Generate is called,
+**Then** only working staleness and noise removal proposals are produced. Leech and hidden gem proposals are skipped.
+
+- Type: example-based (nil LLM caller behavior)
+
+---
+
+## Maintain CLI Wiring (ARCH-37)
+'''
+
+[T-179]
+name = "maintain subcommand produces JSON proposals to stdout"
+traces_to = ["ARCH-37", "REQ-53", "DES-23"]
+hash = "8b3c533d"
+body = '''
+**Given** a data directory with memories, surfacing logs, and evaluation logs,
+**When** `RunMaintain` is called with `--data-dir`,
+**Then** stdout contains a JSON array of proposals, each with memory_path, quadrant, diagnosis, action, and details fields.
+
+- Type: example-based (end-to-end CLI wiring)
+'''
+
+[T-18]
+name = "`correct` subcommand reads transcript_path from hook JSON"
+traces_to = ["ARCH-6", "REQ-6", "REQ-X", "ARCH-6", "DES-3", "REQ-X"]
+hash = "ca7a33ff"
+body = '''
+**Given** hook JSON input with `.prompt` and `.transcript_path` fields,
+**When** the CLI parses stdin and invokes Corrector.Run with both message and transcript_path,
+**Then** the Classifier receives transcript context and classifies with full session awareness.
+
+
+### DES-3: Static hook script reads transcript context
+
+**Given** the static hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** it references `correct`, `bin/engram`, `jq`, `.prompt`, `.transcript_path`, `CLAUDE_PLUGIN_ROOT`, and `ENGRAM_API_TOKEN`.
+
+
+---
+'''
+
+[T-180]
+name = "maintain with no evaluation data produces empty array"
+traces_to = ["ARCH-37", "REQ-54"]
+hash = "4122f780"
+body = '''
+**Given** a data directory with memories but no evaluation directory,
+**When** `RunMaintain` is called,
+**Then** stdout contains `[]` and the command exits without error.
+
+- Type: example-based (no-data behavior)
+'''
+
+[T-181]
+name = "maintain without API key skips LLM proposals"
+traces_to = ["ARCH-37", "REQ-53"]
+hash = "ba32c482"
+body = '''
+**Given** a data directory with leech and noise memories, but no ANTHROPIC_API_KEY,
+**When** `RunMaintain` is called,
+**Then** only noise/working proposals appear in output. Leech/hidden-gem proposals are absent.
+
+- Type: example-based (graceful degradation without API key)
+
+---
+
+## L2 → Test Traceability (UC-16)
+
+| L2 Item | Test Coverage |
+|---------|--------------|
+| REQ-47 | T-176 |
+| REQ-48 | T-171, T-172 |
+| REQ-49 | T-173 |
+| REQ-50 | T-174 |
+| REQ-51 | T-175 |
+| REQ-52 | T-177 |
+| REQ-53 | T-178, T-179, T-181 |
+| REQ-54 | T-180 |
+| DES-23 | T-179 |
+| DES-24 | T-173 |
+| DES-25 | T-174 |
+
+All UC-16 L2 items have test coverage. All ARCH-36..37 items have test coverage.
+
+---
+
+## Learn Offset Infrastructure (ARCH-38)
+'''
+
+[T-182]
+name = "Offset read returns stored value for session ID"
+traces_to = ["ARCH-38", "REQ-26"]
+hash = "82d575fc"
+body = '''
+**Given** an offset file with `{"session-123": 5432}`,
+**When** test calls ReadOffset("session-123"),
+**Then** 5432 is returned.
+
+- Verification: unit
+'''
+
+[T-183]
+name = "Offset write persists to JSON file atomically"
+traces_to = ["ARCH-38", "REQ-26"]
+hash = "da613439"
+body = '''
+**Given** no existing offset file,
+**When** test calls WriteOffset("session-456", 8901),
+**Then** the offset file exists at `<data-dir>/learn-offset.json` containing `{"session-456": 8901}`. Write is atomic (temp file → rename).
+
+When called again with a different session, offset map is updated atomically (existing entries preserved).
+
+- Verification: unit
+
+---
+
+## IncrementalLearner Orchestrator (ARCH-39)
+'''
+
+[T-184]
+name = "Delta reading with byte offset"
+traces_to = ["ARCH-39", "REQ-26", "REQ-27"]
+hash = "97edd59c"
+body = '''
+**Given** a transcript file and a stored byte offset for the session,
+**When** IncrementalLearner.Run calls DeltaReader.ReadDelta(transcript_path, offset),
+**Then** only the new content from offset to file end is returned. Offset is from `internal/context` (ARCH-28 reuse).
+
+- Verification: unit (mock DeltaReader)
+'''
+
+[T-185]
+name = "Strip preprocessing on delta before extraction"
+traces_to = ["ARCH-39", "REQ-27"]
+hash = "8f6abd15"
+body = '''
+**Given** a delta containing tool results, base64, and repeated schemas,
+**When** IncrementalLearner.Run preprocesses the delta,
+**Then** Strip removes low-value content. Stripped delta is sent to Learner, not original. Stripping uses `internal/context` Strip (ARCH-29 reuse).
+
+- Verification: unit (mock Stripper)
+'''
+
+[T-186]
+name = "Incremental extraction with matching session ID"
+traces_to = ["ARCH-39", "REQ-26", "REQ-19"]
+hash = "5bb6f0b5"
+body = '''
+**Given** IncrementalLearner with session_id="session-123" and a stored offset for "session-123",
+**When** IncrementalLearner.Run is called,
+**Then** it reads the stored offset, computes delta from that offset, and runs extraction. Offset is updated to new file end after extraction.
+
+- Verification: unit (mock DeltaReader, Stripper, Learner, OffsetStore)
+'''
+
+[T-187]
+name = "New session ID resets offset to 0"
+traces_to = ["ARCH-39", "REQ-26", "REQ-19"]
+hash = "b45bf707"
+body = '''
+**Given** IncrementalLearner with session_id="new-session" which is not in the offset map,
+**When** IncrementalLearner.Run is called,
+**Then** offset is treated as 0 (start from beginning of file). Delta is read from file start. After extraction, new session_id is stored in offset map.
+
+- Verification: unit
+'''
+
+[T-188]
+name = "Empty delta skips extraction"
+traces_to = ["ARCH-39", "REQ-26 (cost optimization)"]
+hash = "bb499284"
+body = '''
+**Given** IncrementalLearner with a transcript file where current offset is already at file end (delta is empty),
+**When** IncrementalLearner.Run is called,
+**Then** extraction is skipped (no API call, no cost). Empty slice is returned. Offset is not updated.
+
+- Verification: unit
+
+---
+
+## CLI with Incremental Flags (ARCH-17)
+'''
+
+[T-189]
+name = "learn subcommand with --transcript-path and --session-id flags"
+traces_to = ["ARCH-17", "REQ-20", "REQ-26"]
+hash = "5e2362fc"
+body = '''
+**Given** the `engram learn` subcommand,
+**When** called with `--data-dir <path> --transcript-path <file> --session-id <id>`,
+**Then** argument parsing succeeds. IncrementalLearner is constructed with the provided paths and session ID. The pipeline runs and exits 0.
+
+When flags are missing, usage error is returned.
+
+- Verification: unit (mock IncrementalLearner)
+
+---
+
+Coverage update:
+- REQ-26: T-182, T-183, T-186, T-187, T-189
+- REQ-27: T-185
+- ARCH-38: T-182, T-183
+- ARCH-39: T-184, T-185, T-186, T-187, T-188
+- ARCH-17: T-189
+
+All UC-1 L2 items have incremental test coverage.
+
+---
+
+## Token Estimation (ARCH-40)
+'''
+
+[T-19]
+name = "`correct` with no signal produces empty stdout"
+traces_to = ["ARCH-6", "REQ-6"]
+hash = "006afda1"
+body = '''
+**Given** `engram correct --message "hello world" --data-dir <tmpdir>`,
+**When** Run is called and the Classifier returns nil (no signal),
+**Then** stdout is empty and no file is created.
+
+
+---
+
+## Build Automation (ARCH-8)
+'''
+
+[T-190]
+name = "Token estimation formula computes len(text) / 4"
+traces_to = ["ARCH-40", "REQ-55"]
+hash = "4d6423af"
+body = '''
+**Given** a text string of known length,
+**When** estimateTokens is called,
+**Then** the returned token count is exactly len(text) / 4 (truncated).
+
+Examples: len=100 → 25 tokens, len=99 → 24 tokens (floor).
+
+- Verification: unit
+
+---
+
+## Budget Enforcement (ARCH-40)
+'''
+
+[T-191]
+name = "matchPromptMemories respects budget cap"
+traces_to = ["ARCH-40", "REQ-57"]
+hash = "ab6ed86d"
+body = '''
+**Given** a surfacing request with budget cap of 200 tokens and 5 memories totaling 500 tokens,
+**When** matchPromptMemories is called,
+**Then** memories are returned in priority order (effectiveness × relevance) until tokens would exceed 200. Remaining memories are omitted.
+
+- Verification: unit (mock memories with scores and token counts)
+'''
+
+[T-192]
+name = "matchToolMemories respects budget cap"
+traces_to = ["ARCH-40", "REQ-57"]
+hash = "75483cbd"
+body = '''
+**Given** a pre-tool surfacing request with budget cap of 100 tokens and 10 memories,
+**When** matchToolMemories is called,
+**Then** memories are sorted by (effectiveness × relevance) and filled until budget exhausted. Budget is hard cap (no overfill).
+
+- Verification: unit
+'''
+
+[T-193]
+name = "Budget cap configuration loads from config.toml"
+traces_to = ["ARCH-40", "REQ-56"]
+hash = "0efff824"
+body = '''
+**Given** a config file with custom budget values (e.g., SessionStart = 1000),
+**When** surface command loads config,
+**Then** the custom value is used. If config is missing, defaults are used.
+
+- Verification: unit (mock config file I/O)
+
+---
+
+## Budget Reporting (ARCH-41)
+'''
+
+[T-194]
+name = "engram review outputs budget utilization table"
+traces_to = ["ARCH-41", "REQ-58"]
+hash = "a3ef4021"
+body = '''
+**Given** a session with multiple hook invocations and surfacing logs,
+**When** `engram review` is called,
+**Then** output includes a [Budget Utilization] section with columns: Hook, Budget, Surfaced, Utilization %, Warning.
+
+- Verification: integration (load real surfacing logs, check output format)
+'''
+
+[T-195]
+name = "Budget warning triggers at >50% cap hit rate"
+traces_to = ["ARCH-41", "REQ-59"]
+hash = "845a196f"
+body = '''
+**Given** surfacing logs showing 6 out of 10 SessionStart invocations exceed budget cap,
+**When** `engram review` computes cap hit rate,
+**Then** the warning is raised: "⚠ Hitting cap on 60% of invocations" for SessionStart hook.
+
+- Verification: unit (mock surfacing log with synthetic cap hits)
+'''
+
+[T-196]
+name = "Budget reporting with zero utilization"
+traces_to = ["ARCH-41", "REQ-58"]
+hash = "bb3c3333"
+body = '''
+**Given** a hook that was never invoked during the session,
+**When** `engram review` reports budget stats,
+**Then** that hook shows 0 tokens surfaced, 0% utilization, no warning.
+
+- Verification: unit
+
+---
+
+## Stop Hook Audit Phase (ARCH-42)
+'''
+
+[T-197]
+name = "Stop hook invokes engram audit after engram evaluate"
+traces_to = ["ARCH-42", "REQ-60"]
+hash = "e6ce7e38"
+body = '''
+**Given** the Stop hook with all 4 phases configured,
+**When** the hook executes,
+**Then** phases execute in order: learn → evaluate → audit → context-update. Audit phase runs after effectiveness update.
+
+- Verification: integration (mock hook script execution)
+'''
+
+[T-198]
+name = "Audit phase is skipped if Haiku API token is missing"
+traces_to = ["ARCH-42", "REQ-65"]
+hash = "88030041"
+body = '''
+**Given** ANTHROPIC_API_KEY env var is unset,
+**When** `engram audit` is invoked,
+**Then** error is logged to stderr: "API token missing or invalid, skipping audit". Exit code 1. No audit report is written.
+
+- Verification: unit (mock Haiku API failure)
+
+---
+
+## Audit Scope Parsing (ARCH-43)
+'''
+
+[T-199]
+name = "Audit scope extracts high-priority memories from surfacing log"
+traces_to = ["ARCH-43", "REQ-61"]
+hash = "f4e63466"
+body = '''
+**Given** a surfacing log with 20 memories and effectiveness data,
+**When** audit command builds scope,
+**Then** only top 20% by effectiveness score are included in scope (e.g., 4 memories if 20 total).
+
+- Verification: unit (mock logs + effectiveness data)
+'''
+
+[T-2]
+name = "Non-signal message returns nil"
+traces_to = ["ARCH-2", "REQ-1"]
+hash = "9b4ae974"
+body = '''
+**Given** a message that is casual conversation with no learning signal (e.g., "hold on", "try again"),
+**When** Classify is called and the LLM returns tier `null`,
+**Then** nil is returned and no memory is created.
+
+Uses fake LLM returning `{"tier": null}`.
+'''
+
+[T-20]
+name = "Plugin manifest exists"
+traces_to = ["ARCH-8", "REQ-8"]
+hash = "21a69e28"
+body = '''
+**Given** the plugin manifest at `.claude-plugin/plugin.json`,
+**When** its content is read,
+**Then** it contains `"name": "engram"` and a `"description"` field.
+'''
+
+[T-200]
+name = "Audit scope parsing reads transcript for compliance check"
+traces_to = ["ARCH-43", "REQ-61"]
+hash = "b06af45c"
+body = '''
+**Given** transcript path and audit command,
+**When** scope is built,
+**Then** transcript excerpt (if feasible) is available for LLM compliance assessment.
+
+- Verification: unit (mock file I/O)
+
+---
+
+## LLM Compliance Assessment (ARCH-43)
+'''
+
+[T-201]
+name = "Haiku compliance assessment returns JSON with instruction compliance"
+traces_to = ["ARCH-43", "REQ-62"]
+hash = "8208a5e8"
+body = '''
+**Given** audit scope and session transcript,
+**When** Haiku LLM is called with compliance assessment prompt,
+**Then** response is JSON array: `[{instruction, compliant: true/false, evidence: "..."}, ...]`
+
+- Verification: integration (real Haiku API with test transcript; verify JSON parsing)
+'''
+
+[T-202]
+name = "Non-compliant instruction lowers follow rate signal"
+traces_to = ["ARCH-43", "REQ-62"]
+hash = "5e787cad"
+body = '''
+**Given** Haiku returns compliance status for a surfaced instruction,
+**When** non-compliance is detected,
+**Then** instruction ID is recorded as outcome signal for downstream effectiveness calculation.
+
+- Verification: unit (mock Haiku response)
+
+---
+
+## Audit Report Writing (ARCH-43)
+'''
+
+[T-203]
+name = "Audit report written to audits/<timestamp>.json"
+traces_to = ["ARCH-43", "REQ-63"]
+hash = "4871068a"
+body = '''
+**Given** completed audit with compliance results,
+**When** audit command finishes,
+**Then** report file is written to `<data-dir>/audits/<timestamp>.json` with ISO 8601 timestamp.
+
+- Verification: unit (verify file exists, JSON parses, timestamp is valid)
+'''
+
+[T-204]
+name = "Audit report includes metadata and results"
+traces_to = ["ARCH-43", "REQ-63"]
+hash = "17618cee"
+body = '''
+**Given** audit results from Haiku,
+**When** report is written,
+**Then** JSON includes: session_id, timestamp, total_instructions_audited, compliant (count), non_compliant (count), results array.
+
+- Verification: unit (mock audit results, verify JSON structure)
+
+---
+
+## Effectiveness Signal Injection (ARCH-44)
+'''
+
+[T-205]
+name = "Non-compliance results are injected into effectiveness history"
+traces_to = ["ARCH-44", "REQ-64"]
+hash = "8e6d61d8"
+body = '''
+**Given** audit report with non_compliant results,
+**When** InjectAuditResults is called,
+**Then** for each non-compliant instruction, a negative outcome signal is added to that memory's effectiveness data.
+
+- Verification: unit (mock audit report, verify effectiveness data is updated)
+'''
+
+[T-206]
+name = "Skipped injection on missing memory ID (non-fatal)"
+traces_to = ["ARCH-44", "REQ-64"]
+hash = "25e055fd"
+body = '''
+**Given** audit report with instruction ID that doesn't exist in effectiveness registry,
+**When** InjectAuditResults processes that result,
+**Then** signal is skipped (non-fatal). Processing continues for other results.
+
+- Verification: unit (mock audit result with invalid memory ID)
+
+---
+
+## Coverage Summary (UC-17 & UC-19)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-55 | T-190 |
+| DES-16 | T-190 |
+| REQ-56 | T-193 |
+| DES-17 | T-193 |
+| REQ-57 | T-191, T-192 |
+| DES-18 | T-191, T-192 |
+| REQ-58 | T-194, T-196 |
+| DES-19 | T-194, T-196 |
+| REQ-59 | T-195 |
+| DES-20 | T-195 |
+| REQ-60 | T-197 |
+| DES-21 | T-197 |
+| REQ-61 | T-199, T-200 |
+| DES-22 | T-199, T-200 |
+| REQ-62 | T-201, T-202 |
+| DES-23 | T-201, T-202 |
+| REQ-63 | T-203, T-204 |
+| REQ-64 | T-205, T-206 |
+| DES-24 | T-205, T-206 |
+| REQ-65 | T-198 |
+
+All UC-17 & UC-19 L2 items have test coverage.
+
+---
+
+## PostToolUse Reminder Pipeline (ARCH-46)
+'''
+
+[T-207]
+name = "Glob pattern matches file path to instruction set"
+traces_to = ["ARCH-46", "REQ-67", "REQ-68"]
+hash = "6ff60e98"
+body = '''
+**Given** a reminders.toml with `"*.go"` mapped to `["go-conventions"]`,
+**When** Reminder.Run is called with a tool call on `internal/foo.go`,
+**Then** the `go-conventions` instruction set is resolved and the highest-effectiveness instruction is selected.
+
+- Verification: unit (mock config, mock memory loader)
+'''
+
+[T-208]
+name = "No pattern match returns empty output"
+traces_to = ["ARCH-46", "REQ-67"]
+hash = "a0b8b722"
+body = '''
+**Given** a reminders.toml with `"*.go"` only,
+**When** Reminder.Run is called with a tool call on `README.md`,
+**Then** empty string is returned (no reminder).
+
+- Verification: unit
+'''
+
+[T-209]
+name = "Reminder capped at 100 tokens"
+traces_to = ["ARCH-46", "REQ-69"]
+hash = "8b316188"
+body = '''
+**Given** a matching instruction with 200 tokens of text,
+**When** Reminder.Run selects it,
+**Then** the reminder output is truncated to ≤100 tokens.
+
+- Verification: unit (verify estimateTokens on output ≤ 100)
+'''
+
+[T-21]
+name = "Hooks JSON has UserPromptSubmit"
+traces_to = ["ARCH-8", "REQ-8", "ARCH-6"]
+hash = "f488467f"
+body = '''
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `UserPromptSubmit` entry pointing to `user-prompt-submit.sh`.
+
+
+---
+
+## Cross-Platform Token (ARCH-6 update)
+'''
+
+[T-210]
+name = "Suppression when model already complied"
+traces_to = ["ARCH-46", "REQ-70"]
+hash = "b672b3c9"
+body = '''
+**Given** a matching instruction about "use targ not go test" and recent transcript containing "targ test ./...",
+**When** Reminder.Run checks suppression,
+**Then** reminder is suppressed (empty output).
+
+- Verification: unit (mock transcript reader)
+'''
+
+[T-211]
+name = "Reminder emitted when no compliance evidence"
+traces_to = ["ARCH-46", "REQ-70", "DES-27"]
+hash = "c4a11380"
+body = '''
+**Given** a matching instruction and transcript with no evidence of compliance,
+**When** Reminder.Run checks suppression,
+**Then** reminder is emitted with format `[engram] Reminder: <text>`.
+
+- Verification: unit
+'''
+
+[T-212]
+name = "Reminder logged to surfacing log for effectiveness"
+traces_to = ["ARCH-46", "REQ-71"]
+hash = "6cdfb963"
+body = '''
+**Given** a reminder is emitted,
+**When** Reminder.Run completes,
+**Then** a surfacing log entry is written with hook="PostToolUse", memory_id, timestamp.
+
+- Verification: unit (mock surfacing logger)
+
+---
+
+## PostToolUse Hook Wiring (ARCH-47)
+'''
+
+[T-213]
+name = "Hook fires only for Write and Edit tools"
+traces_to = ["ARCH-47", "REQ-66"]
+hash = "b7621ba8"
+body = '''
+**Given** PostToolUse hook registered in hooks.json,
+**When** tool calls for Write, Edit, Read, and Bash are processed,
+**Then** hook fires for Write and Edit only. Read and Bash are ignored.
+
+- Verification: integration (hook script behavior)
+'''
+
+[T-214]
+name = "Missing reminders.toml produces no output"
+traces_to = ["ARCH-47", "REQ-67"]
+hash = "35504cca"
+body = '''
+**Given** no reminders.toml file exists,
+**When** engram remind is invoked,
+**Then** empty output, exit 0. No error.
+
+- Verification: unit
+
+---
+
+## Cross-Source Instruction Scanner (ARCH-48)
+'''
+
+[T-215]
+name = "Scanner extracts memory instructions only"
+traces_to = ["ARCH-48", "REQ-72"]
+hash = "d64324bf"
+body = '''
+**Given** a data directory with 3 memory files,
+**When** Scanner.ScanAll is called,
+**Then** 3 memory items are extracted with source type "memory", correct path, and content. No CLAUDE.md, rules, or skill sources are included.
+
+- Verification: unit (mock file I/O)
+'''
+
+[T-216]
+name = "Scanner joins effectiveness data to instructions"
+traces_to = ["ARCH-48", "REQ-72"]
+hash = "fa863dca"
+body = '''
+**Given** instructions with matching effectiveness data,
+**When** Scanner.ScanAll runs,
+**Then** each instruction has its effectiveness score populated. Instructions without effectiveness data have score 0.
+
+- Verification: unit
+
+---
+
+## Instruct Audit Pipeline (ARCH-49)
+'''
+
+[T-217]
+name = "Deduplication detects >80% keyword overlap between memories"
+traces_to = ["ARCH-49", "REQ-73"]
+hash = "793edafd"
+body = '''
+**Given** two memory instructions with 90% keyword overlap,
+**When** Auditor.Run performs deduplication,
+**Then** the pair is reported as a duplicate with both paths and overlap score.
+
+- Verification: unit (mock instructions with overlapping keywords)
+'''
+
+[T-218]
+name = "Quality diagnosis calls Haiku for bottom 20%"
+traces_to = ["ARCH-49", "REQ-74", "DES-29"]
+hash = "ce5181d2"
+body = '''
+**Given** 10 instructions with effectiveness data, 2 in bottom 20%,
+**When** Auditor.Run performs quality diagnosis,
+**Then** Haiku is called for 2 instructions. Response includes diagnosis, root_cause, suggestion.
+
+- Verification: unit (mock LLM caller)
+'''
+
+[T-219]
+name = "Refinement proposals in maintain-compatible format"
+traces_to = ["ARCH-49", "REQ-75"]
+hash = "7cd2696b"
+body = '''
+**Given** a diagnosed memory instruction,
+**When** Auditor.Run generates refinement proposal,
+**Then** proposal includes proposed TOML field changes matching UC-16 maintain format.
+
+- Verification: unit
+'''
+
+[T-22]
+name = "UserPromptSubmit hook script has platform-aware token retrieval"
+traces_to = ["ARCH-6", "DES-3", "REQ-8"]
+hash = "07c5cad7"
+body = '''
+**Given** the static hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** it checks `uname` for platform, attempts Keychain on macOS, and falls back to `ENGRAM_API_TOKEN` env var. It does not hard-fail if Keychain is unavailable.
+'''
+
+[T-220]
+name = "Gap analysis finds violations without instructions"
+traces_to = ["ARCH-49", "REQ-76"]
+hash = "1e47140b"
+body = '''
+**Given** evaluation data with 5 contradicted outcomes, 3 covered by existing instructions, 2 not covered,
+**When** Auditor.Run performs gap analysis,
+**Then** 2 gap candidates are reported with violation count and example evidence.
+
+- Verification: unit (mock eval data)
+'''
+
+[T-221]
+name = "~~Skill decomposition~~ — REMOVED (S6 simplification)"
+traces_to = ["REQ-77 (removed)"]
+hash = "cc677994"
+body = '''
+Removed in S6. Skill files are no longer scanned in the memory-only audit. This test is obsolete until P4-full re-introduces skill scanning.
+'''
+
+[T-222]
+name = "CLI command outputs JSON report"
+traces_to = ["ARCH-49", "REQ-78"]
+hash = "ad6e8a4c"
+body = '''
+**Given** `engram instruct audit --data-dir <path>`,
+**When** command runs successfully,
+**Then** output is valid JSON with sections: duplicates, diagnoses, proposals, gaps. (No skills section — removed in S6.)
+
+- Verification: unit (mock auditor)
+'''
+
+[T-223]
+name = "No API token skips LLM steps, runs dedup and gaps"
+traces_to = ["ARCH-49", "REQ-79"]
+hash = "017d05e2"
+body = '''
+**Given** no API token set,
+**When** `engram instruct audit` runs,
+**Then** dedup and gap analysis run normally. Diagnosis and proposals sections contain `{"skipped_reason": "no API token"}`.
+
+- Verification: unit
+
+---
+
+## Coverage Summary (UC-18 & UC-20)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-66 | T-213 |
+| DES-26 | T-207, T-214 |
+| REQ-67 | T-207, T-208, T-214 |
+| REQ-68 | T-207 |
+| REQ-69 | T-209 |
+| DES-27 | T-211 |
+| REQ-70 | T-210, T-211 |
+| DES-28 | T-210 |
+| REQ-71 | T-212 |
+| REQ-72 | T-215, T-216 |
+| REQ-73 | T-217 |
+| REQ-74 | T-218 |
+| DES-29 | T-218 |
+| REQ-75 | T-219 |
+| REQ-76 | T-220 |
+| REQ-77 | ~~T-221~~ — removed (S6) |
+| REQ-78 | T-222 |
+| REQ-79 | T-223 |
+
+All UC-18 & UC-20 active L2 items have test coverage. REQ-77 removed in S6 simplification.
+
+---
+
+## Escalation Engine (ARCH-50)
+'''
+
+[T-224]
+name = "Default escalation level is advisory"
+traces_to = ["ARCH-50", "REQ-80"]
+hash = "b1ddd7ef"
+body = '''
+**Given** a leech memory with no escalation_level field,
+**When** EscalationEngine.Analyze processes it,
+**Then** current_level is treated as "advisory" and escalation proposes "emphasized_advisory".
+
+- Verification: unit
+'''
+
+[T-225]
+name = "Escalation proposes next level with predicted impact"
+traces_to = ["ARCH-50", "REQ-81"]
+hash = "f1fa8039"
+body = '''
+**Given** a leech memory at "advisory" with effectiveness 0.15, and 3 other memories that escalated to "emphasized_advisory" with average +10% improvement,
+**When** EscalationEngine.Analyze runs,
+**Then** proposal has proposed_level="emphasized_advisory", predicted_impact="+10% follow rate".
+
+- Verification: unit (mock effectiveness data)
+'''
+
+[T-226]
+name = "De-escalation when post-escalation effectiveness drops"
+traces_to = ["ARCH-50", "REQ-82"]
+hash = "72961f79"
+body = '''
+**Given** a memory at "emphasized_advisory" with escalation_history showing pre-escalation effectiveness 0.20 and post-escalation effectiveness 0.15 for 3 consecutive cycles,
+**When** EscalationEngine.Analyze runs,
+**Then** proposal has proposal_type="de_escalate", proposed_level="advisory".
+
+- Verification: unit (mock escalation history)
+'''
+
+[T-227]
+name = "Dimension routing to automation candidate"
+traces_to = ["ARCH-50", "REQ-83"]
+hash = "9011f4f6"
+body = '''
+**Given** a leech memory containing "always run targ test before committing" (mechanical pattern),
+**When** EscalationEngine.Analyze runs dimension routing,
+**Then** proposal has proposal_type="route_automation" instead of "escalate".
+
+- Verification: unit (keyword matching)
+'''
+
+[T-228]
+name = "Escalation level written to TOML on confirmation"
+traces_to = ["ARCH-50", "REQ-84", "DES-30"]
+hash = "f94b7fca"
+body = '''
+**Given** a confirmed escalation proposal,
+**When** the memory TOML is updated,
+**Then** `escalation_level` field is set to proposed level, and escalation_history has a new entry with level, since (timestamp), and effectiveness.
+
+- Verification: unit (mock memory writer, verify TOML fields)
+'''
+
+[T-229]
+name = "Escalation proposal format matches DES-31"
+traces_to = ["ARCH-50", "REQ-81", "DES-31"]
+hash = "dbb91376"
+body = '''
+**Given** a leech memory eligible for escalation,
+**When** EscalationEngine.Analyze produces a proposal,
+**Then** JSON includes: memory_path, proposal_type, current_level, proposed_level, rationale, predicted_impact.
+
+- Verification: unit (JSON schema validation)
+
+---
+
+## Automation Generator Pipeline (ARCH-51)
+'''
+
+[T-23]
+name = "bin/ is in .gitignore"
+traces_to = ["ARCH-8", "REQ-8"]
+hash = "57cd13e5"
+body = '''
+**Given** the `.gitignore` file at the repo root,
+**When** its content is read,
+**Then** it contains an entry that ignores the `bin/` directory.
+
+
+---
+
+# UC-2 Tests
+
+## Memory Retrieval (ARCH-9)
+'''
+
+[T-230]
+name = "Pattern recognition identifies mechanical candidates"
+traces_to = ["ARCH-51", "REQ-86"]
+hash = "261e0ae6"
+body = '''
+**Given** 5 memories: 2 with mechanical patterns ("always X before Y", "never use Z"), 3 without,
+**When** Automator.Run scans for candidates,
+**Then** 2 candidates are identified with pattern score ≥2.
+
+- Verification: unit (mock memory loader)
+'''
+
+[T-231]
+name = "LLM generates automation for mechanical candidate"
+traces_to = ["ARCH-51", "REQ-87", "DES-32"]
+hash = "09f765ad"
+body = '''
+**Given** a mechanical candidate memory,
+**When** Automator.Run calls Haiku,
+**Then** response includes automation_type, code, description, test_command, install_path.
+
+- Verification: unit (mock LLM caller)
+'''
+
+[T-232]
+name = "Verification passes on exit 0"
+traces_to = ["ARCH-51", "REQ-88"]
+hash = "6dcc6c8a"
+body = '''
+**Given** generated automation with a test_command,
+**When** test_command exits 0,
+**Then** proposal is marked verified=true.
+
+- Verification: unit (mock RunCommand returning 0)
+'''
+
+[T-233]
+name = "Verification fails on non-zero exit"
+traces_to = ["ARCH-51", "REQ-88"]
+hash = "e4a1718e"
+body = '''
+**Given** generated automation with a test_command,
+**When** test_command exits 1,
+**Then** proposal is marked verified=false, automation is not installed.
+
+- Verification: unit (mock RunCommand returning 1)
+'''
+
+[T-234]
+name = "Retirement sets retired_by field"
+traces_to = ["ARCH-51", "REQ-89"]
+hash = "2d7a5a38"
+body = '''
+**Given** a confirmed and verified automation proposal,
+**When** memory TOML is updated,
+**Then** `retired_by` field is set to automation install_path, `retired_at` timestamp is set.
+
+- Verification: unit (mock memory writer)
+'''
+
+[T-235]
+name = "Retired memories not surfaced"
+traces_to = ["ARCH-51", "REQ-89"]
+hash = "20e48eae"
+body = '''
+**Given** a memory with non-empty `retired_by` field,
+**When** UC-2 surface matching runs,
+**Then** the memory is excluded from results.
+
+- Verification: unit (verify surface filtering)
+'''
+
+[T-236]
+name = "CLI engram automate outputs JSON proposals *(removed — Phase A-1/S1)*"
+traces_to = ["ARCH-51 (removed)", "REQ-90 (removed)"]
+hash = "7d14307a"
+body = '''
+**Status:** Removed. UC-22 removed. Test deleted from cli_test.go.
+'''
+
+[T-237]
+name = "No API token skips generation, outputs candidates *(removed — Phase A-1/S1)*"
+traces_to = ["ARCH-51 (removed)", "REQ-91 (removed)"]
+hash = "05c31ecd"
+body = '''
+**Status:** Removed. UC-22 removed. Test deleted from cli_test.go.
+
+
+---
+
+## Coverage Summary (UC-21 & UC-22)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-80 | T-224 |
+| DES-30 | T-228 |
+| REQ-81 | T-225, T-229 |
+| DES-31 | T-229 |
+| REQ-82 | T-226 |
+| REQ-83 | T-227 |
+| REQ-84 | T-228 |
+| REQ-85 | T-228 |
+| REQ-86 | T-230 |
+| REQ-87 | T-231 |
+| DES-32 | T-231 |
+| REQ-88 | T-232, T-233 |
+| REQ-89 | T-234, T-235 |
+| REQ-90 | T-236 (removed) |
+| REQ-91 | T-237 (removed) |
+
+All UC-21 L2 items have test coverage. UC-22 items removed in Phase A-1/S1.
+
+---
+
+## TOML-Embedded Registry (Issue #218, ARCH-52 through ARCH-61)
+
+### Group 1: TOMLDirectoryStore + Cleanup
+'''
+
+[T-238]
+name = "TOMLDirectoryStore Register writes metrics to new TOML file"
+traces_to = ["ARCH-52 (TOML-embedded storage)", "REQ-55 (one file per memory)"]
+hash = "e3ea1cd3"
+body = '''
+- **Given** an empty memories directory,
+- **When** `Register` is called with an InstructionEntry,
+- **Then** a TOML file is created with zero-valued metrics fields (surfaced_count=0, followed_count=0, etc.) alongside content fields.
+
+- Type: example-based
+
+---
+'''
+
+[T-239]
+name = "TOMLDirectoryStore RecordSurfacing increments surfaced_count atomically"
+traces_to = ["ARCH-52 (TOML storage)", "REQ-61 (atomic surfacing update)"]
+hash = "ab02d177"
+body = '''
+- **Given** a memory TOML with surfaced_count=5,
+- **When** `RecordSurfacing` is called for that memory,
+- **Then** the TOML file is rewritten with surfaced_count=6 and last_surfaced_at set to current time. All other fields preserved.
+
+- Type: example-based
+
+---
+'''
+
+[T-24]
+name = "ListMemories returns all TOML files sorted by updated_at"
+traces_to = ["ARCH-9", "REQ-9"]
+hash = "a8f37d2d"
+body = '''
+**Given** a data directory with 3 memory TOML files with different `updated_at` timestamps,
+**When** ListMemories is called,
+**Then** all 3 memories are returned, sorted by `updated_at` descending (most recent first), with Title, Keywords, Concepts, AntiPattern, Principle, and FilePath populated.
+'''
+
+[T-240]
+name = "TOMLDirectoryStore RecordEvaluation increments correct counter"
+traces_to = ["ARCH-52 (TOML storage)", "REQ-62 (evaluation tracking)"]
+hash = "96408ec4"
+body = '''
+- **Given** a memory TOML with followed_count=3, contradicted_count=1, ignored_count=2,
+- **When** `RecordEvaluation(id, "followed")` is called,
+- **Then** followed_count=4, other counters unchanged.
+
+- Type: example-based
+
+---
+'''
+
+[T-241]
+name = "TOMLDirectoryStore List scans directory and returns all entries"
+traces_to = ["ARCH-52 (directory scan replaces index)", "REQ-55 (bounded growth)"]
+hash = "7a816aa9"
+body = '''
+- **Given** a memories directory with 3 TOML files containing metrics,
+- **When** `List()` is called,
+- **Then** 3 InstructionEntry values are returned with metrics populated from each TOML.
+
+- Type: example-based
+
+---
+'''
+
+[T-242]
+name = "TOMLDirectoryStore Get reads single memory by path"
+traces_to = ["ARCH-52", "ARCH-53 (file path as ID)"]
+hash = "151f2522"
+body = '''
+- **Given** a memory TOML at `memories/foo.toml` with surfaced_count=10,
+- **When** `Get("memories/foo.toml")` is called,
+- **Then** an InstructionEntry is returned with surfaced_count=10 and all content fields.
+
+- Type: example-based
+
+---
+'''
+
+[T-243]
+name = "TOMLDirectoryStore Remove deletes TOML file"
+traces_to = ["ARCH-52 (delete file = delete everything)"]
+hash = "72434d01"
+body = '''
+- **Given** a memory TOML at `memories/foo.toml`,
+- **When** `Remove("memories/foo.toml")` is called,
+- **Then** the file no longer exists. Subsequent `Get` returns ErrNotFound.
+
+- Type: example-based
+
+---
+'''
+
+[T-244]
+name = "TOMLDirectoryStore Merge absorbs source metrics into target"
+traces_to = ["ARCH-56 (absorbed history)", "REQ-60", "REQ-63"]
+hash = "43336a01"
+body = '''
+- **Given** source TOML with surfaced_count=10, followed_count=8 and target TOML with surfaced_count=5,
+- **When** `Merge(sourcePath, targetPath)` is called,
+- **Then** target TOML has an absorbed entry with source's counters. Source TOML is deleted.
+
+- Type: example-based
+
+---
+'''
+
+[T-245]
+name = "Missing metrics fields default to zero"
+traces_to = ["REQ-66 (default zero values)"]
+hash = "5226f234"
+body = '''
+- **Given** a memory TOML with only content fields (no surfaced_count, no followed_count, etc.),
+- **When** `Get` is called for that memory,
+- **Then** InstructionEntry has surfaced_count=0, followed_count=0, contradicted_count=0, ignored_count=0.
+
+- Type: example-based
+
+---
+'''
+
+[T-246]
+name = "Per-file locking serializes concurrent writes to same file"
+traces_to = ["ARCH-57 (per-file locking)", "REQ-64 (concurrent writes)"]
+hash = "ac0bc7b1"
+body = '''
+- **Given** a memory TOML with surfaced_count=0,
+- **When** 10 concurrent `RecordSurfacing` calls are made for the same memory,
+- **Then** surfaced_count=10 after all complete. No data loss.
+
+- Type: example-based (concurrency test)
+
+---
+'''
+
+[T-247]
+name = "Concurrent writes to different files don't block each other"
+traces_to = ["ARCH-57 (per-file locking)", "REQ-64"]
+hash = "34aa7aeb"
+body = '''
+- **Given** two memory TOMLs,
+- **When** `RecordSurfacing` is called concurrently on each,
+- **Then** both complete without deadlock and each file has correct surfaced_count.
+
+- Type: example-based (concurrency test)
+
+---
+'''
+
+[T-248]
+name = "Atomic write prevents partial TOML on crash"
+traces_to = ["ARCH-57 (atomic writes via temp+rename)"]
+hash = "271f237b"
+body = '''
+- **Given** a memory TOML with valid content,
+- **When** a write is interrupted (simulated by failing rename),
+- **Then** the original TOML is unchanged. No partial file exists.
+
+- Type: example-based
+
+---
+'''
+
+[T-249]
+name = "runAutoRegistration for non-memory sources is removed"
+traces_to = ["ARCH-61 (cleanup)", "REQ-56 (memory-only scope)"]
+hash = "3a89f438"
+body = '''
+- **Given** a session-start invocation,
+- **When** the session-start hook runs,
+- **Then** no non-memory entries are created anywhere. Only memory TOMLs are read/written.
+
+- Type: example-based
+
+---
+'''
+
+[T-25]
+name = "ListMemories returns empty slice when no memories exist"
+traces_to = ["ARCH-9", "REQ-9"]
+hash = "0d5e1985"
+body = '''
+**Given** a data directory with an empty `memories/` subdirectory,
+**When** ListMemories is called,
+**Then** an empty slice is returned (no error).
+'''
+
+[T-250]
+name = "Quadrant classification reads from TOML directory"
+traces_to = ["ARCH-59 (memory-only classification)", "REQ-67"]
+hash = "43a1ff74"
+body = '''
+- **Given** a memories directory with TOMLs containing varied metrics,
+- **When** `engram review` is run,
+- **Then** quadrant classification output matches expected assignments based on TOML metrics.
+
+- Type: example-based
+
+---
+
+### Group 2: Migration [COMPLETED — migrator run and deleted, issue #218]
+
+T-251 through T-256 covered the one-shot JSONL→TOML migration. Migration was
+executed successfully (1029 entries migrated, 36 non-memory skipped, JSONL
+deleted). Migrator code and tests deleted after use — these test specs are
+retained as historical record only.
+
+---
+
+## Coverage Summary (Issue #218)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-55 | T-238, T-241 |
+| REQ-56 | T-249, T-252 |
+| REQ-57 | T-250 (via classification) |
+| REQ-58 | T-250 (via classification) |
+| REQ-59 | T-238 (content_hash in TOML) |
+| REQ-60 | T-244, T-256 |
+| REQ-61 | T-239 |
+| REQ-62 | T-240 |
+| REQ-63 | T-244 |
+| REQ-64 | T-246, T-247 |
+| REQ-65 | T-251, T-253 |
+| REQ-66 | T-245, T-254 |
+| REQ-67 | T-250 |
+| REQ-68 | T-238, T-241, T-242 (DI via injected I/O) |
+| DES-26 | T-251, T-255 |
+| DES-27 | T-250 |
+| DES-28 | T-244 |
+| DES-29 | T-249 |
+
+All UC-23 (issue #218) L2 items have test coverage.
+
+---
+
+## Pre-Classification Duplicate Consolidation (UC-34, ARCH-79, ARCH-80)
+'''
+
+[T-251]
+name = "CLAUDE.md add entry — section appended"
+traces_to = []
+hash = "1b95dbb4"
+body = '''
+**Traces to:** ARCH-65
+
+Given: Existing CLAUDE.md with 3 sections
+When: I call AddEntry(content, newEntry)
+Then: New section appended, other sections unchanged
+
+---
+'''
+
+[T-252]
+name = "CLAUDE.md remove entry — section removed"
+traces_to = []
+hash = "6184f9e9"
+body = '''
+**Traces to:** ARCH-65
+
+Given: CLAUDE.md with entry containing `<!-- promoted from skill:X -->`
+When: I call RemoveEntry(content, "skill:X")
+Then: That section removed, other sections unchanged
+
+---
+'''
+
+[T-253]
+name = "Demotion execution — CLAUDE.md entry to skill"
+traces_to = []
+hash = "caee8e1e"
+body = '''
+**Traces to:** ARCH-64, ARCH-65
+
+Given: A Leech CLAUDE.md entry, user confirms
+When: I execute demotion
+Then: Skill file generated from entry content, entry removed from CLAUDE.md, registry merged (claude-md→skill)
+
+---
+'''
+
+[T-254]
+name = "CLI subcommand promote --to-claude-md"
+traces_to = []
+hash = "5d195bf4"
+body = '''
+**Traces to:** ARCH-64
+
+Given: `engram promote --to-claude-md --data-dir <dir>`
+When: Registry has 1 Working skill candidate
+Then: Candidate displayed with evidence, user prompted for confirmation
+
+---
+'''
+
+[T-255]
+name = "CLI subcommand demote --to-skill"
+traces_to = []
+hash = "8e122922"
+body = '''
+**Traces to:** ARCH-64
+
+Given: `engram demote --to-skill --data-dir <dir>`
+When: Registry has 1 Leech claude-md entry
+Then: Candidate displayed with evidence, user prompted for confirmation
+
+---
+
+## UC-24: Proposal Application Tests
+'''
+
+[T-256]
+name = "Proposal ingestion — valid JSON"
+traces_to = []
+hash = "883ec78b"
+body = '''
+**Traces to:** ARCH-66
+
+Given: JSON array with 3 proposals (Working, Leech, Noise)
+When: I ingest proposals from stdin
+Then: All 3 parsed with correct quadrant, action, target_path, evidence
+
+---
+'''
+
+[T-257]
+name = "Proposal ingestion — invalid schema skipped"
+traces_to = []
+hash = "8880e2ab"
+body = '''
+**Traces to:** ARCH-66
+
+Given: JSON array with 2 valid proposals and 1 missing required fields
+When: I ingest proposals
+Then: 2 valid proposals parsed, invalid one skipped with warning
+
+---
+'''
+
+[T-258]
+name = "Working staleness — content rewrite"
+traces_to = []
+hash = "ca16686b"
+body = '''
+**Traces to:** ARCH-66, ARCH-67
+
+Given: A Working proposal with action "update_content", memory TOML exists
+When: LLM generates rewrite, user confirms
+Then: Memory TOML rewritten with new content, other fields preserved, registry content_hash updated
+
+---
+'''
+
+[T-259]
+name = "Leech rewrite — root cause content_quality"
+traces_to = []
+hash = "53010461"
+body = '''
+**Traces to:** ARCH-66, ARCH-67
+
+Given: A Leech proposal with root cause "content_quality"
+When: LLM generates rewrite, user confirms
+Then: Memory principle and anti_pattern rewritten, keywords preserved
+
+---
+'''
+
+[T-26]
+name = "ListMemories skips unparseable files"
+traces_to = ["ARCH-9", "REQ-9"]
+hash = "4c6f6888"
+body = '''
+**Given** a data directory with 2 valid TOML files and 1 invalid file,
+**When** ListMemories is called,
+**Then** 2 memories are returned and the invalid file is logged to stderr but does not cause an error.
+
+
+---
+
+## SessionStart Surfacing (ARCH-9, ARCH-12)
+'''
+
+[T-260]
+name = "HiddenGem broadening — keywords added"
+traces_to = []
+hash = "ef7de5d4"
+body = '''
+**Traces to:** ARCH-66, ARCH-67
+
+Given: A HiddenGem proposal, memory has keywords=["targ", "build"]
+When: LLM suggests ["test", "check"] as additions, user confirms
+Then: Memory keywords updated to ["targ", "build", "test", "check"]
+
+---
+'''
+
+[T-261]
+name = "Noise removal — file deleted and registry entry removed"
+traces_to = []
+hash = "72110085"
+body = '''
+**Traces to:** ARCH-66
+
+Given: A Noise proposal, memory TOML exists, registry entry exists
+When: User confirms removal
+Then: Memory TOML deleted, registry entry removed
+
+---
+'''
+
+[T-262]
+name = "User confirmation — skip and quit"
+traces_to = []
+hash = "bb880841"
+body = '''
+**Traces to:** ARCH-66
+
+Given: 3 proposals, user responds "a" (apply), "s" (skip), "q" (quit)
+When: Walking proposals
+Then: First applied, second skipped, third not reached. Report: "Applied 1/3 (1 skipped, 1 not reached)"
+
+---
+'''
+
+[T-263]
+name = "No-token behavior — LLM proposals skipped"
+traces_to = []
+hash = "4eda1457"
+body = '''
+**Traces to:** ARCH-66
+
+Given: 2 proposals (1 Working rewrite, 1 Noise removal), no API token
+When: I apply proposals
+Then: Working skipped ("no token"), Noise applied (deterministic). Report: "Applied 1/2 (1 skipped: no token)"
+
+---
+'''
+
+[T-264]
+name = "CLI subcommand maintain --apply"
+traces_to = []
+hash = "ac118c92"
+body = '''
+**Traces to:** ARCH-66
+
+Given: `engram maintain --apply --data-dir <dir> --proposals <file>`
+When: File has 4 proposals
+Then: Summary displayed, then per-proposal confirm/apply loop
+
+---
+'''
+
+[T-265]
+name = "Memory TOML rewriter — atomic write preserves fields"
+traces_to = []
+hash = "ac1e4908"
+body = '''
+**Traces to:** ARCH-67
+
+Given: Memory TOML with title, content, keywords, concepts, observation_type, principle
+When: I rewrite only content and principle
+Then: title, keywords, concepts, observation_type unchanged; content and principle updated
+
+---
+
+## UC-25: Evaluate Strip Preprocessing Tests
+'''
+
+[T-266]
+name = "Strip applied before LLM evaluation"
+traces_to = []
+hash = "de522bbd"
+body = '''
+**Traces to:** ARCH-68
+
+Given: Transcript with 100 lines (80 tool results, 20 conversation)
+When: Evaluator runs with StripFunc=sessionctx.Strip
+Then: LLM receives only the 20 conversation lines
+
+---
+'''
+
+[T-267]
+name = "Empty post-strip transcript — evaluation skipped"
+traces_to = []
+hash = "28744447"
+body = '''
+**Traces to:** ARCH-68
+
+Given: Transcript that is entirely tool results (0 conversation lines after strip)
+When: Evaluator runs with StripFunc
+Then: No LLM call made, no error returned, stderr message logged
+
+---
+'''
+
+[T-268]
+name = "Default StripFunc is no-op — backward compatible"
+traces_to = []
+hash = "14b0d81b"
+body = '''
+**Traces to:** ARCH-68
+
+Given: Evaluator created without WithStripFunc option
+When: Evaluator runs with a transcript
+Then: Full transcript passed to LLM (no stripping)
+
+---
+'''
+
+[T-269]
+name = "CLI wiring injects sessionctx.Strip"
+traces_to = []
+hash = "37492411"
+body = '''
+**Traces to:** ARCH-68
+
+Given: `engram evaluate --data-dir <dir>` with transcript on stdin
+When: CLI wires evaluator
+Then: WithStripFunc(sessionctx.Strip) is passed to evaluator
+
+---
+
+## L4 → ARCH Traceability (UC-4, UC-5, UC-24, UC-25)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-62 | T-238, T-239, T-242, T-243, T-244, T-245, T-246, T-247 |
+| ARCH-63 | T-240, T-241 |
+| ARCH-64 | T-248, T-249, T-250, T-253, T-254, T-255 |
+| ARCH-65 | T-251, T-252, T-253 |
+| ARCH-66 | T-256, T-257, T-258, T-259, T-260, T-261, T-262, T-263, T-264 |
+| ARCH-67 | T-258, T-259, T-260, T-265 |
+| ARCH-68 | T-266, T-267, T-268, T-269 |
+
+All ARCH items have test coverage.
+
+---
+
+## UC-26: First-Class Non-Memory Instruction Sources Tests
+'''
+
+[T-27]
+name = "SessionStart surfaces top 20 by recency"
+traces_to = ["ARCH-9", "ARCH-12", "REQ-9", "DES-5"]
+hash = "0b3bc5c6"
+body = '''
+**Given** a data directory with 25 memory files,
+**When** surface is called with mode session-start,
+**Then** output contains exactly 20 memory entries in DES-5 format, ordered by `updated_at` descending.
+'''
+
+[T-270]
+name = "Discover CLAUDE.md sources"
+traces_to = []
+hash = "840a13c8"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Two CLAUDE.md files exist (project and global), each with bullet items
+When: Registrar discovers sources with configured paths
+Then: Entries extracted from both files using ClaudeMDExtractor, source type "claude-md"
+
+---
+'''
+
+[T-271]
+name = "Discover rule files"
+traces_to = []
+hash = "425cca12"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Rules directory contains 2 rule files
+When: Registrar discovers sources
+Then: Entries extracted for each rule file using RuleExtractor, source type "rule"
+
+---
+'''
+
+[T-272]
+name = "Discover skill files"
+traces_to = []
+hash = "84756fad"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Skills directory contains 2 skill subdirectories with SKILL.md files
+When: Registrar discovers sources
+Then: Entries extracted for each skill using SkillExtractor, source type "skill"
+
+---
+'''
+
+[T-273]
+name = "Register new entries"
+traces_to = []
+hash = "180efe6a"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry is empty, 3 sources discovered (1 claude-md, 1 rule, 1 skill)
+When: Registrar runs registration phase
+Then: Registry.Register called for each entry with correct ID, source type, content hash
+
+---
+'''
+
+[T-274]
+name = "Update changed entries — content hash differs"
+traces_to = []
+hash = "241b2e16"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry has entry with ID "rule:go.md" and content hash "abc123"
+When: Registrar discovers same rule with different content (new hash "def456")
+Then: Entry updated with new content_hash and updated_at; surfaced_count and evaluations preserved
+
+---
+'''
+
+[T-275]
+name = "Stale entry pruning — removes absent non-memory entries"
+traces_to = []
+hash = "02988f8e"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry has entries ["rule:go.md", "rule:deleted.md", "memory:foo.toml"]
+When: Registrar discovers only ["rule:go.md"] (deleted.md source file gone)
+Then: "rule:deleted.md" removed via Registry.Remove; "memory:foo.toml" untouched
+
+---
+'''
+
+[T-276]
+name = "Memory entries never pruned"
+traces_to = []
+hash = "7547b130"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry has memory entry "memory:old-memory.toml" not in discovered set
+When: Registrar runs pruning phase
+Then: Memory entry is NOT removed (memory pruning is UC-16 Noise removal)
+
+---
+'''
+
+[T-277]
+name = "Implicit surfacing — records for always-loaded entries"
+traces_to = []
+hash = "60435529"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry has 3 always-loaded entries (1 claude-md, 1 rule, 1 skill)
+When: Registrar runs implicit surfacing phase
+Then: RecordSurfacing called on registry for each; LogSurfacing called on surfacing log for each with mode "session-start"
+
+---
+'''
+
+[T-278]
+name = "Missing source paths silently skipped"
+traces_to = []
+hash = "62331cd9"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Configured CLAUDE.md path does not exist, rules dir does not exist
+When: Registrar discovers sources
+Then: No error returned; discovered set contains only entries from existing paths
+
+---
+'''
+
+[T-279]
+name = "Idempotent registration — second run is no-op"
+traces_to = []
+hash = "510e892a"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registrar already ran once (3 entries registered)
+When: Registrar runs again with same source files unchanged
+Then: No new registrations, no removals, no content hash updates; surfacing incremented again (expected — once per session)
+
+---
+'''
+
+[T-28]
+name = "SessionStart with fewer than 20 memories surfaces all"
+traces_to = ["ARCH-9", "ARCH-12", "REQ-9", "DES-5"]
+hash = "2d1094d3"
+body = '''
+**Given** a data directory with 3 memory files,
+**When** surface is called with mode session-start,
+**Then** output contains all 3 entries in DES-5 format.
+'''
+
+[T-280]
+name = "Fire-and-forget — registration errors don't fail hook"
+traces_to = []
+hash = "06983992"
+body = '''
+**Traces to:** ARCH-69
+
+Given: Registry.Register returns an error for one entry
+When: Registrar runs
+Then: Error logged to stderr; remaining entries still registered; no error returned from Run
+
+---
+'''
+
+[T-283]
+name = "Session-start mode triggers auto-registration"
+traces_to = []
+hash = "26468c85"
+body = '''
+**Traces to:** ARCH-71
+
+Given: `engram surface --mode session-start --data-dir <dir>`
+When: CLI runs surface command
+Then: Registrar.Run is called before memory surfacing
+
+---
+'''
+
+[T-284]
+name = "Non-session-start modes skip auto-registration"
+traces_to = []
+hash = "ecbc57f9"
+body = '''
+**Traces to:** ARCH-71
+
+Given: `engram surface --mode prompt --data-dir <dir>`
+When: CLI runs surface command
+Then: Registrar.Run is NOT called; only memory surfacing executes
+
+---
+
+## L4 → ARCH Traceability (UC-26)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-69 | T-270, T-271, T-272, T-273, T-274, T-275, T-276, T-277, T-278, T-279, T-280 |
+| ARCH-71 | T-283, T-284 |
+
+All ARCH items have test coverage.
+
+---
+
+## UC-27: Global Binary Installation
+'''
+
+[T-285]
+name = "Symlink created when none exists"
+traces_to = []
+hash = "e746ebf5"
+body = '''
+**Traces to:** ARCH-72 (REQ-119)
+
+Given: `~/.local/bin/engram` does not exist, `~/.claude/engram/bin/engram` is a valid binary
+When: SessionStart hook runs
+Then: `~/.local/bin/engram` is a symlink pointing to `~/.claude/engram/bin/engram`
+
+- Verification: shell (readlink check)
+
+---
+'''
+
+[T-286]
+name = "Target directory created if missing"
+traces_to = []
+hash = "024988a3"
+body = '''
+**Traces to:** ARCH-72 (REQ-119)
+
+Given: `~/.local/bin/` directory does not exist
+When: SessionStart hook runs
+Then: `~/.local/bin/` is created and symlink is placed inside it
+
+- Verification: shell (directory existence + symlink check)
+
+---
+'''
+
+[T-287]
+name = "Idempotent — correct symlink unchanged"
+traces_to = []
+hash = "a6eed497"
+body = '''
+**Traces to:** ARCH-72 (REQ-120)
+
+Given: `~/.local/bin/engram` already symlinks to `~/.claude/engram/bin/engram`
+When: SessionStart hook runs
+Then: Symlink unchanged, no errors logged
+
+- Verification: shell (readlink before/after, stderr empty)
+
+---
+'''
+
+[T-288]
+name = "Stale symlink not replaced (no-clobber)"
+traces_to = []
+hash = "0582e2ad"
+body = '''
+**Traces to:** ARCH-72 (REQ-120, REQ-121)
+
+Given: `~/.local/bin/engram` symlinks to `/old/path/engram` (wrong target)
+When: SessionStart hook runs
+Then: Warning logged to stderr, symlink NOT replaced
+
+- Verification: shell (readlink unchanged, stderr contains warning)
+
+---
+'''
+
+[T-289]
+name = "No-clobber — regular file preserved"
+traces_to = []
+hash = "f22b638a"
+body = '''
+**Traces to:** ARCH-72 (REQ-121)
+
+Given: `~/.local/bin/engram` is a regular file (not a symlink)
+When: SessionStart hook runs
+Then: File preserved intact, warning logged to stderr
+
+- Verification: shell (file unchanged, stderr contains warning)
+
+---
+'''
+
+[T-29]
+name = "SessionStart with no memories produces empty output"
+traces_to = ["ARCH-9", "ARCH-12", "REQ-9"]
+hash = "7313c4e7"
+body = '''
+**Given** a data directory with no memory files,
+**When** surface is called with mode session-start,
+**Then** stdout is empty.
+
+
+---
+
+## UserPromptSubmit Surfacing (ARCH-9, ARCH-10, ARCH-12)
+'''
+
+[T-290]
+name = "Fire-and-forget — permission error doesn't block session"
+traces_to = []
+hash = "301e9c90"
+body = '''
+**Traces to:** ARCH-72 (REQ-122)
+
+Given: `~/.local/bin/` is read-only (permission denied for symlink creation)
+When: SessionStart hook runs
+Then: Session start continues, surface output still produced, error logged to stderr
+
+- Verification: shell (hook exits 0, stdout has surface JSON)
+
+---
+
+## L4 → ARCH Traceability (UC-27)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-72 | T-285, T-286, T-287, T-288, T-289, T-290 |
+
+All ARCH items have test coverage.
+
+---
+
+## UC-28: Automatic Maintenance and Promotion Triggers Tests
+'''
+
+[T-291]
+name = "Noise memory detected → noise_removal signal"
+traces_to = []
+hash = "04967906"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=10, effectiveness=0% (all ignored), ≥5 evaluations
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="noise_removal", quadrant="Noise" is returned
+
+---
+'''
+
+[T-292]
+name = "Leech memory detected → leech_rewrite signal"
+traces_to = []
+hash = "466c7d44"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=20, effectiveness=15%, ≥5 evaluations (high surfacing, low follow-through)
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="leech_rewrite", quadrant="Leech" is returned
+
+---
+'''
+
+[T-293]
+name = "Stale Working memory → staleness_review signal"
+traces_to = []
+hash = "1ccb27e4"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory in Working quadrant with last_surfaced >90 days ago
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="staleness_review", quadrant="Working" is returned
+
+---
+'''
+
+[T-294]
+name = "Hidden Gem detected → hidden_gem_broadening signal"
+traces_to = []
+hash = "d531f012"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=2, effectiveness=90%, ≥5 evaluations (low surfacing, high follow-through)
+When: Detector.Detect runs
+Then: Signal with type="maintain", signal="hidden_gem_broadening", quadrant="HiddenGem" is returned
+
+---
+'''
+
+[T-295]
+name = "Memory with <5 evaluations → no signal"
+traces_to = []
+hash = "f68b61fb"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: A memory with surfaced_count=3, 2 evaluations (InsufficientData quadrant)
+When: Detector.Detect runs
+Then: No signal generated for this memory
+
+---
+'''
+
+[T-296]
+name = "Memory-to-skill candidate detected"
+traces_to = []
+hash = "120cdb12"
+body = '''
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A memory with surfaced_count >= promotion threshold, not InsufficientData quadrant
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="memory_to_skill" is returned
+
+---
+'''
+
+[T-297]
+name = "Skill promotion candidate emits graduation signal"
+traces_to = []
+hash = "8c90f529"
+body = '''
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A skill in Working quadrant with surfaced_count >= promotion threshold
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="graduation" is returned, and Summary contains recommendation text about promoting to CLAUDE.md
+
+---
+'''
+
+[T-298]
+name = "CLAUDE.md demotion candidate emits graduation signal"
+traces_to = []
+hash = "a3fd095c"
+body = '''
+**Traces to:** ARCH-73 (REQ-124)
+
+Given: A CLAUDE.md entry in Leech quadrant
+When: Detector.Detect runs
+Then: Signal with type="promote", signal="graduation" is returned, and Summary contains recommendation text about demoting to skill
+
+---
+'''
+
+[T-299]
+name = "Queue write creates file if absent"
+traces_to = []
+hash = "d9d514ef"
+body = '''
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: No proposal-queue.jsonl exists
+When: QueueStore.Append is called with signals
+Then: File created with one JSON line per signal
+
+---
+'''
+
+[T-3]
+name = "LLM classifier returns tier A (explicit instruction)"
+traces_to = ["ARCH-2", "REQ-2", "REQ-7"]
+hash = "90caf08d"
+body = '''
+**Given** a message with a learning signal (explicit instruction that isn't a fast-path keyword, e.g., "Use fish shell exclusively in this project"),
+**When** Classify is called,
+**Then** the LLM returns ClassifiedMemory with Tier "A" and anti_pattern is populated.
+
+Uses fake LLM returning tier A with anti-pattern.
+'''
+
+[T-30]
+name = "BM25 ranking surfaces top relevant memories"
+traces_to = ["ARCH-9", "ARCH-12", "REQ-10", "DES-6"]
+hash = "f265892c"
+body = '''
+**Given** memories A (title: "Using Git", content: "Commit workflow...") and B (title: "Build System", content: "targ build target..."), and a user message "how do I commit?",
+**When** surface is called with mode prompt,
+**Then** memory A is ranked higher than B by BM25 relevance score (higher score due to term "commit" in content). Top 10 ranked results are surfaced in DES-6 format.
+
+- Type: example-based (BM25 deterministic, ranking depends on term frequency and document frequency)
+'''
+
+[T-300]
+name = "Queue write is atomic (temp+rename)"
+traces_to = []
+hash = "d105a7cb"
+body = '''
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: An existing proposal-queue.jsonl
+When: QueueStore.Append is called
+Then: createTemp is called, content written to temp, rename to final path
+
+---
+'''
+
+[T-301]
+name = "Queue read skips malformed lines"
+traces_to = []
+hash = "29bdde2d"
+body = '''
+**Traces to:** ARCH-74 (REQ-125)
+
+Given: A proposal-queue.jsonl with 3 valid lines and 1 malformed line
+When: QueueStore.Read is called
+Then: Returns 3 signals, malformed line skipped without error
+
+---
+'''
+
+[T-302]
+name = "Stale entries (>30d) pruned on detect"
+traces_to = []
+hash = "57f2104a"
+body = '''
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with entries: one 10 days old, one 45 days old
+When: QueueStore.Prune is called
+Then: 45-day entry removed, 10-day entry preserved
+
+---
+'''
+
+[T-303]
+name = "Entries for deleted memories pruned"
+traces_to = []
+hash = "39916690"
+body = '''
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with entry for memory path that no longer exists
+When: QueueStore.Prune is called with existsCheck returning false
+Then: Entry removed
+
+---
+'''
+
+[T-304]
+name = "Duplicate signals deduplicated"
+traces_to = []
+hash = "95418c62"
+body = '''
+**Traces to:** ARCH-74 (REQ-126)
+
+Given: Queue with two entries having same source_id + type
+When: QueueStore.Prune is called
+Then: Only newest entry preserved
+
+---
+'''
+
+[T-305]
+name = "SessionStart surfaces enriched signal detail with memory content"
+traces_to = []
+hash = "ab773f9f"
+body = '''
+**Traces to:** ARCH-75 (REQ-127)
+
+Given: Queue with 2 signals, corresponding memory TOMLs exist
+When: signal-surface runs
+Then: Output includes memory title, content excerpt, effectiveness stats, and CLI action instructions for each signal
+
+---
+'''
+
+[T-306]
+name = "Empty queue produces no output"
+traces_to = []
+hash = "75d6953e"
+body = '''
+**Traces to:** ARCH-75 (REQ-127)
+
+Given: Empty proposal-queue.jsonl (or file doesn't exist)
+When: signal-surface runs
+Then: No output produced
+
+---
+'''
+
+[T-307]
+name = "signal-surface output is valid hook JSON"
+traces_to = []
+hash = "5c2051b6"
+body = '''
+**Traces to:** ARCH-75, ARCH-76 (DES-46)
+
+Given: Queue with signals
+When: signal-surface --format json runs
+Then: Output is valid JSON with `additionalContext` field compatible with SessionStart hook schema
+
+---
+'''
+
+[T-309]
+name = "Detection with missing registry → skip silently"
+traces_to = []
+hash = "cb9e2cd8"
+body = '''
+**Traces to:** ARCH-73 (REQ-123)
+
+Given: No memory TOML files exist in data directory
+When: Detector.Detect runs
+Then: Returns empty signal list, no error
+
+---
+'''
+
+[T-31]
+name = "Low-relevance memories produce empty output"
+traces_to = ["ARCH-9", "ARCH-12", "REQ-10"]
+hash = "10b52bca"
+body = '''
+**Given** memories with content unrelated to user query, and a user message "hello world",
+**When** surface is called with mode prompt,
+**Then** BM25 scores all memories as zero or near-zero (no query terms found). No surfacing reminder is emitted (zero overhead).
+'''
+
+[T-310]
+name = "Stop hook calls signal-detect after audit"
+traces_to = []
+hash = "9204d0d6"
+body = '''
+**Traces to:** ARCH-76 (DES-45)
+
+Given: A complete Stop hook script
+When: Inspecting hook flow
+Then: signal-detect invocation appears after audit, with fire-and-forget error handling
+
+---
+'''
+
+[T-311]
+name = "SessionStart merges signal-surface into existing output"
+traces_to = []
+hash = "46cef729"
+body = '''
+**Traces to:** ARCH-76 (DES-44)
+
+Given: SessionStart hook produces surface output + signal-surface produces signal output
+When: SessionStart hook runs
+Then: Both outputs merged into single additionalContext
+
+---
+'''
+
+[T-312]
+name = "Remove action deletes TOML + removes registry entry"
+traces_to = []
+hash = "09c42e34"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists and is registered
+When: Applier.Apply with action="remove"
+Then: TOML file deleted, registry entry removed, queue entry cleared
+
+---
+'''
+
+[T-313]
+name = "Rewrite action updates TOML fields + registry hash"
+traces_to = []
+hash = "97890f2c"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists with title="old" and content="old content"
+When: Applier.Apply with action="rewrite", fields={"title":"new","content":"new content"}
+Then: TOML updated with new values, registry content_hash updated
+
+---
+'''
+
+[T-314]
+name = "Broaden action appends keywords to TOML"
+traces_to = []
+hash = "33504def"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML with keywords=["go","test"]
+When: Applier.Apply with action="broaden", keywords=["lint","ci"]
+Then: TOML keywords=["go","test","lint","ci"]
+
+---
+'''
+
+[T-315]
+name = "Escalate action updates escalation_level field"
+traces_to = []
+hash = "0f3e0588"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML with escalation_level=1
+When: Applier.Apply with action="escalate", level=2
+Then: TOML escalation_level=2
+
+---
+'''
+
+[T-316]
+name = "Apply clears matching signal from queue"
+traces_to = []
+hash = "fc4247b1"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: Queue has signal for memory "x.toml"
+When: Applier.Apply runs successfully for "x.toml"
+Then: Signal for "x.toml" removed from queue
+
+---
+'''
+
+[T-317]
+name = "Apply with missing memory file returns error"
+traces_to = []
+hash = "704e1bc5"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: Memory path points to nonexistent file
+When: Applier.Apply with action="rewrite"
+Then: ApplyResult with success=false, error describes missing file
+
+---
+'''
+
+[T-318]
+name = "Apply rewrite is atomic (temp+rename)"
+traces_to = []
+hash = "3dc2cb27"
+body = '''
+**Traces to:** ARCH-77 (REQ-128)
+
+Given: A memory TOML file exists
+When: Applier.Apply with action="rewrite"
+Then: writeFile uses atomic temp+rename pattern
+
+---
+'''
+
+[T-319]
+name = "Promote --content skips LLM generation"
+traces_to = []
+hash = "8dc2021c"
+body = '''
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{Content: "skill content"}
+When: Promote executes
+Then: Generator.Generate is NOT called, supplied content used instead
+
+---
+'''
+
+[T-32]
+name = "BM25 scores term frequency within memory text"
+traces_to = ["ARCH-9", "REQ-10"]
+hash = "2a66d79c"
+body = '''
+**Given** a memory with title "Git Workflow" and content mentioning "commit" 5 times, and a user message "commit commit commit",
+**When** surface is called with mode prompt,
+**Then** BM25 scores the memory based on term frequency (TF-IDF). Higher frequency in both query and memory = higher score.
+
+- Type: example-based (BM25 term frequency scoring)
+
+---
+
+## PreToolUse BM25 Candidate Pruning (ARCH-10)
+'''
+
+[T-320]
+name = "Promote --yes skips confirmation prompt"
+traces_to = []
+hash = "71ea38ad"
+body = '''
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{SkipConfirm: true}
+When: Promote executes
+Then: Confirmer.Confirm is NOT called
+
+---
+'''
+
+[T-321]
+name = "Promote --content + --yes still does registry merge"
+traces_to = []
+hash = "d4197975"
+body = '''
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with PromoteOpts{Content: "...", SkipConfirm: true}
+When: Promote executes
+Then: Registry merge still happens (source merged into target)
+
+---
+'''
+
+[T-322]
+name = "Promote without --content uses existing LLM flow"
+traces_to = []
+hash = "22f9f508"
+body = '''
+**Traces to:** ARCH-78 (REQ-129)
+
+Given: Promote called with zero-value PromoteOpts
+When: Promote executes
+Then: Generator.Generate IS called (existing flow unchanged)
+
+---
+
+## L4 → ARCH Traceability (UC-28)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-73 | T-291, T-292, T-293, T-294, T-295, T-296, T-297, T-298, T-309 |
+| ARCH-74 | T-299, T-300, T-301, T-302, T-303, T-304 |
+| ARCH-75 | T-305, T-306, T-307, T-311 |
+| ARCH-76 | T-307, T-310, T-311 |
+| ARCH-77 | T-312, T-313, T-314, T-315, T-316, T-317, T-318 |
+| ARCH-78 | T-319, T-320, T-321, T-322 |
+
+All ARCH items have test coverage.
+
+---
+
+## P6e: Escalation wiring to enforcement_level
+'''
+
+[T-323]
+name = "Merge rejects non-memory source type"
+traces_to = []
+hash = "d19c2245"
+body = '''
+**Traces to:** ARCH-23 (registry Merge operation)
+
+Given: Registry has one entry with source_type "rule" and one with source_type "memory"
+When: Merge is called with either order
+Then: Returns ErrMergeSourceType; neither entry is modified
+
+---
+'''
+
+[T-327]
+name = "No duplicates — all singletons, no merges"
+traces_to = ["REQ-130"]
+hash = "3466902e"
+body = '''
+**Given** a set of memories with no pairwise keyword overlap >50%,
+**When** Consolidate is called,
+**Then** no merges occur and all memories remain unchanged.
+'''
+
+[T-328]
+name = "Two memories with >50% keyword overlap form a cluster"
+traces_to = ["REQ-130", "REQ-131"]
+hash = "61f0d1ef"
+body = '''
+**Given** two memories where 3 of 5 keywords match (60% overlap),
+**When** Consolidate is called,
+**Then** the two are merged: survivor retains enriched principle, unioned keywords; absorbed memory is deleted.
+'''
+
+[T-329]
+name = "Transitive closure — three-way cluster"
+traces_to = ["REQ-130"]
+hash = "4b700f39"
+body = '''
+**Given** memories A, B, C where A overlaps B and B overlaps C but A does not overlap C,
+**When** Consolidate is called,
+**Then** all three are in one cluster. Two are merged into the survivor.
+'''
+
+[T-33]
+name = "Pre-filter ranks anti-pattern candidates by BM25"
+traces_to = ["ARCH-10", "REQ-11"]
+hash = "a5954df1"
+body = '''
+**Given** memories with anti_pattern (candidates: "manual git commit", "avoid hardcoding secrets") with searchable text, and a tool call {name: "Bash", input: "git commit -m 'fix'"},
+**When** surface is called with mode tool,
+**Then** BM25 scores each anti_pattern candidate against the tool input. Top 5 ranked candidates are surfaced. Unrelated candidates may score zero.
+'''
+
+[T-330]
+name = "Memories at exactly 50% overlap are NOT clustered"
+traces_to = ["REQ-130"]
+hash = "e489dcbf"
+body = '''
+**Given** two memories where exactly 50% of keywords match,
+**When** Consolidate is called,
+**Then** no merge occurs (threshold is >50%, not >=50%).
+'''
+
+[T-331]
+name = "Highest effectiveness score survives"
+traces_to = ["REQ-131"]
+hash = "7a325f3a"
+body = '''
+**Given** a cluster of two memories with effectiveness scores 0.8 and 0.4,
+**When** the survivor is selected,
+**Then** the memory with score 0.8 is chosen as survivor.
+'''
+
+[T-332]
+name = "Null-effectiveness loses to scored memory"
+traces_to = ["REQ-131"]
+hash = "7793fc25"
+body = '''
+**Given** a cluster where one memory has 0.6 effectiveness and another has insufficient data (null),
+**When** the survivor is selected,
+**Then** the scored memory (0.6) is chosen as survivor.
+'''
+
+[T-333]
+name = "Among null-effectiveness, highest surfaced_count wins"
+traces_to = ["REQ-131"]
+hash = "ef403ec0"
+body = '''
+**Given** a cluster where both memories have null effectiveness, one with surfaced_count=10 and another with surfaced_count=3,
+**When** the survivor is selected,
+**Then** the memory with surfaced_count=10 is chosen as survivor.
+'''
+
+[T-334]
+name = "Tie-breaking by alphabetical file path"
+traces_to = ["REQ-131"]
+hash = "43efa3da"
+body = '''
+**Given** a cluster where both memories have identical effectiveness and surfaced_count,
+**When** the survivor is selected,
+**Then** the memory with the alphabetically-first file path is chosen.
+'''
+
+[T-335]
+name = "Absorbed memory's counters appear in survivor's absorbed array"
+traces_to = ["REQ-132", "REQ-60", "REQ-63"]
+hash = "14ba5660"
+body = '''
+**Given** a merge where the absorbed memory has surfaced_count=5, followed_count=3, contradicted_count=1,
+**When** the merge completes,
+**Then** the survivor's `[[absorbed]]` array contains an entry with those counters, the absorbed memory's path in `from`, and a `merged_at` timestamp.
+'''
+
+[T-336]
+name = "Existing absorbed entries on survivor are preserved"
+traces_to = ["REQ-132"]
+hash = "7b3903e0"
+body = '''
+**Given** a survivor that already has 2 entries in its `[[absorbed]]` array,
+**When** another memory is merged into it,
+**Then** the survivor has 3 entries in `[[absorbed]]` — the original 2 plus the new one.
+'''
+
+[T-337]
+name = "No LLM — longest principle text used"
+traces_to = ["REQ-133"]
+hash = "cdafffea"
+body = '''
+**Given** two overlapping memories and no LLM client (nil),
+**When** Consolidate merges them,
+**Then** the survivor's principle is the longer of the two original principles.
+'''
+
+[T-338]
+name = "Keywords and concepts unioned regardless of LLM"
+traces_to = ["REQ-133"]
+hash = "d233add5"
+body = '''
+**Given** two overlapping memories with keywords ["a","b","c"] and ["b","c","d"],
+**When** Consolidate merges them (with or without LLM),
+**Then** the survivor's keywords are ["a","b","c","d"] (deduplicated, case-insensitive).
+'''
+
+[T-339]
+name = "Consolidation runs before classification"
+traces_to = ["DES-47", "REQ-134"]
+hash = "5976a699"
+body = '''
+**Given** a data directory with 4 duplicate memories (2 clusters of 2),
+**When** `signal-detect` runs end-to-end,
+**Then** only 2 memories are classified into quadrants (the survivors), not 4.
+'''
+
+[T-34]
+name = "Pre-filter skips memories without anti_pattern"
+traces_to = ["ARCH-10", "REQ-11"]
+hash = "95130ab1"
+body = '''
+**Given** memories: one with anti_pattern (candidate), one with empty anti_pattern (not a candidate), and a tool call containing relevant terms,
+**When** surface is called with mode tool,
+**Then** only anti_pattern memories are indexed and scored. Non-anti_pattern memories are excluded from candidate set before BM25 indexing (tier-aware per REQ-7).
+'''
+
+[T-340]
+name = "Per-merge stderr log line emitted"
+traces_to = ["DES-48"]
+hash = "233bdc67"
+body = '''
+**Given** two overlapping memories,
+**When** Consolidate merges them,
+**Then** stderr contains `[engram] Merged <title> into <title>` and a summary line `[engram] Consolidated 1 duplicate clusters (1 memories merged)`.
+'''
+
+[T-341]
+name = "No duplicates — no stderr output"
+traces_to = ["DES-48"]
+hash = "62343a96"
+body = '''
+**Given** memories with no overlapping keywords,
+**When** Consolidate is called,
+**Then** no consolidation output is written to stderr.
+'''
+
+[T-342]
+name = "MergeExecutor error — fire-and-forget per cluster"
+traces_to = ["ARCH-79", "ARCH-6"]
+hash = "a8dab769"
+body = '''
+**Given** a MergeExecutor that returns an error for one cluster,
+**When** Consolidate processes two clusters,
+**Then** the failing cluster is logged to stderr and skipped; the second cluster is still merged successfully.
+'''
+
+[T-343]
+name = "Cluster of 3 — iterative pair-by-pair merge"
+traces_to = ["ARCH-79", "REQ-132"]
+hash = "3bdf3e69"
+body = '''
+**Given** three overlapping memories in one cluster,
+**When** Consolidate merges them,
+**Then** MergeExecutor is called twice (first non-survivor into survivor, then second non-survivor into enriched survivor). Survivor has 2 absorbed entries.
+'''
+
+[T-344]
+name = "signal-detect integration — duplicates consolidated before signals emitted"
+traces_to = ["ARCH-80", "DES-47"]
+hash = "939c7433"
+body = '''
+**Given** a data directory with 3 copies of a "use targ check-full" memory,
+**When** `engram signal-detect` runs,
+**Then** the proposal queue contains signals for 1 consolidated memory, not 3 individual ones.
+
+
+---
+
+## L2 → TEST Traceability (UC-34)
+
+| L2 Item | TEST Coverage |
+|---------|--------------|
+| REQ-130 | T-327, T-328, T-329, T-330 |
+| REQ-131 | T-331, T-332, T-333, T-334 |
+| REQ-132 | T-335, T-336, T-343 |
+| REQ-133 | T-337, T-338 |
+| REQ-134 | T-339 |
+| DES-47 | T-339, T-344 |
+| DES-48 | T-340, T-341 |
+| ARCH-79 | T-342, T-343 |
+| ARCH-80 | T-344 |
+
+All UC-34 (issue #288) L2 items have test coverage.
+'''
+
+[T-35]
+name = "Pre-filter returns empty when no candidates rank above zero"
+traces_to = ["ARCH-10", "REQ-11"]
+hash = "09b52b19"
+body = '''
+**Given** anti_pattern memories with searchable text (candidates), and a tool call with no overlapping terms,
+**When** surface is called with mode tool,
+**Then** BM25 scores candidates as zero or near-zero (no query terms found). No surfacing reminder is emitted (zero overhead, zero advisory).
+'''
+
+[T-4]
+name = "LLM classifier returns tier B/C with tier-gated anti-pattern"
+traces_to = ["ARCH-2", "REQ-2", "REQ-7"]
+hash = "518f9418"
+body = '''
+**Given** messages classifying as tier B (teachable correction) or tier C (contextual fact),
+**When** Classify is called,
+**Then** tier B generates anti_pattern when generalizable (LLM decides), tier C generates empty anti_pattern.
+
+Uses fake LLM returning appropriate tiers and anti-pattern values.
+
+
+---
+
+## Transcript Context Reading (ARCH-3)
+'''
+
+[T-40]
+name = "Mode session-start routes to SessionStart surfacing"
+traces_to = ["ARCH-12", "REQ-14"]
+hash = "71b7974c"
+body = '''
+**Given** the surface subcommand with `--mode session-start --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories and produces DES-5 format output.
+'''
+
+[T-41]
+name = "Mode prompt routes to keyword surfacing"
+traces_to = ["ARCH-12", "REQ-14"]
+hash = "59212f5c"
+body = '''
+**Given** the surface subcommand with `--mode prompt --message "commit" --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories, matches keywords, and produces DES-6 format output.
+'''
+
+[T-42]
+name = "Mode tool routes to advisory surfacing"
+traces_to = ["ARCH-12", "REQ-14"]
+hash = "032b814c"
+body = '''
+**Given** the surface subcommand with `--mode tool --tool-name Bash --tool-input '{"command":"git commit"}' --data-dir <tmpdir>`,
+**When** Run is called,
+**Then** it reads memories, runs pre-filter, emits system-reminder advisory with matching memories (title, principle, file path) or no output if no matches.
+'''
+
+[T-43]
+name = "SessionStart hook calls surface after build"
+traces_to = ["ARCH-13", "DES-8"]
+hash = "5fb56b6d"
+body = '''
+**Given** the session-start hook script,
+**When** its content is read,
+**Then** it calls `engram surface --mode session-start --format json` after the build step, and reshapes the JSON output into `{systemMessage, additionalContext}` format for Claude Code.
+'''
+
+[T-44]
+name = "UserPromptSubmit hook calls both correct and surface"
+traces_to = ["ARCH-13", "DES-8"]
+hash = "1446f708"
+body = '''
+**Given** the user-prompt-submit hook script,
+**When** its content is read,
+**Then** it calls `engram correct` (capturing output) and `engram surface --mode prompt --format json`, combining both into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
+'''
+
+[T-45]
+name = "PreToolUse hook registered in hooks.json"
+traces_to = ["ARCH-13", "DES-8"]
+hash = "9d9558e4"
+body = '''
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `PreToolUse` entry pointing to a hook script.
+'''
+
+[T-46]
+name = "PreToolUse hook script calls surface with tool mode"
+traces_to = ["ARCH-13", "DES-8"]
+hash = "c09d52db"
+body = '''
+**Given** the pre-tool-use hook script,
+**When** its content is read,
+**Then** it reads tool call from stdin JSON and calls `engram surface --mode tool` with tool-name and tool-input flags.
+
+
+---
+
+## Surfacing Instrumentation — Tracking Logic (ARCH-19)
+'''
+
+[T-47]
+name = "Extraction with tier classification and anti-pattern gating"
+traces_to = ["ARCH-15", "REQ-15", "REQ-7"]
+hash = "7ff1e257"
+body = '''
+**Given** a transcript string and a valid OAuth token,
+**When** test calls Extract,
+**Then** Extract returns a non-empty slice of CandidateLearning, each with all fields populated including `tier` (A/B/C) and tier-gated `anti_pattern`. Tier A always has anti_pattern, tier B sometimes (LLM decides), tier C has empty anti_pattern. The HTTP request uses `Authorization: Bearer` header with `Anthropic-Beta: oauth-2025-04-20`.
+
+Uses fake HTTP transport returning canned JSON array with tier and anti-pattern values.
+
+- Verification: unit
+'''
+
+[T-48]
+name = "Extraction without token returns ErrNoToken"
+traces_to = ["ARCH-15", "REQ-18"]
+hash = "2ea09d4e"
+body = '''
+**Given** a transcript string but no token configured,
+**When** test calls Extract,
+**Then** ErrNoToken is returned and no HTTP call is made.
+
+- Verification: unit
+'''
+
+[T-49]
+name = "Invalid LLM response returns error"
+traces_to = ["ARCH-15", "REQ-15"]
+hash = "67561157"
+body = '''
+**Given** a transcript and valid token, and the LLM returns invalid JSON,
+**When** test calls Extract,
+**Then** an error is returned (not an empty slice).
+
+Uses fake HTTP transport returning malformed JSON.
+
+- Verification: unit
+'''
+
+[T-5]
+name = "ReadRecent reads recent transcript portion (~2000 tokens)"
+traces_to = ["ARCH-3", "REQ-X"]
+hash = "08263246"
+body = '''
+**Given** a transcript file with 5000 tokens,
+**When** ReadRecent is called with maxTokens=2000,
+**Then** the last ~2000 tokens are returned (tail of the file).
+
+Uses file I/O with DI injection for testability.
+'''
+
+[T-50]
+name = "Empty extraction returns empty slice"
+traces_to = ["ARCH-15", "REQ-15"]
+hash = "88641d22"
+body = '''
+**Given** a transcript and valid token, and the LLM returns an empty JSON array `[]`,
+**When** test calls Extract,
+**Then** an empty slice is returned (no error). No downstream stages are invoked.
+
+Uses fake HTTP transport returning `[]`.
+
+- Verification: unit
+'''
+
+[T-51]
+name = "Quality gate is embedded in extraction prompt"
+traces_to = ["ARCH-15", "REQ-16"]
+hash = "dab90b1e"
+body = '''
+**Given** the system prompt sent by the TranscriptExtractor implementation,
+**When** the prompt content is inspected,
+**Then** it explicitly instructs rejection of: (1) mechanical patterns, (2) vague generalizations, (3) overly narrow observations. It instructs extraction of: missed corrections, architectural decisions, discovered constraints, working solutions, implicit preferences.
+
+Example-based: verifies prompt content, not LLM behavior.
+
+- Verification: unit
+
+---
+
+## Deduplication (ARCH-16)
+'''
+
+[T-52]
+name = "Candidate with >50% keyword overlap is filtered"
+traces_to = ["ARCH-16", "REQ-17"]
+hash = "e2eebb39"
+body = '''
+**Given** a candidate with keywords ["commit", "git", "push"] and an existing memory with keywords ["commit", "git", "branch"],
+**When** test calls Filter,
+**Then** the candidate is excluded (2/3 = 66% overlap > 50%).
+
+- Verification: unit
+'''
+
+[T-53]
+name = "Candidate with ≤50% keyword overlap survives"
+traces_to = ["ARCH-16", "REQ-17"]
+hash = "70eaf350"
+body = '''
+**Given** a candidate with keywords ["commit", "git", "targ", "build"] and an existing memory with keywords ["commit", "test"],
+**When** test calls Filter,
+**Then** the candidate survives (1/4 = 25% overlap ≤ 50%).
+
+- Verification: unit
+'''
+
+[T-54]
+name = "No existing memories — all candidates survive"
+traces_to = ["ARCH-16", "REQ-17"]
+hash = "065bcd8b"
+body = '''
+**Given** 3 candidates and an empty existing memories slice,
+**When** test calls Filter,
+**Then** all 3 candidates are returned.
+
+- Verification: unit
+'''
+
+[T-55]
+name = "Candidate with empty keywords is never filtered"
+traces_to = ["ARCH-16", "REQ-17"]
+hash = "d8be897e"
+body = '''
+**Given** a candidate with empty keywords array and existing memories with keywords,
+**When** test calls Filter,
+**Then** the candidate survives (0/0 overlap, division by zero handled as 0%).
+
+- Verification: unit
+'''
+
+[T-56]
+name = "Idempotency — second run deduplicates against first run's output"
+traces_to = ["ARCH-16", "REQ-19"]
+hash = "67578751"
+body = '''
+**Given** 3 candidates, the first run writes 2 (one deduped), then the same 3 candidates are submitted again with the 2 written files now existing,
+**When** test calls Filter for the second run,
+**Then** the 2 previously-written candidates are filtered, at most 1 survives (the one that was originally deduped if it doesn't overlap with the new memories either).
+
+Property: Idempotence — running the pipeline twice produces no more files than running it once.
+
+- Verification: unit
+
+---
+
+## Learner Pipeline (ARCH-14)
+'''
+
+[T-57]
+name = "Full pipeline — extract → dedup → write returns file paths"
+traces_to = ["ARCH-14", "REQ-15", "REQ-17", "REQ-20"]
+hash = "d27f63cb"
+body = '''
+**Given** a transcript, with Extractor returning 3 candidates, Retriever returning 1 existing memory, Deduplicator filtering 1 candidate, and Writer succeeding for the remaining 2,
+**When** test calls Learner.Run,
+**Then** Run returns 2 file paths. Stages execute in order: Extract → ListMemories → Filter → Write (×2).
+
+Uses fakes for all four DI interfaces. Verifies call order.
+
+- Verification: unit
+'''
+
+[T-58]
+name = "No learnings extracted — pipeline short-circuits"
+traces_to = ["ARCH-14", "REQ-15"]
+hash = "631fd421"
+body = '''
+**Given** a transcript, with Extractor returning an empty slice,
+**When** test calls Learner.Run,
+**Then** Run returns an empty slice. Retriever, Deduplicator, and Writer are never called.
+
+- Verification: unit
+'''
+
+[T-59]
+name = "All candidates filtered — no files written"
+traces_to = ["ARCH-14", "REQ-17"]
+hash = "a20c7bdd"
+body = '''
+**Given** a transcript, with Extractor returning 2 candidates, Retriever returning existing memories, and Deduplicator filtering all candidates,
+**When** test calls Learner.Run,
+**Then** Run returns an empty slice. Writer is never called.
+
+- Verification: unit
+'''
+
+[T-6]
+name = "ReadRecent with missing file returns empty string (non-fatal)"
+traces_to = ["ARCH-3", "REQ-X"]
+hash = "d56ffe22"
+body = '''
+**Given** a transcript_path pointing to a non-existent file,
+**When** ReadRecent is called,
+**Then** an empty string is returned (non-fatal, context is advisory).
+'''
+
+[T-60]
+name = "Written memories use tier from extraction"
+traces_to = ["ARCH-14", "REQ-7"]
+hash = "81479329"
+body = '''
+**Given** a transcript, with Extractor returning candidates with Tier = "B",
+**When** test calls Learner.Run,
+**Then** every memory passed to Writer has Confidence matching the candidate's Tier (not hardcoded "C").
+
+- Verification: unit
+
+---
+
+## CLI Learn Subcommand (ARCH-17)
+'''
+
+[T-61]
+name = "learn subcommand reads transcript from stdin and runs pipeline"
+traces_to = ["ARCH-17", "REQ-20", "DES-10"]
+hash = "450a3ed8"
+body = '''
+**Given** `engram learn --data-dir <tmpdir>` with a transcript piped to stdin and a valid token,
+**When** Run is called,
+**Then** the pipeline executes (Extractor receives the transcript content). Output to stderr matches DES-10 format with created file paths.
+
+Uses fakes for pipeline stages.
+
+- Verification: unit
+'''
+
+[T-62]
+name = "learn without token emits error to stderr"
+traces_to = ["ARCH-17", "REQ-18"]
+hash = "540a9803"
+body = '''
+**Given** `engram learn --data-dir <tmpdir>` with no `ENGRAM_API_TOKEN` set,
+**When** Run is called,
+**Then** stderr contains `[engram] Error: session learning skipped — no API token configured`. No files are created. Exit 0.
+
+- Verification: unit
+'''
+
+[T-63]
+name = "learn with extracted learnings emits DES-10 format"
+traces_to = ["ARCH-17", "DES-10"]
+hash = "e68bfdf2"
+body = '''
+**Given** a pipeline that extracts 2 learnings and skips 1 duplicate,
+**When** learn completes,
+**Then** stderr contains: `[engram] Extracted 2 learnings from session.` followed by title/path lines with tier breakdown `(A: X, B: Y, C: Z)`, then `[engram] Skipped 1 duplicates.`
+
+- Verification: unit
+'''
+
+[T-64]
+name = "learn with no learnings emits DES-10 empty format"
+traces_to = ["ARCH-17", "DES-10"]
+hash = "d1724fb3"
+body = '''
+**Given** a pipeline that extracts 0 learnings (or all are deduped),
+**When** learn completes,
+**Then** stderr contains: `[engram] No new learnings extracted.`
+
+- Verification: unit
+
+---
+
+## Hook Script Integration (ARCH-18)
+'''
+
+[T-65]
+name = "hooks.json registers PreCompact hook"
+traces_to = ["ARCH-18", "DES-9"]
+hash = "23e66030"
+body = '''
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `PreCompact` entry pointing to a hook script.
+
+- Verification: linter
+'''
+
+[T-66]
+name = "hooks.json registers SessionEnd hook"
+traces_to = ["ARCH-18", "DES-9"]
+hash = "ef7e36ce"
+body = '''
+**Given** the hooks definition at `hooks/hooks.json`,
+**When** its content is read,
+**Then** it contains a `SessionEnd` entry pointing to a hook script.
+
+- Verification: linter
+'''
+
+[T-67]
+name = "PreCompact hook script reads transcript and calls engram learn"
+traces_to = ["ARCH-18", "DES-9"]
+hash = "52ec6f22"
+body = '''
+**Given** the PreCompact hook script,
+**When** its content is read,
+**Then** it reads transcript from stdin JSON, retrieves the OAuth token (platform-aware per DES-3), and pipes the transcript to `engram learn --data-dir`. It exits 0 always.
+
+- Verification: linter
+'''
+
+[T-68]
+name = "SessionEnd hook script reads transcript and calls engram learn"
+traces_to = ["ARCH-18", "DES-9"]
+hash = "d8805457"
+body = '''
+**Given** the SessionEnd hook script,
+**When** its content is read,
+**Then** it reads transcript from stdin JSON, retrieves the OAuth token (platform-aware per DES-3), and pipes the transcript to `engram learn --data-dir`. It exits 0 always.
+
+- Verification: linter
+
+---
+
+## UC-1 Bidirectional Traceability
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-14 | T-57, T-58, T-59, T-60, T-95, T-96, T-97 |
+| ARCH-15 | T-47, T-48, T-49, T-50, T-51 |
+| ARCH-16 | T-52, T-53, T-54, T-55, T-56 |
+| ARCH-17 | T-61, T-62, T-63, T-64 |
+| ARCH-18 | T-65, T-66, T-67, T-68 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-15 | T-47, T-49, T-50, T-57, T-58 |
+| REQ-16 | T-51 |
+| REQ-17 | T-52, T-53, T-54, T-55, T-57, T-59 |
+| REQ-18 | T-48, T-62 |
+| REQ-19 | T-56 |
+| REQ-20 | T-57, T-61 |
+| REQ-7 | T-60 |
+| DES-9 | T-65, T-66, T-67, T-68 |
+| DES-10 | T-61, T-63, T-64 |
+| REQ-25 | T-95, T-96, T-97 |
+
+All L2C items have test coverage. All ARCH-14–18 items have test coverage.
+
+---
+
+## Creation Visibility Bidirectional Traceability (Issue #49)
+
+### ARCH → Tests
+
+| ARCH | Tests |
+|------|-------|
+| ARCH-21 | T-84, T-85, T-86, T-87, T-88, T-89, T-90, T-91 |
+| ARCH-12 (update) | T-92, T-93, T-94 |
+| ARCH-14 (update) | T-95, T-96, T-97 |
+| ARCH-13 (update) | T-98, T-99 |
+
+### L2 → Tests
+
+| L2 Item | Tests |
+|---------|-------|
+| REQ-23 | T-84, T-85, T-86, T-87 |
+| REQ-24 | T-88, T-89, T-90, T-91, T-92, T-93, T-94, T-99 |
+| REQ-25 | T-95, T-96, T-97 |
+| REQ-4 | T-98 |
+| DES-3 | T-98 |
+| DES-5 | T-92, T-93, T-94, T-99 |
+
+All issue #49 L2 items (REQ-23, REQ-24, REQ-25, REQ-4 update, DES-3 update, DES-5 update) have test coverage. All ARCH items (ARCH-21, ARCH-12/13/14 updates) have test coverage.
+
+---
+
+## Surfacing Log Infrastructure (ARCH-22)
+'''
+
+[T-69]
+name = "SessionStart JSON format produces summary and context"
+traces_to = ["ARCH-12", "REQ-14", "DES-5"]
+hash = "1483ea80"
+body = '''
+**Given** memories exist and the surface subcommand is called with `--mode session-start --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] Loaded 1 memories."`) and `context` (the full `<system-reminder>` XML block).
+'''
+
+[T-7]
+name = "Classifier includes transcript context in LLM call"
+traces_to = ["ARCH-2", "ARCH-3", "REQ-2", "REQ-X"]
+hash = "0f566d04"
+body = '''
+**Given** a message and recent transcript context,
+**When** Classify is called,
+**Then** the LLM prompt includes both the message and the recent context, improving classification accuracy.
+
+Verifies that context is passed to the LLM call (fake HTTP transport or mock LLM).
+
+
+---
+
+## TOML File Writer (ARCH-4)
+'''
+
+[T-70]
+name = "Prompt JSON format produces summary and context"
+traces_to = ["ARCH-12", "REQ-14", "DES-6"]
+hash = "f7e22af5"
+body = '''
+**Given** a memory with keyword "commit" and the surface subcommand is called with `--mode prompt --message "commit" --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 relevant memories."`) and `context` (the full `<system-reminder>` XML block).
+'''
+
+[T-71]
+name = "Tool JSON format produces summary and context"
+traces_to = ["ARCH-12", "REQ-14", "DES-7"]
+hash = "ab4633cf"
+body = '''
+**Given** a memory with anti_pattern and matching keywords, and the surface subcommand is called with `--mode tool --format json`,
+**When** Run completes,
+**Then** stdout is a JSON object with `summary` (e.g., `"[engram] 1 tool advisories."`) and `context` (the full `<system-reminder>` XML block).
+'''
+
+[T-72]
+name = "No-match JSON format produces empty output"
+traces_to = ["ARCH-12", "REQ-14"]
+hash = "eb622ae1"
+body = '''
+**Given** no memories exist and the surface subcommand is called with `--mode session-start --format json`,
+**When** Run completes,
+**Then** stdout is empty (not an empty JSON object).
+
+
+---
+
+## Hook Script Integration (ARCH-13)
+'''
+
+[T-73]
+name = "ComputeUpdate increments count and sets timestamp"
+traces_to = ["ARCH-19", "REQ-21"]
+hash = "7de14494"
+body = '''
+**Given** a memory with `SurfacedCount` 0 and zero `LastSurfaced`,
+**When** `ComputeUpdate` is called with mode `"prompt"` and a fixed `now` time,
+**Then** the returned `SurfacingUpdate` has `SurfacedCount` 1, `LastSurfaced` equal to `now`, and `SurfacingContexts` `["prompt"]`.
+
+Example-based: verifying exact field values for the simplest case.
+'''
+
+[T-74]
+name = "ComputeUpdate appends to existing contexts"
+traces_to = ["ARCH-19", "REQ-21"]
+hash = "6001c4d2"
+body = '''
+**Given** a memory with `SurfacedCount` 5 and `SurfacingContexts` `["session-start", "prompt", "tool"]`,
+**When** `ComputeUpdate` is called with mode `"prompt"`,
+**Then** the returned update has `SurfacedCount` 6 and `SurfacingContexts` `["session-start", "prompt", "tool", "prompt"]`.
+
+Example-based: verifying append behavior.
+'''
+
+[T-75]
+name = "ComputeUpdate enforces max 10 context entries"
+traces_to = ["ARCH-19", "REQ-21"]
+hash = "fb92e57a"
+body = '''
+**Given** a memory with `SurfacingContexts` containing exactly 10 entries,
+**When** `ComputeUpdate` is called with mode `"tool"`,
+**Then** the returned update has 10 entries with the oldest dropped and `"tool"` appended at the end.
+
+Example-based: boundary condition for FIFO eviction.
+'''
+
+[T-76]
+name = "Recorder updates TOML file with tracking fields"
+traces_to = ["ARCH-19", "REQ-22"]
+hash = "4704ef25"
+body = '''
+**Given** a memory TOML file with existing content fields (title, keywords, etc.) and no tracking fields,
+**When** `RecordSurfacing` is called with that memory and mode `"session-start"`,
+**Then** the TOML file is rewritten with all original fields preserved plus `surfaced_count = 1`, `last_surfaced` set to current time, and `surfacing_contexts = ["session-start"]`.
+
+Example-based: verifying round-trip fidelity and field addition.
+'''
+
+[T-77]
+name = "Recorder preserves existing tracking fields on update"
+traces_to = ["ARCH-19", "REQ-22"]
+hash = "636ecb16"
+body = '''
+**Given** a memory TOML file with `surfaced_count = 3`, `last_surfaced = "2026-03-01T00:00:00Z"`, and `surfacing_contexts = ["prompt", "tool", "prompt"]`,
+**When** `RecordSurfacing` is called with mode `"session-start"`,
+**Then** the file has `surfaced_count = 4`, `last_surfaced` updated to current time, and `surfacing_contexts = ["prompt", "tool", "prompt", "session-start"]`.
+
+Example-based: verifying increment behavior on existing tracking state.
+'''
+
+[T-78]
+name = "Recorder skips memory on read error and continues"
+traces_to = ["ARCH-19", "REQ-22"]
+hash = "2d2e7db2"
+body = '''
+**Given** two memories where the first has an unreadable file path and the second is valid,
+**When** `RecordSurfacing` is called with both,
+**Then** the first is skipped (no panic, no abort), and the second is successfully updated.
+
+Example-based: verifying error isolation per REQ-22 AC-4.
+
+
+---
+
+## Surfacer ↔ Tracker Integration (ARCH-20)
+'''
+
+[T-79]
+name = "Surfacer calls tracker with matched memories and mode"
+traces_to = ["ARCH-20", "REQ-22"]
+hash = "52bd0d3c"
+body = '''
+**Given** a Surfacer with a fake tracker and a retriever returning memories that match a prompt keyword,
+**When** `Run` is called with mode `"prompt"`,
+**Then** the tracker's `RecordSurfacing` is called with the matched memories and mode `"prompt"`.
+
+Example-based: verifying integration wiring.
+'''
+
+[T-8]
+name = "Write creates TOML file with all fields"
+traces_to = ["ARCH-4", "REQ-3"]
+hash = "5af58db0"
+body = '''
+**Given** an EnrichedMemory,
+**When** Write is called with a data directory,
+**Then** a `.toml` file exists at `<data-dir>/memories/<slug>.toml` containing all required fields as valid TOML.
+'''
+
+[T-80]
+name = "Surfacer tracker errors do not propagate"
+traces_to = ["ARCH-20", "REQ-22", "ARCH-6"]
+hash = "431f6b8d"
+body = '''
+**Given** a Surfacer with a tracker that returns an error,
+**When** `Run` is called with mode `"session-start"`,
+**Then** `Run` returns nil (no error), and the surfacing output is still produced.
+
+Example-based: verifying fire-and-forget per ARCH-6.
+'''
+
+[T-81]
+name = "Surfacer with nil tracker produces same output as before"
+traces_to = ["ARCH-20"]
+hash = "8958dac8"
+body = '''
+**Given** a Surfacer without a tracker (nil),
+**When** `Run` is called with mode `"prompt"`,
+**Then** the output is identical to the existing behavior (backward compatible).
+
+Example-based: verifying no regression.
+
+
+---
+
+## Memory Retrieval — Tracking Fields (ARCH-9)
+'''
+
+[T-82]
+name = "ListMemories reads tracking fields from TOML"
+traces_to = ["ARCH-9", "REQ-21"]
+hash = "f31f7c25"
+body = '''
+**Given** a memory TOML file with `surfaced_count = 5`, `last_surfaced = "2026-03-01T00:00:00Z"`, and `surfacing_contexts = ["prompt", "tool"]`,
+**When** `ListMemories` parses the file,
+**Then** the returned `Stored` has `SurfacedCount` 5, `LastSurfaced` equal to the parsed timestamp, and `SurfacingContexts` `["prompt", "tool"]`.
+
+Example-based: verifying field parsing.
+'''
+
+[T-83]
+name = "ListMemories defaults tracking fields when absent"
+traces_to = ["ARCH-9", "REQ-21"]
+hash = "c39e1a11"
+body = '''
+**Given** a memory TOML file with no tracking fields (existing format),
+**When** `ListMemories` parses the file,
+**Then** the returned `Stored` has `SurfacedCount` 0, zero `LastSurfaced`, and empty `SurfacingContexts`.
+
+Example-based: verifying backward compatibility.
+
+
+---
+
+## Creation Log Writer (ARCH-21)
+'''
+
+[T-84]
+name = "Append creates new log file when none exists"
+traces_to = ["ARCH-21", "REQ-23"]
+hash = "72b8cfa3"
+body = '''
+**Given** a data directory with no `creation-log.jsonl` file (readFile returns os.ErrNotExist),
+**When** `LogWriter.Append` is called with a LogEntry `{Timestamp: "2026-03-06T12:00:00Z", Title: "Use targ test", Tier: "A", Filename: "use-targ-test.toml"}`,
+**Then** writeFile is called with content containing exactly one JSON line matching the entry, and the file path is `<data-dir>/creation-log.jsonl`.
+
+Example-based: verifying file creation and JSONL format.
+'''
+
+[T-85]
+name = "Append appends to existing log file"
+traces_to = ["ARCH-21", "REQ-23"]
+hash = "575b155c"
+body = '''
+**Given** a data directory with an existing `creation-log.jsonl` containing one JSON line,
+**When** `LogWriter.Append` is called with a new LogEntry,
+**Then** writeFile is called with content containing two JSON lines: the original line preserved, and the new entry appended.
+
+Example-based: verifying append-not-overwrite behavior.
+'''
+
+[T-86]
+name = "Append sets timestamp from injected clock when empty"
+traces_to = ["ARCH-21", "REQ-23"]
+hash = "fe3d9f73"
+body = '''
+**Given** a LogEntry with empty Timestamp and a LogWriter with `now` returning `2026-03-06T15:00:00Z`,
+**When** `Append` is called,
+**Then** the written JSON line has `timestamp` set to `"2026-03-06T15:00:00Z"`.
+
+Example-based: verifying DI clock injection.
+'''
+
+[T-87]
+name = "Append write error is returned (caller decides fire-and-forget)"
+traces_to = ["ARCH-21", "REQ-23"]
+hash = "dd753e11"
+body = '''
+**Given** a LogWriter whose writeFile returns an error,
+**When** `Append` is called,
+**Then** an error is returned. The caller (Learner pipeline) handles fire-and-forget policy.
+
+Example-based: verifying error propagation to caller boundary.
+
+
+---
+
+## Creation Log Reader (ARCH-21)
+'''
+
+[T-88]
+name = "ReadAndClear returns entries and removes file"
+traces_to = ["ARCH-21", "REQ-24"]
+hash = "649ab57c"
+body = '''
+**Given** a `creation-log.jsonl` with 3 JSON lines,
+**When** `LogReader.ReadAndClear` is called,
+**Then** 3 LogEntry values are returned with correct fields parsed, and removeFile is called with the log file path.
+
+Example-based: verifying read + delete behavior.
+'''
+
+[T-89]
+name = "ReadAndClear with missing file returns empty slice"
+traces_to = ["ARCH-21", "REQ-24"]
+hash = "0bb66bd2"
+body = '''
+**Given** no `creation-log.jsonl` exists (readFile returns os.ErrNotExist),
+**When** `ReadAndClear` is called,
+**Then** an empty slice is returned (no error). removeFile is not called.
+
+Example-based: verifying graceful handling of no log.
+'''
+
+[T-9]
+name = "Filename slug is 3-5 hyphenated lowercase words"
+traces_to = ["ARCH-4", "REQ-3"]
+hash = "31eaba97"
+body = '''
+**Given** an EnrichedMemory with FilenameSummary "Use Targ Not Go Test",
+**When** Write is called,
+**Then** the filename is `use-targ-not-go-test.toml`.
+
+Property-based: generate filename summaries, verify slug format.
+'''
+
+[T-90]
+name = "ReadAndClear skips malformed lines"
+traces_to = ["ARCH-21", "REQ-24"]
+hash = "7e3d48a7"
+body = '''
+**Given** a `creation-log.jsonl` with 3 lines where the second line is invalid JSON,
+**When** `ReadAndClear` is called,
+**Then** 2 valid LogEntry values are returned (malformed line skipped). removeFile is still called.
+
+Example-based: verifying resilience to corruption.
+'''
+
+[T-91]
+name = "ReadAndClear read error returns error"
+traces_to = ["ARCH-21", "REQ-24"]
+hash = "e26de8b2"
+body = '''
+**Given** a readFile that returns a non-ErrNotExist error,
+**When** `ReadAndClear` is called,
+**Then** an error is returned. removeFile is not called.
+
+Example-based: verifying error propagation for unexpected read failures.
+
+
+---
+
+## SessionStart Creation Report (ARCH-12 update)
+'''
+
+[T-92]
+name = "SessionStart includes creation report before recency surfacing"
+traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
+hash = "e25cc9d0"
+body = '''
+**Given** a creation log with 2 entries and 3 memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the JSON `summary` includes both "[engram] Created 2 memories since last session:" and "[engram] Loaded 3 memories." The `context` includes both the creation report system-reminder block (with titles, tiers, filenames) and the recency surfacing system-reminder block.
+
+Example-based: verifying combined output with both sections.
+'''
+
+[T-93]
+name = "SessionStart with no creation log produces recency-only output"
+traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
+hash = "303daa9f"
+body = '''
+**Given** no creation log exists and 3 memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the output is identical to existing behavior (recency surfacing only, no creation report section).
+
+Example-based: verifying backward compatibility.
+'''
+
+[T-94]
+name = "SessionStart with creation log but no memories produces creation-only output"
+traces_to = ["ARCH-12", "ARCH-21", "REQ-24", "DES-5"]
+hash = "080a3e82"
+body = '''
+**Given** a creation log with 1 entry but no memory files in the data directory,
+**When** surface is called with mode session-start and --format json,
+**Then** the JSON `summary` includes "[engram] Created 1 memories since last session:" but no recency section. The creation log is cleared after reading.
+
+Example-based: verifying creation-only path.
+
+
+---
+
+## Learner Pipeline Creation Logging (ARCH-14 update)
+'''
+
+[T-95]
+name = "Learner calls CreationLogger after each successful write"
+traces_to = ["ARCH-14", "REQ-25"]
+hash = "efb0ad5e"
+body = '''
+**Given** a Learner with a fake CreationLogger, Extractor returning 2 candidates, Deduplicator passing both, and Writer succeeding for both,
+**When** `Learner.Run` is called,
+**Then** CreationLogger.Append is called twice, once per written memory, with LogEntry containing the memory's title, tier, and filename.
+
+Example-based: verifying integration wiring.
+'''
+
+[T-96]
+name = "Learner with nil CreationLogger skips logging (backward compatible)"
+traces_to = ["ARCH-14", "REQ-25"]
+hash = "0bbcb5aa"
+body = '''
+**Given** a Learner with nil CreationLogger, Extractor returning 1 candidate, and Writer succeeding,
+**When** `Learner.Run` is called,
+**Then** Run completes successfully with 1 file path returned. No panic from nil CreationLogger.
+
+Example-based: verifying backward compatibility.
+'''
+
+[T-97]
+name = "Learner creation log error does not fail the pipeline"
+traces_to = ["ARCH-14", "REQ-25", "ARCH-6"]
+hash = "0a822686"
+body = '''
+**Given** a Learner with a CreationLogger that returns an error,
+**When** `Learner.Run` is called with 1 candidate that passes dedup,
+**Then** Run returns 1 file path (write succeeded). The CreationLogger error is swallowed (fire-and-forget).
+
+Example-based: verifying fire-and-forget per ARCH-6.
+
+
+---
+
+## Hook Script Creation Visibility (ARCH-13 update)
+'''
+
+[T-98]
+name = "UserPromptSubmit hook puts creation in systemMessage"
+traces_to = ["ARCH-13", "DES-3", "REQ-4"]
+hash = "ac362df1"
+body = '''
+**Given** the user-prompt-submit hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** creation output from `engram correct` is placed in `systemMessage` (not `additionalContext`). When surface matches also exist, both creation and surface summary appear in `systemMessage`.
+
+Updates T-44 to verify creation goes to systemMessage.
+'''
+
+[T-99]
+name = "SessionStart hook puts creation report in systemMessage"
+traces_to = ["ARCH-13", "DES-5", "REQ-24"]
+hash = "b6e84807"
+body = '''
+**Given** the session-start hook script at `hooks/session-start.sh`,
+**When** its content is read,
+**Then** it calls `engram surface --mode session-start --format json` and reshapes the output so that both the creation report summary and recency summary appear in `systemMessage`.
+
+Updates T-43 to verify creation report visibility.
+
+
+---
+
+# UC-1 Tests
+
+## Transcript Extraction (ARCH-15)
+'''
+
+[T-P0a-1]
+name = "New InstructionEntry defaults enforcement_level to advisory"
+traces_to = []
+hash = "0d9871d2"
+body = '''
+**Traces to:** REQ-P0a-1 (EnforcementLevel field default)
+
+Given: An InstructionEntry is registered with no EnforcementLevel set
+When: The entry is retrieved from the store
+Then: EnforcementLevel equals EnforcementAdvisory
+
+---
+'''
+
+[T-P0a-2]
+name = "Load backfills missing enforcement_level to advisory"
+traces_to = []
+hash = "116c391c"
+body = '''
+**Traces to:** REQ-P0a-1 (EnforcementLevel backfill on load)
+
+Given: A JSONL file containing an entry with no enforcement_level field
+When: The store loads and the entry is retrieved
+Then: EnforcementLevel equals EnforcementAdvisory
+
+---
+'''
+
+[T-P1-1]
+name = "Detector returns empty for single memory"
+traces_to = []
+hash = "53f48823"
+body = '''
+A slice with one memory produces no pairs. (unit, contradict pkg)
+'''
+
+[T-P1-10]
+name = "Surface runSessionStart suppresses contradicted memory"
+traces_to = []
+hash = "289aa060"
+body = '''
+Mock detector returns pair (A, B). B removed from output. Signal emitted for B. (unit, surface pkg)
+'''
+
+[T-P1-11]
+name = "Surface proceeds without suppression when detector is nil"
+traces_to = []
+hash = "dc3ddacb"
+body = '''
+No detector set. No panic. Normal output. (unit, surface pkg)
+'''
+
+[T-P1-12]
+name = "Detector with no classifier skips LLM phase"
+traces_to = []
+hash = "ad4bfbdd"
+body = '''
+Borderline pair: no Classify called, pair not returned. (unit)
+
+---
+'''
+
+[T-P1-2]
+name = "Heuristic fires on opposing verb pair (use/avoid)"
+traces_to = []
+hash = "d5aa75fd"
+body = '''
+Memory A principle: "Always use targ". Memory B principle: "Avoid using targ". Expect pair returned. (unit)
+'''
+
+[T-P1-3]
+name = "Heuristic fires on always/never pair"
+traces_to = []
+hash = "ccdc4124"
+body = '''
+Memory A: "Always add t.Parallel()". Memory B: "Never use t.Parallel() in benchmarks". Expect pair returned. (unit)
+'''
+
+[T-P1-4]
+name = "Heuristic does not fire on unrelated memories"
+traces_to = []
+hash = "d0a7f867"
+body = '''
+Memory A about git commits. Memory B about test patterns. No pair. (unit)
+'''
+
+[T-P1-5]
+name = "BM25 high similarity without heuristic → borderline, sent to LLM"
+traces_to = []
+hash = "20d160b9"
+body = '''
+Two nearly-identical memories that don't trigger verb heuristic but score high BM25. Classifier called. (unit with mock)
+'''
+
+[T-P1-6]
+name = "LLM budget enforced — max 3 calls"
+traces_to = []
+hash = "d6d6607f"
+body = '''
+6 borderline pairs: only first 3 trigger Classify calls. (unit with mock classifier counting calls)
+'''
+
+[T-P1-7]
+name = "Classifier error treated as non-contradiction"
+traces_to = []
+hash = "6e53aa92"
+body = '''
+Classifier returns error. Pair not included in result. (unit)
+'''
+
+[T-P1-8]
+name = "High-confidence pair skips LLM"
+traces_to = []
+hash = "c1ad97c3"
+body = '''
+Heuristic fires AND BM25 > 0.3 → pair returned without Classify call. (unit)
+'''
+
+[T-P1-9]
+name = "KindContradiction constant value is \"contradiction\""
+traces_to = []
+hash = "a98a17b0"
+body = '''
+Compile-time check. (unit, signal pkg)
+'''
+
+[T-P3-1]
+name = "Jaccard zero for disjoint token sets"
+traces_to = []
+hash = "dfec8409"
+body = '''
+`tokenSet("foo bar") ∩ tokenSet("baz qux") = ∅` → Jaccard = 0. No link produced. (unit, graph pkg)
+'''
+
+[T-P3-10]
+name = "Prune removes links below threshold with sufficient count"
+traces_to = []
+hash = "691adee5"
+body = '''
+Link: Weight=0.05, CoSurfacingCount=10 → removed. (unit, graph pkg)
+'''
+
+[T-P3-11]
+name = "Prune preserves links below threshold with insufficient count"
+traces_to = []
+hash = "a20d4bdb"
+body = '''
+Link: Weight=0.05, CoSurfacingCount=9 → preserved. (unit, graph pkg)
+'''
+
+[T-P3-12]
+name = "Prune preserves links at or above weight threshold regardless of count"
+traces_to = []
+hash = "aa670801"
+body = '''
+Link: Weight=0.1, CoSurfacingCount=20 → preserved. (unit, graph pkg)
+'''
+
+[T-P3-13]
+name = "Registry.UpdateLinks stores and retrieves links"
+traces_to = []
+hash = "223883df"
+body = '''
+Call UpdateLinks with 2 links, then Get → entry.Links contains the 2 links. (unit, registry pkg)
+'''
+
+[T-P3-14]
+name = "Registry.UpdateLinks returns ErrNotFound for unknown id"
+traces_to = []
+hash = "9600b865"
+body = '''
+UpdateLinks("nonexistent", links) → ErrNotFound. (unit, registry pkg)
+'''
+
+[T-P3-15]
+name = "Registry.UpdateLinks replaces existing links entirely"
+traces_to = []
+hash = "e80acce0"
+body = '''
+Entry has 3 links, UpdateLinks called with 1 link → entry has 1 link. (unit, registry pkg)
+'''
+
+[T-P3-16]
+name = "applySpreadingActivation base + linked contribution"
+traces_to = []
+hash = "08959707"
+body = '''
+Memory A (base=1.0) links to B (base=2.0, weight=0.5). Activated A = 1.0 + 0.3×(2.0×0.5) = 1.3. (unit, surface pkg)
+'''
+
+[T-P3-17]
+name = "applySpreadingActivation linked target not in candidate set → zero contribution"
+traces_to = []
+hash = "929c1da9"
+body = '''
+Memory A links to C which is not in baseScores → C contributes 0. Activated A = base. (unit, surface pkg)
+'''
+
+[T-P3-18]
+name = "applySpreadingActivation with no LinkReader → unchanged scores"
+traces_to = []
+hash = "e7fc904a"
+body = '''
+No LinkReader set → scores unchanged from base. (unit, surface pkg)
+'''
+
+[T-P3-19]
+name = "Surface co_surfacing update called for all pairs in top-N"
+traces_to = []
+hash = "1c9931a9"
+body = '''
+3 memories surfaced → 3 pairs (A-B, A-C, B-C) each get UpdateCoSurfacing call. (unit, surface pkg with mock LinkUpdater)
+'''
+
+[T-P3-2]
+name = "Jaccard correct for overlapping sets"
+traces_to = []
+hash = "1105f9eb"
+body = '''
+`tokenSet("use targ build") ∩ tokenSet("use targ test") = {use, targ}`, union size 4 → Jaccard = 0.5. Link produced with Weight=0.5. (unit, graph pkg)
+'''
+
+[T-P3-20]
+name = "Surface co_surfacing update error does not abort surfacing"
+traces_to = []
+hash = "d2138cf4"
+body = '''
+LinkUpdater.SetEntryLinks returns error → surface proceeds, output unchanged. (unit, surface pkg)
+'''
+
+[T-P3-21]
+name = "formatClusterNotes returns top-2 links by weight"
+traces_to = []
+hash = "f08943bf"
+body = '''
+Memory has 3 links with weights 0.9, 0.7, 0.3 → only top-2 noted (0.9, 0.7). (unit, surface pkg)
+'''
+
+[T-P3-22]
+name = "formatClusterNotes skips links with no known title"
+traces_to = []
+hash = "a2eac8ff"
+body = '''
+TitleFetcher returns (_, false) for a link target → that link excluded from notes. (unit, surface pkg)
+'''
+
+[T-P3-23]
+name = "formatClusterNotes format is \"  • see also: <title>\""
+traces_to = []
+hash = "8db045de"
+body = '''
+Link target title "use targ for builds" → note line is `  • see also: use targ for builds`. (unit, surface pkg)
+'''
+
+[T-P3-24]
+name = "Surface cluster notes absent when no TitleFetcher set"
+traces_to = []
+hash = "938fa6a9"
+body = '''
+No TitleFetcher option → no cluster note lines in output. (unit, surface pkg)
+'''
+
+[T-P3-25]
+name = "updateEvaluationCorrelationLinks updates links for followed pairs"
+traces_to = []
+hash = "58cf992f"
+body = '''
+2 memories both followed → each gets evaluation_correlation link to the other (+0.05). (unit, evaluate pkg with mock EvalLinkUpdater)
+'''
+
+[T-P3-26]
+name = "updateEvaluationCorrelationLinks ignores non-followed outcomes"
+traces_to = []
+hash = "7ac18c3b"
+body = '''
+Memory followed, another contradicted → no evaluation_correlation link between them. (unit, evaluate pkg)
+'''
+
+[T-P3-27]
+name = "EvalLinkUpdater error does not abort evaluate"
+traces_to = []
+hash = "8956032c"
+body = '''
+SetEntryLinks returns error → evaluate proceeds normally. (unit, evaluate pkg)
+
+---
+
+## L4 → ARCH Traceability (P3)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P3-1 | T-P3-1..T-P3-12 |
+| ARCH-P3-2 | T-P3-13, T-P3-14, T-P3-15 |
+| ARCH-P3-3 | T-P3-19, T-P3-20 |
+| ARCH-P3-4 | T-P3-16, T-P3-17, T-P3-18 |
+| ARCH-P3-5 | T-P3-21, T-P3-22, T-P3-23, T-P3-24 |
+| ARCH-P3-6 | T-P3-25, T-P3-26, T-P3-27 |
+| ARCH-P3-7 | (CLI wiring — integration verified by targ check) |
+
+---
+
+## P6f: Graduation Signal Lifecycle
+'''
+
+[T-P3-3]
+name = "BuildConceptOverlap threshold 0.15"
+traces_to = []
+hash = "b9431a39"
+body = '''
+3 existing entries: one with Jaccard=0.2, one with 0.1, one with 0.0 against new entry → only the 0.2 entry produces a concept_overlap link. (unit, graph pkg)
+'''
+
+[T-P3-4]
+name = "BuildConceptOverlap self-link excluded"
+traces_to = []
+hash = "5e8b325e"
+body = '''
+Entry in existing list has same ID as new entry → no self-link in output. (unit, graph pkg)
+'''
+
+[T-P3-5]
+name = "BuildContentSimilarity threshold 0.05"
+traces_to = []
+hash = "9c7c3649"
+body = '''
+Entry scoring BM25=0.06 raw → content_similarity link with Weight=min(1.0,0.06/5.0). Entry scoring 0.03 → no link. (unit, graph pkg)
+'''
+
+[T-P3-6]
+name = "BuildContentSimilarity weight capped at 1.0"
+traces_to = []
+hash = "76937bd7"
+body = '''
+Entry scoring BM25=10.0 raw → Weight=1.0 (capped). (unit, graph pkg)
+'''
+
+[T-P3-7]
+name = "UpdateCoSurfacing increments existing co_surfacing link"
+traces_to = []
+hash = "6c9da1ac"
+body = '''
+Existing link: Weight=0.5, CoSurfacingCount=3 → after update: Weight=0.6, CoSurfacingCount=4. (unit, graph pkg)
+'''
+
+[T-P3-8]
+name = "UpdateCoSurfacing creates new link if none exists"
+traces_to = []
+hash = "d0e6fb53"
+body = '''
+No existing co_surfacing link → creates one with Weight=0.1, CoSurfacingCount=1. (unit, graph pkg)
+'''
+
+[T-P3-9]
+name = "UpdateCoSurfacing caps weight at 1.0"
+traces_to = []
+hash = "175e88b9"
+body = '''
+Existing link: Weight=0.95, CoSurfacingCount=5 → after update: Weight=1.0, CoSurfacingCount=6. (unit, graph pkg)
+'''
+
+[T-P4e-1]
+name = "SessionStart limits to top 7"
+traces_to = []
+hash = "7e49c95c"
+body = '''
+15 memories, no effectiveness data → 7 surfaced. (unit, surface pkg)
+'''
+
+[T-P4e-10]
+name = "LogInvocationTokens propagates append errors"
+traces_to = []
+hash = "24b7ae79"
+body = '''
+Real logger with /dev/null path → error wrapped as "appending invocation token log". (unit)
+
+---
+
+## Tests for UC-33: Merge-on-Write (P5c)
+'''
+
+[T-P4e-2]
+name = "SessionStart gates out low-effectiveness memories"
+traces_to = []
+hash = "799290f8"
+body = '''
+Memory with SurfacedCount=10, score=20% excluded; memory with score=75% included. (unit)
+'''
+
+[T-P4e-3]
+name = "SessionStart includes insufficient-data memories regardless of score"
+traces_to = []
+hash = "dc9fdfa0"
+body = '''
+Memory with SurfacedCount=3, score=0% included. No-data memory included. (unit)
+'''
+
+[T-P4e-4]
+name = "SessionStart ranks by effectiveness descending"
+traces_to = []
+hash = "b4c3cd12"
+body = '''
+Low-scorer listed first in retriever; high-scorer appears first in output. (unit)
+'''
+
+[T-P4e-5]
+name = "Default budgets are 600/250/150"
+traces_to = []
+hash = "7bb2798c"
+body = '''
+Compile-time assertion on DefaultSessionStartBudget, DefaultUserPromptSubmitBudget, DefaultPreToolUseBudget. (unit)
+'''
+
+[T-P4e-6]
+name = "PreToolUse limits to top 2"
+traces_to = []
+hash = "42a956ae"
+body = '''
+5 matching memories → 2 surfaced. (unit)
+'''
+
+[T-P4e-7]
+name = "PreToolUse gates out low-effectiveness memories"
+traces_to = []
+hash = "7782a41d"
+body = '''
+Memory with SurfacedCount=10, score=15% excluded; score=75% included. (unit)
+'''
+
+[T-P4e-8]
+name = "InvocationTokenLogger called with positive token count"
+traces_to = []
+hash = "27c3afc4"
+body = '''
+SessionStart with one memory → LogInvocationTokens called once with mode="session-start" and tokenCount>0. (unit)
+'''
+
+[T-P4e-9]
+name = "LogInvocationTokens appends token-count event to surfacing log"
+traces_to = []
+hash = "ab444948"
+body = '''
+Event JSON contains token_count and mode; no memory_path field. (unit, surfacinglog pkg)
+'''
+
+[T-P5c-1]
+name = "High overlap returns merge pair not surviving candidate"
+traces_to = []
+hash = "6fb847a8"
+body = '''
+Candidate with 3/4 matching keywords against existing → `ClassifyResult.MergePairs` has 1 entry; `Surviving` is empty. (unit, dedup pkg)
+'''
+
+[T-P5c-2]
+name = "Low overlap passes through as surviving candidate"
+traces_to = []
+hash = "ea8784a6"
+body = '''
+Candidate with 2/4 matching keywords (exactly 50%) → `ClassifyResult.Surviving` has 1 entry; `MergePairs` is empty. (unit, dedup pkg)
+'''
+
+[T-P5c-3]
+name = "LLM merger called with existing and candidate principles"
+traces_to = []
+hash = "83ba55c8"
+body = '''
+`MergePrinciples` receives existing.Principle and candidate.Principle; mock returns merged string; merged principle passed to `MergeWriter`. (unit, learn pkg)
+'''
+
+[T-P5c-4]
+name = "Fallback merge takes candidate principle when it is longer"
+traces_to = []
+hash = "1b4c7904"
+body = '''
+No merger configured; candidate principle longer than existing → merged TOML uses candidate principle; keywords = union; concepts = union. (unit, learn pkg)
+'''
+
+[T-P5c-5]
+name = "Fallback merge keeps existing principle when it is longer"
+traces_to = []
+hash = "6f30db6d"
+body = '''
+No merger configured; existing principle longer → merged TOML keeps existing principle; keywords still unioned. (unit, learn pkg)
+'''
+
+[T-P5c-6]
+name = "Absorbed record appended after merge"
+traces_to = []
+hash = "21f5c5eb"
+body = '''
+After merge: `RegistryAbsorber.RecordAbsorbed` called once with existing file path, candidate title, non-empty hash, and timestamp. (unit, learn pkg with mock absorber)
+'''
+
+[T-P5c-7]
+name = "LLM merger error falls back to deterministic merge"
+traces_to = []
+hash = "517af54c"
+body = '''
+`MergePrinciples` returns error → fallback applied (longer principle, union keywords, union concepts); no error propagated. (unit, learn pkg)
+'''
+
+[T-P5c-8]
+name = "Empty candidate keywords are not merged"
+traces_to = []
+hash = "d77bdecb"
+body = '''
+Candidate with no keywords → appears in `Surviving` (create-new path), not in `MergePairs`. (unit, dedup pkg)
+
+---
+
+## P3: Memory Graph with Spreading Activation Tests
+'''
+
+[T-P5f-1]
+name = "MergeResult carries merged memory fields"
+traces_to = []
+hash = "d59220ff"
+body = '''
+**Traces to:** ARCH-P5f-1 (REQ-P5f-1)
+
+Given: A merge completed with MergedMemoryID="/path/mem.toml", AbsorbedMemoryID="", MergedTitle="T", MergedContent="C", MergedConceptSet=["x"]
+When: MergeResult struct constructed
+Then: All fields accessible with correct values
+
+---
+'''
+
+[T-P5f-2]
+name = "Absorbed-memory links removed from all entries"
+traces_to = []
+hash = "ea3521a2"
+body = '''
+**Traces to:** ARCH-P5f-2 (REQ-P5f-2)
+
+Given: Registry with 3 entries; entry A has link to AbsorbedMemoryID; entry B has link to AbsorbedMemoryID; entry C has no such link
+When: RecomputeMergeLinks called with non-empty AbsorbedMemoryID
+Then: UpdateLinks called for A and B with filtered link sets (absorbed link removed); UpdateLinks NOT called for C
+
+---
+'''
+
+[T-P5f-3]
+name = "Concept_overlap links recomputed for merged memory"
+traces_to = []
+hash = "432e4edc"
+body = '''
+**Traces to:** ARCH-P5f-2 (REQ-P5f-3)
+
+Given: Registry with merged entry having stale concept_overlap link; other entries present
+When: RecomputeMergeLinks called
+Then: Old concept_overlap link removed; new concept_overlap links computed from merged content; UpdateLinks called with fresh concept_overlap links
+
+---
+'''
+
+[T-P5f-4]
+name = "Content_similarity links recomputed for merged memory"
+traces_to = []
+hash = "b07d400f"
+body = '''
+**Traces to:** ARCH-P5f-2 (REQ-P5f-4)
+
+Given: Registry with merged entry having stale content_similarity link; corpus entries present with overlapping text
+When: RecomputeMergeLinks called
+Then: Old content_similarity link removed; new content_similarity links computed from merged principle; result includes fresh content_similarity links
+
+---
+'''
+
+[T-P5f-5]
+name = "co_surfacing links preserved after recomputation"
+traces_to = []
+hash = "c7d96bc1"
+body = '''
+**Traces to:** ARCH-P5f-2 (REQ-P5f-5)
+
+Given: Merged memory entry with co_surfacing link (weight=0.5, CoSurfacingCount=5)
+When: RecomputeMergeLinks called
+Then: UpdateLinks called with co_surfacing link present and unchanged (same weight, same CoSurfacingCount)
+
+---
+'''
+
+[T-P5f-6]
+name = "evaluation_correlation links preserved after recomputation"
+traces_to = []
+hash = "cf9dc040"
+body = '''
+**Traces to:** ARCH-P5f-2 (REQ-P5f-5)
+
+Given: Merged memory entry with evaluation_correlation link (weight=0.3)
+When: RecomputeMergeLinks called
+Then: UpdateLinks called with evaluation_correlation link present and unchanged (same weight)
+
+---
+'''
+
+[T-P5f-7]
+name = "LinkRecomputer called after processMerge when wired"
+traces_to = []
+hash = "270a75d8"
+body = '''
+**Traces to:** ARCH-P5f-3 (REQ-P5f-1 through REQ-P5f-5)
+
+Given: Learner with LinkRecomputer set; merge pair processed; MergeWriter and Absorber wired
+When: processMerge completes
+Then: LinkRecomputer.RecomputeAfterMerge called with MergedMemoryID=existing.FilePath and MergedContent=mergedPrinciple
+
+---
+
+## L4 → ARCH Traceability (P5f)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P5f-1 | T-P5f-1 |
+| ARCH-P5f-2 | T-P5f-2, T-P5f-3, T-P5f-4, T-P5f-5, T-P5f-6 |
+| ARCH-P5f-3 | T-P5f-7 |
+'''
+
+[T-P6e-1]
+name = "LevelGraduated is 4th escalation level"
+traces_to = []
+hash = "2e2d9a66"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-1)
+
+Given: EscalationEngine with memory at `reminder` level
+When: Analyze called
+Then: Proposal type is "escalate" and ProposedLevel is "graduated"
+
+---
+'''
+
+[T-P6e-10]
+name = "ApplyEscalationProposal propagates applier error"
+traces_to = []
+hash = "05101264"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: EnforcementApplier.SetEnforcementLevel returns error
+When: ApplyEscalationProposal called
+Then: Returns wrapped error containing "setting enforcement level"
+
+---
+'''
+
+[T-P6e-11]
+name = "emphasized_advisory renders with IMPORTANT: prefix in tool mode"
+traces_to = []
+hash = "dc651f64"
+body = '''
+**Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
+
+Given: Memory at emphasized_advisory level, tool mode surfacing
+When: Surface Run executes
+Then: Output contains "IMPORTANT:" and memory slug
+
+---
+'''
+
+[T-P6e-12]
+name = "reminder renders with REMINDER: prefix in tool mode"
+traces_to = []
+hash = "7ccade95"
+body = '''
+**Traces to:** ARCH-P6e-2 (REQ-P6e-6, DES-P6e-2)
+
+Given: Memory at reminder level, tool mode surfacing
+When: Surface Run executes
+Then: Output contains "REMINDER:" and memory slug
+
+---
+'''
+
+[T-P6e-13]
+name = "advisory level renders with normal format"
+traces_to = []
+hash = "b9554416"
+body = '''
+**Traces to:** ARCH-P6e-2 (REQ-P6e-5, DES-P6e-2)
+
+Given: No EnforcementReader set (all memories default to advisory)
+When: Surface Run executes in tool mode
+Then: Output does NOT contain "IMPORTANT:" or "REMINDER:"
+
+---
+'''
+
+[T-P6e-14]
+name = "emphasized_advisory memories sorted before advisory in tool mode"
+traces_to = []
+hash = "95545151"
+body = '''
+**Traces to:** ARCH-P6e-2 (REQ-P6e-7)
+
+Given: Two matching memories — one advisory, one emphasized_advisory
+When: Surface Run executes in tool mode
+Then: emphasized_advisory memory appears first in output
+
+---
+
+## L4 → ARCH Traceability (P6e)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P6e-1 | T-P6e-1, T-P6e-2, T-P6e-3, T-P6e-4, T-P6e-5, T-P6e-6, T-P6e-7, T-P6e-8, T-P6e-9, T-P6e-10 |
+| ARCH-P6e-2 | T-P6e-11, T-P6e-12, T-P6e-13, T-P6e-14 |
+
+---
+
+## P1: Contradiction Detection Tests
+'''
+
+[T-P6e-2]
+name = "ApplyEscalationProposal calls SetEnforcementLevel"
+traces_to = []
+hash = "d7a48e94"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: ApplyEscalationProposal called with a proposal and mock EnforcementApplier
+When: Function executes
+Then: SetEnforcementLevel called with MemoryPath, ProposedLevel, and Rationale
+
+---
+'''
+
+[T-P6e-3]
+name = "ApplyEscalationProposal with nil applier is no-op"
+traces_to = []
+hash = "1b4063bc"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-2)
+
+Given: ApplyEscalationProposal called with nil applier
+When: Function executes
+Then: Returns nil, no panic
+
+---
+'''
+
+[T-P6e-4]
+name = "ApplyEscalationProposal to graduated emits graduation signal"
+traces_to = []
+hash = "022c17e3"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-3)
+
+Given: ApplyEscalationProposal called with ProposedLevel="graduated" and mock GraduationEmitter
+When: Function executes
+Then: EmitGraduation called with MemoryPath, non-empty recommendation, and correct timestamp
+
+---
+'''
+
+[T-P6e-5]
+name = "ApplyEscalationProposal to non-graduated does NOT emit signal"
+traces_to = []
+hash = "9a13e3a2"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-3)
+
+Given: ApplyEscalationProposal called with ProposedLevel="emphasized_advisory"
+When: Function executes
+Then: EmitGraduation is NOT called
+
+---
+'''
+
+[T-P6e-6]
+name = "ClassifyContent returns \"settings.json\" for linter/config content"
+traces_to = []
+hash = "74c4e721"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "golangci linter settings"
+When: ClassifyContent called
+Then: Returns "settings.json"
+
+---
+'''
+
+[T-P6e-7]
+name = "ClassifyContent returns \".claude/rules/\" for file-scoped content"
+traces_to = []
+hash = "3d65a91f"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "glob pattern"
+When: ClassifyContent called
+Then: Returns ".claude/rules/"
+
+---
+'''
+
+[T-P6e-8]
+name = "ClassifyContent returns \"skill\" for procedural content"
+traces_to = []
+hash = "23001801"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains "step-by-step procedure"
+When: ClassifyContent called
+Then: Returns "skill"
+
+---
+'''
+
+[T-P6e-9]
+name = "ClassifyContent returns \"CLAUDE.md\" as behavioral default"
+traces_to = []
+hash = "8ee78441"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6e-4, DES-P6e-1)
+
+Given: Content contains no classification keywords
+When: ClassifyContent called
+Then: Returns "CLAUDE.md"
+
+---
+'''
+
+[T-P6f-1]
+name = "GraduationStore Append writes entry to JSONL"
+traces_to = []
+hash = "321ff896"
+body = '''
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A GraduationStore with in-memory file DI and a GraduationEntry with status="pending"
+When: Append called with the entry and a path
+Then: The JSONL file contains exactly one line with valid JSON matching the entry
+
+---
+'''
+
+[T-P6f-10]
+name = "graduate list shows pending entries and quality metric"
+traces_to = []
+hash = "481dcdfc"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-6)
+
+Given: Store with 2 pending, 3 accepted, 1 dismissed entries
+When: runGraduateList called
+Then: Output lists 2 pending entries; quality metric shows "75.0% accepted (3 accepted, 1 dismissed)"
+
+---
+'''
+
+[T-P6f-11]
+name = "graduate list shows \"n/a\" quality metric when no resolved entries"
+traces_to = []
+hash = "07912868"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-6, DES-P6f-1)
+
+Given: Store with 2 pending, 0 accepted, 0 dismissed
+When: runGraduateList called
+Then: Quality line shows "n/a"
+
+---
+'''
+
+[T-P6f-12]
+name = "graduate-surface outputs JSON with pending entries and instructions"
+traces_to = []
+hash = "ba695363"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-7, DES-P6f-2)
+
+Given: Store with 1 pending entry
+When: runGraduateSurface called with --format json
+Then: JSON output has "summary" and "context"; context contains the entry ID and graduation accept/dismiss command instructions
+
+---
+'''
+
+[T-P6f-13]
+name = "graduate-surface produces no output when queue is empty"
+traces_to = []
+hash = "065cb1cf"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-7)
+
+Given: No graduation-queue.jsonl or all entries resolved
+When: runGraduateSurface called
+Then: No output written; exit 0
+
+---
+'''
+
+[T-P6f-14]
+name = "graduate accept with unknown ID returns error"
+traces_to = []
+hash = "20a8e60a"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-4)
+
+Given: Store with one entry id="abc"
+When: runGraduateAccept called with id="zzz"
+Then: Returns error; IssueCreator not called
+
+---
+'''
+
+[T-P6f-15]
+name = "ApplyEscalationProposal passes ClassifyContent result as recommendation"
+traces_to = []
+hash = "4704e99f"
+body = '''
+**Traces to:** ARCH-P6e-1 (REQ-P6f-8, REQ-P6e-3, REQ-P6e-4)
+
+Given: Memory with content containing procedural keywords ("run", "execute")
+When: ApplyEscalationProposal called with ProposedLevel="graduated"
+Then: EmitGraduation called with recommendation="skill" (ClassifyContent result, not hardcoded)
+
+---
+
+## L4 → ARCH Traceability (P6f)
+
+| ARCH Item | Test Coverage |
+|-----------|--------------|
+| ARCH-P6f-1 | T-P6f-1, T-P6f-2, T-P6f-3, T-P6f-4, T-P6f-5 |
+| ARCH-P6f-2 | T-P6f-6, T-P6f-7 |
+| ARCH-P6f-3 | T-P6f-8, T-P6f-9, T-P6f-10, T-P6f-11, T-P6f-12, T-P6f-13, T-P6f-14 |
+| ARCH-P6e-1 | T-P6f-15 (REQ-P6f-8 traceability) |
+
+---
+
+## P5f: Re-compute links after merge
+'''
+
+[T-P6f-2]
+name = "GraduationStore List reads all entries, skips malformed lines"
+traces_to = []
+hash = "267858b8"
+body = '''
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with two valid entries and one malformed line
+When: List called
+Then: Returns exactly two entries; no error
+
+---
+'''
+
+[T-P6f-3]
+name = "GraduationStore List returns empty slice for missing file"
+traces_to = []
+hash = "6682f5d7"
+body = '''
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: No graduation-queue.jsonl file exists
+When: List called
+Then: Returns empty slice with no error
+
+---
+'''
+
+[T-P6f-4]
+name = "GraduationStore SetStatus updates matching entry"
+traces_to = []
+hash = "3ab6163e"
+body = '''
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with one pending entry (id="abc123def456")
+When: SetStatus called with id="abc123def456", status="accepted", issueURL="https://..."
+Then: Entry status is "accepted" and issue_url is set; resolved_at is non-empty
+
+---
+'''
+
+[T-P6f-5]
+name = "GraduationStore SetStatus returns ErrGraduationNotFound for unknown ID"
+traces_to = []
+hash = "51900448"
+body = '''
+**Traces to:** ARCH-P6f-1 (REQ-P6f-2)
+
+Given: A JSONL file with one entry (id="aaa")
+When: SetStatus called with id="zzz"
+Then: Returns ErrGraduationNotFound
+
+---
+'''
+
+[T-P6f-6]
+name = "GraduationQueueEmitter EmitGraduation appends pending entry"
+traces_to = []
+hash = "6b54f515"
+body = '''
+**Traces to:** ARCH-P6f-2 (REQ-P6f-3)
+
+Given: A GraduationQueueEmitter with in-memory store
+When: EmitGraduation("mem/foo.toml", "CLAUDE.md", now) called
+Then: Store contains one entry with status="pending", memory_path="mem/foo.toml", recommendation="CLAUDE.md"
+
+---
+'''
+
+[T-P6f-7]
+name = "GraduationQueueEmitter ID is deterministic from memory_path"
+traces_to = []
+hash = "ca266d0e"
+body = '''
+**Traces to:** ARCH-P6f-2 (REQ-P6f-3)
+
+Given: Two calls to EmitGraduation with the same memory_path
+When: Both entries written
+Then: Both entries have the same ID
+
+---
+'''
+
+[T-P6f-8]
+name = "graduate accept calls IssueCreator and marks entry accepted"
+traces_to = []
+hash = "4b6a56a5"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-4)
+
+Given: A GraduationStore with one pending entry; a mock IssueCreator returning "https://github.com/x/y/issues/1"
+When: runGraduateAccept called with that entry's ID
+Then: IssueCreator.Create called once; entry status becomes "accepted"; issue_url set; URL printed to stdout
+
+---
+'''
+
+[T-P6f-9]
+name = "graduate dismiss marks entry dismissed"
+traces_to = []
+hash = "0e56dc3f"
+body = '''
+**Traces to:** ARCH-P6f-3 (REQ-P6f-5)
+
+Given: A GraduationStore with one pending entry
+When: runGraduateDismiss called with that entry's ID
+Then: Entry status becomes "dismissed"; resolved_at non-empty; confirmation printed to stdout
+
+---
+'''

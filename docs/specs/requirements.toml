@@ -1,0 +1,2286 @@
+[REQ-1]
+name = "Fast-path keyword detection + unified LLM classifier"
+traces_to = ["UC-3"]
+hash = "59fd31fe"
+body = '''
+When a user message is submitted (UserPromptSubmit hook), the system uses a two-stage detection:
+
+**Stage 1: Fast-path (no LLM).** Three keywords trigger immediate tier-A classification:
+- `remember` — explicit instruction to remember
+- `always` — standing instruction for future behavior
+- `never` — standing prohibition for future behavior
+
+Fast-path messages skip the classifier LLM call and proceed directly to enrichment.
+
+**Stage 2: Unified LLM classifier (everything else).** For messages without fast-path keywords, a single API call to claude-haiku-4-5-20251001 classifies the signal tier (A/B/C/null) and extracts structured memory fields in one call. Returns JSON with `tier` field: `"A"` (explicit instruction), `"B"` (teachable correction), `"C"` (contextual fact), or `null` (not a signal).
+
+Null classification → skip entirely, no file created.
+
+- Traces to: UC-3 (detection + classification)
+- AC: (1) Fast-path keywords are checked first; if present, tier-A classification is immediate. (2) Other messages invoke the unified classifier LLM. (3) Classifier returns `tier` field (A/B/C/null). (4) Null tier → no file created, no system reminder. (5) A/B/C tier → proceed to enrichment and write.
+- Verification: deterministic (keyword presence check, JSON schema validation)
+
+---
+'''
+
+[REQ-10]
+name = "UserPromptSubmit surfacing — BM25 + frecency ranking"
+traces_to = ["UC-2"]
+hash = "0ea3a5a6"
+body = '''
+When a user message is submitted (UserPromptSubmit hook), the system ranks all memories using BM25 scoring, then re-ranks the top candidates by frecency activation score, and surfaces the top 10 results as a system reminder.
+
+- Traces to: UC-2 (UserPromptSubmit surfacing)
+- AC: (1) BM25 index is built per call from concatenated text fields (title, content, principle, keywords, concepts). (2) User message is scored against each memory. (3) BM25 top candidates are selected. (4) Candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 10 ranked results (or fewer if fewer than 10 memories exist) are surfaced with title and file path. (6) If no memories exist or all scores are zero, no surfacing reminder is emitted. (7) Surfacing runs alongside UC-3 correction detection — both outputs are concatenated.
+- Verification: probabilistic (BM25 + frecency scoring, ranking changes with message input and memory usage history)
+
+---
+'''
+
+[REQ-11]
+name = "PreToolUse advisory surfacing — BM25 + frecency ranking on anti-pattern candidates"
+traces_to = ["UC-2"]
+hash = "35912784"
+body = '''
+When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 5 results as an advisory system reminder.
+
+- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
+- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) BM25 top candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 5 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path. (6) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (7) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
+- Verification: probabilistic (BM25 + frecency scoring, ranking changes with tool input and usage history)
+
+---
+'''
+
+[REQ-130]
+name = "Cluster detection — pairwise keyword overlap before classification"
+traces_to = ["UC-34"]
+hash = "883cc165"
+body = '''
+All existing memories are scanned pairwise for keyword overlap before quadrant classification. Memories with >50% keyword overlap are grouped into clusters. Reuses the same overlap threshold as UC-33's learn-time dedup.
+
+- Traces to: UC-34 (cluster detection)
+- AC: (1) All `.toml` files in `<data-dir>/memories/` are loaded. (2) Pairwise keyword overlap computed using the same algorithm as `dedup.KeywordDeduplicator`. (3) Memories with >50% overlap (in either direction) are grouped into clusters. (4) Memories with no overlap matches remain as singletons (not merged). (5) Transitive closure: if A overlaps B and B overlaps C, all three are in one cluster.
+- Verification: deterministic (keyword overlap calculation)
+
+---
+'''
+
+[REQ-131]
+name = "Survivor selection — highest effectiveness score wins"
+traces_to = ["UC-34"]
+hash = "acbdf5f7"
+body = '''
+Within each duplicate cluster, the memory with the highest effectiveness score is selected as the survivor. All others are merged into it.
+
+- Traces to: UC-34 (survivor selection)
+- AC: (1) Effectiveness score = `followed_count / (followed_count + contradicted_count + ignored_count)`, null if denominator < 5 (reuses ARCH-54 formula). (2) Null-effectiveness memories lose to any scored memory. (3) Among null-effectiveness memories, highest `surfaced_count` wins. (4) Ties broken by alphabetical file path (deterministic).
+- Verification: deterministic (score comparison)
+
+---
+
+### DES-47: Consolidation phase ordering within signal-detect
+
+Consolidation runs as the **first phase** of `engram signal-detect`, before effectiveness aggregation and quadrant classification. The pipeline order becomes: load memories → consolidate duplicates → aggregate effectiveness → classify → emit signals.
+
+- Traces to: UC-34 (pipeline ordering), ARCH-75 (signal-detect CLI wiring)
+- AC: (1) Consolidation runs before Detector.Detect. (2) Classification operates on post-consolidation memory set. (3) Absorbed memories are deleted before classification reads the directory.
+- Verification: integration (signal-detect with duplicate memories produces consolidated signals)
+
+---
+'''
+
+[REQ-132]
+name = "Merge preserves all effectiveness history via Absorbed records"
+traces_to = ["UC-34"]
+hash = "d209c18b"
+body = '''
+When merging non-survivor memories into the survivor, each absorbed memory's counters are recorded in the survivor's `[[absorbed]]` array. Reuses REQ-60/REQ-63 merge semantics.
+
+- Traces to: UC-34 (history preservation), REQ-60, REQ-63
+- AC: (1) Each absorbed memory produces one `[[absorbed]]` entry with: from, surfaced_count, followed_count, contradicted_count, ignored_count, merged_at, content_hash. (2) Existing absorbed entries on the survivor are preserved. (3) Absorbed entries from non-survivors that themselves have absorbed arrays are flattened into the survivor (no nested absorption).
+- Verification: structural (TOML array contents after merge)
+
+---
+'''
+
+[REQ-133]
+name = "Fallback merge without LLM token"
+traces_to = ["UC-34"]
+hash = "1b95f40f"
+body = '''
+When no API token is available, consolidation uses the longest principle text as the merged principle. Keyword and concept union still occurs. Reuses UC-33's fallback path.
+
+- Traces to: UC-34 (no graceful degradation), UC-33 (fallback merge)
+- AC: (1) No API token → longest principle selected (by character count). (2) Keywords unioned (deduplicated, case-insensitive). (3) Concepts unioned (deduplicated). (4) Merge still executes — only LLM principle combination is skipped. (5) Ties broken by alphabetical file path.
+- Verification: deterministic (string length comparison)
+
+---
+'''
+
+[REQ-134]
+name = "Consolidation is automatic — no user confirmation"
+traces_to = ["UC-34"]
+hash = "180b952e"
+body = '''
+Duplicate consolidation runs automatically during signal-detect without user confirmation. This is merging (combining into a stronger memory), not deletion (removing content).
+
+- Traces to: UC-34 (automatic consolidation)
+- AC: (1) No interactive prompt during consolidation. (2) Stderr log emitted for each merge (DES-48). (3) All merged content is preserved in the survivor (no information loss). (4) User can observe results via `engram review` or subsequent `signal-surface`.
+- Verification: integration (signal-detect completes without stdin)
+
+---
+
+### DES-48: Consolidation merge feedback
+
+Each merge is logged to stderr. After all merges, a summary line is emitted.
+
+- Traces to: UC-34 (feedback)
+- AC: (1) Per-merge line: `[engram] Merged <absorbed-title> into <survivor-title> (N keywords added)`. (2) Summary line: `[engram] Consolidated N duplicate clusters (M memories merged)`. (3) If no duplicates found: no output (silent). (4) Output goes to stderr (not stdout — stdout reserved for structured output).
+- Verification: integration (stderr capture)
+'''
+
+[REQ-14]
+name = "Go binary `surface` subcommand"
+traces_to = ["UC-2"]
+hash = "758ce9e8"
+body = '''
+The system adds a `surface` subcommand to the engram binary: `engram surface --mode <session-start|prompt|tool> --data-dir <path> [--format json]`. Mode-specific flags: `--message <text>` for prompt mode, `--tool-name <name> --tool-input <json>` for tool mode. The `--format json` flag outputs a JSON object with `summary` (brief human-readable message) and `context` (full system-reminder XML) instead of raw XML.
+
+- Traces to: UC-2 (CLI entry point)
+- AC: (1) `engram surface --mode session-start --data-dir <path>` runs SessionStart surfacing. (2) `engram surface --mode prompt --message <text> --data-dir <path>` runs UserPromptSubmit surfacing. (3) `engram surface --mode tool --tool-name <name> --tool-input <json> --data-dir <path>` runs PreToolUse enforcement. (4) Exit 0 always — errors logged to stderr. (5) `--format json` outputs `{"summary": "...", "context": "..."}` instead of raw XML. (6) No matches produce empty stdout regardless of format.
+- Verification: deterministic (subcommand runs, correct mode dispatch)
+
+---
+'''
+
+[REQ-15]
+name = "LLM extraction from transcript delta with unified tier criteria"
+traces_to = ["UC-1"]
+hash = "b4453e69"
+body = '''
+When a PreCompact or Stop hook fires, the system extracts only the new transcript content since the last extraction (delta), preprocesses it with Strip (removing low-value content), and sends the cleaned delta to an LLM (claude-haiku-4-5-20251001) which extracts candidate learnings and classifies each using the same A/B/C tier criteria as UC-3 (REQ-7). Each candidate has the same structured fields as UC-3 memories: title, content, observation_type, concepts, keywords, principle, anti_pattern (tier-gated), rationale, filename_summary.
+
+The LLM extracts from the delta:
+- Explicit instructions the real-time classifier missed (tier A)
+- Teachable corrections with generalizable principles (tier B)
+- Contextual facts: architectural decisions, discovered constraints, working solutions, implicit preferences (tier C)
+
+- Traces to: UC-1 (incremental LLM extraction, tier classification, anti-pattern gating)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) The prompt includes only the stripped transcript delta (new content since last extraction), not the full transcript. (3) Delta is obtained by reading transcript file from byte offset (REQ-26). (4) Delta is preprocessed with Strip to remove noise (tool results, base64, repeated schemas). (5) Response is parsed as a JSON array of candidate objects, each with required fields plus `tier` field (A/B/C). (6) Invalid or unparseable responses return an error. (7) Anti-pattern field is populated per REQ-7: required for A, optional for B, empty for C. (8) The LLM applies quality gate (REQ-16) and tier assignment simultaneously.
+- Verification: deterministic (JSON schema validation, tier assignment accuracy, delta size < full transcript)
+
+---
+'''
+
+[REQ-16]
+name = "Quality gate for extracted learnings"
+traces_to = ["UC-1"]
+hash = "cd884fe8"
+body = '''
+The LLM extraction prompt instructs rejection of low-quality candidates. Mechanical patterns (e.g., "ran tests before committing"), vague generalizations (e.g., "code should be clean"), and observations too narrow to be useful again are excluded from the candidate list.
+
+- Traces to: UC-1 (quality gate)
+- AC: (1) The system prompt explicitly instructs the LLM to reject mechanical patterns, vague generalizations, and overly narrow observations. (2) Only specific, actionable learnings with clear principles or anti-patterns are included. (3) The quality gate is embedded in the prompt, not a separate filtering step.
+- Verification: LLM judgment (quality is prompt-enforced, verified via behavioral tests)
+
+---
+'''
+
+[REQ-17]
+name = "Deduplication against existing memories"
+traces_to = ["UC-1"]
+hash = "1b466d1e"
+body = '''
+Before writing each candidate learning, the system checks existing TOML files in the memories directory. Candidates that substantially overlap an existing memory (by keyword overlap) are skipped. UC-3 mid-session captures take priority — session-end extraction never duplicates what was already captured.
+
+- Traces to: UC-1 (deduplication)
+- AC: (1) All existing `.toml` files in `<data-dir>/memories/` are read before writing. (2) For each candidate, keywords are compared against existing memories' keywords. (3) If keyword overlap exceeds a threshold (>50% of candidate's keywords match an existing memory's keywords), the candidate is skipped. (4) Deduplication is logged to stderr. (5) If zero candidates survive dedup, no files are written and no error is emitted.
+- Verification: deterministic (keyword overlap calculation)
+
+---
+'''
+
+[REQ-18]
+name = "Fail loudly when no API token"
+traces_to = ["UC-1"]
+hash = "3018ef30"
+body = '''
+If no API token is configured, the system emits a loud stderr error and does not create any memory files. No degraded memories are ever written.
+
+- Traces to: UC-1 (no graceful degradation)
+- AC: (1) Missing API token → emit `[engram] Error: session learning skipped — no API token configured` to stderr. (2) No TOML files are created. (3) Exit 0 (don't break the hook chain). (4) Aligned with UC-3 (see REQ-1, no graceful degradation for classifier).
+- Verification: deterministic (stderr check, no files created)
+
+---
+'''
+
+[REQ-19]
+name = "Idempotency across multiple triggers"
+traces_to = ["UC-1"]
+hash = "908d4859"
+body = '''
+If both PreCompact and SessionEnd fire in the same session, the second invocation deduplicates against memories created by the first. Multiple PreCompact events in a long session each extract from the new transcript portion only.
+
+- Traces to: UC-1 (idempotency)
+- AC: (1) Each invocation reads existing memory files before writing (REQ-17 dedup covers this). (2) Memories written by a prior invocation in the same session are treated as existing memories for dedup. (3) No special session tracking is needed — file-based dedup is sufficient.
+- Verification: deterministic (run twice, check no duplicates)
+
+---
+'''
+
+[REQ-2]
+name = "Unified LLM call classifies and enriches"
+traces_to = ["UC-3"]
+hash = "e6e4faf1"
+body = '''
+For messages without fast-path keywords, a single API call to claude-haiku-4-5-20251001 receives the user message plus recent transcript context (~2000 tokens). The call returns JSON with both classification and structured memory fields:
+
+**Response fields:**
+- `tier` — `"A"`, `"B"`, `"C"`, or `null` (required)
+- `title` — 5-10 word summary
+- `content` — Full message verbatim
+- `observation_type` — Category label
+- `concepts` — Key concept tags
+- `keywords` — Searchable keywords
+- `principle` — Positive rule to follow
+- `anti_pattern` — Anti-pattern value (tier-gated: required for A, optional for B, empty for C)
+- `rationale` — Why this matters
+- `filename_summary` — 3-5 words for slug generation
+
+- Traces to: UC-3 (unified LLM classification + enrichment)
+- AC: (1) API call uses claude-haiku-4-5-20251001. (2) Input includes user message + recent transcript context (REQ-X, see below). (3) Response is parsed as JSON with all required fields. (4) `tier` field drives downstream behavior (null → skip, A/B/C → write). (5) Invalid or unparseable responses return an error.
+- Verification: deterministic (JSON schema validation of LLM response)
+
+---
+'''
+
+[REQ-20]
+name = "CLI `learn` subcommand with delta tracking"
+traces_to = ["UC-1"]
+hash = "ece54c9b"
+body = '''
+The system adds a `learn` subcommand to the engram binary: `engram learn --data-dir <path> --transcript-path <transcript_file> --session-id <id>`. Transcript is read from file (not stdin) to enable incremental offset tracking.
+
+- Traces to: UC-1 (CLI entry point, incremental learning)
+- AC: (1) `engram learn --data-dir <path> --transcript-path <file> --session-id <id>` reads transcript from file. (2) Looks up learn offset for the session ID (REQ-26). (3) If session ID differs from stored session, resets offset to 0. (4) Reads transcript delta from byte offset. (5) If delta is empty, skips extraction (no API call). (6) If delta has content, preprocesses with Strip (REQ-27) and sends to LLM. (7) Updates offset after extraction. (8) Runs the extraction → dedup → write pipeline. (9) Exit 0 always — errors logged to stderr. (10) Pure Go, no CGO.
+- Verification: deterministic (subcommand runs, delta extraction, offset persistence)
+
+---
+'''
+
+[REQ-21]
+name = "Per-memory surfacing instrumentation fields"
+traces_to = ["UC-2"]
+hash = "a6760428"
+body = '''
+Each memory TOML file supports three optional tracking fields updated during surface events:
+
+- `surfaced_count` (int) — total number of times this memory has been surfaced. Defaults to 0 if absent.
+- `last_surfaced` (string, RFC 3339) — timestamp of the most recent surfacing event. Defaults to zero time if absent.
+- `surfacing_contexts` (string array) — bounded list (max 10) of recent context types. Each entry is the surface mode that triggered the event: `session-start`, `prompt`, or `tool`. When the list exceeds 10 entries, the oldest are dropped.
+
+These fields are read during retrieval (alongside existing fields) and written back during surface events. They are purely additive — existing memories without these fields work unchanged (zero/empty defaults).
+
+- Traces to: UC-2 (surfacing instrumentation)
+- AC: (1) `surfaced_count` is an integer, defaults to 0 when absent. (2) `last_surfaced` is RFC 3339, defaults to zero time when absent. (3) `surfacing_contexts` is a string array, max 10 entries, FIFO eviction. (4) Fields are optional — memories without them parse and function normally. (5) Fields round-trip through TOML read/write without data loss.
+- Verification: deterministic (TOML parse, field presence, value bounds)
+
+---
+'''
+
+[REQ-22]
+name = "In-place TOML update on surfacing events"
+traces_to = ["UC-2"]
+hash = "19916a09"
+body = '''
+After each surfacing mode (session-start, prompt, tool) determines which memories matched, the system updates each matched memory's TOML file in-place:
+
+1. Read the existing TOML file (full content, all fields).
+2. Compute updated tracking fields: increment `surfaced_count`, set `last_surfaced` to current time, append mode to `surfacing_contexts` (with FIFO eviction at 10).
+3. Write the updated TOML file atomically (temp file + rename).
+
+All existing fields are preserved on round-trip — the update must not drop or modify any field other than the three tracking fields.
+
+- Traces to: UC-2 (surfacing instrumentation, fire-and-forget)
+- AC: (1) After surfacing, each matched memory's TOML file is updated with new tracking values. (2) Existing fields (title, content, keywords, etc.) are preserved exactly. (3) Writes are atomic (temp file + rename). (4) Instrumentation errors are logged to stderr but never fail the surface operation (ARCH-6 exit-0 contract). (5) If no memories match, no TOML updates occur.
+- Verification: deterministic (file content before/after, field preservation, error isolation)
+
+---
+'''
+
+[REQ-23]
+name = "Creation log format for deferred visibility"
+traces_to = ["UC-2"]
+hash = "2195f558"
+body = '''
+PreCompact and SessionEnd hooks cannot output to the user (no hook output mechanism). Instead, UC-1 learning logs creation events to `<data-dir>/creation-log.jsonl` in JSONL format (one JSON object per line). Each log entry contains:
+
+```json
+{
+  "timestamp": "2026-03-06T12:34:56Z",
+  "title": "Memory title",
+  "tier": "A",
+  "filename": "memory-filename.toml"
+}
+```
+
+One entry per memory created. The log file is created if missing, appended to if exists. Fire-and-forget: creation log write failures are logged to stderr but don't fail the learn operation (ARCH-6 exit-0 contract).
+
+- Traces to: UC-1 (creation visibility, deferred reporting)
+- AC: (1) Each memory created by UC-1 appends one JSONL line to `creation-log.jsonl`. (2) Entry includes timestamp (RFC 3339), title, tier (A/B/C), and filename. (3) File is appended-to, created if missing. (4) Appends are atomic (temp write + rename to avoid corruption). (5) Write errors are logged to stderr, don't fail the operation.
+- Verification: deterministic (JSONL format validation, file content check)
+
+---
+'''
+
+[REQ-24]
+name = "SessionStart creation report — read and clear creation log"
+traces_to = ["UC-2"]
+hash = "3be9fdb1"
+body = '''
+When a session starts (SessionStart hook), before surfacing the top 20 memories by recency, the system checks for a creation log (`<data-dir>/creation-log.jsonl`). If it exists:
+
+1. Read all entries from the log
+2. Format them as a report: "N memories created since last session: [titles and tiers]"
+3. Include the report in the hook's `systemMessage` so the user sees what was learned
+4. Delete the creation log after successful reporting
+
+Fire-and-forget: log read/delete errors are logged to stderr but don't fail the SessionStart operation (ARCH-6 exit-0 contract).
+
+- Traces to: UC-2 (SessionStart surfacing, creation visibility)
+- AC: (1) SessionStart checks for `creation-log.jsonl`. (2) If present, reads all JSONL entries. (3) Formats a report: "N memories created since last session: [list]". (4) Includes report in `systemMessage` alongside the recency surfacing. (5) Deletes the log after reporting. (6) If no log exists, no report is included. (7) Read/delete errors logged to stderr, don't fail the operation.
+- Verification: deterministic (log parsing, report format, file deletion)
+
+---
+
+# UC-1 Requirements and Design
+
+---
+'''
+
+[REQ-25]
+name = "Creation log write for deferred visibility"
+traces_to = ["UC-1"]
+hash = "abde4eb7"
+body = '''
+During UC-1 learning (PreCompact/SessionEnd), each memory file successfully written is also logged to `<data-dir>/creation-log.jsonl` (see REQ-23 for format). Logging happens after the TOML file is written. See REQ-23 for JSONL format and fire-and-forget error handling.
+
+- Traces to: UC-1 (creation visibility, deferred reporting)
+- AC: (1) For each memory file written, append one JSONL line to `creation-log.jsonl`. (2) Entry includes timestamp (RFC 3339), memory title, tier (A/B/C), and filename. (3) Appends are atomic (temp write + rename). (4) Write errors logged to stderr, don't fail the learning operation. (5) Creation log enables deferred visibility at next SessionStart (REQ-24).
+- Verification: deterministic (JSONL format check, file append success)
+
+---
+'''
+
+[REQ-26]
+name = "Surfacing log — write during surfacing, read-and-clear during evaluate"
+traces_to = ["UC-15"]
+hash = "cdcc6b21"
+body = '''
+During each surfacing event (SessionStart, UserPromptSubmit, PreToolUse), the surfacer appends an entry to `<data-dir>/surfacing-log.jsonl` recording which memories were surfaced. The evaluate pass reads this file to determine what was surfaced during the session, then clears it.
+
+- Traces to: UC-15 (surfacing log, session-scoped record)
+- AC: (1) Each surfacing event appends one entry per matched memory to surfacing-log.jsonl. (2) Entry includes memory file path, surfacing mode, and timestamp. (3) Evaluate pass reads all entries and clears the file. (4) Missing file → empty list (no error). (5) Write errors are fire-and-forget (ARCH-6 exit-0 contract). (6) Read-and-clear is atomic — no partial reads.
+- Verification: deterministic (file write/read, JSON parse)
+
+---
+'''
+
+[REQ-27]
+name = "LLM evaluation of surfaced memories against transcript"
+traces_to = ["UC-15"]
+hash = "6c4aab47"
+body = '''
+The evaluate pass sends the full session transcript plus the list of surfaced memories (with their content, principle, and anti-pattern) to an LLM (claude-haiku-4-5-20251001). The LLM classifies each surfaced memory's outcome:
+
+- **followed** — the agent acted consistently with the memory's principle
+- **contradicted** — the agent acted against the memory's principle or repeated the anti-pattern
+- **ignored** — the memory was surfaced but not relevant to any decision in the session
+
+The LLM provides brief evidence for each classification.
+
+- Traces to: UC-15 (evaluation pass, outcome classification)
+- AC: (1) LLM receives full transcript + surfaced memory list. (2) Each surfaced memory gets exactly one outcome: followed, contradicted, or ignored. (3) Each outcome includes a brief evidence string. (4) LLM response is parsed as JSON. (5) Invalid/unparseable responses return an error.
+- Verification: deterministic (JSON schema validation of LLM response)
+
+---
+'''
+
+[REQ-28]
+name = "Per-session evaluation log write"
+traces_to = ["UC-15"]
+hash = "02b20d7c"
+body = '''
+After the LLM classifies outcomes, write results to a per-session evaluation log file at `<data-dir>/evaluations/<timestamp>.jsonl`. Each line is one evaluated memory's outcome. The timestamp in the filename is RFC 3339 with colons replaced by hyphens for filesystem compatibility.
+
+- Traces to: UC-15 (evaluation log, per-session storage)
+- AC: (1) Evaluation directory is created if missing. (2) One file per evaluate invocation, named by timestamp. (3) Each line is valid JSON with memory_path, outcome, evidence, evaluated_at. (4) File write is atomic (temp + rename). (5) Empty surfacing log → no evaluation file created.
+- Verification: deterministic (file exists, JSON parses, fields present)
+
+---
+'''
+
+[REQ-29]
+name = "Effectiveness aggregation from evaluation logs"
+traces_to = ["UC-15"]
+hash = "095be817"
+body = '''
+When surfacing memories (UC-2), compute effectiveness on-the-fly by reading all evaluation log files in `<data-dir>/evaluations/`. For each surfaced memory, aggregate outcomes across all sessions: count of followed, contradicted, ignored. Compute effectiveness percentage as `followed / (followed + contradicted + ignored) * 100`.
+
+- Traces to: UC-15 (effectiveness annotations, read path)
+- AC: (1) Read all `.jsonl` files in evaluations directory. (2) Parse each line and group by memory_path. (3) Compute per-memory totals: followed_count, contradicted_count, ignored_count. (4) Compute effectiveness percentage. (5) Missing evaluations directory → empty stats (no error). (6) Malformed lines skipped.
+- Verification: deterministic (file reads, arithmetic)
+
+---
+'''
+
+[REQ-3]
+name = "Enriched memory written as TOML file"
+traces_to = ["UC-3"]
+hash = "7f3da09f"
+body = '''
+The enriched memory is written to `<data-dir>/memories/<slug>.toml` where slug is the slugified filename summary (3-5 hyphenated lowercase words). The TOML file contains all structured fields plus confidence tier and timestamps.
+
+- Traces to: UC-3 (TOML file output)
+- AC: (1) File is written to the memories subdirectory. (2) Filename is 3-5 hyphenated words, lowercase, `.toml` extension. (3) TOML contains: title, content, observation_type, concepts (array), keywords (array), principle, anti_pattern, rationale, confidence, created_at (RFC 3339), updated_at (RFC 3339). (4) File is valid TOML, human-readable, and hand-editable.
+- Verification: deterministic (file exists, TOML parses, fields present)
+
+---
+'''
+
+[REQ-30]
+name = "Effectiveness annotations during surfacing"
+traces_to = ["UC-15"]
+hash = "544d6cc1"
+body = '''
+When UC-2 surfaces memories, include effectiveness annotations for memories that have evaluation data. Format: "(surfaced N times, followed M%)" appended to the memory's surfacing output.
+
+- Traces to: UC-15 (effectiveness visibility, inline annotations)
+- AC: (1) Annotations appear when evaluation data exists for a surfaced memory. (2) Memories with no evaluation data show no annotation (backward compatible). (3) Format is "(surfaced N times, followed M%)" where N is total evaluations and M is effectiveness percentage. (4) Annotations appear in all surfacing modes (session-start, prompt, tool).
+- Verification: deterministic (output format check)
+
+---
+'''
+
+[REQ-31]
+name = "SessionEnd evaluation summary — user-visible"
+traces_to = ["UC-15"]
+hash = "91b7db36"
+body = '''
+After the evaluate pass completes, output a summary to the hook's `systemMessage` field so the user sees it. The summary reports the number of memories evaluated and the outcome breakdown.
+
+- Traces to: UC-15 (SessionEnd visibility)
+- AC: (1) Summary appears in hook `systemMessage` for user visibility. (2) Format shows total evaluated, followed count, contradicted count, ignored count. (3) If no memories were surfaced (empty surfacing log), no summary output. (4) Summary appears after learn output in the hook script.
+- Verification: deterministic (hook output check)
+
+---
+'''
+
+[REQ-32]
+name = "CLI `evaluate` subcommand"
+traces_to = ["UC-15"]
+hash = "bdc7991c"
+body = '''
+Go binary `engram` with an `evaluate` subcommand: `engram evaluate --data-dir <path>`. Reads transcript from stdin. Pure Go, no CGO.
+
+- Traces to: UC-15 (CLI entry point)
+- AC: (1) Binary accepts `evaluate` subcommand. (2) `--data-dir` flag specifies the data directory. (3) Reads transcript from stdin. (4) Exit 0 always — errors logged to stderr, never propagated as exit codes (ARCH-6). (5) Requires API token (same mechanism as correct/learn).
+- Verification: deterministic (subcommand runs, exit code)
+
+---
+'''
+
+[REQ-33]
+name = "No graceful degradation for evaluate"
+traces_to = ["UC-15"]
+hash = "d86a5e38"
+body = '''
+If no API token is configured, emit a loud stderr error (`[engram] Error: evaluation skipped — no API token configured`) and skip evaluation entirely. Never write degraded evaluations.
+
+- Traces to: UC-15 (no degradation, same pattern as REQ-18)
+- AC: (1) Missing token → stderr error + exit 0. (2) No evaluation log file created. (3) Error message includes `[engram] Error:` prefix.
+- Verification: deterministic (error message check)
+
+---
+'''
+
+[REQ-34]
+name = "Idempotency for evaluate across multiple triggers"
+traces_to = ["UC-15"]
+hash = "cbeba2d7"
+body = '''
+If both PreCompact and SessionEnd fire in the same session, the second evaluate invocation reads an empty surfacing log (cleared by the first) and produces no evaluation file. No duplicate evaluations.
+
+- Traces to: UC-15 (idempotency, same pattern as REQ-19)
+- AC: (1) First evaluate reads and clears surfacing log. (2) Second evaluate finds empty/missing log → no evaluation produced. (3) No duplicate entries in evaluation logs.
+- Verification: deterministic (file state check)
+
+---
+
+# UC-6: Memory Effectiveness Review
+
+---
+'''
+
+[REQ-35]
+name = "Matrix classification"
+traces_to = ["UC-6"]
+hash = "4fc02da0"
+body = '''
+Classify each memory into one of four quadrants by combining two signals:
+
+1. **Surfacing frequency:** Read `surfaced_count` from each memory's TOML tracking fields. Compute the median across all memories. Above median = "often surfaced", at or below median = "rarely surfaced".
+2. **Follow-through rate:** Read `EffectivenessScore` from evaluation aggregation. >= 50% = "high follow-through", < 50% = "low follow-through".
+
+Resulting quadrants:
+
+|  | Often Surfaced | Rarely Surfaced |
+|--|---|---|
+| **High Follow-Through** | Working | Hidden Gem |
+| **Low Follow-Through** | Leech | Noise |
+
+Memories with fewer than 5 total evaluations (followed + contradicted + ignored) are classified as **insufficient data** — excluded from quadrant assignment and threshold flagging.
+
+- Traces to: UC-6 (2x2 matrix classification)
+- AC: (1) Median computed across all memories with tracking data. (2) Four quadrants assigned correctly. (3) Memories with <5 evaluations classified as insufficient data. (4) Memories with zero surfacing data classified as insufficient data.
+- Verification: deterministic (arithmetic on known inputs)
+
+---
+'''
+
+[REQ-36]
+name = "Threshold flagging"
+traces_to = ["UC-6"]
+hash = "3ba3cfbd"
+body = '''
+Flag a memory for action when both conditions are met:
+1. It has 5 or more total evaluations (followed + contradicted + ignored)
+2. Its effectiveness score is below 40%
+
+Flagged memories include their quadrant assignment (leech or noise — working and hidden gem memories cannot have <40% effectiveness by definition since the high follow-through threshold is 50%).
+
+- Traces to: UC-6 (threshold flagging), CLAUDE.md ("Pruned when utility < 0.4 after 5+ retrievals")
+- AC: (1) Only memories with 5+ evaluations can be flagged. (2) Threshold is strictly less than 40%. (3) Flagged memories include quadrant. (4) Memories at exactly 40% are not flagged.
+- Verification: deterministic (threshold arithmetic)
+
+---
+'''
+
+[REQ-37]
+name = "Effectiveness annotations during surfacing"
+traces_to = ["UC-6"]
+hash = "b38f7c60"
+body = '''
+When UC-2 surfaces memories (any mode: session-start, prompt, tool), annotate each surfaced memory with effectiveness context if evaluation data exists:
+
+Format: `(surfaced N times, followed M%)`
+
+Where N is the total evaluation count (followed + contradicted + ignored) and M is the effectiveness score rounded to the nearest integer.
+
+Computed on-the-fly by reading evaluation log files. Fire-and-forget: if reading evaluation data fails, omit the annotation silently (ARCH-6 exit-0 contract). Memories with no evaluation history show no annotation.
+
+- Traces to: UC-6 (effectiveness annotations), UC-2 (surfacing output)
+- AC: (1) Annotation appears after memory title in surfacing output. (2) N = total evaluations, M = effectiveness score %. (3) Missing/empty evaluations → no annotation (not "(surfaced 0 times, followed 0%)"). (4) Read failure → annotation omitted, surfacing succeeds.
+- Verification: deterministic (format check + error path)
+
+---
+'''
+
+[REQ-38]
+name = "`engram review` CLI command"
+traces_to = ["UC-6"]
+hash = "9af79592"
+body = '''
+New subcommand `engram review --data-dir <path>` that reads memory tracking data and evaluation logs, then outputs the effectiveness matrix.
+
+Output sections (in order):
+1. **Summary line:** Total memories, total with sufficient data, total flagged.
+2. **Per-quadrant table:** Count of memories in each quadrant.
+3. **Flagged memories:** Name, quadrant, surfaced count, effectiveness score, evaluation count. Sorted by effectiveness score ascending (worst first).
+4. **Insufficient-data list:** Name, surfaced count, evaluation count. Only shown if such memories exist.
+
+Exit 0 always. `--data-dir` is required.
+
+- Traces to: UC-6 (`engram review` CLI)
+- AC: (1) All four sections present when data exists. (2) Flagged sorted by effectiveness ascending. (3) Missing `--data-dir` → usage error, exit 0. (4) Insufficient-data section omitted when all memories have 5+ evaluations.
+- Verification: deterministic (output format check)
+
+---
+'''
+
+[REQ-39]
+name = "No-data behavior"
+traces_to = ["UC-6"]
+hash = "19f5f4e3"
+body = '''
+When the evaluation directory is missing or contains zero `.jsonl` files, `engram review` outputs `[engram] No evaluation data found.` and exits 0. No quadrant classification attempted.
+
+When tracking data exists but evaluation data does not, all memories are classified as insufficient data.
+
+- Traces to: UC-6 (no graceful degradation)
+- AC: (1) Missing eval dir → no-data message, exit 0. (2) Empty eval dir → no-data message, exit 0. (3) Tracking data without eval data → all insufficient. (4) No crash or panic on missing data.
+- Verification: deterministic (file absence check)
+
+---
+
+# UC-14: Structured Session Continuity
+
+---
+'''
+
+[REQ-4]
+name = "System reminder feedback on memory creation — user-visible"
+traces_to = ["UC-3"]
+hash = "6576c62d"
+body = '''
+After a memory file is created, the system outputs creation feedback that is visible to the user via the hook's `systemMessage` field. The feedback confirms: the tier classification, the memory title, and the file path.
+
+When surface matches also exist in the same hook invocation, creation feedback and surface summary are both included in `systemMessage` so the user sees both. Creation feedback is never buried in `additionalContext` (model-only context).
+
+- Traces to: UC-3 (feedback, user visibility)
+- AC: (1) Memory creation always outputs feedback. (2) Feedback goes into the hook's `systemMessage` field for user visibility. (3) When surface matches co-occur, both creation and surface summary appear in `systemMessage`. (4) Feedback includes memory tier (A/B/C), title, and file path. (5) Format uses `[engram]` prefix. (6) Null classification → no output (no file created).
+- Verification: deterministic (hook output field check, user visibility confirmation)
+
+---
+'''
+
+[REQ-40]
+name = "Transcript delta extraction"
+traces_to = ["UC-14"]
+hash = "a6c0b5d4"
+body = '''
+Read the transcript JSONL file from a given byte offset (watermark) to end-of-file. Return the raw lines from the offset onward and the new byte offset (file size after read). If the file is shorter than the watermark (new session, file rotated), reset to offset 0 and read the entire file.
+
+- Traces to: UC-14 (incremental context update step 1)
+- AC: (1) Reading from offset 0 returns full file. (2) Reading from mid-file offset returns only new lines. (3) File shorter than watermark resets to 0. (4) Empty file returns empty delta and offset 0.
+- Verification: deterministic (byte offset math)
+
+---
+'''
+
+[REQ-41]
+name = "Low-value content stripping"
+traces_to = ["UC-14"]
+hash = "e61da520"
+body = '''
+Given raw transcript JSONL lines, strip low-value content and retain high-value content. Strip: tool result content blocks, base64-encoded data, content blocks longer than 2000 characters. Retain: user messages (role=user), assistant text messages (role=assistant), tool use names and commands (not full results), error messages.
+
+- Traces to: UC-14 (incremental context update step 2)
+- AC: (1) Tool result blocks are removed. (2) Base64 strings (>100 chars of `[A-Za-z0-9+/=]`) are replaced with `[base64 removed]`. (3) Content blocks >2000 chars are truncated with `[truncated]`. (4) User messages preserved verbatim. (5) Assistant text preserved. (6) Tool names preserved, tool results stripped.
+- Verification: deterministic (string processing)
+
+---
+'''
+
+[REQ-42]
+name = "Watermark tracking"
+traces_to = ["UC-14"]
+hash = "45025b57"
+body = '''
+The byte offset watermark and session ID are persisted in the context file's HTML comment metadata. On each update, the new offset is written. On SessionStart, if the session ID differs from the stored one, the watermark resets to 0 (new session = new transcript file).
+
+- Traces to: UC-14 (incremental context update step 1, context file format)
+- AC: (1) Metadata is parseable from HTML comment. (2) Offset updates after each write. (3) Session ID mismatch resets offset to 0. (4) Missing file = offset 0, empty session ID.
+- Verification: deterministic (metadata parsing)
+
+---
+'''
+
+[REQ-43]
+name = "Context summarization via Haiku"
+traces_to = ["UC-14"]
+hash = "d655168b"
+body = '''
+Given a previous summary (possibly empty) and a stripped transcript delta, call claude-haiku-4-5-20251001 to produce an updated task-focused working summary. The prompt instructs: focus on what's being worked on, decisions made, progress, and open questions. No constraints/patterns (those are memories). If the API token is empty, skip silently and return the previous summary unchanged. If the API call fails, return the previous summary unchanged (no degraded output).
+
+- Traces to: UC-14 (incremental context update step 3, no graceful degradation)
+- AC: (1) Empty previous summary + delta → new summary. (2) Existing summary + delta → updated summary. (3) Empty delta → no API call, return previous summary. (4) Empty token → no API call, return previous summary. (5) API error → return previous summary.
+- Verification: API call requires mock in tests
+
+---
+'''
+
+[REQ-44]
+name = "Context file write"
+traces_to = ["UC-14"]
+hash = "d29177ef"
+body = '''
+Write the session context to `.claude/engram/session-context.md` atomically (temp + rename). Format: HTML comment with metadata (updated timestamp, byte offset, session ID) followed by the summary as plain markdown. Create `.claude/engram/` directory if missing.
+
+- Traces to: UC-14 (context file format, file location)
+- AC: (1) File contains HTML comment header with metadata fields. (2) Summary follows as plain markdown. (3) Directory created if missing. (4) Atomic write (temp file + rename). (5) Existing file overwritten completely.
+- Verification: deterministic (file format check)
+
+---
+'''
+
+[REQ-45]
+name = "Context file read and restore"
+traces_to = ["UC-14"]
+hash = "dfe16045"
+body = '''
+On SessionStart, read `.claude/engram/session-context.md` if it exists. Extract the markdown summary (skip HTML comment). Return the summary for injection as `additionalContext`. Missing file returns empty string (no error). Always load regardless of file age.
+
+- Traces to: UC-14 (restore on SessionStart)
+- AC: (1) Existing file → summary extracted. (2) Missing file → empty string, no error. (3) HTML comment metadata is not included in the returned summary. (4) File age is irrelevant — always loaded.
+- Verification: deterministic (file read + parse)
+
+---
+'''
+
+[REQ-46]
+name = "Frecency activation scoring (ACT-R model)"
+traces_to = []
+hash = "af4a2e7f"
+body = '''
+Each memory has a frecency activation score computed from four components:
+
+1. **Frequency:** `log(1 + surfaced_count)` — logarithmic scaling prevents high-frequency memories from dominating.
+2. **Recency:** `1 / (1 + hours_since_last_surfaced)` — time decay based on hours since last surfacing event. If never surfaced, uses `updated_at` as fallback.
+3. **Spread:** `log(1 + len(surfacing_contexts))` — diversity of contexts the memory was surfaced in. More contexts = more broadly useful.
+4. **Effectiveness:** `max(0.1, effectiveness_score / 100)` — from UC-15 evaluations. Defaults to 0.5 when no evaluation data exists (neutral). Floor of 0.1 prevents zero-multiplication.
+
+**Combined activation:** `frequency × recency × spread × effectiveness`
+
+For combined BM25 + frecency ranking (prompt/tool modes): `bm25_score × (1 + activation)` — the `(1 + activation)` factor boosts BM25 scores by frecency without allowing frecency alone to override BM25 relevance (BM25 of zero stays zero).
+
+- Traces to: UC-2 (surfacing ranking)
+- AC: (1) Activation score computed from all four components. (2) Never-surfaced memories use updated_at for recency, 0 for frequency/spread, default effectiveness. (3) Combined score preserves BM25 relevance as primary signal. (4) All components are non-negative.
+- Verification: deterministic (pure math on stored fields + effectiveness data)
+
+---
+'''
+
+[REQ-47]
+name = "Quadrant partitioning for maintenance"
+traces_to = ["UC-16"]
+hash = "e2d7f2d7"
+body = '''
+When `engram maintain` runs, it reuses the existing `review.Classify` function (REQ-35 median split, REQ-36 threshold flagging) to partition memories into quadrants. No new classification logic. Only memories with 5+ evaluations are actionable — insufficient-data memories are excluded from proposals.
+
+- Traces to: UC-16 (quadrant partitioning)
+- AC: Maintain produces proposals only for memories classified into Working/Leech/Hidden Gem/Noise. Insufficient-data memories produce no proposals.
+
+---
+'''
+
+[REQ-48]
+name = "Working quadrant — staleness detection"
+traces_to = ["UC-16"]
+hash = "89ebdfbb"
+body = '''
+For memories in the Working quadrant, detect staleness based on `updated_at` age. A memory is stale if `updated_at` is older than a configurable threshold (default: 90 days). Stale working memories get a "review staleness" proposal. Non-stale working memories get no proposal (they're fine).
+
+- Traces to: UC-16 (working quadrant), issue #40
+- AC: Working memories older than the staleness threshold produce a proposal with `action: "review_staleness"`. Working memories within threshold produce no proposal.
+
+---
+'''
+
+[REQ-49]
+name = "Leech quadrant — LLM-powered root cause diagnosis"
+traces_to = ["UC-16"]
+hash = "d479471c"
+body = '''
+For memories in the Leech quadrant (often surfaced, low follow-through), call Haiku to diagnose root cause and propose fixes. The LLM receives the memory's content (title, principle, anti_pattern, keywords, content) plus effectiveness stats (surfaced count, follow rate). The LLM proposes specific field-level changes: rewritten content, adjusted keywords, or tier change.
+
+- Traces to: UC-16 (leech quadrant), issue #41
+- AC: Each leech memory produces a proposal with `action: "rewrite"` containing specific TOML field changes proposed by the LLM.
+
+---
+'''
+
+[REQ-50]
+name = "Hidden gem quadrant — LLM-powered keyword broadening"
+traces_to = ["UC-16"]
+hash = "c26aacf8"
+body = '''
+For memories in the Hidden Gem quadrant (high follow-through, rarely surfaced), call Haiku to propose expanded keywords and concepts. The LLM receives the memory's content plus stats, and proposes additional keywords/concepts to broaden surfacing triggers.
+
+- Traces to: UC-16 (hidden gem quadrant), issue #42
+- AC: Each hidden gem memory produces a proposal with `action: "broaden_keywords"` containing proposed keyword additions.
+
+---
+'''
+
+[REQ-51]
+name = "Noise quadrant — removal proposal with evidence"
+traces_to = ["UC-16"]
+hash = "3d909dd9"
+body = '''
+For memories in the Noise quadrant (rarely surfaced, low follow-through), generate a deterministic removal proposal. No LLM needed — the evidence is the stats themselves: surfacing count, follow rate, age, evaluation count. The proposal includes all evidence for user review.
+
+- Traces to: UC-16 (noise quadrant), issue #43
+- AC: Each noise memory produces a proposal with `action: "remove"` and evidence fields (surfaced_count, effectiveness_score, evaluation_count, age_days).
+
+---
+'''
+
+[REQ-52]
+name = "Fire-and-forget proposal generation"
+traces_to = ["UC-16"]
+hash = "feaaa54a"
+body = '''
+Individual proposal failures (LLM timeout, parse error) must not block other proposals. Failed proposals are omitted from output. The maintain command always exits 0. Errors logged to stderr.
+
+- Traces to: UC-16 (fire-and-forget), ARCH-6
+- AC: If the LLM call for one leech memory fails, other proposals (including other leech memories) still appear in output.
+
+---
+'''
+
+[REQ-53]
+name = "`engram maintain` CLI subcommand"
+traces_to = ["UC-16"]
+hash = "4422b0c1"
+body = '''
+New CLI subcommand: `engram maintain --data-dir <path>`. Reads effectiveness data and memory tracking, generates proposals, writes JSON to stdout. Requires `ANTHROPIC_API_KEY` for leech/hidden-gem LLM calls. If no API key and there are leech/hidden-gem memories, those proposals are skipped (not an error).
+
+- Traces to: UC-16 (CLI command)
+- AC: `engram maintain --data-dir /path` outputs JSON array of proposals to stdout. Missing API key skips LLM proposals but still outputs working/noise proposals.
+
+---
+'''
+
+[REQ-54]
+name = "No-data behavior for maintain"
+traces_to = ["UC-16"]
+hash = "cf42b2ad"
+body = '''
+If no memories have 5+ evaluations, `engram maintain` outputs an empty JSON array `[]` and exits 0. No error message, no degraded output.
+
+- Traces to: UC-16 (no-data behavior)
+- AC: Empty evaluation directory → `[]` output, exit 0.
+
+---
+'''
+
+[REQ-55]
+name = "Registry bounded growth — one file per memory"
+traces_to = ["UC-23"]
+hash = "c151e1f4"
+body = '''
+Each memory TOML file contains exactly one set of runtime metrics alongside its content. No separate index, no unbounded logs, no append-only event files. Each update to a memory's metrics (surfaced, evaluated, merged) rewrites the TOML file atomically.
+
+- Traces to: UC-23 (data model constraint)
+- AC: (1) Each memory has a unique file path as its ID. (2) One TOML file per memory with embedded metrics. (3) Updates rewrite the file atomically (temp + rename). (4) Total storage is O(num_memories), not O(events).
+- Verification: structural (file count = unique memories)
+
+---
+'''
+
+[REQ-56]
+name = "Registry scoped to memory source type only"
+traces_to = ["UC-23"]
+hash = "07483a84"
+body = '''
+The registry tracks only memory TOML files. Non-memory sources (claude-md, rules, skills) are handled separately by the cross-source scanner if needed. No source_type field required — all entries are memories by definition.
+
+- Traces to: UC-23 (simplified taxonomy after S3 + issue #218)
+- AC: (1) Directory scan of memories/ directory is the complete registry. (2) No non-memory entries exist. (3) runAutoRegistration for non-memory sources removed.
+- Verification: structural (only *.toml files in memories/)
+
+---
+'''
+
+[REQ-57]
+name = "Registry computes effectiveness as quantitative ratio"
+traces_to = ["UC-23"]
+hash = "ebbe4847"
+body = '''
+Effectiveness = followed / (followed + contradicted + ignored). Null when insufficient evaluations. Used for quadrant assignment and escalation decisions.
+
+- Traces to: UC-23 (effectiveness signal)
+- AC: (1) Three counters in TOML: followed_count, contradicted_count, ignored_count. (2) Effectiveness computed on read (not stored as separate field). (3) Denominator is sum of all three. (4) Null when denominator < N evaluations (threshold).
+- Verification: deterministic (arithmetic)
+
+---
+'''
+
+[REQ-58]
+name = "Registry computes frecency as frequency × recency blend"
+traces_to = ["UC-23"]
+hash = "524902de"
+body = '''
+Frecency weights surfaced_count (frequency) and time-since-last-surfaced (recency) using exponential decay. Higher frecency = rank higher in surfacing.
+
+- Traces to: UC-23 (frecency signal)
+- AC: (1) surfaced_count is a TOML field (incremented on each surface event). (2) last_surfaced_at is a TOML timestamp field. (3) Decay function has fixed half-life (e.g., 7 days). (4) Computed on read.
+- Verification: deterministic (time-based + arithmetic)
+
+---
+'''
+
+[REQ-59]
+name = "Registry stores content_hash to detect instruction changes"
+traces_to = ["UC-23"]
+hash = "d0ac5257"
+body = '''
+Each memory's content fields are hashed (SHA256 or similar) and stored in the TOML. If content changes (e.g., memory is edited), content_hash changes, triggering re-evaluation.
+
+- Traces to: UC-23 (change detection)
+- AC: (1) content_hash computed from title + principle + content. (2) Hash updated on creation and on rewrite proposal acceptance. (3) Hash mismatch detected during evaluation pipeline.
+- Verification: deterministic (hash function)
+
+---
+'''
+
+[REQ-6]
+name = "Go binary with `correct` subcommand"
+traces_to = ["UC-3"]
+hash = "5d2c0061"
+body = '''
+The system is implemented as a Go binary (`engram`) with a `correct` subcommand: `engram correct --message <text> --data-dir <path>`. Pure Go, no CGO.
+
+- Traces to: UC-3 (Go binary CLI)
+- AC: (1) Binary compiles with `CGO_ENABLED=0`. (2) `engram correct --message <text> --data-dir <path>` runs the detection → enrichment → write → feedback pipeline. (3) Exit 0 always — errors logged to stderr, never propagated as exit codes.
+- Verification: deterministic (build succeeds, subcommand runs)
+
+---
+'''
+
+[REQ-60]
+name = "Registry tracks absorbed history — merged duplicates preserve effectiveness"
+traces_to = ["UC-23"]
+hash = "ba308b59"
+body = '''
+When merging source → target memory, the source memory's counters (surfaced_count, followed/contradicted/ignored) are appended to the target memory's `absorbed` array as a timestamped record. Source TOML is then deleted.
+
+- Traces to: UC-23 (merge operation + history preservation)
+- AC: (1) Merge is idempotent: running twice with same source/target is safe. (2) absorbed array in target TOML preserves surfaced_count and counters. (3) merged_at timestamp is recorded. (4) Source TOML deleted after merge. (5) Content_hash of absorbed entries preserved for retrospective analysis.
+- Verification: deterministic (array structure, deletion)
+
+---
+'''
+
+[REQ-61]
+name = "Surfacing event atomically increments surfaced_count and updates last_surfaced_at"
+traces_to = ["UC-23"]
+hash = "35ff1b0c"
+body = '''
+Each time the surfacing hook surfaces a memory, it increments surfaced_count and updates last_surfaced_at in the memory's TOML file. Both updates happen in the same atomic write.
+
+- Traces to: UC-23 (surfacing tracking)
+- AC: (1) Hook calls Registry.RecordSurfacing(id). (2) Increments surfaced_count. (3) Sets last_surfaced_at to current time. (4) Single atomic TOML file rewrite (read → modify → write temp → rename). (5) No partial updates.
+- Verification: integration (hook + TOML I/O)
+
+---
+'''
+
+[REQ-62]
+name = "Evaluation event increments followed/contradicted/ignored counters"
+traces_to = ["UC-23"]
+hash = "8661f529"
+body = '''
+During evaluation, the system assesses whether the user's behavior complied with each surfaced memory. For each memory, one counter increments: followed (user complied), contradicted (user did opposite), ignored (no evidence of awareness).
+
+- Traces to: UC-23 (evaluation tracking)
+- AC: (1) Evaluation runs at session end or PreCompact. (2) For each surfaced memory, exactly one of the three counters increments in its TOML. (3) Counter update writes atomically. (4) Counters start at 0 (missing fields default to zero).
+- Verification: integration (evaluate + TOML I/O)
+
+---
+'''
+
+[REQ-63]
+name = "Registry merge absorbs all counters into target's absorbed field"
+traces_to = ["UC-23"]
+hash = "be9bce0f"
+body = '''
+When merging source → target, all of source's evaluation counters (followed, contradicted, ignored) and surfacing history (surfaced_count, last_surfaced_at, content_hash, created_at) become a single entry in target's TOML `absorbed` array. No counter loss.
+
+- Traces to: UC-23 (merge semantics)
+- AC: (1) absorbed array entry has: from (source path), surfaced_count, evaluations object, merged_at timestamp, content_hash. (2) Multiple entries allowed (multiple duplicates can be absorbed). (3) Absorbed entries are readable for escalation engine decisions.
+- Verification: structural (TOML array structure)
+
+---
+'''
+
+[REQ-64]
+name = "Registry supports concurrent writes from multiple hooks"
+traces_to = ["UC-23"]
+hash = "d903d5ed"
+body = '''
+Multiple hook instances may call Registry.RecordSurfacing or Registry.RecordEvaluation concurrently on the same or different memory files. Per-file writes must be safe: no data loss, no partial updates, no corruption.
+
+- Traces to: UC-23 (concurrency + data safety)
+- AC: (1) Per-file read-modify-write with file-level locking (flock or equivalent). (2) Atomic writes via temp file + rename. (3) Different memory files can be updated concurrently without contention. (4) Same-file concurrent writes serialized by lock. (5) Lock scope is minimal (read → modify → write → unlock).
+- Verification: integration (concurrent hook calls on same and different files)
+
+---
+'''
+
+[REQ-65]
+name = "One-time migration from JSONL registry to TOML-embedded metrics [COMPLETED]"
+traces_to = ["UC-23"]
+hash = "f4c67694"
+body = '''
+Migration executed: 1029 entries migrated, 36 non-memory skipped,
+instruction-registry.jsonl deleted. Migrator code removed after use.
+Requirement retained as historical record.
+
+- Traces to: UC-23 (migration from old storage model)
+- AC: All satisfied and verified during migration execution.
+
+---
+'''
+
+[REQ-66]
+name = "Missing metrics fields default to zero [SIMPLIFIED]"
+traces_to = ["UC-18"]
+hash = "52042b2b"
+body = '''
+Memory TOML files without metrics fields (pre-migration or newly created) are treated as having zero-valued metrics: surfaced_count=0, followed_count=0, contradicted_count=0, ignored_count=0, no links, no absorbed entries. No special initialization required.
+
+- Traces to: UC-23 (backward compatibility)
+- AC: (1) TOML decoder treats missing numeric fields as 0. (2) Missing array fields (links, absorbed) treated as empty. (3) Missing timestamp fields (last_surfaced_at) treated as zero time. (4) No error on missing fields.
+- Verification: deterministic (decoder defaults)
+
+---
+'''
+
+[REQ-67]
+name = "Quadrant classification operates on memory source type only"
+traces_to = ["UC-18"]
+hash = "596b3e6a"
+body = '''
+`engram review` scans the memories directory, reads metrics from each TOML file, and classifies into quadrants: Working (high surfacing + high effectiveness), Leech (high surfacing + low effectiveness), HiddenGem (low surfacing + high effectiveness), Noise (low surfacing + low effectiveness).
+
+- Traces to: UC-23 (classification — simplified to memory-only after S3 + issue #218)
+- AC: (1) Surfacing threshold is median-based (dynamic). (2) Effectiveness threshold is 50%. (3) Classification is deterministic given thresholds. (4) InsufficientData when < 5 evaluations.
+- Verification: deterministic (thresholds + math)
+
+---
+'''
+
+[REQ-68]
+name = "DI boundary — Registry interface in internal/, TOML I/O at edges"
+traces_to = ["UC-18"]
+hash = "cbada1f9"
+body = '''
+The registry abstraction (interface) lives in `internal/registry/`. Concrete TOML-directory-backed implementation wired at CLI edges. Tests use mock Registry interface. Interface methods unchanged.
+
+- Traces to: UC-23 (DI everywhere principle)
+- AC: (1) Registry interface defined in internal/ with methods: Register, RecordSurfacing, RecordEvaluation, Merge, Remove, List, Get. (2) Concrete TOMLDirectoryStore implementation wired in cli.go. (3) No raw file I/O in internal/ domain logic. (4) Tests inject mock Registry.
+- Verification: structural (interface + no os.* calls in internal/)
+
+---
+'''
+
+[REQ-69]
+name = "Budget cap per reminder"
+traces_to = ["UC-18"]
+hash = "32f6fe53"
+body = '''
+Each reminder is capped at 100 tokens (using UC-17's estimateTokens formula). Single targeted reminder per invocation — not a dump of all matching instructions.
+
+- Traces to: UC-18 (budget cap), UC-17 (token estimation)
+- AC: (1) Reminder text ≤100 tokens (estimateTokens). (2) Only one reminder per PostToolUse invocation. (3) If selected instruction exceeds 100 tokens, truncate or summarize.
+- Verification: deterministic (token counting)
+
+---
+'''
+
+[REQ-7]
+name = "Unified A/B/C confidence tier criteria"
+traces_to = ["UC-3"]
+hash = "9182c191"
+body = '''
+All memories (real-time and post-session) use identical tier criteria:
+
+| Tier | What | Anti-pattern | Example |
+|------|------|-------------|---------|
+| **A** | Explicit instruction | Always generated | "Remember: always use fish", "from now on use targ" |
+| **B** | Teachable correction | When generalizable (LLM decides) | "No, use targ — don't run raw go test" |
+| **C** | Contextual fact | Never generated | "The port is 3001", architectural decision |
+
+Fast-path keywords (`remember`, `always`, `never`) produce tier A immediately. The unified classifier (REQ-2) assigns A/B/C based on signal content. UC-1 extraction uses the same criteria.
+
+Anti-pattern generation is tier-gated: A always generates `anti_pattern`, B generates it when the correction implies a generalizable pattern (LLM decides), C never generates `anti_pattern`.
+
+- Traces to: UC-3 (confidence tiers, anti-pattern gating), UC-1 (tier assignment, anti-pattern gating)
+- AC: (1) Fast-path keywords → tier A. (2) Classifier output `tier` field determines memory tier. (3) UC-1 extraction classifies using same criteria. (4) `anti_pattern` field populated only for A and (sometimes) B, never for C. (5) Tier is written to the TOML `confidence` field.
+- Verification: deterministic (tier assignment, anti-pattern presence matches tier)
+
+---
+'''
+
+[REQ-70]
+name = "Suppression logic"
+traces_to = ["UC-18"]
+hash = "9b1985a7"
+body = '''
+If the transcript shows the model already performed the required action before the reminder fires, the reminder is suppressed. Suppression check reads recent transcript context (last ~500 tokens) and looks for evidence of compliance.
+
+- Traces to: UC-18 (suppression logic)
+- AC: (1) Before emitting reminder, read recent transcript (~500 tokens). (2) Check if the instruction's principle or anti-pattern was already addressed. (3) If complied → suppress (emit empty output). (4) If not complied or uncertain → emit reminder. (5) Suppression is conservative: emit reminder when uncertain.
+- Verification: deterministic (string matching on transcript)
+
+---
+'''
+
+[REQ-71]
+name = "Effectiveness tracking for reminders"
+traces_to = ["UC-18"]
+hash = "d677891d"
+body = '''
+Reminder effectiveness is tracked: did the model comply after the reminder? The PostToolUse surfacing event is logged (same as UC-2 surfacing log), and the next tool call is checked for compliance. Results feed into the evaluation pipeline.
+
+- Traces to: UC-18 (effectiveness tracking)
+- AC: (1) Each reminder emission is logged to the surfacing log with hook="PostToolUse", memory_id, timestamp. (2) Evaluation pipeline picks up PostToolUse surfacing events. (3) Compliance signal comes from subsequent tool calls in the same session.
+- Verification: deterministic (log format, pipeline integration)
+
+---
+'''
+
+[REQ-72]
+name = "Memory-only instruction scanning"
+traces_to = ["UC-19"]
+hash = "f10d42ee"
+body = '''
+The system scans memory entries only: `<data-dir>/memories/*.toml`. Each instruction is extracted as a structured item with: source, location, text, and effectiveness data (if available). CLAUDE.md, rules, and skill sources are not scanned (cross-source scanning moves to surface pipeline P4-full).
+
+- Traces to: UC-20 (memory scanning)
+- AC: (1) Memories are loaded from `<data-dir>/memories/`. (2) No CLAUDE.md, rules, or skill sources scanned. (3) Each item has source type "memory", file path, and text content. (4) Effectiveness data joined from evaluation pipeline where available.
+- Verification: deterministic (file scanning, structured extraction)
+
+---
+'''
+
+[REQ-73]
+name = "Memory deduplication detection"
+traces_to = ["UC-19"]
+hash = "0cbc195e"
+body = '''
+Compare memory entries to find semantic duplicates. Two memories are considered duplicates if they share >80% keyword overlap. Report both paths and overlap score. No salience hierarchy needed (all entries are memory type).
+
+- Traces to: UC-20 (deduplication)
+- AC: (1) Pairwise comparison of all memory items. (2) Duplicate detection by keyword overlap (>80%). (3) Output includes both memory paths and overlap score. (4) No source-salience recommendation (memory-only, cross-source dedup deferred to P4-full).
+- Verification: deterministic (keyword overlap calculation)
+
+---
+'''
+
+[REQ-74]
+name = "Quality diagnosis via LLM"
+traces_to = ["UC-19"]
+hash = "11f94b9b"
+body = '''
+For low-effectiveness instructions (bottom 20% by effectiveness score), invoke Haiku to diagnose root cause: too abstract, framing mismatch, missing trigger conditions, too narrow, or too verbose.
+
+- Traces to: UC-20 (quality diagnosis)
+- AC: (1) Select instructions in bottom 20% by effectiveness. (2) Single Haiku call per instruction with content + effectiveness stats. (3) Diagnosis JSON: `{diagnosis: string, root_cause: string, suggestion: string}`. (4) Invalid responses logged and skipped.
+- Verification: deterministic (LLM output parsing)
+
+---
+'''
+
+[REQ-75]
+name = "Refinement proposals"
+traces_to = ["UC-19"]
+hash = "26869d52"
+body = '''
+Generate rewritten versions of diagnosed memory instructions in maintain-compatible format (same as UC-16).
+
+- Traces to: UC-20 (refinement proposals)
+- AC: (1) Each diagnosed memory gets a rewrite proposal. (2) Proposals are maintain-compatible: JSON with path, action, root_cause, suggestion. (3) Proposal includes rationale explaining what changed and why.
+- Verification: deterministic (format validation)
+
+---
+'''
+
+[REQ-76]
+name = "Gap analysis"
+traces_to = ["UC-19"]
+hash = "4cf2a28d"
+body = '''
+Compare instruction anti-patterns against observed tool actions in evaluation data to find common violation patterns with no corresponding instruction. Report as gap candidates.
+
+- Traces to: UC-20 (gap analysis)
+- AC: (1) Load evaluation data with contradicted outcomes. (2) Extract patterns from contradictions (file types, tool names, common mistakes). (3) Cross-reference against existing instructions. (4) Patterns not covered by any instruction → gap candidates. (5) Output: list of gap candidates with evidence (violation count, example).
+- Verification: deterministic (pattern extraction, cross-reference)
+
+---
+'''
+
+[REQ-77]
+name = "~~Skill decomposition~~ — REMOVED (S6 simplification)"
+traces_to = ["UC-19"]
+hash = "fcedb0bd"
+body = '''
+**Removed in S6 (Phase A-1).** Skill decomposition required scanning skill files, which are no longer in scope for the audit. Per-skill-line effectiveness analysis will be re-introduced when skill sources re-enter the audit pipeline (P4-full or later).
+
+- Traces to: UC-20 (removed)
+- Status: unsatisfiable — skills not scanned in memory-only audit
+
+---
+'''
+
+[REQ-78]
+name = "CLI command `engram instruct audit`"
+traces_to = ["UC-19"]
+hash = "7770054a"
+body = '''
+New subcommand: `engram instruct audit --data-dir <path>`. Outputs a JSON report with: duplicates, quality diagnoses, refinement proposals, and gap analysis. (Skill decomposition removed in S6.)
+
+- Traces to: UC-20 (CLI command)
+- AC: (1) Subcommand `instruct audit` registered. (2) Output is JSON with sections: duplicates, diagnoses, proposals, gaps. (3) Exit 0 always. (4) Empty sections are empty arrays.
+- Verification: deterministic (CLI registration, JSON output)
+
+---
+'''
+
+[REQ-79]
+name = "No graceful degradation on API failure"
+traces_to = ["UC-19"]
+hash = "33ac4ff8"
+body = '''
+If no API token, skip LLM-dependent steps (quality diagnosis, refinement proposals). Deduplication and gap analysis still run. Output JSON includes skipped sections with a `skipped_reason` field.
+
+- Traces to: UC-20 (error handling)
+- AC: (1) Missing API token → skip REQ-74 and REQ-75. (2) REQ-72, REQ-73, REQ-76 still run. (3) Skipped sections include `{"skipped_reason": "no API token"}`. (4) Exit 0 regardless.
+- Verification: deterministic (error condition handling)
+
+---
+'''
+
+[REQ-8]
+name = "Binary build mechanism"
+traces_to = ["UC-3"]
+hash = "78b7e5ea"
+body = '''
+The UserPromptSubmit hook self-builds the binary on first invocation if missing. Build produces `~/.claude/engram/bin/engram`.
+
+Build command: `go build -o "$ENGRAM_BIN" ./cmd/engram/`
+
+- Build requires Go toolchain on `PATH`.
+- `bin/` is gitignored (binary not committed).
+- Go's build cache makes repeated builds fast (sub-second no-op if source unchanged).
+- Build failure logs to stderr but does not fail the hook (exit 0 always).
+- Traces to: UC-3 (binary must exist for UserPromptSubmit hook to work)
+- AC: (1) UserPromptSubmit hook builds binary if missing. (2) Binary is produced at `~/.claude/engram/bin/engram`. (3) Build failure does not break Claude Code session. (4) `bin/` is in `.gitignore`.
+
+---
+'''
+
+[REQ-80]
+name = "Three escalation levels"
+traces_to = ["UC-20"]
+hash = "8a579f69"
+body = '''
+Each leech memory has an escalation level: (1) advisory — surfaced as system reminder, (2) emphasized_advisory — surfaced with urgency markers, (3) reminder — targeted PostToolUse injection after relevant file edits (UC-18). Beyond `reminder`, a graduation signal (UC-28) is emitted recommending promotion to a higher-salience enforcement mechanism.
+
+- Traces to: UC-21 (escalation levels)
+- AC: (1) Three named levels in order: advisory, emphasized_advisory, reminder. (2) Each level has a defined enforcement mechanism. (3) Default level for all memories is "advisory". (4) Level stored in memory TOML file. (5) Levels are ordinal (can compare for escalation/de-escalation).
+- Verification: deterministic (enum validation)
+
+---
+'''
+
+[REQ-81]
+name = "Escalation proposals in maintain output"
+traces_to = ["UC-20"]
+hash = "fe47be73"
+body = '''
+When `engram maintain` detects a leech memory, it generates an escalation proposal alongside the existing content-rewrite proposal. The proposal includes: current level, proposed level, rationale, and predicted effectiveness improvement based on data from other memories at the proposed level.
+
+- Traces to: UC-21 (escalation proposals)
+- AC: (1) Maintain output includes escalation proposals for leech memories. (2) Proposal has: memory_path, current_level, proposed_level, rationale, predicted_impact. (3) Predicted impact based on average effectiveness delta for memories that previously escalated to the proposed level. (4) If no historical data, predicted impact = "unknown".
+- Verification: deterministic (proposal format, effectiveness lookup)
+
+---
+'''
+
+[REQ-82]
+name = "De-escalation detection"
+traces_to = ["UC-20"]
+hash = "305fd717"
+body = '''
+If a memory at an elevated enforcement level shows increasing contradictions (compliance rate drops after escalation), propose de-escalation back one level. De-escalation is proposed when post-escalation effectiveness < pre-escalation effectiveness for ≥3 evaluation cycles.
+
+- Traces to: UC-21 (de-escalation)
+- AC: (1) Track pre/post escalation effectiveness from escalation_history. (2) If post < pre for ≥3 cycles → de-escalation proposal. (3) Proposal includes evidence (before/after effectiveness values). (4) De-escalation drops one level (not to bottom).
+- Verification: deterministic (effectiveness comparison, cycle counting)
+
+---
+'''
+
+[REQ-83]
+name = "~~REMOVED (S2)~~ Dimension routing before escalation"
+traces_to = ["UC-20"]
+hash = "ebebadde"
+body = '''
+> **Removed in Phase A-1 (S2).** Engram does not route to automation, rule files, or CLAUDE.md. It escalates within its advisory range (advisory → emphasized_advisory → reminder) and emits graduation signals (UC-28) when that range is exhausted. Mechanical pattern detection and the `route_automation` proposal type have been removed from `internal/maintain/escalation.go`.
+
+- Status: unsatisfiable — requirement removed from scope
+
+---
+'''
+
+[REQ-84]
+name = "Escalation level stored per memory in TOML"
+traces_to = ["UC-20"]
+hash = "f03392d5"
+body = '''
+The `escalation_level` field is written to each memory's TOML file when escalation or de-escalation is confirmed. The `escalation_history` array tracks all level changes with timestamps and effectiveness at time of change.
+
+- Traces to: UC-21 (tracking)
+- AC: (1) Field name is `escalation_level`. (2) Default value is "advisory" (omitted when default). (3) History is append-only array. (4) Each entry has: level, since (ISO 8601), effectiveness (float). (5) TOML file remains valid and hand-editable after update.
+- Verification: deterministic (TOML write, field validation)
+
+---
+'''
+
+[REQ-85]
+name = "User confirmation for each escalation step"
+traces_to = ["UC-20"]
+hash = "c2012899"
+body = '''
+Every escalation and de-escalation requires explicit user confirmation before the TOML file is updated. The proposal is presented; the user confirms or skips. Skipped proposals are logged but not acted on.
+
+- Traces to: UC-21 (user confirmation)
+- AC: (1) Proposals are presented in maintain output (JSON). (2) User confirms via maintain command interaction. (3) Only confirmed proposals update TOML. (4) Skipped proposals logged to maintain log.
+- Verification: deterministic (confirmation tracking)
+
+---
+'''
+
+[REQ-86]
+name = "Pattern recognition for mechanical instructions"
+traces_to = ["UC-22"]
+hash = "3c7f5747"
+body = '''
+Analyze leech/noise memories for mechanical patterns: "always X before Y", "never X when Z", "format as...", naming conventions, ordering rules. Classification is deterministic (keyword-based, no LLM).
+
+- Traces to: UC-22 (pattern recognition)
+- AC: (1) Scan memory content for mechanical keywords: "always", "never", "before", "after", "format", "name", "convention". (2) Score each memory for mechanical-ness (count of mechanical patterns). (3) Score ≥2 → mechanical candidate. (4) Output: list of candidates with patterns found.
+- Verification: deterministic (keyword counting)
+
+---
+'''
+
+[REQ-87]
+name = "LLM generator for automation"
+traces_to = ["UC-22"]
+hash = "4a377565"
+body = '''
+For mechanical candidates, invoke Haiku to generate deterministic automation: shell scripts, pre-commit hooks, or rule definitions. Generated code must be self-contained and testable.
+
+- Traces to: UC-22 (generator)
+- AC: (1) Haiku call with memory content + instruction type. (2) Output: JSON with automation_type (script/hook/rule), code, description, test_command. (3) Generated code is syntactically valid (shell/Go). (4) Invalid LLM responses are logged and skipped.
+- Verification: deterministic (LLM output parsing, syntax check)
+
+---
+'''
+
+[REQ-88]
+name = "Verification of generated automation"
+traces_to = ["UC-22"]
+hash = "78dc7a41"
+body = '''
+Generated automation must pass a test (dry-run) before the instruction is retired. The test_command from the LLM output is executed with sample input. If it fails, the automation is not installed and the proposal is rejected.
+
+- Traces to: UC-22 (verification)
+- AC: (1) Execute test_command in a sandboxed environment. (2) Exit 0 → pass, non-zero → fail. (3) Pass → automation is installed to install_path. (4) Fail → automation rejected, error logged, memory unchanged.
+- Verification: deterministic (exit code check)
+
+---
+'''
+
+[REQ-89]
+name = "Instruction retirement with retired_by field"
+traces_to = ["UC-22"]
+hash = "eb37b072"
+body = '''
+Once automation is verified and user confirms, the memory gains a `retired_by` field pointing to the automation file path. Retired memories are no longer surfaced by UC-2.
+
+- Traces to: UC-22 (retirement)
+- AC: (1) TOML file updated with `retired_by = "<automation_path>"`. (2) `retired_at` timestamp added. (3) UC-2 surface logic skips memories with non-empty `retired_by`. (4) Memory file is NOT deleted (preserved for audit trail).
+- Verification: deterministic (TOML field check, surfacing filter)
+
+---
+'''
+
+[REQ-9]
+name = "SessionStart surfacing — top 20 by frecency"
+traces_to = ["UC-2"]
+hash = "87b4bf47"
+body = '''
+When a session starts (SessionStart hook), the system reads all memory TOML files from the data directory, ranks them by frecency activation score (ACT-R model), and surfaces the top 20 as a system reminder.
+
+- Traces to: UC-2 (SessionStart surfacing)
+- AC: (1) All `.toml` files in `<data-dir>/memories/` are read and parsed. (2) Frecency activation score computed per memory using ACT-R formula (REQ-46). (3) Sorted by activation score descending. (4) Top 20 are included in the system reminder. (5) If fewer than 20 memories exist, all are surfaced. (6) If no memories exist, no reminder is emitted (empty stdout). (7) Memories with no surfacing history fall back to updated_at for recency component.
+- Verification: deterministic (file listing, frecency scoring, sort, count)
+
+---
+'''
+
+[REQ-90]
+name = "CLI command `engram automate` *(removed — Phase A-1/S1)*"
+traces_to = ["UC-22"]
+hash = "2ba6706a"
+body = '''
+**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
+
+- Traces to: UC-22 (removed)
+
+---
+'''
+
+[REQ-91]
+name = "No graceful degradation for automate *(removed — Phase A-1/S1)*"
+traces_to = ["UC-22"]
+hash = "2ba6706a"
+body = '''
+**Status:** Unsatisfiable. UC-22 removed. `engram automate` subcommand deleted.
+
+- Traces to: UC-22 (removed)
+
+---
+'''
+
+[REQ-P0a-1]
+name = "EnforcementLevel field in InstructionEntry (P0a)"
+traces_to = []
+hash = "2d4a0f46"
+body = '''
+Each `InstructionEntry` in the registry carries an `enforcement_level` field. The level progresses through four values: `advisory` → `emphasized_advisory` → `reminder` → `graduated`. New entries default to `advisory`. Entries loaded from JSONL without the field are backfilled to `advisory` at load time.
+
+- Traces to: UC-23 (data model constraint — registry stores delivery salience per instruction)
+- AC: (1) `EnforcementLevel` type defined with four string constants: `advisory`, `emphasized_advisory`, `reminder`, `graduated`. (2) `InstructionEntry.EnforcementLevel` field exists with JSON tag `enforcement_level`. (3) New entries registered with zero-value field are stored as `advisory`. (4) Entries loaded from JSONL with missing `enforcement_level` field are backfilled to `advisory`. (5) Field round-trips through JSONL marshal/unmarshal.
+- Verification: deterministic (enum constants, JSON round-trip, backfill)
+
+---
+
+---
+'''
+
+[REQ-P1-1]
+name = "Contradiction detector interface (P1)"
+traces_to = []
+hash = "4c976c86"
+body = '''
+The `internal/contradict` package exposes a `Detector` struct with a `Check(ctx, []*memory.Stored) ([]Pair, error)` method. `Pair` holds two memories and a confidence score.
+
+- Traces to: UC-P1-1
+- AC: (1) `Detector.Check` accepts a slice of candidates. (2) Returns `[]Pair` of contradicting pairs. (3) Each pair identifies A (higher-ranked) and B (lower-ranked). (4) No mutations to input slice.
+- Verification: deterministic (unit)
+
+### DES-P1-1: Detector construction
+
+`NewDetector(opts ...DetectorOption) *Detector`. Options: `WithClassifier(Classifier)`, `WithMaxLLMCalls(n int)`. Default max LLM calls = 3. When no classifier is set, LLM phase is skipped.
+
+---
+'''
+
+[REQ-P1-2]
+name = "Two-pass heuristic detection (P1)"
+traces_to = []
+hash = "d409a75e"
+body = '''
+Pass 1 keyword heuristic: for each pair of candidates, build search text from principle+title+content. Fire if shared subject tokens AND any opposing-verb pattern matches: (use/avoid), (always/never), (do/don't), (enable/disable), (is/isn't), (should/shouldn't).
+
+Pass 2 BM25 similarity: score A's text against B using BM25. Score > 0.3 with heuristic flag → high-confidence (skip LLM). Score > 0.3 without heuristic → borderline (LLM eligible).
+
+- Traces to: UC-P1-1
+- AC: (1) Heuristic checks all pairs O(n²) for top-N (N≤10, so ≤45 pairs). (2) BM25 scores each flagged pair. (3) High-confidence pairs returned without LLM call. (4) Borderline pairs sent to LLM if classifier set and budget permits.
+- Verification: deterministic (unit, table-driven)
+
+### DES-P1-2: Opposing verb patterns
+
+Opposing pairs checked as bidirectional substrings: if text A contains "use" and text B contains "avoid" (or vice versa), that is one match. Full list: `{use,avoid}`, `{always,never}`, `{do not,do}` (order-sensitive), `{enable,disable}`, `{should not,should}` (order-sensitive), `{is not,is}` (order-sensitive).
+
+---
+'''
+
+[REQ-P1-3]
+name = "LLM classifier interface (P1)"
+traces_to = []
+hash = "3d5d406e"
+body = '''
+`Classifier` interface: `Classify(ctx context.Context, a, b *memory.Stored) (bool, error)`. Returns true if A and B contradict. Injected via `WithClassifier`. When budget (max LLM calls) is exhausted, no further Classify calls are made for this surface event.
+
+- Traces to: UC-P1-1
+- AC: (1) Classifier is an interface, not a concrete type. (2) Budget enforced: counter incremented per call, halted at max. (3) Errors from Classify treated as non-contradiction (fire-and-forget).
+- Verification: deterministic (unit with mock classifier)
+
+---
+'''
+
+[REQ-P1-4]
+name = "KindContradiction signal kind (P1)"
+traces_to = []
+hash = "c85ddc23"
+body = '''
+Add `KindContradiction = "contradiction"` constant to `internal/signal/signal.go`.
+
+- Traces to: UC-P1-1, UC-28
+- AC: (1) Constant exported. (2) Value is `"contradiction"`.
+- Verification: deterministic (compile)
+
+---
+'''
+
+[REQ-P1-5]
+name = "Post-ranking suppression filter in surface.go (P1)"
+traces_to = []
+hash = "28e68234"
+body = '''
+After frecency sort and before output formatting, in `runSessionStart` and `runPrompt`, call `s.detector.Check(ctx, topN)`. For each returned pair, remove B (index 1, lower-ranked) from the candidates slice. Emit a `KindContradiction` signal for each suppressed memory via `s.signalEmitter`.
+
+- Traces to: UC-P1-1
+- AC: (1) Suppression happens post-sort, pre-format. (2) Lower-ranked memory removed. (3) Signal emitted per suppression. (4) If detector is nil or errors, proceed without suppression.
+- Verification: deterministic (unit with mock detector)
+
+### DES-P1-5: Surface wiring
+
+`ContradictionDetector` interface in surface package: `Check(ctx, []*memory.Stored) ([]contradict.Pair, error)`. `SignalEmitter` interface: `Emit(signal.Signal) error`. Add `WithContradictionDetector(d ContradictionDetector)` and `WithSignalEmitter(e SignalEmitter)` surfacer options.
+
+---
+'''
+
+[REQ-P4e-1]
+name = "SessionStart effectiveness ranking + gating (P4e)"
+traces_to = []
+hash = "c323a36a"
+body = '''
+SessionStart mode ranks memories by effectiveness score descending. Memories with `SurfacedCount < 5` (insufficient data) use a default score of 50.0 and are always included. Memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded (gated out).
+
+- Traces to: UC-P4e-1
+- AC: (1) Low-surfacing memories always pass gate. (2) High-surfacing, low-effectiveness memories excluded. (3) Ranking is by effectiveness score desc; ties preserve retriever order (stable sort).
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4e-1: effectivenessScoreFor + filterByEffectivenessGate
+
+`effectivenessScoreFor(path, effectiveness)` returns `sessionStartDefaultEffectiveness` (50.0) when no data or `SurfacedCount < 5`, otherwise returns `EffectivenessScore`. `filterByEffectivenessGate` iterates memories and skips those where `ok && SurfacedCount >= 5 && EffectivenessScore <= 40.0`. `sortByEffectivenessScore` uses `sort.SliceStable` on the result.
+
+---
+'''
+
+[REQ-P4e-2]
+name = "SessionStart top-7 limit, 600 token budget (P4e)"
+traces_to = []
+hash = "b394c519"
+body = '''
+SessionStart surfaces at most 7 memories (down from 10). Default token budget is 600 (down from 800).
+
+- Traces to: UC-P4e-1
+- AC: (1) `sessionStartLimit = 7`. (2) `DefaultSessionStartBudget = 600`.
+- Verification: deterministic (unit)
+
+### DES-P4e-2: sessionStartLimit constant updated
+
+`sessionStartLimit = 7`, `DefaultSessionStartBudget = 600`.
+
+---
+'''
+
+[REQ-P4e-3]
+name = "UserPromptSubmit 250 token budget + raised BM25 floor (P4e)"
+traces_to = []
+hash = "c417f686"
+body = '''
+Default token budget for UserPromptSubmit is 250 (down from 300). BM25 minimum relevance score raised from 0.01 to 0.05.
+
+- Traces to: UC-P4e-1
+- AC: (1) `DefaultUserPromptSubmitBudget = 250`. (2) `minRelevanceScore = 0.05`.
+- Verification: deterministic (unit)
+
+### DES-P4e-3: Budget and floor constants updated
+
+`DefaultUserPromptSubmitBudget = 250`, `minRelevanceScore = 0.05`.
+
+---
+'''
+
+[REQ-P4e-4]
+name = "PreToolUse top-2 limit, effectiveness gate, 150 token budget (P4e)"
+traces_to = []
+hash = "4878b8e4"
+body = '''
+PreToolUse mode limits to top-2 results (down from 3). Applies same effectiveness gate as SessionStart: memories with `SurfacedCount >= 5` and `EffectivenessScore <= 40.0` are excluded. Default token budget 150 (down from 200).
+
+- Traces to: UC-P4e-1
+- AC: (1) `toolLimit = 2`. (2) Gate applied post-BM25, pre-frecency sort. (3) `DefaultPreToolUseBudget = 150`.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4e-4: filterToolMatchesByEffectivenessGate
+
+`filterToolMatchesByEffectivenessGate(candidates, effectiveness)` mirrors `filterByEffectivenessGate` for `[]toolMatch`. Applied in `runTool` after BM25 match, before frecency sort.
+
+---
+'''
+
+[REQ-P4e-5]
+name = "InvocationTokenLogger records per-call token count (P4e)"
+traces_to = []
+hash = "3698a3d6"
+body = '''
+After each `surface.Run` invocation, if an `InvocationTokenLogger` is set and output is non-empty, the output token count (estimated via `len(context)/4`) is recorded via `LogInvocationTokens(mode, count, now)`.
+
+- Traces to: UC-P4e-1
+- AC: (1) New `InvocationTokenLogger` interface in surface pkg. (2) `WithInvocationTokenLogger` option. (3) Token count estimated from `result.Context`. (4) Logger called once per non-empty invocation.
+- Verification: deterministic (unit)
+
+### DES-P4e-5: InvocationTokenLogger interface + surfacinglog.LogInvocationTokens
+
+`InvocationTokenLogger` interface: `LogInvocationTokens(mode string, tokenCount int, timestamp time.Time) error`. `surfacinglog.Logger` implements it: writes `SurfacingEvent` with empty `MemoryPath` and `TokenCount` set. `SurfacingEvent.MemoryPath` gets `omitempty` tag to distinguish invocation events from per-memory events.
+
+---
+'''
+
+[REQ-P4e-6]
+name = "Stop hook sums per-session token counts (P4e)"
+traces_to = []
+hash = "79c5e34a"
+body = '''
+The stop hook reads the surfacing log before `evaluate` clears it, sums all `token_count` fields using `jq`, and logs the session token total to stderr.
+
+- Traces to: UC-P4e-1
+- AC: (1) Token sum logged before evaluate runs. (2) Graceful if log absent. (3) Total written to stderr.
+- Verification: shell inspection (hook test)
+
+### DES-P4e-6: stop.sh token sum via jq
+
+`jq -s '[.[].token_count // 0] | add // 0'` reads the JSONL, sums token_count (defaulting absent field to 0). Result logged as `[engram] session token total: N`.
+
+---
+'''
+
+[REQ-P4f-1]
+name = "Cluster dedup suppresses lower-effectiveness linked pair member (P4f)"
+traces_to = []
+hash = "c0ac8e5b"
+body = '''
+When two or more memories that are graph-linked (via P3 link graph) would both appear in the final surfaced set, keep the member with the highest effectiveness score and suppress the rest. Suppression applies after the top-N count limit and contradiction suppression. Each suppressed memory emits a `SuppressionEvent` with `reason: "cluster_dedup"` and `suppressed_by: <winner path>`.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) For each linked pair in the final surfaced set, only the higher-effectiveness member remains. (2) Suppression event logged with reason "cluster_dedup". (3) When linkReader is nil, no dedup performed. (4) Applies in session-start mode.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-1: suppressClusterDuplicates pure function
+
+`suppressClusterDuplicates(candidates []*memory.Stored, effectiveness map[string]EffectivenessStat, linkReader LinkReader) ([]*memory.Stored, []SuppressionEvent)` — pure function. Builds inSet map, iterates candidates, fetches links, for each link whose target is also in the set, suppresses the lower-effectiveness member. Returns filtered slice + events.
+
+---
+'''
+
+[REQ-P4f-2]
+name = "Cross-source suppression skips memories covered by external source (P4f)"
+traces_to = []
+hash = "f5d9d7be"
+body = '''
+If a memory is covered by CLAUDE.md, a rule file, or a skill (via CrossRefChecker), skip it during surfacing. Each suppressed memory emits a `SuppressionEvent` with `reason: "cross_source"` and `suppressed_by: <source name>`. Applies in session-start and prompt modes. Fire-and-forget: CrossRefChecker errors leave memory unsuppressed.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) CrossRefChecker.IsCoveredBySource returns (true, source, nil) → memory skipped. (2) Error → memory kept. (3) When checker is nil, no suppression. (4) SuppressionEvent logged with reason "cross_source".
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-2: CrossRefChecker interface + suppressByCrossRef function
+
+`CrossRefChecker` interface: `IsCoveredBySource(memoryID string) (covered bool, source string, err error)`. Pure function `suppressByCrossRef(candidates []*memory.Stored, checker CrossRefChecker) ([]*memory.Stored, []SuppressionEvent)`. `WithCrossRefChecker(CrossRefChecker) SurfacerOption`.
+
+---
+'''
+
+[REQ-P4f-3]
+name = "Transcript suppression skips memories whose keywords appear in recent window (P4f)"
+traces_to = []
+hash = "b63e8d5f"
+body = '''
+If any of a memory's `keywords` appear in the provided transcript window text (~500 tokens), suppress the memory. Transcript window supplied via `Options.TranscriptWindow`. Each suppressed memory emits a `SuppressionEvent` with `reason: "transcript"` and `suppressed_by: <matched keyword>`. Applies in session-start and prompt modes.
+
+- Traces to: UC-17 (context budget)
+- AC: (1) Case-insensitive keyword match in transcript window. (2) First matching keyword used as suppressed_by. (3) Empty TranscriptWindow → no suppression. (4) Memory with no keywords → never suppressed by transcript.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P4f-3: suppressByTranscript pure function + Options.TranscriptWindow
+
+`suppressByTranscript(candidates []*memory.Stored, transcriptWindow string) ([]*memory.Stored, []SuppressionEvent)`. `Options.TranscriptWindow string` field.
+
+---
+'''
+
+[REQ-P4f-4]
+name = "Suppression events logged via SuppressionEventLogger (P4f)"
+traces_to = []
+hash = "03eb8035"
+body = '''
+All suppression decisions (cluster_dedup, cross_source, transcript) are recorded as structured events. Each event contains: memory_id, timestamp, reason, suppressed_by. Events are logged in-order via the injected `SuppressionEventLogger`. Fire-and-forget: log errors ignored. Logger called after all suppression passes complete.
+
+- Traces to: UC-17
+- AC: (1) All suppression events from all passes logged. (2) Logger nil → events discarded silently. (3) Log error ignored. (4) Events include correct memory_id, reason, suppressed_by.
+- Verification: deterministic (unit, surface pkg with fake logger)
+
+### DES-P4f-4: SuppressionEventLogger interface + SuppressionEvent struct
+
+`SuppressionEventLogger` interface: `LogSuppression(event SuppressionEvent) error`. `SuppressionEvent` struct: MemoryID, Timestamp, Reason, SuppressedBy. `WithSuppressionEventLogger(SuppressionEventLogger) SurfacerOption`.
+
+---
+'''
+
+[REQ-P4f-5]
+name = "Suppression rate metric in Result (P4f)"
+traces_to = []
+hash = "0424ef70"
+body = '''
+After each surface invocation, `Result.SuppressionStats` holds aggregate suppression metrics: suppressed count, surfaced count, and rate = suppressed / (suppressed + surfaced). Nil when both counts are zero.
+
+- Traces to: UC-17
+- AC: (1) Rate = suppressed / (suppressed + surfaced). (2) Nil when both zero. (3) Surfaced = len(matched) after all suppression. (4) Suppressed = total suppression events emitted.
+- Verification: deterministic (unit)
+
+---
+'''
+
+[REQ-P5c-1]
+name = ">50% keyword overlap triggers merge instead of skip (P5c)"
+traces_to = ["UC-33"]
+hash = "d5b9816f"
+body = '''
+When a candidate learning shares >50% keyword overlap with any existing memory, the dedup stage returns it as a merge candidate paired with the matching memory, rather than dropping it.
+
+- Traces to: UC-33
+- AC: (1) Overlap computed as intersection(candidateKeywords, existingKeywords) / len(candidateKeywords). (2) Overlap > 0.5 → merge candidate. (3) Overlap ≤ 0.5 → pass-through (create new). (4) Empty candidate keywords → pass-through (create new, no merge).
+- Verification: deterministic (unit)
+
+### DES-P5c-1: Dedup returns ClassifyResult instead of filtered slice (P5c)
+
+`KeywordDeduplicator.Classify(candidates, existing)` replaces `Filter`. Returns `ClassifyResult{Surviving []CandidateLearning, MergePairs []MergePair}`. Each `MergePair` holds the candidate and the matched `*memory.Stored`. The learn pipeline processes surviving candidates as before; for each `MergePair`, it invokes the `MemoryMerger`.
+
+---
+'''
+
+[REQ-P5c-2]
+name = "LLM-assisted merge combines principle fields (P5c)"
+traces_to = ["UC-33"]
+hash = "0698c97a"
+body = '''
+When a `MemoryMerger` is configured, call it with the existing and candidate principles. The merged principle is written to the existing memory TOML file.
+
+- Traces to: UC-33
+- AC: (1) LLM called with existing and candidate principle. (2) Non-empty LLM response replaces existing principle. (3) If LLM returns empty string, fall back to REQ-P5c-3. (4) LLM model: claude-haiku-4-5-20251001.
+- Verification: unit with mock LLM
+
+### DES-P5c-2: MemoryMerger interface and LLM implementation (P5c)
+
+`MemoryMerger` interface: `MergePrinciples(ctx context.Context, existing, candidate string) (string, error)`. `LLMMerger` struct implements it via `LLMClient` interface (same pattern as existing LLM callers). Prompt instructs Haiku to combine two memory principles into a single stronger, more specific statement. On error or empty response: trigger fallback.
+
+---
+'''
+
+[REQ-P5c-3]
+name = "Fallback merge uses longer principle + union keywords/concepts (P5c)"
+traces_to = ["UC-33"]
+hash = "5cb8fe74"
+body = '''
+When no `MemoryMerger` is configured, or when LLM returns empty/error, merge by: taking the longer of existing and candidate principle texts; unioning keywords; unioning concepts.
+
+- Traces to: UC-33
+- AC: (1) `len(candidatePrinciple) > len(existingPrinciple)` → use candidate principle. (2) Otherwise keep existing principle. (3) Keywords = union of both sets (lowercase, deduplicated). (4) Concepts = union of both sets (deduplicated).
+- Verification: deterministic (unit)
+
+---
+'''
+
+[REQ-P5c-4]
+name = "Absorbed field records merge provenance in registry (P5c)"
+traces_to = ["UC-33"]
+hash = "4ca58497"
+body = '''
+After a successful merge, append an `AbsorbedRecord` to the existing memory's `InstructionEntry.Absorbed` slice in the registry.
+
+- Traces to: UC-33
+- AC: (1) `AbsorbedRecord.From` = candidate title. (2) `AbsorbedRecord.ContentHash` = hex of sha256 of candidate keyword join. (3) `AbsorbedRecord.MergedAt` = current time. (4) `AbsorbedRecord.SurfacedCount = 0`. (5) Append does not overwrite existing `Absorbed` entries.
+- Verification: unit with mock registry
+
+---
+'''
+
+[REQ-P5c-5]
+name = "Effectiveness history preserved during merge (P5c)"
+traces_to = ["UC-33"]
+hash = "0042ae5b"
+body = '''
+Merging does not modify `SurfacedCount`, `Evaluations`, `EnforcementLevel`, or `Transitions` on the existing `InstructionEntry`.
+
+- Traces to: UC-33
+- AC: (1) Before and after merge, all effectiveness fields on the existing entry are equal. (2) Only `Absorbed` grows by one record.
+- Verification: unit with mock registry
+
+---
+
+## P3: Memory Graph with Spreading Activation
+
+### REQ-P3-1: Link data model on InstructionEntry (P3)
+
+`InstructionEntry` gains `Links []Link` field (json: `links,omitempty`). `Link` struct (in `internal/registry/entry.go`): `Target string` (instruction ID), `Weight float64` (0.0–1.0), `Basis string` (one of: `concept_overlap`, `co_surfacing`, `evaluation_correlation`, `content_similarity`), `CoSurfacingCount int` (co-surfacing opportunities observed).
+
+- Traces to: UC-32
+- AC: (1) Links field round-trips through JSONL. (2) Empty Links slice serializes as absent (omitempty). (3) Basis is one of 4 defined values. (4) CoSurfacingCount tracks opportunities independently of Weight.
+- Verification: deterministic (unit, registry pkg)
+
+### DES-P3-1: Link struct in registry/entry.go
+
+`Link` struct added to `internal/registry/entry.go` with `//nolint:tagliatelle` comment (snake_case). JSON tags: `target`, `weight`, `basis`, `co_surfacing_count` (omitempty). `InstructionEntry.Links` tagged `json:"links,omitempty"`.
+
+---
+
+### REQ-P3-2: Registry.UpdateLinks method (P3)
+
+`Registry` interface gains `UpdateLinks(id string, links []Link) error`. Implementation in `TOMLDirectoryStore`: read entry by id, replace its `Links` field, write back atomically. Returns `ErrNotFound` if id absent.
+
+- Traces to: UC-32
+- AC: (1) UpdateLinks replaces entire links slice for the entry. (2) Concurrent-safe (existing mutex). (3) Returns ErrNotFound for unknown id.
+- Verification: deterministic (unit, registry pkg)
+
+### DES-P3-2: UpdateLinks wiring
+
+`TOMLDirectoryStore.UpdateLinks` reads entry TOML, replaces Links, rewrites atomically. Uses per-file flock. No new I/O pattern needed.
+
+---
+
+### REQ-P3-3: concept_overlap links at learn time (P3)
+
+`graph.Builder.BuildConceptOverlap(entry, existing)` computes Jaccard similarity of word-token sets of `title + " " + content` for the new entry against all existing entries. Pairs with Jaccard ≥ 0.15 produce a `concept_overlap` link with `Weight = Jaccard score`. Existing concept_overlap links for the same (entry, target) pair are replaced.
+
+- Traces to: UC-32
+- AC: (1) Jaccard = |A∩B| / |A∪B| on lowercase word tokens. (2) Threshold 0.15. (3) Self-links excluded. (4) Returns []Link, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P3-3: graph.Builder and Jaccard tokenizer
+
+`internal/graph/` package. `Builder` struct (no fields). `BuildConceptOverlap(entry registry.InstructionEntry, existing []registry.InstructionEntry) []registry.Link`. Token function: lowercase, split on `\W+`, deduplicate into set. Returns concept_overlap links only.
+
+---
+
+### REQ-P3-4: content_similarity links at learn time (P3)
+
+`graph.Builder.BuildContentSimilarity(entry, existing)` uses BM25 to score the new entry's `title + content` as a query against existing entries as corpus. Pairs with BM25 score ≥ 0.05 produce a `content_similarity` link with `Weight = min(1.0, score / 5.0)`. Existing content_similarity links for the same pair are replaced.
+
+- Traces to: UC-32
+- AC: (1) BM25 corpus = existing entries (title+content as document). (2) Threshold 0.05 raw score. (3) Weight = min(1.0, raw/5.0). (4) Returns []Link, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P3-4: BuildContentSimilarity uses internal/bm25
+
+Reuses existing `internal/bm25` package. Each existing entry's `title + " " + content` is a BM25 document. Query = new entry's `title + " " + content`. Score per document → weight formula.
+
+---
+
+### REQ-P3-5: co_surfacing link updates at surface time (P3)
+
+After top-N selection and before output formatting, for each unique pair of memories in the surface result, update their co_surfacing link: `Weight += 0.1` (capped at 1.0), `CoSurfacingCount += 1`. If no co_surfacing link exists, create one with `Weight = 0.1`, `CoSurfacingCount = 1`. Bidirectional (A→B and B→A). Fire-and-forget on error.
+
+- Traces to: UC-32
+- AC: (1) All O(n²) pairs updated for n surfaced memories. (2) Bidirectional updates. (3) Weight capped at 1.0. (4) CoSurfacingCount always incremented. (5) Error ignored (fire-and-forget).
+- Verification: deterministic (unit, surface pkg with mock LinkUpdater)
+
+### DES-P3-5: LinkUpdater and LinkReader interfaces in surface package
+
+`LinkUpdater` interface in surface pkg: `GetEntryLinks(id string) ([]GraphLink, error)` and `SetEntryLinks(id string, links []GraphLink) error` where `GraphLink` mirrors registry.Link fields. `WithLinkUpdater(u LinkUpdater)` option. Co-surfacing called via `updateCoSurfacingLinks` helper after rank.
+
+---
+
+### REQ-P3-6: Spreading activation in frecency scoring (P3)
+
+After base frecency scores computed and co_surfacing links updated, apply spreading activation: for each memory, `activated = base + 0.3 × Σ(linked_base × weight)` where the sum is over all links of the memory (all bases). Re-rank memories using activated scores. 1-hop only — linked memories' own links are not traversed.
+
+- Traces to: UC-32
+- AC: (1) Formula: base + 0.3 × Σ(linked_base × weight). (2) Linked base = base frecency of the linked memory (0 if not in current candidate set). (3) Re-ranking uses activated score. (4) If no LinkReader set, skip activation (unchanged scores).
+- Verification: deterministic (unit, surface pkg with mock LinkReader)
+
+### DES-P3-6: LinkReader interface in surface package
+
+`LinkReader` interface: `GetEntryLinks(id string) ([]GraphLink, error)`. `WithLinkReader(r LinkReader)` option. `applySpreadingActivation(candidates, baseScores, reader)` pure function in surface pkg. Applied after co_surfacing update, before final sort.
+
+---
+
+### REQ-P3-7: Cluster notes in surface output (P3)
+
+For each memory in the final surfaced output, if a LinkReader is set and the memory has links, include up to 2 cluster notes in the formatted output. Each cluster note is a single line: `  • see also: <linked-memory-title>` (≈20 tokens). Top-2 links selected by weight descending. Only includes links where the linked target has a known title.
+
+- Traces to: UC-32
+- AC: (1) Max 2 notes per memory. (2) Ordered by weight descending. (3) Format: `  • see also: <title>`. (4) Only emitted when LinkReader is set. (5) Missing title → skip that link.
+- Verification: deterministic (unit, surface pkg)
+
+### DES-P3-7: TitleFetcher interface in surface package
+
+`TitleFetcher` interface: `GetTitle(id string) (string, bool)`. `WithTitleFetcher(f TitleFetcher)` option. `formatClusterNotes(links []GraphLink, fetcher TitleFetcher) string` returns up to 2 note lines. Called from `formatMemoryLine` or equivalent.
+
+---
+
+### REQ-P3-8: Link pruning (P3)
+
+`graph.Prune(links []registry.Link) []registry.Link` returns a new slice with all links where `Weight < 0.1 AND CoSurfacingCount >= 10` removed. All other links are preserved unchanged.
+
+- Traces to: UC-32
+- AC: (1) Links with Weight < 0.1 AND CoSurfacingCount >= 10 removed. (2) Links with Weight < 0.1 but CoSurfacingCount < 10 preserved. (3) Links with Weight >= 0.1 always preserved. (4) Pure function, no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+---
+
+### REQ-P3-9: evaluation_correlation links at evaluate time (P3)
+
+After outcome classification, for each pair of memories (A, B) where both received "followed" outcome in the same evaluate run, update evaluation_correlation link: `Weight += 0.05` (capped at 1.0), bidirectional. Fire-and-forget on error.
+
+- Traces to: UC-32
+- AC: (1) Only "followed" pairs. (2) Bidirectional. (3) Weight capped at 1.0. (4) Error ignored.
+- Verification: deterministic (unit, evaluate pkg with mock EvalLinkUpdater)
+
+### DES-P3-9: EvalLinkUpdater interface in evaluate package
+
+`EvalLinkUpdater` interface in evaluate pkg: `GetEntryLinks(id string) ([]EvalLink, error)` and `SetEntryLinks(id string, links []EvalLink) error`. `WithEvalLinkUpdater(u EvalLinkUpdater)` option. `updateEvaluationCorrelationLinks` helper called after outcome map is built.
+
+---
+
+## P5f: Re-compute links after merge
+
+### REQ-P5f-1: MergeResult type (P5f)
+
+After merge-on-write completes, the pipeline must produce a `graph.MergeResult` struct with fields: `MergedMemoryID string`, `AbsorbedMemoryID string`, `MergedTitle string`, `MergedContent string`, `MergedConceptSet []string`. This is the contract passed to the link recomputer.
+
+- Traces to: UC-P5f-1
+- AC: (1) MergedMemoryID = registry ID (file path) of the surviving merged memory. (2) AbsorbedMemoryID = registry ID of absorbed memory, or empty string if candidate was never registered. (3) MergedTitle/MergedContent/MergedConceptSet carry the post-merge values. (4) Pure data type — no I/O.
+- Verification: deterministic (unit, graph pkg)
+
+### REQ-P5f-2: Remove absorbed-memory links (P5f)
+
+When `AbsorbedMemoryID` is non-empty, all registry entries that have links targeting that ID must have those links removed.
+
+- Traces to: UC-P5f-1
+- AC: (1) All entries returned by List() are scanned. (2) For each entry with ≥1 link targeting AbsorbedMemoryID, UpdateLinks is called with the filtered link set. (3) Entries with no such links are not updated. (4) No-op when AbsorbedMemoryID is empty.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-3: Re-compute concept_overlap links for merged memory (P5f)
+
+After absorbed-link cleanup, remove all existing concept_overlap links from the merged memory and replace them with freshly computed ones using `Builder.BuildConceptOverlap`.
+
+- Traces to: UC-P5f-1
+- AC: (1) Old concept_overlap links removed. (2) New links computed using MergedTitle + MergedContent as the query entry. (3) Other basis types untouched.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-4: Re-compute content_similarity links for merged memory (P5f)
+
+Remove all existing content_similarity links from the merged memory and replace them with freshly computed ones using `Builder.BuildContentSimilarity`.
+
+- Traces to: UC-P5f-1
+- AC: (1) Old content_similarity links removed. (2) New links computed with merged principle as query content. (3) Other basis types untouched.
+- Verification: deterministic (unit, graph pkg with mock RegistryLinker)
+
+### REQ-P5f-5: Preserve co_surfacing and evaluation_correlation links (P5f)
+
+co_surfacing and evaluation_correlation links on the merged memory must never be modified by the link recomputation step.
+
+- Traces to: UC-P5f-1
+- AC: (1) co_surfacing links present before merge remain after recomputation. (2) evaluation_correlation links present before merge remain after recomputation. (3) Weights and CoSurfacingCount unchanged.
+- Verification: deterministic (unit, graph pkg)
+
+### DES-P5f-1: MergeResult type and RegistryLinker interface (P5f)
+
+`graph.MergeResult` struct in `internal/graph/recompute.go`. `RegistryLinker` interface with `List() ([]registry.InstructionEntry, error)` and `UpdateLinks(id string, links []registry.Link) error`. `Builder.RecomputeMergeLinks(result MergeResult, linker RegistryLinker) error` pure logic method.
+
+### DES-P5f-2: LinkRecomputer interface in learn package, wired after processMerge (P5f)
+
+`learn.LinkRecomputer` interface: `RecomputeAfterMerge(result graph.MergeResult) error`. Optional field on `Learner` set via `SetLinkRecomputer`. Called at end of `processMerge`; errors logged to stderr, not propagated (fire-and-forget).
+
+---
+'''
+
+[REQ-P6e-1]
+name = "Escalation ladder extended to graduated (P6e)"
+traces_to = ["UC-21"]
+hash = "f338e876"
+body = '''
+The escalation ladder has four levels: `advisory` → `emphasized_advisory` → `reminder` → `graduated`. A memory at `reminder` level can escalate to `graduated` via the same proposal mechanism.
+
+- Traces to: UC-28 (maintenance signals), REQ-P0a-1 (enforcement_level field)
+- AC: (1) `LevelGraduated` constant defined with value `"graduated"`. (2) Escalation engine proposes `graduated` when current level is `reminder`. (3) No further escalation is possible from `graduated` (top of ladder). (4) De-escalation from `graduated` reverts to `reminder`.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-2]
+name = "ApplyEscalationProposal persists level to registry (P6e)"
+traces_to = ["UC-21"]
+hash = "135fa862"
+body = '''
+A confirmed escalation proposal must update the instruction registry's `enforcement_level` field via the `EnforcementApplier` interface. The function is a no-op when `applier` is nil.
+
+- Traces to: UC-28 (maintenance signals apply), UC-23 (registry stores enforcement level)
+- AC: (1) `ApplyEscalationProposal(proposal, content, applier, emitter, now)` calls `applier.SetEnforcementLevel(path, proposedLevel, rationale)`. (2) Returns wrapped error on registry failure. (3) Returns nil immediately when `applier` is nil.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-3]
+name = "Graduation emits KindGraduation signal with placement recommendation (P6e)"
+traces_to = ["UC-21"]
+hash = "6341692a"
+body = '''
+When a proposal escalates a memory to `graduated`, a `KindGraduation` signal is emitted via `GraduationEmitter`. The recommendation classifies the memory content to determine where the graduated rule should live.
+
+- Traces to: UC-28 (maintenance signal emission)
+- AC: (1) `EmitGraduation` is called only when `ProposedLevel == "graduated"` AND `emitter != nil`. (2) `recommendation` is derived from `ClassifyContent(content)`. (3) Non-graduation proposals do not call `EmitGraduation`. (4) Emitter errors are fire-and-forget (ignored per ARCH-6).
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-4]
+name = "ClassifyContent routes graduated memory to placement destination (P6e)"
+traces_to = ["UC-21"]
+hash = "d7719ca7"
+body = '''
+`ClassifyContent(content string) string` returns one of four placement destinations based on keyword matching of the memory's content (lowercase).
+
+- Traces to: UC-28 (graduation recommendation), REQ-P6e-3
+- AC: (1) "settings.json" when content contains any of: linter, lint, deny, eslint, golangci, settings, config. (2) ".claude/rules/" when content contains: glob pattern, file glob, rule file, .claude/rules, file-scoped. (3) "skill" when content contains: workflow, procedure, step-by-step, how to, process, skill. (4) "CLAUDE.md" as default/behavioral fallback.
+- Verification: deterministic
+
+### DES-P6e-1: Placement classification keyword heuristics
+
+Content classification uses simple substring matching on lowercased content. Priority order: settings.json (mechanical/config) → .claude/rules/ (file-scoped) → skill (procedural) → CLAUDE.md (behavioral default). First match wins.
+
+- Traces to: REQ-P6e-4
+- AC: See REQ-P6e-4 acceptance criteria.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-5]
+name = "Surface pipeline renders emphasized_advisory with IMPORTANT: prefix (P6e)"
+traces_to = ["UC-21"]
+hash = "356dc9c7"
+body = '''
+When a memory's registry enforcement level is `emphasized_advisory`, the surface pipeline prefixes its output line with "IMPORTANT:" and bolds the slug.
+
+- Traces to: UC-2 (memory surfacing), REQ-P6e-1
+- AC: (1) Memory at `emphasized_advisory` level renders as `  - IMPORTANT: **slug**annotation\n`. (2) `EnforcementReader` interface injected via `WithEnforcementReader` option. (3) Missing or erroring reader defaults to advisory (normal format).
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-6]
+name = "Surface pipeline renders reminder with REMINDER: prefix (P6e)"
+traces_to = ["UC-21"]
+hash = "5c9bdbd6"
+body = '''
+When a memory's registry enforcement level is `reminder`, the surface pipeline prefixes its output line with "REMINDER:" and includes the principle text.
+
+- Traces to: UC-2 (memory surfacing), REQ-P6e-1
+- AC: (1) Memory at `reminder` level renders as `  - REMINDER: slug — principle annotation\n`. (2) Principle sourced from `memory.Stored.Principle`.
+- Verification: deterministic
+
+### DES-P6e-2: Surface rendering format per enforcement level
+
+| Level | Format |
+|-------|--------|
+| advisory (default) | `  - slug annotation\n` |
+| emphasized_advisory | `  - IMPORTANT: **slug** annotation\n` |
+| reminder | `  - REMINDER: slug — principle annotation\n` |
+| graduated | normal format (memory retired from surfacing path) |
+
+- Traces to: REQ-P6e-5, REQ-P6e-6
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6e-7]
+name = "Emphasized and reminder memories sorted first in tool mode (P6e)"
+traces_to = ["UC-21"]
+hash = "c5042af1"
+body = '''
+In tool mode, memories at `emphasized_advisory` or `reminder` level are sorted before `advisory`-level memories after BM25 ranking and budget application.
+
+- Traces to: UC-2 (tool mode surfacing), REQ-P6e-5
+- AC: (1) `isEmphasized(level)` returns true for `emphasized_advisory` and `reminder`. (2) `sort.SliceStable` applied after budget cap preserves relative order within tiers. (3) Emphasized memories appear before advisory memories in rendered output.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-1]
+name = "GraduationEntry model (P6f)"
+traces_to = ["UC-21"]
+hash = "6589227e"
+body = '''
+Each graduation entry persists the lifecycle of one graduated memory. Fields: `id` (12-char hex, derived from SHA-256 of memory_path), `memory_path`, `recommendation` (one of: "settings.json", ".claude/rules/", "skill", "CLAUDE.md"), `status` ("pending" | "accepted" | "dismissed"), `detected_at` (RFC3339), `resolved_at` (RFC3339, empty if still pending), `issue_url` (empty until accepted).
+
+- Traces to: UC-21 (graduation lifecycle)
+- AC: (1) GraduationEntry struct defined with all fields. (2) ID is derived deterministically from memory_path via SHA-256 prefix. (3) Status values: "pending", "accepted", "dismissed". (4) Accepted entries record issue_url and resolved_at. (5) Dismissed entries record resolved_at, issue_url is empty string.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-2]
+name = "GraduationStore CRUD operations (P6f)"
+traces_to = ["UC-21"]
+hash = "bc812047"
+body = '''
+`GraduationStore` persists entries in `<data-dir>/graduation-queue.jsonl`. Provides: `Append(entry GraduationEntry, path string)` to add an entry, `List(path string) ([]GraduationEntry, error)` to read all entries, `SetStatus(path, id, status, resolvedAt, issueURL string) error` to update an entry by ID.
+
+- Traces to: UC-21, REQ-P6f-1
+- AC: (1) `Append` writes entry as one JSON line, atomically via temp+rename. (2) `List` reads all lines, skips malformed, returns empty slice for missing file. (3) `SetStatus` finds entry by ID, updates status/resolved_at/issue_url, rewrites atomically. (4) `SetStatus` on unknown ID returns `ErrGraduationNotFound`. (5) DI for all file I/O (readFile, createTemp, rename, remove, now).
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-3]
+name = "GraduationQueueEmitter writes to GraduationStore (P6f)"
+traces_to = ["UC-21"]
+hash = "e1271eaa"
+body = '''
+`GraduationQueueEmitter` in the signal package implements `maintain.GraduationEmitter`. On `EmitGraduation(memoryPath, recommendation string, detectedAt time.Time)`, it generates an ID from the memory_path SHA-256 prefix and calls `store.Append`.
+
+- Traces to: UC-21, REQ-P6f-1, REQ-P6f-2
+- AC: (1) EmitGraduation creates GraduationEntry with status="pending". (2) ID is the first 12 hex chars of SHA-256(memoryPath). (3) Entry is appended to the graduation store. (4) Emitter errors propagate to the caller.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-4]
+name = "graduate accept creates GitHub issue and records result (P6f)"
+traces_to = ["UC-21"]
+hash = "e9619d03"
+body = '''
+`engram graduate accept --data-dir <dir> --id <id>` reads the graduation entry, creates a GitHub issue via `IssueCreator`, and records the entry as accepted with the issue URL.
+
+- Traces to: UC-21
+- AC: (1) Reads GraduationStore for the entry with given ID. (2) Calls `IssueCreator.Create(title, body)` where title and body include memory_path and recommendation. (3) On success: calls `SetStatus(id, "accepted", now, issueURL)`. (4) Prints the issue URL to stdout. (5) IssueCreator errors propagate (not fire-and-forget). (6) Unknown ID returns error.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-5]
+name = "graduate dismiss records dismissed (P6f)"
+traces_to = ["UC-21"]
+hash = "8b457b2d"
+body = '''
+`engram graduate dismiss --data-dir <dir> --id <id>` records the entry as dismissed.
+
+- Traces to: UC-21
+- AC: (1) Reads GraduationStore for the entry with given ID. (2) Calls `SetStatus(id, "dismissed", now, "")`. (3) Prints confirmation to stdout. (4) Unknown ID returns error.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-6]
+name = "graduate list shows pending entries and quality metric (P6f)"
+traces_to = ["UC-21"]
+hash = "5f4e744a"
+body = '''
+`engram graduate list --data-dir <dir>` lists pending graduation entries and reports the quality metric.
+
+- Traces to: UC-21
+- AC: (1) Lists all entries with status="pending". (2) Quality metric = accepted / (accepted + dismissed) as a percentage. (3) If accepted+dismissed == 0, metric shows "n/a". (4) Each entry includes: ID, memory_path, recommendation, detected_at.
+- Verification: deterministic
+
+### DES-P6f-1: graduate list output format (P6f)
+
+```
+Graduation Signals (N pending)
+
+  ID:             <id>
+  Memory:         <memory_path>
+  Recommendation: <recommendation>
+  Detected:       <detected_at>
+
+Quality: X.X% accepted (N accepted, N dismissed)
+```
+
+If no pending entries: print "No pending graduation signals.\n". Quality line still appears if any resolved entries exist.
+
+- Traces to: REQ-P6f-6
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-7]
+name = "SessionStart surfaces pending graduation signals with GitHub issue instructions (P6f)"
+traces_to = ["UC-21"]
+hash = "feb134d9"
+body = '''
+`engram graduate-surface --data-dir <dir> --format json` outputs `{"summary":..., "context":...}` when pending graduation entries exist, instructing the LLM to ask the user about GitHub issue creation.
+
+- Traces to: UC-21, UC-28 (signal surfacing)
+- AC: (1) Reads graduation-queue.jsonl, filters status="pending". (2) JSON output has `summary` (entry count) and `context` (entries + instructions). (3) Instructions reference `engram graduate accept --id <id>` and `engram graduate dismiss --id <id>`. (4) Empty/all-resolved queue returns no output (exit 0). (5) DI for I/O.
+- Verification: deterministic
+
+### DES-P6f-2: graduation-surface context format (P6f)
+
+Context block:
+```
+[engram] N pending graduation signal(s):
+
+  - ID: <id> | Memory: <memory_path> | Recommendation: <recommendation> | Detected: <detected_at>
+
+Ask the user if they would like to create GitHub issues for each graduated memory.
+Commands: `engram graduate accept --data-dir <data-dir> --id <id>` to accept (creates issue),
+          `engram graduate dismiss --data-dir <data-dir> --id <id>` to dismiss.
+```
+
+- Traces to: REQ-P6f-7
+- Verification: deterministic
+
+### DES-P6f-3: graduation-queue.jsonl line format (P6f)
+
+Each line: `{"id":"...","memory_path":"...","recommendation":"...","status":"...","detected_at":"...","resolved_at":"...","issue_url":""}`. All fields always present; `resolved_at` and `issue_url` are empty strings when not yet set.
+
+- Traces to: REQ-P6f-1, REQ-P6f-2
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-8]
+name = "Graduation recommendation derives from ClassifyContent (P6f)"
+traces_to = ["UC-21"]
+hash = "d4b8e619"
+body = '''
+When `ApplyEscalationProposal` emits a graduation signal (per REQ-P6e-3), the `recommendation` field passed to `EmitGraduation` is the return value of `ClassifyContent(content)` applied to the memory's full text content. It is never hardcoded.
+
+- Traces to: UC-21, REQ-P6e-3, REQ-P6e-4
+- AC: (1) `recommendation` equals `ClassifyContent(content)` at graduation time. (2) The classification follows REQ-P6e-4 keyword rules. (3) Different memory content yields different recommendations without code changes.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-P6f-9]
+name = "De-escalation from graduated state reverts to reminder (P6f)"
+traces_to = ["UC-21"]
+hash = "6668b73a"
+body = '''
+When a memory at `graduated` enforcement level shows post-escalation effectiveness ≥ pre-escalation effectiveness for ≥3 evaluation cycles (per REQ-82), the escalation engine proposes de-escalating to `reminder`. `graduated` is the top of the ladder; de-escalation always drops exactly one level. A de-escalated memory does not re-emit a graduation signal.
+
+- Traces to: UC-21, REQ-82
+- AC: (1) De-escalation from `graduated` proposes `reminder` (not `advisory` or `emphasized_advisory`). (2) The proposal follows the same confirmation gate as other proposals (REQ-85). (3) A confirmed de-escalation does NOT call `EmitGraduation`. (4) A de-escalated memory at `reminder` may re-escalate to `graduated` if conditions persist.
+- Verification: deterministic
+
+---
+'''
+
+[REQ-X]
+name = "Transcript context reading for unified classifier"
+traces_to = ["UC-3"]
+hash = "964fbbcc"
+body = '''
+The unified LLM classifier (REQ-2) receives recent session context to improve classification accuracy. When the UserPromptSubmit hook invokes `engram correct`, the hook JSON input includes a `transcript_path` field pointing to the current session transcript. The Go binary reads the last ~2000 tokens from this file and includes them in the classifier LLM call.
+
+- Traces to: UC-3 (unified LLM classifier context)
+- AC: (1) Hook input JSON includes `transcript_path` field (available in UserPromptSubmit hook). (2) Go binary reads `transcript_path` file. (3) Extracts recent portion (~2000 tokens, or entire file if shorter). (4) Includes recent context in the classifier LLM prompt. (5) Missing or unreadable transcript_path → proceed without context (non-fatal, context is advisory).
+- Verification: deterministic (file read, token counting)
+
+---
+'''

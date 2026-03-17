@@ -1,0 +1,662 @@
+[DES-1]
+name = "Correction feedback reminder format"
+traces_to = ["UC-3"]
+hash = "e4e1ce8b"
+body = '''
+When a memory is created, the agent sees:
+
+```
+<system-reminder source="engram">
+[engram] Memory captured (tier A).
+  Created: "<title>"
+  Type: <observation_type>
+  File: <file_path>
+</system-reminder>
+```
+
+Format rules:
+- Header: `[engram] Memory captured (tier <tier>).` where tier is A/B/C
+- Action: `Created:` with memory title in quotes
+- Type: the observation_type field
+- File: relative path to the TOML file
+- Concise — appears in the same hook response
+
+- Traces to: UC-3 (feedback, tier classification)
+
+---
+'''
+
+[DES-10]
+name = "Session learning feedback format"
+traces_to = ["UC-1"]
+hash = "79768324"
+body = '''
+When learnings are extracted, the system emits to stderr (not stdout, since the session may be ending):
+
+```
+[engram] Extracted N learnings from session (A: 2, B: 1, C: 3).
+  - "<title1>" [A] (file1.toml)
+  - "<title2>" [B] (file2.toml)
+  - "<title3>" [C] (file3.toml)
+  ...
+[engram] Skipped M duplicates.
+```
+
+Format rules:
+- Header: `[engram] Extracted N learnings from session (A: X, B: Y, C: Z).` with tier breakdown
+- Each learning: title in quotes, tier in brackets, file path in parentheses
+- Duplicate count: only if M > 0
+- If zero learnings after dedup, emit: `[engram] No new learnings extracted.`
+
+- Traces to: UC-1 (feedback, tier classification)
+
+---
+'''
+
+[DES-11]
+name = "Surfacing log JSONL format"
+traces_to = ["UC-15"]
+hash = "a2b62c65"
+body = '''
+Each line in `<data-dir>/surfacing-log.jsonl`:
+
+```json
+{"memory_path": "/path/to/memory.toml", "mode": "prompt", "surfaced_at": "2026-03-06T10:00:00Z"}
+```
+
+Fields:
+- `memory_path` (string) — absolute path to the memory TOML file
+- `mode` (string) — one of `session-start`, `prompt`, `tool`
+- `surfaced_at` (string) — RFC 3339 timestamp
+
+File is append-only within a session, read-and-cleared by `engram evaluate`.
+
+- Traces to: UC-15 (surfacing log format), REQ-26
+
+---
+'''
+
+[DES-12]
+name = "Evaluation LLM prompt design"
+traces_to = ["UC-15"]
+hash = "c466c2f6"
+body = '''
+The evaluation prompt includes:
+
+**System prompt:** You are evaluating whether an AI agent followed, contradicted, or ignored specific memory advisories during a session. For each memory, classify the outcome based on the agent's actual behavior in the transcript.
+
+**User prompt structure:**
+1. List of surfaced memories, each with: title, principle, anti_pattern (if any), content
+2. Full session transcript
+3. Instruction: For each memory, return JSON with outcome and evidence
+
+**Response format:** JSON array of objects, one per surfaced memory:
+```json
+[
+  {"memory_path": "...", "outcome": "followed", "evidence": "Agent used targ test instead of go test at lines 45, 89"},
+  {"memory_path": "...", "outcome": "ignored", "evidence": "Memory about fish shell was not relevant to this session's tasks"}
+]
+```
+
+- Traces to: UC-15 (evaluation LLM), REQ-27
+
+---
+'''
+
+[DES-13]
+name = "Evaluation log JSONL schema and file naming"
+traces_to = ["UC-15"]
+hash = "ba2b4871"
+body = '''
+File path: `<data-dir>/evaluations/2026-03-06T10-00-00Z.jsonl`
+
+Each line:
+```json
+{"memory_path": "/path/to/memory.toml", "outcome": "followed", "evidence": "brief explanation", "evaluated_at": "2026-03-06T10:00:00Z"}
+```
+
+Fields:
+- `memory_path` (string) — absolute path to the evaluated memory TOML file
+- `outcome` (string) — one of `followed`, `contradicted`, `ignored`
+- `evidence` (string) — brief LLM explanation of the classification
+- `evaluated_at` (string) — RFC 3339 timestamp
+
+Session identity is implicit from the file. File naming: RFC 3339 timestamp with colons replaced by hyphens.
+
+- Traces to: UC-15 (evaluation log format), REQ-28
+
+---
+'''
+
+[DES-14]
+name = "Effectiveness annotation format and placement"
+traces_to = ["UC-15"]
+hash = "d976dc57"
+body = '''
+Annotations are appended to each surfaced memory's line in the system reminder:
+
+```
+- "Use targ test not go test" — Use project-specific build tools (surfaced 5 times, followed 80%)
+```
+
+When no evaluation data exists for a memory, the annotation is omitted entirely — no "(surfaced 0 times)".
+
+The annotation uses the total evaluation count (not surfaced_count from tracking) as N, and effectiveness percentage as M. This ensures the numbers reflect outcome data, not just surfacing events.
+
+- Traces to: UC-15 (inline annotations UX), REQ-30
+
+---
+'''
+
+[DES-15]
+name = "Hook wiring — evaluate in PreCompact and SessionEnd"
+traces_to = ["UC-15"]
+hash = "faed632b"
+body = '''
+The PreCompact and SessionEnd hook scripts are extended to invoke `engram evaluate` after `engram learn`:
+
+```bash
+# UC-1: Extract learnings
+$ENGRAM_BIN learn --data-dir "$ENGRAM_DATA" < transcript
+
+# UC-15: Evaluate memory effectiveness
+$ENGRAM_BIN evaluate --data-dir "$ENGRAM_DATA" < transcript
+```
+
+The evaluate subcommand reads the transcript from stdin (same as learn) and the surfacing log from the data directory. Output goes to stdout for the hook to reshape into `systemMessage`.
+
+- Traces to: UC-15 (hook integration), REQ-31
+
+---
+'''
+
+[DES-16]
+name = "Token estimation implementation in surface.go"
+traces_to = ["UC-6"]
+hash = "ccb11043"
+body = '''
+Token estimation is implemented as a pure function in `internal/surface/surface.go`: `func estimateTokens(text string) int { return len(text) / 4 }`. This function is called for each surfaced memory before adding it to the output. The function signature is exported for testing purposes.
+
+- Traces to: REQ-55 (token estimation)
+
+---
+'''
+
+[DES-17]
+name = "Budget cap configuration UX"
+traces_to = ["UC-6"]
+hash = "829657bf"
+body = '''
+Budget caps are configured in `<data-dir>/config.toml` under a `[budget]` section. Default config is generated on first run if missing. Config file format:
+
+```toml
+[budget]
+session_start = 800
+user_prompt = 300
+pre_tool = 200
+post_tool = 100
+stop_audit = 500
+```
+
+Users can edit the file to adjust caps. Invalid or missing values fall back to defaults. `engram review` displays the current caps in the output.
+
+- Traces to: REQ-56 (per-hook budget)
+
+---
+'''
+
+[DES-18]
+name = "Priority sorting in matchPromptMemories and matchToolMemories"
+traces_to = ["UC-14"]
+hash = "10a1acb3"
+body = '''
+In `internal/surface/surface.go`, both `matchPromptMemories` and `matchToolMemories` functions are updated to:
+1. Compute `effectiveness × relevance` for each memory
+2. Sort by this score in descending order
+3. Apply budget limit by counting tokens and stopping when budget is exhausted
+
+The sorting is applied before the top-N limit is applied. Budget enforcement takes precedence over top-N limits.
+
+- Traces to: REQ-57 (priority allocation)
+
+---
+'''
+
+[DES-19]
+name = "Budget reporting format in review output"
+traces_to = ["UC-14"]
+hash = "b27629e8"
+body = '''
+`engram review` output includes a `[Budget Utilization]` section with a table format:
+
+```
+[Budget Utilization]
+Hook                Budget   Surfaced   Utilization   Warning
+SessionStart        800      720        90%            —
+UserPromptSubmit    300      280        93%            ⚠ Frequently capped
+PreToolUse          200      200        100%           ⚠ Consistently capped
+PostToolUse         100      0          0%             —
+StopAudit           500      350        70%            —
+```
+
+The "Warning" column shows warnings (see REQ-59). The table is written to the review output in plaintext format.
+
+- Traces to: REQ-58 (budget reporting)
+
+---
+'''
+
+[DES-20]
+name = "Budget warning computation in review"
+traces_to = ["UC-14"]
+hash = "7a7e74c5"
+body = '''
+In the review command output, after loading all surfacing logs for the session, compute cap hit rates per hook:
+
+```
+cap_hits[hook] = count(invocations where tokens_surfaced > cap)
+cap_hit_rate[hook] = cap_hits[hook] / total_invocations[hook]
+```
+
+If `cap_hit_rate[hook] > 0.5`, include a warning in the budget table. Warning format: `⚠ Hitting cap on Z% of invocations` (where Z is cap_hit_rate × 100, rounded to nearest integer).
+
+- Traces to: REQ-59 (budget warning detection)
+
+---
+'''
+
+[DES-21]
+name = "Stop hook script phase ordering"
+traces_to = ["UC-14"]
+hash = "4466b7f7"
+body = '''
+The `hooks/stop.sh` script is updated to invoke `engram audit` as a new phase. Pseudo-code order:
+
+```bash
+engram learn --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"
+engram evaluate --data-dir "$DATA_DIR"
+engram audit --data-dir "$DATA_DIR" --timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+engram context-update --data-dir "$DATA_DIR"
+```
+
+Each phase's errors are logged but do not block subsequent phases (fire-and-forget pattern).
+
+- Traces to: REQ-60 (stop hook timing)
+
+---
+'''
+
+[DES-22]
+name = "Audit scope parsing from session data"
+traces_to = ["UC-14"]
+hash = "48d4a00c"
+body = '''
+The audit command parses session data from:
+1. Surfacing log: `<data-dir>/logs/surfacing-<session-id>.json` — contains surfaced memory IDs, hook names, timestamps
+2. Effectiveness data: `<data-dir>/evaluate/effectiveness.json` — contains effectiveness scores
+3. Transcript: passed as argument to audit command — contains transcript text to search for skill invocations and instruction compliance
+
+Scope is compiled as JSON: `[{memory_id, effectiveness_score, surfaced_count}, ...]`
+
+- Traces to: REQ-61 (audit scope)
+
+---
+'''
+
+[DES-23]
+name = "Compliance assessment prompt structure"
+traces_to = ["UC-17"]
+hash = "f6412f33"
+body = '''
+System prompt for Haiku:
+
+```
+You are auditing a session for compliance with high-priority instructions. You will be given:
+- A list of instructions that were surfaced during the session (high-priority memories)
+- The transcript of the session
+
+For each instruction, determine whether the model complied:
+- If the instruction was followed, answer "compliant: true"
+- If the instruction was violated, answer "compliant: false"
+- In both cases, provide evidence from the transcript
+
+Output JSON format:
+[
+  {"instruction": "...", "compliant": true/false, "evidence": "..."},
+  ...
+]
+```
+
+User prompt includes scope JSON and relevant transcript excerpts.
+
+- Traces to: REQ-62 (LLM compliance assessment)
+
+---
+'''
+
+[DES-24]
+name = "Effectiveness signal injection for audit results"
+traces_to = ["UC-17"]
+hash = "d7d45971"
+body = '''
+In `internal/evaluate/evaluate.go`, add a function `InjectAuditResults(auditReport)` that:
+1. Parses audit report JSON
+2. For each non_compliant result, looks up memory ID in effectiveness registry
+3. Adds a negative outcome signal (outcome_type = "audit_non_compliance", timestamp = audit timestamp)
+4. Saves updated effectiveness data
+
+This function is called by the audit command before the audit report is written.
+
+- Traces to: REQ-64 (effectiveness integration)
+
+---
+'''
+
+[DES-25]
+name = "LLM prompt design for hidden gem broadening"
+traces_to = ["UC-16"]
+hash = "2d5c1ec2"
+body = '''
+System prompt instructs Haiku to analyze a memory's content and propose additional keywords/concepts that would broaden its surfacing triggers. User prompt includes the full memory content, current keywords, and stats. Output format: JSON with proposed keyword additions.
+
+- Traces to: REQ-50 (hidden gem broadening)
+
+---
+'''
+
+[DES-26]
+name = "User command `engram registry migrate` consolidates JSONL into TOMLs [COMPLETED]"
+traces_to = ["UC-18"]
+hash = "61f3e22a"
+body = '''
+Migration executed and CLI subcommand removed after use. Retained as
+historical record.
+
+- Traces to: UC-23 (migration interaction)
+- AC: All satisfied during migration execution.
+
+---
+'''
+
+[DES-27]
+name = "User command `engram review` reads TOML directory for quadrant classification"
+traces_to = ["UC-18"]
+hash = "744bd2ea"
+body = '''
+`engram review --format [table|json]`. Scans memories/ directory, reads metrics from each TOML, classifies by quadrant, outputs summary grouped by quadrant.
+
+- Traces to: UC-23 (classification interaction)
+- AC: (1) Output includes quadrant, memory path, title, effectiveness, surfaced_count. (2) Grouped by quadrant. (3) Flagged memories (< 40% effectiveness) highlighted. (4) JSON output is array of classification objects.
+- Verification: integration (scan directory, classify, format output)
+
+---
+'''
+
+[DES-28]
+name = "User command `engram registry merge` absorbs duplicates"
+traces_to = ["UC-18"]
+hash = "c8d1a5a5"
+body = '''
+CLI subcommand: `engram registry merge --source <path> --target <path>`. Reads source memory TOML metrics, appends to target's absorbed array, deletes source TOML file. Outputs confirmation with absorbed counters.
+
+- Traces to: UC-23 (merge interaction)
+- AC: (1) Subcommand registered. (2) --source and --target required (memory file paths). (3) Both must be memory TOML files. (4) Merge is idempotent. (5) Output includes absorbed counters for verification. (6) Source file deleted after successful merge.
+- Verification: integration (TOML read/write, file deletion)
+
+---
+'''
+
+[DES-29]
+name = "System auto-embeds metrics in new memories and updates in-place"
+traces_to = ["UC-23"]
+hash = "d69bcf9d"
+body = '''
+When a new memory is created (via learn pipeline), it is written with zero-valued metrics fields. When surfacing or evaluation occurs, the memory's TOML is updated in-place atomically. No separate registration step. Non-memory auto-registration removed.
+
+- Traces to: UC-23 (auto-integration into pipelines)
+- AC: (1) Learn pipeline writes TOML with content + zero metrics. (2) Surfacing hook reads TOML, increments surfaced_count, writes back atomically. (3) Evaluate hook reads TOML, increments appropriate counter, writes back atomically. (4) All updates are fire-and-forget: failures don't crash hooks (ARCH-6). (5) runAutoRegistration for non-memory sources removed.
+- Verification: integration (hook + TOML I/O)
+
+---
+'''
+
+[DES-3]
+name = "Hook wiring — UserPromptSubmit"
+traces_to = ["UC-3"]
+hash = "6ea66c85"
+body = '''
+The UserPromptSubmit hook is registered in `hooks/hooks.json` and invokes `hooks/user-prompt-submit.sh`. The hook reads the user prompt and transcript path from stdin JSON, and invokes two independent operations:
+
+1. **Correction (UC-3):** `engram correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA"`
+2. **Surfacing (UC-2):** `engram surface --mode prompt --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --format json`
+
+The `transcript_path` field is available in the UserPromptSubmit hook JSON input and is read by the Go binary for context (REQ-X). The hook also self-builds the binary if missing (`go build -o "$ENGRAM_BIN" ./cmd/engram/`).
+
+Token retrieval is platform-aware:
+- **macOS:** Attempt to read OAuth token from Claude Code Keychain via `security find-generic-password`. On failure, fall back to `ENGRAM_API_TOKEN` env var.
+- **Non-macOS (Linux, etc.):** Use `ENGRAM_API_TOKEN` env var directly.
+
+The hook exports `ENGRAM_API_TOKEN` from whichever source succeeds.
+
+**Hook output JSON:**
+- If surface matches exist: `{systemMessage: (<surface_summary> + "\n" + <creation_output>), additionalContext: <surface_context>}`
+  - User sees both creation feedback AND surface summary in one message.
+  - Surfaced memory details go to model context for analysis.
+- If only creation exists (no surface matches): `{systemMessage: <creation_output>, additionalContext: ""}`
+- If neither creation nor surface matches: `{}` (empty output)
+
+Creation feedback must always appear in `systemMessage` (user-visible), never relegated to `additionalContext`.
+
+- Traces to: UC-3 (hook wiring, transcript context reading, user-visible creation feedback)
+
+---
+'''
+
+[DES-30]
+name = "Escalation level TOML schema"
+traces_to = ["UC-20"]
+hash = "02cb59ab"
+body = '''
+Memory TOML files gain an optional `escalation_level` field:
+
+```toml
+escalation_level = "advisory"  # default
+escalation_history = [
+  { level = "advisory", since = "2026-01-01T00:00:00Z", effectiveness = 0.15 },
+  { level = "emphasized_advisory", since = "2026-02-01T00:00:00Z", effectiveness = 0.25 }
+]
+```
+
+- Traces to: REQ-80 (escalation levels), REQ-84 (TOML storage)
+
+---
+'''
+
+[DES-31]
+name = "Escalation proposal format"
+traces_to = ["UC-20"]
+hash = "29517d51"
+body = '''
+```json
+{
+  "memory_path": "memories/example.toml",
+  "proposal_type": "escalate",
+  "current_level": "advisory",
+  "proposed_level": "emphasized_advisory",
+  "rationale": "Surfaced 20 times, followed 15%. Content rewrite attempted, no improvement.",
+  "predicted_impact": "+10% follow rate based on 3 similar memories"
+}
+```
+
+- Traces to: REQ-81 (proposal format)
+
+---
+'''
+
+[DES-32]
+name = "Automation output format"
+traces_to = ["UC-22"]
+hash = "2ddd067a"
+body = '''
+```json
+{
+  "memory_path": "memories/example.toml",
+  "automation_type": "pre_commit_hook",
+  "code": "#!/bin/bash\n# Verify X before Y\n...",
+  "description": "Enforces X-before-Y ordering in commits",
+  "test_command": "echo 'test input' | ./hooks/pre-commit-check.sh",
+  "install_path": ".git/hooks/pre-commit-check.sh"
+}
+```
+
+- Traces to: REQ-87 (generator output)
+
+---
+'''
+
+[DES-4]
+name = "Plugin installation and setup UX"
+traces_to = ["UC-3"]
+hash = "210bca72"
+body = '''
+Installation steps for a user:
+
+1. **Prerequisites:** Go toolchain installed and on `PATH`.
+2. **Clone:** `git clone` the engram repo.
+3. **Register:** `claude --plugin-dir /path/to/engram` (development mode).
+4. **Verify:** Start a Claude Code session. The `SessionStart` hook auto-builds the binary. Then send a message like "remember to always use targ" — a memory TOML file should be created.
+
+No manual build step required — the `SessionStart` hook handles it (REQ-8). README documents these steps.
+
+- Traces to: UC-3 (user must be able to install and exercise the plugin)
+
+---
+
+# UC-2 Requirements and Design
+
+---
+'''
+
+[DES-5]
+name = "SessionStart surfacing reminder format"
+traces_to = ["UC-2"]
+hash = "49edc0cd"
+body = '''
+When memories are surfaced at session start, the output includes two sections:
+
+1. **Creation report (if creation log exists):** Before surfacing recency-based memories, the system reports memories created in prior sessions:
+
+```
+<system-reminder source="engram">
+[engram] Created N memories since last session:
+  - "<title1>" [A] (file1.toml)
+  - "<title2>" [B] (file2.toml)
+</system-reminder>
+```
+
+2. **Recency surfacing:** Then the top 20 by recency:
+
+```
+<system-reminder source="engram">
+[engram] Loaded M memories.
+  - "<title3>" (file3.toml)
+  - "<title4>" (file4.toml)
+  ...
+</system-reminder>
+```
+
+Format rules:
+- Creation report: "Created N memories since last session:" with title, tier, file path for each
+- Recency report: "Loaded M memories." with title and file path for each
+- Ordered by recency (most recent first) for recency section
+- If no creation log exists, skip creation report
+- If no memories exist for recency section, emit only creation report (if present)
+- With `--format json`: wrap both sections in `{"summary": "[engram] ...", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}` for Claude Code visibility.
+
+- Traces to: UC-2 (SessionStart feedback, creation visibility)
+
+---
+'''
+
+[DES-6]
+name = "UserPromptSubmit surfacing reminder format"
+traces_to = ["UC-2"]
+hash = "42d6de90"
+body = '''
+When memories match the user's message, the agent sees:
+
+```
+<system-reminder source="engram">
+[engram] Relevant memories:
+  - "<title1>" (file1.toml) [matched: keyword1, keyword2]
+  - "<title2>" (file2.toml) [matched: concept1]
+</system-reminder>
+```
+
+Format rules:
+- Header: `[engram] Relevant memories:`
+- Each memory: title, file path, matched keywords/concepts in brackets
+- If no matches, no output
+- With `--format json`: wrapped in `{"summary": "[engram] N relevant memories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, additionalContext}`, merging any UC-3 correction output into additionalContext.
+
+- Traces to: UC-2 (UserPromptSubmit feedback)
+
+---
+'''
+
+[DES-7]
+name = "PreToolUse advisory reminder format"
+traces_to = ["UC-2"]
+hash = "7e1a40a0"
+body = '''
+When memories match a tool call's keyword filter, the hook returns a system reminder. Note: only tier A and B memories (with anti-patterns per REQ-7) can match; tier C contextual facts have no anti-patterns and do not appear.
+
+```
+<system-reminder source="engram">
+[engram] Tool call advisory:
+  - "<title1>" — <principle1> (file1.toml) [tier A]
+  - "<title2>" — <principle2> (file2.toml) [tier B]
+</system-reminder>
+```
+
+Format rules:
+- Header: `[engram] Tool call advisory:`
+- Each memory: title in quotes, principle, file path and tier in brackets
+- If no matches, no output (tool call allowed silently)
+- The agent exercises judgment with full session context — not a block, an advisory for consideration
+- With `--format json`: wrapped in `{"summary": "[engram] N tool advisories.", "context": "<system-reminder>..."}`. Hook script reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}` per PreToolUse hook API.
+
+- Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware filtering)
+
+---
+'''
+
+[DES-8]
+name = "Hook wiring — SessionStart and PreToolUse"
+traces_to = ["UC-2"]
+hash = "cba192b8"
+body = '''
+SessionStart hook (`hooks/session-start.sh`) calls `engram surface --mode session-start --format json` after the existing build step, then reshapes into `{systemMessage, additionalContext}`. PreToolUse hook (`hooks/pre-tool-use.sh`) reads the tool call from stdin JSON, calls `engram surface --mode tool --format json`, and reshapes into `{systemMessage, hookSpecificOutput: {additionalContext}}`.
+
+UserPromptSubmit hook (`hooks/user-prompt-submit.sh`) captures `engram correct` output and `engram surface --mode prompt --format json` output separately, then combines into a single JSON response with `{systemMessage, additionalContext}`. Correct output is prepended to additionalContext when present.
+
+- Traces to: UC-2 (hook wiring)
+
+---
+'''
+
+[DES-9]
+name = "Hook wiring — PreCompact and Stop"
+traces_to = ["UC-1"]
+hash = "34bc1ae5"
+body = '''
+PreCompact hook (`hooks/pre-compact.sh`) and Stop hook (`hooks/stop.sh`) are registered in `hooks/hooks.json`. Both invoke the same pipeline: extract transcript_path and session_id from stdin JSON, pass to `engram learn --data-dir <path> --transcript-path <file> --session-id <id>`.
+
+The hook reads transcript_path and session_id from the stdin JSON payload. Token retrieval uses the same platform-aware mechanism as DES-3 (macOS Keychain fallback to env var).
+
+Both hooks are synchronous (not async) — they must complete before context compaction or session termination. Fire-and-forget error handling (ARCH-6): errors logged to stderr, exit 0 always.
+
+- Traces to: UC-1 (incremental hook wiring)
+
+---
+'''
