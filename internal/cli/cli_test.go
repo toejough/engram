@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -1890,6 +1891,32 @@ func TestT250_ReviewReadsFromTOMLDirectory(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("Working Memory"))
 	g.Expect(output).To(ContainSubstring("Leech Memory"))
 	g.Expect(output).To(ContainSubstring("Source: memory"))
+}
+
+// TestT322_BinarySmokeTest builds the engram binary and verifies that
+// "engram evaluate --data-dir <empty>" exits 0 (no surfacing log → no memories to evaluate).
+func TestT322_BinarySmokeTest(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	binPath := filepath.Join(t.TempDir(), "engram")
+
+	buildCmd := exec.Command("go", "build", "-o", binPath, "engram/cmd/engram")
+
+	buildOut, buildErr := buildCmd.CombinedOutput()
+	g.Expect(buildErr).NotTo(HaveOccurred(), "go build failed: %s", string(buildOut))
+
+	if buildErr != nil {
+		return
+	}
+
+	dataDir := t.TempDir()
+
+	runCmd := exec.Command(binPath, "evaluate", "--data-dir", dataDir)
+
+	runOut, runErr := runCmd.CombinedOutput()
+	g.Expect(runErr).NotTo(HaveOccurred(), "engram evaluate exited non-zero: %s", string(runOut))
 }
 
 // T-40: Mode session-start routes to SessionStart surfacing
