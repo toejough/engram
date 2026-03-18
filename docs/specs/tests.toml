@@ -56,13 +56,13 @@ body = '''
 '''
 
 [T-103]
-name = "Surfacing log append error is fire-and-forget"
+name = "Surfacing log append error is returned from logger"
 traces_to = ["ARCH-22", "REQ-26"]
 hash = "72951aae"
 body = '''
 **Given** a SurfacingLogger with an injected write function that returns an error,
 **When** LogSurfacing is called,
-**Then** the error is returned to the caller (surfacer swallows it per ARCH-6).
+**Then** the error is returned to the logger's caller (so the Surfacer can choose to swallow it — see T-346).
 '''
 
 [T-104]
@@ -900,13 +900,13 @@ body = '''
 '''
 
 [T-163]
-name = "BM25 top-N limit — only top 5 results surfaced for tool mode"
-traces_to = ["ARCH-10", "REQ-11"]
+name = "BM25 top-N limit — only top 2 results surfaced for tool mode"
+traces_to = ["ARCH-10", "REQ-11", "REQ-P4e-4"]
 hash = "905e08ad"
 body = '''
 **Given** 10 anti-pattern memories with varying relevance to a tool input (all with non-zero BM25 scores),
 **When** surface is called with mode tool,
-**Then** only the top 5 ranked candidates are surfaced (by BM25 relevance score). Lower-ranked candidates 6–10 are not included.
+**Then** only the top 2 ranked candidates are surfaced (by BM25 relevance score, REQ-P4e-4: reduced from 5 to 2). Lower-ranked candidates 3–10 are not included.
 
 - Type: example-based (verify top-N limiting in PreToolUse)
 '''
@@ -5678,6 +5678,16 @@ When: runGraduateAccept called with that entry's ID
 Then: IssueCreator.Create called once; entry status becomes "accepted"; issue_url set; URL printed to stdout
 
 ---
+'''
+
+[T-346]
+name = "Surfacer swallows surfacing log error (fire-and-forget)"
+traces_to = ["ARCH-22", "ARCH-6", "REQ-26"]
+hash = ""
+body = '''
+**Given** a Surfacer with a SurfacingEventLogger that returns an error on every call,
+**When** Run is called and memories are matched,
+**Then** Run returns nil (the logger error is swallowed per ARCH-6 fire-and-forget contract).
 '''
 
 [T-P6f-9]

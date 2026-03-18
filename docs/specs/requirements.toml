@@ -42,10 +42,10 @@ name = "PreToolUse advisory surfacing — BM25 + frecency ranking on anti-patter
 traces_to = ["UC-2"]
 hash = "35912784"
 body = '''
-When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 5 results as an advisory system reminder.
+When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 2 results as an advisory system reminder.
 
 - Traces to: UC-2 (PreToolUse advisory surfacing, tier-aware anti-pattern filtering)
-- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) BM25 top candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 5 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path. (6) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (7) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
+- AC: (1) Only memories with a non-empty `anti_pattern` field are candidates (tier A always, tier B sometimes, tier C never per REQ-7). (2) BM25 index is built from candidate memories' text fields (title, principle, anti_pattern, keywords). (3) Tool name and input are concatenated and scored against each candidate. (4) BM25 top candidates are re-ranked by combined score: BM25 relevance × frecency activation (REQ-46). (5) Top 2 ranked results (or fewer if fewer candidates exist) are surfaced as a system reminder with title, principle, and file path (REQ-P4e-4: reduced from 5 to 2). (6) If no candidates exist or all scores are zero, no output is emitted (zero overhead — no LLM call, no advisory). (7) The agent has full session context to exercise judgment on whether the tool call violates the memory's principle.
 - Verification: probabilistic (BM25 + frecency scoring, ranking changes with tool input and usage history)
 
 ---
