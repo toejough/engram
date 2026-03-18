@@ -3658,7 +3658,7 @@ body = '''
 
 [T-342]
 name = "MergeExecutor error — fire-and-forget per cluster"
-traces_to = ["ARCH-79", "ARCH-6"]
+traces_to = ["ARCH-79", "ARCH-6", "REQ-137"]
 hash = "a8dab769"
 body = '''
 **Given** a MergeExecutor that returns an error for one cluster,
@@ -3713,8 +3713,118 @@ body = '''
 | DES-48 | T-340, T-341 |
 | ARCH-79 | T-342, T-343 |
 | ARCH-80 | T-344 |
+| REQ-135 | T-347, T-348 |
+| REQ-136 | T-349, T-350, T-351 |
+| REQ-137 | T-342, T-352 |
+| REQ-138 | T-353, T-354 |
 
-All UC-34 (issue #288) L2 items have test coverage.
+All UC-34 L2 items have test coverage.
+'''
+
+[T-347]
+name = "Backup file written before absorbed file deleted"
+traces_to = ["REQ-135"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** backup writer injected (mock); file deleter injected (mock)
+
+**Given** a pre-merge step with a real absorbed file path and a mock backup writer,
+**When** the pre-merge backup runs,
+**Then** the backup writer is called before the file deleter, and the backup path is in `<data-dir>/memories/.backup/` with a timestamp-prefixed filename.
+'''
+
+[T-348]
+name = "Backup failure is fire-and-forget — merge continues"
+traces_to = ["REQ-135"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** backup writer injected returning error; file deleter injected (mock)
+
+**Given** a backup writer that returns an error,
+**When** the pre-merge backup runs,
+**Then** the error is logged to stderr and the merge pipeline continues (file deleter is still called).
+'''
+
+[T-349]
+name = "Absorbed file deleted after survivor TOML written"
+traces_to = ["REQ-136"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** file writer injected; file deleter injected (mock captures call order)
+
+**Given** a cluster merge with one survivor and one absorbed memory,
+**When** the merge completes,
+**Then** the file deleter is called for the absorbed path after the survivor TOML is written (not before).
+'''
+
+[T-350]
+name = "Registry entry removed for absorbed memory after file deletion"
+traces_to = ["REQ-136"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** registry injected (mock); file deleter injected
+
+**Given** a cluster merge where the absorbed memory has a registry entry,
+**When** the merge completes,
+**Then** the registry's RemoveEntry is called for the absorbed memory's path.
+'''
+
+[T-351]
+name = "File deletion attempted even when backup fails"
+traces_to = ["REQ-136"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** backup writer injected returning error; file deleter injected (mock)
+
+**Given** a backup writer that returns an error on every call,
+**When** the merge runs,
+**Then** the file deleter is still called for the absorbed path (backup failure does not gate deletion).
+'''
+
+[T-352]
+name = "Cluster merge is atomic — partial failure leaves files unchanged"
+traces_to = ["REQ-137"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** file writer injected returning error on second call; file deleter injected
+
+**Given** a cluster with two absorbed memories where the second write fails,
+**When** Consolidate processes the cluster,
+**Then** no files are written or deleted for that cluster (all-or-nothing), and the error is logged to stderr.
+- Example-based: verifying atomic cluster semantics.
+'''
+
+[T-353]
+name = "RecomputeMergeLinks called after successful cluster merge"
+traces_to = ["REQ-138"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** link recomputer injected (mock captures calls)
+
+**Given** a Consolidate run with two mergeable clusters,
+**When** both clusters merge successfully,
+**Then** RecomputeMergeLinks is called once per merged cluster, after the absorbed file is deleted.
+'''
+
+[T-354]
+name = "Link recompute failure is fire-and-forget — merge not rolled back"
+traces_to = ["REQ-138"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** link recomputer injected returning error; file state verified via mock
+
+**Given** a link recomputer that returns an error,
+**When** Consolidate merges a cluster,
+**Then** the error is logged to stderr, the merge is NOT rolled back, and the absorbed file remains deleted.
+- Example-based: verifying ARCH-6 fire-and-forget for link recompute.
 '''
 
 [T-35]
