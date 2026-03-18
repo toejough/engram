@@ -66,20 +66,21 @@ At every cycle end, before declaring complete:
 
 ---
 
-## Cycle 3 — B-2 + Backlog Features
+## Cycle 3 — B-2 + Backlog Features ✅ Complete
 
 Resume the evolution plan, now that effectiveness data is real.
 
 **Gates (must ship alongside or before cluster merge code):**
-- [#328](https://github.com/toejough/engram/issues/328) — Real-filesystem integration test for cluster merge (survivor correctness)
-- [#329](https://github.com/toejough/engram/issues/329) — Pre-merge backup step before any cluster delete
+- [#328](https://github.com/toejough/engram/issues/328) — Real-filesystem integration test for cluster merge (survivor correctness) ✅ Closed (T-355)
+- [#329](https://github.com/toejough/engram/issues/329) — Pre-merge backup step before any cluster delete ✅ Closed (T-347–354)
 
-| Work | What | Maps to |
-|------|------|---------|
-| P4-full | Cluster dedup + cross-source suppression + transcript suppression | Evolution plan B-2 |
-| P5-full | Re-compute links after merge | Evolution plan B-2 |
-| [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | Natural fit post-B-2 dedup work |
-| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | Needs new UC before speccing |
+| Work | What | Status |
+|------|------|--------|
+| P4-full | Cluster dedup + cross-source suppression + transcript suppression | ✅ Done (#331 T-360, #332 T-359) |
+| P5-full | Re-compute links after merge | ✅ Done (#333 T-358) |
+| LLM principle synthesis | Synthesize merged principle from cluster on merge | ✅ Done (#330 T-356–357) |
+| [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ⏳ Deferred to Cycle 4 |
+| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ⏳ Deferred to Cycle 4 |
 
 ---
 
