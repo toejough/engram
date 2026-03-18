@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
@@ -13,6 +14,48 @@ import (
 	"engram/internal/memory"
 	"engram/internal/signal"
 )
+
+func TestConsolidatorRegistryAdapter_RemoveEntry(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	reg := openRegistry(dataDir)
+	adapter := &consolidatorRegistryAdapter{reg: reg, dataDir: dataDir}
+
+	// RemoveEntry relativizes the absolute path before calling the registry.
+	// The registry errors for non-existent entries, but the error must reference
+	// the relativized path — not the raw absolute path — proving relativization happened.
+	absPath := filepath.Join(dataDir, "memories", "test.toml")
+	err := adapter.RemoveEntry(absPath)
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("memories/test.toml"))
+	g.Expect(err.Error()).NotTo(ContainSubstring(dataDir))
+}
+
+func TestConsolidatorRegistryAdapter_RemoveEntry_EmptyDataDir(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	reg := openRegistry(dataDir)
+	adapter := &consolidatorRegistryAdapter{reg: reg, dataDir: ""}
+
+	// With empty dataDir, RemoveEntry passes the path through unchanged.
+	err := adapter.RemoveEntry("memories/test.toml")
+	g.Expect(err).To(HaveOccurred())
+
+	if err == nil {
+		return
+	}
+
+	g.Expect(err.Error()).To(ContainSubstring("memories/test.toml"))
+}
 
 func TestEffectivenessReaderAdapter_Found(t *testing.T) {
 	t.Parallel()
@@ -44,85 +87,27 @@ func TestEffectivenessReaderAdapter_NotFound(t *testing.T) {
 	g.Expect(score).To(Equal(0.0))
 }
 
-func TestFileMergeExecutor_RemoveError(t *testing.T) {
+// fileMergeExecutor.Merge is now pure in-memory (write+delete delegated to Consolidator).
+func TestFileMergeExecutor_InMemoryMerge(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
-
-	dir := t.TempDir()
-	survivorPath := filepath.Join(dir, "survivor.toml")
-
-	writeErr := os.WriteFile(survivorPath, []byte(`title = "t"
-content = "c"
-concepts = []
-keywords = []
-anti_pattern = ""
-principle = "p"
-updated_at = "2024-01-01T00:00:00Z"
-`), 0o644)
-	g.Expect(writeErr).NotTo(HaveOccurred())
-
-	survivor := &memory.Stored{
-		Title:    "S",
-		Content:  "c",
-		FilePath: survivorPath,
-	}
-	absorbed := &memory.Stored{
-		Title:    "A",
-		Content:  "c",
-		FilePath: "/nonexistent/absorbed.toml",
-	}
-
-	executor := &fileMergeExecutor{
-		writer: newStoredMemoryWriter(),
-		remove: func(_ string) error { return os.ErrPermission },
-	}
-
-	err := executor.Merge(t.Context(), survivor, absorbed)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("removing absorbed")))
-}
-
-func TestFileMergeExecutor_Success(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dir := t.TempDir()
-	survivorPath := filepath.Join(dir, "survivor.toml")
-	absorbedPath := filepath.Join(dir, "absorbed.toml")
-
-	for _, p := range []string{survivorPath, absorbedPath} {
-		writeErr := os.WriteFile(p, []byte(`title = "t"
-content = "c"
-concepts = []
-keywords = []
-anti_pattern = ""
-principle = "p"
-updated_at = "2024-01-01T00:00:00Z"
-`), 0o644)
-		g.Expect(writeErr).NotTo(HaveOccurred())
-	}
 
 	survivor := &memory.Stored{
 		Title:     "Survivor",
-		Content:   "content",
 		Keywords:  []string{"kw1"},
 		Concepts:  []string{"concept1"},
 		Principle: "short",
-		FilePath:  survivorPath,
+		FilePath:  "survivor.toml",
 	}
 	absorbed := &memory.Stored{
 		Title:     "Absorbed",
-		Content:   "content2",
 		Keywords:  []string{"kw1", "kw2"},
 		Concepts:  []string{"concept2"},
 		Principle: "longer principle",
-		FilePath:  absorbedPath,
+		FilePath:  "absorbed.toml",
 	}
 
-	executor := &fileMergeExecutor{
-		writer: newStoredMemoryWriter(),
-		remove: os.Remove,
-	}
+	executor := &fileMergeExecutor{}
 
 	err := executor.Merge(t.Context(), survivor, absorbed)
 	g.Expect(err).NotTo(HaveOccurred())
@@ -135,35 +120,6 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(survivor.Keywords).To(ConsistOf("kw1", "kw2"))
 	g.Expect(survivor.Concepts).To(ConsistOf("concept1", "concept2"))
 	g.Expect(survivor.Principle).To(Equal("longer principle"))
-
-	// Absorbed file should be removed.
-	_, statErr := os.Stat(absorbedPath)
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
-}
-
-func TestFileMergeExecutor_WriteError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	survivor := &memory.Stored{
-		Title:    "S",
-		Content:  "c",
-		FilePath: "/nonexistent/dir/survivor.toml",
-	}
-	absorbed := &memory.Stored{
-		Title:    "A",
-		Content:  "c",
-		FilePath: "/nonexistent/dir/absorbed.toml",
-	}
-
-	executor := &fileMergeExecutor{
-		writer: newStoredMemoryWriter(),
-		remove: os.Remove,
-	}
-
-	err := executor.Merge(t.Context(), survivor, absorbed)
-	g.Expect(err).To(HaveOccurred())
-	g.Expect(err).To(MatchError(ContainSubstring("writing survivor")))
 }
 
 func TestKeepLongerPrinciple(t *testing.T) {
@@ -186,6 +142,80 @@ func TestKeepLongerPrinciple_SurvivorLonger(t *testing.T) {
 
 	keepLongerPrinciple(survivor, absorbed)
 	g.Expect(survivor.Principle).To(Equal("already the longer one"))
+}
+
+func TestOsBackupWriter_Backup_Success(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	backupDir := filepath.Join(dir, "backup")
+	absorbedPath := filepath.Join(dir, "absorbed.toml")
+
+	writeErr := os.WriteFile(absorbedPath, []byte("content"), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	fixedTime := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	writer := &osBackupWriter{now: func() time.Time { return fixedTime }}
+
+	err := writer.Backup(absorbedPath, backupDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	entries, readErr := os.ReadDir(backupDir)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil || len(entries) == 0 {
+		return
+	}
+
+	g.Expect(entries).To(HaveLen(1))
+	g.Expect(entries[0].Name()).To(ContainSubstring("absorbed.toml"))
+}
+
+func TestOsFileDeleter_Delete_Error(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	deleter := &osFileDeleter{}
+
+	err := deleter.Delete("/nonexistent/path/that/does/not/exist.toml")
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err).To(MatchError(ContainSubstring("deleting absorbed file")))
+}
+
+func TestOsFileDeleter_Delete_Success(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "to-delete.toml")
+
+	writeErr := os.WriteFile(path, []byte("content"), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	deleter := &osFileDeleter{}
+
+	err := deleter.Delete(path)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	_, statErr := os.Stat(path)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue())
 }
 
 func TestReadStoredMemory_DecodeError(t *testing.T) {

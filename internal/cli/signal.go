@@ -32,6 +32,26 @@ var (
 	)
 )
 
+// consolidatorRegistryAdapter adapts regpkg.Registry to signal.RegistryEntryRemover.
+// It relativizes absolute memory paths to dataDir before calling Remove.
+type consolidatorRegistryAdapter struct {
+	reg     regpkg.Registry
+	dataDir string
+}
+
+func (a *consolidatorRegistryAdapter) RemoveEntry(path string) error {
+	if a.dataDir == "" {
+		return a.reg.Remove(path)
+	}
+
+	rel, err := filepath.Rel(a.dataDir, path)
+	if err != nil {
+		rel = path
+	}
+
+	return a.reg.Remove(rel)
+}
+
 // effectivenessReaderAdapter wraps a pre-computed stats map for the Consolidator.
 type effectivenessReaderAdapter struct {
 	stats map[string]effectiveness.Stat
@@ -48,11 +68,9 @@ func (e *effectivenessReaderAdapter) EffectivenessScore(
 	return stat.EffectivenessScore, true, nil
 }
 
-// fileMergeExecutor merges two memories on disk (UC-34 / REQ-133 fallback).
-type fileMergeExecutor struct {
-	writer *storedMemoryWriter
-	remove func(string) error
-}
+// fileMergeExecutor computes the in-memory merge of two memories (UC-34).
+// I/O (write, delete, backup) is handled by the Consolidator's DI seams.
+type fileMergeExecutor struct{}
 
 func (f *fileMergeExecutor) Merge(
 	_ context.Context,
@@ -61,16 +79,6 @@ func (f *fileMergeExecutor) Merge(
 	unionKeywords(survivor, absorbed)
 	unionConcepts(survivor, absorbed)
 	keepLongerPrinciple(survivor, absorbed)
-
-	writeErr := f.writer.Write(survivor.FilePath, survivor)
-	if writeErr != nil {
-		return fmt.Errorf("writing survivor: %w", writeErr)
-	}
-
-	removeErr := f.remove(absorbed.FilePath)
-	if removeErr != nil {
-		return fmt.Errorf("removing absorbed: %w", removeErr)
-	}
 
 	return nil
 }
@@ -83,6 +91,50 @@ type memoryListerAdapter struct {
 
 func (m *memoryListerAdapter) ListAll(ctx context.Context) ([]*memory.Stored, error) {
 	return m.retriever.ListMemories(ctx, m.dataDir)
+}
+
+// osBackupWriter copies absorbed memory files to a timestamped backup path (REQ-135).
+type osBackupWriter struct {
+	now func() time.Time
+}
+
+func (w *osBackupWriter) Backup(absorbedPath, backupDir string) error {
+	const dirPerms = 0o755
+
+	mkErr := os.MkdirAll(backupDir, dirPerms)
+	if mkErr != nil {
+		return fmt.Errorf("creating backup dir: %w", mkErr)
+	}
+
+	data, err := os.ReadFile(absorbedPath) //nolint:gosec // path from trusted internal source
+	if err != nil {
+		return fmt.Errorf("reading absorbed file for backup: %w", err)
+	}
+
+	ts := w.now().UTC().Format("20060102-150405.000000000")
+	filename := ts + "-" + filepath.Base(absorbedPath)
+	destPath := filepath.Join(backupDir, filename)
+
+	const filePerms = 0o600
+
+	writeErr := os.WriteFile(destPath, data, filePerms) //nolint:gosec // destPath uses filepath.Base, no traversal
+	if writeErr != nil {
+		return fmt.Errorf("writing backup: %w", writeErr)
+	}
+
+	return nil
+}
+
+// osFileDeleter deletes absorbed memory files after merge (REQ-136).
+type osFileDeleter struct{}
+
+func (d *osFileDeleter) Delete(path string) error {
+	rmErr := os.Remove(path)
+	if rmErr != nil {
+		return fmt.Errorf("deleting absorbed file: %w", rmErr)
+	}
+
+	return nil
 }
 
 // registryUpdaterAdapter adapts regpkg.Registry to signal.RegistryUpdater.

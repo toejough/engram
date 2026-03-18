@@ -3679,12 +3679,15 @@ body = '''
 [T-344]
 name = "signal-detect integration — duplicates consolidated before signals emitted"
 traces_to = ["ARCH-80", "DES-47"]
-hash = "939c7433"
+hash = ""
 body = '''
-**Given** a data directory with 3 copies of a "use targ check-full" memory,
-**When** `engram signal-detect` runs,
-**Then** the proposal queue contains signals for 1 consolidated memory, not 3 individual ones.
+**Verification type:** integration
+**I/O boundaries:** real filesystem, real registry, real consolidator wired end-to-end
 
+Given a data directory with 3 copies of a "use targ check-full" memory,
+When `engram signal-detect` runs,
+Then the proposal queue contains signals for 1 consolidated memory, not 3 individual ones.
+'''
 
 [T-345]
 name = "Evaluator renames surfacing log before reading for turn isolation"
@@ -3696,7 +3699,6 @@ body = '''
 **Then** the surfacing log is renamed to `surfacing-log-<evalTimestamp>.jsonl.tmp`
   before any read, and the private file (not the original path) is passed to
   readFile, so concurrent surfacers write to a new `surfacing-log.jsonl`.
-'''
 
 ---
 

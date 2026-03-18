@@ -336,14 +336,21 @@ func RunMaintain(
 	stats := effectiveness.FromMemories(memories)
 
 	// Consolidate duplicates before classification (UC-34).
+	backupDir := filepath.Join(*dataDir, "memories", ".backup")
+	consolidatorReg := openRegistry(*dataDir)
+
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
 			retriever: retriever,
 			dataDir:   *dataDir,
 		}),
-		signal.WithMerger(&fileMergeExecutor{
-			writer: newStoredMemoryWriter(),
-			remove: os.Remove,
+		signal.WithMerger(&fileMergeExecutor{}),
+		signal.WithFileWriter(newStoredMemoryWriter()),
+		signal.WithFileDeleter(&osFileDeleter{}),
+		signal.WithBackupWriter(&osBackupWriter{now: time.Now}, backupDir),
+		signal.WithRegistryEntryRemover(&consolidatorRegistryAdapter{
+			reg:     consolidatorReg,
+			dataDir: *dataDir,
 		}),
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithStderr(os.Stderr),

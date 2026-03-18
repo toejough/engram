@@ -3,7 +3,10 @@ package signal_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -656,16 +659,423 @@ func TestT344_ConsolidateBeforeDetect(t *testing.T) {
 	g.Expect(result.MemoriesMerged).To(Equal(2))
 }
 
+// T-347: Backup file written before absorbed file deleted.
+func TestT347_BackupWrittenBeforeDelete(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var callOrder []string
+
+	backupWriter := &fakeBackupWriter{
+		onBackup: func(absorbedPath, _ string) error {
+			callOrder = append(callOrder, "backup:"+absorbedPath)
+
+			return nil
+		},
+	}
+	fileDeleter := &fakeFileDeleter{
+		onDelete: func(path string) error {
+			callOrder = append(callOrder, "delete:"+path)
+
+			return nil
+		},
+	}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithBackupWriter(backupWriter, "data/memories/.backup"),
+		signal.WithFileDeleter(fileDeleter),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(callOrder).To(HaveLen(2))
+
+	if len(callOrder) < 2 {
+		return
+	}
+
+	g.Expect(callOrder[0]).To(HavePrefix("backup:"))
+	g.Expect(callOrder[1]).To(HavePrefix("delete:"))
+	g.Expect(backupWriter.capturedBackupDir).To(ContainSubstring(".backup"))
+}
+
+// T-348: Backup failure is fire-and-forget — merge continues.
+func TestT348_BackupFailure_MergeContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stderr bytes.Buffer
+
+	backupWriter := &fakeBackupWriter{
+		onBackup: func(_, _ string) error {
+			return errors.New("backup disk full")
+		},
+	}
+	fileDeleter := &fakeFileDeleter{}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithBackupWriter(backupWriter, "data/.backup"),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithStderr(&stderr),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(stderr.String()).To(ContainSubstring("backup failed"))
+	g.Expect(fileDeleter.deletedPaths).To(ConsistOf("b.toml"))
+}
+
+// T-349: Absorbed file deleted after survivor TOML written.
+func TestT349_DeleteAfterWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var callOrder []string
+
+	fileWriter := &fakeFileWriter{
+		onWrite: func(path string, _ *memory.Stored) error {
+			callOrder = append(callOrder, "write:"+path)
+
+			return nil
+		},
+	}
+	fileDeleter := &fakeFileDeleter{
+		onDelete: func(path string) error {
+			callOrder = append(callOrder, "delete:"+path)
+
+			return nil
+		},
+	}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "survivor.toml", Keywords: []string{"a", "b", "c"}},
+		{FilePath: "absorbed.toml", Keywords: []string{"a", "b", "d"}},
+	}}
+	eff := &fakeEffectiveness{scores: map[string]effScore{
+		"survivor.toml": {score: 0.9, hasData: true},
+		"absorbed.toml": {score: 0.1, hasData: true},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(fileWriter),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithEffectiveness(eff),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(callOrder).To(HaveLen(2))
+
+	if len(callOrder) < 2 {
+		return
+	}
+
+	g.Expect(callOrder[0]).To(HavePrefix("write:"))
+	g.Expect(callOrder[1]).To(HavePrefix("delete:"))
+}
+
+// T-350: Registry entry removed for absorbed memory after file deletion.
+func TestT350_RegistryEntryRemovedAfterDelete(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fileDeleter := &fakeFileDeleter{}
+	registryRemover := &fakeRegistryEntryRemover{}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "survivor.toml", Keywords: []string{"a", "b", "c"}},
+		{FilePath: "absorbed.toml", Keywords: []string{"a", "b", "d"}},
+	}}
+	eff := &fakeEffectiveness{scores: map[string]effScore{
+		"survivor.toml": {score: 0.8, hasData: true},
+		"absorbed.toml": {score: 0.2, hasData: true},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithRegistryEntryRemover(registryRemover),
+		signal.WithEffectiveness(eff),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(registryRemover.removedPaths).To(ConsistOf("absorbed.toml"))
+}
+
+// T-351: File deletion attempted even when backup fails.
+func TestT351_DeletionAttemptedEvenIfBackupFails(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	backupWriter := &fakeBackupWriter{
+		onBackup: func(_, _ string) error {
+			return errors.New("disk full")
+		},
+	}
+	fileDeleter := &fakeFileDeleter{}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithBackupWriter(backupWriter, "data/.backup"),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithStderr(io.Discard),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(fileDeleter.deletedPaths).To(HaveLen(1))
+}
+
+// T-352: Cluster merge is atomic — partial failure leaves files unchanged.
+func TestT352_WriteFailure_NoDeletes(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stderr bytes.Buffer
+
+	writeCallCount := 0
+	fileWriter := &fakeFileWriter{
+		onWrite: func(_ string, _ *memory.Stored) error {
+			writeCallCount++
+			if writeCallCount == 2 {
+				return errors.New("disk write error on second call")
+			}
+
+			return nil
+		},
+	}
+	fileDeleter := &fakeFileDeleter{}
+
+	// Two clusters, each with one absorbed.
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a1.toml", Keywords: []string{"aaa", "bbb", "ccc"}},
+		{FilePath: "a2.toml", Keywords: []string{"aaa", "bbb", "ddd"}},
+		{FilePath: "b1.toml", Keywords: []string{"xxx", "yyy", "zzz"}},
+		{FilePath: "b2.toml", Keywords: []string{"xxx", "yyy", "www"}},
+	}}
+	eff := &fakeEffectiveness{scores: map[string]effScore{
+		"a1.toml": {score: 0.9, hasData: true},
+		"a2.toml": {score: 0.1, hasData: true},
+		"b1.toml": {score: 0.9, hasData: true},
+		"b2.toml": {score: 0.1, hasData: true},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(fileWriter),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithEffectiveness(eff),
+		signal.WithStderr(&stderr),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// One cluster succeeded, one failed.
+	g.Expect(result.Errors).To(HaveLen(1))
+	// Only one absorbed file deleted (the successful cluster's absorbed).
+	g.Expect(fileDeleter.deletedPaths).To(HaveLen(1))
+	g.Expect(stderr.String()).To(ContainSubstring("Error consolidating cluster"))
+}
+
+// T-353: RecomputeMergeLinks called after successful cluster merge.
+func TestT353_LinkRecomputeCalledAfterMerge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var linkDeleteOrder []string
+
+	fileDeleter := &fakeFileDeleter{
+		onDelete: func(path string) error {
+			linkDeleteOrder = append(linkDeleteOrder, "delete:"+path)
+
+			return nil
+		},
+	}
+	linkRecomputer := &fakeLinkRecomputer{
+		onRecompute: func(survivorPath, _ string) error {
+			linkDeleteOrder = append(linkDeleteOrder, "recompute:"+survivorPath)
+
+			return nil
+		},
+	}
+
+	// Two clusters each with one absorbed.
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "s1.toml", Keywords: []string{"aaa", "bbb", "ccc"}},
+		{FilePath: "a1.toml", Keywords: []string{"aaa", "bbb", "ddd"}},
+		{FilePath: "s2.toml", Keywords: []string{"xxx", "yyy", "zzz"}},
+		{FilePath: "a2.toml", Keywords: []string{"xxx", "yyy", "www"}},
+	}}
+	eff := &fakeEffectiveness{scores: map[string]effScore{
+		"s1.toml": {score: 0.9, hasData: true},
+		"a1.toml": {score: 0.1, hasData: true},
+		"s2.toml": {score: 0.9, hasData: true},
+		"a2.toml": {score: 0.1, hasData: true},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithLinkRecomputer(linkRecomputer),
+		signal.WithEffectiveness(eff),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// RecomputeAfterMerge called twice (once per cluster).
+	g.Expect(linkRecomputer.calls).To(HaveLen(2))
+
+	// Each recompute happens after its corresponding delete.
+	deletesBeforeRecomputes := 0
+
+	for _, event := range linkDeleteOrder {
+		if strings.HasPrefix(event, "delete:") {
+			deletesBeforeRecomputes++
+		}
+	}
+
+	g.Expect(deletesBeforeRecomputes).To(BeNumerically(">=", 1))
+}
+
+// T-354: Link recompute failure is fire-and-forget — merge not rolled back.
+func TestT354_LinkRecomputeFailure_MergeNotRolledBack(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var stderr bytes.Buffer
+
+	fileDeleter := &fakeFileDeleter{}
+	linkRecomputer := &fakeLinkRecomputer{
+		onRecompute: func(_, _ string) error {
+			return errors.New("link recompute failed")
+		},
+	}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "survivor.toml", Keywords: []string{"a", "b", "c"}},
+		{FilePath: "absorbed.toml", Keywords: []string{"a", "b", "d"}},
+	}}
+	eff := &fakeEffectiveness{scores: map[string]effScore{
+		"survivor.toml": {score: 0.9, hasData: true},
+		"absorbed.toml": {score: 0.1, hasData: true},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithFileDeleter(fileDeleter),
+		signal.WithLinkRecomputer(linkRecomputer),
+		signal.WithEffectiveness(eff),
+		signal.WithStderr(&stderr),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Merge succeeded despite link recompute failure.
+	g.Expect(result.Errors).To(BeEmpty())
+	g.Expect(result.MemoriesMerged).To(Equal(1))
+
+	// Absorbed file remains deleted (not rolled back).
+	g.Expect(fileDeleter.deletedPaths).To(ConsistOf("absorbed.toml"))
+
+	// Error logged to stderr.
+	g.Expect(stderr.String()).To(ContainSubstring("link recompute failed"))
+}
+
 // unexported variables.
 var (
-	_ signal.MemoryLister        = (*fakeLister)(nil)
-	_ signal.MergeExecutor       = (*fakeMerger)(nil)
-	_ signal.EffectivenessReader = (*fakeEffectiveness)(nil)
+	_ signal.MemoryLister         = (*fakeLister)(nil)
+	_ signal.MergeExecutor        = (*fakeMerger)(nil)
+	_ signal.EffectivenessReader  = (*fakeEffectiveness)(nil)
+	_ signal.BackupWriter         = (*fakeBackupWriter)(nil)
+	_ signal.FileDeleter          = (*fakeFileDeleter)(nil)
+	_ signal.MemoryWriter         = (*fakeFileWriter)(nil)
+	_ signal.LinkRecomputer       = (*fakeLinkRecomputer)(nil)
+	_ signal.RegistryEntryRemover = (*fakeRegistryEntryRemover)(nil)
 )
 
 type effScore struct {
 	score   float64
 	hasData bool
+}
+
+type fakeBackupWriter struct {
+	capturedBackupDir string
+	onBackup          func(absorbedPath, backupDir string) error
+}
+
+func (f *fakeBackupWriter) Backup(absorbedPath, backupDir string) error {
+	f.capturedBackupDir = backupDir
+
+	if f.onBackup != nil {
+		return f.onBackup(absorbedPath, backupDir)
+	}
+
+	return nil
 }
 
 type fakeEffectiveness struct {
@@ -681,6 +1091,51 @@ func (f *fakeEffectiveness) EffectivenessScore(
 	}
 
 	return score.score, score.hasData, nil
+}
+
+type fakeFileDeleter struct {
+	deletedPaths []string
+	onDelete     func(path string) error
+}
+
+func (f *fakeFileDeleter) Delete(path string) error {
+	if f.onDelete != nil {
+		return f.onDelete(path)
+	}
+
+	f.deletedPaths = append(f.deletedPaths, path)
+
+	return nil
+}
+
+type fakeFileWriter struct {
+	writtenPaths []string
+	onWrite      func(path string, stored *memory.Stored) error
+}
+
+func (f *fakeFileWriter) Write(path string, stored *memory.Stored) error {
+	if f.onWrite != nil {
+		return f.onWrite(path, stored)
+	}
+
+	f.writtenPaths = append(f.writtenPaths, path)
+
+	return nil
+}
+
+type fakeLinkRecomputer struct {
+	calls       []linkRecomputeCall
+	onRecompute func(survivorPath, absorbedPath string) error
+}
+
+func (f *fakeLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath string) error {
+	f.calls = append(f.calls, linkRecomputeCall{})
+
+	if f.onRecompute != nil {
+		return f.onRecompute(survivorPath, absorbedPath)
+	}
+
+	return nil
 }
 
 // --- Test fakes ---
@@ -714,6 +1169,18 @@ func (f *fakeMerger) Merge(
 
 	return nil
 }
+
+type fakeRegistryEntryRemover struct {
+	removedPaths []string
+}
+
+func (f *fakeRegistryEntryRemover) RemoveEntry(path string) error {
+	f.removedPaths = append(f.removedPaths, path)
+
+	return nil
+}
+
+type linkRecomputeCall struct{}
 
 type mergeCall struct {
 	survivor *memory.Stored

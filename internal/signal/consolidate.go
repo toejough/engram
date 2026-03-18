@@ -10,6 +10,11 @@ import (
 	"engram/internal/memory"
 )
 
+// BackupWriter writes a backup copy of an absorbed file before deletion (REQ-135).
+type BackupWriter interface {
+	Backup(absorbedPath, backupDir string) error
+}
+
 // ConsolidateResult holds the outcome of a consolidation run.
 type ConsolidateResult struct {
 	ClustersFound  int
@@ -19,10 +24,16 @@ type ConsolidateResult struct {
 
 // Consolidator merges duplicate memory clusters before classification (UC-34).
 type Consolidator struct {
-	lister        MemoryLister
-	merger        MergeExecutor
-	effectiveness EffectivenessReader
-	stderr        io.Writer
+	lister          MemoryLister
+	merger          MergeExecutor
+	fileWriter      MemoryWriter
+	backupWriter    BackupWriter
+	backupDir       string
+	fileDeleter     FileDeleter
+	registryRemover RegistryEntryRemover
+	linkRecomputer  LinkRecomputer
+	effectiveness   EffectivenessReader
+	stderr          io.Writer
 }
 
 // NewConsolidator creates a Consolidator with the given options.
@@ -88,28 +99,102 @@ func (c *Consolidator) mergeCluster(
 ) error {
 	survivor := c.selectSurvivor(cluster)
 
+	absorbed := make([]*memory.Stored, 0, len(cluster)-1)
+
 	for _, mem := range cluster {
-		if mem.FilePath == survivor.FilePath {
-			continue
+		if mem.FilePath != survivor.FilePath {
+			absorbed = append(absorbed, mem)
 		}
+	}
+
+	// Phase 1: compute all merges in memory (no I/O).
+	// Capture keyword counts before each merge for accurate logging.
+	newKWCounts := make([]int, len(absorbed))
+
+	for idx, mem := range absorbed {
+		newKWCounts[idx] = countNewKeywords(survivor.Keywords, mem.Keywords)
 
 		mergeErr := c.merger.Merge(ctx, survivor, mem)
 		if mergeErr != nil {
-			return fmt.Errorf(
-				"merging %q into %q: %w", mem.Title, survivor.Title, mergeErr,
-			)
+			return fmt.Errorf("merging %q into %q: %w", mem.Title, survivor.Title, mergeErr)
 		}
-
-		result.MemoriesMerged++
-
-		keywordsAdded := countNewKeywords(survivor.Keywords, mem.Keywords)
-		c.logStderrf(
-			"[engram] Merged %q into %q (%d keywords added)\n",
-			mem.Title, survivor.Title, keywordsAdded,
-		)
 	}
 
+	// Phase 2: write merged survivor once (atomic — no deletes if write fails, REQ-137 AC3).
+	if c.fileWriter != nil {
+		writeErr := c.fileWriter.Write(survivor.FilePath, survivor)
+		if writeErr != nil {
+			return fmt.Errorf("writing merged survivor %q: %w", survivor.Title, writeErr)
+		}
+	}
+
+	// Phase 3: backup, delete, and remove registry entry for each absorbed memory.
+	for idx, mem := range absorbed {
+		absorbErr := c.processAbsorbed(mem, survivor, newKWCounts[idx], result)
+		if absorbErr != nil {
+			return absorbErr
+		}
+	}
+
+	// Phase 4: recompute links after absorbed files deleted (REQ-138, fire-and-forget).
+	c.recomputeLinks(survivor.FilePath, absorbed)
+
 	return nil
+}
+
+// processAbsorbed handles backup, deletion, and registry removal for one absorbed memory (Phase 3).
+func (c *Consolidator) processAbsorbed(
+	mem *memory.Stored,
+	survivor *memory.Stored,
+	newKWCount int,
+	result *ConsolidateResult,
+) error {
+	// Backup is fire-and-forget (REQ-135 AC4).
+	if c.backupWriter != nil {
+		backupErr := c.backupWriter.Backup(mem.FilePath, c.backupDir)
+		if backupErr != nil {
+			c.logStderrf("[engram] backup failed for %q: %v\n", mem.FilePath, backupErr)
+		}
+	}
+
+	// Delete absorbed file after survivor written (REQ-136 AC1).
+	if c.fileDeleter != nil {
+		deleteErr := c.fileDeleter.Delete(mem.FilePath)
+		if deleteErr != nil {
+			return fmt.Errorf("deleting absorbed %q: %w", mem.Title, deleteErr)
+		}
+	}
+
+	// Remove registry entry after file deletion (REQ-136 AC3).
+	if c.registryRemover != nil {
+		regErr := c.registryRemover.RemoveEntry(mem.FilePath)
+		if regErr != nil {
+			c.logStderrf("[engram] registry remove failed for %q: %v\n", mem.FilePath, regErr)
+		}
+	}
+
+	result.MemoriesMerged++
+
+	c.logStderrf(
+		"[engram] Merged %q into %q (%d keywords added)\n",
+		mem.Title, survivor.Title, newKWCount,
+	)
+
+	return nil
+}
+
+// recomputeLinks fires link recomputation for each absorbed file (REQ-138, fire-and-forget).
+func (c *Consolidator) recomputeLinks(survivorPath string, absorbed []*memory.Stored) {
+	if c.linkRecomputer == nil {
+		return
+	}
+
+	for _, mem := range absorbed {
+		linkErr := c.linkRecomputer.RecomputeAfterMerge(survivorPath, mem.FilePath)
+		if linkErr != nil {
+			c.logStderrf("[engram] link recompute failed for %q: %v\n", mem.FilePath, linkErr)
+		}
+	}
 }
 
 func (c *Consolidator) selectSurvivor(cluster []*memory.Stored) *memory.Stored {
@@ -157,6 +242,16 @@ type EffectivenessReader interface {
 	EffectivenessScore(path string) (score float64, hasData bool, err error)
 }
 
+// FileDeleter deletes a file at the given path (REQ-136).
+type FileDeleter interface {
+	Delete(path string) error
+}
+
+// LinkRecomputer recomputes graph links after a cluster merge (REQ-138).
+type LinkRecomputer interface {
+	RecomputeAfterMerge(survivorPath, absorbedPath string) error
+}
+
 // MemoryLister loads all existing memories from the data directory.
 type MemoryLister interface {
 	ListAll(ctx context.Context) ([]*memory.Stored, error)
@@ -167,10 +262,44 @@ type MergeExecutor interface {
 	Merge(ctx context.Context, survivor, absorbed *memory.Stored) error
 }
 
+// RegistryEntryRemover removes a registry entry for an absorbed memory (REQ-136).
+type RegistryEntryRemover interface {
+	RemoveEntry(path string) error
+}
+
+// WithBackupWriter sets the backup writer and backup directory (REQ-135).
+func WithBackupWriter(w BackupWriter, backupDir string) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.backupWriter = w
+		c.backupDir = backupDir
+	}
+}
+
 // WithEffectiveness sets the effectiveness reader.
 func WithEffectiveness(e EffectivenessReader) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.effectiveness = e
+	}
+}
+
+// WithFileDeleter sets the file deleter for absorbed memories (REQ-136).
+func WithFileDeleter(d FileDeleter) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.fileDeleter = d
+	}
+}
+
+// WithFileWriter sets the file writer for the merged survivor memory (REQ-136).
+func WithFileWriter(w MemoryWriter) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.fileWriter = w
+	}
+}
+
+// WithLinkRecomputer sets the link recomputer for post-merge link updates (REQ-138).
+func WithLinkRecomputer(r LinkRecomputer) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.linkRecomputer = r
 	}
 }
 
@@ -185,6 +314,13 @@ func WithLister(l MemoryLister) ConsolidatorOption {
 func WithMerger(m MergeExecutor) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.merger = m
+	}
+}
+
+// WithRegistryEntryRemover sets the registry entry remover (REQ-136).
+func WithRegistryEntryRemover(r RegistryEntryRemover) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.registryRemover = r
 	}
 }
 

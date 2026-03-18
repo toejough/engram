@@ -40,7 +40,7 @@ When a user message is submitted (UserPromptSubmit hook), the system ranks all m
 [REQ-11]
 name = "PreToolUse advisory surfacing — BM25 + frecency ranking on anti-pattern candidates"
 traces_to = ["UC-2"]
-hash = "35912784"
+hash = "5dced9f7"
 body = '''
 When a tool call is about to execute (PreToolUse hook), the system ranks anti-pattern memories using BM25 scoring against the tool name and input, re-ranks by frecency, and surfaces the top 2 results as an advisory system reminder.
 
@@ -142,7 +142,7 @@ Each merge is logged to stderr. After all merges, a summary line is emitted.
 [REQ-135]
 name = "Pre-merge backup before absorbed file deletion"
 traces_to = ["UC-34"]
-hash = ""
+hash = "486a84ba"
 body = '''
 **Constraint:** Before deleting an absorbed memory file, a copy must be written to `<data-dir>/memories/.backup/<timestamp>-<filename>`.
 
@@ -161,7 +161,7 @@ body = '''
 [REQ-136]
 name = "Absorbed memory files are deleted after merge"
 traces_to = ["UC-34"]
-hash = ""
+hash = "6cc84721"
 body = '''
 **Constraint:** After a non-survivor memory is merged into the survivor, the absorbed memory's TOML file must be deleted from `memories/`.
 
@@ -179,7 +179,7 @@ body = '''
 [REQ-137]
 name = "Per-cluster error isolation — fire-and-forget"
 traces_to = ["UC-34"]
-hash = ""
+hash = "231774c3"
 body = '''
 **Constraint:** If merging one duplicate cluster fails at any step, the error must be logged to stderr and consolidation must continue with the remaining clusters.
 
@@ -197,7 +197,7 @@ body = '''
 [REQ-138]
 name = "Link recompute after cluster merge"
 traces_to = ["UC-34", "UC-P5f-1"]
-hash = ""
+hash = "68e0d879"
 body = '''
 **Constraint:** After successfully merging a cluster, graph links for the survivor memory must be recomputed.
 

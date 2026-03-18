@@ -65,7 +65,7 @@ body = '''
 [UC-14]
 name = "Structured Session Continuity"
 traces_to = []
-hash = "c2431968"
+hash = "9d6e86a4"
 body = '''
 **Description:** Incrementally maintain a task-focused working summary that survives session boundaries (`/clear`, `/exit`, context compaction). Piggyback on existing Haiku API calls to minimize latency. Automatically restore the summary at session start.
 

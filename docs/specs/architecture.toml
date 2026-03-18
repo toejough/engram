@@ -2462,7 +2462,7 @@ Log `ConsolidateResult` to stderr per DES-48 format. If `Consolidate` returns er
 [ARCH-81]
 name = "Surfacing Log Turn Isolation via Atomic Rename"
 traces_to = ["UC-15"]
-hash = ""
+hash = "ba78d223"
 body = '''
 **Decision:** The evaluator atomically renames `surfacing-log.jsonl` to a
 per-turn private file (`surfacing-log-<timestamp>.jsonl.tmp`) before reading
