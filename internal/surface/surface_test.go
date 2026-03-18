@@ -16,8 +16,8 @@ import (
 	"engram/internal/surface"
 )
 
-// QW-1: Tool mode limits to top 2 results (REQ-P4e-4: down from 3).
-func TestQW1_ToolModeLimitsToTop3(t *testing.T) {
+// QW-1: Tool mode limits to top 2 results (REQ-P4e-4: down from 3, down from original 5 in REQ-11).
+func TestQW1_ToolModeLimitsToTop2(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -1140,6 +1140,34 @@ func TestT33_PreFilterMatchesKeywordsInToolInput(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("manual-git-commit"))
 }
 
+// T-346: Surfacer swallows surfacing log error (fire-and-forget per ARCH-6).
+func TestT346_SurfacerSwallowsSurfacingLogError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memories := []*memory.Stored{
+		{
+			Title:    "Always use targ",
+			FilePath: "targ.toml",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	errorLogger := &fakeSurfacingLogger{returnErr: errors.New("log write failed")}
+	s := surface.New(retriever, surface.WithSurfacingLogger(errorLogger))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModeSessionStart,
+		DataDir: "/tmp/data",
+	})
+
+	// Run must return nil — logger errors are swallowed (fire-and-forget).
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // T-34: Pre-filter skips memories without anti_pattern
 func TestT34_PreFilterSkipsMemoriesWithoutAntiPattern(t *testing.T) {
 	t.Parallel()
@@ -2006,12 +2034,13 @@ func (f *fakeRetriever) ListMemories(_ context.Context, _ string) ([]*memory.Sto
 
 // fakeSurfacingLogger is a test double for surface.SurfacingEventLogger.
 type fakeSurfacingLogger struct {
-	calls []surfacingLogCall
+	calls     []surfacingLogCall
+	returnErr error
 }
 
 func (f *fakeSurfacingLogger) LogSurfacing(memoryPath, mode string, _ time.Time) error {
 	f.calls = append(f.calls, surfacingLogCall{memoryPath: memoryPath, mode: mode})
-	return nil
+	return f.returnErr
 }
 
 // fakeTracker is a test double for surface.MemoryTracker.
