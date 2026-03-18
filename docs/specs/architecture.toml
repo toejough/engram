@@ -2490,6 +2490,59 @@ attempted, the evaluator returns an empty entry list (no LLM call).
 ---
 '''
 
+[ARCH-82]
+name = "TF-IDF cluster confidence scoring for consolidation (REQ-140)"
+traces_to = ["UC-34", "REQ-140"]
+hash = ""
+body = '''
+**Component:** `internal/signal/consolidate.go` (extension to Consolidator)
+
+**Responsibility:** Compute TF-IDF cosine similarity within keyword-overlap clusters as a confidence signal. Does NOT participate in cluster formation — keyword overlap (REQ-130) is the sole clustering signal.
+
+**Boundaries:**
+- Inside: TF-IDF vector computation, cosine similarity, cluster confidence scoring
+- Outside: Cluster formation (buildClusters), survivor selection, merge execution
+
+**Dependencies:**
+- Consolidator → TextSimilarityScorer (injected interface, consumer-owned)
+- Implementation adapter uses TF-IDF cosine similarity over keyword+principle text
+- Does NOT depend on `internal/bm25` (BM25 is query-to-document; TF-IDF cosine is document-to-document)
+
+**Interfaces:**
+
+```go
+// TextSimilarityScorer computes pairwise text similarity within a cluster.
+// Returns a confidence score in [0,1] where 1 = identical content.
+type TextSimilarityScorer interface {
+    ClusterConfidence(texts []string) float64
+}
+```
+
+**Integration point:** After `buildClusters`, before `mergeCluster`. Each cluster gets a confidence score. Clusters are sorted by confidence descending (merge high-confidence clusters first). Confidence is logged in stderr output (DES-48 extension) and included in `MergePlan` for dry-run visibility.
+
+**Algorithm:**
+1. For each cluster, extract keyword+principle text from each memory
+2. Build TF-IDF vectors: tokenize → compute term frequency → compute inverse document frequency across all memories in the corpus (not just the cluster)
+3. Compute average pairwise cosine similarity within the cluster
+4. Return as cluster confidence in [0,1]
+
+**Implementation location:** New file `internal/tfidf/tfidf.go` — pure computation, no I/O, no DI needed. The Consolidator receives it via `WithTextSimilarityScorer` option.
+
+**ADR: Why not reuse internal/bm25?**
+- Context: BM25 scores a query against a document corpus. Duplicate detection needs pairwise document similarity.
+- Options: (A) Adapt BM25 by using each doc as query against others. (B) New TF-IDF cosine similarity.
+- Decision: (B) — cosine similarity is the standard metric for document-to-document comparison. Adapting BM25 would misuse the algorithm and produce unintuitive scores.
+- Consequences: New package, but small (~50 lines). Reuses `bm25.tokenize` pattern but not the package itself.
+
+**REQ-140 enforcement:**
+- AC(1,2,3): `buildClusters` unchanged — keyword overlap is sole gate
+- AC(4): Confidence score orders clusters; does not filter them (filtering is a future enhancement gated on observability data)
+
+**Traces to:** ARCH-79 (Consolidator), REQ-140 (tie-breaker constraint), DES-48 (stderr logging)
+
+---
+'''
+
 [ARCH-9]
 name = "Memory Storage and Retrieval"
 traces_to = ["UC-2"]
