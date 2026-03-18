@@ -38,6 +38,7 @@ import (
 	"engram/internal/signal"
 	"engram/internal/surface"
 	"engram/internal/surfacinglog"
+	"engram/internal/tfidf"
 	"engram/internal/tomlwriter"
 	"engram/internal/track"
 	"engram/internal/transcript"
@@ -361,6 +362,7 @@ func RunMaintain(
 		signal.WithStderr(os.Stderr),
 		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
 		signal.WithLinkRecomputer(newGraphLinkRecomputer(consolidatorReg, *dataDir)),
+		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
 	)
 
 	_, consolidateErr := consolidator.Consolidate(ctx)
@@ -1440,6 +1442,7 @@ func runMaintainDryRun(ctx context.Context, retriever *retrieve.Retriever, dataD
 			retriever: retriever,
 			dataDir:   dataDir,
 		}),
+		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
 	)
 
 	plans, err := consolidator.Plan(ctx)
