@@ -9,8 +9,8 @@ Evolution plan phases complete through A-3. B-1 in progress (graph + merge packa
 | A-1: Simplification | ✅ Complete |
 | A-2: Foundation | ✅ Complete |
 | A-3: High-Impact Fixes | ✅ Complete |
-| B-1: Graph + Evolution Core | 🔄 In progress |
-| B-2: Integration | ⏳ Blocked (see Cycle 2/3 Boundary) |
+| B-1: Graph + Evolution Core | ✅ Complete |
+| B-2: Integration | ✅ Complete (Cycle 3) |
 
 ---
 
@@ -40,7 +40,7 @@ Evolution plan phases complete through A-3. B-1 in progress (graph + merge packa
 
 ---
 
-## Cycle 2/3 Boundary — Premortem Mitigations (current)
+## Cycle 2/3 Boundary — Premortem Mitigations ✅ Complete
 
 Complete before starting B-2 work. These prevent silent failure at scale.
 
@@ -88,4 +88,4 @@ Resume the evolution plan, now that effectiveness data is real.
 
 | Issue | What | Blocker |
 |-------|------|---------|
-| [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | Maps to P4-full; schedule after Cycle 3 |
+| [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | Maps to P4-full; schedule for Cycle 4 |
