@@ -3719,6 +3719,8 @@ body = '''
 | REQ-136 | T-349, T-350, T-351 |
 | REQ-137 | T-342, T-352 |
 | REQ-138 | T-353, T-354 |
+| REQ-140 | T-363, T-364, T-365, T-366, T-369 |
+| ARCH-82 | T-363, T-364, T-366, T-367, T-368, T-369 |
 
 All UC-34 L2 items have test coverage.
 '''
@@ -5956,4 +5958,116 @@ Then stdout contains a JSON array with at least one merge plan entry (survivor +
 and the absorbed memory file still exists unchanged after the call (no files modified).
 
 - Example-based: verifying the dry-run gate required by #335 before any Cycle 4 memory-mutating feature ships.
+'''
+
+[T-363]
+name = "Disjoint keyword sets never merge regardless of TF-IDF score"
+traces_to = ["REQ-140", "ARCH-82"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** TextSimilarityScorer injected (stub returning 1.0 — maximum similarity); all other DI mocked
+
+Given any two memories with completely disjoint keyword sets (zero intersection),
+and a TextSimilarityScorer that returns 1.0 (maximum confidence) for any input,
+When Consolidate is called,
+Then ClustersFound is 0 and MemoriesMerged is 0 — TF-IDF cannot override keyword-overlap gate.
+
+- Property-based: for any two keyword sets where intersection is empty, merge never occurs.
+'''
+
+[T-364]
+name = "TF-IDF alone without keyword overlap threshold cannot cause merge"
+traces_to = ["REQ-140", "ARCH-82"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** TextSimilarityScorer injected (stub returning 1.0); all other DI mocked
+
+Given two memories with exactly 50% keyword overlap (at threshold, not above — REQ-130 requires >50%),
+and a TextSimilarityScorer returning 1.0,
+When Consolidate is called,
+Then ClustersFound is 0 — TF-IDF cannot promote a below-threshold pair into a cluster.
+
+- Example-based: boundary test at the exact threshold where REQ-130 rejects.
+'''
+
+[T-365]
+name = "Identical surface tokens but non-overlapping keywords do not merge"
+traces_to = ["REQ-140"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** TextSimilarityScorer injected (stub returning 1.0); all other DI mocked
+
+Given two memories where principle text is identical ("always use targ check-full"),
+but keyword sets are disjoint (["targ", "check", "full"] vs ["lint", "format", "vet"]),
+and a TextSimilarityScorer returning 1.0,
+When Consolidate is called,
+Then ClustersFound is 0 — identical content with non-overlapping keywords is not merged.
+
+- Example-based: validates AC(3) — surface similarity cannot override keyword gate.
+'''
+
+[T-366]
+name = "TF-IDF confidence score attached to clusters meeting keyword threshold"
+traces_to = ["REQ-140", "ARCH-82"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** TextSimilarityScorer injected (returns configurable score); merger and stderr mocked
+
+Given two memories with >50% keyword overlap (valid cluster per REQ-130),
+and a TextSimilarityScorer returning 0.85,
+When Consolidate is called,
+Then the cluster is merged (keyword overlap is sufficient),
+and stderr output contains the confidence score (0.85) for observability.
+
+- Example-based: validates AC(4) — TF-IDF augments existing clusters with confidence.
+'''
+
+[T-367]
+name = "TF-IDF cosine similarity returns 1.0 for identical keyword lists"
+traces_to = ["ARCH-82"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** pure function, no DI
+
+Given two identical keyword+principle text strings,
+When ClusterConfidence is called with both texts,
+Then the returned score is 1.0.
+
+- Property-based: for any non-empty text string T, ClusterConfidence([T, T]) == 1.0.
+'''
+
+[T-368]
+name = "TF-IDF cosine similarity returns 0.0 for completely disjoint texts"
+traces_to = ["ARCH-82"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** pure function, no DI
+
+Given two texts sharing zero tokens,
+When ClusterConfidence is called with both texts,
+Then the returned score is 0.0.
+
+- Property-based: for any two texts where tokenize(a) ∩ tokenize(b) = ∅, score is 0.0.
+'''
+
+[T-369]
+name = "Cluster confidence included in MergePlan for dry-run visibility"
+traces_to = ["ARCH-82", "REQ-140"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** TextSimilarityScorer injected (returns 0.72); lister mocked
+
+Given two memories with >50% keyword overlap,
+and a TextSimilarityScorer returning 0.72,
+When Plan (dry-run) is called,
+Then the returned MergePlan includes a Confidence field of 0.72.
+
+- Example-based: validates dry-run surfaces TF-IDF confidence for user audit.
 '''
