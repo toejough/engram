@@ -1,6 +1,7 @@
 package frecency_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -31,7 +32,8 @@ func TestT165_AllComponentsPresentActivationPositive(t *testing.T) {
 	}
 
 	activation := scorer.Activation(input)
-	g.Expect(activation).To(BeNumerically(">", 0.0))
+	expected := math.Log(11) * (1.0 / 3.0) * math.Log(4) * 0.8
+	g.Expect(activation).To(BeNumerically("~", expected, 0.001))
 }
 
 // T-166: Never-surfaced memory — frequency=0 dominates, activation = 0.
