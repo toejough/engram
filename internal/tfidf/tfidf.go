@@ -56,7 +56,10 @@ func (s *Scorer) ClusterConfidence(texts []string) float64 {
 	return totalSimilarity / float64(pairCount)
 }
 
-const minPairSize = 2
+// unexported constants.
+const (
+	minPairSize = 2
+)
 
 func cosineSimilarity(
 	first, second map[string]int,

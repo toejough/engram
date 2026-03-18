@@ -439,17 +439,17 @@ func WithRegistryEntryRemover(r RegistryEntryRemover) ConsolidatorOption {
 	}
 }
 
-// WithTextSimilarityScorer sets the TF-IDF similarity scorer (ARCH-82, REQ-140).
-func WithTextSimilarityScorer(s TextSimilarityScorer) ConsolidatorOption {
-	return func(c *Consolidator) {
-		c.similarity = s
-	}
-}
-
 // WithStderr sets the stderr writer for consolidation feedback (DES-48).
 func WithStderr(w io.Writer) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.stderr = w
+	}
+}
+
+// WithTextSimilarityScorer sets the TF-IDF similarity scorer (ARCH-82, REQ-140).
+func WithTextSimilarityScorer(s TextSimilarityScorer) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.similarity = s
 	}
 }
 
