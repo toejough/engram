@@ -3847,6 +3847,58 @@ and a backup copy of the absorbed file exists under memories/.backup/.
 - Example-based: end-to-end correctness gate before cluster merge ships (REQ-136 AC1, REQ-135 AC1, REQ-137 AC3).
 '''
 
+[T-356]
+name = "LLM principle synthesis called with all cluster members' principles when token available"
+traces_to = ["REQ-139"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** LLM caller injected as mock; file I/O mocked; token presence passed via DI
+
+**Given** a cluster of two memories with distinct principle texts,
+and a mock LLM caller that records its input and returns a synthesized principle,
+and a token is available (non-empty),
+**When** Consolidate merges the cluster,
+**Then** the LLM caller is invoked once with both principles as input,
+the survivor's principle is replaced with the LLM-returned synthesis,
+and the synthesized principle is written to the survivor file.
+- Example-based: verifying REQ-139 AC1 and AC2.
+'''
+
+[T-357]
+name = "LLM principle synthesis failure falls back to longest principle"
+traces_to = ["REQ-139"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** LLM caller injected returning error; stderr captured
+
+**Given** a cluster of two memories where one has a longer principle text,
+and a mock LLM caller that returns an error,
+and a token is available,
+**When** Consolidate merges the cluster,
+**Then** the merge succeeds (no error returned),
+the survivor's principle is the longest principle from the cluster members (REQ-133 fallback),
+and the LLM failure is logged to stderr.
+- Example-based: verifying REQ-139 AC3 fallback path.
+'''
+
+[T-358]
+name = "Link recompute real implementation — absorbed links removed, survivor links updated"
+traces_to = ["REQ-138"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real registry with TOML entries, real LinkRecomputer wired to Consolidator; no mock for link computation
+
+**Given** a registry with two memory entries where one has a link pointing to the absorbed memory,
+and a real LinkRecomputer wired into the Consolidator,
+**When** Consolidate merges the cluster (absorbed memory deleted),
+**Then** registry entries that referenced the absorbed memory no longer have links to it,
+and the survivor's concept_overlap/content_similarity links are recomputed based on its post-merge keyword set.
+- Example-based: verifying REQ-138 AC1 and AC2 with real implementation (not mock).
+'''
+
 [T-35]
 name = "Pre-filter returns empty when no candidates rank above zero"
 traces_to = ["ARCH-10", "REQ-11"]
