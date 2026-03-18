@@ -39,6 +39,82 @@ func TestEmptyFilePathSkipped(t *testing.T) {
 	g.Expect(readCalled).To(BeFalse())
 }
 
+// TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields verifies REQ-22 AC(2):
+// all non-tracking TOML fields are preserved exactly after RecordSurfacing.
+// Tracking fields (surfaced_count, last_surfaced, surfacing_contexts) must be absent.
+func TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	capture := &writeCapture{}
+
+	// fullFieldTOML includes every non-tracking field with distinct test values
+	// plus old tracking fields that must be stripped.
+	fullFieldTOML := "title = \"REQ-22 Title\"\n" +
+		"content = \"REQ-22 content body\"\n" +
+		"observation_type = \"pattern\"\n" +
+		"concepts = [\"alpha\", \"beta\", \"gamma\"]\n" +
+		"keywords = [\"req22\", \"preservation\", \"round-trip\"]\n" +
+		"principle = \"REQ-22 principle text\"\n" +
+		"anti_pattern = \"REQ-22 anti-pattern text\"\n" +
+		"rationale = \"REQ-22 rationale text\"\n" +
+		"confidence = \"A\"\n" +
+		"created_at = \"2024-03-01T09:00:00Z\"\n" +
+		"updated_at = \"2024-06-15T14:30:00Z\"\n" +
+		"surfaced_count = 7\n" +
+		"last_surfaced = \"2026-01-10T08:00:00Z\"\n" +
+		"surfacing_contexts = [\"prompt\", \"session-start\"]\n"
+
+	recorder := track.NewRecorder(
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(fullFieldTOML), nil
+		}),
+		track.WithCreateTemp(capture.createTemp(t)),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
+	)
+
+	memories := []*memory.Stored{
+		{FilePath: "/fake/req22.toml"},
+	}
+
+	err := recorder.RecordSurfacing(context.Background(), memories, "prompt")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	record := capture.decodeTOML(g)
+
+	// Non-tracking fields must be preserved exactly.
+	g.Expect(record.Title).To(Equal("REQ-22 Title"))
+	g.Expect(record.Content).To(Equal("REQ-22 content body"))
+	g.Expect(record.ObservationType).To(Equal("pattern"))
+	g.Expect(record.Concepts).To(Equal([]string{"alpha", "beta", "gamma"}))
+	g.Expect(record.Keywords).To(Equal([]string{"req22", "preservation", "round-trip"}))
+	g.Expect(record.Principle).To(Equal("REQ-22 principle text"))
+	g.Expect(record.AntiPattern).To(Equal("REQ-22 anti-pattern text"))
+	g.Expect(record.Rationale).To(Equal("REQ-22 rationale text"))
+	g.Expect(record.Confidence).To(Equal("A"))
+	g.Expect(record.CreatedAt).To(Equal("2024-03-01T09:00:00Z"))
+	g.Expect(record.UpdatedAt).To(Equal("2024-06-15T14:30:00Z"))
+
+	// Tracking fields must be stripped from the written output.
+	data, readErr := os.ReadFile(capture.tmpPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	raw := string(data)
+	g.Expect(raw).NotTo(ContainSubstring("surfaced_count"))
+	g.Expect(raw).NotTo(ContainSubstring("last_surfaced"))
+	g.Expect(raw).NotTo(ContainSubstring("surfacing_contexts"))
+}
+
 // T-76: RecordSurfacing re-writes TOML preserving content fields and stripping
 // old tracking fields (surfaced_count, last_surfaced, surfacing_contexts).
 func TestT76_RecordSurfacingPreservesContentFields(t *testing.T) {
