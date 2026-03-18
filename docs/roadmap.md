@@ -70,6 +70,10 @@ At every cycle end, before declaring complete:
 
 Resume the evolution plan, now that effectiveness data is real.
 
+**Gates (must ship alongside or before cluster merge code):**
+- [#328](https://github.com/toejough/engram/issues/328) — Real-filesystem integration test for cluster merge (survivor correctness)
+- [#329](https://github.com/toejough/engram/issues/329) — Pre-merge backup step before any cluster delete
+
 | Work | What | Maps to |
 |------|------|---------|
 | P4-full | Cluster dedup + cross-source suppression + transcript suppression | Evolution plan B-2 |
