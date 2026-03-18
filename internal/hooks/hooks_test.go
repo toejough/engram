@@ -1,6 +1,7 @@
 package hooks_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -37,6 +38,104 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
+}
+
+// TestT158_HooksJSONStructure verifies hooks.json has exactly two UserPromptSubmit
+// entries: one synchronous (user-prompt-submit.sh, no "async" key or false) and one
+// async ("async": true, user-prompt-submit-async.sh). Also verifies user-prompt-submit.sh
+// does not use nohup, disown, or background & spawning of context-update (T-158).
+func TestT158_HooksJSONStructure(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+
+	// --- Parse hooks.json ---
+	hooksPath := filepath.Join(root, "hooks", "hooks.json")
+	hooksData, err := os.ReadFile(hooksPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Unmarshal into a structure that captures the UserPromptSubmit entries.
+	type hookEntry struct {
+		Type    string `json:"type"`
+		Command string `json:"command"`
+		Timeout int    `json:"timeout"`
+		Async   *bool  `json:"async"`
+	}
+
+	type hookGroup struct {
+		Hooks []hookEntry `json:"hooks"`
+	}
+
+	type hooksFile struct {
+		Hooks map[string][]hookGroup `json:"hooks"`
+	}
+
+	var parsed hooksFile
+
+	parseErr := json.Unmarshal(hooksData, &parsed)
+	g.Expect(parseErr).NotTo(HaveOccurred())
+
+	if parseErr != nil {
+		return
+	}
+
+	entries := parsed.Hooks["UserPromptSubmit"]
+	g.Expect(entries).To(HaveLen(2), "expected exactly two UserPromptSubmit hook groups")
+
+	// Flatten inner hooks for inspection.
+	var syncHook, asyncHook *hookEntry
+
+	for groupIdx := range entries {
+		for innerIdx := range entries[groupIdx].Hooks {
+			entry := &entries[groupIdx].Hooks[innerIdx]
+			if entry.Async != nil && *entry.Async {
+				asyncHook = entry
+			} else {
+				syncHook = entry
+			}
+		}
+	}
+
+	// Sync entry: no "async" key (nil pointer) pointing to user-prompt-submit.sh.
+	g.Expect(syncHook).NotTo(BeNil(), "expected a synchronous UserPromptSubmit hook")
+
+	if syncHook == nil {
+		return
+	}
+
+	g.Expect(syncHook.Async).To(BeNil(), "sync hook must not have an async field")
+	g.Expect(syncHook.Command).To(ContainSubstring("user-prompt-submit.sh"))
+	g.Expect(syncHook.Command).NotTo(ContainSubstring("user-prompt-submit-async.sh"))
+
+	// Async entry: "async": true pointing to user-prompt-submit-async.sh.
+	g.Expect(asyncHook).NotTo(BeNil(), "expected an async UserPromptSubmit hook")
+
+	if asyncHook == nil {
+		return
+	}
+
+	g.Expect(*asyncHook.Async).To(BeTrue(), "async hook must have async: true")
+	g.Expect(asyncHook.Command).To(ContainSubstring("user-prompt-submit-async.sh"))
+
+	// --- Inspect user-prompt-submit.sh for forbidden background-spawn patterns ---
+	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
+	scriptData, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(scriptData)
+	g.Expect(script).NotTo(ContainSubstring("nohup"), "sync hook must not use nohup")
+	g.Expect(script).NotTo(ContainSubstring("disown"), "sync hook must not use disown")
+	g.Expect(script).NotTo(MatchRegexp(`context-update\s*&`), "sync hook must not background context-update")
 }
 
 // T-20: Plugin manifest exists
