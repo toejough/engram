@@ -1,6 +1,6 @@
 # Engram Roadmap
 
-## Current State (2026-03-17)
+## Current State (2026-03-18)
 
 Evolution plan phases complete through A-3. B-1 in progress (graph + merge packages exist).
 
@@ -10,7 +10,7 @@ Evolution plan phases complete through A-3. B-1 in progress (graph + merge packa
 | A-2: Foundation | ✅ Complete |
 | A-3: High-Impact Fixes | ✅ Complete |
 | B-1: Graph + Evolution Core | 🔄 In progress |
-| B-2: Integration | ⏳ Blocked (see Cycle 2) |
+| B-2: Integration | ⏳ Blocked (see Cycle 2/3 Boundary) |
 
 ---
 
@@ -25,24 +25,22 @@ Evolution plan phases complete through A-3. B-1 in progress (graph + merge packa
 
 ---
 
-## Cycle 2 — Test Hygiene (current)
+## Cycle 2 — Test Hygiene ✅ Complete
 
-All independent; can run in parallel.
-
-| Issue | What | Notes |
-|-------|------|-------|
-| [#314](https://github.com/toejough/engram/issues/314) | Resolve top-N limit (spec says 5, code has 2) | Needs decision first — what is the authoritative limit? |
-| [#320](https://github.com/toejough/engram/issues/320) | T-117: runEvaluate end-to-end test | Unblocked by #311 |
-| [#319](https://github.com/toejough/engram/issues/319) | T-103: spec contradiction + surfacer integration test | Spec fix + one new test |
-| [#313](https://github.com/toejough/engram/issues/313) | T-158: hooks.json structure test | New test in hooks_test.go |
-| [#315](https://github.com/toejough/engram/issues/315) | T-120: add stop.sh to evaluate-invocation test | One-line fix |
-| [#316](https://github.com/toejough/engram/issues/316) | T-165: frecency formula exact assertion | Replace `> 0` with numeric check |
-| [#318](https://github.com/toejough/engram/issues/318) | REQ-22 AC(2): RecordSurfacing field preservation | New round-trip test |
-| [#321](https://github.com/toejough/engram/issues/321) | testFS helper in makeTestEvaluator | Premortem P1 — prevents rework in Cycle 3 |
+| Issue | What | Status |
+|-------|------|--------|
+| [#314](https://github.com/toejough/engram/issues/314) | Resolve top-N limit (spec says 5, code has 2) | ✅ Closed (top-N canonically 2 per REQ-P4e-4; specs + test updated) |
+| [#320](https://github.com/toejough/engram/issues/320) | T-117: runEvaluate end-to-end test | ✅ Closed (commit 8f7da4d) |
+| [#319](https://github.com/toejough/engram/issues/319) | T-103: spec contradiction + T-346 surfacer test | ✅ Closed (spec fixed + T-346 test added) |
+| [#313](https://github.com/toejough/engram/issues/313) | T-158: hooks.json structure test | ✅ Closed (commit 4dfef9a) |
+| [#315](https://github.com/toejough/engram/issues/315) | T-120: add stop.sh to evaluate-invocation test | ✅ Closed (commit 8f7da4d) |
+| [#316](https://github.com/toejough/engram/issues/316) | T-165: frecency formula exact assertion | ✅ Closed (commit 7991206) |
+| [#318](https://github.com/toejough/engram/issues/318) | REQ-22 AC(2): RecordSurfacing field preservation | ✅ Closed (commit 6d27d84) |
+| [#321](https://github.com/toejough/engram/issues/321) | testFS helper in makeTestEvaluator | ✅ Closed (commit 8f08613) |
 
 ---
 
-## Cycle 2/3 Boundary — Premortem Mitigations
+## Cycle 2/3 Boundary — Premortem Mitigations (current)
 
 Complete before starting B-2 work. These prevent silent failure at scale.
 
