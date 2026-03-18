@@ -3829,6 +3829,24 @@ body = '''
 - Example-based: verifying ARCH-6 fire-and-forget for link recompute.
 '''
 
+[T-355]
+name = "Cluster merge real-FS integration — correct survivor kept, absorbed deleted"
+traces_to = ["REQ-135", "REQ-136", "REQ-137"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real TOML files in tempdir, real registry, real consolidator adapters wired end-to-end; no mocks
+
+**Given** two real TOML memory files in a tempdir with >50% keyword overlap,
+where one has a higher surfaced_count (making it the expected survivor),
+**When** Consolidate is called with all real I/O adapters (osBackupWriter, osFileDeleter,
+storedMemoryWriter, consolidatorRegistryAdapter) wired against the tempdir,
+**Then** the survivor file still exists on disk with its original content,
+the absorbed file is deleted from disk,
+and a backup copy of the absorbed file exists under memories/.backup/.
+- Example-based: end-to-end correctness gate before cluster merge ships (REQ-136 AC1, REQ-135 AC1, REQ-137 AC3).
+'''
+
 [T-35]
 name = "Pre-filter returns empty when no candidates rank above zero"
 traces_to = ["ARCH-10", "REQ-11"]

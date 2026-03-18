@@ -1919,6 +1919,65 @@ func TestT322_BinarySmokeTest(t *testing.T) {
 	g.Expect(runErr).NotTo(HaveOccurred(), "engram evaluate exited non-zero: %s", string(runOut))
 }
 
+// T-355: Cluster merge real-FS integration — correct survivor kept, absorbed deleted.
+func TestT355_ConsolidateRealFS_SurvivorKeptAbsorbedDeleted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Two memories with >50% keyword overlap. Survivor has higher surfaced_count.
+	survivorContent := `title = "Survivor Memory"
+content = "Keep this one"
+keywords = ["alpha", "beta", "gamma"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`
+	absorbedContent := `title = "Absorbed Memory"
+content = "Delete this one"
+keywords = ["alpha", "beta", "delta"]
+surfaced_count = 1
+updated_at = "2026-01-01T00:00:00Z"
+`
+
+	survivorPath := filepath.Join(memoriesDir, "survivor.toml")
+	absorbedPath := filepath.Join(memoriesDir, "absorbed.toml")
+
+	g.Expect(os.WriteFile(survivorPath, []byte(survivorContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{"--data-dir", dataDir}, "", &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Survivor file must still exist on disk.
+	_, survivorStatErr := os.Stat(survivorPath)
+	g.Expect(survivorStatErr).NotTo(HaveOccurred())
+
+	// Absorbed file must be deleted from disk.
+	_, absorbedStatErr := os.Stat(absorbedPath)
+	g.Expect(errors.Is(absorbedStatErr, os.ErrNotExist)).To(BeTrue())
+
+	// Backup of absorbed file must exist under memories/.backup/.
+	backupDir := filepath.Join(memoriesDir, ".backup")
+	entries, readErr := os.ReadDir(backupDir)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(entries).NotTo(BeEmpty())
+	g.Expect(entries[0].Name()).To(ContainSubstring("absorbed.toml"))
+}
+
 // T-40: Mode session-start routes to SessionStart surfacing
 func TestT40_SurfaceSessionStartRouting(t *testing.T) {
 	t.Parallel()

@@ -201,7 +201,7 @@ func (c *Consolidator) selectSurvivor(cluster []*memory.Stored) *memory.Stored {
 	items := make([]scoredMemory, 0, len(cluster))
 
 	for _, mem := range cluster {
-		item := scoredMemory{mem: mem}
+		item := scoredMemory{mem: mem, surfacedCount: mem.SurfacedCount}
 
 		if c.effectiveness != nil {
 			score, hasData, effErr := c.effectiveness.EffectivenessScore(mem.FilePath)
