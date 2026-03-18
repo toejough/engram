@@ -139,6 +139,79 @@ Each merge is logged to stderr. After all merges, a summary line is emitted.
 - Verification: integration (stderr capture)
 '''
 
+[REQ-135]
+name = "Pre-merge backup before absorbed file deletion"
+traces_to = ["UC-34"]
+hash = ""
+body = '''
+**Constraint:** Before deleting an absorbed memory file, a copy must be written to `<data-dir>/memories/.backup/<timestamp>-<filename>`.
+
+**Rationale:** Cluster merge irreversibly deletes absorbed memory files. If merge logic selects the wrong survivor (bug), the deleted files must be recoverable without restoring from version control.
+
+**Acceptance criteria:**
+- (1) Backup directory `<data-dir>/memories/.backup/` is created if it does not exist.
+- (2) A copy of the absorbed file is written to the backup directory before any delete is attempted.
+- (3) The backup filename includes a timestamp prefix to prevent collisions across multiple merge runs.
+- (4) Backup write failure is logged to stderr and does NOT abort the merge (ARCH-6 fire-and-forget).
+- (5) The backup mechanism is injectable (DI seam) for testability.
+
+---
+'''
+
+[REQ-136]
+name = "Absorbed memory files are deleted after merge"
+traces_to = ["UC-34"]
+hash = ""
+body = '''
+**Constraint:** After a non-survivor memory is merged into the survivor, the absorbed memory's TOML file must be deleted from `memories/`.
+
+**Rationale:** Without deletion, absorbed memories continue to be surfaced as duplicates and appear in quadrant classification, defeating the purpose of consolidation.
+
+**Acceptance criteria:**
+- (1) Absorbed file is deleted after the Absorbed record is written to the survivor's TOML.
+- (2) File deletion is attempted even if the backup step fails (backup failure does not gate deletion).
+- (3) The registry entry for the absorbed memory is removed after file deletion.
+- (4) If deletion fails, the error is logged to stderr; the cluster is marked failed (REQ-137).
+
+---
+'''
+
+[REQ-137]
+name = "Per-cluster error isolation — fire-and-forget"
+traces_to = ["UC-34"]
+hash = ""
+body = '''
+**Constraint:** If merging one duplicate cluster fails at any step, the error must be logged to stderr and consolidation must continue with the remaining clusters.
+
+**Rationale:** ARCH-6 fire-and-forget pattern — one bad cluster must not abort consolidation for unrelated clusters. Engram runs from hooks; partial success is better than total abort.
+
+**Acceptance criteria:**
+- (1) An error in cluster N does not abort processing of clusters N+1..M.
+- (2) The error is logged to stderr with the cluster's memory titles.
+- (3) A partial cluster merge is NOT committed — each cluster is atomic (all steps succeed or none are written).
+- (4) The consolidation summary (DES-48) counts only successfully merged clusters.
+
+---
+'''
+
+[REQ-138]
+name = "Link recompute after cluster merge"
+traces_to = ["UC-34", "UC-P5f-1"]
+hash = ""
+body = '''
+**Constraint:** After successfully merging a cluster, graph links for the survivor memory must be recomputed.
+
+**Rationale:** The survivor's keyword set changes after union with absorbed memories. Links built on pre-merge concept overlap become stale; absorbed memory IDs referenced in other entries' link arrays become dead. Recompute ensures link graph reflects the consolidated memory set.
+
+**Acceptance criteria:**
+- (1) `Builder.RecomputeMergeLinks` is called for each successfully merged cluster.
+- (2) Links from absorbed entries that reference the absorbed memory ID are updated to point to the survivor.
+- (3) Link recompute failure is fire-and-forget: logged to stderr, does not abort or roll back the merge.
+- (4) Link recompute runs after absorbed file deletion (not before).
+
+---
+'''
+
 [REQ-14]
 name = "Go binary `surface` subcommand"
 traces_to = ["UC-2"]
