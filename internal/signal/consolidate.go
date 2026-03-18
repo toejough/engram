@@ -34,6 +34,7 @@ type Consolidator struct {
 	registryRemover RegistryEntryRemover
 	linkRecomputer  LinkRecomputer
 	effectiveness   EffectivenessReader
+	similarity      TextSimilarityScorer
 	stderr          io.Writer
 }
 
@@ -69,10 +70,14 @@ func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, erro
 
 		result.ClustersFound++
 
+		confidence := c.clusterConfidence(cluster)
+
 		mergeErr := c.mergeCluster(ctx, cluster, &result)
 		if mergeErr != nil {
 			result.Errors = append(result.Errors, mergeErr)
 			c.logStderrf("[engram] Error consolidating cluster: %v\n", mergeErr)
+		} else if confidence >= 0 {
+			c.logStderrf("[engram] Cluster confidence: %.2f\n", confidence)
 		}
 	}
 
@@ -115,9 +120,12 @@ func (c *Consolidator) Plan(ctx context.Context) ([]MergePlan, error) {
 			}
 		}
 
+		confidence := c.clusterConfidence(cluster)
+
 		plans = append(plans, MergePlan{
-			Survivor: survivor.FilePath,
-			Absorbed: absorbed,
+			Survivor:   survivor.FilePath,
+			Absorbed:   absorbed,
+			Confidence: confidence,
 		})
 	}
 
@@ -143,6 +151,22 @@ func (c *Consolidator) applySynthesizedPrinciple(
 	}
 
 	survivor.Principle = synthesized
+}
+
+// clusterConfidence returns the TF-IDF similarity score for a cluster, or -1 if no scorer.
+func (c *Consolidator) clusterConfidence(cluster []*memory.Stored) float64 {
+	if c.similarity == nil {
+		return -1
+	}
+
+	texts := make([]string, 0, len(cluster))
+
+	for _, mem := range cluster {
+		text := strings.Join(mem.Keywords, " ") + " " + mem.Principle
+		texts = append(texts, text)
+	}
+
+	return c.similarity.ClusterConfidence(texts)
 }
 
 func (c *Consolidator) logStderrf(format string, args ...any) {
@@ -330,8 +354,9 @@ type MergeExecutor interface {
 
 // MergePlan describes what would happen for one cluster in a dry run.
 type MergePlan struct {
-	Survivor string   `json:"survivor"`
-	Absorbed []string `json:"absorbed"`
+	Survivor   string   `json:"survivor"`
+	Absorbed   []string `json:"absorbed"`
+	Confidence float64  `json:"confidence"`
 }
 
 // PrincipleSynthesizer synthesizes a merged principle from all cluster members' principles (REQ-139).
@@ -342,6 +367,12 @@ type PrincipleSynthesizer interface {
 // RegistryEntryRemover removes a registry entry for an absorbed memory (REQ-136).
 type RegistryEntryRemover interface {
 	RemoveEntry(path string) error
+}
+
+// TextSimilarityScorer computes pairwise text similarity within a cluster (ARCH-82).
+// Returns a confidence score in [0,1] where 1 = identical content.
+type TextSimilarityScorer interface {
+	ClusterConfidence(texts []string) float64
 }
 
 // WithBackupWriter sets the backup writer and backup directory (REQ-135).
@@ -405,6 +436,13 @@ func WithPrincipleSynthesizer(s PrincipleSynthesizer) ConsolidatorOption {
 func WithRegistryEntryRemover(r RegistryEntryRemover) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.registryRemover = r
+	}
+}
+
+// WithTextSimilarityScorer sets the TF-IDF similarity scorer (ARCH-82, REQ-140).
+func WithTextSimilarityScorer(s TextSimilarityScorer) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.similarity = s
 	}
 }
 

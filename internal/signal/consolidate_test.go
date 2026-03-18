@@ -1123,16 +1123,182 @@ func TestT357_LLMSynthesisFailureFallsBackToLongestPrinciple(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("principle synthesis"))
 }
 
+// T-363: Disjoint keyword sets never merge regardless of TF-IDF score.
+func TestT363_DisjointKeywords_NeverMerge_HighTFIDF(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"alpha", "beta", "gamma"}, Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"delta", "epsilon", "zeta"}, Title: "B"},
+	}}
+	merger := &fakeMerger{}
+	scorer := &fakeTextSimilarityScorer{score: 1.0} // max similarity
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(merger),
+		signal.WithTextSimilarityScorer(scorer),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ClustersFound).To(Equal(0))
+	g.Expect(result.MemoriesMerged).To(Equal(0))
+	g.Expect(merger.calls).To(BeEmpty())
+}
+
+// T-366: TF-IDF confidence score attached to clusters meeting keyword threshold.
+func TestT366_ConfidenceScoreLoggedToStderr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "use x y z", Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "use x y w", Title: "B"},
+	}}
+	merger := &fakeMerger{}
+	scorer := &fakeTextSimilarityScorer{score: 0.85}
+
+	var stderr bytes.Buffer
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(merger),
+		signal.WithTextSimilarityScorer(scorer),
+		signal.WithStderr(&stderr),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ClustersFound).To(Equal(1))
+	g.Expect(result.MemoriesMerged).To(Equal(1))
+	g.Expect(stderr.String()).To(ContainSubstring("0.85"))
+}
+
+// T-369: Cluster confidence included in MergePlan for dry-run visibility.
+func TestT369_ConfidenceInMergePlan(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "use x y z", Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "use x y w", Title: "B"},
+	}}
+	scorer := &fakeTextSimilarityScorer{score: 0.72}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithTextSimilarityScorer(scorer),
+	)
+
+	plans, err := consolidator.Plan(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(plans).To(HaveLen(1))
+
+	if len(plans) < 1 {
+		return
+	}
+
+	g.Expect(plans[0].Confidence).To(BeNumerically("~", 0.72, 0.001))
+}
+
+// T-364: TF-IDF alone without keyword overlap threshold cannot cause merge.
+func TestT364_AtThreshold_TFIDFCannotPromote(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Exactly 50% overlap (2/4) — does NOT meet >50% threshold.
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"alpha", "beta", "gamma", "delta"}, Title: "A"},
+		{FilePath: "b.toml", Keywords: []string{"alpha", "beta", "epsilon", "zeta"}, Title: "B"},
+	}}
+	merger := &fakeMerger{}
+	scorer := &fakeTextSimilarityScorer{score: 1.0}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(merger),
+		signal.WithTextSimilarityScorer(scorer),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ClustersFound).To(Equal(0))
+	g.Expect(merger.calls).To(BeEmpty())
+}
+
+// T-365: Identical surface tokens but non-overlapping keywords do not merge.
+func TestT365_IdenticalPrinciple_DisjointKeywords_NoMerge(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{
+			FilePath:  "a.toml",
+			Keywords:  []string{"targ", "check", "full"},
+			Principle: "always use targ check-full",
+			Title:     "A",
+		},
+		{
+			FilePath:  "b.toml",
+			Keywords:  []string{"lint", "format", "vet"},
+			Principle: "always use targ check-full",
+			Title:     "B",
+		},
+	}}
+	merger := &fakeMerger{}
+	scorer := &fakeTextSimilarityScorer{score: 1.0}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(merger),
+		signal.WithTextSimilarityScorer(scorer),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.ClustersFound).To(Equal(0))
+	g.Expect(merger.calls).To(BeEmpty())
+}
+
 // unexported variables.
 var (
-	_ signal.MemoryLister         = (*fakeLister)(nil)
-	_ signal.MergeExecutor        = (*fakeMerger)(nil)
-	_ signal.EffectivenessReader  = (*fakeEffectiveness)(nil)
-	_ signal.BackupWriter         = (*fakeBackupWriter)(nil)
-	_ signal.FileDeleter          = (*fakeFileDeleter)(nil)
-	_ signal.MemoryWriter         = (*fakeFileWriter)(nil)
-	_ signal.LinkRecomputer       = (*fakeLinkRecomputer)(nil)
-	_ signal.RegistryEntryRemover = (*fakeRegistryEntryRemover)(nil)
+	_ signal.MemoryLister           = (*fakeLister)(nil)
+	_ signal.MergeExecutor          = (*fakeMerger)(nil)
+	_ signal.EffectivenessReader    = (*fakeEffectiveness)(nil)
+	_ signal.BackupWriter           = (*fakeBackupWriter)(nil)
+	_ signal.FileDeleter            = (*fakeFileDeleter)(nil)
+	_ signal.MemoryWriter           = (*fakeFileWriter)(nil)
+	_ signal.LinkRecomputer         = (*fakeLinkRecomputer)(nil)
+	_ signal.RegistryEntryRemover   = (*fakeRegistryEntryRemover)(nil)
+	_ signal.TextSimilarityScorer   = (*fakeTextSimilarityScorer)(nil)
 )
 
 type effScore struct {
@@ -1270,6 +1436,14 @@ func (f *fakeSynthesizer) SynthesizePrinciples(
 	}
 
 	return "", nil
+}
+
+type fakeTextSimilarityScorer struct {
+	score float64
+}
+
+func (f *fakeTextSimilarityScorer) ClusterConfidence(texts []string) float64 {
+	return f.score
 }
 
 type linkRecomputeCall struct{}
