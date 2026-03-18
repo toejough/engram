@@ -2376,3 +2376,21 @@ The unified LLM classifier (REQ-2) receives recent session context to improve cl
 
 ---
 '''
+
+[REQ-140]
+name = "TF-IDF similarity is a tie-breaker signal only, not a cluster initiator"
+traces_to = ["UC-34"]
+hash = ""
+body = '''
+**Constraint:** TF-IDF text similarity may only increase confidence in a merge cluster that already meets the keyword-overlap threshold. It may not form a merge cluster on its own.
+
+**Rationale:** Short keyword fields (5–15 terms) produce unreliable TF-IDF similarity scores. Common words ("test", "error", "function") cause false positives between semantically unrelated memories. Without this constraint, two memories sharing no meaningful concepts but sharing common words would be merged and the absorbed memory permanently deleted. The keyword-overlap threshold (REQ-130) provides the primary cluster signal; TF-IDF is an optional secondary signal that can raise confidence but cannot override the primary gate.
+
+**Acceptance criteria:**
+- (1) Two memories with disjoint keyword sets are never merged regardless of TF-IDF score.
+- (2) TF-IDF score alone, without keyword overlap meeting the REQ-130 threshold, cannot cause a merge.
+- (3) A memory pair with identical surface tokens but keyword sets that do not meet the overlap threshold must not be merged.
+- (4) When keyword overlap meets the threshold, TF-IDF may be used as an additional confidence signal to order or prioritize clusters.
+
+---
+'''
