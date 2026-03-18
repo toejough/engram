@@ -18,7 +18,9 @@ func New() *Builder {
 }
 
 // BuildConceptOverlap computes Jaccard similarity links between a new entry and existing entries.
-// Pairs with Jaccard >= conceptOverlapMinJaccard produce a concept_overlap link.
+// When both entries have non-empty Keywords, keyword Jaccard is used; otherwise title+content
+// token Jaccard is used as fallback. Pairs with Jaccard >= conceptOverlapMinJaccard produce a
+// concept_overlap link.
 func (b *Builder) BuildConceptOverlap(
 	entry registry.InstructionEntry,
 	existing []registry.InstructionEntry,
@@ -26,14 +28,22 @@ func (b *Builder) BuildConceptOverlap(
 	var links []registry.Link
 
 	newTokens := tokenize(entry.Title + " " + entry.Content)
+	newKeywords := toSet(entry.Keywords)
 
 	for _, other := range existing {
 		if other.ID == entry.ID {
 			continue // No self-links
 		}
 
-		otherTokens := tokenize(other.Title + " " + other.Content)
-		jac := jaccard(newTokens, otherTokens)
+		var jac float64
+
+		otherKeywords := toSet(other.Keywords)
+		if len(newKeywords) > 0 && len(otherKeywords) > 0 {
+			jac = jaccard(newKeywords, otherKeywords)
+		} else {
+			otherTokens := tokenize(other.Title + " " + other.Content)
+			jac = jaccard(newTokens, otherTokens)
+		}
 
 		if jac >= conceptOverlapMinJaccard {
 			links = append(links, registry.Link{
@@ -196,6 +206,17 @@ func jaccard(a, b map[string]bool) float64 {
 	}
 
 	return float64(intersection) / float64(len(union))
+}
+
+// toSet converts a string slice to a boolean set for Jaccard computation.
+func toSet(items []string) map[string]bool {
+	set := make(map[string]bool, len(items))
+
+	for _, item := range items {
+		set[strings.ToLower(item)] = true
+	}
+
+	return set
 }
 
 // tokenize returns a set of lowercase word tokens from text.

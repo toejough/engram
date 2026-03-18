@@ -2162,6 +2162,81 @@ updated_at = "2026-01-01T00:00:00Z"
 		"memory not covered by CLAUDE.md must be surfaced")
 }
 
+// T-361: RecomputeMergeLinks uses MergedConceptSet for keyword-based concept_overlap links.
+func TestT361_LinkRecompute_ConceptOverlapLink_CreatedForKeywordNeighbor(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// survivor and absorbed share >50% one-sided keyword overlap — they merge.
+	// neighbor shares one keyword with the post-merge survivor, giving Jaccard ≈ 0.167
+	// which exceeds conceptOverlapMinJaccard (0.15) — a concept_overlap link must be created.
+	survivorContent := `title = "Survivor Memory"
+content = "Keep this one"
+keywords = ["alpha", "beta", "gamma"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`
+	absorbedContent := `title = "Absorbed Memory"
+content = "Delete this one"
+keywords = ["alpha", "beta", "delta"]
+surfaced_count = 1
+updated_at = "2026-01-01T00:00:00Z"
+`
+	// neighbor shares "alpha" with survivor but is below the merge threshold (1/5 = 0.2 < 0.5).
+	// After merge, post-merge survivor has ["alpha","beta","gamma","delta"];
+	// Jaccard with neighbor ["alpha","zeta","eta"] = 1/6 ≈ 0.167 > 0.15.
+	neighborContent := `title = "Neighbor Memory"
+content = "Adjacent"
+keywords = ["alpha", "zeta", "eta"]
+surfaced_count = 5
+updated_at = "2026-01-01T00:00:00Z"
+`
+
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "survivor.toml"), []byte(survivorContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "absorbed.toml"), []byte(absorbedContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "neighbor.toml"), []byte(neighborContent), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{"--data-dir", dataDir}, "", &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	reg := regpkg.NewTOMLDirectoryStore(dataDir)
+
+	survivorEntry, getErr := reg.Get("memories/survivor.toml")
+	g.Expect(getErr).NotTo(HaveOccurred())
+
+	if getErr != nil {
+		return
+	}
+
+	// BuildConceptOverlap writes links ON the survivor pointing to neighbors.
+	// The survivor must have a concept_overlap link to the neighbor, computed from
+	// the post-merge keyword set ["alpha","beta","gamma","delta"] vs neighbor's
+	// ["alpha","zeta","eta"] → Jaccard = 1/6 ≈ 0.167 > conceptOverlapMinJaccard.
+	var foundConceptOverlapToNeighbor bool
+
+	for _, link := range survivorEntry.Links {
+		if link.Target == "memories/neighbor.toml" && link.Basis == "concept_overlap" {
+			foundConceptOverlapToNeighbor = true
+
+			break
+		}
+	}
+
+	g.Expect(foundConceptOverlapToNeighbor).To(BeTrue(),
+		"survivor must have concept_overlap link to neighbor after merge-triggered recompute")
+}
+
 // T-40: Mode session-start routes to SessionStart surfacing
 func TestT40_SurfaceSessionStartRouting(t *testing.T) {
 	t.Parallel()

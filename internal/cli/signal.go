@@ -117,7 +117,7 @@ func (r *graphLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath str
 		AbsorbedMemoryID: absorbedID,
 		MergedTitle:      survivor.Title,
 		MergedContent:    survivor.Content,
-		MergedConceptSet: survivor.Concepts,
+		MergedConceptSet: survivor.Keywords,
 	}
 
 	return r.builder.RecomputeMergeLinks(result, r.reg)

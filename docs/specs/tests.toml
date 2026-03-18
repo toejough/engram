@@ -5921,3 +5921,23 @@ When the same surface call runs,
 Then that second memory IS surfaced.
 - Example-based: verifying REQ-P4f-2 AC1 and AC3 end-to-end through the CLI with a real file-backed checker.
 '''
+
+[T-361]
+name = "RecomputeMergeLinks uses MergedConceptSet for keyword-based concept_overlap links"
+traces_to = ["REQ-138"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real registry with TOML memory files; real LinkRecomputer wired into Consolidator; no mock for link computation
+
+Given a registry with three memory entries:
+  - survivor: keywords ["alpha", "beta", "gamma"], surfaced_count 10
+  - absorbed: keywords ["alpha", "beta", "delta"], surfaced_count 1 (>50% one-sided overlap with survivor → merges)
+  - neighbor: keywords ["alpha", "zeta", "eta"], surfaced_count 5 (below merge threshold, above concept_overlap threshold with post-merge survivor)
+When Consolidate merges the cluster (absorbed absorbed into survivor),
+Then the survivor entry has a concept_overlap link pointing to the neighbor,
+because BuildConceptOverlap writes links on the survivor using its post-merge keyword set
+["alpha","beta","gamma","delta"]; Jaccard with neighbor's ["alpha","zeta","eta"] = 1/6 ≈ 0.167 > conceptOverlapMinJaccard (0.15).
+
+- Example-based: verifying REQ-138 AC2 end-to-end with real keyword-based concept overlap computation.
+'''

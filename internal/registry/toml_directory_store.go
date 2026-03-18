@@ -726,6 +726,7 @@ func recordToEntry(id string, record memoryRecord) InstructionEntry {
 	entry.Links = recordLinksToLinks(record.Links)
 	entry.Absorbed = recordAbsorbedToAbsorbed(record.Absorbed)
 	entry.Transitions = recordTransitionsToTransitions(record.Transitions)
+	entry.Keywords = record.Keywords
 
 	return entry
 }

@@ -46,10 +46,13 @@ func (b *Builder) RecomputeMergeLinks(result MergeResult, linker RegistryLinker)
 	}
 
 	// Step 4: Build merged entry for link computation.
+	// Keywords are set from MergedConceptSet so BuildConceptOverlap uses the
+	// post-merge keyword set for Jaccard, not just tokenized title+content (REQ-138).
 	mergedEntry := registry.InstructionEntry{
-		ID:      result.MergedMemoryID,
-		Title:   result.MergedTitle,
-		Content: result.MergedContent,
+		ID:       result.MergedMemoryID,
+		Title:    result.MergedTitle,
+		Content:  result.MergedContent,
+		Keywords: result.MergedConceptSet,
 	}
 
 	// Step 5: Compute new concept_overlap and content_similarity links.

@@ -65,6 +65,7 @@ type InstructionEntry struct {
 	EnforcementLevel EnforcementLevel        `json:"enforcement_level,omitempty"`
 	Transitions      []EnforcementTransition `json:"transitions,omitempty"`
 	Links            []Link                  `json:"links,omitempty"`
+	Keywords         []string                `json:"keywords,omitempty"`
 }
 
 // Link represents a typed, weighted relationship between two instruction entries.
