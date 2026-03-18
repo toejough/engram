@@ -15,6 +15,7 @@ import (
 
 	"engram/internal/effectiveness"
 	"engram/internal/memory"
+	"engram/internal/merge"
 	regpkg "engram/internal/registry"
 	"engram/internal/retrieve"
 	"engram/internal/signal"
@@ -81,6 +82,34 @@ func (f *fileMergeExecutor) Merge(
 	keepLongerPrinciple(survivor, absorbed)
 
 	return nil
+}
+
+// llmPrincipleSynthesizer wraps merge.MemoryMerger to implement signal.PrincipleSynthesizer (REQ-139).
+// Principles are folded left: merge(merge(p1, p2), p3), ...
+type llmPrincipleSynthesizer struct {
+	merger merge.MemoryMerger
+}
+
+func (s *llmPrincipleSynthesizer) SynthesizePrinciples(
+	ctx context.Context,
+	principles []string,
+) (string, error) {
+	if len(principles) == 0 {
+		return "", nil
+	}
+
+	result := principles[0]
+
+	for _, principle := range principles[1:] {
+		merged, mergeErr := s.merger.MergePrinciples(ctx, result, principle)
+		if mergeErr != nil {
+			return "", fmt.Errorf("merging principles: %w", mergeErr)
+		}
+
+		result = merged
+	}
+
+	return result, nil
 }
 
 // memoryListerAdapter wraps retrieve.Retriever for the Consolidator.
@@ -241,6 +270,18 @@ func errNew(s string) error {
 func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
 	if len(absorbed.Principle) > len(survivor.Principle) {
 		survivor.Principle = absorbed.Principle
+	}
+}
+
+// newPrincipleSynthesizer returns an LLM-backed synthesizer when token is available,
+// or nil to use the fallback (longest principle). REQ-139 AC5.
+func newPrincipleSynthesizer(token string) signal.PrincipleSynthesizer {
+	if token == "" {
+		return nil
+	}
+
+	return &llmPrincipleSynthesizer{
+		merger: merge.New(&cliLLMCaller{token: token}),
 	}
 }
 

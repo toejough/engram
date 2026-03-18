@@ -354,6 +354,7 @@ func RunMaintain(
 		}),
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithStderr(os.Stderr),
+		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
 	)
 
 	_, consolidateErr := consolidator.Consolidate(ctx)

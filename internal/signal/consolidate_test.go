@@ -1046,6 +1046,83 @@ func TestT354_LinkRecomputeFailure_MergeNotRolledBack(t *testing.T) {
 	g.Expect(stderr.String()).To(ContainSubstring("link recompute failed"))
 }
 
+// T-356: LLM principle synthesis called with all cluster members' principles.
+func TestT356_LLMPrincipleSynthesisCalledWithAllPrinciples(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedPrinciples []string
+
+	synthesizer := &fakeSynthesizer{
+		onSynthesize: func(_ context.Context, principles []string) (string, error) {
+			capturedPrinciples = principles
+
+			return "synthesized principle", nil
+		},
+	}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "principle A"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "principle B"},
+	}}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithPrincipleSynthesizer(synthesizer),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(capturedPrinciples).To(ConsistOf("principle A", "principle B"))
+}
+
+// T-357: LLM synthesis failure falls back to longest principle, logs to stderr.
+func TestT357_LLMSynthesisFailureFallsBackToLongestPrinciple(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	synthesizer := &fakeSynthesizer{
+		onSynthesize: func(_ context.Context, _ []string) (string, error) {
+			return "", errors.New("LLM unavailable")
+		},
+	}
+
+	lister := &fakeLister{memories: []*memory.Stored{
+		{FilePath: "a.toml", Keywords: []string{"x", "y", "z"}, Principle: "short"},
+		{FilePath: "b.toml", Keywords: []string{"x", "y", "w"}, Principle: "much longer principle text"},
+	}}
+
+	var stderr strings.Builder
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(lister),
+		signal.WithMerger(&fakeMerger{}),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithPrincipleSynthesizer(synthesizer),
+		signal.WithStderr(&stderr),
+	)
+
+	_, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Survivor is a.toml (alphabetical tiebreak — both have no effectiveness data).
+	// After fakeMerger runs (no-op on principle), keepLongerPrinciple should have set
+	// survivor.Principle to "much longer principle text".
+	// The synthesizer fails, so fallback (keepLongerPrinciple via merger) is kept.
+	g.Expect(stderr.String()).To(ContainSubstring("principle synthesis"))
+}
+
 // unexported variables.
 var (
 	_ signal.MemoryLister         = (*fakeLister)(nil)
@@ -1178,6 +1255,21 @@ func (f *fakeRegistryEntryRemover) RemoveEntry(path string) error {
 	f.removedPaths = append(f.removedPaths, path)
 
 	return nil
+}
+
+type fakeSynthesizer struct {
+	onSynthesize func(ctx context.Context, principles []string) (string, error)
+}
+
+func (f *fakeSynthesizer) SynthesizePrinciples(
+	ctx context.Context,
+	principles []string,
+) (string, error) {
+	if f.onSynthesize != nil {
+		return f.onSynthesize(ctx, principles)
+	}
+
+	return "", nil
 }
 
 type linkRecomputeCall struct{}

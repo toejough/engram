@@ -2,7 +2,9 @@ package cli //nolint:testpackage // white-box tests for unexported signal CLI fu
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -142,6 +144,47 @@ func TestKeepLongerPrinciple_SurvivorLonger(t *testing.T) {
 
 	keepLongerPrinciple(survivor, absorbed)
 	g.Expect(survivor.Principle).To(Equal("already the longer one"))
+}
+
+func TestLLMPrincipleSynthesizer_MergerError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	synthesizer := &llmPrincipleSynthesizer{
+		merger: &fakeMergeMemoryMerger{err: errors.New("LLM down")},
+	}
+
+	_, err := synthesizer.SynthesizePrinciples(
+		context.Background(),
+		[]string{"principle A", "principle B"},
+	)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("merging principles"))
+}
+
+func TestLLMPrincipleSynthesizer_TwoPrinciples(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	merger := &fakeMergeMemoryMerger{result: "synthesized"}
+	synthesizer := &llmPrincipleSynthesizer{merger: merger}
+
+	result, err := synthesizer.SynthesizePrinciples(
+		context.Background(),
+		[]string{"principle A", "principle B"},
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result).To(Equal("synthesized"))
+	g.Expect(merger.calls).To(HaveLen(1))
+	g.Expect(merger.calls[0]).To(Equal([]string{"principle A", "principle B"}))
+}
+
+func TestNewPrincipleSynthesizer_NonEmptyToken(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	synthesizer := newPrincipleSynthesizer("test-token")
+	g.Expect(synthesizer).NotTo(BeNil())
 }
 
 func TestOsBackupWriter_Backup_Success(t *testing.T) {
@@ -629,4 +672,24 @@ func TestUnionKeywords(t *testing.T) {
 
 	unionKeywords(survivor, absorbed)
 	g.Expect(survivor.Keywords).To(ConsistOf("alpha", "beta", "gamma"))
+}
+
+// fakeMergeMemoryMerger implements merge.MemoryMerger for testing llmPrincipleSynthesizer.
+type fakeMergeMemoryMerger struct {
+	calls  [][]string
+	result string
+	err    error
+}
+
+func (f *fakeMergeMemoryMerger) MergePrinciples(
+	_ context.Context,
+	existing, candidate string,
+) (string, error) {
+	f.calls = append(f.calls, []string{existing, candidate})
+
+	if f.err != nil {
+		return "", f.err
+	}
+
+	return f.result, nil
 }

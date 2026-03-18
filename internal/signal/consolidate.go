@@ -26,6 +26,7 @@ type ConsolidateResult struct {
 type Consolidator struct {
 	lister          MemoryLister
 	merger          MergeExecutor
+	synthesizer     PrincipleSynthesizer
 	fileWriter      MemoryWriter
 	backupWriter    BackupWriter
 	backupDir       string
@@ -85,6 +86,27 @@ func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, erro
 	return result, nil
 }
 
+// applySynthesizedPrinciple calls the synthesizer and updates survivor.Principle (REQ-139, Phase 1b).
+// Falls back silently to the Phase 1 result on error (fire-and-forget per ARCH-6).
+func (c *Consolidator) applySynthesizedPrinciple(
+	ctx context.Context,
+	survivor *memory.Stored,
+	allPrinciples []string,
+) {
+	if c.synthesizer == nil {
+		return
+	}
+
+	synthesized, synthErr := c.synthesizer.SynthesizePrinciples(ctx, allPrinciples)
+	if synthErr != nil {
+		c.logStderrf("[engram] principle synthesis failed: %v; using fallback\n", synthErr)
+
+		return
+	}
+
+	survivor.Principle = synthesized
+}
+
 func (c *Consolidator) logStderrf(format string, args ...any) {
 	if c.stderr != nil {
 		//nolint:errcheck // fire-and-forget stderr logging (ARCH-6)
@@ -107,6 +129,9 @@ func (c *Consolidator) mergeCluster(
 		}
 	}
 
+	// Collect all principles before Phase 1 for LLM synthesis (REQ-139).
+	allPrinciples := collectPrinciples(cluster)
+
 	// Phase 1: compute all merges in memory (no I/O).
 	// Capture keyword counts before each merge for accurate logging.
 	newKWCounts := make([]int, len(absorbed))
@@ -119,6 +144,9 @@ func (c *Consolidator) mergeCluster(
 			return fmt.Errorf("merging %q into %q: %w", mem.Title, survivor.Title, mergeErr)
 		}
 	}
+
+	// Phase 1b: LLM principle synthesis (REQ-139). Falls back to Phase 1 result on failure.
+	c.applySynthesizedPrinciple(ctx, survivor, allPrinciples)
 
 	// Phase 2: write merged survivor once (atomic — no deletes if write fails, REQ-137 AC3).
 	if c.fileWriter != nil {
@@ -262,6 +290,11 @@ type MergeExecutor interface {
 	Merge(ctx context.Context, survivor, absorbed *memory.Stored) error
 }
 
+// PrincipleSynthesizer synthesizes a merged principle from all cluster members' principles (REQ-139).
+type PrincipleSynthesizer interface {
+	SynthesizePrinciples(ctx context.Context, principles []string) (string, error)
+}
+
 // RegistryEntryRemover removes a registry entry for an absorbed memory (REQ-136).
 type RegistryEntryRemover interface {
 	RemoveEntry(path string) error
@@ -314,6 +347,13 @@ func WithLister(l MemoryLister) ConsolidatorOption {
 func WithMerger(m MergeExecutor) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.merger = m
+	}
+}
+
+// WithPrincipleSynthesizer sets the LLM principle synthesizer (REQ-139).
+func WithPrincipleSynthesizer(s PrincipleSynthesizer) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.synthesizer = s
 	}
 }
 
@@ -380,6 +420,18 @@ func buildClusters(memories []*memory.Stored) [][]*memory.Stored {
 	}
 
 	return clusters
+}
+
+func collectPrinciples(cluster []*memory.Stored) []string {
+	principles := make([]string, 0, len(cluster))
+
+	for _, mem := range cluster {
+		if mem.Principle != "" {
+			principles = append(principles, mem.Principle)
+		}
+	}
+
+	return principles
 }
 
 func countNewKeywords(survivorKW, absorbedKW []string) int {
