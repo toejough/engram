@@ -36,21 +36,14 @@ func TestEvalCorrelation_ErrorDoesNotAbort(t *testing.T) {
 		err:      errors.New("link error"),
 	}
 
-	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if strings.Contains(name, "surfacing-log") {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(memTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
+	evaluator := makeTestEvaluator(append(
+		withSurfacingLog(surfacingLog, func(_ string) ([]byte, error) { return []byte(memTOML), nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
 		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
 		evaluate.WithEvalLinkUpdater(updater),
-	)
+	)...)
 
 	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -82,21 +75,14 @@ func TestEvalCorrelation_FollowedPairsGetLinks(t *testing.T) {
 		existing: map[string][]evaluate.EvalLink{},
 	}
 
-	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if strings.Contains(name, "surfacing-log") {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(memTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
+	evaluator := makeTestEvaluator(append(
+		withSurfacingLog(surfacingLog, func(_ string) ([]byte, error) { return []byte(memTOML), nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
 		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
 		evaluate.WithEvalLinkUpdater(updater),
-	)
+	)...)
 
 	_, err := evaluator.Evaluate(context.Background(), "transcript")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -146,21 +132,14 @@ func TestEvalCorrelation_IgnoresNonFollowed(t *testing.T) {
 		existing: map[string][]evaluate.EvalLink{},
 	}
 
-	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if strings.Contains(name, "surfacing-log") {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(memTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
+	evaluator := makeTestEvaluator(append(
+		withSurfacingLog(surfacingLog, func(_ string) ([]byte, error) { return []byte(memTOML), nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResponse, nil
 		}),
 		evaluate.WithNow(func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) }),
 		evaluate.WithEvalLinkUpdater(updater),
-	)
+	)...)
 
 	_, err := evaluator.Evaluate(context.Background(), "transcript")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -202,15 +181,8 @@ func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
 		},
 	}
 
-	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if strings.Contains(name, "surfacing-log") {
-				return []byte(surfacingLog), nil
-			}
-
-			return []byte(memTOML), nil
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
+	evaluator := makeTestEvaluator(append(
+		withSurfacingLog(surfacingLog, func(_ string) ([]byte, error) { return []byte(memTOML), nil }),
 		evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
 			return llmResp, nil
 		}),
@@ -218,7 +190,7 @@ func TestEvalCorrelation_IncrementsExistingLink(t *testing.T) {
 			return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 		}),
 		evaluate.WithEvalLinkUpdater(updater),
-	)
+	)...)
 
 	_, err := evaluator.Evaluate(context.Background(), "transcript")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -264,22 +236,19 @@ anti_pattern = ""`
 
 	var capturedModel, capturedUser string
 
-	evaluator := makeTestEvaluator(
-		evaluate.WithReadFile(func(name string) ([]byte, error) {
-			if strings.Contains(name, "surfacing-log") {
-				return []byte(surfacingLog), nil
-			}
+	memReader := func(name string) ([]byte, error) {
+		switch name {
+		case "/data/memories/mem1.toml":
+			return []byte(mem1TOML), nil
+		case "/data/memories/mem2.toml":
+			return []byte(mem2TOML), nil
+		default:
+			return nil, os.ErrNotExist
+		}
+	}
 
-			switch name {
-			case "/data/memories/mem1.toml":
-				return []byte(mem1TOML), nil
-			case "/data/memories/mem2.toml":
-				return []byte(mem2TOML), nil
-			default:
-				return nil, os.ErrNotExist
-			}
-		}),
-		evaluate.WithRemoveFile(func(string) error { return nil }),
+	evaluator := makeTestEvaluator(append(
+		withSurfacingLog(surfacingLog, memReader),
 		evaluate.WithLLMCaller(func(_ context.Context, model, _, user string) (string, error) {
 			capturedModel = model
 			capturedUser = user
@@ -289,7 +258,7 @@ anti_pattern = ""`
 		evaluate.WithNow(
 			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
 		),
-	)
+	)...)
 
 	outcomes, err := evaluator.Evaluate(context.Background(), "the full session transcript")
 	g.Expect(err).NotTo(HaveOccurred())
@@ -1170,6 +1139,49 @@ func (f *fakeEvalRegistryRecorder) RecordEvaluation(id, outcome string) error {
 	return f.err
 }
 
+// testFS is a path-redirect layer for tests. It intercepts rename calls on known logical paths
+// and transparently redirects subsequent reads of the renamed private path back to the original
+// content. Tests register content by logical path; they never need to know the internal rename path.
+//
+// Usage: pass a WithReadFile that handles memory TOMLs (not the surfacing log). testFS will
+// intercept the surfacing-log rename and redirect the private-path read back to the logical path.
+type testFS struct {
+	files   map[string][]byte // logical path → content
+	aliases map[string]string // private/renamed path → logical path
+}
+
+// rename records newPath as an alias for oldPath when oldPath is a known logical file.
+func (fs *testFS) rename(oldPath, newPath string) error {
+	if _, known := fs.files[oldPath]; known {
+		fs.aliases[newPath] = oldPath
+	}
+
+	return nil
+}
+
+// wrapReadFile returns a read function that first resolves aliases registered by rename,
+// then falls through to the provided base handler for any path not in testFS.
+// This allows the surfacing log to be redirected transparently while memory TOML reads
+// go to the test's own handler.
+func (fs *testFS) wrapReadFile(base func(string) ([]byte, error)) func(string) ([]byte, error) {
+	return func(name string) ([]byte, error) {
+		resolvedName := name
+		if logical, isAlias := fs.aliases[name]; isAlias {
+			resolvedName = logical
+		}
+
+		if data, ok := fs.files[resolvedName]; ok {
+			return data, nil
+		}
+
+		if base != nil {
+			return base(name)
+		}
+
+		return nil, os.ErrNotExist
+	}
+}
+
 func makeTestEvaluator(opts ...evaluate.Option) *evaluate.Evaluator {
 	noops := make([]evaluate.Option, 0, numNoopOpts+len(opts))
 	noops = append(noops,
@@ -1179,4 +1191,38 @@ func makeTestEvaluator(opts ...evaluate.Option) *evaluate.Evaluator {
 	)
 
 	return evaluate.New(testDataDir, append(noops, opts...)...)
+}
+
+// newTestFS creates a testFS pre-populated with logical-path content entries.
+// Example: newTestFS(map[string][]byte{"/data/surfacing-log.jsonl": []byte(logContent)})
+func newTestFS(files map[string][]byte) *testFS {
+	return &testFS{
+		files:   files,
+		aliases: make(map[string]string),
+	}
+}
+
+// withSurfacingLog returns evaluate options that transparently handle the rename-before-read
+// pattern for the surfacing log. The logContent is served under the logical path
+// "/data/surfacing-log.jsonl"; when the evaluator renames it to a private tmp path,
+// reads of the private path are redirected back to logContent automatically.
+//
+// The memReader handles reads for all other paths (memory TOML files, etc.). Pass nil
+// to get os.ErrNotExist for any non-surfacing-log path.
+//
+// Tests using this helper never need to know or match the internal rename path.
+func withSurfacingLog(logContent string, memReader func(string) ([]byte, error)) []evaluate.Option {
+	const surfacingLogPath = testDataDir + "/surfacing-log.jsonl"
+
+	fs := newTestFS(map[string][]byte{
+		surfacingLogPath: []byte(logContent),
+	})
+
+	return []evaluate.Option{
+		evaluate.WithRename(func(oldPath, newPath string) error {
+			return fs.rename(oldPath, newPath)
+		}),
+		evaluate.WithReadFile(fs.wrapReadFile(memReader)),
+		evaluate.WithRemoveFile(func(_ string) error { return nil }),
+	}
 }
