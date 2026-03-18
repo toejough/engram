@@ -2,7 +2,7 @@
 
 ## Current State (2026-03-18)
 
-Evolution plan phases complete through A-3. B-1 in progress (graph + merge packages exist).
+Evolution plan phases complete through B-2. Between Cycle 3 (complete) and Cycle 4 (not started).
 
 | Phase | Status |
 |-------|--------|
@@ -79,8 +79,30 @@ Resume the evolution plan, now that effectiveness data is real.
 | P4-full | Cluster dedup + cross-source suppression + transcript suppression | ✅ Done (#331 T-360, #332 T-359) |
 | P5-full | Re-compute links after merge | ✅ Done (#333 T-358) |
 | LLM principle synthesis | Synthesize merged principle from cluster on merge | ✅ Done (#330 T-356–357) |
-| [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ⏳ Deferred to Cycle 4 |
-| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ⏳ Deferred to Cycle 4 |
+| [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ⏳ Deferred (see Cycle 4) |
+| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ⏳ Deferred (see Cycle 4) |
+
+---
+
+## Cycle 3/4 Boundary — Premortem Mitigations
+
+Complete before starting Cycle 4 feature work.
+
+| Issue | What | Why |
+|-------|------|-----|
+| [#334](https://github.com/toejough/engram/issues/334) | RecomputeMergeLinks ignores MergedConceptSet — concept links stale after merge | Correctness gap in shipped B-2 feature; caught by code review (retro action item) |
+| [#335](https://github.com/toejough/engram/issues/335) | `--dry-run` flag on all memory-mutating CLI commands | Gate: no Cycle 4 memory-mutating feature ships without dry-run visibility |
+| [#336](https://github.com/toejough/engram/issues/336) | REQ: TF-IDF as tie-breaker only, not cluster initiator | Gate: blocks #305 spec derivation until constraint is in requirements.toml |
+
+---
+
+## Cycle 4 — Dedup Sophistication + Memory Management
+
+| Issue | What | Status |
+|-------|------|--------|
+| [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ⏳ Gated on #335 + #336 |
+| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ⏳ Deferred |
+| [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | ⏳ Deferred |
 
 ---
 
@@ -88,4 +110,4 @@ Resume the evolution plan, now that effectiveness data is real.
 
 | Issue | What | Blocker |
 |-------|------|---------|
-| [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | Maps to P4-full; schedule for Cycle 4 |
+| [#324](https://github.com/toejough/engram/issues/324) | `traced verify` broken | Upstream traced#38 |
