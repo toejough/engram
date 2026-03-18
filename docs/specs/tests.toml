@@ -5885,3 +5885,39 @@ Then: Entry status becomes "dismissed"; resolved_at non-empty; confirmation prin
 
 ---
 '''
+
+[T-359]
+name = "Surface CLI --transcript-window flag suppresses keyword-matched memories"
+traces_to = ["REQ-P4f-3"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real FS memory files; surface command invoked via cli.Run; no mock for suppression logic
+
+Given a memory with keywords ["targ", "build"] in the data directory,
+When cli.Run is called with surface --mode session-start --transcript-window "use targ to build",
+Then the memory is NOT surfaced (its title absent from stdout), because its keywords appear in the transcript window.
+
+Given a second memory with keywords ["unrelated", "keyword"],
+When the same surface call runs,
+Then that second memory IS surfaced (transcript window doesn't match its keywords).
+- Example-based: verifying REQ-P4f-3 AC1 and AC3 end-to-end through the CLI.
+'''
+
+[T-360]
+name = "Surface CLI --claude-dir flag wires real CrossRefChecker — CLAUDE.md-covered memory suppressed"
+traces_to = ["REQ-P4f-2"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real FS memory and CLAUDE.md files; surface command invoked via cli.Run; real CrossRefChecker implementation (not mock)
+
+Given a memory with keywords ["targ", "build"] and a CLAUDE.md in --claude-dir containing the text "Use targ for build operations",
+When cli.Run is called with surface --mode session-start --claude-dir <dir>,
+Then the memory is NOT surfaced (covered by CLAUDE.md source).
+
+Given a second memory with keywords ["unrelated"] whose keywords do not appear in CLAUDE.md,
+When the same surface call runs,
+Then that second memory IS surfaced.
+- Example-based: verifying REQ-P4f-2 AC1 and AC3 end-to-end through the CLI with a real file-backed checker.
+'''

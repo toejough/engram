@@ -124,6 +124,40 @@ func TestFileMergeExecutor_InMemoryMerge(t *testing.T) {
 	g.Expect(survivor.Principle).To(Equal("longer principle"))
 }
 
+// TestIsCoveredBySource covers both the no-keywords early return and the keyword-match path.
+func TestIsCoveredBySource(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	t.Run("returns false when memory has no keywords", func(t *testing.T) {
+		t.Parallel()
+
+		checker := &sourceCrossRefChecker{
+			sources:  []crossRefSourceEntry{{id: "CLAUDE.md", text: "use targ"}},
+			keywords: map[string][]string{"/memory.toml": {}},
+		}
+
+		covered, _, err := checker.IsCoveredBySource("/memory.toml")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(covered).To(BeFalse())
+	})
+
+	t.Run("returns true when keyword appears in source", func(t *testing.T) {
+		t.Parallel()
+
+		checker := &sourceCrossRefChecker{
+			sources:  []crossRefSourceEntry{{id: "CLAUDE.md", text: "use targ for builds"}},
+			keywords: map[string][]string{"/memory.toml": {"targ", "build"}},
+		}
+
+		covered, source, err := checker.IsCoveredBySource("/memory.toml")
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(covered).To(BeTrue())
+		g.Expect(source).To(Equal("CLAUDE.md"))
+	})
+}
+
 func TestKeepLongerPrinciple(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -177,6 +211,31 @@ func TestLLMPrincipleSynthesizer_TwoPrinciples(t *testing.T) {
 	g.Expect(result).To(Equal("synthesized"))
 	g.Expect(merger.calls).To(HaveLen(1))
 	g.Expect(merger.calls[0]).To(Equal([]string{"principle A", "principle B"}))
+}
+
+// TestLoadCrossRefSources covers the rules directory path.
+func TestLoadCrossRefSources(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	claudeDir := t.TempDir()
+	rulesDir := filepath.Join(claudeDir, "rules")
+	g.Expect(os.MkdirAll(rulesDir, 0o755)).To(Succeed())
+
+	g.Expect(os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte("# Rules\n\n- use targ\n"), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(filepath.Join(rulesDir, "go.md"), []byte("Use gofmt"), 0o640)).To(Succeed())
+
+	sources := loadCrossRefSources(claudeDir)
+
+	g.Expect(sources).NotTo(BeEmpty())
+
+	ids := make([]string, 0, len(sources))
+	for _, s := range sources {
+		ids = append(ids, s.id)
+	}
+
+	g.Expect(ids).To(ContainElement("go.md"))
 }
 
 func TestNewPrincipleSynthesizer_NonEmptyToken(t *testing.T) {

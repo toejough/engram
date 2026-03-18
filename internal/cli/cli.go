@@ -1428,6 +1428,7 @@ func runMaintainApply(
 	return nil
 }
 
+//nolint:funlen // wired with flags, cross-ref checker, and transcript window
 func runSurface(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("surface", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -1441,6 +1442,8 @@ func runSurface(args []string, stdout io.Writer) error {
 	toolErrored := fs.Bool("tool-errored", false, "true if tool call failed (tool mode)")
 	format := fs.String("format", "", "output format: json")
 	budget := fs.Int("budget", 0, "token budget override (precompact mode)")
+	transcriptWindow := fs.String("transcript-window", "", "recent transcript text for suppression (REQ-P4f-3)")
+	claudeDir := fs.String("claude-dir", "", "path to .claude directory for cross-source suppression (REQ-P4f-2)")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -1452,15 +1455,16 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	opts := surface.Options{
-		Mode:        *mode,
-		DataDir:     *dataDir,
-		Message:     *message,
-		ToolName:    *toolName,
-		ToolInput:   *toolInput,
-		ToolOutput:  *toolOutput,
-		ToolErrored: *toolErrored,
-		Format:      *format,
-		Budget:      *budget,
+		Mode:             *mode,
+		DataDir:          *dataDir,
+		Message:          *message,
+		ToolName:         *toolName,
+		ToolInput:        *toolInput,
+		ToolOutput:       *toolOutput,
+		ToolErrored:      *toolErrored,
+		Format:           *format,
+		Budget:           *budget,
+		TranscriptWindow: *transcriptWindow,
 	}
 
 	retriever := retrieve.New()
@@ -1478,14 +1482,22 @@ func runSurface(args []string, stdout io.Writer) error {
 	effAdapter := &effectivenessAdapter{stats: effectiveness.FromMemories(memories)}
 	registry := openRegistry(*dataDir)
 
-	surfacer := surface.New(
-		retriever,
+	surfacerOpts := []surface.SurfacerOption{
 		surface.WithTracker(recorder),
 		surface.WithLogReader(logReader),
 		surface.WithSurfacingLogger(surfLogger),
 		surface.WithEffectiveness(effAdapter),
 		surface.WithRegistry(&surfaceRegistryAdapter{reg: registry}),
-	)
+	}
+
+	if *claudeDir != "" {
+		checker := newSourceCrossRefChecker(*claudeDir, memories)
+		if checker != nil {
+			surfacerOpts = append(surfacerOpts, surface.WithCrossRefChecker(checker))
+		}
+	}
+
+	surfacer := surface.New(retriever, surfacerOpts...)
 
 	return surfacer.Run(ctx, stdout, opts)
 }

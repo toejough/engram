@@ -2048,6 +2048,110 @@ basis = "concept_overlap"
 	}
 }
 
+// T-359: Surface CLI --transcript-window flag wires to TranscriptWindow suppression.
+func TestT359_SurfaceCLI_TranscriptWindowSuppressesMatchedMemory(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Memory whose keywords appear in the transcript window → must be suppressed.
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "targ-rule.toml"), []byte(`title = "Targ Build Rule"
+content = "Always use targ to build"
+keywords = ["targ", "build"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`), 0o640)).To(Succeed())
+
+	// Memory whose keywords do NOT appear in the transcript window → must surface.
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "git-rule.toml"), []byte(`title = "Git Commit Rule"
+content = "Use signed commits"
+keywords = ["git", "commit"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`), 0o640)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "surface",
+		"--mode", "session-start",
+		"--data-dir", dataDir,
+		"--transcript-window", "use targ to build the project",
+	}, &stdout, &stderr, strings.NewReader(""))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	// Surfacer outputs filename stem (without .toml), not the title field.
+	g.Expect(output).NotTo(ContainSubstring("targ-rule"),
+		"memory with transcript-matched keywords must be suppressed")
+	g.Expect(output).To(ContainSubstring("git-rule"),
+		"memory without transcript-matched keywords must be surfaced")
+}
+
+// T-360: Surface CLI --claude-dir flag wires real CrossRefChecker — CLAUDE.md-covered memory suppressed.
+func TestT360_SurfaceCLI_ClaudeDirSuppressesCoveredMemory(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	claudeDir := t.TempDir()
+
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// CLAUDE.md in claudeDir with "targ" keyword in a bullet.
+	g.Expect(os.WriteFile(filepath.Join(claudeDir, "CLAUDE.md"), []byte(`# Project Rules
+
+- Use targ for all build and test operations
+`), 0o640)).To(Succeed())
+
+	// Memory whose keywords appear in CLAUDE.md → must be suppressed.
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "targ-rule.toml"), []byte(`title = "Targ Build Rule"
+content = "Always use targ to build"
+keywords = ["targ", "build"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`), 0o640)).To(Succeed())
+
+	// Memory whose keywords do NOT appear in CLAUDE.md → must surface.
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "git-rule.toml"), []byte(`title = "Git Commit Rule"
+content = "Use signed commits"
+keywords = ["git", "commit"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`), 0o640)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run([]string{
+		"engram", "surface",
+		"--mode", "session-start",
+		"--data-dir", dataDir,
+		"--claude-dir", claudeDir,
+	}, &stdout, &stderr, strings.NewReader(""))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	// Surfacer outputs filename stem (without .toml), not the title field.
+	g.Expect(output).NotTo(ContainSubstring("targ-rule"),
+		"memory covered by CLAUDE.md must be suppressed")
+	g.Expect(output).To(ContainSubstring("git-rule"),
+		"memory not covered by CLAUDE.md must be surfaced")
+}
+
 // T-40: Mode session-start routes to SessionStart surfacing
 func TestT40_SurfaceSessionStartRouting(t *testing.T) {
 	t.Parallel()

@@ -13,6 +13,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 
+	"engram/internal/crossref"
 	"engram/internal/effectiveness"
 	graph "engram/internal/graph"
 	"engram/internal/memory"
@@ -52,6 +53,12 @@ func (a *consolidatorRegistryAdapter) RemoveEntry(path string) error {
 	}
 
 	return a.reg.Remove(rel)
+}
+
+// crossRefSourceEntry holds the ID and full text of one cross-source file.
+type crossRefSourceEntry struct {
+	id   string
+	text string
 }
 
 // effectivenessReaderAdapter wraps a pre-computed stats map for the Consolidator.
@@ -229,6 +236,32 @@ func (r *registryUpdaterAdapter) relID(id string) string {
 	return rel
 }
 
+// sourceCrossRefChecker implements surface.CrossRefChecker using keyword overlap
+// against pre-loaded CLAUDE.md, rule, and skill source texts (REQ-P4f-2).
+type sourceCrossRefChecker struct {
+	sources  []crossRefSourceEntry
+	keywords map[string][]string // filePath → memory keywords
+}
+
+func (c *sourceCrossRefChecker) IsCoveredBySource(memPath string) (bool, string, error) {
+	kws := c.keywords[memPath]
+	if len(kws) == 0 {
+		return false, "", nil
+	}
+
+	for _, src := range c.sources {
+		lower := strings.ToLower(src.text)
+
+		for _, kw := range kws {
+			if strings.Contains(lower, strings.ToLower(kw)) {
+				return true, src.id, nil
+			}
+		}
+	}
+
+	return false, "", nil
+}
+
 // storedMemoryWriter writes a memory.Stored back to its TOML path atomically.
 type storedMemoryWriter struct {
 	createTemp func(dir, pattern string) (*os.File, error)
@@ -302,6 +335,45 @@ func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
 	}
 }
 
+// loadCrossRefSources reads CLAUDE.md and rules/*.md from claudeDir.
+func loadCrossRefSources(claudeDir string) []crossRefSourceEntry {
+	var sources []crossRefSourceEntry
+
+	// CLAUDE.md: extract as individual bullet entries for precise coverage.
+	claudeMDPath := filepath.Join(claudeDir, "CLAUDE.md")
+
+	data, readErr := os.ReadFile(claudeMDPath) //nolint:gosec // path from trusted CLI flag
+	if readErr == nil {
+		ext := crossref.ClaudeMDExtractor{Content: string(data), SourcePath: claudeMDPath}
+
+		instrs, _ := ext.Extract()
+
+		for _, instr := range instrs {
+			sources = append(sources, crossRefSourceEntry{id: instr.SourcePath, text: instr.Content})
+		}
+	}
+
+	// Rules: one entry per *.md file in <claudeDir>/rules/.
+	rulesDir := filepath.Join(claudeDir, "rules")
+
+	// filepath.Glob only fails with malformed patterns; ours is static.
+	ruleFiles, _ := filepath.Glob(filepath.Join(rulesDir, "*.md"))
+
+	for _, ruleFile := range ruleFiles {
+		ruleData, ruleErr := os.ReadFile(ruleFile) //nolint:gosec // path from filepath.Glob within trusted dir
+		if ruleErr != nil {
+			continue
+		}
+
+		sources = append(sources, crossRefSourceEntry{
+			id:   filepath.Base(ruleFile),
+			text: string(ruleData),
+		})
+	}
+
+	return sources
+}
+
 func newGraphLinkRecomputer(reg regpkg.Registry, dataDir string) *graphLinkRecomputer {
 	return &graphLinkRecomputer{
 		builder: graph.New(),
@@ -319,6 +391,27 @@ func newPrincipleSynthesizer(token string) signal.PrincipleSynthesizer {
 
 	return &llmPrincipleSynthesizer{
 		merger: merge.New(&cliLLMCaller{token: token}),
+	}
+}
+
+// newSourceCrossRefChecker builds a real CrossRefChecker from claudeDir source files
+// and the pre-loaded memory slice. Returns nil if no sources are found.
+func newSourceCrossRefChecker(claudeDir string, memories []*memory.Stored) *sourceCrossRefChecker {
+	sources := loadCrossRefSources(claudeDir)
+
+	if len(sources) == 0 {
+		return nil
+	}
+
+	keywords := make(map[string][]string, len(memories))
+
+	for _, mem := range memories {
+		keywords[mem.FilePath] = mem.Keywords
+	}
+
+	return &sourceCrossRefChecker{
+		sources:  sources,
+		keywords: keywords,
 	}
 }
 
