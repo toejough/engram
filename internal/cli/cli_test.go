@@ -1157,6 +1157,92 @@ anti_pattern = ""`), 0o644)
 	g.Expect(stdout.String()).To(ContainSubstring("1 followed"))
 }
 
+// T-117: RunEvaluate writes evaluation log AND produces summary on stdout.
+func TestT117_RunEvaluateWritesEvaluationLog(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Write a memory TOML file.
+	memPath := filepath.Join(dataDir, "t117-mem.toml")
+	err := os.WriteFile(memPath, []byte(`title = "T-117 Memory"
+content = "Always use targ for builds"
+principle = "Use targ"
+anti_pattern = ""`), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write a surfacing log referencing the memory.
+	logLine := fmt.Sprintf(
+		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}`,
+		memPath,
+	)
+
+	surfacingLogPath := filepath.Join(dataDir, "surfacing-log.jsonl")
+	err = os.WriteFile(surfacingLogPath, []byte(logLine+"\n"), 0o644)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Fake LLM returns a single "followed" outcome.
+	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
+		return fmt.Sprintf(
+			`[{"memory_path":%q,"outcome":"followed","evidence":"Used targ throughout."}]`,
+			memPath,
+		), nil
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	runErr := cli.RunEvaluate(
+		[]string{"--data-dir", dataDir},
+		"fake-token",
+		&stdout, &stderr,
+		strings.NewReader("some transcript"),
+		evaluate.WithLLMCaller(fakeLLM),
+	)
+	g.Expect(runErr).NotTo(HaveOccurred())
+
+	if runErr != nil {
+		return
+	}
+
+	// Assert stdout contains a non-empty summary.
+	g.Expect(stdout.String()).To(ContainSubstring("[engram] Evaluated"))
+
+	// Assert a file exists in <dataDir>/evaluations/.
+	evalDir := filepath.Join(dataDir, "evaluations")
+
+	entries, readDirErr := os.ReadDir(evalDir)
+	g.Expect(readDirErr).NotTo(HaveOccurred())
+
+	if readDirErr != nil {
+		return
+	}
+
+	g.Expect(entries).NotTo(BeEmpty())
+
+	// The evaluation file should be a non-empty .jsonl file.
+	evalFile := filepath.Join(evalDir, entries[0].Name())
+	g.Expect(entries[0].Name()).To(HaveSuffix(".jsonl"))
+
+	data, readErr := os.ReadFile(evalFile)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(data).NotTo(BeEmpty())
+}
+
 // T-118: evaluate without API token emits error and exits 0.
 func TestT118_EvaluateWithoutTokenEmitsError(t *testing.T) {
 	t.Parallel()
@@ -1221,6 +1307,7 @@ func TestT120_HookScriptsInvokeEvaluate(t *testing.T) {
 
 	for _, scriptPath := range []string{
 		"../../hooks/pre-compact.sh",
+		"../../hooks/stop.sh",
 	} {
 		data, err := os.ReadFile(scriptPath)
 		g.Expect(err).NotTo(HaveOccurred())
