@@ -14,6 +14,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"engram/internal/effectiveness"
+	graph "engram/internal/graph"
 	"engram/internal/memory"
 	"engram/internal/merge"
 	regpkg "engram/internal/registry"
@@ -82,6 +83,34 @@ func (f *fileMergeExecutor) Merge(
 	keepLongerPrinciple(survivor, absorbed)
 
 	return nil
+}
+
+// graphLinkRecomputer implements signal.LinkRecomputer using graph.Builder (REQ-138).
+// It relativizes absolute memory paths to dataDir before looking up registry IDs.
+type graphLinkRecomputer struct {
+	builder *graph.Builder
+	reg     regpkg.Registry
+	dataDir string
+}
+
+func (r *graphLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath string) error {
+	survivorID := toRelID(r.dataDir, survivorPath)
+	absorbedID := toRelID(r.dataDir, absorbedPath)
+
+	survivor, err := readStoredMemory(survivorPath)
+	if err != nil {
+		return fmt.Errorf("reading survivor for link recompute: %w", err)
+	}
+
+	result := graph.MergeResult{
+		MergedMemoryID:   survivorID,
+		AbsorbedMemoryID: absorbedID,
+		MergedTitle:      survivor.Title,
+		MergedContent:    survivor.Content,
+		MergedConceptSet: survivor.Concepts,
+	}
+
+	return r.builder.RecomputeMergeLinks(result, r.reg)
 }
 
 // llmPrincipleSynthesizer wraps merge.MemoryMerger to implement signal.PrincipleSynthesizer (REQ-139).
@@ -273,6 +302,14 @@ func keepLongerPrinciple(survivor, absorbed *memory.Stored) {
 	}
 }
 
+func newGraphLinkRecomputer(reg regpkg.Registry, dataDir string) *graphLinkRecomputer {
+	return &graphLinkRecomputer{
+		builder: graph.New(),
+		reg:     reg,
+		dataDir: dataDir,
+	}
+}
+
 // newPrincipleSynthesizer returns an LLM-backed synthesizer when token is available,
 // or nil to use the fallback (longest principle). REQ-139 AC5.
 func newPrincipleSynthesizer(token string) signal.PrincipleSynthesizer {
@@ -401,6 +438,15 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 
 	//nolint:wrapcheck // thin JSON encoding at CLI boundary
 	return json.NewEncoder(stdout).Encode(result)
+}
+
+func toRelID(dataDir, absPath string) string {
+	rel, err := filepath.Rel(dataDir, absPath)
+	if err != nil {
+		return absPath
+	}
+
+	return rel
 }
 
 func unionConcepts(survivor, absorbed *memory.Stored) {

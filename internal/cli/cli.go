@@ -355,6 +355,7 @@ func RunMaintain(
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithStderr(os.Stderr),
 		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
+		signal.WithLinkRecomputer(newGraphLinkRecomputer(consolidatorReg, *dataDir)),
 	)
 
 	_, consolidateErr := consolidator.Consolidate(ctx)

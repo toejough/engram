@@ -22,6 +22,7 @@ import (
 	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/learn"
+	regpkg "engram/internal/registry"
 )
 
 // TestAuditFlagParseError exercises the flag parse error path.
@@ -1976,6 +1977,75 @@ updated_at = "2026-01-01T00:00:00Z"
 
 	g.Expect(entries).NotTo(BeEmpty())
 	g.Expect(entries[0].Name()).To(ContainSubstring("absorbed.toml"))
+}
+
+// T-358: Link recompute real implementation — absorbed links removed, survivor links updated.
+func TestT358_LinkRecompute_RealImpl_AbsorbedLinksRemoved(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Two memories with >50% keyword overlap — will form a merge cluster.
+	survivorContent := `title = "Survivor Memory"
+content = "Keep this one"
+keywords = ["alpha", "beta", "gamma"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`
+	absorbedContent := `title = "Absorbed Memory"
+content = "Delete this one"
+keywords = ["alpha", "beta", "delta"]
+surfaced_count = 1
+updated_at = "2026-01-01T00:00:00Z"
+`
+	// Bystander has a link pointing to the absorbed memory (distinct keyword set).
+	bystanderContent := `title = "Bystander Memory"
+content = "Unrelated"
+keywords = ["foo", "bar"]
+surfaced_count = 5
+updated_at = "2026-01-01T00:00:00Z"
+
+[[links]]
+target = "memories/absorbed.toml"
+weight = 0.5
+basis = "concept_overlap"
+`
+
+	survivorPath := filepath.Join(memoriesDir, "survivor.toml")
+	absorbedPath := filepath.Join(memoriesDir, "absorbed.toml")
+	bystanderPath := filepath.Join(memoriesDir, "bystander.toml")
+
+	g.Expect(os.WriteFile(survivorPath, []byte(survivorContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(bystanderPath, []byte(bystanderContent), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{"--data-dir", dataDir}, "", &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Read back bystander entry via registry — link to absorbed must be gone.
+	reg := regpkg.NewTOMLDirectoryStore(dataDir)
+
+	bystanderEntry, getErr := reg.Get("memories/bystander.toml")
+	g.Expect(getErr).NotTo(HaveOccurred())
+
+	if getErr != nil {
+		return
+	}
+
+	for _, link := range bystanderEntry.Links {
+		g.Expect(link.Target).NotTo(Equal("memories/absorbed.toml"),
+			"bystander must not retain stale link to absorbed memory")
+	}
 }
 
 // T-40: Mode session-start routes to SessionStart surfacing

@@ -652,6 +652,19 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(string(data)).To(ContainSubstring("Updated Title"))
 }
 
+// TestToRelID_ErrorFallback covers the defensive fallback when filepath.Rel fails.
+// filepath.Rel fails when basepath is relative and targpath is absolute.
+func TestToRelID_ErrorFallback(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	absPath := "/absolute/path/memory.toml"
+	result := toRelID("relative/base", absPath)
+
+	g.Expect(result).To(Equal(absPath))
+}
+
 func TestUnionConcepts(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
