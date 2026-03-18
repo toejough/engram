@@ -48,6 +48,21 @@ Complete before starting B-2 work. These prevent silent failure at scale.
 |-------|------|-----|
 | [#322](https://github.com/toejough/engram/issues/322) | Binary smoke test | CLI wiring bugs invisible without end-to-end run |
 | [#323](https://github.com/toejough/engram/issues/323) | Statement coverage floor | Per-function metric masks 4.2% statement coverage in evaluate |
+| [#324](https://github.com/toejough/engram/issues/324) | Fix `traced verify` | Broken since aba6ddb — spec integrity blind for 2 cycles |
+| [#326](https://github.com/toejough/engram/issues/326) | Evaluation schema versioning | Add schema_version before format diverges across cycles |
+| [#327](https://github.com/toejough/engram/issues/327) | Fix concurrent evaluation write collision | Unaddressed P2 from prior premortem; worsens as turn rate increases |
+
+---
+
+## Cycle Boundary Protocol
+
+At every cycle end, before declaring complete:
+
+1. Run `traced stamp` and commit (gate on spec integrity — #324 blocks this until fixed)
+2. Mark T-items for completed tests as `status = "implemented"` in tests.toml
+3. Retire superseded ARCH items (move to archive section with reason)
+4. Record spec item delta in retro: items added vs. items retired
+5. Check for orphaned worktrees: `git worktree list`
 
 ---
 
