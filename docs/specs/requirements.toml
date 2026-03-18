@@ -212,6 +212,25 @@ body = '''
 ---
 '''
 
+[REQ-139]
+name = "LLM principle synthesis when API token available"
+traces_to = ["UC-34"]
+hash = ""
+body = '''
+**Constraint:** When an API token is available, each cluster merge must produce a synthesized principle by calling the LLM with all cluster members' principles as input, replacing the longest-principle fallback (REQ-133).
+
+**Rationale:** Keeping the longest principle loses information from absorbed memories. A synthesized principle integrates knowledge from all merged memories — this is the core enrichment goal of UC-34 and distinguishes consolidation from simple deduplication.
+
+**Acceptance criteria:**
+- (1) When a token is available, the LLM is called once per cluster with the principles of all cluster members as input.
+- (2) The LLM-synthesized principle replaces the survivor's principle before the survivor file is written.
+- (3) If the LLM call fails, the system falls back to REQ-133 behavior (longest principle) and logs the failure to stderr.
+- (4) The LLM call uses the same API client infrastructure as other LLM-calling features (UC-1, UC-28).
+- (5) The token presence/absence check occurs at the DI boundary — no direct env-var reads in business logic.
+
+---
+'''
+
 [REQ-14]
 name = "Go binary `surface` subcommand"
 traces_to = ["UC-2"]
