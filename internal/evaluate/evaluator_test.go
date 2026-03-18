@@ -824,8 +824,9 @@ func TestT108_EvaluationLogWritten(t *testing.T) {
 	g.Expect(mkdirAllPath).To(Equal("/data/evaluations"))
 
 	// Temp file written then renamed atomically.
-	expectedTmp := "/data/evaluations/2024-01-15T10-30-00Z.jsonl.tmp"
-	expectedFinal := "/data/evaluations/2024-01-15T10-30-00Z.jsonl"
+	// UnixNano of 2024-01-15T10:30:00Z = 1705314600000000000 (T-327: nanosecond resolution).
+	expectedTmp := "/data/evaluations/1705314600000000000.jsonl.tmp"
+	expectedFinal := "/data/evaluations/1705314600000000000.jsonl"
 
 	g.Expect(writtenPath).To(Equal(expectedTmp))
 	g.Expect(renamedFrom).To(Equal(expectedTmp))
@@ -996,6 +997,144 @@ anti_pattern = ""`
 	}
 
 	g.Expect(outcomes).To(HaveLen(1))
+}
+
+// T-326: Evaluation JSONL records survive a round-trip with schema_version=1.
+func TestT326_EvaluationSchemaVersionRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	fixedTime := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	// Write a JSON record with schema_version: 1 and all current fields.
+	record := `{"memory_path":"/data/memories/mem1.toml","outcome":"followed",` +
+		`"evidence":"Agent used targ","evaluated_at":"2024-01-15T10:30:00Z","schema_version":1}`
+
+	var parsed evaluate.Outcome
+
+	err := json.Unmarshal([]byte(record), &parsed)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Assert all fields survive correctly.
+	g.Expect(parsed.MemoryPath).To(Equal("/data/memories/mem1.toml"))
+	g.Expect(parsed.Outcome).To(Equal("followed"))
+	g.Expect(parsed.Evidence).To(Equal("Agent used targ"))
+	g.Expect(parsed.EvaluatedAt).To(Equal(fixedTime))
+	g.Expect(parsed.SchemaVersion).To(Equal(1))
+}
+
+// T-327: Two concurrent Evaluate calls write to separate files — no collision.
+func TestT327_ConcurrentEvaluateWriteNoCollision(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	const surfacingLog = `{"memory_path":"/data/memories/mem1.toml",` +
+		`"mode":"prompt","surfaced_at":"2024-01-15T10:00:00Z"}` + "\n"
+
+	const memTOML = "title = \"Mem\"\ncontent = \"Content\"\nprinciple = \"Principle\"\nanti_pattern = \"\""
+
+	const llmResponse = `[{"memory_path":"/data/memories/mem1.toml","outcome":"followed","evidence":"ok"}]`
+
+	// Two fixed times that share the same second but differ in nanoseconds.
+	time1 := time.Date(2024, 1, 15, 10, 30, 0, 1, time.UTC)
+	time2 := time.Date(2024, 1, 15, 10, 30, 0, 2, time.UTC)
+
+	makeEval := func(fixedTime time.Time) *evaluate.Evaluator {
+		surfacingLogPath := dataDir + "/surfacing-log.jsonl"
+
+		fs := newTestFS(map[string][]byte{
+			surfacingLogPath: []byte(surfacingLog),
+		})
+
+		memReader := func(_ string) ([]byte, error) {
+			return []byte(memTOML), nil
+		}
+
+		return evaluate.New(
+			dataDir,
+			evaluate.WithRename(func(oldPath, newPath string) error {
+				if err := fs.rename(oldPath, newPath); err != nil {
+					return err
+				}
+
+				return os.Rename(oldPath, newPath)
+			}),
+			evaluate.WithReadFile(fs.wrapReadFile(memReader)),
+			evaluate.WithRemoveFile(os.Remove),
+			evaluate.WithLLMCaller(func(_ context.Context, _, _, _ string) (string, error) {
+				return llmResponse, nil
+			}),
+			evaluate.WithNow(func() time.Time { return fixedTime }),
+		)
+	}
+
+	// Write a surfacing log for each evaluator (each will rename it away before reading).
+	surfacingLogPath := dataDir + "/surfacing-log.jsonl"
+
+	writeLog := func() {
+		writeErr := os.WriteFile(surfacingLogPath, []byte(surfacingLog), 0o600)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+
+		if writeErr != nil {
+			return
+		}
+	}
+
+	// Run first evaluator, restore log, run second evaluator.
+	// Sequential here is fine — what we're testing is filename uniqueness, not goroutine race.
+	// The nanosecond-based filenames must differ even when called back-to-back.
+	writeLog()
+
+	eval1 := makeEval(time1)
+
+	outcomes1, err1 := eval1.Evaluate(context.Background(), "transcript")
+	g.Expect(err1).NotTo(HaveOccurred())
+
+	if err1 != nil {
+		return
+	}
+
+	g.Expect(outcomes1).To(HaveLen(1))
+
+	writeLog()
+
+	eval2 := makeEval(time2)
+
+	outcomes2, err2 := eval2.Evaluate(context.Background(), "transcript")
+	g.Expect(err2).NotTo(HaveOccurred())
+
+	if err2 != nil {
+		return
+	}
+
+	g.Expect(outcomes2).To(HaveLen(1))
+
+	// Both evaluation files must exist in the evaluations/ directory.
+	evalDir := dataDir + "/evaluations"
+
+	entries, readDirErr := os.ReadDir(evalDir)
+	g.Expect(readDirErr).NotTo(HaveOccurred())
+
+	if readDirErr != nil {
+		return
+	}
+
+	// Filter to only .jsonl files (exclude any .jsonl.tmp leftovers).
+	jsonlFiles := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".jsonl") {
+			jsonlFiles = append(jsonlFiles, entry.Name())
+		}
+	}
+
+	g.Expect(jsonlFiles).To(HaveLen(2), "expected two separate evaluation files — nanosecond timestamps must differ")
 }
 
 // T-345: Evaluator renames surfacing log before reading for turn isolation (ARCH-81).

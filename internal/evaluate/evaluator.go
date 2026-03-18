@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,10 +132,11 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 
 	for _, raw := range rawOutcomes {
 		outcomes = append(outcomes, Outcome{
-			MemoryPath:  raw.MemoryPath,
-			Outcome:     raw.Outcome,
-			Evidence:    raw.Evidence,
-			EvaluatedAt: now,
+			MemoryPath:    raw.MemoryPath,
+			Outcome:       raw.Outcome,
+			Evidence:      raw.Evidence,
+			EvaluatedAt:   now,
+			SchemaVersion: currentSchemaVersion,
 		})
 	}
 
@@ -156,8 +158,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 	return outcomes, nil
 }
 
-// persistEvaluationLog writes outcomes as JSONL to <dataDir>/evaluations/<timestamp>.jsonl
-// using an atomic temp+rename write.
+// persistEvaluationLog writes outcomes as JSONL to <dataDir>/evaluations/<nanoseconds>.jsonl
+// using an atomic temp+rename write. Nanosecond resolution prevents filename collisions when
+// two evaluations run within the same second (T-327).
 func (e *Evaluator) persistEvaluationLog(outcomes []Outcome, now time.Time) error {
 	evalDir := filepath.Join(e.dataDir, evaluationsDirname)
 
@@ -166,9 +169,9 @@ func (e *Evaluator) persistEvaluationLog(outcomes []Outcome, now time.Time) erro
 		return fmt.Errorf("creating evaluations dir: %w", err)
 	}
 
-	timestamp := now.UTC().Format(evalTimestampFormat)
-	tmpPath := filepath.Join(evalDir, timestamp+".jsonl.tmp")
-	finalPath := filepath.Join(evalDir, timestamp+".jsonl")
+	filenameBase := strconv.FormatInt(now.UnixNano(), 10)
+	tmpPath := filepath.Join(evalDir, filenameBase+".jsonl.tmp")
+	finalPath := filepath.Join(evalDir, filenameBase+".jsonl")
 
 	var sb strings.Builder
 
@@ -300,10 +303,11 @@ type Option func(*Evaluator)
 //
 //nolint:tagliatelle // spec requires snake_case JSON field names.
 type Outcome struct {
-	MemoryPath  string    `json:"memory_path"`
-	Outcome     string    `json:"outcome"` // "followed", "contradicted", "ignored"
-	Evidence    string    `json:"evidence"`
-	EvaluatedAt time.Time `json:"evaluated_at"`
+	MemoryPath    string    `json:"memory_path"`
+	Outcome       string    `json:"outcome"` // "followed", "contradicted", "ignored"
+	Evidence      string    `json:"evidence"`
+	EvaluatedAt   time.Time `json:"evaluated_at"`
+	SchemaVersion int       `json:"schema_version"`
 }
 
 // RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
@@ -371,6 +375,7 @@ func WithWriteFile(fn func(name string, data []byte, perm os.FileMode) error) Op
 
 // unexported constants.
 const (
+	currentSchemaVersion     = 1
 	dirPerm                  = 0o755
 	evalCorrelationIncrement = 0.05
 	evalCorrelationWeightCap = 1.0
