@@ -236,6 +236,15 @@ func TestLoadCrossRefSources(t *testing.T) {
 	}
 
 	g.Expect(ids).To(ContainElement("go.md"))
+
+	// Verify CLAUDE.md bullet entries also appear in sources (I-3).
+	texts := make([]string, 0, len(sources))
+	for _, s := range sources {
+		texts = append(texts, s.text)
+	}
+
+	g.Expect(texts).To(ContainElement(ContainSubstring("targ")),
+		"CLAUDE.md bullet with 'targ' must appear in sources")
 }
 
 func TestNewPrincipleSynthesizer_NonEmptyToken(t *testing.T) {
@@ -722,6 +731,16 @@ func TestToRelID_ErrorFallback(t *testing.T) {
 	result := toRelID("relative/base", absPath)
 
 	g.Expect(result).To(Equal(absPath))
+}
+
+// TestToRelID_HappyPath covers the normal case where the path is under dataDir.
+func TestToRelID_HappyPath(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	result := toRelID("/data", "/data/memories/test.toml")
+	g.Expect(result).To(Equal("memories/test.toml"))
 }
 
 func TestUnionConcepts(t *testing.T) {

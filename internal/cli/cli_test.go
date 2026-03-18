@@ -2046,6 +2046,16 @@ basis = "concept_overlap"
 		g.Expect(link.Target).NotTo(Equal("memories/absorbed.toml"),
 			"bystander must not retain stale link to absorbed memory")
 	}
+
+	// Verify absorbed was removed from registry (confirms merge completed, not just link cleanup).
+	_, absorbedGetErr := reg.Get("memories/absorbed.toml")
+	g.Expect(absorbedGetErr).To(HaveOccurred(),
+		"absorbed memory must be absent from registry after merge")
+
+	// Verify survivor is still accessible in registry (link recompute must not corrupt it).
+	_, survivorGetErr := reg.Get("memories/survivor.toml")
+	g.Expect(survivorGetErr).NotTo(HaveOccurred(),
+		"survivor memory must remain in registry after merge")
 }
 
 // T-359: Surface CLI --transcript-window flag wires to TranscriptWindow suppression.

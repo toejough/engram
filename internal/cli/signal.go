@@ -94,6 +94,9 @@ func (f *fileMergeExecutor) Merge(
 
 // graphLinkRecomputer implements signal.LinkRecomputer using graph.Builder (REQ-138).
 // It relativizes absolute memory paths to dataDir before looking up registry IDs.
+//
+// readStoredMemory calls os.ReadFile directly: internal/cli is the I/O wiring edge,
+// so direct filesystem access in adapters here is intentional (not a DI violation).
 type graphLinkRecomputer struct {
 	builder *graph.Builder
 	reg     regpkg.Registry
@@ -346,7 +349,11 @@ func loadCrossRefSources(claudeDir string) []crossRefSourceEntry {
 	if readErr == nil {
 		ext := crossref.ClaudeMDExtractor{Content: string(data), SourcePath: claudeMDPath}
 
-		instrs, _ := ext.Extract()
+		instrs, extractErr := ext.Extract()
+		if extractErr != nil {
+			// fire-and-forget diagnostic at the CLI wiring edge (ARCH-6).
+			fmt.Fprintf(os.Stderr, "[engram] warning: parsing CLAUDE.md: %v\n", extractErr)
+		}
 
 		for _, instr := range instrs {
 			sources = append(sources, crossRefSourceEntry{id: instr.SourcePath, text: instr.Content})
