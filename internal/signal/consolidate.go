@@ -86,6 +86,44 @@ func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, erro
 	return result, nil
 }
 
+// Plan detects duplicate clusters and returns the merge plan without executing it.
+// It is the dry-run equivalent of Consolidate (#335).
+func (c *Consolidator) Plan(ctx context.Context) ([]MergePlan, error) {
+	if c.lister == nil {
+		return nil, nil
+	}
+
+	memories, err := c.lister.ListAll(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("plan: listing memories: %w", err)
+	}
+
+	clusters := buildClusters(memories)
+	plans := make([]MergePlan, 0, len(clusters))
+
+	for _, cluster := range clusters {
+		if len(cluster) < minClusterSize {
+			continue
+		}
+
+		survivor := c.selectSurvivor(cluster)
+		absorbed := make([]string, 0, len(cluster)-1)
+
+		for _, mem := range cluster {
+			if mem.FilePath != survivor.FilePath {
+				absorbed = append(absorbed, mem.FilePath)
+			}
+		}
+
+		plans = append(plans, MergePlan{
+			Survivor: survivor.FilePath,
+			Absorbed: absorbed,
+		})
+	}
+
+	return plans, nil
+}
+
 // applySynthesizedPrinciple calls the synthesizer and updates survivor.Principle (REQ-139, Phase 1b).
 // Falls back silently to the Phase 1 result on error (fire-and-forget per ARCH-6).
 func (c *Consolidator) applySynthesizedPrinciple(
@@ -288,6 +326,12 @@ type MemoryLister interface {
 // MergeExecutor performs a merge of one memory into another.
 type MergeExecutor interface {
 	Merge(ctx context.Context, survivor, absorbed *memory.Stored) error
+}
+
+// MergePlan describes what would happen for one cluster in a dry run.
+type MergePlan struct {
+	Survivor string   `json:"survivor"`
+	Absorbed []string `json:"absorbed"`
 }
 
 // PrincipleSynthesizer synthesizes a merged principle from all cluster members' principles (REQ-139).

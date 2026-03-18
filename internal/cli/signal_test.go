@@ -14,6 +14,7 @@ import (
 
 	"engram/internal/effectiveness"
 	"engram/internal/memory"
+	"engram/internal/retrieve"
 	"engram/internal/signal"
 )
 
@@ -621,6 +622,20 @@ updated_at = "2024-01-01T00:00:00Z"
 	g.Expect(result.Success).To(BeTrue())
 }
 
+// TestRunMaintainDryRun_EncodeError covers the encode-error branch in runMaintainDryRun.
+func TestRunMaintainDryRun_EncodeError(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	// Plan returns an empty list for an empty memories dir — encode then fails on failWriter.
+	g.Expect(os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)).To(Succeed())
+
+	err := runMaintainDryRun(context.Background(), retrieve.New(), dataDir, &failWriter{})
+	g.Expect(err).To(MatchError(ContainSubstring("encoding plan")))
+}
+
 func TestStoredMemoryWriter_Write_CloseError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -763,6 +778,13 @@ func TestUnionKeywords(t *testing.T) {
 
 	unionKeywords(survivor, absorbed)
 	g.Expect(survivor.Keywords).To(ConsistOf("alpha", "beta", "gamma"))
+}
+
+// failWriter always returns an error on Write.
+type failWriter struct{}
+
+func (failWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write error")
 }
 
 // fakeMergeMemoryMerger implements merge.MemoryMerger for testing llmPrincipleSynthesizer.

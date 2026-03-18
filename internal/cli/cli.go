@@ -303,6 +303,7 @@ func RunMaintain(
 	applyMode := fs.Bool("apply", false, "apply proposals instead of generating")
 	proposalsPath := fs.String("proposals", "", "path to proposals JSON file")
 	autoYes := fs.Bool("yes", false, "auto-approve all proposals (no confirmation)")
+	dryRun := fs.Bool("dry-run", false, "print merge plan without writing files")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -321,6 +322,10 @@ func RunMaintain(
 
 	ctx := context.Background()
 	retriever := retrieve.New()
+
+	if *dryRun {
+		return runMaintainDryRun(ctx, retriever, *dataDir, stdout)
+	}
 
 	memories, err := retriever.ListMemories(ctx, *dataDir)
 	if err != nil {
@@ -1356,7 +1361,6 @@ func runMaintain(args []string, stdout io.Writer) error {
 	return RunMaintain(args, os.Getenv("ENGRAM_API_TOKEN"), stdout)
 }
 
-// runMaintainApply implements `engram maintain --apply`: reads proposals from
 // a JSON file and applies them with user confirmation (T-264, ARCH-66).
 //
 //nolint:funlen // orchestration function
@@ -1423,6 +1427,29 @@ func runMaintainApply(
 
 	for _, reason := range report.SkipReasons {
 		_, _ = fmt.Fprintf(stdout, "  skipped: %s\n", reason)
+	}
+
+	return nil
+}
+
+// runMaintainDryRun computes the merge plan and prints it as JSON without
+// modifying any files (--dry-run flag, T-362, #335).
+func runMaintainDryRun(ctx context.Context, retriever *retrieve.Retriever, dataDir string, stdout io.Writer) error {
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(&memoryListerAdapter{
+			retriever: retriever,
+			dataDir:   dataDir,
+		}),
+	)
+
+	plans, err := consolidator.Plan(ctx)
+	if err != nil {
+		return fmt.Errorf("maintain: planning: %w", err)
+	}
+
+	encErr := json.NewEncoder(stdout).Encode(plans)
+	if encErr != nil {
+		return fmt.Errorf("maintain: encoding plan: %w", encErr)
 	}
 
 	return nil

@@ -5941,3 +5941,19 @@ because BuildConceptOverlap writes links on the survivor using its post-merge ke
 
 - Example-based: verifying REQ-138 AC2 end-to-end with real keyword-based concept overlap computation.
 '''
+
+[T-362]
+name = "maintain --dry-run prints merge plan without modifying files"
+traces_to = ["REQ-138"]
+hash = ""
+body = '''
+**Verification type:** integration
+**I/O boundaries:** real FS memory files; RunMaintain called with --dry-run flag; no file mutation
+
+Given two memory files with >50% one-sided keyword overlap (would form a merge cluster),
+When RunMaintain is called with --dry-run --data-dir <dir>,
+Then stdout contains a JSON array with at least one merge plan entry (survivor + absorbed paths),
+and the absorbed memory file still exists unchanged after the call (no files modified).
+
+- Example-based: verifying the dry-run gate required by #335 before any Cycle 4 memory-mutating feature ships.
+'''

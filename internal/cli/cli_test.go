@@ -2237,6 +2237,54 @@ updated_at = "2026-01-01T00:00:00Z"
 		"survivor must have concept_overlap link to neighbor after merge-triggered recompute")
 }
 
+// T-362: maintain --dry-run prints merge plan without modifying files.
+func TestT362_MaintainDryRun_PrintsPlanWithoutModifyingFiles(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memoriesDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memoriesDir, 0o755)).To(Succeed())
+
+	// Two memories with >50% one-sided keyword overlap — would merge without --dry-run.
+	survivorContent := `title = "Survivor Memory"
+content = "Keep this one"
+keywords = ["alpha", "beta", "gamma"]
+surfaced_count = 10
+updated_at = "2026-01-01T00:00:00Z"
+`
+	absorbedContent := `title = "Absorbed Memory"
+content = "Delete this one"
+keywords = ["alpha", "beta", "delta"]
+surfaced_count = 1
+updated_at = "2026-01-01T00:00:00Z"
+`
+
+	absorbedPath := filepath.Join(memoriesDir, "absorbed.toml")
+
+	g.Expect(os.WriteFile(filepath.Join(memoriesDir, "survivor.toml"), []byte(survivorContent), 0o640)).To(Succeed())
+	g.Expect(os.WriteFile(absorbedPath, []byte(absorbedContent), 0o640)).To(Succeed())
+
+	var stdout bytes.Buffer
+
+	err := cli.RunMaintain([]string{"--data-dir", dataDir, "--dry-run"}, "", &stdout)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// stdout must contain a JSON array with at least one entry describing the merge plan.
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("survivor"), "plan must mention survivor path")
+	g.Expect(output).To(ContainSubstring("absorbed"), "plan must mention absorbed path")
+
+	// absorbed file must still exist — no files modified.
+	_, statErr := os.Stat(absorbedPath)
+	g.Expect(statErr).NotTo(HaveOccurred(), "absorbed file must still exist after --dry-run")
+}
+
 // T-40: Mode session-start routes to SessionStart surfacing
 func TestT40_SurfaceSessionStartRouting(t *testing.T) {
 	t.Parallel()
