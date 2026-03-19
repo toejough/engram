@@ -1578,7 +1578,7 @@ body = '''
 
 ---
 
-## Coverage Summary (UC-17 & UC-19)
+## Coverage Summary (UC-17)
 
 | L2 Item | TEST Coverage |
 |---------|--------------|
@@ -1603,7 +1603,7 @@ body = '''
 | DES-24 | T-205, T-206 |
 | REQ-65 | T-198 |
 
-All UC-17 & UC-19 L2 items have test coverage.
+All UC-17 L2 items have test coverage.
 
 ---
 
@@ -1659,6 +1659,16 @@ body = '''
 ---
 
 ## Cross-Platform Token (ARCH-6 update)
+'''
+
+[T-22]
+name = "UserPromptSubmit hook script has platform-aware token retrieval"
+traces_to = ["ARCH-6", "DES-3", "REQ-8"]
+hash = "07c5cad7"
+body = '''
+**Given** the static hook script at `hooks/user-prompt-submit.sh`,
+**When** its content is read,
+**Then** it checks `uname` for platform, attempts Keychain on macOS, and falls back to `ENGRAM_API_TOKEN` env var. It does not hard-fail if Keychain is unavailable.
 '''
 
 [T-210]
@@ -1726,129 +1736,7 @@ body = '''
 
 ---
 
-## Cross-Source Instruction Scanner (ARCH-48)
-'''
-
-[T-215]
-name = "Scanner extracts memory instructions only"
-traces_to = ["ARCH-48", "REQ-72"]
-hash = "d64324bf"
-body = '''
-**Given** a data directory with 3 memory files,
-**When** Scanner.ScanAll is called,
-**Then** 3 memory items are extracted with source type "memory", correct path, and content. No CLAUDE.md, rules, or skill sources are included.
-
-- Verification: unit (mock file I/O)
-'''
-
-[T-216]
-name = "Scanner joins effectiveness data to instructions"
-traces_to = ["ARCH-48", "REQ-72"]
-hash = "fa863dca"
-body = '''
-**Given** instructions with matching effectiveness data,
-**When** Scanner.ScanAll runs,
-**Then** each instruction has its effectiveness score populated. Instructions without effectiveness data have score 0.
-
-- Verification: unit
-
----
-
-## Instruct Audit Pipeline (ARCH-49)
-'''
-
-[T-217]
-name = "Deduplication detects >80% keyword overlap between memories"
-traces_to = ["ARCH-49", "REQ-73"]
-hash = "793edafd"
-body = '''
-**Given** two memory instructions with 90% keyword overlap,
-**When** Auditor.Run performs deduplication,
-**Then** the pair is reported as a duplicate with both paths and overlap score.
-
-- Verification: unit (mock instructions with overlapping keywords)
-'''
-
-[T-218]
-name = "Quality diagnosis calls Haiku for bottom 20%"
-traces_to = ["ARCH-49", "REQ-74", "DES-29"]
-hash = "ce5181d2"
-body = '''
-**Given** 10 instructions with effectiveness data, 2 in bottom 20%,
-**When** Auditor.Run performs quality diagnosis,
-**Then** Haiku is called for 2 instructions. Response includes diagnosis, root_cause, suggestion.
-
-- Verification: unit (mock LLM caller)
-'''
-
-[T-219]
-name = "Refinement proposals in maintain-compatible format"
-traces_to = ["ARCH-49", "REQ-75"]
-hash = "7cd2696b"
-body = '''
-**Given** a diagnosed memory instruction,
-**When** Auditor.Run generates refinement proposal,
-**Then** proposal includes proposed TOML field changes matching UC-16 maintain format.
-
-- Verification: unit
-'''
-
-[T-22]
-name = "UserPromptSubmit hook script has platform-aware token retrieval"
-traces_to = ["ARCH-6", "DES-3", "REQ-8"]
-hash = "07c5cad7"
-body = '''
-**Given** the static hook script at `hooks/user-prompt-submit.sh`,
-**When** its content is read,
-**Then** it checks `uname` for platform, attempts Keychain on macOS, and falls back to `ENGRAM_API_TOKEN` env var. It does not hard-fail if Keychain is unavailable.
-'''
-
-[T-220]
-name = "Gap analysis finds violations without instructions"
-traces_to = ["ARCH-49", "REQ-76"]
-hash = "1e47140b"
-body = '''
-**Given** evaluation data with 5 contradicted outcomes, 3 covered by existing instructions, 2 not covered,
-**When** Auditor.Run performs gap analysis,
-**Then** 2 gap candidates are reported with violation count and example evidence.
-
-- Verification: unit (mock eval data)
-'''
-
-[T-221]
-name = "~~Skill decomposition~~ — REMOVED (S6 simplification)"
-traces_to = ["REQ-77 (removed)"]
-hash = "cc677994"
-body = '''
-Removed in S6. Skill files are no longer scanned in the memory-only audit. This test is obsolete until P4-full re-introduces skill scanning.
-'''
-
-[T-222]
-name = "CLI command outputs JSON report"
-traces_to = ["ARCH-49", "REQ-78"]
-hash = "ad6e8a4c"
-body = '''
-**Given** `engram instruct audit --data-dir <path>`,
-**When** command runs successfully,
-**Then** output is valid JSON with sections: duplicates, diagnoses, proposals, gaps. (No skills section — removed in S6.)
-
-- Verification: unit (mock auditor)
-'''
-
-[T-223]
-name = "No API token skips LLM steps, runs dedup and gaps"
-traces_to = ["ARCH-49", "REQ-79"]
-hash = "017d05e2"
-body = '''
-**Given** no API token set,
-**When** `engram instruct audit` runs,
-**Then** dedup and gap analysis run normally. Diagnosis and proposals sections contain `{"skipped_reason": "no API token"}`.
-
-- Verification: unit
-
----
-
-## Coverage Summary (UC-18 & UC-20)
+## PostToolUse Reminder Coverage (UC-18)
 
 | L2 Item | TEST Coverage |
 |---------|--------------|
@@ -1861,17 +1749,8 @@ body = '''
 | REQ-70 | T-210, T-211 |
 | DES-28 | T-210 |
 | REQ-71 | T-212 |
-| REQ-72 | T-215, T-216 |
-| REQ-73 | T-217 |
-| REQ-74 | T-218 |
-| DES-29 | T-218 |
-| REQ-75 | T-219 |
-| REQ-76 | T-220 |
-| REQ-77 | ~~T-221~~ — removed (S6) |
-| REQ-78 | T-222 |
-| REQ-79 | T-223 |
 
-All UC-18 & UC-20 active L2 items have test coverage. REQ-77 removed in S6 simplification.
+All UC-18 active L2 items have test coverage.
 
 ---
 

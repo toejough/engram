@@ -257,34 +257,6 @@ body = '''
 ---
 '''
 
-[UC-19]
-name = "Stop Session Audit"
-traces_to = []
-hash = "4e61be89"
-body = '''
-**Description:** At session end, run a lightweight audit that checks whether high-priority instructions were followed during the session. Produces an audit report and feeds results into the effectiveness pipeline.
-
-**Starting state:** A session is ending (Stop hook fires). Memories were surfaced during the session. The surfacing log and transcript are available.
-
-**End state:** An audit report exists at `<data-dir>/audits/<timestamp>.json` with compliance checks for high-priority instructions. Results feed into the evaluate pipeline.
-
-**Actor:** System (Go binary triggered by Stop hook, after learn and before context-update).
-
-**Key interactions:**
-
-- **Enhanced Stop hook:** Audit phase runs after `engram learn` and `engram evaluate`, before context-update.
-- **Audit scope:** High-priority memories surfaced during the session + their outcomes. For skills invoked during the session, verify critical steps were performed.
-- **LLM assessment:** Single Haiku call to assess compliance against the instruction set using the transcript.
-- **Audit report:** Written to `<data-dir>/audits/<timestamp>.json` with per-instruction compliance status, evidence, and recommendations.
-- **Integration with effectiveness:** Audit results feed into the evaluate pipeline as additional outcome signals.
-- **No graceful degradation:** If no API token, emit stderr error and skip audit.
-- **Pure Go, no CGO.**
-
-**Dependencies:** UC-15 (evaluate infrastructure), UC-2 (surfacing log)
-
----
-'''
-
 [UC-2]
 name = "Hook-Time Surfacing & Enforcement"
 traces_to = []

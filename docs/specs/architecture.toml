@@ -1391,7 +1391,7 @@ All UC-16 L2 items have ARCH coverage.
 
 ---
 
-## L2 → ARCH Traceability (UC-17 & UC-19)
+## L2 → ARCH Traceability (UC-17)
 
 | L2 Item | ARCH Coverage |
 |---------|--------------|
@@ -1416,7 +1416,7 @@ All UC-16 L2 items have ARCH coverage.
 | DES-24 | ARCH-44 |
 | REQ-65 | ARCH-45 |
 
-All UC-17 & UC-19 L2 items have ARCH coverage.
+All UC-17 L2 items have ARCH coverage.
 
 ---
 '''
@@ -1487,84 +1487,8 @@ fi
 **Traces to:** REQ-66 (hook registration), DES-26 (config format), DES-27 (output format)
 
 ---
-'''
 
-[ARCH-48]
-name = "Cross-Source Instruction Scanner"
-traces_to = ["UC-19"]
-hash = "5b4b3684"
-body = '''
-**Decision:** New scanner that reads all instruction sources and produces a unified instruction registry. Each instruction is a structured item with source metadata, content, and effectiveness data.
-
-```go
-// internal/instruct/scanner.go
-type InstructionItem struct {
-    Source     string   // "memory", "claude_md", "rule", "skill"
-    Path       string   // file path
-    ID         string   // unique identifier
-    Text       string   // instruction content
-    Keywords   []string
-    Effectiveness float64  // from evaluation data, 0 if unavailable
-}
-
-type Scanner struct {
-    ReadFile    func(path string) ([]byte, error)
-    GlobFiles   func(pattern string) ([]string, error)
-    EffData     map[string]float64  // memory_id → effectiveness score
-}
-
-func (s *Scanner) ScanAll(dataDir, projectDir string) ([]InstructionItem, error) {
-    // 1. Scan CLAUDE.md (project + global) → extract by section header
-    // 2. Scan <data-dir>/memories/*.toml → extract title, principle, keywords
-    // 3. Scan .claude/rules/*.md → extract by file
-    // 4. Scan plugin skill directories → extract by file
-    // 5. Join effectiveness data where available
-    // 6. Return unified list
-}
-```
-
-**Traces to:** REQ-72 (scanning), REQ-73 (dedup input), REQ-76 (gap analysis input)
-
----
-'''
-
-[ARCH-49]
-name = "Instruct Audit Pipeline"
-traces_to = ["UC-19"]
-hash = "b563ae58"
-body = '''
-**Decision:** Pipeline for deduplication, quality diagnosis, refinement, gap analysis, and skill decomposition. LLM-dependent steps are skippable (no API token).
-
-```go
-// internal/instruct/audit.go
-type Auditor struct {
-    Scanner    *Scanner
-    LLMCaller  func(ctx, prompt) (string, error)  // nil = skip LLM steps
-    EvalData   map[string][]EvalRecord
-}
-
-func (a *Auditor) Run(ctx context.Context) (*AuditReport, error) {
-    // 1. ScanAll → unified instruction list
-    // 2. Deduplicate: pairwise keyword overlap >80% → duplicate pairs
-    // 3. If LLMCaller != nil:
-    //    a. Quality diagnosis: bottom 20% → Haiku diagnosis
-    //    b. Refinement proposals: rewrite diagnosed instructions
-    // 4. Gap analysis: contradicted evals without matching instruction
-    // 5. Skill decomposition: per-line effectiveness for skill files
-    // 6. Return AuditReport JSON
-}
-```
-
-**Design choices:**
-- **LLM-optional:** Dedup, gaps, skill decomposition work without API token.
-- **Salience hierarchy:** CLAUDE.md > rules > memories for dedup recommendations.
-- **Maintain-compatible proposals:** Memory proposals match UC-16 format.
-
-**Traces to:** REQ-74 (diagnosis), REQ-75 (proposals), REQ-76 (gaps), REQ-77 (skills), REQ-78 (CLI), REQ-79 (error handling)
-
----
-
-## L2 → ARCH Traceability (UC-18 & UC-20)
+## L2 → ARCH Traceability (UC-18)
 
 | L2 Item | ARCH Coverage |
 |---------|--------------|
@@ -1577,17 +1501,8 @@ func (a *Auditor) Run(ctx context.Context) (*AuditReport, error) {
 | REQ-70 | ARCH-46 |
 | DES-28 | ARCH-46 |
 | REQ-71 | ARCH-46 |
-| REQ-72 | ARCH-48 |
-| REQ-73 | ARCH-48, ARCH-49 |
-| REQ-74 | ARCH-49 |
-| DES-29 | ARCH-49 |
-| REQ-75 | ARCH-49 |
-| REQ-76 | ARCH-49 |
-| REQ-77 | ARCH-49 |
-| REQ-78 | ARCH-49 |
-| REQ-79 | ARCH-49 |
 
-All UC-18 & UC-20 L2 items have ARCH coverage.
+All UC-18 L2 items have ARCH coverage.
 
 ---
 '''
