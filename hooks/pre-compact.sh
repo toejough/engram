@@ -30,39 +30,14 @@ if [[ "$(uname)" == "Darwin" ]]; then
 fi
 export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
 
-# Read transcript from file path provided in stdin JSON
+# Read hook JSON from stdin
 STDIN_JSON="$(cat)"
 TRANSCRIPT_PATH="$(echo "$STDIN_JSON" | jq -r '.transcript_path // empty')"
-TRANSCRIPT=""
-if [[ -n "$TRANSCRIPT_PATH" && -f "$TRANSCRIPT_PATH" ]]; then
-    TRANSCRIPT="$(cat "$TRANSCRIPT_PATH")"
-fi
-
-if [[ -z "$TRANSCRIPT" ]]; then
-    echo "[engram] Warning: no transcript available — learn/evaluate skipped" >&2
-fi
-
-# UC-14: Final session context flush (synchronous — last chance)
 SESSION_ID="$(echo "$STDIN_JSON" | jq -r '.session_id // empty')"
-if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
-    "$ENGRAM_BIN" context-update \
-        --transcript-path "$TRANSCRIPT_PATH" \
-        --session-id "$SESSION_ID" \
-        --data-dir "$ENGRAM_DATA" || true
-fi
 
-# UC-1: Extract learnings from session transcript (incremental)
-if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
-    "$ENGRAM_BIN" learn --transcript-path "$TRANSCRIPT_PATH" \
-        --session-id "$SESSION_ID" --data-dir "$ENGRAM_DATA" || true
-elif [[ -n "$TRANSCRIPT" ]]; then
-    echo "$TRANSCRIPT" | "$ENGRAM_BIN" learn --data-dir "$ENGRAM_DATA" || true
-fi
+# Unified flush pipeline: learn → evaluate → context-update (#309)
+FLUSH_ARGS=(--data-dir "$ENGRAM_DATA")
+[[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
+[[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
 
-# UC-15: Evaluate outcome of surfaced memories
-if [[ -n "$TRANSCRIPT" ]]; then
-    echo "$TRANSCRIPT" | "$ENGRAM_BIN" evaluate --data-dir "$ENGRAM_DATA" || true
-fi
-
-# P2: Preserve high-value memories through compaction (UC-17 extension)
-"$ENGRAM_BIN" surface --mode precompact --budget 500 --data-dir "$ENGRAM_DATA" || true
+"$ENGRAM_BIN" flush "${FLUSH_ARGS[@]}" || true

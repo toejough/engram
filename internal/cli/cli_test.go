@@ -25,84 +25,6 @@ import (
 	regpkg "engram/internal/registry"
 )
 
-// TestAuditFlagParseError exercises the flag parse error path.
-func TestAuditFlagParseError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "audit", "--bogus-flag"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestAuditMissingDataDir verifies audit without --data-dir returns error.
-func TestAuditMissingDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "audit"},
-		&stdout, &stderr,
-		strings.NewReader("transcript"),
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestAuditStdinReadError exercises the stdin read error path via an errReader.
-//
-
-func TestAuditStdinReadError(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "audit", "--data-dir", dataDir,
-		},
-		&stdout, &stderr,
-		&errReader{err: errors.New("broken stdin")},
-	)
-	g.Expect(err).To(HaveOccurred())
-}
-
-// TestAuditWithBadTimestamp exercises the timestamp parse failure branch.
-//
-
-func TestAuditWithBadTimestamp(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "audit", "--data-dir", dataDir,
-			"--timestamp", "not-a-valid-timestamp",
-		},
-		&stdout, &stderr,
-		strings.NewReader("some transcript"),
-	)
-	// Bad timestamp is silently ignored; audit still runs (no memories → nil report → no error).
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
 // callAnthropicAPI error branches: invalid URL, bad JSON, empty content.
 // Not parallel — sub-tests mutate the cli.AnthropicAPIURL global sequentially.
 //
@@ -1302,7 +1224,7 @@ func TestT119_EvaluateSummaryFormat(t *testing.T) {
 }
 
 // T-120: Hook scripts invoke engram evaluate after learn.
-func TestT120_HookScriptsInvokeEvaluate(t *testing.T) {
+func TestT120_HookScriptsInvokeFlush(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -1319,8 +1241,8 @@ func TestT120_HookScriptsInvokeEvaluate(t *testing.T) {
 		}
 
 		content := string(data)
-		// Script uses $ENGRAM_BIN variable; check for the subcommand and flag.
-		g.Expect(content).To(ContainSubstring("evaluate --data-dir"))
+		// Scripts use unified flush command (#309).
+		g.Expect(content).To(ContainSubstring("flush"))
 		g.Expect(content).To(ContainSubstring("ENGRAM_DATA"))
 	}
 }

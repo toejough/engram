@@ -27,20 +27,28 @@ func NewFlushRunner(learn, evaluate, contextUpdate func() error) *FlushRunner {
 
 // Run executes the flush pipeline in order. Stops on first error.
 func (f *FlushRunner) Run() error {
-	if err := f.learn(); err != nil {
-		return fmt.Errorf("flush: learn: %w", err)
+	learnErr := f.learn()
+	if learnErr != nil {
+		return fmt.Errorf("flush: learn: %w", learnErr)
 	}
 
-	if err := f.evaluate(); err != nil {
-		return fmt.Errorf("flush: evaluate: %w", err)
+	evalErr := f.evaluate()
+	if evalErr != nil {
+		return fmt.Errorf("flush: evaluate: %w", evalErr)
 	}
 
-	if err := f.contextUpdate(); err != nil {
-		return fmt.Errorf("flush: context-update: %w", err)
+	ctxErr := f.contextUpdate()
+	if ctxErr != nil {
+		return fmt.Errorf("flush: context-update: %w", ctxErr)
 	}
 
 	return nil
 }
+
+// unexported variables.
+var (
+	errFlushMissingDataDir = errors.New("flush: --data-dir is required")
+)
 
 //nolint:funlen // CLI wiring function
 func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
@@ -52,12 +60,13 @@ func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 	dataDir := fs.String("data-dir", "", "path to data directory")
 	contextPath := fs.String("context-path", "", "path to session-context.md")
 
-	if parseErr := fs.Parse(args); parseErr != nil {
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
 		return fmt.Errorf("flush: %w", parseErr)
 	}
 
 	if *dataDir == "" {
-		return errors.New("flush: --data-dir is required")
+		return errFlushMissingDataDir
 	}
 
 	token := os.Getenv("ENGRAM_API_TOKEN")
@@ -87,7 +96,8 @@ func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 			if openErr != nil {
 				return fmt.Errorf("opening transcript: %w", openErr)
 			}
-			defer transcriptFile.Close()
+
+			defer func() { _ = transcriptFile.Close() }()
 
 			return RunEvaluate(evalArgs, token, stdout, stderr, transcriptFile)
 		},

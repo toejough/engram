@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"engram/internal/audit"
 	"engram/internal/classify"
 	sessionctx "engram/internal/context"
 	"engram/internal/correct"
@@ -124,8 +123,6 @@ func Run(
 	subArgs := args[minArgs:]
 
 	switch cmd {
-	case "audit":
-		return runAudit(subArgs, stdout, stderr, stdin)
 	case "correct":
 		return runCorrect(subArgs, stdout)
 	case "evaluate":
@@ -476,8 +473,6 @@ const (
 
 // unexported variables.
 var (
-	errAuditMissingFlags         = errors.New("audit: --data-dir required")
-	errAuditTokenMissing         = errors.New("audit: API token missing")
 	errContextUpdateMissingFlags = errors.New(
 		"context-update: --transcript-path, --session-id," +
 			" and --data-dir required",
@@ -1082,64 +1077,6 @@ func resolveSkillsDir() string {
 	}
 
 	return filepath.Join(pluginRoot, "skills")
-}
-
-func runAudit(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
-	fs := flag.NewFlagSet("audit", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	timestamp := fs.String("timestamp", "", "audit timestamp (ISO 8601)")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("audit: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errAuditMissingFlags
-	}
-
-	token := os.Getenv("ENGRAM_API_TOKEN")
-	if token == "" {
-		_, _ = fmt.Fprintln(stderr, "audit: API token missing or invalid, skipping audit")
-
-		return errAuditTokenMissing
-	}
-
-	transcriptBytes, err := io.ReadAll(stdin)
-	if err != nil {
-		return fmt.Errorf("audit: reading stdin: %w", err)
-	}
-
-	opts := []audit.Option{
-		audit.WithLLMCaller(makeAnthropicCaller(token)),
-	}
-
-	if *timestamp != "" {
-		parsed, parseTimeErr := time.Parse(time.RFC3339, *timestamp)
-		if parseTimeErr == nil {
-			opts = append(opts, audit.WithNow(func() time.Time { return parsed }))
-		}
-	}
-
-	auditor := audit.New(*dataDir, opts...)
-	ctx := context.Background()
-
-	transcript := strings.TrimSpace(string(transcriptBytes))
-
-	report, err := auditor.Run(ctx, transcript)
-	if err != nil {
-		return fmt.Errorf("audit: %w", err)
-	}
-
-	if report != nil {
-		_, _ = fmt.Fprintf(stdout,
-			"[engram] Audit: %d instructions, %d compliant, %d non-compliant.\n",
-			report.TotalInstructionsAudited, report.Compliant, report.NonCompliant)
-	}
-
-	return nil
 }
 
 //nolint:funlen // orchestration function

@@ -46,9 +46,6 @@ SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_
 # UC-28: Run maintenance classification (single source of truth for signals)
 SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "$ENGRAM_DATA" 2>/dev/null) || true
 
-# P6f: Surface pending graduation signals
-GRAD_OUTPUT=$("$ENGRAM_BIN" graduate-surface --data-dir "$ENGRAM_DATA" --format json 2>/dev/null) || true
-
 # UC-14: Restore session context (project-specific path)
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 CONTEXT_FILE="${ENGRAM_DATA}/projects/${PROJECT_SLUG}/session-context.md"
@@ -113,44 +110,16 @@ ${detail}
     done
 fi
 
-GRAD_CTX=""
-GRAD_COUNT=0
-if [[ -n "$GRAD_OUTPUT" ]]; then
-    GRAD_CTX=$(echo "$GRAD_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
-    GRAD_COUNT=$(echo "$GRAD_OUTPUT" | jq -r '.entries | length' 2>/dev/null) || GRAD_COUNT=0
-fi
-
-GRAD_DETAIL=""
-if [[ "$GRAD_COUNT" -gt 0 ]]; then
-    GRAD_DETAIL=$(echo "$GRAD_CTX" | jq -r '
-        [.entries[]] |
-        group_by(.recommendation) |
-        map(
-            "### \(.[0].recommendation) (\(length) candidates)\n" +
-            (to_entries | map(
-                "  \(.key + 1). **\(.value.title // .value.memory_path | split("/") | last | rtrimstr(".toml"))** (id: \(.value.id))\n     Recommendation: \(.value.recommendation)"
-            ) | join("\n"))
-        ) | "## Graduation Candidates (\([.[] | length] | add))\n" + join("\n\n")
-    ' 2>/dev/null) || true
-    if [[ -n "$GRAD_DETAIL" ]]; then
-        TRIAGE_DETAILS="${TRIAGE_DETAILS}
-${GRAD_DETAIL}
-"
-    fi
-fi
-
 # Build short summary for systemMessage (user sees this in terminal)
 # Full details go in additionalContext for Claude to reference on request
 DIRECTIVE=""
 TRIAGE_CTX=""
-if [[ "$PROPOSAL_COUNT" -gt 0 ]] || [[ "$GRAD_COUNT" -gt 0 ]]; then
+if [[ "$PROPOSAL_COUNT" -gt 0 ]]; then
     # Build a compact counts line
     COUNTS=""
     [[ "$NOISE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${NOISE_COUNT} noise"
     [[ "$HIDDEN_GEM_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${HIDDEN_GEM_COUNT} hidden gems"
     [[ "$LEECH_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${LEECH_COUNT} leech"
-    [[ "$GRAD_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${GRAD_COUNT} graduation candidates"
-
     DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
 
     # Full details + commands go in additionalContext

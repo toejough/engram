@@ -359,9 +359,9 @@ func TestT65_HooksJSONHasPreCompact(t *testing.T) {
 	g.Expect(hooksJSON).To(ContainSubstring("pre-compact.sh"))
 }
 
-// TestT67_PreCompactHookReadsTranscript verifies hooks/pre-compact.sh reads
-// transcript from stdin JSON, retrieves OAuth token, and calls engram learn (T-67).
-func TestT67_PreCompactHookReadsTranscript(t *testing.T) {
+// TestT67_PreCompactHookCallsFlush verifies hooks/pre-compact.sh reads
+// stdin JSON, retrieves OAuth token, and calls engram flush (#309).
+func TestT67_PreCompactHookCallsFlush(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -381,18 +381,15 @@ func TestT67_PreCompactHookReadsTranscript(t *testing.T) {
 	// Must read stdin JSON for transcript
 	g.Expect(script).To(ContainSubstring("jq"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	// Must use transcript_path, not inline transcript content
+	// Must use transcript_path from stdin JSON
 	g.Expect(script).To(ContainSubstring(".transcript_path"))
-	g.Expect(script).NotTo(ContainSubstring(".transcript //"))
-	// Must warn when no transcript available
-	g.Expect(script).To(ContainSubstring("no transcript available"))
 	// Must retrieve OAuth token (DES-3 pattern)
 	g.Expect(script).To(ContainSubstring("uname"))
 	g.Expect(script).To(ContainSubstring("Darwin"))
 	g.Expect(script).To(ContainSubstring("security find-generic-password"))
 	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
-	// Must call engram learn with --data-dir
-	g.Expect(script).To(ContainSubstring("learn"))
+	// Must call unified flush command (#309)
+	g.Expect(script).To(ContainSubstring("flush"))
 	g.Expect(script).To(ContainSubstring("--data-dir"))
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 }

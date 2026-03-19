@@ -24,40 +24,15 @@ HOOK_JSON="$(cat)"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
 
-# UC-1: Extract learnings (synchronous — last chance before exit)
-if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
-    "$ENGRAM_BIN" learn --transcript-path "$TRANSCRIPT_PATH" \
-        --session-id "$SESSION_ID" --data-dir "$ENGRAM_DATA" || true
-fi
-
-# REQ-P4e-6: Sum per-invocation token counts before evaluate clears the surfacing log.
-SURFACING_LOG="${ENGRAM_DATA}/surfacing-log.jsonl"
-if [[ -f "$SURFACING_LOG" ]]; then
-    SESSION_TOKENS=$(jq -s '[.[].token_count // 0] | add // 0' "$SURFACING_LOG" 2>/dev/null || echo 0)
-    echo "[engram] session token total: ${SESSION_TOKENS}" >&2
-fi
-
-# UC-17: Evaluate memory effectiveness
-if [[ -n "$TRANSCRIPT_PATH" ]]; then
-    "$ENGRAM_BIN" evaluate --data-dir "$ENGRAM_DATA" < "$TRANSCRIPT_PATH" || true
-fi
-
-# UC-19: Audit session compliance (after evaluate, before context-update)
-if [[ -n "$TRANSCRIPT_PATH" ]]; then
-    AUDIT_TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    "$ENGRAM_BIN" audit --data-dir "$ENGRAM_DATA" \
-        --timestamp "$AUDIT_TIMESTAMP" < "$TRANSCRIPT_PATH" || true
-fi
-
-# UC-14: Update session context (synchronous — Stop is the last chance)
-# Project-specific context path follows Claude Code's convention
+# Project-specific context path
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 CONTEXT_DIR="${ENGRAM_DATA}/projects/${PROJECT_SLUG}"
 mkdir -p "$CONTEXT_DIR" 2>/dev/null || true
-if [[ -n "$TRANSCRIPT_PATH" && -n "$SESSION_ID" ]]; then
-    "$ENGRAM_BIN" context-update \
-        --transcript-path "$TRANSCRIPT_PATH" \
-        --session-id "$SESSION_ID" \
-        --data-dir "$ENGRAM_DATA" \
-        --context-path "${CONTEXT_DIR}/session-context.md" || true
-fi
+
+# Unified flush pipeline: learn → evaluate → context-update (#309)
+FLUSH_ARGS=(--data-dir "$ENGRAM_DATA")
+[[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
+[[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
+FLUSH_ARGS+=(--context-path "${CONTEXT_DIR}/session-context.md")
+
+"$ENGRAM_BIN" flush "${FLUSH_ARGS[@]}" || true
