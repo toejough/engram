@@ -1240,136 +1240,6 @@ type BudgetStats struct {
 **Traces to:** REQ-58 (budget reporting), REQ-59 (warning detection)
 
 ---
-'''
-
-[ARCH-42]
-name = "Stop Hook Audit Phase"
-traces_to = ["UC-17"]
-hash = "3f6ae2b8"
-body = '''
-**Decision:** Stop hook is expanded to a 4-phase pipeline with audit as the 3rd phase. New `engram audit` command is invoked between `engram evaluate` and `engram context-update`.
-
-```bash
-# hooks/stop.sh phase ordering:
-engram learn --transcript-path "$TRANSCRIPT_PATH" --session-id "$SESSION_ID"  # Phase 1
-engram evaluate --data-dir "$DATA_DIR"                                       # Phase 2
-engram audit --data-dir "$DATA_DIR" --timestamp "$(date ...)"               # Phase 3 (NEW)
-engram context-update --data-dir "$DATA_DIR"                                 # Phase 4
-
-# Each phase runs; errors are logged but don't block next phase (fire-and-forget)
-```
-
-**Design choices:**
-- **Audit timing:** After effectiveness evaluation (so audit can access updated scores) and before context-update (so audit results don't affect next session's initialization).
-- **Fire-and-forget errors:** If audit fails (e.g., no API token), error is logged to stderr but other phases continue.
-- **Single audit per session:** One `engram audit` call per Stop hook invocation.
-
-**Traces to:** REQ-60 (stop hook timing)
-
----
-'''
-
-[ARCH-43]
-name = "Audit Command Structure"
-traces_to = ["UC-17"]
-hash = "c754b3f6"
-body = '''
-**Decision:** New CLI subcommand `engram audit --data-dir <path> --timestamp <iso8601>`. Reads session data (surfacing logs, effectiveness data, transcript), invokes Haiku for compliance assessment, writes audit report, and injects results into effectiveness pipeline.
-
-```go
-// cmd/engram/audit.go
-func runAudit(ctx context.Context, dataDir, timestamp string) error {
-    // 1. Parse surfacing logs: extract high-priority memories from session
-    // 2. Load effectiveness data: get effectiveness scores for those memories
-    // 3. Read transcript (passed via stdin or file path)
-    // 4. Build audit scope JSON: [{memory_id, effectiveness_score, ...}, ...]
-    // 5. Call Haiku with scope + transcript: get compliance assessments
-    // 6. Write audit report: <data-dir>/audits/<timestamp>.json
-    // 7. Inject results into effectiveness: call evaluate.InjectAuditResults(report)
-    // 8. Return error if API fails; log to stderr, exit 1 (fire-and-forget in hook)
-}
-```
-
-**Command signature:**
-```bash
-engram audit --data-dir <path> --timestamp <iso8601> [--transcript-path <path>|--transcript-stdin]
-```
-
-**Design choices:**
-- **Audit scope:** Only high-priority memories (top 20% by effectiveness score) are included in scope.
-- **LLM call:** Single Haiku call assesses compliance across all scope items.
-- **Atomic report write:** Report is written to `audits/<timestamp>.json` after LLM assessment succeeds.
-- **Effectiveness injection:** After report write, results are injected into effectiveness data as outcome signals.
-
-**Traces to:** REQ-61 (scope), REQ-62 (LLM assessment), REQ-63 (report format)
-
----
-'''
-
-[ARCH-44]
-name = "Effectiveness Signal Injection from Audit Results"
-traces_to = ["UC-17"]
-hash = "82cf51db"
-body = '''
-**Decision:** After audit report is written, compliance results are fed into the effectiveness evaluation pipeline as negative outcome signals for non-compliant memories.
-
-```go
-// internal/evaluate/evaluate.go
-func InjectAuditResults(auditReport *AuditReport) error {
-    // 1. Parse audit report JSON
-    // 2. For each non_compliant result:
-    //    - Look up memory ID in effectiveness registry
-    //    - Add negative outcome: {outcome_type: "audit_non_compliance", timestamp: audit_timestamp, outcome_value: -1}
-    //    - Save updated effectiveness data
-    // 3. Return nil (errors logged to stderr, non-fatal)
-}
-
-type OutcomeSignal struct {
-    OutcomeType string    // "audit_non_compliance"
-    Timestamp   time.Time
-    Value       int       // -1 for non-compliance
-    Evidence    string    // from audit report
-}
-```
-
-**Design choices:**
-- **Negative signal:** Non-compliance lowers the memory's follow rate in future effectiveness aggregations.
-- **Signal strength:** -1 per violation (proportional to frequency of violations in evaluations).
-- **No lookup failure:** If memory ID doesn't exist in effectiveness data, signal is skipped (non-fatal).
-- **Permanent record:** Audit results persist in effectiveness history for visibility into long-term patterns.
-
-**Traces to:** REQ-64 (effectiveness integration)
-
----
-'''
-
-[ARCH-45]
-name = "Audit Error Handling (No Graceful Degradation)"
-traces_to = ["UC-17"]
-hash = "605b222b"
-body = '''
-**Decision:** If Haiku API call fails (missing/invalid token), audit phase emits error to stderr and skips the audit. No report is written. Other Stop hook phases continue.
-
-```go
-// In runAudit:
-if token := os.Getenv("ANTHROPIC_API_KEY"); token == "" {
-    fmt.Fprintf(os.Stderr, "audit: API token missing or invalid, skipping audit\n")
-    return ErrMissingToken  // exit code 1
-}
-
-// Hook script ignores exit code (fire-and-forget pattern)
-// Other phases continue even if audit fails
-```
-
-**Design choices:**
-- **Fail-open:** If audit can't run, the system continues without degradation.
-- **Error is visible:** stderr message indicates the audit was skipped.
-- **No partial reports:** If LLM call fails mid-assessment, no report is written (atomic behavior).
-- **Hook resilience:** Stop hook continues even if one phase fails.
-
-**Traces to:** REQ-65 (error handling)
-
----
 
 ## L2 → ARCH Traceability (UC-16)
 
@@ -1381,11 +1251,9 @@ if token := os.Getenv("ANTHROPIC_API_KEY"); token == "" {
 | REQ-50 | ARCH-36 |
 | REQ-51 | ARCH-36 |
 | REQ-52 | ARCH-36 |
-| DES-24 | ARCH-36 |
 | DES-25 | ARCH-36 |
 | REQ-53 | ARCH-37 |
 | REQ-54 | ARCH-37 |
-| DES-23 | ARCH-37 |
 
 All UC-16 L2 items have ARCH coverage.
 
@@ -1405,18 +1273,8 @@ All UC-16 L2 items have ARCH coverage.
 | DES-19 | ARCH-41 |
 | REQ-59 | ARCH-41 |
 | DES-20 | ARCH-41 |
-| REQ-60 | ARCH-42 |
-| DES-21 | ARCH-42 |
-| REQ-61 | ARCH-43 |
-| DES-22 | ARCH-43 |
-| REQ-62 | ARCH-43 |
-| DES-23 | ARCH-43 |
-| REQ-63 | ARCH-43 |
-| REQ-64 | ARCH-44 |
-| DES-24 | ARCH-44 |
-| REQ-65 | ARCH-45 |
 
-All UC-17 L2 items have ARCH coverage.
+All UC-17 L2 items have ARCH coverage (audit items ARCH-42–45 deleted — referenced code removed).
 
 ---
 '''
@@ -1907,39 +1765,33 @@ name = "SourceRegistrar Component (UC-26)"
 traces_to = ["UC-26"]
 hash = "214569bc"
 body = '''
-**Decision:** New `internal/register/` package with `Registrar` struct that orchestrates the 4-phase auto-registration flow from DES-40.
+**Decision:** New `internal/register/` package with `Registrar` struct that orchestrates memory auto-registration.
 
 ```go
-type SourceConfig struct {
-    ClaudeMDPaths []string // e.g., ["./CLAUDE.md", "~/.claude/CLAUDE.md"]
-    MemoryMDPaths []string // e.g., ["~/.claude/projects/<slug>/memory/MEMORY.md"]
-    RulesDir      string   // e.g., ".claude/rules/"
-    SkillsDir     string   // e.g., "<plugin-root>/skills/"
-}
-
 type Registrar struct {
     registry       Registry           // Register, Remove, List, RecordSurfacing
     surfacingLog   SurfacingLogger    // LogSurfacing (for evaluate pipeline)
     readFile       func(string) ([]byte, error)
     readDir        func(string) ([]os.DirEntry, error)
-    glob           func(string) ([]string, error)
     now            func() time.Time
 }
 
-func (r *Registrar) Run(config SourceConfig) error {
-    // 1. Discover: scan all configured paths, extract entries via crossref extractors (ARCH-79)
-    // 2. Register: for each discovered entry, register or update content hash
-    // 3. Prune: list registry, remove non-memory entries not in discovered set
+func (r *Registrar) Run(dataDir string) error {
+    // 1. Discover: scan memory TOML files in data directory
+    // 2. Register: for each discovered memory, register or update content hash
+    // 3. Prune: list registry, remove entries not in discovered set
     // 4. Record surfacing: for each always-loaded entry, call registry.RecordSurfacing
     //    AND surfacingLog.LogSurfacing (so evaluate pipeline picks them up)
 }
 ```
 
-**DI boundary:** All I/O injected — readFile, readDir, glob for source discovery; Registry interface for state management; SurfacingLogger interface for evaluate integration. No direct `os.*` calls.
+Non-memory source discovery (ClaudeMD, rules, skills extractors) was removed in Cycle 4 (#214). Only memory TOML files are registered.
+
+**DI boundary:** All I/O injected — readFile, readDir for memory discovery; Registry interface for state management; SurfacingLogger interface for evaluate integration. No direct `os.*` calls.
 
 **Key design choice:** Implicit surfacing writes to BOTH the registry (`RecordSurfacing` for long-term tracking) and the surfacing log (`LogSurfacing` for per-session evaluate input). The evaluator reads the surfacing log to know what was active this session.
 
-**Traces to:** REQ-112 (source discovery), REQ-113 (auto-registration), REQ-114 (stale pruning), REQ-115 (implicit surfacing), REQ-118 (idempotency), DES-40 (flow ordering), DES-41 (source paths)
+**Traces to:** REQ-113 (auto-registration), REQ-114 (stale pruning), REQ-115 (implicit surfacing), REQ-118 (idempotency), DES-40 (flow ordering)
 
 ---
 '''
