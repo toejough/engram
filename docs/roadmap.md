@@ -101,7 +101,7 @@ Complete before starting Cycle 4 feature work.
 | Issue | What | Status |
 |-------|------|--------|
 | [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ✅ Done (ARCH-82, T-363–369) |
-| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ⏳ Next |
+| [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ✅ Done (flush command, audit deleted, hooks unified) |
 | [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | ⏳ Deferred |
 
 ---
