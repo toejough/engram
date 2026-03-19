@@ -96,8 +96,8 @@ Engram hooks into 7 Claude Code hook points:
 | Tool use | `PreToolUse` | Surface tool-specific memories (e.g., file-path-relevant instructions). |
 | After tool | `PostToolUse` | Surface memories relevant to the tool call and its output. |
 | Tool failure | `PostToolUseFailure` | Diagnose errors and surface relevant memories. |
-| Compact | `PreCompact` | Flush incremental learning before context window compaction. |
-| End | `Stop` | Final learning extraction. Evaluate memory effectiveness. Session compliance audit. Save session context for continuity. |
+| Compact | `PreCompact` | Unified flush: learning extraction, evaluate memory effectiveness, save session context. |
+| End | `Stop` | Unified flush: learning extraction, evaluate memory effectiveness, save session context. |
 
 ## Data files
 
@@ -108,7 +108,6 @@ All data lives in `~/.claude/engram/data/`:
 | `memories/*.toml` | Structured memory files with embedded registry data (surfaced count, evaluation counters, enforcement level) |
 | `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
 | `evaluations/*.jsonl` | Per-session evaluation results (followed/contradicted/ignored) |
-| `audits/*.json` | Session compliance audit results |
 | `projects/<slug>/session-context.md` | Per-project continuity context carried across sessions |
 | `signal-queue.jsonl` | Queued signals for memory maintenance |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |
@@ -178,13 +177,10 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 | UC-16 | Unified Memory Maintenance |
 | UC-17 | Context Budget Management |
 | UC-18 | PostToolUse Proactive Reminders |
-| UC-19 | Stop Session Audit |
-| UC-20 | Memory Instruction Quality Audit |
 | UC-21 | Enforcement Escalation Ladder |
 | UC-23 | Unified Instruction Registry |
 | UC-24 | Proposal Application |
 | UC-25 | Evaluate Strip Preprocessing |
-| UC-26 | First-Class Non-Memory Instruction Sources |
 | UC-27 | Global Binary Installation |
 | UC-28 | Automatic Maintenance and Promotion Triggers |
 | UC-32 | Memory Graph with Spreading Activation |
