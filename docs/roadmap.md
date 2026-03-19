@@ -96,18 +96,14 @@ Complete before starting Cycle 4 feature work.
 
 ---
 
-## Cycle 4 — Dedup Sophistication + Memory Management
+## Cycle 4 — Dedup Sophistication + Memory Management ✅ Complete
 
 | Issue | What | Status |
 |-------|------|--------|
 | [#305](https://github.com/toejough/engram/issues/305) | UC-34: TF-IDF as secondary duplicate detection signal | ✅ Done (ARCH-82, T-363–369) |
 | [#309](https://github.com/toejough/engram/issues/309) | Unify memory management across clear/compact/restart | ✅ Done (flush command, audit deleted, hooks unified) |
 | [#214](https://github.com/toejough/engram/issues/214) | Detect memories redundant with skill/plugin behavior | ✅ Descoped — deleted non-memory registration code |
+| [#324](https://github.com/toejough/engram/issues/324) | `traced verify` broken | ✅ Closed — upstream traced#38 shipped |
+| [#337](https://github.com/toejough/engram/issues/337) | Flush pipeline ordering integration test | ✅ Done (retro action item) |
 
----
-
-## Backlog (unscheduled)
-
-| Issue | What | Blocker |
-|-------|------|---------|
-| [#324](https://github.com/toejough/engram/issues/324) | `traced verify` broken | Upstream traced#38 |
+Summary: -2,400 net lines. Added TF-IDF scorer + flush command. Deleted audit system, non-memory registration, token-sum, graduate-surface. 20 stale spec items cleaned up in review.
