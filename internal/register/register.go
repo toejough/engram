@@ -1,5 +1,5 @@
-// Package register orchestrates auto-registration of non-memory instruction
-// sources into the unified instruction registry (ARCH-69).
+// Package register orchestrates registration of memory entries
+// into the unified instruction registry.
 package register
 
 import (
@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -18,13 +17,10 @@ import (
 type Option func(*Registrar)
 
 // Registrar orchestrates discovery, registration, pruning, and implicit
-// surfacing of non-memory instruction sources.
+// surfacing of memory entries.
 type Registrar struct {
 	registry     Registry
 	surfacingLog SurfacingLogger
-	readFile     func(string) ([]byte, error)
-	readDir      func(string) ([]os.DirEntry, error)
-	glob         func(string) ([]string, error)
 	now          func() time.Time
 	stderr       io.Writer
 }
@@ -35,9 +31,6 @@ func NewRegistrar(reg Registry, logger SurfacingLogger, opts ...Option) *Registr
 	r := &Registrar{
 		registry:     reg,
 		surfacingLog: logger,
-		readFile:     os.ReadFile,
-		readDir:      os.ReadDir,
-		glob:         filepath.Glob,
 		now:          time.Now,
 		stderr:       os.Stderr,
 	}
@@ -49,226 +42,19 @@ func NewRegistrar(reg Registry, logger SurfacingLogger, opts ...Option) *Registr
 	return r
 }
 
-// Run executes the 4-phase registration pipeline:
-// 1. Discover sources, 2. Register/update, 3. Prune stale, 4. Record surfacing.
-func (r *Registrar) Run(config SourceConfig) error {
-	// Phase 1: Discover.
-	discovered := r.discover(config)
+// Run executes the 3-phase registration pipeline:
+// 1. Register/update entries, 2. Prune stale, 3. Record surfacing.
+func (r *Registrar) Run(entries []registry.InstructionEntry) error {
+	// Phase 1: Register / update.
+	r.registerEntries(entries)
 
-	// Phase 2: Register / update.
-	r.registerEntries(discovered)
+	// Phase 2: Prune stale non-memory entries.
+	r.pruneStale(entries)
 
-	// Phase 3: Prune stale non-memory entries.
-	r.pruneStale(discovered)
-
-	// Phase 4: Record implicit surfacing.
-	r.recordSurfacing(discovered)
+	// Phase 3: Record implicit surfacing.
+	r.recordSurfacing(entries)
 
 	return nil
-}
-
-// discover extracts instruction entries from all configured sources.
-func (r *Registrar) discover(config SourceConfig) []registry.InstructionEntry {
-	discovered := make([]registry.InstructionEntry, 0, 4) //nolint:mnd // four source types
-
-	discovered = append(discovered, r.discoverClaudeMD(config.ClaudeMDPaths)...)
-	discovered = append(discovered, r.discoverMemoryMD(config.MemoryMDPaths)...)
-	discovered = append(discovered, r.discoverRules(config.RulesDir)...)
-	discovered = append(discovered, r.discoverSkills(config.SkillsDir)...)
-
-	return discovered
-}
-
-// discoverClaudeMD reads and extracts entries from CLAUDE.md files.
-func (r *Registrar) discoverClaudeMD(paths []string) []registry.InstructionEntry {
-	var result []registry.InstructionEntry
-
-	for _, path := range paths {
-		content, err := r.readFile(path)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-
-			r.logErrorf("reading claude-md %s: %v", path, err)
-
-			continue
-		}
-
-		extractor := registry.ClaudeMDExtractor{
-			Content:    string(content),
-			SourcePath: path,
-		}
-
-		entries, extractErr := extractor.Extract()
-		if extractErr != nil {
-			r.logErrorf("extracting claude-md %s: %v", path, extractErr)
-
-			continue
-		}
-
-		// Override timestamps with injected now.
-		now := r.now()
-		for idx := range entries {
-			entries[idx].RegisteredAt = now
-			entries[idx].UpdatedAt = now
-		}
-
-		result = append(result, entries...)
-	}
-
-	return result
-}
-
-// discoverMemoryMD reads and extracts entries from MEMORY.md files.
-func (r *Registrar) discoverMemoryMD(paths []string) []registry.InstructionEntry {
-	var result []registry.InstructionEntry
-
-	for _, path := range paths {
-		content, err := r.readFile(path)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-
-			r.logErrorf("reading memory-md %s: %v", path, err)
-
-			continue
-		}
-
-		extractor := registry.MemoryMDExtractor{
-			Content:    string(content),
-			SourcePath: path,
-		}
-
-		entries, extractErr := extractor.Extract()
-		if extractErr != nil {
-			r.logErrorf("extracting memory-md %s: %v", path, extractErr)
-
-			continue
-		}
-
-		now := r.now()
-		for idx := range entries {
-			entries[idx].RegisteredAt = now
-			entries[idx].UpdatedAt = now
-		}
-
-		result = append(result, entries...)
-	}
-
-	return result
-}
-
-// discoverRules reads rule files from the rules directory.
-func (r *Registrar) discoverRules(rulesDir string) []registry.InstructionEntry {
-	if rulesDir == "" {
-		return nil
-	}
-
-	dirEntries, err := r.readDir(rulesDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil
-		}
-
-		r.logErrorf("reading rules dir %s: %v", rulesDir, err)
-
-		return nil
-	}
-
-	var result []registry.InstructionEntry
-
-	for _, dirEntry := range dirEntries {
-		if dirEntry.IsDir() {
-			continue
-		}
-
-		filePath := rulesDir + "/" + dirEntry.Name()
-
-		content, readErr := r.readFile(filePath)
-		if readErr != nil {
-			r.logErrorf("reading rule %s: %v", filePath, readErr)
-
-			continue
-		}
-
-		extractor := registry.RuleExtractor{
-			Filename: dirEntry.Name(),
-			Content:  string(content),
-		}
-
-		entries, extractErr := extractor.Extract()
-		if extractErr != nil {
-			r.logErrorf("extracting rule %s: %v", filePath, extractErr)
-
-			continue
-		}
-
-		// Override timestamps with injected now.
-		now := r.now()
-		for idx := range entries {
-			entries[idx].RegisteredAt = now
-			entries[idx].UpdatedAt = now
-		}
-
-		result = append(result, entries...)
-	}
-
-	return result
-}
-
-// discoverSkills finds skill directories and extracts entries from SKILL.md files.
-func (r *Registrar) discoverSkills(skillsDir string) []registry.InstructionEntry {
-	if skillsDir == "" {
-		return nil
-	}
-
-	pattern := skillsDir + "/*/SKILL.md"
-
-	matches, err := r.glob(pattern)
-	if err != nil {
-		r.logErrorf("globbing skills %s: %v", pattern, err)
-
-		return nil
-	}
-
-	var result []registry.InstructionEntry
-
-	for _, matchPath := range matches {
-		content, readErr := r.readFile(matchPath)
-		if readErr != nil {
-			r.logErrorf("reading skill %s: %v", matchPath, readErr)
-
-			continue
-		}
-
-		// Extract skill name from path: /skills/<name>/SKILL.md
-		dir := filepath.Dir(matchPath)
-		skillName := filepath.Base(dir)
-
-		extractor := registry.SkillExtractor{
-			SkillName: skillName,
-			Content:   string(content),
-		}
-
-		entries, extractErr := extractor.Extract()
-		if extractErr != nil {
-			r.logErrorf("extracting skill %s: %v", matchPath, extractErr)
-
-			continue
-		}
-
-		now := r.now()
-		for idx := range entries {
-			entries[idx].RegisteredAt = now
-			entries[idx].UpdatedAt = now
-		}
-
-		result = append(result, entries...)
-	}
-
-	return result
 }
 
 // logErrorf writes an error message to stderr without failing the pipeline.
@@ -387,37 +173,14 @@ type Registry interface {
 	Get(id string) (*registry.InstructionEntry, error)
 }
 
-// SourceConfig defines the file paths to scan for instruction sources.
-type SourceConfig struct {
-	ClaudeMDPaths []string
-	MemoryMDPaths []string
-	RulesDir      string
-	SkillsDir     string
-}
-
 // SurfacingLogger logs surfacing events for the evaluate pipeline.
 type SurfacingLogger interface {
 	LogSurfacing(memoryPath, mode string, timestamp time.Time) error
 }
 
-// WithGlob injects a glob function.
-func WithGlob(fn func(string) ([]string, error)) Option {
-	return func(r *Registrar) { r.glob = fn }
-}
-
 // WithNow injects a time provider function.
 func WithNow(fn func() time.Time) Option {
 	return func(r *Registrar) { r.now = fn }
-}
-
-// WithReadDir injects a directory reader function.
-func WithReadDir(fn func(string) ([]os.DirEntry, error)) Option {
-	return func(r *Registrar) { r.readDir = fn }
-}
-
-// WithReadFile injects a file reader function.
-func WithReadFile(fn func(string) ([]byte, error)) Option {
-	return func(r *Registrar) { r.readFile = fn }
 }
 
 // WithStderr injects a writer for error logging.

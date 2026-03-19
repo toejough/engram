@@ -170,8 +170,8 @@ func TestBuildTargets(t *testing.T) {
 		g := gomega.NewWithT(t)
 
 		targets := cli.BuildTargets(func(_ string, _ []string) {})
-		// 10 individual commands + 1 registry group = 11 entries
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 11))
+		// Individual commands + registry group.
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 9))
 	})
 
 	t.Run("each subcommand wires to correct name", func(t *testing.T) {
@@ -209,14 +209,12 @@ func TestBuildTargets(t *testing.T) {
 			}
 		})
 
-		registrySubs := []string{"init", "register-source", "merge"}
+		registrySubs := []string{"merge"}
 		for _, sub := range registrySubs {
 			_, _ = targ.Execute([]string{"engram", "registry", sub}, targets...)
 		}
 
 		g.Expect(calls).To(gomega.Equal([]string{
-			"registry/init",
-			"registry/register-source",
 			"registry/merge",
 		}))
 	})
@@ -459,42 +457,6 @@ func TestMaintainFlags(t *testing.T) {
 	})
 }
 
-func TestRegistryInitFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("with dry run", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DataDir: "/data", DryRun: true})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--dry-run"}))
-	})
-
-	t.Run("without dry run", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryInitFlags(cli.RegistryInitArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("dry-run true no data-dir", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryInitFlags(cli.RegistryInitArgs{DryRun: true})
-		g.Expect(result).To(gomega.Equal([]string{"--dry-run"}))
-	})
-}
-
 func TestRegistryMergeFlags(t *testing.T) {
 	t.Parallel()
 
@@ -528,48 +490,6 @@ func TestRegistryMergeFlags(t *testing.T) {
 
 		result := cli.RegistryMergeFlags(cli.RegistryMergeArgs{SourceID: "src-1"})
 		g.Expect(result).To(gomega.Equal([]string{"--source", "src-1"}))
-	})
-}
-
-func TestRegistryRegisterSourceFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{
-			DataDir:    "/data",
-			SourceType: "claude-md",
-			Path:       "/path/to/source",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--data-dir", "/data",
-			"--type", "claude-md",
-			"--path", "/path/to/source",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.RegistryRegisterSourceFlags(cli.RegistryRegisterSourceArgs{
-			SourceType: "memory-md",
-			Path:       "/memories.md",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--type", "memory-md",
-			"--path", "/memories.md",
-		}))
 	})
 }
 

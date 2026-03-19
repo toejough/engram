@@ -74,24 +74,11 @@ type MaintainArgs struct {
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// RegistryInitArgs holds parsed flags for the registry init subcommand.
-type RegistryInitArgs struct {
-	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	DryRun  bool   `targ:"flag,name=dry-run,desc=print entries without writing"`
-}
-
 // RegistryMergeArgs holds parsed flags for the registry merge subcommand.
 type RegistryMergeArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	SourceID string `targ:"flag,name=source,desc=source instruction ID"`
 	TargetID string `targ:"flag,name=target,desc=target instruction ID"`
-}
-
-// RegistryRegisterSourceArgs holds parsed flags for the registry register-source subcommand.
-type RegistryRegisterSourceArgs struct {
-	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	SourceType string `targ:"flag,name=type,desc=source type (claude-md or memory-md or rule or skill)"`
-	Path       string `targ:"flag,name=path,desc=path to source file or name"`
 }
 
 // ReviewArgs holds parsed flags for the review subcommand.
@@ -184,15 +171,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
 		targ.Group("registry",
-			targ.Targ(func(a RegistryInitArgs) {
-				run("registry", append([]string{"init"}, RegistryInitFlags(a)...))
-			}).Name("init").Description("Backfill registry from memory files"),
-			targ.Targ(func(a RegistryRegisterSourceArgs) {
-				run(
-					"registry",
-					append([]string{"register-source"}, RegistryRegisterSourceFlags(a)...),
-				)
-			}).Name("register-source").Description("Register a single source"),
 			targ.Targ(func(a RegistryMergeArgs) {
 				run("registry", append([]string{"merge"}, RegistryMergeFlags(a)...))
 			}).Name("merge").Description("Merge two registry entries"),
@@ -247,22 +225,9 @@ func MaintainFlags(a MaintainArgs) []string {
 	return flags
 }
 
-// RegistryInitFlags returns the CLI flag args for the registry init subcommand.
-func RegistryInitFlags(a RegistryInitArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
-	flags = AddBoolFlag(flags, "--dry-run", a.DryRun)
-
-	return flags
-}
-
 // RegistryMergeFlags returns the CLI flag args for the registry merge subcommand.
 func RegistryMergeFlags(a RegistryMergeArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir, "--source", a.SourceID, "--target", a.TargetID)
-}
-
-// RegistryRegisterSourceFlags returns the CLI flag args for the registry register-source subcommand.
-func RegistryRegisterSourceFlags(a RegistryRegisterSourceArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--type", a.SourceType, "--path", a.Path)
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.
