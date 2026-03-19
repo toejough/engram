@@ -6071,3 +6071,34 @@ Then the returned MergePlan includes a Confidence field of 0.72.
 
 - Example-based: validates dry-run surfaces TF-IDF confidence for user audit.
 '''
+
+[T-370]
+name = "flush command runs learn, evaluate, context-update in order"
+traces_to = ["UC-1", "UC-17", "UC-14"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** learn, evaluate, context-update injected as DI functions; no real I/O
+
+Given a flush runner with injected step functions that record call order,
+When Flush is called with valid transcript-path, session-id, data-dir, and context-path,
+Then all three steps are called in order: learn first, evaluate second, context-update third.
+
+- Example-based: validates the canonical flush ordering that prevents the evaluate-before-audit bug.
+'''
+
+[T-371]
+name = "flush command stops on first step error"
+traces_to = ["UC-1", "UC-17", "UC-14"]
+hash = ""
+body = '''
+**Verification type:** unit
+**I/O boundaries:** learn, evaluate, context-update injected as DI functions; no real I/O
+
+Given a flush runner where evaluate returns an error,
+When Flush is called,
+Then learn was called, evaluate was called, context-update was NOT called,
+and the returned error wraps the evaluate error.
+
+- Example-based: validates fail-fast behavior.
+'''

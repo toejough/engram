@@ -130,6 +130,8 @@ func Run(
 		return runCorrect(subArgs, stdout)
 	case "evaluate":
 		return runEvaluate(subArgs, stdout, stderr, stdin)
+	case "flush":
+		return runFlush(subArgs, stdout, stderr, stdin)
 	case "review":
 		return RunReview(subArgs, stdout)
 	case "maintain":
