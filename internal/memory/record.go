@@ -1,5 +1,29 @@
 package memory
 
+// AbsorbedRecord records a memory that was merged into this one.
+type AbsorbedRecord struct {
+	From          string             `toml:"from"`
+	SurfacedCount int                `toml:"surfaced_count"`
+	Evaluations   EvaluationCounters `toml:"evaluations"`
+	ContentHash   string             `toml:"content_hash"`
+	MergedAt      string             `toml:"merged_at"`
+}
+
+// EvaluationCounters holds feedback outcome counts for an absorbed memory.
+type EvaluationCounters struct {
+	Followed     int `toml:"followed"`
+	Contradicted int `toml:"contradicted"`
+	Ignored      int `toml:"ignored"`
+}
+
+// LinkRecord represents a directed relationship between two memory files.
+type LinkRecord struct {
+	Target           string  `toml:"target"`
+	Weight           float64 `toml:"weight"`
+	Basis            string  `toml:"basis"`
+	CoSurfacingCount int     `toml:"co_surfacing_count,omitempty"`
+}
+
 // MemoryRecord is the canonical struct for reading and writing memory TOML files.
 //
 //nolint:revive // "memory.MemoryRecord" stutter is intentional for clarity. See #353.
@@ -26,4 +50,25 @@ type MemoryRecord struct {
 	IgnoredCount      int    `toml:"ignored_count"`
 	IrrelevantCount   int    `toml:"irrelevant_count"`
 	LastSurfacedAt    string `toml:"last_surfaced_at"`
+
+	// Provenance.
+	SourceType  string `toml:"source_type,omitempty"`
+	SourcePath  string `toml:"source_path,omitempty"`
+	ContentHash string `toml:"content_hash,omitempty"`
+
+	// Enforcement escalation.
+	EnforcementLevel string             `toml:"enforcement_level,omitempty"`
+	Transitions      []TransitionRecord `toml:"transitions,omitempty"`
+
+	// Relationships.
+	Links    []LinkRecord     `toml:"links,omitempty"`
+	Absorbed []AbsorbedRecord `toml:"absorbed,omitempty"`
+}
+
+// TransitionRecord records an enforcement level change.
+type TransitionRecord struct {
+	From   string `toml:"from"`
+	To     string `toml:"to"`
+	At     string `toml:"at"`
+	Reason string `toml:"reason"`
 }
