@@ -28,11 +28,11 @@ type Confirmer interface {
 
 // Executor applies maintenance proposals to memories.
 type Executor struct {
-	rewriter  MemoryRewriter
-	remover   MemoryRemover
-	registry  RegistryUpdater
-	llmCaller LLMCaller
-	confirmer Confirmer
+	rewriter   MemoryRewriter
+	remover    MemoryRemover
+	removeFile func(path string) error
+	llmCaller  LLMCaller
+	confirmer  Confirmer
 }
 
 // NewExecutor creates an Executor with the given options.
@@ -171,9 +171,9 @@ func (e *Executor) applyRemoval(proposal Proposal) (bool, string, error) {
 		}
 	}
 
-	if e.registry != nil {
+	if e.removeFile != nil {
 		// Best-effort registry cleanup; ignore not-found errors.
-		_ = e.registry.RemoveEntry(proposal.MemoryPath)
+		_ = e.removeFile(proposal.MemoryPath)
 	}
 
 	return true, "", nil
@@ -289,11 +289,6 @@ type MemoryRewriter interface {
 	Rewrite(path string, updates map[string]any) error
 }
 
-// RegistryUpdater removes entries from the instruction registry.
-type RegistryUpdater interface {
-	RemoveEntry(id string) error
-}
-
 // IngestProposals parses a JSON array of proposals, skipping invalid entries.
 func IngestProposals(data []byte) ([]Proposal, error) {
 	var raw []Proposal
@@ -321,14 +316,14 @@ func WithConfirmer(c Confirmer) ExecutorOption {
 	return func(e *Executor) { e.confirmer = c }
 }
 
+// WithFileRemover sets the file remover func for best-effort registry cleanup.
+func WithFileRemover(fn func(path string) error) ExecutorOption {
+	return func(e *Executor) { e.removeFile = fn }
+}
+
 // WithLLMCaller2 sets the LLM caller for rewrites.
 func WithLLMCaller2(c LLMCaller) ExecutorOption {
 	return func(e *Executor) { e.llmCaller = c }
-}
-
-// WithRegistry sets the registry updater.
-func WithRegistry(r RegistryUpdater) ExecutorOption {
-	return func(e *Executor) { e.registry = r }
 }
 
 // WithRemover sets the memory remover.

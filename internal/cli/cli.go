@@ -320,7 +320,7 @@ func RunMaintain(
 
 	if *applyMode {
 		return runMaintainApply(
-			*dataDir, *proposalsPath, *autoYes, token, stdout,
+			*proposalsPath, *autoYes, token, stdout,
 		)
 	}
 
@@ -767,15 +767,6 @@ type realTimestamper struct{}
 
 func (t *realTimestamper) Now() time.Time {
 	return time.Now()
-}
-
-// registryEntryRemover adapts regpkg.Registry to maintain.RegistryUpdater.
-type registryEntryRemover struct {
-	store regpkg.Registry
-}
-
-func (r *registryEntryRemover) RemoveEntry(id string) error {
-	return r.store.Remove(id)
 }
 
 // reviewClassification holds the quadrant classification for a single entry.
@@ -1300,10 +1291,8 @@ func runMaintain(args []string, stdout io.Writer) error {
 }
 
 // a JSON file and applies them with user confirmation (T-264, ARCH-66).
-//
-//nolint:funlen // orchestration function
 func runMaintainApply(
-	dataDir, proposalsPath string, autoYes bool,
+	proposalsPath string, autoYes bool,
 	token string, stdout io.Writer,
 ) error {
 	if proposalsPath == "" {
@@ -1336,11 +1325,7 @@ func runMaintainApply(
 	rewriter := maintain.NewTOMLRewriter()
 	execOpts = append(execOpts, maintain.WithRewriter(rewriter))
 	execOpts = append(execOpts, maintain.WithRemover(&osMemoryRemover{}))
-
-	store := regpkg.NewTOMLDirectoryStore(dataDir)
-	execOpts = append(execOpts, maintain.WithRegistry(
-		&registryEntryRemover{store: store},
-	))
+	execOpts = append(execOpts, maintain.WithFileRemover(os.Remove))
 
 	if token != "" {
 		execOpts = append(execOpts, maintain.WithLLMCaller2(

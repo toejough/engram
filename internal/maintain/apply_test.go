@@ -290,18 +290,14 @@ func TestApplyNoise_RemovalAndRegistryCleanup(t *testing.T) {
 		},
 	}
 
-	registry := &fakeRegistryUpdater{
-		removeFn: func(id string) error {
-			removedRegistryID = id
-			return nil
-		},
-	}
-
 	confirmer := &fakeConfirmer{responses: []bool{true}}
 
 	executor := maintain.NewExecutor(
 		maintain.WithRemover(remover),
-		maintain.WithRegistry(registry),
+		maintain.WithFileRemover(func(path string) error {
+			removedRegistryID = path
+			return nil
+		}),
 		maintain.WithConfirmer(confirmer),
 	)
 
@@ -581,10 +577,6 @@ func TestApply_ConfirmSkipQuit(t *testing.T) {
 		},
 	}
 
-	registry := &fakeRegistryUpdater{
-		removeFn: func(_ string) error { return nil },
-	}
-
 	confirmer := &fakeConfirmer{
 		responses: []bool{true, false},
 		quitAt:    3, // quit on third call
@@ -592,7 +584,7 @@ func TestApply_ConfirmSkipQuit(t *testing.T) {
 
 	executor := maintain.NewExecutor(
 		maintain.WithRemover(remover),
-		maintain.WithRegistry(registry),
+		maintain.WithFileRemover(func(_ string) error { return nil }),
 		maintain.WithConfirmer(confirmer),
 	)
 
@@ -642,16 +634,12 @@ func TestApply_NoTokenSkipsLLMProposals(t *testing.T) {
 		},
 	}
 
-	registry := &fakeRegistryUpdater{
-		removeFn: func(_ string) error { return nil },
-	}
-
 	confirmer := &fakeConfirmer{responses: []bool{true, true}}
 
 	// No LLM caller set — simulates no API token.
 	executor := maintain.NewExecutor(
 		maintain.WithRemover(remover),
-		maintain.WithRegistry(registry),
+		maintain.WithFileRemover(func(_ string) error { return nil }),
 		maintain.WithConfirmer(confirmer),
 	)
 
@@ -823,14 +811,6 @@ type fakeLLMCaller struct {
 
 func (f *fakeLLMCaller) Call(_ context.Context, _ string) (string, error) {
 	return f.response, f.err
-}
-
-type fakeRegistryUpdater struct {
-	removeFn func(id string) error
-}
-
-func (f *fakeRegistryUpdater) RemoveEntry(id string) error {
-	return f.removeFn(id)
 }
 
 type fakeRemover struct {
