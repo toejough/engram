@@ -368,9 +368,7 @@ func RunMaintain(
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithStderr(os.Stderr),
 		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
-		signal.WithLinkRecomputer(newGraphLinkRecomputer(
-			openRegistry(*dataDir), *dataDir,
-		)),
+		signal.WithLinkRecomputer(newGraphLinkRecomputer(*dataDir)),
 		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
 	)
 
@@ -970,11 +968,6 @@ func makeAnthropicCaller(
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
 	}
-}
-
-// openRegistry creates a TOMLDirectoryStore for the given data directory.
-func openRegistry(dataDir string) *regpkg.TOMLDirectoryStore {
-	return regpkg.NewTOMLDirectoryStore(dataDir)
 }
 
 // recordEvaluation persists an evaluation outcome to a memory TOML file.

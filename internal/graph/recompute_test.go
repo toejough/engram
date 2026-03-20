@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/graph"
-	"engram/internal/registry"
+	"engram/internal/memory"
 )
 
 func TestTP5f1_MergeResultCarriesMergedFields(t *testing.T) {
@@ -39,34 +39,42 @@ func TestTP5f2_AbsorbedMemoryLinksRemovedFromAllEntries(t *testing.T) {
 		mergedID   = "/path/merged.toml"
 	)
 
-	linker := &mockRegistryLinker{
-		entries: []registry.InstructionEntry{
+	mock := &mockMemoryLinker{
+		records: []memory.StoredRecord{
 			{
-				ID:    "/path/entry-a.toml",
-				Title: "Entry A",
-				Links: []registry.Link{
-					{Target: absorbedID, Basis: "concept_overlap", Weight: 0.5},
-					{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.3},
+				Path: "/path/entry-a.toml",
+				Record: memory.MemoryRecord{
+					Title: "Entry A",
+					Links: []memory.LinkRecord{
+						{Target: absorbedID, Basis: "concept_overlap", Weight: 0.5},
+						{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.3},
+					},
 				},
 			},
 			{
-				ID:    "/path/entry-b.toml",
-				Title: "Entry B",
-				Links: []registry.Link{
-					{Target: absorbedID, Basis: "content_similarity", Weight: 0.4},
+				Path: "/path/entry-b.toml",
+				Record: memory.MemoryRecord{
+					Title: "Entry B",
+					Links: []memory.LinkRecord{
+						{Target: absorbedID, Basis: "content_similarity", Weight: 0.4},
+					},
 				},
 			},
 			{
-				ID:    "/path/entry-c.toml",
-				Title: "Entry C",
-				Links: []registry.Link{
-					{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.2},
+				Path: "/path/entry-c.toml",
+				Record: memory.MemoryRecord{
+					Title: "Entry C",
+					Links: []memory.LinkRecord{
+						{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.2},
+					},
 				},
 			},
 			{
-				ID:      mergedID,
-				Title:   "Merged",
-				Content: "merged content",
+				Path: mergedID,
+				Record: memory.MemoryRecord{
+					Title:   "Merged",
+					Content: "merged content",
+				},
 			},
 		},
 	}
@@ -80,7 +88,7 @@ func TestTP5f2_AbsorbedMemoryLinksRemovedFromAllEntries(t *testing.T) {
 	}
 
 	builder := graph.New()
-	err := builder.RecomputeMergeLinks(result, linker)
+	err := builder.RecomputeMergeLinks(result, mock, mock)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -89,7 +97,7 @@ func TestTP5f2_AbsorbedMemoryLinksRemovedFromAllEntries(t *testing.T) {
 	}
 
 	// Entry A: absorbed link removed, co_surfacing retained
-	linksA, updatedA := linker.updateCalls["/path/entry-a.toml"]
+	linksA, updatedA := mock.writeCalls["/path/entry-a.toml"]
 	g.Expect(updatedA).To(BeTrue())
 
 	for _, link := range linksA {
@@ -97,12 +105,12 @@ func TestTP5f2_AbsorbedMemoryLinksRemovedFromAllEntries(t *testing.T) {
 	}
 
 	// Entry B: absorbed link removed
-	linksB, updatedB := linker.updateCalls["/path/entry-b.toml"]
+	linksB, updatedB := mock.writeCalls["/path/entry-b.toml"]
 	g.Expect(updatedB).To(BeTrue())
 	g.Expect(linksB).To(BeEmpty())
 
 	// Entry C: not updated (no absorbed links)
-	_, updatedC := linker.updateCalls["/path/entry-c.toml"]
+	_, updatedC := mock.writeCalls["/path/entry-c.toml"]
 	g.Expect(updatedC).To(BeFalse())
 }
 
@@ -113,21 +121,25 @@ func TestTP5f3_ConceptOverlapLinksRecomputedForMergedMemory(t *testing.T) {
 
 	const mergedID = "/path/merged.toml"
 
-	linker := &mockRegistryLinker{
-		entries: []registry.InstructionEntry{
+	mock := &mockMemoryLinker{
+		records: []memory.StoredRecord{
 			{
-				ID:      mergedID,
-				Title:   "Memory about error handling",
-				Content: "always wrap errors with context",
-				Links: []registry.Link{
-					{Target: "/path/stale.toml", Basis: "concept_overlap", Weight: 0.8},
-					{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.3},
+				Path: mergedID,
+				Record: memory.MemoryRecord{
+					Title:   "Memory about error handling",
+					Content: "always wrap errors with context",
+					Links: []memory.LinkRecord{
+						{Target: "/path/stale.toml", Basis: "concept_overlap", Weight: 0.8},
+						{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.3},
+					},
 				},
 			},
 			{
-				ID:      "/path/similar.toml",
-				Title:   "Error handling practice",
-				Content: "wrap errors with context always",
+				Path: "/path/similar.toml",
+				Record: memory.MemoryRecord{
+					Title:   "Error handling practice",
+					Content: "wrap errors with context always",
+				},
 			},
 		},
 	}
@@ -141,7 +153,7 @@ func TestTP5f3_ConceptOverlapLinksRecomputedForMergedMemory(t *testing.T) {
 	}
 
 	builder := graph.New()
-	err := builder.RecomputeMergeLinks(result, linker)
+	err := builder.RecomputeMergeLinks(result, mock, mock)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -149,7 +161,7 @@ func TestTP5f3_ConceptOverlapLinksRecomputedForMergedMemory(t *testing.T) {
 		return
 	}
 
-	mergedLinks, updated := linker.updateCalls[mergedID]
+	mergedLinks, updated := mock.writeCalls[mergedID]
 	g.Expect(updated).To(BeTrue())
 
 	// Old stale concept_overlap link should be gone
@@ -184,20 +196,24 @@ func TestTP5f4_ContentSimilarityLinksRecomputedForMergedMemory(t *testing.T) {
 	// Use content that will produce BM25 similarity
 	mergedContent := "dependency injection interface testing unit"
 
-	linker := &mockRegistryLinker{
-		entries: []registry.InstructionEntry{
+	mock := &mockMemoryLinker{
+		records: []memory.StoredRecord{
 			{
-				ID:      mergedID,
-				Title:   "DI Patterns",
-				Content: "old content before merge",
-				Links: []registry.Link{
-					{Target: "/path/stale.toml", Basis: "content_similarity", Weight: 0.6},
+				Path: mergedID,
+				Record: memory.MemoryRecord{
+					Title:   "DI Patterns",
+					Content: "old content before merge",
+					Links: []memory.LinkRecord{
+						{Target: "/path/stale.toml", Basis: "content_similarity", Weight: 0.6},
+					},
 				},
 			},
 			{
-				ID:      similarID,
-				Title:   "Interface Testing",
-				Content: "dependency injection interface testing unit patterns",
+				Path: similarID,
+				Record: memory.MemoryRecord{
+					Title:   "Interface Testing",
+					Content: "dependency injection interface testing unit patterns",
+				},
 			},
 		},
 	}
@@ -211,7 +227,7 @@ func TestTP5f4_ContentSimilarityLinksRecomputedForMergedMemory(t *testing.T) {
 	}
 
 	builder := graph.New()
-	err := builder.RecomputeMergeLinks(result, linker)
+	err := builder.RecomputeMergeLinks(result, mock, mock)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -219,7 +235,7 @@ func TestTP5f4_ContentSimilarityLinksRecomputedForMergedMemory(t *testing.T) {
 		return
 	}
 
-	mergedLinks, updated := linker.updateCalls[mergedID]
+	mergedLinks, updated := mock.writeCalls[mergedID]
 	g.Expect(updated).To(BeTrue())
 
 	// Old stale content_similarity link should be gone
@@ -237,14 +253,16 @@ func TestTP5f5_CoSurfacingLinksPreservedAfterRecomputation(t *testing.T) {
 
 	const mergedID = "/path/merged.toml"
 
-	linker := &mockRegistryLinker{
-		entries: []registry.InstructionEntry{
+	mock := &mockMemoryLinker{
+		records: []memory.StoredRecord{
 			{
-				ID:      mergedID,
-				Title:   "Memory",
-				Content: "some content",
-				Links: []registry.Link{
-					{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.5, CoSurfacingCount: 5},
+				Path: mergedID,
+				Record: memory.MemoryRecord{
+					Title:   "Memory",
+					Content: "some content",
+					Links: []memory.LinkRecord{
+						{Target: "/path/other.toml", Basis: "co_surfacing", Weight: 0.5, CoSurfacingCount: 5},
+					},
 				},
 			},
 		},
@@ -259,7 +277,7 @@ func TestTP5f5_CoSurfacingLinksPreservedAfterRecomputation(t *testing.T) {
 	}
 
 	builder := graph.New()
-	err := builder.RecomputeMergeLinks(result, linker)
+	err := builder.RecomputeMergeLinks(result, mock, mock)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -267,10 +285,10 @@ func TestTP5f5_CoSurfacingLinksPreservedAfterRecomputation(t *testing.T) {
 		return
 	}
 
-	mergedLinks, updated := linker.updateCalls[mergedID]
+	mergedLinks, updated := mock.writeCalls[mergedID]
 	g.Expect(updated).To(BeTrue())
 
-	var coSurfacingLink *registry.Link
+	var coSurfacingLink *memory.LinkRecord
 
 	for i := range mergedLinks {
 		if mergedLinks[i].Basis == "co_surfacing" {
@@ -295,14 +313,16 @@ func TestTP5f6_EvalCorrelationLinksPreservedAfterRecomputation(t *testing.T) {
 
 	const mergedID = "/path/merged.toml"
 
-	linker := &mockRegistryLinker{
-		entries: []registry.InstructionEntry{
+	mock := &mockMemoryLinker{
+		records: []memory.StoredRecord{
 			{
-				ID:      mergedID,
-				Title:   "Memory",
-				Content: "some content",
-				Links: []registry.Link{
-					{Target: "/path/other.toml", Basis: "evaluation_correlation", Weight: 0.3},
+				Path: mergedID,
+				Record: memory.MemoryRecord{
+					Title:   "Memory",
+					Content: "some content",
+					Links: []memory.LinkRecord{
+						{Target: "/path/other.toml", Basis: "evaluation_correlation", Weight: 0.3},
+					},
 				},
 			},
 		},
@@ -317,7 +337,7 @@ func TestTP5f6_EvalCorrelationLinksPreservedAfterRecomputation(t *testing.T) {
 	}
 
 	builder := graph.New()
-	err := builder.RecomputeMergeLinks(result, linker)
+	err := builder.RecomputeMergeLinks(result, mock, mock)
 
 	g.Expect(err).NotTo(HaveOccurred())
 
@@ -325,10 +345,10 @@ func TestTP5f6_EvalCorrelationLinksPreservedAfterRecomputation(t *testing.T) {
 		return
 	}
 
-	mergedLinks, updated := linker.updateCalls[mergedID]
+	mergedLinks, updated := mock.writeCalls[mergedID]
 	g.Expect(updated).To(BeTrue())
 
-	var evalLink *registry.Link
+	var evalLink *memory.LinkRecord
 
 	for i := range mergedLinks {
 		if mergedLinks[i].Basis == "evaluation_correlation" {
@@ -345,32 +365,32 @@ func TestTP5f6_EvalCorrelationLinksPreservedAfterRecomputation(t *testing.T) {
 	}
 }
 
-// mockRegistryLinker is a test double for the RegistryLinker interface.
-type mockRegistryLinker struct {
-	entries     []registry.InstructionEntry
-	updateCalls map[string][]registry.Link
-	listErr     error
-	updateErr   error
+// mockMemoryLinker implements both MemoryLister and LinkWriter for tests.
+type mockMemoryLinker struct {
+	records    []memory.StoredRecord
+	writeCalls map[string][]memory.LinkRecord
+	listErr    error
+	writeErr   error
 }
 
-func (m *mockRegistryLinker) List() ([]registry.InstructionEntry, error) {
+func (m *mockMemoryLinker) ListAll() ([]memory.StoredRecord, error) {
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
 
-	return m.entries, nil
+	return m.records, nil
 }
 
-func (m *mockRegistryLinker) UpdateLinks(id string, links []registry.Link) error {
-	if m.updateErr != nil {
-		return m.updateErr
+func (m *mockMemoryLinker) WriteLinks(path string, links []memory.LinkRecord) error {
+	if m.writeErr != nil {
+		return m.writeErr
 	}
 
-	if m.updateCalls == nil {
-		m.updateCalls = make(map[string][]registry.Link)
+	if m.writeCalls == nil {
+		m.writeCalls = make(map[string][]memory.LinkRecord)
 	}
 
-	m.updateCalls[id] = links
+	m.writeCalls[path] = links
 
 	return nil
 }

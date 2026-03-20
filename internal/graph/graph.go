@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"engram/internal/bm25"
-	"engram/internal/registry"
+	"engram/internal/memory"
 )
 
 // Builder constructs links between memory entries.
@@ -22,32 +22,33 @@ func New() *Builder {
 // token Jaccard is used as fallback. Pairs with Jaccard >= conceptOverlapMinJaccard produce a
 // concept_overlap link.
 func (b *Builder) BuildConceptOverlap(
-	entry registry.InstructionEntry,
-	existing []registry.InstructionEntry,
-) []registry.Link {
-	var links []registry.Link
+	entryPath string,
+	entry memory.MemoryRecord,
+	existing []memory.StoredRecord,
+) []memory.LinkRecord {
+	var links []memory.LinkRecord
 
 	newTokens := tokenize(entry.Title + " " + entry.Content)
 	newKeywords := toSet(entry.Keywords)
 
 	for _, other := range existing {
-		if other.ID == entry.ID {
+		if other.Path == entryPath {
 			continue // No self-links
 		}
 
 		var jac float64
 
-		otherKeywords := toSet(other.Keywords)
+		otherKeywords := toSet(other.Record.Keywords)
 		if len(newKeywords) > 0 && len(otherKeywords) > 0 {
 			jac = jaccard(newKeywords, otherKeywords)
 		} else {
-			otherTokens := tokenize(other.Title + " " + other.Content)
+			otherTokens := tokenize(other.Record.Title + " " + other.Record.Content)
 			jac = jaccard(newTokens, otherTokens)
 		}
 
 		if jac >= conceptOverlapMinJaccard {
-			links = append(links, registry.Link{
-				Target: other.ID,
+			links = append(links, memory.LinkRecord{
+				Target: other.Path,
 				Weight: jac,
 				Basis:  "concept_overlap",
 			})
@@ -60,17 +61,18 @@ func (b *Builder) BuildConceptOverlap(
 // BuildContentSimilarity computes BM25 relevance links between a new entry and existing entries.
 // Pairs with BM25 score >= contentSimilarityMinScore produce a content_similarity link with normalized weight.
 func (b *Builder) BuildContentSimilarity(
-	entry registry.InstructionEntry,
-	existing []registry.InstructionEntry,
-) []registry.Link {
-	var links []registry.Link
+	entryPath string,
+	entry memory.MemoryRecord,
+	existing []memory.StoredRecord,
+) []memory.LinkRecord {
+	var links []memory.LinkRecord
 
 	// Build BM25 scorer with existing entries as corpus
 	docs := make([]bm25.Document, len(existing))
 	for i, other := range existing {
 		docs[i] = bm25.Document{
-			ID:   other.ID,
-			Text: other.Title + " " + other.Content,
+			ID:   other.Path,
+			Text: other.Record.Title + " " + other.Record.Content,
 		}
 	}
 
@@ -79,7 +81,7 @@ func (b *Builder) BuildContentSimilarity(
 	scored := scorer.Score(query, docs)
 
 	for _, scoredDoc := range scored {
-		if scoredDoc.ID == entry.ID {
+		if scoredDoc.ID == entryPath {
 			continue
 		}
 
@@ -90,7 +92,7 @@ func (b *Builder) BuildContentSimilarity(
 				weight = 1.0
 			}
 
-			links = append(links, registry.Link{
+			links = append(links, memory.LinkRecord{
 				Target: scoredDoc.ID,
 				Weight: weight,
 				Basis:  "content_similarity",
@@ -103,8 +105,8 @@ func (b *Builder) BuildContentSimilarity(
 
 // Prune removes links with weight < pruneWeightThreshold and CoSurfacingCount >= pruneMinCount.
 // Returns a new slice with remaining links.
-func Prune(links []registry.Link) []registry.Link {
-	var result []registry.Link
+func Prune(links []memory.LinkRecord) []memory.LinkRecord {
+	var result []memory.LinkRecord
 
 	for _, link := range links {
 		if link.Weight < pruneWeightThreshold && link.CoSurfacingCount >= pruneMinCount {
@@ -120,7 +122,7 @@ func Prune(links []registry.Link) []registry.Link {
 // UpdateCoSurfacing updates co_surfacing links for a pair of memory IDs.
 // Increments weight (+coSurfacingIncrement, capped at 1.0) and CoSurfacingCount (+1).
 // Returns the updated links slice.
-func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
+func UpdateCoSurfacing(links []memory.LinkRecord, targetID string) []memory.LinkRecord {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "co_surfacing" {
 			links[i].Weight += coSurfacingIncrement
@@ -135,7 +137,7 @@ func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
 	}
 
 	// No existing link, create new one
-	return append(links, registry.Link{
+	return append(links, memory.LinkRecord{
 		Target:           targetID,
 		Weight:           coSurfacingIncrement,
 		Basis:            "co_surfacing",
@@ -146,7 +148,7 @@ func UpdateCoSurfacing(links []registry.Link, targetID string) []registry.Link {
 // UpdateEvaluationCorrelation updates evaluation_correlation links for a pair.
 // Increments weight (+evalCorrelationIncrement, capped at 1.0).
 // Returns the updated links slice.
-func UpdateEvaluationCorrelation(links []registry.Link, targetID string) []registry.Link {
+func UpdateEvaluationCorrelation(links []memory.LinkRecord, targetID string) []memory.LinkRecord {
 	for i, link := range links {
 		if link.Target == targetID && link.Basis == "evaluation_correlation" {
 			links[i].Weight += evalCorrelationIncrement
@@ -159,7 +161,7 @@ func UpdateEvaluationCorrelation(links []registry.Link, targetID string) []regis
 	}
 
 	// No existing link, create new one
-	return append(links, registry.Link{
+	return append(links, memory.LinkRecord{
 		Target: targetID,
 		Weight: evalCorrelationIncrement,
 		Basis:  "evaluation_correlation",

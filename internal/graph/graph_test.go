@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/graph"
-	"engram/internal/registry"
+	"engram/internal/memory"
 )
 
 // T-P3-4: BuildConceptOverlap self-link excluded
@@ -15,16 +15,15 @@ func TestConceptOverlapSelfLinkExcluded(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "same",
+	entry := memory.MemoryRecord{
 		Title: "foo bar",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "same", Title: "foo bar"},  // Self-match, should be excluded
-		{ID: "other", Title: "foo baz"}, // Different, should be included
+	existing := []memory.StoredRecord{
+		{Path: "same", Record: memory.MemoryRecord{Title: "foo bar"}},  // Self-match, should be excluded
+		{Path: "other", Record: memory.MemoryRecord{Title: "foo baz"}}, // Different, should be included
 	}
 
-	links := builder.BuildConceptOverlap(entry, existing)
+	links := builder.BuildConceptOverlap("same", entry, existing)
 
 	// Should only have link to "other", not "same"
 	g.Expect(links).To(HaveLen(1))
@@ -42,22 +41,21 @@ func TestConceptOverlapThreshold(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
+	entry := memory.MemoryRecord{
 		Title: "alpha beta gamma delta epsilon",
 	}
-	existing := []registry.InstructionEntry{
+	existing := []memory.StoredRecord{
 		{
-			ID:    "above",
-			Title: "alpha beta gamma zeta",
+			Path:   "above",
+			Record: memory.MemoryRecord{Title: "alpha beta gamma zeta"},
 		}, // Jaccard: {alpha,beta,gamma} / {alpha,beta,gamma,delta,epsilon,zeta} = 3/6 = 0.5 >= 0.15
 		{
-			ID:    "below",
-			Title: "zeta eta theta iota kappa",
+			Path:   "below",
+			Record: memory.MemoryRecord{Title: "zeta eta theta iota kappa"},
 		}, // Jaccard: {} / {alpha,beta,gamma,delta,epsilon,zeta,eta,theta,iota,kappa} = 0/10 = 0 < 0.15
 	}
 
-	links := builder.BuildConceptOverlap(entry, existing)
+	links := builder.BuildConceptOverlap("new", entry, existing)
 
 	// Only the "above" entry should produce a link
 	g.Expect(links).To(HaveLen(1))
@@ -75,13 +73,12 @@ func TestContentSimilarityEmptyExisting(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:      "new",
+	entry := memory.MemoryRecord{
 		Title:   "use targ build",
 		Content: "always use targ for all builds",
 	}
 
-	links := builder.BuildContentSimilarity(entry, nil)
+	links := builder.BuildContentSimilarity("new", entry, nil)
 
 	g.Expect(links).To(BeEmpty())
 }
@@ -93,29 +90,19 @@ func TestContentSimilarityProducesLink(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:      "new",
+	entry := memory.MemoryRecord{
 		Title:   "targ build invocation system",
 		Content: "targ build invocation system",
 	}
 	// 3 docs: "match" shares unique terms; "other1"/"other2" use different words.
 	// With N=3 and df=1, IDF = log(2.5/1.5) > 0.
-	existing := []registry.InstructionEntry{
-		{
-			ID:    "match",
-			Title: "targ build invocation system",
-		},
-		{
-			ID:    "other1",
-			Title: "cat fish bird elephant",
-		},
-		{
-			ID:    "other2",
-			Title: "river mountain ocean desert",
-		},
+	existing := []memory.StoredRecord{
+		{Path: "match", Record: memory.MemoryRecord{Title: "targ build invocation system"}},
+		{Path: "other1", Record: memory.MemoryRecord{Title: "cat fish bird elephant"}},
+		{Path: "other2", Record: memory.MemoryRecord{Title: "river mountain ocean desert"}},
 	}
 
-	links := builder.BuildContentSimilarity(entry, existing)
+	links := builder.BuildContentSimilarity("new", entry, existing)
 
 	g.Expect(links).NotTo(BeEmpty())
 
@@ -134,17 +121,16 @@ func TestContentSimilaritySelfLinkExcluded(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:      "mem1",
+	entry := memory.MemoryRecord{
 		Title:   "use targ build for all go builds",
 		Content: "always use targ",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "mem1", Title: "use targ build for all go builds", Content: "always use targ"},
-		{ID: "mem2", Title: "use targ test for all go tests", Content: "always use targ"},
+	existing := []memory.StoredRecord{
+		{Path: "mem1", Record: memory.MemoryRecord{Title: "use targ build for all go builds", Content: "always use targ"}},
+		{Path: "mem2", Record: memory.MemoryRecord{Title: "use targ test for all go tests", Content: "always use targ"}},
 	}
 
-	links := builder.BuildContentSimilarity(entry, existing)
+	links := builder.BuildContentSimilarity("mem1", entry, existing)
 
 	for _, link := range links {
 		g.Expect(link.Target).NotTo(Equal("mem1"))
@@ -157,16 +143,15 @@ func TestContentSimilarityThreshold(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
+	entry := memory.MemoryRecord{
 		Title: "always use parallel test parallel use test parallel",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "similar", Title: "always use parallel test with parallel"},
-		{ID: "dissimilar", Title: "fish birds cats dogs elephant"},
+	existing := []memory.StoredRecord{
+		{Path: "similar", Record: memory.MemoryRecord{Title: "always use parallel test with parallel"}},
+		{Path: "dissimilar", Record: memory.MemoryRecord{Title: "fish birds cats dogs elephant"}},
 	}
 
-	links := builder.BuildContentSimilarity(entry, existing)
+	links := builder.BuildContentSimilarity("new", entry, existing)
 
 	// At least verify that links are produced and filtered
 	// (exact threshold behavior depends on BM25 scoring of the text)
@@ -183,15 +168,14 @@ func TestContentSimilarityWeightCapped(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
+	entry := memory.MemoryRecord{
 		Title: "alpha beta gamma delta epsilon",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "alpha beta gamma delta epsilon"},
+	existing := []memory.StoredRecord{
+		{Path: "ex1", Record: memory.MemoryRecord{Title: "alpha beta gamma delta epsilon"}},
 	}
 
-	links := builder.BuildContentSimilarity(entry, existing)
+	links := builder.BuildContentSimilarity("new", entry, existing)
 
 	for _, link := range links {
 		g.Expect(link.Weight).To(BeNumerically("<=", 1.0))
@@ -204,15 +188,14 @@ func TestJaccardCorrectForOverlapping(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
+	entry := memory.MemoryRecord{
 		Title: "use targ build",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "use targ test"},
+	existing := []memory.StoredRecord{
+		{Path: "ex1", Record: memory.MemoryRecord{Title: "use targ test"}},
 	}
 
-	links := builder.BuildConceptOverlap(entry, existing)
+	links := builder.BuildConceptOverlap("new", entry, existing)
 
 	g.Expect(links).To(HaveLen(1))
 
@@ -232,15 +215,14 @@ func TestJaccardZeroForDisjointSets(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	builder := graph.New()
-	entry := registry.InstructionEntry{
-		ID:    "new",
+	entry := memory.MemoryRecord{
 		Title: "foo bar",
 	}
-	existing := []registry.InstructionEntry{
-		{ID: "ex1", Title: "baz qux"},
+	existing := []memory.StoredRecord{
+		{Path: "ex1", Record: memory.MemoryRecord{Title: "baz qux"}},
 	}
 
-	links := builder.BuildConceptOverlap(entry, existing)
+	links := builder.BuildConceptOverlap("new", entry, existing)
 	g.Expect(links).To(BeEmpty())
 }
 
@@ -249,7 +231,7 @@ func TestPrunePreservesHighWeight(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "ex1", Weight: 0.1, Basis: "co_surfacing", CoSurfacingCount: 20},
 	}
 
@@ -269,7 +251,7 @@ func TestPrunePreservesInsufficient(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 9},
 	}
 
@@ -289,7 +271,7 @@ func TestPruneRemovesDeadLinks(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "ex1", Weight: 0.05, Basis: "co_surfacing", CoSurfacingCount: 10},
 	}
 
@@ -303,7 +285,7 @@ func TestUpdateCoSurfacingCapWeight(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "ex1", Weight: 0.95, Basis: "co_surfacing", CoSurfacingCount: 5},
 	}
 
@@ -318,7 +300,7 @@ func TestUpdateCoSurfacingCreatesNew(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{}
+	links := []memory.LinkRecord{}
 
 	updated := graph.UpdateCoSurfacing(links, "new_target")
 
@@ -334,7 +316,7 @@ func TestUpdateCoSurfacingIncrementsExisting(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "ex1", Weight: 0.5, Basis: "co_surfacing", CoSurfacingCount: 3},
 	}
 
@@ -350,7 +332,7 @@ func TestUpdateEvaluationCorrelationCapWeight(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "mem2", Weight: 0.98, Basis: "evaluation_correlation"},
 	}
 
@@ -364,7 +346,7 @@ func TestUpdateEvaluationCorrelationCreatesNew(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{}
+	links := []memory.LinkRecord{}
 
 	updated := graph.UpdateEvaluationCorrelation(links, "mem2")
 
@@ -379,7 +361,7 @@ func TestUpdateEvaluationCorrelationIncrementsExisting(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
-	links := []registry.Link{
+	links := []memory.LinkRecord{
 		{Target: "mem2", Weight: 0.2, Basis: "evaluation_correlation"},
 	}
 

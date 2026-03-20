@@ -18,7 +18,6 @@ import (
 	graph "engram/internal/graph"
 	"engram/internal/memory"
 	"engram/internal/merge"
-	regpkg "engram/internal/registry"
 	"engram/internal/retrieve"
 	"engram/internal/signal"
 )
@@ -82,24 +81,27 @@ func (f *funcEnforcementApplier) SetEnforcementLevel(id, level, reason string) e
 }
 
 // graphLinkRecomputer implements signal.LinkRecomputer using graph.Builder (REQ-138).
-// It relativizes absolute memory paths to dataDir before looking up registry IDs.
 //
 // readStoredMemory calls os.ReadFile directly: internal/cli is the I/O wiring edge,
 // so direct filesystem access in adapters here is intentional (not a DI violation).
 type graphLinkRecomputer struct {
 	builder *graph.Builder
-	reg     regpkg.Registry
 	dataDir string
 }
 
 func (r *graphLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath string) error {
-	survivorID := toRelID(r.dataDir, survivorPath)
-	absorbedID := toRelID(r.dataDir, absorbedPath)
-
 	survivor, err := readStoredMemory(survivorPath)
 	if err != nil {
 		return fmt.Errorf("reading survivor for link recompute: %w", err)
 	}
+
+	memoriesDir := filepath.Join(r.dataDir, "memories")
+	lister := &memoryDirLister{dir: memoriesDir, dataDir: r.dataDir}
+	writer := &readModifyWriteLinkWriter{dataDir: r.dataDir}
+
+	// Relativize paths to dataDir so they match link target format in TOML files.
+	survivorID := toRelID(r.dataDir, survivorPath)
+	absorbedID := toRelID(r.dataDir, absorbedPath)
 
 	result := graph.MergeResult{
 		MergedMemoryID:   survivorID,
@@ -109,7 +111,7 @@ func (r *graphLinkRecomputer) RecomputeAfterMerge(survivorPath, absorbedPath str
 		MergedConceptSet: survivor.Keywords,
 	}
 
-	return r.builder.RecomputeMergeLinks(result, r.reg)
+	return r.builder.RecomputeMergeLinks(result, lister, writer)
 }
 
 // llmPrincipleSynthesizer wraps merge.MemoryMerger to implement signal.PrincipleSynthesizer (REQ-139).
@@ -138,6 +140,26 @@ func (s *llmPrincipleSynthesizer) SynthesizePrinciples(
 	}
 
 	return result, nil
+}
+
+// memoryDirLister implements graph.MemoryLister by reading all TOML files from a directory.
+// Paths are relativized to dataDir so they match the link target format stored in TOML.
+type memoryDirLister struct {
+	dir     string
+	dataDir string
+}
+
+func (l *memoryDirLister) ListAll() ([]memory.StoredRecord, error) {
+	records, err := memory.ListAll(l.dir)
+	if err != nil {
+		return nil, fmt.Errorf("listing memories: %w", err)
+	}
+
+	for i := range records {
+		records[i].Path = toRelID(l.dataDir, records[i].Path)
+	}
+
+	return records, nil
 }
 
 // memoryListerAdapter wraps retrieve.Retriever for the Consolidator.
@@ -192,6 +214,20 @@ func (d *osFileDeleter) Delete(path string) error {
 	}
 
 	return nil
+}
+
+// readModifyWriteLinkWriter implements graph.LinkWriter using memory.ReadModifyWrite.
+// Paths are relative to dataDir, so they are resolved back to absolute before writing.
+type readModifyWriteLinkWriter struct {
+	dataDir string
+}
+
+func (w *readModifyWriteLinkWriter) WriteLinks(path string, links []memory.LinkRecord) error {
+	absPath := filepath.Join(w.dataDir, path)
+
+	return memory.ReadModifyWrite(absPath, func(record *memory.MemoryRecord) {
+		record.Links = links
+	})
 }
 
 // sourceCrossRefChecker implements surface.CrossRefChecker using keyword overlap
@@ -329,10 +365,9 @@ func loadCrossRefSources(claudeDir string) []crossRefSourceEntry {
 	return sources
 }
 
-func newGraphLinkRecomputer(reg regpkg.Registry, dataDir string) *graphLinkRecomputer {
+func newGraphLinkRecomputer(dataDir string) *graphLinkRecomputer {
 	return &graphLinkRecomputer{
 		builder: graph.New(),
-		reg:     reg,
 		dataDir: dataDir,
 	}
 }
