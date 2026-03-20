@@ -338,7 +338,6 @@ func (s *Surfacer) enforcementLevelFor(memPath string) string {
 //nolint:unparam // error return is always nil — kept for uniform internal signature
 func (s *Surfacer) renderToolAdvisories(
 	candidates []toolMatch,
-	effectiveness map[string]EffectivenessStat,
 ) (Result, []*memory.Stored, error) {
 	// Sort emphasized/reminder memories first (REQ-P6e-1: higher budget priority).
 	sort.SliceStable(candidates, func(i, j int) bool {
@@ -362,12 +361,10 @@ func (s *Surfacer) renderToolAdvisories(
 	for _, match := range candidates {
 		toolMems = append(toolMems, match.mem)
 		level := s.enforcementLevelFor(match.mem.FilePath)
-		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
 		line := formatMemoryLine(
 			filenameSlug(match.mem.FilePath),
 			match.mem.Principle,
 			level,
-			annotation,
 		)
 		_, _ = fmt.Fprint(&summaryBuf, line)
 		_, _ = fmt.Fprint(&contextBuf, line)
@@ -577,9 +574,8 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&buf, "[engram] Relevant memories:\n")
 
 	for _, match := range matches {
-		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&buf, "  - %s%s\n",
-			filenameSlug(match.mem.FilePath), annotation)
+		_, _ = fmt.Fprintf(&buf, "  - %s: %s\n",
+			filenameSlug(match.mem.FilePath), match.mem.Principle)
 	}
 
 	_, _ = fmt.Fprintf(&buf, "</system-reminder>\n")
@@ -595,9 +591,8 @@ func (s *Surfacer) runPrompt(
 	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d relevant memories:\n", len(matches))
 
 	for _, match := range matches {
-		annotation := formatEffectivenessAnnotation(match.mem.FilePath, effectiveness)
-		_, _ = fmt.Fprintf(&summaryBuf, "  - %s%s\n",
-			filenameSlug(match.mem.FilePath), annotation)
+		_, _ = fmt.Fprintf(&summaryBuf, "  - %s: %s\n",
+			filenameSlug(match.mem.FilePath), match.mem.Principle)
 	}
 
 	return Result{
@@ -677,7 +672,7 @@ func (s *Surfacer) runSessionStart(
 	)
 
 	writeCreationSection(&summaryBuf, &contextBuf, logEntries)
-	writeRecencySection(&summaryBuf, &contextBuf, memories[:count], effectiveness)
+	writeRecencySection(&summaryBuf, &contextBuf, memories[:count])
 
 	// P3: update co_surfacing links for memories surfaced together (REQ-P3-5).
 	if s.linkUpdater != nil && count > 0 {
@@ -741,7 +736,7 @@ func (s *Surfacer) runTool(
 		return Result{}, nil, nil, nil
 	}
 
-	result, mems, err := s.renderToolAdvisories(candidates, effectiveness)
+	result, mems, err := s.renderToolAdvisories(candidates)
 
 	return result, mems, nil, err
 }
@@ -1215,37 +1210,15 @@ func filterToolMatchesByEffectivenessGate(
 	return filtered
 }
 
-// formatEffectivenessAnnotation returns a formatted annotation for a memory path,
-// or "" when no effectiveness data exists for that path.
-func formatEffectivenessAnnotation(
-	filePath string,
-	effectiveness map[string]EffectivenessStat,
-) string {
-	if effectiveness == nil {
-		return ""
-	}
-
-	stat, ok := effectiveness[filePath]
-	if !ok {
-		return ""
-	}
-
-	return fmt.Sprintf(
-		" (surfaced %d times, followed %d%%)",
-		stat.SurfacedCount,
-		int(stat.EffectivenessScore),
-	)
-}
-
 // formatMemoryLine formats a single memory entry based on its enforcement level.
-func formatMemoryLine(slug, principle, level, annotation string) string {
+func formatMemoryLine(slug, principle, level string) string {
 	switch level {
 	case enforcementEmphasizedAdvisory:
-		return fmt.Sprintf("  - IMPORTANT: **%s**%s\n", slug, annotation)
+		return fmt.Sprintf("  - IMPORTANT: **%s: %s**\n", slug, principle)
 	case enforcementReminder:
-		return fmt.Sprintf("  - REMINDER: %s — %s%s\n", slug, principle, annotation)
+		return fmt.Sprintf("  - REMINDER: %s: %s\n", slug, principle)
 	default:
-		return fmt.Sprintf("  - %s%s\n", slug, annotation)
+		return fmt.Sprintf("  - %s: %s\n", slug, principle)
 	}
 }
 
@@ -1460,7 +1433,6 @@ func writeCreationSection(summaryBuf, contextBuf *strings.Builder, entries []Log
 func writeRecencySection(
 	summaryBuf, contextBuf *strings.Builder,
 	memories []*memory.Stored,
-	effectiveness map[string]EffectivenessStat,
 ) {
 	if len(memories) == 0 {
 		return
@@ -1473,8 +1445,7 @@ func writeRecencySection(
 	_, _ = fmt.Fprintf(contextBuf, "%s\n", recencySummary)
 
 	for _, mem := range memories {
-		annotation := formatEffectivenessAnnotation(mem.FilePath, effectiveness)
-		memLine := fmt.Sprintf("  - %s%s\n", filenameSlug(mem.FilePath), annotation)
+		memLine := fmt.Sprintf("  - %s: %s\n", filenameSlug(mem.FilePath), mem.Principle)
 		_, _ = fmt.Fprint(summaryBuf, memLine)
 		_, _ = fmt.Fprint(contextBuf, memLine)
 	}

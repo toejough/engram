@@ -248,8 +248,8 @@ func TestT100_ToolModeNoMatchProducesEmpty(t *testing.T) {
 	g.Expect(buf.String()).To(BeEmpty())
 }
 
-// T-115: Effectiveness annotation rendered when data exists
-func TestT115_EffectivenessAnnotationRendered(t *testing.T) {
+// T-115: Surfacing output includes principle text
+func TestT115_SurfacingOutputIncludesPrinciple(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -258,18 +258,14 @@ func TestT115_EffectivenessAnnotationRendered(t *testing.T) {
 		{
 			Title:     "Alpha Memory",
 			FilePath:  "alpha.toml",
+			Principle: "always check nil",
 			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	eff := &fakeEffectivenessComputer{
-		stats: map[string]surface.EffectivenessStat{
-			"alpha.toml": {SurfacedCount: 5, EffectivenessScore: 80.0},
-		},
-	}
 
-	s := surface.New(retriever, surface.WithEffectiveness(eff))
+	s := surface.New(retriever)
 
 	var buf bytes.Buffer
 
@@ -284,11 +280,11 @@ func TestT115_EffectivenessAnnotationRendered(t *testing.T) {
 		return
 	}
 
-	g.Expect(buf.String()).To(ContainSubstring("(surfaced 5 times, followed 80%)"))
+	g.Expect(buf.String()).To(ContainSubstring("alpha: always check nil"))
 }
 
-// T-116: No annotation when no evaluation data exists
-func TestT116_NoAnnotationWhenNoEvalData(t *testing.T) {
+// T-116: Output uses slug: principle format, never old annotation format
+func TestT116_OutputUsesSlugPrincipleFormat(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -297,11 +293,11 @@ func TestT116_NoAnnotationWhenNoEvalData(t *testing.T) {
 		{
 			Title:     "Beta Memory",
 			FilePath:  "beta.toml",
+			Principle: "validate inputs",
 			UpdatedAt: time.Date(2025, 3, 1, 0, 0, 0, 0, time.UTC),
 		},
 	}
 
-	// No WithEffectiveness option — no annotation expected.
 	retriever := &fakeRetriever{memories: memories}
 	s := surface.New(retriever)
 
@@ -318,7 +314,10 @@ func TestT116_NoAnnotationWhenNoEvalData(t *testing.T) {
 		return
 	}
 
-	g.Expect(buf.String()).NotTo(ContainSubstring("surfaced"))
+	output := buf.String()
+	g.Expect(output).To(ContainSubstring("beta: validate inputs"))
+	g.Expect(output).NotTo(ContainSubstring("surfaced"))
+	g.Expect(output).NotTo(ContainSubstring("followed"))
 }
 
 // T-121: Surfacer writes surfacing log during surfacing events.
