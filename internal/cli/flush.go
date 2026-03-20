@@ -99,7 +99,7 @@ func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 
 			defer func() { _ = transcriptFile.Close() }()
 
-			return RunEvaluate(evalArgs, token, stdout, stderr, transcriptFile)
+			return runEvaluate(evalArgs, stdout, stderr, transcriptFile)
 		},
 		func() error {
 			if *transcriptPath == "" || *sessionID == "" {
