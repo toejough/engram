@@ -235,6 +235,54 @@ func TestT23_BinDirInGitignore(t *testing.T) {
 	g.Expect(string(content)).To(ContainSubstring("bin/"))
 }
 
+// TestT352_PostToolUseFiltersFeedbackLoop verifies post-tool-use.sh exits early
+// for engram feedback/correct calls to prevent a surfacing feedback loop (#352).
+func TestT352_PostToolUseFiltersFeedbackLoop(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	g.Expect(script).To(ContainSubstring(`"engram feedback"`), "must filter engram feedback calls")
+	g.Expect(script).To(ContainSubstring(`"engram correct"`), "must filter engram correct calls")
+	g.Expect(script).To(ContainSubstring("#352"), "must reference the issue for traceability")
+}
+
+// TestT352_PreToolUseFiltersFeedbackLoop verifies pre-tool-use.sh exits early
+// for engram feedback/correct calls to prevent a surfacing feedback loop (#352).
+func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	g.Expect(script).To(ContainSubstring(`"engram feedback"`), "must filter engram feedback calls")
+	g.Expect(script).To(ContainSubstring(`"engram correct"`), "must filter engram correct calls")
+	g.Expect(script).To(ContainSubstring("#352"), "must reference the issue for traceability")
+}
+
 // TestT43_SessionStartHookSurfaces verifies hooks/session-start.sh calls
 // engram surface with --mode session-start (T-43).
 func TestT43_SessionStartHookSurfaces(t *testing.T) {
