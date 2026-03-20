@@ -963,7 +963,7 @@ const (
 	minPreCompactEffectiveness       = 40.0
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
 	preCompactLimit                  = 5
-	promptLimit                      = 10
+	promptLimit                      = 2
 	sessionStartDefaultEffectiveness = 50.0 // DES-P4e-1: default for memories with 1-4 surfacings
 	sessionStartLimit                = 7    // REQ-P4e-2: top-7
 	spreadingActivationDecay         = 0.3  // REQ-P3-6: spreading activation decay factor
