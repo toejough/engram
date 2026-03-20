@@ -9,18 +9,16 @@ import (
 )
 
 // FlushRunner executes the end-of-turn memory management pipeline:
-// learn → evaluate → context-update (#309).
+// learn → context-update (#309, #348).
 type FlushRunner struct {
 	learn         func() error
-	evaluate      func() error
 	contextUpdate func() error
 }
 
 // NewFlushRunner creates a FlushRunner with the given step functions.
-func NewFlushRunner(learn, evaluate, contextUpdate func() error) *FlushRunner {
+func NewFlushRunner(learn, contextUpdate func() error) *FlushRunner {
 	return &FlushRunner{
 		learn:         learn,
-		evaluate:      evaluate,
 		contextUpdate: contextUpdate,
 	}
 }
@@ -30,11 +28,6 @@ func (f *FlushRunner) Run() error {
 	learnErr := f.learn()
 	if learnErr != nil {
 		return fmt.Errorf("flush: learn: %w", learnErr)
-	}
-
-	evalErr := f.evaluate()
-	if evalErr != nil {
-		return fmt.Errorf("flush: evaluate: %w", evalErr)
 	}
 
 	ctxErr := f.contextUpdate()
@@ -51,7 +44,7 @@ var (
 )
 
 //nolint:funlen // CLI wiring function
-func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
+func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) error {
 	fs := flag.NewFlagSet("flush", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -84,22 +77,6 @@ func runFlush(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
 			}
 
 			return RunLearn(learnArgs, token, stderr, stdin, nil)
-		},
-		func() error {
-			if *transcriptPath == "" {
-				return nil
-			}
-
-			evalArgs := []string{"--data-dir", *dataDir}
-
-			transcriptFile, openErr := os.Open(*transcriptPath)
-			if openErr != nil {
-				return fmt.Errorf("opening transcript: %w", openErr)
-			}
-
-			defer func() { _ = transcriptFile.Close() }()
-
-			return runEvaluate(evalArgs, stdout, stderr, transcriptFile)
 		},
 		func() error {
 			if *transcriptPath == "" || *sessionID == "" {

@@ -214,7 +214,7 @@ followed_count = 3
 		"LLM should be called by multiple pipeline steps")
 }
 
-// T-370: flush command runs learn, evaluate, context-update in order.
+// T-370: flush command runs learn then context-update (no evaluate).
 func TestT370_FlushRunsInOrder(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -223,7 +223,6 @@ func TestT370_FlushRunsInOrder(t *testing.T) {
 
 	runner := cli.NewFlushRunner(
 		func() error { callOrder = append(callOrder, "learn"); return nil },
-		func() error { callOrder = append(callOrder, "evaluate"); return nil },
 		func() error { callOrder = append(callOrder, "context-update"); return nil },
 	)
 
@@ -234,7 +233,7 @@ func TestT370_FlushRunsInOrder(t *testing.T) {
 		return
 	}
 
-	g.Expect(callOrder).To(Equal([]string{"learn", "evaluate", "context-update"}))
+	g.Expect(callOrder).To(Equal([]string{"learn", "context-update"}))
 }
 
 // T-371: flush command stops on first step error.
