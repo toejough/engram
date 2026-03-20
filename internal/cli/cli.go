@@ -1065,7 +1065,7 @@ func resolveSkillsDir() string {
 	return filepath.Join(pluginRoot, "skills")
 }
 
-// reviewQuadrant replicates the registry.Classify logic using local thresholds.
+// reviewQuadrant classifies a memory by surfacing frequency and effectiveness.
 func reviewQuadrant(surfacedCount int, eff *float64) string {
 	if eff == nil {
 		return "Insufficient"
