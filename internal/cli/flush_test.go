@@ -36,6 +36,35 @@ func TestFlush_BadTranscriptPath_SkipsGracefully(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
+func TestFlush_DeletesSurfacingLog(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+
+	// Create a surfacing log file.
+	logPath := filepath.Join(dataDir, "surfacing-log.jsonl")
+	g.Expect(os.WriteFile(logPath, []byte(`{"mode":"prompt"}`+"\n"), 0o644)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "flush", "--data-dir", dataDir},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Surfacing log should be deleted.
+	_, statErr := os.Stat(logPath)
+	g.Expect(os.IsNotExist(statErr)).To(BeTrue(),
+		"surfacing-log.jsonl should be deleted by flush")
+}
+
 func TestFlush_FlagParseError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -180,35 +209,6 @@ func TestT337_FlushIntegration_PipelineOrdering(t *testing.T) {
 	// so only context-update's call is counted against the mock.
 	g.Expect(requestCount).To(BeNumerically(">=", 1),
 		"LLM should be called by context-update")
-}
-
-func TestFlush_DeletesSurfacingLog(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Create a surfacing log file.
-	logPath := filepath.Join(dataDir, "surfacing-log.jsonl")
-	g.Expect(os.WriteFile(logPath, []byte(`{"mode":"prompt"}`+"\n"), 0o644)).To(Succeed())
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "flush", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Surfacing log should be deleted.
-	_, statErr := os.Stat(logPath)
-	g.Expect(os.IsNotExist(statErr)).To(BeTrue(),
-		"surfacing-log.jsonl should be deleted by flush")
 }
 
 // T-370: flush command runs learn then context-update (no evaluate).

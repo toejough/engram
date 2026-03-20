@@ -44,7 +44,6 @@ var (
 	errFlushMissingDataDir = errors.New("flush: --data-dir is required")
 )
 
-//nolint:funlen // CLI wiring function
 func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) error {
 	fs := flag.NewFlagSet("flush", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
