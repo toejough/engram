@@ -143,9 +143,9 @@ func TestQW2_RelevanceFloorFiltersLowScoring(t *testing.T) {
 	}
 
 	output := buf.String()
-	// "exact-match" should appear, "irrelevant" should not (score below floor).
+	// "exact-match" should appear, "irrelevant" slug should not (score below floor).
 	g.Expect(output).To(ContainSubstring("exact-match"))
-	g.Expect(output).NotTo(ContainSubstring("irrelevant"))
+	g.Expect(output).NotTo(ContainSubstring("irrelevant:"))
 }
 
 // QW-2: Tool mode relevance floor filters low-scoring memories.
@@ -810,7 +810,7 @@ func TestT30_KeywordMatchSurfacesRelevant(t *testing.T) {
 	}
 
 	output := buf.String()
-	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
+	g.Expect(output).To(ContainSubstring("[engram] Memories"))
 	g.Expect(output).To(ContainSubstring("commit-conventions"))
 	g.Expect(output).NotTo(ContainSubstring("build-tools"))
 }
@@ -1293,7 +1293,7 @@ func TestT42_ToolModeEmitsAdvisoryReminder(t *testing.T) {
 	output := buf.String()
 	// Should emit system-reminder advisory format.
 	g.Expect(output).To(ContainSubstring("<system-reminder source=\"engram\">"))
-	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
+	g.Expect(output).To(ContainSubstring("[engram] Memories"))
 	g.Expect(output).To(ContainSubstring("use-commit"))
 	// "use-targ" should NOT appear — keyword "test" is not in "git commit -m 'fix'".
 	g.Expect(output).NotTo(ContainSubstring("use-targ"))

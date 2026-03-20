@@ -354,7 +354,10 @@ func (s *Surfacer) renderToolAdvisories(
 
 	_, _ = fmt.Fprintf(&summaryBuf, "[engram] %d tool advisories:\n", len(candidates))
 	_, _ = fmt.Fprintf(&contextBuf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&contextBuf, "[engram] Tool call advisory:\n")
+	_, _ = fmt.Fprintf(&contextBuf, "[engram] Memories — for any relevant memory, call "+
+		"`engram show <name> --data-dir ~/.claude/engram/data` for full details. "+
+		"After your turn, call `engram feedback <name> --relevant|--irrelevant "+
+		"--used|--notused --data-dir ~/.claude/engram/data` for each:\n")
 
 	toolMems := make([]*memory.Stored, 0, len(candidates))
 
@@ -571,7 +574,10 @@ func (s *Surfacer) runPrompt(
 	var buf strings.Builder
 
 	_, _ = fmt.Fprintf(&buf, "<system-reminder source=\"engram\">\n")
-	_, _ = fmt.Fprintf(&buf, "[engram] Relevant memories:\n")
+	_, _ = fmt.Fprintf(&buf, "[engram] Memories — for any relevant memory, call "+
+		"`engram show <name> --data-dir ~/.claude/engram/data` for full details. "+
+		"After your turn, call `engram feedback <name> --relevant|--irrelevant "+
+		"--used|--notused --data-dir ~/.claude/engram/data` for each:\n")
 
 	for _, match := range matches {
 		_, _ = fmt.Fprintf(&buf, "  - %s: %s\n",

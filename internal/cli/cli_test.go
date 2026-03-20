@@ -2325,7 +2325,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	}
 
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("[engram] Relevant memories:"))
+	g.Expect(output).To(ContainSubstring("[engram] Memories"))
 	g.Expect(output).To(ContainSubstring("commit-rules"))
 }
 
@@ -2411,7 +2411,7 @@ updated_at = "2025-01-01T00:00:00Z"
 	g.Expect(err).NotTo(HaveOccurred())
 	// Tool mode should emit advisory (now non-empty).
 	output := stdout.String()
-	g.Expect(output).To(ContainSubstring("[engram] Tool call advisory:"))
+	g.Expect(output).To(ContainSubstring("[engram] Memories"))
 }
 
 // T-61: RenderLearnResult with learnings emits DES-10 format with tier breakdown.
