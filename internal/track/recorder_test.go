@@ -41,7 +41,7 @@ func TestEmptyFilePathSkipped(t *testing.T) {
 
 // TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields verifies REQ-22 AC(2):
 // all non-tracking TOML fields are preserved exactly after RecordSurfacing.
-// Tracking fields (surfaced_count, last_surfaced, surfacing_contexts) must be absent.
+// surfaced_count is preserved; legacy fields (last_surfaced, surfacing_contexts) are stripped.
 func TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields(t *testing.T) {
 	t.Parallel()
 
@@ -101,7 +101,10 @@ func TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields(t *testing.T) {
 	g.Expect(record.CreatedAt).To(Equal("2024-03-01T09:00:00Z"))
 	g.Expect(record.UpdatedAt).To(Equal("2024-06-15T14:30:00Z"))
 
-	// Tracking fields must be stripped from the written output.
+	// surfaced_count is preserved (it is a real tracking field in MemoryRecord).
+	g.Expect(record.SurfacedCount).To(Equal(7))
+
+	// Legacy fields (last_surfaced, surfacing_contexts) must be stripped.
 	data, readErr := os.ReadFile(capture.tmpPath)
 	g.Expect(readErr).NotTo(HaveOccurred())
 
@@ -110,9 +113,70 @@ func TestREQ22AC2_RecordSurfacingPreservesNonTrackingFields(t *testing.T) {
 	}
 
 	raw := string(data)
-	g.Expect(raw).NotTo(ContainSubstring("surfaced_count"))
-	g.Expect(raw).NotTo(ContainSubstring("last_surfaced"))
+	g.Expect(raw).To(ContainSubstring("surfaced_count"))
+	g.Expect(raw).NotTo(ContainSubstring("last_surfaced ="))
 	g.Expect(raw).NotTo(ContainSubstring("surfacing_contexts"))
+}
+
+// TestT353_RecordSurfacingPreservesTrackingFields verifies that feedback
+// counters survive a RecordSurfacing cycle (#353).
+func TestT353_RecordSurfacingPreservesTrackingFields(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	capture := &writeCapture{}
+
+	tomlWithTracking := baseTOML +
+		"surfaced_count = 5\n" +
+		"followed_count = 3\n" +
+		"contradicted_count = 1\n" +
+		"ignored_count = 2\n" +
+		"irrelevant_count = 4\n" +
+		"last_surfaced_at = \"2026-01-03T00:00:00Z\"\n"
+
+	recorder := track.NewRecorder(
+		track.WithReadFile(func(_ string) ([]byte, error) {
+			return []byte(tomlWithTracking), nil
+		}),
+		track.WithCreateTemp(capture.createTemp(t)),
+		track.WithRename(func(_, _ string) error { return nil }),
+		track.WithRemove(func(_ string) error { return nil }),
+	)
+
+	memories := []*memory.Stored{
+		{FilePath: "/fake/memory.toml"},
+	}
+
+	err := recorder.RecordSurfacing(context.Background(), memories, "tool")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	record := capture.decodeTOML(g)
+
+	g.Expect(record.FollowedCount).To(Equal(3))
+	g.Expect(record.ContradictedCount).To(Equal(1))
+	g.Expect(record.IgnoredCount).To(Equal(2))
+	g.Expect(record.IrrelevantCount).To(Equal(4))
+	g.Expect(record.SurfacedCount).To(Equal(5))
+	g.Expect(record.LastSurfacedAt).To(Equal("2026-01-03T00:00:00Z"))
+
+	// Also verify raw TOML contains tracking keys.
+	data, readErr := os.ReadFile(capture.tmpPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	raw := string(data)
+	g.Expect(raw).To(ContainSubstring("followed_count"))
+	g.Expect(raw).To(ContainSubstring("contradicted_count"))
+	g.Expect(raw).To(ContainSubstring("ignored_count"))
+	g.Expect(raw).To(ContainSubstring("irrelevant_count"))
 }
 
 // T-76: RecordSurfacing re-writes TOML preserving content fields and stripping
@@ -160,15 +224,15 @@ func TestT76_RecordSurfacingPreservesContentFields(t *testing.T) {
 	g.Expect(record.UpdatedAt).To(Equal("2025-06-01T00:00:00Z"))
 }
 
-// T-77: Existing tracking fields in TOML are stripped on re-write.
-func TestT77_RecordSurfacingStripsTrackingFields(t *testing.T) {
+// T-77: Tracking fields are preserved; legacy-only fields are stripped on re-write.
+func TestT77_RecordSurfacingPreservesTrackingFields(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
 	capture := &writeCapture{}
 
-	// TOML with old tracking fields that should be stripped.
+	// TOML with surfaced_count (real field) and legacy fields that should be stripped.
 	existingTOML := baseTOML + "surfaced_count = 3\n" +
 		"last_surfaced = \"2026-02-01T00:00:00Z\"\n" +
 		"surfacing_contexts = [\"prompt\", \"tool\", \"session-start\"]\n"
@@ -193,7 +257,7 @@ func TestT77_RecordSurfacingStripsTrackingFields(t *testing.T) {
 		return
 	}
 
-	// Read raw output to verify tracking fields are absent.
+	// Read raw output to verify real tracking field is present, legacy fields absent.
 	data, readErr := os.ReadFile(capture.tmpPath)
 	g.Expect(readErr).NotTo(HaveOccurred())
 
@@ -202,13 +266,13 @@ func TestT77_RecordSurfacingStripsTrackingFields(t *testing.T) {
 	}
 
 	raw := string(data)
-	g.Expect(raw).NotTo(ContainSubstring("surfaced_count"))
-	g.Expect(raw).NotTo(ContainSubstring("last_surfaced"))
+	g.Expect(raw).To(ContainSubstring("surfaced_count"))
 	g.Expect(raw).NotTo(ContainSubstring("surfacing_contexts"))
 
 	// Content fields still present.
 	record := capture.decodeTOML(g)
 	g.Expect(record.Title).To(Equal("Test Memory"))
+	g.Expect(record.SurfacedCount).To(Equal(3))
 }
 
 // T-78: Two memories, first has unreadable path → first skipped, second updated.
@@ -395,21 +459,7 @@ const (
 		"updated_at = \"2025-06-01T00:00:00Z\"\n"
 )
 
-// fullTOMLRecord mirrors content TOML fields for test verification.
-// Tracking fields are no longer included (UC-23).
-type fullTOMLRecord struct {
-	Title           string   `toml:"title"`
-	Content         string   `toml:"content"`
-	ObservationType string   `toml:"observation_type"`
-	Concepts        []string `toml:"concepts"`
-	Keywords        []string `toml:"keywords"`
-	Principle       string   `toml:"principle"`
-	AntiPattern     string   `toml:"anti_pattern"`
-	Rationale       string   `toml:"rationale"`
-	Confidence      string   `toml:"confidence"`
-	CreatedAt       string   `toml:"created_at"`
-	UpdatedAt       string   `toml:"updated_at"`
-}
+// fullTOMLRecord deleted — replaced by memory.MemoryRecord.
 
 // writeCapture tracks the temp file path so its content can be read back
 // after the recorder closes it. This avoids real filesystem I/O for setup
@@ -435,13 +485,13 @@ func (w *writeCapture) createTemp(
 	}
 }
 
-func (w *writeCapture) decodeTOML(g Gomega) fullTOMLRecord {
+func (w *writeCapture) decodeTOML(g Gomega) memory.MemoryRecord {
 	g.Expect(w.tmpPath).NotTo(BeEmpty(), "no temp file was written")
 
 	data, err := os.ReadFile(w.tmpPath)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	var record fullTOMLRecord
+	var record memory.MemoryRecord
 
 	_, decodeErr := toml.Decode(string(data), &record)
 	g.Expect(decodeErr).NotTo(HaveOccurred())
