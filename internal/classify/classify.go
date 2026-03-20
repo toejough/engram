@@ -344,6 +344,15 @@ Classify the message into one of these tiers:
   (e.g., current task status, one-off session state, transient observations that apply only
   to this specific moment and would not be useful in a future session).
 
+Keyword selection rules:
+- Choose keywords UNIQUE to this specific domain or tool — terms that would NOT match
+  unrelated projects or contexts (e.g., "nozzle-temperature" not "settings",
+  "stl-mesh" not "file", "targ-check-full" not "check").
+- Avoid generic programming terms: test, error, build, function, check, run, fix, add,
+  update, config, setup, debug, log, data, file, code, project, tool, command.
+- Include the specific tool, library, or domain name (e.g., "gomega", "targ", "toml").
+- 3-7 keywords per memory. Fewer specific keywords > many generic ones.
+
 Return ONLY a JSON object — no markdown, no explanation:
 {
   "tier": "A" | "B" | "C" | null,
@@ -351,7 +360,7 @@ Return ONLY a JSON object — no markdown, no explanation:
   "content": "The full original message verbatim",
   "observation_type": "category label",
   "concepts": ["key", "concepts"],
-  "keywords": ["searchable", "keywords"],
+  "keywords": ["specific-tool-name", "domain-specific-term"],
   "principle": "The positive rule or principle",
   "anti_pattern": "The negative pattern to avoid (tier-gated)",
   "rationale": "Why this matters",
