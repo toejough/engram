@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
@@ -223,6 +224,91 @@ func TestOsSkillWriter_Write(t *testing.T) {
 	// Writing again should fail (already exists).
 	_, err = writer.Write("my-skill", "duplicate")
 	g.Expect(err).To(HaveOccurred())
+}
+
+// TestRecordEvaluation_AllOutcomes covers all three outcome branches of recordEvaluation.
+func TestRecordEvaluation_AllOutcomes(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+
+	for _, tc := range []struct {
+		outcome string
+		field   string
+	}{
+		{"followed", "followed_count"},
+		{"contradicted", "contradicted_count"},
+		{"ignored", "ignored_count"},
+	} {
+		t.Run(tc.outcome, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+
+			dir := t.TempDir()
+			path := filepath.Join(dir, "test.toml")
+
+			initial := memory.MemoryRecord{Title: "test"}
+
+			var buf bytes.Buffer
+
+			err := toml.NewEncoder(&buf).Encode(initial)
+			g.Expect(err).NotTo(HaveOccurred())
+
+			if err != nil {
+				return
+			}
+
+			writeErr := os.WriteFile(path, buf.Bytes(), 0o644)
+			g.Expect(writeErr).NotTo(HaveOccurred())
+
+			if writeErr != nil {
+				return
+			}
+
+			recErr := cli.ExportRecordEvaluation(path, tc.outcome)
+			g.Expect(recErr).NotTo(HaveOccurred())
+
+			if recErr != nil {
+				return
+			}
+
+			data, readErr := os.ReadFile(path)
+			g.Expect(readErr).NotTo(HaveOccurred())
+
+			if readErr != nil {
+				return
+			}
+
+			raw := string(data)
+			g.Expect(raw).To(ContainSubstring(tc.field))
+		})
+	}
+
+	// Verify unknown outcome doesn't crash.
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.toml")
+
+	initial := memory.MemoryRecord{Title: "test"}
+
+	var buf bytes.Buffer
+
+	err := toml.NewEncoder(&buf).Encode(initial)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	writeErr := os.WriteFile(path, buf.Bytes(), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	unknownErr := cli.ExportRecordEvaluation(path, "unknown")
+	g.Expect(unknownErr).NotTo(HaveOccurred())
 }
 
 // resolveSkillsDir: returns skills subdir when CLAUDE_PLUGIN_ROOT is set.

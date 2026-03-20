@@ -1007,6 +1007,20 @@ func openRegistry(dataDir string) *regpkg.TOMLDirectoryStore {
 	return regpkg.NewTOMLDirectoryStore(dataDir)
 }
 
+// recordEvaluation persists an evaluation outcome to a memory TOML file.
+func recordEvaluation(path, outcome string) error {
+	return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+		switch outcome {
+		case "followed":
+			record.FollowedCount++
+		case "contradicted":
+			record.ContradictedCount++
+		case "ignored":
+			record.IgnoredCount++
+		}
+	})
+}
+
 func renderReviewTable(
 	writer io.Writer,
 	classifications []reviewClassification,
@@ -1190,18 +1204,7 @@ func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error
 	var opts []evaluate.Option
 
 	if *dataDir != "" {
-		opts = append(opts, evaluate.WithEvaluationRecorder(func(path, outcome string) error {
-			return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
-				switch outcome {
-				case "followed":
-					record.FollowedCount++
-				case "contradicted":
-					record.ContradictedCount++
-				case "ignored":
-					record.IgnoredCount++
-				}
-			})
-		}))
+		opts = append(opts, evaluate.WithEvaluationRecorder(recordEvaluation))
 	}
 
 	opts = append(opts, evaluate.WithStripFunc(sessionctx.Strip))
