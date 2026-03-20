@@ -3,6 +3,7 @@ package learn_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -68,6 +69,141 @@ func TestFallbackMergePrinciple_CandidateLonger(t *testing.T) {
 
 	// mergeWriter.principle = max(candidate, existing) = candidate
 	g.Expect(mergeWriter.principle).To(Equal("much longer principle text here"))
+}
+
+// Task 2 (#345): When all keywords are common, keep originals (don't strip to zero).
+func TestKeywordIDFFilter_AllCommon_KeepsOriginals(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// "test" in 5/10 = 50%, "build" in 4/10 = 40% — both exceed 30%
+	existingMemories := make([]*memory.Stored, 0, 10)
+	for i := range 5 {
+		existingMemories = append(existingMemories, &memory.Stored{
+			FilePath: fmt.Sprintf("/data/mem-%d.toml", i),
+			Title:    fmt.Sprintf("mem-%d", i),
+			Keywords: []string{"test", "build"},
+		})
+	}
+
+	for i := 5; i < 10; i++ {
+		existingMemories = append(existingMemories, &memory.Stored{
+			FilePath: fmt.Sprintf("/data/mem-%d.toml", i),
+			Title:    fmt.Sprintf("mem-%d", i),
+			Keywords: []string{fmt.Sprintf("unique-%d", i)},
+		})
+	}
+
+	candidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "All common",
+		Content:         "some content",
+		Keywords:        []string{"test", "build"},
+		FilenameSummary: "all-common",
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: existingMemories}
+	deduplicator := &fakeDeduplicator{surviving: []memory.CandidateLearning{candidate}}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"all-common": "/tmp/memories/all-common.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(writer.received).To(HaveLen(1))
+
+	if len(writer.received) == 0 {
+		return
+	}
+
+	// All keywords are common, so originals should be kept (not stripped to zero).
+	g.Expect(writer.received[0].Keywords).To(ConsistOf("test", "build"))
+}
+
+// Task 2 (#345): Keyword IDF filter removes common keywords before write.
+func TestKeywordIDFFilter_RemovesCommonKeywords(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// "test" appears in 4 of 10 existing memories (40% > 30% threshold).
+	// "unique-keyword" appears in 0 → always passes.
+	existingMemories := make([]*memory.Stored, 0, 10)
+	for i := range 4 {
+		existingMemories = append(existingMemories, &memory.Stored{
+			FilePath: fmt.Sprintf("/data/mem-%d.toml", i),
+			Title:    fmt.Sprintf("mem-%d", i),
+			Keywords: []string{"test"},
+		})
+	}
+
+	for i := 4; i < 10; i++ {
+		existingMemories = append(existingMemories, &memory.Stored{
+			FilePath: fmt.Sprintf("/data/mem-%d.toml", i),
+			Title:    fmt.Sprintf("mem-%d", i),
+			Keywords: []string{fmt.Sprintf("unique-%d", i)},
+		})
+	}
+
+	candidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "New learning",
+		Content:         "some content",
+		Keywords:        []string{"test", "unique-keyword"},
+		FilenameSummary: "new-learning",
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: existingMemories}
+	deduplicator := &fakeDeduplicator{surviving: []memory.CandidateLearning{candidate}}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"new-learning": "/tmp/memories/new-learning.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(HaveLen(1))
+	g.Expect(writer.received).To(HaveLen(1))
+
+	if len(writer.received) == 0 {
+		return
+	}
+
+	// "test" should be filtered out (40% > 30%), "unique-keyword" should remain.
+	g.Expect(writer.received[0].Keywords).To(ConsistOf("unique-keyword"))
+	g.Expect(writer.received[0].Keywords).NotTo(ContainElement("test"))
 }
 
 // ListMemories error — pipeline returns error

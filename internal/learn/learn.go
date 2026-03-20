@@ -15,6 +15,7 @@ import (
 	"engram/internal/creationlog"
 	"engram/internal/dedup"
 	"engram/internal/graph"
+	"engram/internal/keyword"
 	"engram/internal/memory"
 )
 
@@ -92,6 +93,9 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 	mergePairs := classified.MergePairs
 	skippedCount := len(candidates) - len(surviving) - len(mergePairs)
 
+	// Filter overly-common keywords from surviving candidates (#345)
+	l.filterCommonKeywords(surviving, existing)
+
 	createdPaths := make([]string, 0, len(surviving))
 	tierCounts := make(map[string]int)
 	now := time.Now()
@@ -159,6 +163,28 @@ func (l *Learner) fallbackMergePrinciple(existing, candidate string) string {
 	}
 
 	return existing
+}
+
+// filterCommonKeywords removes overly-common keywords from surviving candidates (#345).
+// If all keywords would be removed, the originals are kept so the memory remains surfaceable.
+func (l *Learner) filterCommonKeywords(
+	surviving []memory.CandidateLearning,
+	existing []*memory.Stored,
+) {
+	existingKeywordSets := make([][]string, 0, len(existing))
+
+	for _, mem := range existing {
+		existingKeywordSets = append(existingKeywordSets, mem.Keywords)
+	}
+
+	for i, candidate := range surviving {
+		filtered := keyword.FilterByDocFrequency(
+			candidate.Keywords, existingKeywordSets, keywordMaxDocFreqRatio,
+		)
+		if len(filtered) > 0 {
+			surviving[i].Keywords = filtered
+		}
+	}
 }
 
 // hashKeywords returns a hash of the keywords (for the Absorbed record).
@@ -380,3 +406,8 @@ type Result struct {
 type TranscriptExtractor interface {
 	Extract(ctx context.Context, transcript string) ([]memory.CandidateLearning, error)
 }
+
+// unexported constants.
+const (
+	keywordMaxDocFreqRatio = 0.3
+)
