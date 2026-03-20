@@ -16,6 +16,69 @@ import (
 	"engram/internal/surface"
 )
 
+// T-343: BM25 irrelevance penalty suppresses high-irrelevance memories.
+func TestBM25_IrrelevancePenalty_ReducesScore(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Two memories with identical keywords. Memory A has no irrelevance,
+	// Memory B has high irrelevance (count=100, penalty factor ~0.05).
+	// Both match "commit" but B should be suppressed below the relevance floor.
+	memA := &memory.Stored{
+		Title:           "Commit Rule A",
+		FilePath:        "commit-rule-a.toml",
+		Keywords:        []string{"commit", "git"},
+		Principle:       "use /commit skill",
+		IrrelevantCount: 0,
+	}
+
+	memB := &memory.Stored{
+		Title:           "Commit Rule B",
+		FilePath:        "commit-rule-b.toml",
+		Keywords:        []string{"commit", "git"},
+		Principle:       "use /commit skill",
+		IrrelevantCount: 100,
+	}
+
+	// Non-matching fillers for IDF contrast.
+	fillers := make([]*memory.Stored, 0, 5)
+	for _, name := range []string{"logging", "testing", "deploy", "config", "monitoring"} {
+		fillers = append(fillers, &memory.Stored{
+			Title:    name + " guide",
+			FilePath: name + ".toml",
+			Keywords: []string{name},
+			Content:  name + " documentation",
+		})
+	}
+
+	allMems := make([]*memory.Stored, 0, 2+len(fillers))
+	allMems = append(allMems, memA, memB)
+	allMems = append(allMems, fillers...)
+	retriever := &fakeRetriever{memories: allMems}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:    surface.ModePrompt,
+		DataDir: "/tmp/data",
+		Message: "I want to commit this change using git",
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := buf.String()
+	// Memory A (no irrelevance) should appear.
+	g.Expect(output).To(ContainSubstring("commit-rule-a"))
+	// Memory B (high irrelevance, penalty ~0.05) should be suppressed below floor.
+	g.Expect(output).NotTo(ContainSubstring("commit-rule-b"))
+}
+
 // QW-1: Tool mode limits to top 2 results (REQ-P4e-4: down from 3, down from original 5 in REQ-11).
 func TestQW1_ToolModeLimitsToTop2(t *testing.T) {
 	t.Parallel()

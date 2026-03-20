@@ -50,6 +50,41 @@ func (g *Generator) Generate(
 	return proposals
 }
 
+// checkIrrelevance proposes refine_keywords when a memory's irrelevance ratio exceeds
+// the threshold (60%) with sufficient total feedback (>=5). Returns (proposal, true)
+// if the check triggers, or (zero, false) to fall through to quadrant handling.
+func (g *Generator) checkIrrelevance(
+	classifiedMem review.ClassifiedMemory,
+	stored *memory.Stored,
+) (Proposal, bool) {
+	if stored == nil {
+		return Proposal{}, false
+	}
+
+	totalFeedback := stored.FollowedCount + stored.ContradictedCount +
+		stored.IgnoredCount + stored.IrrelevantCount
+	if totalFeedback < refineKeywordsMinFeedback {
+		return Proposal{}, false
+	}
+
+	ratio := float64(stored.IrrelevantCount) / float64(totalFeedback)
+	if ratio <= refineKeywordsIrrelevanceThreshold {
+		return Proposal{}, false
+	}
+
+	const percentMultiplier = 100
+
+	return Proposal{
+		MemoryPath: classifiedMem.Name,
+		Quadrant:   string(classifiedMem.Quadrant),
+		Action:     actionRefineKeywords,
+		Diagnosis: fmt.Sprintf(
+			"%d%% of feedback is irrelevant — keywords may be too generic",
+			int(ratio*percentMultiplier),
+		),
+	}, true
+}
+
 // generateOne produces a proposal for a single classified memory.
 // Returns (proposal, true) if a proposal was generated, or (zero, false) to skip.
 func (g *Generator) generateOne(
@@ -57,6 +92,11 @@ func (g *Generator) generateOne(
 	classifiedMem review.ClassifiedMemory,
 	stored *memory.Stored,
 ) (Proposal, bool) {
+	// Check for high-irrelevance memories — propose keyword refinement (#343).
+	if proposal, ok := g.checkIrrelevance(classifiedMem, stored); ok {
+		return proposal, true
+	}
+
 	switch classifiedMem.Quadrant {
 	case review.Working:
 		return g.handleWorking(classifiedMem, stored)
@@ -205,6 +245,7 @@ func WithNow(nowFn func() time.Time) Option {
 // unexported constants.
 const (
 	actionBroadenKeywords = "broaden_keywords"
+	actionRefineKeywords  = "refine_keywords"
 	actionRemove          = "remove"
 	actionReviewStaleness = "review_staleness"
 	actionRewrite         = "rewrite"
@@ -220,8 +261,10 @@ const (
 		"Propose specific field-level changes as JSON. " +
 		"Output: " +
 		`{"proposed_keywords":[...],"proposed_principle":"...","rationale":"..."}`
-	maintainModel          = "claude-haiku-4-5-20251001"
-	stalenessThresholdDays = 90
+	maintainModel                      = "claude-haiku-4-5-20251001"
+	refineKeywordsIrrelevanceThreshold = 0.6
+	refineKeywordsMinFeedback          = 5
+	stalenessThresholdDays             = 90
 )
 
 //nolint:tagliatelle // DES-23 specifies snake_case JSON field names.

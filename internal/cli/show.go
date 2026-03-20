@@ -31,6 +31,7 @@ type showTOMLRecord struct {
 	FollowedCount     int      `toml:"followed_count"`
 	ContradictedCount int      `toml:"contradicted_count"`
 	IgnoredCount      int      `toml:"ignored_count"`
+	IrrelevantCount   int      `toml:"irrelevant_count"`
 }
 
 // effectivenessPercent computes followed/total as a rounded integer percentage.
@@ -96,6 +97,7 @@ func loadMemoryTOML(path string) (*memory.Stored, error) {
 		FollowedCount:     record.FollowedCount,
 		ContradictedCount: record.ContradictedCount,
 		IgnoredCount:      record.IgnoredCount,
+		IrrelevantCount:   record.IrrelevantCount,
 		FilePath:          path,
 	}, nil
 }
@@ -131,6 +133,16 @@ func renderMemory(writer io.Writer, mem *memory.Stored) {
 		_, _ = fmt.Fprintf(writer,
 			"Effectiveness: %d%% (%d followed, %d contradicted, %d ignored)\n",
 			pct, mem.FollowedCount, mem.ContradictedCount, mem.IgnoredCount)
+	}
+
+	if mem.IrrelevantCount > 0 {
+		totalFeedback := mem.FollowedCount + mem.ContradictedCount +
+			mem.IgnoredCount + mem.IrrelevantCount
+		relevantFeedback := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount
+		pct := effectivenessPercent(relevantFeedback, totalFeedback)
+		_, _ = fmt.Fprintf(writer,
+			"Relevance: %d%% (%d relevant, %d irrelevant of %d feedback)\n",
+			pct, relevantFeedback, mem.IrrelevantCount, totalFeedback)
 	}
 }
 

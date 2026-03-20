@@ -27,6 +27,9 @@ func applyFeedbackCounters(
 	record map[string]any, relevant, used, notused bool,
 ) string {
 	if !relevant {
+		current, _ := record["irrelevant_count"].(int64)
+		record["irrelevant_count"] = current + 1
+
 		return "irrelevant"
 	}
 

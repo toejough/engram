@@ -88,6 +88,7 @@ type Stored struct {
 	FollowedCount     int
 	ContradictedCount int
 	IgnoredCount      int
+	IrrelevantCount   int
 	UpdatedAt         time.Time
 	FilePath          string
 }

@@ -13,7 +13,7 @@ import (
 	"engram/internal/cli"
 )
 
-func TestFeedback_Irrelevant_NoCounterChange(t *testing.T) {
+func TestFeedback_Irrelevant_IncrementsIrrelevantCount(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
@@ -63,7 +63,7 @@ ignored_count = 1
 	g.Expect(stdout.String()).To(ContainSubstring("Feedback recorded"))
 	g.Expect(stdout.String()).To(ContainSubstring("irrelevant"))
 
-	// Verify no counters changed.
+	// Verify irrelevant_count incremented and other counters unchanged.
 	var record map[string]any
 
 	_, decErr := toml.DecodeFile(
@@ -77,6 +77,7 @@ ignored_count = 1
 
 	g.Expect(record["followed_count"]).To(BeEquivalentTo(3))
 	g.Expect(record["ignored_count"]).To(BeEquivalentTo(1))
+	g.Expect(record["irrelevant_count"]).To(BeEquivalentTo(1))
 }
 
 func TestFeedback_MemoryNotFound(t *testing.T) {

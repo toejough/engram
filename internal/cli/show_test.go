@@ -12,6 +12,63 @@ import (
 	"engram/internal/cli"
 )
 
+func TestShow_DisplaysRelevanceRatio(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := `title = "Test Memory"
+principle = "Do the right thing"
+content = "Content here"
+followed_count = 5
+contradicted_count = 0
+ignored_count = 0
+irrelevant_count = 3
+`
+	err = os.WriteFile(
+		filepath.Join(memDir, "relevance-test.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "show",
+			"relevance-test",
+			"--data-dir", dataDir,
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	// Total feedback = 5+0+0+3 = 8, relevant = 5, pct = 62%
+	g.Expect(output).To(ContainSubstring("Relevance: 62%"))
+	g.Expect(output).To(ContainSubstring("5 relevant"))
+	g.Expect(output).To(ContainSubstring("3 irrelevant"))
+	g.Expect(output).To(ContainSubstring("8 feedback"))
+}
+
 func TestShow_FlagParseError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

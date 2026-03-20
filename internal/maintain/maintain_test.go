@@ -49,6 +49,34 @@ func TestGenerate_HiddenGemBroaden(t *testing.T) {
 	g.Expect(proposals[0].Details).NotTo(gomega.BeEmpty())
 }
 
+// T-343: High-irrelevance memory produces refine_keywords proposal.
+func TestGenerate_HighIrrelevance_ProposesRefineKeywords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	gen := maintain.New(maintain.WithNow(fixedNow))
+
+	classified := []review.ClassifiedMemory{
+		{Name: "generic-mem", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"generic-mem": {
+			Title:           "Generic Memory",
+			Keywords:        []string{"code"},
+			FollowedCount:   3,
+			IrrelevantCount: 8,
+			UpdatedAt:       fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].MemoryPath).To(gomega.Equal("generic-mem"))
+	g.Expect(proposals[0].Action).To(gomega.Equal("refine_keywords"))
+	g.Expect(proposals[0].Diagnosis).To(gomega.ContainSubstring("irrelevant"))
+}
+
 // T-176: Insufficient data memory produces no proposal.
 func TestGenerate_InsufficientDataSkipped(t *testing.T) {
 	t.Parallel()
@@ -66,6 +94,37 @@ func TestGenerate_InsufficientDataSkipped(t *testing.T) {
 	proposals := gen.Generate(context.Background(), classified, memories)
 
 	g.Expect(proposals).To(gomega.BeEmpty())
+}
+
+// T-343d: Memory with insufficient feedback skips irrelevance check.
+func TestGenerate_InsufficientFeedback_SkipsIrrelevanceCheck(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	now := fixedNow()
+
+	const daysAgo = 91
+
+	gen := maintain.New(maintain.WithNow(func() time.Time { return now }))
+
+	classified := []review.ClassifiedMemory{
+		{Name: "few-feedback", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"few-feedback": {
+			Title:           "Few Feedback Memory",
+			FollowedCount:   1,
+			IrrelevantCount: 3,
+			// Total = 4, below refineKeywordsMinFeedback (5).
+			UpdatedAt: now.AddDate(0, 0, -daysAgo),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	// Should fall through to Working handler (stale) — not refine_keywords.
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("review_staleness"))
 }
 
 // T-177: LLM failure for one memory does not block others.
@@ -140,6 +199,33 @@ func TestGenerate_LeechRewrite(t *testing.T) {
 	g.Expect(proposals[0].Details).NotTo(gomega.BeEmpty())
 }
 
+// T-343b: Low-irrelevance memory does not trigger refine_keywords.
+func TestGenerate_LowIrrelevance_NoRefineKeywords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	gen := maintain.New(maintain.WithNow(fixedNow))
+
+	classified := []review.ClassifiedMemory{
+		{Name: "ok-mem", Quadrant: review.Working},
+	}
+	memories := map[string]*memory.Stored{
+		"ok-mem": {
+			Title:           "OK Memory",
+			Keywords:        []string{"testing"},
+			FollowedCount:   8,
+			IrrelevantCount: 2,
+			UpdatedAt:       fixedNow(),
+		},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	// No refine_keywords — irrelevance ratio is 20% (below 60%).
+	// Working with recent UpdatedAt should produce no proposal.
+	g.Expect(proposals).To(gomega.BeEmpty())
+}
+
 // T-178: Nil LLM caller skips leech and hidden gem, produces only noise proposals.
 func TestGenerate_NilLLMCallerSkipsLLMQuadrants(t *testing.T) {
 	t.Parallel()
@@ -169,6 +255,25 @@ func TestGenerate_NilLLMCallerSkipsLLMQuadrants(t *testing.T) {
 	g.Expect(proposals).To(gomega.HaveLen(1))
 	g.Expect(proposals[0].MemoryPath).To(gomega.Equal("noise-mem"))
 	g.Expect(proposals[0].Action).To(gomega.Equal("remove"))
+}
+
+// T-343c: Memory with nil stored skips irrelevance check without panic.
+func TestGenerate_NilStored_SkipsIrrelevanceCheck(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	gen := maintain.New(maintain.WithNow(fixedNow))
+
+	classified := []review.ClassifiedMemory{
+		{Name: "missing-mem", Quadrant: review.Working},
+	}
+	// Memory not in map — stored will be nil.
+	memories := map[string]*memory.Stored{}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	// Should produce no proposal (nil stored falls through to Working handler which also nil-guards).
+	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
 // T-175: Noise memory produces removal proposal with evidence.

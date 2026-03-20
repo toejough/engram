@@ -8,6 +8,7 @@ type Stat struct {
 	FollowedCount      int
 	ContradictedCount  int
 	IgnoredCount       int
+	IrrelevantCount    int
 	EffectivenessScore float64 // followed / (followed + contradicted + ignored) * 100
 }
 
@@ -30,6 +31,7 @@ func FromMemories(memories []*memory.Stored) map[string]Stat {
 			FollowedCount:      mem.FollowedCount,
 			ContradictedCount:  mem.ContradictedCount,
 			IgnoredCount:       mem.IgnoredCount,
+			IrrelevantCount:    mem.IrrelevantCount,
 			EffectivenessScore: score,
 		}
 	}

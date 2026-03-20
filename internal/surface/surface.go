@@ -957,7 +957,8 @@ const (
 	enforcementAdvisory              = "advisory"
 	enforcementEmphasizedAdvisory    = "emphasized_advisory"
 	enforcementReminder              = "reminder"
-	insufficientDataThreshold        = 5    // REQ-P4e-1: <5 surfacings → insufficient data, skip gating
+	insufficientDataThreshold        = 5 // REQ-P4e-1: <5 surfacings → insufficient data, skip gating
+	irrelevancePenaltyHalfLife       = 5
 	minEffectivenessFloor            = 40.0 // REQ-P4e-1/REQ-P4e-4: gate threshold
 	minPreCompactEffectiveness       = 40.0
 	minRelevanceScore                = 0.05 // DES-P4e-3: raised BM25 floor for tighter filtering
@@ -1101,6 +1102,20 @@ func applySpreadingActivation(
 	return activated
 }
 
+// bm25FloorForTool returns the BM25 relevance floor for a tool-mode memory.
+// Unproven memories get a higher floor unless the tool errored.
+func bm25FloorForTool(
+	memID string,
+	errored bool,
+	effectiveness map[string]EffectivenessStat,
+) float64 {
+	if isUnproven(memID, effectiveness) && !errored {
+		return unprovenBM25FloorTool
+	}
+
+	return minRelevanceScore
+}
+
 // concatenatePromptFields builds searchable text for prompt mode.
 func concatenatePromptFields(mem *memory.Stored) string {
 	var parts []string
@@ -1228,6 +1243,14 @@ func formatMemoryLine(slug, principle, level string) string {
 	}
 }
 
+// irrelevancePenalty computes a continuous BM25 score multiplier based on irrelevant feedback count.
+// Uses the formula K/(K+count) where K=irrelevancePenaltyHalfLife (5).
+// At count=0 → 1.0, count=5 → 0.5, count=10 → 0.33.
+func irrelevancePenalty(irrelevantCount int) float64 {
+	return float64(irrelevancePenaltyHalfLife) /
+		float64(irrelevancePenaltyHalfLife+irrelevantCount)
+}
+
 // isEmphasized reports whether the level should be prioritized in the output.
 func isEmphasized(level string) bool {
 	return level == enforcementEmphasizedAdvisory || level == enforcementReminder
@@ -1274,18 +1297,25 @@ func matchPromptMemories(
 
 	// Build results, filtering by relevance floor.
 	// Unproven memories require a higher floor to avoid cold-start noise.
+	// Apply irrelevance penalty before floor comparison (#343).
 	matches := make([]promptMatch, 0, len(scored))
 	for _, result := range scored {
+		mem, ok := memoryIndex[result.ID]
+		if !ok || mem == nil {
+			continue
+		}
+
+		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
+
 		floor := minRelevanceScore
 		if isUnproven(result.ID, effectiveness) {
 			floor = unprovenBM25FloorPrompt
 		}
 
-		if result.Score < floor {
+		if penalizedScore < floor {
 			continue
 		}
 
-		mem := memoryIndex[result.ID]
 		matches = append(matches, promptMatch{mem: mem})
 	}
 
@@ -1343,18 +1373,20 @@ func matchToolMemories(
 	// Build results, filtering by relevance floor.
 	// Unproven memories require a higher floor to avoid cold-start noise,
 	// unless the tool errored — any relevant memory is high-value on failure.
+	// Apply irrelevance penalty before floor comparison (#343).
 	matches := make([]toolMatch, 0, len(scored))
 	for _, result := range scored {
-		floor := minRelevanceScore
-		if isUnproven(result.ID, effectiveness) && !errored {
-			floor = unprovenBM25FloorTool
-		}
-
-		if result.Score < floor {
+		mem, ok := memoryIndex[result.ID]
+		if !ok || mem == nil {
 			continue
 		}
 
-		mem := memoryIndex[result.ID]
+		penalizedScore := result.Score * irrelevancePenalty(mem.IrrelevantCount)
+
+		if penalizedScore < bm25FloorForTool(result.ID, errored, effectiveness) {
+			continue
+		}
+
 		matches = append(matches, toolMatch{mem: mem})
 	}
 
