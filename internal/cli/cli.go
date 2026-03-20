@@ -139,6 +139,8 @@ func Run(
 		return runLearn(subArgs, stderr, stdin)
 	case "instruct":
 		return runInstructAudit(subArgs, stdout)
+	case "show":
+		return runShow(subArgs, stdout)
 	case "context-update":
 		return runContextUpdate(subArgs)
 	case "apply-proposal":
@@ -499,7 +501,7 @@ var (
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
 		"usage: engram <audit|correct|surface|learn|evaluate" +
-			"|review|maintain|instruct" +
+			"|review|maintain|instruct|show" +
 			"|context-update> [flags]",
 	)
 )
