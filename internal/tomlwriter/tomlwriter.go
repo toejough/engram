@@ -73,7 +73,7 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 		keywords = make([]string, 0)
 	}
 
-	record := tomlRecord{
+	record := memory.MemoryRecord{
 		Title:           mem.Title,
 		Content:         mem.Content,
 		ObservationType: mem.ObservationType,
@@ -116,7 +116,7 @@ func (w *Writer) availablePath(memoriesDir, slug string) (string, error) {
 
 // writeAtomic writes record as TOML to finalPath using a temp file and rename.
 // Paths are constructed internally via filepath.Join — no user-controlled input.
-func (w *Writer) writeAtomic(memoriesDir, finalPath string, record tomlRecord) error {
+func (w *Writer) writeAtomic(memoriesDir, finalPath string, record memory.MemoryRecord) error {
 	tempFile, err := w.createTemp(memoriesDir, ".tmp-*")
 	if err != nil {
 		return fmt.Errorf("tomlwriter: create temp file: %w", err)
@@ -182,21 +182,6 @@ const (
 var (
 	nonAlphanumericRun = regexp.MustCompile(`[^a-z0-9]+`)
 )
-
-// tomlRecord is the on-disk TOML representation with snake_case field names.
-type tomlRecord struct {
-	Title           string   `toml:"title"`
-	Content         string   `toml:"content"`
-	ObservationType string   `toml:"observation_type"`
-	Concepts        []string `toml:"concepts"`
-	Keywords        []string `toml:"keywords"`
-	Principle       string   `toml:"principle"`
-	AntiPattern     string   `toml:"anti_pattern"`
-	Rationale       string   `toml:"rationale"`
-	Confidence      string   `toml:"confidence"`
-	CreatedAt       string   `toml:"created_at"`
-	UpdatedAt       string   `toml:"updated_at"`
-}
 
 // slugify converts a filename summary to a lowercase hyphen-separated slug.
 // Returns "memory" if the result would otherwise be empty.

@@ -169,19 +169,7 @@ func TestT8_WriteCreatesTomlFileWithAllFields(t *testing.T) {
 		return
 	}
 
-	var parsed struct {
-		Title           string   `toml:"title"`
-		Content         string   `toml:"content"`
-		ObservationType string   `toml:"observation_type"`
-		Concepts        []string `toml:"concepts"`
-		Keywords        []string `toml:"keywords"`
-		Principle       string   `toml:"principle"`
-		AntiPattern     string   `toml:"anti_pattern"`
-		Rationale       string   `toml:"rationale"`
-		Confidence      string   `toml:"confidence"`
-		CreatedAt       string   `toml:"created_at"`
-		UpdatedAt       string   `toml:"updated_at"`
-	}
+	var parsed memory.MemoryRecord
 
 	_, decodeErr := toml.DecodeFile(filePath, &parsed)
 	g.Expect(decodeErr).NotTo(HaveOccurred())
@@ -449,4 +437,44 @@ func TestWriteAtomicRenameError(t *testing.T) {
 	if writeErr != nil {
 		g.Expect(writeErr.Error()).To(ContainSubstring("rename to final path"))
 	}
+}
+
+func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	mem := &memory.Enriched{
+		Title:           "test memory",
+		Content:         "test content",
+		FilenameSummary: "tracking-field-test",
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	writer := tomlwriter.New()
+
+	path, err := writer.Write(mem, dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	data, readErr := os.ReadFile(path)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	raw := string(data)
+	g.Expect(raw).To(ContainSubstring("surfaced_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("followed_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("contradicted_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("ignored_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("irrelevant_count"), "tracking field key must be present")
+	g.Expect(raw).To(ContainSubstring("last_surfaced_at"), "tracking field key must be present")
 }
