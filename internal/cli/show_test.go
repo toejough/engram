@@ -256,6 +256,63 @@ func TestShow_NameFlag_Works(t *testing.T) {
 	g.Expect(stdout.String()).To(ContainSubstring("Title: Flag Test"))
 }
 
+func TestShow_NewFields_Displayed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := `title = "Rich Memory"
+observation_type = "pattern"
+rationale = "Because it works"
+confidence = "high"
+created_at = "2025-01-15T10:00:00Z"
+last_surfaced_at = "2025-03-01T08:00:00Z"
+content = "Some content"
+`
+	err = os.WriteFile(
+		filepath.Join(memDir, "rich-memory.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "show",
+			"rich-memory",
+			"--data-dir", dataDir,
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	g.Expect(output).To(ContainSubstring("Type: pattern"))
+	g.Expect(output).To(ContainSubstring("Rationale: Because it works"))
+	g.Expect(output).To(ContainSubstring("Confidence: high"))
+	g.Expect(output).To(ContainSubstring("Created: 2025-01-15T10:00:00Z"))
+	g.Expect(output).To(ContainSubstring("Last surfaced: 2025-03-01T08:00:00Z"))
+}
+
 func TestShow_OmitsEmptyFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

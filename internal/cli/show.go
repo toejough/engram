@@ -19,21 +19,6 @@ var (
 	errShowMissingSlug    = errors.New("show: slug argument required")
 )
 
-// showTOMLRecord mirrors the on-disk TOML format for the show command.
-type showTOMLRecord struct {
-	Title             string   `toml:"title"`
-	Content           string   `toml:"content"`
-	Concepts          []string `toml:"concepts"`
-	Keywords          []string `toml:"keywords"`
-	AntiPattern       string   `toml:"anti_pattern"`
-	Principle         string   `toml:"principle"`
-	SurfacedCount     int      `toml:"surfaced_count"`
-	FollowedCount     int      `toml:"followed_count"`
-	ContradictedCount int      `toml:"contradicted_count"`
-	IgnoredCount      int      `toml:"ignored_count"`
-	IrrelevantCount   int      `toml:"irrelevant_count"`
-}
-
 // effectivenessPercent computes followed/total as a rounded integer percentage.
 func effectivenessPercent(followed, total int) int {
 	const percentMultiplier = 100
@@ -77,37 +62,34 @@ func extractSlug(args []string) (string, []string) {
 	return "", remaining
 }
 
-// loadMemoryTOML reads and decodes a single memory TOML file.
-func loadMemoryTOML(path string) (*memory.Stored, error) {
-	var record showTOMLRecord
+// loadMemoryTOML reads and decodes a single memory TOML file into MemoryRecord.
+func loadMemoryTOML(path string) (*memory.MemoryRecord, error) {
+	var record memory.MemoryRecord
 
 	_, err := toml.DecodeFile(path, &record)
 	if err != nil {
 		return nil, fmt.Errorf("decoding TOML: %w", err)
 	}
 
-	return &memory.Stored{
-		Title:             record.Title,
-		Content:           record.Content,
-		Concepts:          record.Concepts,
-		Keywords:          record.Keywords,
-		AntiPattern:       record.AntiPattern,
-		Principle:         record.Principle,
-		SurfacedCount:     record.SurfacedCount,
-		FollowedCount:     record.FollowedCount,
-		ContradictedCount: record.ContradictedCount,
-		IgnoredCount:      record.IgnoredCount,
-		IrrelevantCount:   record.IrrelevantCount,
-		FilePath:          path,
-	}, nil
+	return &record, nil
 }
 
 // renderMemory writes formatted memory details to w.
-// Only fields with non-empty values are printed.
+// Only fields with non-empty/non-zero values are printed.
 // Effectiveness is printed only when total evaluations > 0.
-func renderMemory(writer io.Writer, mem *memory.Stored) {
+func renderMemory(writer io.Writer, mem *memory.MemoryRecord) {
+	renderMemoryContent(writer, mem)
+	renderMemoryMeta(writer, mem)
+}
+
+// renderMemoryContent writes the content fields of a memory record to w.
+func renderMemoryContent(writer io.Writer, mem *memory.MemoryRecord) {
 	if mem.Title != "" {
 		_, _ = fmt.Fprintf(writer, "Title: %s\n", mem.Title)
+	}
+
+	if mem.ObservationType != "" {
+		_, _ = fmt.Fprintf(writer, "Type: %s\n", mem.ObservationType)
 	}
 
 	if mem.Principle != "" {
@@ -118,6 +100,10 @@ func renderMemory(writer io.Writer, mem *memory.Stored) {
 		_, _ = fmt.Fprintf(writer, "Anti-pattern: %s\n", mem.AntiPattern)
 	}
 
+	if mem.Rationale != "" {
+		_, _ = fmt.Fprintf(writer, "Rationale: %s\n", mem.Rationale)
+	}
+
 	if mem.Content != "" {
 		_, _ = fmt.Fprintf(writer, "Content: %s\n", mem.Content)
 	}
@@ -125,6 +111,21 @@ func renderMemory(writer io.Writer, mem *memory.Stored) {
 	if len(mem.Keywords) > 0 {
 		_, _ = fmt.Fprintf(writer, "Keywords: %s\n",
 			strings.Join(mem.Keywords, ", "))
+	}
+}
+
+// renderMemoryMeta writes the metadata and tracking fields of a memory record to w.
+func renderMemoryMeta(writer io.Writer, mem *memory.MemoryRecord) {
+	if mem.Confidence != "" {
+		_, _ = fmt.Fprintf(writer, "Confidence: %s\n", mem.Confidence)
+	}
+
+	if mem.CreatedAt != "" {
+		_, _ = fmt.Fprintf(writer, "Created: %s\n", mem.CreatedAt)
+	}
+
+	if mem.LastSurfacedAt != "" {
+		_, _ = fmt.Fprintf(writer, "Last surfaced: %s\n", mem.LastSurfacedAt)
 	}
 
 	total := mem.FollowedCount + mem.ContradictedCount + mem.IgnoredCount
