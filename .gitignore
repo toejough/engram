@@ -26,3 +26,4 @@ docs/session-logs/
 result.toml
 skills/*/result.toml
 skills/*/test-coverage.md
+.worktrees/
