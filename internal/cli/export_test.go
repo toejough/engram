@@ -34,13 +34,6 @@ func ExportNewCliConfirmer(
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
 }
 
-// ExportNewEvaluateRegistryAdapter creates an evaluateRegistryAdapter for testing.
-func ExportNewEvaluateRegistryAdapter(reg regpkg.Registry) interface {
-	RecordEvaluation(id, outcome string) error
-} {
-	return &evaluateRegistryAdapter{reg: reg}
-}
-
 // ExportNewLearnRegistryAdapter creates a learnRegistryAdapter for testing.
 func ExportNewLearnRegistryAdapter(reg regpkg.Registry) interface {
 	RegisterMemory(filePath, title, content string, now time.Time) error
@@ -76,4 +69,9 @@ func ExportNewRetriever() *retrieve.Retriever {
 // ExportNewStdinConfirmer creates a stdinConfirmer for testing.
 func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
 	return &stdinConfirmer{stdout: stdout, stdin: stdin}
+}
+
+// ExportRunEvaluate exposes the unexported runEvaluate for testing.
+func ExportRunEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
+	return runEvaluate(args, stdout, stderr, stdin)
 }

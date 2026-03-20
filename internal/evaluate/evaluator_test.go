@@ -895,7 +895,7 @@ func TestT109_EvaluationsDirCreated(t *testing.T) {
 	g.Expect(writeFileCalled).To(BeTrue())
 }
 
-// T-200: Evaluation hook calls RecordEvaluation, counter increments.
+// T-200: Evaluation hook calls recordEvaluation, counter increments.
 func TestT200_RegistryRecordEvaluationCalled(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -914,7 +914,7 @@ anti_pattern = ""`
 		`{"memory_path":"/data/memories/mem2.toml","outcome":"contradicted","evidence":"e2"}` +
 		`]`
 
-	registry := &fakeEvalRegistryRecorder{}
+	var calls []evalRegistryCall
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
@@ -931,7 +931,10 @@ anti_pattern = ""`
 		evaluate.WithNow(
 			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
 		),
-		evaluate.WithRegistry(registry),
+		evaluate.WithEvaluationRecorder(func(path, outcome string) error {
+			calls = append(calls, evalRegistryCall{id: path, outcome: outcome})
+			return nil
+		}),
 	)
 
 	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
@@ -942,19 +945,19 @@ anti_pattern = ""`
 	}
 
 	g.Expect(outcomes).To(HaveLen(2))
-	g.Expect(registry.calls).To(HaveLen(2))
+	g.Expect(calls).To(HaveLen(2))
 
-	if len(registry.calls) < 2 {
+	if len(calls) < 2 {
 		return
 	}
 
-	g.Expect(registry.calls[0].id).To(Equal("/data/memories/mem1.toml"))
-	g.Expect(registry.calls[0].outcome).To(Equal("followed"))
-	g.Expect(registry.calls[1].id).To(Equal("/data/memories/mem2.toml"))
-	g.Expect(registry.calls[1].outcome).To(Equal("contradicted"))
+	g.Expect(calls[0].id).To(Equal("/data/memories/mem1.toml"))
+	g.Expect(calls[0].outcome).To(Equal("followed"))
+	g.Expect(calls[1].id).To(Equal("/data/memories/mem2.toml"))
+	g.Expect(calls[1].outcome).To(Equal("contradicted"))
 }
 
-// T-200b: Registry error does not affect evaluation (fire-and-forget).
+// T-200b: Recorder error does not affect evaluation (fire-and-forget).
 func TestT200b_RegistryErrorDoesNotAffectEvaluation(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -966,8 +969,6 @@ content = "Content"
 principle = "Principle"
 anti_pattern = ""`
 	)
-
-	registry := &fakeEvalRegistryRecorder{err: errors.New("registry write failed")}
 
 	evaluator := makeTestEvaluator(
 		evaluate.WithReadFile(func(name string) ([]byte, error) {
@@ -984,12 +985,14 @@ anti_pattern = ""`
 		evaluate.WithNow(
 			func() time.Time { return time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) },
 		),
-		evaluate.WithRegistry(registry),
+		evaluate.WithEvaluationRecorder(func(_, _ string) error {
+			return errors.New("recorder write failed")
+		}),
 	)
 
 	outcomes, err := evaluator.Evaluate(context.Background(), "transcript")
 
-	// Should succeed despite registry error.
+	// Should succeed despite recorder error.
 	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
@@ -1265,17 +1268,6 @@ func (f *fakeEvalLinkUpdaterCapture) SetEntryLinks(id string, links []evaluate.E
 	f.setLinks[id] = links
 
 	return nil
-}
-
-// fakeEvalRegistryRecorder is a test double for evaluate.RegistryRecorder.
-type fakeEvalRegistryRecorder struct {
-	calls []evalRegistryCall
-	err   error
-}
-
-func (f *fakeEvalRegistryRecorder) RecordEvaluation(id, outcome string) error {
-	f.calls = append(f.calls, evalRegistryCall{id: id, outcome: outcome})
-	return f.err
 }
 
 // testFS is a path-redirect layer for tests. It intercepts rename calls on known logical paths

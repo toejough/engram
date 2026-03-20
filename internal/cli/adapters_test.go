@@ -123,27 +123,6 @@ func TestContentHash(t *testing.T) {
 	g.Expect(hash).To(HaveLen(64)) // SHA-256 hex = 64 chars
 }
 
-func TestEvaluateRegistryAdapter_RecordEvaluation(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	store := newTestStore(t)
-
-	// Seed a registry entry so RecordEvaluation finds it.
-	g.Expect(store.Register(regpkg.InstructionEntry{
-		ID:         "mem-1",
-		SourceType: "memory",
-		SourcePath: "mem-1",
-		Title:      "Test",
-	})).To(Succeed())
-
-	adapter := cli.ExportNewEvaluateRegistryAdapter(store)
-
-	err := adapter.RecordEvaluation("mem-1", "followed")
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
 func TestLearnRegistryAdapter_RegisterMemory(t *testing.T) {
 	t.Parallel()
 
@@ -266,6 +245,30 @@ func TestResolveSkillsDir_Unset(t *testing.T) {
 
 	result := cli.ExportResolveSkillsDir()
 	g.Expect(result).To(BeEmpty())
+}
+
+// TestRunEvaluate_WithDataDir covers the runEvaluate wiring branch that injects
+// WithEvaluationRecorder when --data-dir is provided.
+func TestRunEvaluate_WithDataDir(t *testing.T) {
+	g := NewWithT(t)
+
+	// Unset token so RunEvaluate returns nil after logging a skip — no real LLM call.
+	// This exercises the dataDir != "" branch and the WithEvaluationRecorder closure.
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.ExportRunEvaluate(
+		[]string{"--data-dir", t.TempDir()},
+		&stdout, &stderr, strings.NewReader("transcript"),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stderr.String()).To(ContainSubstring("no API token"))
 }
 
 func TestStdinConfirmer_Apply(t *testing.T) {

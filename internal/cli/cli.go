@@ -593,15 +593,6 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	return result, nil
 }
 
-// evaluateRegistryAdapter bridges evaluate.RegistryRecorder to registry.Registry.
-type evaluateRegistryAdapter struct {
-	reg regpkg.Registry
-}
-
-func (a *evaluateRegistryAdapter) RecordEvaluation(id, outcome string) error {
-	return a.reg.RecordEvaluation(id, regpkg.Outcome(outcome))
-}
-
 // haikuClientAdapter implements sessionctx.HaikuClient using the Anthropic API.
 type haikuClientAdapter struct {
 	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
@@ -1199,10 +1190,18 @@ func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error
 	var opts []evaluate.Option
 
 	if *dataDir != "" {
-		registry := openRegistry(*dataDir)
-		opts = append(opts, evaluate.WithRegistry(
-			&evaluateRegistryAdapter{reg: registry},
-		))
+		opts = append(opts, evaluate.WithEvaluationRecorder(func(path, outcome string) error {
+			return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+				switch outcome {
+				case "followed":
+					record.FollowedCount++
+				case "contradicted":
+					record.ContradictedCount++
+				case "ignored":
+					record.IgnoredCount++
+				}
+			})
+		}))
 	}
 
 	opts = append(opts, evaluate.WithStripFunc(sessionctx.Strip))

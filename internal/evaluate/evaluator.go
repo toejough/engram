@@ -34,18 +34,18 @@ type EvalLinkUpdater interface {
 
 // Evaluator runs the outcome evaluation pipeline for a session.
 type Evaluator struct {
-	dataDir     string
-	llmCaller   func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-	readFile    func(name string) ([]byte, error)
-	removeFile  func(name string) error
-	now         func() time.Time
-	registry    RegistryRecorder
-	stripFunc   func([]string) []string
-	logWriter   io.Writer
-	linkUpdater EvalLinkUpdater // P3: evaluation_correlation link updates
-	writeFile   func(name string, data []byte, perm os.FileMode) error
-	rename      func(oldpath, newpath string) error
-	mkdirAll    func(path string, perm os.FileMode) error
+	dataDir          string
+	llmCaller        func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+	readFile         func(name string) ([]byte, error)
+	removeFile       func(name string) error
+	now              func() time.Time
+	recordEvaluation func(path, outcome string) error
+	stripFunc        func([]string) []string
+	logWriter        io.Writer
+	linkUpdater      EvalLinkUpdater // P3: evaluation_correlation link updates
+	writeFile        func(name string, data []byte, perm os.FileMode) error
+	rename           func(oldpath, newpath string) error
+	mkdirAll         func(path string, perm os.FileMode) error
 }
 
 // New creates an Evaluator with the given data directory and options.
@@ -140,9 +140,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, transcript string) ([]Outcome,
 		})
 	}
 
-	if e.registry != nil {
+	if e.recordEvaluation != nil {
 		for _, outcome := range outcomes {
-			_ = e.registry.RecordEvaluation(outcome.MemoryPath, outcome.Outcome)
+			_ = e.recordEvaluation(outcome.MemoryPath, outcome.Outcome)
 		}
 	}
 
@@ -310,14 +310,14 @@ type Outcome struct {
 	SchemaVersion int       `json:"schema_version"`
 }
 
-// RegistryRecorder records evaluation outcomes in the instruction registry (UC-23).
-type RegistryRecorder interface {
-	RecordEvaluation(id, outcome string) error
-}
-
 // WithEvalLinkUpdater injects a link updater for evaluation_correlation links (P3, REQ-P3-9).
 func WithEvalLinkUpdater(updater EvalLinkUpdater) Option {
 	return func(e *Evaluator) { e.linkUpdater = updater }
+}
+
+// WithEvaluationRecorder injects a function called for each evaluated outcome (UC-23).
+func WithEvaluationRecorder(fn func(path, outcome string) error) Option {
+	return func(e *Evaluator) { e.recordEvaluation = fn }
 }
 
 // WithLLMCaller injects an LLM caller function.
@@ -345,11 +345,6 @@ func WithNow(fn func() time.Time) Option {
 // WithReadFile injects a file reader.
 func WithReadFile(fn func(name string) ([]byte, error)) Option {
 	return func(e *Evaluator) { e.readFile = fn }
-}
-
-// WithRegistry sets the registry recorder for evaluation events (UC-23).
-func WithRegistry(recorder RegistryRecorder) Option {
-	return func(e *Evaluator) { e.registry = recorder }
 }
 
 // WithRemoveFile injects a file remover.
