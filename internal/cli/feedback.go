@@ -79,6 +79,7 @@ func runFeedback(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	nameFlag := fs.String("name", "", "memory slug (alternative to positional arg)")
 	relevant := fs.Bool("relevant", false, "memory was relevant")
 	irrelevant := fs.Bool("irrelevant", false, "memory was not relevant")
 	used := fs.Bool("used", false, "memory was used (with --relevant)")
@@ -89,10 +90,7 @@ func runFeedback(args []string, stdout io.Writer) error {
 		return fmt.Errorf("feedback: %w", parseErr)
 	}
 
-	// Pick up slug from trailing positional args if not found before flags.
-	if slug == "" && fs.NArg() > 0 {
-		slug = fs.Arg(0)
-	}
+	slug = resolveSlug(slug, *nameFlag, fs)
 
 	if *dataDir == "" {
 		return errFeedbackMissingDataDir

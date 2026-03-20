@@ -45,6 +45,7 @@ type EvaluateArgs struct {
 
 // FeedbackArgs holds parsed flags for the feedback subcommand.
 type FeedbackArgs struct {
+	Name       string `targ:"flag,name=name,desc=memory slug to provide feedback on"`
 	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	Relevant   bool   `targ:"flag,name=relevant,desc=memory was relevant to current task"`
 	Irrelevant bool   `targ:"flag,name=irrelevant,desc=memory was not relevant"`
@@ -99,6 +100,7 @@ type ReviewArgs struct {
 
 // ShowArgs holds parsed flags for the show subcommand.
 type ShowArgs struct {
+	Name    string `targ:"flag,name=name,desc=memory slug to display"`
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
@@ -218,7 +220,7 @@ func EvaluateFlags(a EvaluateArgs) []string {
 
 // FeedbackFlags returns the CLI flag args for the feedback subcommand.
 func FeedbackFlags(a FeedbackArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
+	flags := BuildFlags("--data-dir", a.DataDir, "--name", a.Name)
 	flags = AddBoolFlag(flags, "--relevant", a.Relevant)
 	flags = AddBoolFlag(flags, "--irrelevant", a.Irrelevant)
 	flags = AddBoolFlag(flags, "--used", a.Used)
@@ -280,7 +282,7 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 
 // ShowFlags returns the CLI flag args for the show subcommand.
 func ShowFlags(a ShowArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
+	return BuildFlags("--data-dir", a.DataDir, "--name", a.Name)
 }
 
 // SurfaceFlags returns the CLI flag args for the surface subcommand.

@@ -134,6 +134,23 @@ func renderMemory(writer io.Writer, mem *memory.Stored) {
 	}
 }
 
+// resolveSlug picks the slug from positional arg, --name flag, or trailing arg (in priority order).
+func resolveSlug(positional, nameFlag string, fs *flag.FlagSet) string {
+	if positional != "" {
+		return positional
+	}
+
+	if nameFlag != "" {
+		return nameFlag
+	}
+
+	if fs.NArg() > 0 {
+		return fs.Arg(0)
+	}
+
+	return ""
+}
+
 // runShow implements the show subcommand: displays full details of a memory.
 // Supports slug before or after flags (e.g., "show my-mem --data-dir /path").
 func runShow(args []string, stdout io.Writer) error {
@@ -145,16 +162,14 @@ func runShow(args []string, stdout io.Writer) error {
 	fs.SetOutput(io.Discard)
 
 	dataDir := fs.String("data-dir", "", "path to data directory")
+	nameFlag := fs.String("name", "", "memory slug (alternative to positional arg)")
 
 	parseErr := fs.Parse(flagArgs)
 	if parseErr != nil {
 		return fmt.Errorf("show: %w", parseErr)
 	}
 
-	// Pick up slug from trailing positional args if not found before flags.
-	if slug == "" && fs.NArg() > 0 {
-		slug = fs.Arg(0)
-	}
+	slug = resolveSlug(slug, *nameFlag, fs)
 
 	if *dataDir == "" {
 		return errShowMissingDataDir

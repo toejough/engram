@@ -170,6 +170,35 @@ func TestShow_MissingSlug_ReturnsError(t *testing.T) {
 	}
 }
 
+func TestShow_NameFlag_Works(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "flag-test.toml"),
+		[]byte("title = \"Flag Test\"\nprinciple = \"Use --name flag\"\n"),
+		0o640,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{"engram", "show", "--name", "flag-test", "--data-dir", dataDir},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Title: Flag Test"))
+}
+
 func TestShow_OmitsEmptyFields(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
