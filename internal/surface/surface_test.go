@@ -609,7 +609,7 @@ func TestT170B_PromptModeFrecencyReRanking(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("testing"))
 }
 
-// T-199: Surfacing hook calls RecordSurfacing, surfaced_count increments.
+// T-199: Surfacing hook calls recordSurfacing once per matched memory.
 func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
 	t.Parallel()
 
@@ -629,8 +629,15 @@ func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	registry := &fakeRegistryRecorder{}
-	s := surface.New(retriever, surface.WithRegistry(registry))
+
+	var recordedIDs []string
+
+	recorder := func(path string) error {
+		recordedIDs = append(recordedIDs, path)
+		return nil
+	}
+
+	s := surface.New(retriever, surface.WithSurfacingRecorder(recorder))
 
 	var buf bytes.Buffer
 
@@ -646,12 +653,12 @@ func TestT199_RegistryRecordSurfacingCalled(t *testing.T) {
 	}
 
 	// Both memories should have been recorded.
-	g.Expect(registry.ids).To(HaveLen(2))
-	g.Expect(registry.ids).To(ContainElement("alpha.toml"))
-	g.Expect(registry.ids).To(ContainElement("beta.toml"))
+	g.Expect(recordedIDs).To(HaveLen(2))
+	g.Expect(recordedIDs).To(ContainElement("alpha.toml"))
+	g.Expect(recordedIDs).To(ContainElement("beta.toml"))
 }
 
-// T-199b: Registry error does not affect surfacing output (fire-and-forget).
+// T-199b: Recorder error does not affect surfacing output (fire-and-forget).
 func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
 	t.Parallel()
 
@@ -666,8 +673,8 @@ func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	registry := &fakeRegistryRecorder{err: errors.New("registry write failed")}
-	s := surface.New(retriever, surface.WithRegistry(registry))
+	recorder := func(_ string) error { return errors.New("recorder write failed") }
+	s := surface.New(retriever, surface.WithSurfacingRecorder(recorder))
 
 	var buf bytes.Buffer
 
@@ -676,12 +683,12 @@ func TestT199b_RegistryErrorDoesNotAffectSurfacing(t *testing.T) {
 		DataDir: "/tmp/data",
 	})
 
-	// Run should succeed despite registry error.
+	// Run should succeed despite recorder error.
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(buf.String()).To(ContainSubstring("alpha"))
 }
 
-// T-199c: Nil registry does not panic (backward compat).
+// T-199c: No surfacing recorder does not panic (backward compat).
 func TestT199c_NilRegistryNoPanic(t *testing.T) {
 	t.Parallel()
 
@@ -696,7 +703,7 @@ func TestT199c_NilRegistryNoPanic(t *testing.T) {
 	}
 
 	retriever := &fakeRetriever{memories: memories}
-	// No WithRegistry — registry is nil.
+	// No WithSurfacingRecorder — recordSurfacing is nil.
 	s := surface.New(retriever)
 
 	var buf bytes.Buffer
@@ -2071,17 +2078,6 @@ func (f *fakeLogReader) ReadAndClear(dataDir string) ([]surface.LogEntry, error)
 	f.cleared = true
 
 	return f.entries, f.err
-}
-
-// fakeRegistryRecorder is a test double for surface.RegistryRecorder.
-type fakeRegistryRecorder struct {
-	ids []string
-	err error
-}
-
-func (f *fakeRegistryRecorder) RecordSurfacing(id string) error {
-	f.ids = append(f.ids, id)
-	return f.err
 }
 
 // fakeRetriever is a test double for surface.MemoryRetriever.

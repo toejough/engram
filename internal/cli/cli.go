@@ -830,15 +830,6 @@ func (sc *stdinConfirmer) Confirm(preview string) (bool, error) {
 	return false, nil
 }
 
-// surfaceRegistryAdapter bridges surface.RegistryRecorder to registry.Registry.
-type surfaceRegistryAdapter struct {
-	reg regpkg.Registry
-}
-
-func (a *surfaceRegistryAdapter) RecordSurfacing(id string) error {
-	return a.reg.RecordSurfacing(id)
-}
-
 // buildEscalationMemories extracts leech memories for the escalation engine (UC-21, ARCH-50).
 func buildEscalationMemories(
 	classified []reviewpkg.ClassifiedMemory,
@@ -1453,14 +1444,18 @@ func runSurface(args []string, stdout io.Writer) error {
 	}
 
 	effAdapter := &effectivenessAdapter{stats: effectiveness.FromMemories(memories)}
-	registry := openRegistry(*dataDir)
 
 	surfacerOpts := []surface.SurfacerOption{
 		surface.WithTracker(recorder),
 		surface.WithLogReader(logReader),
 		surface.WithSurfacingLogger(surfLogger),
 		surface.WithEffectiveness(effAdapter),
-		surface.WithRegistry(&surfaceRegistryAdapter{reg: registry}),
+		surface.WithSurfacingRecorder(func(path string) error {
+			return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+				record.SurfacedCount++
+				record.LastSurfacedAt = time.Now().UTC().Format(time.RFC3339)
+			})
+		}),
 	}
 
 	if *claudeDir != "" {

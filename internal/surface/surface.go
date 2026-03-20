@@ -119,11 +119,6 @@ type Options struct {
 	TranscriptWindow string // recent transcript text for transcript suppression (REQ-P4f-3)
 }
 
-// RegistryRecorder records surfacing events in the instruction registry (UC-23).
-type RegistryRecorder interface {
-	RecordSurfacing(id string) error
-}
-
 // Result holds the structured output of a surface invocation.
 type Result struct {
 	Summary          string            `json:"summary"`
@@ -150,7 +145,7 @@ type Surfacer struct {
 	invocationTokenLogger InvocationTokenLogger
 	effectivenessComputer EffectivenessComputer
 	budgetConfig          *BudgetConfig
-	registry              RegistryRecorder
+	recordSurfacing       func(path string) error // UC-23: records surfacing event per memory
 	enforcementReader     EnforcementReader
 	contradictionDetector ContradictionDetector
 	signalEmitter         SignalEmitter
@@ -258,9 +253,9 @@ func (s *Surfacer) Run(ctx context.Context, w io.Writer, opts Options) error {
 		}
 	}
 
-	if s.registry != nil {
+	if s.recordSurfacing != nil {
 		for _, mem := range matched {
-			_ = s.registry.RecordSurfacing(mem.FilePath)
+			_ = s.recordSurfacing(mem.FilePath)
 		}
 	}
 
@@ -921,11 +916,6 @@ func WithLogReader(reader CreationLogReader) SurfacerOption {
 	return func(s *Surfacer) { s.logReader = reader }
 }
 
-// WithRegistry sets the registry recorder for surfacing events (UC-23).
-func WithRegistry(recorder RegistryRecorder) SurfacerOption {
-	return func(s *Surfacer) { s.registry = recorder }
-}
-
 // WithSignalEmitter sets the signal emitter for contradiction signals (UC-P1-1).
 func WithSignalEmitter(e SignalEmitter) SurfacerOption {
 	return func(s *Surfacer) { s.signalEmitter = e }
@@ -939,6 +929,11 @@ func WithSuppressionEventLogger(logger SuppressionEventLogger) SurfacerOption {
 // WithSurfacingLogger sets the surfacing event logger (ARCH-22).
 func WithSurfacingLogger(logger SurfacingEventLogger) SurfacerOption {
 	return func(s *Surfacer) { s.surfacingLogger = logger }
+}
+
+// WithSurfacingRecorder sets a function called once per surfaced memory to record the event (UC-23).
+func WithSurfacingRecorder(fn func(path string) error) SurfacerOption {
+	return func(s *Surfacer) { s.recordSurfacing = fn }
 }
 
 // WithTitleFetcher sets the title fetcher for cluster notes (P3, REQ-P3-7).
