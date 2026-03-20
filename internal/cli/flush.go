@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 )
 
 // FlushRunner executes the end-of-turn memory management pipeline:
@@ -61,6 +62,9 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 	if *dataDir == "" {
 		return errFlushMissingDataDir
 	}
+
+	// Clean up surfacing log — evaluate no longer consumes it (#348).
+	_ = os.Remove(filepath.Join(*dataDir, "surfacing-log.jsonl"))
 
 	token := os.Getenv("ENGRAM_API_TOKEN")
 
