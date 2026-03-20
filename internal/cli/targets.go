@@ -85,13 +85,6 @@ type MaintainArgs struct {
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// RegistryMergeArgs holds parsed flags for the registry merge subcommand.
-type RegistryMergeArgs struct {
-	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	SourceID string `targ:"flag,name=source,desc=source instruction ID"`
-	TargetID string `targ:"flag,name=target,desc=target instruction ID"`
-}
-
 // ReviewArgs holds parsed flags for the review subcommand.
 type ReviewArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -186,11 +179,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
-		targ.Group("registry",
-			targ.Targ(func(a RegistryMergeArgs) {
-				run("registry", append([]string{"merge"}, RegistryMergeFlags(a)...))
-			}).Name("merge").Description("Merge two registry entries"),
-		),
 	}
 }
 
@@ -260,11 +248,6 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
 
 	return flags
-}
-
-// RegistryMergeFlags returns the CLI flag args for the registry merge subcommand.
-func RegistryMergeFlags(a RegistryMergeArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--source", a.SourceID, "--target", a.TargetID)
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.
