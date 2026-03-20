@@ -267,6 +267,14 @@ func TestSkillExtractor_Extract(t *testing.T) {
 	})
 }
 
+// unexported variables.
+var (
+	_ crossref.InstructionExtractor = crossref.ClaudeMDExtractor{}
+	_ crossref.InstructionExtractor = crossref.MemoryMDExtractor{}
+	_ crossref.InstructionExtractor = crossref.RuleExtractor{}
+	_ crossref.InstructionExtractor = crossref.SkillExtractor{}
+)
+
 func contentHash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])

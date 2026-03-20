@@ -10,8 +10,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
-	"engram/internal/registry"
 )
 
 // ClaudeMDExtractor extracts instructions from CLAUDE.md content.
@@ -21,13 +19,24 @@ type ClaudeMDExtractor struct {
 }
 
 // Extract parses CLAUDE.md bullets into instruction entries.
-func (e ClaudeMDExtractor) Extract() ([]registry.InstructionEntry, error) {
+func (e ClaudeMDExtractor) Extract() ([]Instruction, error) {
 	return extractBullets(e.Content, "claude-md", e.SourcePath)
 }
 
-// InstructionExtractor extracts registrable instructions from a source.
+// Instruction represents a single extracted instruction from a source file.
+type Instruction struct {
+	ID          string
+	SourceType  string
+	SourcePath  string
+	Title       string
+	Content     string
+	ContentHash string
+	ExtractedAt time.Time
+}
+
+// InstructionExtractor extracts instructions from a source.
 type InstructionExtractor interface {
-	Extract() ([]registry.InstructionEntry, error)
+	Extract() ([]Instruction, error)
 }
 
 // MemoryMDExtractor extracts instructions from MEMORY.md content.
@@ -37,7 +46,7 @@ type MemoryMDExtractor struct {
 }
 
 // Extract parses MEMORY.md bullets into instruction entries.
-func (e MemoryMDExtractor) Extract() ([]registry.InstructionEntry, error) {
+func (e MemoryMDExtractor) Extract() ([]Instruction, error) {
 	return extractBullets(e.Content, "memory-md", e.SourcePath)
 }
 
@@ -48,23 +57,22 @@ type RuleExtractor struct {
 }
 
 // Extract produces one entry for the entire rule file.
-func (e RuleExtractor) Extract() ([]registry.InstructionEntry, error) {
+func (e RuleExtractor) Extract() ([]Instruction, error) {
 	if strings.TrimSpace(e.Content) == "" {
 		return nil, nil
 	}
 
 	now := time.Now()
 
-	return []registry.InstructionEntry{
+	return []Instruction{
 		{
-			ID:           "rule:" + e.Filename,
-			SourceType:   "rule",
-			SourcePath:   e.Filename,
-			Title:        e.Filename,
-			Content:      e.Content,
-			ContentHash:  hashContent(e.Content),
-			RegisteredAt: now,
-			UpdatedAt:    now,
+			ID:          "rule:" + e.Filename,
+			SourceType:  "rule",
+			SourcePath:  e.Filename,
+			Title:       e.Filename,
+			Content:     e.Content,
+			ContentHash: hashContent(e.Content),
+			ExtractedAt: now,
 		},
 	}, nil
 }
@@ -76,23 +84,22 @@ type SkillExtractor struct {
 }
 
 // Extract produces one entry for the skill.
-func (e SkillExtractor) Extract() ([]registry.InstructionEntry, error) {
+func (e SkillExtractor) Extract() ([]Instruction, error) {
 	if strings.TrimSpace(e.Content) == "" {
 		return nil, nil
 	}
 
 	now := time.Now()
 
-	return []registry.InstructionEntry{
+	return []Instruction{
 		{
-			ID:           "skill:" + e.SkillName,
-			SourceType:   "skill",
-			SourcePath:   e.SkillName,
-			Title:        e.SkillName,
-			Content:      e.Content,
-			ContentHash:  hashContent(e.Content),
-			RegisteredAt: now,
-			UpdatedAt:    now,
+			ID:          "skill:" + e.SkillName,
+			SourceType:  "skill",
+			SourcePath:  e.SkillName,
+			Title:       e.SkillName,
+			Content:     e.Content,
+			ContentHash: hashContent(e.Content),
+			ExtractedAt: now,
 		},
 	}, nil
 }
@@ -108,16 +115,16 @@ var (
 )
 
 // extractBullets parses markdown content for bullet items and converts each
-// into an InstructionEntry with a stable slug-based ID.
+// into an Instruction with a stable slug-based ID.
 func extractBullets(
 	content, sourceType, sourcePath string,
-) ([]registry.InstructionEntry, error) {
+) ([]Instruction, error) {
 	if strings.TrimSpace(content) == "" {
 		return nil, nil
 	}
 
 	lines := strings.Split(content, "\n")
-	entries := make([]registry.InstructionEntry, 0, len(lines))
+	entries := make([]Instruction, 0, len(lines))
 	now := time.Now()
 
 	for _, line := range lines {
@@ -138,15 +145,14 @@ func extractBullets(
 		slug := makeSlug(slugSource)
 		entryID := fmt.Sprintf("%s:%s:%s", sourceType, sourcePath, slug)
 
-		entries = append(entries, registry.InstructionEntry{
-			ID:           entryID,
-			SourceType:   sourceType,
-			SourcePath:   sourcePath,
-			Title:        text,
-			Content:      text,
-			ContentHash:  hashContent(text),
-			RegisteredAt: now,
-			UpdatedAt:    now,
+		entries = append(entries, Instruction{
+			ID:          entryID,
+			SourceType:  sourceType,
+			SourcePath:  sourcePath,
+			Title:       text,
+			Content:     text,
+			ContentHash: hashContent(text),
+			ExtractedAt: now,
 		})
 	}
 
