@@ -20,13 +20,6 @@ type ApplyProposalArgs struct {
 
 // --- Targ args structs ---
 
-// AuditArgs holds parsed flags for the audit subcommand.
-type AuditArgs struct {
-	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Timestamp string `targ:"flag,name=timestamp,desc=audit timestamp (ISO 8601)"`
-	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
 // ContextUpdateArgs holds parsed flags for the context-update subcommand.
 type ContextUpdateArgs struct {
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
@@ -48,6 +41,23 @@ type CorrectArgs struct {
 type EvaluateArgs struct {
 	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+}
+
+// FeedbackArgs holds parsed flags for the feedback subcommand.
+type FeedbackArgs struct {
+	DataDir    string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Relevant   bool   `targ:"flag,name=relevant,desc=memory was relevant to current task"`
+	Irrelevant bool   `targ:"flag,name=irrelevant,desc=memory was not relevant"`
+	Used       bool   `targ:"flag,name=used,desc=memory advice was followed"`
+	Notused    bool   `targ:"flag,name=notused,desc=memory advice was not followed"`
+}
+
+// FlushArgs holds parsed flags for the flush subcommand.
+type FlushArgs struct {
+	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
+	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
+	ContextPath    string `targ:"flag,name=context-path,desc=path to session-context.md"`
 }
 
 // InstructArgs holds parsed flags for the instruct subcommand.
@@ -85,6 +95,11 @@ type RegistryMergeArgs struct {
 type ReviewArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	Format  string `targ:"flag,name=format,default=table,desc=output format: json or table"`
+}
+
+// ShowArgs holds parsed flags for the show subcommand.
+type ShowArgs struct {
+	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 }
 
 // SurfaceArgs holds parsed flags for the surface subcommand.
@@ -127,11 +142,6 @@ func ApplyProposalFlags(a ApplyProposalArgs) []string {
 	return flags
 }
 
-// AuditFlags returns the CLI flag args for the audit subcommand.
-func AuditFlags(a AuditArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir, "--timestamp", a.Timestamp)
-}
-
 // --- Flag construction helpers ---
 
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
@@ -150,8 +160,6 @@ func BuildFlags(pairs ...string) []string {
 // BuildTargets constructs targ targets using the given run function.
 func BuildTargets(run func(subcmd string, flags []string)) []any {
 	return []any{
-		targ.Targ(func(a AuditArgs) { run("audit", AuditFlags(a)) }).
-			Name("audit").Description("Run compliance audit"),
 		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
 			Name("correct").Description("Correct from user feedback"),
 		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
@@ -168,6 +176,12 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("instruct").Description("Audit instruction quality"),
 		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
 			Name("context-update").Description("Update session context"),
+		targ.Targ(func(a FeedbackArgs) { run("feedback", FeedbackFlags(a)) }).
+			Name("feedback").Description("Record memory relevance feedback"),
+		targ.Targ(func(a FlushArgs) { run("flush", FlushFlags(a)) }).
+			Name("flush").Description("Run end-of-turn flush pipeline"),
+		targ.Targ(func(a ShowArgs) { run("show", ShowFlags(a)) }).
+			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
 		targ.Group("registry",
@@ -200,6 +214,27 @@ func CorrectFlags(a CorrectArgs) []string {
 // EvaluateFlags returns the CLI flag args for the evaluate subcommand.
 func EvaluateFlags(a EvaluateArgs) []string {
 	return BuildFlags("--data-dir", a.DataDir)
+}
+
+// FeedbackFlags returns the CLI flag args for the feedback subcommand.
+func FeedbackFlags(a FeedbackArgs) []string {
+	flags := BuildFlags("--data-dir", a.DataDir)
+	flags = AddBoolFlag(flags, "--relevant", a.Relevant)
+	flags = AddBoolFlag(flags, "--irrelevant", a.Irrelevant)
+	flags = AddBoolFlag(flags, "--used", a.Used)
+	flags = AddBoolFlag(flags, "--notused", a.Notused)
+
+	return flags
+}
+
+// FlushFlags returns the CLI flag args for the flush subcommand.
+func FlushFlags(a FlushArgs) []string {
+	return BuildFlags(
+		"--data-dir", a.DataDir,
+		"--transcript-path", a.TranscriptPath,
+		"--session-id", a.SessionID,
+		"--context-path", a.ContextPath,
+	)
 }
 
 // InstructFlags returns the CLI flag args for the instruct subcommand.
@@ -241,6 +276,11 @@ func RunSafe(args []string, stdout, stderr io.Writer, stdin io.Reader) {
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 	}
+}
+
+// ShowFlags returns the CLI flag args for the show subcommand.
+func ShowFlags(a ShowArgs) []string {
+	return BuildFlags("--data-dir", a.DataDir)
 }
 
 // SurfaceFlags returns the CLI flag args for the surface subcommand.

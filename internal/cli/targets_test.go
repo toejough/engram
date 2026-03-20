@@ -89,35 +89,6 @@ func TestApplyProposalFlags(t *testing.T) {
 	})
 }
 
-func TestAuditFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.AuditFlags(cli.AuditArgs{DataDir: "/data", Timestamp: "2024-01-01T00:00:00Z"})
-		g.Expect(result).
-			To(gomega.Equal([]string{"--data-dir", "/data", "--timestamp", "2024-01-01T00:00:00Z"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.AuditFlags(cli.AuditArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.AuditFlags(cli.AuditArgs{Timestamp: "2024-01-01T00:00:00Z"})
-		g.Expect(result).To(gomega.Equal([]string{"--timestamp", "2024-01-01T00:00:00Z"}))
-	})
-}
-
 func TestBuildFlags(t *testing.T) {
 	t.Parallel()
 
@@ -185,9 +156,9 @@ func TestBuildTargets(t *testing.T) {
 		})
 
 		subcmds := []string{
-			"audit", "correct", "evaluate", "review",
+			"correct", "evaluate", "review",
 			"maintain", "surface", "learn", "instruct",
-			"context-update",
+			"context-update", "feedback", "flush", "show",
 			"apply-proposal",
 		}
 		for _, sub := range subcmds {
@@ -318,6 +289,39 @@ func TestEvaluateFlags(t *testing.T) {
 		result := cli.EvaluateFlags(cli.EvaluateArgs{})
 		g.Expect(result).To(gomega.BeEmpty())
 	})
+}
+
+func TestFeedbackFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("relevant and used", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.FeedbackFlags(cli.FeedbackArgs{DataDir: "/data", Relevant: true, Used: true})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--relevant", "--used"}))
+	})
+
+	t.Run("irrelevant only", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.FeedbackFlags(cli.FeedbackArgs{DataDir: "/data", Irrelevant: true})
+		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data", "--irrelevant"}))
+	})
+}
+
+func TestFlushFlags(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	result := cli.FlushFlags(cli.FlushArgs{
+		DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1", ContextPath: "/ctx.md",
+	})
+	g.Expect(result).To(gomega.Equal([]string{
+		"--data-dir", "/data", "--transcript-path", "/t.jsonl",
+		"--session-id", "s1", "--context-path", "/ctx.md",
+	}))
 }
 
 func TestInstructFlags(t *testing.T) {
@@ -537,6 +541,14 @@ func TestRunSafe(t *testing.T) {
 		)
 		g.Expect(stderr.String()).NotTo(gomega.BeEmpty())
 	})
+}
+
+func TestShowFlags(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	result := cli.ShowFlags(cli.ShowArgs{DataDir: "/data"})
+	g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
 }
 
 func TestSurfaceFlags(t *testing.T) {
