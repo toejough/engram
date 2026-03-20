@@ -29,7 +29,7 @@ PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 CONTEXT_DIR="${ENGRAM_DATA}/projects/${PROJECT_SLUG}"
 mkdir -p "$CONTEXT_DIR" 2>/dev/null || true
 
-# Unified flush pipeline: learn → evaluate → context-update (#309)
+# Unified flush pipeline: learn → context-update (#309, #348)
 FLUSH_ARGS=(--data-dir "$ENGRAM_DATA")
 [[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 [[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
