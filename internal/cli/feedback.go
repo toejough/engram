@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+
+	"engram/internal/memory"
 )
 
 // unexported variables.
@@ -24,25 +26,22 @@ var (
 // applyFeedbackCounters updates the appropriate counter in record based on flags.
 // Returns the label describing the feedback type.
 func applyFeedbackCounters(
-	record map[string]any, relevant, used, notused bool,
+	record *memory.MemoryRecord, relevant, used, notused bool,
 ) string {
 	if !relevant {
-		current, _ := record["irrelevant_count"].(int64)
-		record["irrelevant_count"] = current + 1
+		record.IrrelevantCount++
 
 		return "irrelevant"
 	}
 
 	if used {
-		current, _ := record["followed_count"].(int64)
-		record["followed_count"] = current + 1
+		record.FollowedCount++
 
 		return "relevant, used"
 	}
 
 	if notused {
-		current, _ := record["ignored_count"].(int64)
-		record["ignored_count"] = current + 1
+		record.IgnoredCount++
 
 		return "relevant, not used"
 	}
@@ -50,27 +49,23 @@ func applyFeedbackCounters(
 	return "relevant"
 }
 
-// readFeedbackTOML reads and decodes a memory TOML into a map.
+// readFeedbackTOML reads and decodes a memory TOML into a MemoryRecord.
 func readFeedbackTOML(
 	memPath, slug string,
-) (map[string]any, error) {
+) (*memory.MemoryRecord, error) {
 	data, err := os.ReadFile(memPath) //nolint:gosec // user-provided path at CLI boundary
 	if err != nil {
 		return nil, fmt.Errorf("feedback: reading %s: %w", slug, err)
 	}
 
-	var record map[string]any
+	var record memory.MemoryRecord
 
 	_, decErr := toml.Decode(string(data), &record)
 	if decErr != nil {
 		return nil, fmt.Errorf("feedback: decoding %s: %w", slug, decErr)
 	}
 
-	if record == nil {
-		record = make(map[string]any)
-	}
-
-	return record, nil
+	return &record, nil
 }
 
 // runFeedback implements the feedback subcommand: records relevance/usage
@@ -127,9 +122,9 @@ func runFeedback(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// writeFeedbackTOML atomically writes a memory TOML map back to disk.
+// writeFeedbackTOML atomically writes a MemoryRecord back to disk.
 func writeFeedbackTOML(
-	memPath string, record map[string]any, slug string,
+	memPath string, record *memory.MemoryRecord, slug string,
 ) error {
 	var buf bytes.Buffer
 

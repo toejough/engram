@@ -11,7 +11,98 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
+	"engram/internal/memory"
 )
+
+func TestFeedback_ContentFieldsPreservedThroughRoundTrip(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := `title = "Rich Memory"
+content = "Detailed content here"
+observation_type = "pattern"
+concepts = ["concurrency", "goroutines"]
+keywords = ["go", "sync"]
+principle = "avoid shared state"
+anti_pattern = "shared mutable map"
+rationale = "race conditions"
+confidence = "high"
+created_at = "2024-01-01T00:00:00Z"
+updated_at = "2024-06-01T00:00:00Z"
+surfaced_count = 5
+followed_count = 2
+ignored_count = 1
+irrelevant_count = 0
+last_surfaced_at = "2024-06-01T00:00:00Z"
+`
+	err = os.WriteFile(
+		filepath.Join(memDir, "rich-mem.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "feedback",
+			"rich-mem",
+			"--data-dir", dataDir,
+			"--relevant",
+			"--used",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Verify all content fields survived the round-trip.
+	var record memory.MemoryRecord
+
+	_, decErr := toml.DecodeFile(
+		filepath.Join(memDir, "rich-mem.toml"), &record,
+	)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	if decErr != nil {
+		return
+	}
+
+	g.Expect(record.Title).To(Equal("Rich Memory"))
+	g.Expect(record.Content).To(Equal("Detailed content here"))
+	g.Expect(record.ObservationType).To(Equal("pattern"))
+	g.Expect(record.Concepts).To(ConsistOf("concurrency", "goroutines"))
+	g.Expect(record.Keywords).To(ConsistOf("go", "sync"))
+	g.Expect(record.Principle).To(Equal("avoid shared state"))
+	g.Expect(record.AntiPattern).To(Equal("shared mutable map"))
+	g.Expect(record.Rationale).To(Equal("race conditions"))
+	g.Expect(record.Confidence).To(Equal("high"))
+	g.Expect(record.CreatedAt).To(Equal("2024-01-01T00:00:00Z"))
+	g.Expect(record.UpdatedAt).To(Equal("2024-06-01T00:00:00Z"))
+	g.Expect(record.SurfacedCount).To(Equal(5))
+	g.Expect(record.FollowedCount).To(Equal(3)) // incremented from 2
+	g.Expect(record.IgnoredCount).To(Equal(1))
+	g.Expect(record.IrrelevantCount).To(Equal(0))
+	g.Expect(record.LastSurfacedAt).To(Equal("2024-06-01T00:00:00Z"))
+}
 
 func TestFeedback_Irrelevant_IncrementsIrrelevantCount(t *testing.T) {
 	t.Parallel()
@@ -64,7 +155,7 @@ ignored_count = 1
 	g.Expect(stdout.String()).To(ContainSubstring("irrelevant"))
 
 	// Verify irrelevant_count incremented and other counters unchanged.
-	var record map[string]any
+	var record memory.MemoryRecord
 
 	_, decErr := toml.DecodeFile(
 		filepath.Join(memDir, "test-mem.toml"), &record,
@@ -75,9 +166,9 @@ ignored_count = 1
 		return
 	}
 
-	g.Expect(record["followed_count"]).To(BeEquivalentTo(3))
-	g.Expect(record["ignored_count"]).To(BeEquivalentTo(1))
-	g.Expect(record["irrelevant_count"]).To(BeEquivalentTo(1))
+	g.Expect(record.FollowedCount).To(Equal(3))
+	g.Expect(record.IgnoredCount).To(Equal(1))
+	g.Expect(record.IrrelevantCount).To(Equal(1))
 }
 
 func TestFeedback_MemoryNotFound(t *testing.T) {
@@ -295,7 +386,7 @@ ignored_count = 1
 	g.Expect(stdout.String()).To(ContainSubstring("relevant, not used"))
 
 	// Verify ignored_count incremented from 1 to 2.
-	var record map[string]any
+	var record memory.MemoryRecord
 
 	_, decErr := toml.DecodeFile(
 		filepath.Join(memDir, "test-mem.toml"), &record,
@@ -306,8 +397,8 @@ ignored_count = 1
 		return
 	}
 
-	g.Expect(record["ignored_count"]).To(BeEquivalentTo(2))
-	g.Expect(record["followed_count"]).To(BeEquivalentTo(3))
+	g.Expect(record.IgnoredCount).To(Equal(2))
+	g.Expect(record.FollowedCount).To(Equal(3))
 }
 
 func TestFeedback_RelevantUsed_IncrementsFollowed(t *testing.T) {
@@ -362,7 +453,7 @@ ignored_count = 1
 	g.Expect(stdout.String()).To(ContainSubstring("relevant, used"))
 
 	// Verify followed_count incremented from 3 to 4.
-	var record map[string]any
+	var record memory.MemoryRecord
 
 	_, decErr := toml.DecodeFile(
 		filepath.Join(memDir, "test-mem.toml"), &record,
@@ -373,8 +464,8 @@ ignored_count = 1
 		return
 	}
 
-	g.Expect(record["followed_count"]).To(BeEquivalentTo(4))
-	g.Expect(record["ignored_count"]).To(BeEquivalentTo(1))
+	g.Expect(record.FollowedCount).To(Equal(4))
+	g.Expect(record.IgnoredCount).To(Equal(1))
 }
 
 func TestFeedback_SlugBeforeFlags(t *testing.T) {
@@ -429,7 +520,7 @@ followed_count = 0
 	g.Expect(stdout.String()).To(ContainSubstring("before-flags"))
 
 	// Verify followed_count incremented from 0 to 1.
-	var record map[string]any
+	var record memory.MemoryRecord
 
 	_, decErr := toml.DecodeFile(
 		filepath.Join(memDir, "before-flags.toml"), &record,
@@ -440,5 +531,5 @@ followed_count = 0
 		return
 	}
 
-	g.Expect(record["followed_count"]).To(BeEquivalentTo(1))
+	g.Expect(record.FollowedCount).To(Equal(1))
 }
