@@ -676,6 +676,47 @@ func TestStoredMemoryWriter_Write_CreateTempError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("creating temp file")))
 }
 
+// TestStoredMemoryWriter_Write_PreservesAllCounters verifies that Write preserves all
+// counter fields from memory.Stored, not just SurfacedCount (#353).
+func TestStoredMemoryWriter_Write_PreservesAllCounters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "counter-memory.toml")
+
+	stored := &memory.Stored{
+		Title:             "Counter Test",
+		Content:           "content",
+		SurfacedCount:     5,
+		FollowedCount:     3,
+		ContradictedCount: 2,
+		IgnoredCount:      1,
+		IrrelevantCount:   4,
+	}
+
+	writer := newStoredMemoryWriter()
+	err := writer.Write(path, stored)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	roundTripped, readErr := readStoredMemory(path)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	g.Expect(roundTripped.SurfacedCount).To(Equal(5))
+	g.Expect(roundTripped.FollowedCount).To(Equal(3))
+	g.Expect(roundTripped.ContradictedCount).To(Equal(2))
+	g.Expect(roundTripped.IgnoredCount).To(Equal(1))
+	g.Expect(roundTripped.IrrelevantCount).To(Equal(4))
+}
+
 func TestStoredMemoryWriter_Write_RenameError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
