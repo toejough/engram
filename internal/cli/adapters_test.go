@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
@@ -14,7 +13,6 @@ import (
 	"engram/internal/cli"
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	regpkg "engram/internal/registry"
 	reviewpkg "engram/internal/review"
 )
 
@@ -113,29 +111,6 @@ func TestCliConfirmer_Confirm_UserInput(t *testing.T) {
 	}
 
 	g.Expect(approved).To(BeTrue())
-}
-
-func TestContentHash(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	hash := cli.ExportContentHash("hello")
-	g.Expect(hash).To(HaveLen(64)) // SHA-256 hex = 64 chars
-}
-
-func TestLearnRegistryAdapter_RegisterMemory(t *testing.T) {
-	t.Parallel()
-
-	g := NewWithT(t)
-
-	store := newTestStore(t)
-	adapter := cli.ExportNewLearnRegistryAdapter(store)
-
-	err := adapter.RegisterMemory(
-		"/tmp/test.toml", "Test Memory", "content body", time.Now(),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestOsClaudeMDStore_ReadWrite(t *testing.T) {
@@ -426,10 +401,4 @@ func TestTruncateTitle_Short(t *testing.T) {
 	g := NewWithT(t)
 
 	g.Expect(cli.ExportTruncateTitle("Short")).To(Equal("Short"))
-}
-
-func newTestStore(t *testing.T) *regpkg.TOMLDirectoryStore {
-	t.Helper()
-
-	return regpkg.NewTOMLDirectoryStore(t.TempDir())
 }

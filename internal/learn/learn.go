@@ -6,10 +6,13 @@ package learn
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"engram/internal/creationlog"
@@ -44,11 +47,11 @@ type Learner struct {
 	writer         MemoryWriter
 	dataDir        string
 	creationLogger CreationLogger // optional: log creation events for deferred visibility
-	registrar      RegistryRegistrar
-	merger         MemoryMerger     // optional: merge candidates with existing memories (UC-33)
-	mergeWriter    MergeWriter      // optional: write merged memories to disk (UC-33)
-	absorber       RegistryAbsorber // optional: record merges in registry (UC-33)
-	linkRecomputer LinkRecomputer   // optional: re-compute links after merge (P5f)
+	registerMemory func(filePath, title, content string, now time.Time) error
+	merger         MemoryMerger // optional: merge candidates with existing memories (UC-33)
+	mergeWriter    MergeWriter  // optional: write merged memories to disk (UC-33)
+	recordAbsorbed func(existingPath, candidateTitle, contentHash string, now time.Time) error
+	linkRecomputer LinkRecomputer // optional: re-compute links after merge (P5f)
 	stderr         io.Writer
 }
 
@@ -146,14 +149,14 @@ func (l *Learner) SetMergeWriter(writer MergeWriter) {
 	l.mergeWriter = writer
 }
 
-// SetRegistryAbsorber attaches an optional RegistryAbsorber to the Learner (UC-33).
-func (l *Learner) SetRegistryAbsorber(absorber RegistryAbsorber) {
-	l.absorber = absorber
+// SetRecordAbsorbed attaches an optional func to record merges in the memory TOML (UC-33).
+func (l *Learner) SetRecordAbsorbed(fn func(existingPath, candidateTitle, contentHash string, now time.Time) error) {
+	l.recordAbsorbed = fn
 }
 
-// SetRegistryRegistrar attaches an optional RegistryRegistrar to the Learner (UC-23).
-func (l *Learner) SetRegistryRegistrar(registrar RegistryRegistrar) {
-	l.registrar = registrar
+// SetRegisterMemory attaches an optional func to register new memories in the memory TOML (UC-23).
+func (l *Learner) SetRegisterMemory(fn func(filePath, title, content string, now time.Time) error) {
+	l.registerMemory = fn
 }
 
 // fallbackMergePrinciple uses the longer principle text (UC-33).
@@ -189,7 +192,10 @@ func (l *Learner) filterCommonKeywords(
 
 // hashKeywords returns a hash of the keywords (for the Absorbed record).
 func (l *Learner) hashKeywords(keywords []string) string {
-	return ComputeContentHash(keywords)
+	joined := strings.Join(keywords, ",")
+	hash := sha256.Sum256([]byte(joined))
+
+	return hex.EncodeToString(hash[:])[:16]
 }
 
 // processMerge handles the merge of a candidate with an existing memory (UC-33).
@@ -234,11 +240,11 @@ func (l *Learner) processMerge(
 		}
 	}
 
-	// Record merge in registry
-	if l.absorber != nil {
+	// Record merge in memory TOML
+	if l.recordAbsorbed != nil {
 		contentHash := l.hashKeywords(candidate.Keywords)
 
-		err := l.absorber.RecordAbsorbed(existing.FilePath, candidate.Title, contentHash, now)
+		err := l.recordAbsorbed(existing.FilePath, candidate.Title, contentHash, now)
 		if err != nil {
 			_, _ = fmt.Fprintf(l.stderr, "learn: absorber: %v\n", err)
 		}
@@ -343,10 +349,8 @@ func (l *Learner) writeCandidate(
 		}
 	}
 
-	if l.registrar != nil {
-		regErr := l.registrar.RegisterMemory(
-			filePath, candidate.Title, candidate.Content, now,
-		)
+	if l.registerMemory != nil {
+		regErr := l.registerMemory(filePath, candidate.Title, candidate.Content, now)
 		if regErr != nil {
 			_, _ = fmt.Fprintf(l.stderr, "learn: registry: %v\n", regErr)
 		}
@@ -383,16 +387,6 @@ type MergeWriter interface {
 		keywords, concepts []string,
 		now time.Time,
 	) error
-}
-
-// RegistryAbsorber records a merge in the registry (UC-33).
-type RegistryAbsorber interface {
-	RecordAbsorbed(existingPath, candidateTitle, contentHash string, now time.Time) error
-}
-
-// RegistryRegistrar registers new memories in the instruction registry (UC-23).
-type RegistryRegistrar interface {
-	RegisterMemory(filePath, title, content string, now time.Time) error
 }
 
 // Result holds the output of a learning run for feedback rendering.

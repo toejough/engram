@@ -2,11 +2,9 @@ package cli
 
 import (
 	"io"
-	"time"
 
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	regpkg "engram/internal/registry"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
 )
@@ -14,7 +12,6 @@ import (
 // Exported variables.
 var (
 	ExportBuildEscalationMemories = buildEscalationMemories
-	ExportContentHash             = contentHash
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
 )
@@ -32,13 +29,6 @@ func ExportNewCliConfirmer(
 	stdout io.Writer, stdin io.Reader, autoConfirm bool,
 ) maintain.Confirmer {
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
-}
-
-// ExportNewLearnRegistryAdapter creates a learnRegistryAdapter for testing.
-func ExportNewLearnRegistryAdapter(reg regpkg.Registry) interface {
-	RegisterMemory(filePath, title, content string, now time.Time) error
-} {
-	return &learnRegistryAdapter{reg: reg}
 }
 
 // ExportNewOsClaudeMDStore creates an osClaudeMDStore for testing.

@@ -261,8 +261,16 @@ func RunLearn(
 	)
 	learner.SetCreationLogger(creationlog.NewLogWriter())
 
-	registry := openRegistry(*dataDir)
-	learner.SetRegistryRegistrar(&learnRegistryAdapter{reg: registry})
+	learner.SetRegisterMemory(func(filePath, _, content string, _ time.Time) error {
+		h := sha256.Sum256([]byte(content))
+		hash := hex.EncodeToString(h[:])
+
+		return memory.ReadModifyWrite(filePath, func(r *memory.MemoryRecord) {
+			r.SourceType = "memory"
+			r.SourcePath = filePath
+			r.ContentHash = hash
+		})
+	})
 
 	ctx := context.Background()
 
@@ -611,27 +619,6 @@ func (h *haikuClientAdapter) Summarize(
 	return h.caller(ctx, haikuModel, contextSummarizationPrompt, userPrompt)
 }
 
-// learnRegistryAdapter bridges learn.RegistryRegistrar to registry.Registry.
-type learnRegistryAdapter struct {
-	reg regpkg.Registry
-}
-
-func (a *learnRegistryAdapter) RegisterMemory(
-	filePath, title, content string, now time.Time,
-) error {
-	entry := regpkg.InstructionEntry{
-		ID:           filePath,
-		SourceType:   "memory",
-		SourcePath:   filePath,
-		Title:        title,
-		ContentHash:  contentHash(content),
-		RegisteredAt: now,
-		UpdatedAt:    now,
-	}
-
-	return a.reg.Register(entry)
-}
-
 // osClaudeMDStore reads and writes CLAUDE.md files on disk.
 type osClaudeMDStore struct {
 	path string
@@ -950,12 +937,6 @@ func classifyEntries(entries []regpkg.InstructionEntry) []reviewClassification {
 	}
 
 	return classifications
-}
-
-func contentHash(content string) string {
-	h := sha256.Sum256([]byte(content))
-
-	return hex.EncodeToString(h[:])
 }
 
 // formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.

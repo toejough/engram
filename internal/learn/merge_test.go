@@ -120,17 +120,29 @@ func TestTP5c6_AbsorbedRecordAppendedAfterMerge(t *testing.T) {
 
 	g := NewGomegaWithT(t)
 
-	absorber := &mockRegistryAbsorber{}
+	var absorbCalled bool
+
+	var absorbedCandidateTitle string
+
+	var recordAbsorbedErr error
+
+	recordAbsorbed := func(_ string, candidateTitle, _ string, _ time.Time) error {
+		absorbCalled = true
+		absorbedCandidateTitle = candidateTitle
+
+		return recordAbsorbedErr
+	}
+
 	candidate := memory.CandidateLearning{
 		Title:    "candidate learning",
 		Keywords: []string{"alpha", "beta"},
 	}
 
-	// Simulate calling RecordAbsorbed
-	_ = absorber.RecordAbsorbed("/path/to/existing.toml", candidate.Title, "somehash", time.Now())
+	// Simulate calling recordAbsorbed
+	_ = recordAbsorbed("/path/to/existing.toml", candidate.Title, "somehash", time.Now())
 
-	g.Expect(absorber.called).To(BeTrue())
-	g.Expect(absorber.candidateTitle).To(Equal("candidate learning"))
+	g.Expect(absorbCalled).To(BeTrue())
+	g.Expect(absorbedCandidateTitle).To(Equal("candidate learning"))
 }
 
 func TestTP5c7_LLMMergerErrorFallsBackToDeterministic(t *testing.T) {
@@ -186,22 +198,4 @@ func (m *mockMemoryMerger) MergePrinciples(
 	}
 
 	return m.merged, nil
-}
-
-// mockRegistryAbsorber is a test double for the RegistryAbsorber interface.
-type mockRegistryAbsorber struct {
-	called         bool
-	candidateTitle string
-}
-
-func (m *mockRegistryAbsorber) RecordAbsorbed(
-	_ string,
-	candidateTitle string,
-	_ string,
-	_ time.Time,
-) error {
-	m.called = true
-	m.candidateTitle = candidateTitle
-
-	return nil
 }

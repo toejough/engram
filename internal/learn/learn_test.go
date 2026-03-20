@@ -228,31 +228,26 @@ func TestListMemoriesError_ReturnsError(t *testing.T) {
 	g.Expect(result).To(BeNil())
 }
 
-// TestRegistryAbsorberFunc_RecordAbsorbed verifies the func adapter calls through.
-func TestRegistryAbsorberFunc_RecordAbsorbed(t *testing.T) {
+// TestRecordAbsorbedFunc_CallsThrough verifies that a plain func wired via SetRecordAbsorbed is called.
+func TestRecordAbsorbedFunc_CallsThrough(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
 
 	var called bool
 
-	absorber := learn.RegistryAbsorberFunc(
-		func(existingPath, candidateTitle, contentHash string, _ time.Time) error {
-			called = true
+	var fnErr error
 
-			g.Expect(existingPath).To(Equal("/path/to/existing.toml"))
-			g.Expect(candidateTitle).To(Equal("candidate title"))
-			g.Expect(contentHash).To(HaveLen(16))
+	fn := func(existingPath, candidateTitle, contentHash string, _ time.Time) error {
+		called = true
 
-			return nil
-		},
-	)
+		g.Expect(existingPath).To(Equal("/path/to/existing.toml"))
+		g.Expect(candidateTitle).To(Equal("candidate title"))
+		g.Expect(contentHash).To(HaveLen(16))
 
-	err := absorber.RecordAbsorbed(
-		"/path/to/existing.toml",
-		"candidate title",
-		"abc123def4567890",
-		time.Now(),
-	)
+		return fnErr
+	}
+
+	err := fn("/path/to/existing.toml", "candidate title", "abc123def4567890", time.Now())
 
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(called).To(BeTrue())
@@ -347,7 +342,8 @@ func TestSetRegistryAbsorber_PipelineCallsIt(t *testing.T) {
 		Principle: "old",
 	}
 
-	absorber := &fakeAbsorber{}
+	var absorbCalled bool
+
 	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
 	retriever := &fakeRetriever{memories: []*memory.Stored{existingMem}}
 	deduplicator := &fakeMergingDeduplicator{
@@ -356,7 +352,10 @@ func TestSetRegistryAbsorber_PipelineCallsIt(t *testing.T) {
 	writer := &fakeWriter{}
 
 	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetRegistryAbsorber(absorber)
+	learner.SetRecordAbsorbed(func(_, _, _ string, _ time.Time) error {
+		absorbCalled = true
+		return nil
+	})
 
 	result, err := learner.Run(context.Background(), "some transcript")
 
@@ -367,7 +366,7 @@ func TestSetRegistryAbsorber_PipelineCallsIt(t *testing.T) {
 	}
 
 	g.Expect(result).NotTo(BeNil())
-	g.Expect(absorber.called).To(BeTrue())
+	g.Expect(absorbCalled).To(BeTrue())
 }
 
 // T-201: Learn pipeline calls RegisterMemory for new memories.
@@ -400,10 +399,20 @@ func TestT201_RegistryRegistrarCalledForNewMemories(t *testing.T) {
 			"di-pattern": "/tmp/memories/di-pattern.toml",
 		},
 	}
-	registrar := &fakeRegistrar{}
+
+	type registerCall struct {
+		filePath string
+		title    string
+		content  string
+	}
+
+	var registerCalls []registerCall
 
 	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetRegistryRegistrar(registrar)
+	learner.SetRegisterMemory(func(filePath, title, content string, _ time.Time) error {
+		registerCalls = append(registerCalls, registerCall{filePath: filePath, title: title, content: content})
+		return nil
+	})
 
 	result, err := learner.Run(context.Background(), "some transcript")
 
@@ -420,17 +429,17 @@ func TestT201_RegistryRegistrarCalledForNewMemories(t *testing.T) {
 	}
 
 	g.Expect(result.CreatedPaths).To(HaveLen(2))
-	g.Expect(registrar.calls).To(HaveLen(2))
+	g.Expect(registerCalls).To(HaveLen(2))
 
-	if len(registrar.calls) < 2 {
+	if len(registerCalls) < 2 {
 		return
 	}
 
-	g.Expect(registrar.calls[0].filePath).To(Equal("/tmp/memories/use-targ.toml"))
-	g.Expect(registrar.calls[0].title).To(Equal("Use targ"))
-	g.Expect(registrar.calls[0].content).To(Equal("use targ for builds"))
-	g.Expect(registrar.calls[1].filePath).To(Equal("/tmp/memories/di-pattern.toml"))
-	g.Expect(registrar.calls[1].title).To(Equal("DI pattern"))
+	g.Expect(registerCalls[0].filePath).To(Equal("/tmp/memories/use-targ.toml"))
+	g.Expect(registerCalls[0].title).To(Equal("Use targ"))
+	g.Expect(registerCalls[0].content).To(Equal("use targ for builds"))
+	g.Expect(registerCalls[1].filePath).To(Equal("/tmp/memories/di-pattern.toml"))
+	g.Expect(registerCalls[1].title).To(Equal("DI pattern"))
 }
 
 // T-201b: Registry error does not fail the learn pipeline (fire-and-forget).
@@ -456,10 +465,10 @@ func TestT201b_RegistrarErrorDoesNotFailPipeline(t *testing.T) {
 			"use-targ": "/tmp/memories/use-targ.toml",
 		},
 	}
-	registrar := &fakeRegistrar{err: errors.New("registry write failed")}
-
 	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetRegistryRegistrar(registrar)
+	learner.SetRegisterMemory(func(_, _, _ string, _ time.Time) error {
+		return errors.New("registry write failed")
+	})
 
 	result, err := learner.Run(context.Background(), "some transcript")
 
@@ -910,17 +919,6 @@ func (r *callRecord) record(name string) {
 	r.calls = append(r.calls, name)
 }
 
-// fakeAbsorber is a test double for learn.RegistryAbsorber.
-type fakeAbsorber struct {
-	called bool
-}
-
-func (f *fakeAbsorber) RecordAbsorbed(_, _, _ string, _ time.Time) error {
-	f.called = true
-
-	return nil
-}
-
 // fakeCreationLogger is a test double for learn.CreationLogger.
 type fakeCreationLogger struct {
 	entries []creationlog.LogEntry
@@ -1038,24 +1036,6 @@ func (f *fakeMergingDeduplicator) Filter(
 	return nil
 }
 
-// fakeRegistrar is a test double for learn.RegistryRegistrar.
-type fakeRegistrar struct {
-	calls []registrarCall
-	err   error
-}
-
-func (f *fakeRegistrar) RegisterMemory(
-	filePath, title, content string, _ time.Time,
-) error {
-	f.calls = append(f.calls, registrarCall{
-		filePath: filePath,
-		title:    title,
-		content:  content,
-	})
-
-	return f.err
-}
-
 // fakeRetriever is a test double for learn.MemoryRetriever.
 type fakeRetriever struct {
 	memories []*memory.Stored
@@ -1098,10 +1078,4 @@ func (f *fakeWriter) Write(mem *memory.Enriched, _ string) (string, error) {
 	}
 
 	return "", f.err
-}
-
-type registrarCall struct {
-	filePath string
-	title    string
-	content  string
 }
