@@ -92,6 +92,7 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		FollowedCount:     record.FollowedCount,
 		ContradictedCount: record.ContradictedCount,
 		IgnoredCount:      record.IgnoredCount,
+		IrrelevantCount:   record.IrrelevantCount,
 		UpdatedAt:         updatedAt,
 		FilePath:          filePath,
 	}, nil
@@ -109,5 +110,6 @@ type tomlRecord struct {
 	FollowedCount     int      `toml:"followed_count"`
 	ContradictedCount int      `toml:"contradicted_count"`
 	IgnoredCount      int      `toml:"ignored_count"`
+	IrrelevantCount   int      `toml:"irrelevant_count"`
 	UpdatedAt         string   `toml:"updated_at"`
 }
