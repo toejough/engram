@@ -24,18 +24,18 @@ type ConsolidateResult struct {
 
 // Consolidator merges duplicate memory clusters before classification (UC-34).
 type Consolidator struct {
-	lister          MemoryLister
-	merger          MergeExecutor
-	synthesizer     PrincipleSynthesizer
-	fileWriter      MemoryWriter
-	backupWriter    BackupWriter
-	backupDir       string
-	fileDeleter     FileDeleter
-	registryRemover RegistryEntryRemover
-	linkRecomputer  LinkRecomputer
-	effectiveness   EffectivenessReader
-	similarity      TextSimilarityScorer
-	stderr          io.Writer
+	lister         MemoryLister
+	merger         MergeExecutor
+	synthesizer    PrincipleSynthesizer
+	fileWriter     MemoryWriter
+	backupWriter   BackupWriter
+	backupDir      string
+	fileDeleter    FileDeleter
+	entryRemover   func(path string) error
+	linkRecomputer LinkRecomputer
+	effectiveness  EffectivenessReader
+	similarity     TextSimilarityScorer
+	stderr         io.Writer
 }
 
 // NewConsolidator creates a Consolidator with the given options.
@@ -256,8 +256,8 @@ func (c *Consolidator) processAbsorbed(
 	}
 
 	// Remove registry entry after file deletion (REQ-136 AC3).
-	if c.registryRemover != nil {
-		regErr := c.registryRemover.RemoveEntry(mem.FilePath)
+	if c.entryRemover != nil {
+		regErr := c.entryRemover(mem.FilePath)
 		if regErr != nil {
 			c.logStderrf("[engram] registry remove failed for %q: %v\n", mem.FilePath, regErr)
 		}
@@ -364,11 +364,6 @@ type PrincipleSynthesizer interface {
 	SynthesizePrinciples(ctx context.Context, principles []string) (string, error)
 }
 
-// RegistryEntryRemover removes a registry entry for an absorbed memory (REQ-136).
-type RegistryEntryRemover interface {
-	RemoveEntry(path string) error
-}
-
 // TextSimilarityScorer computes pairwise text similarity within a cluster (ARCH-82).
 // Returns a confidence score in [0,1] where 1 = identical content.
 type TextSimilarityScorer interface {
@@ -387,6 +382,13 @@ func WithBackupWriter(w BackupWriter, backupDir string) ConsolidatorOption {
 func WithEffectiveness(e EffectivenessReader) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.effectiveness = e
+	}
+}
+
+// WithEntryRemover sets the entry removal function for absorbed memories (REQ-136).
+func WithEntryRemover(fn func(path string) error) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.entryRemover = fn
 	}
 }
 
@@ -429,13 +431,6 @@ func WithMerger(m MergeExecutor) ConsolidatorOption {
 func WithPrincipleSynthesizer(s PrincipleSynthesizer) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.synthesizer = s
-	}
-}
-
-// WithRegistryEntryRemover sets the registry entry remover (REQ-136).
-func WithRegistryEntryRemover(r RegistryEntryRemover) ConsolidatorOption {
-	return func(c *Consolidator) {
-		c.registryRemover = r
 	}
 }
 

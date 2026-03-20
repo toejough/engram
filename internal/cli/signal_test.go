@@ -18,48 +18,6 @@ import (
 	"engram/internal/signal"
 )
 
-func TestConsolidatorRegistryAdapter_RemoveEntry(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	reg := openRegistry(dataDir)
-	adapter := &consolidatorRegistryAdapter{reg: reg, dataDir: dataDir}
-
-	// RemoveEntry relativizes the absolute path before calling the registry.
-	// The registry errors for non-existent entries, but the error must reference
-	// the relativized path — not the raw absolute path — proving relativization happened.
-	absPath := filepath.Join(dataDir, "memories", "test.toml")
-	err := adapter.RemoveEntry(absPath)
-	g.Expect(err).To(HaveOccurred())
-
-	if err == nil {
-		return
-	}
-
-	g.Expect(err.Error()).To(ContainSubstring("memories/test.toml"))
-	g.Expect(err.Error()).NotTo(ContainSubstring(dataDir))
-}
-
-func TestConsolidatorRegistryAdapter_RemoveEntry_EmptyDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	reg := openRegistry(dataDir)
-	adapter := &consolidatorRegistryAdapter{reg: reg, dataDir: ""}
-
-	// With empty dataDir, RemoveEntry passes the path through unchanged.
-	err := adapter.RemoveEntry("memories/test.toml")
-	g.Expect(err).To(HaveOccurred())
-
-	if err == nil {
-		return
-	}
-
-	g.Expect(err.Error()).To(ContainSubstring("memories/test.toml"))
-}
-
 func TestEffectivenessReaderAdapter_Found(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -123,6 +81,29 @@ func TestFileMergeExecutor_InMemoryMerge(t *testing.T) {
 	g.Expect(survivor.Keywords).To(ConsistOf("kw1", "kw2"))
 	g.Expect(survivor.Concepts).To(ConsistOf("concept1", "concept2"))
 	g.Expect(survivor.Principle).To(Equal("longer principle"))
+}
+
+func TestFuncEnforcementApplier_SetEnforcementLevel(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	var capturedPath, capturedLevel, capturedReason string
+
+	applier := &funcEnforcementApplier{
+		fn: func(path, level, reason string) error {
+			capturedPath = path
+			capturedLevel = level
+			capturedReason = reason
+
+			return nil
+		},
+	}
+
+	err := applier.SetEnforcementLevel("memories/test.toml", "advisory", "test reason")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(capturedPath).To(Equal("memories/test.toml"))
+	g.Expect(capturedLevel).To(Equal("advisory"))
+	g.Expect(capturedReason).To(Equal("test reason"))
 }
 
 // TestIsCoveredBySource covers both the no-keywords early return and the keyword-match path.
@@ -355,37 +336,6 @@ func TestReadStoredMemory_FileNotFound(t *testing.T) {
 	_, err := readStoredMemory("/nonexistent/path/memory.toml")
 	g.Expect(err).To(HaveOccurred())
 	g.Expect(err).To(MatchError(ContainSubstring("reading memory file")))
-}
-
-func TestRegistryUpdaterAdapterUpdateContentHash(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	dataDir := t.TempDir()
-	reg := openRegistry(dataDir)
-	adapter := &registryUpdaterAdapter{reg: reg, dataDir: dataDir}
-
-	// UpdateContentHash is a no-op stub; it should always return nil.
-	err := adapter.UpdateContentHash("any-id", "any-hash")
-	g.Expect(err).NotTo(HaveOccurred())
-}
-
-func TestRegistryUpdaterAdapter_RelIDEmptyDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	adapter := &registryUpdaterAdapter{dataDir: ""}
-
-	g.Expect(adapter.relID("memories/test.toml")).To(Equal("memories/test.toml"))
-}
-
-func TestRegistryUpdaterAdapter_RelIDRelativePath(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	adapter := &registryUpdaterAdapter{dataDir: "/data"}
-
-	g.Expect(adapter.relID("/data/memories/test.toml")).To(Equal("memories/test.toml"))
 }
 
 func TestRunApplyProposal_BroadenKeywordsAction(t *testing.T) {

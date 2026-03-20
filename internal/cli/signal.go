@@ -35,26 +35,6 @@ var (
 	)
 )
 
-// consolidatorRegistryAdapter adapts regpkg.Registry to signal.RegistryEntryRemover.
-// It relativizes absolute memory paths to dataDir before calling Remove.
-type consolidatorRegistryAdapter struct {
-	reg     regpkg.Registry
-	dataDir string
-}
-
-func (a *consolidatorRegistryAdapter) RemoveEntry(path string) error {
-	if a.dataDir == "" {
-		return a.reg.Remove(path)
-	}
-
-	rel, err := filepath.Rel(a.dataDir, path)
-	if err != nil {
-		rel = path
-	}
-
-	return a.reg.Remove(rel)
-}
-
 // crossRefSourceEntry holds the ID and full text of one cross-source file.
 type crossRefSourceEntry struct {
 	id   string
@@ -90,6 +70,15 @@ func (f *fileMergeExecutor) Merge(
 	keepLongerPrinciple(survivor, absorbed)
 
 	return nil
+}
+
+// funcEnforcementApplier adapts a func to maintain.EnforcementApplier.
+type funcEnforcementApplier struct {
+	fn func(path, level, reason string) error
+}
+
+func (f *funcEnforcementApplier) SetEnforcementLevel(id, level, reason string) error {
+	return f.fn(id, level, reason)
 }
 
 // graphLinkRecomputer implements signal.LinkRecomputer using graph.Builder (REQ-138).
@@ -203,40 +192,6 @@ func (d *osFileDeleter) Delete(path string) error {
 	}
 
 	return nil
-}
-
-// registryUpdaterAdapter adapts regpkg.Registry to signal.RegistryUpdater.
-// dataDir is used to relativize absolute memory paths before passing to the
-// TOML directory store, which expects IDs relative to dataDir.
-type registryUpdaterAdapter struct {
-	reg     regpkg.Registry
-	dataDir string
-}
-
-func (r *registryUpdaterAdapter) Remove(id string) error {
-	return r.reg.Remove(r.relID(id))
-}
-
-func (r *registryUpdaterAdapter) SetEnforcementLevel(id, level, reason string) error {
-	return r.reg.SetEnforcementLevel(r.relID(id), regpkg.EnforcementLevel(level), reason)
-}
-
-func (r *registryUpdaterAdapter) UpdateContentHash(_, _ string) error {
-	// Registry does not yet expose UpdateContentHash; this is a no-op stub.
-	return nil
-}
-
-func (r *registryUpdaterAdapter) relID(id string) string {
-	if r.dataDir == "" {
-		return id
-	}
-
-	rel, err := filepath.Rel(r.dataDir, id)
-	if err != nil {
-		return id
-	}
-
-	return rel
 }
 
 // sourceCrossRefChecker implements surface.CrossRefChecker using keyword overlap
@@ -500,17 +455,19 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 	}
 
 	queuePath := filepath.Join(*dataDir, signalQueueFilename)
-	reg := openRegistry(*dataDir)
 	queue := signal.NewQueueStore()
 
-	regAdapter := &registryUpdaterAdapter{reg: reg, dataDir: *dataDir}
+	enforcementFunc := func(path, level, _ string) error {
+		return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+			record.EnforcementLevel = level
+		})
+	}
 
 	applier := signal.NewApplier(
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
-		signal.WithRegistry(regAdapter),
 		signal.WithQueue(queue, queuePath),
-		signal.WithEnforcementApplier(regAdapter),
+		signal.WithEnforcementApplier(&funcEnforcementApplier{fn: enforcementFunc}),
 	)
 
 	ctx := context.Background()

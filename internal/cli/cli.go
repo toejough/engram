@@ -354,7 +354,6 @@ func RunMaintain(
 
 	// Consolidate duplicates before classification (UC-34).
 	backupDir := filepath.Join(*dataDir, "memories", ".backup")
-	consolidatorReg := openRegistry(*dataDir)
 
 	consolidator := signal.NewConsolidator(
 		signal.WithLister(&memoryListerAdapter{
@@ -365,14 +364,13 @@ func RunMaintain(
 		signal.WithFileWriter(newStoredMemoryWriter()),
 		signal.WithFileDeleter(&osFileDeleter{}),
 		signal.WithBackupWriter(&osBackupWriter{now: time.Now}, backupDir),
-		signal.WithRegistryEntryRemover(&consolidatorRegistryAdapter{
-			reg:     consolidatorReg,
-			dataDir: *dataDir,
-		}),
+		signal.WithEntryRemover(os.Remove),
 		signal.WithEffectiveness(&effectivenessReaderAdapter{stats: stats}),
 		signal.WithStderr(os.Stderr),
 		signal.WithPrincipleSynthesizer(newPrincipleSynthesizer(token)),
-		signal.WithLinkRecomputer(newGraphLinkRecomputer(consolidatorReg, *dataDir)),
+		signal.WithLinkRecomputer(newGraphLinkRecomputer(
+			openRegistry(*dataDir), *dataDir,
+		)),
 		signal.WithTextSimilarityScorer(tfidf.NewScorer()),
 	)
 

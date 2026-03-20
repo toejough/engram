@@ -22,7 +22,6 @@ type Applier struct {
 	readMemory         func(path string) (*memory.Stored, error)
 	writeMem           MemoryWriter
 	removeFile         func(string) error
-	registry           RegistryUpdater
 	queue              QueueClearer
 	queuePath          string
 	enforcementApplier maintain.EnforcementApplier
@@ -126,10 +125,6 @@ func (a *Applier) applyRemove(action ApplyAction) error {
 		return fmt.Errorf("removing memory file: %w", err)
 	}
 
-	if a.registry != nil {
-		_ = a.registry.Remove(action.Memory)
-	}
-
 	return nil
 }
 
@@ -183,12 +178,6 @@ type QueueClearer interface {
 	ClearBySourceID(path, sourceID string) error
 }
 
-// RegistryUpdater updates an entry's content hash in the registry.
-type RegistryUpdater interface {
-	UpdateContentHash(id, hash string) error
-	Remove(id string) error
-}
-
 // WithEnforcementApplier sets the enforcement level applier for escalation.
 func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
 	return func(a *Applier) {
@@ -208,13 +197,6 @@ func WithQueue(q QueueClearer, path string) ApplierOption {
 func WithReadMemory(fn func(string) (*memory.Stored, error)) ApplierOption {
 	return func(a *Applier) {
 		a.readMemory = fn
-	}
-}
-
-// WithRegistry sets the registry updater.
-func WithRegistry(r RegistryUpdater) ApplierOption {
-	return func(a *Applier) {
-		a.registry = r
 	}
 }
 

@@ -185,7 +185,6 @@ func TestApply_Remove(t *testing.T) {
 
 	var removedPath string
 
-	reg := &stubRegistryUpdater{}
 	queue := &stubQueueClearer{}
 
 	applier := signal.NewApplier(
@@ -194,7 +193,6 @@ func TestApply_Remove(t *testing.T) {
 
 			return nil
 		}),
-		signal.WithRegistry(reg),
 		signal.WithQueue(queue, "/tmp/queue.jsonl"),
 	)
 
@@ -212,7 +210,6 @@ func TestApply_Remove(t *testing.T) {
 
 	g.Expect(result.Success).To(gomega.BeTrue())
 	g.Expect(removedPath).To(gomega.Equal("memories/stale.toml"))
-	g.Expect(reg.removedIDs).To(gomega.ContainElement("memories/stale.toml"))
 	g.Expect(queue.clearedIDs).To(gomega.ContainElement("memories/stale.toml"))
 }
 
@@ -430,15 +427,3 @@ func (s *stubQueueClearer) ClearBySourceID(_, sourceID string) error {
 
 	return nil
 }
-
-type stubRegistryUpdater struct {
-	removedIDs []string
-}
-
-func (s *stubRegistryUpdater) Remove(id string) error {
-	s.removedIDs = append(s.removedIDs, id)
-
-	return nil
-}
-
-func (s *stubRegistryUpdater) UpdateContentHash(_, _ string) error { return nil }

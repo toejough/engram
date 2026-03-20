@@ -809,7 +809,14 @@ func TestT350_RegistryEntryRemovedAfterDelete(t *testing.T) {
 	g := NewWithT(t)
 
 	fileDeleter := &fakeFileDeleter{}
-	registryRemover := &fakeRegistryEntryRemover{}
+
+	var entryRemovedPaths []string
+
+	entryRemover := func(path string) error {
+		entryRemovedPaths = append(entryRemovedPaths, path)
+
+		return nil
+	}
 
 	lister := &fakeLister{memories: []*memory.Stored{
 		{FilePath: "survivor.toml", Keywords: []string{"a", "b", "c"}},
@@ -825,7 +832,7 @@ func TestT350_RegistryEntryRemovedAfterDelete(t *testing.T) {
 		signal.WithMerger(&fakeMerger{}),
 		signal.WithFileWriter(&fakeFileWriter{}),
 		signal.WithFileDeleter(fileDeleter),
-		signal.WithRegistryEntryRemover(registryRemover),
+		signal.WithEntryRemover(entryRemover),
 		signal.WithEffectiveness(eff),
 	)
 
@@ -836,7 +843,7 @@ func TestT350_RegistryEntryRemovedAfterDelete(t *testing.T) {
 		return
 	}
 
-	g.Expect(registryRemover.removedPaths).To(ConsistOf("absorbed.toml"))
+	g.Expect(entryRemovedPaths).To(ConsistOf("absorbed.toml"))
 }
 
 // T-351: File deletion attempted even when backup fails.
@@ -1297,7 +1304,6 @@ var (
 	_ signal.FileDeleter          = (*fakeFileDeleter)(nil)
 	_ signal.MemoryWriter         = (*fakeFileWriter)(nil)
 	_ signal.LinkRecomputer       = (*fakeLinkRecomputer)(nil)
-	_ signal.RegistryEntryRemover = (*fakeRegistryEntryRemover)(nil)
 	_ signal.TextSimilarityScorer = (*fakeTextSimilarityScorer)(nil)
 )
 
@@ -1409,16 +1415,6 @@ func (f *fakeMerger) Merge(
 		survivor: survivor,
 		absorbed: absorbed,
 	})
-
-	return nil
-}
-
-type fakeRegistryEntryRemover struct {
-	removedPaths []string
-}
-
-func (f *fakeRegistryEntryRemover) RemoveEntry(path string) error {
-	f.removedPaths = append(f.removedPaths, path)
 
 	return nil
 }
