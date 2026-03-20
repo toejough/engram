@@ -69,6 +69,8 @@ if [[ -n "$SIGNAL_OUTPUT" ]] && echo "$SIGNAL_OUTPUT" | jq -e 'type == "array" a
     NOISE_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Noise")] | length' 2>/dev/null) || NOISE_COUNT=0
     HIDDEN_GEM_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Hidden Gem")] | length' 2>/dev/null) || HIDDEN_GEM_COUNT=0
     LEECH_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.quadrant == "Leech")] | length' 2>/dev/null) || LEECH_COUNT=0
+    REFINE_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.action == "refine_keywords")] | length' 2>/dev/null) || REFINE_COUNT=0
+    ESCALATION_COUNT=$(echo "$SIGNAL_OUTPUT" | jq '[.[] | select(.action == "escalation_escalate" or .action == "escalation_deescalate")] | length' 2>/dev/null) || ESCALATION_COUNT=0
 
     # Build full details for additionalContext (Claude sees this if user says "triage")
     NOISE_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
@@ -101,7 +103,27 @@ if [[ -n "$SIGNAL_OUTPUT" ]] && echo "$SIGNAL_OUTPUT" | jq -e 'type == "array" a
         end
     ' 2>/dev/null) || true
 
-    for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$LEECH_DETAIL"; do
+    REFINE_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+        [.[] | select(.action == "refine_keywords")] |
+        if length == 0 then empty else
+            "## Refine Keywords (\(length) memories)\nSurfacing in wrong contexts — keywords are too generic.\n" +
+            (to_entries | map(
+                "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.diagnosis)"
+            ) | join("\n"))
+        end
+    ' 2>/dev/null) || true
+
+    ESCALATION_DETAIL=$(echo "$SIGNAL_OUTPUT" | jq -r '
+        [.[] | select(.action == "escalation_escalate" or .action == "escalation_deescalate")] |
+        if length == 0 then empty else
+            "## Escalation (\(length) memories)\nEnforcement level changes recommended.\n" +
+            (to_entries | map(
+                "  \(.key + 1). \(.value.memory_path | split("/") | last | rtrimstr(".toml")) — \(.value.action): \(.value.diagnosis)"
+            ) | join("\n"))
+        end
+    ' 2>/dev/null) || true
+
+    for detail in "$NOISE_DETAIL" "$HIDDEN_GEM_DETAIL" "$LEECH_DETAIL" "$REFINE_DETAIL" "$ESCALATION_DETAIL"; do
         if [[ -n "$detail" ]]; then
             TRIAGE_DETAILS="${TRIAGE_DETAILS}
 ${detail}
@@ -120,6 +142,8 @@ if [[ "$PROPOSAL_COUNT" -gt 0 ]]; then
     [[ "$NOISE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${NOISE_COUNT} noise"
     [[ "$HIDDEN_GEM_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${HIDDEN_GEM_COUNT} hidden gems"
     [[ "$LEECH_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${LEECH_COUNT} leech"
+    [[ "$REFINE_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${REFINE_COUNT} refine keywords"
+    [[ "$ESCALATION_COUNT" -gt 0 ]] && COUNTS="${COUNTS}${COUNTS:+, }${ESCALATION_COUNT} escalation"
     DIRECTIVE="[engram] Memory triage: ${COUNTS} pending. Say \"triage\" to review, or ignore to proceed."
 
     # Full details + commands go in additionalContext
