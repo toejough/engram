@@ -1223,28 +1223,24 @@ func TestT119_EvaluateSummaryFormat(t *testing.T) {
 	))
 }
 
-// T-120: Hook scripts invoke engram evaluate after learn.
+// T-120: Stop hook invokes engram flush (#309, #348).
+// PreCompact is a no-op and is not checked here.
 func TestT120_HookScriptsInvokeFlush(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	for _, scriptPath := range []string{
-		"../../hooks/pre-compact.sh",
-		"../../hooks/stop.sh",
-	} {
-		data, err := os.ReadFile(scriptPath)
-		g.Expect(err).NotTo(HaveOccurred())
+	data, err := os.ReadFile("../../hooks/stop.sh")
+	g.Expect(err).NotTo(HaveOccurred())
 
-		if err != nil {
-			return
-		}
-
-		content := string(data)
-		// Scripts use unified flush command (#309).
-		g.Expect(content).To(ContainSubstring("flush"))
-		g.Expect(content).To(ContainSubstring("ENGRAM_DATA"))
+	if err != nil {
+		return
 	}
+
+	content := string(data)
+	// Stop hook uses unified flush command (#309).
+	g.Expect(content).To(ContainSubstring("flush"))
+	g.Expect(content).To(ContainSubstring("ENGRAM_DATA"))
 }
 
 // T-121: callAnthropicAPI covered via httptest server (not parallel — mutates AnthropicAPIURL global).

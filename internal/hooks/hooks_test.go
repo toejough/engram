@@ -359,9 +359,9 @@ func TestT65_HooksJSONHasPreCompact(t *testing.T) {
 	g.Expect(hooksJSON).To(ContainSubstring("pre-compact.sh"))
 }
 
-// TestT67_PreCompactHookCallsFlush verifies hooks/pre-compact.sh reads
-// stdin JSON, retrieves OAuth token, and calls engram flush (#309).
-func TestT67_PreCompactHookCallsFlush(t *testing.T) {
+// TestT67_PreCompactHookIsNoOp verifies hooks/pre-compact.sh is a no-op (#350).
+// PreCompact previously ran flush (redundant with Stop hook); it now exits cleanly.
+func TestT67_PreCompactHookIsNoOp(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -378,20 +378,12 @@ func TestT67_PreCompactHookCallsFlush(t *testing.T) {
 
 	script := string(content)
 
-	// Must read stdin JSON for transcript
-	g.Expect(script).To(ContainSubstring("jq"))
-	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	// Must use transcript_path from stdin JSON
-	g.Expect(script).To(ContainSubstring(".transcript_path"))
-	// Must retrieve OAuth token (DES-3 pattern)
-	g.Expect(script).To(ContainSubstring("uname"))
-	g.Expect(script).To(ContainSubstring("Darwin"))
-	g.Expect(script).To(ContainSubstring("security find-generic-password"))
-	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
-	// Must call unified flush command (#309)
-	g.Expect(script).To(ContainSubstring("flush"))
-	g.Expect(script).To(ContainSubstring("--data-dir"))
-	g.Expect(script).To(ContainSubstring("bin/engram"))
+	// Must be a no-op — just exits cleanly.
+	g.Expect(script).To(ContainSubstring("exit 0"))
+	// Must NOT call flush (that was the redundant behavior being removed).
+	g.Expect(script).NotTo(ContainSubstring("engram flush"))
+	// Must reference the issue for traceability.
+	g.Expect(script).To(ContainSubstring("#350"))
 }
 
 // TestT98_UserPromptSubmitCreationInSystemMessage verifies hooks/user-prompt-submit.sh
