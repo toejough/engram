@@ -69,7 +69,7 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		return nil, fmt.Errorf("reading file: %w", err)
 	}
 
-	var record tomlRecord
+	var record memory.MemoryRecord
 
 	_, err = toml.Decode(string(data), &record)
 	if err != nil {
@@ -96,20 +96,4 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		UpdatedAt:         updatedAt,
 		FilePath:          filePath,
 	}, nil
-}
-
-// tomlRecord mirrors the on-disk TOML format for reading.
-type tomlRecord struct {
-	Title             string   `toml:"title"`
-	Content           string   `toml:"content"`
-	Concepts          []string `toml:"concepts"`
-	Keywords          []string `toml:"keywords"`
-	AntiPattern       string   `toml:"anti_pattern"`
-	Principle         string   `toml:"principle"`
-	SurfacedCount     int      `toml:"surfaced_count"`
-	FollowedCount     int      `toml:"followed_count"`
-	ContradictedCount int      `toml:"contradicted_count"`
-	IgnoredCount      int      `toml:"ignored_count"`
-	IrrelevantCount   int      `toml:"irrelevant_count"`
-	UpdatedAt         string   `toml:"updated_at"`
 }
