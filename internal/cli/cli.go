@@ -30,7 +30,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
-	regpkg "engram/internal/registry"
+
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -419,7 +419,7 @@ func RunMaintain(
 
 // RunReview implements the review subcommand: reads the TOML memory directory,
 // classifies entries by quadrant, and renders grouped output (ARCH-59, DES-27).
-func RunReview(args []string, stdout io.Writer, opts ...regpkg.TOMLDirOption) error {
+func RunReview(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("review", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
@@ -435,20 +435,26 @@ func RunReview(args []string, stdout io.Writer, opts ...regpkg.TOMLDirOption) er
 		return errReviewMissingFlags
 	}
 
-	store := regpkg.NewTOMLDirectoryStore(*dataDir, opts...)
+	memoriesDir := filepath.Join(*dataDir, "memories")
 
-	entries, err := store.List()
+	records, err := memory.ListAll(memoriesDir)
 	if err != nil {
-		return fmt.Errorf("review: listing registry: %w", err)
+		if errors.Is(err, os.ErrNotExist) {
+			_, _ = fmt.Fprintln(stdout, "[engram] No registry entries found.")
+
+			return nil
+		}
+
+		return fmt.Errorf("review: listing memories: %w", err)
 	}
 
-	if len(entries) == 0 {
+	if len(records) == 0 {
 		_, _ = fmt.Fprintln(stdout, "[engram] No registry entries found.")
 
 		return nil
 	}
 
-	classifications := classifyEntries(entries)
+	classifications := classifyStoredRecords(records, *dataDir)
 
 	switch *format {
 	case formatJSON:
@@ -910,25 +916,42 @@ func callAnthropicAPI(
 	return apiResp.Content[0].Text, nil
 }
 
-func classifyEntries(entries []regpkg.InstructionEntry) []reviewClassification {
-	classifications := make([]reviewClassification, 0, len(entries))
+// classifyStoredRecords builds review classifications from memory.StoredRecord values.
+// The ID for each entry is the relative path within dataDir (e.g. "memories/foo.toml").
+func classifyStoredRecords(records []memory.StoredRecord, dataDir string) []reviewClassification {
+	classifications := make([]reviewClassification, 0, len(records))
 
-	for idx := range entries {
-		entry := &entries[idx]
-		quadrant := regpkg.Classify(
-			entry,
-			reviewSurfacingThreshold,
-			reviewEffectivenessThreshold,
+	for i := range records {
+		rec := &records[i]
+
+		relPath, relErr := filepath.Rel(dataDir, rec.Path)
+		if relErr != nil {
+			relPath = rec.Path
+		}
+
+		total := rec.Record.FollowedCount + rec.Record.ContradictedCount + rec.Record.IgnoredCount
+
+		var eff *float64
+
+		const (
+			minEvals          = 3
+			percentMultiplier = 100.0
 		)
-		eff := regpkg.Effectiveness(entry)
+
+		if total >= minEvals {
+			score := float64(rec.Record.FollowedCount) / float64(total) * percentMultiplier
+			eff = &score
+		}
+
+		quadrant := reviewQuadrant(rec.Record.SurfacedCount, eff)
 
 		classifications = append(classifications, reviewClassification{
-			ID:            entry.ID,
-			SourceType:    entry.SourceType,
-			Title:         entry.Title,
-			Quadrant:      string(quadrant),
+			ID:            relPath,
+			SourceType:    rec.Record.SourceType,
+			Title:         rec.Record.Title,
+			Quadrant:      quadrant,
 			Effectiveness: eff,
-			SurfacedCount: entry.SurfacedCount,
+			SurfacedCount: rec.Record.SurfacedCount,
 		})
 	}
 
@@ -1040,6 +1063,27 @@ func resolveSkillsDir() string {
 	}
 
 	return filepath.Join(pluginRoot, "skills")
+}
+
+// reviewQuadrant replicates the registry.Classify logic using local thresholds.
+func reviewQuadrant(surfacedCount int, eff *float64) string {
+	if eff == nil {
+		return "Insufficient"
+	}
+
+	highEff := *eff >= reviewEffectivenessThreshold
+	oftenSurfaced := surfacedCount >= reviewSurfacingThreshold
+
+	switch {
+	case oftenSurfaced && highEff:
+		return "Working"
+	case oftenSurfaced && !highEff:
+		return "Leech"
+	case !oftenSurfaced && highEff:
+		return "Hidden Gem"
+	default:
+		return "Noise"
+	}
 }
 
 //nolint:funlen // orchestration function

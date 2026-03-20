@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
@@ -22,7 +23,7 @@ import (
 	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/learn"
-	regpkg "engram/internal/registry"
+	"engram/internal/memory"
 )
 
 // callAnthropicAPI error branches: invalid URL, bad JSON, empty content.
@@ -1950,30 +1951,37 @@ basis = "concept_overlap"
 		return
 	}
 
-	// Read back bystander entry via registry — link to absorbed must be gone.
-	reg := regpkg.NewTOMLDirectoryStore(dataDir)
+	// Read back bystander entry — link to absorbed must be gone.
+	bystanderData, readErr := os.ReadFile(bystanderPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
 
-	bystanderEntry, getErr := reg.Get("memories/bystander.toml")
-	g.Expect(getErr).NotTo(HaveOccurred())
-
-	if getErr != nil {
+	if readErr != nil {
 		return
 	}
 
-	for _, link := range bystanderEntry.Links {
+	var bystanderRecord memory.MemoryRecord
+
+	_, decErr := toml.Decode(string(bystanderData), &bystanderRecord)
+	g.Expect(decErr).NotTo(HaveOccurred())
+
+	if decErr != nil {
+		return
+	}
+
+	for _, link := range bystanderRecord.Links {
 		g.Expect(link.Target).NotTo(Equal("memories/absorbed.toml"),
 			"bystander must not retain stale link to absorbed memory")
 	}
 
-	// Verify absorbed was removed from registry (confirms merge completed, not just link cleanup).
-	_, absorbedGetErr := reg.Get("memories/absorbed.toml")
-	g.Expect(absorbedGetErr).To(HaveOccurred(),
-		"absorbed memory must be absent from registry after merge")
+	// Verify absorbed was removed (confirms merge completed, not just link cleanup).
+	_, absorbedStatErr := os.Stat(absorbedPath)
+	g.Expect(absorbedStatErr).To(HaveOccurred(),
+		"absorbed memory must be absent after merge")
 
-	// Verify survivor is still accessible in registry (link recompute must not corrupt it).
-	_, survivorGetErr := reg.Get("memories/survivor.toml")
-	g.Expect(survivorGetErr).NotTo(HaveOccurred(),
-		"survivor memory must remain in registry after merge")
+	// Verify survivor is still accessible (link recompute must not corrupt it).
+	_, survivorStatErr := os.Stat(survivorPath)
+	g.Expect(survivorStatErr).NotTo(HaveOccurred(),
+		"survivor memory must remain after merge")
 }
 
 // T-359: Surface CLI --transcript-window flag wires to TranscriptWindow suppression.
@@ -2128,12 +2136,20 @@ updated_at = "2026-01-01T00:00:00Z"
 		return
 	}
 
-	reg := regpkg.NewTOMLDirectoryStore(dataDir)
+	survivorTOMLPath := filepath.Join(dataDir, "memories", "survivor.toml")
+	survivorData, survivorReadErr := os.ReadFile(survivorTOMLPath)
+	g.Expect(survivorReadErr).NotTo(HaveOccurred())
 
-	survivorEntry, getErr := reg.Get("memories/survivor.toml")
-	g.Expect(getErr).NotTo(HaveOccurred())
+	if survivorReadErr != nil {
+		return
+	}
 
-	if getErr != nil {
+	var survivorRecord memory.MemoryRecord
+
+	_, survivorDecErr := toml.Decode(string(survivorData), &survivorRecord)
+	g.Expect(survivorDecErr).NotTo(HaveOccurred())
+
+	if survivorDecErr != nil {
 		return
 	}
 
@@ -2143,7 +2159,7 @@ updated_at = "2026-01-01T00:00:00Z"
 	// ["alpha","zeta","eta"] → Jaccard = 1/6 ≈ 0.167 > conceptOverlapMinJaccard.
 	var foundConceptOverlapToNeighbor bool
 
-	for _, link := range survivorEntry.Links {
+	for _, link := range survivorRecord.Links {
 		if link.Target == "memories/neighbor.toml" && link.Basis == "concept_overlap" {
 			foundConceptOverlapToNeighbor = true
 
