@@ -40,10 +40,9 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
 }
 
-// TestT158_HooksJSONStructure verifies hooks.json has exactly two UserPromptSubmit
-// entries: one synchronous (user-prompt-submit.sh, no "async" key or false) and one
-// async ("async": true, user-prompt-submit-async.sh). Also verifies user-prompt-submit.sh
-// does not use nohup, disown, or background & spawning of context-update (T-158).
+// TestT158_HooksJSONStructure verifies hooks.json has exactly one UserPromptSubmit
+// entry: synchronous (user-prompt-submit.sh, no "async" key). Also verifies
+// user-prompt-submit.sh does not use nohup or disown (T-158).
 func TestT158_HooksJSONStructure(t *testing.T) {
 	t.Parallel()
 
@@ -86,42 +85,22 @@ func TestT158_HooksJSONStructure(t *testing.T) {
 	}
 
 	entries := parsed.Hooks["UserPromptSubmit"]
-	g.Expect(entries).To(HaveLen(2), "expected exactly two UserPromptSubmit hook groups")
+	g.Expect(entries).To(HaveLen(1), "expected exactly one UserPromptSubmit hook group")
 
-	// Flatten inner hooks for inspection.
-	var syncHook, asyncHook *hookEntry
-
-	for groupIdx := range entries {
-		for innerIdx := range entries[groupIdx].Hooks {
-			entry := &entries[groupIdx].Hooks[innerIdx]
-			if entry.Async != nil && *entry.Async {
-				asyncHook = entry
-			} else {
-				syncHook = entry
-			}
-		}
-	}
-
-	// Sync entry: no "async" key (nil pointer) pointing to user-prompt-submit.sh.
-	g.Expect(syncHook).NotTo(BeNil(), "expected a synchronous UserPromptSubmit hook")
-
-	if syncHook == nil {
+	if len(entries) == 0 {
 		return
 	}
 
-	g.Expect(syncHook.Async).To(BeNil(), "sync hook must not have an async field")
-	g.Expect(syncHook.Command).To(ContainSubstring("user-prompt-submit.sh"))
-	g.Expect(syncHook.Command).NotTo(ContainSubstring("user-prompt-submit-async.sh"))
+	// Single sync entry pointing to user-prompt-submit.sh.
+	g.Expect(entries[0].Hooks).To(HaveLen(1))
 
-	// Async entry: "async": true pointing to user-prompt-submit-async.sh.
-	g.Expect(asyncHook).NotTo(BeNil(), "expected an async UserPromptSubmit hook")
-
-	if asyncHook == nil {
+	if len(entries[0].Hooks) == 0 {
 		return
 	}
 
-	g.Expect(*asyncHook.Async).To(BeTrue(), "async hook must have async: true")
-	g.Expect(asyncHook.Command).To(ContainSubstring("user-prompt-submit-async.sh"))
+	hook := entries[0].Hooks[0]
+	g.Expect(hook.Async).To(BeNil(), "hook must not have an async field")
+	g.Expect(hook.Command).To(ContainSubstring("user-prompt-submit.sh"))
 
 	// --- Inspect user-prompt-submit.sh for forbidden background-spawn patterns ---
 	scriptPath := filepath.Join(root, "hooks", "user-prompt-submit.sh")
@@ -135,7 +114,6 @@ func TestT158_HooksJSONStructure(t *testing.T) {
 	script := string(scriptData)
 	g.Expect(script).NotTo(ContainSubstring("nohup"), "sync hook must not use nohup")
 	g.Expect(script).NotTo(ContainSubstring("disown"), "sync hook must not use disown")
-	g.Expect(script).NotTo(MatchRegexp(`context-update\s*&`), "sync hook must not background context-update")
 }
 
 // T-20: Plugin manifest exists

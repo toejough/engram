@@ -115,8 +115,6 @@ func Run(
 		return runFeedback(subArgs, stdout)
 	case "show":
 		return runShow(subArgs, stdout)
-	case "context-update":
-		return runContextUpdate(subArgs)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
 	default:
@@ -386,14 +384,9 @@ func RunReview(args []string, stdout io.Writer) error {
 
 // unexported constants.
 const (
-	anthropicMaxTokens         = 1024
-	anthropicVersion           = "2023-06-01"
-	contextSummarizationPrompt = "Update this task-focused working summary. " +
-		"Focus on what's being worked on, decisions made, progress, and open questions. " +
-		"Not a dissertation — just what's relevant for resuming work. " +
-		"Do NOT include discovered constraints or patterns (those are captured as memories)."
+	anthropicMaxTokens           = 1024
+	anthropicVersion             = "2023-06-01"
 	formatJSON                   = "json"
-	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
 	maxTitleLength               = 38
 	maxTranscriptTok             = 2000
@@ -404,10 +397,6 @@ const (
 
 // unexported variables.
 var (
-	errContextUpdateMissingFlags = errors.New(
-		"context-update: --transcript-path, --session-id," +
-			" and --data-dir required",
-	)
 	errCorrectMissingFlags = errors.New(
 		"correct: --message and --data-dir required",
 	)
@@ -429,8 +418,7 @@ var (
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
 		"usage: engram <audit|correct|surface|learn" +
-			"|review|maintain|instruct|show|feedback" +
-			"|context-update> [flags]",
+			"|review|maintain|instruct|show|feedback> [flags]",
 	)
 )
 
@@ -519,24 +507,6 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	return result, nil
 }
 
-// haikuClientAdapter implements sessionctx.HaikuClient using the Anthropic API.
-type haikuClientAdapter struct {
-	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-}
-
-func (h *haikuClientAdapter) Summarize(
-	ctx context.Context,
-	previousSummary, delta string,
-) (string, error) {
-	userPrompt := delta
-	if previousSummary != "" {
-		userPrompt = "Previous summary:\n" + previousSummary +
-			"\n\nNew transcript:\n" + delta
-	}
-
-	return h.caller(ctx, haikuModel, contextSummarizationPrompt, userPrompt)
-}
-
 // osClaudeMDStore reads and writes CLAUDE.md files on disk.
 type osClaudeMDStore struct {
 	path string
@@ -566,28 +536,12 @@ func (s *osClaudeMDStore) Write(content string) error {
 	return nil
 }
 
-type osDirCreator struct{}
-
-func (d *osDirCreator) MkdirAll(path string) error {
-	const dirPerms = 0o755
-
-	return os.MkdirAll(path, dirPerms) //nolint:wrapcheck // thin I/O adapter
-}
-
 // I/O adapters for context package DI interfaces.
 
 type osFileReader struct{}
 
 func (r *osFileReader) Read(path string) ([]byte, error) {
 	return os.ReadFile(path) //nolint:gosec,wrapcheck // thin I/O adapter
-}
-
-type osFileWriter struct{}
-
-func (w *osFileWriter) Write(path string, content []byte) error {
-	const filePerms = 0o644
-
-	return os.WriteFile(path, content, filePerms) //nolint:wrapcheck // thin I/O adapter
 }
 
 // osMemoryRemover deletes a memory TOML file from disk.
@@ -632,12 +586,6 @@ func (s *osOffsetStore) Write(path string, offset learn.Offset) error {
 	return os.WriteFile(path, data, filePerms) //nolint:wrapcheck // thin I/O adapter
 }
 
-type osRenamer struct{}
-
-func (r *osRenamer) Rename(oldpath, newpath string) error {
-	return os.Rename(oldpath, newpath) //nolint:wrapcheck // thin I/O adapter
-}
-
 // osSkillWriter writes skill files to a directory on disk.
 type osSkillWriter struct {
 	dir string
@@ -666,12 +614,6 @@ func (w *osSkillWriter) Write(name, content string) (string, error) {
 	}
 
 	return path, nil
-}
-
-type realTimestamper struct{}
-
-func (t *realTimestamper) Now() time.Time {
-	return time.Now()
 }
 
 // reviewClassification holds the quadrant classification for a single entry.
@@ -986,71 +928,6 @@ func reviewQuadrant(surfacedCount int, eff *float64) string {
 	default:
 		return "Noise"
 	}
-}
-
-//nolint:funlen // orchestration function
-func runContextUpdate(args []string) error {
-	fs := flag.NewFlagSet("context-update", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	transcriptPath := fs.String(
-		"transcript-path", "", "path to session transcript",
-	)
-	sessionID := fs.String("session-id", "", "session identifier")
-	dataDir := fs.String("data-dir", "", "path to data directory")
-	contextPath := fs.String(
-		"context-path", "",
-		"path to session-context.md (overrides data-dir default)",
-	)
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("context-update: %w", parseErr)
-	}
-
-	if *transcriptPath == "" || *sessionID == "" || *dataDir == "" {
-		return errContextUpdateMissingFlags
-	}
-
-	contextFilePath := filepath.Join(
-		*dataDir, "session-context.md",
-	)
-	if *contextPath != "" {
-		contextFilePath = *contextPath
-	}
-
-	reader := &osFileReader{}
-	writer := &osFileWriter{}
-	dirCreator := &osDirCreator{}
-	renamer := &osRenamer{}
-	clock := &realTimestamper{}
-
-	delta := sessionctx.NewDeltaReader(reader)
-
-	token := os.Getenv("ENGRAM_API_TOKEN")
-
-	var haikuClient sessionctx.HaikuClient
-	if token != "" {
-		haikuClient = &haikuClientAdapter{
-			caller: makeAnthropicCaller(token),
-		}
-	}
-
-	summarizer := sessionctx.NewSummarizer(haikuClient)
-	file := sessionctx.NewSessionFile(
-		reader, writer, dirCreator, renamer, clock,
-	)
-
-	orchestrator := sessionctx.NewOrchestrator(
-		delta, summarizer, file,
-	)
-
-	return orchestrator.Update(
-		context.Background(),
-		*transcriptPath,
-		*sessionID,
-		contextFilePath,
-	)
 }
 
 func runCorrect(

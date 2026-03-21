@@ -158,7 +158,7 @@ func TestBuildTargets(t *testing.T) {
 		subcmds := []string{
 			"correct", "review",
 			"maintain", "surface", "learn", "instruct",
-			"context-update", "feedback", "flush", "show",
+			"feedback", "flush", "show",
 			"apply-proposal",
 		}
 		for _, sub := range subcmds {
@@ -166,50 +166,6 @@ func TestBuildTargets(t *testing.T) {
 		}
 
 		g.Expect(calls).To(gomega.Equal(subcmds))
-	})
-}
-
-func TestContextUpdateFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{
-			TranscriptPath: "/transcript",
-			SessionID:      "sess-1",
-			DataDir:        "/data",
-			ContextPath:    "/ctx",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--transcript-path", "/transcript",
-			"--session-id", "sess-1",
-			"--data-dir", "/data",
-			"--context-path", "/ctx",
-		}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
-	})
-
-	t.Run("partial fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.ContextUpdateFlags(cli.ContextUpdateArgs{
-			TranscriptPath: "/transcript",
-			DataDir:        "/data",
-		})
-		g.Expect(result).To(gomega.Equal([]string{
-			"--transcript-path", "/transcript",
-			"--data-dir", "/data",
-		}))
 	})
 }
 
@@ -274,11 +230,11 @@ func TestFlushFlags(t *testing.T) {
 	g := gomega.NewWithT(t)
 
 	result := cli.FlushFlags(cli.FlushArgs{
-		DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1", ContextPath: "/ctx.md",
+		DataDir: "/data", TranscriptPath: "/t.jsonl", SessionID: "s1",
 	})
 	g.Expect(result).To(gomega.Equal([]string{
 		"--data-dir", "/data", "--transcript-path", "/t.jsonl",
-		"--session-id", "s1", "--context-path", "/ctx.md",
+		"--session-id", "s1",
 	}))
 }
 
@@ -541,7 +497,7 @@ func TestTargets(t *testing.T) {
 
 		// Construction doesn't do I/O — just builds targ target objects.
 		targets := cli.Targets(&bytes.Buffer{}, &bytes.Buffer{}, strings.NewReader(""))
-		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 11))
+		g.Expect(len(targets)).To(gomega.BeNumerically(">=", 10))
 	})
 
 	t.Run("closure wiring invokes RunSafe with injected IO", func(t *testing.T) {

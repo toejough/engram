@@ -20,15 +20,6 @@ type ApplyProposalArgs struct {
 
 // --- Targ args structs ---
 
-// ContextUpdateArgs holds parsed flags for the context-update subcommand.
-type ContextUpdateArgs struct {
-	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
-	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
-	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	ContextPath    string `targ:"flag,name=context-path,desc=path to session-context.md"`
-	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
 // CorrectArgs holds parsed flags for the correct subcommand.
 type CorrectArgs struct {
 	Message        string `targ:"flag,name=message,desc=user message text"`
@@ -52,7 +43,6 @@ type FlushArgs struct {
 	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
 	SessionID      string `targ:"flag,name=session-id,desc=session identifier"`
-	ContextPath    string `targ:"flag,name=context-path,desc=path to session-context.md"`
 }
 
 // InstructArgs holds parsed flags for the instruct subcommand.
@@ -161,8 +151,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("learn").Description("Extract learnings from session"),
 		targ.Targ(func(a InstructArgs) { run("instruct", InstructFlags(a)) }).
 			Name("instruct").Description("Audit instruction quality"),
-		targ.Targ(func(a ContextUpdateArgs) { run("context-update", ContextUpdateFlags(a)) }).
-			Name("context-update").Description("Update session context"),
 		targ.Targ(func(a FeedbackArgs) { run("feedback", FeedbackFlags(a)) }).
 			Name("feedback").Description("Record memory relevance feedback"),
 		targ.Targ(func(a FlushArgs) { run("flush", FlushFlags(a)) }).
@@ -172,16 +160,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
 	}
-}
-
-// ContextUpdateFlags returns the CLI flag args for the context-update subcommand.
-func ContextUpdateFlags(a ContextUpdateArgs) []string {
-	return BuildFlags(
-		"--transcript-path", a.TranscriptPath,
-		"--session-id", a.SessionID,
-		"--data-dir", a.DataDir,
-		"--context-path", a.ContextPath,
-	)
 }
 
 // CorrectFlags returns the CLI flag args for the correct subcommand.
@@ -210,7 +188,6 @@ func FlushFlags(a FlushArgs) []string {
 		"--data-dir", a.DataDir,
 		"--transcript-path", a.TranscriptPath,
 		"--session-id", a.SessionID,
-		"--context-path", a.ContextPath,
 	)
 }
 
