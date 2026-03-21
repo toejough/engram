@@ -375,6 +375,40 @@ func TestMaintainFlags(t *testing.T) {
 	})
 }
 
+func TestRecallFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("populated fields", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir:     "/data",
+			ProjectSlug: "my-project",
+			Query:       "search term",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--project-slug", "my-project",
+			"--query", "search term",
+		}))
+	})
+
+	t.Run("empty query omitted", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		result := cli.RecallFlags(cli.RecallArgs{
+			DataDir:     "/data",
+			ProjectSlug: "proj",
+		})
+		g.Expect(result).To(gomega.Equal([]string{
+			"--data-dir", "/data",
+			"--project-slug", "proj",
+		}))
+	})
+}
+
 func TestReviewFlags(t *testing.T) {
 	t.Parallel()
 

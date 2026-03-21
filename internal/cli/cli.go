@@ -29,6 +29,7 @@ import (
 	"engram/internal/learn"
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/recall"
 
 	"engram/internal/render"
 	"engram/internal/retrieve"
@@ -117,6 +118,8 @@ func Run(
 		return runShow(subArgs, stdout)
 	case "apply-proposal":
 		return runApplyProposal(subArgs, stdout)
+	case "recall":
+		return runRecall(subArgs, stdout)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
@@ -387,6 +390,7 @@ const (
 	anthropicMaxTokens           = 1024
 	anthropicVersion             = "2023-06-01"
 	formatJSON                   = "json"
+	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
 	maxTitleLength               = 38
 	maxTranscriptTok             = 2000
@@ -410,14 +414,17 @@ var (
 	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
 	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
 	errNoContentBlocks      = errors.New("API response contained no content blocks")
-	errReviewMissingFlags   = errors.New("review: --data-dir required")
-	errSkillExists          = errors.New("skill already exists")
-	errSurfaceMissingFlags  = errors.New(
+	errRecallMissingFlags   = errors.New(
+		"recall: --data-dir and --project-slug required",
+	)
+	errReviewMissingFlags  = errors.New("review: --data-dir required")
+	errSkillExists         = errors.New("skill already exists")
+	errSurfaceMissingFlags = errors.New(
 		"surface: --mode and --data-dir required",
 	)
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
-		"usage: engram <audit|correct|surface|learn" +
+		"usage: engram <correct|surface|learn|recall" +
 			"|review|maintain|instruct|show|feedback> [flags]",
 	)
 )
@@ -507,6 +514,18 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	return result, nil
 }
 
+// haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
+type haikuCallerAdapter struct {
+	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+}
+
+func (a *haikuCallerAdapter) Call(
+	ctx context.Context,
+	systemPrompt, userPrompt string,
+) (string, error) {
+	return a.caller(ctx, haikuModel, systemPrompt, userPrompt)
+}
+
 // osClaudeMDStore reads and writes CLAUDE.md files on disk.
 type osClaudeMDStore struct {
 	path string
@@ -534,6 +553,41 @@ func (s *osClaudeMDStore) Write(content string) error {
 	}
 
 	return nil
+}
+
+// osDirLister lists .jsonl files in a directory using os.ReadDir.
+type osDirLister struct{}
+
+func (l *osDirLister) ListJSONL(dir string) ([]recall.FileEntry, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("listing directory: %w", err)
+	}
+
+	results := make([]recall.FileEntry, 0, len(entries))
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".jsonl") {
+			continue
+		}
+
+		info, infoErr := entry.Info()
+		if infoErr != nil {
+			continue
+		}
+
+		results = append(results, recall.FileEntry{
+			Path:  filepath.Join(dir, name),
+			Mtime: info.ModTime(),
+		})
+	}
+
+	return results, nil
 }
 
 // I/O adapters for context package DI interfaces.
@@ -1153,6 +1207,49 @@ func runMaintainDryRun(ctx context.Context, retriever *retrieve.Retriever, dataD
 	}
 
 	return nil
+}
+
+func runRecall(args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("recall", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	dataDir := fs.String("data-dir", "", "path to data directory")
+	projectSlug := fs.String("project-slug", "", "project directory slug")
+	query := fs.String("query", "", "search query (omit for summary mode)")
+
+	parseErr := fs.Parse(args)
+	if parseErr != nil {
+		return fmt.Errorf("recall: %w", parseErr)
+	}
+
+	if *dataDir == "" || *projectSlug == "" {
+		return errRecallMissingFlags
+	}
+
+	home := os.Getenv("HOME")
+	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
+
+	token := os.Getenv("ENGRAM_API_TOKEN")
+
+	finder := recall.NewSessionFinder(&osDirLister{})
+	reader := recall.NewTranscriptReader(&osFileReader{})
+
+	var summarizer recall.SummarizerI
+	if token != "" {
+		summarizer = recall.NewSummarizer(&haikuCallerAdapter{
+			caller: makeAnthropicCaller(token),
+		})
+	}
+
+	orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
+
+	result, err := orch.Recall(context.Background(), projectDir, *query)
+	if err != nil {
+		return fmt.Errorf("recall: %w", err)
+	}
+
+	//nolint:wrapcheck // thin JSON encoding at CLI boundary
+	return json.NewEncoder(stdout).Encode(result)
 }
 
 //nolint:funlen // wired with flags, cross-ref checker, and transcript window

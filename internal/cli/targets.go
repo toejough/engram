@@ -69,6 +69,13 @@ type MaintainArgs struct {
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
+// RecallArgs holds parsed flags for the recall subcommand.
+type RecallArgs struct {
+	DataDir     string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	ProjectSlug string `targ:"flag,name=project-slug,desc=project directory slug"`
+	Query       string `targ:"flag,name=query,desc=search query (omit for summary mode)"`
+}
+
 // ReviewArgs holds parsed flags for the review subcommand.
 type ReviewArgs struct {
 	DataDir string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -159,6 +166,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("show").Description("Display full memory details"),
 		targ.Targ(func(a ApplyProposalArgs) { run("apply-proposal", ApplyProposalFlags(a)) }).
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
+		targ.Targ(func(a RecallArgs) { run("recall", RecallFlags(a)) }).
+			Name("recall").Description("Recall recent session context"),
 	}
 }
 
@@ -212,6 +221,15 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
 
 	return flags
+}
+
+// RecallFlags returns the CLI flag args for the recall subcommand.
+func RecallFlags(a RecallArgs) []string {
+	return BuildFlags(
+		"--data-dir", a.DataDir,
+		"--project-slug", a.ProjectSlug,
+		"--query", a.Query,
+	)
 }
 
 // ReviewFlags returns the CLI flag args for the review subcommand.

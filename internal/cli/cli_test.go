@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,6 +106,37 @@ func TestCallAnthropicAPIServerErrors(t *testing.T) {
 		_, err := cli.ExportCallAnthropicAPI(t.Context(), &http.Client{}, "token", "model", "sys", "user")
 		g.Expect(err).To(HaveOccurred())
 	})
+}
+
+func TestHaikuCallerAdapter_Call(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	var capturedModel, capturedSystem, capturedUser string
+
+	fakeCaller := func(
+		_ context.Context, model, systemPrompt, userPrompt string,
+	) (string, error) {
+		capturedModel = model
+		capturedSystem = systemPrompt
+		capturedUser = userPrompt
+
+		return "response", nil
+	}
+
+	adapter := cli.ExportNewHaikuCallerAdapter(fakeCaller)
+
+	result, err := adapter.Call(context.Background(), "system prompt", "user prompt")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("response"))
+	g.Expect(capturedModel).To(Equal("claude-haiku-4-5-20251001"))
+	g.Expect(capturedSystem).To(Equal("system prompt"))
+	g.Expect(capturedUser).To(Equal("user prompt"))
 }
 
 // Incremental learn path: --transcript-path + --session-id reads delta from file.
@@ -633,6 +665,61 @@ func TestMaintainWithLeechEscalation(t *testing.T) {
 	g.Expect(proposals).ToNot(BeEmpty())
 }
 
+func TestOsDirLister_ListJSONL(t *testing.T) {
+	t.Parallel()
+
+	t.Run("lists jsonl files and skips others", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		dir := t.TempDir()
+
+		// Create .jsonl file.
+		writeErr := os.WriteFile(filepath.Join(dir, "a.jsonl"), []byte("{}"), 0o644)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+
+		if writeErr != nil {
+			return
+		}
+
+		// Create non-jsonl file (should be skipped).
+		writeErr2 := os.WriteFile(filepath.Join(dir, "b.txt"), []byte("text"), 0o644)
+		g.Expect(writeErr2).NotTo(HaveOccurred())
+
+		if writeErr2 != nil {
+			return
+		}
+
+		// Create subdirectory (should be skipped).
+		mkErr := os.MkdirAll(filepath.Join(dir, "subdir"), 0o755)
+		g.Expect(mkErr).NotTo(HaveOccurred())
+
+		if mkErr != nil {
+			return
+		}
+
+		lister := cli.ExportNewOsDirLister()
+		entries, err := lister.ListJSONL(dir)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(entries).To(HaveLen(1))
+		g.Expect(entries[0].Path).To(HaveSuffix("a.jsonl"))
+	})
+
+	t.Run("returns error for nonexistent directory", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		lister := cli.ExportNewOsDirLister()
+		_, err := lister.ListJSONL("/nonexistent/path")
+		g.Expect(err).To(HaveOccurred())
+	})
+}
+
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
 func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
 	t.Parallel()
@@ -778,6 +865,150 @@ func TestRun_NoArgs(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("usage"))
 	}
+}
+
+func TestRun_RecallEmptyProject(t *testing.T) {
+	// Not parallel: uses t.Setenv to override HOME.
+	g := NewGomegaWithT(t)
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	projDir := filepath.Join(homeDir, ".claude", "projects", "testproj")
+
+	mkErr := os.MkdirAll(projDir, 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	if mkErr != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", t.TempDir(),
+			"--project-slug", "testproj",
+		},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring(`"summary"`))
+}
+
+func TestRun_RecallMissingFlags(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no flags", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		var stdout, stderr bytes.Buffer
+
+		err := cli.Run(
+			[]string{"engram", "recall"},
+			&stdout, &stderr, strings.NewReader(""),
+		)
+		g.Expect(err).To(HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+		}
+	})
+
+	t.Run("missing project-slug", func(t *testing.T) {
+		t.Parallel()
+		g := NewGomegaWithT(t)
+
+		var stdout, stderr bytes.Buffer
+
+		err := cli.Run(
+			[]string{"engram", "recall", "--data-dir", "/tmp"},
+			&stdout, &stderr, strings.NewReader(""),
+		)
+		g.Expect(err).To(HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(ContainSubstring("--project-slug"))
+		}
+	})
+}
+
+func TestRun_RecallWithSessions(t *testing.T) {
+	// Not parallel: uses t.Setenv to override HOME.
+	g := NewGomegaWithT(t)
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	projDir := filepath.Join(homeDir, ".claude", "projects", "testproj")
+
+	mkErr := os.MkdirAll(projDir, 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	if mkErr != nil {
+		return
+	}
+
+	// Create a .jsonl session file.
+	sessionContent := `{"type":"human","text":"hello"}` + "\n"
+
+	writeErr := os.WriteFile(
+		filepath.Join(projDir, "session.jsonl"),
+		[]byte(sessionContent), 0o644,
+	)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	// Add a non-jsonl file (should be skipped by ListJSONL).
+	writeErr2 := os.WriteFile(
+		filepath.Join(projDir, "notes.txt"),
+		[]byte("not a session"), 0o644,
+	)
+	g.Expect(writeErr2).NotTo(HaveOccurred())
+
+	if writeErr2 != nil {
+		return
+	}
+
+	// Add a subdirectory (should be skipped by ListJSONL).
+	subErr := os.MkdirAll(filepath.Join(projDir, "subdir"), 0o755)
+	g.Expect(subErr).NotTo(HaveOccurred())
+
+	if subErr != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	// No API token → nil summarizer. With nil summarizer, orchestrator
+	// returns raw content without summarizing.
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", t.TempDir(),
+			"--project-slug", "testproj",
+		},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring(`"summary"`))
 }
 
 func TestRun_UnknownCommand(t *testing.T) {

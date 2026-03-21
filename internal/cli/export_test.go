@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"context"
 	"io"
 
 	"engram/internal/maintain"
 	"engram/internal/memory"
+	"engram/internal/recall"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
 )
@@ -32,12 +34,24 @@ func ExportNewCliConfirmer(
 	return &cliConfirmer{stdout: stdout, stdin: stdin, autoConfirm: autoConfirm}
 }
 
+// ExportNewHaikuCallerAdapter creates a haikuCallerAdapter for testing.
+func ExportNewHaikuCallerAdapter(
+	caller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error),
+) recall.HaikuCaller {
+	return &haikuCallerAdapter{caller: caller}
+}
+
 // ExportNewOsClaudeMDStore creates an osClaudeMDStore for testing.
 func ExportNewOsClaudeMDStore(path string) interface {
 	Read() (string, error)
 	Write(content string) error
 } {
 	return &osClaudeMDStore{path: path}
+}
+
+// ExportNewOsDirLister creates an osDirLister for testing.
+func ExportNewOsDirLister() recall.DirLister {
+	return &osDirLister{}
 }
 
 // ExportNewOsMemoryRemover creates an osMemoryRemover for testing.
