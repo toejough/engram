@@ -290,16 +290,16 @@ func (l *Learner) unionConcepts(a, b []string) []string {
 	return result
 }
 
-// unionKeywords returns the union of two keyword slices.
+// unionKeywords returns the union of two keyword slices, normalized to deduplicate format variants.
 func (l *Learner) unionKeywords(a, b []string) []string {
 	set := make(map[string]struct{})
 
 	for _, k := range a {
-		set[k] = struct{}{}
+		set[keyword.Normalize(k)] = struct{}{}
 	}
 
 	for _, k := range b {
-		set[k] = struct{}{}
+		set[keyword.Normalize(k)] = struct{}{}
 	}
 
 	result := make([]string, 0, len(set))
