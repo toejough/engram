@@ -280,11 +280,11 @@ func TestT43_SessionStartHookSurfaces(t *testing.T) {
 
 	script := string(content)
 
-	g.Expect(script).To(ContainSubstring("surface"))
-	g.Expect(script).To(ContainSubstring("--mode session-start"))
+	// Session-start no longer calls surface — memory surfacing is opt-in via /recall.
 	g.Expect(script).To(ContainSubstring("bin/engram"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
+	g.Expect(script).To(ContainSubstring("/recall"))
 }
 
 // TestT44_UserPromptSubmitHookSurfaces verifies hooks/user-prompt-submit.sh
@@ -459,12 +459,11 @@ func TestT99_SessionStartCreationInSystemMessage(t *testing.T) {
 
 	script := string(content)
 
-	// Must call surface with --mode session-start --format json.
-	g.Expect(script).To(ContainSubstring("--mode session-start"))
-	g.Expect(script).To(ContainSubstring("--format json"))
-	// Must reshape so summary goes to systemMessage via jq --arg.
+	// Session-start no longer calls surface — memory surfacing is opt-in via /recall.
+	// Must still output JSON with systemMessage and additionalContext.
 	g.Expect(script).To(ContainSubstring("{systemMessage: $sys"))
 	g.Expect(script).To(ContainSubstring("additionalContext:"))
+	g.Expect(script).To(ContainSubstring("/recall"))
 }
 
 // repoRoot returns the engram repository root by walking up from the test file.
