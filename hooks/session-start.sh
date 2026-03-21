@@ -40,20 +40,8 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
     fi
 } || true
 
-# UC-2: Surface relevant memories at session start
-SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode session-start --data-dir "$ENGRAM_DATA" --format json) || true
-
 # UC-28: Run maintenance classification (single source of truth for signals)
 SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "$ENGRAM_DATA" 2>/dev/null) || true
-
-# UC-14: Restore session context (project-specific path)
-PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
-CONTEXT_FILE="${ENGRAM_DATA}/projects/${PROJECT_SLUG}/session-context.md"
-SESSION_CONTEXT=""
-if [[ -f "$CONTEXT_FILE" ]]; then
-    # Extract summary (skip HTML comment on first line)
-    SESSION_CONTEXT=$(tail -n +3 "$CONTEXT_FILE")
-fi
 
 # Static guidance for mid-turn message capture (issue #54)
 MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
@@ -155,37 +143,18 @@ fi
 
 # Assemble output
 ADDITIONAL_CTX="$MIDTURN_NOTE"
-if [[ -n "$SESSION_CONTEXT" ]]; then
-    ADDITIONAL_CTX="${ADDITIONAL_CTX}
-[engram] Previous session context:
-${SESSION_CONTEXT}"
-fi
 if [[ -n "$TRIAGE_CTX" ]]; then
     ADDITIONAL_CTX="${ADDITIONAL_CTX}
 ${TRIAGE_CTX}"
 fi
 
-if [[ -n "$SURFACE_OUTPUT" ]]; then
-    SURFACE_MSG=$(echo "$SURFACE_OUTPUT" | jq -r '.summary // empty' 2>/dev/null) || true
-    SURFACE_CTX=$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty' 2>/dev/null) || true
-    if [[ -n "$DIRECTIVE" ]]; then
-        SYSTEM_MSG="${DIRECTIVE}
-${SURFACE_MSG}"
-    else
-        SYSTEM_MSG="$SURFACE_MSG"
-    fi
-    jq -n \
-        --arg sys "$SYSTEM_MSG" \
-        --arg add "${SURFACE_CTX}
-${ADDITIONAL_CTX}" \
-        '{systemMessage: $sys, additionalContext: $add}'
-elif [[ -n "$DIRECTIVE" ]]; then
-    jq -n \
-        --arg sys "$DIRECTIVE" \
-        --arg add "$ADDITIONAL_CTX" \
-        '{systemMessage: $sys, additionalContext: $add}'
-else
-    jq -n \
-        --arg add "$ADDITIONAL_CTX" \
-        '{additionalContext: $add}'
+SYSTEM_MSG="[engram] Say /recall to load context from previous sessions, or /recall <query> to search session history."
+if [[ -n "$DIRECTIVE" ]]; then
+    SYSTEM_MSG="${DIRECTIVE}
+${SYSTEM_MSG}"
 fi
+
+jq -n \
+    --arg sys "$SYSTEM_MSG" \
+    --arg add "$ADDITIONAL_CTX" \
+    '{systemMessage: $sys, additionalContext: $add}'
