@@ -88,14 +88,16 @@ Engram hooks into 7 Claude Code hook points:
 
 | Phase | Hook | What happens |
 |-------|------|-------------|
-| Start | `SessionStart` | Build binary if stale. Surface session-relevant memories. Restore previous session context. |
+| Start | `SessionStart` | Build binary if stale. Run maintain/triage. Notify user that `/recall` is available. |
 | Prompt | `UserPromptSubmit` | Surface prompt-relevant memories (BM25). Detect inline corrections (UC-3). |
 | Prompt (async) | `UserPromptSubmit` | Incremental learning extraction from transcript delta. |
 | Tool use | `PreToolUse` | Surface tool-specific memories (e.g., file-path-relevant instructions). |
 | After tool | `PostToolUse` | Surface memories relevant to the tool call and its output. |
 | Tool failure | `PostToolUseFailure` | Diagnose errors and surface relevant memories. |
-| Compact | `PreCompact` | Unified flush: learning extraction, save session context. |
-| End | `Stop` | Unified flush: learning extraction, save session context. |
+| Compact | `PreCompact` | Flush: learning extraction. |
+| End | `Stop` | Flush: learning extraction. |
+
+Previous session context is loaded on demand via the `/recall` skill, which summarizes recent transcripts from the same project using Haiku. This keeps session-start lightweight and avoids injecting stale context automatically.
 
 ## Data files
 
@@ -105,7 +107,6 @@ All data lives in `~/.claude/engram/data/`:
 |------|---------|
 | `memories/*.toml` | Structured memory files with embedded registry data (surfaced count, evaluation counters, enforcement level) |
 | `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
-| `projects/<slug>/session-context.md` | Per-project continuity context carried across sessions |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |
 
 ## Memory TOML structure

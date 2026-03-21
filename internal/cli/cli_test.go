@@ -720,6 +720,71 @@ func TestOsDirLister_ListJSONL(t *testing.T) {
 	})
 }
 
+// TestRecallIntegrationSummaryMode verifies the end-to-end recall pipeline
+// through the CLI: transcript discovery, reading, Haiku summarization, and
+// JSON output.
+//
+// This test mutates cli.AnthropicAPIURL and uses t.Setenv, so it must not
+// use t.Parallel().
+func TestRecallIntegrationSummaryMode(t *testing.T) {
+	g := NewWithT(t)
+
+	// Set up a fake HOME so runRecall constructs the project dir under our temp tree.
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	slug := "test-project"
+	projectDir := filepath.Join(fakeHome, ".claude", "projects", slug)
+	g.Expect(os.MkdirAll(projectDir, 0o750)).To(Succeed())
+
+	// Write a fake transcript .jsonl file in the project dir.
+	transcriptPath := filepath.Join(projectDir, "session-abc.jsonl")
+	g.Expect(os.WriteFile(
+		transcriptPath,
+		[]byte(`{"role":"user","content":"help with recall"}`+"\n"+
+			`{"role":"assistant","content":"sure, working on it"}`+"\n"),
+		0o644,
+	)).To(Succeed())
+
+	// Mock the Anthropic API endpoint.
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(
+				`{"content":[{"type":"text","text":"Working on recall feature"}]}`,
+			))
+		},
+	))
+	defer server.Close()
+
+	original := cli.AnthropicAPIURL
+	cli.AnthropicAPIURL = server.URL
+
+	defer func() { cli.AnthropicAPIURL = original }()
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
+
+	dataDir := t.TempDir()
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--project-slug", slug,
+		},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("summary"))
+}
+
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
 func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
 	t.Parallel()
