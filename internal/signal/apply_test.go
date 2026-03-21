@@ -347,6 +347,72 @@ func TestApply_RewriteWriteError(t *testing.T) {
 	g.Expect(result.Success).To(gomega.BeFalse())
 }
 
+func TestApply_BroadenNormalizesKeywords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	writer := &stubMemoryWriter{written: make(map[string]*memory.Stored)}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Keywords: []string{"existing_kw"}}, nil
+		}),
+		signal.WithWriteMemory(writer),
+	)
+
+	_, err := applier.Apply(context.Background(), signal.ApplyAction{
+		Action:   "broaden_keywords",
+		Memory:   "memories/gem.toml",
+		Keywords: []string{"Mixed-Case", "hyphen-sep"},
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	stored := writer.written["memories/gem.toml"]
+	g.Expect(stored).NotTo(gomega.BeNil())
+	if stored == nil {
+		return
+	}
+
+	g.Expect(stored.Keywords).To(gomega.ConsistOf("existing_kw", "mixed_case", "hyphen_sep"))
+}
+
+func TestApply_RewriteNormalizesKeywords(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	writer := &stubMemoryWriter{written: make(map[string]*memory.Stored)}
+
+	applier := signal.NewApplier(
+		signal.WithReadMemory(func(_ string) (*memory.Stored, error) {
+			return &memory.Stored{Title: "Old"}, nil
+		}),
+		signal.WithWriteMemory(writer),
+	)
+
+	_, err := applier.Apply(context.Background(), signal.ApplyAction{
+		Action: "rewrite",
+		Memory: "memories/leech.toml",
+		Fields: map[string]any{
+			"keywords": []any{"Mixed-Case", "hyphen-sep"},
+		},
+	})
+	g.Expect(err).NotTo(gomega.HaveOccurred())
+	if err != nil {
+		return
+	}
+
+	stored := writer.written["memories/leech.toml"]
+	g.Expect(stored).NotTo(gomega.BeNil())
+	if stored == nil {
+		return
+	}
+
+	g.Expect(stored.Keywords).To(gomega.ConsistOf("mixed_case", "hyphen_sep"))
+}
+
 func TestApply_UnsupportedAction(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)

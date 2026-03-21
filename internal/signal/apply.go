@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"engram/internal/keyword"
 	"engram/internal/maintain"
 	"engram/internal/memory"
 )
@@ -80,7 +81,7 @@ func (a *Applier) applyBroaden(action ApplyAction) error {
 		return fmt.Errorf("reading memory for broaden: %w", os.ErrNotExist)
 	}
 
-	stored.Keywords = append(stored.Keywords, action.Keywords...)
+	stored.Keywords = append(stored.Keywords, keyword.NormalizeAll(action.Keywords)...)
 
 	writeErr := a.writeMem.Write(action.Memory, stored)
 	if writeErr != nil {
@@ -221,12 +222,12 @@ func applyFields(stored *memory.Stored, fields map[string]any) {
 }
 
 func applyKeywordsField(stored *memory.Stored, fields map[string]any) {
-	keyword, ok := fields["keywords"]
+	kw, ok := fields["keywords"]
 	if !ok {
 		return
 	}
 
-	slice, isSlice := keyword.([]any)
+	slice, isSlice := kw.([]any)
 	if !isSlice {
 		return
 	}
@@ -235,7 +236,7 @@ func applyKeywordsField(stored *memory.Stored, fields map[string]any) {
 
 	for _, item := range slice {
 		if strItem, isStr := item.(string); isStr {
-			keywords = append(keywords, strItem)
+			keywords = append(keywords, keyword.Normalize(strItem))
 		}
 	}
 
