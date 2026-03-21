@@ -156,36 +156,11 @@ func TestApply_EscalateZeroLevel(t *testing.T) {
 	g.Expect(result.Success).To(gomega.BeFalse())
 }
 
-func TestApply_QueueClearedOnSuccess(t *testing.T) {
-	t.Parallel()
-	g := gomega.NewWithT(t)
-
-	queue := &stubQueueClearer{}
-
-	applier := signal.NewApplier(
-		signal.WithRemoveFile(func(_ string) error { return nil }),
-		signal.WithQueue(queue, "/tmp/q.jsonl"),
-	)
-
-	_, err := applier.Apply(context.Background(), signal.ApplyAction{
-		Action: "remove", Memory: "test.toml",
-	})
-	g.Expect(err).NotTo(gomega.HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(queue.clearedIDs).To(gomega.ContainElement("test.toml"))
-}
-
 func TestApply_Remove(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
 	var removedPath string
-
-	queue := &stubQueueClearer{}
 
 	applier := signal.NewApplier(
 		signal.WithRemoveFile(func(path string) error {
@@ -193,7 +168,6 @@ func TestApply_Remove(t *testing.T) {
 
 			return nil
 		}),
-		signal.WithQueue(queue, "/tmp/queue.jsonl"),
 	)
 
 	action := signal.ApplyAction{
@@ -210,7 +184,6 @@ func TestApply_Remove(t *testing.T) {
 
 	g.Expect(result.Success).To(gomega.BeTrue())
 	g.Expect(removedPath).To(gomega.Equal("memories/stale.toml"))
-	g.Expect(queue.clearedIDs).To(gomega.ContainElement("memories/stale.toml"))
 }
 
 func TestApply_RemoveError(t *testing.T) {
@@ -414,16 +387,6 @@ type stubMemoryWriter struct {
 
 func (s *stubMemoryWriter) Write(path string, stored *memory.Stored) error {
 	s.written[path] = stored
-
-	return nil
-}
-
-type stubQueueClearer struct {
-	clearedIDs []string
-}
-
-func (s *stubQueueClearer) ClearBySourceID(_, sourceID string) error {
-	s.clearedIDs = append(s.clearedIDs, sourceID)
 
 	return nil
 }

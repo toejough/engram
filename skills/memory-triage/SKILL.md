@@ -55,7 +55,7 @@ Wait for the user's decision. Do not act on signals without explicit approval. V
 
 ## Important: Always Use CLI Commands
 
-> **WARNING:** NEVER use `rm` to delete memory files or directly edit `.toml` files. Always use `apply-proposal` to keep the registry and signal queue in sync. Direct file operations cause stale registry entries and orphaned signals.
+> **WARNING:** NEVER use `rm` to delete memory files or directly edit `.toml` files. Always use `apply-proposal`. Direct file operations cause stale registry entries.
 
 All memory modifications (remove, broaden keywords, rewrite) MUST go through engram CLI commands:
 

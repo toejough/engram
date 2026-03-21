@@ -347,7 +347,7 @@ body = '''
 - **User confirmation:** Every escalation/de-escalation requires explicit user confirmation.
 - **Graduation lifecycle (P6-full):** When a memory reaches `graduated`, the signal is written to `graduation-queue.jsonl` with a stable ID and persists until the user accepts or dismisses it. At SessionStart, pending graduation signals are surfaced in `additionalContext` with instructions for the LLM to ask the user about GitHub issue creation. `engram graduate accept --id <id>` creates a GitHub issue and records the entry accepted; `engram graduate dismiss --id <id>` records it dismissed. Quality metric = accepted / (accepted + dismissed).
 
-**Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse), UC-28 (signal queue)
+**Dependencies:** UC-16 (maintain), UC-17 (budget), UC-18 (PostToolUse)
 
 ---
 '''
@@ -1040,7 +1040,7 @@ body = '''
 4. Fire-and-forget — if detector errors, proceed without suppression
 5. Only runs on top-N selection (post-ranking), not all memories
 
-**Dependencies:** UC-2 (surfacing), UC-28 (signal queue for KindContradiction)
+**Dependencies:** UC-2 (surfacing)
 
 ---
 '''

@@ -22,11 +22,6 @@ import (
 	"engram/internal/signal"
 )
 
-// unexported constants.
-const (
-	signalQueueFilename = "signal-queue.jsonl"
-)
-
 // unexported variables.
 var (
 	errApplyProposalMissingFlags = errNew(
@@ -489,9 +484,6 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		}
 	}
 
-	queuePath := filepath.Join(*dataDir, signalQueueFilename)
-	queue := signal.NewQueueStore()
-
 	enforcementFunc := func(path, level, _ string) error {
 		return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
 			record.EnforcementLevel = level
@@ -501,7 +493,6 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 	applier := signal.NewApplier(
 		signal.WithReadMemory(readStoredMemory),
 		signal.WithWriteMemory(newStoredMemoryWriter()),
-		signal.WithQueue(queue, queuePath),
 		signal.WithEnforcementApplier(&funcEnforcementApplier{fn: enforcementFunc}),
 	)
 

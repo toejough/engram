@@ -109,7 +109,6 @@ All data lives in `~/.claude/engram/data/`:
 | `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
 | `evaluations/*.jsonl` | Per-session evaluation results (followed/contradicted/ignored) |
 | `projects/<slug>/session-context.md` | Per-project continuity context carried across sessions |
-| `signal-queue.jsonl` | Queued signals for memory maintenance |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |
 
 ## Memory TOML structure

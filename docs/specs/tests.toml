@@ -2770,20 +2770,6 @@ Then: Signal with type="promote", signal="graduation" is returned, and Summary c
 ---
 '''
 
-[T-299]
-name = "Queue write creates file if absent"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "d9d514ef"
-body = '''
-**Traces to:** ARCH-74 (REQ-125)
-
-Given: No proposal-queue.jsonl exists
-When: QueueStore.Append is called with signals
-Then: File created with one JSON line per signal
-
----
-'''
-
 [T-3]
 name = "LLM classifier returns tier A (explicit instruction)"
 traces_to = ["ARCH-2", "REQ-2", "REQ-7"]
@@ -2806,76 +2792,6 @@ body = '''
 **Then** memory A is ranked higher than B by BM25 relevance score (higher score due to term "commit" in content). Top 10 ranked results are surfaced in DES-6 format.
 
 - Type: example-based (BM25 deterministic, ranking depends on term frequency and document frequency)
-'''
-
-[T-300]
-name = "Queue write is atomic (temp+rename)"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "d105a7cb"
-body = '''
-**Traces to:** ARCH-74 (REQ-125)
-
-Given: An existing proposal-queue.jsonl
-When: QueueStore.Append is called
-Then: createTemp is called, content written to temp, rename to final path
-
----
-'''
-
-[T-301]
-name = "Queue read skips malformed lines"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "29bdde2d"
-body = '''
-**Traces to:** ARCH-74 (REQ-125)
-
-Given: A proposal-queue.jsonl with 3 valid lines and 1 malformed line
-When: QueueStore.Read is called
-Then: Returns 3 signals, malformed line skipped without error
-
----
-'''
-
-[T-302]
-name = "Stale entries (>30d) pruned on detect"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "57f2104a"
-body = '''
-**Traces to:** ARCH-74 (REQ-126)
-
-Given: Queue with entries: one 10 days old, one 45 days old
-When: QueueStore.Prune is called
-Then: 45-day entry removed, 10-day entry preserved
-
----
-'''
-
-[T-303]
-name = "Entries for deleted memories pruned"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "39916690"
-body = '''
-**Traces to:** ARCH-74 (REQ-126)
-
-Given: Queue with entry for memory path that no longer exists
-When: QueueStore.Prune is called with existsCheck returning false
-Then: Entry removed
-
----
-'''
-
-[T-304]
-name = "Duplicate signals deduplicated"
-traces_to = ["ARCH-73", "ARCH-74", "ARCH-75", "ARCH-76", "ARCH-77", "ARCH-78"]
-hash = "95418c62"
-body = '''
-**Traces to:** ARCH-74 (REQ-126)
-
-Given: Queue with two entries having same source_id + type
-When: QueueStore.Prune is called
-Then: Only newest entry preserved
-
----
 '''
 
 [T-305]

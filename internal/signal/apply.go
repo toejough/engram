@@ -22,8 +22,6 @@ type Applier struct {
 	readMemory         func(path string) (*memory.Stored, error)
 	writeMem           MemoryWriter
 	removeFile         func(string) error
-	queue              QueueClearer
-	queuePath          string
 	enforcementApplier maintain.EnforcementApplier
 }
 
@@ -68,10 +66,6 @@ func (a *Applier) Apply(_ context.Context, action ApplyAction) (ApplyResult, err
 	}
 
 	result.Success = true
-
-	if a.queue != nil {
-		_ = a.queue.ClearBySourceID(a.queuePath, action.Memory)
-	}
 
 	return result, nil
 }
@@ -173,23 +167,10 @@ type MemoryWriter interface {
 	Write(path string, stored *memory.Stored) error
 }
 
-// QueueClearer removes entries from the queue by source ID.
-type QueueClearer interface {
-	ClearBySourceID(path, sourceID string) error
-}
-
 // WithEnforcementApplier sets the enforcement level applier for escalation.
 func WithEnforcementApplier(applier maintain.EnforcementApplier) ApplierOption {
 	return func(a *Applier) {
 		a.enforcementApplier = applier
-	}
-}
-
-// WithQueue sets the queue clearer and path.
-func WithQueue(q QueueClearer, path string) ApplierOption {
-	return func(a *Applier) {
-		a.queue = q
-		a.queuePath = path
 	}
 }
 
