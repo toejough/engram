@@ -386,13 +386,13 @@ func RunReview(args []string, stdout io.Writer) error {
 
 // unexported constants.
 const (
+	anthropicMaxTokens         = 1024
 	anthropicVersion           = "2023-06-01"
 	contextSummarizationPrompt = "Update this task-focused working summary. " +
 		"Focus on what's being worked on, decisions made, progress, and open questions. " +
 		"Not a dissertation — just what's relevant for resuming work. " +
 		"Do NOT include discovered constraints or patterns (those are captured as memories)."
-	anthropicMaxTokens = 1024
-	formatJSON         = "json"
+	formatJSON                   = "json"
 	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
 	maxTitleLength               = 38

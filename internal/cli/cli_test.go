@@ -22,6 +22,91 @@ import (
 	"engram/internal/memory"
 )
 
+// TestCallAnthropicAPIDoError exercises the client.Do error path of callAnthropicAPI.
+// This test is safe to run in parallel because it uses a failing transport, not the global URL.
+func TestCallAnthropicAPIDoError(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	errTransport := errors.New("transport failed")
+	client := &http.Client{
+		Transport: &failingTransport{err: errTransport},
+	}
+
+	_, err := cli.ExportCallAnthropicAPI(t.Context(), client, "token", "model", "sys", "user")
+	g.Expect(err).To(MatchError(ContainSubstring("calling Anthropic API")))
+}
+
+// TestCallAnthropicAPIServerErrors exercises server-response error paths.
+// These tests mutate the AnthropicAPIURL global and cannot run in parallel.
+//
+//nolint:paralleltest // mutates cli.AnthropicAPIURL global
+func TestCallAnthropicAPIServerErrors(t *testing.T) {
+	t.Run("invalid JSON response", func(t *testing.T) {
+		g := NewGomegaWithT(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("not json"))
+		}))
+
+		defer server.Close()
+
+		original := cli.AnthropicAPIURL
+		cli.AnthropicAPIURL = server.URL
+
+		defer func() { cli.AnthropicAPIURL = original }()
+
+		_, err := cli.ExportCallAnthropicAPI(t.Context(), &http.Client{}, "token", "model", "sys", "user")
+		g.Expect(err).To(MatchError(ContainSubstring("parsing API response")))
+	})
+
+	t.Run("empty content blocks", func(t *testing.T) {
+		g := NewGomegaWithT(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"content":[]}`))
+		}))
+
+		defer server.Close()
+
+		original := cli.AnthropicAPIURL
+		cli.AnthropicAPIURL = server.URL
+
+		defer func() { cli.AnthropicAPIURL = original }()
+
+		_, err := cli.ExportCallAnthropicAPI(t.Context(), &http.Client{}, "token", "model", "sys", "user")
+		g.Expect(err).To(MatchError(ContainSubstring("no content")))
+	})
+
+	t.Run("body read error", func(t *testing.T) {
+		g := NewGomegaWithT(t)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			// Hijack and close immediately so reading the body fails.
+			hijacker, ok := w.(http.Hijacker)
+			if !ok {
+				http.Error(w, "hijack not supported", http.StatusInternalServerError)
+				return
+			}
+
+			conn, _, _ := hijacker.Hijack()
+			_ = conn.Close()
+		}))
+
+		defer server.Close()
+
+		original := cli.AnthropicAPIURL
+		cli.AnthropicAPIURL = server.URL
+
+		defer func() { cli.AnthropicAPIURL = original }()
+
+		_, err := cli.ExportCallAnthropicAPI(t.Context(), &http.Client{}, "token", "model", "sys", "user")
+		g.Expect(err).To(HaveOccurred())
+	})
+}
+
 // Incremental learn path: --transcript-path + --session-id reads delta from file.
 func TestLearnIncrementalPath(t *testing.T) {
 	t.Parallel()
@@ -2057,6 +2142,15 @@ type errReader struct {
 
 func (e *errReader) Read(_ []byte) (int, error) {
 	return 0, e.err
+}
+
+// failingTransport is an http.RoundTripper that always returns an error.
+type failingTransport struct {
+	err error
+}
+
+func (f *failingTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
+	return nil, f.err
 }
 
 // fakeHTTPDoer implements extract.HTTPDoer for testing without real HTTP calls.
