@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"engram/internal/keyword"
 	"engram/internal/memory"
 )
 
@@ -60,6 +61,9 @@ func (c *Consolidator) Consolidate(ctx context.Context) (ConsolidateResult, erro
 	}
 
 	clusters := buildClusters(memories)
+
+	c.logStderrf("[engram] Consolidation: scanned %d memories, found %d candidate clusters\n",
+		len(memories), len(clusters))
 
 	var result ConsolidateResult
 
@@ -515,8 +519,8 @@ func countNewKeywords(survivorKW, absorbedKW []string) int {
 	existing := keywordSet(survivorKW)
 	count := 0
 
-	for _, keyword := range absorbedKW {
-		if _, ok := existing[strings.ToLower(keyword)]; !ok {
+	for _, kw := range absorbedKW {
+		if _, ok := existing[keyword.Normalize(kw)]; !ok {
 			count++
 		}
 	}
@@ -549,8 +553,8 @@ func intersectionSize(first, second map[string]struct{}) int {
 func keywordSet(keywords []string) map[string]struct{} {
 	set := make(map[string]struct{}, len(keywords))
 
-	for _, keyword := range keywords {
-		set[strings.ToLower(keyword)] = struct{}{}
+	for _, kw := range keywords {
+		set[keyword.Normalize(kw)] = struct{}{}
 	}
 
 	return set

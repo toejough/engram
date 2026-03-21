@@ -520,7 +520,7 @@ func TestT340_StderrLogPerMerge(t *testing.T) {
 	))
 }
 
-// T-341: No duplicates — no stderr output.
+// T-341: No duplicates — no merge output on stderr (scan summary is always emitted).
 func TestT341_NoDuplicates_SilentStderr(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -542,7 +542,9 @@ func TestT341_NoDuplicates_SilentStderr(t *testing.T) {
 	_, err := consolidator.Consolidate(context.Background())
 	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(stderr.String()).To(BeEmpty())
+	g.Expect(stderr.String()).NotTo(ContainSubstring("Merged"))
+	g.Expect(stderr.String()).NotTo(ContainSubstring("Consolidated"))
+	g.Expect(stderr.String()).To(ContainSubstring("[engram] Consolidation: scanned"))
 }
 
 // T-342: MergeExecutor error — fire-and-forget per cluster.
@@ -1440,6 +1442,48 @@ type fakeTextSimilarityScorer struct {
 
 func (f *fakeTextSimilarityScorer) ClusterConfidence(_ []string) float64 {
 	return f.score
+}
+
+func TestConsolidate_DetectsMixedFormatKeywordDuplicates(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.Stored{
+		Title:    "Memory A",
+		FilePath: "/data/memories/mem-a.toml",
+		Keywords: []string{"prefixed-ids", "collision-avoidance", "parallel-agents"},
+	}
+	memB := &memory.Stored{
+		Title:    "Memory B",
+		FilePath: "/data/memories/mem-b.toml",
+		Keywords: []string{"prefixed_ids", "collision_avoidance", "parallel_agents"},
+	}
+
+	merger := &fakeMerger{}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithLister(&fakeLister{memories: []*memory.Stored{memA, memB}}),
+		signal.WithMerger(merger),
+		signal.WithFileWriter(&fakeFileWriter{}),
+		signal.WithFileDeleter(&fakeFileDeleter{}),
+		signal.WithBackupWriter(&fakeBackupWriter{}, "/tmp/backup"),
+		signal.WithEntryRemover(func(_ string) error { return nil }),
+		signal.WithEffectiveness(&fakeEffectiveness{}),
+		signal.WithStderr(io.Discard),
+		signal.WithTextSimilarityScorer(&fakeTextSimilarityScorer{}),
+	)
+
+	result, err := consolidator.Consolidate(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result.MemoriesMerged).To(Equal(1))
+	g.Expect(merger.calls).To(HaveLen(1))
+	g.Expect(merger.calls[0].survivor).NotTo(BeNil())
+	g.Expect(merger.calls[0].absorbed).NotTo(BeNil())
 }
 
 type linkRecomputeCall struct{}
