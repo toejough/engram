@@ -851,21 +851,6 @@ func TestT97_CreationLoggerError_PipelineSucceeds(t *testing.T) {
 	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
 }
 
-// TestUnionKeywords_DeduplicatesMixedFormat verifies normalization deduplicates hyphen/underscore variants.
-func TestUnionKeywords_DeduplicatesMixedFormat(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	// "prefixed-ids" and "prefixed_ids" should unify to one normalized keyword.
-	learner := learn.New(nil, nil, nil, nil, "")
-	result := learn.ExportUnionKeywords(learner,
-		[]string{"prefixed-ids", "collision-avoidance"},
-		[]string{"prefixed_ids", "collision_avoidance", "new_keyword"},
-	)
-
-	g.Expect(result).To(ConsistOf("prefixed_ids", "collision_avoidance", "new_keyword"))
-}
-
 // TestUnionConcepts_MergesBothSets verifies union has all unique concepts.
 func TestUnionConcepts_MergesBothSets(t *testing.T) {
 	t.Parallel()
@@ -901,6 +886,21 @@ func TestUnionConcepts_MergesBothSets(t *testing.T) {
 	}
 
 	g.Expect(mergeWriter.concepts).To(ConsistOf("alpha", "beta", "gamma"))
+}
+
+// TestUnionKeywords_DeduplicatesMixedFormat verifies normalization deduplicates hyphen/underscore variants.
+func TestUnionKeywords_DeduplicatesMixedFormat(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	// "prefixed-ids" and "prefixed_ids" should unify to one normalized keyword.
+	learner := learn.New(nil, nil, nil, nil, "")
+	result := learn.ExportUnionKeywords(learner,
+		[]string{"prefixed-ids", "collision-avoidance"},
+		[]string{"prefixed_ids", "collision_avoidance", "new_keyword"},
+	)
+
+	g.Expect(result).To(ConsistOf("prefixed_ids", "collision_avoidance", "new_keyword"))
 }
 
 // Write error — pipeline returns error
