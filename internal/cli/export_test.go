@@ -60,13 +60,3 @@ func ExportNewRetriever() *retrieve.Retriever {
 func ExportNewStdinConfirmer(stdout io.Writer, stdin io.Reader) maintain.Confirmer {
 	return &stdinConfirmer{stdout: stdout, stdin: stdin}
 }
-
-// ExportRecordEvaluation exposes the unexported recordEvaluation for testing.
-func ExportRecordEvaluation(path, outcome string) error {
-	return recordEvaluation(path, outcome)
-}
-
-// ExportRunEvaluate exposes the unexported runEvaluate for testing.
-func ExportRunEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
-	return runEvaluate(args, stdout, stderr, stdin)
-}

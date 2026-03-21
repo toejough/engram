@@ -156,7 +156,7 @@ func TestBuildTargets(t *testing.T) {
 		})
 
 		subcmds := []string{
-			"correct", "evaluate", "review",
+			"correct", "review",
 			"maintain", "surface", "learn", "instruct",
 			"context-update", "feedback", "flush", "show",
 			"apply-proposal",
@@ -246,26 +246,6 @@ func TestCorrectFlags(t *testing.T) {
 
 		result := cli.CorrectFlags(cli.CorrectArgs{Message: "fix this"})
 		g.Expect(result).To(gomega.Equal([]string{"--message", "fix this"}))
-	})
-}
-
-func TestEvaluateFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("populated fields", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.EvaluateFlags(cli.EvaluateArgs{DataDir: "/data"})
-		g.Expect(result).To(gomega.Equal([]string{"--data-dir", "/data"}))
-	})
-
-	t.Run("empty fields skipped", func(t *testing.T) {
-		t.Parallel()
-		g := gomega.NewWithT(t)
-
-		result := cli.EvaluateFlags(cli.EvaluateArgs{})
-		g.Expect(result).To(gomega.BeEmpty())
 	})
 }
 

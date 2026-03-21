@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -19,124 +17,10 @@ import (
 	. "github.com/onsi/gomega"
 
 	"engram/internal/cli"
-	sessionctx "engram/internal/context"
-	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/learn"
 	"engram/internal/memory"
 )
-
-// callAnthropicAPI error branches: invalid URL, bad JSON, empty content.
-// Not parallel — sub-tests mutate the cli.AnthropicAPIURL global sequentially.
-//
-//nolint:paralleltest // subtests mutate cli.AnthropicAPIURL; cannot run in parallel
-func TestCallAnthropicAPIErrorPaths(t *testing.T) {
-	// setupEvalDir creates a tmpdir with a memory TOML and surfacing log.
-	setupEvalDir := func(tb testing.TB) string {
-		tb.Helper()
-
-		dir := tb.TempDir()
-		memDir := filepath.Join(dir, "memories")
-
-		if mkErr := os.MkdirAll(memDir, 0o750); mkErr != nil {
-			tb.Fatalf("MkdirAll: %v", mkErr)
-		}
-
-		memPath := filepath.Join(memDir, "m.toml")
-
-		if wErr := os.WriteFile(
-			memPath,
-			[]byte("title=\"T\"\nprinciple=\"P\"\n"),
-			0o640,
-		); wErr != nil {
-			tb.Fatalf("WriteFile memory: %v", wErr)
-		}
-
-		logLine := fmt.Sprintf(
-			`{"memory_path":%q,"mode":"session-start","surfaced_at":"2024-01-01T00:00:00Z"}`,
-			memPath,
-		)
-
-		if wErr := os.WriteFile(
-			filepath.Join(dir, "surfacing-log.jsonl"),
-			[]byte(logLine+"\n"),
-			0o640,
-		); wErr != nil {
-			tb.Fatalf("WriteFile surfacing log: %v", wErr)
-		}
-
-		return dir
-	}
-
-	runEval := func(tb testing.TB, dataDir, apiURL string) error {
-		tb.Helper()
-
-		original := cli.AnthropicAPIURL
-		cli.AnthropicAPIURL = apiURL
-
-		defer func() { cli.AnthropicAPIURL = original }()
-
-		var stdout, stderr bytes.Buffer
-
-		return cli.RunEvaluate(
-			[]string{"--data-dir", dataDir},
-			"fake-token",
-			&stdout, &stderr,
-			strings.NewReader("transcript"),
-		)
-	}
-
-	t.Run(
-		"invalid URL returns error",
-		func(t *testing.T) { //nolint:paralleltest // shares AnthropicAPIURL
-			g := NewGomegaWithT(t)
-			dataDir := setupEvalDir(t)
-
-			err := runEval(t, dataDir, "://invalid-url")
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(err.Error()).To(ContainSubstring("creating request"))
-		},
-	)
-
-	t.Run(
-		"bad JSON response returns error",
-		func(t *testing.T) { //nolint:paralleltest // shares AnthropicAPIURL
-			g := NewGomegaWithT(t)
-			dataDir := setupEvalDir(t)
-
-			server := httptest.NewServer(
-				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					_, _ = w.Write([]byte("not-json"))
-				}),
-			)
-			defer server.Close()
-
-			err := runEval(t, dataDir, server.URL)
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(err.Error()).To(ContainSubstring("parsing API response"))
-		},
-	)
-
-	t.Run(
-		"empty content block returns error",
-		func(t *testing.T) { //nolint:paralleltest // shares AnthropicAPIURL
-			g := NewGomegaWithT(t)
-			dataDir := setupEvalDir(t)
-
-			server := httptest.NewServer(
-				http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					_, _ = w.Write([]byte(`{"content":[]}`))
-				}),
-			)
-			defer server.Close()
-
-			err := runEval(t, dataDir, server.URL)
-			g.Expect(err).To(HaveOccurred())
-			g.Expect(err.Error()).To(ContainSubstring("no content blocks"))
-		},
-	)
-}
 
 // Incremental learn path: --transcript-path + --session-id reads delta from file.
 func TestLearnIncrementalPath(t *testing.T) {
@@ -843,25 +727,6 @@ func TestRunContextUpdate_WithAPIToken(t *testing.T) {
 	g.Expect(runErr).NotTo(HaveOccurred())
 }
 
-// runEvaluate covered via cli.Run with empty token (no-token path).
-func TestRunEvaluateNoToken(t *testing.T) {
-	// Cannot use t.Parallel() — t.Setenv mutates process environment.
-	g := NewGomegaWithT(t)
-	t.Setenv("ENGRAM_API_TOKEN", "")
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "evaluate", "--data-dir", dataDir},
-		&stdout, &stderr,
-		strings.NewReader("some transcript"),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stderr.String()).To(ContainSubstring("no API token configured"))
-}
-
 // runInstructAudit: valid run with empty dir produces JSON report.
 func TestRunInstructAudit_EmptyDir(t *testing.T) {
 	t.Parallel()
@@ -1021,209 +886,6 @@ principle = "Use table-driven tests"
 	g.Expect(err).NotTo(HaveOccurred())
 }
 
-// T-117: evaluate subcommand runs full pipeline.
-func TestT117_EvaluateRunsFullPipeline(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Write a memory TOML file.
-	memPath := filepath.Join(dataDir, "test-memory.toml")
-	err := os.WriteFile(memPath, []byte(`title = "Test Memory"
-content = "Some content"
-principle = "Do the right thing"
-anti_pattern = ""`), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a surfacing log referencing the memory.
-	logLine := fmt.Sprintf(
-		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}`,
-		memPath,
-	)
-	surfacingLog := filepath.Join(dataDir, "surfacing-log.jsonl")
-	err = os.WriteFile(surfacingLog, []byte(logLine+"\n"), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Fake LLM returns a valid outcome for the memory.
-	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
-		return fmt.Sprintf(
-			`[{"memory_path":%q,"outcome":"followed","evidence":"The agent complied."}]`,
-			memPath,
-		), nil
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	err = cli.RunEvaluate(
-		[]string{"--data-dir", dataDir},
-		"fake-token",
-		&stdout, &stderr,
-		strings.NewReader("session transcript content"),
-		evaluate.WithLLMCaller(fakeLLM),
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stdout.String()).To(ContainSubstring("[engram] Evaluated 1 memories"))
-	g.Expect(stdout.String()).To(ContainSubstring("1 followed"))
-}
-
-// T-117: RunEvaluate writes evaluation log AND produces summary on stdout.
-func TestT117_RunEvaluateWritesEvaluationLog(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Write a memory TOML file.
-	memPath := filepath.Join(dataDir, "t117-mem.toml")
-	err := os.WriteFile(memPath, []byte(`title = "T-117 Memory"
-content = "Always use targ for builds"
-principle = "Use targ"
-anti_pattern = ""`), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a surfacing log referencing the memory.
-	logLine := fmt.Sprintf(
-		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}`,
-		memPath,
-	)
-
-	surfacingLogPath := filepath.Join(dataDir, "surfacing-log.jsonl")
-	err = os.WriteFile(surfacingLogPath, []byte(logLine+"\n"), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Fake LLM returns a single "followed" outcome.
-	fakeLLM := func(_ context.Context, _, _, _ string) (string, error) {
-		return fmt.Sprintf(
-			`[{"memory_path":%q,"outcome":"followed","evidence":"Used targ throughout."}]`,
-			memPath,
-		), nil
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	runErr := cli.RunEvaluate(
-		[]string{"--data-dir", dataDir},
-		"fake-token",
-		&stdout, &stderr,
-		strings.NewReader("some transcript"),
-		evaluate.WithLLMCaller(fakeLLM),
-	)
-	g.Expect(runErr).NotTo(HaveOccurred())
-
-	if runErr != nil {
-		return
-	}
-
-	// Assert stdout contains a non-empty summary.
-	g.Expect(stdout.String()).To(ContainSubstring("[engram] Evaluated"))
-
-	// Assert a file exists in <dataDir>/evaluations/.
-	evalDir := filepath.Join(dataDir, "evaluations")
-
-	entries, readDirErr := os.ReadDir(evalDir)
-	g.Expect(readDirErr).NotTo(HaveOccurred())
-
-	if readDirErr != nil {
-		return
-	}
-
-	g.Expect(entries).NotTo(BeEmpty())
-
-	// The evaluation file should be a non-empty .jsonl file.
-	evalFile := filepath.Join(evalDir, entries[0].Name())
-	g.Expect(entries[0].Name()).To(HaveSuffix(".jsonl"))
-
-	data, readErr := os.ReadFile(evalFile)
-	g.Expect(readErr).NotTo(HaveOccurred())
-
-	if readErr != nil {
-		return
-	}
-
-	g.Expect(data).NotTo(BeEmpty())
-}
-
-// T-118: evaluate without API token emits error and exits 0.
-func TestT118_EvaluateWithoutTokenEmitsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.RunEvaluate(
-		[]string{"--data-dir", dataDir},
-		"", // empty token
-		&stdout, &stderr,
-		strings.NewReader("some transcript"),
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(stderr.String()).
-		To(ContainSubstring("[engram] Error: evaluation skipped — no API token configured"))
-	g.Expect(stdout.String()).To(BeEmpty())
-}
-
-// T-119: evaluate summary output format.
-func TestT119_EvaluateSummaryFormat(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	// Empty outcomes: no output written (covers early-return branch).
-	var emptyBuf bytes.Buffer
-	cli.RenderEvaluateResult(&emptyBuf, nil)
-	g.Expect(emptyBuf.String()).To(BeEmpty())
-
-	// All three outcome types covered.
-	outcomes := []evaluate.Outcome{
-		{MemoryPath: "a.toml", Outcome: "followed"},
-		{MemoryPath: "b.toml", Outcome: "followed"},
-		{MemoryPath: "c.toml", Outcome: "contradicted"},
-		{MemoryPath: "d.toml", Outcome: "ignored"},
-	}
-
-	var buf bytes.Buffer
-
-	cli.RenderEvaluateResult(&buf, outcomes)
-
-	g.Expect(buf.String()).To(Equal(
-		"[engram] Evaluated 4 memories: 2 followed, 1 contradicted, 1 ignored.\n",
-	))
-}
-
 // T-120: Stop hook invokes engram flush (#309, #348).
 // PreCompact is a no-op and is not checked here.
 func TestT120_HookScriptsInvokeFlush(t *testing.T) {
@@ -1242,65 +904,6 @@ func TestT120_HookScriptsInvokeFlush(t *testing.T) {
 	// Stop hook uses unified flush command (#309).
 	g.Expect(content).To(ContainSubstring("flush"))
 	g.Expect(content).To(ContainSubstring("ENGRAM_DATA"))
-}
-
-// T-121: callAnthropicAPI covered via httptest server (not parallel — mutates AnthropicAPIURL global).
-//
-//nolint:paralleltest // mutates cli.AnthropicAPIURL global
-func TestT121_CallAnthropicAPICoverage(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-	memDir := filepath.Join(dataDir, "memories")
-	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
-
-	memPath := filepath.Join(memDir, "mem.toml")
-	writeTestTOML(t, memDir, "mem.toml", `
-title = "Use table-driven tests"
-principle = "Use table-driven tests"
-`)
-
-	// LLM text response must be a JSON array matching memory_path.
-	llmText := fmt.Sprintf(
-		`[{"memory_path":%q,"outcome":"followed","evidence":"used it"}]`,
-		memPath,
-	)
-	apiResp := fmt.Sprintf(`{"content":[{"type":"text","text":%q}]}`, llmText)
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(apiResp))
-	}))
-	defer server.Close()
-
-	original := cli.AnthropicAPIURL
-	cli.AnthropicAPIURL = server.URL
-
-	defer func() { cli.AnthropicAPIURL = original }()
-
-	// surfacing-log.jsonl lives directly in dataDir (not a subdirectory).
-	surfLogEntry := fmt.Sprintf(
-		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2024-01-01T00:00:00Z"}`,
-		memPath,
-	)
-	g.Expect(os.WriteFile(
-		filepath.Join(dataDir, "surfacing-log.jsonl"),
-		[]byte(surfLogEntry+"\n"),
-		0o640,
-	)).To(Succeed())
-
-	transcript := "I used table-driven tests in my implementation."
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.RunEvaluate(
-		[]string{"--data-dir", dataDir},
-		"fake-token",
-		&stdout, &stderr,
-		strings.NewReader(transcript),
-	)
-	g.Expect(err).NotTo(HaveOccurred())
-	g.Expect(stdout.String()).To(ContainSubstring("followed"))
 }
 
 // T-129: Review with data outputs all four DES-16 sections.
@@ -1450,81 +1053,6 @@ func TestT133_ReviewOmitsInsufficientDataSection(t *testing.T) {
 	}
 
 	g.Expect(stdout.String()).NotTo(ContainSubstring("Insufficient"))
-}
-
-// T-161: evaluate applies Strip preprocessing to transcript before LLM call.
-func TestT161_EvaluateStripsTranscript(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	dataDir := t.TempDir()
-
-	// Write a memory TOML file.
-	memPath := filepath.Join(dataDir, "strip-test.toml")
-	err := os.WriteFile(memPath, []byte(`title = "Strip Test"
-content = "Test content"
-principle = "Always strip"
-anti_pattern = ""`), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Write a surfacing log referencing the memory.
-	logLine := fmt.Sprintf(
-		`{"memory_path":%q,"mode":"session-start","surfaced_at":"2025-01-01T00:00:00Z"}`,
-		memPath,
-	)
-	surfacingLog := filepath.Join(dataDir, "surfacing-log.jsonl")
-	err = os.WriteFile(surfacingLog, []byte(logLine+"\n"), 0o644)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Transcript with normal lines AND a toolResult line that Strip removes.
-	transcript := strings.Join([]string{
-		`{"role":"user","content":"please help me"}`,
-		`{"role":"toolResult","content":[{"type":"text","text":"huge tool output that should be stripped"}]}`,
-		`{"role":"assistant","content":"sure, I can help"}`,
-	}, "\n")
-
-	// Fake LLM that captures the user prompt it receives.
-	var capturedPrompt string
-
-	fakeLLM := func(_ context.Context, _, _, userPrompt string) (string, error) {
-		capturedPrompt = userPrompt
-
-		return fmt.Sprintf(
-			`[{"memory_path":%q,"outcome":"followed","evidence":"Complied."}]`,
-			memPath,
-		), nil
-	}
-
-	var stdout, stderr bytes.Buffer
-
-	err = cli.RunEvaluate(
-		[]string{"--data-dir", dataDir},
-		"fake-token",
-		&stdout, &stderr,
-		strings.NewReader(transcript),
-		evaluate.WithLLMCaller(fakeLLM),
-		evaluate.WithStripFunc(sessionctx.Strip),
-	)
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// The toolResult line should have been stripped before reaching the LLM.
-	g.Expect(capturedPrompt).To(ContainSubstring("please help me"))
-	g.Expect(capturedPrompt).To(ContainSubstring("sure, I can help"))
-	g.Expect(capturedPrompt).NotTo(ContainSubstring("huge tool output that should be stripped"))
 }
 
 // T-179: maintain subcommand produces JSON proposals to stdout.
@@ -1811,32 +1339,6 @@ func TestT250_ReviewReadsFromTOMLDirectory(t *testing.T) {
 	g.Expect(output).To(ContainSubstring("Working Memory"))
 	g.Expect(output).To(ContainSubstring("Leech Memory"))
 	g.Expect(output).To(ContainSubstring("Source: memory"))
-}
-
-// TestT322_BinarySmokeTest builds the engram binary and verifies that
-// "engram evaluate --data-dir <empty>" exits 0 (no surfacing log → no memories to evaluate).
-func TestT322_BinarySmokeTest(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	binPath := filepath.Join(t.TempDir(), "engram")
-
-	buildCmd := exec.Command("go", "build", "-o", binPath, "engram/cmd/engram")
-
-	buildOut, buildErr := buildCmd.CombinedOutput()
-	g.Expect(buildErr).NotTo(HaveOccurred(), "go build failed: %s", string(buildOut))
-
-	if buildErr != nil {
-		return
-	}
-
-	dataDir := t.TempDir()
-
-	runCmd := exec.Command(binPath, "evaluate", "--data-dir", dataDir)
-
-	runOut, runErr := runCmd.CombinedOutput()
-	g.Expect(runErr).NotTo(HaveOccurred(), "engram evaluate exited non-zero: %s", string(runOut))
 }
 
 // T-355: Cluster merge real-FS integration — correct survivor kept, absorbed deleted.

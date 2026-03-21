@@ -37,12 +37,6 @@ type CorrectArgs struct {
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// EvaluateArgs holds parsed flags for the evaluate subcommand.
-type EvaluateArgs struct {
-	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
 // FeedbackArgs holds parsed flags for the feedback subcommand.
 type FeedbackArgs struct {
 	Name       string `targ:"flag,name=name,desc=memory slug to provide feedback on"`
@@ -157,8 +151,6 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 	return []any{
 		targ.Targ(func(a CorrectArgs) { run("correct", CorrectFlags(a)) }).
 			Name("correct").Description("Correct from user feedback"),
-		targ.Targ(func(a EvaluateArgs) { run("evaluate", EvaluateFlags(a)) }).
-			Name("evaluate").Description("Evaluate memory effectiveness"),
 		targ.Targ(func(a ReviewArgs) { run("review", ReviewFlags(a)) }).
 			Name("review").Description("Review instruction registry"),
 		targ.Targ(func(a MaintainArgs) { run("maintain", MaintainFlags(a)) }).
@@ -199,11 +191,6 @@ func CorrectFlags(a CorrectArgs) []string {
 		"--data-dir", a.DataDir,
 		"--transcript-path", a.TranscriptPath,
 	)
-}
-
-// EvaluateFlags returns the CLI flag args for the evaluate subcommand.
-func EvaluateFlags(a EvaluateArgs) []string {
-	return BuildFlags("--data-dir", a.DataDir)
 }
 
 // FeedbackFlags returns the CLI flag args for the feedback subcommand.

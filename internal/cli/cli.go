@@ -24,7 +24,6 @@ import (
 	"engram/internal/creationlog"
 	"engram/internal/dedup"
 	"engram/internal/effectiveness"
-	"engram/internal/evaluate"
 	"engram/internal/extract"
 	"engram/internal/instruct"
 	"engram/internal/learn"
@@ -50,31 +49,6 @@ var (
 
 // ReadFileFunc reads a file by path, injected for testability.
 type ReadFileFunc func(path string) ([]byte, error)
-
-// RenderEvaluateResult writes the evaluation summary to w (T-119).
-// No output is written when outcomes is empty.
-func RenderEvaluateResult(w io.Writer, outcomes []evaluate.Outcome) {
-	if len(outcomes) == 0 {
-		return
-	}
-
-	var followed, contradicted, ignored int
-
-	for _, outcome := range outcomes {
-		switch outcome.Outcome {
-		case "followed":
-			followed++
-		case "contradicted":
-			contradicted++
-		case "ignored":
-			ignored++
-		}
-	}
-
-	_, _ = fmt.Fprintf(w,
-		"[engram] Evaluated %d memories: %d followed, %d contradicted, %d ignored.\n",
-		len(outcomes), followed, contradicted, ignored)
-}
 
 // RenderLearnResult writes DES-10 feedback for a learn result to w.
 func RenderLearnResult(w io.Writer, result *learn.Result) {
@@ -125,8 +99,6 @@ func Run(
 	switch cmd {
 	case "correct":
 		return runCorrect(subArgs, stdout)
-	case "evaluate":
-		return runEvaluate(subArgs, stdout, stderr, stdin)
 	case "flush":
 		return runFlush(subArgs, stdout, stderr, stdin)
 	case "review":
@@ -150,61 +122,6 @@ func Run(
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}
-}
-
-// RunEvaluate implements the evaluate subcommand with injectable evaluate options.
-// token is the Anthropic API token; empty string triggers the no-token error path.
-// Extra opts are appended after the default LLM caller and can override it (for testing).
-func RunEvaluate(
-	args []string,
-	token string,
-	stdout, stderr io.Writer,
-	stdin io.Reader,
-	opts ...evaluate.Option,
-) error {
-	fs := flag.NewFlagSet("evaluate", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "path to data directory")
-
-	parseErr := fs.Parse(args)
-	if parseErr != nil {
-		return fmt.Errorf("evaluate: %w", parseErr)
-	}
-
-	if *dataDir == "" {
-		return errEvaluateMissingFlags
-	}
-
-	if token == "" {
-		_, _ = fmt.Fprintln(stderr,
-			"[engram] Error: evaluation skipped — no API token configured")
-
-		return nil
-	}
-
-	transcriptBytes, err := io.ReadAll(stdin)
-	if err != nil {
-		return fmt.Errorf("evaluate: reading stdin: %w", err)
-	}
-
-	// Default LLM caller uses real Anthropic API; opts can override for testing.
-	allOpts := append(
-		[]evaluate.Option{evaluate.WithLLMCaller(makeAnthropicCaller(token))},
-		opts...,
-	)
-
-	evaluator := evaluate.New(*dataDir, allOpts...)
-	ctx := context.Background()
-
-	outcomes, err := evaluator.Evaluate(ctx, string(transcriptBytes))
-	if err != nil {
-		return fmt.Errorf("evaluate: %w", err)
-	}
-
-	RenderEvaluateResult(stdout, outcomes)
-
-	return nil
 }
 
 // RunLearn implements the learn subcommand with an injectable HTTP doer.
@@ -474,8 +391,8 @@ const (
 		"Focus on what's being worked on, decisions made, progress, and open questions. " +
 		"Not a dissertation — just what's relevant for resuming work. " +
 		"Do NOT include discovered constraints or patterns (those are captured as memories)."
-	evaluateMaxTokens            = 1024
-	formatJSON                   = "json"
+	anthropicMaxTokens = 1024
+	formatJSON         = "json"
 	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
 	maxTitleLength               = 38
@@ -494,7 +411,6 @@ var (
 	errCorrectMissingFlags = errors.New(
 		"correct: --message and --data-dir required",
 	)
-	errEvaluateMissingFlags = errors.New("evaluate: --data-dir required")
 	errInstructMissingFlags = errors.New(
 		"instruct audit: --data-dir required",
 	)
@@ -512,7 +428,7 @@ var (
 	)
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
-		"usage: engram <audit|correct|surface|learn|evaluate" +
+		"usage: engram <audit|correct|surface|learn" +
 			"|review|maintain|instruct|show|feedback" +
 			"|context-update> [flags]",
 	)
@@ -861,7 +777,7 @@ func callAnthropicAPI(
 ) (string, error) {
 	reqBody := anthropicRequest{
 		Model:     model,
-		MaxTokens: evaluateMaxTokens,
+		MaxTokens: anthropicMaxTokens,
 		System:    systemPrompt,
 		Messages:  []anthropicMessage{{Role: "user", Content: userPrompt}},
 	}
@@ -991,20 +907,6 @@ func makeAnthropicCaller(
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
 	}
-}
-
-// recordEvaluation persists an evaluation outcome to a memory TOML file.
-func recordEvaluation(path, outcome string) error {
-	return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
-		switch outcome {
-		case "followed":
-			record.FollowedCount++
-		case "contradicted":
-			record.ContradictedCount++
-		case "ignored":
-			record.IgnoredCount++
-		}
-	})
 }
 
 func renderReviewTable(
@@ -1198,25 +1100,6 @@ func runCorrect(
 	}
 
 	return nil
-}
-
-func runEvaluate(args []string, stdout, stderr io.Writer, stdin io.Reader) error {
-	// Parse data-dir early to wire registry (UC-23).
-	fs := flag.NewFlagSet("evaluate-peek", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	dataDir := fs.String("data-dir", "", "")
-	_ = fs.Parse(args)
-
-	var opts []evaluate.Option
-
-	if *dataDir != "" {
-		opts = append(opts, evaluate.WithEvaluationRecorder(recordEvaluation))
-	}
-
-	opts = append(opts, evaluate.WithStripFunc(sessionctx.Strip))
-
-	return RunEvaluate(args, os.Getenv("ENGRAM_API_TOKEN"), stdout, stderr, stdin, opts...)
 }
 
 // runIncrementalLearn creates an IncrementalLearner and runs it.
