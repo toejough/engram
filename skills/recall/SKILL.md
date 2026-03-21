@@ -25,10 +25,21 @@ Reads Claude Code session transcripts from `~/.claude/projects/`, strips noise (
 Run the following command:
 
 ```bash
+# Pull OAuth token from macOS Keychain (same as other engram hooks)
+TOKEN=""
+if [[ "$(uname)" == "Darwin" ]]; then
+    TOKEN=$(security find-generic-password \
+        -s "Claude Code-credentials" -w 2>/dev/null \
+        | python3 -c \
+        "import sys,json; print(json.load(sys.stdin)['claudeAiOauth']['accessToken'])" \
+        2>/dev/null) || true
+fi
+export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
+
 PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
 ~/.claude/engram/bin/engram recall \
   --data-dir ~/.claude/engram/data \
-  --project-slug "$PROJECT_SLUG"
+  --project-slug="$PROJECT_SLUG"
 ```
 
 If the user provided a query (e.g., `/recall keyword matching`), add `--query "<the query>"`.
