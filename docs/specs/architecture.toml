@@ -458,7 +458,7 @@ name = "Surfacing Log Infrastructure"
 traces_to = ["UC-15"]
 hash = "fc871a2a"
 body = '''
-**Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (SessionStart, UserPromptSubmit, PreToolUse). The evaluate pass reads this log to determine which memories were surfaced, then clears it.
+**Decision:** Write surfacing events to a session-scoped JSONL file during each surfacing event (SessionStart, UserPromptSubmit, PreToolUse).
 
 ```go
 type SurfacingLogger interface {
@@ -477,54 +477,10 @@ Implementation:
 1. File path: `<data-dir>/surfacing-log.jsonl`
 2. Append mode: each surfacing event appends one line per matched memory
 3. Format: JSONL with memory_path, mode, surfaced_at (RFC 3339)
-4. Read-and-clear: evaluate reads all lines, parses, returns slice, then removes file
+4. Read-and-clear: flush pipeline reads all lines, parses, returns slice, then removes file
 5. Append errors are fire-and-forget (ARCH-6 exit-0 contract)
 
 **Traces to:** REQ-26 (surfacing log write/read), DES-11 (JSONL format)
-
----
-'''
-
-[ARCH-23]
-name = "Outcome Evaluation Pipeline"
-traces_to = ["UC-15"]
-hash = "0a37e073"
-body = '''
-**Decision:** Three-stage pipeline for outcome evaluation: read surfacing log → send to LLM for classification → write evaluation results.
-
-```go
-type Evaluator struct {
-    SurfacingLogger  SurfacingLogger  // read surfacing log
-    MemoryRetriever  MemoryRetriever  // fetch surfaced memory details
-    LLMEvaluator     LLMEvaluator     // classify outcomes
-    EvaluationWriter EvaluationWriter // write evaluation log
-}
-
-func (e *Evaluator) Evaluate(ctx context.Context, transcript string, dataDir string) error {
-    // 1. Read surfacing log
-    // 2. Fetch each surfaced memory's TOML
-    // 3. Send transcript + surfaced memories to LLM
-    // 4. Classify each outcome (followed/contradicted/ignored)
-    // 5. Write evaluation log file
-}
-
-type Outcome struct {
-    MemoryPath string // file path to the memory
-    Outcome    string // "followed", "contradicted", "ignored"
-    Evidence   string // brief LLM explanation
-    EvaluatedAt time.Time
-}
-```
-
-Implementation:
-1. LLM call uses claude-haiku-4-5-20251001
-2. Input: stripped transcript + list of surfaced memories (title, principle, anti_pattern, content)
-3. Output: JSON array with one entry per surfaced memory
-4. Each memory gets exactly one outcome classification
-5. Evidence field captures LLM's reasoning
-6. CLI wiring applies `sessionctx.Strip` to transcript before passing to Evaluate (removes toolResult bodies, base64 data, truncates long lines — same preprocessing as learn and context-update pipelines)
-
-**Traces to:** REQ-27 (LLM evaluation), REQ-28 (evaluation log write), DES-12 (LLM prompt design), DES-13 (evaluation log schema)
 
 ---
 '''
@@ -565,34 +521,6 @@ Usage: When UC-2 surfaces memories, call Aggregate, then append effectiveness an
 ---
 '''
 
-[ARCH-25]
-name = "Hook Integration — evaluate Subcommand"
-traces_to = ["UC-15"]
-hash = "1a395e6e"
-body = '''
-**Decision:** Thin CLI wrapper for the Evaluator pipeline. Same pattern as correct/learn: reads transcript from stdin, invokes Evaluator, outputs summary.
-
-```go
-func runEvaluate(ctx context.Context, dataDir string, in io.Reader, out io.Writer) error {
-    // 1. Read transcript from stdin
-    // 2. Create Evaluator with DI
-    // 3. Call Evaluator.Evaluate(ctx, transcript, dataDir)
-    // 4. Format and output evaluation summary to stdout
-    // 5. Exit 0 always — errors logged to stderr per ARCH-6
-}
-```
-
-Implementation:
-1. CLI: `engram evaluate --data-dir <path>`
-2. Reads transcript from stdin (same as learn)
-3. Outputs summary to stdout for hook to reshape into systemMessage
-4. Requires API token (same mechanism as correct/learn; emit error if missing)
-5. Exit code: always 0 (ARCH-6 contract)
-
-**Traces to:** REQ-32 (evaluate CLI subcommand), DES-15 (hook wiring)
-
----
-
 ## Bidirectional Traceability
 
 ### ARCH → L2
@@ -620,9 +548,7 @@ Implementation:
 | ARCH-20 | REQ-22, ARCH-6, ARCH-7 |
 | ARCH-21 | REQ-23, REQ-24, REQ-25 |
 | ARCH-22 | REQ-26, DES-11 |
-| ARCH-23 | REQ-27, REQ-28, DES-12, DES-13 |
 | ARCH-24 | REQ-29, REQ-30 |
-| ARCH-25 | REQ-32, DES-15 |
 
 ### L2 → ARCH
 
@@ -662,16 +588,9 @@ Implementation:
 | DES-10 | ARCH-17 |
 | REQ-26 | ARCH-22 |
 | DES-11 | ARCH-22 |
-| REQ-27 | ARCH-23 |
-| DES-12 | ARCH-23 |
-| REQ-28 | ARCH-23 |
-| DES-13 | ARCH-23 |
 | REQ-29 | ARCH-24 |
 | REQ-30 | ARCH-24 |
 | DES-14 | ARCH-24 |
-| REQ-31 | ARCH-25 |
-| DES-15 | ARCH-25 |
-| REQ-32 | ARCH-25 |
 | REQ-33 | ARCH-15 |
 | REQ-34 | ARCH-16 |
 
@@ -1038,7 +957,7 @@ name = "Maintain CLI Wiring"
 traces_to = ["UC-16"]
 hash = "cb76981b"
 body = '''
-**Decision:** New `RunMaintain` function in `internal/cli/cli.go` following the established pattern (RunReview, RunEvaluate).
+**Decision:** New `RunMaintain` function in `internal/cli/cli.go` following the established pattern (RunReview, RunLearn).
 
 **Wiring flow:**
 1. Parse `--data-dir` flag
@@ -1700,29 +1619,6 @@ body = '''
 ---
 '''
 
-[ARCH-68]
-name = "Evaluate Strip Integration (UC-25)"
-traces_to = ["UC-25"]
-hash = "e6f05d52"
-body = '''
-**Decision:** Extend `internal/evaluate/Evaluator` with `WithStripFunc(fn func([]string) []string)` option. When set, the evaluator splits transcript into lines, applies the strip function, and rejoins before sending to LLM. Default is no-op (backward compatible).
-
-```go
-type Option func(*Evaluator)
-
-func WithStripFunc(fn func([]string) []string) Option {
-    return func(e *Evaluator) { e.stripFunc = fn }
-}
-```
-
-CLI wiring in `runEvaluate`: `evaluate.WithStripFunc(sessionctx.Strip)`.
-
-**Empty handling:** If post-strip content is empty, `Evaluate` returns early with no error and no LLM call. Stderr message logged.
-
-**Traces to:** REQ-110 (strip injection), REQ-111 (empty handling), DES-39 (DI pattern)
-
----
-
 ## L2 → ARCH Traceability (UC-4, UC-5, UC-24, UC-25)
 
 | L2 Item | ARCH Coverage |
@@ -1751,9 +1647,9 @@ CLI wiring in `runEvaluate`: `evaluate.WithStripFunc(sessionctx.Strip)`.
 | REQ-109 | ARCH-66 |
 | DES-37 | ARCH-66 |
 | DES-38 | ARCH-66 |
-| REQ-110 | ARCH-68 |
-| REQ-111 | ARCH-68 |
-| DES-39 | ARCH-68 |
+| REQ-110 | — |
+| REQ-111 | — |
+| DES-39 | — |
 
 All L2 items have ARCH coverage.
 
@@ -1770,7 +1666,7 @@ body = '''
 ```go
 type Registrar struct {
     registry       Registry           // Register, Remove, List, RecordSurfacing
-    surfacingLog   SurfacingLogger    // LogSurfacing (for evaluate pipeline)
+    surfacingLog   SurfacingLogger    // LogSurfacing (for flush pipeline)
     readFile       func(string) ([]byte, error)
     readDir        func(string) ([]os.DirEntry, error)
     now            func() time.Time
@@ -1781,15 +1677,15 @@ func (r *Registrar) Run(dataDir string) error {
     // 2. Register: for each discovered memory, register or update content hash
     // 3. Prune: list registry, remove entries not in discovered set
     // 4. Record surfacing: for each always-loaded entry, call registry.RecordSurfacing
-    //    AND surfacingLog.LogSurfacing (so evaluate pipeline picks them up)
+    //    AND surfacingLog.LogSurfacing (so flush pipeline picks them up)
 }
 ```
 
 Non-memory source discovery (ClaudeMD, rules, skills extractors) was removed in Cycle 4 (#214). Only memory TOML files are registered.
 
-**DI boundary:** All I/O injected — readFile, readDir for memory discovery; Registry interface for state management; SurfacingLogger interface for evaluate integration. No direct `os.*` calls.
+**DI boundary:** All I/O injected — readFile, readDir for memory discovery; Registry interface for state management; SurfacingLogger interface for flush pipeline integration. No direct `os.*` calls.
 
-**Key design choice:** Implicit surfacing writes to BOTH the registry (`RecordSurfacing` for long-term tracking) and the surfacing log (`LogSurfacing` for per-session evaluate input). The evaluator reads the surfacing log to know what was active this session.
+**Key design choice:** Implicit surfacing writes to BOTH the registry (`RecordSurfacing` for long-term tracking) and the surfacing log (`LogSurfacing` for per-session flush input).
 
 **Traces to:** REQ-113 (auto-registration), REQ-114 (stale pruning), REQ-115 (implicit surfacing), REQ-118 (idempotency), DES-40 (flow ordering)
 
@@ -1857,9 +1753,9 @@ func runSurface(...) {
 - Rules: `filepath.Join(workDir, ".claude", "rules")`
 - Skills: `filepath.Join(pluginRoot, "skills")` (plugin root from env or convention)
 
-The evaluate pipeline (Stop hook) requires no code changes — it already reads the surfacing log and evaluates all entries. Always-loaded sources now appear in the log via ARCH-69's implicit surfacing.
+Always-loaded sources appear in the surfacing log via ARCH-69's implicit surfacing.
 
-**Traces to:** REQ-117 (evaluate all — achieved by surfacing log inclusion), DES-40 (flow ordering), DES-41 (path resolution)
+**Traces to:** REQ-117 (surfacing log inclusion), DES-40 (flow ordering), DES-41 (path resolution)
 
 ---
 
@@ -2020,36 +1916,6 @@ Log `ConsolidateResult` to stderr per DES-48 format. If `Consolidate` returns er
 **Traces to:** DES-47 (pipeline ordering), ARCH-75 (signal-detect CLI wiring), ARCH-79 (Consolidator), ARCH-6 (fire-and-forget)
 '''
 
-[ARCH-81]
-name = "Surfacing Log Turn Isolation via Atomic Rename"
-traces_to = ["UC-15"]
-hash = "ba78d223"
-body = '''
-**Decision:** The evaluator atomically renames `surfacing-log.jsonl` to a
-per-turn private file (`surfacing-log-<timestamp>.jsonl.tmp`) before reading
-it. This eliminates the data loss race when stop.sh runs async: new surfacing
-events written during evaluation append to a fresh `surfacing-log.jsonl`
-while the evaluator safely reads its private snapshot.
-
-```
-rename  <dataDir>/surfacing-log.jsonl
-     → <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp   (atomic)
-read    <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp
-delete  <dataDir>/surfacing-log-<evalTimestamp>.jsonl.tmp
-```
-
-**Why rename instead of read-then-delete:**
-- read-then-delete window allows concurrent appenders to lose events
-- atomic rename removes the source path instantly; subsequent appenders
-  create a new `surfacing-log.jsonl` for the next turn
-
-**Missing file:** if `surfacing-log.jsonl` does not exist when rename is
-attempted, the evaluator returns an empty entry list (no LLM call).
-
-**Traces to:** REQ-26 (surfacing log lifecycle), ARCH-22 (surfacing log infra)
-
----
-'''
 
 [ARCH-82]
 name = "TF-IDF cluster confidence scoring for consolidation (REQ-140)"
@@ -2282,13 +2148,6 @@ New `MergeWriter` interface in `internal/learn`: `UpdateMerged(existing *memory.
 
 ---
 
-### ARCH-P3-6: EvalLinkUpdater interface in evaluate package (P3)
-
-**Decision:** `EvalLinkUpdater` interface in `internal/evaluate/`: `GetEntryLinks(id string) ([]EvalLink, error)` and `SetEntryLinks(id string, links []EvalLink) error` where `EvalLink = struct{ Target, Basis string; Weight float64; CoSurfacingCount int }`. `WithEvalLinkUpdater(u EvalLinkUpdater)` option. After outcome map built, `updateEvaluationCorrelationLinks(ctx, followedIDs, updater)` called. Fire-and-forget errors.
-
-- Traces to: REQ-P3-9, ARCH-7
-
----
 
 ### ARCH-P3-7: Learn-time link building wired in CLI (P3)
 

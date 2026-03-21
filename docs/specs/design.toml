@@ -69,64 +69,13 @@ Fields:
 - `mode` (string) — one of `session-start`, `prompt`, `tool`
 - `surfaced_at` (string) — RFC 3339 timestamp
 
-File is append-only within a session, read-and-cleared by `engram evaluate`.
+File is append-only within a session, read-and-cleared by `engram flush`.
 
 - Traces to: UC-15 (surfacing log format), REQ-26
 
 ---
 '''
 
-[DES-12]
-name = "Evaluation LLM prompt design"
-traces_to = ["UC-15"]
-hash = "c466c2f6"
-body = '''
-The evaluation prompt includes:
-
-**System prompt:** You are evaluating whether an AI agent followed, contradicted, or ignored specific memory advisories during a session. For each memory, classify the outcome based on the agent's actual behavior in the transcript.
-
-**User prompt structure:**
-1. List of surfaced memories, each with: title, principle, anti_pattern (if any), content
-2. Full session transcript
-3. Instruction: For each memory, return JSON with outcome and evidence
-
-**Response format:** JSON array of objects, one per surfaced memory:
-```json
-[
-  {"memory_path": "...", "outcome": "followed", "evidence": "Agent used targ test instead of go test at lines 45, 89"},
-  {"memory_path": "...", "outcome": "ignored", "evidence": "Memory about fish shell was not relevant to this session's tasks"}
-]
-```
-
-- Traces to: UC-15 (evaluation LLM), REQ-27
-
----
-'''
-
-[DES-13]
-name = "Evaluation log JSONL schema and file naming"
-traces_to = ["UC-15"]
-hash = "ba2b4871"
-body = '''
-File path: `<data-dir>/evaluations/2026-03-06T10-00-00Z.jsonl`
-
-Each line:
-```json
-{"memory_path": "/path/to/memory.toml", "outcome": "followed", "evidence": "brief explanation", "evaluated_at": "2026-03-06T10:00:00Z"}
-```
-
-Fields:
-- `memory_path` (string) — absolute path to the evaluated memory TOML file
-- `outcome` (string) — one of `followed`, `contradicted`, `ignored`
-- `evidence` (string) — brief LLM explanation of the classification
-- `evaluated_at` (string) — RFC 3339 timestamp
-
-Session identity is implicit from the file. File naming: RFC 3339 timestamp with colons replaced by hyphens.
-
-- Traces to: UC-15 (evaluation log format), REQ-28
-
----
-'''
 
 [DES-14]
 name = "Effectiveness annotation format and placement"
@@ -148,27 +97,6 @@ The annotation uses the total evaluation count (not surfaced_count from tracking
 ---
 '''
 
-[DES-15]
-name = "Hook wiring — evaluate in PreCompact and SessionEnd"
-traces_to = ["UC-15"]
-hash = "faed632b"
-body = '''
-The PreCompact and SessionEnd hook scripts are extended to invoke `engram evaluate` after `engram learn`:
-
-```bash
-# UC-1: Extract learnings
-$ENGRAM_BIN learn --data-dir "$ENGRAM_DATA" < transcript
-
-# UC-15: Evaluate memory effectiveness
-$ENGRAM_BIN evaluate --data-dir "$ENGRAM_DATA" < transcript
-```
-
-The evaluate subcommand reads the transcript from stdin (same as learn) and the surfacing log from the data directory. Output goes to stdout for the hook to reshape into `systemMessage`.
-
-- Traces to: UC-15 (hook integration), REQ-31
-
----
-'''
 
 [DES-16]
 name = "Token estimation implementation in surface.go"
@@ -327,7 +255,7 @@ body = '''
 When a new memory is created (via learn pipeline), it is written with zero-valued metrics fields. When surfacing or evaluation occurs, the memory's TOML is updated in-place atomically. No separate registration step. Non-memory auto-registration removed.
 
 - Traces to: UC-23 (auto-integration into pipelines)
-- AC: (1) Learn pipeline writes TOML with content + zero metrics. (2) Surfacing hook reads TOML, increments surfaced_count, writes back atomically. (3) Evaluate hook reads TOML, increments appropriate counter, writes back atomically. (4) All updates are fire-and-forget: failures don't crash hooks (ARCH-6). (5) runAutoRegistration for non-memory sources removed.
+- AC: (1) Learn pipeline writes TOML with content + zero metrics. (2) Surfacing hook reads TOML, increments surfaced_count, writes back atomically. (3) All updates are fire-and-forget: failures don't crash hooks (ARCH-6). (4) runAutoRegistration for non-memory sources removed.
 - Verification: integration (hook + TOML I/O)
 
 ---
