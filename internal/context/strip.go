@@ -6,15 +6,14 @@ import (
 )
 
 // Strip filters and cleans JSONL transcript lines:
-//   - removes toolResult role blocks
+//   - keeps only user and assistant entries (by "type" field)
 //   - replaces base64 strings >100 chars with placeholder
 //   - truncates lines >2000 chars
-//   - preserves user messages, assistant text, and tool names
 func Strip(lines []string) []string {
 	result := make([]string, 0, len(lines))
 
 	for _, line := range lines {
-		if isToolResult(line) {
+		if !isKeptType(line) {
 			continue
 		}
 
@@ -40,10 +39,19 @@ var (
 	base64Pattern = regexp.MustCompile(`[A-Za-z0-9+/=]{` + "100" + `,}`)
 )
 
-// isToolResult checks if the JSONL line has role "toolResult".
-func isToolResult(line string) bool {
-	return strings.Contains(line, `"role":"toolResult"`) ||
-		strings.Contains(line, `"role": "toolResult"`)
+// isKeptType returns true if the line is a user or assistant entry.
+// Checks both "type" (actual JSONL format) and "role" (legacy format).
+func isKeptType(line string) bool {
+	return strings.Contains(line, `"type":"user"`) ||
+		strings.Contains(line, `"type": "user"`) ||
+		strings.Contains(line, `"type":"assistant"`) ||
+		strings.Contains(line, `"type": "assistant"`) ||
+		strings.Contains(line, `"role":"user"`) ||
+		strings.Contains(line, `"role": "user"`) ||
+		strings.Contains(line, `"role":"assistant"`) ||
+		strings.Contains(line, `"role": "assistant"`) ||
+		strings.Contains(line, `"role":"toolUse"`) ||
+		strings.Contains(line, `"role": "toolUse"`)
 }
 
 // replaceBase64 replaces long base64-encoded strings with a placeholder.

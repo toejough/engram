@@ -26,6 +26,31 @@ func TestDeltaReader_FileReadError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("permission denied")))
 }
 
+// --- Strip filters by JSONL type field ---
+
+func TestStrip_FiltersProgressAndSystemEntries(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	lines := []string{
+		`{"type":"progress","data":{"type":"hook_progress"}}`,
+		`{"type":"user","message":{"content":"hello"}}`,
+		`{"type":"assistant","message":{"content":"hi"}}`,
+		`{"type":"system","data":"init"}`,
+		`{"type":"file-history-snapshot","data":{}}`,
+		`{"type":"last-prompt","data":{}}`,
+		`{"type":"user","message":{"content":"bye"}}`,
+	}
+
+	result := sessionctx.Strip(lines)
+
+	g.Expect(result).To(HaveLen(3))
+	g.Expect(result[0]).To(ContainSubstring(`"type":"user"`))
+	g.Expect(result[1]).To(ContainSubstring(`"type":"assistant"`))
+	g.Expect(result[2]).To(ContainSubstring(`"type":"user"`))
+}
+
 // --- T-134: TranscriptDeltaReader reads from offset 0 ---
 
 func TestT134_ReadFromOffset0ReturnsFullFile(t *testing.T) {
