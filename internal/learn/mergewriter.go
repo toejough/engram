@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"engram/internal/keyword"
 	"engram/internal/memory"
 )
 
@@ -63,6 +64,7 @@ func (w *TOMLMergeWriter) UpdateMerged(
 	fmt.Fprintf(&content, "principle = %q\n", principle)
 	fmt.Fprintf(&content, "updated_at = %q\n", now.Format(time.RFC3339))
 
+	keywords = keyword.NormalizeAll(keywords)
 	content.WriteString("keywords = [")
 
 	for i, k := range keywords {
