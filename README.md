@@ -11,18 +11,16 @@ Claude Code has several instruction sources — CLAUDE.md, rules, skills — but
 Engram hooks into every phase of a Claude Code session to create a closed feedback loop:
 
 ```
-  Learn ──→ Surface ──→ Evaluate ──→ Maintain
-    ↑                                    │
-    └────────────────────────────────────┘
+  Learn ──→ Surface ──→ Maintain
+    ↑                      │
+    └──────────────────────┘
 ```
 
 1. **Learn** — Extracts structured memories from user corrections, instructions, and contextual facts. Each memory is a TOML file with tier-based metadata: title, content, principle, anti-pattern, keywords, concepts, and confidence tier (A/B/C).
 
 2. **Surface** — At every prompt and tool use, retrieves relevant memories via BM25 keyword scoring and injects them as context. A per-hook token budget caps total injection to avoid overwhelming the model.
 
-3. **Evaluate** — After each session, an LLM reads the (stripped) transcript and judges each surfaced memory: was it **followed**, **contradicted**, or **ignored**? Results are tallied in the registry.
-
-4. **Maintain** — Periodic diagnosis generates proposals for each memory based on its effectiveness quadrant. Proposals are applied with user confirmation: rewrites for stale content, keyword broadening for hidden gems, escalation for persistent violations, deletion for noise.
+3. **Maintain** — Periodic diagnosis generates proposals for each memory based on its effectiveness quadrant. Proposals are applied with user confirmation: rewrites for stale content, keyword broadening for hidden gems, escalation for persistent violations, deletion for noise.
 
 ## Instruction sources
 
@@ -96,8 +94,8 @@ Engram hooks into 7 Claude Code hook points:
 | Tool use | `PreToolUse` | Surface tool-specific memories (e.g., file-path-relevant instructions). |
 | After tool | `PostToolUse` | Surface memories relevant to the tool call and its output. |
 | Tool failure | `PostToolUseFailure` | Diagnose errors and surface relevant memories. |
-| Compact | `PreCompact` | Unified flush: learning extraction, evaluate memory effectiveness, save session context. |
-| End | `Stop` | Unified flush: learning extraction, evaluate memory effectiveness, save session context. |
+| Compact | `PreCompact` | Unified flush: learning extraction, save session context. |
+| End | `Stop` | Unified flush: learning extraction, save session context. |
 
 ## Data files
 
@@ -107,7 +105,6 @@ All data lives in `~/.claude/engram/data/`:
 |------|---------|
 | `memories/*.toml` | Structured memory files with embedded registry data (surfaced count, evaluation counters, enforcement level) |
 | `surfacing-log.jsonl` | Running log of which memories were surfaced and when |
-| `evaluations/*.jsonl` | Per-session evaluation results (followed/contradicted/ignored) |
 | `projects/<slug>/session-context.md` | Per-project continuity context carried across sessions |
 | `learn-offset.json` | Offset tracking for incremental transcript learning |
 
@@ -179,7 +176,6 @@ docs/specs/          Specification artifacts (UC, REQ, DES, ARCH, TEST)
 | UC-21 | Enforcement Escalation Ladder |
 | UC-23 | Unified Instruction Registry |
 | UC-24 | Proposal Application |
-| UC-25 | Evaluate Strip Preprocessing |
 | UC-27 | Global Binary Installation |
 | UC-28 | Automatic Maintenance and Promotion Triggers |
 | UC-32 | Memory Graph with Spreading Activation |
