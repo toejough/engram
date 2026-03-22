@@ -42,7 +42,8 @@ USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 
 # UC-3: Check for inline correction (with transcript context)
-CORRECT_ARGS=(correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA")
+PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
+CORRECT_ARGS=(correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --project-slug "$PROJECT_SLUG")
 if [[ -n "$TRANSCRIPT_PATH" ]]; then
     CORRECT_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 fi

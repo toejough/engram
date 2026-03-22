@@ -39,7 +39,8 @@ TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
 
 # Flush pipeline: learn from session transcript (#309, #348)
-FLUSH_ARGS=(--data-dir "$ENGRAM_DATA")
+PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
+FLUSH_ARGS=(--data-dir "$ENGRAM_DATA" --project-slug "$PROJECT_SLUG")
 [[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 [[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
 
