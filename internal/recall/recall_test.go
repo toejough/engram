@@ -101,7 +101,7 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 	// Create content that exceeds a small budget.
 	lines := make([]string, 0, 20)
 	for i := range 20 {
-		lines = append(lines, fmt.Sprintf(`{"role":"user","content":"message %d"}`, i))
+		lines = append(lines, fmt.Sprintf(`{"type":"user","message":{"role":"user","content":"message %d"}}`, i))
 	}
 
 	content := strings.Join(lines, "\n") + "\n"
@@ -132,9 +132,9 @@ func TestTranscriptReader_StripsToolResults(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	lines := []string{
-		`{"role":"user","content":"hello"}`,
+		`{"type":"user","message":{"role":"user","content":"hello"}}`,
 		`{"role":"toolResult","content":"big result data"}`,
-		`{"role":"assistant","content":"response"}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"response"}}`,
 	}
 	content := strings.Join(lines, "\n") + "\n"
 
@@ -151,8 +151,8 @@ func TestTranscriptReader_StripsToolResults(t *testing.T) {
 		return
 	}
 
-	g.Expect(result).To(ContainSubstring("user"))
-	g.Expect(result).To(ContainSubstring("assistant"))
+	g.Expect(result).To(ContainSubstring("USER: hello"))
+	g.Expect(result).To(ContainSubstring("ASSISTANT: response"))
 	g.Expect(result).NotTo(ContainSubstring("toolResult"))
 	g.Expect(bytesRead).To(BeNumerically(">", 0))
 }
