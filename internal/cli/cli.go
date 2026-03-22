@@ -1361,7 +1361,7 @@ func runRecall(args []string, stdout io.Writer) error {
 	}
 
 	if result.Memories != "" {
-		_, writeErr = fmt.Fprint(stdout, "\n=== MEMORIES ===\n", result.Memories)
+		_, writeErr = fmt.Fprintf(stdout, "\n=== MEMORIES ===\n%s", result.Memories)
 		if writeErr != nil {
 			return fmt.Errorf("recall: writing memories: %w", writeErr)
 		}
