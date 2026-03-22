@@ -30,7 +30,15 @@ If the user provided a query (e.g., `/recall keyword matching`), add `--query "<
 
 The command returns JSON: `{"summary":"...","memories":"..."}`.
 
-**For plain `/recall`:** The `summary` field contains raw transcript content (not a summary despite the field name). Read it, absorb the context, and present a concise recap of what was worked on recently.
+**For plain `/recall`:** The `summary` field contains raw transcript content (not a summary despite the field name). Read it, absorb the full context, then present a concise recap focusing on:
+
+1. **What tradeoffs were considered** — options weighed and why
+2. **What decisions were made** — what was chosen
+3. **What work got done** — commits, issues filed, changes pushed
+4. **What is still outstanding** — open threads, deferred items, known gaps
+5. **What state things were left in** — clean/dirty tree, passing/failing tests, waiting on something
+
+Prioritize conclusions over discussions. The user needs to know how work *ended*, not everything that was talked about.
 
 **For `/recall <query>`:** The `summary` field contains Haiku-extracted content relevant to the query.
 
