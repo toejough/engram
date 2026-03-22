@@ -20,7 +20,7 @@ type Resolver interface {
 
 Default implementation chains two strategies in order:
 1. **Env var:** Read `ENGRAM_API_TOKEN` — fast path, backwards-compatible
-2. **macOS Keychain (Darwin only):** Skip on non-macOS. On macOS: `security find-generic-password -s "Claude Code-credentials" -w` → parse JSON → extract `.claudeAiOauth.accessToken`
+2. **macOS Keychain (`runtime.GOOS == "darwin"` only):** Skip on non-macOS. On macOS: `security find-generic-password -s "Claude Code-credentials" -w` → parse JSON → extract `.claudeAiOauth.accessToken`
 3. If both empty (including `accessToken` present but `""`), return `""` with no error (some commands work without a token)
 
 Keychain errors (access denied, command not found) are treated as "no token available" — not propagated as errors. This preserves graceful degradation for commands that handle empty tokens (`recall`, `instruct`, `maintain`) and lets commands that require tokens fail at the API call point with a clear error.
