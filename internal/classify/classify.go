@@ -171,8 +171,9 @@ type llmClassifyJSON struct {
 	Keywords        []string `json:"keywords"`
 	Principle       string   `json:"principle"`
 	AntiPattern     string   `json:"anti_pattern"`
-	Rationale       string   `json:"rationale"`
-	FilenameSummary string   `json:"filename_summary"`
+	Rationale        string   `json:"rationale"`
+	FilenameSummary  string   `json:"filename_summary"`
+	Generalizability int      `json:"generalizability"`
 }
 
 func buildUserContent(message, transcriptContext string, isFastPath bool) string {
@@ -292,10 +293,11 @@ func parseClassifyResponse(
 		Keywords:        llmData.Keywords,
 		Principle:       llmData.Principle,
 		AntiPattern:     llmData.AntiPattern,
-		Rationale:       llmData.Rationale,
-		FilenameSummary: llmData.FilenameSummary,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		Rationale:        llmData.Rationale,
+		FilenameSummary:  llmData.FilenameSummary,
+		Generalizability: llmData.Generalizability,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}, nil
 }
 
@@ -342,7 +344,10 @@ Classify the message into one of these tiers:
 - null: No learning signal detected. The message is casual conversation, a simple command,
   a question with no implicit preference, or ephemeral context that does not generalize
   (e.g., current task status, one-off session state, transient observations that apply only
-  to this specific moment and would not be useful in a future session).
+  to this specific moment). Includes: task/validation status updates ("S6 is validated"),
+  debugging observations about specific data ("pipeline produced flat faces"), project-specific
+  names without a generalizable principle. Litmus test: would a developer on a different task
+  in a different project, weeks from now, benefit from this? If probably not, classify as null.
 
 Keyword selection rules:
 - Choose keywords UNIQUE to this specific domain or tool — terms that would NOT match
@@ -364,7 +369,8 @@ Return ONLY a JSON object — no markdown, no explanation:
   "principle": "The positive rule or principle",
   "anti_pattern": "The negative pattern to avoid (tier-gated)",
   "rationale": "Why this matters",
-  "filename_summary": "three to five words"
+  "filename_summary": "three to five words",
+  "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow, 3=across this project, 4=across similar projects, 5=universal. null-tier messages should not include this field."
 }`)
 
 	if isFastPath {

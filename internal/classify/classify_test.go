@@ -566,6 +566,46 @@ func TestT9_TransientOneOffObservationReturnsNil(t *testing.T) {
 	g.Expect(result).To(BeNil())
 }
 
+// TestClassify_GeneralizabilityFieldParsed verifies that generalizability from the LLM
+// response is mapped into ClassifiedMemory.Generalizability.
+func TestClassify_GeneralizabilityFieldParsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	llmResp := llmClassifyResponse{
+		Tier:             "B",
+		Title:            "Use DI Pattern",
+		Content:          "inject dependencies via interfaces",
+		ObservationType:  "teachable-correction",
+		Concepts:         []string{"dependency-injection"},
+		Keywords:         []string{"di", "interface"},
+		Principle:        "Inject all dependencies",
+		AntiPattern:      "Direct I/O in internal packages",
+		Rationale:        "Testability and decoupling",
+		FilenameSummary:  "use di pattern",
+		Generalizability: 3,
+	}
+
+	doer := newFakeDoer(t, g, llmResp)
+	classifier := classify.New("test-token", doer)
+
+	result, err := classifier.Classify(context.Background(), "inject dependencies via interfaces", "")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.Generalizability).To(Equal(3))
+}
+
 // fakeHTTPDoer is a test double for classify.HTTPDoer.
 type fakeHTTPDoer struct {
 	response    *http.Response
@@ -596,16 +636,17 @@ func (f *fakeHTTPDoer) Do(req *http.Request) (*http.Response, error) {
 //
 //nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type llmClassifyResponse struct {
-	Tier            string   `json:"tier"`
-	Title           string   `json:"title"`
-	Content         string   `json:"content"`
-	ObservationType string   `json:"observation_type"`
-	Concepts        []string `json:"concepts"`
-	Keywords        []string `json:"keywords"`
-	Principle       string   `json:"principle"`
-	AntiPattern     string   `json:"anti_pattern"`
-	Rationale       string   `json:"rationale"`
-	FilenameSummary string   `json:"filename_summary"`
+	Tier              string   `json:"tier"`
+	Title             string   `json:"title"`
+	Content           string   `json:"content"`
+	ObservationType   string   `json:"observation_type"`
+	Concepts          []string `json:"concepts"`
+	Keywords          []string `json:"keywords"`
+	Principle         string   `json:"principle"`
+	AntiPattern       string   `json:"anti_pattern"`
+	Rationale         string   `json:"rationale"`
+	FilenameSummary   string   `json:"filename_summary"`
+	Generalizability  int      `json:"generalizability"`
 }
 
 func mustMarshal(g Gomega, v any) string {
@@ -640,7 +681,8 @@ func newFakeDoer(t *testing.T, g Gomega, resp llmClassifyResponse) *fakeHTTPDoer
 		`"principle":` + mustMarshal(g, resp.Principle) + `,` +
 		`"anti_pattern":` + mustMarshal(g, resp.AntiPattern) + `,` +
 		`"rationale":` + mustMarshal(g, resp.Rationale) + `,` +
-		`"filename_summary":` + mustMarshal(g, resp.FilenameSummary) +
+		`"filename_summary":` + mustMarshal(g, resp.FilenameSummary) + `,` +
+		`"generalizability":` + mustMarshal(g, resp.Generalizability) +
 		`}`
 
 	apiEnvelope := map[string]any{
