@@ -25,17 +25,6 @@ if [[ "$NEEDS_BUILD" == "true" ]]; then
         || { echo "[engram] build failed — is Go installed?" >&2; exit 0; }
 fi
 
-# Platform-aware OAuth token retrieval (DES-3)
-TOKEN=""
-if [[ "$(uname)" == "Darwin" ]]; then
-    TOKEN=$(security find-generic-password \
-        -s "Claude Code-credentials" -w 2>/dev/null \
-        | python3 -c \
-        "import sys,json; print(json.load(sys.stdin)['claudeAiOauth']['accessToken'])" \
-        2>/dev/null) || true
-fi
-export ENGRAM_API_TOKEN="${TOKEN:-${ENGRAM_API_TOKEN:-}}"
-
 # Read hook JSON from stdin — capture full input for multiple field reads
 HOOK_JSON="$(cat)"
 USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
