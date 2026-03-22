@@ -85,6 +85,27 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 		return &Result{}, nil
 	}
 
+	// Filter low-generalizability candidates (generalizability gating).
+	// Zero means the LLM did not return the field (backward compat) — keep those.
+	filtered := make([]memory.CandidateLearning, 0, len(candidates))
+	droppedCount := 0
+
+	for _, candidate := range candidates {
+		if candidate.Generalizability >= minGeneralizability || candidate.Generalizability == 0 {
+			filtered = append(filtered, candidate)
+		} else {
+			droppedCount++
+
+			if l.stderr != nil {
+				_, _ = fmt.Fprintf(l.stderr,
+					"[engram] dropped (generalizability=%d): %q\n",
+					candidate.Generalizability, candidate.Title)
+			}
+		}
+	}
+
+	candidates = filtered
+
 	existing, err := l.retriever.ListMemories(ctx, l.dataDir)
 	if err != nil {
 		return nil, fmt.Errorf("learn: list memories: %w", err)
@@ -94,7 +115,7 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 	classified := l.deduplicator.Classify(candidates, existing)
 	surviving := classified.Surviving
 	mergePairs := classified.MergePairs
-	skippedCount := len(candidates) - len(surviving) - len(mergePairs)
+	skippedCount := droppedCount + len(candidates) - len(surviving) - len(mergePairs)
 
 	// Filter overly-common keywords from surviving candidates (#345)
 	l.filterCommonKeywords(surviving, existing)
@@ -404,4 +425,5 @@ type TranscriptExtractor interface {
 // unexported constants.
 const (
 	keywordMaxDocFreqRatio = 0.3
+	minGeneralizability    = 2
 )

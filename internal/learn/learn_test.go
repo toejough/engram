@@ -903,6 +903,108 @@ func TestUnionKeywords_DeduplicatesMixedFormat(t *testing.T) {
 	g.Expect(result).To(ConsistOf("prefixed_ids", "collision_avoidance", "new_keyword"))
 }
 
+// TestGeneralizabilityGate_DropsLowScoreCandidates verifies that candidates with
+// Generalizability < 2 are filtered before dedup and write.
+func TestGeneralizabilityGate_DropsLowScoreCandidates(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	lowCandidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "Low generalizability",
+		Content:         "very specific to this one session",
+		FilenameSummary: "low-gen",
+		Generalizability: 1,
+	}
+	highCandidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "High generalizability",
+		Content:         "broadly applicable principle",
+		FilenameSummary: "high-gen",
+		Generalizability: 3,
+	}
+
+	// Pass-through deduplicator returns whatever candidates it receives — the gate must filter first.
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{lowCandidate, highCandidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakePassThroughDeduplicator{}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"high-gen": "/tmp/memories/high-gen.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// Only the high-generalizability candidate should be written.
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/high-gen.toml"))
+
+	// The dropped candidate counts toward SkippedCount.
+	g.Expect(result.SkippedCount).To(Equal(1))
+}
+
+// TestGeneralizabilityGate_ZeroIsKept verifies that candidates with Generalizability == 0
+// (default/unset — LLM did not return the field) are not dropped.
+func TestGeneralizabilityGate_ZeroIsKept(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "Pre-existing candidate",
+		Content:          "principle content",
+		FilenameSummary:  "pre-existing",
+		Generalizability: 0,
+	}
+
+	// Pass-through deduplicator returns whatever it receives — zero must survive the gate.
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakePassThroughDeduplicator{}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"pre-existing": "/tmp/memories/pre-existing.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// Zero generalizability is backward-compat: must NOT be dropped.
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/pre-existing.toml"))
+	g.Expect(result.SkippedCount).To(Equal(0))
+}
+
 // Write error — pipeline returns error
 func TestWriteError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -1049,6 +1151,26 @@ func (f *fakeMergingDeduplicator) Filter(
 	_ []*memory.Stored,
 ) []memory.CandidateLearning {
 	return nil
+}
+
+// fakePassThroughDeduplicator passes all candidates through as surviving with no merges.
+type fakePassThroughDeduplicator struct{}
+
+func (f *fakePassThroughDeduplicator) Classify(
+	candidates []memory.CandidateLearning,
+	_ []*memory.Stored,
+) dedup.ClassifyResult {
+	return dedup.ClassifyResult{
+		Surviving:  candidates,
+		MergePairs: []dedup.MergePair{},
+	}
+}
+
+func (f *fakePassThroughDeduplicator) Filter(
+	candidates []memory.CandidateLearning,
+	_ []*memory.Stored,
+) []memory.CandidateLearning {
+	return candidates
 }
 
 // fakeRetriever is a test double for learn.MemoryRetriever.
