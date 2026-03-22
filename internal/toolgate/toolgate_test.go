@@ -1,6 +1,7 @@
 package toolgate_test
 
 import (
+	"maps"
 	"testing"
 
 	"engram/internal/toolgate"
@@ -78,9 +79,11 @@ func TestGate_FirstCall_AlwaysSurfaces(t *testing.T) {
 
 	shouldSurface, err := gate.Check("go test")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(shouldSurface).To(BeTrue())
 }
 
@@ -99,9 +102,11 @@ func TestGate_HighCount_SkipsWhenRollExceedsProbability(t *testing.T) {
 	// P(100) ≈ 0.18, roll of 0.5 > 0.18 → should skip.
 	shouldSurface, err := gate.Check("grep")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(shouldSurface).To(BeFalse())
 }
 
@@ -119,9 +124,11 @@ func TestGate_HighCount_SurfacesWhenRollBelowProbability(t *testing.T) {
 
 	shouldSurface, err := gate.Check("grep")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(shouldSurface).To(BeTrue())
 }
 
@@ -139,9 +146,11 @@ func TestGate_SeparateKeys_IndependentCounters(t *testing.T) {
 
 	shouldSurface, err := gate.Check("go test")
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(shouldSurface).To(BeTrue())
 }
 
@@ -177,17 +186,15 @@ type stubStore struct {
 
 func (s *stubStore) Load() (map[string]toolgate.CounterEntry, error) {
 	out := make(map[string]toolgate.CounterEntry, len(s.data))
-	for k, v := range s.data {
-		out[k] = v
-	}
+	maps.Copy(out, s.data)
+
 	return out, nil
 }
 
 func (s *stubStore) Save(entries map[string]toolgate.CounterEntry) error {
 	s.data = make(map[string]toolgate.CounterEntry, len(entries))
-	for k, v := range entries {
-		s.data[k] = v
-	}
+	maps.Copy(s.data, entries)
+
 	return nil
 }
 

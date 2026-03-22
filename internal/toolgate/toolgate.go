@@ -40,7 +40,7 @@ func NewGate(store CounterStore, randFn func() float64) *Gate {
 func (g *Gate) Check(key string) (bool, error) {
 	counters, err := g.store.Load()
 	if err != nil {
-		return true, nil // fail-open: surface on read error
+		return true, nil //nolint:nilerr // fail-open by design: surface on read error
 	}
 
 	entry := counters[key]
@@ -51,7 +51,8 @@ func (g *Gate) Check(key string) (bool, error) {
 	entry.Last = time.Now()
 	counters[key] = entry
 
-	if saveErr := g.store.Save(counters); saveErr != nil {
+	saveErr := g.store.Save(counters)
+	if saveErr != nil {
 		return shouldSurface, fmt.Errorf("toolgate save: %w", saveErr)
 	}
 
