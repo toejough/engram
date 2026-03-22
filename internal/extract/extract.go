@@ -162,17 +162,17 @@ type anthropicResponse struct {
 //
 //nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type llmCandidateLearningJSON struct {
-	Tier            string   `json:"tier"`
-	Title           string   `json:"title"`
-	Content         string   `json:"content"`
-	ObservationType string   `json:"observation_type"`
-	Concepts        []string `json:"concepts"`
-	Keywords        []string `json:"keywords"`
-	Principle       string   `json:"principle"`
-	AntiPattern     string   `json:"anti_pattern"`
-	Rationale       string   `json:"rationale"`
-	FilenameSummary string   `json:"filename_summary"`
-	Generalizability int     `json:"generalizability"`
+	Tier             string   `json:"tier"`
+	Title            string   `json:"title"`
+	Content          string   `json:"content"`
+	ObservationType  string   `json:"observation_type"`
+	Concepts         []string `json:"concepts"`
+	Keywords         []string `json:"keywords"`
+	Principle        string   `json:"principle"`
+	AntiPattern      string   `json:"anti_pattern"`
+	Rationale        string   `json:"rationale"`
+	FilenameSummary  string   `json:"filename_summary"`
+	Generalizability int      `json:"generalizability"`
 }
 
 func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
@@ -205,14 +205,14 @@ func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
 
 	for _, item := range llmItems {
 		learnings = append(learnings, memory.CandidateLearning{
-			Tier:            item.Tier,
-			Title:           item.Title,
-			Content:         item.Content,
-			ObservationType: item.ObservationType,
-			Concepts:        item.Concepts,
-			Keywords:        item.Keywords,
-			Principle:       item.Principle,
-			AntiPattern:     item.AntiPattern,
+			Tier:             item.Tier,
+			Title:            item.Title,
+			Content:          item.Content,
+			ObservationType:  item.ObservationType,
+			Concepts:         item.Concepts,
+			Keywords:         item.Keywords,
+			Principle:        item.Principle,
+			AntiPattern:      item.AntiPattern,
 			Rationale:        item.Rationale,
 			FilenameSummary:  item.FilenameSummary,
 			Generalizability: item.Generalizability,
@@ -296,7 +296,8 @@ Return a JSON array of objects, each with these exact fields:
     "anti_pattern": "The negative pattern or mistake to avoid (tier-gated, see rules above)",
     "rationale": "Why this principle matters",
     "filename_summary": "three to five words",
-    "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow, 3=across this project, 4=across similar projects, 5=universal"
+    "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow,
+      3=across this project, 4=across similar projects, 5=universal"
   }
 ]
 

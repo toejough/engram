@@ -71,6 +71,108 @@ func TestFallbackMergePrinciple_CandidateLonger(t *testing.T) {
 	g.Expect(mergeWriter.principle).To(Equal("much longer principle text here"))
 }
 
+// TestGeneralizabilityGate_DropsLowScoreCandidates verifies that candidates with
+// Generalizability < 2 are filtered before dedup and write.
+func TestGeneralizabilityGate_DropsLowScoreCandidates(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	lowCandidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "Low generalizability",
+		Content:          "very specific to this one session",
+		FilenameSummary:  "low-gen",
+		Generalizability: 1,
+	}
+	highCandidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "High generalizability",
+		Content:          "broadly applicable principle",
+		FilenameSummary:  "high-gen",
+		Generalizability: 3,
+	}
+
+	// Pass-through deduplicator returns whatever candidates it receives — the gate must filter first.
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{lowCandidate, highCandidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakePassThroughDeduplicator{}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"high-gen": "/tmp/memories/high-gen.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// Only the high-generalizability candidate should be written.
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/high-gen.toml"))
+
+	// The dropped candidate counts toward SkippedCount.
+	g.Expect(result.SkippedCount).To(Equal(1))
+}
+
+// TestGeneralizabilityGate_ZeroIsKept verifies that candidates with Generalizability == 0
+// (default/unset — LLM did not return the field) are not dropped.
+func TestGeneralizabilityGate_ZeroIsKept(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "Pre-existing candidate",
+		Content:          "principle content",
+		FilenameSummary:  "pre-existing",
+		Generalizability: 0,
+	}
+
+	// Pass-through deduplicator returns whatever it receives — zero must survive the gate.
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakePassThroughDeduplicator{}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"pre-existing": "/tmp/memories/pre-existing.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// Zero generalizability is backward-compat: must NOT be dropped.
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/pre-existing.toml"))
+	g.Expect(result.SkippedCount).To(Equal(0))
+}
+
 // Task 2 (#345): When all keywords are common, keep originals (don't strip to zero).
 func TestKeywordIDFFilter_AllCommon_KeepsOriginals(t *testing.T) {
 	t.Parallel()
@@ -325,6 +427,56 @@ func TestSetMergeWriter_PipelineCallsIt(t *testing.T) {
 
 	g.Expect(result).NotTo(BeNil())
 	g.Expect(mergeWriter.called).To(BeTrue())
+}
+
+// TestSetProjectSlug_LearnerPassesSlugToEnriched verifies that SetProjectSlug wires
+// the project slug into the Enriched struct written by writeCandidate.
+func TestSetProjectSlug_LearnerPassesSlugToEnriched(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "Project slug test",
+		Content:          "some content",
+		FilenameSummary:  "project-slug-test",
+		Generalizability: 3,
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: []memory.CandidateLearning{candidate}}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"project-slug-test": "/tmp/memories/project-slug-test.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetProjectSlug("test-project")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(writer.received).To(HaveLen(1))
+
+	if len(writer.received) == 0 {
+		return
+	}
+
+	g.Expect(writer.received[0].ProjectSlug).To(Equal("test-project"))
+	g.Expect(writer.received[0].Generalizability).To(Equal(3))
 }
 
 // TestSetRegistryAbsorber_PipelineCallsIt verifies that SetRegistryAbsorber records merges.
@@ -901,158 +1053,6 @@ func TestUnionKeywords_DeduplicatesMixedFormat(t *testing.T) {
 	)
 
 	g.Expect(result).To(ConsistOf("prefixed_ids", "collision_avoidance", "new_keyword"))
-}
-
-// TestGeneralizabilityGate_DropsLowScoreCandidates verifies that candidates with
-// Generalizability < 2 are filtered before dedup and write.
-func TestGeneralizabilityGate_DropsLowScoreCandidates(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	lowCandidate := memory.CandidateLearning{
-		Tier:            "A",
-		Title:           "Low generalizability",
-		Content:         "very specific to this one session",
-		FilenameSummary: "low-gen",
-		Generalizability: 1,
-	}
-	highCandidate := memory.CandidateLearning{
-		Tier:            "A",
-		Title:           "High generalizability",
-		Content:         "broadly applicable principle",
-		FilenameSummary: "high-gen",
-		Generalizability: 3,
-	}
-
-	// Pass-through deduplicator returns whatever candidates it receives — the gate must filter first.
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{lowCandidate, highCandidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakePassThroughDeduplicator{}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"high-gen": "/tmp/memories/high-gen.toml",
-		},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	// Only the high-generalizability candidate should be written.
-	g.Expect(writer.received).To(HaveLen(1))
-	g.Expect(result.CreatedPaths).To(HaveLen(1))
-	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/high-gen.toml"))
-
-	// The dropped candidate counts toward SkippedCount.
-	g.Expect(result.SkippedCount).To(Equal(1))
-}
-
-// TestGeneralizabilityGate_ZeroIsKept verifies that candidates with Generalizability == 0
-// (default/unset — LLM did not return the field) are not dropped.
-func TestGeneralizabilityGate_ZeroIsKept(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	candidate := memory.CandidateLearning{
-		Tier:             "A",
-		Title:            "Pre-existing candidate",
-		Content:          "principle content",
-		FilenameSummary:  "pre-existing",
-		Generalizability: 0,
-	}
-
-	// Pass-through deduplicator returns whatever it receives — zero must survive the gate.
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakePassThroughDeduplicator{}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"pre-existing": "/tmp/memories/pre-existing.toml",
-		},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	// Zero generalizability is backward-compat: must NOT be dropped.
-	g.Expect(writer.received).To(HaveLen(1))
-	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/pre-existing.toml"))
-	g.Expect(result.SkippedCount).To(Equal(0))
-}
-
-// TestSetProjectSlug_LearnerPassesSlugToEnriched verifies that SetProjectSlug wires
-// the project slug into the Enriched struct written by writeCandidate.
-func TestSetProjectSlug_LearnerPassesSlugToEnriched(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	candidate := memory.CandidateLearning{
-		Tier:             "A",
-		Title:            "Project slug test",
-		Content:          "some content",
-		FilenameSummary:  "project-slug-test",
-		Generalizability: 3,
-	}
-
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{surviving: []memory.CandidateLearning{candidate}}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"project-slug-test": "/tmp/memories/project-slug-test.toml",
-		},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetProjectSlug("test-project")
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	g.Expect(writer.received).To(HaveLen(1))
-
-	if len(writer.received) == 0 {
-		return
-	}
-
-	g.Expect(writer.received[0].ProjectSlug).To(Equal("test-project"))
-	g.Expect(writer.received[0].Generalizability).To(Equal(3))
 }
 
 // Write error — pipeline returns error

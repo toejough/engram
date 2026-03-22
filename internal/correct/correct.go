@@ -41,11 +41,6 @@ func New(
 	}
 }
 
-// SetProjectSlug sets the originating project slug for new memories.
-func (c *Corrector) SetProjectSlug(slug string) {
-	c.projectSlug = slug
-}
-
 // Run executes the correction pipeline for a single message.
 // Returns a system reminder string, or empty string if no signal detected.
 func (c *Corrector) Run(
@@ -78,6 +73,11 @@ func (c *Corrector) Run(
 	reminder := c.renderer.Render(classified, filePath)
 
 	return reminder, nil
+}
+
+// SetProjectSlug sets the originating project slug for new memories.
+func (c *Corrector) SetProjectSlug(slug string) {
+	c.projectSlug = slug
 }
 
 // MemoryWriter writes an enriched memory to persistent storage (ARCH-4).

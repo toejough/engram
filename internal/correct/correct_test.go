@@ -88,13 +88,13 @@ func TestT17_LowGeneralizabilityMemoryIsDropped(t *testing.T) {
 
 	classifier := &fakeClassifier{
 		result: &memory.ClassifiedMemory{
-			Tier:            "A",
-			Title:           "Narrow Note",
-			Content:         "very specific thing",
-			ObservationType: "reminder",
+			Tier:             "A",
+			Title:            "Narrow Note",
+			Content:          "very specific thing",
+			ObservationType:  "reminder",
 			Generalizability: 1,
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
+			CreatedAt:        time.Now(),
+			UpdatedAt:        time.Now(),
 		},
 	}
 
@@ -117,13 +117,13 @@ func TestT18_ZeroGeneralizabilityMemoryIsWritten(t *testing.T) {
 
 	classifier := &fakeClassifier{
 		result: &memory.ClassifiedMemory{
-			Tier:            "A",
-			Title:           "Unscored Memory",
-			Content:         "some memory without score",
-			ObservationType: "reminder",
+			Tier:             "A",
+			Title:            "Unscored Memory",
+			Content:          "some memory without score",
+			ObservationType:  "reminder",
 			Generalizability: 0,
-			CreatedAt:       time.Now(),
-			UpdatedAt:       time.Now(),
+			CreatedAt:        time.Now(),
+			UpdatedAt:        time.Now(),
 		},
 	}
 

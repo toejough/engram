@@ -163,14 +163,14 @@ type anthropicResponse struct {
 //
 //nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type llmClassifyJSON struct {
-	Tier            *string  `json:"tier"` // pointer to distinguish null from empty
-	Title           string   `json:"title"`
-	Content         string   `json:"content"`
-	ObservationType string   `json:"observation_type"`
-	Concepts        []string `json:"concepts"`
-	Keywords        []string `json:"keywords"`
-	Principle       string   `json:"principle"`
-	AntiPattern     string   `json:"anti_pattern"`
+	Tier             *string  `json:"tier"` // pointer to distinguish null from empty
+	Title            string   `json:"title"`
+	Content          string   `json:"content"`
+	ObservationType  string   `json:"observation_type"`
+	Concepts         []string `json:"concepts"`
+	Keywords         []string `json:"keywords"`
+	Principle        string   `json:"principle"`
+	AntiPattern      string   `json:"anti_pattern"`
 	Rationale        string   `json:"rationale"`
 	FilenameSummary  string   `json:"filename_summary"`
 	Generalizability int      `json:"generalizability"`
@@ -285,14 +285,14 @@ func parseClassifyResponse(
 	now := time.Now()
 
 	return &memory.ClassifiedMemory{
-		Tier:            tier,
-		Title:           llmData.Title,
-		Content:         llmData.Content,
-		ObservationType: llmData.ObservationType,
-		Concepts:        llmData.Concepts,
-		Keywords:        llmData.Keywords,
-		Principle:       llmData.Principle,
-		AntiPattern:     llmData.AntiPattern,
+		Tier:             tier,
+		Title:            llmData.Title,
+		Content:          llmData.Content,
+		ObservationType:  llmData.ObservationType,
+		Concepts:         llmData.Concepts,
+		Keywords:         llmData.Keywords,
+		Principle:        llmData.Principle,
+		AntiPattern:      llmData.AntiPattern,
 		Rationale:        llmData.Rationale,
 		FilenameSummary:  llmData.FilenameSummary,
 		Generalizability: llmData.Generalizability,
@@ -370,7 +370,9 @@ Return ONLY a JSON object — no markdown, no explanation:
   "anti_pattern": "The negative pattern to avoid (tier-gated)",
   "rationale": "Why this matters",
   "filename_summary": "three to five words",
-  "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow, 3=across this project, 4=across similar projects, 5=universal. null-tier messages should not include this field."
+  "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow,
+    3=across this project, 4=across similar projects, 5=universal.
+    null-tier messages should not include this field."
 }`)
 
 	if isFastPath {

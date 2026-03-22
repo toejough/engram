@@ -74,14 +74,14 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 	}
 
 	record := memory.MemoryRecord{
-		Title:           mem.Title,
-		Content:         mem.Content,
-		ObservationType: mem.ObservationType,
-		Concepts:        concepts,
-		Keywords:        keywords,
-		Principle:       mem.Principle,
-		AntiPattern:     mem.AntiPattern,
-		Rationale:       mem.Rationale,
+		Title:            mem.Title,
+		Content:          mem.Content,
+		ObservationType:  mem.ObservationType,
+		Concepts:         concepts,
+		Keywords:         keywords,
+		Principle:        mem.Principle,
+		AntiPattern:      mem.AntiPattern,
+		Rationale:        mem.Rationale,
 		Confidence:       mem.Confidence,
 		CreatedAt:        mem.CreatedAt.UTC().Format(time.RFC3339),
 		UpdatedAt:        mem.UpdatedAt.UTC().Format(time.RFC3339),

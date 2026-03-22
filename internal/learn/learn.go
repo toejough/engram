@@ -86,26 +86,7 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 		return &Result{}, nil
 	}
 
-	// Filter low-generalizability candidates (generalizability gating).
-	// Zero means the LLM did not return the field (backward compat) — keep those.
-	filtered := make([]memory.CandidateLearning, 0, len(candidates))
-	droppedCount := 0
-
-	for _, candidate := range candidates {
-		if candidate.Generalizability >= minGeneralizability || candidate.Generalizability == 0 {
-			filtered = append(filtered, candidate)
-		} else {
-			droppedCount++
-
-			if l.stderr != nil {
-				_, _ = fmt.Fprintf(l.stderr,
-					"[engram] dropped (generalizability=%d): %q\n",
-					candidate.Generalizability, candidate.Title)
-			}
-		}
-	}
-
-	candidates = filtered
+	candidates, droppedCount := l.filterByGeneralizability(candidates)
 
 	existing, err := l.retriever.ListMemories(ctx, l.dataDir)
 	if err != nil {
@@ -151,11 +132,6 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 	}, nil
 }
 
-// SetProjectSlug sets the originating project slug for new memories.
-func (l *Learner) SetProjectSlug(slug string) {
-	l.projectSlug = slug
-}
-
 // SetCreationLogger attaches an optional CreationLogger to the Learner.
 func (l *Learner) SetCreationLogger(logger CreationLogger) {
 	l.creationLogger = logger
@@ -176,6 +152,11 @@ func (l *Learner) SetMergeWriter(writer MergeWriter) {
 	l.mergeWriter = writer
 }
 
+// SetProjectSlug sets the originating project slug for new memories.
+func (l *Learner) SetProjectSlug(slug string) {
+	l.projectSlug = slug
+}
+
 // SetRecordAbsorbed attaches an optional func to record merges in the memory TOML (UC-33).
 func (l *Learner) SetRecordAbsorbed(fn func(existingPath, candidateTitle, contentHash string, now time.Time) error) {
 	l.recordAbsorbed = fn
@@ -193,6 +174,32 @@ func (l *Learner) fallbackMergePrinciple(existing, candidate string) string {
 	}
 
 	return existing
+}
+
+// filterByGeneralizability removes candidates with low generalizability scores.
+// Zero means the LLM did not return the field (backward compat) — those are kept.
+// Returns the filtered slice and the count of dropped candidates.
+func (l *Learner) filterByGeneralizability(
+	candidates []memory.CandidateLearning,
+) ([]memory.CandidateLearning, int) {
+	filtered := make([]memory.CandidateLearning, 0, len(candidates))
+	droppedCount := 0
+
+	for _, candidate := range candidates {
+		if candidate.Generalizability >= minGeneralizability || candidate.Generalizability == 0 {
+			filtered = append(filtered, candidate)
+		} else {
+			droppedCount++
+
+			if l.stderr != nil {
+				_, _ = fmt.Fprintf(l.stderr,
+					"[engram] dropped (generalizability=%d): %q\n",
+					candidate.Generalizability, candidate.Title)
+			}
+		}
+	}
+
+	return filtered, droppedCount
 }
 
 // filterCommonKeywords removes overly-common keywords from surviving candidates (#345).

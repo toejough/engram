@@ -6,53 +6,53 @@ import "time"
 // CandidateLearning holds a learning extracted from a session transcript (ARCH-15).
 // The Learner pipeline uses Tier as Confidence when writing.
 type CandidateLearning struct {
-	Tier            string // "A", "B", or "C" — classified by the LLM
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string
-	Rationale       string
-	FilenameSummary string
+	Tier             string // "A", "B", or "C" — classified by the LLM
+	Title            string
+	Content          string
+	ObservationType  string
+	Concepts         []string
+	Keywords         []string
+	Principle        string
+	AntiPattern      string
+	Rationale        string
+	FilenameSummary  string
 	Generalizability int
 }
 
 // ClassifiedMemory holds the output of the unified classifier (ARCH-2).
 // Combines classification (tier) and enrichment (structured fields) in one step.
 type ClassifiedMemory struct {
-	Tier            string // "A", "B", or "C"
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string // tier-gated: required for A, optional for B, empty for C
+	Tier             string // "A", "B", or "C"
+	Title            string
+	Content          string
+	ObservationType  string
+	Concepts         []string
+	Keywords         []string
+	Principle        string
+	AntiPattern      string // tier-gated: required for A, optional for B, empty for C
 	Rationale        string
 	FilenameSummary  string
 	Generalizability int
 	CreatedAt        time.Time
-	UpdatedAt       time.Time
+	UpdatedAt        time.Time
 }
 
 // ToEnriched converts a ClassifiedMemory to an Enriched for TOML writing compatibility.
 func (cm *ClassifiedMemory) ToEnriched() *Enriched {
 	return &Enriched{
-		Title:           cm.Title,
-		Content:         cm.Content,
-		ObservationType: cm.ObservationType,
-		Concepts:        cm.Concepts,
-		Keywords:        cm.Keywords,
-		Principle:       cm.Principle,
-		AntiPattern:     cm.AntiPattern,
-		Rationale:       cm.Rationale,
+		Title:            cm.Title,
+		Content:          cm.Content,
+		ObservationType:  cm.ObservationType,
+		Concepts:         cm.Concepts,
+		Keywords:         cm.Keywords,
+		Principle:        cm.Principle,
+		AntiPattern:      cm.AntiPattern,
+		Rationale:        cm.Rationale,
 		FilenameSummary:  cm.FilenameSummary,
 		Generalizability: cm.Generalizability,
 		Confidence:       cm.Tier,
-		CreatedAt:       cm.CreatedAt,
-		UpdatedAt:       cm.UpdatedAt,
+		CreatedAt:        cm.CreatedAt,
+		UpdatedAt:        cm.UpdatedAt,
 	}
 }
 

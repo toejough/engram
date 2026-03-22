@@ -31,19 +31,19 @@ type LinkRecord struct {
 // See #353 for the bug caused by divergent struct definitions.
 type MemoryRecord struct {
 	// Content fields.
-	Title           string   `toml:"title"`
-	Content         string   `toml:"content"`
-	ObservationType string   `toml:"observation_type"`
-	Concepts        []string `toml:"concepts"`
-	Keywords        []string `toml:"keywords"`
-	Principle       string   `toml:"principle"`
-	AntiPattern     string   `toml:"anti_pattern"`
-	Rationale        string `toml:"rationale"`
-	ProjectSlug      string `toml:"project_slug,omitempty"`
-	Generalizability int    `toml:"generalizability,omitempty"`
-	Confidence       string `toml:"confidence"`
-	CreatedAt       string   `toml:"created_at"`
-	UpdatedAt       string   `toml:"updated_at"`
+	Title            string   `toml:"title"`
+	Content          string   `toml:"content"`
+	ObservationType  string   `toml:"observation_type"`
+	Concepts         []string `toml:"concepts"`
+	Keywords         []string `toml:"keywords"`
+	Principle        string   `toml:"principle"`
+	AntiPattern      string   `toml:"anti_pattern"`
+	Rationale        string   `toml:"rationale"`
+	ProjectSlug      string   `toml:"project_slug,omitempty"`
+	Generalizability int      `toml:"generalizability,omitempty"`
+	Confidence       string   `toml:"confidence"`
+	CreatedAt        string   `toml:"created_at"`
+	UpdatedAt        string   `toml:"updated_at"`
 
 	// Tracking fields — feedback counters and surfacing metadata.
 	SurfacedCount     int    `toml:"surfaced_count"`
