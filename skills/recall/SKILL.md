@@ -28,9 +28,12 @@ If the user provided a query (e.g., `/recall keyword matching`), add `--query "<
 
 ## Handling Output
 
-The command returns JSON: `{"summary":"...","memories":"..."}`.
+The command outputs plain text in two sections:
 
-**For plain `/recall`:** The `summary` field contains raw transcript content (not a summary despite the field name). Read it, absorb the full context, then present a concise recap focusing on:
+1. **Transcript content** — raw stripped session content (first section, always present)
+2. **Memories** — relevant memories surfaced by similarity (after `=== MEMORIES ===` separator, only present when memories match)
+
+**For plain `/recall`:** The transcript content is raw session history (not a summary). Read it, absorb the full context, then present a concise recap focusing on:
 
 1. **What tradeoffs were considered** — options weighed and why
 2. **What decisions were made** — what was chosen
@@ -40,8 +43,8 @@ The command returns JSON: `{"summary":"...","memories":"..."}`.
 
 Prioritize conclusions over discussions. The user needs to know how work *ended*, not everything that was talked about.
 
-**For `/recall <query>`:** The `summary` field contains Haiku-extracted content relevant to the query.
+**For `/recall <query>`:** The transcript section contains Haiku-extracted content relevant to the query.
 
-In both cases, present any `memories` content as additional context.
+In both cases, treat any content after `=== MEMORIES ===` as additional context from the memory system.
 
 If the command fails or returns empty, inform the user that no previous session data was found.
