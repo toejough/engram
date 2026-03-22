@@ -3,8 +3,10 @@
 package toolgate
 
 import (
+	"fmt"
 	"math"
 	"strings"
+	"time"
 )
 
 // CommandKey extracts a stable identity from a bash command string.
@@ -42,4 +44,52 @@ func CommandKey(cmd string) string {
 // P = 1 / (1 + ln(1 + count)).
 func SurfaceProbability(count int) float64 {
 	return 1.0 / (1.0 + math.Log(1.0+float64(count)))
+}
+
+// CounterEntry tracks call frequency for a single command key.
+type CounterEntry struct {
+	Count int       `json:"count"`
+	Last  time.Time `json:"last"`
+}
+
+// CounterStore abstracts persistent storage of tool call counters.
+type CounterStore interface {
+	Load() (map[string]CounterEntry, error)
+	Save(map[string]CounterEntry) error
+}
+
+// Gate decides whether to surface memories for a given command,
+// based on persistent call frequency.
+type Gate struct {
+	store  CounterStore
+	randFn func() float64
+}
+
+// NewGate creates a Gate. store handles persistence, randFn provides randomness.
+func NewGate(store CounterStore, randFn func() float64) *Gate {
+	return &Gate{store: store, randFn: randFn}
+}
+
+// Check reads the current count for key, rolls the probability gate,
+// then increments and persists the counter. Returns true if surfacing
+// should proceed.
+func (g *Gate) Check(key string) (bool, error) {
+	counters, err := g.store.Load()
+	if err != nil {
+		return true, nil // fail-open: surface on read error
+	}
+
+	entry := counters[key]
+	prob := SurfaceProbability(entry.Count)
+	shouldSurface := g.randFn() < prob
+
+	entry.Count++
+	entry.Last = time.Now()
+	counters[key] = entry
+
+	if saveErr := g.store.Save(counters); saveErr != nil {
+		return shouldSurface, fmt.Errorf("toolgate save: %w", saveErr)
+	}
+
+	return shouldSurface, nil
 }

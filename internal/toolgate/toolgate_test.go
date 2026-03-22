@@ -8,6 +8,107 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+// stubStore is an in-memory CounterStore for testing.
+type stubStore struct {
+	data map[string]toolgate.CounterEntry
+}
+
+func newStubStore() *stubStore {
+	return &stubStore{data: make(map[string]toolgate.CounterEntry)}
+}
+
+func (s *stubStore) Load() (map[string]toolgate.CounterEntry, error) {
+	out := make(map[string]toolgate.CounterEntry, len(s.data))
+	for k, v := range s.data {
+		out[k] = v
+	}
+	return out, nil
+}
+
+func (s *stubStore) Save(entries map[string]toolgate.CounterEntry) error {
+	s.data = make(map[string]toolgate.CounterEntry, len(entries))
+	for k, v := range entries {
+		s.data[k] = v
+	}
+	return nil
+}
+
+func TestGate_FirstCall_AlwaysSurfaces(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := newStubStore()
+	gate := toolgate.NewGate(store, func() float64 { return 0.5 })
+
+	shouldSurface, err := gate.Check("go test")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(shouldSurface).To(BeTrue())
+}
+
+func TestGate_HighCount_SkipsWhenRollExceedsProbability(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := newStubStore()
+	gate := toolgate.NewGate(store, func() float64 { return 0.5 })
+
+	for range 100 {
+		_, err := gate.Check("grep")
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	// P(100) ≈ 0.18, roll of 0.5 > 0.18 → should skip.
+	shouldSurface, err := gate.Check("grep")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(shouldSurface).To(BeFalse())
+}
+
+func TestGate_HighCount_SurfacesWhenRollBelowProbability(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := newStubStore()
+	gate := toolgate.NewGate(store, func() float64 { return 0.1 })
+
+	for range 100 {
+		_, err := gate.Check("grep")
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	shouldSurface, err := gate.Check("grep")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(shouldSurface).To(BeTrue())
+}
+
+func TestGate_SeparateKeys_IndependentCounters(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	store := newStubStore()
+	gate := toolgate.NewGate(store, func() float64 { return 0.5 })
+
+	for range 100 {
+		_, err := gate.Check("grep")
+		g.Expect(err).NotTo(HaveOccurred())
+	}
+
+	shouldSurface, err := gate.Check("go test")
+	g.Expect(err).NotTo(HaveOccurred())
+	if err != nil {
+		return
+	}
+	g.Expect(shouldSurface).To(BeTrue())
+}
+
 func TestSurfaceProbability(t *testing.T) {
 	t.Parallel()
 	g := NewGomegaWithT(t)
