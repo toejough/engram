@@ -80,6 +80,64 @@ func TestT16_NoSignalPipelineShortCircuits(t *testing.T) {
 	g.Expect(renderer.called).To(BeFalse())
 }
 
+// T-17: Low generalizability — memory with Generalizability 1 is dropped (hard gate)
+func TestT17_LowGeneralizabilityMemoryIsDropped(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Narrow Note",
+			Content:         "very specific thing",
+			ObservationType: "reminder",
+			Generalizability: 1,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	writer := &fakeWriter{}
+	renderer := &fakeRenderer{}
+
+	corrector := correct.New(classifier, writer, renderer, "/tmp")
+	result, err := corrector.Run(context.Background(), "very specific thing", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result).To(BeEmpty())
+	g.Expect(writer.called).To(BeFalse())
+}
+
+// T-18: Zero generalizability — backward compat, memory is written
+func TestT18_ZeroGeneralizabilityMemoryIsWritten(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Unscored Memory",
+			Content:         "some memory without score",
+			ObservationType: "reminder",
+			Generalizability: 0,
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	writer := &fakeWriter{path: "/tmp/memories/unscored.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>ok</system-reminder>"}
+
+	corrector := correct.New(classifier, writer, renderer, "/tmp")
+	result, err := corrector.Run(context.Background(), "some memory without score", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(result).NotTo(BeEmpty())
+	g.Expect(writer.called).To(BeTrue())
+}
+
 // callRecord tracks which pipeline stages were called and in what order.
 type callRecord struct {
 	calls []string

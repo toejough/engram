@@ -55,6 +55,12 @@ func (c *Corrector) Run(
 		return "", nil
 	}
 
+	const minGeneralizability = 2
+
+	if classified.Generalizability > 0 && classified.Generalizability < minGeneralizability {
+		return "", nil
+	}
+
 	enriched := classified.ToEnriched()
 
 	filePath, err := c.writer.Write(enriched, c.dataDir)
