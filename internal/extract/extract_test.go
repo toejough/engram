@@ -434,6 +434,58 @@ func TestTierGatedAntiPattern(t *testing.T) {
 	g.Expect(learnings[1].AntiPattern).To(BeEmpty())
 }
 
+// TestGeneralizabilityFieldIsParsed verifies that a JSON response containing
+// "generalizability": 4 is correctly mapped to CandidateLearning.Generalizability.
+func TestGeneralizabilityFieldIsParsed(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	llmArray := []map[string]any{
+		{
+			"tier":             "B",
+			"title":            "Generalizability Test Learning",
+			"content":          "content for generalizability test",
+			"observation_type": "correction",
+			"concepts":         []string{"generalizability"},
+			"keywords":         []string{"generalizability", "scoring"},
+			"principle":        "Score memories by generalizability",
+			"anti_pattern":     "",
+			"rationale":        "Filters out session-specific noise",
+			"filename_summary": "generalizability score test",
+			"generalizability": 4,
+		},
+	}
+
+	llmJSON, err := json.Marshal(llmArray)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	apiJSON := buildAPIResponse(t, g, string(llmJSON))
+
+	doer := &fakeHTTPDoer{
+		response: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(bytes.NewReader(apiJSON)),
+		},
+	}
+
+	extractor := extract.New("test-api-key", doer)
+
+	learnings, err := extractor.Extract(context.Background(), "some transcript")
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(learnings).To(HaveLen(1))
+	g.Expect(learnings[0].Generalizability).To(Equal(4))
+}
+
 // fakeHTTPDoer is a test double for extract.HTTPDoer that returns a canned response.
 type fakeHTTPDoer struct {
 	response    *http.Response

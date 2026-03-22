@@ -172,6 +172,7 @@ type llmCandidateLearningJSON struct {
 	AntiPattern     string   `json:"anti_pattern"`
 	Rationale       string   `json:"rationale"`
 	FilenameSummary string   `json:"filename_summary"`
+	Generalizability int     `json:"generalizability"`
 }
 
 func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
@@ -212,8 +213,9 @@ func parseLLMResponse(resp *http.Response) ([]memory.CandidateLearning, error) {
 			Keywords:        item.Keywords,
 			Principle:       item.Principle,
 			AntiPattern:     item.AntiPattern,
-			Rationale:       item.Rationale,
-			FilenameSummary: item.FilenameSummary,
+			Rationale:        item.Rationale,
+			FilenameSummary:  item.FilenameSummary,
+			Generalizability: item.Generalizability,
 		})
 	}
 
@@ -255,8 +257,11 @@ QUALITY GATE — reject the following:
 - mechanical patterns (e.g., "always add t.Parallel()")
 - vague generalizations (e.g., "use good practices")
 - overly narrow observations tied to a single insignificant detail
-- ephemeral context that does not generalize across sessions (e.g., current task status,
-  one-off session state, transient observations that only apply to this specific moment)
+- ephemeral context: task/validation status updates (e.g., "S6 is validated," "step 3 is complete"),
+  debugging observations about specific data or state (e.g., "pipeline produced flat faces,"
+  "normals are inverted on mesh B"), project-specific variable/file names without a generalizable
+  principle. Litmus test: would a developer on a different task in a different project, weeks from
+  now, benefit from knowing this? If probably not, reject it or score it low.
 
 EXTRACT only high-signal learnings such as:
 - missed corrections the AI should have caught
@@ -290,7 +295,8 @@ Return a JSON array of objects, each with these exact fields:
     "principle": "The positive rule or principle to follow",
     "anti_pattern": "The negative pattern or mistake to avoid (tier-gated, see rules above)",
     "rationale": "Why this principle matters",
-    "filename_summary": "three to five words"
+    "filename_summary": "three to five words",
+    "generalizability": "Integer 1-5: 1=only this session, 2=this project/narrow, 3=across this project, 4=across similar projects, 5=universal"
   }
 ]
 
