@@ -121,7 +121,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 				"/b.jsonl": "should not read",
 			},
 			sizes: map[string]int{
-				"/a.jsonl": recall.DefaultStripBudget, // Exactly at budget
+				"/a.jsonl": recall.DefaultModeABudget, // Exactly at budget
 				"/b.jsonl": 100,
 			},
 		}

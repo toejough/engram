@@ -9,7 +9,8 @@ import (
 // Exported constants.
 const (
 	DefaultExtractCap  = 1500      // 1500 bytes of extracted content
-	DefaultStripBudget = 50 * 1024 // 50KB of stripped content
+	DefaultModeABudget = 15 * 1024 // 15KB for mode A raw transcript
+	DefaultStripBudget = 50 * 1024 // 50KB per-session read budget (mode B)
 )
 
 // Finder finds session transcript files.
@@ -77,7 +78,7 @@ func (o *Orchestrator) recallModeA(
 	bytesRead := 0
 
 	for _, path := range sessions {
-		content, size, readErr := o.reader.Read(path, DefaultStripBudget-bytesRead)
+		content, size, readErr := o.reader.Read(path, DefaultModeABudget-bytesRead)
 		if readErr != nil {
 			continue
 		}
@@ -85,7 +86,7 @@ func (o *Orchestrator) recallModeA(
 		builder.WriteString(content)
 
 		bytesRead += size
-		if bytesRead >= DefaultStripBudget {
+		if bytesRead >= DefaultModeABudget {
 			break
 		}
 	}
