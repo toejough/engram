@@ -4,7 +4,9 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -39,6 +41,7 @@ import (
 	"engram/internal/surfacinglog"
 	"engram/internal/tfidf"
 	"engram/internal/tomlwriter"
+	"engram/internal/toolgate"
 	"engram/internal/track"
 	"engram/internal/transcript"
 )
@@ -389,6 +392,7 @@ func RunReview(args []string, stdout io.Writer) error {
 const (
 	anthropicMaxTokens           = 1024
 	anthropicVersion             = "2023-06-01"
+	filePermOwnerRW              = 0o600
 	formatJSON                   = "json"
 	haikuModel                   = "claude-haiku-4-5-20251001"
 	maintainModel                = "claude-haiku-4-5-20251001"
@@ -512,6 +516,52 @@ func (a *effectivenessAdapter) Aggregate() (map[string]surface.EffectivenessStat
 	}
 
 	return result, nil
+}
+
+// fileCounterStore implements toolgate.CounterStore with atomic file I/O.
+type fileCounterStore struct {
+	path string
+}
+
+func (s *fileCounterStore) Load() (map[string]toolgate.CounterEntry, error) {
+	data, err := os.ReadFile(s.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return make(map[string]toolgate.CounterEntry), nil
+		}
+
+		return nil, fmt.Errorf("toolgate load: %w", err)
+	}
+
+	var counters map[string]toolgate.CounterEntry
+
+	jsonErr := json.Unmarshal(data, &counters)
+	if jsonErr != nil {
+		return make(map[string]toolgate.CounterEntry), nil //nolint:nilerr // corrupt file: start fresh
+	}
+
+	return counters, nil
+}
+
+func (s *fileCounterStore) Save(counters map[string]toolgate.CounterEntry) error {
+	data, err := json.Marshal(counters)
+	if err != nil {
+		return fmt.Errorf("marshal: %w", err)
+	}
+
+	tmp := s.path + ".tmp"
+
+	writeErr := os.WriteFile(tmp, data, filePermOwnerRW)
+	if writeErr != nil {
+		return fmt.Errorf("write tmp: %w", writeErr)
+	}
+
+	renameErr := os.Rename(tmp, s.path)
+	if renameErr != nil {
+		return fmt.Errorf("rename: %w", renameErr)
+	}
+
+	return nil
 }
 
 // haikuCallerAdapter adapts makeAnthropicCaller to the recall.HaikuCaller interface.
@@ -870,6 +920,22 @@ func classifyStoredRecords(records []memory.StoredRecord, dataDir string) []revi
 	return classifications
 }
 
+// cryptoRandFloat returns a cryptographically random float64 in [0, 1).
+func cryptoRandFloat() float64 {
+	const (
+		maxMantissa  = 1 << 53
+		randBytes    = 8
+		mantissaBits = 11
+	)
+
+	b := make([]byte, randBytes)
+	_, _ = rand.Read(b)
+
+	val := binary.BigEndian.Uint64(b) >> mantissaBits
+
+	return float64(val) / float64(maxMantissa)
+}
+
 // formatTierBreakdown returns a string like "(A: 2, B: 1, C: 3)" from tier counts.
 func formatTierBreakdown(counts map[string]int) string {
 	if len(counts) == 0 {
@@ -903,6 +969,10 @@ func makeAnthropicCaller(
 	return func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
 		return callAnthropicAPI(ctx, client, token, model, systemPrompt, userPrompt)
 	}
+}
+
+func newFileCounterStore(dataDir string) *fileCounterStore {
+	return &fileCounterStore{path: filepath.Join(dataDir, "tool-frecency.json")}
 }
 
 func renderReviewTable(
@@ -1324,6 +1394,11 @@ func runSurface(args []string, stdout io.Writer) error {
 			surfacerOpts = append(surfacerOpts, surface.WithCrossRefChecker(checker))
 		}
 	}
+
+	// Tool frecency gate: inject with crypto/rand source and file-backed store.
+	store := newFileCounterStore(*dataDir)
+	gate := toolgate.NewGate(store, cryptoRandFloat)
+	surfacerOpts = append(surfacerOpts, surface.WithToolGate(gate))
 
 	surfacer := surface.New(retriever, surfacerOpts...)
 

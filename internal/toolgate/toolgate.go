@@ -43,6 +43,10 @@ func (g *Gate) Check(key string) (bool, error) {
 		return true, nil //nolint:nilerr // fail-open by design: surface on read error
 	}
 
+	if counters == nil {
+		counters = make(map[string]CounterEntry)
+	}
+
 	entry := counters[key]
 	prob := SurfaceProbability(entry.Count)
 	shouldSurface := g.randFn() < prob
