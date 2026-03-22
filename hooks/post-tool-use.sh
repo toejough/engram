@@ -34,6 +34,11 @@ if [[ ("$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit") && \
     exit 0
 fi
 
+# Only surface memories for Bash tool calls
+if [[ "$TOOL_NAME" != "Bash" ]]; then
+    exit 0
+fi
+
 # Surface memories relevant to this tool call and its output
 if [[ -x "$ENGRAM_BIN" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode tool \

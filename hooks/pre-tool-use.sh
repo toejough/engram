@@ -43,6 +43,11 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
     fi
 fi
 
+# Only surface memories for Bash tool calls — non-Bash tools produce near-random BM25 matches
+if [[ "$TOOL_NAME" != "Bash" ]]; then
+    exit 0
+fi
+
 # UC-2: Surface relevant memories before tool use
 if [[ -n "$TOOL_NAME" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode tool \

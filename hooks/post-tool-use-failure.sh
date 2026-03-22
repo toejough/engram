@@ -41,7 +41,8 @@ esac
 
 # Surface relevant memories about this failure
 MEMORY_CONTEXT=""
-if [[ -x "$ENGRAM_BIN" ]]; then
+MEMORY_SUMMARY=""
+if [[ "$TOOL_NAME" == "Bash" && -x "$ENGRAM_BIN" ]]; then
     SURFACE_OUT=$("$ENGRAM_BIN" surface --mode tool \
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
         --tool-output "$ERROR" --tool-errored \
