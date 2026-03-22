@@ -20,6 +20,7 @@ import (
 	"engram/internal/frecency"
 	"engram/internal/memory"
 	"engram/internal/signal"
+	"engram/internal/toolgate"
 )
 
 // Exported constants.
@@ -155,6 +156,7 @@ type Surfacer struct {
 	clusterDedupReader    LinkReader             // P4f: cluster dedup (separate from spreading activation)
 	crossRefChecker       CrossRefChecker        // P4f: cross-source suppression
 	suppressionLogger     SuppressionEventLogger // P4f: suppression event logging
+	toolGate              ToolGater              // frecency gate for tool calls
 }
 
 // New creates a Surfacer.
@@ -698,6 +700,16 @@ func (s *Surfacer) runTool(
 	effectiveness map[string]EffectivenessStat,
 	scorer *frecency.Scorer,
 ) (Result, []*memory.Stored, []SuppressionEvent, error) {
+	// Defense-in-depth: non-Bash tools should not reach here (shell filters first).
+	if opts.ToolName != "Bash" {
+		return Result{}, nil, nil, nil
+	}
+
+	// Frecency gate: extract command key, check counter, maybe skip.
+	if !s.toolGateAllows(opts.ToolInput) {
+		return Result{}, nil, nil, nil
+	}
+
 	memories, err := s.retriever.ListMemories(ctx, opts.DataDir)
 	if err != nil {
 		return Result{}, nil, nil, fmt.Errorf("surface: %w", err)
@@ -785,6 +797,23 @@ func (s *Surfacer) suppressContradictions(
 	return filtered
 }
 
+// toolGateAllows returns true if the frecency gate permits surfacing for the given tool input.
+// Returns true when no gate is set or the command key is empty (fail-open).
+func (s *Surfacer) toolGateAllows(toolInput string) bool {
+	if s.toolGate == nil {
+		return true
+	}
+
+	key := toolgate.CommandKey(toolgate.ExtractBashCommand(toolInput))
+	if key == "" {
+		return true
+	}
+
+	shouldSurface, _ := s.toolGate.Check(key)
+
+	return shouldSurface
+}
+
 // updateCoSurfacingLinks increments co_surfacing link weights for all pairs in the surfaced set (P3, REQ-P3-5).
 func (s *Surfacer) updateCoSurfacingLinks(memories []*memory.Stored) {
 	const (
@@ -870,6 +899,11 @@ type TitleFetcher interface {
 	GetTitle(id string) (string, bool)
 }
 
+// ToolGater decides whether to surface memories for a tool call.
+type ToolGater interface {
+	Check(commandKey string) (bool, error)
+}
+
 // WithClusterDedupReader sets the link reader used for cluster dedup (REQ-P4f-1).
 // Separate from WithLinkReader to avoid interfering with spreading activation.
 func WithClusterDedupReader(reader LinkReader) SurfacerOption {
@@ -939,6 +973,11 @@ func WithSurfacingRecorder(fn func(path string) error) SurfacerOption {
 // WithTitleFetcher sets the title fetcher for cluster notes (P3, REQ-P3-7).
 func WithTitleFetcher(fetcher TitleFetcher) SurfacerOption {
 	return func(s *Surfacer) { s.titleFetcher = fetcher }
+}
+
+// WithToolGate sets the tool frecency gate.
+func WithToolGate(gate ToolGater) SurfacerOption {
+	return func(s *Surfacer) { s.toolGate = gate }
 }
 
 // WithTracker sets the memory tracker for surfacing instrumentation.

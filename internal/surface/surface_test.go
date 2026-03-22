@@ -278,6 +278,113 @@ func TestQW2_ToolRelevanceFloorFiltersLowScoring(t *testing.T) {
 	g.Expect(output).NotTo(ContainSubstring("banana-rule"))
 }
 
+// T-frecency-gate-2: runTool short-circuits for non-Bash tool names.
+func TestRunTool_NonBashSkips(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Provide a matchable memory so that the guard, not an empty retriever, blocks output.
+	memories := []*memory.Stored{
+		{
+			Title:       "Commit Rule",
+			FilePath:    "commit-rule.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill",
+		},
+		{
+			Title:       "Filler A",
+			FilePath:    "filler-a.toml",
+			AntiPattern: "logging without context",
+			Keywords:    []string{"logging"},
+			Principle:   "always log with context",
+		},
+		{
+			Title:       "Filler B",
+			FilePath:    "filler-b.toml",
+			AntiPattern: "skipping tests",
+			Keywords:    []string{"testing"},
+			Principle:   "always test",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	s := surface.New(retriever)
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		ToolName:  "Grep",
+		ToolInput: `{"pattern":"foo"}`,
+		DataDir:   t.TempDir(),
+		Format:    surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(Equal(""))
+}
+
+// T-frecency-gate: runTool short-circuits when toolgate says skip.
+func TestRunTool_ToolGateSkips(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Provide a matchable memory so that without the gate, output would be produced.
+	memories := []*memory.Stored{
+		{
+			Title:       "Commit Rule",
+			FilePath:    "commit-rule.toml",
+			AntiPattern: "manual git commit",
+			Keywords:    []string{"commit", "git"},
+			Principle:   "use /commit skill",
+		},
+		{
+			Title:       "Filler A",
+			FilePath:    "filler-a.toml",
+			AntiPattern: "logging without context",
+			Keywords:    []string{"logging"},
+			Principle:   "always log with context",
+		},
+		{
+			Title:       "Filler B",
+			FilePath:    "filler-b.toml",
+			AntiPattern: "skipping tests",
+			Keywords:    []string{"testing"},
+			Principle:   "always test",
+		},
+	}
+
+	retriever := &fakeRetriever{memories: memories}
+	alwaysSkip := &stubToolGate{shouldSurface: false}
+	s := surface.New(retriever, surface.WithToolGate(alwaysSkip))
+
+	var buf bytes.Buffer
+
+	err := s.Run(context.Background(), &buf, surface.Options{
+		Mode:      surface.ModeTool,
+		ToolName:  "Bash",
+		ToolInput: `{"command":"git commit -m 'fix bug'"}`,
+		DataDir:   t.TempDir(),
+		Format:    surface.FormatJSON,
+	})
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(buf.String()).To(Equal(""))
+}
+
 // T-100: Tool mode with no matching memories produces empty output
 func TestT100_ToolModeNoMatchProducesEmpty(t *testing.T) {
 	t.Parallel()
@@ -2115,6 +2222,15 @@ func (f *fakeTracker) RecordSurfacing(
 	f.calls = append(f.calls, trackerCall{memories: memories, mode: mode})
 
 	return f.err
+}
+
+// stubToolGate is a test double for surface.ToolGater.
+type stubToolGate struct {
+	shouldSurface bool
+}
+
+func (s *stubToolGate) Check(_ string) (bool, error) {
+	return s.shouldSurface, nil
 }
 
 type surfacingLogCall struct {

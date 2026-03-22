@@ -8,29 +8,65 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// stubStore is an in-memory CounterStore for testing.
-type stubStore struct {
-	data map[string]toolgate.CounterEntry
-}
+func TestCommandKey(t *testing.T) {
+	t.Parallel()
 
-func newStubStore() *stubStore {
-	return &stubStore{data: make(map[string]toolgate.CounterEntry)}
-}
-
-func (s *stubStore) Load() (map[string]toolgate.CounterEntry, error) {
-	out := make(map[string]toolgate.CounterEntry, len(s.data))
-	for k, v := range s.data {
-		out[k] = v
+	tests := []struct {
+		name string
+		cmd  string
+		want string
+	}{
+		{name: "two tokens subcommand", cmd: "go test ./...", want: "go test"},
+		{name: "targ subcommand", cmd: "targ check-full", want: "targ check-full"},
+		{name: "flag second token dropped", cmd: "grep -r foo src/", want: "grep"},
+		{name: "leading env var stripped", cmd: "FOO=bar git push origin main", want: "git push"},
+		{name: "multiple env vars stripped", cmd: "A=1 B=2 npm install", want: "npm install"},
+		{name: "single token command", cmd: "ls", want: "ls"},
+		{name: "flag only second token", cmd: "ls -la", want: "ls"},
+		{name: "empty string", cmd: "", want: ""},
+		{name: "whitespace only", cmd: "   ", want: ""},
+		{name: "env var only", cmd: "FOO=bar", want: ""},
 	}
-	return out, nil
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			g := NewGomegaWithT(t)
+
+			g.Expect(toolgate.CommandKey(tt.cmd)).To(Equal(tt.want))
+		})
+	}
 }
 
-func (s *stubStore) Save(entries map[string]toolgate.CounterEntry) error {
-	s.data = make(map[string]toolgate.CounterEntry, len(entries))
-	for k, v := range entries {
-		s.data[k] = v
-	}
-	return nil
+func TestExtractBashCommand(t *testing.T) {
+	t.Parallel()
+
+	t.Run("extracts command field from valid JSON", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+
+		result := toolgate.ExtractBashCommand(`{"command":"grep foo bar"}`)
+		g.Expect(result).To(Equal("grep foo bar"))
+	})
+
+	t.Run("returns empty string for invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+
+		result := toolgate.ExtractBashCommand("not json")
+		g.Expect(result).To(Equal(""))
+	})
+
+	t.Run("returns empty string when command field absent", func(t *testing.T) {
+		t.Parallel()
+
+		g := NewGomegaWithT(t)
+
+		result := toolgate.ExtractBashCommand(`{"description":"do something"}`)
+		g.Expect(result).To(Equal(""))
+	})
 }
 
 func TestGate_FirstCall_AlwaysSurfaces(t *testing.T) {
@@ -134,32 +170,27 @@ func TestSurfaceProbability(t *testing.T) {
 	}
 }
 
-func TestCommandKey(t *testing.T) {
-	t.Parallel()
+// stubStore is an in-memory CounterStore for testing.
+type stubStore struct {
+	data map[string]toolgate.CounterEntry
+}
 
-	tests := []struct {
-		name string
-		cmd  string
-		want string
-	}{
-		{name: "two tokens subcommand", cmd: "go test ./...", want: "go test"},
-		{name: "targ subcommand", cmd: "targ check-full", want: "targ check-full"},
-		{name: "flag second token dropped", cmd: "grep -r foo src/", want: "grep"},
-		{name: "leading env var stripped", cmd: "FOO=bar git push origin main", want: "git push"},
-		{name: "multiple env vars stripped", cmd: "A=1 B=2 npm install", want: "npm install"},
-		{name: "single token command", cmd: "ls", want: "ls"},
-		{name: "flag only second token", cmd: "ls -la", want: "ls"},
-		{name: "empty string", cmd: "", want: ""},
-		{name: "whitespace only", cmd: "   ", want: ""},
-		{name: "env var only", cmd: "FOO=bar", want: ""},
+func (s *stubStore) Load() (map[string]toolgate.CounterEntry, error) {
+	out := make(map[string]toolgate.CounterEntry, len(s.data))
+	for k, v := range s.data {
+		out[k] = v
 	}
+	return out, nil
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			g := NewGomegaWithT(t)
-
-			g.Expect(toolgate.CommandKey(tt.cmd)).To(Equal(tt.want))
-		})
+func (s *stubStore) Save(entries map[string]toolgate.CounterEntry) error {
+	s.data = make(map[string]toolgate.CounterEntry, len(entries))
+	for k, v := range entries {
+		s.data[k] = v
 	}
+	return nil
+}
+
+func newStubStore() *stubStore {
+	return &stubStore{data: make(map[string]toolgate.CounterEntry)}
 }
