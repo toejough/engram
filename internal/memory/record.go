@@ -38,8 +38,10 @@ type MemoryRecord struct {
 	Keywords        []string `toml:"keywords"`
 	Principle       string   `toml:"principle"`
 	AntiPattern     string   `toml:"anti_pattern"`
-	Rationale       string   `toml:"rationale"`
-	Confidence      string   `toml:"confidence"`
+	Rationale        string `toml:"rationale"`
+	ProjectSlug      string `toml:"project_slug,omitempty"`
+	Generalizability int    `toml:"generalizability,omitempty"`
+	Confidence       string `toml:"confidence"`
 	CreatedAt       string   `toml:"created_at"`
 	UpdatedAt       string   `toml:"updated_at"`
 

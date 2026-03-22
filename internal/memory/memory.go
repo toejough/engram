@@ -16,6 +16,7 @@ type CandidateLearning struct {
 	AntiPattern     string
 	Rationale       string
 	FilenameSummary string
+	Generalizability int
 }
 
 // ClassifiedMemory holds the output of the unified classifier (ARCH-2).
@@ -29,9 +30,10 @@ type ClassifiedMemory struct {
 	Keywords        []string
 	Principle       string
 	AntiPattern     string // tier-gated: required for A, optional for B, empty for C
-	Rationale       string
-	FilenameSummary string
-	CreatedAt       time.Time
+	Rationale        string
+	FilenameSummary  string
+	Generalizability int
+	CreatedAt        time.Time
 	UpdatedAt       time.Time
 }
 
@@ -46,8 +48,9 @@ func (cm *ClassifiedMemory) ToEnriched() *Enriched {
 		Principle:       cm.Principle,
 		AntiPattern:     cm.AntiPattern,
 		Rationale:       cm.Rationale,
-		FilenameSummary: cm.FilenameSummary,
-		Confidence:      cm.Tier,
+		FilenameSummary:  cm.FilenameSummary,
+		Generalizability: cm.Generalizability,
+		Confidence:       cm.Tier,
 		CreatedAt:       cm.CreatedAt,
 		UpdatedAt:       cm.UpdatedAt,
 	}
@@ -62,9 +65,10 @@ type Enriched struct {
 	Keywords        []string
 	Principle       string
 	AntiPattern     string
-	Rationale       string
-	FilenameSummary string
-	Confidence      string
+	Rationale        string
+	FilenameSummary  string
+	Generalizability int
+	Confidence       string
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
