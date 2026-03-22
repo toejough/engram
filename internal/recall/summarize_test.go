@@ -45,52 +45,6 @@ func TestExtractRelevant_ReturnsErrorOnCallerFailure(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("extracting relevant")))
 }
 
-func TestSummarize_CallsHaikuCallerWithCorrectPrompts(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	caller := &fakeHaikuCaller{result: "summary of work done"}
-	summarizer := recall.NewSummarizer(caller)
-
-	result, err := summarizer.Summarize(context.Background(), "transcript content here")
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(caller.called).To(BeTrue())
-	g.Expect(caller.systemPrompt).To(ContainSubstring("Summarize these session transcripts"))
-	g.Expect(caller.systemPrompt).To(ContainSubstring("No emoji"))
-	g.Expect(caller.userPrompt).To(Equal("transcript content here"))
-	g.Expect(result).To(Equal("summary of work done"))
-}
-
-func TestSummarize_NilCallerReturnsError(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	summarizer := recall.NewSummarizer(nil)
-
-	_, err := summarizer.Summarize(context.Background(), "content")
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestSummarize_ReturnsErrorOnCallerFailure(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	caller := &fakeHaikuCaller{err: errors.New("api timeout")}
-	summarizer := recall.NewSummarizer(caller)
-
-	_, err := summarizer.Summarize(context.Background(), "content")
-	g.Expect(err).To(MatchError(ContainSubstring("api timeout")))
-	g.Expect(err).To(MatchError(ContainSubstring("summarizing")))
-}
-
 // --- Fake implementations ---
 
 type fakeHaikuCaller struct {

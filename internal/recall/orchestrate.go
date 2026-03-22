@@ -46,8 +46,8 @@ func NewOrchestrator(
 }
 
 // Recall executes the recall pipeline.
-// If query is empty (mode A): find sessions, read+strip, summarize.
-// If query is non-empty (mode B): for each session, extract relevant content.
+// If query is empty (mode A): find sessions, read+strip, return raw content.
+// If query is non-empty (mode B): for each session, extract relevant content via LLM.
 func (o *Orchestrator) Recall(
 	ctx context.Context,
 	projectDir, query string,
@@ -69,7 +69,7 @@ func (o *Orchestrator) Recall(
 }
 
 func (o *Orchestrator) recallModeA(
-	ctx context.Context,
+	_ context.Context,
 	sessions []string,
 ) (*Result, error) {
 	var builder strings.Builder
@@ -91,19 +91,9 @@ func (o *Orchestrator) recallModeA(
 	}
 
 	accumulated := builder.String()
+	memories := o.surfaceMemories(accumulated)
 
-	if o.summarizer == nil {
-		return &Result{Summary: accumulated}, nil
-	}
-
-	summary, sumErr := o.summarizer.Summarize(ctx, accumulated)
-	if sumErr != nil {
-		return nil, fmt.Errorf("recalling: %w", sumErr)
-	}
-
-	memories := o.surfaceMemories(summary)
-
-	return &Result{Summary: summary, Memories: memories}, nil
+	return &Result{Summary: accumulated, Memories: memories}, nil
 }
 
 func (o *Orchestrator) recallModeB(
@@ -164,8 +154,7 @@ type Result struct {
 	Memories string `json:"memories,omitempty"`
 }
 
-// SummarizerI summarizes or extracts relevant content.
+// SummarizerI extracts relevant content from transcripts via LLM.
 type SummarizerI interface {
-	Summarize(ctx context.Context, content string) (string, error)
 	ExtractRelevant(ctx context.Context, content, query string) (string, error)
 }

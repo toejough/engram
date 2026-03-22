@@ -15,7 +15,7 @@ import (
 func TestOrchestrator_Recall_ModeA(t *testing.T) {
 	t.Parallel()
 
-	t.Run("finds reads summarizes and surfaces", func(t *testing.T) {
+	t.Run("returns raw stripped content without summarization", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -30,10 +30,9 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 				"/b.jsonl": 17,
 			},
 		}
-		summarizer := &fakeSummarizer{summarizeResult: "summary of sessions"}
 		surfacer := &fakeSurfacer{result: "relevant memories"}
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, surfacer)
+		orch := recall.NewOrchestrator(finder, reader, nil, surfacer)
 
 		result, err := orch.Recall(context.Background(), "/proj", "")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -42,9 +41,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("summary of sessions"))
+		g.Expect(result.Summary).To(Equal("session a contentsession b content"))
 		g.Expect(result.Memories).To(Equal("relevant memories"))
-		g.Expect(surfacer.query).To(Equal("summary of sessions"))
 	})
 
 	t.Run("no sessions found returns empty result", func(t *testing.T) {
@@ -65,7 +63,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 		g.Expect(result.Memories).To(BeEmpty())
 	})
 
-	t.Run("surfacer error still returns summary", func(t *testing.T) {
+	t.Run("surfacer error still returns content", func(t *testing.T) {
 		t.Parallel()
 		g := NewWithT(t)
 
@@ -74,10 +72,9 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			contents: map[string]string{"/a.jsonl": "content"},
 			sizes:    map[string]int{"/a.jsonl": 7},
 		}
-		summarizer := &fakeSummarizer{summarizeResult: "the summary"}
 		surfacer := &fakeSurfacer{err: errors.New("surfacer broke")}
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, surfacer)
+		orch := recall.NewOrchestrator(finder, reader, nil, surfacer)
 
 		result, err := orch.Recall(context.Background(), "/proj", "")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -86,7 +83,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("the summary"))
+		g.Expect(result.Summary).To(Equal("content"))
 		g.Expect(result.Memories).To(BeEmpty())
 	})
 
@@ -100,9 +97,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			sizes:    map[string]int{"/good.jsonl": 12},
 			errs:     map[string]error{"/bad.jsonl": errors.New("read failed")},
 		}
-		summarizer := &fakeSummarizer{summarizeResult: "summary"}
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
+		orch := recall.NewOrchestrator(finder, reader, nil, nil)
 
 		result, err := orch.Recall(context.Background(), "/proj", "")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -111,28 +107,7 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("summary"))
-	})
-
-	t.Run("summarize error propagates", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		finder := &fakeFinder{paths: []string{"/a.jsonl"}}
-		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "content"},
-			sizes:    map[string]int{"/a.jsonl": 7},
-		}
-		summarizer := &fakeSummarizer{summarizeErr: errors.New("llm down")}
-
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
-
-		_, err := orch.Recall(context.Background(), "/proj", "")
-		g.Expect(err).To(HaveOccurred())
-
-		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("recalling"))
-		}
+		g.Expect(result.Summary).To(Equal("good content"))
 	})
 
 	t.Run("budget exceeded stops reading sessions", func(t *testing.T) {
@@ -150,9 +125,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 				"/b.jsonl": 100,
 			},
 		}
-		summarizer := &fakeSummarizer{summarizeResult: "summary"}
 
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
+		orch := recall.NewOrchestrator(finder, reader, nil, nil)
 
 		result, err := orch.Recall(context.Background(), "/proj", "")
 		g.Expect(err).NotTo(HaveOccurred())
@@ -161,8 +135,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		// Only first session's content should be in the summary input.
-		g.Expect(result.Summary).To(Equal("summary"))
+		// Only first session's content should be returned.
+		g.Expect(result.Summary).To(Equal("big content"))
 	})
 
 	t.Run("finder error propagates", func(t *testing.T) {
@@ -189,30 +163,6 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			contents: map[string]string{"/a.jsonl": "content"},
 			sizes:    map[string]int{"/a.jsonl": 7},
 		}
-		summarizer := &fakeSummarizer{summarizeResult: "the summary"}
-
-		orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
-
-		result, err := orch.Recall(context.Background(), "/proj", "")
-		g.Expect(err).NotTo(HaveOccurred())
-
-		if err != nil {
-			return
-		}
-
-		g.Expect(result.Summary).To(Equal("the summary"))
-		g.Expect(result.Memories).To(BeEmpty())
-	})
-
-	t.Run("nil summarizer with sessions returns raw content", func(t *testing.T) {
-		t.Parallel()
-		g := NewWithT(t)
-
-		finder := &fakeFinder{paths: []string{"/a.jsonl"}}
-		reader := &fakeReader{
-			contents: map[string]string{"/a.jsonl": "raw content"},
-			sizes:    map[string]int{"/a.jsonl": 11},
-		}
 
 		orch := recall.NewOrchestrator(finder, reader, nil, nil)
 
@@ -223,7 +173,8 @@ func TestOrchestrator_Recall_ModeA(t *testing.T) {
 			return
 		}
 
-		g.Expect(result.Summary).To(Equal("raw content"))
+		g.Expect(result.Summary).To(Equal("content"))
+		g.Expect(result.Memories).To(BeEmpty())
 	})
 }
 
@@ -436,21 +387,15 @@ func (r *fakeReader) Read(path string, _ int) (string, int, error) {
 }
 
 type fakeSummarizer struct {
-	summarizeResult string
-	summarizeErr    error
-	extractResult   string
-	extractErr      error
-	extractCalls    int
+	extractResult string
+	extractErr    error
+	extractCalls  int
 }
 
 func (s *fakeSummarizer) ExtractRelevant(_ context.Context, _, _ string) (string, error) {
 	s.extractCalls++
 
 	return s.extractResult, s.extractErr
-}
-
-func (s *fakeSummarizer) Summarize(_ context.Context, _ string) (string, error) {
-	return s.summarizeResult, s.summarizeErr
 }
 
 type fakeSurfacer struct {
