@@ -10,6 +10,28 @@ import (
 	"engram/internal/transcript"
 )
 
+// TestReadRecent_AppliesStripFunc verifies that a StripFunc set on Reader is applied to lines.
+func TestReadRecent_AppliesStripFunc(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	content := "line1\nline2\nline3"
+	reader := transcript.New(fakeReadFile([]byte(content), nil))
+	reader.SetStrip(func(lines []string) []string {
+		return lines[:1] // keep only first line
+	})
+
+	result, err := reader.ReadRecent("/some/path", 2000)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).To(Equal("line1"))
+}
+
 // TestReadRecent_EmptyPath returns empty string.
 func TestReadRecent_EmptyPath(t *testing.T) {
 	t.Parallel()

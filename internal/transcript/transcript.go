@@ -1,6 +1,8 @@
 // Package transcript reads recent transcript context for the unified classifier (ARCH-3).
 package transcript
 
+import "strings"
+
 // FileReader is the interface for reading file contents.
 // Wire os.ReadFile in production (via cli.go).
 type FileReader func(name string) ([]byte, error)
@@ -8,6 +10,7 @@ type FileReader func(name string) ([]byte, error)
 // Reader reads recent transcript context from session transcript files.
 type Reader struct {
 	readFile FileReader
+	strip    StripFunc
 }
 
 // New creates a new transcript Reader with the given file reader.
@@ -28,10 +31,26 @@ func (r *Reader) ReadRecent(transcriptPath string, maxTokens int) (string, error
 		return "", nil //nolint:nilerr // non-fatal: transcript context is advisory
 	}
 
-	if len(content) <= maxTokens {
-		return string(content), nil
+	text := string(content)
+
+	if r.strip != nil {
+		lines := strings.Split(text, "\n")
+		stripped := r.strip(lines)
+		text = strings.Join(stripped, "\n")
+	}
+
+	if len(text) <= maxTokens {
+		return text, nil
 	}
 
 	// Take the tail (most recent portion)
-	return string(content[len(content)-maxTokens:]), nil
+	return text[len(text)-maxTokens:], nil
 }
+
+// SetStrip sets an optional function to clean transcript lines.
+func (r *Reader) SetStrip(fn StripFunc) {
+	r.strip = fn
+}
+
+// StripFunc transforms raw transcript lines into cleaned conversation text.
+type StripFunc func(lines []string) []string

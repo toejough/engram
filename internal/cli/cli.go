@@ -1085,6 +1085,7 @@ func runCorrect(
 
 	// Read transcript context if available (os.ReadFile wired at the edge)
 	reader := transcript.New(os.ReadFile)
+	reader.SetStrip(sessionctx.Strip)
 
 	transcriptCtx, _ := reader.ReadRecent(
 		*transcriptPath, maxTranscriptTok,
