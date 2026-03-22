@@ -37,7 +37,6 @@ func TestDES3_StaticHookScriptMatchesGenerated(t *testing.T) {
 	g.Expect(script).To(ContainSubstring(".transcript_path"))
 	g.Expect(script).To(ContainSubstring("CLAUDE_PLUGIN_ROOT"))
 	g.Expect(script).To(ContainSubstring("set -euo pipefail"))
-	g.Expect(script).To(ContainSubstring("ENGRAM_API_TOKEN"))
 }
 
 // TestT158_HooksJSONStructure verifies hooks.json has exactly one UserPromptSubmit
@@ -165,9 +164,10 @@ func TestT21_HooksJSONHasUserPromptSubmit(t *testing.T) {
 }
 
 // T-22: UserPromptSubmit hook script has platform-aware token retrieval
-// TestT22_UserPromptSubmitHookCrossPlatformToken verifies the static hook script at
-// hooks/user-prompt-submit.sh has platform-aware token retrieval (ARCH-6, DES-3).
-func TestT22_UserPromptSubmitHookCrossPlatformToken(t *testing.T) {
+// TestT22_UserPromptSubmitHookNoBashTokenSourcing verifies the hook no longer
+// contains Keychain token sourcing — token resolution moved to the Go binary
+// (internal/tokenresolver, #363).
+func TestT22_UserPromptSubmitHookNoBashTokenSourcing(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
@@ -184,13 +184,8 @@ func TestT22_UserPromptSubmitHookCrossPlatformToken(t *testing.T) {
 
 	script := string(content)
 
-	// Must check platform before attempting Keychain
-	g.Expect(script).To(ContainSubstring("uname"))
-	g.Expect(script).To(ContainSubstring("Darwin"))
-	// Must still have Keychain lookup for macOS
-	g.Expect(script).To(ContainSubstring("security find-generic-password"))
-	// Must export token regardless of source
-	g.Expect(script).To(ContainSubstring("export ENGRAM_API_TOKEN"))
+	g.Expect(script).NotTo(ContainSubstring("security find-generic-password"))
+	g.Expect(script).NotTo(ContainSubstring("export ENGRAM_API_TOKEN"))
 }
 
 // T-23: bin/ is in .gitignore
