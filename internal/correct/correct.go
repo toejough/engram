@@ -19,10 +19,11 @@ type Classifier interface {
 
 // Corrector orchestrates the three-stage Remember & Correct pipeline.
 type Corrector struct {
-	classifier Classifier
-	writer     MemoryWriter
-	renderer   Renderer
-	dataDir    string
+	classifier  Classifier
+	writer      MemoryWriter
+	renderer    Renderer
+	dataDir     string
+	projectSlug string
 }
 
 // New creates a Corrector wired with all three pipeline stages.
@@ -38,6 +39,11 @@ func New(
 		renderer:   renderer,
 		dataDir:    dataDir,
 	}
+}
+
+// SetProjectSlug sets the originating project slug for new memories.
+func (c *Corrector) SetProjectSlug(slug string) {
+	c.projectSlug = slug
 }
 
 // Run executes the correction pipeline for a single message.
@@ -62,6 +68,7 @@ func (c *Corrector) Run(
 	}
 
 	enriched := classified.ToEnriched()
+	enriched.ProjectSlug = c.projectSlug
 
 	filePath, err := c.writer.Write(enriched, c.dataDir)
 	if err != nil {

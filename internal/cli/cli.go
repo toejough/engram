@@ -148,6 +148,7 @@ func RunLearn(
 		"transcript-path", "", "path to session transcript",
 	)
 	sessionID := fs.String("session-id", "", "session identifier")
+	projectSlug := fs.String("project-slug", "", "originating project slug")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -180,6 +181,11 @@ func RunLearn(
 	learner := learn.New(
 		extractor, retriever, deduplicator, writer, *dataDir,
 	)
+
+	if *projectSlug != "" {
+		learner.SetProjectSlug(*projectSlug)
+	}
+
 	learner.SetCreationLogger(creationlog.NewLogWriter())
 
 	learner.SetRegisterMemory(func(filePath, _, content string, _ time.Time) error {
@@ -1066,6 +1072,7 @@ func runCorrect(
 	transcriptPath := fs.String(
 		"transcript-path", "", "path to session transcript",
 	)
+	projectSlug := fs.String("project-slug", "", "originating project slug")
 
 	parseErr := fs.Parse(args)
 	if parseErr != nil {
@@ -1089,6 +1096,11 @@ func runCorrect(
 	renderer := render.New()
 
 	corrector := correct.New(classifier, writer, renderer, *dataDir)
+
+	if *projectSlug != "" {
+		corrector.SetProjectSlug(*projectSlug)
+	}
+
 	ctx := context.Background()
 
 	output, err := corrector.Run(ctx, *message, transcriptCtx)

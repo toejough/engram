@@ -46,6 +46,7 @@ type Learner struct {
 	deduplicator   Deduplicator
 	writer         MemoryWriter
 	dataDir        string
+	projectSlug    string
 	creationLogger CreationLogger // optional: log creation events for deferred visibility
 	registerMemory func(filePath, title, content string, now time.Time) error
 	merger         MemoryMerger // optional: merge candidates with existing memories (UC-33)
@@ -148,6 +149,11 @@ func (l *Learner) Run(ctx context.Context, transcript string) (*Result, error) {
 		SkippedCount: skippedCount,
 		TierCounts:   tierCounts,
 	}, nil
+}
+
+// SetProjectSlug sets the originating project slug for new memories.
+func (l *Learner) SetProjectSlug(slug string) {
+	l.projectSlug = slug
 }
 
 // SetCreationLogger attaches an optional CreationLogger to the Learner.
@@ -338,18 +344,20 @@ func (l *Learner) writeCandidate(
 	now time.Time,
 ) (string, error) {
 	enriched := &memory.Enriched{
-		Title:           candidate.Title,
-		Content:         candidate.Content,
-		ObservationType: candidate.ObservationType,
-		Concepts:        candidate.Concepts,
-		Keywords:        candidate.Keywords,
-		Principle:       candidate.Principle,
-		AntiPattern:     candidate.AntiPattern,
-		Rationale:       candidate.Rationale,
-		FilenameSummary: candidate.FilenameSummary,
-		Confidence:      candidate.Tier,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		Title:            candidate.Title,
+		Content:          candidate.Content,
+		ObservationType:  candidate.ObservationType,
+		Concepts:         candidate.Concepts,
+		Keywords:         candidate.Keywords,
+		Principle:        candidate.Principle,
+		AntiPattern:      candidate.AntiPattern,
+		Rationale:        candidate.Rationale,
+		FilenameSummary:  candidate.FilenameSummary,
+		Confidence:       candidate.Tier,
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		ProjectSlug:      l.projectSlug,
+		Generalizability: candidate.Generalizability,
 	}
 
 	filePath, err := l.writer.Write(enriched, l.dataDir)

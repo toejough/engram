@@ -1005,6 +1005,56 @@ func TestGeneralizabilityGate_ZeroIsKept(t *testing.T) {
 	g.Expect(result.SkippedCount).To(Equal(0))
 }
 
+// TestSetProjectSlug_LearnerPassesSlugToEnriched verifies that SetProjectSlug wires
+// the project slug into the Enriched struct written by writeCandidate.
+func TestSetProjectSlug_LearnerPassesSlugToEnriched(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:             "A",
+		Title:            "Project slug test",
+		Content:          "some content",
+		FilenameSummary:  "project-slug-test",
+		Generalizability: 3,
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{surviving: []memory.CandidateLearning{candidate}}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"project-slug-test": "/tmp/memories/project-slug-test.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetProjectSlug("test-project")
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(writer.received).To(HaveLen(1))
+
+	if len(writer.received) == 0 {
+		return
+	}
+
+	g.Expect(writer.received[0].ProjectSlug).To(Equal("test-project"))
+	g.Expect(writer.received[0].Generalizability).To(Equal(3))
+}
+
 // Write error — pipeline returns error
 func TestWriteError_ReturnsError(t *testing.T) {
 	t.Parallel()

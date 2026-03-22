@@ -138,6 +138,48 @@ func TestT18_ZeroGeneralizabilityMemoryIsWritten(t *testing.T) {
 	g.Expect(writer.called).To(BeTrue())
 }
 
+// T-19: SetProjectSlug — Corrector passes project slug to written Enriched
+func TestT19_SetProjectSlug_CorrectorPassesSlugToEnriched(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:             "A",
+			Title:            "Project slug test",
+			Content:          "some content",
+			ObservationType:  "reminder",
+			Generalizability: 3,
+			CreatedAt:        time.Now(),
+			UpdatedAt:        time.Now(),
+		},
+	}
+
+	spyWriter := &spyWriter{path: "/tmp/memories/project-slug-test.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>ok</system-reminder>"}
+
+	corrector := correct.New(classifier, spyWriter, renderer, "/tmp")
+	corrector.SetProjectSlug("test-project")
+
+	result, err := corrector.Run(context.Background(), "some content", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeEmpty())
+	g.Expect(spyWriter.received).NotTo(BeNil())
+
+	if spyWriter.received == nil {
+		return
+	}
+
+	g.Expect(spyWriter.received.ProjectSlug).To(Equal("test-project"))
+	g.Expect(spyWriter.received.Generalizability).To(Equal(3))
+}
+
 // callRecord tracks which pipeline stages were called and in what order.
 type callRecord struct {
 	calls []string
@@ -204,4 +246,16 @@ func (f *fakeWriter) Write(
 	}
 
 	return f.path, f.err
+}
+
+// spyWriter captures the *memory.Enriched argument passed to Write.
+type spyWriter struct {
+	path     string
+	err      error
+	received *memory.Enriched
+}
+
+func (s *spyWriter) Write(mem *memory.Enriched, _ string) (string, error) {
+	s.received = mem
+	return s.path, s.err
 }
