@@ -119,9 +119,48 @@ func TestTranscriptReader_RespectsBudget(t *testing.T) {
 		return
 	}
 
-	// Should have stopped accumulating after exceeding budget.
-	g.Expect(bytesRead).To(BeNumerically(">=", tinyBudget))
+	// Should return less content than the full transcript.
+	g.Expect(bytesRead).To(BeNumerically(">", 0))
 	g.Expect(len(result)).To(BeNumerically("<", len(content)))
+
+	// Should contain the tail (most recent messages), not the head.
+	g.Expect(result).To(ContainSubstring("message 19"), "should contain last message")
+	g.Expect(result).NotTo(ContainSubstring("message 0"), "should not contain first message")
+}
+
+func TestTranscriptReader_ReturnsTailWhenBudgetLimited(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	// Create content where early messages are different from late messages.
+	lines := []string{
+		`{"type":"user","message":{"role":"user","content":"early message alpha"}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"early response beta"}}`,
+		`{"type":"user","message":{"role":"user","content":"middle message gamma"}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"middle response delta"}}`,
+		`{"type":"user","message":{"role":"user","content":"late message epsilon"}}`,
+		`{"type":"assistant","message":{"role":"assistant","content":"late response zeta"}}`,
+	}
+	content := strings.Join(lines, "\n") + "\n"
+
+	reader := recall.NewTranscriptReader(&fakeFileReader{
+		contents: map[string][]byte{"/transcript.jsonl": []byte(content)},
+	})
+
+	// Budget enough for ~2 lines but not all 6.
+	const limitedBudget = 80
+
+	result, _, err := reader.Read("/transcript.jsonl", limitedBudget)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Should contain the TAIL (most recent) content, not the head.
+	g.Expect(result).To(ContainSubstring("zeta"), "should contain latest content")
+	g.Expect(result).NotTo(ContainSubstring("alpha"), "should not contain earliest content")
 }
 
 // --- TranscriptReader tests ---

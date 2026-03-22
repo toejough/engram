@@ -83,21 +83,26 @@ func (r *TranscriptReader) Read(path string, budgetBytes int) (string, int, erro
 
 	stripped := sessionctx.Strip(nonEmpty)
 
-	// Accumulate lines respecting the byte budget.
-	var builder strings.Builder
-
+	// Accumulate lines from the tail (most recent content first),
+	// then reverse to chronological order.
 	bytesRead := 0
+	startIdx := len(stripped)
 
-	for _, line := range stripped {
-		lineLen := len(line) + 1 // +1 for newline separator
-		builder.WriteString(line)
-		builder.WriteByte('\n')
-
-		bytesRead += lineLen
-
-		if bytesRead >= budgetBytes {
+	for i := len(stripped) - 1; i >= 0; i-- {
+		lineLen := len(stripped[i]) + 1 // +1 for newline separator
+		if bytesRead+lineLen > budgetBytes && bytesRead > 0 {
 			break
 		}
+
+		startIdx = i
+		bytesRead += lineLen
+	}
+
+	var builder strings.Builder
+
+	for _, line := range stripped[startIdx:] {
+		builder.WriteString(line)
+		builder.WriteByte('\n')
 	}
 
 	return builder.String(), bytesRead, nil
