@@ -15,7 +15,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
@@ -32,7 +34,6 @@ import (
 	"engram/internal/maintain"
 	"engram/internal/memory"
 	"engram/internal/recall"
-
 	"engram/internal/render"
 	"engram/internal/retrieve"
 	reviewpkg "engram/internal/review"
@@ -40,6 +41,7 @@ import (
 	"engram/internal/surface"
 	"engram/internal/surfacinglog"
 	"engram/internal/tfidf"
+	"engram/internal/tokenresolver"
 	"engram/internal/tomlwriter"
 	"engram/internal/toolgate"
 	"engram/internal/track"
@@ -981,6 +983,16 @@ func newFileCounterStore(dataDir string) *fileCounterStore {
 	return &fileCounterStore{path: filepath.Join(dataDir, "tool-frecency.json")}
 }
 
+func newTokenResolver() *tokenresolver.Resolver {
+	return tokenresolver.New(
+		os.Getenv,
+		func(ctx context.Context, name string, args ...string) ([]byte, error) {
+			return exec.CommandContext(ctx, name, args...).Output() //nolint:gosec // args are hardcoded in caller
+		},
+		runtime.GOOS,
+	)
+}
+
 func renderReviewTable(
 	writer io.Writer,
 	classifications []reviewClassification,
@@ -1039,6 +1051,15 @@ func resolveSkillsDir() string {
 	return filepath.Join(pluginRoot, "skills")
 }
 
+// resolveToken returns the API token from the environment or macOS Keychain.
+// Resolver errors are swallowed (keychain unavailability is non-fatal), so
+// the error return is always nil and callers receive an empty string on failure.
+func resolveToken(ctx context.Context) string {
+	token, _ := newTokenResolver().Resolve(ctx) // error is always nil; keychain failures are swallowed
+
+	return token
+}
+
 // reviewQuadrant classifies a memory by surfacing frequency and effectiveness.
 func reviewQuadrant(surfacedCount int, eff *float64) string {
 	if eff == nil {
@@ -1091,7 +1112,10 @@ func runCorrect(
 		*transcriptPath, maxTranscriptTok,
 	)
 
-	token := os.Getenv("ENGRAM_API_TOKEN")
+	ctx := context.Background()
+
+	token := resolveToken(ctx)
+
 	classifier := classify.New(token, &http.Client{})
 	writer := tomlwriter.New()
 	renderer := render.New()
@@ -1101,8 +1125,6 @@ func runCorrect(
 	if *projectSlug != "" {
 		corrector.SetProjectSlug(*projectSlug)
 	}
-
-	ctx := context.Background()
 
 	output, err := corrector.Run(ctx, *message, transcriptCtx)
 	if err != nil {
@@ -1172,7 +1194,9 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 		EffData:   map[string]float64{},
 	}
 
-	token := os.Getenv("ENGRAM_API_TOKEN")
+	ctx := context.Background()
+
+	token := resolveToken(ctx)
 
 	var llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
 	if token != "" {
@@ -1184,8 +1208,6 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 		LLMCaller: llmCaller,
 	}
 
-	ctx := context.Background()
-
 	report, err := auditor.Run(ctx, *dataDir, *projectDir)
 	if err != nil {
 		return fmt.Errorf("instruct audit: %w", err)
@@ -1196,11 +1218,11 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 }
 
 func runLearn(args []string, stderr io.Writer, stdin io.Reader) error {
-	return RunLearn(args, os.Getenv("ENGRAM_API_TOKEN"), stderr, stdin, nil)
+	return RunLearn(args, resolveToken(context.Background()), stderr, stdin, nil)
 }
 
 func runMaintain(args []string, stdout io.Writer) error {
-	return RunMaintain(args, os.Getenv("ENGRAM_API_TOKEN"), stdout)
+	return RunMaintain(args, resolveToken(context.Background()), stdout)
 }
 
 // a JSON file and applies them with user confirmation (T-264, ARCH-66).
@@ -1312,7 +1334,9 @@ func runRecall(args []string, stdout io.Writer) error {
 	home := os.Getenv("HOME")
 	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
 
-	token := os.Getenv("ENGRAM_API_TOKEN")
+	ctx := context.Background()
+
+	token := resolveToken(ctx)
 
 	finder := recall.NewSessionFinder(&osDirLister{})
 	reader := recall.NewTranscriptReader(&osFileReader{})
@@ -1326,7 +1350,7 @@ func runRecall(args []string, stdout io.Writer) error {
 
 	orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
 
-	result, err := orch.Recall(context.Background(), projectDir, *query)
+	result, err := orch.Recall(ctx, projectDir, *query)
 	if err != nil {
 		return fmt.Errorf("recall: %w", err)
 	}

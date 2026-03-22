@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -44,7 +45,5 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 		"--data-dir", *dataDir,
 	}
 
-	token := os.Getenv("ENGRAM_API_TOKEN")
-
-	return RunLearn(learnArgs, token, stderr, stdin, nil)
+	return RunLearn(learnArgs, resolveToken(context.Background()), stderr, stdin, nil)
 }

@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -893,6 +894,31 @@ func TestRunInstructAudit_MissingFlags(t *testing.T) {
 	}
 }
 
+// RunLearnWithEmptyTokenEmitsErrorToStderr verifies the no-token early-return
+// path in RunLearn using direct injection (no env var, no keychain dependency).
+func TestRunLearnWithEmptyTokenEmitsErrorToStderr(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	dataDir := t.TempDir()
+
+	var stderr bytes.Buffer
+
+	err := cli.RunLearn([]string{
+		"--data-dir", dataDir,
+	}, "", &stderr, strings.NewReader("some transcript"), nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stderr.String()).To(ContainSubstring("session learning skipped"))
+	g.Expect(stderr.String()).To(ContainSubstring("no API token"))
+}
+
 // TestRun_ApplyProposalDispatch verifies "apply-proposal" branch is reached.
 func TestRun_ApplyProposalDispatch(t *testing.T) {
 	t.Parallel()
@@ -1457,6 +1483,12 @@ func TestT181_MaintainWithoutAPIKeySkipsLLMProposals(t *testing.T) {
 // T-18: correct subcommand with no API key returns error
 func TestT18_CorrectSubcommandWithoutAPIKeyReturnsError(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	// Skip on darwin: the token resolver falls back to the macOS Keychain, so
+	// clearing the env var alone does not guarantee "no token" on a dev machine.
+	if runtime.GOOS == "darwin" {
+		t.Skip("keychain fallback makes 'no token' untestable by env var alone on darwin")
+	}
+
 	g := NewGomegaWithT(t)
 
 	dataDir := filepath.Join(t.TempDir(), "data")
@@ -2205,6 +2237,12 @@ func TestT61_RenderLearnResult_WithLearnings(t *testing.T) {
 // T-62: learn without token emits error to stderr, returns nil (exit 0).
 func TestT62_LearnWithoutTokenEmitsErrorToStderr(t *testing.T) {
 	// Cannot use t.Parallel() — t.Setenv mutates process environment.
+	// Skip on darwin: the token resolver falls back to the macOS Keychain, so
+	// clearing the env var alone does not guarantee "no token" on a dev machine.
+	if runtime.GOOS == "darwin" {
+		t.Skip("keychain fallback makes 'no token' untestable by env var alone on darwin")
+	}
+
 	g := NewGomegaWithT(t)
 
 	t.Setenv("ENGRAM_API_TOKEN", "")
