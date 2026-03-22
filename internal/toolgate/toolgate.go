@@ -2,7 +2,10 @@
 // suppressing repetitive suggestions that have low impact.
 package toolgate
 
-import "strings"
+import (
+	"math"
+	"strings"
+)
 
 // CommandKey extracts a stable identity from a bash command string.
 // Strips leading VAR=val env assignments, takes first two tokens,
@@ -32,4 +35,11 @@ func CommandKey(cmd string) string {
 	}
 
 	return fields[0] + " " + fields[1]
+}
+
+// SurfaceProbability computes the probability of surfacing memories for a
+// command that has been called count times. Uses smooth logarithmic decay:
+// P = 1 / (1 + ln(1 + count)).
+func SurfaceProbability(count int) float64 {
+	return 1.0 / (1.0 + math.Log(1.0+float64(count)))
 }
