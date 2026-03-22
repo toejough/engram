@@ -1355,8 +1355,19 @@ func runRecall(args []string, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	//nolint:wrapcheck // thin JSON encoding at CLI boundary
-	return json.NewEncoder(stdout).Encode(result)
+	_, writeErr := fmt.Fprint(stdout, result.Summary)
+	if writeErr != nil {
+		return fmt.Errorf("recall: writing summary: %w", writeErr)
+	}
+
+	if result.Memories != "" {
+		_, writeErr = fmt.Fprint(stdout, "\n=== MEMORIES ===\n", result.Memories)
+		if writeErr != nil {
+			return fmt.Errorf("recall: writing memories: %w", writeErr)
+		}
+	}
+
+	return nil
 }
 
 //nolint:funlen // wired with flags, cross-ref checker, and transcript window

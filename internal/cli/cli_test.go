@@ -723,7 +723,7 @@ func TestOsDirLister_ListJSONL(t *testing.T) {
 
 // TestRecallIntegrationSummaryMode verifies the end-to-end recall pipeline
 // through the CLI: transcript discovery, reading, Haiku summarization, and
-// JSON output.
+// plain text output.
 //
 // This test mutates cli.AnthropicAPIURL and uses t.Setenv, so it must not
 // use t.Parallel().
@@ -742,8 +742,10 @@ func TestRecallIntegrationSummaryMode(t *testing.T) {
 	transcriptPath := filepath.Join(projectDir, "session-abc.jsonl")
 	g.Expect(os.WriteFile(
 		transcriptPath,
-		[]byte(`{"role":"user","content":"help with recall"}`+"\n"+
-			`{"role":"assistant","content":"sure, working on it"}`+"\n"),
+		[]byte(
+			`{"type":"user","message":{"role":"user","content":"help with recall"}}`+"\n"+
+				`{"type":"assistant","message":{"role":"assistant","content":"sure, working on it"}}`+"\n",
+		),
 		0o644,
 	)).To(Succeed())
 
@@ -783,7 +785,81 @@ func TestRecallIntegrationSummaryMode(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring("summary"))
+	output := stdout.String()
+	// Plain text output: summary content directly (mode A = raw transcript), no JSON wrapper.
+	g.Expect(output).To(ContainSubstring("help with recall"))
+	g.Expect(output).NotTo(ContainSubstring(`"summary"`))
+}
+
+// TestRecallOutputWithMemories verifies that when memories are present,
+// a separator is printed between summary and memories.
+//
+// This test mutates cli.AnthropicAPIURL and uses t.Setenv, so it must not
+// use t.Parallel().
+func TestRecallOutputWithMemories(t *testing.T) {
+	g := NewWithT(t)
+
+	fakeHome := t.TempDir()
+	t.Setenv("HOME", fakeHome)
+
+	slug := "mem-project"
+	projectDir := filepath.Join(fakeHome, ".claude", "projects", slug)
+	g.Expect(os.MkdirAll(projectDir, 0o750)).To(Succeed())
+
+	transcriptPath := filepath.Join(projectDir, "session-xyz.jsonl")
+	g.Expect(os.WriteFile(
+		transcriptPath,
+		[]byte(`{"type":"user","message":{"role":"user","content":"test"}}`+"\n"),
+		0o644,
+	)).To(Succeed())
+
+	server := httptest.NewServer(http.HandlerFunc(
+		func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(
+				`{"content":[{"type":"text","text":"summary text"}]}`,
+			))
+		},
+	))
+	defer server.Close()
+
+	original := cli.AnthropicAPIURL
+	cli.AnthropicAPIURL = server.URL
+
+	defer func() { cli.AnthropicAPIURL = original }()
+
+	t.Setenv("ENGRAM_API_TOKEN", "fake-token")
+
+	dataDir := t.TempDir()
+
+	// Write a memory file so the orchestrator finds memories.
+	memDir := filepath.Join(dataDir, "memories")
+	g.Expect(os.MkdirAll(memDir, 0o750)).To(Succeed())
+	g.Expect(os.WriteFile(
+		filepath.Join(memDir, "test.toml"),
+		[]byte("[[memories]]\ncontent = \"remember this\"\n"),
+		0o644,
+	)).To(Succeed())
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--project-slug", slug,
+		},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	output := stdout.String()
+	// Should not contain JSON
+	g.Expect(output).NotTo(ContainSubstring("{"))
 }
 
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
@@ -991,7 +1067,8 @@ func TestRun_RecallEmptyProject(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring(`"summary"`))
+	// Empty project: no sessions, so output is empty (no JSON wrapper).
+	g.Expect(stdout.String()).To(BeEmpty())
 }
 
 func TestRun_RecallMissingFlags(t *testing.T) {
@@ -1099,7 +1176,8 @@ func TestRun_RecallWithSessions(t *testing.T) {
 		return
 	}
 
-	g.Expect(stdout.String()).To(ContainSubstring(`"summary"`))
+	// Session has type "human" which Strip drops, so output is empty plain text.
+	g.Expect(stdout.String()).To(BeEmpty())
 }
 
 func TestRun_UnknownCommand(t *testing.T) {
