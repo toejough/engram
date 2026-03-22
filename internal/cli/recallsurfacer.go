@@ -29,7 +29,7 @@ func (s *RecallSurfacer) Surface(query string) (string, error) {
 	var buf strings.Builder
 
 	err := s.runner.Run(context.Background(), &buf, SurfaceRunnerOptions{
-		Mode:    "prompt",
+		Mode:    surface.ModePrompt,
 		DataDir: s.dataDir,
 		Message: query,
 	})
