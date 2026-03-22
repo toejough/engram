@@ -439,6 +439,46 @@ func TestWriteAtomicRenameError(t *testing.T) {
 	}
 }
 
+// TestWrite_ProjectSlugAndGeneralizabilityWrittenToTOML verifies that ProjectSlug and
+// Generalizability on Enriched are persisted to the TOML file.
+func TestWrite_ProjectSlugAndGeneralizabilityWrittenToTOML(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+	dataDir := t.TempDir()
+
+	mem := &memory.Enriched{
+		Title:            "project slug test memory",
+		Content:          "test content",
+		FilenameSummary:  "project-slug-generalizability-test",
+		ProjectSlug:      "-Users-joe-repos-foo",
+		Generalizability: 4,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+
+	writer := tomlwriter.New()
+
+	path, err := writer.Write(mem, dataDir)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var parsed memory.MemoryRecord
+
+	_, decodeErr := toml.DecodeFile(path, &parsed)
+	g.Expect(decodeErr).NotTo(HaveOccurred())
+
+	if decodeErr != nil {
+		return
+	}
+
+	g.Expect(parsed.ProjectSlug).To(Equal("-Users-joe-repos-foo"))
+	g.Expect(parsed.Generalizability).To(Equal(4))
+}
+
 func TestWrite_IncludesTrackingFieldKeys(t *testing.T) {
 	t.Parallel()
 

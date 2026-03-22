@@ -58,19 +58,20 @@ func (cm *ClassifiedMemory) ToEnriched() *Enriched {
 
 // Enriched holds all structured fields of an enriched memory.
 type Enriched struct {
-	Title           string
-	Content         string
-	ObservationType string
-	Concepts        []string
-	Keywords        []string
-	Principle       string
-	AntiPattern     string
+	Title            string
+	Content          string
+	ObservationType  string
+	Concepts         []string
+	Keywords         []string
+	Principle        string
+	AntiPattern      string
 	Rationale        string
 	FilenameSummary  string
 	Generalizability int
+	ProjectSlug      string
 	Confidence       string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // PatternMatch holds the result of pattern matching against a user message.

@@ -82,9 +82,11 @@ func (w *Writer) Write(mem *memory.Enriched, dataDir string) (string, error) {
 		Principle:       mem.Principle,
 		AntiPattern:     mem.AntiPattern,
 		Rationale:       mem.Rationale,
-		Confidence:      mem.Confidence,
-		CreatedAt:       mem.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:       mem.UpdatedAt.UTC().Format(time.RFC3339),
+		Confidence:       mem.Confidence,
+		CreatedAt:        mem.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:        mem.UpdatedAt.UTC().Format(time.RFC3339),
+		ProjectSlug:      mem.ProjectSlug,
+		Generalizability: mem.Generalizability,
 	}
 
 	writeErr := w.writeAtomic(memoriesDir, finalPath, record)
