@@ -15,7 +15,9 @@ import (
 // Exported variables.
 var (
 	ExportBuildEscalationMemories = buildEscalationMemories
+	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportCallAnthropicAPI        = callAnthropicAPI
+	ExportRecordSurfacing         = recordSurfacing
 	ExportResolveSkillsDir        = resolveSkillsDir
 	ExportTruncateTitle           = truncateTitle
 )

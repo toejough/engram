@@ -4,12 +4,80 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"engram/internal/cli"
 
 	. "github.com/onsi/gomega"
 )
+
+func TestBuildRecallSurfacer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns nil when memories dir missing", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		dataDir := t.TempDir() // no memories subdirectory
+		surfacer, err := cli.ExportBuildRecallSurfacer(context.Background(), dataDir)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(surfacer).To(BeNil())
+	})
+
+	t.Run("returns error for non-directory data path", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		// Create a file where memories dir would be, causing a non-ErrNotExist error.
+		dataDir := t.TempDir()
+		memoriesPath := filepath.Join(dataDir, "memories")
+		writeErr := os.WriteFile(memoriesPath, []byte("not a dir"), 0o600)
+		g.Expect(writeErr).NotTo(HaveOccurred())
+
+		if writeErr != nil {
+			return
+		}
+
+		surfacer, err := cli.ExportBuildRecallSurfacer(context.Background(), dataDir)
+		g.Expect(err).To(HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(ContainSubstring("listing memories"))
+		}
+
+		g.Expect(surfacer).To(BeNil())
+	})
+
+	t.Run("returns surfacer when memories dir exists", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		dataDir := t.TempDir()
+		memoriesDir := filepath.Join(dataDir, "memories")
+		mkErr := os.MkdirAll(memoriesDir, 0o750)
+		g.Expect(mkErr).NotTo(HaveOccurred())
+
+		if mkErr != nil {
+			return
+		}
+
+		surfacer, err := cli.ExportBuildRecallSurfacer(context.Background(), dataDir)
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(surfacer).NotTo(BeNil())
+	})
+}
 
 func TestRecallSurfacer(t *testing.T) {
 	t.Parallel()
@@ -70,6 +138,49 @@ func TestRecallSurfacer(t *testing.T) {
 			g.Expect(err.Error()).To(ContainSubstring("surface failed"))
 		}
 	})
+}
+
+func TestRecordSurfacing(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memPath := filepath.Join(dataDir, "test-memory.toml")
+
+	initialContent := `title = "test memory"
+content = "some content"
+observation_type = "preference"
+concepts = ["testing"]
+keywords = ["test"]
+confidence = "high"
+created_at = "2025-01-01T00:00:00Z"
+updated_at = "2025-01-01T00:00:00Z"
+surfaced_count = 0
+`
+	writeErr := os.WriteFile(memPath, []byte(initialContent), 0o600)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	err := cli.ExportRecordSurfacing(memPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	updated, readErr := os.ReadFile(memPath)
+	g.Expect(readErr).NotTo(HaveOccurred())
+
+	if readErr != nil {
+		return
+	}
+
+	content := string(updated)
+	g.Expect(content).To(ContainSubstring("surfaced_count = 1"))
+	g.Expect(content).To(ContainSubstring("last_surfaced_at"))
 }
 
 type fakeSurfaceRunner struct {

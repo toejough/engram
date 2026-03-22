@@ -810,6 +810,34 @@ func buildMemoryMapFromSlice(memories []*memory.Stored) map[string]*memory.Store
 	return memMap
 }
 
+// buildRecallSurfacer creates a memory surfacer for the recall pipeline.
+// Returns nil surfacer (not an error) when the memories directory does not exist.
+func buildRecallSurfacer(ctx context.Context, dataDir string) (recall.MemorySurfacer, error) {
+	retriever := retrieve.New()
+
+	allMemories, memErr := retriever.ListMemories(ctx, dataDir)
+	if memErr != nil {
+		if errors.Is(memErr, os.ErrNotExist) {
+			return nil, nil //nolint:nilnil // nil surfacer is valid when no memories exist
+		}
+
+		return nil, fmt.Errorf("listing memories: %w", memErr)
+	}
+
+	effAdapter := &effectivenessAdapter{stats: effectiveness.FromMemories(allMemories)}
+	surfacerOpts := []surface.SurfacerOption{
+		surface.WithEffectiveness(effAdapter),
+		surface.WithSurfacingRecorder(recordSurfacing),
+	}
+
+	realSurfacer := surface.New(retriever, surfacerOpts...)
+
+	return NewRecallSurfacer(
+		&surfaceRunnerAdapter{surfacer: realSurfacer},
+		dataDir,
+	), nil
+}
+
 // buildTrackingFromMemories builds a path→TrackingData map from a pre-loaded slice.
 func buildTrackingFromMemories(memories []*memory.Stored) map[string]reviewpkg.TrackingData {
 	tracking := make(map[string]reviewpkg.TrackingData, len(memories))
@@ -991,6 +1019,14 @@ func newTokenResolver() *tokenresolver.Resolver {
 		},
 		runtime.GOOS,
 	)
+}
+
+// recordSurfacing increments the surfaced count and timestamp for a memory file.
+func recordSurfacing(path string) error {
+	return memory.ReadModifyWrite(path, func(record *memory.MemoryRecord) {
+		record.SurfacedCount++
+		record.LastSurfacedAt = time.Now().UTC().Format(time.RFC3339)
+	})
 }
 
 func renderReviewTable(
@@ -1348,7 +1384,12 @@ func runRecall(args []string, stdout io.Writer) error {
 		})
 	}
 
-	orch := recall.NewOrchestrator(finder, reader, summarizer, nil)
+	memorySurfacer, surfErr := buildRecallSurfacer(ctx, *dataDir)
+	if surfErr != nil {
+		return fmt.Errorf("recall: %w", surfErr)
+	}
+
+	orch := recall.NewOrchestrator(finder, reader, summarizer, memorySurfacer)
 
 	result, err := orch.Recall(ctx, projectDir, *query)
 	if err != nil {

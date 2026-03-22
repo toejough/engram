@@ -1109,6 +1109,50 @@ func TestRun_RecallMissingFlags(t *testing.T) {
 	})
 }
 
+func TestRun_RecallSurfacerBuildError(t *testing.T) {
+	// Not parallel: uses t.Setenv to override HOME.
+	g := NewGomegaWithT(t)
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	projDir := filepath.Join(homeDir, ".claude", "projects", "testproj")
+
+	mkErr := os.MkdirAll(projDir, 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	if mkErr != nil {
+		return
+	}
+
+	// Create a file where the memories directory should be, triggering a non-ErrNotExist error.
+	dataDir := t.TempDir()
+	memoriesPath := filepath.Join(dataDir, "memories")
+	writeErr := os.WriteFile(memoriesPath, []byte("not a dir"), 0o600)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err := cli.Run(
+		[]string{
+			"engram", "recall",
+			"--data-dir", dataDir,
+			"--project-slug", "testproj",
+		},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).To(HaveOccurred())
+
+	if err != nil {
+		g.Expect(err.Error()).To(ContainSubstring("listing memories"))
+	}
+}
+
 func TestRun_RecallWithSessions(t *testing.T) {
 	// Not parallel: uses t.Setenv to override HOME.
 	g := NewGomegaWithT(t)
