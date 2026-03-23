@@ -111,8 +111,17 @@ type RefinementContext struct {
 Three methods, one per intervention point:
 
 - `BeforeStore(ctx, candidate) → (Action, error)` — extract pipeline, before writing new memory
-- `OnIrrelevant(ctx, memory) → (Action, error)` — feedback pipeline, after recording irrelevant mark
+- `OnIrrelevant(ctx, input OnIrrelevantInput) → (Action, error)` — feedback pipeline, after recording irrelevant mark. `OnIrrelevantInput` carries the memory plus surfacing context (query, tool name/input) for `RefinementContext` population.
 - `BeforeRemove(ctx, memory) → (Action, error)` — maintain/decay pipeline, before removal proposal
+
+```go
+type OnIrrelevantInput struct {
+    Memory         *memory.Stored
+    SurfacingQuery string // best-effort; empty if not provided
+    ToolName       string // best-effort; empty if not provided
+    ToolInput      string // best-effort; empty if not provided
+}
+```
 
 ## Clustering Algorithm
 
@@ -136,9 +145,13 @@ Prompt:
 
 ## Principle Extraction & Memory Creation
 
-When a cluster is confirmed, Haiku creates the generalized memory:
+When a cluster is confirmed, the `Extractor.ExtractPrinciple` method creates the generalized memory. This is called after `Confirmer.ConfirmClusters` returns and before field construction. The extractor receives the full `ConfirmedCluster` (members + principle summary) and produces a complete `MemoryRecord`.
+
+The Haiku implementation of `Extractor` uses a prompt like:
 
 > "These N memories all express the same underlying principle. Create a single generalized memory that captures the principle without project-specific details. The memory should be useful to any developer in any project. Return: title, principle, anti_pattern, content, keywords, concepts, generalizability (1-5)."
+
+The consolidator then applies field construction rules (counter transfer, confidence, enforcement level) on top of the extractor's output.
 
 ### Field Construction
 
