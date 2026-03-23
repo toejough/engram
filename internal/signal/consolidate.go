@@ -378,12 +378,22 @@ type TextSimilarityScorer interface {
 	ClusterConfidence(texts []string) float64
 }
 
+// WithArchiver sets the archiver for consolidated memory originals.
+func WithArchiver(a Archiver) ConsolidatorOption {
+	return func(c *Consolidator) { c.archiver = a }
+}
+
 // WithBackupWriter sets the backup writer and backup directory (REQ-135).
 func WithBackupWriter(w BackupWriter, backupDir string) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.backupWriter = w
 		c.backupDir = backupDir
 	}
+}
+
+// WithConfirmer sets the LLM cluster confirmer for semantic clustering.
+func WithConfirmer(cf Confirmer) ConsolidatorOption {
+	return func(c *Consolidator) { c.confirmer = cf }
 }
 
 // WithEffectiveness sets the effectiveness reader.
@@ -398,6 +408,11 @@ func WithEntryRemover(fn func(path string) error) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.entryRemover = fn
 	}
+}
+
+// WithExtractor sets the LLM principle extractor for semantic clustering.
+func WithExtractor(e Extractor) ConsolidatorOption {
+	return func(c *Consolidator) { c.extractor = e }
 }
 
 // WithFileDeleter sets the file deleter for absorbed memories (REQ-136).
@@ -442,31 +457,16 @@ func WithPrincipleSynthesizer(s PrincipleSynthesizer) ConsolidatorOption {
 	}
 }
 
-// WithStderr sets the stderr writer for consolidation feedback (DES-48).
-func WithStderr(w io.Writer) ConsolidatorOption {
-	return func(c *Consolidator) {
-		c.stderr = w
-	}
-}
-
 // WithScorer sets the BM25 candidate scorer for semantic clustering.
 func WithScorer(s Scorer) ConsolidatorOption {
 	return func(c *Consolidator) { c.scorer = s }
 }
 
-// WithConfirmer sets the LLM cluster confirmer for semantic clustering.
-func WithConfirmer(cf Confirmer) ConsolidatorOption {
-	return func(c *Consolidator) { c.confirmer = cf }
-}
-
-// WithExtractor sets the LLM principle extractor for semantic clustering.
-func WithExtractor(e Extractor) ConsolidatorOption {
-	return func(c *Consolidator) { c.extractor = e }
-}
-
-// WithArchiver sets the archiver for consolidated memory originals.
-func WithArchiver(a Archiver) ConsolidatorOption {
-	return func(c *Consolidator) { c.archiver = a }
+// WithStderr sets the stderr writer for consolidation feedback (DES-48).
+func WithStderr(w io.Writer) ConsolidatorOption {
+	return func(c *Consolidator) {
+		c.stderr = w
+	}
 }
 
 // WithTextSimilarityScorer sets the TF-IDF similarity scorer (ARCH-82, REQ-140).
