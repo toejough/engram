@@ -6,6 +6,14 @@ import (
 	"engram/internal/memory"
 )
 
+// ConsolidateClusterForTest exposes consolidateCluster for blackbox tests.
+func (c *Consolidator) ConsolidateClusterForTest(
+	ctx context.Context,
+	cluster *ConfirmedCluster,
+) (Action, error) {
+	return c.consolidateCluster(ctx, cluster)
+}
+
 // FindClusterForTest exposes findCluster for blackbox tests.
 func (c *Consolidator) FindClusterForTest(
 	ctx context.Context,

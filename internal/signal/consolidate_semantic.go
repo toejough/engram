@@ -2,10 +2,82 @@ package signal
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sort"
+	"time"
 
 	"engram/internal/memory"
 )
+
+// Exported variables.
+var (
+	// ErrNilExtractor is returned when consolidateCluster is called without an extractor.
+	ErrNilExtractor = errors.New("consolidating cluster: extractor is nil")
+)
+
+// consolidateCluster executes consolidation for a confirmed cluster.
+// Shared by BeforeStore, OnIrrelevant, and BeforeRemove.
+func (c *Consolidator) consolidateCluster(
+	ctx context.Context,
+	cluster *ConfirmedCluster,
+) (Action, error) {
+	if c.extractor == nil {
+		return Action{}, ErrNilExtractor
+	}
+
+	// Check if any member is already consolidated (has Absorbed records).
+	existing := findExistingConsolidated(cluster.Members)
+
+	consolidated, err := c.extractor.ExtractPrinciple(ctx, *cluster)
+	if err != nil {
+		return Action{}, fmt.Errorf("consolidating cluster: %w", err)
+	}
+
+	// Determine which members to transfer counters from and archive.
+	// If updating an existing consolidated memory, only transfer from non-existing members.
+	originals := cluster.Members
+	if existing != nil {
+		originals = excludeExisting(cluster.Members, existing)
+		// Copy existing absorbed records into the new consolidated memory.
+		consolidated.Absorbed = append(consolidated.Absorbed, existing.Absorbed...)
+	}
+
+	TransferFields(consolidated, originals, time.Now())
+
+	// Archive originals (skip the existing consolidated if updating).
+	archived := make([]string, 0, len(originals))
+
+	for _, orig := range originals {
+		if c.archiver != nil {
+			archErr := c.archiver.Archive(orig.SourcePath)
+			if archErr != nil {
+				c.logStderrf("[engram] archive failed for %q: %v\n", orig.Title, archErr)
+			}
+		}
+
+		archived = append(archived, orig.Title)
+
+		// Rewrite graph links.
+		if c.linkRecomputer != nil {
+			linkErr := c.linkRecomputer.RecomputeAfterMerge(
+				consolidated.SourcePath, orig.SourcePath,
+			)
+			if linkErr != nil {
+				c.logStderrf(
+					"[engram] link recompute failed for %q: %v\n",
+					orig.SourcePath, linkErr,
+				)
+			}
+		}
+	}
+
+	return Action{
+		Type:            Consolidated,
+		ConsolidatedMem: consolidated,
+		Archived:        archived,
+	}, nil
+}
 
 // findCluster attempts to find a semantic cluster for the given memory.
 // Returns nil if no cluster is found or if the pipeline is unavailable.
@@ -46,3 +118,31 @@ func (c *Consolidator) findCluster(
 const (
 	minSemanticClusterSize = 3
 )
+
+// excludeExisting returns members that are NOT the existing consolidated memory.
+func excludeExisting(
+	members []*memory.MemoryRecord,
+	existing *memory.MemoryRecord,
+) []*memory.MemoryRecord {
+	result := make([]*memory.MemoryRecord, 0, len(members)-1)
+
+	for _, mem := range members {
+		if mem != existing {
+			result = append(result, mem)
+		}
+	}
+
+	return result
+}
+
+// findExistingConsolidated returns the first member that is already
+// a consolidated memory (non-empty Absorbed), or nil.
+func findExistingConsolidated(members []*memory.MemoryRecord) *memory.MemoryRecord {
+	for _, mem := range members {
+		if len(mem.Absorbed) > 0 {
+			return mem
+		}
+	}
+
+	return nil
+}
