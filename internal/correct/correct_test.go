@@ -2,6 +2,7 @@ package correct_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +11,235 @@ import (
 	"engram/internal/correct"
 	"engram/internal/memory"
 )
+
+// TestConsolidator_BeforeStoreError_FallsThrough verifies that when BeforeStore
+// returns an error, the memory is written normally (fallthrough).
+func TestConsolidator_BeforeStoreError_FallsThrough(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Error fallthrough",
+			Content:         "content",
+			ObservationType: "reminder",
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	spyW := &spyWriter{path: "/tmp/memories/fallthrough.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>ok</system-reminder>"}
+	cons := &fakeConsolidator{
+		action: correct.ConsolidationAction{Type: correct.Consolidated},
+		err:    errors.New("consolidation failed"),
+	}
+
+	corrector := correct.New(classifier, spyW, renderer, "/tmp")
+	corrector.SetConsolidator(cons)
+
+	result, err := corrector.Run(context.Background(), "content", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeEmpty())
+	g.Expect(spyW.received).NotTo(BeNil())
+
+	if spyW.received == nil {
+		return
+	}
+
+	g.Expect(spyW.received.Title).To(Equal("Error fallthrough"))
+}
+
+// TestConsolidator_Consolidated_WriteError_ReturnsError verifies that a write
+// error during consolidated memory storage propagates correctly.
+func TestConsolidator_Consolidated_WriteError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Will fail write",
+			Content:         "content",
+			ObservationType: "reminder",
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	failWriter := &fakeWriter{err: errors.New("disk full")}
+	renderer := &fakeRenderer{output: "unused"}
+	cons := &fakeConsolidator{
+		action: correct.ConsolidationAction{
+			Type: correct.Consolidated,
+			ConsolidatedMem: &memory.MemoryRecord{
+				Title:   "Merged",
+				Content: "merged content",
+			},
+		},
+	}
+
+	corrector := correct.New(classifier, failWriter, renderer, "/tmp")
+	corrector.SetConsolidator(cons)
+
+	result, err := corrector.Run(context.Background(), "content", "")
+
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(err.Error()).To(ContainSubstring("write consolidated"))
+	g.Expect(result).To(BeEmpty())
+}
+
+// TestConsolidator_Consolidated_WritesConsolidatedMemory verifies that
+// when BeforeStore returns Consolidated, the consolidated memory is written.
+func TestConsolidator_Consolidated_WritesConsolidatedMemory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Original title",
+			Content:         "original content",
+			ObservationType: "reminder",
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	spyW := &spyWriter{path: "/tmp/memories/consolidated.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>consolidated</system-reminder>"}
+	cons := &fakeConsolidator{
+		action: correct.ConsolidationAction{
+			Type: correct.Consolidated,
+			ConsolidatedMem: &memory.MemoryRecord{
+				Title:     "Merged principle",
+				Content:   "generalized content",
+				Keywords:  []string{"merged"},
+				Concepts:  []string{"consolidation"},
+				Principle: "Always consolidate",
+			},
+		},
+	}
+
+	corrector := correct.New(classifier, spyW, renderer, "/tmp")
+	corrector.SetConsolidator(cons)
+	corrector.SetProjectSlug("test-proj")
+
+	result, err := corrector.Run(context.Background(), "original content", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(cons.called).To(BeTrue())
+	g.Expect(result).To(ContainSubstring("consolidated"))
+	g.Expect(spyW.received).NotTo(BeNil())
+
+	if spyW.received == nil {
+		return
+	}
+
+	g.Expect(spyW.received.Title).To(Equal("Merged principle"))
+	g.Expect(spyW.received.Content).To(Equal("generalized content"))
+	g.Expect(spyW.received.ProjectSlug).To(Equal("test-proj"))
+	g.Expect(spyW.received.Keywords).To(Equal([]string{"merged"}))
+	g.Expect(spyW.received.Concepts).To(Equal([]string{"consolidation"}))
+	g.Expect(spyW.received.Principle).To(Equal("Always consolidate"))
+}
+
+// TestConsolidator_Nil_ExistingBehavior verifies normal write when no consolidator is set.
+func TestConsolidator_Nil_ExistingBehavior(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "Normal memory",
+			Content:         "some content",
+			ObservationType: "reminder",
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	spyW := &spyWriter{path: "/tmp/memories/normal.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>ok</system-reminder>"}
+
+	corrector := correct.New(classifier, spyW, renderer, "/tmp")
+	// No SetConsolidator call — consolidator is nil.
+
+	result, err := corrector.Run(context.Background(), "some content", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeEmpty())
+	g.Expect(spyW.received).NotTo(BeNil())
+
+	if spyW.received == nil {
+		return
+	}
+
+	g.Expect(spyW.received.Title).To(Equal("Normal memory"))
+}
+
+// TestConsolidator_StoreAsIs_WritesNormally verifies normal write
+// when BeforeStore returns StoreAsIs.
+func TestConsolidator_StoreAsIs_WritesNormally(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	classifier := &fakeClassifier{
+		result: &memory.ClassifiedMemory{
+			Tier:            "A",
+			Title:           "No cluster memory",
+			Content:         "unique content",
+			ObservationType: "reminder",
+			CreatedAt:       time.Now(),
+			UpdatedAt:       time.Now(),
+		},
+	}
+
+	spyW := &spyWriter{path: "/tmp/memories/no-cluster.toml"}
+	renderer := &fakeRenderer{output: "<system-reminder>ok</system-reminder>"}
+	cons := &fakeConsolidator{
+		action: correct.ConsolidationAction{Type: correct.StoreAsIs},
+	}
+
+	corrector := correct.New(classifier, spyW, renderer, "/tmp")
+	corrector.SetConsolidator(cons)
+
+	result, err := corrector.Run(context.Background(), "unique content", "")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(cons.called).To(BeTrue())
+	g.Expect(result).NotTo(BeEmpty())
+	g.Expect(spyW.received).NotTo(BeNil())
+
+	if spyW.received == nil {
+		return
+	}
+
+	g.Expect(spyW.received.Title).To(Equal("No cluster memory"))
+}
 
 // T-15: Full pipeline — classify → write → render
 func TestT15_FullPipelineClassifyWriteRender(t *testing.T) {
@@ -205,6 +435,22 @@ func (f *fakeClassifier) Classify(
 	}
 
 	return f.result, f.err
+}
+
+// fakeConsolidator is a test double for the consolidator interface.
+type fakeConsolidator struct {
+	action correct.ConsolidationAction
+	err    error
+	called bool
+}
+
+func (f *fakeConsolidator) BeforeStore(
+	_ context.Context,
+	_ *memory.MemoryRecord,
+) (correct.ConsolidationAction, error) {
+	f.called = true
+
+	return f.action, f.err
 }
 
 // fakeRenderer is a test double for correct.Renderer.
