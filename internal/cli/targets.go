@@ -63,13 +63,6 @@ type LearnArgs struct {
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
-// MigrateScoresArgs holds parsed flags for the migrate-scores subcommand.
-type MigrateScoresArgs struct {
-	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
-	Apply    bool   `targ:"flag,name=apply,desc=apply consolidations instead of dry-run"`
-	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
-}
-
 // MaintainArgs holds parsed flags for the maintain subcommand.
 type MaintainArgs struct {
 	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -77,6 +70,13 @@ type MaintainArgs struct {
 	Proposals string `targ:"flag,name=proposals,desc=path to proposals JSON file"`
 	Yes       bool   `targ:"flag,name=yes,desc=auto-approve all proposals"`
 	APIToken  string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+}
+
+// MigrateScoresArgs holds parsed flags for the migrate-scores subcommand.
+type MigrateScoresArgs struct {
+	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Apply    bool   `targ:"flag,name=apply,desc=apply consolidations instead of dry-run"`
+	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
 // RecallArgs holds parsed flags for the recall subcommand.
@@ -232,19 +232,19 @@ func LearnFlags(a LearnArgs) []string {
 	)
 }
 
-// MigrateScoresFlags returns the CLI flag args for the migrate-scores subcommand.
-func MigrateScoresFlags(a MigrateScoresArgs) []string {
-	flags := BuildFlags("--data-dir", a.DataDir)
-	flags = AddBoolFlag(flags, "--apply", a.Apply)
-
-	return flags
-}
-
 // MaintainFlags returns the CLI flag args for the maintain subcommand.
 func MaintainFlags(a MaintainArgs) []string {
 	flags := BuildFlags("--data-dir", a.DataDir, "--proposals", a.Proposals)
 	flags = AddBoolFlag(flags, "--apply", a.Apply)
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
+
+	return flags
+}
+
+// MigrateScoresFlags returns the CLI flag args for the migrate-scores subcommand.
+func MigrateScoresFlags(a MigrateScoresArgs) []string {
+	flags := BuildFlags("--data-dir", a.DataDir)
+	flags = AddBoolFlag(flags, "--apply", a.Apply)
 
 	return flags
 }

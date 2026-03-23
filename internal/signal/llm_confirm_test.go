@@ -158,6 +158,47 @@ func TestLLMConfirmer_LLMError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("confirming clusters")))
 }
 
+func TestLLMConfirmer_MarkdownFencedNoNewline(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Edge case: fenced but no newline after opening fence
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "```", nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	_, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestLLMConfirmer_MarkdownFencedResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "```json\n{\"clusters\": [], \"contradictions\": []}\n```", nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(clusters).To(BeEmpty())
+}
+
 func TestLLMConfirmer_NoCluster(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -183,6 +224,31 @@ func TestLLMConfirmer_NoCluster(t *testing.T) {
 	}
 
 	g.Expect(clusters).To(BeEmpty())
+}
+
+func TestLLMConfirmer_OutOfBoundsIndices(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return `{"clusters": [{"member_indices": [0, 99], "principle": "test"}], "contradictions": []}`, nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only index 0 (query) is valid; index 99 is out of bounds
+	g.Expect(clusters).To(HaveLen(1))
+	g.Expect(clusters[0].Members).To(HaveLen(1))
 }
 
 func TestLLMExtractor_ExtractsPrinciple(t *testing.T) {
@@ -266,72 +332,6 @@ func TestLLMExtractor_LLMError(t *testing.T) {
 
 	_, err := extractor.ExtractPrinciple(context.Background(), cluster)
 	g.Expect(err).To(MatchError(ContainSubstring("extracting principle")))
-}
-
-func TestLLMConfirmer_MarkdownFencedResponse(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	mockCaller := func(
-		_ context.Context, _, _, _ string,
-	) (string, error) {
-		return "```json\n{\"clusters\": [], \"contradictions\": []}\n```", nil
-	}
-
-	confirmer := signal.NewLLMConfirmer(mockCaller)
-	query := &memory.MemoryRecord{Title: "test"}
-
-	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(clusters).To(BeEmpty())
-}
-
-func TestLLMConfirmer_MarkdownFencedNoNewline(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// Edge case: fenced but no newline after opening fence
-	mockCaller := func(
-		_ context.Context, _, _, _ string,
-	) (string, error) {
-		return "```", nil
-	}
-
-	confirmer := signal.NewLLMConfirmer(mockCaller)
-	query := &memory.MemoryRecord{Title: "test"}
-
-	_, err := confirmer.ConfirmClusters(context.Background(), query, nil)
-	g.Expect(err).To(HaveOccurred())
-}
-
-func TestLLMConfirmer_OutOfBoundsIndices(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	mockCaller := func(
-		_ context.Context, _, _, _ string,
-	) (string, error) {
-		return `{"clusters": [{"member_indices": [0, 99], "principle": "test"}], "contradictions": []}`, nil
-	}
-
-	confirmer := signal.NewLLMConfirmer(mockCaller)
-	query := &memory.MemoryRecord{Title: "test"}
-
-	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	// Only index 0 (query) is valid; index 99 is out of bounds
-	g.Expect(clusters).To(HaveLen(1))
-	g.Expect(clusters[0].Members).To(HaveLen(1))
 }
 
 func TestLLMExtractor_MarkdownFencedResponse(t *testing.T) {

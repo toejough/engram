@@ -22,18 +22,7 @@ import (
 	"engram/internal/memory"
 )
 
-// CreationLogger records memory creation events for deferred visibility.
-type CreationLogger interface {
-	Append(entry creationlog.LogEntry, dataDir string) error
-}
-
-// ConsolidationAction is the result of a consolidation check before storing a memory.
-type ConsolidationAction struct {
-	Type            int
-	ConsolidatedMem *memory.MemoryRecord
-}
-
-// Consolidation action type constants.
+// Exported constants.
 const (
 	// StoreAsIs means no cluster was found; store the memory normally.
 	StoreAsIs = iota
@@ -41,9 +30,20 @@ const (
 	ConsolidatedResult
 )
 
+// ConsolidationAction is the result of a consolidation check before storing a memory.
+type ConsolidationAction struct {
+	Type            int
+	ConsolidatedMem *memory.MemoryRecord
+}
+
 // Consolidator checks new memories against existing clusters before storage.
 type Consolidator interface {
 	BeforeStore(ctx context.Context, candidate *memory.MemoryRecord) (ConsolidationAction, error)
+}
+
+// CreationLogger records memory creation events for deferred visibility.
+type CreationLogger interface {
+	Append(entry creationlog.LogEntry, dataDir string) error
 }
 
 // Deduplicator filters and classifies candidates for dedup and merge (UC-33).
@@ -74,48 +74,6 @@ type Learner struct {
 	consolidator   Consolidator   // optional: check new memories against clusters
 	linkRecomputer LinkRecomputer // optional: re-compute links after merge (P5f)
 	stderr         io.Writer
-}
-
-// LinkRecomputer re-computes concept_overlap and content_similarity links after merge (P5f).
-type LinkRecomputer interface {
-	RecomputeAfterMerge(result graph.MergeResult) error
-}
-
-// MemoryMerger combines principles during merge (UC-33).
-type MemoryMerger interface {
-	MergePrinciples(ctx context.Context, existing, candidate string) (string, error)
-}
-
-// MemoryRetriever lists existing memories from the data directory.
-type MemoryRetriever interface {
-	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
-}
-
-// MemoryWriter writes an enriched memory to persistent storage.
-type MemoryWriter interface {
-	Write(mem *memory.Enriched, dataDir string) (string, error)
-}
-
-// MergeWriter updates an existing memory with merged fields (UC-33).
-type MergeWriter interface {
-	UpdateMerged(
-		existing *memory.Stored,
-		principle string,
-		keywords, concepts []string,
-		now time.Time,
-	) error
-}
-
-// Result holds the output of a learning run for feedback rendering.
-type Result struct {
-	CreatedPaths []string       // file paths of created memories
-	SkippedCount int            // number of candidates filtered by dedup
-	TierCounts   map[string]int // count of created memories per tier (A/B/C)
-}
-
-// TranscriptExtractor extracts candidate learnings from a session transcript.
-type TranscriptExtractor interface {
-	Extract(ctx context.Context, transcript string) ([]memory.CandidateLearning, error)
 }
 
 // New creates a Learner wired with all pipeline stages.
@@ -236,37 +194,6 @@ func (l *Learner) SetRegisterMemory(
 	fn func(filePath, title, content string, now time.Time) error,
 ) {
 	l.registerMemory = fn
-}
-
-// unexported constants.
-const (
-	keywordMaxDocFreqRatio = 0.3
-	minGeneralizability    = 2
-)
-
-// candidateToMemoryRecord converts a CandidateLearning to a MemoryRecord for consolidation.
-func candidateToMemoryRecord(
-	candidate memory.CandidateLearning,
-	projectSlug string,
-	now time.Time,
-) *memory.MemoryRecord {
-	timestamp := now.UTC().Format(time.RFC3339)
-
-	return &memory.MemoryRecord{
-		Title:            candidate.Title,
-		Content:          candidate.Content,
-		ObservationType:  candidate.ObservationType,
-		Concepts:         candidate.Concepts,
-		Keywords:         candidate.Keywords,
-		Principle:        candidate.Principle,
-		AntiPattern:      candidate.AntiPattern,
-		Rationale:        candidate.Rationale,
-		ProjectSlug:      projectSlug,
-		Generalizability: candidate.Generalizability,
-		Confidence:       candidate.Tier,
-		CreatedAt:        timestamp,
-		UpdatedAt:        timestamp,
-	}
 }
 
 // fallbackMergePrinciple uses the longer principle text (UC-33).
@@ -543,4 +470,77 @@ func (l *Learner) writeOrConsolidate(
 	}
 
 	return l.writeCandidate(candidate, now)
+}
+
+// LinkRecomputer re-computes concept_overlap and content_similarity links after merge (P5f).
+type LinkRecomputer interface {
+	RecomputeAfterMerge(result graph.MergeResult) error
+}
+
+// MemoryMerger combines principles during merge (UC-33).
+type MemoryMerger interface {
+	MergePrinciples(ctx context.Context, existing, candidate string) (string, error)
+}
+
+// MemoryRetriever lists existing memories from the data directory.
+type MemoryRetriever interface {
+	ListMemories(ctx context.Context, dataDir string) ([]*memory.Stored, error)
+}
+
+// MemoryWriter writes an enriched memory to persistent storage.
+type MemoryWriter interface {
+	Write(mem *memory.Enriched, dataDir string) (string, error)
+}
+
+// MergeWriter updates an existing memory with merged fields (UC-33).
+type MergeWriter interface {
+	UpdateMerged(
+		existing *memory.Stored,
+		principle string,
+		keywords, concepts []string,
+		now time.Time,
+	) error
+}
+
+// Result holds the output of a learning run for feedback rendering.
+type Result struct {
+	CreatedPaths []string       // file paths of created memories
+	SkippedCount int            // number of candidates filtered by dedup
+	TierCounts   map[string]int // count of created memories per tier (A/B/C)
+}
+
+// TranscriptExtractor extracts candidate learnings from a session transcript.
+type TranscriptExtractor interface {
+	Extract(ctx context.Context, transcript string) ([]memory.CandidateLearning, error)
+}
+
+// unexported constants.
+const (
+	keywordMaxDocFreqRatio = 0.3
+	minGeneralizability    = 2
+)
+
+// candidateToMemoryRecord converts a CandidateLearning to a MemoryRecord for consolidation.
+func candidateToMemoryRecord(
+	candidate memory.CandidateLearning,
+	projectSlug string,
+	now time.Time,
+) *memory.MemoryRecord {
+	timestamp := now.UTC().Format(time.RFC3339)
+
+	return &memory.MemoryRecord{
+		Title:            candidate.Title,
+		Content:          candidate.Content,
+		ObservationType:  candidate.ObservationType,
+		Concepts:         candidate.Concepts,
+		Keywords:         candidate.Keywords,
+		Principle:        candidate.Principle,
+		AntiPattern:      candidate.AntiPattern,
+		Rationale:        candidate.Rationale,
+		ProjectSlug:      projectSlug,
+		Generalizability: candidate.Generalizability,
+		Confidence:       candidate.Tier,
+		CreatedAt:        timestamp,
+		UpdatedAt:        timestamp,
+	}
 }

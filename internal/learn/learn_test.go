@@ -15,6 +15,185 @@ import (
 	"engram/internal/memory"
 )
 
+// TestConsolidator_Consolidated_WritesConsolidatedMemory verifies that a
+// consolidated memory replaces the original candidate.
+func TestConsolidator_Consolidated_WritesConsolidatedMemory(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "Use targ",
+		Content:         "use targ for builds",
+		FilenameSummary: "use-targ",
+	}
+
+	consolidatedRecord := &memory.MemoryRecord{
+		Title:       "Generalized: build tools",
+		Content:     "always use the project build tool",
+		Principle:   "use project build tools consistently",
+		Confidence:  "A",
+		Keywords:    []string{"build", "tooling"},
+		Concepts:    []string{"build-tools"},
+		ProjectSlug: "test-project",
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{
+		surviving: []memory.CandidateLearning{candidate},
+	}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"": "/tmp/memories/consolidated.toml",
+		},
+	}
+
+	consolidator := &fakeConsolidator{
+		action: learn.ConsolidationAction{
+			Type:            learn.ConsolidatedResult,
+			ConsolidatedMem: consolidatedRecord,
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetConsolidator(consolidator)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(consolidator.called).To(BeTrue())
+	g.Expect(result.CreatedPaths).To(
+		ConsistOf("/tmp/memories/consolidated.toml"),
+	)
+	g.Expect(result.TierCounts).To(HaveKeyWithValue("A", 1))
+
+	// The writer should receive the consolidated memory, not the original.
+	g.Expect(writer.received).To(HaveLen(1))
+
+	if len(writer.received) == 0 {
+		return
+	}
+
+	g.Expect(writer.received[0].Title).To(
+		Equal("Generalized: build tools"),
+	)
+	g.Expect(writer.received[0].Content).To(
+		Equal("always use the project build tool"),
+	)
+	g.Expect(writer.received[0].Principle).To(
+		Equal("use project build tools consistently"),
+	)
+}
+
+// TestConsolidator_Nil_CandidateWrittenNormally verifies existing behavior when
+// no consolidator is set.
+func TestConsolidator_Nil_CandidateWrittenNormally(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "Use targ",
+		Content:         "use targ for builds",
+		FilenameSummary: "use-targ",
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{
+		surviving: []memory.CandidateLearning{candidate},
+	}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	// No SetConsolidator — consolidator is nil.
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(writer.received[0].Title).To(Equal("Use targ"))
+}
+
+// TestConsolidator_StoreAsIs_CandidateWrittenNormally verifies that StoreAsIs
+// passes through to normal write.
+func TestConsolidator_StoreAsIs_CandidateWrittenNormally(t *testing.T) {
+	t.Parallel()
+	g := NewGomegaWithT(t)
+
+	candidate := memory.CandidateLearning{
+		Tier:            "A",
+		Title:           "Use targ",
+		Content:         "use targ for builds",
+		FilenameSummary: "use-targ",
+	}
+
+	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
+	retriever := &fakeRetriever{memories: []*memory.Stored{}}
+	deduplicator := &fakeDeduplicator{
+		surviving: []memory.CandidateLearning{candidate},
+	}
+	writer := &fakeWriter{
+		paths: map[string]string{
+			"use-targ": "/tmp/memories/use-targ.toml",
+		},
+	}
+
+	consolidator := &fakeConsolidator{
+		action: learn.ConsolidationAction{Type: learn.StoreAsIs},
+	}
+
+	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
+	learner.SetConsolidator(consolidator)
+
+	result, err := learner.Run(context.Background(), "some transcript")
+
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(consolidator.called).To(BeTrue())
+	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
+	g.Expect(writer.received).To(HaveLen(1))
+	g.Expect(writer.received[0].Title).To(Equal("Use targ"))
+}
+
 // Extract error — pipeline returns error
 func TestExtractError_ReturnsError(t *testing.T) {
 	t.Parallel()
@@ -1077,187 +1256,6 @@ func TestWriteError_ReturnsError(t *testing.T) {
 	g.Expect(result).To(BeNil())
 }
 
-
-// TestConsolidator_Nil_CandidateWrittenNormally verifies existing behavior when
-// no consolidator is set.
-func TestConsolidator_Nil_CandidateWrittenNormally(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	candidate := memory.CandidateLearning{
-		Tier:            "A",
-		Title:           "Use targ",
-		Content:         "use targ for builds",
-		FilenameSummary: "use-targ",
-	}
-
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{
-		surviving: []memory.CandidateLearning{candidate},
-	}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"use-targ": "/tmp/memories/use-targ.toml",
-		},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	// No SetConsolidator — consolidator is nil.
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
-	g.Expect(writer.received).To(HaveLen(1))
-	g.Expect(writer.received[0].Title).To(Equal("Use targ"))
-}
-
-// TestConsolidator_StoreAsIs_CandidateWrittenNormally verifies that StoreAsIs
-// passes through to normal write.
-func TestConsolidator_StoreAsIs_CandidateWrittenNormally(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	candidate := memory.CandidateLearning{
-		Tier:            "A",
-		Title:           "Use targ",
-		Content:         "use targ for builds",
-		FilenameSummary: "use-targ",
-	}
-
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{
-		surviving: []memory.CandidateLearning{candidate},
-	}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"use-targ": "/tmp/memories/use-targ.toml",
-		},
-	}
-
-	consolidator := &fakeConsolidator{
-		action: learn.ConsolidationAction{Type: learn.StoreAsIs},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetConsolidator(consolidator)
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	g.Expect(consolidator.called).To(BeTrue())
-	g.Expect(result.CreatedPaths).To(ConsistOf("/tmp/memories/use-targ.toml"))
-	g.Expect(writer.received).To(HaveLen(1))
-	g.Expect(writer.received[0].Title).To(Equal("Use targ"))
-}
-
-// TestConsolidator_Consolidated_WritesConsolidatedMemory verifies that a
-// consolidated memory replaces the original candidate.
-func TestConsolidator_Consolidated_WritesConsolidatedMemory(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	candidate := memory.CandidateLearning{
-		Tier:            "A",
-		Title:           "Use targ",
-		Content:         "use targ for builds",
-		FilenameSummary: "use-targ",
-	}
-
-	consolidatedRecord := &memory.MemoryRecord{
-		Title:       "Generalized: build tools",
-		Content:     "always use the project build tool",
-		Principle:   "use project build tools consistently",
-		Confidence:  "A",
-		Keywords:    []string{"build", "tooling"},
-		Concepts:    []string{"build-tools"},
-		ProjectSlug: "test-project",
-	}
-
-	extractor := &fakeExtractor{candidates: []memory.CandidateLearning{candidate}}
-	retriever := &fakeRetriever{memories: []*memory.Stored{}}
-	deduplicator := &fakeDeduplicator{
-		surviving: []memory.CandidateLearning{candidate},
-	}
-	writer := &fakeWriter{
-		paths: map[string]string{
-			"": "/tmp/memories/consolidated.toml",
-		},
-	}
-
-	consolidator := &fakeConsolidator{
-		action: learn.ConsolidationAction{
-			Type:            learn.ConsolidatedResult,
-			ConsolidatedMem: consolidatedRecord,
-		},
-	}
-
-	learner := learn.New(extractor, retriever, deduplicator, writer, "/tmp")
-	learner.SetConsolidator(consolidator)
-
-	result, err := learner.Run(context.Background(), "some transcript")
-
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(result).NotTo(BeNil())
-
-	if result == nil {
-		return
-	}
-
-	g.Expect(consolidator.called).To(BeTrue())
-	g.Expect(result.CreatedPaths).To(
-		ConsistOf("/tmp/memories/consolidated.toml"),
-	)
-	g.Expect(result.TierCounts).To(HaveKeyWithValue("A", 1))
-
-	// The writer should receive the consolidated memory, not the original.
-	g.Expect(writer.received).To(HaveLen(1))
-
-	if len(writer.received) == 0 {
-		return
-	}
-
-	g.Expect(writer.received[0].Title).To(
-		Equal("Generalized: build tools"),
-	)
-	g.Expect(writer.received[0].Content).To(
-		Equal("always use the project build tool"),
-	)
-	g.Expect(writer.received[0].Principle).To(
-		Equal("use project build tools consistently"),
-	)
-}
-
-
 // callRecord tracks which pipeline stages were called and in what order.
 type callRecord struct {
 	calls []string
@@ -1265,17 +1263,6 @@ type callRecord struct {
 
 func (r *callRecord) record(name string) {
 	r.calls = append(r.calls, name)
-}
-
-// fakeCreationLogger is a test double for learn.CreationLogger.
-type fakeCreationLogger struct {
-	entries []creationlog.LogEntry
-	err     error
-}
-
-func (f *fakeCreationLogger) Append(entry creationlog.LogEntry, _ string) error {
-	f.entries = append(f.entries, entry)
-	return f.err
 }
 
 // fakeConsolidator is a test double for learn.Consolidator.
@@ -1292,6 +1279,17 @@ func (f *fakeConsolidator) BeforeStore(
 	f.called = true
 
 	return f.action, f.err
+}
+
+// fakeCreationLogger is a test double for learn.CreationLogger.
+type fakeCreationLogger struct {
+	entries []creationlog.LogEntry
+	err     error
+}
+
+func (f *fakeCreationLogger) Append(entry creationlog.LogEntry, _ string) error {
+	f.entries = append(f.entries, entry)
+	return f.err
 }
 
 // fakeDeduplicator is a test double for learn.Deduplicator.
@@ -1463,4 +1461,3 @@ func (f *fakeWriter) Write(mem *memory.Enriched, _ string) (string, error) {
 
 	return "", f.err
 }
-

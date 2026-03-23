@@ -195,26 +195,6 @@ func (g *Generator) handleLeech(
 	}, true
 }
 
-// shouldSkipRemoval checks if a noise-quadrant memory should be kept because
-// it belongs to a semantic cluster that was consolidated.
-func (g *Generator) shouldSkipRemoval(
-	ctx context.Context,
-	classifiedMem review.ClassifiedMemory,
-) bool {
-	if g.consolidator == nil || g.memLoader == nil {
-		return false
-	}
-
-	mem, loadErr := g.memLoader(classifiedMem.Name)
-	if loadErr != nil {
-		return false
-	}
-
-	action, consErr := g.consolidator.BeforeRemove(ctx, mem)
-
-	return consErr == nil && action.Type == ConsolidateSkip
-}
-
 func (g *Generator) handleNoise(
 	classifiedMem review.ClassifiedMemory,
 ) (Proposal, bool) {
@@ -254,6 +234,26 @@ func (g *Generator) handleWorking(
 	}, true
 }
 
+// shouldSkipRemoval checks if a noise-quadrant memory should be kept because
+// it belongs to a semantic cluster that was consolidated.
+func (g *Generator) shouldSkipRemoval(
+	ctx context.Context,
+	classifiedMem review.ClassifiedMemory,
+) bool {
+	if g.consolidator == nil || g.memLoader == nil {
+		return false
+	}
+
+	mem, loadErr := g.memLoader(classifiedMem.Name)
+	if loadErr != nil {
+		return false
+	}
+
+	action, consErr := g.consolidator.BeforeRemove(ctx, mem)
+
+	return consErr == nil && action.Type == ConsolidateSkip
+}
+
 // Option configures a Generator.
 type Option func(*Generator)
 
@@ -268,17 +268,6 @@ type Proposal struct {
 	Details    json.RawMessage `json:"details"`
 }
 
-// WithLLMCaller sets the LLM calling function for diagnosis.
-func WithLLMCaller(
-	caller func(
-		ctx context.Context, model, systemPrompt, userPrompt string,
-	) (string, error),
-) Option {
-	return func(g *Generator) {
-		g.llmCaller = caller
-	}
-}
-
 // WithConsolidator sets the consolidation check for noise-quadrant memories.
 func WithConsolidator(
 	consolidator interface {
@@ -289,6 +278,17 @@ func WithConsolidator(
 	return func(g *Generator) {
 		g.consolidator = consolidator
 		g.memLoader = loader
+	}
+}
+
+// WithLLMCaller sets the LLM calling function for diagnosis.
+func WithLLMCaller(
+	caller func(
+		ctx context.Context, model, systemPrompt, userPrompt string,
+	) (string, error),
+) Option {
+	return func(g *Generator) {
+		g.llmCaller = caller
 	}
 }
 

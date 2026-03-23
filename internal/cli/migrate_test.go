@@ -10,6 +10,22 @@ import (
 	"engram/internal/cli"
 )
 
+func TestMigrateScoresFlags_BuildsCorrectArgs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	args := cli.MigrateScoresArgs{
+		DataDir: "/data/test",
+		Apply:   true,
+	}
+
+	flags := cli.MigrateScoresFlags(args)
+
+	g.Expect(flags).To(ContainElement("--data-dir"))
+	g.Expect(flags).To(ContainElement("/data/test"))
+	g.Expect(flags).To(ContainElement("--apply"))
+}
+
 func TestMigrateScores_ApplyFlag(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -101,22 +117,6 @@ func TestMigrateScores_FlagParseError(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("migrate-scores"))
 	}
-}
-
-func TestMigrateScoresFlags_BuildsCorrectArgs(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	args := cli.MigrateScoresArgs{
-		DataDir: "/data/test",
-		Apply:   true,
-	}
-
-	flags := cli.MigrateScoresFlags(args)
-
-	g.Expect(flags).To(ContainElement("--data-dir"))
-	g.Expect(flags).To(ContainElement("/data/test"))
-	g.Expect(flags).To(ContainElement("--apply"))
 }
 
 func TestMigrateScores_ParsesFlags(t *testing.T) {
