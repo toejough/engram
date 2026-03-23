@@ -40,7 +40,17 @@ func (c *LLMConfirmer) ConfirmClusters(
 		return nil, fmt.Errorf("confirming clusters: parsing response: %w", parseErr)
 	}
 
-	// Build the all-memories list: query at index 0, then candidates in order.
+	allMemories := buildAllMemories(query, candidates)
+	contradictions := buildContradictionSet(parsed.Contradictions)
+
+	return buildConfirmedClusters(parsed.Clusters, allMemories, contradictions), nil
+}
+
+// buildAllMemories creates an ordered list: query at index 0, then candidates.
+func buildAllMemories(
+	query *memory.MemoryRecord,
+	candidates []ScoredCandidate,
+) []*memory.MemoryRecord {
 	allMemories := make([]*memory.MemoryRecord, 0, len(candidates)+1)
 	allMemories = append(allMemories, query)
 
@@ -48,26 +58,20 @@ func (c *LLMConfirmer) ConfirmClusters(
 		allMemories = append(allMemories, candidates[idx].Memory)
 	}
 
-	// Build contradiction set for fast lookup.
-	contradictions := make(map[int]struct{}, len(parsed.Contradictions))
-	for _, idx := range parsed.Contradictions {
-		contradictions[idx] = struct{}{}
-	}
+	return allMemories
+}
 
-	clusters := make([]ConfirmedCluster, 0, len(parsed.Clusters))
+// buildConfirmedClusters maps raw cluster JSON into ConfirmedCluster values,
+// excluding contradicted members and out-of-bounds indices.
+func buildConfirmedClusters(
+	rawClusters []confirmClusterJSON,
+	allMemories []*memory.MemoryRecord,
+	contradictions map[int]struct{},
+) []ConfirmedCluster {
+	clusters := make([]ConfirmedCluster, 0, len(rawClusters))
 
-	for _, rawCluster := range parsed.Clusters {
-		members := make([]*memory.MemoryRecord, 0, len(rawCluster.MemberIndices))
-
-		for _, idx := range rawCluster.MemberIndices {
-			if _, excluded := contradictions[idx]; excluded {
-				continue
-			}
-
-			if idx >= 0 && idx < len(allMemories) {
-				members = append(members, allMemories[idx])
-			}
-		}
+	for _, rawCluster := range rawClusters {
+		members := filterClusterMembers(rawCluster.MemberIndices, allMemories, contradictions)
 
 		if len(members) > 0 {
 			clusters = append(clusters, ConfirmedCluster{
@@ -77,7 +81,38 @@ func (c *LLMConfirmer) ConfirmClusters(
 		}
 	}
 
-	return clusters, nil
+	return clusters
+}
+
+// buildContradictionSet creates a set of indices flagged as contradictions.
+func buildContradictionSet(indices []int) map[int]struct{} {
+	contradictions := make(map[int]struct{}, len(indices))
+	for _, idx := range indices {
+		contradictions[idx] = struct{}{}
+	}
+
+	return contradictions
+}
+
+// filterClusterMembers returns non-contradicted, in-bounds members for a cluster.
+func filterClusterMembers(
+	indices []int,
+	allMemories []*memory.MemoryRecord,
+	contradictions map[int]struct{},
+) []*memory.MemoryRecord {
+	members := make([]*memory.MemoryRecord, 0, len(indices))
+
+	for _, idx := range indices {
+		if _, excluded := contradictions[idx]; excluded {
+			continue
+		}
+
+		if idx >= 0 && idx < len(allMemories) {
+			members = append(members, allMemories[idx])
+		}
+	}
+
+	return members
 }
 
 // LLMExtractor creates a generalized memory record from a confirmed cluster via LLM.
@@ -138,7 +173,6 @@ type confirmClusterJSON struct {
 	Principle     string `json:"principle"`
 }
 
-//nolint:tagliatelle // LLM prompt specifies snake_case JSON field names.
 type confirmResponseJSON struct {
 	Clusters       []confirmClusterJSON `json:"clusters"`
 	Contradictions []int                `json:"contradictions"`

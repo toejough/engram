@@ -125,14 +125,8 @@ func (g *Generator) generateOne(
 	case review.HiddenGem:
 		return g.handleHiddenGem(ctx, classifiedMem, stored)
 	case review.Noise:
-		if g.consolidator != nil && g.memLoader != nil {
-			mem, loadErr := g.memLoader(classifiedMem.Name)
-			if loadErr == nil {
-				action, consErr := g.consolidator.BeforeRemove(ctx, mem)
-				if consErr == nil && action.Type == ConsolidateSkip {
-					return Proposal{}, false
-				}
-			}
+		if g.shouldSkipRemoval(ctx, classifiedMem) {
+			return Proposal{}, false
 		}
 
 		return g.handleNoise(classifiedMem)
@@ -201,6 +195,26 @@ func (g *Generator) handleLeech(
 	}, true
 }
 
+// shouldSkipRemoval checks if a noise-quadrant memory should be kept because
+// it belongs to a semantic cluster that was consolidated.
+func (g *Generator) shouldSkipRemoval(
+	ctx context.Context,
+	classifiedMem review.ClassifiedMemory,
+) bool {
+	if g.consolidator == nil || g.memLoader == nil {
+		return false
+	}
+
+	mem, loadErr := g.memLoader(classifiedMem.Name)
+	if loadErr != nil {
+		return false
+	}
+
+	action, consErr := g.consolidator.BeforeRemove(ctx, mem)
+
+	return consErr == nil && action.Type == ConsolidateSkip
+}
+
 func (g *Generator) handleNoise(
 	classifiedMem review.ClassifiedMemory,
 ) (Proposal, bool) {
@@ -267,13 +281,13 @@ func WithLLMCaller(
 
 // WithConsolidator sets the consolidation check for noise-quadrant memories.
 func WithConsolidator(
-	c interface {
-		BeforeRemove(context.Context, *memory.MemoryRecord) (ConsolidateResult, error)
+	consolidator interface {
+		BeforeRemove(ctx context.Context, mem *memory.MemoryRecord) (ConsolidateResult, error)
 	},
 	loader func(string) (*memory.MemoryRecord, error),
 ) Option {
 	return func(g *Generator) {
-		g.consolidator = c
+		g.consolidator = consolidator
 		g.memLoader = loader
 	}
 }

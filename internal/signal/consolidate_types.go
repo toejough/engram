@@ -42,7 +42,11 @@ type ConfirmedCluster struct {
 
 // Confirmer asks an LLM whether candidate memories share a principle.
 type Confirmer interface {
-	ConfirmClusters(ctx context.Context, query *memory.MemoryRecord, candidates []ScoredCandidate) ([]ConfirmedCluster, error)
+	ConfirmClusters(
+		ctx context.Context,
+		query *memory.MemoryRecord,
+		candidates []ScoredCandidate,
+	) ([]ConfirmedCluster, error)
 }
 
 // Extractor creates a generalized memory from a confirmed cluster.

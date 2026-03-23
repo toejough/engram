@@ -555,6 +555,32 @@ func (m *mockGeneralizabilityScorer) ScoreBatch(
 	return m.scores, m.err
 }
 
+func TestScoreUnscored_WriteError_NilStderr(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &migrateLister{
+		records: []*memory.MemoryRecord{
+			{Title: "unscored", Generalizability: 0},
+		},
+	}
+	scorer := &mockGeneralizabilityScorer{scores: []int{3}}
+	writer := &mockMigrationWriter{err: errors.New("disk full")}
+
+	// nil stderr — logMigrateStderrf should not panic.
+	runner := signal.NewMigrationRunner(lister, scorer, writer, nil)
+
+	scored, err := runner.ScoreUnscored(context.Background())
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Write failed but no panic, scored count is 0.
+	g.Expect(scored).To(Equal(0))
+}
+
 // mockMigrationWriter implements signal.MigrationWriter for tests.
 type mockMigrationWriter struct {
 	written []*memory.MemoryRecord

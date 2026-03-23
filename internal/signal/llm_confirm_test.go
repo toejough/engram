@@ -57,6 +57,7 @@ func TestLLMConfirmer_ConfirmsClusters(t *testing.T) {
 
 	clusters, err := confirmer.ConfirmClusters(context.Background(), query, candidates)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -107,6 +108,7 @@ func TestLLMConfirmer_ExcludesContradictions(t *testing.T) {
 
 	clusters, err := confirmer.ConfirmClusters(context.Background(), query, candidates)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -175,6 +177,7 @@ func TestLLMConfirmer_NoCluster(t *testing.T) {
 
 	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
@@ -222,10 +225,13 @@ func TestLLMExtractor_ExtractsPrinciple(t *testing.T) {
 
 	record, err := extractor.ExtractPrinciple(context.Background(), cluster)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(record).NotTo(BeNil())
+
 	if record == nil {
 		return
 	}
@@ -262,6 +268,112 @@ func TestLLMExtractor_LLMError(t *testing.T) {
 	g.Expect(err).To(MatchError(ContainSubstring("extracting principle")))
 }
 
+func TestLLMConfirmer_MarkdownFencedResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "```json\n{\"clusters\": [], \"contradictions\": []}\n```", nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(clusters).To(BeEmpty())
+}
+
+func TestLLMConfirmer_MarkdownFencedNoNewline(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// Edge case: fenced but no newline after opening fence
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "```", nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	_, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).To(HaveOccurred())
+}
+
+func TestLLMConfirmer_OutOfBoundsIndices(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return `{"clusters": [{"member_indices": [0, 99], "principle": "test"}], "contradictions": []}`, nil
+	}
+
+	confirmer := signal.NewLLMConfirmer(mockCaller)
+	query := &memory.MemoryRecord{Title: "test"}
+
+	clusters, err := confirmer.ConfirmClusters(context.Background(), query, nil)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Only index 0 (query) is valid; index 99 is out of bounds
+	g.Expect(clusters).To(HaveLen(1))
+	g.Expect(clusters[0].Members).To(HaveLen(1))
+}
+
+func TestLLMExtractor_MarkdownFencedResponse(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	mockCaller := func(
+		_ context.Context, _, _, _ string,
+	) (string, error) {
+		return "```json\n" + `{
+			"title": "Test",
+			"principle": "Test",
+			"anti_pattern": "",
+			"content": "Test",
+			"keywords": ["test"],
+			"concepts": ["test"],
+			"generalizability": 3
+		}` + "\n```", nil
+	}
+
+	extractor := signal.NewLLMExtractor(mockCaller)
+	cluster := signal.ConfirmedCluster{
+		Members:   []*memory.MemoryRecord{{Title: "Test"}},
+		Principle: "Test",
+	}
+
+	record, err := extractor.ExtractPrinciple(context.Background(), cluster)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(record).NotTo(BeNil())
+
+	if record == nil {
+		return
+	}
+
+	g.Expect(record.Title).To(Equal("Test"))
+}
+
 func TestLLMExtractor_SetsGeneralizability(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -293,10 +405,13 @@ func TestLLMExtractor_SetsGeneralizability(t *testing.T) {
 
 	record, err := extractor.ExtractPrinciple(context.Background(), cluster)
 	g.Expect(err).NotTo(HaveOccurred())
+
 	if err != nil {
 		return
 	}
+
 	g.Expect(record).NotTo(BeNil())
+
 	if record == nil {
 		return
 	}

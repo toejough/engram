@@ -37,7 +37,7 @@ type ConsolidationAction struct {
 const (
 	// StoreAsIs means no cluster was found; store the memory normally.
 	StoreAsIs = iota
-	// ConsolidatedAction means a cluster was found and merged into a generalized memory.
+	// ConsolidatedResult means a cluster was found and merged into a generalized memory.
 	ConsolidatedResult
 )
 
