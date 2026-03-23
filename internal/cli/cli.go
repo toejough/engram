@@ -125,6 +125,8 @@ func Run(
 		return runApplyProposal(subArgs, stdout)
 	case "recall":
 		return runRecall(subArgs, stdout)
+	case "migrate-scores":
+		return runMigrateScores(subArgs, stdout, stderr)
 	default:
 		return fmt.Errorf("%w: %s", errUnknownCommand, cmd)
 	}

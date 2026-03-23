@@ -63,6 +63,13 @@ type LearnArgs struct {
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
+// MigrateScoresArgs holds parsed flags for the migrate-scores subcommand.
+type MigrateScoresArgs struct {
+	DataDir  string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
+	Apply    bool   `targ:"flag,name=apply,desc=apply consolidations instead of dry-run"`
+	APIToken string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
+}
+
 // MaintainArgs holds parsed flags for the maintain subcommand.
 type MaintainArgs struct {
 	DataDir   string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
@@ -169,6 +176,8 @@ func BuildTargets(run func(subcmd string, flags []string)) []any {
 			Name("apply-proposal").Description("Apply a maintenance proposal"),
 		targ.Targ(func(a RecallArgs) { run("recall", RecallFlags(a)) }).
 			Name("recall").Description("Recall recent session context"),
+		targ.Targ(func(a MigrateScoresArgs) { run("migrate-scores", MigrateScoresFlags(a)) }).
+			Name("migrate-scores").Description("Score and consolidate existing memories"),
 	}
 }
 
@@ -221,6 +230,14 @@ func LearnFlags(a LearnArgs) []string {
 		"--transcript-path", a.TranscriptPath,
 		"--session-id", a.SessionID,
 	)
+}
+
+// MigrateScoresFlags returns the CLI flag args for the migrate-scores subcommand.
+func MigrateScoresFlags(a MigrateScoresArgs) []string {
+	flags := BuildFlags("--data-dir", a.DataDir)
+	flags = AddBoolFlag(flags, "--apply", a.Apply)
+
+	return flags
 }
 
 // MaintainFlags returns the CLI flag args for the maintain subcommand.
