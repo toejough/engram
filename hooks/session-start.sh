@@ -4,7 +4,6 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-ENGRAM_DATA="${ENGRAM_HOME}/data"
 
 # Build if missing or stale (source newer than binary)
 NEEDS_BUILD=false
@@ -41,10 +40,10 @@ SYMLINK_TARGET="$HOME/.local/bin/engram"
 } || true
 
 # UC-28: Run maintenance classification (single source of truth for signals)
-SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain --data-dir "$ENGRAM_DATA" 2>/dev/null) || true
+SIGNAL_OUTPUT=$("$ENGRAM_BIN" maintain 2>/dev/null) || true
 
 # Static guidance for mid-turn message capture (issue #54)
-MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>' --data-dir ~/.claude/engram/data"
+MIDTURN_NOTE="[engram] Mid-turn user messages (delivered via system-reminder) bypass engram hooks. If you receive a mid-turn correction or instruction, capture it by running: ~/.claude/engram/bin/engram correct --message '<the user message>'"
 
 # Parse maintain proposals (JSON array with quadrant, action, memory_path, diagnosis)
 PROPOSAL_COUNT=0

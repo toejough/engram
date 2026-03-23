@@ -61,9 +61,9 @@ All memory modifications (remove, broaden keywords, rewrite) MUST go through eng
 
 ## Executing Decisions
 
-- **Remove**: `engram apply-proposal --data-dir ~/.claude/engram/data --action remove --memory <path>`
-- **Broaden keywords**: `engram apply-proposal --data-dir ~/.claude/engram/data --action broaden_keywords --memory <path> --keywords "kw1,kw2"`
+- **Remove**: `engram apply-proposal --action remove --memory <path>`
+- **Broaden keywords**: `engram apply-proposal --action broaden_keywords --memory <path> --keywords "kw1,kw2"`
   - Deduplication is automatic — no need to check for existing keywords before calling.
-- **Rewrite**: `engram apply-proposal --data-dir ~/.claude/engram/data --action rewrite --memory <path> --fields '{"title":"...","principle":"..."}'`
-- **Graduate accept**: `engram graduate accept --id <id> --data-dir ~/.claude/engram/data`
-- **Graduate dismiss**: `engram graduate dismiss --id <id> --data-dir ~/.claude/engram/data`
+- **Rewrite**: `engram apply-proposal --action rewrite --memory <path> --fields '{"title":"...","principle":"..."}'`
+- **Graduate accept**: `engram graduate accept --id <id>`
+- **Graduate dismiss**: `engram graduate dismiss --id <id>`

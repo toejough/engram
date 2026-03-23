@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/onsi/gomega"
@@ -240,24 +241,6 @@ func TestLearnInvalidFlag(t *testing.T) {
 }
 
 // learn with missing --data-dir returns error.
-func TestLearnMissingDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run([]string{
-		"engram", "learn",
-	}, &stdout, &stderr, strings.NewReader(""))
-
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
 // learn with a stdin reader that returns an error covers the reading-stdin error path.
 func TestLearnStdinReadError(t *testing.T) {
 	t.Parallel()
@@ -606,21 +589,6 @@ func TestMaintainListMemoriesError(t *testing.T) {
 }
 
 // TestMaintainMissingDataDir verifies missing --data-dir returns error.
-func TestMaintainMissingDataDir(t *testing.T) {
-	t.Parallel()
-
-	g := NewGomegaWithT(t)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunMaintain([]string{}, "", &stdout)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("data-dir"))
-	}
-}
-
 // TestMaintainWithLeechEscalation exercises the escalation engine path in RunMaintain.
 func TestMaintainWithLeechEscalation(t *testing.T) {
 	t.Parallel()
@@ -862,6 +830,35 @@ func TestRecallOutputWithMemories(t *testing.T) {
 	g.Expect(output).NotTo(ContainSubstring("{"))
 }
 
+// TestRegisterMemory verifies the memory registration callback writes metadata.
+func TestRegisterMemory(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	memDir := filepath.Join(t.TempDir(), "memories")
+
+	mkErr := os.MkdirAll(memDir, 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	if mkErr != nil {
+		return
+	}
+
+	memPath := filepath.Join(memDir, "test.toml")
+
+	// Write a minimal TOML file for ReadModifyWrite to operate on.
+	writeErr := os.WriteFile(memPath, []byte("[[memories]]\n"), 0o644)
+	g.Expect(writeErr).NotTo(HaveOccurred())
+
+	if writeErr != nil {
+		return
+	}
+
+	err := cli.ExportRegisterMemory(memPath, "title", "content", time.Now())
+	g.Expect(err).NotTo(HaveOccurred())
+}
+
 // TestRenderLearnResult_WithLearningsNoTierCounts verifies output when TierCounts is nil.
 func TestRenderLearnResult_WithLearningsNoTierCounts(t *testing.T) {
 	t.Parallel()
@@ -950,24 +947,24 @@ func TestRunInstructAudit_FlagParseError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-// runInstructAudit: missing flags.
-func TestRunInstructAudit_MissingFlags(t *testing.T) {
+// TestRunLearnDefaultDataDir verifies --data-dir defaults when omitted.
+func TestRunLearnDefaultDataDir(t *testing.T) {
 	t.Parallel()
 
 	g := NewGomegaWithT(t)
 
-	var stdout, stderr bytes.Buffer
+	var stderr bytes.Buffer
 
-	err := cli.Run(
-		[]string{"engram", "instruct"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
+	// No --data-dir flag — should default and reach the token check.
+	err := cli.RunLearn([]string{}, "", &stderr, strings.NewReader(""), nil)
+
+	g.Expect(err).NotTo(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
+		return
 	}
+
+	g.Expect(stderr.String()).To(ContainSubstring("no API token"))
 }
 
 // RunLearnWithEmptyTokenEmitsErrorToStderr verifies the no-token early-return
@@ -1015,7 +1012,7 @@ func TestRun_CorrectMissingFlags(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 
 	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--message"))
+		g.Expect(err.Error()).To(ContainSubstring("--message required"))
 	}
 }
 
@@ -1032,6 +1029,52 @@ func TestRun_NoArgs(t *testing.T) {
 	if err != nil {
 		g.Expect(err.Error()).To(ContainSubstring("usage"))
 	}
+}
+
+func TestRun_RecallDefaultFlags(t *testing.T) {
+	// Not parallel: uses t.Setenv.
+	g := NewGomegaWithT(t)
+
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+	t.Setenv("ENGRAM_API_TOKEN", "")
+
+	// Create the project dir that recall will look for (derived from PWD slug).
+	cwd, cwdErr := os.Getwd()
+	g.Expect(cwdErr).NotTo(HaveOccurred())
+
+	if cwdErr != nil {
+		return
+	}
+
+	slug := cli.ProjectSlugFromPath(cwd)
+	projDir := filepath.Join(homeDir, ".claude", "projects", slug)
+
+	mkErr := os.MkdirAll(projDir, 0o755)
+	g.Expect(mkErr).NotTo(HaveOccurred())
+
+	if mkErr != nil {
+		return
+	}
+
+	// Also create the default data dir so buildRecallSurfacer doesn't fail.
+	dataDir := cli.DataDirFromHome(homeDir)
+
+	mkErr2 := os.MkdirAll(filepath.Join(dataDir, "memories"), 0o755)
+	g.Expect(mkErr2).NotTo(HaveOccurred())
+
+	if mkErr2 != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	// No --data-dir, no --project-slug — both should default.
+	err := cli.Run(
+		[]string{"engram", "recall"},
+		&stdout, &stderr, strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
 }
 
 func TestRun_RecallEmptyProject(t *testing.T) {
@@ -1069,44 +1112,6 @@ func TestRun_RecallEmptyProject(t *testing.T) {
 
 	// Empty project: no sessions, so output is empty (no JSON wrapper).
 	g.Expect(stdout.String()).To(BeEmpty())
-}
-
-func TestRun_RecallMissingFlags(t *testing.T) {
-	t.Parallel()
-
-	t.Run("no flags", func(t *testing.T) {
-		t.Parallel()
-		g := NewGomegaWithT(t)
-
-		var stdout, stderr bytes.Buffer
-
-		err := cli.Run(
-			[]string{"engram", "recall"},
-			&stdout, &stderr, strings.NewReader(""),
-		)
-		g.Expect(err).To(HaveOccurred())
-
-		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-		}
-	})
-
-	t.Run("missing project-slug", func(t *testing.T) {
-		t.Parallel()
-		g := NewGomegaWithT(t)
-
-		var stdout, stderr bytes.Buffer
-
-		err := cli.Run(
-			[]string{"engram", "recall", "--data-dir", "/tmp"},
-			&stdout, &stderr, strings.NewReader(""),
-		)
-		g.Expect(err).To(HaveOccurred())
-
-		if err != nil {
-			g.Expect(err.Error()).To(ContainSubstring("--project-slug"))
-		}
-	})
 }
 
 func TestRun_RecallSurfacerBuildError(t *testing.T) {
@@ -1297,7 +1302,7 @@ func TestT120_HookScriptsInvokeFlush(t *testing.T) {
 	content := string(data)
 	// Stop hook uses unified flush command (#309).
 	g.Expect(content).To(ContainSubstring("flush"))
-	g.Expect(content).To(ContainSubstring("ENGRAM_DATA"))
+	g.Expect(content).To(ContainSubstring("ENGRAM_BIN"))
 }
 
 // T-129: Review with data outputs all four DES-16 sections.
@@ -1360,22 +1365,6 @@ func TestT130_ReviewNoEvalDir(t *testing.T) {
 }
 
 // T-131: Review without --data-dir outputs usage error.
-func TestT131_ReviewMissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewGomegaWithT(t)
-
-	var stdout bytes.Buffer
-
-	err := cli.RunReview([]string{}, &stdout)
-	g.Expect(err).To(HaveOccurred())
-
-	if err == nil {
-		return
-	}
-
-	g.Expect(err.Error()).To(ContainSubstring("data-dir"))
-}
-
 // T-132: Review entries sorted by quadrant within source type.
 func TestT132_ReviewFlaggedSortedByEffectiveness(t *testing.T) {
 	t.Parallel()

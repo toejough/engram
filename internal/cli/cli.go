@@ -157,8 +157,9 @@ func RunLearn(
 		return fmt.Errorf("learn: %w", parseErr)
 	}
 
-	if *dataDir == "" {
-		return errLearnMissingFlags
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("learn: %w", defaultErr)
 	}
 
 	if token == "" {
@@ -190,16 +191,7 @@ func RunLearn(
 
 	learner.SetCreationLogger(creationlog.NewLogWriter())
 
-	learner.SetRegisterMemory(func(filePath, _, content string, _ time.Time) error {
-		h := sha256.Sum256([]byte(content))
-		hash := hex.EncodeToString(h[:])
-
-		return memory.ReadModifyWrite(filePath, func(r *memory.MemoryRecord) {
-			r.SourceType = "memory"
-			r.SourcePath = filePath
-			r.ContentHash = hash
-		})
-	})
+	learner.SetRegisterMemory(registerMemory)
 
 	ctx := context.Background()
 
@@ -210,20 +202,7 @@ func RunLearn(
 		)
 	}
 
-	// Stdin mode: read full transcript from stdin (backward compatible).
-	transcriptBytes, err := io.ReadAll(stdin)
-	if err != nil {
-		return fmt.Errorf("learn: reading stdin: %w", err)
-	}
-
-	result, err := learner.Run(ctx, string(transcriptBytes))
-	if err != nil {
-		return fmt.Errorf("learn: %w", err)
-	}
-
-	RenderLearnResult(stderr, result)
-
-	return nil
+	return runStdinLearn(ctx, learner, stdin, stderr)
 }
 
 // RunMaintain implements the maintain subcommand: generates maintenance
@@ -251,8 +230,9 @@ func RunMaintain(
 		return fmt.Errorf("maintain: %w", parseErr)
 	}
 
-	if *dataDir == "" {
-		return errMaintainMissingFlags
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("maintain: %w", defaultErr)
 	}
 
 	if *applyMode {
@@ -360,8 +340,9 @@ func RunReview(args []string, stdout io.Writer) error {
 		return fmt.Errorf("review: %w", parseErr)
 	}
 
-	if *dataDir == "" {
-		return errReviewMissingFlags
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("review: %w", defaultErr)
 	}
 
 	memoriesDir := filepath.Join(*dataDir, "memories")
@@ -414,25 +395,16 @@ const (
 // unexported variables.
 var (
 	errCorrectMissingFlags = errors.New(
-		"correct: --message and --data-dir required",
+		"correct: --message required",
 	)
-	errInstructMissingFlags = errors.New(
-		"instruct audit: --data-dir required",
-	)
-	errLearnMissingFlags             = errors.New("learn: --data-dir required")
 	errMaintainApplyMissingProposals = errors.New(
 		"maintain --apply: --proposals required",
 	)
-	errMaintainMissingFlags = errors.New("maintain: --data-dir required")
-	errNilAPIResponse       = errors.New("calling Anthropic API: nil response")
-	errNoContentBlocks      = errors.New("API response contained no content blocks")
-	errRecallMissingFlags   = errors.New(
-		"recall: --data-dir and --project-slug required",
-	)
-	errReviewMissingFlags  = errors.New("review: --data-dir required")
+	errNilAPIResponse      = errors.New("calling Anthropic API: nil response")
+	errNoContentBlocks     = errors.New("API response contained no content blocks")
 	errSkillExists         = errors.New("skill already exists")
 	errSurfaceMissingFlags = errors.New(
-		"surface: --mode and --data-dir required",
+		"surface: --mode required",
 	)
 	errUnknownCommand = errors.New("unknown command")
 	errUsage          = errors.New(
@@ -771,6 +743,38 @@ func (sc *stdinConfirmer) Confirm(preview string) (bool, error) {
 	return false, nil
 }
 
+// applyDataDirDefault sets *dataDir to the standard engram data path when empty.
+func applyDataDirDefault(dataDir *string) error {
+	if *dataDir != "" {
+		return nil
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("resolving home directory: %w", err)
+	}
+
+	*dataDir = DataDirFromHome(home)
+
+	return nil
+}
+
+// applyProjectSlugDefault sets *slug to the PWD-derived slug when empty.
+func applyProjectSlugDefault(slug *string) error {
+	if *slug != "" {
+		return nil
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("resolving working directory: %w", err)
+	}
+
+	*slug = ProjectSlugFromPath(cwd)
+
+	return nil
+}
+
 // buildEscalationMemories extracts leech memories for the escalation engine (UC-21, ARCH-50).
 func buildEscalationMemories(
 	classified []reviewpkg.ClassifiedMemory,
@@ -1029,6 +1033,19 @@ func recordSurfacing(path string) error {
 	})
 }
 
+// runIncrementalLearn creates an IncrementalLearner and runs it.
+// registerMemory hashes content and writes metadata to the memory TOML file (UC-23).
+func registerMemory(filePath, _, content string, _ time.Time) error {
+	h := sha256.Sum256([]byte(content))
+	hash := hex.EncodeToString(h[:])
+
+	return memory.ReadModifyWrite(filePath, func(r *memory.MemoryRecord) {
+		r.SourceType = "memory"
+		r.SourcePath = filePath
+		r.ContentHash = hash
+	})
+}
+
 func renderReviewTable(
 	writer io.Writer,
 	classifications []reviewClassification,
@@ -1136,7 +1153,12 @@ func runCorrect(
 		return fmt.Errorf("correct: %w", parseErr)
 	}
 
-	if *message == "" || *dataDir == "" {
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("correct: %w", defaultErr)
+	}
+
+	if *message == "" {
 		return errCorrectMissingFlags
 	}
 
@@ -1174,7 +1196,6 @@ func runCorrect(
 	return nil
 }
 
-// runIncrementalLearn creates an IncrementalLearner and runs it.
 func runIncrementalLearn(
 	ctx context.Context,
 	learner *learn.Learner,
@@ -1216,8 +1237,9 @@ func runInstructAudit(args []string, stdout io.Writer) error {
 		return fmt.Errorf("instruct: %w", parseErr)
 	}
 
-	if *dataDir == "" {
-		return errInstructMissingFlags
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("instruct: %w", defaultErr)
 	}
 
 	if *projectDir == "" {
@@ -1363,15 +1385,23 @@ func runRecall(args []string, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", parseErr)
 	}
 
-	if *dataDir == "" || *projectSlug == "" {
-		return errRecallMissingFlags
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("recall: %w", defaultErr)
 	}
 
-	home := os.Getenv("HOME")
+	slugErr := applyProjectSlugDefault(projectSlug)
+	if slugErr != nil {
+		return fmt.Errorf("recall: %w", slugErr)
+	}
+
+	home, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		return fmt.Errorf("recall: %w", homeErr)
+	}
+
 	projectDir := filepath.Join(home, ".claude", "projects", *projectSlug)
-
 	ctx := context.Background()
-
 	token := resolveToken(ctx)
 
 	finder := recall.NewSessionFinder(&osDirLister{})
@@ -1396,17 +1426,27 @@ func runRecall(args []string, stdout io.Writer) error {
 		return fmt.Errorf("recall: %w", err)
 	}
 
-	_, writeErr := fmt.Fprint(stdout, result.Summary)
-	if writeErr != nil {
-		return fmt.Errorf("recall: writing summary: %w", writeErr)
+	return recall.FormatResult(stdout, result)
+}
+
+// runStdinLearn reads a full transcript from stdin and runs the learner.
+func runStdinLearn(
+	ctx context.Context,
+	learner *learn.Learner,
+	stdin io.Reader,
+	stderr io.Writer,
+) error {
+	transcriptBytes, err := io.ReadAll(stdin)
+	if err != nil {
+		return fmt.Errorf("learn: reading stdin: %w", err)
 	}
 
-	if result.Memories != "" {
-		_, writeErr = fmt.Fprintf(stdout, "\n=== MEMORIES ===\n%s", result.Memories)
-		if writeErr != nil {
-			return fmt.Errorf("recall: writing memories: %w", writeErr)
-		}
+	result, runErr := learner.Run(ctx, string(transcriptBytes))
+	if runErr != nil {
+		return fmt.Errorf("learn: %w", runErr)
 	}
+
+	RenderLearnResult(stderr, result)
 
 	return nil
 }
@@ -1433,7 +1473,12 @@ func runSurface(args []string, stdout io.Writer) error {
 		return fmt.Errorf("surface: %w", parseErr)
 	}
 
-	if *mode == "" || *dataDir == "" {
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("surface: %w", defaultErr)
+	}
+
+	if *mode == "" {
 		return errSurfaceMissingFlags
 	}
 

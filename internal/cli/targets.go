@@ -3,7 +3,9 @@ package cli
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/toejough/targ"
 )
@@ -25,6 +27,7 @@ type CorrectArgs struct {
 	Message        string `targ:"flag,name=message,desc=user message text"`
 	DataDir        string `targ:"flag,name=data-dir,env=ENGRAM_DATA_DIR,desc=path to data directory"`
 	TranscriptPath string `targ:"flag,name=transcript-path,desc=path to session transcript"`
+	ProjectSlug    string `targ:"flag,name=project-slug,desc=originating project slug"`
 	APIToken       string `targ:"flag,name=api-token,env=ENGRAM_API_TOKEN,desc=Anthropic API token"`
 }
 
@@ -128,8 +131,6 @@ func ApplyProposalFlags(a ApplyProposalArgs) []string {
 	return flags
 }
 
-// --- Flag construction helpers ---
-
 // BuildFlags constructs a []string flag list from key-value pairs, skipping empty values.
 func BuildFlags(pairs ...string) []string {
 	flags := make([]string, 0, len(pairs))
@@ -177,7 +178,15 @@ func CorrectFlags(a CorrectArgs) []string {
 		"--message", a.Message,
 		"--data-dir", a.DataDir,
 		"--transcript-path", a.TranscriptPath,
+		"--project-slug", a.ProjectSlug,
 	)
+}
+
+// --- Flag construction helpers ---
+
+// DataDirFromHome returns the standard engram data directory for a given home path.
+func DataDirFromHome(home string) string {
+	return filepath.Join(home, ".claude", "engram", "data")
 }
 
 // FeedbackFlags returns the CLI flag args for the feedback subcommand.
@@ -221,6 +230,12 @@ func MaintainFlags(a MaintainArgs) []string {
 	flags = AddBoolFlag(flags, "--yes", a.Yes)
 
 	return flags
+}
+
+// ProjectSlugFromPath converts a filesystem path to a project slug by replacing
+// path separators with dashes, matching the shell convention: echo "$PWD" | tr '/' '-'.
+func ProjectSlugFromPath(path string) string {
+	return strings.ReplaceAll(path, string(filepath.Separator), "-")
 }
 
 // RecallFlags returns the CLI flag args for the recall subcommand.

@@ -1,6 +1,7 @@
 package recall_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -9,6 +10,90 @@ import (
 
 	. "github.com/onsi/gomega"
 )
+
+func TestFormatResult(t *testing.T) {
+	t.Parallel()
+
+	t.Run("summary only", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var buf bytes.Buffer
+
+		err := recall.FormatResult(&buf, &recall.Result{Summary: "session content"})
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(buf.String()).To(Equal("session content"))
+	})
+
+	t.Run("summary with memories", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var buf bytes.Buffer
+
+		err := recall.FormatResult(&buf, &recall.Result{
+			Summary:  "session content",
+			Memories: "memory1\nmemory2",
+		})
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(buf.String()).To(Equal("session content\n=== MEMORIES ===\nmemory1\nmemory2"))
+	})
+
+	t.Run("write error on summary", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		err := recall.FormatResult(&failWriter{}, &recall.Result{Summary: "content"})
+		g.Expect(err).To(HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(ContainSubstring("writing summary"))
+		}
+	})
+
+	t.Run("write error on memories", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		w := &failAfterNWriter{remaining: len("session content")}
+
+		err := recall.FormatResult(w, &recall.Result{
+			Summary:  "session content",
+			Memories: "mem",
+		})
+		g.Expect(err).To(HaveOccurred())
+
+		if err != nil {
+			g.Expect(err.Error()).To(ContainSubstring("writing memories"))
+		}
+	})
+
+	t.Run("empty result", func(t *testing.T) {
+		t.Parallel()
+		g := NewWithT(t)
+
+		var buf bytes.Buffer
+
+		err := recall.FormatResult(&buf, &recall.Result{})
+		g.Expect(err).NotTo(HaveOccurred())
+
+		if err != nil {
+			return
+		}
+
+		g.Expect(buf.String()).To(BeEmpty())
+	})
+}
 
 // --- Tests ---
 
@@ -354,6 +439,28 @@ func TestOrchestrator_Recall_ModeB(t *testing.T) {
 		g.Expect(surfacer.query).To(Equal("original query"))
 		g.Expect(result.Memories).To(Equal("memories"))
 	})
+}
+
+// failAfterNWriter succeeds for the first `remaining` bytes, then fails.
+type failAfterNWriter struct {
+	remaining int
+}
+
+func (w *failAfterNWriter) Write(p []byte) (int, error) {
+	if w.remaining <= 0 {
+		return 0, errors.New("write failed")
+	}
+
+	n := min(len(p), w.remaining)
+	w.remaining -= n
+
+	return n, nil
+}
+
+type failWriter struct{}
+
+func (w *failWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("write failed")
 }
 
 // --- Fakes ---

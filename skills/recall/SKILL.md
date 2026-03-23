@@ -18,10 +18,7 @@ Load context from previous sessions in this project.
 ## Execution
 
 ```bash
-PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
-~/.claude/engram/bin/engram recall \
-  --data-dir ~/.claude/engram/data \
-  --project-slug="$PROJECT_SLUG"
+~/.claude/engram/bin/engram recall
 ```
 
 If the user provided a query (e.g., `/recall keyword matching`), add `--query "<the query>"`.

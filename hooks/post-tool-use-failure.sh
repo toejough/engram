@@ -15,7 +15,7 @@ fi
 
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-DATA_DIR="${ENGRAM_DATA_DIR:-${ENGRAM_HOME}/data}"
+
 
 # Build targeted advice based on tool type
 case "$TOOL_NAME" in
@@ -46,7 +46,7 @@ if [[ "$TOOL_NAME" == "Bash" && -x "$ENGRAM_BIN" ]]; then
     SURFACE_OUT=$("$ENGRAM_BIN" surface --mode tool \
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
         --tool-output "$ERROR" --tool-errored \
-        --data-dir "$DATA_DIR" --format json 2>/dev/null) || SURFACE_OUT=""
+        --format json 2>/dev/null) || SURFACE_OUT=""
     MEMORY_CONTEXT="$(echo "$SURFACE_OUT" | jq -r '.context // empty' 2>/dev/null)" || MEMORY_CONTEXT=""
     MEMORY_SUMMARY="$(echo "$SURFACE_OUT" | jq -r '.summary // empty' 2>/dev/null)" || MEMORY_SUMMARY=""
 fi

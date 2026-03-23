@@ -3,6 +3,7 @@ package recall
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -158,4 +159,21 @@ type Result struct {
 // SummarizerI extracts relevant content from transcripts via LLM.
 type SummarizerI interface {
 	ExtractRelevant(ctx context.Context, content, query string) (string, error)
+}
+
+// FormatResult writes the recall result as plain text with an optional memories section.
+func FormatResult(w io.Writer, result *Result) error {
+	_, err := fmt.Fprint(w, result.Summary)
+	if err != nil {
+		return fmt.Errorf("writing summary: %w", err)
+	}
+
+	if result.Memories != "" {
+		_, err = fmt.Fprintf(w, "\n=== MEMORIES ===\n%s", result.Memories)
+		if err != nil {
+			return fmt.Errorf("writing memories: %w", err)
+		}
+	}
+
+	return nil
 }

@@ -180,11 +180,13 @@ func TestCorrectFlags(t *testing.T) {
 			Message:        "fix this",
 			DataDir:        "/data",
 			TranscriptPath: "/transcript",
+			ProjectSlug:    "my-project",
 		})
 		g.Expect(result).To(gomega.Equal([]string{
 			"--message", "fix this",
 			"--data-dir", "/data",
 			"--transcript-path", "/transcript",
+			"--project-slug", "my-project",
 		}))
 	})
 
@@ -202,6 +204,18 @@ func TestCorrectFlags(t *testing.T) {
 
 		result := cli.CorrectFlags(cli.CorrectArgs{Message: "fix this"})
 		g.Expect(result).To(gomega.Equal([]string{"--message", "fix this"}))
+	})
+}
+
+func TestDataDirFromHome(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns standard engram data path", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		dir := cli.DataDirFromHome("/Users/joe")
+		g.Expect(dir).To(gomega.Equal("/Users/joe/.claude/engram/data"))
 	})
 }
 
@@ -372,6 +386,26 @@ func TestMaintainFlags(t *testing.T) {
 			"--data-dir", "/data",
 			"--yes",
 		}))
+	})
+}
+
+func TestProjectSlugFromPath(t *testing.T) {
+	t.Parallel()
+
+	t.Run("converts path separators to dashes", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		slug := cli.ProjectSlugFromPath("/Users/joe/repos/personal/engram")
+		g.Expect(slug).To(gomega.Equal("-Users-joe-repos-personal-engram"))
+	})
+
+	t.Run("empty path returns empty", func(t *testing.T) {
+		t.Parallel()
+		g := gomega.NewWithT(t)
+
+		slug := cli.ProjectSlugFromPath("")
+		g.Expect(slug).To(gomega.Equal(""))
 	})
 }
 

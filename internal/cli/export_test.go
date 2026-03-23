@@ -18,7 +18,9 @@ var (
 	ExportBuildRecallSurfacer     = buildRecallSurfacer
 	ExportCallAnthropicAPI        = callAnthropicAPI
 	ExportRecordSurfacing         = recordSurfacing
+	ExportRegisterMemory          = registerMemory
 	ExportResolveSkillsDir        = resolveSkillsDir
+	ExportRunStdinLearn           = runStdinLearn
 	ExportTruncateTitle           = truncateTitle
 )
 

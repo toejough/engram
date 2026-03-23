@@ -262,29 +262,6 @@ followed_count = 0
 	}
 }
 
-func TestFeedback_MissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{
-			"engram", "feedback",
-			"test-mem",
-			"--relevant",
-			"--used",
-		},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
 func TestFeedback_MissingRelevanceFlag(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

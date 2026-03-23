@@ -10,7 +10,6 @@ FILE_PATH="$(echo "$STDIN_JSON" | jq -r '.tool_input.file_path // empty')"
 
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-DATA_DIR="${ENGRAM_DATA_DIR:-${ENGRAM_HOME}/data}"
 
 # Don't surface memories for engram plumbing calls — they create a feedback loop (#352)
 if [[ "$TOOL_NAME" == "Bash" ]]; then
@@ -44,7 +43,7 @@ if [[ -x "$ENGRAM_BIN" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode tool \
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
         --tool-output "$TOOL_RESPONSE" \
-        --data-dir "$DATA_DIR" --format json 2>/dev/null) || SURFACE_OUTPUT=""
+        --format json 2>/dev/null) || SURFACE_OUTPUT=""
     if [[ -n "$SURFACE_OUTPUT" ]]; then
         echo "$SURFACE_OUTPUT" | jq '{
             systemMessage: (.summary // empty),

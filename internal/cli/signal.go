@@ -25,7 +25,7 @@ import (
 // unexported variables.
 var (
 	errApplyProposalMissingFlags = errNew(
-		"apply-proposal: --data-dir, --action, and --memory required",
+		"apply-proposal: --action and --memory required",
 	)
 )
 
@@ -463,7 +463,12 @@ func runApplyProposal(args []string, stdout io.Writer) error {
 		return fmt.Errorf("apply-proposal: %w", parseErr)
 	}
 
-	if *dataDir == "" || *action == "" || *memPath == "" {
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("apply-proposal: %w", defaultErr)
+	}
+
+	if *action == "" || *memPath == "" {
 		return errApplyProposalMissingFlags
 	}
 

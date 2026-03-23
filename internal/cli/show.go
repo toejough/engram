@@ -15,8 +15,7 @@ import (
 
 // unexported variables.
 var (
-	errShowMissingDataDir = errors.New("show: --data-dir required")
-	errShowMissingSlug    = errors.New("show: slug argument required")
+	errShowMissingSlug = errors.New("show: slug argument required")
 )
 
 // effectivenessPercent computes followed/total as a rounded integer percentage.
@@ -184,8 +183,9 @@ func runShow(args []string, stdout io.Writer) error {
 
 	slug = resolveSlug(slug, *nameFlag, fs)
 
-	if *dataDir == "" {
-		return errShowMissingDataDir
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("show: %w", defaultErr)
 	}
 
 	if slug == "" {

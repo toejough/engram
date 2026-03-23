@@ -189,24 +189,6 @@ func TestShow_MemoryNotFound_ReturnsError(t *testing.T) {
 	}
 }
 
-func TestShow_MissingDataDir_ReturnsError(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "show", "some-slug"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
 func TestShow_MissingSlug_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

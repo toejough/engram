@@ -4,7 +4,6 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-ENGRAM_DATA="${ENGRAM_HOME}/data"
 
 # Build if missing or stale (source newer than binary)
 NEEDS_BUILD=false
@@ -28,8 +27,7 @@ TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 SESSION_ID="$(echo "$HOOK_JSON" | jq -r '.session_id // empty')"
 
 # Flush pipeline: learn from session transcript (#309, #348)
-PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
-FLUSH_ARGS=(--data-dir "$ENGRAM_DATA" --project-slug "$PROJECT_SLUG")
+FLUSH_ARGS=()
 [[ -n "$TRANSCRIPT_PATH" ]] && FLUSH_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 [[ -n "$SESSION_ID" ]] && FLUSH_ARGS+=(--session-id "$SESSION_ID")
 

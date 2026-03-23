@@ -4,7 +4,6 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-ENGRAM_DATA="${ENGRAM_HOME}/data"
 
 # Build if missing or stale (source newer than binary)
 NEEDS_BUILD=false
@@ -31,8 +30,7 @@ USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 
 # UC-3: Check for inline correction (with transcript context)
-PROJECT_SLUG="$(echo "$PWD" | tr '/' '-')"
-CORRECT_ARGS=(correct --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --project-slug "$PROJECT_SLUG")
+CORRECT_ARGS=(correct --message "$USER_MESSAGE")
 if [[ -n "$TRANSCRIPT_PATH" ]]; then
     CORRECT_ARGS+=(--transcript-path "$TRANSCRIPT_PATH")
 fi
@@ -47,7 +45,7 @@ fi
 SURFACE_OUTPUT=""
 if [[ -n "$USER_MESSAGE" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode prompt \
-        --message "$USER_MESSAGE" --data-dir "$ENGRAM_DATA" --format json) || true
+        --message "$USER_MESSAGE" --format json) || true
 fi
 
 # Combine into single JSON output

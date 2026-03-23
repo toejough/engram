@@ -4,7 +4,6 @@ set -euo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENGRAM_HOME="${HOME}/.claude/engram"
 ENGRAM_BIN="${ENGRAM_HOME}/bin/engram"
-ENGRAM_DATA="${ENGRAM_HOME}/data"
 
 # Build if missing or stale (source newer than binary)
 NEEDS_BUILD=false
@@ -45,7 +44,7 @@ fi
 if [[ -n "$TOOL_NAME" ]]; then
     SURFACE_OUTPUT=$("$ENGRAM_BIN" surface --mode tool \
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
-        --data-dir "$ENGRAM_DATA" --format json) || true
+        --format json) || true
     if [[ -n "$SURFACE_OUTPUT" ]]; then
         echo "$SURFACE_OUTPUT" | jq '{
             systemMessage: (.summary // empty),

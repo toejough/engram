@@ -16,7 +16,6 @@ import (
 
 // unexported variables.
 var (
-	errFeedbackMissingDataDir   = errors.New("feedback: --data-dir required")
 	errFeedbackMissingRelevance = errors.New(
 		"feedback: --relevant or --irrelevant required",
 	)
@@ -90,8 +89,9 @@ func runFeedback(args []string, stdout io.Writer) error {
 
 	slug = resolveSlug(slug, *nameFlag, fs)
 
-	if *dataDir == "" {
-		return errFeedbackMissingDataDir
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("feedback: %w", defaultErr)
 	}
 
 	if slug == "" {

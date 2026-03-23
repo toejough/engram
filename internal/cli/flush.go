@@ -2,17 +2,11 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-)
-
-// unexported variables.
-var (
-	errFlushMissingDataDir = errors.New("flush: --data-dir is required")
 )
 
 func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) error {
@@ -28,8 +22,9 @@ func runFlush(args []string, _ io.Writer, stderr io.Writer, stdin io.Reader) err
 		return fmt.Errorf("flush: %w", parseErr)
 	}
 
-	if *dataDir == "" {
-		return errFlushMissingDataDir
+	defaultErr := applyDataDirDefault(dataDir)
+	if defaultErr != nil {
+		return fmt.Errorf("flush: %w", defaultErr)
 	}
 
 	// Clean up surfacing log — evaluate no longer consumes it (#348).

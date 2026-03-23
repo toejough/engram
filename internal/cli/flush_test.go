@@ -76,24 +76,6 @@ func TestFlush_FlagParseError(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
-func TestFlush_MissingDataDir(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	var stdout, stderr bytes.Buffer
-
-	err := cli.Run(
-		[]string{"engram", "flush"},
-		&stdout, &stderr,
-		strings.NewReader(""),
-	)
-	g.Expect(err).To(HaveOccurred())
-
-	if err != nil {
-		g.Expect(err.Error()).To(ContainSubstring("--data-dir"))
-	}
-}
-
 func TestFlush_NoTranscript_SkipsGracefully(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
