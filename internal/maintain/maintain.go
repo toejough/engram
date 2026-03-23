@@ -12,10 +12,30 @@ import (
 	"engram/internal/review"
 )
 
+// ConsolidateResultType describes the outcome of a BeforeRemove check.
+type ConsolidateResultType int
+
+// ConsolidateResultType values.
+const (
+	// ConsolidateSkip means a cluster was found and merged; skip removal.
+	ConsolidateSkip ConsolidateResultType = iota
+	// ConsolidateProceed means no cluster found; proceed with removal.
+	ConsolidateProceed
+)
+
+// ConsolidateResult is the outcome of a BeforeRemove consolidation check.
+type ConsolidateResult struct {
+	Type ConsolidateResultType
+}
+
 // Generator produces maintenance proposals for classified memories.
 type Generator struct {
-	llmCaller func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
-	now       func() time.Time
+	llmCaller    func(ctx context.Context, model, systemPrompt, userPrompt string) (string, error)
+	now          func() time.Time
+	consolidator interface {
+		BeforeRemove(ctx context.Context, mem *memory.MemoryRecord) (ConsolidateResult, error)
+	}
+	memLoader func(path string) (*memory.MemoryRecord, error)
 }
 
 // New creates a Generator with the given options.
@@ -105,6 +125,16 @@ func (g *Generator) generateOne(
 	case review.HiddenGem:
 		return g.handleHiddenGem(ctx, classifiedMem, stored)
 	case review.Noise:
+		if g.consolidator != nil && g.memLoader != nil {
+			mem, loadErr := g.memLoader(classifiedMem.Name)
+			if loadErr == nil {
+				action, consErr := g.consolidator.BeforeRemove(ctx, mem)
+				if consErr == nil && action.Type == ConsolidateSkip {
+					return Proposal{}, false
+				}
+			}
+		}
+
 		return g.handleNoise(classifiedMem)
 	case review.InsufficientData:
 		return Proposal{}, false
@@ -232,6 +262,19 @@ func WithLLMCaller(
 ) Option {
 	return func(g *Generator) {
 		g.llmCaller = caller
+	}
+}
+
+// WithConsolidator sets the consolidation check for noise-quadrant memories.
+func WithConsolidator(
+	c interface {
+		BeforeRemove(context.Context, *memory.MemoryRecord) (ConsolidateResult, error)
+	},
+	loader func(string) (*memory.MemoryRecord, error),
+) Option {
+	return func(g *Generator) {
+		g.consolidator = c
+		g.memLoader = loader
 	}
 }
 

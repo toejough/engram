@@ -381,6 +381,123 @@ func TestGenerate_WorkingWithinThreshold(t *testing.T) {
 	g.Expect(proposals).To(gomega.BeEmpty())
 }
 
+// stubConsolidator implements the BeforeRemove interface for testing.
+type stubConsolidator struct {
+	result maintain.ConsolidateResult
+	err    error
+}
+
+func (s *stubConsolidator) BeforeRemove(
+	_ context.Context, _ *memory.MemoryRecord,
+) (maintain.ConsolidateResult, error) {
+	return s.result, s.err
+}
+
+func TestGenerate_Noise_ConsolidatorNil_ProposesRemoval(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	gen := maintain.New(maintain.WithNow(fixedNow))
+
+	classified := []review.ClassifiedMemory{
+		{Name: "noise-mem", Quadrant: review.Noise, SurfacedCount: 1},
+	}
+	memories := map[string]*memory.Stored{
+		"noise-mem": {Title: "Noisy"},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("remove"))
+}
+
+func TestGenerate_Noise_ConsolidateSkip_NoProposal(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	cons := &stubConsolidator{
+		result: maintain.ConsolidateResult{Type: maintain.ConsolidateSkip},
+	}
+	loader := func(_ string) (*memory.MemoryRecord, error) {
+		return &memory.MemoryRecord{Title: "Noisy"}, nil
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithConsolidator(cons, loader),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "noise-mem", Quadrant: review.Noise},
+	}
+	memories := map[string]*memory.Stored{
+		"noise-mem": {Title: "Noisy"},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.BeEmpty())
+}
+
+func TestGenerate_Noise_ConsolidateProceed_ProposesRemoval(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	cons := &stubConsolidator{
+		result: maintain.ConsolidateResult{Type: maintain.ConsolidateProceed},
+	}
+	loader := func(_ string) (*memory.MemoryRecord, error) {
+		return &memory.MemoryRecord{Title: "Noisy"}, nil
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithConsolidator(cons, loader),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "noise-mem", Quadrant: review.Noise, SurfacedCount: 1},
+	}
+	memories := map[string]*memory.Stored{
+		"noise-mem": {Title: "Noisy"},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("remove"))
+}
+
+func TestGenerate_Noise_LoaderError_ProposesRemoval(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	cons := &stubConsolidator{
+		result: maintain.ConsolidateResult{Type: maintain.ConsolidateSkip},
+	}
+	loader := func(_ string) (*memory.MemoryRecord, error) {
+		return nil, errors.New("file not found")
+	}
+
+	gen := maintain.New(
+		maintain.WithNow(fixedNow),
+		maintain.WithConsolidator(cons, loader),
+	)
+
+	classified := []review.ClassifiedMemory{
+		{Name: "noise-mem", Quadrant: review.Noise, SurfacedCount: 1},
+	}
+	memories := map[string]*memory.Stored{
+		"noise-mem": {Title: "Noisy"},
+	}
+
+	proposals := gen.Generate(context.Background(), classified, memories)
+
+	g.Expect(proposals).To(gomega.HaveLen(1))
+	g.Expect(proposals[0].Action).To(gomega.Equal("remove"))
+}
+
 // fixedNow returns a deterministic time for testing.
 func fixedNow() time.Time {
 	return time.Date(2026, 3, 7, 0, 0, 0, 0, time.UTC)
