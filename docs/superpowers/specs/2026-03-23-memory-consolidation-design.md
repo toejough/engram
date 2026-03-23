@@ -33,18 +33,48 @@ Implementing scoring (#360) and keyword refinement (#346) without consolidation 
 
 ## Architecture
 
-### New Package: `internal/consolidate`
+### Relationship to `internal/signal.Consolidator`
+
+The existing `internal/signal.Consolidator` handles keyword-overlap clustering (>50% overlap, Union-Find) with backup, deletion, link recomputation, principle synthesis, and dry-run support. This design **extends** the existing consolidator rather than replacing it:
+
+- **Reuse:** Backup (`BackupWriter`), deletion (`FileDeleter`), link recomputation (`LinkRecomputer`), principle synthesis (`PrincipleSynthesizer`), file writing (`MemoryWriter`), effectiveness scoring (`EffectivenessReader`), and the `AbsorbedRecord`/merge infrastructure.
+- **Replace:** Keyword-overlap clustering (`buildClusters`/`overlaps`) with BM25 → Haiku confirmation. The existing approach misses semantic similarity ("dependency injection" vs "invert dependencies") and produces false positives on generic keyword overlap.
+- **Add:** Three intervention points (`BeforeStore`, `OnIrrelevant`, `BeforeRemove`), counter transfer logic, `RefinementContext` for #346, and the `migrate-scores` subcommand.
+
+The new clustering logic lives in `internal/signal` alongside the existing consolidator, extending it with BM25 candidate retrieval and Haiku confirmation as new `ConsolidatorOption` dependencies. The existing `Consolidate()` and `Plan()` methods are updated to use the new clustering when a `Scorer` and `Confirmer` are provided, falling back to keyword-overlap when they are not (backward compatibility for tests and environments without API access).
+
+### Interfaces
+
+The consolidator reuses existing interfaces from `internal/signal` and adds:
 
 ```go
-type Consolidator struct {
-    scorer    Scorer      // BM25 similarity against existing memories
-    confirmer Confirmer   // Haiku: "do these share a principle?"
-    extractor Extractor   // Haiku: "what's the generalized principle?"
-    store     MemoryStore // read/write/archive memory files
+// Scorer retrieves candidate memories similar to a query memory.
+type Scorer interface {
+    FindSimilar(ctx context.Context, query *memory.Stored, exclude []string) ([]ScoredCandidate, error)
+}
+
+// ScoredCandidate is a memory with its BM25 similarity score.
+type ScoredCandidate struct {
+    Memory *memory.Stored
+    Score  float64
+}
+
+// Confirmer asks an LLM whether candidate memories share a principle.
+type Confirmer interface {
+    ConfirmClusters(ctx context.Context, query *memory.Stored, candidates []ScoredCandidate) ([]ConfirmedCluster, error)
+}
+
+// ConfirmedCluster is a group of memories confirmed to share a principle.
+type ConfirmedCluster struct {
+    Members   []*memory.Stored
+    Principle string // one-sentence description of the shared principle
+}
+
+// Extractor creates a generalized memory from a confirmed cluster.
+type Extractor interface {
+    ExtractPrinciple(ctx context.Context, cluster ConfirmedCluster) (*memory.MemoryRecord, error)
 }
 ```
-
-All I/O through injected interfaces.
 
 ### Action Types
 
@@ -90,7 +120,7 @@ Three methods, one per intervention point:
 
 - **Query:** memory's `title` + `principle` + `keywords` (exclude `content` — too verbose)
 - **Scoring:** BM25 against all existing memories' `title + principle + keywords`
-- **Threshold:** score ≥ 0.3 (tunable)
+- **Threshold:** Starting point of score ≥ 0.3, calibrated empirically during migration dry-run. BM25 scores are not normalized — the right threshold depends on corpus size and document length. The migration dry-run is the calibration opportunity: inspect proposed clusters, adjust threshold until clusters match human judgment.
 - **Cap:** top 10 candidates
 - **Exclusions:** the query memory itself; memories already absorbed by another
 
@@ -100,9 +130,9 @@ Prompt:
 
 > "Here is a memory and N candidate memories. Group any that express the same underlying principle. A cluster must share a generalizable teaching — not just similar keywords or the same project. Do any contradict each other? Return clusters as groups of memory slugs, with a one-sentence description of the shared principle for each cluster. Exclude contradictory members. If no memories share a principle, return empty."
 
-**Cluster minimum size:** 3 (matches CLAUDE.md tier 2 promotion rule).
+**Cluster minimum size:** 3 total memories (the query memory + at least 2 BM25 candidates). This matches the CLAUDE.md tier 2 promotion rule ("generated from memory clusters, size >= 3"). The existing `internal/signal` uses `minClusterSize = 2`; this design raises it to 3 for the semantic clustering path because Haiku confirmation adds confidence that justifies requiring one more member.
 
-**Cost bound:** Haiku only fires when BM25 finds ≥ 2 candidates above threshold. Most memories (no siblings) → BM25-only, zero API cost.
+**Cost bound:** Haiku only fires when BM25 finds ≥ 2 candidates above threshold (query + 2 = 3 total, meeting the minimum). Most memories (no siblings) → BM25-only, zero API cost.
 
 ## Principle Extraction & Memory Creation
 
@@ -118,7 +148,7 @@ When a cluster is confirmed, Haiku creates the generalized memory:
 | `principle` | Haiku-generated |
 | `anti_pattern` | Haiku-generated |
 | `content` | Haiku-generated |
-| `keywords` | Haiku-generated, then IDF-filtered |
+| `keywords` | Haiku-generated, then IDF-filtered (using the post-archival memory corpus — archived memories excluded from IDF calculation) |
 | `concepts` | Haiku-generated |
 | `generalizability` | Haiku-scored (cluster of 2s should produce 4-5) |
 | `confidence` | `"B"` (system-inferred, not user-invoked) |
@@ -129,12 +159,12 @@ When a cluster is confirmed, Haiku creates the generalized memory:
 | `contradicted_count` | Sum of originals |
 | `surfaced_count` | 0 (reset) |
 | `absorbed` | One `AbsorbedRecord` per original |
-| `enforcement_level` | Max of originals' levels |
+| `enforcement_level` | Max of originals' levels (escalation preserved; `transitions` records from originals are not carried over — the archive preserves the full audit trail) |
 
 ### Archival
 
 - Move originals to `memories/.archive/` with TOML unchanged
-- Rewrite graph links pointing to archived memories → point to consolidated memory
+- Rewrite graph links pointing to archived memories → point to consolidated memory (reuse existing `LinkRecomputer.RecomputeAfterMerge()` from `internal/signal`)
 
 ### Updating Existing Consolidated Memory
 
@@ -222,7 +252,7 @@ One-time operation. After migration, new memories are scored at extraction time.
 
 All intervention points degrade gracefully:
 - `BeforeStore` → `StoreAsIs`
-- `OnIrrelevant` → `RefineKeywords` (populate context for future #346)
+- `OnIrrelevant` → `RefineKeywords` (populate context for future #346). Since #346 is not yet implemented, the feedback pipeline logs a warning and takes no action when it receives `RefineKeywords`. The `RefinementContext` is constructed but discarded — this is expected until #346 ships.
 - `BeforeRemove` → `ProceedWithRemoval` (log warning — safety net failing)
 
 ### Cluster Overlap
@@ -249,7 +279,16 @@ This design produces `RefinementContext` when `OnIrrelevant` finds no cluster. T
 
 **Consumer (#346):** Receives `RefinementContext`, identifies which keywords caused the false positive (high corpus frequency + matched the irrelevant query), removes or narrows them, writes updated keywords back to the memory TOML.
 
-**Feedback pipeline responsibility:** Must pass surfacing context (what query/tool caused this memory to surface) through to `OnIrrelevant`. This context is not currently available in the feedback command — it will need to be added to the feedback invocation (e.g., `--surfacing-query`, `--tool-name`, `--tool-input` flags).
+**Feedback pipeline responsibility:** Must pass surfacing context (what query/tool caused this memory to surface) through to `OnIrrelevant`. This context is not currently available in the feedback command — it will need to be added.
+
+### Surfacing Context Data Flow
+
+The surfacing context originates in the hooks that invoke `engram feedback`:
+
+1. **Hook captures context:** `post-tool-use.sh` and `user-prompt-submit.sh` already have access to `$TOOL_NAME`, `$TOOL_INPUT`, and the surfacing query (the text that triggered surfacing). These hooks call `engram feedback`.
+2. **New CLI flags:** `engram feedback` gains optional flags: `--surfacing-query`, `--tool-name`, `--tool-input`. These are best-effort — if the hook doesn't provide them, the fields are empty strings.
+3. **Feedback command passes to consolidator:** `feedback.go` constructs an `OnIrrelevantInput` with the memory + surfacing context and calls `consolidator.OnIrrelevant(ctx, input)`.
+4. **Consolidator populates `RefinementContext`:** When returning `RefineKeywords`, the consolidator fills `RefinementContext` with whatever surfacing context was provided. Empty fields are acceptable — #346 should handle partial context gracefully.
 
 ## Testing Strategy
 
@@ -274,4 +313,4 @@ This design produces `RefinementContext` when `OnIrrelevant` finds no cluster. T
 
 - Dry-run outputs proposed clusters without writing
 - `--apply` creates consolidated memories and archives originals
-- Idempotent: running twice doesn't re-score or re-consolidate
+- Idempotent: running twice doesn't re-score or re-consolidate. Idempotency mechanism: scored memories have `generalizability > 0` (skipped by scan). Consolidated memories have non-empty `absorbed` records (excluded from clustering as candidates). Archived memories are not in `memories/` (not scanned).
