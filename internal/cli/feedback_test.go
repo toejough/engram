@@ -510,3 +510,100 @@ followed_count = 0
 
 	g.Expect(record.FollowedCount).To(Equal(1))
 }
+
+func TestFeedback_SurfacingContextFlags_Accepted(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := "title = \"ctx-test\"\nsurfaced_count = 1\n"
+	err = os.WriteFile(
+		filepath.Join(memDir, "ctx-test.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "feedback",
+			"--name", "ctx-test",
+			"--data-dir", dataDir,
+			"--relevant", "--used",
+			"--surfacing-query", "how to test",
+			"--tool-name", "Read",
+			"--tool-input", "foo.go",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	// Surfacing context message should NOT appear for relevant feedback.
+	g.Expect(stdout.String()).NotTo(ContainSubstring("Surfacing context"))
+}
+
+func TestFeedback_Irrelevant_WithSurfacingQuery_PrintsContextMessage(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	dataDir := t.TempDir()
+	memDir := filepath.Join(dataDir, "memories")
+	err := os.MkdirAll(memDir, 0o750)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	tomlContent := "title = \"irr-ctx\"\nsurfaced_count = 1\n"
+	err = os.WriteFile(
+		filepath.Join(memDir, "irr-ctx.toml"),
+		[]byte(tomlContent),
+		0o640,
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	var stdout, stderr bytes.Buffer
+
+	err = cli.Run(
+		[]string{
+			"engram", "feedback",
+			"--name", "irr-ctx",
+			"--data-dir", dataDir,
+			"--surfacing-query", "how to test",
+			"--irrelevant",
+		},
+		&stdout, &stderr,
+		strings.NewReader(""),
+	)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(stdout.String()).To(ContainSubstring("Surfacing context recorded for refinement"))
+}
