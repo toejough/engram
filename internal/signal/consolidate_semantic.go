@@ -16,6 +16,27 @@ var (
 	ErrNilExtractor = errors.New("consolidating cluster: extractor is nil")
 )
 
+// BeforeRemove checks if a memory slated for removal belongs to a cluster.
+// Called by maintain pipeline before generating a removal proposal.
+func (c *Consolidator) BeforeRemove(
+	ctx context.Context,
+	mem *memory.MemoryRecord,
+) (Action, error) {
+	cluster := c.findCluster(ctx, mem, nil)
+	if cluster == nil {
+		return Action{Type: ProceedWithRemoval}, nil
+	}
+
+	action, err := c.consolidateCluster(ctx, cluster)
+	if err != nil {
+		c.logStderrf("[engram] consolidation failed before remove: %v\n", err)
+
+		return Action{Type: ProceedWithRemoval}, nil
+	}
+
+	return action, nil
+}
+
 // BeforeStore checks if a candidate memory belongs to an existing cluster.
 // Called by learn/correct pipeline before writing a new memory to disk.
 func (c *Consolidator) BeforeStore(
@@ -37,22 +58,32 @@ func (c *Consolidator) BeforeStore(
 	return action, nil
 }
 
-// BeforeRemove checks if a memory slated for removal belongs to a cluster.
-// Called by maintain pipeline before generating a removal proposal.
-func (c *Consolidator) BeforeRemove(
+// OnIrrelevant checks if an irrelevantly-surfaced memory belongs to a cluster.
+// Called by feedback pipeline after recording irrelevant feedback.
+func (c *Consolidator) OnIrrelevant(
 	ctx context.Context,
-	mem *memory.MemoryRecord,
+	input OnIrrelevantInput,
 ) (Action, error) {
-	cluster := c.findCluster(ctx, mem, nil)
+	refinement := Action{
+		Type: RefineKeywords,
+		RefinementContext: &RefinementContext{
+			Memory:         input.Memory,
+			SurfacingQuery: input.SurfacingQuery,
+			ToolName:       input.ToolName,
+			ToolInput:      input.ToolInput,
+		},
+	}
+
+	cluster := c.findCluster(ctx, input.Memory, nil)
 	if cluster == nil {
-		return Action{Type: ProceedWithRemoval}, nil
+		return refinement, nil
 	}
 
 	action, err := c.consolidateCluster(ctx, cluster)
 	if err != nil {
-		c.logStderrf("[engram] consolidation failed before remove: %v\n", err)
+		c.logStderrf("[engram] consolidation failed on irrelevant: %v\n", err)
 
-		return Action{Type: ProceedWithRemoval}, nil
+		return refinement, nil
 	}
 
 	return action, nil
@@ -119,37 +150,6 @@ func (c *Consolidator) consolidateCluster(
 		ConsolidatedMem: consolidated,
 		Archived:        archived,
 	}, nil
-}
-
-// OnIrrelevant checks if an irrelevantly-surfaced memory belongs to a cluster.
-// Called by feedback pipeline after recording irrelevant feedback.
-func (c *Consolidator) OnIrrelevant(
-	ctx context.Context,
-	input OnIrrelevantInput,
-) (Action, error) {
-	refinement := Action{
-		Type: RefineKeywords,
-		RefinementContext: &RefinementContext{
-			Memory:         input.Memory,
-			SurfacingQuery: input.SurfacingQuery,
-			ToolName:       input.ToolName,
-			ToolInput:      input.ToolInput,
-		},
-	}
-
-	cluster := c.findCluster(ctx, input.Memory, nil)
-	if cluster == nil {
-		return refinement, nil
-	}
-
-	action, err := c.consolidateCluster(ctx, cluster)
-	if err != nil {
-		c.logStderrf("[engram] consolidation failed on irrelevant: %v\n", err)
-
-		return refinement, nil
-	}
-
-	return action, nil
 }
 
 // findCluster attempts to find a semantic cluster for the given memory.

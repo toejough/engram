@@ -11,6 +11,219 @@ import (
 	"engram/internal/signal"
 )
 
+func TestBeforeRemove_ClusterFound_ReturnsConsolidated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	extracted := &memory.MemoryRecord{
+		Title: "consolidated", SourcePath: "/consolidated.toml",
+	}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: candidates}),
+		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&mockExtractor{result: extracted}),
+	)
+
+	action, err := consolidator.BeforeRemove(context.Background(), memA)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.Consolidated))
+	g.Expect(action.ConsolidatedMem).NotTo(BeNil())
+}
+
+func TestBeforeRemove_ConsolidateError_ReturnsProceedWithRemoval(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	// No extractor → consolidateCluster returns ErrNilExtractor.
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: candidates}),
+		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
+	)
+
+	action, err := consolidator.BeforeRemove(context.Background(), memA)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
+}
+
+func TestBeforeRemove_NoCluster_ReturnsProceedWithRemoval(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: nil}),
+		signal.WithConfirmer(&mockConfirmer{}),
+	)
+
+	query := &memory.MemoryRecord{Title: "orphan"}
+
+	action, err := consolidator.BeforeRemove(context.Background(), query)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
+}
+
+func TestBeforeRemove_ScorerUnavailable_ReturnsProceedWithRemoval(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// No scorer set — findCluster returns nil immediately.
+	consolidator := signal.NewConsolidator()
+
+	query := &memory.MemoryRecord{Title: "orphan"}
+
+	action, err := consolidator.BeforeRemove(context.Background(), query)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
+}
+
+func TestBeforeStore_ClusterFound_ReturnsConsolidated(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "Shared principle",
+		},
+	}
+
+	extracted := &memory.MemoryRecord{
+		Title: "consolidated", SourcePath: "/consolidated.toml",
+	}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: candidates}),
+		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&mockExtractor{result: extracted}),
+	)
+
+	action, err := consolidator.BeforeStore(context.Background(), memA)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.Consolidated))
+	g.Expect(action.ConsolidatedMem).NotTo(BeNil())
+}
+
+func TestBeforeStore_ConsolidateError_ReturnsStoreAsIs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "Shared principle",
+		},
+	}
+
+	// No extractor → consolidateCluster returns ErrNilExtractor → graceful degradation.
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: candidates}),
+		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
+	)
+
+	action, err := consolidator.BeforeStore(context.Background(), memA)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.StoreAsIs))
+}
+
+func TestBeforeStore_NoCluster_ReturnsStoreAsIs(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	// No scorer/confirmer → findCluster returns nil → StoreAsIs.
+	consolidator := signal.NewConsolidator()
+
+	candidate := &memory.MemoryRecord{Title: "new-memory"}
+
+	action, err := consolidator.BeforeStore(context.Background(), candidate)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.StoreAsIs))
+}
+
 func TestConsolidateCluster_ArchivesAllMembers(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -498,6 +711,58 @@ func TestOnIrrelevant_ClusterFound_ReturnsConsolidated(t *testing.T) {
 	g.Expect(action.ConsolidatedMem).NotTo(BeNil())
 }
 
+func TestOnIrrelevant_ConsolidateError_ReturnsRefineKeywords(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared",
+		},
+	}
+
+	errExtract := errors.New("LLM down")
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&mockScorer{candidates: candidates}),
+		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&mockExtractor{err: errExtract}),
+	)
+
+	input := signal.OnIrrelevantInput{
+		Memory:         memA,
+		SurfacingQuery: "query",
+		ToolName:       "recall",
+		ToolInput:      "input",
+	}
+
+	action, err := consolidator.OnIrrelevant(context.Background(), input)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(action.Type).To(Equal(signal.RefineKeywords))
+	g.Expect(action.RefinementContext).NotTo(BeNil())
+
+	if action.RefinementContext == nil {
+		return
+	}
+
+	g.Expect(action.RefinementContext.Memory).To(Equal(memA))
+}
+
 func TestOnIrrelevant_NoCluster_ReturnsRefineKeywords(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -568,58 +833,6 @@ func TestOnIrrelevant_RefinementContextPopulated(t *testing.T) {
 	)
 }
 
-func TestOnIrrelevant_ConsolidateError_ReturnsRefineKeywords(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
-
-	candidates := []signal.ScoredCandidate{
-		{Memory: memB, Score: 0.9},
-		{Memory: memC, Score: 0.85},
-	}
-
-	confirmedClusters := []signal.ConfirmedCluster{
-		{
-			Members:   []*memory.MemoryRecord{memA, memB, memC},
-			Principle: "shared",
-		},
-	}
-
-	errExtract := errors.New("LLM down")
-
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: candidates}),
-		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
-		signal.WithExtractor(&mockExtractor{err: errExtract}),
-	)
-
-	input := signal.OnIrrelevantInput{
-		Memory:         memA,
-		SurfacingQuery: "query",
-		ToolName:       "recall",
-		ToolInput:      "input",
-	}
-
-	action, err := consolidator.OnIrrelevant(context.Background(), input)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.RefineKeywords))
-	g.Expect(action.RefinementContext).NotTo(BeNil())
-
-	if action.RefinementContext == nil {
-		return
-	}
-
-	g.Expect(action.RefinementContext.Memory).To(Equal(memA))
-}
-
 // mockArchiver implements signal.Archiver for tests.
 type mockArchiver struct {
 	archived []string
@@ -667,219 +880,6 @@ func (m *mockLinkRecomputer) RecomputeAfterMerge(_, _ string) error {
 	m.callCount++
 
 	return nil
-}
-
-func TestBeforeStore_NoCluster_ReturnsStoreAsIs(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// No scorer/confirmer → findCluster returns nil → StoreAsIs.
-	consolidator := signal.NewConsolidator()
-
-	candidate := &memory.MemoryRecord{Title: "new-memory"}
-
-	action, err := consolidator.BeforeStore(context.Background(), candidate)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.StoreAsIs))
-}
-
-func TestBeforeStore_ClusterFound_ReturnsConsolidated(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
-
-	candidates := []signal.ScoredCandidate{
-		{Memory: memB, Score: 0.9},
-		{Memory: memC, Score: 0.85},
-	}
-
-	confirmedClusters := []signal.ConfirmedCluster{
-		{
-			Members:   []*memory.MemoryRecord{memA, memB, memC},
-			Principle: "Shared principle",
-		},
-	}
-
-	extracted := &memory.MemoryRecord{
-		Title: "consolidated", SourcePath: "/consolidated.toml",
-	}
-
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: candidates}),
-		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
-		signal.WithExtractor(&mockExtractor{result: extracted}),
-	)
-
-	action, err := consolidator.BeforeStore(context.Background(), memA)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.Consolidated))
-	g.Expect(action.ConsolidatedMem).NotTo(BeNil())
-}
-
-func TestBeforeStore_ConsolidateError_ReturnsStoreAsIs(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
-
-	candidates := []signal.ScoredCandidate{
-		{Memory: memB, Score: 0.9},
-		{Memory: memC, Score: 0.85},
-	}
-
-	confirmedClusters := []signal.ConfirmedCluster{
-		{
-			Members:   []*memory.MemoryRecord{memA, memB, memC},
-			Principle: "Shared principle",
-		},
-	}
-
-	// No extractor → consolidateCluster returns ErrNilExtractor → graceful degradation.
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: candidates}),
-		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
-	)
-
-	action, err := consolidator.BeforeStore(context.Background(), memA)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.StoreAsIs))
-}
-
-func TestBeforeRemove_ClusterFound_ReturnsConsolidated(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
-
-	candidates := []signal.ScoredCandidate{
-		{Memory: memB, Score: 0.9},
-		{Memory: memC, Score: 0.85},
-	}
-
-	confirmedClusters := []signal.ConfirmedCluster{
-		{
-			Members:   []*memory.MemoryRecord{memA, memB, memC},
-			Principle: "shared principle",
-		},
-	}
-
-	extracted := &memory.MemoryRecord{
-		Title: "consolidated", SourcePath: "/consolidated.toml",
-	}
-
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: candidates}),
-		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
-		signal.WithExtractor(&mockExtractor{result: extracted}),
-	)
-
-	action, err := consolidator.BeforeRemove(context.Background(), memA)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.Consolidated))
-	g.Expect(action.ConsolidatedMem).NotTo(BeNil())
-}
-
-func TestBeforeRemove_NoCluster_ReturnsProceedWithRemoval(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: nil}),
-		signal.WithConfirmer(&mockConfirmer{}),
-	)
-
-	query := &memory.MemoryRecord{Title: "orphan"}
-
-	action, err := consolidator.BeforeRemove(context.Background(), query)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
-}
-
-func TestBeforeRemove_ScorerUnavailable_ReturnsProceedWithRemoval(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	// No scorer set — findCluster returns nil immediately.
-	consolidator := signal.NewConsolidator()
-
-	query := &memory.MemoryRecord{Title: "orphan"}
-
-	action, err := consolidator.BeforeRemove(context.Background(), query)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
-}
-
-func TestBeforeRemove_ConsolidateError_ReturnsProceedWithRemoval(t *testing.T) {
-	t.Parallel()
-	g := NewWithT(t)
-
-	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
-	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
-	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
-
-	candidates := []signal.ScoredCandidate{
-		{Memory: memB, Score: 0.9},
-		{Memory: memC, Score: 0.85},
-	}
-
-	confirmedClusters := []signal.ConfirmedCluster{
-		{
-			Members:   []*memory.MemoryRecord{memA, memB, memC},
-			Principle: "shared principle",
-		},
-	}
-
-	// No extractor → consolidateCluster returns ErrNilExtractor.
-	consolidator := signal.NewConsolidator(
-		signal.WithScorer(&mockScorer{candidates: candidates}),
-		signal.WithConfirmer(&mockConfirmer{clusters: confirmedClusters}),
-	)
-
-	action, err := consolidator.BeforeRemove(context.Background(), memA)
-	g.Expect(err).NotTo(HaveOccurred())
-
-	if err != nil {
-		return
-	}
-
-	g.Expect(action.Type).To(Equal(signal.ProceedWithRemoval))
 }
 
 // mockScorer implements signal.Scorer for tests.
