@@ -12,6 +12,344 @@ import (
 	"engram/internal/signal"
 )
 
+func TestConsolidateBatch_Apply_ConsolidatesClusters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	consolidated := &memory.MemoryRecord{
+		Title:      "consolidated",
+		SourcePath: "/consolidated.toml",
+	}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{memA, memB, memC}}
+	writer := &mockMigrationWriter{}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: candidates}),
+		signal.WithConfirmer(&batchMockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&batchMockExtractor{result: consolidated}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, writer, nil)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ConsolidatedCount).To(Equal(1))
+	g.Expect(writer.written).To(HaveLen(1))
+	g.Expect(writer.written[0].Title).To(Equal("consolidated"))
+}
+
+func TestConsolidateBatch_ConsolidateError_LogsAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{memA, memB, memC}}
+
+	var stderr bytes.Buffer
+
+	// No extractor → consolidateCluster returns ErrNilExtractor.
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: candidates}),
+		signal.WithConfirmer(&batchMockConfirmer{clusters: confirmedClusters}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, nil, &stderr)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ConsolidatedCount).To(Equal(0))
+	g.Expect(stderr.String()).To(ContainSubstring("consolidation error"))
+}
+
+func TestConsolidateBatch_DryRun_FindsClustersNoWrite(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{memA, memB, memC}}
+	writer := &mockMigrationWriter{}
+
+	var stderr bytes.Buffer
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: candidates}),
+		signal.WithConfirmer(&batchMockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&batchMockExtractor{
+			result: &memory.MemoryRecord{Title: "consolidated"},
+		}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, writer, &stderr)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), true)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ClusterCount).To(Equal(1))
+	g.Expect(writer.written).To(BeEmpty())
+	g.Expect(stderr.String()).To(ContainSubstring("shared principle"))
+}
+
+func TestConsolidateBatch_ListError_ReturnsError(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	errList := errors.New("disk failure")
+	lister := &migrateLister{err: errList}
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{}),
+		signal.WithConfirmer(&batchMockConfirmer{}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, nil, nil)
+	runner.SetConsolidator(consolidator)
+
+	_, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).To(MatchError(ContainSubstring("listing records")))
+	g.Expect(err).To(MatchError(ContainSubstring("disk failure")))
+}
+
+func TestConsolidateBatch_NilConsolidator_ReturnsEmpty(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{}}
+	runner := signal.NewMigrationRunner(lister, nil, nil, nil)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ClusterCount).To(Equal(0))
+}
+
+func TestConsolidateBatch_NoClusters(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{memA}}
+	writer := &mockMigrationWriter{}
+
+	// Scorer returns no candidates → no clusters.
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: nil}),
+		signal.WithConfirmer(&batchMockConfirmer{}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, writer, nil)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ClusterCount).To(Equal(0))
+	g.Expect(result.ConsolidatedCount).To(Equal(0))
+}
+
+func TestConsolidateBatch_SkipsAbsorbed(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	absorbed := &memory.MemoryRecord{
+		Title:      "absorbed-mem",
+		SourcePath: "/absorbed.toml",
+		Absorbed: []memory.AbsorbedRecord{
+			{From: "old-mem"},
+		},
+	}
+	fresh := &memory.MemoryRecord{Title: "fresh-mem", SourcePath: "/fresh.toml"}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{absorbed, fresh}}
+	writer := &mockMigrationWriter{}
+
+	// Scorer returns no candidates for the fresh record → no clusters.
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: nil}),
+		signal.WithConfirmer(&batchMockConfirmer{}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, writer, nil)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	// The absorbed memory should be skipped; only fresh was considered.
+	g.Expect(result.ClusterCount).To(Equal(0))
+}
+
+func TestConsolidateBatch_WriteError_LogsAndContinues(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	memA := &memory.MemoryRecord{Title: "mem-a", SourcePath: "/a.toml"}
+	memB := &memory.MemoryRecord{Title: "mem-b", SourcePath: "/b.toml"}
+	memC := &memory.MemoryRecord{Title: "mem-c", SourcePath: "/c.toml"}
+
+	candidates := []signal.ScoredCandidate{
+		{Memory: memB, Score: 0.9},
+		{Memory: memC, Score: 0.85},
+	}
+
+	confirmedClusters := []signal.ConfirmedCluster{
+		{
+			Members:   []*memory.MemoryRecord{memA, memB, memC},
+			Principle: "shared principle",
+		},
+	}
+
+	consolidated := &memory.MemoryRecord{
+		Title:      "consolidated",
+		SourcePath: "/consolidated.toml",
+	}
+
+	lister := &migrateLister{records: []*memory.MemoryRecord{memA, memB, memC}}
+
+	errWrite := errors.New("disk full")
+	writer := &mockMigrationWriter{err: errWrite}
+
+	var stderr bytes.Buffer
+
+	consolidator := signal.NewConsolidator(
+		signal.WithScorer(&batchMockScorer{candidates: candidates}),
+		signal.WithConfirmer(&batchMockConfirmer{clusters: confirmedClusters}),
+		signal.WithExtractor(&batchMockExtractor{result: consolidated}),
+	)
+
+	runner := signal.NewMigrationRunner(lister, nil, writer, &stderr)
+	runner.SetConsolidator(consolidator)
+
+	result, err := runner.ConsolidateBatch(context.Background(), false)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	g.Expect(result).NotTo(BeNil())
+
+	if result == nil {
+		return
+	}
+
+	g.Expect(result.ConsolidatedCount).To(Equal(1))
+	g.Expect(stderr.String()).To(ContainSubstring("write failed"))
+	g.Expect(stderr.String()).To(ContainSubstring("disk full"))
+}
+
 func TestMigrationRunner_LLMError_ReturnsError(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
@@ -40,8 +378,10 @@ func TestMigrationRunner_ScoresUnscoredMemories(t *testing.T) {
 	lister := &migrateLister{records: []*memory.MemoryRecord{unscoredA, unscoredB}}
 	writer := &mockMigrationWriter{}
 
-	const scoreA = 3
-	const scoreB = 5
+	const (
+		scoreA = 3
+		scoreB = 5
+	)
 
 	scorer := &mockGeneralizabilityScorer{scores: []int{scoreA, scoreB}}
 
@@ -151,6 +491,45 @@ func TestMigrationRunner_WritesScoresBack(t *testing.T) {
 	g.Expect(writer.written).To(HaveLen(1))
 	g.Expect(writer.written[0].Title).To(Equal("write-test"))
 	g.Expect(writer.written[0].Generalizability).To(Equal(expectedScore))
+}
+
+// batchMockConfirmer implements signal.Confirmer for batch consolidation tests.
+type batchMockConfirmer struct {
+	clusters []signal.ConfirmedCluster
+}
+
+func (m *batchMockConfirmer) ConfirmClusters(
+	_ context.Context,
+	_ *memory.MemoryRecord,
+	_ []signal.ScoredCandidate,
+) ([]signal.ConfirmedCluster, error) {
+	return m.clusters, nil
+}
+
+// batchMockExtractor implements signal.Extractor for batch consolidation tests.
+type batchMockExtractor struct {
+	result *memory.MemoryRecord
+	err    error
+}
+
+func (m *batchMockExtractor) ExtractPrinciple(
+	_ context.Context,
+	_ signal.ConfirmedCluster,
+) (*memory.MemoryRecord, error) {
+	return m.result, m.err
+}
+
+// batchMockScorer implements signal.Scorer for batch consolidation tests.
+type batchMockScorer struct {
+	candidates []signal.ScoredCandidate
+}
+
+func (m *batchMockScorer) FindSimilar(
+	_ context.Context,
+	_ *memory.MemoryRecord,
+	_ []string,
+) ([]signal.ScoredCandidate, error) {
+	return m.candidates, nil
 }
 
 // migrateLister implements signal.MemoryRecordLister for migration tests.
