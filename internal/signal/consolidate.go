@@ -37,6 +37,10 @@ type Consolidator struct {
 	effectiveness  EffectivenessReader
 	similarity     TextSimilarityScorer
 	stderr         io.Writer
+	scorer         Scorer
+	confirmer      Confirmer
+	extractor      Extractor
+	archiver       Archiver
 }
 
 // NewConsolidator creates a Consolidator with the given options.
@@ -443,6 +447,26 @@ func WithStderr(w io.Writer) ConsolidatorOption {
 	return func(c *Consolidator) {
 		c.stderr = w
 	}
+}
+
+// WithScorer sets the BM25 candidate scorer for semantic clustering.
+func WithScorer(s Scorer) ConsolidatorOption {
+	return func(c *Consolidator) { c.scorer = s }
+}
+
+// WithConfirmer sets the LLM cluster confirmer for semantic clustering.
+func WithConfirmer(cf Confirmer) ConsolidatorOption {
+	return func(c *Consolidator) { c.confirmer = cf }
+}
+
+// WithExtractor sets the LLM principle extractor for semantic clustering.
+func WithExtractor(e Extractor) ConsolidatorOption {
+	return func(c *Consolidator) { c.extractor = e }
+}
+
+// WithArchiver sets the archiver for consolidated memory originals.
+func WithArchiver(a Archiver) ConsolidatorOption {
+	return func(c *Consolidator) { c.archiver = a }
 }
 
 // WithTextSimilarityScorer sets the TF-IDF similarity scorer (ARCH-82, REQ-140).
