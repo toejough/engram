@@ -578,6 +578,49 @@ func TestT370_PreToolUsePendingCheck(t *testing.T) {
 		"pending check must come before Bash-only exit")
 }
 
+// TestT370_PostToolUsePendingCheck verifies post-tool-use.sh checks for
+// pending-maintenance.json after the engram filter but before all early-exit
+// paths (Write/Edit advisory, Bash-only exit) (#370).
+func TestT370_PostToolUsePendingCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "post-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must check for pending file.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
+	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
+	// Must use atomic consumption (mv).
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+
+	// Verify ordering: pending check before Write/Edit advisory and Bash-only exit.
+	engramFilterIdx := strings.Index(script, "#352")
+	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
+	advisoryIdx := strings.Index(script, "Write/Edit")
+	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
+
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
+		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", advisoryIdx),
+		"pending check must come before Write/Edit advisory")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
+		"pending check must come before Bash-only exit")
+}
+
 // repoRoot returns the engram repository root by walking up from the test file.
 func repoRoot(t *testing.T) string {
 	t.Helper()
