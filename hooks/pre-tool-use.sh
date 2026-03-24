@@ -37,8 +37,36 @@ if [[ "$TOOL_NAME" == "Bash" ]]; then
     fi
 fi
 
+# Consume pending maintenance results from async SessionStart (#370)
+PENDING_SYS=""
+PENDING_CTX=""
+PENDING_FILE="$ENGRAM_HOME/pending-maintenance.json"
+PENDING_TMP="$PENDING_FILE.consuming.$$"
+if [[ -f "$PENDING_FILE" ]] && mv "$PENDING_FILE" "$PENDING_TMP" 2>/dev/null; then
+    PENDING_SYS="$(jq -r '.systemMessage // empty' "$PENDING_TMP")"
+    PENDING_CTX="$(jq -r '.additionalContext // empty' "$PENDING_TMP")"
+    rm -f "$PENDING_TMP"
+fi
+
 # Only surface memories for Bash tool calls — non-Bash tools produce near-random BM25 matches
 if [[ "$TOOL_NAME" != "Bash" ]]; then
+    # Emit pending content if available before exiting (#370)
+    if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
+        jq -n \
+            --arg sys "$PENDING_SYS" \
+            --arg ctx "$PENDING_CTX" \
+            '{
+                systemMessage: $sys,
+                continue: true,
+                suppressOutput: false,
+                hookSpecificOutput: {
+                    hookEventName: "PreToolUse",
+                    permissionDecision: "allow",
+                    permissionDecisionReason: "",
+                    additionalContext: $ctx
+                }
+            }'
+    fi
     exit 0
 fi
 
@@ -48,16 +76,45 @@ if [[ -n "$TOOL_NAME" ]]; then
         --tool-name "$TOOL_NAME" --tool-input "$TOOL_INPUT" \
         --format json) || true
     if [[ -n "$SURFACE_OUTPUT" ]]; then
-        echo "$SURFACE_OUTPUT" | jq '{
-            systemMessage: (.summary // empty),
+        # Merge pending maintenance context with surfacing output (#370)
+        SURFACE_SYS="$(echo "$SURFACE_OUTPUT" | jq -r '.summary // empty')"
+        SURFACE_CTX="$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty')"
+        FINAL_SYS="${PENDING_SYS:+$PENDING_SYS
+}$SURFACE_SYS"
+        FINAL_CTX="${PENDING_CTX:+$PENDING_CTX
+}$SURFACE_CTX"
+        jq -n \
+            --arg sys "$FINAL_SYS" \
+            --arg ctx "$FINAL_CTX" \
+            '{
+                systemMessage: $sys,
+                continue: true,
+                suppressOutput: false,
+                hookSpecificOutput: {
+                    hookEventName: "PreToolUse",
+                    permissionDecision: "allow",
+                    permissionDecisionReason: "",
+                    additionalContext: $ctx
+                }
+            }'
+        exit 0
+    fi
+fi
+
+# No surfacing output — emit pending content standalone if available (#370)
+if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
+    jq -n \
+        --arg sys "$PENDING_SYS" \
+        --arg ctx "$PENDING_CTX" \
+        '{
+            systemMessage: $sys,
             continue: true,
             suppressOutput: false,
             hookSpecificOutput: {
                 hookEventName: "PreToolUse",
                 permissionDecision: "allow",
                 permissionDecisionReason: "",
-                additionalContext: .context
+                additionalContext: $ctx
             }
         }'
-    fi
 fi

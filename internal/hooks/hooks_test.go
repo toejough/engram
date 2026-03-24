@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -531,6 +532,50 @@ func TestT370_SessionStartAsyncWritesPendingFile(t *testing.T) {
 	g.Expect(script).NotTo(ContainSubstring("Mid-turn user messages"))
 	// Must reference #370.
 	g.Expect(script).To(ContainSubstring("#370"))
+}
+
+// TestT370_PreToolUsePendingCheck verifies pre-tool-use.sh checks for
+// pending-maintenance.json after the engram filter but before the Bash-only
+// exit (#370).
+func TestT370_PreToolUsePendingCheck(t *testing.T) {
+	t.Parallel()
+
+	g := NewGomegaWithT(t)
+
+	root := repoRoot(t)
+	scriptPath := filepath.Join(root, "hooks", "pre-tool-use.sh")
+
+	content, err := os.ReadFile(scriptPath)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	if err != nil {
+		return
+	}
+
+	script := string(content)
+
+	// Must check for pending file.
+	g.Expect(script).To(ContainSubstring("pending-maintenance.json"))
+	g.Expect(script).To(ContainSubstring("PENDING_SYS"))
+	g.Expect(script).To(ContainSubstring("PENDING_CTX"))
+	// Must use atomic consumption (mv).
+	g.Expect(script).To(ContainSubstring("mv "))
+	// Must reference #370.
+	g.Expect(script).To(ContainSubstring("#370"))
+
+	// Verify ordering: pending check must appear AFTER engram filter
+	// but BEFORE the Bash-only exit.
+	engramFilterIdx := strings.Index(script, "#352")
+	pendingCheckIdx := strings.Index(script, "pending-maintenance.json")
+	bashOnlyIdx := strings.Index(script, `"$TOOL_NAME" != "Bash"`)
+
+	g.Expect(engramFilterIdx).To(BeNumerically(">", -1))
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", -1))
+	g.Expect(bashOnlyIdx).To(BeNumerically(">", -1))
+	g.Expect(pendingCheckIdx).To(BeNumerically(">", engramFilterIdx),
+		"pending check must come after engram filter")
+	g.Expect(pendingCheckIdx).To(BeNumerically("<", bashOnlyIdx),
+		"pending check must come before Bash-only exit")
 }
 
 // repoRoot returns the engram repository root by walking up from the test file.
