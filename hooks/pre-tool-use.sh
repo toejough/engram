@@ -27,10 +27,10 @@ STDIN_JSON="$(cat)"
 TOOL_NAME="$(echo "$STDIN_JSON" | jq -r '.tool_name // empty')"
 TOOL_INPUT="$(echo "$STDIN_JSON" | jq -c '.tool_input // {}')"
 
-# Don't surface memories for engram plumbing calls — they create a feedback loop (#352)
+# Don't surface memories for any engram CLI calls (#352, #369)
 if [[ "$TOOL_NAME" == "Bash" ]]; then
     BASH_CMD="$(echo "$STDIN_JSON" | jq -r '.tool_input.command // empty')"
-    if [[ "$BASH_CMD" == *"engram feedback"* || "$BASH_CMD" == *"engram correct"* ]]; then
+    if [[ "$BASH_CMD" == *"$ENGRAM_BIN"* ]]; then
         exit 0
     fi
 fi
