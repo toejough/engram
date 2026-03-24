@@ -15,7 +15,7 @@ Two changes, both in hook scripts. No Go code changes.
 
 ### 1. User-Prompt-Submit: Skip Engram Skill Invocations
 
-Add an early exit in `hooks/user-prompt-submit.sh` after capturing `USER_MESSAGE` (line 29) and before the `correct` call (line 33). If the message starts with `/` followed by a name matching a directory under `$PLUGIN_ROOT/skills/`, exit immediately — no correction check, no surfacing.
+Add an early exit in `hooks/user-prompt-submit.sh` after capturing `USER_MESSAGE` and before the `CORRECT_ARGS=` line. If the message starts with `/` followed by a name matching a directory under `$PLUGIN_ROOT/skills/`, exit immediately — no correction check, no surfacing.
 
 ```bash
 # Skip surfacing for engram skill invocations (#369)
@@ -30,7 +30,11 @@ fi
 
 This auto-discovers skills from the directory structure. No maintenance required when skills are added or removed.
 
-Both `correct` and `surface` are skipped because the entire message is a command to engram, not user content to learn from or surface against.
+Both `correct` and `surface` are skipped because the entire message is a command to engram, not user content to learn from or surface against. This is a design constraint: entries in the `skills/` directory are treated as pure commands with no user-content semantics.
+
+Messages starting with `/` that don't match a skill directory (e.g., `/something-else`) pass through normally — the directory-existence check prevents false suppression.
+
+Leading whitespace is not a concern: Claude Code trims user prompts before passing them to hooks.
 
 ### 2. Pre/Post-Tool-Use: Widen Bash Filter to All Engram Commands
 
@@ -40,13 +44,13 @@ In both `hooks/pre-tool-use.sh` and `hooks/post-tool-use.sh`, replace the narrow
 if [[ "$BASH_CMD" == *"engram feedback"* || "$BASH_CMD" == *"engram correct"* ]]; then
 ```
 
-With:
+With a match against `$ENGRAM_BIN` (already in scope in both hooks):
 
 ```bash
-if [[ "$BASH_CMD" == *"engram "* ]]; then
+if [[ "$BASH_CMD" == *"$ENGRAM_BIN"* ]]; then
 ```
 
-This catches all `engram` subcommands (`surface`, `recall`, `feedback`, `correct`, `learn`, `show`, `migrate-scores`, etc.). There is no scenario where surfacing memories about an engram CLI invocation is useful — the memories would describe engram's own behavior, not the user's task.
+This catches all engram CLI invocations by matching the full binary path (`~/.claude/engram/bin/engram`), avoiding false positives on commands that happen to contain the word "engram" (e.g., `grep "engram" some-file`). All hook-invoked engram calls use `$ENGRAM_BIN`, so the path match is reliable.
 
 ### Unchanged
 
@@ -56,9 +60,16 @@ This catches all `engram` subcommands (`surface`, `recall`, `feedback`, `correct
 ## Testing
 
 Manual verification:
+
+**Positive cases (suppressed):**
 1. `/recall` no longer surfaces engram-internal memories in the system reminder.
 2. `/recall some query` also suppressed.
 3. `/memory-triage` also suppressed.
-4. Normal user messages (not starting with a skill name) still surface memories.
-5. Bash calls to `engram show`, `engram learn`, etc. no longer trigger surfacing.
+4. Bash calls to `engram show`, `engram learn`, etc. no longer trigger surfacing.
+
+**Negative cases (still surface normally):**
+5. Normal user messages (not starting with a skill name) still surface memories.
 6. Bash calls to non-engram commands still trigger surfacing normally.
+7. `/something-not-a-skill` still surfaces memories (no matching skill directory).
+8. `grep "engram" hooks/pre-tool-use.sh` still surfaces memories (not an engram binary invocation).
+9. Session-start surfacing is unaffected.
