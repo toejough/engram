@@ -46,12 +46,13 @@ type MemoryRecord struct {
 	UpdatedAt        string   `toml:"updated_at"`
 
 	// Tracking fields — feedback counters and surfacing metadata.
-	SurfacedCount     int    `toml:"surfaced_count"`
-	FollowedCount     int    `toml:"followed_count"`
-	ContradictedCount int    `toml:"contradicted_count"`
-	IgnoredCount      int    `toml:"ignored_count"`
-	IrrelevantCount   int    `toml:"irrelevant_count"`
-	LastSurfacedAt    string `toml:"last_surfaced_at"`
+	SurfacedCount     int      `toml:"surfaced_count"`
+	FollowedCount     int      `toml:"followed_count"`
+	ContradictedCount int      `toml:"contradicted_count"`
+	IgnoredCount      int      `toml:"ignored_count"`
+	IrrelevantCount   int      `toml:"irrelevant_count"`
+	IrrelevantQueries []string `toml:"irrelevant_queries,omitempty"`
+	LastSurfacedAt    string   `toml:"last_surfaced_at"`
 
 	// Provenance.
 	SourceType  string `toml:"source_type,omitempty"`

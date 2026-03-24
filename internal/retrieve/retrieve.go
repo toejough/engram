@@ -93,6 +93,7 @@ func (r *Retriever) parseMemoryFile(filePath string) (*memory.Stored, error) {
 		ContradictedCount: record.ContradictedCount,
 		IgnoredCount:      record.IgnoredCount,
 		IrrelevantCount:   record.IrrelevantCount,
+		IrrelevantQueries: record.IrrelevantQueries,
 		UpdatedAt:         updatedAt,
 		FilePath:          filePath,
 	}, nil

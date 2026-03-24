@@ -271,6 +271,7 @@ func (w *storedMemoryWriter) Write(path string, stored *memory.Stored) error {
 		ContradictedCount: stored.ContradictedCount,
 		IgnoredCount:      stored.IgnoredCount,
 		IrrelevantCount:   stored.IrrelevantCount,
+		IrrelevantQueries: stored.IrrelevantQueries,
 		UpdatedAt:         time.Now().UTC().Format(time.RFC3339),
 	}
 
@@ -439,6 +440,7 @@ func readStoredMemory(path string) (*memory.Stored, error) {
 		ContradictedCount: record.ContradictedCount,
 		IgnoredCount:      record.IgnoredCount,
 		IrrelevantCount:   record.IrrelevantCount,
+		IrrelevantQueries: record.IrrelevantQueries,
 		UpdatedAt:         updatedAt,
 		FilePath:          path,
 	}, nil

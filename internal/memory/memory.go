@@ -94,6 +94,7 @@ type Stored struct {
 	ContradictedCount int
 	IgnoredCount      int
 	IrrelevantCount   int
+	IrrelevantQueries []string
 	UpdatedAt         time.Time
 	FilePath          string
 }
