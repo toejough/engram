@@ -29,11 +29,31 @@ HOOK_JSON="$(cat)"
 USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 
+# Consume pending maintenance results from async SessionStart (#370)
+# Consumed here (not Pre/PostToolUse) so subagent tool calls don't eat it.
+PENDING_SYS=""
+PENDING_CTX=""
+PENDING_FILE="$ENGRAM_HOME/pending-maintenance.json"
+PENDING_TMP="$PENDING_FILE.consuming.$$"
+if [[ -f "$PENDING_FILE" ]] && mv "$PENDING_FILE" "$PENDING_TMP" 2>/dev/null; then
+    PENDING_SYS="$(jq -r '.systemMessage // empty' "$PENDING_TMP")"
+    PENDING_CTX="$(jq -r '.additionalContext // empty' "$PENDING_TMP")"
+    rm -f "$PENDING_TMP"
+fi
+
 # Skip surfacing for engram skill invocations (#369)
+# Still consume pending file above so it's not stuck forever.
 SKILL_CMD="${USER_MESSAGE%% *}"
 if [[ "$SKILL_CMD" == /* ]]; then
     SKILL_NAME="${SKILL_CMD#/}"
     if [[ -d "$PLUGIN_ROOT/skills/$SKILL_NAME" ]]; then
+        # Emit pending content even when skipping surfacing
+        if [[ -n "$PENDING_SYS" || -n "$PENDING_CTX" ]]; then
+            jq -n \
+                --arg sys "$PENDING_SYS" \
+                --arg ctx "$PENDING_CTX" \
+                '{systemMessage: $sys, additionalContext: $ctx}'
+        fi
         exit 0
     fi
 fi
@@ -57,16 +77,27 @@ if [[ -n "$USER_MESSAGE" ]]; then
         --message "$USER_MESSAGE" --format json) || true
 fi
 
-# Combine into single JSON output
+# Combine into single JSON output — merge pending maintenance, surface, correct
+FINAL_SYS="$PENDING_SYS"
+FINAL_CTX="$PENDING_CTX"
+
 if [[ -n "$SURFACE_OUTPUT" ]]; then
-    if [[ -n "$CORRECT_OUTPUT" ]]; then
-        # Creation feedback goes in systemMessage alongside surface summary
-        echo "$SURFACE_OUTPUT" | jq --arg correct "$CORRECT_OUTPUT" \
-            '{systemMessage: (.summary + "\n" + $correct), additionalContext: .context}'
-    else
-        echo "$SURFACE_OUTPUT" | jq '{systemMessage: .summary, additionalContext: .context}'
-    fi
-elif [[ -n "$CORRECT_OUTPUT" ]]; then
-    # Only correct output, no surface matches — emit as JSON with systemMessage
-    jq -n --arg correct "$CORRECT_OUTPUT" '{systemMessage: $correct, additionalContext: ""}'
+    SURFACE_SYS="$(echo "$SURFACE_OUTPUT" | jq -r '.summary // empty')"
+    SURFACE_CTX="$(echo "$SURFACE_OUTPUT" | jq -r '.context // empty')"
+    FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
+}$SURFACE_SYS"
+    FINAL_CTX="${FINAL_CTX:+$FINAL_CTX
+}$SURFACE_CTX"
+fi
+
+if [[ -n "$CORRECT_OUTPUT" ]]; then
+    FINAL_SYS="${FINAL_SYS:+$FINAL_SYS
+}$CORRECT_OUTPUT"
+fi
+
+if [[ -n "$FINAL_SYS" || -n "$FINAL_CTX" ]]; then
+    jq -n \
+        --arg sys "$FINAL_SYS" \
+        --arg ctx "$FINAL_CTX" \
+        '{systemMessage: $sys, additionalContext: $ctx}'
 fi
