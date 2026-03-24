@@ -18,7 +18,7 @@ Add `IrrelevantQueries` to both `MemoryRecord` (TOML serialization) and `Stored`
 
 ```go
 // In memory/record.go (MemoryRecord):
-IrrelevantQueries []string `toml:"irrelevant_queries"`
+IrrelevantQueries []string `toml:"irrelevant_queries,omitempty"`
 
 // In memory/memory.go (Stored):
 IrrelevantQueries []string
