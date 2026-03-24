@@ -227,13 +227,13 @@ func TestT352_PostToolUseFiltersFeedbackLoop(t *testing.T) {
 
 	script := string(content)
 
-	g.Expect(script).To(ContainSubstring(`"engram feedback"`), "must filter engram feedback calls")
-	g.Expect(script).To(ContainSubstring(`"engram correct"`), "must filter engram correct calls")
-	g.Expect(script).To(ContainSubstring("#352"), "must reference the issue for traceability")
+	g.Expect(script).To(ContainSubstring(`$ENGRAM_BIN`), "must filter all engram CLI calls via binary path")
+	g.Expect(script).To(ContainSubstring("#352"), "must reference the original issue for traceability")
+	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
 }
 
 // TestT352_PreToolUseFiltersFeedbackLoop verifies pre-tool-use.sh exits early
-// for engram feedback/correct calls to prevent a surfacing feedback loop (#352).
+// for all engram CLI calls to prevent a surfacing feedback loop (#352, #369).
 func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
 	t.Parallel()
 
@@ -251,9 +251,9 @@ func TestT352_PreToolUseFiltersFeedbackLoop(t *testing.T) {
 
 	script := string(content)
 
-	g.Expect(script).To(ContainSubstring(`"engram feedback"`), "must filter engram feedback calls")
-	g.Expect(script).To(ContainSubstring(`"engram correct"`), "must filter engram correct calls")
-	g.Expect(script).To(ContainSubstring("#352"), "must reference the issue for traceability")
+	g.Expect(script).To(ContainSubstring(`$ENGRAM_BIN`), "must filter all engram CLI calls via binary path")
+	g.Expect(script).To(ContainSubstring("#352"), "must reference the original issue for traceability")
+	g.Expect(script).To(ContainSubstring("#369"), "must reference the widening issue for traceability")
 }
 
 // TestT43_SessionStartHookSurfaces verifies hooks/session-start.sh calls
