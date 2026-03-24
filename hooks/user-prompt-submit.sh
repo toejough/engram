@@ -29,6 +29,15 @@ HOOK_JSON="$(cat)"
 USER_MESSAGE="$(echo "$HOOK_JSON" | jq -r '.prompt // empty')"
 TRANSCRIPT_PATH="$(echo "$HOOK_JSON" | jq -r '.transcript_path // empty')"
 
+# Skip surfacing for engram skill invocations (#369)
+SKILL_CMD="${USER_MESSAGE%% *}"
+if [[ "$SKILL_CMD" == /* ]]; then
+    SKILL_NAME="${SKILL_CMD#/}"
+    if [[ -d "$PLUGIN_ROOT/skills/$SKILL_NAME" ]]; then
+        exit 0
+    fi
+fi
+
 # UC-3: Check for inline correction (with transcript context)
 CORRECT_ARGS=(correct --message "$USER_MESSAGE")
 if [[ -n "$TRANSCRIPT_PATH" ]]; then
